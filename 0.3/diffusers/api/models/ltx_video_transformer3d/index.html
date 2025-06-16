@@ -7653,36 +7653,7 @@ specific language governing permissions and limitations under the License. -->
 
               <details class="quote">
                 <summary>Source code in <code>mindone/diffusers/models/transformers/transformer_ltx.py</code></summary>
-                <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">259</span>
-<span class="normal">260</span>
-<span class="normal">261</span>
-<span class="normal">262</span>
-<span class="normal">263</span>
-<span class="normal">264</span>
-<span class="normal">265</span>
-<span class="normal">266</span>
-<span class="normal">267</span>
-<span class="normal">268</span>
-<span class="normal">269</span>
-<span class="normal">270</span>
-<span class="normal">271</span>
-<span class="normal">272</span>
-<span class="normal">273</span>
-<span class="normal">274</span>
-<span class="normal">275</span>
-<span class="normal">276</span>
-<span class="normal">277</span>
-<span class="normal">278</span>
-<span class="normal">279</span>
-<span class="normal">280</span>
-<span class="normal">281</span>
-<span class="normal">282</span>
-<span class="normal">283</span>
-<span class="normal">284</span>
-<span class="normal">285</span>
-<span class="normal">286</span>
-<span class="normal">287</span>
-<span class="normal">288</span>
+                <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">288</span>
 <span class="normal">289</span>
 <span class="normal">290</span>
 <span class="normal">291</span>
@@ -7806,7 +7777,37 @@ specific language governing permissions and limitations under the License. -->
 <span class="normal">409</span>
 <span class="normal">410</span>
 <span class="normal">411</span>
-<span class="normal">412</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">class</span><span class="w"> </span><span class="nc">LTXVideoTransformer3DModel</span><span class="p">(</span><span class="n">ModelMixin</span><span class="p">,</span> <span class="n">ConfigMixin</span><span class="p">,</span> <span class="n">FromOriginalModelMixin</span><span class="p">,</span> <span class="n">PeftAdapterMixin</span><span class="p">):</span>
+<span class="normal">412</span>
+<span class="normal">413</span>
+<span class="normal">414</span>
+<span class="normal">415</span>
+<span class="normal">416</span>
+<span class="normal">417</span>
+<span class="normal">418</span>
+<span class="normal">419</span>
+<span class="normal">420</span>
+<span class="normal">421</span>
+<span class="normal">422</span>
+<span class="normal">423</span>
+<span class="normal">424</span>
+<span class="normal">425</span>
+<span class="normal">426</span>
+<span class="normal">427</span>
+<span class="normal">428</span>
+<span class="normal">429</span>
+<span class="normal">430</span>
+<span class="normal">431</span>
+<span class="normal">432</span>
+<span class="normal">433</span>
+<span class="normal">434</span>
+<span class="normal">435</span>
+<span class="normal">436</span>
+<span class="normal">437</span>
+<span class="normal">438</span>
+<span class="normal">439</span>
+<span class="normal">440</span>
+<span class="normal">441</span>
+<span class="normal">442</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">class</span><span class="w"> </span><span class="nc">LTXVideoTransformer3DModel</span><span class="p">(</span><span class="n">ModelMixin</span><span class="p">,</span> <span class="n">ConfigMixin</span><span class="p">,</span> <span class="n">FromOriginalModelMixin</span><span class="p">,</span> <span class="n">PeftAdapterMixin</span><span class="p">):</span>
 <span class="w">    </span><span class="sa">r</span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    A Transformer model for video-like data used in [LTX](https://huggingface.co/Lightricks/LTX-Video).</span>
 
@@ -7909,17 +7910,18 @@ specific language governing permissions and limitations under the License. -->
         <span class="n">encoder_hidden_states</span><span class="p">:</span> <span class="n">ms</span><span class="o">.</span><span class="n">Tensor</span><span class="p">,</span>
         <span class="n">timestep</span><span class="p">:</span> <span class="n">ms</span><span class="o">.</span><span class="n">Tensor</span><span class="p">,</span>
         <span class="n">encoder_attention_mask</span><span class="p">:</span> <span class="n">ms</span><span class="o">.</span><span class="n">Tensor</span><span class="p">,</span>
-        <span class="n">num_frames</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span>
-        <span class="n">height</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span>
-        <span class="n">width</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span>
-        <span class="n">rope_interpolation_scale</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Tuple</span><span class="p">[</span><span class="nb">float</span><span class="p">,</span> <span class="nb">float</span><span class="p">,</span> <span class="nb">float</span><span class="p">]]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">num_frames</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">int</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">height</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">int</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">width</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">int</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">rope_interpolation_scale</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Union</span><span class="p">[</span><span class="n">Tuple</span><span class="p">[</span><span class="nb">float</span><span class="p">,</span> <span class="nb">float</span><span class="p">,</span> <span class="nb">float</span><span class="p">],</span> <span class="n">ms</span><span class="o">.</span><span class="n">Tensor</span><span class="p">]]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">video_coords</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">ms</span><span class="o">.</span><span class="n">Tensor</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
         <span class="n">attention_kwargs</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">]]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
         <span class="n">return_dict</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
     <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">ms</span><span class="o">.</span><span class="n">Tensor</span><span class="p">:</span>
         <span class="k">if</span> <span class="n">attention_kwargs</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
             <span class="n">attention_kwargs</span> <span class="o">=</span> <span class="n">attention_kwargs</span><span class="o">.</span><span class="n">copy</span><span class="p">()</span>
 
-        <span class="n">image_rotary_emb</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">rope</span><span class="p">(</span><span class="n">hidden_states</span><span class="p">,</span> <span class="n">num_frames</span><span class="p">,</span> <span class="n">height</span><span class="p">,</span> <span class="n">width</span><span class="p">,</span> <span class="n">rope_interpolation_scale</span><span class="p">)</span>
+        <span class="n">image_rotary_emb</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">rope</span><span class="p">(</span><span class="n">hidden_states</span><span class="p">,</span> <span class="n">num_frames</span><span class="p">,</span> <span class="n">height</span><span class="p">,</span> <span class="n">width</span><span class="p">,</span> <span class="n">rope_interpolation_scale</span><span class="p">,</span> <span class="n">video_coords</span><span class="p">)</span>
 
         <span class="c1"># convert encoder_attention_mask to a bias the same way we do for attention_mask</span>
         <span class="k">if</span> <span class="n">encoder_attention_mask</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="ow">and</span> <span class="n">encoder_attention_mask</span><span class="o">.</span><span class="n">ndim</span> <span class="o">==</span> <span class="mi">2</span><span class="p">:</span>

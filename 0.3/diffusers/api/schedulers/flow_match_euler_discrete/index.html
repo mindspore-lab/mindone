@@ -8110,7 +8110,21 @@ Sample Steps are Flawed</a> for more information.</p>
 <span class="normal">498</span>
 <span class="normal">499</span>
 <span class="normal">500</span>
-<span class="normal">501</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">class</span><span class="w"> </span><span class="nc">FlowMatchEulerDiscreteScheduler</span><span class="p">(</span><span class="n">SchedulerMixin</span><span class="p">,</span> <span class="n">ConfigMixin</span><span class="p">):</span>
+<span class="normal">501</span>
+<span class="normal">502</span>
+<span class="normal">503</span>
+<span class="normal">504</span>
+<span class="normal">505</span>
+<span class="normal">506</span>
+<span class="normal">507</span>
+<span class="normal">508</span>
+<span class="normal">509</span>
+<span class="normal">510</span>
+<span class="normal">511</span>
+<span class="normal">512</span>
+<span class="normal">513</span>
+<span class="normal">514</span>
+<span class="normal">515</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">class</span><span class="w"> </span><span class="nc">FlowMatchEulerDiscreteScheduler</span><span class="p">(</span><span class="n">SchedulerMixin</span><span class="p">,</span> <span class="n">ConfigMixin</span><span class="p">):</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    Euler scheduler.</span>
 
@@ -8413,6 +8427,7 @@ Sample Steps are Flawed</a> for more information.</p>
         <span class="n">s_tmax</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="nb">float</span><span class="p">(</span><span class="s2">&quot;inf&quot;</span><span class="p">),</span>
         <span class="n">s_noise</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">1.0</span><span class="p">,</span>
         <span class="n">generator</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">random</span><span class="o">.</span><span class="n">Generator</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">per_token_timesteps</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">ms</span><span class="o">.</span><span class="n">Tensor</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
         <span class="n">return_dict</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
     <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Union</span><span class="p">[</span><span class="n">FlowMatchEulerDiscreteSchedulerOutput</span><span class="p">,</span> <span class="n">Tuple</span><span class="p">]:</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
@@ -8433,6 +8448,8 @@ Sample Steps are Flawed</a> for more information.</p>
 <span class="sd">                Scaling factor for noise added to the sample.</span>
 <span class="sd">            generator (`np.random.Generator`, *optional*):</span>
 <span class="sd">                A random number generator.</span>
+<span class="sd">            per_token_timesteps (`ms.Tensor`, *optional*):</span>
+<span class="sd">                The timesteps for each token in the sample.</span>
 <span class="sd">            return_dict (`bool`):</span>
 <span class="sd">                Whether or not to return a [`~schedulers.scheduling_euler_discrete.EulerDiscreteSchedulerOutput`] or</span>
 <span class="sd">                tuple.</span>
@@ -8460,16 +8477,27 @@ Sample Steps are Flawed</a> for more information.</p>
         <span class="c1"># Upcast to avoid precision issues when computing prev_sample</span>
         <span class="n">sample</span> <span class="o">=</span> <span class="n">sample</span><span class="o">.</span><span class="n">to</span><span class="p">(</span><span class="n">ms</span><span class="o">.</span><span class="n">float32</span><span class="p">)</span>
 
-        <span class="n">sigma</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">sigmas</span><span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">step_index</span><span class="p">]</span>
-        <span class="n">sigma_next</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">sigmas</span><span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">step_index</span> <span class="o">+</span> <span class="mi">1</span><span class="p">]</span>
+        <span class="k">if</span> <span class="n">per_token_timesteps</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">per_token_sigmas</span> <span class="o">=</span> <span class="n">per_token_timesteps</span> <span class="o">/</span> <span class="bp">self</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">num_train_timesteps</span>
 
-        <span class="n">prev_sample</span> <span class="o">=</span> <span class="n">sample</span> <span class="o">+</span> <span class="p">(</span><span class="n">sigma_next</span> <span class="o">-</span> <span class="n">sigma</span><span class="p">)</span> <span class="o">*</span> <span class="n">model_output</span>
+            <span class="n">sigmas</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">sigmas</span><span class="p">[:,</span> <span class="kc">None</span><span class="p">,</span> <span class="kc">None</span><span class="p">]</span>
+            <span class="n">lower_mask</span> <span class="o">=</span> <span class="n">sigmas</span> <span class="o">&lt;</span> <span class="n">per_token_sigmas</span><span class="p">[</span><span class="kc">None</span><span class="p">]</span> <span class="o">-</span> <span class="mf">1e-6</span>
+            <span class="n">lower_sigmas</span> <span class="o">=</span> <span class="n">lower_mask</span> <span class="o">*</span> <span class="n">sigmas</span>
+            <span class="n">lower_sigmas</span><span class="p">,</span> <span class="n">_</span> <span class="o">=</span> <span class="n">lower_sigmas</span><span class="o">.</span><span class="n">max</span><span class="p">(</span><span class="n">dim</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>
+            <span class="n">dt</span> <span class="o">=</span> <span class="p">(</span><span class="n">per_token_sigmas</span> <span class="o">-</span> <span class="n">lower_sigmas</span><span class="p">)[</span><span class="o">...</span><span class="p">,</span> <span class="kc">None</span><span class="p">]</span>
 
-        <span class="c1"># Cast sample back to model compatible dtype</span>
-        <span class="n">prev_sample</span> <span class="o">=</span> <span class="n">prev_sample</span><span class="o">.</span><span class="n">to</span><span class="p">(</span><span class="n">model_output</span><span class="o">.</span><span class="n">dtype</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">sigma</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">sigmas</span><span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">step_index</span><span class="p">]</span>
+            <span class="n">sigma_next</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">sigmas</span><span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">step_index</span> <span class="o">+</span> <span class="mi">1</span><span class="p">]</span>
+            <span class="n">dt</span> <span class="o">=</span> <span class="n">sigma_next</span> <span class="o">-</span> <span class="n">sigma</span>
+
+        <span class="n">prev_sample</span> <span class="o">=</span> <span class="n">sample</span> <span class="o">+</span> <span class="n">dt</span> <span class="o">*</span> <span class="n">model_output</span>
 
         <span class="c1"># upon completion increase step index by one</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">_step_index</span> <span class="o">+=</span> <span class="mi">1</span>
+        <span class="k">if</span> <span class="n">per_token_timesteps</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="c1"># Cast sample back to model compatible dtype</span>
+            <span class="n">prev_sample</span> <span class="o">=</span> <span class="n">prev_sample</span><span class="o">.</span><span class="n">to</span><span class="p">(</span><span class="n">model_output</span><span class="o">.</span><span class="n">dtype</span><span class="p">)</span>
 
         <span class="k">if</span> <span class="ow">not</span> <span class="n">return_dict</span><span class="p">:</span>
             <span class="k">return</span> <span class="p">(</span><span class="n">prev_sample</span><span class="p">,)</span>
@@ -9188,7 +9216,7 @@ automatically.</p>
 
 
 <h3 id="mindone.diffusers.FlowMatchEulerDiscreteScheduler.step" class="doc doc-heading">
-            <code class="highlight language-python"><span class="n">mindone</span><span class="o">.</span><span class="n">diffusers</span><span class="o">.</span><span class="n">FlowMatchEulerDiscreteScheduler</span><span class="o">.</span><span class="n">step</span><span class="p">(</span><span class="n">model_output</span><span class="p">,</span> <span class="n">timestep</span><span class="p">,</span> <span class="n">sample</span><span class="p">,</span> <span class="n">s_churn</span><span class="o">=</span><span class="mf">0.0</span><span class="p">,</span> <span class="n">s_tmin</span><span class="o">=</span><span class="mf">0.0</span><span class="p">,</span> <span class="n">s_tmax</span><span class="o">=</span><span class="nb">float</span><span class="p">(</span><span class="s1">&#39;inf&#39;</span><span class="p">),</span> <span class="n">s_noise</span><span class="o">=</span><span class="mf">1.0</span><span class="p">,</span> <span class="n">generator</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">return_dict</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span></code>
+            <code class="highlight language-python"><span class="n">mindone</span><span class="o">.</span><span class="n">diffusers</span><span class="o">.</span><span class="n">FlowMatchEulerDiscreteScheduler</span><span class="o">.</span><span class="n">step</span><span class="p">(</span><span class="n">model_output</span><span class="p">,</span> <span class="n">timestep</span><span class="p">,</span> <span class="n">sample</span><span class="p">,</span> <span class="n">s_churn</span><span class="o">=</span><span class="mf">0.0</span><span class="p">,</span> <span class="n">s_tmin</span><span class="o">=</span><span class="mf">0.0</span><span class="p">,</span> <span class="n">s_tmax</span><span class="o">=</span><span class="nb">float</span><span class="p">(</span><span class="s1">&#39;inf&#39;</span><span class="p">),</span> <span class="n">s_noise</span><span class="o">=</span><span class="mf">1.0</span><span class="p">,</span> <span class="n">generator</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">per_token_timesteps</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">return_dict</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span></code>
 
 <a href="#mindone.diffusers.FlowMatchEulerDiscreteScheduler.step" class="headerlink" title="Permanent link">&para;</a></h3>
 
@@ -9340,6 +9368,24 @@ process from the learned model outputs (most often the predicted noise).</p>
             </td>
           </tr>
           <tr class="doc-section-item">
+            <td><code>per_token_timesteps</code></td>
+            <td class="doc-param-details">
+              <div class="doc-md-description">
+                <p>The timesteps for each token in the sample.</p>
+              </div>
+              <p>
+                  <span class="doc-param-annotation">
+                    <b>TYPE:</b>
+                      <code>`ms.Tensor`, *optional*</code>
+                  </span>
+                  <span class="doc-param-default">
+                    <b>DEFAULT:</b>
+                      <code>None</code>
+                  </span>
+              </p>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
             <td><code>return_dict</code></td>
             <td class="doc-param-details">
               <div class="doc-md-description">
@@ -9460,7 +9506,21 @@ returned, otherwise a tuple is returned where the first element is the sample te
 <span class="normal">409</span>
 <span class="normal">410</span>
 <span class="normal">411</span>
-<span class="normal">412</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">step</span><span class="p">(</span>
+<span class="normal">412</span>
+<span class="normal">413</span>
+<span class="normal">414</span>
+<span class="normal">415</span>
+<span class="normal">416</span>
+<span class="normal">417</span>
+<span class="normal">418</span>
+<span class="normal">419</span>
+<span class="normal">420</span>
+<span class="normal">421</span>
+<span class="normal">422</span>
+<span class="normal">423</span>
+<span class="normal">424</span>
+<span class="normal">425</span>
+<span class="normal">426</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">step</span><span class="p">(</span>
     <span class="bp">self</span><span class="p">,</span>
     <span class="n">model_output</span><span class="p">:</span> <span class="n">ms</span><span class="o">.</span><span class="n">Tensor</span><span class="p">,</span>
     <span class="n">timestep</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="nb">float</span><span class="p">,</span> <span class="n">ms</span><span class="o">.</span><span class="n">Tensor</span><span class="p">],</span>
@@ -9470,6 +9530,7 @@ returned, otherwise a tuple is returned where the first element is the sample te
     <span class="n">s_tmax</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="nb">float</span><span class="p">(</span><span class="s2">&quot;inf&quot;</span><span class="p">),</span>
     <span class="n">s_noise</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">1.0</span><span class="p">,</span>
     <span class="n">generator</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">random</span><span class="o">.</span><span class="n">Generator</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="n">per_token_timesteps</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">ms</span><span class="o">.</span><span class="n">Tensor</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
     <span class="n">return_dict</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
 <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Union</span><span class="p">[</span><span class="n">FlowMatchEulerDiscreteSchedulerOutput</span><span class="p">,</span> <span class="n">Tuple</span><span class="p">]:</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
@@ -9490,6 +9551,8 @@ returned, otherwise a tuple is returned where the first element is the sample te
 <span class="sd">            Scaling factor for noise added to the sample.</span>
 <span class="sd">        generator (`np.random.Generator`, *optional*):</span>
 <span class="sd">            A random number generator.</span>
+<span class="sd">        per_token_timesteps (`ms.Tensor`, *optional*):</span>
+<span class="sd">            The timesteps for each token in the sample.</span>
 <span class="sd">        return_dict (`bool`):</span>
 <span class="sd">            Whether or not to return a [`~schedulers.scheduling_euler_discrete.EulerDiscreteSchedulerOutput`] or</span>
 <span class="sd">            tuple.</span>
@@ -9517,16 +9580,27 @@ returned, otherwise a tuple is returned where the first element is the sample te
     <span class="c1"># Upcast to avoid precision issues when computing prev_sample</span>
     <span class="n">sample</span> <span class="o">=</span> <span class="n">sample</span><span class="o">.</span><span class="n">to</span><span class="p">(</span><span class="n">ms</span><span class="o">.</span><span class="n">float32</span><span class="p">)</span>
 
-    <span class="n">sigma</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">sigmas</span><span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">step_index</span><span class="p">]</span>
-    <span class="n">sigma_next</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">sigmas</span><span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">step_index</span> <span class="o">+</span> <span class="mi">1</span><span class="p">]</span>
+    <span class="k">if</span> <span class="n">per_token_timesteps</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="n">per_token_sigmas</span> <span class="o">=</span> <span class="n">per_token_timesteps</span> <span class="o">/</span> <span class="bp">self</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">num_train_timesteps</span>
 
-    <span class="n">prev_sample</span> <span class="o">=</span> <span class="n">sample</span> <span class="o">+</span> <span class="p">(</span><span class="n">sigma_next</span> <span class="o">-</span> <span class="n">sigma</span><span class="p">)</span> <span class="o">*</span> <span class="n">model_output</span>
+        <span class="n">sigmas</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">sigmas</span><span class="p">[:,</span> <span class="kc">None</span><span class="p">,</span> <span class="kc">None</span><span class="p">]</span>
+        <span class="n">lower_mask</span> <span class="o">=</span> <span class="n">sigmas</span> <span class="o">&lt;</span> <span class="n">per_token_sigmas</span><span class="p">[</span><span class="kc">None</span><span class="p">]</span> <span class="o">-</span> <span class="mf">1e-6</span>
+        <span class="n">lower_sigmas</span> <span class="o">=</span> <span class="n">lower_mask</span> <span class="o">*</span> <span class="n">sigmas</span>
+        <span class="n">lower_sigmas</span><span class="p">,</span> <span class="n">_</span> <span class="o">=</span> <span class="n">lower_sigmas</span><span class="o">.</span><span class="n">max</span><span class="p">(</span><span class="n">dim</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>
+        <span class="n">dt</span> <span class="o">=</span> <span class="p">(</span><span class="n">per_token_sigmas</span> <span class="o">-</span> <span class="n">lower_sigmas</span><span class="p">)[</span><span class="o">...</span><span class="p">,</span> <span class="kc">None</span><span class="p">]</span>
 
-    <span class="c1"># Cast sample back to model compatible dtype</span>
-    <span class="n">prev_sample</span> <span class="o">=</span> <span class="n">prev_sample</span><span class="o">.</span><span class="n">to</span><span class="p">(</span><span class="n">model_output</span><span class="o">.</span><span class="n">dtype</span><span class="p">)</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="n">sigma</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">sigmas</span><span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">step_index</span><span class="p">]</span>
+        <span class="n">sigma_next</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">sigmas</span><span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">step_index</span> <span class="o">+</span> <span class="mi">1</span><span class="p">]</span>
+        <span class="n">dt</span> <span class="o">=</span> <span class="n">sigma_next</span> <span class="o">-</span> <span class="n">sigma</span>
+
+    <span class="n">prev_sample</span> <span class="o">=</span> <span class="n">sample</span> <span class="o">+</span> <span class="n">dt</span> <span class="o">*</span> <span class="n">model_output</span>
 
     <span class="c1"># upon completion increase step index by one</span>
     <span class="bp">self</span><span class="o">.</span><span class="n">_step_index</span> <span class="o">+=</span> <span class="mi">1</span>
+    <span class="k">if</span> <span class="n">per_token_timesteps</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="c1"># Cast sample back to model compatible dtype</span>
+        <span class="n">prev_sample</span> <span class="o">=</span> <span class="n">prev_sample</span><span class="o">.</span><span class="n">to</span><span class="p">(</span><span class="n">model_output</span><span class="o">.</span><span class="n">dtype</span><span class="p">)</span>
 
     <span class="k">if</span> <span class="ow">not</span> <span class="n">return_dict</span><span class="p">:</span>
         <span class="k">return</span> <span class="p">(</span><span class="n">prev_sample</span><span class="p">,)</span>
