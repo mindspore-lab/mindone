@@ -435,7 +435,7 @@ class GroundingDinoConvEncoder(nn.Cell):
             raise ValueError("Either `backbone` or `backbone_config` should be provided in the config")
 
         if "resnet" in backbone_model_type:
-            for name, parameter in self.model.named_parameters():
+            for name, parameter in self.model.parameters_and_names():
                 if config.use_timm_backbone:
                     if "layer2" not in name and "layer3" not in name and "layer4" not in name:
                         parameter.requires_grad_(False)
@@ -1426,7 +1426,7 @@ class GroundingDinoPreTrainedModel(PreTrainedModel):
             module.sampling_offsets.bias = ms.Parameter(grid_init.view(-1))
             constant_(module.attention_weights.weight, 0.0)
             constant_(module.attention_weights.bias, 0.0)
-            xavier_uniform_(module.value_proj.weighta)
+            xavier_uniform_(module.value_proj.weight)
             constant_(module.value_proj.bias, 0.0)
             xavier_uniform_(module.output_proj.weight)
             constant_(module.output_proj.bias, 0.0)
@@ -1444,7 +1444,7 @@ class GroundingDinoPreTrainedModel(PreTrainedModel):
             xavier_uniform_(module.out_text_proj.weight)
             constant_(module.out_text_proj.bias, 0)
         elif isinstance(module, (GroundingDinoEncoderLayer, GroundingDinoDecoderLayer)):
-            for p in module.parameters():
+            for p in module.get_parameters():
                 if p.ndim() > 1:
                     normal_(p, mean=0.0, std=std)
         elif isinstance(module, (mint.nn.Linear, mint.nn.Conv2d, mint.nn.BatchNorm2d)):
@@ -1979,12 +1979,12 @@ class GroundingDinoModel(GroundingDinoPreTrainedModel):
         return self.decoder
 
     def freeze_backbone(self):
-        for name, param in self.backbone.conv_encoder.model.named_parameters():
-            param.requires_grad_(False)
+        for param in self.backbone.conv_encoder.model.get_parameters():
+            param.requires_grad = False
 
     def unfreeze_backbone(self):
-        for name, param in self.backbone.conv_encoder.model.named_parameters():
-            param.requires_grad_(True)
+        for param in self.backbone.conv_encoder.model.get_parameters():
+            param.requires_grad = False
 
     def get_valid_ratio(self, mask):
         """Get the valid ratio of all feature maps."""
