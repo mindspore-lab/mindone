@@ -122,6 +122,7 @@ from .models.gpt2 import (
     GPT2Model,
     GPT2PreTrainedModel,
 )
+from .models.grounding_dino import GroundingDinoForObjectDetection, GroundingDinoModel, GroundingDinoPreTrainedModel
 from .models.hiera import (
     HieraBackbone,
     HieraForImageClassification,
