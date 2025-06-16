@@ -1111,35 +1111,35 @@ class SwinForMaskedImageModeling(SwinPreTrainedModel):
         return_dict: Optional[bool] = None,
     ) -> Union[Tuple, SwinMaskedImageModelingOutput]:
         r"""
-                bool_masked_pos (`ms.Tensor` of shape `(batch_size, num_patches)`):
-                    Boolean masked positions. Indicates which patches are masked (1) and which aren't (0).
+        bool_masked_pos (`ms.Tensor` of shape `(batch_size, num_patches)`):
+            Boolean masked positions. Indicates which patches are masked (1) and which aren't (0).
 
-                Returns:
+        Returns:
 
-                Examples:
-                ```python
-                >>> from transformers import AutoImageProcessor, SwinForMaskedImageModeling
-                >>> import mindspore as ms
-        import mindspore.mint as mint
-                >>> from PIL import Image
-                >>> import requests
+        Examples:
+        ```python
+        >>> from transformers import AutoImageProcessor, SwinForMaskedImageModeling
+        >>> import mindspore as ms
+        >>> import mindspore.mint as mint
+        >>> from PIL import Image
+        >>> import requests
 
-                >>> url = "http://images.cocodataset.org/val2017/000000039769.jpg"
-                >>> image = Image.open(requests.get(url, stream=True).raw)
+        >>> url = "http://images.cocodataset.org/val2017/000000039769.jpg"
+        >>> image = Image.open(requests.get(url, stream=True).raw)
 
-                >>> image_processor = AutoImageProcessor.from_pretrained("microsoft/swin-base-simmim-window6-192")
-                >>> model = SwinForMaskedImageModeling.from_pretrained("microsoft/swin-base-simmim-window6-192")
+        >>> image_processor = AutoImageProcessor.from_pretrained("microsoft/swin-base-simmim-window6-192")
+        >>> model = SwinForMaskedImageModeling.from_pretrained("microsoft/swin-base-simmim-window6-192")
 
-                >>> num_patches = (model.config.image_size // model.config.patch_size) ** 2
-                >>> pixel_values = image_processor(images=image, return_tensors="pt").pixel_values
-                >>> # create random boolean mask of shape (batch_size, num_patches)
-                >>> bool_masked_pos = mint.randint(low=0, high=2, size=(1, num_patches)).bool()
+        >>> num_patches = (model.config.image_size // model.config.patch_size) ** 2
+        >>> pixel_values = image_processor(images=image, return_tensors="pt").pixel_values
+        >>> # create random boolean mask of shape (batch_size, num_patches)
+        >>> bool_masked_pos = mint.randint(low=0, high=2, size=(1, num_patches)).bool()
 
-                >>> outputs = model(pixel_values, bool_masked_pos=bool_masked_pos)
-                >>> loss, reconstructed_pixel_values = outputs.loss, outputs.reconstruction
-                >>> list(reconstructed_pixel_values.shape)
-                [1, 3, 192, 192]
-                ```"""
+        >>> outputs = model(pixel_values, bool_masked_pos=bool_masked_pos)
+        >>> loss, reconstructed_pixel_values = outputs.loss, outputs.reconstruction
+        >>> list(reconstructed_pixel_values.shape)
+        [1, 3, 192, 192]
+        ```"""
         return_dict = return_dict if return_dict is not None else self.config.use_return_dict
 
         outputs = self.swin(
