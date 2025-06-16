@@ -455,7 +455,7 @@ class SwinSelfAttention(nn.Cell):
         )
 
         self.relative_position_bias_table = ms.Parameter(
-            mint.zeros((2 * self.window_size[0] - 1) * (2 * self.window_size[1] - 1), num_heads)
+            mint.zeros(((2 * self.window_size[0] - 1) * (2 * self.window_size[1] - 1), num_heads))
         )
 
         # get pair-wise relative position index for each token inside the window
@@ -620,7 +620,7 @@ class SwinOutput(nn.Cell):
 class SwinLayer(nn.Cell):
     def __init__(self, config, dim, input_resolution, num_heads, drop_path_rate=0.0, shift_size=0):
         super().__init__()
-        self.chunk_size_feed_construct = config.chunk_size_feed_construct
+        self.chunk_size_feed_forward = config.chunk_size_feed_forward
         self.shift_size = shift_size
         self.window_size = config.window_size
         self.input_resolution = input_resolution
