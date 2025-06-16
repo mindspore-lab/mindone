@@ -22,16 +22,17 @@ class GDINO:
         for i, prompt in enumerate(texts_prompt):
             if prompt[-1] != ".":
                 texts_prompt[i] += "."
-        inputs = ms.Tensor(self.processor(images=images_pil, text=texts_prompt, return_tensors="np"))
+        inputs = self.processor(images=images_pil, text=texts_prompt, return_tensors="np")
+        inputs = {k: ms.Tensor(inputs[k]) for k in inputs.keys()}
 
         outputs = self.model(**inputs)
 
         results = self.processor.post_process_grounded_object_detection(
             outputs,
-            inputs.input_ids,
+            inputs["input_ids"],
             box_threshold=box_threshold,
             text_threshold=text_threshold,
-            target_sizes=[k.size[::-1] for k in images_pil],
+            target_sizes=[k.shape[::-1] for k in images_pil],
         )
         return results
 
