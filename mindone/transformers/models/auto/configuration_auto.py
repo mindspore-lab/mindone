@@ -38,6 +38,7 @@ CONFIG_MAPPING_NAMES = OrderedDict(
         ("blip-2", "Blip2Config"),
         ("clip", "CLIPConfig"),
         ("clip_vision_model", "CLIPVisionConfig"),
+        ("deberta", "DebertaConfig"),
         ("deberta-v2", "DebertaV2Config"),
         ("dpt", "DPTConfig"),
         ("gemma", "GemmaConfig"),
@@ -65,6 +66,8 @@ CONFIG_MAPPING_NAMES = OrderedDict(
         ("qwen2_audio_encoder", "Qwen2AudioEncoderConfig"),
         ("qwen2_vl", "Qwen2VLConfig"),
         ("qwen3", "Qwen3Config"),
+        ("recurrent_gemma", "RecurrentGemmaConfig"),
+        ("rembert", "RemBertConfig"),
         ("siglip", "SiglipConfig"),
         ("siglip_vision_model", "SiglipVisionConfig"),
         ("speecht5", "SpeechT5Config"),
@@ -73,6 +76,7 @@ CONFIG_MAPPING_NAMES = OrderedDict(
         ("wav2vec2", "Wav2Vec2Config"),
         ("whisper", "WhisperConfig"),
         ("xlm-roberta", "XLMRobertaConfig"),
+        ("xlm-roberta-xl", "XLMRobertaXLConfig"),
     ]
 )
 
@@ -89,6 +93,7 @@ MODEL_NAMES_MAPPING = OrderedDict(
         ("clap", "CLAP"),
         ("clip", "CLIP"),
         ("clip_vision_model", "CLIPVisionModel"),
+        ("deberta", "DeBERTa"),
         ("deberta-v2", "DeBERTa-v2"),
         ("dpt", "DPT"),
         ("gemma", "Gemma"),
@@ -120,6 +125,8 @@ MODEL_NAMES_MAPPING = OrderedDict(
         ("qwen2_audio_encoder", "Qwen2AudioEncoder"),
         ("qwen2_vl", "Qwen2VL"),
         ("qwen3", "Qwen3Model"),
+        ("recurrent_gemma", "RecurrentGemma"),
+        ("rembert", "RemBERT"),
         ("siglip", "SigLIP"),
         ("siglip_vision_model", "SiglipVisionModel"),
         ("speecht5", "SpeechT5"),

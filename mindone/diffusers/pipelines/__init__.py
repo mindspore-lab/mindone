@@ -126,7 +126,7 @@ _import_structure = {
         "LatentConsistencyModelPipeline",
     ],
     "latte": ["LattePipeline"],
-    "ltx": ["LTXPipeline", "LTXImageToVideoPipeline"],
+    "ltx": ["LTXPipeline", "LTXImageToVideoPipeline", "LTXConditionPipeline"],
     "lumina": ["LuminaText2ImgPipeline"],
     "lumina2": ["Lumina2Pipeline", "Lumina2Text2ImgPipeline"],
     "marigold": [
@@ -230,6 +230,7 @@ _import_structure = {
         "WuerstchenDecoderPipeline",
         "WuerstchenPriorPipeline",
     ],
+    "wan": ["WanPipeline", "WanImageToVideoPipeline", "WanVideoToVideoPipeline"],
     "pipeline_utils": [
         "AudioPipelineOutput",
         "DiffusionPipeline",
@@ -338,7 +339,7 @@ if TYPE_CHECKING:
         LEditsPPPipelineStableDiffusion,
         LEditsPPPipelineStableDiffusionXL,
     )
-    from .ltx import LTXImageToVideoPipeline, LTXPipeline
+    from .ltx import LTXConditionPipeline, LTXImageToVideoPipeline, LTXPipeline
     from .lumina import LuminaText2ImgPipeline
     from .lumina2 import Lumina2Pipeline, Lumina2Text2ImgPipeline
     from .marigold import MarigoldDepthPipeline, MarigoldNormalsPipeline
@@ -414,6 +415,7 @@ if TYPE_CHECKING:
     )
     from .unclip import UnCLIPImageVariationPipeline, UnCLIPPipeline
     from .unidiffuser import ImageTextPipelineOutput, UniDiffuserModel, UniDiffuserPipeline, UniDiffuserTextDecoder
+    from .wan import WanImageToVideoPipeline, WanPipeline, WanVideoToVideoPipeline
     from .wuerstchen import WuerstchenCombinedPipeline, WuerstchenDecoderPipeline, WuerstchenPriorPipeline
 else:
     import sys

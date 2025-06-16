@@ -15,7 +15,15 @@ from .models.albert import (
     AlbertModel,
     AlbertPreTrainedModel,
 )
-from .models.auto import AutoConfig, AutoImageProcessor, AutoModel, AutoModelForCausalLM, AutoModelForMaskedLM
+from .models.auto import (
+    AutoConfig,
+    AutoFeatureExtractor,
+    AutoImageProcessor,
+    AutoModel,
+    AutoModelForCausalLM,
+    AutoModelForMaskedLM,
+    AutoProcessor,
+)
 from .models.bart import (
     BartForCausalLM,
     BartForConditionalGeneration,
@@ -90,6 +98,14 @@ from .models.clip import (
     CLIPTextModelWithProjection,
     CLIPVisionModel,
     CLIPVisionModelWithProjection,
+)
+from .models.deberta import (
+    DebertaForMaskedLM,
+    DebertaForQuestionAnswering,
+    DebertaForSequenceClassification,
+    DebertaForTokenClassification,
+    DebertaModel,
+    DebertaPreTrainedModel,
 )
 from .models.deberta_v2 import (
     DebertaV2ForMaskedLM,
@@ -213,6 +229,18 @@ from .models.qwen2_audio import Qwen2AudioEncoder, Qwen2AudioForConditionalGener
 from .models.qwen2_vl import Qwen2VLForConditionalGeneration, Qwen2VLModel, Qwen2VLPreTrainedModel
 
 # from .models.qwen3 import Qwen3ForCausalLM, Qwen3Model, Qwen3PreTrainedModel
+from .models.recurrent_gemma import RecurrentGemmaForCausalLM, RecurrentGemmaModel, RecurrentGemmaPreTrainedModel
+from .models.rembert import (
+    RemBertForCausalLM,
+    RemBertForMaskedLM,
+    RemBertForMultipleChoice,
+    RemBertForQuestionAnswering,
+    RemBertForSequenceClassification,
+    RemBertForTokenClassification,
+    RemBertLayer,
+    RemBertModel,
+    RemBertPreTrainedModel,
+)
 from .models.siglip import SiglipModel, SiglipPreTrainedModel, SiglipTextModel, SiglipVisionModel
 from .models.speecht5 import (
     SpeechT5ForSpeechToSpeech,
@@ -267,5 +295,15 @@ from .models.whisper import (
     WhisperProcessor,
 )
 from .models.xlm_roberta import XLMRobertaModel, XLMRobertaPreTrainedModel
+from .models.xlm_roberta_xl import (
+    XLMRobertaXLForCausalLM,
+    XLMRobertaXLForMaskedLM,
+    XLMRobertaXLForMultipleChoice,
+    XLMRobertaXLForQuestionAnswering,
+    XLMRobertaXLForSequenceClassification,
+    XLMRobertaXLForTokenClassification,
+    XLMRobertaXLModel,
+    XLMRobertaXLPreTrainedModel,
+)
 from .pipelines import TextGenerationPipeline, pipeline
 from .processing_utils import ProcessorMixin
