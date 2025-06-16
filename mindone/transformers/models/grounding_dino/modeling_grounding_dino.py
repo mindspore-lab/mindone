@@ -4,7 +4,7 @@ from dataclasses import dataclass
 from typing import Dict, List, Optional, Tuple, Union
 
 from transformers import GroundingDinoConfig
-from transformers.utils import ModelOutput, auto_docstring, logging
+from transformers.utils import ModelOutput, logging
 
 import mindspore as ms
 import mindspore.mint as mint
@@ -1400,7 +1400,6 @@ class GroundingDinoContrastiveEmbedding(nn.Cell):
         return new_output
 
 
-@auto_docstring
 class GroundingDinoPreTrainedModel(PreTrainedModel):
     config_class = GroundingDinoConfig
     base_model_prefix = "model"
@@ -1902,12 +1901,6 @@ def generate_masks_with_special_tokens_and_transfer_map(input_ids: ms.Tensor) ->
     return attention_mask, position_ids.to(ms.int32)
 
 
-@auto_docstring(
-    custom_intro="""
-    The bare Grounding DINO Model (consisting of a backbone and encoder-decoder Transformer) outputting raw
-    hidden-states without any specific head on top.
-    """
-)
 class GroundingDinoModel(GroundingDinoPreTrainedModel):
     def __init__(self, config: GroundingDinoConfig):
         super().__init__(config)
@@ -2056,7 +2049,6 @@ class GroundingDinoModel(GroundingDinoPreTrainedModel):
         object_query = self.enc_output_norm(self.enc_output(object_query))
         return object_query, output_proposals
 
-    @auto_docstring
     def construct(
         self,
         pixel_values: Tensor,
@@ -2408,12 +2400,6 @@ def build_text_mask(logits, attention_mask):
     return text_mask.bool()
 
 
-@auto_docstring(
-    custom_intro="""
-    Grounding DINO Model (consisting of a backbone and encoder-decoder Transformer) with object detection heads on top,
-    for tasks such as COCO detection.
-    """
-)
 class GroundingDinoForObjectDetection(GroundingDinoPreTrainedModel):
     # When using clones, all layers > 0 will be clones, but layer 0 *is* required
     # the bbox_embed in the decoder are all clones though
@@ -2454,7 +2440,6 @@ class GroundingDinoForObjectDetection(GroundingDinoPreTrainedModel):
         # Initialize weights and apply final processing
         self.post_init()
 
-    @auto_docstring
     def construct(
         self,
         pixel_values: ms.Tensor,
