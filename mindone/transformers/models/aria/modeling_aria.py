@@ -47,10 +47,7 @@ from ...modeling_rope_utils import ROPE_INIT_FUNCTIONS
 from ...modeling_utils import ALL_ATTENTION_FUNCTIONS, MSPreTrainedModel
 from ...processing_utils import Unpack
 from ..auto import AutoModelForCausalLM  # AutoModel
-
-# from ...utils import is_flash_attn_2_available
-# if is_flash_attn_2_available:
-#     from mindspore.ops.operations.nn_ops import FlashAttentionScore
+from ..idefics3 import Idefics3VisionTransformer
 
 logger = logging.get_logger(__name__)
 _CONFIG_FOR_DOC = "AriaTextConfig"
@@ -275,7 +272,7 @@ def sequential_experts_gemm(token_states, expert_weights, tokens_per_expert):
         tokens = token_states[start:end]
 
         out = mint.matmul(tokens, expert_weights[expert_num])
-        output[start:end] = out.float() # bf16 tensor does not support SliceToIndices in garph mode
+        output[start:end] = out.float()  # bf16 tensor does not support SliceToIndices in garph mode
     return output.to(token_states.dtype)
 
 
@@ -1314,8 +1311,7 @@ class AriaForConditionalGeneration(AriaPreTrainedModel, GenerationMixin):
         super().__init__(config)
 
         # self.vision_tower = AutoModel.from_config(config.vision_config)
-        # self.vision_tower = Idefics3VisionTransformer.from_config(config.vision_config)
-        self.vision_tower = None  # TODO: after adding idefics3
+        self.vision_tower = Idefics3VisionTransformer.from_config(config.vision_config)
 
         self.multi_modal_projector = AriaProjector(config)
         self.vocab_size = config.text_config.vocab_size

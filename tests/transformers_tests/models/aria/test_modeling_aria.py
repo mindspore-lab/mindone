@@ -4,7 +4,7 @@ import inspect
 import numpy as np
 import pytest
 import torch
-from transformers import AriaTextConfig
+from transformers import AriaConfig, AriaTextConfig, Idefics3VisionConfig
 
 import mindspore as ms
 
@@ -61,14 +61,24 @@ class AriaModelTester:
 
         input_mask = None
         if self.use_input_mask:
-            input_mask = np.tril(np.ones_like(input_ids))
+            # input_mask = np.tril(np.ones_like(input_ids))
+            input_mask = ids_numpy([self.batch_size, self.seq_length], vocab_size=2)
 
-        config = self.get_config()
+        image_batch_size = 1
+        num_images = 1
+        num_channels = 3
+        height = 64
+        width = 64
+        pixel_values = ids_numpy([image_batch_size, num_images, num_channels, height, width], vocab_size=256)
+        pixel_values = (pixel_values.astype(np.float32) / 255.0) * 2 - 1  # in range [-1, 1]
+        pixel_mask = ids_numpy([image_batch_size, height, width], vocab_size=2)
+
+        text_config, config = self.get_config()
 
         # set _attn_implementation to eager because flash-attention is not supported for torch in cpu
-        config._attn_implementation = "eager"
+        text_config._attn_implementation = "eager"
 
-        return config, input_ids, input_mask
+        return text_config, config, input_ids, input_mask, pixel_values, pixel_mask
 
     def get_config(self):
         text_config = AriaTextConfig(
@@ -84,15 +94,35 @@ class AriaModelTester:
             bos_token_id=1,
             eos_token_id=2,
             moe_num_experts=self.moe_num_experts,
+            attn_implementation=self.attn_implementation,
         )
-        return text_config
+
+        vision_config = Idefics3VisionConfig(
+            hidden_size=self.hidden_size,
+            intermediate_size=self.intermediate_size,
+            num_hidden_layers=self.num_hidden_layers,
+            num_attention_heads=self.num_attention_heads,
+            num_channels=3,
+            image_size=64,
+            patch_size=14,
+            attn_implementation=self.attn_implementation,
+        )
+
+        config = AriaConfig(
+            vision_config=vision_config,
+            vision_feature_layer=-1,
+            text_config=text_config,
+            projector_patch_to_query_dict=None,
+            image_token_index=9,
+        )
+        return text_config, config
 
 
 model_tester = AriaModelTester()
-config, input_ids, input_mask = model_tester.prepare_config_and_inputs()
+text_config, config, input_ids, input_mask, pixel_values, pixel_mask = model_tester.prepare_config_and_inputs()
 
 ARIA_CASES = [
-    [
+    [  # test pure text Q&A
         "AriaTextForCausalLM",
         "transformers.AriaTextForCausalLM",
         "mindone.transformers.AriaTextForCausalLM",
@@ -102,6 +132,23 @@ ARIA_CASES = [
         {
             "input_ids": input_ids,
             "attention_mask": input_mask,
+        },
+        {
+            "logits": 0,
+        },
+    ],
+    [  # test VQA
+        "AriaForConditionalGeneration",
+        "transformers.AriaForConditionalGeneration",
+        "mindone.transformers.AriaForConditionalGeneration",
+        (config,),
+        {},
+        (),
+        {
+            "input_ids": input_ids,
+            "attention_mask": input_mask,
+            "pixel_values": pixel_values,
+            "pixel_mask": pixel_mask,
         },
         {
             "logits": 0,
