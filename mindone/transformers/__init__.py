@@ -15,7 +15,15 @@ from .models.albert import (
     AlbertModel,
     AlbertPreTrainedModel,
 )
-from .models.auto import AutoConfig, AutoImageProcessor, AutoModel, AutoModelForCausalLM, AutoModelForMaskedLM
+from .models.auto import (
+    AutoConfig,
+    AutoFeatureExtractor,
+    AutoImageProcessor,
+    AutoModel,
+    AutoModelForCausalLM,
+    AutoModelForMaskedLM,
+    AutoProcessor,
+)
 from .models.bart import (
     BartForCausalLM,
     BartForConditionalGeneration,
@@ -91,6 +99,14 @@ from .models.clip import (
     CLIPVisionModel,
     CLIPVisionModelWithProjection,
 )
+from .models.deberta import (
+    DebertaForMaskedLM,
+    DebertaForQuestionAnswering,
+    DebertaForSequenceClassification,
+    DebertaForTokenClassification,
+    DebertaModel,
+    DebertaPreTrainedModel,
+)
 from .models.deberta_v2 import (
     DebertaV2ForMaskedLM,
     DebertaV2ForMultipleChoice,
@@ -134,6 +150,8 @@ from .models.gpt2 import (
     GPT2PreTrainedModel,
 )
 from .models.granite import GraniteForCausalLM, GraniteModel, GranitePreTrainedModel
+from .models.granitemoe import GraniteMoeForCausalLM, GraniteMoeModel, GraniteMoePreTrainedModel
+from .models.granitemoeshared import GraniteMoeSharedForCausalLM, GraniteMoeSharedModel, GraniteMoeSharedPreTrainedModel
 from .models.hiera import (
     HieraBackbone,
     HieraForImageClassification,
@@ -159,6 +177,18 @@ from .models.levit import (
 )
 from .models.llama import LlamaForCausalLM, LlamaForSequenceClassification, LlamaModel, LlamaPreTrainedModel
 from .models.llava import LlavaConfig, LlavaForConditionalGeneration
+from .models.megatron_bert import (
+    MegatronBertForCausalLM,
+    MegatronBertForMaskedLM,
+    MegatronBertForMultipleChoice,
+    MegatronBertForNextSentencePrediction,
+    MegatronBertForPreTraining,
+    MegatronBertForQuestionAnswering,
+    MegatronBertForSequenceClassification,
+    MegatronBertForTokenClassification,
+    MegatronBertModel,
+    MegatronBertPreTrainedModel,
+)
 from .models.minicpm4 import MiniCPMForCausalLM, MiniCPMForSequenceClassification, MiniCPMModel
 from .models.mixtral import (
     MixtralForCausalLM,
@@ -210,7 +240,20 @@ from .models.qwen2_5_omni import (
 from .models.qwen2_5_vl import Qwen2_5_VLForConditionalGeneration, Qwen2_5_VLModel, Qwen2_5_VLPreTrainedModel
 from .models.qwen2_audio import Qwen2AudioEncoder, Qwen2AudioForConditionalGeneration, Qwen2AudioPreTrainedModel
 from .models.qwen2_vl import Qwen2VLForConditionalGeneration, Qwen2VLModel, Qwen2VLPreTrainedModel
-from .models.qwen3 import Qwen3ForCausalLM, Qwen3Model, Qwen3PreTrainedModel
+
+# from .models.qwen3 import Qwen3ForCausalLM, Qwen3Model, Qwen3PreTrainedModel
+from .models.recurrent_gemma import RecurrentGemmaForCausalLM, RecurrentGemmaModel, RecurrentGemmaPreTrainedModel
+from .models.rembert import (
+    RemBertForCausalLM,
+    RemBertForMaskedLM,
+    RemBertForMultipleChoice,
+    RemBertForQuestionAnswering,
+    RemBertForSequenceClassification,
+    RemBertForTokenClassification,
+    RemBertLayer,
+    RemBertModel,
+    RemBertPreTrainedModel,
+)
 from .models.siglip import SiglipModel, SiglipPreTrainedModel, SiglipTextModel, SiglipVisionModel
 from .models.speecht5 import (
     SpeechT5ForSpeechToSpeech,
@@ -243,6 +286,7 @@ from .models.umt5 import (
     UMT5Model,
     UMT5PreTrainedModel,
 )
+from .models.vits import VitsModel, VitsPreTrainedModel
 from .models.wav2vec2 import (
     Wav2Vec2FeatureExtractor,
     Wav2Vec2ForAudioFrameClassification,
@@ -264,5 +308,15 @@ from .models.whisper import (
     WhisperProcessor,
 )
 from .models.xlm_roberta import XLMRobertaModel, XLMRobertaPreTrainedModel
+from .models.xlm_roberta_xl import (
+    XLMRobertaXLForCausalLM,
+    XLMRobertaXLForMaskedLM,
+    XLMRobertaXLForMultipleChoice,
+    XLMRobertaXLForQuestionAnswering,
+    XLMRobertaXLForSequenceClassification,
+    XLMRobertaXLForTokenClassification,
+    XLMRobertaXLModel,
+    XLMRobertaXLPreTrainedModel,
+)
 from .pipelines import TextGenerationPipeline, pipeline
 from .processing_utils import ProcessorMixin
