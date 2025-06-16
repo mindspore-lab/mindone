@@ -40,5 +40,5 @@ python generate.py
 ## Inference Speed
 |model name	| precision | cards | fa  |	tokens/s	| weight |
 | :---: | :---:  |:---:  | :---:  |:---:  | ---|
-| Idefics3-8B-Llama3 |  fp16 | 1 | ON  | 2.10 | [weight](https://huggingface.co/HuggingFaceM4/Idefics3-8B-Llama3)
-| Idefics3-8B-Llama3 |  bf16 | 1 | ON  | 2.06 | [weight](https://huggingface.co/HuggingFaceM4/Idefics3-8B-Llama3)
+| Idefics3-8B-Llama3 |  fp16 | 1 | ON  | 3.86 | [weight](https://huggingface.co/HuggingFaceM4/Idefics3-8B-Llama3)
+| Idefics3-8B-Llama3 |  bf16 | 1 | ON  | 4.22 | [weight](https://huggingface.co/HuggingFaceM4/Idefics3-8B-Llama3)

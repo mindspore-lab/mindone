@@ -274,6 +274,8 @@ class LlamaAttention(nn.Cell):
                 )
             else:
                 attention_interface = ALL_ATTENTION_FUNCTIONS[self.config._attn_implementation]
+                key_states = repeat_kv(key_states, self.num_key_value_groups)
+                value_states = repeat_kv(value_states, self.num_key_value_groups)
 
         attn_output, attn_weights = attention_interface(
             self,
@@ -284,12 +286,12 @@ class LlamaAttention(nn.Cell):
             dropout=0.0 if not self.training else self.attention_dropout,
             scaling=self.scaling,
             **kwargs,
-        )
+        )  # output: BSND
 
         attn_output = attn_output.reshape(*input_shape, -1).contiguous()
         attn_output = self.o_proj(attn_output)
 
-        return attn_output, attn_weights
+        return attn_output, attn_weights, past_key_value
 
 
 class LlamaDecoderLayer(nn.Cell):
@@ -319,7 +321,7 @@ class LlamaDecoderLayer(nn.Cell):
         hidden_states = self.input_layernorm(hidden_states)
 
         # Self Attention
-        hidden_states, self_attn_weights = self.self_attn(
+        hidden_states, self_attn_weights, present_key_value = self.self_attn(
             hidden_states=hidden_states,
             attention_mask=attention_mask,
             position_ids=position_ids,
@@ -342,6 +344,9 @@ class LlamaDecoderLayer(nn.Cell):
 
         if output_attentions:
             outputs += (self_attn_weights,)
+
+        if use_cache:
+            outputs += (present_key_value,)
 
         return outputs
 
@@ -377,8 +382,8 @@ class LlamaPreTrainedModel(PreTrainedModel):
     _supports_flash_attn_2 = True
     _supports_sdpa = False  # SDPA, not support yet
     _supports_flex_attn = False  # FlexAttention, not support yet
-    _supports_cache_class = False  # this will affect the padding behavior of input id
-    _supports_quantized_cache = True
+    _supports_cache_class = False  # set it True if use DynamicCache
+    _supports_quantized_cache = False
     _supports_static_cache = False  # StaticCache, not used
     _supports_attention_backend = True
 
@@ -578,9 +583,7 @@ class LlamaModel(LlamaPreTrainedModel):
         use_cache = use_cache if use_cache is not None else self.use_cache
         return_dict = return_dict if return_dict is not None else self.use_return_dict
 
-        if ((input_ids is not None) and (inputs_embeds is not None)) or (
-            (input_ids is None) and (inputs_embeds is None)
-        ):
+        if (input_ids is not None) != (inputs_embeds is None):
             raise ValueError("You must specify exactly one of input_ids or inputs_embeds")
 
         if self.training:
@@ -609,16 +612,24 @@ class LlamaModel(LlamaPreTrainedModel):
         # decoder layers
         all_hidden_states = () if output_hidden_states else None
         all_self_attns = () if output_attentions else None
+        next_caches = () if use_cache else None
 
         for layer_idx, decoder_layer in enumerate(self.layers):
             if output_hidden_states:
                 all_hidden_states += (hidden_states,)
 
+            past_key_value = None
+            if past_key_values is not None:
+                if isinstance(past_key_values, tuple):  # use static tuple
+                    past_key_value = past_key_values[layer_idx]
+                else:  # use Cache class
+                    past_key_value = past_key_values
+
             layer_outputs = decoder_layer(
                 hidden_states,
                 attention_mask=causal_mask,
                 position_ids=position_ids,
-                past_key_value=past_key_values,
+                past_key_value=past_key_value,
                 output_attentions=output_attentions,
                 use_cache=use_cache,
                 cache_position=cache_position,
@@ -627,6 +638,12 @@ class LlamaModel(LlamaPreTrainedModel):
             )
 
             hidden_states = layer_outputs[0]
+
+            if use_cache:
+                if isinstance(past_key_values, tuple):  # use static tuple
+                    next_caches += (layer_outputs[2 if output_attentions else 1],)
+                else:  # use Cache class
+                    next_caches = past_key_value
 
             if output_attentions:
                 all_self_attns += (layer_outputs[1],)
@@ -638,14 +655,12 @@ class LlamaModel(LlamaPreTrainedModel):
             all_hidden_states += (hidden_states,)
 
         if not use_cache:
-            past_key_values = None
+            next_caches = None
         if not return_dict:
-            return tuple(
-                v for v in [hidden_states, past_key_values, all_hidden_states, all_self_attns] if v is not None
-            )
+            return tuple(v for v in [hidden_states, next_caches, all_hidden_states, all_self_attns] if v is not None)
         return BaseModelOutputWithPast(
             last_hidden_state=hidden_states,
-            past_key_values=past_key_values,
+            past_key_values=next_caches,
             hidden_states=all_hidden_states,
             attentions=all_self_attns,
         )
@@ -877,90 +892,6 @@ class LlamaForCausalLM(LlamaPreTrainedModel, GenerationMixin):
             hidden_states=outputs.hidden_states,
             attentions=outputs.attentions,
         )
-
-    def prepare_inputs_for_generation(
-        self,
-        input_ids,
-        past_key_values=None,
-        attention_mask=None,
-        inputs_embeds=None,
-        cache_position=None,
-        use_cache=False,
-        **kwargs,
-    ):
-        past_length = 0
-        if past_key_values is not None:
-            # Past key values are always initialized with a `Cache` object -> no need for if-else anymore
-            past_length = cache_position[0] if cache_position is not None else get_seq_length(past_key_values)
-            max_cache_length = get_max_length(past_key_values) if get_max_length(past_key_values) is not None else None
-            cache_length = past_length if max_cache_length is None else ops.minimum(max_cache_length, past_length)
-
-            # Keep only the unprocessed tokens:
-            # 1 - If the length of the attention_mask exceeds the length of input_ids, then we are in a setting where
-            # some of the inputs are exclusively passed as part of the cache (e.g. when passing input_embeds as input)
-
-            if attention_mask is not None and int(attention_mask.sum(-1).max()) > input_ids.shape[1]:
-                input_ids = input_ids[:, -(int(attention_mask.sum(-1).max()) - int(past_length)) :]
-            # 2 - If the past_length is smaller than input_ids', then input_ids holds all input tokens. We can discard
-            # input_ids based on the past_length.
-            elif past_length < input_ids.shape[1]:
-                input_ids = input_ids[:, int(past_length) :]
-            # 3 - Otherwise (past_length >= input_ids.shape[1]), let's assume input_ids only has unprocessed tokens.
-
-            # If we are about to go beyond the maximum cache length, we need to crop the input attention mask.
-            if (
-                max_cache_length is not None
-                and attention_mask is not None
-                and cache_length + input_ids.shape[1] > max_cache_length
-            ):
-                attention_mask = attention_mask[:, -max_cache_length:]
-
-        position_ids = kwargs.get("position_ids", None)
-        if attention_mask is not None and position_ids is None:
-            # create position_ids on the fly for batch generation
-            position_ids = attention_mask.to(ms.int32).cumsum(-1) - 1
-            position_ids = position_ids.masked_fill(attention_mask == 0, 1)
-            if past_key_values and past_length > 0:
-                cur_len = attention_mask.sum(-1).max()
-                position_ids = position_ids[:, cur_len - input_ids.shape[1] : cur_len]
-
-        # if `inputs_embeds` are passed, we only want to use them in the 1st generation step
-        if inputs_embeds is not None and past_length == 0:
-            model_inputs = {"inputs_embeds": inputs_embeds}
-        else:
-            # TODO: use `next_tokens` directly instead.
-            if not isinstance(input_ids, Tensor):
-                input_ids = Tensor(input_ids, dtype=ms.int32)
-
-            # Padding to max_len when no cache
-            if past_key_values is None:
-                pad_len = max(0, attention_mask.shape[1] - input_ids.shape[1])
-                input_ids = ops.pad(input_ids, (0, pad_len), value=0)
-
-            model_inputs = {"input_ids": input_ids}
-
-        input_length = position_ids.shape[-1] if position_ids is not None else input_ids.shape[-1]
-
-        if cache_position is None:
-            cache_position = ops.arange(past_length, past_length + input_length)
-        elif use_cache:
-            if input_length < cache_position.shape[0]:
-                assert cache_position.shape[0] == attention_mask.shape[-1]
-                cur_len = int(attention_mask.sum(-1).max())
-                cache_position = cache_position[cur_len - input_length : cur_len]
-            else:
-                cache_position = cache_position[-input_length:]
-
-        model_inputs.update(
-            {
-                "position_ids": position_ids,
-                "cache_position": cache_position,
-                "past_key_values": ms.mutable(past_key_values) if past_key_values is not None else None,
-                "use_cache": use_cache,
-                "attention_mask": attention_mask,
-            }
-        )
-        return model_inputs
 
     @staticmethod
     def _reorder_cache(past_key_values, beam_idx):
