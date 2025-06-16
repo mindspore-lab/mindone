@@ -55,6 +55,7 @@ MODEL_MAPPING_NAMES = OrderedDict(
         ("gemma3_text", "Gemma3TextModel"),
         ("qwen2_audio_encoder", "Qwen2AudioEncoder"),
         ("siglip", "SiglipModel"),
+        ("grounding-dino", "GroundingDinoModel"),
         ("hiera", "HieraModel"),
         ("ijepa", "IJepaModel"),
         ("imagegpt", "ImageGPTModel"),
