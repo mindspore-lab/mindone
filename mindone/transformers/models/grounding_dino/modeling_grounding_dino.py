@@ -388,13 +388,14 @@ def replace_batch_norm(model):
         model (mindspore.mint.nn.Cell):
             input model
     """
-    for name, module in model.named_children():
+    for name, module in model.name_cells().items():
         if isinstance(module, mint.nn.BatchNorm2d):
             new_module = GroundingDinoFrozenBatchNorm2d(module.num_features)
 
-            model._modules[name] = new_module
+            # model._modules[name] = new_module
+            setattr(model, name, new_module)
 
-        if len(list(module.children())) > 0:
+        if len(list(module.name_cells())) > 0:
             replace_batch_norm(module)
 
 

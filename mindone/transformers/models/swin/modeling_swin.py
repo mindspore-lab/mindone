@@ -461,7 +461,7 @@ class SwinSelfAttention(nn.Cell):
         # get pair-wise relative position index for each token inside the window
         coords_h = mint.arange(self.window_size[0])
         coords_w = mint.arange(self.window_size[1])
-        coords = mint.stack(meshgrid([coords_h, coords_w], indexing="ij"))
+        coords = mint.stack(meshgrid(coords_h, coords_w, indexing="ij"))
         coords_flatten = mint.flatten(coords, 1)
         relative_coords = coords_flatten[:, :, None] - coords_flatten[:, None, :]
         relative_coords = relative_coords.permute(1, 2, 0).contiguous()
