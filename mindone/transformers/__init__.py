@@ -276,5 +276,15 @@ from .models.whisper import (
     WhisperProcessor,
 )
 from .models.xlm_roberta import XLMRobertaModel, XLMRobertaPreTrainedModel
+from .models.xlm_roberta_xl import (
+    XLMRobertaXLForCausalLM,
+    XLMRobertaXLForMaskedLM,
+    XLMRobertaXLForMultipleChoice,
+    XLMRobertaXLForQuestionAnswering,
+    XLMRobertaXLForSequenceClassification,
+    XLMRobertaXLForTokenClassification,
+    XLMRobertaXLModel,
+    XLMRobertaXLPreTrainedModel,
+)
 from .pipelines import TextGenerationPipeline, pipeline
 from .processing_utils import ProcessorMixin

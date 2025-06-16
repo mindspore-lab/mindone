@@ -72,6 +72,7 @@ CONFIG_MAPPING_NAMES = OrderedDict(
         ("wav2vec2", "Wav2Vec2Config"),
         ("whisper", "WhisperConfig"),
         ("xlm-roberta", "XLMRobertaConfig"),
+        ("xlm-roberta-xl", "XLMRobertaXLConfig"),
     ]
 )
 
