@@ -43,6 +43,7 @@ MODEL_MAPPING_NAMES = OrderedDict(
         ("glm", "GlmModel"),
         ("glpn", "GLPNModel"),
         ("gpt2", "GPT2Model"),
+        ("grounding-dino", "GroundingDinoModel"),
         ("hiera", "HieraModel"),
         ("ijepa", "IJepaModel"),
         ("imagegpt", "ImageGPTModel"),
