@@ -2,8 +2,8 @@ import math
 from dataclasses import dataclass
 from typing import Any, Dict, List, Optional, Tuple, Union
 
-import numpy as np
-from transformers.models.qwen2_5_vl.configuration_qwen2_5_vl import Qwen2_5_VLConfig, Qwen2_5_VLVisionConfig
+from transformers import Qwen2_5_VLConfig
+from transformers.models.qwen2_5_vl.configuration_qwen2_5_vl import Qwen2_5_VLVisionConfig
 
 import mindspore as ms
 import mindspore.mint as mint
@@ -11,10 +11,11 @@ import mindspore.mint.nn.functional as F
 import mindspore.nn as nn
 import mindspore.ops as ops
 from mindspore import Parameter, Tensor
+from mindspore.mint.nn import CrossEntropyLoss
 
 from mindone.models.utils import normal_, zeros_
 from mindone.transformers.activations import ACT2FN
-from mindone.transformers.cache_utils import Cache, DynamicCache, StaticCache
+from mindone.transformers.cache_utils import Cache, DynamicCache, SlidingWindowCache, StaticCache
 from mindone.transformers.generation import GenerationMixin
 from mindone.transformers.modeling_attn_mask_utils import dtype_to_min
 from mindone.transformers.modeling_outputs import BaseModelOutputWithPast, ModelOutput
@@ -23,6 +24,8 @@ from mindone.transformers.modeling_utils import MSPreTrainedModel
 from mindone.transformers.utils import logging
 
 logger = logging.get_logger(__name__)
+
+_CONFIG_FOR_DOC = "Qwen2_5_VLConfig"
 
 
 def rotate_half_flashatt(x, interleaved=False):
@@ -95,22 +98,22 @@ class Qwen2_5_VisionPatchEmbed(nn.Cell):
 class Qwen2_5_VisionRotaryEmbedding(nn.Cell):
     def __init__(self, dim: int, theta: float = 10000.0) -> None:
         super().__init__()
-        inv_freq = 1.0 / (theta ** (np.arange(0, dim, 2, dtype=np.float32) / dim))
-        self.inv_freq = Tensor(inv_freq)
+        inv_freq = 1.0 / (theta ** (mint.arange(0, dim, 2, dtype=ms.float32) / dim))
+        self.register_buffer("inv_freq", inv_freq, persistent=False)
 
-    def construct(self, seqlen: Tensor) -> Tensor:
-        seq = mint.arange(seqlen.item(), dtype=self.inv_freq.dtype)
+    def construct(self, seqlen: int) -> Tensor:
+        seq = mint.arange(seqlen, dtype=self.inv_freq.dtype)
         freqs = mint.outer(seq, self.inv_freq)
         return freqs
 
 
 class Qwen2RMSNorm(nn.Cell):
-    def __init__(self, hidden_size, eps=1e-6) -> None:
+    def __init__(self, hidden_size, eps=1e-6):
         """
         Qwen2RMSNorm is equivalent to T5LayerNorm
         """
         super().__init__()
-        self.weight = Parameter(Tensor(np.ones(hidden_size, dtype=np.float32)))
+        self.weight = Parameter(mint.ones(hidden_size))
         self.variance_epsilon = eps
 
     def construct(self, hidden_states):
@@ -119,6 +122,9 @@ class Qwen2RMSNorm(nn.Cell):
             hidden_states.to(ms.float32), self.weight.to(ms.float32), epsilon=self.variance_epsilon
         )
         return output.to(input_dtype)
+
+    def extra_repr(self):
+        return f"{tuple(self.weight.shape)}, eps={self.variance_epsilon}"
 
 
 class Qwen2_5_VLPatchMerger(nn.Cell):
@@ -136,59 +142,11 @@ class Qwen2_5_VLPatchMerger(nn.Cell):
 
 
 def apply_rotary_pos_emb_flashatt(q: Tensor, k: Tensor, cos: Tensor, sin: Tensor) -> Tuple[Tensor, Tensor]:
-    cos = cos.chunk(2, dim=-1)[0]
-    sin = sin.chunk(2, dim=-1)[0]
-    q_embed = apply_rotary_emb_flashatt(q.float(), cos, sin).type_as(q)
-    k_embed = apply_rotary_emb_flashatt(k.float(), cos, sin).type_as(k)
+    cos = cos.chunk(2, dim=-1)[0].contiguous()
+    sin = sin.chunk(2, dim=-1)[0].contiguous()
+    q_embed = apply_rotary_emb_flashatt(q.float(), cos.float(), sin.float()).type_as(q)
+    k_embed = apply_rotary_emb_flashatt(k.float(), cos.float(), sin.float()).type_as(k)
     return q_embed, k_embed
-
-
-class Qwen2_5_VLVisionAttention(nn.Cell):
-    def __init__(self, dim: int, num_heads: int = 16) -> None:
-        super().__init__()
-        self.num_heads = num_heads
-        self.head_dim = dim // num_heads
-        self.qkv = mint.nn.Linear(dim, dim * 3, bias=True)
-        self.proj = mint.nn.Linear(dim, dim)
-
-    def construct(
-        self,
-        hidden_states: Tensor,
-        cu_seqlens: Tensor,
-        rotary_pos_emb: Optional[Tensor] = None,
-        position_embeddings: Optional[Tuple[Tensor, Tensor]] = None,
-    ) -> Tensor:
-        seq_length = hidden_states.shape[0]
-        q, k, v = self.qkv(hidden_states).reshape(seq_length, 3, self.num_heads, -1).permute(1, 0, 2, 3).unbind(0)
-        if position_embeddings is None:
-            logger.warning_once(
-                "The attention layers in this model are transitioning from computing the RoPE embeddings internally "
-                "through `rotary_pos_emb` (2D tensor of RoPE theta values), to using externally computed "
-                "`position_embeddings` (Tuple of tensors, containing cos and sin). In v4.54 `rotary_pos_emb` will be "
-                "removed and `position_embeddings` will be mandatory."
-            )
-            emb = mint.cat((rotary_pos_emb, rotary_pos_emb), dim=-1)
-            cos = emb.cos().float()
-            sin = emb.sin().float()
-        else:
-            cos, sin = position_embeddings
-        q, k = apply_rotary_pos_emb_vision(q, k, cos, sin)
-
-        attention_mask = ops.full([1, seq_length, seq_length], dtype_to_min(q.dtype), dtype=q.dtype)
-        for i in range(1, len(cu_seqlens)):
-            attention_mask[..., cu_seqlens[i - 1] : cu_seqlens[i], cu_seqlens[i - 1] : cu_seqlens[i]] = 0
-
-        q = q.transpose(0, 1)
-        k = k.transpose(0, 1)
-        v = v.transpose(0, 1)
-        attn_weights = mint.matmul(q, k.transpose(1, 2)) / math.sqrt(self.head_dim)
-        attn_weights = attn_weights + attention_mask
-        attn_weights = F.softmax(attn_weights, dim=-1, dtype=ms.float32).to(q.dtype)
-        attn_output = mint.matmul(attn_weights, v)
-        attn_output = attn_output.transpose(0, 1)
-        attn_output = attn_output.reshape(seq_length, -1)
-        attn_output = self.proj(attn_output)
-        return attn_output
 
 
 class Qwen2_5_VLVisionFlashAttention2(nn.Cell):
@@ -215,8 +173,8 @@ class Qwen2_5_VLVisionFlashAttention2(nn.Cell):
                 "removed and `position_embeddings` will be mandatory."
             )
             emb = mint.cat((rotary_pos_emb, rotary_pos_emb), dim=-1)
-            cos = emb.cos().float()
-            sin = emb.sin().float()
+            cos = emb.cos()
+            sin = emb.sin()
         else:
             cos, sin = position_embeddings
         q, k = apply_rotary_pos_emb_flashatt(q.unsqueeze(0), k.unsqueeze(0), cos, sin)
@@ -248,12 +206,60 @@ def apply_rotary_pos_emb_vision(q: Tensor, k: Tensor, cos: Tensor, sin: Tensor) 
     orig_q_dtype = q.dtype
     orig_k_dtype = k.dtype
     q, k = q.float(), k.float()
-    cos, sin = cos.unsqueeze(-2), sin.unsqueeze(-2)
+    cos, sin = cos.unsqueeze(-2).float(), sin.unsqueeze(-2).float()
     q_embed = (q * cos) + (rotate_half(q) * sin)
     k_embed = (k * cos) + (rotate_half(k) * sin)
     q_embed = q_embed.to(orig_q_dtype)
     k_embed = k_embed.to(orig_k_dtype)
     return q_embed, k_embed
+
+
+class Qwen2_5_VLVisionAttention(nn.Cell):
+    def __init__(self, dim: int, num_heads: int = 16) -> None:
+        super().__init__()
+        self.num_heads = num_heads
+        self.head_dim = dim // num_heads
+        self.qkv = mint.nn.Linear(dim, dim * 3, bias=True)
+        self.proj = mint.nn.Linear(dim, dim)
+
+    def construct(
+        self,
+        hidden_states: Tensor,
+        cu_seqlens: Tensor,
+        rotary_pos_emb: Optional[Tensor] = None,
+        position_embeddings: Optional[Tuple[Tensor, Tensor]] = None,
+    ) -> Tensor:
+        seq_length = hidden_states.shape[0]
+        q, k, v = self.qkv(hidden_states).reshape(seq_length, 3, self.num_heads, -1).permute(1, 0, 2, 3).unbind(0)
+        if position_embeddings is None:
+            logger.warning_once(
+                "The attention layers in this model are transitioning from computing the RoPE embeddings internally "
+                "through `rotary_pos_emb` (2D tensor of RoPE theta values), to using externally computed "
+                "`position_embeddings` (Tuple of tensors, containing cos and sin). In v4.54 `rotary_pos_emb` will be "
+                "removed and `position_embeddings` will be mandatory."
+            )
+            emb = mint.cat((rotary_pos_emb, rotary_pos_emb), dim=-1)
+            cos = emb.cos()
+            sin = emb.sin()
+        else:
+            cos, sin = position_embeddings
+        q, k = apply_rotary_pos_emb_vision(q, k, cos, sin)
+
+        attention_mask = mint.full([1, seq_length, seq_length], dtype_to_min(q.dtype).item(), dtype=q.dtype)
+        for i in range(1, len(cu_seqlens)):
+            attention_mask[..., cu_seqlens[i - 1] : cu_seqlens[i], cu_seqlens[i - 1] : cu_seqlens[i]] = 0
+
+        q = q.transpose(0, 1)
+        k = k.transpose(0, 1)
+        v = v.transpose(0, 1)
+        attn_weights = mint.matmul(q, k.transpose(1, 2)) / math.sqrt(self.head_dim)
+        attn_weights = attn_weights + attention_mask
+        attn_weights = F.softmax(attn_weights, dim=-1, dtype=ms.float32).to(q.dtype)
+        attn_output = mint.matmul(attn_weights, v)
+        attn_output = attn_output.transpose(0, 1)
+        attn_output = attn_output.reshape(seq_length, -1)
+        attn_output = self.proj(attn_output)
+        return attn_output
 
 
 QWEN2_5_VL_VISION_ATTENTION_CLASSES = {
@@ -296,7 +302,7 @@ class Qwen2_5_VLPreTrainedModel(MSPreTrainedModel):
     _no_split_modules = ["Qwen2_5_VLDecoderLayer", "Qwen2_5_VLVisionBlock"]
     _skip_keys_device_placement = "past_key_values"
     _supports_flash_attn_2 = True
-    _supports_sdpa = True
+    _supports_sdpa = False
     _supports_cache_class = True
     _supports_static_cache = False
 
@@ -309,7 +315,7 @@ class Qwen2_5_VLPreTrainedModel(MSPreTrainedModel):
         elif isinstance(module, mint.nn.Embedding):
             normal_(module.weight, mean=0.0, std=std)
             if module.padding_idx is not None:
-                zeros_(module.weight.data[module.padding_idx])
+                module.weight[module.padding_idx] = 0
 
 
 class Qwen2_5_VisionTransformerPretrainedModel(Qwen2_5_VLPreTrainedModel):
@@ -346,7 +352,7 @@ class Qwen2_5_VisionTransformerPretrainedModel(Qwen2_5_VLPreTrainedModel):
         pos_ids = []
         for t, h, w in grid_thw:
             t, h, w = t.item(), h.item(), w.item()
-            hpos_ids = mint.arange(h, dtype=ms.int32).unsqueeze(1).expand((-1, w))
+            hpos_ids = mint.arange(h).unsqueeze(1).expand((-1, w))
             hpos_ids = hpos_ids.reshape(
                 h // self.spatial_merge_size,
                 self.spatial_merge_size,
@@ -356,7 +362,7 @@ class Qwen2_5_VisionTransformerPretrainedModel(Qwen2_5_VLPreTrainedModel):
             hpos_ids = hpos_ids.permute(0, 2, 1, 3)
             hpos_ids = hpos_ids.flatten()
 
-            wpos_ids = mint.arange(w, dtype=ms.int32).unsqueeze(0).expand((h, -1))
+            wpos_ids = mint.arange(w).unsqueeze(0).expand((h, -1))
             wpos_ids = wpos_ids.reshape(
                 h // self.spatial_merge_size,
                 self.spatial_merge_size,
@@ -365,9 +371,9 @@ class Qwen2_5_VisionTransformerPretrainedModel(Qwen2_5_VLPreTrainedModel):
             )
             wpos_ids = wpos_ids.permute(0, 2, 1, 3)
             wpos_ids = wpos_ids.flatten()
-            pos_ids.append(mint.tile(mint.stack([hpos_ids, wpos_ids], dim=-1), (t, 1)))
+            pos_ids.append(mint.stack([hpos_ids, wpos_ids], dim=-1).repeat(t, 1))
         pos_ids = mint.cat(pos_ids, dim=0)
-        max_grid_size = grid_thw[:, 1:].max()
+        max_grid_size = grid_thw[:, 1:].max().item()
         rotary_pos_emb_full = self.rotary_pos_emb(max_grid_size)
         rotary_pos_emb = rotary_pos_emb_full[pos_ids].flatten(1)
         return rotary_pos_emb
@@ -381,9 +387,7 @@ class Qwen2_5_VisionTransformerPretrainedModel(Qwen2_5_VLPreTrainedModel):
         for grid_t, grid_h, grid_w in grid_thw:
             grid_t, grid_h, grid_w = grid_t.item(), grid_h.item(), grid_w.item()
             llm_grid_h, llm_grid_w = grid_h // self.spatial_merge_size, grid_w // self.spatial_merge_size
-            index = mint.arange(grid_t * llm_grid_h * llm_grid_w, dtype=ms.int32).reshape(
-                grid_t, llm_grid_h, llm_grid_w
-            )
+            index = mint.arange(grid_t * llm_grid_h * llm_grid_w).reshape(grid_t, llm_grid_h, llm_grid_w)
             pad_h = vit_merger_window_size - llm_grid_h % vit_merger_window_size
             pad_w = vit_merger_window_size - llm_grid_w % vit_merger_window_size
             num_windows_h = (llm_grid_h + pad_h) // vit_merger_window_size
@@ -420,7 +424,7 @@ class Qwen2_5_VisionTransformerPretrainedModel(Qwen2_5_VLPreTrainedModel):
         hidden_states = self.patch_embed(hidden_states)
         rotary_pos_emb = self.rot_pos_emb(grid_thw)
         window_index, cu_window_seqlens = self.get_window_index(grid_thw)
-        cu_window_seqlens = Tensor(cu_window_seqlens, dtype=ms.int32)
+        cu_window_seqlens = ms.tensor(cu_window_seqlens, dtype=ms.int32)
         cu_window_seqlens = mint.unique_consecutive(cu_window_seqlens)
 
         seq_len, _ = hidden_states.shape
@@ -444,7 +448,7 @@ class Qwen2_5_VisionTransformerPretrainedModel(Qwen2_5_VLPreTrainedModel):
             else:
                 cu_seqlens_now = cu_window_seqlens
             if self.gradient_checkpointing and self.training:
-                raise NotImplementedError()
+                hidden_states = ms.recompute(blk, hidden_states, cu_seqlens_now, None, position_embeddings)
             else:
                 hidden_states = blk(hidden_states, cu_seqlens=cu_seqlens_now, position_embeddings=position_embeddings)
 
@@ -469,7 +473,8 @@ class Qwen2_5_VLRotaryEmbedding(nn.Cell):
         self.config = config
         self.rope_init_fn = ROPE_INIT_FUNCTIONS[self.rope_type]
 
-        self.inv_freq, self.attention_scaling = self.rope_init_fn(self.config)
+        inv_freq, self.attention_scaling = self.rope_init_fn(self.config)
+        self.register_buffer("inv_freq", inv_freq, persistent=False)
         self.original_inv_freq = self.inv_freq
 
     def _dynamic_frequency_update(self, position_ids):
@@ -480,18 +485,19 @@ class Qwen2_5_VLRotaryEmbedding(nn.Cell):
         """
         seq_len = mint.max(position_ids) + 1
         if seq_len > self.max_seq_len_cached:  # growth
-            self.inv_freq, self.attention_scaling = self.rope_init_fn(self.config, seq_len=seq_len, **self.rope_kwargs)
+            inv_freq, self.attention_scaling = self.rope_init_fn(self.config, seq_len=seq_len, **self.rope_kwargs)
+            self.register_buffer("inv_freq", inv_freq, persistent=False)  # TODO joao: may break with compilation
             self.max_seq_len_cached = seq_len
 
         if seq_len < self.original_max_seq_len and self.max_seq_len_cached > self.original_max_seq_len:  # reset
-            self.inv_freq = self.original_inv_freq
+            self.register_buffer("inv_freq", self.original_inv_freq, persistent=False)
             self.max_seq_len_cached = self.original_max_seq_len
 
     def construct(self, x, position_ids):
         if "dynamic" in self.rope_type:
             self._dynamic_frequency_update(position_ids)
 
-        # Core RoPE block. In contrast to other models, Qwen2_5_VL has different position ids for thw grids
+        # Core RoPE block. In contrast to other models, Qwen2_5_VL has different position ids for the grids
         # So we expand the inv_freq to shape (3, ...)
         inv_freq_expanded = self.inv_freq[None, None, :, None].float().expand((3, position_ids.shape[1], -1, 1))
         position_ids_expanded = position_ids[:, :, None, :].float()  # shape (3, bs, 1, positions)
@@ -530,7 +536,7 @@ def apply_multimodal_rotary_pos_emb(q, k, cos, sin, mrope_section, unsqueeze_dim
     Explanation:
         Multimodal 3D rotary position embedding is an extension to 1D rotary position embedding. The input embedding
         sequence contains vision (images / videos) embedding and text embedding or just contains text embedding. For
-        vision embedding part, we apply rotary position embedding on temporal, height and width dimension seperately.
+        vision embedding part, we apply rotary position embedding on temporal, height and width dimension separately.
         Here we split the channel dimension to 3 chunks for the temporal, height and width rotary position embedding.
         For text embedding part, we just apply 1D rotary position embedding. The three rotary position index (temporal,
         height and width) of text embedding is always the same, so the text embedding rotary position embedding has no
@@ -671,7 +677,7 @@ class Qwen2_5_VLAttention(nn.Cell):
                 f" {attn_output.shape}"
             )
 
-        attn_output = attn_output.transpose(1, 2)
+        attn_output = attn_output.transpose(1, 2).contiguous()
         attn_output = attn_output.reshape(bsz, q_len, -1)
 
         attn_output = self.o_proj(attn_output)
@@ -744,11 +750,6 @@ class Qwen2_5_VLFlashAttention2(Qwen2_5_VLAttention):
             key_states = key_states.to(target_dtype)
             value_states = value_states.to(target_dtype)
 
-        # Reashape to the expected shape for Flash Attention
-        query_states = query_states.transpose(1, 2)
-        key_states = key_states.transpose(1, 2)
-        value_states = value_states.transpose(1, 2)
-
         if (
             self.config.use_sliding_window
             and getattr(self.config, "sliding_window", None) is not None
@@ -758,12 +759,21 @@ class Qwen2_5_VLFlashAttention2(Qwen2_5_VLAttention):
         else:
             sliding_window = None
 
-        assert sliding_window is None
-        if self.is_causal and attention_mask is None:
-            if q_len > 1:
-                attention_mask = 1 - mint.tril(mint.ones((1, 1, q_len, q_len), dtype=ms.uint8))
+        assert sliding_window is None, "sliding_window is not supported yet."
+
+        if self.is_causal and q_len > 1:
+            causal_mask = mint.triu(mint.ones((bsz, 1, q_len, key_states.shape[2]), dtype=ms.bool_), diagonal=1)
+        else:
+            causal_mask = None
+
+        if attention_mask is not None:
+            attention_mask = ~attention_mask[:, None, None, :].to(ms.bool_)
+            if causal_mask is not None:
+                attention_mask = attention_mask | causal_mask
             else:
-                attention_mask = None
+                attention_mask = mint.tile(attention_mask, (1, 1, q_len, 1))
+        else:
+            attention_mask = causal_mask
 
         attn_output = ops.flash_attention_score(
             query_states,
@@ -773,10 +783,10 @@ class Qwen2_5_VLFlashAttention2(Qwen2_5_VLAttention):
             attn_mask=attention_mask,
             keep_prob=1 - dropout_rate,
             scalar_value=1 / math.sqrt(query_states.shape[-1]),
-            input_layout="BSND",
+            input_layout="BNSD",
         )
 
-        attn_output = attn_output.reshape(bsz, q_len, self.hidden_size)
+        attn_output = attn_output.transpose(1, 2).reshape(bsz, q_len, self.hidden_size).contiguous()
         attn_output = self.o_proj(attn_output)
 
         if not output_attentions:
@@ -818,11 +828,11 @@ class Qwen2_5_VLDecoderLayer(nn.Cell):
         cache_position: Optional[Tensor] = None,
         position_embeddings: Optional[Tuple[Tensor, Tensor]] = None,  # necessary, but kept here for BC
         **kwargs,
-    ) -> Tuple[ms.Tensor, Optional[Tuple[ms.Tensor, ms.Tensor]]]:
+    ) -> Tuple[Tensor, Optional[Tuple[Tensor, Tensor]]]:
         """
         Args:
-            hidden_states (`ms.Tensor`): input to the layer of shape `(batch, seq_len, embed_dim)`
-            attention_mask (`ms.Tensor`, *optional*): attention mask of size
+            hidden_states (`Tensor`): input to the layer of shape `(batch, seq_len, embed_dim)`
+            attention_mask (`Tensor`, *optional*): attention mask of size
                 `(batch, sequence_length)` where padding elements are indicated by 0.
             output_attentions (`bool`, *optional*):
                 Whether or not to return the attentions tensors of all attention layers. See `attentions` under
@@ -830,10 +840,10 @@ class Qwen2_5_VLDecoderLayer(nn.Cell):
             use_cache (`bool`, *optional*):
                 If set to `True`, `past_key_values` key value states are returned and can be used to speed up decoding
                 (see `past_key_values`).
-            past_key_value (`Tuple(ms.Tensor)`, *optional*): cached past key and value projection states
+            past_key_value (`Tuple(Tensor)`, *optional*): cached past key and value projection states
             cache_position (`Tensor` of shape `(sequence_length)`, *optional*):
                 Indices depicting the position of the input sequence tokens in the sequence.
-            position_embeddings (`Tuple[ms.Tensor, ms.Tensor]`, *optional*):
+            position_embeddings (`Tuple[Tensor, Tensor]`, *optional*):
                 Tuple containing the cosine and sine positional embeddings of shape `(batch_size, seq_len, head_dim)`,
                 with `head_dim` being the embedding dimension of each attention head.
             kwargs (`dict`, *optional*):
@@ -904,8 +914,8 @@ class Qwen2_5_VLModel(Qwen2_5_VLPreTrainedModel):
         input_ids: Tensor = None,
         attention_mask: Optional[Tensor] = None,
         position_ids: Optional[Tensor] = None,
-        past_key_values: Optional[List[ms.Tensor]] = None,
-        inputs_embeds: Optional[ms.Tensor] = None,
+        past_key_values: Optional[List[Tensor]] = None,
+        inputs_embeds: Optional[Tensor] = None,
         use_cache: Optional[bool] = None,
         output_attentions: Optional[bool] = None,
         output_hidden_states: Optional[bool] = None,
@@ -938,7 +948,7 @@ class Qwen2_5_VLModel(Qwen2_5_VLPreTrainedModel):
 
         if cache_position is None:
             past_seen_tokens = past_key_values.get_seq_length() if past_key_values is not None else 0
-            cache_position = mint.arange(past_seen_tokens, past_seen_tokens + inputs_embeds.shape[1], dtype=ms.int32)
+            cache_position = mint.arange(past_seen_tokens, past_seen_tokens + inputs_embeds.shape[1])
 
         # the hard coded `3` is for temporal, height and width.
         if position_ids is None:
@@ -965,7 +975,17 @@ class Qwen2_5_VLModel(Qwen2_5_VLPreTrainedModel):
                 all_hidden_states += (hidden_states,)
 
             if self.gradient_checkpointing and self.training:
-                raise NotImplementedError()
+                layer_outputs = ms.recompute(
+                    decoder_layer,
+                    hidden_states,
+                    causal_mask,
+                    position_ids,
+                    past_key_values,
+                    output_attentions,
+                    use_cache,
+                    cache_position,
+                    position_embeddings,
+                )
             else:
                 layer_outputs = decoder_layer(
                     hidden_states,
@@ -1009,7 +1029,7 @@ class Qwen2_5_VLModel(Qwen2_5_VLPreTrainedModel):
         input_tensor: Tensor,
         cache_position: Tensor,
         past_key_values: Cache,
-        output_attentions: bool,
+        output_attentions: bool = False,
     ):
         if self.config._attn_implementation == "flash_attention_2":
             if attention_mask is not None and past_key_values is not None:
@@ -1029,11 +1049,12 @@ class Qwen2_5_VLModel(Qwen2_5_VLPreTrainedModel):
         # to infer the attention mask.
         past_seen_tokens = past_key_values.get_seq_length() if past_key_values is not None else 0
         using_static_cache = isinstance(past_key_values, StaticCache)
+        using_sliding_window_cache = isinstance(past_key_values, SlidingWindowCache)
 
         dtype = input_tensor.dtype
         sequence_length = input_tensor.shape[1]
-        # StaticCache
-        if using_static_cache:
+        # SlidingWindowCache or StaticCache
+        if using_sliding_window_cache or using_static_cache:
             target_length = past_key_values.get_max_cache_shape()
         # DynamicCache or no cache
         else:
@@ -1078,8 +1099,8 @@ class Qwen2_5_VLModel(Qwen2_5_VLPreTrainedModel):
             sequence_length (`int`):
                 The sequence length being processed.
             target_length (`int`):
-                The target length: when generating with static cache, the mask should be as long as the static cache, to account for the 0 padding, \
-                    the part of the cache that is not filled yet.
+                The target length: when generating with static cache, the mask should be as long as the static cache, to account for the 0 padding, the part of
+                    the cache that is not filled yet.
             dtype (`ms.Type`):
                 The dtype to use for the 4D attention mask.
             cache_position (`Tensor`):
@@ -1096,14 +1117,16 @@ class Qwen2_5_VLModel(Qwen2_5_VLPreTrainedModel):
             causal_mask = attention_mask
         else:
             min_dtype = dtype_to_min(dtype)
-            causal_mask = ops.full((sequence_length, target_length), fill_value=min_dtype, dtype=dtype)
-            diagonal_attend_mask = mint.arange(target_length, dtype=ms.int32) > cache_position.reshape(-1, 1)
+            causal_mask = mint.full((sequence_length, target_length), fill_value=min_dtype.item(), dtype=dtype)
+            diagonal_attend_mask = mint.arange(target_length) > cache_position.reshape(-1, 1)
             if config.sliding_window is not None:
-                if not sequence_length > target_length:
-                    sliding_attend_mask = mint.arange(target_length, dtype=ms.int32) <= (
+                # if we have sliding window, we should not attend to tokens beyond sliding window length, so we mask them out also
+                # the check is needed to verify is current checkpoint was trained with sliding window or not
+                if not isinstance(past_key_values, SlidingWindowCache) or sequence_length > target_length:
+                    sliding_attend_mask = mint.arange(target_length) <= (
                         cache_position.reshape(-1, 1) - config.sliding_window
                     )
-                    diagonal_attend_mask = mint.bitwise_or(diagonal_attend_mask, sliding_attend_mask)
+                    diagonal_attend_mask = diagonal_attend_mask.bitwise_or(sliding_attend_mask)
             causal_mask *= diagonal_attend_mask
             causal_mask = causal_mask[None, None, :, :].expand((batch_size, 1, -1, -1))
             if attention_mask is not None:
@@ -1125,23 +1148,23 @@ class Qwen2_5_VLCausalLMOutputWithPast(ModelOutput):
     Base class for Qwen2_5_VL causal language model (or autoregressive) outputs.
 
     Args:
-        loss (`ms.Tensor` of shape `(1,)`, *optional*, returned when `labels` is provided):
+        loss (`Tensor` of shape `(1,)`, *optional*, returned when `labels` is provided):
             Language modeling loss (for next-token prediction).
-        logits (`ms.Tensor` of shape `(batch_size, sequence_length, config.vocab_size)`):
+        logits (`Tensor` of shape `(batch_size, sequence_length, config.vocab_size)`):
             Prediction scores of the language modeling head (scores for each vocabulary token before SoftMax).
-        past_key_values (`tuple(tuple(ms.Tensor))`, *optional*, returned when `use_cache=True` is passed or when `config.use_cache=True`):
-            Tuple of `tuple(ms.Tensor)` of length `config.n_layers`, with each tuple having 2 tensors of shape
+        past_key_values (`tuple(tuple(Tensor))`, *optional*, returned when `use_cache=True` is passed or when `config.use_cache=True`):
+            Tuple of `tuple(Tensor)` of length `config.n_layers`, with each tuple having 2 tensors of shape
             `(batch_size, num_heads, sequence_length, embed_size_per_head)`)
 
             Contains pre-computed hidden-states (key and values in the self-attention blocks) that can be used (see
             `past_key_values` input) to speed up sequential decoding.
-        hidden_states (`tuple(ms.Tensor)`, *optional*, returned when `output_hidden_states=True` is passed or when `config.output_hidden_states=True`):
-            Tuple of `ms.Tensor` (one for the output of the embeddings, if the model has an embedding layer, +
+        hidden_states (`tuple(Tensor)`, *optional*, returned when `output_hidden_states=True` is passed or when `config.output_hidden_states=True`):
+            Tuple of `Tensor` (one for the output of the embeddings, if the model has an embedding layer, +
             one for the output of each layer) of shape `(batch_size, sequence_length, hidden_size)`.
 
             Hidden-states of the model at the output of each layer plus the optional initial embedding outputs.
-        attentions (`tuple(ms.Tensor)`, *optional*, returned when `output_attentions=True` is passed or when `config.output_attentions=True`):
-            Tuple of `ms.Tensor` (one for each layer) of shape `(batch_size, num_heads, sequence_length,
+        attentions (`tuple(Tensor)`, *optional*, returned when `output_attentions=True` is passed or when `config.output_attentions=True`):
+            Tuple of `Tensor` (one for each layer) of shape `(batch_size, num_heads, sequence_length,
             sequence_length)`.
 
             Attentions weights after the attention softmax, used to compute the weighted average in the self-attention
@@ -1150,11 +1173,11 @@ class Qwen2_5_VLCausalLMOutputWithPast(ModelOutput):
             The rope index difference between sequence length and multimodal rope.
     """
 
-    loss: Optional[ms.Tensor] = None
-    logits: ms.Tensor = None
-    past_key_values: Optional[List[ms.Tensor]] = None
-    hidden_states: Optional[Tuple[ms.Tensor]] = None
-    attentions: Optional[Tuple[ms.Tensor]] = None
+    loss: Optional[Tensor] = None
+    logits: Tensor = None
+    past_key_values: Optional[List[Tensor]] = None
+    hidden_states: Optional[Tuple[Tensor]] = None
+    attentions: Optional[Tuple[Tensor]] = None
     rope_deltas: Optional[Tensor] = None
 
 
@@ -1165,7 +1188,10 @@ class Qwen2_5_VLForConditionalGeneration(Qwen2_5_VLPreTrainedModel, GenerationMi
 
     def __init__(self, config):
         super().__init__(config)
-        self.visual = Qwen2_5_VisionTransformerPretrainedModel(config.vision_config)
+        # TODO: we need this patch here, may fix later
+        config.vision_config._attn_implementation = config._attn_implementation
+        config.vision_config.torch_dtype = getattr(config, "mindspore_dtype", None)
+        self.visual = Qwen2_5_VisionTransformerPretrainedModel._from_config(config.vision_config)
         self.model = Qwen2_5_VLModel(config)
         self.vocab_size = config.vocab_size
         self.lm_head = mint.nn.Linear(config.hidden_size, config.vocab_size, bias=False)
@@ -1214,7 +1240,7 @@ class Qwen2_5_VLForConditionalGeneration(Qwen2_5_VLPreTrainedModel, GenerationMi
                 width position_ids: [0, 1, 2, 3, 4]
 
             For vision and text embedding sequence, we calculate 3D rotary position embedding for vision part
-            and 1D rotary position embeddin for text part.
+            and 1D rotary position embedding for text part.
             Examples:
                 Temporal (Time): 3 patches, representing different segments of the video in time.
                 Height: 2 patches, dividing each frame vertically.
@@ -1320,38 +1346,30 @@ class Qwen2_5_VLForConditionalGeneration(Qwen2_5_VLPreTrainedModel, GenerationMi
                     text_len = ed - st
 
                     st_idx = llm_pos_ids_list[-1].max() + 1 if len(llm_pos_ids_list) > 0 else 0
-                    llm_pos_ids_list.append(mint.arange(text_len, dtype=ms.int32).view(1, -1).expand((3, -1)) + st_idx)
+                    llm_pos_ids_list.append(mint.arange(text_len).view(1, -1).expand((3, -1)) + st_idx)
 
-                    range_tensor = mint.arange(llm_grid_t, dtype=ms.int32).view(-1, 1)
+                    range_tensor = mint.arange(llm_grid_t).view(-1, 1)
                     expanded_range = range_tensor.expand((-1, llm_grid_h * llm_grid_w))
 
                     time_tensor = expanded_range * second_per_grid_t * self.config.vision_config.tokens_per_second
 
-                    t_index = time_tensor.flatten()
-                    h_index = (
-                        mint.arange(llm_grid_h, dtype=ms.int32)
-                        .view(1, -1, 1)
-                        .expand((llm_grid_t, -1, llm_grid_w))
-                        .flatten()
-                    )
-                    w_index = (
-                        mint.arange(llm_grid_w, dtype=ms.int32)
-                        .view(1, 1, -1)
-                        .expand((llm_grid_t, llm_grid_h, -1))
-                        .flatten()
-                    )
+                    time_tensor_long = time_tensor.long()
+                    t_index = time_tensor_long.flatten()
+
+                    h_index = mint.arange(llm_grid_h).view(1, -1, 1).expand((llm_grid_t, -1, llm_grid_w)).flatten()
+                    w_index = mint.arange(llm_grid_w).view(1, 1, -1).expand((llm_grid_t, llm_grid_h, -1)).flatten()
                     llm_pos_ids_list.append(mint.stack([t_index, h_index, w_index]) + text_len + st_idx)
                     st = ed + llm_grid_t * llm_grid_h * llm_grid_w
 
                 if st < len(input_tokens):
                     st_idx = llm_pos_ids_list[-1].max() + 1 if len(llm_pos_ids_list) > 0 else 0
                     text_len = len(input_tokens) - st
-                    llm_pos_ids_list.append(mint.arange(text_len, dtype=ms.int32).view(1, -1).expand((3, -1)) + st_idx)
+                    llm_pos_ids_list.append(mint.arange(text_len).view(1, -1).expand((3, -1)) + st_idx)
 
                 llm_positions = mint.cat(llm_pos_ids_list, dim=1).reshape(3, -1)
-                position_ids[..., i, attention_mask[i] == 1] = llm_positions
+                position_ids[..., i, attention_mask[i] == 1] = llm_positions.to(position_ids.dtype)
                 mrope_position_deltas.append(llm_positions.max() + 1 - len(total_input_ids[i]))
-            mrope_position_deltas = Tensor(mrope_position_deltas).unsqueeze(1)
+            mrope_position_deltas = ms.tensor(mrope_position_deltas).unsqueeze(1)
             return position_ids, mrope_position_deltas
         else:
             if attention_mask is not None:
@@ -1361,9 +1379,7 @@ class Qwen2_5_VLForConditionalGeneration(Qwen2_5_VLPreTrainedModel, GenerationMi
                 max_position_ids = position_ids.max(0, keepdim=False)[0].max(-1, keepdim=True)[0]
                 mrope_position_deltas = max_position_ids + 1 - attention_mask.shape[-1]
             else:
-                position_ids = (
-                    mint.arange(input_ids.shape[1], dtype=ms.int32).view(1, 1, -1).expand((3, input_ids.shape[0], -1))
-                )
+                position_ids = mint.arange(input_ids.shape[1]).view(1, 1, -1).expand((3, input_ids.shape[0], -1))
                 mrope_position_deltas = mint.zeros([input_ids.shape[0], 1], dtype=input_ids.dtype)
 
             return position_ids, mrope_position_deltas
@@ -1373,15 +1389,15 @@ class Qwen2_5_VLForConditionalGeneration(Qwen2_5_VLPreTrainedModel, GenerationMi
         input_ids: Tensor = None,
         attention_mask: Optional[Tensor] = None,
         position_ids: Optional[Tensor] = None,
-        past_key_values: Optional[List[ms.Tensor]] = None,
-        inputs_embeds: Optional[ms.Tensor] = None,
+        past_key_values: Optional[List[Tensor]] = None,
+        inputs_embeds: Optional[Tensor] = None,
         labels: Optional[Tensor] = None,
         use_cache: Optional[bool] = None,
         output_attentions: Optional[bool] = None,
         output_hidden_states: Optional[bool] = None,
         return_dict: Optional[bool] = None,
         pixel_values: Optional[Tensor] = None,
-        pixel_values_videos: Optional[ms.Tensor] = None,
+        pixel_values_videos: Optional[Tensor] = None,
         image_grid_thw: Optional[Tensor] = None,
         video_grid_thw: Optional[Tensor] = None,
         rope_deltas: Optional[Tensor] = None,
@@ -1494,7 +1510,7 @@ class Qwen2_5_VLForConditionalGeneration(Qwen2_5_VLPreTrainedModel, GenerationMi
             else:
                 batch_size, seq_length, _ = inputs_embeds.shape
                 delta = cache_position[0] + self.rope_deltas if cache_position is not None else 0
-                position_ids = mint.arange(seq_length, dtype=ms.int32)
+                position_ids = mint.arange(seq_length)
                 position_ids = position_ids.view(1, -1).expand((batch_size, -1))
                 if cache_position is not None:  # otherwise `deltas` is an int `0`
                     delta = delta.repeat_interleave(batch_size // delta.shape[0], dim=0)
@@ -1522,16 +1538,13 @@ class Qwen2_5_VLForConditionalGeneration(Qwen2_5_VLPreTrainedModel, GenerationMi
             # Upcast to float if we need to compute the loss to avoid potential precision issues
             logits = logits.float()
             # Shift so that tokens < n predict n
-            shift_logits = logits[..., :-1, :]
-            shift_labels = labels[..., 1:]
+            shift_logits = logits[..., :-1, :].contiguous()
+            shift_labels = labels[..., 1:].contiguous()
             # Flatten the tokens
-            loss_fct = mint.nn.CrossEntropyLoss()
+            loss_fct = CrossEntropyLoss()
             shift_logits = shift_logits.view(-1, self.config.vocab_size)
             shift_labels = shift_labels.view(-1)
             loss = loss_fct(shift_logits, shift_labels)
-        else:
-            # TODO: return bf16 directly
-            logits = logits.float()
 
         if not return_dict:
             output = (logits,) + outputs[1:]
@@ -1562,64 +1575,31 @@ class Qwen2_5_VLForConditionalGeneration(Qwen2_5_VLPreTrainedModel, GenerationMi
         second_per_grid_ts=None,
         **kwargs,
     ):
-        # Overwritten -- in specific circumstances we don't want to construct image inputs to the model
+        # Overwritten -- in specific circumstances we don't want to forward image inputs to the model
 
-        # If we have cache: let's slice `input_ids` through `cache_position`, to keep only the unprocessed tokens
-        # Exception 1: when passing input_embeds, input_ids may be missing entries
-        # Exception 2: some generation methods do special slicing of input_ids, so we don't need to do it here
-        # Exception 3: with synced GPUs cache_position may go out of bounds, but we only want dummy token in that case.
-        #              (we can't check exception 3 while compiling)
-        # Exception 4: If input_embeds are passed then slice it through `cache_position`, to keep only the unprocessed tokens and
-        # generate the first token for each sequence. Later use the generated Input ids for continuation.
-        if past_key_values is not None:
-            if inputs_embeds is not None and input_ids.shape[1] == 0:  # Exception 4
-                inputs_embeds = inputs_embeds[:, -cache_position.shape[0] :]
-            elif inputs_embeds is not None or (cache_position[-1] >= input_ids.shape[1]):  # Exception 1  # Exception 3
-                input_ids = input_ids[:, -cache_position.shape[0] :]
-            elif input_ids.shape[1] != cache_position.shape[0]:  # Default case (the "else", a no op, is Exception 2)
-                input_ids = input_ids[:, cache_position]
+        model_inputs = super().prepare_inputs_for_generation(
+            input_ids,
+            past_key_values=past_key_values,
+            attention_mask=attention_mask,
+            inputs_embeds=inputs_embeds,
+            cache_position=cache_position,
+            position_ids=position_ids,
+            pixel_values=pixel_values,
+            pixel_values_videos=pixel_values_videos,
+            image_grid_thw=image_grid_thw,
+            video_grid_thw=video_grid_thw,
+            second_per_grid_ts=second_per_grid_ts,
+            use_cache=use_cache,
+            **kwargs,
+        )
+
+        # Qwen2-5-VL position_ids are prepareed with rope_deltas in forward
+        model_inputs["position_ids"] = None
 
         if cache_position[0] != 0:
-            pixel_values = None
-            pixel_values_videos = None
+            model_inputs["pixel_values"] = None
+            model_inputs["pixel_values_videos"] = None
 
-        # if `inputs_embeds` are passed, we only want to use them in the 1st generation step
-        if inputs_embeds is not None and len(cache_position) == inputs_embeds.shape[1]:
-            model_inputs = {"inputs_embeds": inputs_embeds, "input_ids": None}
-        else:
-            model_inputs = {"input_ids": input_ids, "inputs_embeds": None}
-
-        if isinstance(past_key_values, StaticCache) and attention_mask.ndim == 2:
-            if model_inputs["inputs_embeds"] is not None:
-                batch_size, sequence_length, _ = inputs_embeds.shape
-            else:
-                batch_size, sequence_length = input_ids.shape
-
-            attention_mask = self.model._prepare_4d_causal_attention_mask_with_cache_position(
-                attention_mask,
-                sequence_length=sequence_length,
-                target_length=past_key_values.get_max_cache_shape(),
-                dtype=self.lm_head.weight.dtype,
-                cache_position=cache_position,
-                batch_size=batch_size,
-                config=self.config,
-                past_key_values=past_key_values,
-            )
-
-        model_inputs.update(
-            {
-                "position_ids": position_ids,
-                "past_key_values": past_key_values,
-                "use_cache": use_cache,
-                "attention_mask": attention_mask,
-                "pixel_values": pixel_values,
-                "pixel_values_videos": pixel_values_videos,
-                "image_grid_thw": image_grid_thw,
-                "video_grid_thw": video_grid_thw,
-                "cache_position": cache_position,
-                "second_per_grid_ts": second_per_grid_ts,
-            }
-        )
         return model_inputs
 
     def _get_image_nums_and_video_nums(
@@ -1676,7 +1656,7 @@ class Qwen2_5_VLForConditionalGeneration(Qwen2_5_VLPreTrainedModel, GenerationMi
             def _repeat_interleave_samples(x, lengths, repeat_times):
                 samples = mint.split(x, lengths)
                 repeat_args = [repeat_times] + [1] * (x.dim() - 1)
-                result = mint.cat([mint.tile(sample, repeat_args) for sample in samples], dim=0)
+                result = mint.cat([sample.repeat(*repeat_args) for sample in samples], dim=0)
                 return result
 
             for key in dict_to_expand:
@@ -1710,7 +1690,7 @@ class Qwen2_5_VLForConditionalGeneration(Qwen2_5_VLPreTrainedModel, GenerationMi
                         raise TypeError(
                             f"Expected value for key '{key}' to be a list, but got {type(dict_to_expand[key])} instead."
                         )
-                    tensor = Tensor(dict_to_expand[key])
+                    tensor = ms.tensor(dict_to_expand[key])
                     lengths = list(video_nums)
                     tensor = _repeat_interleave_samples(tensor, lengths=lengths, repeat_times=expand_size)
                     dict_to_expand[key] = tensor.tolist()

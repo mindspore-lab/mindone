@@ -2,7 +2,7 @@ from dataclasses import dataclass
 from typing import Dict, Optional, Tuple, Union
 
 import mindspore as ms
-from mindspore import nn, ops
+from mindspore import mint, nn, ops
 
 from ...configuration_utils import ConfigMixin, register_to_config
 from ...loaders import UNet2DConditionLoadersMixin
@@ -132,13 +132,11 @@ class UNetSpatioTemporalConditionModel(ModelMixin, ConfigMixin, UNet2DConditionL
             )
 
         # input
-        self.conv_in = nn.Conv2d(
+        self.conv_in = mint.nn.Conv2d(
             in_channels,
             block_out_channels[0],
             kernel_size=3,
-            pad_mode="pad",
             padding=1,
-            has_bias=True,
         )
 
         # time
@@ -249,15 +247,13 @@ class UNetSpatioTemporalConditionModel(ModelMixin, ConfigMixin, UNet2DConditionL
 
         # out
         self.conv_norm_out = GroupNorm(num_channels=block_out_channels[0], num_groups=32, eps=1e-5)
-        self.conv_act = nn.SiLU()
+        self.conv_act = mint.nn.SiLU()
 
-        self.conv_out = nn.Conv2d(
+        self.conv_out = mint.nn.Conv2d(
             block_out_channels[0],
             out_channels,
             kernel_size=3,
-            pad_mode="pad",
             padding=1,
-            has_bias=True,
         )
 
     @property
@@ -448,7 +444,7 @@ class UNetSpatioTemporalConditionModel(ModelMixin, ConfigMixin, UNet2DConditionL
         # 2. pre-process
         sample = self.conv_in(sample)
 
-        image_only_indicator = ops.zeros((batch_size, num_frames), dtype=sample.dtype)
+        image_only_indicator = mint.zeros((batch_size, num_frames), dtype=sample.dtype)
 
         down_block_res_samples = (sample,)
         for downsample_block in self.down_blocks:

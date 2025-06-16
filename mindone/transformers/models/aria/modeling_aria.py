@@ -275,7 +275,7 @@ def sequential_experts_gemm(token_states, expert_weights, tokens_per_expert):
         tokens = token_states[start:end]
 
         out = mint.matmul(tokens, expert_weights[expert_num])
-        output[start:end] = out.float()
+        output[start:end] = out.float() # bf16 tensor does not support SliceToIndices in garph mode
     return output.to(token_states.dtype)
 
 
