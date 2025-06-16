@@ -4,6 +4,7 @@ from dataclasses import dataclass
 from typing import Dict, List, Optional, Tuple, Union
 
 from transformers import GroundingDinoConfig
+from transformers.utils import ModelOutput, auto_docstring, logging
 
 import mindspore as ms
 import mindspore.mint as mint
@@ -14,11 +15,9 @@ from mindspore.common.initializer import Constant, Normal, XavierUniform, initia
 from mindone.transformers.mindspore_adapter.utils import _DTYPE_2_MAX, _DTYPE_2_MIN
 
 from ...activations import ACT2FN
-from ...file_utils import ModelOutput, requires_backends
 from ...integrations import use_kernel_construct_from_hub
 from ...mindspore_utils import meshgrid
 from ...modeling_utils import PreTrainedModel
-from ...utils import auto_docstring, logging
 from ...utils.backbone_utils import load_backbone
 from ..auto import AutoModel
 
@@ -416,15 +415,7 @@ class GroundingDinoConvEncoder(nn.Cell):
 
         if config.use_timm_backbone:
             raise NotImplementedError("Timm not supported!")
-            requires_backends(self, ["timm"])
-            import timm
 
-            backbone = timm.create_model(
-                config.backbone,
-                pretrained=config.use_pretrained_backbone,
-                features_only=True,
-                **config.backbone_kwargs,
-            )
         else:
             backbone = load_backbone(config)
 
