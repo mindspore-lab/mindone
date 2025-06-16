@@ -155,6 +155,12 @@ from .models.granite import GraniteForCausalLM, GraniteModel, GranitePreTrainedM
 from .models.granitemoe import GraniteMoeForCausalLM, GraniteMoeModel, GraniteMoePreTrainedModel
 from .models.granitemoeshared import GraniteMoeSharedForCausalLM, GraniteMoeSharedModel, GraniteMoeSharedPreTrainedModel
 from .models.grounding_dino import GroundingDinoForObjectDetection, GroundingDinoModel, GroundingDinoPreTrainedModel
+from .models.grounding_dino import (
+    GroundingDinoForObjectDetection,
+    GroundingDinoImageProcessor,
+    GroundingDinoModel,
+    GroundingDinoPreTrainedModel,
+)
 from .models.hiera import (
     HieraBackbone,
     HieraForImageClassification,
