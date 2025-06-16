@@ -438,10 +438,10 @@ class GroundingDinoConvEncoder(nn.Cell):
             for name, parameter in self.model.parameters_and_names():
                 if config.use_timm_backbone:
                     if "layer2" not in name and "layer3" not in name and "layer4" not in name:
-                        parameter.requires_grad_(False)
+                        parameter.requires_grad = False
                 else:
                     if "stage.1" not in name and "stage.2" not in name and "stage.3" not in name:
-                        parameter.requires_grad_(False)
+                        parameter.requires_grad = False
 
     # Copied from transformers.models.detr.modeling_detr.DetrConvEncoder.construct with Detr->GroundingDino
     def construct(self, pixel_values: ms.Tensor, pixel_mask: ms.Tensor):
