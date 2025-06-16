@@ -2,7 +2,6 @@ import os
 import sys
 
 import numpy as np
-import torch
 from hydra import compose
 from hydra.utils import instantiate
 from omegaconf import OmegaConf
@@ -49,7 +48,9 @@ class SAM:
         self.mask_generator = SAM2AutomaticMaskGenerator(self.model)
         self.predictor = SAM2ImagePredictor(self.model)
 
-    def _load_checkpoint(self, model: torch.nn.Module):
+    def _load_checkpoint(self, model):
+        import torch
+
         if self.ckpt_path is None:
             checkpoint_url = SAM_MODELS[self.sam_type]["url"]
             state_dict_pt = torch.hub.load_state_dict_from_url(checkpoint_url, map_location="cpu")["model"]
