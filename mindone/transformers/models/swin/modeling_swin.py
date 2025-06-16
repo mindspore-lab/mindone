@@ -297,7 +297,7 @@ class SwinEmbeddings(nn.Cell):
         _, num_channels, height, width = pixel_values.shape
         embeddings, output_dimensions = self.patch_embeddings(pixel_values)
         embeddings = self.norm(embeddings)
-        batch_size, seq_len, _ = embeddings.size()
+        batch_size, seq_len, _ = embeddings.shape
 
         if bool_masked_pos is not None:
             mask_tokens = self.mask_token.expand(batch_size, seq_len, -1)
@@ -488,7 +488,7 @@ class SwinSelfAttention(nn.Cell):
         self.dropout = mint.nn.Dropout(config.attention_probs_dropout_prob)
 
     def transpose_for_scores(self, x):
-        new_x_shape = x.size()[:-1] + (self.num_attention_heads, self.attention_head_size)
+        new_x_shape = x.shape[:-1] + (self.num_attention_heads, self.attention_head_size)
         x = x.view(new_x_shape)
         return x.permute(0, 2, 1, 3)
 
@@ -541,7 +541,7 @@ class SwinSelfAttention(nn.Cell):
 
         context_layer = mint.matmul(attention_probs, value_layer)
         context_layer = context_layer.permute(0, 2, 1, 3).contiguous()
-        new_context_layer_shape = context_layer.size()[:-2] + (self.all_head_size,)
+        new_context_layer_shape = context_layer.shape[:-2] + (self.all_head_size,)
         context_layer = context_layer.view(new_context_layer_shape)
 
         outputs = (context_layer, attention_probs) if output_attentions else (context_layer,)
@@ -695,7 +695,7 @@ class SwinLayer(nn.Cell):
         else:
             pass
         height, width = input_dimensions
-        batch_size, _, channels = hidden_states.size()
+        batch_size, _, channels = hidden_states.shape
         shortcut = hidden_states
 
         hidden_states = self.layernorm_before(hidden_states)

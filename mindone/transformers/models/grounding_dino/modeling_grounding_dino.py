@@ -805,7 +805,7 @@ class GroundingDinoBiMultiHeadAttention(nn.Cell):
               text_sequence_length)`) --
                 Attention weights of the text-to-image cross-attention layer.
         """
-        batch_size, tgt_len, _ = vision_features.size()
+        batch_size, tgt_len, _ = vision_features.shape
 
         vision_query_states = self.vision_proj(vision_features) * self.scale
         vision_query_states = self._reshape(vision_query_states, tgt_len, batch_size)
@@ -829,9 +829,9 @@ class GroundingDinoBiMultiHeadAttention(nn.Cell):
         src_len = text_key_states.size(1)
         attn_weights = mint.bmm(vision_query_states, text_key_states.transpose(1, 2))  # bs*nhead, nimg, ntxt
 
-        if attn_weights.size() != (batch_size * self.num_heads, tgt_len, src_len):
+        if attn_weights.shape != (batch_size * self.num_heads, tgt_len, src_len):
             raise ValueError(
-                f"Attention weights should be of size {(batch_size * self.num_heads, tgt_len, src_len)}, but is {attn_weights.size()}"
+                f"Attention weights should be of size {(batch_size * self.num_heads, tgt_len, src_len)}, but is {attn_weights.shape}"
             )
 
         attn_weights = attn_weights - attn_weights.max()
@@ -865,14 +865,14 @@ class GroundingDinoBiMultiHeadAttention(nn.Cell):
         vision_attn_output = mint.bmm(vision_attn_probs, text_value_states)
         text_attn_output = mint.bmm(text_attn_probs, vision_value_states)
 
-        if vision_attn_output.size() != (batch_size * self.num_heads, tgt_len, self.head_dim):
+        if vision_attn_output.shape != (batch_size * self.num_heads, tgt_len, self.head_dim):
             raise ValueError(
-                f"`vision_attn_output` should be of size {(batch_size, self.num_heads, tgt_len, self.head_dim)}, but is {vision_attn_output.size()}"
+                f"`vision_attn_output` should be of size {(batch_size, self.num_heads, tgt_len, self.head_dim)}, but is {vision_attn_output.shape}"
             )
 
-        if text_attn_output.size() != (batch_size * self.num_heads, src_len, self.head_dim):
+        if text_attn_output.shape != (batch_size * self.num_heads, src_len, self.head_dim):
             raise ValueError(
-                f"`text_attn_output` should be of size {(batch_size, self.num_heads, src_len, self.head_dim)}, but is {text_attn_output.size()}"
+                f"`text_attn_output` should be of size {(batch_size, self.num_heads, src_len, self.head_dim)}, but is {text_attn_output.shape}"
             )
 
         vision_attn_output = vision_attn_output.view(batch_size, self.num_heads, tgt_len, self.head_dim)
@@ -1213,7 +1213,7 @@ class GroundingDinoMultiheadAttention(nn.Cell):
         self.dropout = mint.nn.Dropout(config.attention_dropout)
 
     def transpose_for_scores(self, x: ms.Tensor) -> ms.Tensor:
-        new_x_shape = x.size()[:-1] + (self.num_attention_heads, self.attention_head_size)
+        new_x_shape = x.shape[:-1] + (self.num_attention_heads, self.attention_head_size)
         x = x.view(new_x_shape)
         return x.permute(0, 2, 1, 3)
 
@@ -1247,7 +1247,7 @@ class GroundingDinoMultiheadAttention(nn.Cell):
         context_layer = mint.matmul(attention_probs, value_layer)
 
         context_layer = context_layer.permute(0, 2, 1, 3).contiguous()
-        new_context_layer_shape = context_layer.size()[:-2] + (self.all_head_size,)
+        new_context_layer_shape = context_layer.shape[:-2] + (self.all_head_size,)
         context_layer = context_layer.view(new_context_layer_shape)
 
         context_layer = self.out_proj(context_layer)
@@ -1893,7 +1893,7 @@ def generate_masks_with_special_tokens_and_transfer_map(input_ids: ms.Tensor) ->
             position_ids[row, col] = 0
         else:
             attention_mask[row, previous_col + 1 : col + 1, previous_col + 1 : col + 1] = True
-            position_ids[row, previous_col + 1 : col + 1] = mint.arange(0, col - previous_col)
+            position_ids[row, previous_col + 1 : col + 1] = mint.arange(0, int(col - previous_col))
 
         previous_col = col
 
@@ -2453,59 +2453,60 @@ class GroundingDinoForObjectDetection(GroundingDinoPreTrainedModel):
         labels: Optional[List[Dict[str, Union[ms.Tensor, ms.Tensor]]]] = None,
     ):
         r"""
-                input_ids (`ms.Tensor` of shape `(batch_size, text_sequence_length)`):
-                    Indices of input sequence tokens in the vocabulary. Padding will be ignored by default should you provide
-                    it.
+        input_ids (`ms.Tensor` of shape `(batch_size, text_sequence_length)`):
+            Indices of input sequence tokens in the vocabulary. Padding will be ignored by default should you provide
+            it.
 
-                    Indices can be obtained using [`AutoTokenizer`]. See [`BertTokenizer.__call__`] for details.
-                token_type_ids (`ms.Tensor` of shape `(batch_size, text_sequence_length)`, *optional*):
-                    Segment token indices to indicate first and second portions of the inputs. Indices are selected in `[0,
-                    1]`: 0 corresponds to a `sentence A` token, 1 corresponds to a `sentence B` token
+            Indices can be obtained using [`AutoTokenizer`]. See [`BertTokenizer.__call__`] for details.
+        token_type_ids (`ms.Tensor` of shape `(batch_size, text_sequence_length)`, *optional*):
+            Segment token indices to indicate first and second portions of the inputs. Indices are selected in `[0,
+            1]`: 0 corresponds to a `sentence A` token, 1 corresponds to a `sentence B` token
 
-                    [What are token type IDs?](../glossary#token-type-ids)
-                labels (`List[Dict]` of len `(batch_size,)`, *optional*):
-                    Labels for computing the bipartite matching loss. List of dicts, each dictionary containing at least the
-                    following 2 keys: 'class_labels' and 'boxes' (the class labels and bounding boxes of an image in the batch
-                    respectively). The class labels themselves should be a `ms.Tensor` of len `(number of bounding boxes
-                    in the image,)` and the boxes a `ms.Tensor` of shape `(number of bounding boxes in the image, 4)`.
+            [What are token type IDs?](../glossary#token-type-ids)
+        labels (`List[Dict]` of len `(batch_size,)`, *optional*):
+            Labels for computing the bipartite matching loss. List of dicts, each dictionary containing at least the
+            following 2 keys: 'class_labels' and 'boxes' (the class labels and bounding boxes of an image in the batch
+            respectively). The class labels themselves should be a `ms.Tensor` of len `(number of bounding boxes
+            in the image,)` and the boxes a `ms.Tensor` of shape `(number of bounding boxes in the image, 4)`.
 
-                Examples:
+        Examples:
 
-                ```python
-                >>> import requests
+        ```python
+        >>> import requests
 
-                >>> import mindspore as ms
-        import mindspore.mint as mint
-                >>> from PIL import Image
-                >>> from transformers import AutoProcessor, AutoModelForZeroShotObjectDetection
+        >>> import mindspore as ms
+        >>> import mindspore.mint as mint
+        >>> from PIL import Image
+        >>> from transformers import AutoProcessor, AutoModelForZeroShotObjectDetection
 
-                >>> model_id = "IDEA-Research/grounding-dino-tiny"
+        >>> model_id = "IDEA-Research/grounding-dino-tiny"
 
-                >>> processor = AutoProcessor.from_pretrained(model_id)
-                >>> model = AutoModelForZeroShotObjectDetection.from_pretrained(model_id)
+        >>> processor = AutoProcessor.from_pretrained(model_id)
+        >>> model = AutoModelForZeroShotObjectDetection.from_pretrained(model_id)
 
-                >>> image_url = "http://images.cocodataset.org/val2017/000000039769.jpg"
-                >>> image = Image.open(requests.get(image_url, stream=True).raw)
-                >>> # Check for cats and remote controls
-                >>> text_labels = [["a cat", "a remote control"]]
+        >>> image_url = "http://images.cocodataset.org/val2017/000000039769.jpg"
+        >>> image = Image.open(requests.get(image_url, stream=True).raw)
+        >>> # Check for cats and remote controls
+        >>> text_labels = [["a cat", "a remote control"]]
 
-                >>> inputs = processor(images=image, text=text_labels, return_tensors="pt")
-                >>> outputs = model(**inputs)
-                >>> results = processor.post_process_grounded_object_detection(
-                ...     outputs,
-                ...     threshold=0.4,
-                ...     text_threshold=0.3,
-                ...     target_sizes=[(image.height, image.width)]
-                ... )
-                >>> # Retrieve the first image result
-                >>> result = results[0]
-                >>> for box, score, text_label in zip(result["boxes"], result["scores"], result["text_labels"]):
-                ...     box = [round(x, 2) for x in box.tolist()]
-                ...     print(f"Detected {text_label} with confidence {round(score.item(), 3)} at location {box}")
-                Detected a cat with confidence 0.479 at location [344.7, 23.11, 637.18, 374.28]
-                Detected a cat with confidence 0.438 at location [12.27, 51.91, 316.86, 472.44]
-                Detected a remote control with confidence 0.478 at location [38.57, 70.0, 176.78, 118.18]
-                ```"""
+        >>> inputs = processor(images=image, text=text_labels, return_tensors="pt")
+        >>> outputs = model(**inputs)
+        >>> results = processor.post_process_grounded_object_detection(
+        ...     outputs,
+        ...     threshold=0.4,
+        ...     text_threshold=0.3,
+        ...     target_sizes=[(image.height, image.width)]
+        ... )
+        >>> # Retrieve the first image result
+        >>> result = results[0]
+        >>> for box, score, text_label in zip(result["boxes"], result["scores"], result["text_labels"]):
+        ...     box = [round(x, 2) for x in box.tolist()]
+        ...     print(f"Detected {text_label} with confidence {round(score.item(), 3)} at location {box}")
+        Detected a cat with confidence 0.479 at location [344.7, 23.11, 637.18, 374.28]
+        Detected a cat with confidence 0.438 at location [12.27, 51.91, 316.86, 472.44]
+        Detected a remote control with confidence 0.478 at location [38.57, 70.0, 176.78, 118.18]
+        ```
+        """
         return_dict = return_dict if return_dict is not None else self.config.use_return_dict
 
         if attention_mask is None:
