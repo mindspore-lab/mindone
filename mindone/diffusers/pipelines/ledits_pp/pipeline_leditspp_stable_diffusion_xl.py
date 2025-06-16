@@ -629,10 +629,10 @@ class LEditsPPPipelineStableDiffusionXL(
 
     # Modified from diffusers.pipelines.stable_diffusion.pipeline_stable_diffusion.StableDiffusionPipeline.prepare_latents
     def prepare_latents(self, latents):
-        latents = latents
+        dtype = latents.dtype
 
         # scale the initial noise by the standard deviation required by the scheduler
-        latents = latents * self.scheduler.init_noise_sigma
+        latents = (latents * self.scheduler.init_noise_sigma).to(dtype)
         return latents
 
     def _get_add_time_ids(

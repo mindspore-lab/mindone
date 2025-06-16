@@ -14,7 +14,7 @@
 # limitations under the License.
 
 import math
-from typing import Any, Dict, Optional, Tuple
+from typing import Any, Dict, Optional, Tuple, Union
 
 import mindspore as ms
 from mindspore import mint, nn
@@ -105,16 +105,14 @@ class LTXVideoRotaryPosEmbed(nn.Cell):
         self.patch_size_t = patch_size_t
         self.theta = theta
 
-    def construct(
+    def _prepare_video_coords(
         self,
-        hidden_states: ms.Tensor,
+        batch_size: int,
         num_frames: int,
         height: int,
         width: int,
-        rope_interpolation_scale: Optional[Tuple[ms.Tensor, float, float]] = None,
-    ) -> Tuple[ms.Tensor, ms.Tensor]:
-        batch_size = hidden_states.shape[0]
-
+        rope_interpolation_scale: Tuple[ms.Tensor, float, float],
+    ) -> ms.Tensor:
         # Always compute rope in fp32
         grid_h = mint.arange(height, dtype=ms.float32)
         grid_w = mint.arange(width, dtype=ms.float32)
@@ -129,6 +127,37 @@ class LTXVideoRotaryPosEmbed(nn.Cell):
             grid[:, 2:3] = grid[:, 2:3] * rope_interpolation_scale[2] * self.patch_size / self.base_width
 
         grid = grid.flatten(start_dim=2, end_dim=4).swapaxes(1, 2)
+
+        return grid
+
+    def construct(
+        self,
+        hidden_states: ms.Tensor,
+        num_frames: Optional[int] = None,
+        height: Optional[int] = None,
+        width: Optional[int] = None,
+        rope_interpolation_scale: Optional[Tuple[ms.Tensor, float, float]] = None,
+        video_coords: Optional[ms.Tensor] = None,
+    ) -> Tuple[ms.Tensor, ms.Tensor]:
+        batch_size = hidden_states.shape[0]
+
+        if video_coords is None:
+            grid = self._prepare_video_coords(
+                batch_size,
+                num_frames,
+                height,
+                width,
+                rope_interpolation_scale=rope_interpolation_scale,
+            )
+        else:
+            grid = mint.stack(
+                [
+                    video_coords[:, 0] / self.base_num_frames,
+                    video_coords[:, 1] / self.base_height,
+                    video_coords[:, 2] / self.base_width,
+                ],
+                dim=-1,
+            )
 
         start = 1.0
         end = self.theta
@@ -359,17 +388,18 @@ class LTXVideoTransformer3DModel(ModelMixin, ConfigMixin, FromOriginalModelMixin
         encoder_hidden_states: ms.Tensor,
         timestep: ms.Tensor,
         encoder_attention_mask: ms.Tensor,
-        num_frames: int,
-        height: int,
-        width: int,
-        rope_interpolation_scale: Optional[Tuple[float, float, float]] = None,
+        num_frames: Optional[int] = None,
+        height: Optional[int] = None,
+        width: Optional[int] = None,
+        rope_interpolation_scale: Optional[Union[Tuple[float, float, float], ms.Tensor]] = None,
+        video_coords: Optional[ms.Tensor] = None,
         attention_kwargs: Optional[Dict[str, Any]] = None,
         return_dict: bool = False,
     ) -> ms.Tensor:
         if attention_kwargs is not None:
             attention_kwargs = attention_kwargs.copy()
 
-        image_rotary_emb = self.rope(hidden_states, num_frames, height, width, rope_interpolation_scale)
+        image_rotary_emb = self.rope(hidden_states, num_frames, height, width, rope_interpolation_scale, video_coords)
 
         # convert encoder_attention_mask to a bias the same way we do for attention_mask
         if encoder_attention_mask is not None and encoder_attention_mask.ndim == 2:

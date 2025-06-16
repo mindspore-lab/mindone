@@ -253,12 +253,20 @@ class Attention(nn.Cell):
             self.to_add_out = None
 
         if qk_norm is not None and added_kv_proj_dim is not None:
-            if qk_norm == "fp32_layer_norm":
+            if qk_norm == "layer_norm":
+                self.norm_added_q = LayerNorm(dim_head, eps=eps, elementwise_affine=elementwise_affine)
+                self.norm_added_k = LayerNorm(dim_head, eps=eps, elementwise_affine=elementwise_affine)
+            elif qk_norm == "fp32_layer_norm":
                 self.norm_added_q = FP32LayerNorm(dim_head, elementwise_affine=False, bias=False, eps=eps)
                 self.norm_added_k = FP32LayerNorm(dim_head, elementwise_affine=False, bias=False, eps=eps)
             elif qk_norm == "rms_norm":
                 self.norm_added_q = RMSNorm(dim_head, eps=eps)
                 self.norm_added_k = RMSNorm(dim_head, eps=eps)
+            elif qk_norm == "rms_norm_across_heads":
+                # Wan applies qk norm across all heads
+                # Wan also doesn't apply a q norm
+                self.norm_added_q = None
+                self.norm_added_k = RMSNorm(dim_head * kv_heads, eps=eps)
             else:
                 raise ValueError(
                     f"unknown qk_norm: {qk_norm}. Should be one of `None,'layer_norm','fp32_layer_norm','rms_norm'`"
@@ -4454,6 +4462,11 @@ class SanaLinearAttnProcessor2_0:
         query = attn.to_q(hidden_states)
         key = attn.to_k(encoder_hidden_states)
         value = attn.to_v(encoder_hidden_states)
+
+        if attn.norm_q is not None:
+            query = attn.norm_q(query)
+        if attn.norm_k is not None:
+            key = attn.norm_k(key)
 
         query = query.swapaxes(1, 2)
         query = query.reshape(query.shape[0], attn.heads, -1, *query.shape[2:])
