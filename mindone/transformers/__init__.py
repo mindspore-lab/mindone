@@ -99,6 +99,14 @@ from .models.clip import (
     CLIPVisionModel,
     CLIPVisionModelWithProjection,
 )
+from .models.deberta import (
+    DebertaForMaskedLM,
+    DebertaForQuestionAnswering,
+    DebertaForSequenceClassification,
+    DebertaForTokenClassification,
+    DebertaModel,
+    DebertaPreTrainedModel,
+)
 from .models.deberta_v2 import (
     DebertaV2ForMaskedLM,
     DebertaV2ForMultipleChoice,
