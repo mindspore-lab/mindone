@@ -17,6 +17,7 @@ from transformers.utils import (
 import mindspore as ms
 import mindspore.mint as mint
 from mindspore import nn
+from mindspore.common.initializer import Constant, Normal, initializer
 from mindspore.mint.nn import BCEWithLogitsLoss, CrossEntropyLoss, MSELoss
 
 from ...activations import ACT2FN
@@ -24,6 +25,15 @@ from ...mindspore_utils import find_pruneable_heads_and_indices, meshgrid, prune
 from ...modeling_outputs import BackboneOutput
 from ...modeling_utils import PreTrainedModel
 from ...utils.backbone_utils import BackboneMixin
+
+
+def constant_(tensor: ms.Parameter, val: float) -> None:
+    tensor.set_data(initializer(Constant(val), tensor.shape, tensor.dtype))
+
+
+def normal_(tensor: ms.Parameter, mean: float = 0.0, std: float = 1.0) -> None:
+    tensor.set_data(initializer(Normal(std, mean), tensor.shape, tensor.dtype))
+
 
 logger = logging.get_logger(__name__)
 
@@ -906,12 +916,12 @@ class SwinPreTrainedModel(PreTrainedModel):
         if isinstance(module, (mint.nn.Linear, mint.nn.Conv2d)):
             # Slightly different from the TF version which uses truncated_normal for initialization
             # cf https://github.com/mindspore/mindspore/pull/5617
-            module.weight.data.normal_(mean=0.0, std=self.config.initializer_range)
+            normal_(module.weight, mean=0.0, std=self.config.initializer_range)
             if module.bias is not None:
-                module.bias.data.zero_()
+                constant_(module.bias, 0)
         elif isinstance(module, mint.nn.LayerNorm):
-            module.bias.data.zero_()
-            module.weight.data.fill_(1.0)
+            constant_(module.bias, 0)
+            constant_(module.weight, 1.0)
 
 
 SWIN_START_DOCSTRING = r"""

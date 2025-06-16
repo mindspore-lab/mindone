@@ -1445,7 +1445,7 @@ class GroundingDinoPreTrainedModel(PreTrainedModel):
             constant_(module.out_text_proj.bias, 0)
         elif isinstance(module, (GroundingDinoEncoderLayer, GroundingDinoDecoderLayer)):
             for p in module.get_parameters():
-                if p.ndim() > 1:
+                if p.dim() > 1:
                     normal_(p, mean=0.0, std=std)
         elif isinstance(module, (mint.nn.Linear, mint.nn.Conv2d, mint.nn.BatchNorm2d)):
             # Slightly different from the TF version which uses truncated_normal for initialization
@@ -1950,7 +1950,7 @@ class GroundingDinoModel(GroundingDinoPreTrainedModel):
         self.encoder = GroundingDinoEncoder(config)
         self.decoder = GroundingDinoDecoder(config)
 
-        self.level_embed = ms.Parameter(ms.Tensor(config.num_feature_levels, config.d_model))
+        self.level_embed = ms.Parameter(mint.randn((config.num_feature_levels, config.d_model)))
 
         if config.two_stage:
             self.enc_output = mint.nn.Linear(config.d_model, config.d_model)
@@ -2324,7 +2324,7 @@ class GroundingDinoMLPPredictionHead(nn.Cell):
         super().__init__()
         self.num_layers = num_layers
         h = [hidden_dim] * (num_layers - 1)
-        self.layers = nn.CellList(mint.nn.Linear(n, k) for n, k in zip([input_dim] + h, h + [output_dim]))
+        self.layers = nn.CellList([mint.nn.Linear(n, k) for n, k in zip([input_dim] + h, h + [output_dim])])
 
     def construct(self, x):
         for i, layer in enumerate(self.layers):
