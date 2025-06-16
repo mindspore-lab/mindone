@@ -297,6 +297,13 @@ from .models.speecht5 import (
     SpeechT5Model,
     SpeechT5PreTrainedModel,
 )
+from .models.swin import (
+    SwinBackbone,
+    SwinForImageClassification,
+    SwinForMaskedImageModeling,
+    SwinModel,
+    SwinPreTrainedModel,
+)
 from .models.switch_transformers import (
     SwitchTransformersEncoderModel,
     SwitchTransformersForConditionalGeneration,
