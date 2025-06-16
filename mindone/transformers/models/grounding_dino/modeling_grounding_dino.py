@@ -15,7 +15,6 @@ from mindspore.common.initializer import Constant, Normal, XavierUniform, initia
 from mindone.transformers.mindspore_adapter.utils import _DTYPE_2_MAX, _DTYPE_2_MIN
 
 from ...activations import ACT2FN
-from ...integrations import use_kernel_construct_from_hub
 from ...mindspore_utils import meshgrid
 from ...modeling_utils import PreTrainedModel
 from ...utils.backbone_utils import load_backbone
@@ -50,7 +49,6 @@ def xavier_uniform_(tensor: ms.Parameter, gain=1.0):
     tensor.set_data(initializer(XavierUniform(gain=gain), tensor.shape, tensor.dtype))
 
 
-@use_kernel_construct_from_hub("MultiScaleDeformableAttention")
 # Copied from transformers.models.deformable_detr.modeling_deformable_detr.MultiScaleDeformableAttention
 class MultiScaleDeformableAttention(nn.Cell):
     def construct(
