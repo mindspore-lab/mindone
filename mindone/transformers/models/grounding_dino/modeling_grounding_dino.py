@@ -350,10 +350,10 @@ class GroundingDinoFrozenBatchNorm2d(nn.Cell):
 
     def __init__(self, n):
         super().__init__()
-        self.weight = mint.ones(n)
-        self.bias = mint.zeros(n)
-        self.running_mean = mint.zeros(n)
-        self.running_var = mint.ones(n)
+        self.register_buffer("weight", mint.ones(n))
+        self.register_buffer("bias", mint.zeros(n))
+        self.register_buffer("running_mean", mint.zeros(n))
+        self.register_buffer("running_var", mint.ones(n))
 
     def _load_from_state_dict(
         self, state_dict, prefix, local_metadata, strict, missing_keys, unexpected_keys, error_msgs

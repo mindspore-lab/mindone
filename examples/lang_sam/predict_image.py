@@ -14,7 +14,7 @@ from PIL import Image
 
 def main():
     model = LangSAM(sam_type="sam2.1_hiera_small", ckpt_path="./checkpoints//sam2.1_hiera_small.pt")
-    image_pil = Image.open("./assets/cars.jpeg").convert("RGB")
+    image_pil = Image.open("./assets/car.jpeg").convert("RGB")
     text_prompt = "wheel."
     results = model.predict([image_pil], [text_prompt])
     results = results[0]
