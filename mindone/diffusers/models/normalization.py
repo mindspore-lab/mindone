@@ -18,7 +18,7 @@ from typing import Dict, Optional, Tuple
 import numpy as np
 
 import mindspore as ms
-from mindspore import Parameter, Tensor, mint, nn
+from mindspore import Parameter, Tensor, mint, nn, ops
 from mindspore.common.initializer import initializer
 
 from .activations import get_activation
@@ -210,14 +210,13 @@ class LuminaRMSNormZero(nn.Cell):
             4 * embedding_dim,
             bias=True,
         )
-        self.norm = RMSNorm(embedding_dim, eps=norm_eps, elementwise_affine=norm_elementwise_affine)
+        self.norm = RMSNorm(embedding_dim, eps=norm_eps)
 
     def construct(
         self,
         x: ms.Tensor,
         emb: Optional[ms.Tensor] = None,
     ) -> Tuple[ms.Tensor, ms.Tensor, ms.Tensor, ms.Tensor]:
-        # emb = self.emb(timestep, encoder_hidden_states, encoder_mask)
         emb = self.linear(self.silu(emb))
         scale_msa, gate_msa, scale_mlp, gate_mlp = emb.chunk(4, dim=1)
         x = self.norm(x) * (1 + scale_msa[:, None])
@@ -660,19 +659,16 @@ class RMSNorm(nn.Cell):
                 self.bias = ms.Parameter(mint.zeros(dim), name="bias")
 
     def construct(self, hidden_states):
-        input_dtype = hidden_states.dtype
-        variance = hidden_states.to(ms.float32).pow(2).mean(-1, keepdim=True)
-        hidden_states = hidden_states * mint.rsqrt(variance + self.eps)
-
         if self.weight is not None:
             # convert into half-precision if necessary
             if self.weight.dtype in [ms.float16, ms.bfloat16]:
                 hidden_states = hidden_states.to(self.weight.dtype)
-            hidden_states = hidden_states * self.weight
-            if self.bias is not None:
-                hidden_states = hidden_states + self.bias
+            weight = self.weight
         else:
-            hidden_states = hidden_states.to(input_dtype)
+            weight = ops.ones(hidden_states.shape[-1], dtype=hidden_states.dtype)
+        hidden_states = ops.rms_norm(hidden_states, weight, epsilon=self.eps)[0]
+        if self.bias is not None:
+            hidden_states = hidden_states + self.bias
 
         return hidden_states
 
