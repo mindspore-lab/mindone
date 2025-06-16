@@ -156,7 +156,12 @@ class T5LayerFF(nn.Cell):
 
 
 class T5Attention(nn.Cell):
-    def __init__(self, config: T5Config, has_relative_attention_bias=False, layer_idx: Optional[int] = None,):
+    def __init__(
+        self,
+        config: T5Config,
+        has_relative_attention_bias=False,
+        layer_idx: Optional[int] = None,
+    ):
         super().__init__()
         self.is_decoder = config.is_decoder
         self.has_relative_attention_bias = has_relative_attention_bias
@@ -334,15 +339,11 @@ class T5Attention(nn.Cell):
             # cache position is 0-indexed so we add 1 to get the real length of queries (aka with past)
             real_seq_length = query_length if query_length is not None else cache_position[-1] + 1
             if not self.has_relative_attention_bias:
-                position_bias = mint.zeros(
-                    (1, self.n_heads, seq_length, key_length), dtype=scores.dtype
-                )
+                position_bias = mint.zeros((1, self.n_heads, seq_length, key_length), dtype=scores.dtype)
                 if self.gradient_checkpointing and self.training:
                     position_bias.requires_grad = True
             else:
-                position_bias = self.compute_bias(
-                    real_seq_length, key_length, cache_position=cache_position
-                )
+                position_bias = self.compute_bias(real_seq_length, key_length, cache_position=cache_position)
                 position_bias = position_bias[:, :, -seq_length:, :]
 
             if mask is not None:
@@ -382,7 +383,9 @@ class T5Attention(nn.Cell):
 class T5LayerSelfAttention(nn.Cell):
     def __init__(self, config, has_relative_attention_bias=False, layer_idx: Optional[int] = None):
         super().__init__()
-        self.SelfAttention = T5Attention(config, has_relative_attention_bias=has_relative_attention_bias, layer_idx=layer_idx)
+        self.SelfAttention = T5Attention(
+            config, has_relative_attention_bias=has_relative_attention_bias, layer_idx=layer_idx
+        )
         self.layer_norm = T5LayerNorm(config.d_model, eps=config.layer_norm_epsilon)
         self.dropout = nn.Dropout(p=config.dropout_rate)
 
@@ -456,7 +459,9 @@ class T5Block(nn.Cell):
         super().__init__()
         self.is_decoder = config.is_decoder
         layer = []
-        layer.append(T5LayerSelfAttention(config, has_relative_attention_bias=has_relative_attention_bias, layer_idx=layer_idx))
+        layer.append(
+            T5LayerSelfAttention(config, has_relative_attention_bias=has_relative_attention_bias, layer_idx=layer_idx)
+        )
         if self.is_decoder:
             layer.append(T5LayerCrossAttention(config, layer_idx=layer_idx))
         layer.append(T5LayerFF(config))
@@ -478,29 +483,12 @@ class T5Block(nn.Cell):
         return_dict: Optional[bool] = False,
         cache_position=None,
     ):
-        if past_key_value is not None:
-            # if not self.is_decoder:
-            #     logger.warning("`past_key_values` is passed to the encoder. Please make sure this is intended.")
-            expected_num_past_key_values = 2 if encoder_hidden_states is None else 4
-
-            if len(past_key_value) != expected_num_past_key_values:
-                raise ValueError(
-                    f"There should be {expected_num_past_key_values} past states. "
-                    f"{'2 (past / key) for cross attention. ' if expected_num_past_key_values == 4 else ''}"
-                    f"Got {len(past_key_value)} past key / value states"
-                )
-
-            self_attn_past_key_value = past_key_value[:2]
-            cross_attn_past_key_value = past_key_value[2:]
-        else:
-            self_attn_past_key_value, cross_attn_past_key_value = None, None
-
         self_attention_outputs = self.layer[0](
             hidden_states,
             attention_mask=attention_mask,
             position_bias=position_bias,
             layer_head_mask=layer_head_mask,
-            past_key_value=self_attn_past_key_value,
+            past_key_value=past_key_value,
             use_cache=use_cache,
             output_attentions=output_attentions,
             cache_position=cache_position,
@@ -519,13 +507,6 @@ class T5Block(nn.Cell):
 
         do_cross_attention = self.is_decoder and encoder_hidden_states is not None
         if do_cross_attention:
-            # the actual query length is unknown for cross attention
-            # if using past key value states. Need to inject it here
-            if present_key_value_state is not None:
-                query_length = present_key_value_state[0].shape[2]
-            else:
-                query_length = None
-
             cross_attention_outputs = self.layer[1](
                 hidden_states,
                 key_value_states=encoder_hidden_states,
@@ -763,7 +744,8 @@ class T5Stack(T5PreTrainedModel):
         past_key_values_length = past_key_values.get_seq_length() if past_key_values is not None else 0
         if cache_position is None:
             cache_position = mint.arange(
-                past_key_values_length, past_key_values_length + seq_length,
+                past_key_values_length,
+                past_key_values_length + seq_length,
             )
 
         if attention_mask is None:
@@ -792,9 +774,7 @@ class T5Stack(T5PreTrainedModel):
             encoder_batch_size, encoder_sequence_length, _ = encoder_hidden_states.size()
             encoder_hidden_shape = (encoder_batch_size, encoder_sequence_length)
             if encoder_attention_mask is None:
-                encoder_attention_mask = mint.ones(
-                    encoder_hidden_shape, dtype=ms.int64
-                )
+                encoder_attention_mask = mint.ones(encoder_hidden_shape, dtype=ms.int64)
             encoder_extended_attention_mask = self.invert_attention_mask(encoder_attention_mask)
         else:
             encoder_extended_attention_mask = None
@@ -851,7 +831,8 @@ class T5Stack(T5PreTrainedModel):
                 )
 
             # layer_outputs is a tuple with:
-            # hidden-states, key-value-states, (self-attention position bias), (self-attention weights), (cross-attention position bias), (cross-attention weights)
+            # hidden-states, key-value-states, (self-attention position bias), (self-attention weights),
+            # (cross-attention position bias), (cross-attention weights)
             if use_cache is False:
                 layer_outputs = layer_outputs[:1] + (None,) + layer_outputs[1:]
 
@@ -902,119 +883,117 @@ class T5Stack(T5PreTrainedModel):
             cross_attentions=all_cross_attentions,
         )
 
-        # Copied from transformers.models.llama.modeling_llama.LlamaModel._update_causal_mask
-        def _update_causal_mask(
-            self,
-            attention_mask: ms.Tensor,
-            input_tensor: ms.Tensor,
-            cache_position: ms.Tensor,
-            past_key_values: Cache,
-            output_attentions: bool = False,
-        ):
-            # For SDPA, when possible, we will rely on its `is_causal` argument instead of its `attn_mask` argument, in
-            # order to dispatch on Flash Attention 2. This feature is not compatible with static cache, as SDPA will fail
-            # to infer the attention mask.
-            past_seen_tokens = past_key_values.get_seq_length() if past_key_values is not None else 0
-            using_static_cache = isinstance(past_key_values, StaticCache)
+    # Copied from transformers.models.llama.modeling_llama.LlamaModel._update_causal_mask
+    def _update_causal_mask(
+        self,
+        attention_mask: ms.Tensor,
+        input_tensor: ms.Tensor,
+        cache_position: ms.Tensor,
+        past_key_values: Cache,
+        output_attentions: bool = False,
+    ):
+        # For SDPA, when possible, we will rely on its `is_causal` argument instead of its `attn_mask` argument, in
+        # order to dispatch on Flash Attention 2. This feature is not compatible with static cache, as SDPA will fail
+        # to infer the attention mask.
+        past_seen_tokens = past_key_values.get_seq_length() if past_key_values is not None else 0
+        using_static_cache = isinstance(past_key_values, StaticCache)
 
-            # When output attentions is True, sdpa implementation's forward method calls the eager implementation's forward
-            if self.config._attn_implementation == "sdpa" and not using_static_cache and not output_attentions:
-                if AttentionMaskConverter._ignore_causal_mask_sdpa(
-                        attention_mask,
-                        inputs_embeds=input_tensor,
-                        past_key_values_length=past_seen_tokens,
-                        is_training=self.training,
-                ):
-                    return None
-
-            dtype = input_tensor.dtype
-            sequence_length = input_tensor.shape[1]
-            if using_static_cache:
-                target_length = past_key_values.get_max_cache_shape()
-            else:
-                target_length = (
-                    attention_mask.shape[-1]
-                    if isinstance(attention_mask, ms.Tensor)
-                    else past_seen_tokens + sequence_length + 1
-                )
-
-            # In case the provided `attention` mask is 2D, we generate a causal mask here (4D).
-            causal_mask = self._prepare_4d_causal_attention_mask_with_cache_position(
+        # When output attentions is True, sdpa implementation's forward method calls the eager implementation's forward
+        if self.config._attn_implementation == "sdpa" and not using_static_cache and not output_attentions:
+            if AttentionMaskConverter._ignore_causal_mask_sdpa(
                 attention_mask,
-                sequence_length=sequence_length,
-                target_length=target_length,
-                dtype=dtype,
-                cache_position=cache_position,
-                batch_size=input_tensor.shape[0],
+                inputs_embeds=input_tensor,
+                past_key_values_length=past_seen_tokens,
+                is_training=self.training,
+            ):
+                return None
+
+        dtype = input_tensor.dtype
+        sequence_length = input_tensor.shape[1]
+        if using_static_cache:
+            target_length = past_key_values.get_max_cache_shape()
+        else:
+            target_length = (
+                attention_mask.shape[-1]
+                if isinstance(attention_mask, ms.Tensor)
+                else past_seen_tokens + sequence_length + 1
             )
 
-            if (
-                    self.config._attn_implementation == "sdpa"
-                    and attention_mask is not None
-                    and attention_mask.device.type in ["cuda", "xpu"]
-                    and not output_attentions
-            ):
-                # Attend to all tokens in fully masked rows in the causal_mask, for example the relevant first rows when
-                # using left padding. This is required by F.scaled_dot_product_attention memory-efficient attention path.
-                # Details: https://github.com/pytorch/pytorch/issues/110213
-                min_dtype = dtype_to_min(dtype)
-                causal_mask = AttentionMaskConverter._unmask_unattended(causal_mask, min_dtype)
+        # In case the provided `attention` mask is 2D, we generate a causal mask here (4D).
+        causal_mask = self._prepare_4d_causal_attention_mask_with_cache_position(
+            attention_mask,
+            sequence_length=sequence_length,
+            target_length=target_length,
+            dtype=dtype,
+            cache_position=cache_position,
+            batch_size=input_tensor.shape[0],
+        )
 
-            return causal_mask
-
-        @staticmethod
-        # Copied from transformers.models.llama.modeling_llama.LlamaPreTrainedModel._prepare_4d_causal_attention_mask_with_cache_position
-        def _prepare_4d_causal_attention_mask_with_cache_position(
-            attention_mask: ms.Tensor,
-            sequence_length: int,
-            target_length: int,
-            dtype: ms.Type,
-            cache_position: ms.Tensor,
-            batch_size: int,
-            **kwargs,
+        if (
+            self.config._attn_implementation == "sdpa"
+            and attention_mask is not None
+            and attention_mask.device.type in ["cuda", "xpu"]
+            and not output_attentions
         ):
-            """
-            Creates a causal 4D mask of shape `(batch_size, 1, query_length, key_value_length)` from a 2D mask of shape
-            `(batch_size, key_value_length)`, or if the input `attention_mask` is already 4D, do nothing.
+            # Attend to all tokens in fully masked rows in the causal_mask, for example the relevant first rows when
+            # using left padding. This is required by F.scaled_dot_product_attention memory-efficient attention path.
+            # Details: https://github.com/pytorch/pytorch/issues/110213
+            min_dtype = dtype_to_min(dtype)
+            causal_mask = AttentionMaskConverter._unmask_unattended(causal_mask, min_dtype)
 
-            Args:
-                attention_mask (`ms.Tensor`):
-                    A 2D attention mask of shape `(batch_size, key_value_length)` or a 4D attention mask of shape
-                    `(batch_size, 1, query_length, key_value_length)`.
-                sequence_length (`int`):
-                    The sequence length being processed.
-                target_length (`int`):
-                    The target length: when generating with static cache, the mask should be as long as the static cache,
-                    to account for the 0 padding, the part of the cache that is not filled yet.
-                dtype (`ms.Type`):
-                    The dtype to use for the 4D attention mask.
-                cache_position (`ms.Tensor`):
-                    Indices depicting the position of the input sequence tokens in the sequence.
-                batch_size (`ms.Tensor`):
-                    Batch size.
-            """
-            if attention_mask is not None and attention_mask.dim() == 4:
-                # In this case we assume that the mask comes already in inverted form and requires no inversion or slicing.
-                causal_mask = attention_mask
-            else:
-                min_dtype = dtype_to_min(dtype)
-                causal_mask = ops.full(
-                    (sequence_length, target_length), fill_value=min_dtype, dtype=dtype
+        return causal_mask
+
+    @staticmethod
+    # Copied from transformers.models.llama.modeling_llama.LlamaPreTrainedModel._prepare_4d_causal_attention_mask_with_cache_position
+    def _prepare_4d_causal_attention_mask_with_cache_position(
+        attention_mask: ms.Tensor,
+        sequence_length: int,
+        target_length: int,
+        dtype: ms.Type,
+        cache_position: ms.Tensor,
+        batch_size: int,
+        **kwargs,
+    ):
+        """
+        Creates a causal 4D mask of shape `(batch_size, 1, query_length, key_value_length)` from a 2D mask of shape
+        `(batch_size, key_value_length)`, or if the input `attention_mask` is already 4D, do nothing.
+
+        Args:
+            attention_mask (`ms.Tensor`):
+                A 2D attention mask of shape `(batch_size, key_value_length)` or a 4D attention mask of shape
+                `(batch_size, 1, query_length, key_value_length)`.
+            sequence_length (`int`):
+                The sequence length being processed.
+            target_length (`int`):
+                The target length: when generating with static cache, the mask should be as long as the static cache,
+                to account for the 0 padding, the part of the cache that is not filled yet.
+            dtype (`ms.Type`):
+                The dtype to use for the 4D attention mask.
+            cache_position (`ms.Tensor`):
+                Indices depicting the position of the input sequence tokens in the sequence.
+            batch_size (`ms.Tensor`):
+                Batch size.
+        """
+        if attention_mask is not None and attention_mask.dim() == 4:
+            # In this case we assume that the mask comes already in inverted form and requires no inversion or slicing.
+            causal_mask = attention_mask
+        else:
+            min_dtype = dtype_to_min(dtype)
+            causal_mask = ops.full((sequence_length, target_length), fill_value=min_dtype, dtype=dtype)
+            if sequence_length != 1:
+                causal_mask = mint.triu(causal_mask, diagonal=1)
+            causal_mask *= mint.arange(target_length) > cache_position.reshape(-1, 1)
+            causal_mask = causal_mask[None, None, :, :].expand(batch_size, 1, -1, -1)
+            if attention_mask is not None:
+                causal_mask = causal_mask.clone()  # copy to contiguous memory for in-place edit
+                mask_length = attention_mask.shape[-1]
+                padding_mask = causal_mask[:, :, :, :mask_length] + attention_mask[:, None, None, :]
+                padding_mask = padding_mask == 0
+                causal_mask[:, :, :, :mask_length] = causal_mask[:, :, :, :mask_length].masked_fill(
+                    padding_mask, min_dtype
                 )
-                if sequence_length != 1:
-                    causal_mask = mint.triu(causal_mask, diagonal=1)
-                causal_mask *= mint.arange(target_length) > cache_position.reshape(-1, 1)
-                causal_mask = causal_mask[None, None, :, :].expand(batch_size, 1, -1, -1)
-                if attention_mask is not None:
-                    causal_mask = causal_mask.clone()  # copy to contiguous memory for in-place edit
-                    mask_length = attention_mask.shape[-1]
-                    padding_mask = causal_mask[:, :, :, :mask_length] + attention_mask[:, None, None, :]
-                    padding_mask = padding_mask == 0
-                    causal_mask[:, :, :, :mask_length] = causal_mask[:, :, :, :mask_length].masked_fill(
-                        padding_mask, min_dtype
-                    )
 
-            return causal_mask
+        return causal_mask
 
 
 class T5Model(T5PreTrainedModel):
