@@ -36,14 +36,15 @@ SAM_MODELS = {
 
 
 class SAM:
-    def build_model(self, sam_type: str, ckpt_path: str | None = None):
+    def build_model(self, sam_type: str, ckpt_path: str | None = None, dtype=ms.float32):
         self.sam_type = sam_type
         self.ckpt_path = ckpt_path
+        self.dtype = dtype
         cfg = compose(config_name=SAM_MODELS[self.sam_type]["config"], overrides=[])
         OmegaConf.resolve(cfg)
-        self.model = instantiate(cfg.model, _recursive_=True)
+        self.model = instantiate(cfg.model, _recursive_=True).to(self.dtype)
         self._load_checkpoint(self.model)
-        self.model = self.model
+
         self.model.set_train(False)
         self.mask_generator = SAM2AutomaticMaskGenerator(self.model)
         self.predictor = SAM2ImagePredictor(self.model)

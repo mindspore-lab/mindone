@@ -142,7 +142,7 @@ class SAM2ImagePredictor:
             ), "Images are expected to be an np.ndarray in RGB format, and of shape  HWC"
             self._orig_hw.append(image.shape[:2])
         # Transform the image to the form expected by the model
-        img_batch = self._transforms.forward_batch(image_list)
+        img_batch = self._transforms.construct_batch(image_list)
 
         batch_size = img_batch.shape[0]
         assert (

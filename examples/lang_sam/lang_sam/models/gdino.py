@@ -33,7 +33,7 @@ class GDINO:
             inputs["input_ids"],
             threshold=box_threshold,
             text_threshold=text_threshold,
-            target_sizes=[k.shape[::-1] for k in images_pil],
+            target_sizes=[k.size[::-1] for k in images_pil],
         )
         return results
 

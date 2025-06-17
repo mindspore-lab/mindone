@@ -13,6 +13,8 @@ from PIL import Image
 from sam2.build_sam import build_sam2
 from sam2.sam2_image_predictor import SAM2ImagePredictor
 
+import mindspore as ms
+
 np.random.seed(3)
 
 
@@ -73,7 +75,8 @@ def show_masks(image, masks, scores, point_coords=None, box_coords=None, input_l
 def main(args):
     checkpoint = "./checkpoints/sam2.1_hiera_large.pt"
     model_cfg = "configs/sam2.1/sam2.1_hiera_l.yaml"
-    predictor = SAM2ImagePredictor(build_sam2(model_cfg, checkpoint))
+    dtype = ms.float16
+    predictor = SAM2ImagePredictor(build_sam2(model_cfg, checkpoint).to(dtype))
 
     image_path = args.image_path
     image = Image.open(image_path)
