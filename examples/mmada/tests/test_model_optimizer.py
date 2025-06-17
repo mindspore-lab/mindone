@@ -110,9 +110,7 @@ def test_model_and_optimizer_initialization():
         mmada_config_dict = {k: v for k, v in config.model.mmada._asdict().items()}
         merged_config = {**base_config, **mmada_config_dict}
         mmada_config = MMadaConfig(**merged_config)
-        model = MMadaModelLM.from_pretrained(
-            config.model.mmada.pretrained_model_path, mindspore_dtype=None, config=mmada_config
-        )
+        model = MMadaModelLM(config=mmada_config)
         model.resize_token_embeddings(mmada_config.new_vocab_size)
         model.config.embedding_size = model.config.vocab_size
 
