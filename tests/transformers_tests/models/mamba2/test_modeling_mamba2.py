@@ -4,7 +4,7 @@ import inspect
 import numpy as np
 import pytest
 import torch
-from transformers import MambaConfig
+from transformers import Mamba2Config
 
 import mindspore as ms
 
@@ -21,19 +21,24 @@ DTYPE_AND_THRESHOLDS = {"fp32": 5e-4, "fp16": 5e-3, "bf16": 5e-2}
 MODES = [1]
 
 
-class MambaModelTester:
-    config_class = MambaConfig
+class Mamba2ModelTester:
+    config_class = Mamba2Config
 
     def __init__(
         self,
         batch_size=14,
+        num_heads=8,
+        n_groups=8,
+        state_size=2,
+        head_dim=8,
+        conv_kernel=4,
+        chunk_size=8,
         seq_length=7,
         is_training=True,
         use_labels=True,
         vocab_size=99,
         hidden_size=32,
         num_hidden_layers=2,
-        intermediate_size=32,
         hidden_act="silu",
         hidden_dropout_prob=0.1,
         max_position_embeddings=512,
@@ -42,8 +47,14 @@ class MambaModelTester:
         num_labels=3,
         num_choices=4,
         scope=None,
-        tie_word_embeddings=True,
+        tie_word_embeddings=False,
     ):
+        self.num_heads = num_heads
+        self.n_groups = n_groups
+        self.head_dim = head_dim
+        self.state_size = state_size
+        self.conv_kernel = conv_kernel
+        self.chunk_size = chunk_size
         self.batch_size = batch_size
         self.seq_length = seq_length
         self.is_training = is_training
@@ -51,7 +62,6 @@ class MambaModelTester:
         self.vocab_size = vocab_size
         self.hidden_size = hidden_size
         self.num_hidden_layers = num_hidden_layers
-        self.intermediate_size = intermediate_size
         self.hidden_act = hidden_act
         self.hidden_dropout_prob = hidden_dropout_prob
         self.max_position_embeddings = max_position_embeddings
@@ -67,7 +77,10 @@ class MambaModelTester:
 
     def prepare_config_and_inputs(self):
         input_ids = ids_numpy([self.batch_size, self.seq_length], self.vocab_size)
-        attention_mask = ids_numpy([self.batch_size, self.seq_length], 1)
+
+        # Only left padding is valid
+        attention_mask = np.ones(shape=(self.batch_size, self.seq_length), dtype=np.int64)
+        attention_mask[0, :1] = 0
 
         sequence_labels = None
         token_labels = None
@@ -90,10 +103,15 @@ class MambaModelTester:
 
     def get_config(self):
         return self.config_class(
+            head_dim=self.head_dim,
+            num_heads=self.num_heads,
+            n_groups=self.n_groups,
+            state_size=self.state_size,
+            conv_kernel=self.conv_kernel,
+            chunk_size=self.chunk_size,
             vocab_size=self.vocab_size,
             hidden_size=self.hidden_size,
             num_hidden_layers=self.num_hidden_layers,
-            intermediate_size=self.intermediate_size,
             activation_function=self.hidden_act,
             n_positions=self.max_position_embeddings,
             type_vocab_size=self.type_vocab_size,
@@ -106,7 +124,7 @@ class MambaModelTester:
         )
 
 
-model_tester = MambaModelTester()
+model_tester = Mamba2ModelTester()
 (
     config,
     input_ids,
@@ -116,37 +134,22 @@ model_tester = MambaModelTester()
     choice_labels,
 ) = model_tester.prepare_config_and_inputs()
 
-MAMBA_CASES = [
+
+MAMBA2_CASES = [
     [
-        "MambaModel",
-        "transformers.MambaModel",
-        "mindone.transformers.MambaModel",
+        "Mamba2Model",
+        "transformers.Mamba2Model",
+        "mindone.transformers.Mamba2Model",
         (config,),
         {},
         (),
         {
             "input_ids": input_ids,
+            "attention_mask": attention_mask,
             "return_dict": True,
         },
         {
             "last_hidden_state": "last_hidden_state",
-        },
-    ],
-    [
-        "MambaForCausalLM",
-        "transformers.MambaForCausalLM",
-        "mindone.transformers.MambaForCausalLM",
-        (config,),
-        {},
-        (),
-        {
-            "input_ids": input_ids,
-            "labels": input_ids,
-            "return_dict": True,
-        },
-        {
-            "loss": "loss",
-            "logits": "logits",
         },
     ],
 ]
@@ -162,7 +165,7 @@ MAMBA_CASES = [
         + [
             mode,
         ]
-        for case in MAMBA_CASES
+        for case in MAMBA2_CASES
         for dtype in DTYPE_AND_THRESHOLDS.keys()
         for mode in MODES
     ],

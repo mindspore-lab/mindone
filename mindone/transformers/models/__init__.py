@@ -19,6 +19,7 @@ from . import (
     llava,
     mamba,
     mamba2,
+    mllama,
     phi3,
     qwen2,
     qwen2_5_omni,

@@ -100,13 +100,13 @@ def segment_sum(input_tensor):
     # [..., chunk_size] -> [..., chunk_size, chunk_size]
     input_tensor = input_tensor[..., None].expand((*input_tensor.shape, chunk_size))
     # 2. create a lower triangular mask with the diagonal set to 0 to 0 out elements above diag
-    mask = mint.tril(mint.ones(chunk_size, chunk_size, dtype=ms.bool_), diagonal=-1)
+    mask = mint.tril(mint.ones((chunk_size, chunk_size), dtype=ms.bool_), diagonal=-1)
     input_tensor = input_tensor.masked_fill(~mask, 0)
     # 3. compute actual cumsum
     tensor_segsum = mint.cumsum(input_tensor, dim=-2)
 
     # 4. apply mask to keep only the lower triangular part of the cumulative sum result (incl diagonal this time)
-    mask = mint.tril(mint.ones(chunk_size, chunk_size, dtype=ms.bool_), diagonal=0)
+    mask = mint.tril(mint.ones((chunk_size, chunk_size), dtype=ms.bool_), diagonal=0)
     tensor_segsum = tensor_segsum.masked_fill(~mask, dtype_to_min(tensor_segsum.dtype))
     return tensor_segsum
 
@@ -160,18 +160,16 @@ class Mamba2Cache:
         self.intermediate_size = int(config.expand * config.hidden_size)
 
         self.conv_states = mint.zeros(
-            config.num_hidden_layers,
-            batch_size,
-            self.intermediate_size + 2 * self.n_groups * self.state_size,
-            self.conv_kernel_size,
+            (
+                config.num_hidden_layers,
+                batch_size,
+                self.intermediate_size + 2 * self.n_groups * self.state_size,
+                self.conv_kernel_size,
+            ),
             dtype=dtype,
         )
         self.ssm_states = mint.zeros(
-            config.num_hidden_layers,
-            batch_size,
-            self.num_heads,
-            self.head_dim,
-            self.state_size,
+            (config.num_hidden_layers, batch_size, self.num_heads, self.head_dim, self.state_size),
             dtype=dtype,
         )
 
@@ -713,7 +711,6 @@ class Mamba2Model(Mamba2PreTrainedModel):
         self.gradient_checkpointing = False
         self.norm_f = Mamba2RMSNorm(config.hidden_size, eps=config.layer_norm_epsilon)
         # Initialize weights and apply final processing
-        self._register_load_state_dict_pre_hook(self.load_hook)
         self.post_init()
 
     def load_hook(self, state_dict, prefix, *args):
@@ -763,7 +760,7 @@ class Mamba2Model(Mamba2PreTrainedModel):
 
         if use_cache:
             if cache_params is None:
-                cache_params = Mamba2Cache(self.config, inputs_embeds.size(0), dtype=inputs_embeds.dtype)
+                cache_params = Mamba2Cache(self.config, inputs_embeds.shape[0], dtype=inputs_embeds.dtype)
                 cache_position = mint.arange(0, self.config.conv_kernel)
             elif cache_position is None:
                 # cases when we do manual forward instead of using `model.generate` which will initiate
