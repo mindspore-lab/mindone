@@ -6,6 +6,7 @@ os.environ["TOKENIZERS_PARALLELISM"] = "true"
 import json
 import logging
 import math
+import random
 import shutil
 import time
 from pathlib import Path
@@ -19,11 +20,14 @@ from omegaconf import OmegaConf
 from parquet import RefinedWebDataset
 from parquet.loader import CombinedLoader, create_dataloader
 from PIL import Image
-from torch.optim import AdamW
 from training.data import Text2ImageDataset
 from training.imagenet_dataset import ImageNetDataset
 from training.prompting_utils import UniversalPrompting
 from transformers import AutoConfig, AutoTokenizer
+
+import mindspore as ms
+
+from mindone.trainers.utils import create_optimizer
 
 SYSTEM_PROMPT_LEN = 28
 
@@ -70,8 +74,9 @@ def main():
 
     # If passed along, set the training seed now.
     if config.training.seed is not None:
-        torch.manual_seed(config.training.seed)
-
+        random.seed(config.training.seed)
+        np.random.seed(config.training.seed)
+        ms.set_seed(config.training.seed)
     #########################
     # MODELS and OPTIMIZER  #
     #########################
@@ -102,13 +107,7 @@ def main():
 
     # VQ model for processing image into discrete tokens
     vq_model = get_vq_model_class(config.model.vq_model.type)
-    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")  # Define device
-    if config.model.vq_model.get("pretrained_model_path", None):
-        vq_model = vq_model().to(device)
-        state_dict = torch.load(config.model.vq_model.pretrained_model_path)["model"]
-        vq_model.load_state_dict(state_dict)
-    else:
-        vq_model = vq_model.from_pretrained(config.model.vq_model.vq_model_name).to(device)
+    vq_model = vq_model.from_pretrained(config.model.vq_model.vq_model_name)
     vq_model.eval()
     vq_model.requires_grad_(False)
 
@@ -118,12 +117,10 @@ def main():
     merged_config = {**base_config, **mmada_config_dict}
     mmada_config = MMadaConfig(**merged_config)
     model = MMadaModelLM.from_pretrained(
-        config.model.mmada.pretrained_model_path, torch_dtype=torch.bfloat16, config=mmada_config
+        config.model.mmada.pretrained_model_path, mindspore_dtype=ms.bfloat16, config=mmada_config
     )
     model.resize_token_embeddings(mmada_config.new_vocab_size)
     model.config.embedding_size = model.config.vocab_size
-    model = model.to(device)
-
     mask_id = model.config.mask_token_id
 
     ##################################
@@ -136,20 +133,21 @@ def main():
     optimizer_grouped_parameters = [
         {
             "params": [
-                p for n, p in model.named_parameters() if p.requires_grad and not any(nd in n for nd in no_decay)
+                p for n, p in model.name_cells().items() if p.requires_grad and not any(nd in n for nd in no_decay)
             ],
             "weight_decay": optimizer_config.weight_decay,
         },
         {
-            "params": [p for n, p in model.named_parameters() if p.requires_grad and any(nd in n for nd in no_decay)],
+            "params": [p for n, p in model.name_cells().items() if p.requires_grad and any(nd in n for nd in no_decay)],
             "weight_decay": 0.0,
         },
     ]
 
     optimizer_type = config.optimizer.name
     if optimizer_type == "adamw":
-        optimizer = AdamW(
+        optimizer = create_optimizer(
             optimizer_grouped_parameters,
+            name="adamw",
             lr=optimizer_config.learning_rate,
             betas=(optimizer_config.beta1, optimizer_config.beta2),
             weight_decay=optimizer_config.weight_decay,
@@ -369,8 +367,6 @@ def main():
 
     logger.info("Preparing model, optimizer and dataloaders")
 
-    vq_model.to(device=device)
-
     mask_dtype = model.get_input_embeddings().weight.dtype
 
     ##################################
@@ -382,7 +378,6 @@ def main():
     logger.info(f"  Total train batch size (w. parallel, distributed & accumulation) = {total_batch_size}")
     logger.info(f"  Gradient Accumulation steps = {config.training.gradient_accumulation_steps}")
 
-    @torch.no_grad()
     def prepare_inputs_and_labels(
         pixel_values_or_image_ids: Union[torch.FloatTensor, torch.LongTensor],
         texts: Union[str, str],
@@ -847,7 +842,7 @@ def save_checkpoint(model, config, global_step):
 
 
 def log_grad_norm(model, global_step):
-    for name, param in model.named_parameters():
+    for name, param in model.name_cells().items():
         if param.grad is not None:
             grads = param.grad.detach().data
             grad_norm = (grads.norm(p=2) / grads.numel()).item()
