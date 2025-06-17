@@ -300,7 +300,7 @@ class SwinEmbeddings(nn.Cell):
         batch_size, seq_len, _ = embeddings.shape
 
         if bool_masked_pos is not None:
-            mask_tokens = self.mask_token.expand(batch_size, seq_len, -1)
+            mask_tokens = self.mask_token.broadcast_to((batch_size, seq_len, -1))
             # replace the masked visual tokens by mask_tokens
             mask = bool_masked_pos.unsqueeze(-1).type_as(mask_tokens)
             embeddings = embeddings * (1.0 - mask) + mask_tokens * mask
