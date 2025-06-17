@@ -235,10 +235,10 @@ class SwinEmbeddings(nn.Cell):
         self.patch_embeddings = SwinPatchEmbeddings(config)
         num_patches = self.patch_embeddings.num_patches
         self.patch_grid = self.patch_embeddings.grid_size
-        self.mask_token = ms.Parameter(mint.zeros(1, 1, config.embed_dim)) if use_mask_token else None
+        self.mask_token = ms.Parameter(mint.zeros((1, 1, config.embed_dim))) if use_mask_token else None
 
         if config.use_absolute_embeddings:
-            self.position_embeddings = ms.Parameter(mint.zeros(1, num_patches + 1, config.embed_dim))
+            self.position_embeddings = ms.Parameter(mint.zeros((1, num_patches + 1, config.embed_dim)))
         else:
             self.position_embeddings = None
 
