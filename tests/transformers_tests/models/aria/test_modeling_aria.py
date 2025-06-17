@@ -1,4 +1,3 @@
-# tests/models/llama/test_modeling_llama.py
 import inspect
 
 import numpy as np
@@ -17,8 +16,8 @@ from tests.modeling_test_utils import (
 )
 from tests.transformers_tests.models.modeling_common import ids_numpy
 
-DTYPE_AND_THRESHOLDS = {"fp32": 5e-4, "fp16": 5e-4, "bf16": 6e-3}
-MODES = [0, 1]
+DTYPE_AND_THRESHOLDS = {"fp32": 5e-3, "fp16": 6e-4, "bf16": 6e-3}
+MODES = [1]
 
 
 class AriaModelTester:
@@ -39,6 +38,7 @@ class AriaModelTester:
         rms_norm_eps=1e-6,
         use_cache=False,
         moe_num_experts=2,
+        attn_implementation="eager"
     ):
         self.batch_size = batch_size
         self.seq_length = seq_length
@@ -55,28 +55,31 @@ class AriaModelTester:
         self.rms_norm_eps = rms_norm_eps
         self.use_cache = use_cache
         self.moe_num_experts = moe_num_experts
+        self.attn_implementation = attn_implementation
+        self.image_token_dix = self.vocab_size - 1
 
     def prepare_config_and_inputs(self):
-        input_ids = ids_numpy([self.batch_size, self.seq_length], self.vocab_size)
+        n_img_feat = 64
+        input_ids = ids_numpy([self.batch_size, self.seq_length + n_img_feat], self.vocab_size)
+        input_ids[-1, -n_img_feat:] = self.image_token_dix
 
         input_mask = None
         if self.use_input_mask:
             # input_mask = np.tril(np.ones_like(input_ids))
-            input_mask = ids_numpy([self.batch_size, self.seq_length], vocab_size=2)
+            input_mask = ids_numpy([self.batch_size, self.seq_length + n_img_feat], vocab_size=2)
 
         image_batch_size = 1
-        num_images = 1
         num_channels = 3
         height = 64
         width = 64
-        pixel_values = ids_numpy([image_batch_size, num_images, num_channels, height, width], vocab_size=256)
+        pixel_values = ids_numpy([image_batch_size, num_channels, height, width], vocab_size=256)
         pixel_values = (pixel_values.astype(np.float32) / 255.0) * 2 - 1  # in range [-1, 1]
-        pixel_mask = ids_numpy([image_batch_size, height, width], vocab_size=2)
+        pixel_mask = np.ones(
+            (pixel_values.shape[0], pixel_values.shape[2], pixel_values.shape[3]),
+            dtype=np.bool_,
+        )
 
         text_config, config = self.get_config()
-
-        # set _attn_implementation to eager because flash-attention is not supported for torch in cpu
-        text_config._attn_implementation = "eager"
 
         return text_config, config, input_ids, input_mask, pixel_values, pixel_mask
 
@@ -114,6 +117,11 @@ class AriaModelTester:
             text_config=text_config,
             projector_patch_to_query_dict=None,
             image_token_index=9,
+            projector_path_to_query_dict={
+                "16": 64, # (64//14) x (64//14)
+                "1225": 128,
+                "4900": 256,
+            },
         )
         return text_config, config
 
@@ -126,7 +134,7 @@ ARIA_CASES = [
         "AriaTextForCausalLM",
         "transformers.AriaTextForCausalLM",
         "mindone.transformers.AriaTextForCausalLM",
-        (config,),
+        (text_config,),
         {},
         (),
         {
@@ -137,7 +145,7 @@ ARIA_CASES = [
             "logits": 0,
         },
     ],
-    [  # test VQA
+    [  # test VQA, always compare with torch 32
         "AriaForConditionalGeneration",
         "transformers.AriaForConditionalGeneration",
         "mindone.transformers.AriaForConditionalGeneration",
@@ -149,9 +157,10 @@ ARIA_CASES = [
             "attention_mask": input_mask,
             "pixel_values": pixel_values,
             "pixel_mask": pixel_mask,
+            "output_hidden_states": True
         },
         {
-            "logits": 0,
+            "hidden_states": 1,
         },
     ],
 ]

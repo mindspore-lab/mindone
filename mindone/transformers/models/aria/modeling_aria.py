@@ -46,7 +46,7 @@ from ...modeling_outputs import BaseModelOutputWithPast, CausalLMOutputWithPast,
 from ...modeling_rope_utils import ROPE_INIT_FUNCTIONS
 from ...modeling_utils import ALL_ATTENTION_FUNCTIONS, MSPreTrainedModel
 from ...processing_utils import Unpack
-from ..auto import AutoModelForCausalLM  # AutoModel
+# from ..auto import AutoModelForCausalLM, AutoModel
 from ..idefics3 import Idefics3VisionTransformer
 
 logger = logging.get_logger(__name__)
@@ -111,6 +111,7 @@ class AriaCrossAttention(nn.Cell):
         super().__init__()
         hidden_size = config.vision_config.hidden_size
         num_heads = config.vision_config.num_attention_heads
+        self.hidden_size = hidden_size
         self.num_heads = num_heads
         self.q_proj = mint.nn.Linear(hidden_size, hidden_size, bias=False)
         self.k_proj = mint.nn.Linear(hidden_size, hidden_size, bias=False)
@@ -118,6 +119,7 @@ class AriaCrossAttention(nn.Cell):
 
         # Original code here: https://github.com/rhymes-ai/Aria/blob/719ff4e52b727443cba3793b0e27fe64e0244fe1/aria/model/projector.py#L48
         self.multihead_attn = nn.MultiheadAttention(hidden_size, num_heads, batch_first=True)
+        # dafault use dtype=ms.float32, but weight and bias may be different
         self.linear = mint.nn.Linear(hidden_size, hidden_size)
         self.dropout = mint.nn.Dropout(dropout_rate)
 
@@ -140,13 +142,19 @@ class AriaCrossAttention(nn.Cell):
             ms.Tensor:
                 Output tensor after cross-attention.
         """
+        # change compuatation dtype, copy weight and bias
+        _multihead_attn = nn.MultiheadAttention(self.hidden_size, self.num_heads, batch_first=True, dtype=hidden_states.dtype)
+        _multihead_attn.in_proj_weight = self.multihead_attn.in_proj_weight
+        _multihead_attn.in_proj_bias = self.multihead_attn.in_proj_bias
+        _multihead_attn.out_proj = self.multihead_attn.out_proj
+
         query = self.q_proj(self.layer_norm(hidden_states))
 
         key_value_states = self.layer_norm_kv(key_value_states)
         key = self.k_proj(key_value_states)
         value = self.v_proj(key_value_states)
 
-        attn_output, _ = self.multihead_attn(query, key, value, attn_mask=attn_mask)
+        attn_output, _ = _multihead_attn(query, key, value, attn_mask=attn_mask)
 
         attn_output = self.dropout(self.linear(attn_output))
 
@@ -208,7 +216,7 @@ class AriaProjector(nn.Cell):
         queries = self.query[:query_num].unsqueeze(0).tile((batch_size, 1, 1))
 
         if attn_mask is not None:
-            attn_mask = attn_mask.repeat_interleave(self.num_heads, 0)
+            attn_mask = attn_mask.int().repeat_interleave(self.num_heads, 0).bool()
             attn_mask = attn_mask.unsqueeze(1).broadcast_to((-1, queries.shape[1], -1))
 
         attention_out = self.cross_attn(key_value_states, queries, attn_mask=attn_mask)
@@ -272,7 +280,7 @@ def sequential_experts_gemm(token_states, expert_weights, tokens_per_expert):
         tokens = token_states[start:end]
 
         out = mint.matmul(tokens, expert_weights[expert_num])
-        output[start:end] = out.float()  # bf16 tensor does not support SliceToIndices in garph mode
+        output[start:end] = out.float()  # bf16 tensor does not support SliceToIndices in graph mode
     return output.to(token_states.dtype)
 
 
@@ -974,9 +982,13 @@ class AriaTextModel(AriaTextPreTrainedModel):
         if output_hidden_states:
             all_hidden_states += (hidden_states,)
 
-        past_key_values = past_key_values if use_cache else None
-
-        return hidden_states, past_key_values, all_hidden_states, all_self_attns
+        output = BaseModelOutputWithPast(
+            last_hidden_state=hidden_states,
+            past_key_values=past_key_values if use_cache else None,
+            hidden_states=all_hidden_states,
+            attentions=all_self_attns,
+        )
+        return output if return_dict else output.to_tuple()
 
     def _update_causal_mask(
         self,
@@ -1196,9 +1208,17 @@ class AriaTextForCausalLM(AriaTextPreTrainedModel, GenerationMixin):
         if labels is not None:
             loss = self.loss_function(logits=logits, labels=labels, vocab_size=self.config.vocab_size, **kwargs)
 
-        result = (loss, logits) + outputs[1:]
-        result = tuple(v for v in result if v is not None)
-        return result
+        if not return_dict:
+            output = (logits,) + outputs[1:]
+            return (loss,) + output if loss is not None else output
+
+        return CausalLMOutputWithPast(
+            loss=loss,
+            logits=logits,
+            past_key_values=outputs.past_key_values,
+            hidden_states=outputs.hidden_states,
+            attentions=outputs.attentions,
+        )
 
 
 @dataclass
@@ -1311,13 +1331,13 @@ class AriaForConditionalGeneration(AriaPreTrainedModel, GenerationMixin):
         super().__init__(config)
 
         # self.vision_tower = AutoModel.from_config(config.vision_config)
-        self.vision_tower = Idefics3VisionTransformer.from_config(config.vision_config)
+        self.vision_tower = Idefics3VisionTransformer._from_config(config.vision_config)
 
         self.multi_modal_projector = AriaProjector(config)
         self.vocab_size = config.text_config.vocab_size
-        self.language_model = AutoModelForCausalLM.from_config(config.text_config)  # AriaTextForCausalLM
+        # self.language_model = AutoModelForCausalLM.from_config(config.text_config)  # AriaTextForCausalLM
         # OR
-        # self.language_model = AriaTextForCausalLM.from_config(config.text_config)
+        self.language_model = AriaTextForCausalLM._from_config(config.text_config)
         self.pad_token_id = self.config.pad_token_id if self.config.pad_token_id is not None else -1
         self._use_flash_attention_2 = config.text_config._attn_implementation == "flash_attention_2"
         self.post_init()
@@ -1340,21 +1360,12 @@ class AriaForConditionalGeneration(AriaPreTrainedModel, GenerationMixin):
 
         # (B, C=1, H, W) => (B, Cx(KxK), L=H'xW')
         patch_size = self.vision_tower.config.patch_size
-        patches_subgrid = F.unfold(pixel_mask[:, None, ...], kernel_size=patch_size, stride=patch_size)
-        h, w = pixel_mask.shape[1:] // patch_size
+        patches_subgrid = F.unfold(pixel_mask[:, None, ...]/float(), kernel_size=patch_size, stride=patch_size)
+        h = pixel_mask.shape[1] // patch_size
+        w = pixel_mask.shape[2] // patch_size
         patches_subgrid = patches_subgrid.swapaxes(1, 2).reshape(pixel_mask.shape[0], h, w, patch_size, patch_size)
         # ref: https://zhuanlan.zhihu.com/p/673802546
 
-        patches_subgrid = pixel_mask.unfold(
-            1,
-            self.vision_tower.config.patch_size,
-            self.vision_tower.config.patch_size,
-        )
-        patches_subgrid = patches_subgrid.unfold(
-            2,
-            self.vision_tower.config.patch_size,
-            self.vision_tower.config.patch_size,
-        )
         return (patches_subgrid.sum(dim=(-1, -2)) > 0).bool()
 
     def get_input_embeddings(self):
@@ -1466,7 +1477,13 @@ class AriaForConditionalGeneration(AriaPreTrainedModel, GenerationMixin):
         >>> prompts = [processor.apply_chat_template([message], add_generation_prompt=True) for message in messages]
         >>> images = [[image1, image2], [image3]]
         >>> inputs = processor(text=prompts, images=images, padding=True, return_tensors="np")
-        >>> TODO
+        >>> # convert input to Tensor
+        >>> for key, value in inputs.items():
+        >>>     inputs[key] = ms.Tensor(value)
+        >>>     if inputs[key].dtype == ms.int64:
+        >>>         inputs[key] = inputs[key].to(ms.int32)
+        >>>     elif inputs[key].dtype != ms.bool_:
+        >>>         inputs[key] = inputs[key].to(model.dtype)
 
         >>> # Generate
         >>> generated_ids = model.generate(**inputs, max_new_tokens=256)
@@ -1510,8 +1527,9 @@ class AriaForConditionalGeneration(AriaPreTrainedModel, GenerationMixin):
                     f"Image features and image tokens do not match: tokens: {n_image_tokens}, features {n_image_features}"
                 )
 
-            image_features = image_features.to(inputs_embeds.dtype)
-            inputs_embeds = inputs_embeds.masked_scatter(special_image_mask, image_features)
+            inputs_embeds = (
+                    inputs_embeds.float().masked_scatter(special_image_mask, image_features.float()).to(inputs_embeds.dtype)
+                )
 
         if logits_to_keep is None:
             logits_to_keep = 0
