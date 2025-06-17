@@ -42,7 +42,8 @@ class SAM:
         self.dtype = dtype
         cfg = compose(config_name=SAM_MODELS[self.sam_type]["config"], overrides=[])
         OmegaConf.resolve(cfg)
-        self.model = instantiate(cfg.model, _recursive_=True).to(self.dtype)
+        self.model = instantiate(cfg.model, _recursive_=True)
+        self.model.to_float(self.dtype)
         self._load_checkpoint(self.model)
 
         self.model.set_train(False)

@@ -76,7 +76,9 @@ def main(args):
     checkpoint = "./checkpoints/sam2.1_hiera_large.pt"
     model_cfg = "configs/sam2.1/sam2.1_hiera_l.yaml"
     dtype = ms.float16
-    predictor = SAM2ImagePredictor(build_sam2(model_cfg, checkpoint).to(dtype))
+    model = build_sam2(model_cfg, checkpoint)
+    model.to_float(dtype)
+    predictor = SAM2ImagePredictor(model)
 
     image_path = args.image_path
     image = Image.open(image_path)
