@@ -8,7 +8,7 @@ from diffusers.utils import BaseOutput
 from ml_dtypes import bfloat16
 
 import mindspore as ms
-from mindspore import mint, nn, ops
+from mindspore import nn, ops
 
 logger = logging.getLogger("ModelingsUnitTest")
 
