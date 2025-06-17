@@ -30,21 +30,25 @@ class HeliumModelTester:
         seq_length=7,
         is_training=True,
         use_input_mask=True,
-        vocab_size=48000,
-        hidden_size=2560,
-        num_hidden_layers=24,
-        num_attention_heads=20,
-        num_key_value_heads=20,
-        head_dim=128,
-        intermediate_size=7040,
+        vocab_size=99,
+        hidden_size=32,
+        num_hidden_layers=2,
+        num_attention_heads=4,
+        num_key_value_heads=2,
+        intermediate_size=37,
         hidden_act="silu",
-        attention_dropout=0.0,
-        max_position_embeddings=4096,
+        max_position_embeddings=512,
         initializer_range=0.02,
-        rms_norm_eps=1e-8,
         pad_token_id=3,
+        eos_token_id=2,
+        bos_token_id=1,
+        rms_norm_eps=1e-8,
+        rope_theta=100000.0,
+        attention_dropout=0.0,
         attention_bias=False,
         mlp_bias=False,
+        use_cache=True,
+        tie_word_embeddings=False,
     ):
         self.batch_size = batch_size
         self.seq_length = seq_length
@@ -55,16 +59,22 @@ class HeliumModelTester:
         self.num_hidden_layers = num_hidden_layers
         self.num_attention_heads = num_attention_heads
         self.num_key_value_heads = num_key_value_heads
-        self.head_dim = head_dim
         self.intermediate_size = intermediate_size
         self.hidden_act = hidden_act
-        self.attention_dropout = attention_dropout
         self.max_position_embeddings = max_position_embeddings
         self.initializer_range = initializer_range
-        self.rms_norm_eps = rms_norm_eps
         self.pad_token_id = pad_token_id
+        self.eos_token_id = eos_token_id
+        self.bos_token_id = bos_token_id
+        self.rms_norm_eps = rms_norm_eps
+        self.rope_theta = rope_theta
+        self.attention_dropout = attention_dropout
         self.attention_bias = attention_bias
         self.mlp_bias = mlp_bias
+        self.use_cache = use_cache
+        self.tie_word_embeddings = tie_word_embeddings
+
+        self.head_dim = self.hidden_size // self.num_attention_heads
 
     def prepare_config_and_inputs(self):
         input_ids = ids_numpy([self.batch_size, self.seq_length], self.vocab_size)
@@ -87,16 +97,20 @@ class HeliumModelTester:
             num_hidden_layers=self.num_hidden_layers,
             num_attention_heads=self.num_attention_heads,
             num_key_value_heads=self.num_key_value_heads,
-            head_dim=self.head_dim,
             intermediate_size=self.intermediate_size,
             hidden_act=self.hidden_act,
-            attention_dropout=self.attention_dropout,
             max_position_embeddings=self.max_position_embeddings,
             initializer_range=self.initializer_range,
-            rms_norm_eps=self.rms_norm_eps,
             pad_token_id=self.pad_token_id,
+            eos_token_id=self.eos_token_id,
+            bos_token_id=self.bos_token_id,
+            rms_norm_eps=self.rms_norm_eps,
+            rope_theta=self.rope_theta,
+            attention_dropout=self.attention_dropout,
             attention_bias=self.attention_bias,
             mlp_bias=self.mlp_bias,
+            use_cache=self.use_cache,
+            tie_word_embeddings=self.tie_word_embeddings,
         )
 
 
@@ -163,6 +177,9 @@ def test_named_modules(
     if "hidden_dtype" in inspect.signature(pt_model.forward).parameters:
         pt_inputs_kwargs.update({"hidden_dtype": PT_DTYPE_MAPPING[pt_dtype]})
         ms_inputs_kwargs.update({"hidden_dtype": MS_DTYPE_MAPPING[ms_dtype]})
+
+    if mode == 0:
+        ms_inputs_kwargs.update({"use_cache": False})
 
     with torch.no_grad():
         pt_outputs = pt_model(*pt_inputs_args, **pt_inputs_kwargs)
