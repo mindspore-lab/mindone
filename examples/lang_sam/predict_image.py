@@ -38,6 +38,7 @@ def main():
     # save image
     output_image_path = "./assets/cars_with_mask.png"
     output_image.save(output_image_path)
+    print(f"predicted result saved to {output_image_path}")
     return output_image
 
 
