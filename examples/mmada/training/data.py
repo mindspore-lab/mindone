@@ -148,7 +148,7 @@ class Text2ImageDataset:
         tokenizer: PreTrainedTokenizer,
         max_seq_length: int,
         num_train_examples: int,
-        per_gpu_batch_size: int,
+        per_device_batch_size: int,
         global_batch_size: int,
         num_workers: int,
         resolution: int = 256,
@@ -268,8 +268,8 @@ class Text2ImageDataset:
             tarfile_to_samples_nothrow,
             wds.shuffle(shuffle_buffer_size),
             *processing_pipeline,
-            # wds.batched(per_gpu_batch_size, partial=False, collation_fn=default_collate),
-            wds.batched(per_gpu_batch_size, partial=False),
+            # wds.batched(per_device_batch_size, partial=False, collation_fn=default_collate),
+            wds.batched(per_device_batch_size, partial=False),
         ]
 
         num_batches = math.ceil(num_train_examples / global_batch_size)

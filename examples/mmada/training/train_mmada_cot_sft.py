@@ -68,7 +68,7 @@ def main():
     config.experiment.logging_dir = str(Path(config.experiment.output_dir) / "logs")
 
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    total_batch_size_per_gpu = (
+    total_batch_size_per_device = (
         config.training.batch_size_t2i + config.training.batch_size_lm + config.training.batch_size_mmu
     )
     total_batch_size = (
@@ -210,7 +210,7 @@ def main():
             tokenizer=uni_prompting.text_tokenizer,  # we want to get raw texts, tokenizer is just for length counting
             max_seq_length=preproc_config.max_seq_length,
             num_train_examples=config.experiment.max_train_examples_t2i,
-            per_gpu_batch_size=config.training.batch_size_t2i,
+            per_device_batch_size=config.training.batch_size_t2i,
             global_batch_size=total_batch_size_t2i_without_accum,
             num_workers=dataset_config.num_workers,
             resolution=preproc_config.resolution,
@@ -280,7 +280,7 @@ def main():
             tokenizer=uni_prompting.text_tokenizer,  # we want to get raw texts
             max_seq_length=preproc_config.max_seq_length,
             num_train_examples=config.experiment.max_train_examples_mmu,
-            per_gpu_batch_size=config.training.batch_size_mmu,
+            per_device_batch_size=config.training.batch_size_mmu,
             global_batch_size=total_batch_size_mmu_without_accum,
             num_workers=dataset_config.num_workers,
             resolution=preproc_config.resolution,
@@ -403,7 +403,7 @@ def main():
     #################################
     logger.info("***** Running training *****")
     logger.info(f"  Num training steps = {config.training.max_train_steps}")
-    logger.info(f"  Instantaneous batch size per device = {total_batch_size_per_gpu}")
+    logger.info(f"  Instantaneous batch size per device = {total_batch_size_per_device}")
     logger.info(f"  Total train batch size (w. parallel, distributed & accumulation) = {total_batch_size}")
     logger.info(f"  Gradient Accumulation steps = {config.training.gradient_accumulation_steps}")
 
@@ -619,8 +619,8 @@ def main():
 
                 # Log metrics
                 if (global_step + 1) % config.experiment.log_every == 0:
-                    samples_per_second_per_gpu = (
-                        config.training.gradient_accumulation_steps * total_batch_size_per_gpu / batch_time_m.val
+                    samples_per_second_per_device = (
+                        config.training.gradient_accumulation_steps * total_batch_size_per_device / batch_time_m.val
                     )
                     logs = {
                         "step_loss_t2i": avg_loss_t2i.item(),
@@ -628,7 +628,7 @@ def main():
                         "step_loss_lm": avg_loss_lm.item(),
                         "lr": lr_scheduler.get_last_lr()[0],
                         "avg_masking_rate": avg_masking_rate.item(),
-                        "samples/sec/gpu": samples_per_second_per_gpu,
+                        "samples/sec/gpu": samples_per_second_per_device,
                         "data_time": data_time_m.val,
                         "batch_time": batch_time_m.val,
                     }
@@ -638,7 +638,7 @@ def main():
                         f"Loss_t2i: {avg_loss_t2i.item():0.4f} "
                         f"Loss_mmu: {avg_loss_mmu.item():0.4f} "
                         f"Loss_lm: {avg_loss_lm.item():0.4f} "
-                        f"Data (t): {data_time_m.val:0.4f}, {samples_per_second_per_gpu:0.2f}/s/gpu "
+                        f"Data (t): {data_time_m.val:0.4f}, {samples_per_second_per_device:0.2f}/s/gpu "
                         f"Batch (t): {batch_time_m.val:0.4f} "
                         f"LR: {lr_scheduler.get_last_lr()[0]:0.6f}"
                     )

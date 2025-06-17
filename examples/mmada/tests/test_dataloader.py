@@ -98,7 +98,7 @@ def create_dataloaders(config):
             tokenizer=None,  # we want to get raw texts
             max_seq_length=preproc_config.max_seq_length,
             num_train_examples=config.experiment.max_train_examples_t2i,
-            per_gpu_batch_size=config.training.batch_size_t2i,
+            per_device_batch_size=config.training.batch_size_t2i,
             global_batch_size=total_batch_size_t2i_without_accum,
             num_workers=dataset_config.num_workers,
             resolution=preproc_config.resolution,
@@ -173,7 +173,7 @@ def create_dataloaders(config):
             tokenizer=None,  # we want to get raw texts
             max_seq_length=preproc_config.max_seq_length,
             num_train_examples=config.experiment.max_train_examples_mmu,
-            per_gpu_batch_size=config.training.batch_size_mmu,
+            per_device_batch_size=config.training.batch_size_mmu,
             global_batch_size=total_batch_size_mmu_without_accum,
             num_workers=dataset_config.num_workers,
             resolution=preproc_config.resolution,
