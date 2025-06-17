@@ -13,7 +13,6 @@ from pathlib import Path
 from typing import Union
 
 import numpy as np
-import torch
 from models import MAGVITv2, MMadaConfig, MMadaModelLM, get_mask_schedule
 from models.lr_schedulers import get_scheduler
 from omegaconf import OmegaConf
@@ -26,6 +25,7 @@ from training.prompting_utils import UniversalPrompting
 from transformers import AutoConfig, AutoTokenizer
 
 import mindspore as ms
+import mindspore.mint as mint
 
 from mindone.trainers.utils import create_optimizer
 
@@ -109,7 +109,7 @@ def main():
     vq_model = get_vq_model_class(config.model.vq_model.type)
     vq_model = vq_model.from_pretrained(config.model.vq_model.vq_model_name)
     vq_model.eval()
-    vq_model.requires_grad_(False)
+    vq_model.requires_grad = False
 
     # Initialize mmada in pretraining stage
     base_config = AutoConfig.from_pretrained(config.model.mmada.pretrained_model_path).to_dict()
@@ -379,7 +379,7 @@ def main():
     logger.info(f"  Gradient Accumulation steps = {config.training.gradient_accumulation_steps}")
 
     def prepare_inputs_and_labels(
-        pixel_values_or_image_ids: Union[torch.FloatTensor, torch.LongTensor],
+        pixel_values_or_image_ids: Union[ms.Tensor, ms.Tensor],
         texts: Union[str, str],
         min_masking_rate: float = 0.0,
         is_train: bool = True,
@@ -397,39 +397,51 @@ def main():
         input_ids, masks, labels = uni_prompting((texts, input_ids, labels), "t2i")
         return input_ids, labels, mask_prob, image_tokens, masks
 
-    @torch.no_grad()
     def prepare_inputs_and_labels_for_text(texts: Union[str, str], max_seq_len, eps=1e-3):
         # create MLM mask and labels
 
         input_ids_lm, prompt_mask, labels_lm = uni_prompting((texts_lm, max_seq_len), "lm")
         b, l = input_ids_lm.shape
-        t = torch.rand(b, device=input_ids_lm.device)
+        t = mint.rand(
+            b,
+        )
         p_mask = (1 - eps) * t + eps
         p_mask = p_mask[:, None].repeat(1, l)
 
-        masked_indices = torch.rand((b, l), device=input_ids_lm.device) < p_mask
+        masked_indices = (
+            mint.rand(
+                (b, l),
+            )
+            < p_mask
+        )
         # 126336 is used for [MASK] token
-        noisy_batch = torch.where(masked_indices, mask_id, input_ids_lm)
+        noisy_batch = mint.where(masked_indices, mask_id, input_ids_lm)
         masked_indices = noisy_batch == mask_id
 
         return noisy_batch, labels_lm, p_mask
 
-    @torch.no_grad()
     def prepare_inputs_and_labels_for_mmu(input_ids_mmu, prompt_masks, labels_mmu, eps=1e-3):
         b, l = input_ids_mmu.shape
-        t = torch.rand(b, device=input_ids_mmu.device)
+        t = mint.rand(
+            b,
+        )
         p_mask = (1 - eps) * t + eps
         p_mask = p_mask[:, None].repeat(1, l)
 
-        masked_indices = torch.rand((b, l), device=input_ids_mmu.device) < p_mask
+        masked_indices = (
+            mint.rand(
+                (b, l),
+            )
+            < p_mask
+        )
         # 126336 is used for [MASK] token
-        noisy_batch = torch.where(masked_indices, mask_id, input_ids_mmu)
+        noisy_batch = mint.where(masked_indices, mask_id, input_ids_mmu)
         masked_indices = noisy_batch == mask_id
         noisy_batch[prompt_masks.bool()] = input_ids_mmu[prompt_masks.bool()]
         masked_indices = noisy_batch == mask_id
 
-        prompt_masks = prompt_masks.to(torch.int64)
-        answer_lengths = torch.sum((1 - prompt_masks), dim=-1, keepdim=True)
+        prompt_masks = prompt_masks.to(ms.int64)
+        answer_lengths = mint.sum((1 - prompt_masks), dim=-1, keepdim=True)
         answer_lengths = answer_lengths.repeat(1, noisy_batch.shape[1])
 
         return noisy_batch, labels_mmu, p_mask, answer_lengths
@@ -450,7 +462,7 @@ def main():
             # Build formatted sequences for class-conditional/text-to-image generation
             # *-------*-------*-------*-------*-------*-------*-------*-------*-------*-------*-------*
             pixel_values, texts = batch["t2i_flow"]["images"], batch["t2i_flow"]["input_ids"]
-            pixel_values = pixel_values.to(device, non_blocking=True)
+
             data_time_m.update(time.time() - end)
 
             # Encode images to image tokens, mask them and create input and labels
@@ -464,8 +476,8 @@ def main():
             max_seq_len = input_ids.shape[-1]
             texts_lm = batch["lm_flow"]["input_ids"]
             (input_ids_lm, labels_lm, p_mask_lm) = prepare_inputs_and_labels_for_text(texts_lm, max_seq_len)
-            input_ids = torch.cat((input_ids, input_ids_lm.to(device)), dim=0)
-            labels = torch.cat((labels, labels_lm.to(device)), dim=0)
+            input_ids = mint.cat((input_ids, input_ids_lm), dim=0)
+            labels = mint.cat((labels, labels_lm), dim=0)
 
             # *-------*-------*-------*-------*-------*-------*-------*-------*-------*-------*-------*
             # Build formatted sequences for captioning/multimodal understanding
@@ -476,36 +488,35 @@ def main():
                     batch["mmu_flow"]["input_ids"],
                     batch["mmu_flow"]["labels"],
                 )
-                pixel_values_mmu = pixel_values_mmu.to(device, non_blocking=True)
-                input_ids_mmu = input_ids_mmu.to(device, non_blocking=True)
+
                 image_tokens_mmu = vq_model.get_code(pixel_values_mmu)
                 image_tokens_mmu = image_tokens_mmu + len(uni_prompting.text_tokenizer)
 
-                input_ids_mmu = torch.cat(
+                input_ids_mmu = mint.cat(
                     [
-                        (torch.ones(input_ids_mmu.shape[0], 1) * uni_prompting.sptids_dict["<|mmu|>"]).to(device),
-                        (torch.ones(input_ids_mmu.shape[0], 1) * uni_prompting.sptids_dict["<|soi|>"]).to(device),
+                        (mint.ones((input_ids_mmu.shape[0], 1)) * uni_prompting.sptids_dict["<|mmu|>"]),
+                        (mint.ones((input_ids_mmu.shape[0], 1)) * uni_prompting.sptids_dict["<|soi|>"]),
                         image_tokens_mmu,
-                        (torch.ones(input_ids_mmu.shape[0], 1) * uni_prompting.sptids_dict["<|eoi|>"]).to(device),
+                        (mint.ones((input_ids_mmu.shape[0], 1)) * uni_prompting.sptids_dict["<|eoi|>"]),
                         input_ids_mmu,
                     ],
                     dim=1,
-                ).long()
+                ).to(ms.int32)
 
-                labels_mmu = torch.cat(
+                labels_mmu = mint.cat(
                     [
-                        (torch.ones(input_ids_mmu.shape[0], 1) * uni_prompting.ignore_id).to(device),
-                        (torch.ones(input_ids_mmu.shape[0], 1) * uni_prompting.ignore_id).to(device),
-                        torch.ones_like(image_tokens_mmu) * uni_prompting.ignore_id,
-                        (torch.ones(input_ids_mmu.shape[0], 1) * uni_prompting.ignore_id).to(device),
-                        labels_mmu.to(device),
+                        (mint.ones((input_ids_mmu.shape[0], 1)) * uni_prompting.ignore_id),
+                        (mint.ones((input_ids_mmu.shape[0], 1)) * uni_prompting.ignore_id),
+                        mint.ones_like(image_tokens_mmu) * uni_prompting.ignore_id,
+                        (mint.ones((input_ids_mmu.shape[0], 1)) * uni_prompting.ignore_id),
+                        labels_mmu,
                     ],
                     dim=1,
-                ).long()
+                ).to(ms.int32)
 
             else:
                 pixel_values_mmu, texts_mmu = batch["mmu_flow"]["images"], batch["mmu_flow"]["input_ids"]
-                pixel_values_mmu = pixel_values_mmu.to(device, non_blocking=True)
+
                 image_tokens_mmu = vq_model.get_code(pixel_values_mmu)
                 image_tokens_mmu = image_tokens_mmu + len(uni_prompting.text_tokenizer)
 
@@ -513,10 +524,9 @@ def main():
                 (input_ids_mmu, labels_mmu, p_mask_mmu, answer_lengths) = prepare_inputs_and_labels_for_mmu(
                     input_ids_mmu, prompt_masks, labels_mmu
                 )
-                input_ids_mmu = input_ids_mmu.to(device, non_blocking=True)
 
-            input_ids = torch.cat((input_ids, input_ids_mmu.to(device)), dim=0)
-            labels = torch.cat((labels, labels_mmu.to(device)), dim=0)
+            input_ids = mint.cat((input_ids, input_ids_mmu), dim=0)
+            labels = mint.cat((labels, labels_mmu), dim=0)
 
             if global_step == 0 and epoch == 0:
                 logger.info("Input ids: {}".format(input_ids))
@@ -549,7 +559,7 @@ def main():
             loss.backward()
 
             if config.training.max_grad_norm is not None:
-                torch.nn.utils.clip_grad_norm_(model.parameters(), config.training.max_grad_norm)
+                mint.nn.utils.clip_grad_norm_(model.get_parameters(), config.training.max_grad_norm)
 
             optimizer.step()
             lr_scheduler.step()
@@ -640,7 +650,6 @@ def main():
     model.save_pretrained(config.experiment.output_dir, safe_serialization=True)
 
 
-@torch.no_grad()
 def visualize_predictions(
     model, vq_model, uni_prompting, config, global_step, input_ids, image_tokens_ori, ori_images, texts, logits
 ):
@@ -648,13 +657,13 @@ def visualize_predictions(
     model.eval()
 
     recons_images = vq_model.decode_code(image_tokens_ori - len(uni_prompting.text_tokenizer))
-    recons_images = torch.clamp((recons_images + 1.0) / 2.0, min=0.0, max=1.0)
+    recons_images = mint.clamp((recons_images + 1.0) / 2.0, min=0.0, max=1.0)
     recons_images *= 255.0
-    recons_images = recons_images.permute(0, 2, 3, 1).cpu().numpy().astype(np.uint8)
+    recons_images = recons_images.permute(0, 2, 3, 1).asnumpy().astype(np.uint8)
 
-    images = torch.clamp((ori_images + 1.0) / 2.0, min=0.0, max=1.0)
+    images = mint.clamp((ori_images + 1.0) / 2.0, min=0.0, max=1.0)
     images *= 255.0
-    images = images.permute(0, 2, 3, 1).cpu().numpy().astype(np.uint8)
+    images = images.permute(0, 2, 3, 1).asnumpy().astype(np.uint8)
     predictions = logits[
         : config.training.batch_size_t2i,
         -(config.model.mmada.num_vq_tokens + 1) : -1 :,
@@ -670,20 +679,19 @@ def visualize_predictions(
         uni_prompting.text_tokenizer
     )
     mask_ratio = list(
-        (torch.where(input_ids == mask_token_id, 1, 0).sum(dim=-1) / config.model.mmada.num_vq_tokens).cpu().numpy()
+        (mint.where(input_ids == mask_token_id, 1, 0).sum(dim=-1) / config.model.mmada.num_vq_tokens).asnumpy()
     )
-    predicted_images = torch.where(input_ids == mask_token_id, predictions, input_ids)
+    predicted_images = mint.where(input_ids == mask_token_id, predictions, input_ids)
     predicted_images = vq_model.decode_code(predicted_images)
-    predicted_images = torch.clamp((predicted_images + 1.0) / 2.0, min=0.0, max=1.0)
+    predicted_images = mint.clamp((predicted_images + 1.0) / 2.0, min=0.0, max=1.0)
     predicted_images *= 255.0
-    predicted_images = predicted_images.permute(0, 2, 3, 1).cpu().numpy().astype(np.uint8)
+    predicted_images = predicted_images.permute(0, 2, 3, 1).asnumpy().astype(np.uint8)
     predicted_images = np.concatenate((images, recons_images, predicted_images), 2)
     pil_images = [Image.fromarray(image) for image in predicted_images]
 
     model.train()
 
 
-@torch.no_grad()
 def generate_images(
     model,
     vq_model,
@@ -702,7 +710,7 @@ def generate_images(
     mask_dtype = model.get_input_embeddings().weight.dtype
     mask_token_id = model.config.mask_token_id
     image_tokens = (
-        torch.ones((len(validation_prompts), config.model.mmada.num_vq_tokens), dtype=torch.long) * mask_token_id
+        mint.ones((len(validation_prompts), config.model.mmada.num_vq_tokens), dtype=ms.int64) * mask_token_id
     )
     input_ids, attention_mask = uni_prompting((validation_prompts, image_tokens), "t2i_gen")
     if config.training.guidance_scale > 0:
@@ -731,7 +739,7 @@ def generate_images(
     )
     # In the beginning of training, the model is not fully trained and the generated token ids can be out of range
     # so we clamp them to the correct range.
-    gen_token_ids = torch.clamp(gen_token_ids, max=model.config.codebook_size - 1, min=0)
+    gen_token_ids = mint.clamp(gen_token_ids, max=model.config.codebook_size - 1, min=0)
     images = vq_model.decode_code(gen_token_ids)
 
     model.train()
@@ -740,13 +748,12 @@ def generate_images(
         del vq_model
 
     # Convert to PIL images
-    images = torch.clamp((images + 1.0) / 2.0, min=0.0, max=1.0)
+    images = mint.clamp((images + 1.0) / 2.0, min=0.0, max=1.0)
     images *= 255.0
-    images = images.permute(0, 2, 3, 1).cpu().numpy().astype(np.uint8)
+    images = images.permute(0, 2, 3, 1).asnumpy().astype(np.uint8)
     pil_images = [Image.fromarray(image) for image in images]
 
 
-@torch.no_grad()
 def understanding_images(
     model,
     vq_model,
@@ -762,12 +769,10 @@ def understanding_images(
     responses = ["" for i in range(len(file_list))]
     images = []
 
-    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-
     for i, file_name in enumerate(file_list):
         image_path = os.path.join(config.dataset.params.mmu_image_root, file_name)
         image_ori = Image.open(image_path).convert("RGB")
-        image = image_transform(image_ori, resolution=config.dataset.params.resolution).to(device)
+        image = image_transform(image_ori, resolution=config.dataset.params.resolution)
         image = image.unsqueeze(0)
         images.append(image)
         image_tokens = vq_model.get_code(image) + len(uni_prompting.text_tokenizer)
@@ -780,30 +785,30 @@ def understanding_images(
                 + "<eot_id><|start_header_id|>assistant<|end_header_id|>\n"
             ]
         )["input_ids"]
-        input_ids = torch.tensor(input_ids).to(device)
+        input_ids = ms.tensor(input_ids)
 
-        input_ids = torch.cat(
+        input_ids = mint.cat(
             [
-                (torch.ones(input_ids.shape[0], 1) * uni_prompting.sptids_dict["<|mmu|>"]).to(device),
-                (torch.ones(input_ids.shape[0], 1) * uni_prompting.sptids_dict["<|soi|>"]).to(device),
+                (mint.ones((input_ids.shape[0], 1)) * uni_prompting.sptids_dict["<|mmu|>"]),
+                (mint.ones((input_ids.shape[0], 1)) * uni_prompting.sptids_dict["<|soi|>"]),
                 image_tokens,
-                (torch.ones(input_ids.shape[0], 1) * uni_prompting.sptids_dict["<|eoi|>"]).to(device),
-                (torch.ones(input_ids.shape[0], 1) * uni_prompting.sptids_dict["<|sot|>"]).to(device),
+                (mint.ones((input_ids.shape[0], 1)) * uni_prompting.sptids_dict["<|eoi|>"]),
+                (mint.ones((input_ids.shape[0], 1)) * uni_prompting.sptids_dict["<|sot|>"]),
                 input_ids,
             ],
             dim=1,
-        ).long()
-        # with torch.autocast("cuda", dtype=weight_dtype, enabled=accelerator.mixed_precision != "no"):
+        ).to(ms.int32)
+
         output_ids = model.mmu_generate(input_ids)
-        # output_ids = torch.stack(output_ids).squeeze()[None]
+        # output_ids = mint.stack(output_ids).squeeze()[None]
 
         text = uni_prompting.text_tokenizer.batch_decode(output_ids[:, input_ids.shape[1] :], skip_special_tokens=True)
         responses[i] += text[0]
     model.train()
-    images = torch.cat(images, dim=0)
-    images = torch.clamp((images + 1.0) / 2.0, min=0.0, max=1.0)
+    images = mint.cat(images, dim=0)
+    images = mint.clamp((images + 1.0) / 2.0, min=0.0, max=1.0)
     images *= 255.0
-    images = images.permute(0, 2, 3, 1).cpu().numpy().astype(np.uint8)
+    images = images.permute(0, 2, 3, 1).asnumpy().astype(np.uint8)
     pil_images = [Image.fromarray(image) for image in images]
 
 
