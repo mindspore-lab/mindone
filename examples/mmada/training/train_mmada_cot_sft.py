@@ -131,7 +131,7 @@ def main():
         vq_model.load_state_dict(state_dict)
     else:
         vq_model = vq_model.from_pretrained(config.model.vq_model.vq_model_name)
-    vq_model.eval()
+    vq_modelset_train(False)
     vq_model.requires_grad_(False)
 
     model = MMadaModelLM.from_pretrained(config.model.mmada.pretrained_model_path, torch_dtype=torch.bfloat16).to(
@@ -724,7 +724,7 @@ def visualize_predictions(
     logits,
 ):
     logger.info("Visualizing predictions...")
-    model.eval()
+    modelset_train(False)
 
     recons_images = vq_model.decode_code(image_tokens_ori - len(uni_prompting.text_tokenizer))
     recons_images = torch.clamp((recons_images + 1.0) / 2.0, min=0.0, max=1.0)
@@ -769,7 +769,7 @@ def visualize_predictions(
 @torch.no_grad()
 def generate_images(model, vq_model, uni_prompting, config, global_step, mask_schedule, force_no_cfg=False):
     logger.info("Generating images...")
-    model.eval()
+    modelset_train(False)
 
     # read validation prompts from file
     with open(config.dataset.params.validation_prompts_file, "r") as f:
@@ -840,7 +840,7 @@ def generate_images(model, vq_model, uni_prompting, config, global_step, mask_sc
 @torch.no_grad()
 def quantative_images(model, vq_model, uni_prompting, config, global_step, mask_schedule, force_no_cfg=False):
     logger.info("Quantative images...")
-    model.eval()
+    modelset_train(False)
     clip_score_fn = partial(clip_score, model_name_or_path="/data_storage/shared/pretrained_models/")
     image_reward_model = RM.load("/data_storage/shared/pretrained_models/ImageReward/ImageReward.pt")
     # read validation prompts from file
@@ -940,7 +940,7 @@ def understanding_images(
     global_step,
 ):
     logger.info("Understanding images...")
-    model.eval()
+    modelset_train(False)
 
     prompts_file_path = config.dataset.params.mmu_validation_prompts_file
     prompts_dict = {}
@@ -1044,7 +1044,7 @@ def generate_chat_text(
     global_step,
 ):
     logger.info("Generating chat text...")
-    model.eval()
+    modelset_train(False)
 
     df = pandas.read_json(config.dataset.params.lm_chat_validation_jsonl, lines=True)
     prompts = df["question"].tolist()

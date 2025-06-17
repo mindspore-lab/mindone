@@ -27,12 +27,7 @@ from transformers import AutoConfig, AutoTokenizer
 import mindspore as ms
 import mindspore.mint as mint
 
-# TODO: remove in future when mindone is ready for install
-__dir__ = os.path.dirname(os.path.abspath(__file__))
-mindone_lib_path = os.path.abspath(os.path.join(__dir__, "../../"))
-sys.path.insert(0, mindone_lib_path)
-
-from mindone.trainers.utils import create_optimizer
+from mindone.trainers.optim import create_optimizer
 
 SYSTEM_PROMPT_LEN = 28
 
@@ -113,7 +108,7 @@ def main():
     # VQ model for processing image into discrete tokens
     vq_model = get_vq_model_class(config.model.vq_model.type)
     vq_model = vq_model.from_pretrained(config.model.vq_model.vq_model_name)
-    vq_model.eval()
+    vq_modelset_train(False)
     vq_model.requires_grad = False
 
     # Initialize mmada in pretraining stage
@@ -659,7 +654,7 @@ def visualize_predictions(
     model, vq_model, uni_prompting, config, global_step, input_ids, image_tokens_ori, ori_images, texts, logits
 ):
     logger.info("Visualizing predictions...")
-    model.eval()
+    modelset_train(False)
 
     recons_images = vq_model.decode_code(image_tokens_ori - len(uni_prompting.text_tokenizer))
     recons_images = mint.clamp((recons_images + 1.0) / 2.0, min=0.0, max=1.0)
@@ -706,7 +701,7 @@ def generate_images(
     mask_schedule,
 ):
     logger.info("Generating images...")
-    model.eval()
+    modelset_train(False)
 
     # read validation prompts from file
     with open(config.dataset.params.validation_prompts_file, "r") as f:
@@ -767,7 +762,7 @@ def understanding_images(
     global_step,
 ):
     logger.info("Understanding images...")
-    model.eval()
+    modelset_train(False)
 
     file_list = os.listdir(config.dataset.params.mmu_image_root)
     file_list = [f for f in file_list if f.lower().endswith((".jpg", ".png", ".jpeg"))]
