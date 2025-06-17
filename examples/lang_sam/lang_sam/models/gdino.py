@@ -1,15 +1,15 @@
 from PIL import Image
-from transformers import AutoProcessor
 
 import mindspore as ms
 
-from mindone.transformers import GroundingDinoForObjectDetection
+from mindone.transformers import GroundingDinoForObjectDetection, GroundingDinoProcessor
 
 
 class GDINO:
-    def build_model(self, ckpt_path: str | None = None, dtype=ms.float16):
+    def build_model(self, ckpt_path: str | None = None, dtype=ms.float32):
         model_id = "IDEA-Research/grounding-dino-base" if ckpt_path is None else ckpt_path
-        self.processor = AutoProcessor.from_pretrained(model_id)
+        self.processor = GroundingDinoProcessor.from_pretrained(model_id)
+        self.dtype = dtype
         self.model = GroundingDinoForObjectDetection.from_pretrained(model_id, mindspore_dtype=dtype)
 
     def predict(
@@ -25,12 +25,13 @@ class GDINO:
         inputs = self.processor(images=images_pil, text=texts_prompt, return_tensors="np")
         inputs = {k: ms.Tensor(inputs[k]) for k in inputs.keys()}
 
+        inputs["pixel_values"] = inputs["pixel_values"].to(self.dtype)
         outputs = self.model(**inputs)
 
         results = self.processor.post_process_grounded_object_detection(
             outputs,
             inputs["input_ids"],
-            box_threshold=box_threshold,
+            threshold=box_threshold,
             text_threshold=text_threshold,
             target_sizes=[k.shape[::-1] for k in images_pil],
         )

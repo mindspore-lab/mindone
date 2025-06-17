@@ -11,9 +11,11 @@ from lang_sam import LangSAM
 from lang_sam.utils import draw_image
 from PIL import Image
 
+import mindspore as ms
+
 
 def main():
-    model = LangSAM(sam_type="sam2.1_hiera_small", ckpt_path="./checkpoints//sam2.1_hiera_small.pt")
+    model = LangSAM(sam_type="sam2.1_hiera_small", ckpt_path="./checkpoints//sam2.1_hiera_small.pt", dtype=ms.float16)
     image_pil = Image.open("./assets/car.jpeg").convert("RGB")
     text_prompt = "wheel"
     results = model.predict([image_pil], [text_prompt])
