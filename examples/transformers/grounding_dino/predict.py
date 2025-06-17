@@ -1,14 +1,13 @@
 import requests
 from PIL import Image
-from transformers import AutoProcessor
 
 import mindspore as ms
 
-from mindone.transformers import GroundingDinoForObjectDetection
+from mindone.transformers import GroundingDinoForObjectDetection, GroundingDinoProcessor
 
 model_id = "IDEA-Research/grounding-dino-tiny"
 
-processor = AutoProcessor.from_pretrained(model_id)
+processor = GroundingDinoProcessor.from_pretrained(model_id)
 model = GroundingDinoForObjectDetection.from_pretrained(model_id)
 
 image_url = "http://images.cocodataset.org/val2017/000000039769.jpg"

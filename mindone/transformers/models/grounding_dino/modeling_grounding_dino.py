@@ -2029,7 +2029,7 @@ class GroundingDinoModel(GroundingDinoPreTrainedModel):
             grid = mint.cat([grid_x.unsqueeze(-1), grid_y.unsqueeze(-1)], -1)
 
             scale = mint.cat([valid_width.unsqueeze(-1), valid_height.unsqueeze(-1)], 1).view(batch_size, 1, 1, 2)
-            grid = (grid.unsqueeze(0).broadcast((batch_size, -1, -1, -1)) + 0.5) / scale
+            grid = (grid.unsqueeze(0).broadcast_to((batch_size, -1, -1, -1)) + 0.5) / scale
             width_height = mint.ones_like(grid) * 0.05 * (2.0**level)
             proposal = mint.cat((grid, width_height), -1).view(batch_size, -1, 4)
             proposals.append(proposal)

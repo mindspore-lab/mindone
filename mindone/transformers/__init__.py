@@ -127,6 +127,7 @@ from .models.grounding_dino import (
     GroundingDinoImageProcessor,
     GroundingDinoModel,
     GroundingDinoPreTrainedModel,
+    GroundingDinoProcessor,
 )
 from .models.hiera import (
     HieraBackbone,
