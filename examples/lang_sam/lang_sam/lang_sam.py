@@ -3,14 +3,16 @@ from lang_sam.models.gdino import GDINO
 from lang_sam.models.sam import SAM
 from PIL import Image
 
+import mindspore as ms
+
 
 class LangSAM:
-    def __init__(self, sam_type="sam2.1_hiera_small", ckpt_path: str | None = None):
+    def __init__(self, sam_type="sam2.1_hiera_small", ckpt_path: str | None = None, dtype=ms.float32):
         self.sam_type = sam_type
 
         self.sam = SAM()
         self.sam.build_model(sam_type, ckpt_path)
-        self.gdino = GDINO()
+        self.gdino = GDINO(dtype=dtype)
         self.gdino.build_model()
 
     def predict(
