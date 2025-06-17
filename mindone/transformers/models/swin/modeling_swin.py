@@ -1121,6 +1121,7 @@ class SwinForMaskedImageModeling(SwinPreTrainedModel):
         >>> from transformers import AutoImageProcessor, SwinForMaskedImageModeling
         >>> import mindspore as ms
         >>> import mindspore.mint as mint
+        >>> import mindspore.ops as ops
         >>> from PIL import Image
         >>> import requests
 
@@ -1133,7 +1134,7 @@ class SwinForMaskedImageModeling(SwinPreTrainedModel):
         >>> num_patches = (model.config.image_size // model.config.patch_size) ** 2
         >>> pixel_values = image_processor(images=image, return_tensors="pt").pixel_values
         >>> # create random boolean mask of shape (batch_size, num_patches)
-        >>> bool_masked_pos = mint.randint(low=0, high=2, size=(1, num_patches)).bool()
+        >>> bool_masked_pos = ops.randint(low=0, high=2, size=(1, num_patches)).bool()
 
         >>> outputs = model(pixel_values, bool_masked_pos=bool_masked_pos)
         >>> loss, reconstructed_pixel_values = outputs.loss, outputs.reconstruction
