@@ -31,6 +31,7 @@ from . import (
     clap,
     clip,
     dpt,
+    fsmt,
     fuyu,
     gemma,
     gemma2,
