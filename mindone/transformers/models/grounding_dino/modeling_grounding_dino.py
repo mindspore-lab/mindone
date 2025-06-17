@@ -82,13 +82,13 @@ class MultiScaleDeformableAttention(nn.Cell):
             # -> batch_size*num_heads, num_queries, num_points, 2
             sampling_grid_l_ = sampling_grids[:, :, :, level_id].transpose(1, 2).flatten(0, 1)
             # batch_size*num_heads, hidden_dim, num_queries, num_points
-            sampling_value_l_ = mint.nn.functional.grid_sample(
-                value_l_,
-                sampling_grid_l_,
+            sampling_value_l_ = mint.nn.functional.grid_sample(  # grid_sample does not support fp16 or bf16 on Ascend
+                value_l_.to(ms.float32),
+                sampling_grid_l_.to(ms.float32),
                 mode="bilinear",
                 padding_mode="zeros",
                 align_corners=False,
-            )
+            ).to(value_l_.dtype)
             sampling_value_list.append(sampling_value_l_)
         # (batch_size, num_queries, num_heads, num_levels, num_points)
         # -> (batch_size, num_heads, num_queries, num_levels, num_points)
@@ -1771,7 +1771,9 @@ class GroundingDinoDecoder(GroundingDinoPreTrainedModel):
                 reference_points_input = reference_points[:, :, None] * valid_ratios[:, None]
             else:
                 raise ValueError("Last dim of reference_points must be 2 or 4, but got {reference_points.shape[-1]}")
-            query_pos = get_sine_pos_embed(reference_points_input[:, :, 0, :], num_pos_feats=self.config.d_model // 2)
+            query_pos = get_sine_pos_embed(
+                reference_points_input[:, :, 0, :], num_pos_feats=self.config.d_model // 2
+            ).to(hidden_states.dtype)
             query_pos = self.reference_points_head(query_pos)
 
             # In original implementation they apply layer norm before outputting intermediate hidden states
