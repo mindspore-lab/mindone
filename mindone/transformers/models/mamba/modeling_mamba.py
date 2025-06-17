@@ -28,7 +28,7 @@ from transformers.utils import (
 )
 
 import mindspore as ms
-from mindspore import jit, mint, nn
+from mindspore import mint, nn
 from mindspore.common.initializer import HeUniform, initializer
 from mindspore.mint.nn import CrossEntropyLoss
 
@@ -174,7 +174,6 @@ class MambaMixer(nn.Cell):
         return contextualized_states
     # fmt: on
 
-    @jit
     def construct(
         self,
         hidden_states,
@@ -194,7 +193,6 @@ class MambaRMSNorm(nn.Cell):
         self.weight = ms.Parameter(mint.ones(hidden_size), name="weight")
         self.variance_epsilon = eps
 
-    @jit
     def construct(self, hidden_states):
         input_dtype = hidden_states.dtype
         hidden_states = hidden_states.to(ms.float32)
@@ -215,7 +213,6 @@ class MambaBlock(nn.Cell):
         self.norm = MambaRMSNorm(config.hidden_size, eps=config.layer_norm_epsilon)
         self.mixer = MambaMixer(config, layer_idx=layer_idx)
 
-    @jit
     def construct(
         self,
         hidden_states,
@@ -424,7 +421,6 @@ class MambaModel(MambaPreTrainedModel):
         output_type=MambaOutput,
         config_class=_CONFIG_FOR_DOC,
     )
-    @jit
     def construct(
         self,
         input_ids: Optional[ms.Tensor] = None,
@@ -432,7 +428,7 @@ class MambaModel(MambaPreTrainedModel):
         cache_params: Optional[MambaCache] = None,
         use_cache: Optional[bool] = None,
         output_hidden_states: Optional[bool] = None,
-        return_dict: Optional[bool] = False,
+        return_dict: Optional[bool] = None,
         cache_position: Optional[ms.Tensor] = None,
         attention_mask: Optional[ms.Tensor] = None,
     ) -> Union[Tuple, MambaOutput]:
@@ -604,7 +600,6 @@ class MambaForCausalLM(MambaPreTrainedModel, GenerationMixin):
         output_type=MambaCausalLMOutput,
         config_class=_CONFIG_FOR_DOC,
     )
-    @jit
     def construct(
         self,
         input_ids: Optional[ms.Tensor] = None,
@@ -613,7 +608,7 @@ class MambaForCausalLM(MambaPreTrainedModel, GenerationMixin):
         cache_params: Optional[MambaCache] = None,
         labels: Optional[ms.Tensor] = None,
         output_hidden_states: Optional[bool] = None,
-        return_dict: Optional[bool] = False,
+        return_dict: Optional[bool] = None,
         use_cache: Optional[bool] = None,
         cache_position: Optional[ms.Tensor] = None,
         **kwargs,  # for now we need this for generation

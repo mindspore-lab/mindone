@@ -140,6 +140,18 @@ def _convert_state_dict(m, state_dict_pt, prefix=""):
                 name_pt = name_pt[length:]
             elif not name_pt.startswith(prefix) and name_pt.rsplit(".", 1)[0] == name_ms.rsplit(".", 1)[0][length:]:
                 name_pt = ".".join([prefix, name_pt])
+            elif (
+                name_pt.startswith(prefix)
+                and len(name_pt.rsplit(".")) == 2
+                and name_ms.rsplit(".", 1)[0] == name_pt.rsplit(".", 1)[1]
+            ):
+                name_pt = name_pt[length:]
+            elif (
+                not name_pt.startswith(prefix)
+                and len(name_ms.rsplit(".")) == 2
+                and name_pt.rsplit(".", 1)[0] == name_ms.rsplit(".", 1)[1]
+            ):
+                name_pt = ".".join([prefix, name_pt])
         name_ms, data_mapping = pt2ms_mappings.get(name_pt, (name_pt, lambda x: x))
         data_ms = data_mapping(data_pt)
         if name_ms is not None:
