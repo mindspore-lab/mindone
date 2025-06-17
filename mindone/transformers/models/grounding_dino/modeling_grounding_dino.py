@@ -713,7 +713,7 @@ class GroundingDinoTextEnhancerLayer(nn.Cell):
 
             dtype = hidden_states.dtype
             attention_masks = attention_masks.to(dtype=dtype)  # fp16 compatibility
-            attention_masks = (1.0 - attention_masks) * _DTYPE_2_MIN(dtype)
+            attention_masks = (1.0 - attention_masks) * _DTYPE_2_MIN[dtype]
 
         queries = keys = self.with_pos_embed(hidden_states, position_embeddings)
         attention_output, attention_weights = self.self_attn(
@@ -826,7 +826,7 @@ class GroundingDinoBiMultiHeadAttention(nn.Cell):
         vision_value_states = vision_value_states.view(*proj_shape)
         text_value_states = text_value_states.view(*proj_shape)
 
-        src_len = text_key_states.size(1)
+        src_len = text_key_states.shape[1]
         attn_weights = mint.bmm(vision_query_states, text_key_states.transpose(1, 2))  # bs*nhead, nimg, ntxt
 
         if attn_weights.shape != (batch_size * self.num_heads, tgt_len, src_len):
@@ -851,13 +851,13 @@ class GroundingDinoBiMultiHeadAttention(nn.Cell):
             )
             text_attn_weights.masked_fill_(vision_attention_mask, float("-inf"))
 
-        text_attn_weights = text_attn_weights.softmax(dim=-1)
+        text_attn_weights = text_attn_weights.softmax(axis=-1)
 
         # mask language for vision
         if text_attention_mask is not None:
             text_attention_mask = text_attention_mask[:, None, None, :].repeat(1, self.num_heads, 1, 1).flatten(0, 1)
             attn_weights.masked_fill_(text_attention_mask, float("-inf"))
-        vision_attn_weights = attn_weights.softmax(dim=-1)
+        vision_attn_weights = attn_weights.softmax(axis=-1)
 
         vision_attn_probs = F.dropout(vision_attn_weights, p=self.dropout, training=self.training)
         text_attn_probs = F.dropout(text_attn_weights, p=self.dropout, training=self.training)
@@ -1509,8 +1509,8 @@ class GroundingDinoEncoder(GroundingDinoPreTrainedModel):
         reference_points_list = []
         for level, (height, width) in enumerate(spatial_shapes):
             ref_y, ref_x = meshgrid(
-                mint.linspace(0.5, height - 0.5, height, dtype=ms.float32),
-                mint.linspace(0.5, width - 0.5, width, dtype=ms.float32),
+                mint.linspace(0.5, float(height) - 0.5, int(height), dtype=ms.float32),
+                mint.linspace(0.5, float(width) - 0.5, int(width), dtype=ms.float32),
                 indexing="ij",
             )
             # TODO: valid_ratios could be useless here. check https://github.com/fundamentalvision/Deformable-DETR/issues/36
@@ -2017,13 +2017,13 @@ class GroundingDinoModel(GroundingDinoPreTrainedModel):
         current_position = 0
         for level, (height, width) in enumerate(spatial_shapes):
             mask_flatten_ = padding_mask[:, current_position : (current_position + height * width)]
-            mask_flatten_ = mask_flatten_.view(batch_size, height, width, 1)
+            mask_flatten_ = mask_flatten_.view(batch_size, int(height), int(width), 1)
             valid_height = mint.sum(~mask_flatten_[:, :, 0, 0], 1)
             valid_width = mint.sum(~mask_flatten_[:, 0, :, 0], 1)
 
             grid_y, grid_x = meshgrid(
-                mint.linspace(0, height - 1, height, dtype=ms.float32),
-                mint.linspace(0, width - 1, width, dtype=ms.float32),
+                mint.linspace(0.0, float(height) - 1, int(height), dtype=ms.float32),
+                mint.linspace(0.0, float(width) - 1, int(width), dtype=ms.float32),
                 indexing="ij",
             )
             grid = mint.cat([grid_x.unsqueeze(-1), grid_y.unsqueeze(-1)], -1)
@@ -2180,7 +2180,9 @@ class GroundingDinoModel(GroundingDinoPreTrainedModel):
         mask_flatten = mint.cat(mask_flatten, 1)
         lvl_pos_embed_flatten = mint.cat(lvl_pos_embed_flatten, 1)
         spatial_shapes = ms.tensor(spatial_shapes_list, dtype=ms.int32)
-        level_start_index = mint.cat((spatial_shapes.new_zeros((1,)), spatial_shapes.prod(1).cumsum(0)[:-1]))
+        level_start_index = mint.cat(
+            (spatial_shapes.new_zeros((1,)), spatial_shapes.prod(1).to(ms.int32).cumsum(0)[:-1])
+        )
         valid_ratios = mint.stack([self.get_valid_ratio(m) for m in masks], 1)
         valid_ratios = valid_ratios.float()
 
