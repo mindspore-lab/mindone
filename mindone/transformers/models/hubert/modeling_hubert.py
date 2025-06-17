@@ -313,7 +313,7 @@ class HubertAttention(nn.Cell):
         key_states = key_states.reshape(*proj_shape)
         value_states = value_states.reshape(*proj_shape)
 
-        src_len = key_states.size(1)
+        src_len = key_states.shape[1]
         attn_weights = mint.bmm(query_states, key_states.transpose(1, 2))
 
         if attn_weights.shape != (bsz * self.num_heads, tgt_len, src_len):
