@@ -1,5 +1,6 @@
 import os
 import sys
+from typing import NamedTuple
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 import logging
@@ -39,18 +40,17 @@ class MockVQModelConfig:
         self.vq_model_name = "showlab/magvitv2"
 
 
-class MockMMadaConfig:
+class MockMMadaConfig(NamedTuple):
     """Mock MMada configuration class for testing."""
 
-    def __init__(self):
-        self.pretrained_model_path = "GSAI-ML/LLaDA-8B-Instruct"
-        self.w_clip_vit = False
-        self.new_vocab_size = 134656
-        self.llm_vocab_size = 126464
-        self.codebook_size = 8192
-        self.num_vq_tokens = 256
-        self.num_new_special_tokens = 0
-        self.tie_word_embeddings = False
+    pretrained_model_path: str = "GSAI-ML/LLaDA-8B-Instruct"
+    w_clip_vit: bool = False
+    new_vocab_size: int = 134656
+    llm_vocab_size: int = 126464
+    codebook_size: int = 8192
+    num_vq_tokens: int = 256
+    num_new_special_tokens: int = 0
+    tie_word_embeddings: bool = False
 
 
 class MockOptimizerConfig:
@@ -107,7 +107,7 @@ def test_model_and_optimizer_initialization():
         vq_model.requires_grad = False
 
         base_config = AutoConfig.from_pretrained(config.model.mmada.pretrained_model_path).to_dict()
-        mmada_config_dict = {k: v for k, v in config.model.mmada.items()}
+        mmada_config_dict = {k: v for k, v in config.model.mmada._asdict().items()}
         merged_config = {**base_config, **mmada_config_dict}
         mmada_config = MMadaConfig(**merged_config)
         model = MMadaModelLM.from_pretrained(
