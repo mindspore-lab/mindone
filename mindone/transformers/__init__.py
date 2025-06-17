@@ -60,6 +60,18 @@ from .models.bigbird_pegasus import (
     BigBirdPegasusPreTrainedModel,
 )
 from .models.bit import BitBackbone
+from .models.blenderbot import (
+    BlenderbotForCausalLM,
+    BlenderbotForConditionalGeneration,
+    BlenderbotModel,
+    BlenderbotPreTrainedModel,
+)
+from .models.blenderbot_small import (
+    BlenderbotSmallForCausalLM,
+    BlenderbotSmallForConditionalGeneration,
+    BlenderbotSmallModel,
+    BlenderbotSmallPreTrainedModel,
+)
 from .models.blip_2 import (
     Blip2ForConditionalGeneration,
     Blip2Model,

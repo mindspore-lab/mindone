@@ -31,6 +31,8 @@ MODEL_MAPPING_NAMES = OrderedDict(
         ("bert", "BertModel"),
         ("bart", "BartModel"),
         ("bit", "BitModel"),
+        ("blenderbot", "BlenderbotModel"),
+        ("blenderbot-small", "BlenderbotSmallModel"),
         ("blip-2", "Blip2Model"),
         ("chameleon", "ChameleonModel"),
         ("clap", "ClapModel"),
@@ -97,6 +99,7 @@ MODEL_WITH_LM_HEAD_MAPPING_NAMES = OrderedDict(
         ("albert", "AlbertForMaskedLM"),
         ("bart", "BartForConditionalGeneration"),
         ("bert", "BertForMaskedLM"),
+        ("blenderbot-small", "BlenderbotSmallForConditionalGeneration"),
         ("deberta-v2", "DebertaV2ForMaskedLM"),
         ("gpt2", "GPT2LMHeadModel"),
         ("mobilebert", "MobileBertForMaskedLM"),
@@ -113,6 +116,8 @@ MODEL_FOR_CAUSAL_LM_MAPPING_NAMES = OrderedDict(
         # Model for Causal LM mapping
         ("bart", "BartForCausalLM"),
         ("bert", "BertLMHeadModel"),
+        ("blenderbot", "BlenderbotForCausalLM"),
+        ("blenderbot-small", "BlenderbotSmallForCausalLM"),
         ("bert-generation", "BertGenerationDecoder"),
         ("gemma", "GemmaForCausalLM"),
         ("gemma2", "Gemma2ForCausalLM"),
@@ -253,6 +258,8 @@ MODEL_FOR_SEQ_TO_SEQ_CAUSAL_LM_MAPPING_NAMES = OrderedDict(
     [
         # Model for Seq2Seq Causal LM mapping
         ("bart", "BartForConditionalGeneration"),
+        ("blenderbot", "BlenderbotForConditionalGeneration"),
+        ("blenderbot-small", "BlenderbotSmallForConditionalGeneration"),
         ("mt5", "MT5ForConditionalGeneration"),
         ("qwen2_audio", "Qwen2AudioForConditionalGeneration"),
         ("t5", "T5ForConditionalGeneration"),
