@@ -47,7 +47,8 @@ def main(args):
     sam2_checkpoint = "checkpoints/sam2.1_hiera_large.pt"
     model_cfg = "configs/sam2.1/sam2.1_hiera_l.yaml"
     dtype = ms.float16
-    sam2 = build_sam2(model_cfg, sam2_checkpoint, apply_postprocessing=False).to(dtype)
+    sam2 = build_sam2(model_cfg, sam2_checkpoint, apply_postprocessing=False)
+    sam2.to_float(dtype)
 
     mask_generator = SAM2AutomaticMaskGenerator(sam2)
     image_path = args.image_path
