@@ -24,7 +24,11 @@ def main():
     generate_ids = model.generate(input_ids, max_length=30)
     print(f"Inference time: {time() - infer_start:.3f}s")
 
-    print(tokenizer.batch_decode(generate_ids[0], skip_special_tokens=True, clean_up_tokenization_spaces=False))
+    print(
+        tokenizer.batch_decode(
+            generate_ids[:, input_ids.shape[1] :], skip_special_tokens=True, clean_up_tokenization_spaces=False
+        )[0].strip()
+    )
 
 
 if __name__ == "__main__":
