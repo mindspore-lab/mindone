@@ -27,6 +27,11 @@ from transformers import AutoConfig, AutoTokenizer
 import mindspore as ms
 import mindspore.mint as mint
 
+# TODO: remove in future when mindone is ready for install
+__dir__ = os.path.dirname(os.path.abspath(__file__))
+mindone_lib_path = os.path.abspath(os.path.join(__dir__, "../../"))
+sys.path.insert(0, mindone_lib_path)
+
 from mindone.trainers.utils import create_optimizer
 
 SYSTEM_PROMPT_LEN = 28
