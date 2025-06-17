@@ -124,10 +124,10 @@ def get_pt2ms_mappings(m):
                 mappings[f"{name}.running_mean"] = f"{name}.moving_mean", lambda x: x
                 mappings[f"{name}.running_var"] = f"{name}.moving_variance", lambda x: x
                 mappings[f"{name}.num_batches_tracked"] = None, lambda x: x
-        elif isinstance(cell, (mint.nn.BatchNorm1d, mint.nn.BatchNorm2d, mint.nn.BatchNorm3d)):
-            # TODO: for mint.nn, the dtype for each param should expected to be same among torch and mindspore
-            # this is a temporary fix, delete this branch in future.
-            mappings[f"{name}.num_batches_tracked"] = f"{name}.num_batches_tracked", lambda x: x.to(ms.float32)
+        # num_batches_tracked is int64 in ms2.6
+        # elif isinstance(cell, (mint.nn.BatchNorm1d, mint.nn.BatchNorm2d, mint.nn.BatchNorm3d)):
+        #     # this is a temporary fix, delete this branch in future.
+        #     mappings[f"{name}.num_batches_tracked"] = f"{name}.num_batches_tracked", lambda x: x.to(ms.float32)
     return mappings
 
 
@@ -143,8 +143,9 @@ def convert_state_dict(m, state_dict_pt):
     state_dict_ms = {}
     for name_pt, data_pt in state_dict_pt.items():
         name_ms, data_mapping = mappings.get(name_pt, (name_pt, lambda x: x))
+        # data_pt can be int
         data_ms = ms.Parameter(
-            data_mapping(ms.Tensor.from_numpy(data_pt.float().numpy()).to(dtype_mappings[data_pt.dtype])), name=name_ms
+            data_mapping(ms.Tensor.from_numpy(data_pt.numpy()).to(dtype_mappings[data_pt.dtype])), name=name_ms
         )
         if name_ms is not None:
             state_dict_ms[name_ms] = data_ms
