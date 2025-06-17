@@ -7,6 +7,7 @@ import warnings
 from typing import TYPE_CHECKING, Dict, List, Optional, Tuple, Union
 
 from transformers.tokenization_utils_base import BatchEncoding, PreTokenizedInput, TextInput
+from transformers.utils.deprecation import deprecate_kwarg
 
 import mindspore as ms
 from mindspore import mint
@@ -223,6 +224,7 @@ class GroundingDinoProcessor(ProcessorMixin):
         image_processor_input_names = self.image_processor.model_input_names
         return list(dict.fromkeys(tokenizer_input_names + image_processor_input_names))
 
+    @deprecate_kwarg("box_threshold", new_name="threshold", version="4.51.0")
     def post_process_grounded_object_detection(
         self,
         outputs: "GroundingDinoObjectDetectionOutput",
