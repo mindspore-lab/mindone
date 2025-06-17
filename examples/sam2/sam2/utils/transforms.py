@@ -38,7 +38,7 @@ class SAM2Transforms:
         return ms.tensor(x)
 
     def construct_batch(self, img_list):
-        img_batch = [self.transforms(self.to_tensor(img)) for img in img_list]
+        img_batch = [self(img) for img in img_list]
         img_batch = mint.stack(img_batch, dim=0)
         return img_batch
 

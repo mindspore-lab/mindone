@@ -11,9 +11,9 @@ class LangSAM:
         self.sam_type = sam_type
 
         self.sam = SAM()
-        self.sam.build_model(sam_type, ckpt_path)
-        self.gdino = GDINO(dtype=dtype)
-        self.gdino.build_model()
+        self.sam.build_model(sam_type, ckpt_path, dtype=dtype)
+        self.gdino = GDINO()
+        self.gdino.build_model(dtype=dtype)
 
     def predict(
         self,
@@ -47,7 +47,7 @@ class LangSAM:
         sam_boxes = []
         sam_indices = []
         for idx, result in enumerate(gdino_results):
-            result = {k: (v.cpu().numpy() if hasattr(v, "numpy") else v) for k, v in result.items()}
+            result = {k: (v.asnumpy() if hasattr(v, "numpy") else v) for k, v in result.items()}
             processed_result = {
                 **result,
                 "masks": [],
