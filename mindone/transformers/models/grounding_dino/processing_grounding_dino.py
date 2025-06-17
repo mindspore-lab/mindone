@@ -282,7 +282,7 @@ class GroundingDinoProcessor(ProcessorMixin):
             else:
                 img_h, img_w = target_sizes.unbind(1)
 
-            scale_fct = mint.stack([img_w, img_h, img_w, img_h], dim=1).to(batch_boxes.device)
+            scale_fct = mint.stack([img_w, img_h, img_w, img_h], dim=1)
             batch_boxes = batch_boxes * scale_fct[:, None, :]
 
         results = []
