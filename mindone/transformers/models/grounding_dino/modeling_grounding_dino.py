@@ -601,7 +601,7 @@ class GroundingDinoMultiscaleDeformableAttention(nn.Cell):
     ):
         # add position embeddings to the hidden states before projecting to queries and keys
         if position_embeddings is not None:
-            hidden_states = self.with_pos_embed(hidden_states, position_embeddings)
+            hidden_states = self.with_pos_embed(hidden_states, position_embeddings.to(hidden_states.dtype))
 
         batch_size, num_queries, _ = hidden_states.shape
         batch_size, sequence_length, _ = encoder_hidden_states.shape
@@ -715,7 +715,7 @@ class GroundingDinoTextEnhancerLayer(nn.Cell):
             attention_masks = attention_masks.to(dtype=dtype)  # fp16 compatibility
             attention_masks = (1.0 - attention_masks) * _DTYPE_2_MIN[dtype]
 
-        queries = keys = self.with_pos_embed(hidden_states, position_embeddings)
+        queries = keys = self.with_pos_embed(hidden_states, position_embeddings.to(hidden_states.dtype))
         attention_output, attention_weights = self.self_attn(
             queries=queries,
             keys=keys,
@@ -1308,7 +1308,7 @@ class GroundingDinoDecoderLayer(nn.Cell):
         residual = hidden_states
 
         # Self Attention
-        queries = keys = self.with_pos_embed(hidden_states, position_embeddings)
+        queries = keys = self.with_pos_embed(hidden_states, position_embeddings.to(hidden_states.dtype))
         hidden_states, self_attn_weights = self.self_attn(
             queries=queries,
             keys=keys,
@@ -1324,7 +1324,7 @@ class GroundingDinoDecoderLayer(nn.Cell):
         second_residual = hidden_states
 
         # Cross-Attention Text
-        queries = self.with_pos_embed(hidden_states, position_embeddings)
+        queries = self.with_pos_embed(hidden_states, position_embeddings.to(hidden_states.dtype))
         hidden_states, text_cross_attn_weights = self.encoder_attn_text(
             queries=queries,
             keys=text_encoder_hidden_states,
