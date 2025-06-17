@@ -46,6 +46,7 @@ from ...modeling_outputs import BaseModelOutputWithPast, CausalLMOutputWithPast,
 from ...modeling_rope_utils import ROPE_INIT_FUNCTIONS
 from ...modeling_utils import ALL_ATTENTION_FUNCTIONS, MSPreTrainedModel
 from ...processing_utils import Unpack
+
 # from ..auto import AutoModelForCausalLM, AutoModel
 from ..idefics3 import Idefics3VisionTransformer
 
@@ -143,7 +144,9 @@ class AriaCrossAttention(nn.Cell):
                 Output tensor after cross-attention.
         """
         # change compuatation dtype, copy weight and bias
-        _multihead_attn = nn.MultiheadAttention(self.hidden_size, self.num_heads, batch_first=True, dtype=hidden_states.dtype)
+        _multihead_attn = nn.MultiheadAttention(
+            self.hidden_size, self.num_heads, batch_first=True, dtype=hidden_states.dtype
+        )
         _multihead_attn.in_proj_weight = self.multihead_attn.in_proj_weight
         _multihead_attn.in_proj_bias = self.multihead_attn.in_proj_bias
         _multihead_attn.out_proj = self.multihead_attn.out_proj
@@ -1331,13 +1334,13 @@ class AriaForConditionalGeneration(AriaPreTrainedModel, GenerationMixin):
         super().__init__(config)
 
         # self.vision_tower = AutoModel.from_config(config.vision_config)
-        self.vision_tower = Idefics3VisionTransformer._from_config(config.vision_config)
+        self.vision_tower = Idefics3VisionTransformer(config.vision_config)
 
         self.multi_modal_projector = AriaProjector(config)
         self.vocab_size = config.text_config.vocab_size
         # self.language_model = AutoModelForCausalLM.from_config(config.text_config)  # AriaTextForCausalLM
         # OR
-        self.language_model = AriaTextForCausalLM._from_config(config.text_config)
+        self.language_model = AriaTextForCausalLM(config.text_config)
         self.pad_token_id = self.config.pad_token_id if self.config.pad_token_id is not None else -1
         self._use_flash_attention_2 = config.text_config._attn_implementation == "flash_attention_2"
         self.post_init()
@@ -1360,7 +1363,7 @@ class AriaForConditionalGeneration(AriaPreTrainedModel, GenerationMixin):
 
         # (B, C=1, H, W) => (B, Cx(KxK), L=H'xW')
         patch_size = self.vision_tower.config.patch_size
-        patches_subgrid = F.unfold(pixel_mask[:, None, ...]/float(), kernel_size=patch_size, stride=patch_size)
+        patches_subgrid = F.unfold(pixel_mask[:, None, ...] / float(), kernel_size=patch_size, stride=patch_size)
         h = pixel_mask.shape[1] // patch_size
         w = pixel_mask.shape[2] // patch_size
         patches_subgrid = patches_subgrid.swapaxes(1, 2).reshape(pixel_mask.shape[0], h, w, patch_size, patch_size)
@@ -1528,8 +1531,8 @@ class AriaForConditionalGeneration(AriaPreTrainedModel, GenerationMixin):
                 )
 
             inputs_embeds = (
-                    inputs_embeds.float().masked_scatter(special_image_mask, image_features.float()).to(inputs_embeds.dtype)
-                )
+                inputs_embeds.float().masked_scatter(special_image_mask, image_features.float()).to(inputs_embeds.dtype)
+            )
 
         if logits_to_keep is None:
             logits_to_keep = 0

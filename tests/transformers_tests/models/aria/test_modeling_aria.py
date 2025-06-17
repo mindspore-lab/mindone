@@ -38,7 +38,7 @@ class AriaModelTester:
         rms_norm_eps=1e-6,
         use_cache=False,
         moe_num_experts=2,
-        attn_implementation="eager"
+        attn_implementation="eager",
     ):
         self.batch_size = batch_size
         self.seq_length = seq_length
@@ -56,16 +56,15 @@ class AriaModelTester:
         self.use_cache = use_cache
         self.moe_num_experts = moe_num_experts
         self.attn_implementation = attn_implementation
-        self.image_token_dix = self.vocab_size - 1
+        self.image_token_index = self.vocab_size - 1
 
     def prepare_config_and_inputs(self):
         n_img_feat = 64
-        input_ids = ids_numpy([self.batch_size, self.seq_length + n_img_feat], self.vocab_size)
-        input_ids[-1, -n_img_feat:] = self.image_token_dix
+        input_ids = ids_numpy([self.batch_size, self.seq_length + n_img_feat], self.vocab_size - 1)
+        input_ids[-1, -n_img_feat:] = self.image_token_index
 
         input_mask = None
         if self.use_input_mask:
-            # input_mask = np.tril(np.ones_like(input_ids))
             input_mask = ids_numpy([self.batch_size, self.seq_length + n_img_feat], vocab_size=2)
 
         image_batch_size = 1
@@ -115,13 +114,12 @@ class AriaModelTester:
             vision_config=vision_config,
             vision_feature_layer=-1,
             text_config=text_config,
-            projector_patch_to_query_dict=None,
-            image_token_index=9,
-            projector_path_to_query_dict={
-                "16": 64, # (64//14) x (64//14)
+            projector_patch_to_query_dict={
+                "16": 64,  # (64//14) x (64//14)
                 "1225": 128,
                 "4900": 256,
             },
+            image_token_index=self.image_token_index,
         )
         return text_config, config
 
@@ -157,7 +155,7 @@ ARIA_CASES = [
             "attention_mask": input_mask,
             "pixel_values": pixel_values,
             "pixel_mask": pixel_mask,
-            "output_hidden_states": True
+            "output_hidden_states": True,
         },
         {
             "hidden_states": 1,

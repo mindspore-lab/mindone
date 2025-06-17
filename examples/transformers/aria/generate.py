@@ -1,12 +1,13 @@
-import time
 import os
-from PIL import Image
+import time
+
 import requests
+from PIL import Image
+from transformers import AriaProcessor
 
 import mindspore as ms
-from transformers import AriaProcessor
-from mindone.transformers import AriaForConditionalGeneration
 
+from mindone.transformers import AriaForConditionalGeneration
 
 ms.set_context(mode=ms.PYNATIVE_MODE)
 
