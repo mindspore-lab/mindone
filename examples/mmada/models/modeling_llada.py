@@ -980,7 +980,7 @@ class Transformer(nn.Cell):
         super().__init__()
         self.config = config
         self.__cache = cache
-        self.wte = mint.nn.Embedding(config.embedding_size or config.vocab_size, config.d_model)
+        self.wte = ms.nn.Embedding(config.embedding_size or config.vocab_size, config.d_model)
         self.emb_drop = mint.nn.Dropout(p=config.embedding_dropout)
         self.ln_f = LayerNorm.build(config)
 
