@@ -225,6 +225,13 @@ from .models.persimmon import (
     PersimmonModel,
     PersimmonPreTrainedModel,
 )
+from .models.phi import (
+    PhiForCausalLM,
+    PhiForSequenceClassification,
+    PhiForTokenClassification,
+    PhiModel,
+    PhiPreTrainedModel,
+)
 from .models.phi3 import (
     Phi3ForCausalLM,
     Phi3ForSequenceClassification,
