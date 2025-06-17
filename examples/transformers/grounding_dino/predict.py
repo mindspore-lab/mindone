@@ -6,9 +6,9 @@ import mindspore as ms
 from mindone.transformers import GroundingDinoForObjectDetection, GroundingDinoProcessor
 
 model_id = "IDEA-Research/grounding-dino-tiny"
-
+dtype = ms.float16
 processor = GroundingDinoProcessor.from_pretrained(model_id)
-model = GroundingDinoForObjectDetection.from_pretrained(model_id)
+model = GroundingDinoForObjectDetection.from_pretrained(model_id, mindspore_dtype=dtype)
 
 image_url = "http://images.cocodataset.org/val2017/000000039769.jpg"
 image = Image.open(requests.get(image_url, stream=True).raw)
@@ -17,6 +17,7 @@ text_labels = [["a cat", "a remote control"]]
 
 inputs = processor(images=image, text=text_labels, return_tensors="np")
 inputs = {k: ms.Tensor(inputs[k]) for k in inputs.keys()}
+inputs["pixel_values"] = inputs["pixel_values"].to(dtype)
 outputs = model(**inputs)
 
 results = processor.post_process_grounded_object_detection(
