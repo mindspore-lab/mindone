@@ -1168,11 +1168,12 @@ class SwinForMaskedImageModeling(SwinPreTrainedModel):
             size = self.config.image_size // self.config.patch_size
             bool_masked_pos = bool_masked_pos.reshape(-1, size, size)
             mask = (
-                bool_masked_pos.repeat_interleave(self.config.patch_size, 1)
+                bool_masked_pos.float()
+                .repeat_interleave(self.config.patch_size, 1)
                 .repeat_interleave(self.config.patch_size, 2)
                 .unsqueeze(1)
                 .contiguous()
-            )
+            ).bool()
             reconstruction_loss = mint.nn.functional.l1_loss(pixel_values, reconstructed_pixel_values, reduction="none")
             masked_im_loss = (reconstruction_loss * mask).sum() / (mask.sum() + 1e-5) / self.config.num_channels
 
