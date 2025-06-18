@@ -20,6 +20,8 @@ from . import (
     llama,
     llava,
     minicpm4,
+    olmo,
+    olmo2,
     phi3,
     qwen2,
     qwen2_5_omni,
