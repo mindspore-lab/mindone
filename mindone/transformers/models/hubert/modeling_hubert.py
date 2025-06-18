@@ -330,7 +330,7 @@ class HubertAttention(nn.Cell):
             attn_weights = attn_weights.view(bsz, self.num_heads, tgt_len, src_len) + attention_mask
             attn_weights = attn_weights.view(bsz * self.num_heads, tgt_len, src_len)
 
-        attn_weights = nn.functional.softmax(attn_weights, dim=-1)
+        attn_weights = mint.nn.functional.softmax(attn_weights, dim=-1)
 
         if layer_head_mask is not None:
             if layer_head_mask.shape != (self.num_heads,):
@@ -1224,7 +1224,7 @@ class HubertForSequenceClassification(HubertPreTrainedModel):
         if self.config.use_weighted_layer_sum:
             hidden_states = outputs[_HIDDEN_STATES_START_POSITION]
             hidden_states = mint.stack(hidden_states, dim=1)
-            norm_weights = nn.functional.softmax(self.layer_weights, dim=-1)
+            norm_weights = mint.nn.functional.softmax(self.layer_weights, dim=-1)
             hidden_states = (hidden_states * norm_weights.view(-1, 1, 1)).sum(dim=1)
         else:
             hidden_states = outputs[0]
