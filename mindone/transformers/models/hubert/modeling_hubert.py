@@ -17,7 +17,6 @@ from ...mindspore_adapter import dtype_to_min
 from ...activations import ACT2FN
 from ...modeling_flash_attention_utils import is_flash_attn_available
 from ...modeling_outputs import BaseModelOutput, CausalLMOutput, SequenceClassifierOutput
-from ...modeling_utils import PreTrainedModel
 from ...utils import logging
 from transformers.models.hubert.configuration_hubert import HubertConfig
 from ...modeling_utils import MSPreTrainedModel
@@ -668,7 +667,7 @@ class HubertEncoderStableLayerNorm(nn.Cell):
         )
 
 
-class HubertPreTrainedModel(PreTrainedModel):
+class HubertPreTrainedModel(MSPreTrainedModel):
     """
     An abstract class to handle weights initialization and a simple interface for downloading and loading pretrained
     models.
