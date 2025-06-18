@@ -909,6 +909,41 @@ DIT_TRANSFORMER2D_CASES = [
 ]
 
 
+HIDREAM_IMAGE_TRANSFORER2D_CASES = [
+    [
+        "HiDreamImageTransformer2DModel",
+        "diffusers.models.transformers.transformer_hidream_image.HiDreamImageTransformer2DModel",
+        "mindone.diffusers.models.transformers.transformer_hidream_image.HiDreamImageTransformer2DModel",
+        (),
+        {
+            "patch_size": 2,
+            "in_channels": 4,
+            "out_channels": 4,
+            "num_layers": 1,
+            "num_single_layers": 1,
+            "attention_head_dim": 8,
+            "num_attention_heads": 4,
+            "caption_channels": [8, 4],
+            "text_emb_dim": 8,
+            "num_routed_experts": 2,
+            "num_activated_experts": 2,
+            "axes_dims_rope": (4, 2, 2),
+            "max_resolution": (32, 32),
+            "llama_layers": (0, 1),
+            "force_inference_output": True,
+        },
+        (),
+        {
+            "hidden_states": np.random.default_rng(42).standard_normal((2, 4, 32, 32)),
+            "encoder_hidden_states_t5": np.random.default_rng(42).standard_normal((2, 8, 8)),
+            "encoder_hidden_states_llama3": np.random.default_rng(42).standard_normal((2, 2, 8, 4)),
+            "pooled_embeds": np.random.default_rng(42).standard_normal((2, 8)),
+            "timesteps": np.random.default_rng(42).integers(0, 1000, size=(2,)),
+        },
+    ],
+]
+
+
 HUNYUAN_VIDEO_TRANSFORMER3D_CASES = [
     [
         "HunyuanVideoTransformer3DModel",
@@ -1251,6 +1286,7 @@ TRANSFORMERS_CASES = (
     + COGVIDEOX_TRANSFORMER3D_CASES
     + COGVIEW3PLUS_TRANSFORMER2D_CASES
     + DIT_TRANSFORMER2D_CASES
+    + HIDREAM_IMAGE_TRANSFORER2D_CASES
     + HUNYUAN_VIDEO_TRANSFORMER3D_CASES
     + LTX_VIDEO_TRANSFORMER3D_CASES
     + PIXART_TRANSFORMER2D_CASES
