@@ -7,8 +7,7 @@ import logging
 
 from models import MAGVITv2, MMadaConfig, MMadaModelLM
 from transformers import AutoConfig, AutoTokenizer
-
-from mindone.trainers.optim import create_optimizer
+from utils.optim import create_optimizer
 
 logger = logging.getLogger(__name__)
 
@@ -136,6 +135,9 @@ def test_model_and_optimizer_initialization():
                 "weight_decay": 0.0,
             },
         ]
+        optimizer_grouped_parameters.append(
+            {"order_params": [p for _, p in model.name_cells().items() if p.requires_grad]}
+        )
 
         optimizer_type = config.optimizer.name
         if optimizer_type == "adamw":
