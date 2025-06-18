@@ -1138,7 +1138,7 @@ class PreTrainedModel(nn.Cell, ModuleUtilsMixin, GenerationMixin, PushToHubMixin
                 output_embeddings.weight = input_embeddings.weight
 
         if getattr(output_embeddings, "bias", None) is not None:
-            output_embeddings.bias = ops.pad(
+            output_embeddings.bias = mint.nn.functional.pad(
                 output_embeddings.bias,
                 (
                     0,
