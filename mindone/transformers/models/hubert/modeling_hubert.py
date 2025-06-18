@@ -351,7 +351,7 @@ class HubertAttention(nn.Cell):
         else:
             attn_weights_reshaped = None
 
-        attn_probs = nn.functional.dropout(attn_weights, p=self.dropout, training=self.training)
+        attn_probs = mint.nn.functional.dropout(attn_weights, p=self.dropout, training=self.training)
 
         attn_output = mint.bmm(attn_probs, value_states)
 
@@ -1124,9 +1124,9 @@ class HubertForCTC(HubertPreTrainedModel):
             flattened_targets = labels.masked_select(labels_mask)
 
             # ctc_loss doesn't support fp16
-            log_probs = nn.functional.log_softmax(logits, dim=-1, dtype=mindspore.float32).transpose(0, 1)
+            log_probs = mint.nn.functional.log_softmax(logits, dim=-1, dtype=mindspore.float32).transpose(0, 1)
 
-            loss = nn.functional.ctc_loss(
+            loss = mint.nn.functional.ctc_loss(
                 log_probs,
                 flattened_targets,
                 input_lengths,
