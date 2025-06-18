@@ -1336,7 +1336,7 @@ class PreTrainedModel(nn.Cell, ModuleUtilsMixin, GenerationMixin, PushToHubMixin
 
         new_lm_head = nn.Dense(
             *new_lm_head_shape,
-            bias=has_new_lm_head_bias,
+            has_bias=has_new_lm_head_bias,
             dtype=old_lm_head.weight.dtype,
         )
 

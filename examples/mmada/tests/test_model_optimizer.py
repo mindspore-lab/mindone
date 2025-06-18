@@ -113,7 +113,7 @@ def test_model_and_optimizer_initialization():
         model = MMadaModelLM(config=mmada_config)
         model.resize_token_embeddings(mmada_config.new_vocab_size)
         model.config.embedding_size = model.config.vocab_size
-
+        model.set_train(True)
         logger.info("Model loaded and initialized successfully")
     except Exception as e:
         logger.error(f"Model loading and initialization failed: {e}")
@@ -122,23 +122,18 @@ def test_model_and_optimizer_initialization():
     try:
         # no decay on bias and layernorm and embedding
         no_decay = ["bias", "layer_norm.weight", "mlm_ln.weight", "embeddings.weight"]
+        trainble_params = model.trainable_params()
         optimizer_grouped_parameters = [
             {
-                "params": [
-                    p for n, p in model.name_cells().items() if p.requires_grad and not any(nd in n for nd in no_decay)
-                ],
+                "params": [p for p in trainble_params if not any(nd in p.name for nd in no_decay)],
                 "weight_decay": config.optimizer.params.weight_decay,
             },
             {
-                "params": [
-                    p for n, p in model.name_cells().items() if p.requires_grad and any(nd in n for nd in no_decay)
-                ],
+                "params": [p for p in trainble_params if any(nd in p.name for nd in no_decay)],
                 "weight_decay": 0.0,
             },
         ]
-        optimizer_grouped_parameters.append(
-            {"order_params": [p for _, p in model.name_cells().items() if p.requires_grad]}
-        )
+        optimizer_grouped_parameters.append({"order_params": trainble_params})
 
         optimizer_type = config.optimizer.name
         if optimizer_type == "adamw":
