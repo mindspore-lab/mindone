@@ -23,11 +23,10 @@ from training.data import Text2ImageDataset
 from training.imagenet_dataset import ImageNetDataset
 from training.prompting_utils import UniversalPrompting
 from transformers import AutoConfig, AutoTokenizer
+from utils.optim import create_optimizer
 
 import mindspore as ms
 import mindspore.mint as mint
-
-from mindone.trainers.optim import create_optimizer
 
 SYSTEM_PROMPT_LEN = 28
 
@@ -39,17 +38,13 @@ logger = logging.getLogger(__name__)
 def get_vq_model_class(model_type):
     if model_type == "magvitv2":
         return MAGVITv2
-    elif model_type == "vq16":
-        return VQ_16
     else:
         raise ValueError(f"model_type {model_type} not supported.")
 
 
 def main():
     config = get_config()
-
     config.experiment.logging_dir = str(Path(config.experiment.output_dir) / "logs")
-
     total_batch_size_per_device = (
         config.training.batch_size_t2i + config.training.batch_size_lm + config.training.batch_size_mmu
     )
@@ -109,7 +104,8 @@ def main():
     vq_model = get_vq_model_class(config.model.vq_model.type)
     vq_model = vq_model.from_pretrained(config.model.vq_model.vq_model_name)
     vq_model.set_train(False)
-    vq_model.requires_grad = False
+    for p in vq_model.get_parameters():
+        p.requires_grad = False
 
     # Initialize mmada in pretraining stage
     base_config = AutoConfig.from_pretrained(config.model.mmada.pretrained_model_path).to_dict()
@@ -120,6 +116,7 @@ def main():
     model.resize_token_embeddings(mmada_config.new_vocab_size)
     model.config.embedding_size = model.config.vocab_size
     mask_id = model.config.mask_token_id
+    model.set_train(True)
 
     ##################################
     #   Optimizer and LR scheduler   #
@@ -140,6 +137,7 @@ def main():
             "weight_decay": 0.0,
         },
     ]
+    optimizer_grouped_parameters.append({"order_params": [p for _, p in model.name_cells().items() if p.requires_grad]})
 
     optimizer_type = config.optimizer.name
     if optimizer_type == "adamw":
@@ -212,21 +210,7 @@ def main():
 
     elif config.dataset.gen_type == "t2i_parquet":
         # this part relies on the internal packages, which will not be released
-        num_update_steps_per_epoch = math.ceil(config.experiment.max_train_examples_t2i / total_batch_size_t2i)
-        num_train_epochs = math.ceil(config.training.max_train_steps / num_update_steps_per_epoch)
-
-        train_dataloader_t2i = create_imagetext_dataloader(
-            train_shards_path_or_url=dataset_config.train_t2i_shards_path_or_url,
-            batch_size=config.training.batch_size_t2i,
-            image_size=preproc_config.resolution,
-            num_workers=dataset_config.num_workers,
-            num_readers=32,
-            predefined_steps=num_update_steps_per_epoch,
-            drop_last=True,
-            shuffle=True,
-            shuffle_buffer_size=dataset_config.shuffle_buffer_size,
-        )
-
+        raise NotImplementedError()
     elif config.dataset.gen_type == "imagenet1k":
         dataset_imagenet = ImageNetDataset(
             dataset_config.train_t2i_shards_path_or_url,
@@ -278,18 +262,7 @@ def main():
         train_dataloader_mmu.dataset_size = train_dataloader_mmu.num_batches
 
     elif config.dataset.und_type == "captioning_parquet":
-        train_dataloader_mmu = create_imagetext_dataloader(
-            train_shards_path_or_url=dataset_config.train_mmu_shards_path_or_url,
-            batch_size=config.training.batch_size_mmu,
-            image_size=preproc_config.resolution,
-            num_workers=dataset_config.num_workers,
-            num_readers=32,
-            predefined_steps=num_update_steps_per_epoch,
-            drop_last=True,
-            shuffle=True,
-            shuffle_buffer_size=dataset_config.shuffle_buffer_size,
-            is_captioning=True,
-        )
+        raise NotImplementedError()
 
     else:
         raise NotImplementedError(f"Unsupported dataset type {config.dataset.und_type}")
@@ -449,7 +422,7 @@ def main():
     end = time.time()
 
     for epoch in range(first_epoch, num_train_epochs):
-        model.train()
+        model.set_train(True)
         for batch, batch_idx, dataloader_idx in combined_dataloader:
             # for loss calculation
             batch_size_t2i = batch["t2i_flow"]["images"].shape[0]
@@ -530,7 +503,7 @@ def main():
                 logger.info("Input ids: {}".format(input_ids))
                 logger.info("Labels: {}".format(labels))
 
-            logits, loss_t2i, loss_lm, loss_mmu = model.forward_process(
+            logits, loss_t2i, loss_lm, loss_mmu = model.construct_process(
                 input_ids=input_ids,
                 labels=labels,
                 batch_size_t2i=batch_size_t2i,
@@ -687,7 +660,7 @@ def visualize_predictions(
     predicted_images = np.concatenate((images, recons_images, predicted_images), 2)
     pil_images = [Image.fromarray(image) for image in predicted_images]
 
-    model.train()
+    model.set_train(True)
 
 
 def generate_images(
@@ -740,7 +713,7 @@ def generate_images(
     gen_token_ids = mint.clamp(gen_token_ids, max=model.config.codebook_size - 1, min=0)
     images = vq_model.decode_code(gen_token_ids)
 
-    model.train()
+    model.set_train(True)
 
     if config.training.get("pre_encode", False):
         del vq_model
@@ -802,7 +775,7 @@ def understanding_images(
 
         text = uni_prompting.text_tokenizer.batch_decode(output_ids[:, input_ids.shape[1] :], skip_special_tokens=True)
         responses[i] += text[0]
-    model.train()
+    model.set_train(True)
     images = mint.cat(images, dim=0)
     images = mint.clamp((images + 1.0) / 2.0, min=0.0, max=1.0)
     images *= 255.0
@@ -845,10 +818,13 @@ def save_checkpoint(model, config, global_step):
 
 
 def log_grad_norm(model, global_step):
+    save_gradnorm_dict = {}
     for name, param in model.name_cells().items():
         if param.grad is not None:
-            grads = param.grad.detach().data
-            grad_norm = (grads.norm(p=2) / grads.numel()).item()
+            grads = param.grad.data
+            grad_norm = (grads.norm(p=2) / grads.numel()).asnumpy().item()
+            save_gradnorm_dict[name].append({global_step: grad_norm})
+    return save_gradnorm_dict
 
 
 if __name__ == "__main__":
