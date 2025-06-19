@@ -21,7 +21,7 @@ from mindone.transformers.models.llama import LlamaForSequenceClassification
 
 def main():
     parser = argparse.ArgumentParser()
-    parser.add_argument("--model_path", type=str, default="meta-llama/Meta-Llama-3-8B", help="pretrained model name")
+    parser.add_argument("--model_path", type=str, default="meta-llama/Llama-3.2-1B", help="pretrained model name")
     parser.add_argument("--dataset_path", type=str, default="Yelp/yelp_review_full", help="dataset path.")
     parser.add_argument(
         "--zero_stage", type=int, default=0, choices=[0, 1, 2], help="stage of ZeRO optimizer parallelism"
