@@ -13,7 +13,7 @@ from mindspore.common import dtype as mstype
 from mindspore.ops import composite as C
 from mindspore.ops import functional as F
 
-from .ema import EMA
+from mindone.trainers.ema import EMA
 
 _grad_scale = C.MultitypeFuncGraph("grad_scale")
 _grad_overflow = C.MultitypeFuncGraph("_grad_overflow")

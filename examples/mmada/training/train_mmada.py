@@ -23,13 +23,13 @@ from training.data import Text2ImageDataset
 from training.imagenet_dataset import ImageNetDataset
 from training.prompting_utils import UniversalPrompting
 from transformers import AutoConfig, AutoTokenizer
-from utils.net_with_loss import NetWithLoss, no_grad
-from utils.train_step import TrainOneStepWrapper
 
 import mindspore as ms
 import mindspore.mint as mint
 from mindspore.experimental import optim
 from mindspore.nn.wrap.loss_scale import DynamicLossScaleUpdateCell
+
+from utils import NetWithLoss, TrainOneStepWrapper, init_from_ckpt, no_grad
 
 SYSTEM_PROMPT_LEN = 28
 
@@ -318,27 +318,7 @@ def main():
             logger.info(f"Resuming from checkpoint: {path}")
             global_step = int(os.path.basename(path).split("-")[1])
             first_epoch = global_step // num_update_steps_per_epoch
-            if os.path.exists(f"{path}/unwrapped_model/pytorch_model.bin"):
-                state_dict = torch.load(f"{path}/unwrapped_model/pytorch_model.bin", map_location="cpu")
-                model.load_state_dict(state_dict, strict=True)
-                del state_dict
-            elif os.path.exists(f"{path}/unwrapped_model/pytorch_model.bin.index.json"):
-                from safetensors.torch import load_file
-                from transformers.modeling_utils import load_sharded_checkpoint
-
-                load_sharded_checkpoint(model, f"{path}/unwrapped_model/")
-            # if safetensors sharded checkpoint exists
-            elif os.path.exists(f"{path}/unwrapped_model/model.safetensors.index.json"):
-                from transformers.modeling_utils import load_sharded_checkpoint
-
-                load_sharded_checkpoint(
-                    model,
-                    f"{path}/unwrapped_model/",
-                    # weight_map=None,
-                    # load_state_dict_fn="safetensors"
-                )
-            else:
-                raise FileNotFoundError(f"Checkpoint {path}/unwrapped_model/pytorch_model.bin not found")
+            init_from_ckpt(model, path)
     else:
         logger.info("Not resuming from checkpoint")
 
@@ -431,7 +411,7 @@ def main():
         optimizer=optimizer,
         scale_sense=loss_scaler,
         drop_overflow_update=True,
-        gradient_accumulation_steps=args.gradient_accumulation_steps,
+        gradient_accumulation_steps=config.training.gradient_accumulation_steps,
         clip_grad=config.training.max_grad_norm is not None,
         clip_norm=config.training.max_grad_norm,
         ema=False,
