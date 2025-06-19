@@ -3,11 +3,13 @@ import warnings
 
 from transformers.tokenization_utils import TruncationStrategy
 from transformers.utils import add_end_docstrings, logging
+
 from ..utils import is_mindspore_available
 from .base import Pipeline, build_pipeline_init_args
 
 if is_mindspore_available():
     import mindspore as ms
+
     from ..models.auto.modeling_auto import MODEL_FOR_SEQ_TO_SEQ_CAUSAL_LM_MAPPING_NAMES
 
 logger = logging.get_logger(__name__)
