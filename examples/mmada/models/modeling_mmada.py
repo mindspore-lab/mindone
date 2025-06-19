@@ -189,7 +189,7 @@ class MMadaModelLM(LLaDAModelLM):
         t2i_masks=None,
         answer_lengths_lm=None,
     ):
-        attention_bias = mint.ones(input_ids.shape[0], 1, input_ids.shape[1], input_ids.shape[1])
+        attention_bias = mint.ones((input_ids.shape[0], 1, input_ids.shape[1], input_ids.shape[1]))
         attention_bias_t2i = (t2i_masks[:, :, None] * t2i_masks[:, None, :]).bool().unsqueeze(1)
         attention_bias[:batch_size_t2i] = attention_bias_t2i
         logits = self.construct(input_ids, attention_bias=attention_bias, return_dict=False)[0]
@@ -219,14 +219,15 @@ class MMadaModelLM(LLaDAModelLM):
             )
             / p_mask_lm[masked_indices_lm]
         )
-        loss_lm = loss_lm.sum() / (
-            logits[batch_size_t2i : batch_size_t2i + batch_size_lm].shape[0]
-            * logits[batch_size_t2i : batch_size_t2i + batch_size_lm].shape[1]
-        )
-
-        loss_lm = mint.sum(loss_lm / answer_lengths_lm[masked_indices_lm]) / (
-            logits[batch_size_t2i : batch_size_t2i + batch_size_lm].shape[0]
-        )
+        if answer_lengths_lm is not None:
+            loss_lm = mint.sum(loss_lm / answer_lengths_lm[masked_indices_lm]) / (
+                logits[batch_size_t2i : batch_size_t2i + batch_size_lm].shape[0]
+            )
+        else:
+            loss_lm = loss_lm.sum() / (
+                logits[batch_size_t2i : batch_size_t2i + batch_size_lm].shape[0]
+                * logits[batch_size_t2i : batch_size_t2i + batch_size_lm].shape[1]
+            )
 
         loss_mmu = (
             F.cross_entropy(
@@ -258,7 +259,7 @@ class MMadaModelLM(LLaDAModelLM):
         answer_lengths_lm=None,
         answer_lengths_r2i=None,
     ):
-        attention_bias = mint.ones(input_ids.shape[0], 1, input_ids.shape[1], input_ids.shape[1])
+        attention_bias = mint.ones((input_ids.shape[0], 1, input_ids.shape[1], input_ids.shape[1]))
         attention_bias_t2i = (t2i_masks[:, :, None] * t2i_masks[:, None, :]).bool().unsqueeze(1)
         attention_bias[:batch_size_t2i] = attention_bias_t2i
         logits = self.construct(input_ids, attention_bias=attention_bias, return_dict=False)[0]
@@ -294,9 +295,10 @@ class MMadaModelLM(LLaDAModelLM):
             )
             / p_mask_lm[masked_indices_lm]
         )
-        loss_lm = loss_lm.sum() / (logits[start_lm:end_lm].shape[0] * logits[start_lm:end_lm].shape[1])
-        loss_lm = mint.sum(loss_lm / answer_lengths_lm[masked_indices_lm]) / (logits[start_lm:end_lm].shape[0])
-
+        if answer_lengths_lm is not None:
+            loss_lm = mint.sum(loss_lm / answer_lengths_lm[masked_indices_lm]) / (logits[start_lm:end_lm].shape[0])
+        else:
+            loss_lm = loss_lm.sum() / (logits[start_lm:end_lm].shape[0] * logits[start_lm:end_lm].shape[1])
         loss_mmu = (
             F.cross_entropy(
                 logits[start_mmu:end_mmu][masked_indices_mmu].contiguous().view(-1, self.output_size),

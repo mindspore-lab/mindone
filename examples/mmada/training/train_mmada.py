@@ -115,7 +115,7 @@ def main():
     mmada_config_dict = {k: v for k, v in config.model.mmada.items()}
     merged_config = {**base_config, **mmada_config_dict}
     mmada_config = MMadaConfig(**merged_config)
-    # mmada_config.num_hidden_layers = 1 # debug
+    # mmada_config.n_layers = 1 # debug
     model = MMadaModelLM(config=mmada_config)
     model.resize_token_embeddings(mmada_config.new_vocab_size)
     model.config.embedding_size = model.config.vocab_size
@@ -525,15 +525,15 @@ def main():
             # compute_loss and logits
 
             loss, overflow, scaling_sens, extra_outputs = train_step_model(
-                input_ids=input_ids,
-                labels=labels,
-                batch_size_t2i=batch_size_t2i,
-                batch_size_lm=batch_size_lm,
-                batch_size_mmu=batch_size_mmu,
-                p_mask_lm=p_mask_lm,
-                p_mask_mmu=p_mask_mmu,
-                answer_lengths=answer_lengths,
-                t2i_masks=t2i_masks,
+                input_ids,
+                labels,
+                batch_size_t2i,
+                batch_size_lm,
+                batch_size_mmu,
+                p_mask_lm,
+                p_mask_mmu,
+                answer_lengths,
+                t2i_masks,
             )
             logits, loss_t2i, loss_lm, loss_mmu = extra_outputs
             if isinstance(scaling_sens, ms.Parameter):
