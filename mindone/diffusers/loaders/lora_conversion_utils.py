@@ -14,7 +14,7 @@
 
 import re
 
-from mindspore import Parameter, ops
+from mindspore import Parameter, mint
 
 from ..utils import is_peft_version, logging
 
@@ -399,7 +399,7 @@ def _convert_kohya_flux_lora_to_diffusers(state_dict):
                 for k in range(len(dims)):
                     if j == k:
                         continue
-                    is_sparse = is_sparse and ops.all(
+                    is_sparse = is_sparse and mint.all(
                         up_weight[i : i + dims[j], k * ait_rank : (k + 1) * ait_rank] == 0
                     )
                 i += dims[j]
@@ -414,11 +414,11 @@ def _convert_kohya_flux_lora_to_diffusers(state_dict):
             ait_sd.update({k: down_weight for k in ait_down_keys})
 
             # up_weight is split to each split
-            ait_sd.update({k: v for k, v in zip(ait_up_keys, ops.split(up_weight, dims, axis=0))})  # noqa: C416
+            ait_sd.update({k: v for k, v in zip(ait_up_keys, mint.split(up_weight, dims, dim=0))})  # noqa: C416
         else:
             # down_weight is chunked to each split
             ait_sd.update(
-                {k: v for k, v in zip(ait_down_keys, ops.chunk(down_weight, num_splits, axis=0))}
+                {k: v for k, v in zip(ait_down_keys, mint.chunk(down_weight, num_splits, dim=0))}
             )  # noqa: C416
 
             # up_weight is sparse: only non-zero values are copied to each split
@@ -596,7 +596,7 @@ def _convert_xlabs_flux_lora_to_diffusers(old_state_dict):
         ait_sd.update({k: down_weight for k in ait_down_keys})
 
         # up_weight is split to each split
-        ait_sd.update({k: v for k, v in zip(ait_up_keys, ops.split(up_weight, dims, axis=0))})  # noqa: C416
+        ait_sd.update({k: v for k, v in zip(ait_up_keys, mint.split(up_weight, dims, dim=0))})  # noqa: C416
 
     for old_key in orig_keys:
         # Handle double_blocks
@@ -687,8 +687,8 @@ def _convert_bfl_flux_control_lora_to_diffusers(original_state_dict):
     mlp_ratio = 4.0
 
     def swap_scale_shift(weight):
-        shift, scale = weight.chunk(2, axis=0)
-        new_weight = ops.cat([scale, shift], axis=0)
+        shift, scale = weight.chunk(2, dim=0)
+        new_weight = mint.cat([scale, shift], dim=0)
         return new_weight
 
     for lora_key in ["lora_A", "lora_B"]:
@@ -785,78 +785,78 @@ def _convert_bfl_flux_control_lora_to_diffusers(original_state_dict):
             if lora_key == "lora_A":
                 sample_lora_weight = original_state_dict.pop(f"double_blocks.{i}.img_attn.qkv.{lora_key}.weight")
                 converted_state_dict[f"{block_prefix}attn.to_v.{lora_key}.weight"] = Parameter(
-                    ops.cat([sample_lora_weight]), name=f"{block_prefix}attn.to_v.{lora_key}.weight"
+                    mint.cat([sample_lora_weight]), name=f"{block_prefix}attn.to_v.{lora_key}.weight"
                 )
                 converted_state_dict[f"{block_prefix}attn.to_q.{lora_key}.weight"] = Parameter(
-                    ops.cat([sample_lora_weight]), name=f"{block_prefix}attn.to_q.{lora_key}.weight"
+                    mint.cat([sample_lora_weight]), name=f"{block_prefix}attn.to_q.{lora_key}.weight"
                 )
                 converted_state_dict[f"{block_prefix}attn.to_k.{lora_key}.weight"] = Parameter(
-                    ops.cat([sample_lora_weight]), name=f"{block_prefix}attn.to_k.{lora_key}.weight"
+                    mint.cat([sample_lora_weight]), name=f"{block_prefix}attn.to_k.{lora_key}.weight"
                 )
 
                 context_lora_weight = original_state_dict.pop(f"double_blocks.{i}.txt_attn.qkv.{lora_key}.weight")
                 converted_state_dict[f"{block_prefix}attn.add_q_proj.{lora_key}.weight"] = Parameter(
-                    ops.cat([context_lora_weight]), name=f"{block_prefix}attn.add_q_proj.{lora_key}.weight"
+                    mint.cat([context_lora_weight]), name=f"{block_prefix}attn.add_q_proj.{lora_key}.weight"
                 )
                 converted_state_dict[f"{block_prefix}attn.add_k_proj.{lora_key}.weight"] = Parameter(
-                    ops.cat([context_lora_weight]), name=f"{block_prefix}attn.add_k_proj.{lora_key}.weight"
+                    mint.cat([context_lora_weight]), name=f"{block_prefix}attn.add_k_proj.{lora_key}.weight"
                 )
                 converted_state_dict[f"{block_prefix}attn.add_v_proj.{lora_key}.weight"] = Parameter(
-                    ops.cat([context_lora_weight]), name=f"{block_prefix}attn.add_v_proj.{lora_key}.weight"
+                    mint.cat([context_lora_weight]), name=f"{block_prefix}attn.add_v_proj.{lora_key}.weight"
                 )
             else:
-                sample_q, sample_k, sample_v = ops.chunk(
-                    original_state_dict.pop(f"double_blocks.{i}.img_attn.qkv.{lora_key}.weight"), 3, axis=0
+                sample_q, sample_k, sample_v = mint.chunk(
+                    original_state_dict.pop(f"double_blocks.{i}.img_attn.qkv.{lora_key}.weight"), 3, dim=0
                 )
                 converted_state_dict[f"{block_prefix}attn.to_q.{lora_key}.weight"] = Parameter(
-                    ops.cat([sample_q]), name=f"{block_prefix}attn.to_q.{lora_key}.weight"
+                    mint.cat([sample_q]), name=f"{block_prefix}attn.to_q.{lora_key}.weight"
                 )
                 converted_state_dict[f"{block_prefix}attn.to_k.{lora_key}.weight"] = Parameter(
-                    ops.cat([sample_k]), name=f"{block_prefix}attn.to_k.{lora_key}.weight"
+                    mint.cat([sample_k]), name=f"{block_prefix}attn.to_k.{lora_key}.weight"
                 )
                 converted_state_dict[f"{block_prefix}attn.to_v.{lora_key}.weight"] = Parameter(
-                    ops.cat([sample_v]), name=f"{block_prefix}attn.to_v.{lora_key}.weight"
+                    mint.cat([sample_v]), name=f"{block_prefix}attn.to_v.{lora_key}.weight"
                 )
 
-                context_q, context_k, context_v = ops.chunk(
-                    original_state_dict.pop(f"double_blocks.{i}.txt_attn.qkv.{lora_key}.weight"), 3, axis=0
+                context_q, context_k, context_v = mint.chunk(
+                    original_state_dict.pop(f"double_blocks.{i}.txt_attn.qkv.{lora_key}.weight"), 3, dim=0
                 )
                 converted_state_dict[f"{block_prefix}attn.add_q_proj.{lora_key}.weight"] = Parameter(
-                    ops.cat([context_q]), name=f"{block_prefix}attn.add_q_proj.{lora_key}.weight"
+                    mint.cat([context_q]), name=f"{block_prefix}attn.add_q_proj.{lora_key}.weight"
                 )
                 converted_state_dict[f"{block_prefix}attn.add_k_proj.{lora_key}.weight"] = Parameter(
-                    ops.cat([context_k]), name=f"{block_prefix}attn.add_k_proj.{lora_key}.weight"
+                    mint.cat([context_k]), name=f"{block_prefix}attn.add_k_proj.{lora_key}.weight"
                 )
                 converted_state_dict[f"{block_prefix}attn.add_v_proj.{lora_key}.weight"] = Parameter(
-                    ops.cat([context_v]), name=f"{block_prefix}attn.add_v_proj.{lora_key}.weight"
+                    mint.cat([context_v]), name=f"{block_prefix}attn.add_v_proj.{lora_key}.weight"
                 )
 
             if f"double_blocks.{i}.img_attn.qkv.{lora_key}.bias" in original_state_dict_keys:
-                sample_q_bias, sample_k_bias, sample_v_bias = ops.chunk(
-                    original_state_dict.pop(f"double_blocks.{i}.img_attn.qkv.{lora_key}.bias"), 3, axis=0
+                sample_q_bias, sample_k_bias, sample_v_bias = mint.chunk(
+                    original_state_dict.pop(f"double_blocks.{i}.img_attn.qkv.{lora_key}.bias"), 3, dim=0
                 )
                 converted_state_dict[f"{block_prefix}attn.to_q.{lora_key}.bias"] = Parameter(
-                    ops.cat([sample_q_bias]), name=f"{block_prefix}attn.to_q.{lora_key}.bias"
+                    mint.cat([sample_q_bias]), name=f"{block_prefix}attn.to_q.{lora_key}.bias"
                 )
                 converted_state_dict[f"{block_prefix}attn.to_k.{lora_key}.bias"] = Parameter(
-                    ops.cat([sample_k_bias]), name=f"{block_prefix}attn.to_k.{lora_key}.bias"
+                    mint.cat([sample_k_bias]), name=f"{block_prefix}attn.to_k.{lora_key}.bias"
                 )
                 converted_state_dict[f"{block_prefix}attn.to_v.{lora_key}.bias"] = Parameter(
-                    ops.cat([sample_v_bias]), name=f"{block_prefix}attn.to_v.{lora_key}.bias"
+                    mint.cat([sample_v_bias]), name=f"{block_prefix}attn.to_v.{lora_key}.bias"
                 )
 
             if f"double_blocks.{i}.txt_attn.qkv.{lora_key}.bias" in original_state_dict_keys:
-                context_q_bias, context_k_bias, context_v_bias = ops.chunk(
-                    original_state_dict.pop(f"double_blocks.{i}.txt_attn.qkv.{lora_key}.bias"), 3, axis=0
+                context_q_bias, context_k_bias, context_v_bias = mint.chunk(
+                    original_state_dict.pop(f"double_blocks.{i}.txt_attn.qkv.{lora_key}.bias"), 3, dim=0
                 )
                 converted_state_dict[f"{block_prefix}attn.add_q_proj.{lora_key}.bias"] = Parameter(
-                    ops.cat([context_q_bias]), name=f"{block_prefix}attn.add_q_proj.{lora_key}.bias"
+                    mint.cat([context_q_bias]), name=f"{block_prefix}attn.add_q_proj.{lora_key}.bias"
                 )
                 converted_state_dict[f"{block_prefix}attn.add_k_proj.{lora_key}.bias"] = Parameter(
-                    ops.cat([context_k_bias]), name=f"{block_prefix}attn.add_k_proj.{lora_key}.bias"
+                    mint.cat([context_k_bias]), name=f"{block_prefix}attn.add_k_proj.{lora_key}.bias"
                 )
                 converted_state_dict[f"{block_prefix}attn.add_v_proj.{lora_key}.bias"] = Parameter(
-                    ops.cat([context_v_bias]), name=f"{block_prefix}attn.add_v_proj.{lora_key}.bias"
+                    mint.cat([context_v_bias]), name=f"{block_prefix}attn.add_v_proj.{lora_key}.bias"
                 )
 
             # ff img_mlp
@@ -943,64 +943,64 @@ def _convert_bfl_flux_control_lora_to_diffusers(original_state_dict):
             if lora_key == "lora_A":
                 lora_weight = original_state_dict.pop(f"single_blocks.{i}.linear1.{lora_key}.weight")
                 converted_state_dict[f"{block_prefix}attn.to_q.{lora_key}.weight"] = Parameter(
-                    ops.cat([lora_weight]), name=f"{block_prefix}attn.to_q.{lora_key}.weight"
+                    mint.cat([lora_weight]), name=f"{block_prefix}attn.to_q.{lora_key}.weight"
                 )
                 converted_state_dict[f"{block_prefix}attn.to_k.{lora_key}.weight"] = Parameter(
-                    ops.cat([lora_weight]), name=f"{block_prefix}attn.to_k.{lora_key}.weight"
+                    mint.cat([lora_weight]), name=f"{block_prefix}attn.to_k.{lora_key}.weight"
                 )
                 converted_state_dict[f"{block_prefix}attn.to_v.{lora_key}.weight"] = Parameter(
-                    ops.cat([lora_weight]), name=f"{block_prefix}attn.to_v.{lora_key}.weight"
+                    mint.cat([lora_weight]), name=f"{block_prefix}attn.to_v.{lora_key}.weight"
                 )
                 converted_state_dict[f"{block_prefix}proj_mlp.{lora_key}.weight"] = Parameter(
-                    ops.cat([lora_weight]), name=f"{block_prefix}proj_mlp.{lora_key}.weight"
+                    mint.cat([lora_weight]), name=f"{block_prefix}proj_mlp.{lora_key}.weight"
                 )
 
                 if f"single_blocks.{i}.linear1.{lora_key}.bias" in original_state_dict_keys:
                     lora_bias = original_state_dict.pop(f"single_blocks.{i}.linear1.{lora_key}.bias")
                     converted_state_dict[f"{block_prefix}attn.to_q.{lora_key}.bias"] = Parameter(
-                        ops.cat([lora_bias]), name=f"{block_prefix}attn.to_q.{lora_key}.bias"
+                        mint.cat([lora_bias]), name=f"{block_prefix}attn.to_q.{lora_key}.bias"
                     )
                     converted_state_dict[f"{block_prefix}attn.to_k.{lora_key}.bias"] = Parameter(
-                        ops.cat([lora_bias]), name=f"{block_prefix}attn.to_k.{lora_key}.bias"
+                        mint.cat([lora_bias]), name=f"{block_prefix}attn.to_k.{lora_key}.bias"
                     )
                     converted_state_dict[f"{block_prefix}attn.to_v.{lora_key}.bias"] = Parameter(
-                        ops.cat([lora_bias]), name=f"{block_prefix}attn.to_v.{lora_key}.bias"
+                        mint.cat([lora_bias]), name=f"{block_prefix}attn.to_v.{lora_key}.bias"
                     )
                     converted_state_dict[f"{block_prefix}proj_mlp.{lora_key}.bias"] = Parameter(
-                        ops.cat([lora_bias]), name=f"{block_prefix}proj_mlp.{lora_key}.bias"
+                        mint.cat([lora_bias]), name=f"{block_prefix}proj_mlp.{lora_key}.bias"
                     )
             else:
-                q, k, v, mlp = ops.split(
-                    original_state_dict.pop(f"single_blocks.{i}.linear1.{lora_key}.weight"), split_size, axis=0
+                q, k, v, mlp = mint.split(
+                    original_state_dict.pop(f"single_blocks.{i}.linear1.{lora_key}.weight"), split_size, dim=0
                 )
                 converted_state_dict[f"{block_prefix}attn.to_q.{lora_key}.weight"] = Parameter(
-                    ops.cat([q]), name=f"{block_prefix}attn.to_q.{lora_key}.weight"
+                    mint.cat([q]), name=f"{block_prefix}attn.to_q.{lora_key}.weight"
                 )
                 converted_state_dict[f"{block_prefix}attn.to_k.{lora_key}.weight"] = Parameter(
-                    ops.cat([k]), name=f"{block_prefix}attn.to_k.{lora_key}.weight"
+                    mint.cat([k]), name=f"{block_prefix}attn.to_k.{lora_key}.weight"
                 )
                 converted_state_dict[f"{block_prefix}attn.to_v.{lora_key}.weight"] = Parameter(
-                    ops.cat([v]), name=f"{block_prefix}attn.to_v.{lora_key}.weight"
+                    mint.cat([v]), name=f"{block_prefix}attn.to_v.{lora_key}.weight"
                 )
                 converted_state_dict[f"{block_prefix}proj_mlp.{lora_key}.weight"] = Parameter(
-                    ops.cat([mlp]), name=f"{block_prefix}proj_mlp.{lora_key}.weight"
+                    mint.cat([mlp]), name=f"{block_prefix}proj_mlp.{lora_key}.weight"
                 )
 
                 if f"single_blocks.{i}.linear1.{lora_key}.bias" in original_state_dict_keys:
-                    q_bias, k_bias, v_bias, mlp_bias = ops.split(
-                        original_state_dict.pop(f"single_blocks.{i}.linear1.{lora_key}.bias"), split_size, axis=0
+                    q_bias, k_bias, v_bias, mlp_bias = mint.split(
+                        original_state_dict.pop(f"single_blocks.{i}.linear1.{lora_key}.bias"), split_size, dim=0
                     )
                     converted_state_dict[f"{block_prefix}attn.to_q.{lora_key}.bias"] = Parameter(
-                        ops.cat([q_bias]), name=f"{block_prefix}attn.to_q.{lora_key}.bias"
+                        mint.cat([q_bias]), name=f"{block_prefix}attn.to_q.{lora_key}.bias"
                     )
                     converted_state_dict[f"{block_prefix}attn.to_k.{lora_key}.bias"] = Parameter(
-                        ops.cat([k_bias]), name=f"{block_prefix}attn.to_k.{lora_key}.bias"
+                        mint.cat([k_bias]), name=f"{block_prefix}attn.to_k.{lora_key}.bias"
                     )
                     converted_state_dict[f"{block_prefix}attn.to_v.{lora_key}.bias"] = Parameter(
-                        ops.cat([v_bias]), name=f"{block_prefix}attn.to_v.{lora_key}.bias"
+                        mint.cat([v_bias]), name=f"{block_prefix}attn.to_v.{lora_key}.bias"
                     )
                     converted_state_dict[f"{block_prefix}proj_mlp.{lora_key}.bias"] = Parameter(
-                        ops.cat([mlp_bias]), name=f"{block_prefix}proj_mlp.{lora_key}.bias"
+                        mint.cat([mlp_bias]), name=f"{block_prefix}proj_mlp.{lora_key}.bias"
                     )
 
             # output projections.
@@ -1054,7 +1054,7 @@ def _convert_hunyuan_video_lora_to_diffusers(original_state_dict):
     def remap_norm_scale_shift_(key, state_dict):
         weight = state_dict.pop(key)
         shift, scale = weight.chunk(2, dim=0)
-        new_weight = ops.cat([scale, shift], axis=0)
+        new_weight = mint.cat([scale, shift], dim=0)
         state_dict[key.replace("final_layer.adaLN_modulation.1", "norm_out.linear")] = new_weight
 
     def remap_txt_in_(key, state_dict):
@@ -1116,7 +1116,7 @@ def _convert_hunyuan_video_lora_to_diffusers(original_state_dict):
                 state_dict[f"{new_key}.proj_mlp.lora_A.weight"] = linear1_weight
             else:
                 split_size = (hidden_size, hidden_size, hidden_size, linear1_weight.shape[0] - 3 * hidden_size)
-                q, k, v, mlp = ops.split(linear1_weight, split_size, axis=0)
+                q, k, v, mlp = mint.split(linear1_weight, split_size, dim=0)
                 new_key = key.replace("single_blocks", "single_transformer_blocks").removesuffix(
                     ".linear1.lora_B.weight"
                 )
@@ -1135,7 +1135,7 @@ def _convert_hunyuan_video_lora_to_diffusers(original_state_dict):
                 state_dict[f"{new_key}.proj_mlp.lora_A.bias"] = linear1_bias
             else:
                 split_size = (hidden_size, hidden_size, hidden_size, linear1_bias.shape[0] - 3 * hidden_size)
-                q_bias, k_bias, v_bias, mlp_bias = ops.split(linear1_bias, split_size, axis=0)
+                q_bias, k_bias, v_bias, mlp_bias = mint.split(linear1_bias, split_size, dim=0)
                 new_key = key.replace("single_blocks", "single_transformer_blocks").removesuffix(".linear1.lora_B.bias")
                 state_dict[f"{new_key}.attn.to_q.lora_B.bias"] = q_bias
                 state_dict[f"{new_key}.attn.to_k.lora_B.bias"] = k_bias
@@ -1213,6 +1213,130 @@ def _convert_hunyuan_video_lora_to_diffusers(original_state_dict):
             handler_fn_inplace(key, converted_state_dict)
 
     # Add back the "transformer." prefix
+    for key in list(converted_state_dict.keys()):
+        converted_state_dict[f"transformer.{key}"] = converted_state_dict.pop(key)
+
+    return converted_state_dict
+
+
+def _convert_non_diffusers_lumina2_lora_to_diffusers(state_dict):
+    # Remove "diffusion_model." prefix from keys.
+    state_dict = {k[len("diffusion_model.") :]: v for k, v in state_dict.items()}
+    converted_state_dict = {}
+
+    def get_num_layers(keys, pattern):
+        layers = set()
+        for key in keys:
+            match = re.search(pattern, key)
+            if match:
+                layers.add(int(match.group(1)))
+        return len(layers)
+
+    def process_block(prefix, index, convert_norm):
+        # Process attention qkv: pop lora_A and lora_B weights.
+        lora_down = state_dict.pop(f"{prefix}.{index}.attention.qkv.lora_A.weight")
+        lora_up = state_dict.pop(f"{prefix}.{index}.attention.qkv.lora_B.weight")
+        for attn_key in ["to_q", "to_k", "to_v"]:
+            converted_state_dict[f"{prefix}.{index}.attn.{attn_key}.lora_A.weight"] = lora_down
+        for attn_key, weight in zip(["to_q", "to_k", "to_v"], mint.split(lora_up, [2304, 768, 768], axis=0)):
+            converted_state_dict[f"{prefix}.{index}.attn.{attn_key}.lora_B.weight"] = weight
+
+        # Process attention out weights.
+        converted_state_dict[f"{prefix}.{index}.attn.to_out.0.lora_A.weight"] = state_dict.pop(
+            f"{prefix}.{index}.attention.out.lora_A.weight"
+        )
+        converted_state_dict[f"{prefix}.{index}.attn.to_out.0.lora_B.weight"] = state_dict.pop(
+            f"{prefix}.{index}.attention.out.lora_B.weight"
+        )
+
+        # Process feed-forward weights for layers 1, 2, and 3.
+        for layer in range(1, 4):
+            converted_state_dict[f"{prefix}.{index}.feed_forward.linear_{layer}.lora_A.weight"] = state_dict.pop(
+                f"{prefix}.{index}.feed_forward.w{layer}.lora_A.weight"
+            )
+            converted_state_dict[f"{prefix}.{index}.feed_forward.linear_{layer}.lora_B.weight"] = state_dict.pop(
+                f"{prefix}.{index}.feed_forward.w{layer}.lora_B.weight"
+            )
+
+        if convert_norm:
+            converted_state_dict[f"{prefix}.{index}.norm1.linear.lora_A.weight"] = state_dict.pop(
+                f"{prefix}.{index}.adaLN_modulation.1.lora_A.weight"
+            )
+            converted_state_dict[f"{prefix}.{index}.norm1.linear.lora_B.weight"] = state_dict.pop(
+                f"{prefix}.{index}.adaLN_modulation.1.lora_B.weight"
+            )
+
+    noise_refiner_pattern = r"noise_refiner\.(\d+)\."
+    num_noise_refiner_layers = get_num_layers(state_dict.keys(), noise_refiner_pattern)
+    for i in range(num_noise_refiner_layers):
+        process_block("noise_refiner", i, convert_norm=True)
+
+    context_refiner_pattern = r"context_refiner\.(\d+)\."
+    num_context_refiner_layers = get_num_layers(state_dict.keys(), context_refiner_pattern)
+    for i in range(num_context_refiner_layers):
+        process_block("context_refiner", i, convert_norm=False)
+
+    core_transformer_pattern = r"layers\.(\d+)\."
+    num_core_transformer_layers = get_num_layers(state_dict.keys(), core_transformer_pattern)
+    for i in range(num_core_transformer_layers):
+        process_block("layers", i, convert_norm=True)
+
+    if len(state_dict) > 0:
+        raise ValueError(f"`state_dict` should be empty at this point but has {state_dict.keys()=}")
+
+    for key in list(converted_state_dict.keys()):
+        converted_state_dict[f"transformer.{key}"] = converted_state_dict.pop(key)
+
+    return converted_state_dict
+
+
+def _convert_non_diffusers_wan_lora_to_diffusers(state_dict):
+    converted_state_dict = {}
+    original_state_dict = {k[len("diffusion_model.") :]: v for k, v in state_dict.items()}
+
+    num_blocks = len({k.split("blocks.")[1].split(".")[0] for k in original_state_dict})
+    is_i2v_lora = any("k_img" in k for k in original_state_dict) and any("v_img" in k for k in original_state_dict)
+
+    for i in range(num_blocks):
+        # Self-attention
+        for o, c in zip(["q", "k", "v", "o"], ["to_q", "to_k", "to_v", "to_out.0"]):
+            converted_state_dict[f"blocks.{i}.attn1.{c}.lora_A.weight"] = original_state_dict.pop(
+                f"blocks.{i}.self_attn.{o}.lora_A.weight"
+            )
+            converted_state_dict[f"blocks.{i}.attn1.{c}.lora_B.weight"] = original_state_dict.pop(
+                f"blocks.{i}.self_attn.{o}.lora_B.weight"
+            )
+
+        # Cross-attention
+        for o, c in zip(["q", "k", "v", "o"], ["to_q", "to_k", "to_v", "to_out.0"]):
+            converted_state_dict[f"blocks.{i}.attn2.{c}.lora_A.weight"] = original_state_dict.pop(
+                f"blocks.{i}.cross_attn.{o}.lora_A.weight"
+            )
+            converted_state_dict[f"blocks.{i}.attn2.{c}.lora_B.weight"] = original_state_dict.pop(
+                f"blocks.{i}.cross_attn.{o}.lora_B.weight"
+            )
+
+        if is_i2v_lora:
+            for o, c in zip(["k_img", "v_img"], ["add_k_proj", "add_v_proj"]):
+                converted_state_dict[f"blocks.{i}.attn2.{c}.lora_A.weight"] = original_state_dict.pop(
+                    f"blocks.{i}.cross_attn.{o}.lora_A.weight"
+                )
+                converted_state_dict[f"blocks.{i}.attn2.{c}.lora_B.weight"] = original_state_dict.pop(
+                    f"blocks.{i}.cross_attn.{o}.lora_B.weight"
+                )
+
+        # FFN
+        for o, c in zip(["ffn.0", "ffn.2"], ["net.0.proj", "net.2"]):
+            converted_state_dict[f"blocks.{i}.ffn.{c}.lora_A.weight"] = original_state_dict.pop(
+                f"blocks.{i}.{o}.lora_A.weight"
+            )
+            converted_state_dict[f"blocks.{i}.ffn.{c}.lora_B.weight"] = original_state_dict.pop(
+                f"blocks.{i}.{o}.lora_B.weight"
+            )
+
+    if len(original_state_dict) > 0:
+        raise ValueError(f"`state_dict` should be empty at this point but has {original_state_dict.keys()=}")
+
     for key in list(converted_state_dict.keys()):
         converted_state_dict[f"transformer.{key}"] = converted_state_dict.pop(key)
 

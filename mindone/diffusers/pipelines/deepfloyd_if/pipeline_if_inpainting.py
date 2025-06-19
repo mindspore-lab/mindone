@@ -9,7 +9,7 @@ import PIL.Image
 from transformers import CLIPImageProcessor, T5Tokenizer
 
 import mindspore as ms
-from mindspore import ops
+from mindspore import mint
 
 from ....transformers import T5EncoderModel
 from ...loaders import LoraLoaderMixin
@@ -339,7 +339,7 @@ class IFInpaintingPipeline(DiffusionPipeline, LoraLoaderMixin):
                 images=image,
                 clip_input=ms.Tensor.from_numpy(safety_checker_input.pixel_values).to(dtype=dtype),
             )
-            if ops.any(ops.cat([nsfw_detected[..., None].int(), watermark_detected[..., None].int()], axis=1), axis=1):
+            if mint.any(mint.cat([nsfw_detected[..., None].int(), watermark_detected[..., None].int()], dim=1), dim=1):
                 logger.warning(
                     "Potential NSFW or watermarked content was detected in one or more images. A black image will be returned instead."
                     " Try again with a different prompt and/or seed."
@@ -650,7 +650,7 @@ class IFInpaintingPipeline(DiffusionPipeline, LoraLoaderMixin):
             image = numpy_to_ms(image)
 
         elif isinstance(image[0], ms.Tensor):
-            image = ops.cat(image, axis=0) if image[0].ndim == 4 else ops.stack(image, axis=0)
+            image = mint.cat(image, dim=0) if image[0].ndim == 4 else mint.stack(image, dim=0)
 
         return image
 
@@ -659,7 +659,7 @@ class IFInpaintingPipeline(DiffusionPipeline, LoraLoaderMixin):
             mask_image = [mask_image]
 
         if isinstance(mask_image[0], ms.Tensor):
-            mask_image = ops.cat(mask_image, axis=0) if mask_image[0].ndim == 4 else ops.stack(mask_image, axis=0)
+            mask_image = mint.cat(mask_image, dim=0) if mask_image[0].ndim == 4 else mint.stack(mask_image, dim=0)
 
             if mask_image.ndim == 2:
                 # Batch and add channel dim for single mask
@@ -884,7 +884,7 @@ class IFInpaintingPipeline(DiffusionPipeline, LoraLoaderMixin):
         )
 
         if do_classifier_free_guidance:
-            prompt_embeds = ops.cat([negative_prompt_embeds, prompt_embeds])
+            prompt_embeds = mint.cat([negative_prompt_embeds, prompt_embeds])
 
         dtype = prompt_embeds.dtype
 
@@ -932,7 +932,9 @@ class IFInpaintingPipeline(DiffusionPipeline, LoraLoaderMixin):
         num_warmup_steps = len(timesteps) - num_inference_steps * self.scheduler.order
         with self.progress_bar(total=num_inference_steps) as progress_bar:
             for i, t in enumerate(timesteps):
-                model_input = ops.cat([intermediate_images] * 2) if do_classifier_free_guidance else intermediate_images
+                model_input = (
+                    mint.cat([intermediate_images] * 2) if do_classifier_free_guidance else intermediate_images
+                )
                 # TODO: method of scheduler should not change the dtype of input.
                 #  Remove the casting after cuiyushi confirm that.
                 tmp_dtype = model_input.dtype
@@ -951,13 +953,13 @@ class IFInpaintingPipeline(DiffusionPipeline, LoraLoaderMixin):
                 # perform guidance
                 if do_classifier_free_guidance:
                     noise_pred_uncond, noise_pred_text = noise_pred.chunk(2)
-                    noise_pred_uncond, _ = noise_pred_uncond.split(model_input.shape[1], axis=1)
-                    noise_pred_text, predicted_variance = noise_pred_text.split(model_input.shape[1], axis=1)
+                    noise_pred_uncond, _ = noise_pred_uncond.split(model_input.shape[1], dim=1)
+                    noise_pred_text, predicted_variance = noise_pred_text.split(model_input.shape[1], dim=1)
                     noise_pred = noise_pred_uncond + guidance_scale * (noise_pred_text - noise_pred_uncond)
-                    noise_pred = ops.cat([noise_pred, predicted_variance], axis=1)
+                    noise_pred = mint.cat([noise_pred, predicted_variance], dim=1)
 
                 if self.scheduler.config.variance_type not in ["learned", "learned_range"]:
-                    noise_pred, _ = noise_pred.split(model_input.shape[1], axis=1)
+                    noise_pred, _ = noise_pred.split(model_input.shape[1], dim=1)
 
                 # compute the previous noisy sample x_t -> x_t-1
                 prev_intermediate_images = intermediate_images

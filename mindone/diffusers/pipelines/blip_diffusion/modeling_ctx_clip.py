@@ -18,7 +18,7 @@ import numpy as np
 from transformers.models.clip.configuration_clip import CLIPTextConfig
 
 import mindspore as ms
-from mindspore import nn, ops
+from mindspore import mint, nn
 
 from mindone.transformers import CLIPPreTrainedModel
 from mindone.transformers.modeling_outputs import BaseModelOutputWithPooling
@@ -104,7 +104,7 @@ class ContextCLIPTextTransformer(nn.Cell):
         embed_dim = config.hidden_size
         self.embeddings = ContextCLIPTextEmbeddings(config)
         self.encoder = CLIPEncoder(config)
-        self.final_layer_norm = nn.LayerNorm((embed_dim,))
+        self.final_layer_norm = mint.nn.LayerNorm((embed_dim,))
 
     def construct(
         self,
@@ -164,8 +164,8 @@ class ContextCLIPTextTransformer(nn.Cell):
         # text_embeds.shape = [batch_size, sequence_length, transformer.width]
         # take features from the eot embedding (eot_token is the highest number in each sequence)
         pooled_output = last_hidden_state[
-            ops.arange(last_hidden_state.shape[0]),
-            input_ids.argmax(axis=-1),
+            mint.arange(last_hidden_state.shape[0]),
+            input_ids.argmax(dim=-1),
         ]
 
         if not return_dict:
@@ -181,7 +181,7 @@ class ContextCLIPTextTransformer(nn.Cell):
     def _build_causal_attention_mask(self, bsz, seq_len, dtype):
         # lazily create causal attention mask, with full attention between the vision tokens
         # pytorch uses additive attention mask; fill with -inf
-        mask = ops.zeros((bsz, seq_len, seq_len), dtype=dtype)
+        mask = mint.zeros((bsz, seq_len, seq_len), dtype=dtype)
         mask = mask.fill(dtype_to_min(dtype))
         mask = mask.triu(1)  # zero out the lower diagonal
         mask = mask.unsqueeze(1)  # expand mask
@@ -193,11 +193,11 @@ class ContextCLIPTextEmbeddings(nn.Cell):
         super().__init__()
         embed_dim = config.hidden_size
 
-        self.token_embedding = nn.Embedding(config.vocab_size, embed_dim)
-        self.position_embedding = nn.Embedding(config.max_position_embeddings, embed_dim)
+        self.token_embedding = mint.nn.Embedding(config.vocab_size, embed_dim)
+        self.position_embedding = mint.nn.Embedding(config.max_position_embeddings, embed_dim)
 
         # position_ids (1, len position emb) is contiguous in memory and exported when serialized
-        self.position_ids = ops.arange(config.max_position_embeddings).broadcast_to((1, -1))
+        self.position_ids = mint.arange(config.max_position_embeddings).broadcast_to((1, -1))
 
     def construct(
         self,
@@ -232,9 +232,9 @@ class ContextCLIPTextEmbeddings(nn.Cell):
                     # remove the special token embedding
                     suffix = inputs_embeds[i, cbp:]
 
-                    input_embeds_ctx.append(ops.cat([prefix, ctx_embeddings[i], suffix], axis=0))
+                    input_embeds_ctx.append(mint.cat([prefix, ctx_embeddings[i], suffix], dim=0))
 
-                inputs_embeds = ops.stack(input_embeds_ctx, axis=0)
+                inputs_embeds = mint.stack(input_embeds_ctx, dim=0)
 
         position_embeddings = self.position_embedding(position_ids)
         embeddings = inputs_embeds + position_embeddings

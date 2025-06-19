@@ -24,7 +24,7 @@ import numpy as np
 from transformers import T5Tokenizer
 
 import mindspore as ms
-from mindspore import ops
+from mindspore import mint, ops
 
 from mindone.transformers import T5EncoderModel
 
@@ -613,6 +613,7 @@ class AllegroPipeline(DiffusionPipeline):
         grid_h = grid_h.to(dtype=ms.int64)
         grid_w = grid_w.to(dtype=ms.int64)
 
+        # todo: unavailable mint interface
         pos = ops.cartesian_prod(grid_t, grid_h, grid_w)
         pos = pos.reshape(-1, 3).swapaxes(0, 1).reshape(3, 1, -1).contiguous()
         grid_t, grid_h, grid_w = pos
@@ -820,8 +821,8 @@ class AllegroPipeline(DiffusionPipeline):
             max_sequence_length=max_sequence_length,
         )
         if do_classifier_free_guidance:
-            prompt_embeds = ops.cat([negative_prompt_embeds, prompt_embeds], axis=0)
-            prompt_attention_mask = ops.cat([negative_prompt_attention_mask, prompt_attention_mask], axis=0)
+            prompt_embeds = mint.cat([negative_prompt_embeds, prompt_embeds], dim=0)
+            prompt_attention_mask = mint.cat([negative_prompt_attention_mask, prompt_attention_mask], dim=0)
         if prompt_embeds.ndim == 3:
             prompt_embeds = prompt_embeds.unsqueeze(1)  # b l d -> b 1 l d
 
@@ -862,7 +863,7 @@ class AllegroPipeline(DiffusionPipeline):
                 if self.interrupt:
                     continue
 
-                latent_model_input = ops.cat([latents] * 2) if do_classifier_free_guidance else latents
+                latent_model_input = mint.cat([latents] * 2) if do_classifier_free_guidance else latents
                 latent_model_input = self.scheduler.scale_model_input(latent_model_input, t)
 
                 # broadcast to batch dimension in a way that's compatible with ONNX/Core ML
