@@ -12,9 +12,8 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-import mindspore as ms
-from mindspore import ops
-from mindspore import mint, nn
+from mindspore import mint, ops
+
 """PyTorch ERNIE model."""
 
 import math
@@ -22,12 +21,23 @@ import warnings
 from dataclasses import dataclass
 from typing import List, Optional, Tuple, Union
 
+from transformers.models.ernie.configuration_ernie import ErnieConfig
+from transformers.utils import (
+    ModelOutput,
+    add_code_sample_docstrings,
+    add_start_docstrings,
+    add_start_docstrings_to_model_forward,
+    logging,
+    replace_return_docstrings,
+)
+
 import mindspore as ms
 from mindspore import nn
 from mindspore.nn import BCEWithLogitsLoss, CrossEntropyLoss, MSELoss
 
 from ...activations import ACT2FN
 from ...generation import GenerationMixin
+from ...mindspore_utils import apply_chunking_to_forward, find_pruneable_heads_and_indices, prune_linear_layer
 from ...modeling_outputs import (
     BaseModelOutputWithPastAndCrossAttentions,
     BaseModelOutputWithPoolingAndCrossAttentions,
@@ -40,17 +50,6 @@ from ...modeling_outputs import (
     TokenClassifierOutput,
 )
 from ...modeling_utils import PreTrainedModel
-from ...mindspore_utils import apply_chunking_to_forward, find_pruneable_heads_and_indices, prune_linear_layer
-from transformers.utils import (
-    ModelOutput,
-    add_code_sample_docstrings,
-    add_start_docstrings,
-    add_start_docstrings_to_model_forward,
-    logging,
-    replace_return_docstrings,
-)
-from transformers.models.ernie.configuration_ernie import ErnieConfig
-
 
 logger = logging.get_logger(__name__)
 
@@ -79,9 +78,7 @@ class ErnieEmbeddings(nn.Cell):
         self.register_buffer(
             "position_ids", mint.arange(config.max_position_embeddings).expand((1, -1)), persistent=False
         )
-        self.register_buffer(
-            "token_type_ids", mint.zeros(self.position_ids.shape, dtype=ms.int64), persistent=False
-        )
+        self.register_buffer("token_type_ids", mint.zeros(self.position_ids.shape, dtype=ms.int64), persistent=False)
 
     def construct(
         self,
@@ -111,7 +108,10 @@ class ErnieEmbeddings(nn.Cell):
                 buffered_token_type_ids_expanded = buffered_token_type_ids.expand(input_shape[0], seq_length)
                 token_type_ids = buffered_token_type_ids_expanded
             else:
-                token_type_ids = mint.zeros(input_shape, dtype=ms.int64, )
+                token_type_ids = mint.zeros(
+                    input_shape,
+                    dtype=ms.int64,
+                )
 
         if inputs_embeds is None:
             inputs_embeds = self.word_embeddings(input_ids)
@@ -125,7 +125,10 @@ class ErnieEmbeddings(nn.Cell):
         # add `task_type_id` for ERNIE model
         if self.use_task_id:
             if task_type_ids is None:
-                task_type_ids = mint.zeros(input_shape, dtype=ms.int64, )
+                task_type_ids = mint.zeros(
+                    input_shape,
+                    dtype=ms.int64,
+                )
             task_type_embeddings = self.task_type_embeddings(task_type_ids)
             embeddings += task_type_embeddings
 
@@ -153,12 +156,12 @@ class ErnieSelfAttention(nn.Cell):
         self.value = mint.nn.Linear(config.hidden_size, self.all_head_size)
 
         self.dropout = mint.nn.Dropout(config.attention_probs_dropout_prob)
-        self.position_embedding_type = position_embedding_type or getattr(
-            config, "position_embedding_type", "absolute"
-        )
+        self.position_embedding_type = position_embedding_type or getattr(config, "position_embedding_type", "absolute")
         if self.position_embedding_type == "relative_key" or self.position_embedding_type == "relative_key_query":
             self.max_position_embeddings = config.max_position_embeddings
-            self.distance_embedding = mint.nn.Embedding(2 * config.max_position_embeddings - 1, self.attention_head_size)
+            self.distance_embedding = mint.nn.Embedding(
+                2 * config.max_position_embeddings - 1, self.attention_head_size
+            )
 
         self.is_decoder = config.is_decoder
 
@@ -221,12 +224,19 @@ class ErnieSelfAttention(nn.Cell):
         if self.position_embedding_type == "relative_key" or self.position_embedding_type == "relative_key_query":
             query_length, key_length = query_layer.shape[2], key_layer.shape[2]
             if use_cache:
-                position_ids_l = ms.Tensor(key_length - 1, dtype=ms.int64, ).view(
-                    -1, 1
-                )
+                position_ids_l = ms.Tensor(
+                    key_length - 1,
+                    dtype=ms.int64,
+                ).view(-1, 1)
             else:
-                position_ids_l = mint.arange(query_length, dtype=ms.int64, ).view(-1, 1)
-            position_ids_r = mint.arange(key_length, dtype=ms.int64, ).view(1, -1)
+                position_ids_l = mint.arange(
+                    query_length,
+                    dtype=ms.int64,
+                ).view(-1, 1)
+            position_ids_r = mint.arange(
+                key_length,
+                dtype=ms.int64,
+            ).view(1, -1)
             distance = position_ids_l - position_ids_r
 
             positional_embedding = self.distance_embedding(distance + self.max_position_embeddings - 1)
@@ -859,7 +869,8 @@ class ErnieModel(ErniePreTrainedModel):
 
             - 1 for tokens that are **not masked**,
             - 0 for tokens that are **masked**.
-        past_key_values (`tuple(tuple(torch.FloatTensor))` of length `config.n_layers` with each tuple having 4 tensors of shape `(batch_size, num_heads, sequence_length - 1, embed_size_per_head)`):
+        past_key_values (`tuple(tuple(torch.FloatTensor))` of length `config.n_layers` with each tuple having 4 tensors of shape
+            `(batch_size, num_heads, sequence_length - 1, embed_size_per_head)`):
             Contains precomputed key and value hidden states of the attention blocks. Can be used to speed up decoding.
 
             If `past_key_values` are used, the user can optionally input only the last `decoder_input_ids` (those that
@@ -891,13 +902,14 @@ class ErnieModel(ErniePreTrainedModel):
             raise ValueError("You have to specify either input_ids or inputs_embeds")
 
         batch_size, seq_length = input_shape
-        device = input_ids.device if input_ids is not None else inputs_embeds.device
 
         # past_key_values_length
         past_key_values_length = past_key_values[0][0].shape[2] if past_key_values is not None else 0
 
         if attention_mask is None:
-            attention_mask = mint.ones(((batch_size, seq_length + past_key_values_length)), )
+            attention_mask = mint.ones(
+                ((batch_size, seq_length + past_key_values_length)),
+            )
 
         if token_type_ids is None:
             if hasattr(self.embeddings, "token_type_ids"):
@@ -905,7 +917,10 @@ class ErnieModel(ErniePreTrainedModel):
                 buffered_token_type_ids_expanded = buffered_token_type_ids.expand(batch_size, seq_length)
                 token_type_ids = buffered_token_type_ids_expanded
             else:
-                token_type_ids = mint.zeros(input_shape, dtype=ms.int64, )
+                token_type_ids = mint.zeros(
+                    input_shape,
+                    dtype=ms.int64,
+                )
 
         # We can provide a self-attention mask of dimensions [batch_size, from_seq_length, to_seq_length]
         # ourselves in which case we just need to make it broadcastable to all heads.
@@ -917,7 +932,9 @@ class ErnieModel(ErniePreTrainedModel):
             encoder_batch_size, encoder_sequence_length, _ = encoder_hidden_states.shape
             encoder_hidden_shape = (encoder_batch_size, encoder_sequence_length)
             if encoder_attention_mask is None:
-                encoder_attention_mask = mint.ones(encoder_hidden_shape, )
+                encoder_attention_mask = mint.ones(
+                    encoder_hidden_shape,
+                )
             encoder_extended_attention_mask = self.invert_attention_mask(encoder_attention_mask)
         else:
             encoder_extended_attention_mask = None
@@ -1148,7 +1165,8 @@ class ErnieForCausalLM(ErniePreTrainedModel, GenerationMixin):
             Labels for computing the left-to-right language modeling loss (next word prediction). Indices should be in
             `[-100, 0, ..., config.vocab_size]` (see `input_ids` docstring) Tokens with indices set to `-100` are
             ignored (masked), the loss is only computed for the tokens with labels n `[0, ..., config.vocab_size]`
-        past_key_values (`tuple(tuple(torch.FloatTensor))` of length `config.n_layers` with each tuple having 4 tensors of shape `(batch_size, num_heads, sequence_length - 1, embed_size_per_head)`):
+        past_key_values (`tuple(tuple(torch.FloatTensor))` of length `config.n_layers` with each tuple having 4 tensors of shape
+            `(batch_size, num_heads, sequence_length - 1, embed_size_per_head)`):
             Contains precomputed key and value hidden states of the attention blocks. Can be used to speed up decoding.
 
             If `past_key_values` are used, the user can optionally input only the last `decoder_input_ids` (those that
@@ -1208,9 +1226,7 @@ class ErnieForCausalLM(ErniePreTrainedModel, GenerationMixin):
     def _reorder_cache(self, past_key_values, beam_idx):
         reordered_past = ()
         for layer_past in past_key_values:
-            reordered_past += (
-                tuple(past_state.index_select(0, beam_idx.to()) for past_state in layer_past),
-            )
+            reordered_past += (tuple(past_state.index_select(0, beam_idx.to()) for past_state in layer_past),)
         return reordered_past
 
 
@@ -1321,7 +1337,10 @@ class ErnieForMaskedLM(ErniePreTrainedModel):
 
         attention_mask = mint.cat([attention_mask, attention_mask.new_zeros((attention_mask.shape[0], 1))], dim=-1)
         dummy_token = ops.full(
-            (effective_batch_size, 1), self.config.pad_token_id, dtype=ms.int64, )
+            (effective_batch_size, 1),
+            self.config.pad_token_id,
+            dtype=ms.int64,
+        )
         input_ids = mint.cat([input_ids, dummy_token], dim=1)
 
         return {"input_ids": input_ids, "attention_mask": attention_mask}

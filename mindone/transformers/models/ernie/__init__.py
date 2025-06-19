@@ -11,4 +11,15 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-from .modeling_ernie import *
+from .modeling_ernie import (
+    ErnieForCausalLM,
+    ErnieForMaskedLM,
+    ErnieForMultipleChoice,
+    ErnieForNextSentencePrediction,
+    ErnieForPreTraining,
+    ErnieForQuestionAnswering,
+    ErnieForSequenceClassification,
+    ErnieForTokenClassification,
+    ErnieModel,
+    ErniePreTrainedModel,
+)
