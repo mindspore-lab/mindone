@@ -33,6 +33,7 @@ from mindspore.nn import BCEWithLogitsLoss, CrossEntropyLoss, MSELoss
 from mindspore.ops.operations.nn_ops import FlashAttentionScore as MSFlashAttention
 
 from ...activations import ACT2FN
+from ...mindspore_adapter.nn.MultiheadAttention import MultiheadAttention
 from ...modeling_attn_mask_utils import _prepare_4d_attention_mask
 from ...modeling_outputs import BaseModelOutput, BaseModelOutputWithPooling, ImageClassifierOutput
 from ...modeling_utils import PreTrainedModel
@@ -400,7 +401,8 @@ class SiglipFlashAttention2(SiglipAttention):
             query_states = query_states.to(target_dtype)
             key_states = key_states.to(target_dtype)
             value_states = value_states.to(target_dtype)
-
+        if attention_mask is not None:
+            attention_mask = (-attention_mask).to(ms.bool_)
         attn_output = self.flash_attention(
             query_states,
             key_states,
@@ -902,7 +904,7 @@ class SiglipMultiheadAttentionPoolingHead(nn.Cell):
         super().__init__()
 
         self.probe = ms.Parameter(mint.randn(1, 1, config.hidden_size))
-        self.attention = nn.MultiheadAttention(config.hidden_size, config.num_attention_heads, batch_first=True)
+        self.attention = MultiheadAttention(config.hidden_size, config.num_attention_heads, batch_first=True)
         self.layernorm = mint.nn.LayerNorm(config.hidden_size, eps=config.layer_norm_eps)
         self.mlp = SiglipMLP(config)
 
