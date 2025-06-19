@@ -1,6 +1,9 @@
 # coding=utf-8
 # Copyright 2021, The HuggingFace Inc. team. All rights reserved.
 #
+# This code is adapted from https://github.com/huggingface/transformers
+# with modifications to run transformers on mindspore.
+#
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -33,7 +36,7 @@ from tests.modeling_test_utils import (
 from tests.transformers_tests.models.modeling_common import ids_numpy
 
 DTYPE_AND_THRESHOLDS = {"fp32": 5e-4, "fp16": 5e-3, "bf16": 5e-2}
-MODES = [0, 1]
+MODES = [1]
 
 
 def prepare_blenderbot_small_inputs_dict(

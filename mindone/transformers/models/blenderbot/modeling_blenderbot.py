@@ -1,6 +1,9 @@
 # coding=utf-8
 # Copyright 2021 The Facebook, Inc. and The HuggingFace Inc. team. All rights reserved.
 #
+# This code is adapted from https://github.com/huggingface/transformers
+# with modifications to run transformers on mindspore.
+#
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -23,7 +26,6 @@ from typing import List, Optional, Tuple, Union
 from transformers.models.blenderbot.configuration_blenderbot import BlenderbotConfig
 from transformers.models.blenderbot_small import BlenderbotSmallForConditionalGeneration, BlenderbotSmallModel
 from transformers.utils import (
-    add_end_docstrings,
     add_start_docstrings,
     add_start_docstrings_to_model_forward,
     logging,
@@ -493,40 +495,6 @@ BLENDERBOT_START_DOCSTRING = r"""
             [`~PreTrainedModel.from_pretrained`] method to load the model weights.
 """
 
-BLENDERBOT_GENERATION_EXAMPLE = r"""
-    Conversation example:
-
-    ```python
-    >>> from transformers import AutoTokenizer, BlenderbotForConditionalGeneration
-
-    >>> mname = "facebook/blenderbot-400M-distill"
-    >>> model = BlenderbotForConditionalGeneration.from_pretrained(mname)
-    >>> tokenizer = AutoTokenizer.from_pretrained(mname)
-    >>> UTTERANCE = "My friends are cool but they eat too many carbs."
-    >>> print("Human: ", UTTERANCE)
-    Human:  My friends are cool but they eat too many carbs.
-
-    >>> inputs = tokenizer([UTTERANCE], return_tensors="pt")
-    >>> reply_ids = model.generate(**inputs)
-    >>> print("Bot: ", tokenizer.batch_decode(reply_ids, skip_special_tokens=True)[0])
-    Bot: That's unfortunate. Are they trying to lose weight or are they just trying to be healthier?
-
-    >>> REPLY = "I'm not sure"
-    >>> print("Human: ", REPLY)
-    Human: I'm not sure
-
-    >>> NEXT_UTTERANCE = (
-    ...     "My friends are cool but they eat too many carbs.</s> <s>That's unfortunate. "
-    ...     "Are they trying to lose weight or are they just trying to be healthier?</s> "
-    ...     "<s> I'm not sure."
-    ... )
-    >>> inputs = tokenizer([NEXT_UTTERANCE], return_tensors="pt")
-    >>> next_reply_ids = model.generate(**inputs)
-    >>> print("Bot: ", tokenizer.batch_decode(next_reply_ids, skip_special_tokens=True)[0])
-    Bot:   I see. Well, it's good that they're trying to change their eating habits.
-    ```
-"""
-
 BLENDERBOT_INPUTS_DOCSTRING = r"""
     Args:
         input_ids (`ms.Tensor` of shape `(batch_size, sequence_length)`):
@@ -758,13 +726,7 @@ class BlenderbotEncoder(BlenderbotPreTrainedModel):
                 layer_outputs = (None, None)
             else:
                 if self.gradient_checkpointing and self.training:
-                    layer_outputs = self._gradient_checkpointing_func(
-                        encoder_layer.__call__,
-                        hidden_states,
-                        attention_mask,
-                        (head_mask[idx] if head_mask is not None else None),
-                        output_attentions,
-                    )
+                    raise NotImplementedError("Gradient checkpoint is not yet supported.")
                 else:
                     layer_outputs = encoder_layer(
                         hidden_states,
@@ -985,18 +947,7 @@ class BlenderbotDecoder(BlenderbotPreTrainedModel):
             past_key_value = past_key_values[idx] if past_key_values is not None else None
 
             if self.gradient_checkpointing and self.training:
-                layer_outputs = self._gradient_checkpointing_func(
-                    decoder_layer.__call__,
-                    hidden_states,
-                    attention_mask,
-                    encoder_hidden_states,
-                    encoder_attention_mask,
-                    head_mask[idx] if head_mask is not None else None,
-                    cross_attn_head_mask[idx] if cross_attn_head_mask is not None else None,
-                    None,
-                    output_attentions,
-                    use_cache,
-                )
+                raise NotImplementedError("Gradient checkpoint is not yet supported.")
             else:
                 layer_outputs = decoder_layer(
                     hidden_states,
@@ -1117,14 +1068,16 @@ class BlenderbotModel(BlenderbotPreTrainedModel):
         Example:
 
         ```python
-        >>> from transformers import AutoTokenizer, BlenderbotModel
+        >>> from transformers import AutoTokenizer
+        >>> from mindone.transformers import BlenderbotModel
+        >>> import mindspore as ms
 
         >>> model = BlenderbotModel.from_pretrained("facebook/blenderbot-400M-distill")
         >>> tokenizer = AutoTokenizer.from_pretrained("facebook/blenderbot-400M-distill")
 
         >>> inputs = tokenizer("Studies have been shown that owning a dog is good for you", return_tensors="pt")
-        >>> decoder_input_ids = tokenizer("Studies show that", return_tensors="pt").input_ids  # Batch size 1
-        >>> outputs = model(input_ids=inputs.input_ids, decoder_input_ids=decoder_input_ids)
+        >>> decoder_input_ids = tokenizer("Studies show that", return_tensors="np").input_ids  # Batch size 1
+        >>> outputs = model(input_ids=ms.tensor(inputs.input_ids), decoder_input_ids=ms.tensor(decoder_input_ids))
 
         >>> last_hidden_states = outputs.last_hidden_state
         >>> list(last_hidden_states.shape)
@@ -1248,7 +1201,6 @@ class BlenderbotForConditionalGeneration(BlenderbotPreTrainedModel, GenerationMi
 
     @add_start_docstrings_to_model_forward(BLENDERBOT_INPUTS_DOCSTRING)
     @replace_return_docstrings(output_type=Seq2SeqLMOutput, config_class=_CONFIG_FOR_DOC)
-    @add_end_docstrings(BLENDERBOT_GENERATION_EXAMPLE)
     def construct(
         self,
         input_ids: Optional[ms.Tensor] = None,
@@ -1267,6 +1219,7 @@ class BlenderbotForConditionalGeneration(BlenderbotPreTrainedModel, GenerationMi
         output_attentions: Optional[bool] = None,
         output_hidden_states: Optional[bool] = None,
         return_dict: Optional[bool] = None,
+        cache_position=None,
     ) -> Union[Tuple[ms.Tensor], Seq2SeqLMOutput]:
         r"""
         labels (`ms.Tensor` of shape `(batch_size, sequence_length)`, *optional*):
@@ -1475,12 +1428,22 @@ class BlenderbotForCausalLM(BlenderbotPreTrainedModel, GenerationMixin):
         Example:
 
         ```python
-        >>> from transformers import AutoTokenizer, BlenderbotForCausalLM
+        >>> from transformers import AutoTokenizer
+        >>> from mindone.transformers import BlenderbotForCausalLM
+        >>> import numpy as np
+        >>> import mindspore as ms
 
         >>> tokenizer = AutoTokenizer.from_pretrained("facebook/blenderbot-400M-distill")
         >>> model = BlenderbotForCausalLM.from_pretrained("facebook/blenderbot-400M-distill", add_cross_attention=False)
         >>> assert model.config.is_decoder, f"{model.__class__} has to be configured as a decoder."
-        >>> inputs = tokenizer("Hello, my dog is cute", return_tensors="pt")
+        >>> inputs = tokenizer("Hello, my dog is cute", return_tensors="np")
+        >>> for key, value in inputs.items():  # by default input numpy array or list
+        >>>     if isinstance(value, np.ndarray):
+        >>>         inputs[key] = ms.Tensor(value)
+        >>>     elif isinstance(value, list):
+        >>>         inputs[key] = ms.Tensor(value)
+        >>>     if inputs[key].dtype == ms.int64:
+        >>>         inputs[key] = inputs[key].to(ms.int32)
         >>> outputs = model(**inputs)
 
         >>> logits = outputs.logits

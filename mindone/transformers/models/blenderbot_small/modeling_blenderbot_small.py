@@ -1,6 +1,9 @@
 # coding=utf-8
 # Copyright 2021 The Facebook, Inc. and The HuggingFace Inc. team. All rights reserved.
 #
+# This code is adapted from https://github.com/huggingface/transformers
+# with modifications to run transformers on mindspore.
+#
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -20,7 +23,6 @@ from typing import List, Optional, Tuple, Union
 
 from transformers.models.blenderbot_small.configuration_blenderbot_small import BlenderbotSmallConfig
 from transformers.utils import (
-    add_end_docstrings,
     add_start_docstrings,
     add_start_docstrings_to_model_forward,
     logging,
@@ -442,6 +444,7 @@ class BlenderbotSmallPreTrainedModel(PreTrainedModel):
     config_class = BlenderbotSmallConfig
     base_model_prefix = "model"
     supports_gradient_checkpointing = True
+    _supports_dynamic_input = True
 
     def _init_weights(self, module):
         std = self.config.init_std
@@ -482,40 +485,6 @@ BLENDERBOT_SMALL_START_DOCSTRING = r"""
             Model configuration class with all the parameters of the model. Initializing with a config file does not
             load the weights associated with the model, only the configuration. Check out the
             [`~PreTrainedModel.from_pretrained`] method to load the model weights.
-"""
-
-BLENDERBOT_SMALL_GENERATION_EXAMPLE = r"""
-    Conversation example:
-
-    ```python
-    >>> from transformers import AutoTokenizer, BlenderbotSmallForConditionalGeneration
-
-    >>> mname = "facebook/blenderbot_small-90M"
-    >>> model = BlenderbotSmallForConditionalGeneration.from_pretrained(mname)
-    >>> tokenizer = AutoTokenizer.from_pretrained(mname)
-    >>> UTTERANCE = "My friends are cool but they eat too many carbs."
-    >>> print("Human: ", UTTERANCE)
-    Human:  My friends are cool but they eat too many carbs.
-
-    >>> inputs = tokenizer([UTTERANCE], return_tensors="pt")
-    >>> reply_ids = model.generate(**inputs)
-    >>> print("Bot: ", tokenizer.batch_decode(reply_ids, skip_special_tokens=True)[0])
-    Bot:  what kind of carbs do they eat? i don't know much about carbs.
-
-    >>> REPLY = "I'm not sure"
-    >>> print("Human: ", REPLY)
-    Human: I'm not sure
-
-    >>> NEXT_UTTERANCE = (
-    ...     "My friends are cool but they eat too many carbs.__end__ __start__what kind of carbs do they eat? "
-    ...     "i don't know much about carbs__end__ "
-    ...     "__start__ I'm not sure."
-    ... )
-    >>> inputs = tokenizer([NEXT_UTTERANCE], return_tensors="pt")
-    >>> next_reply_ids = model.generate(**inputs)
-    >>> print("Bot: ", tokenizer.batch_decode(next_reply_ids, skip_special_tokens=True)[0])
-    Bot:  they eat a lot of carbs. carbs are high in fat, protein, and fats.
-    ```
 """
 
 BLENDERBOT_SMALL_INPUTS_DOCSTRING = r"""
@@ -748,13 +717,7 @@ class BlenderbotSmallEncoder(BlenderbotSmallPreTrainedModel):
                 layer_outputs = (None, None)
             else:
                 if self.gradient_checkpointing and self.training:
-                    layer_outputs = self._gradient_checkpointing_func(
-                        encoder_layer.__call__,
-                        hidden_states,
-                        attention_mask,
-                        (head_mask[idx] if head_mask is not None else None),
-                        output_attentions,
-                    )
+                    raise NotImplementedError("Gradient checkpoint is not yet supported.")
                 else:
                     layer_outputs = encoder_layer(
                         hidden_states,
@@ -972,18 +935,7 @@ class BlenderbotSmallDecoder(BlenderbotSmallPreTrainedModel):
             past_key_value = past_key_values[idx] if past_key_values is not None else None
 
             if self.gradient_checkpointing and self.training:
-                layer_outputs = self._gradient_checkpointing_func(
-                    decoder_layer.__call__,
-                    hidden_states,
-                    attention_mask,
-                    encoder_hidden_states,
-                    encoder_attention_mask,
-                    head_mask[idx] if head_mask is not None else None,
-                    cross_attn_head_mask[idx] if cross_attn_head_mask is not None else None,
-                    None,
-                    output_attentions,
-                    use_cache,
-                )
+                raise NotImplementedError("Gradient checkpoint is not yet supported.")
             else:
                 layer_outputs = decoder_layer(
                     hidden_states,
@@ -1088,14 +1040,15 @@ class BlenderbotSmallModel(BlenderbotSmallPreTrainedModel):
         Example:
 
         ```python
-        >>> from transformers import AutoTokenizer, BlenderbotSmallModel
+        >>> from transformers import AutoTokenizer
+        >>> from mindone.transformers import BlenderbotSmallModel
 
         >>> model = BlenderbotSmallModel.from_pretrained("facebook/blenderbot_small-90M")
         >>> tokenizer = AutoTokenizer.from_pretrained("facebook/blenderbot_small-90M")
 
         >>> inputs = tokenizer("Studies have been shown that owning a dog is good for you", return_tensors="pt")
-        >>> decoder_inputs = tokenizer("Studies show that", return_tensors="pt")  # Batch size 1
-        >>> outputs = model(input_ids=inputs.input_ids, decoder_input_ids=decoder_inputs.input_ids)
+        >>> decoder_inputs = tokenizer("Studies show that", return_tensors="np")  # Batch size 1
+        >>> outputs = model(input_ids=ms.tensor(inputs.input_ids), decoder_input_ids=ms.tensor(decoder_inputs.input_ids))
 
         >>> last_hidden_states = outputs.last_hidden_state
         >>> list(last_hidden_states.shape)
@@ -1205,7 +1158,6 @@ class BlenderbotSmallForConditionalGeneration(BlenderbotSmallPreTrainedModel, Ge
 
     @add_start_docstrings_to_model_forward(BLENDERBOT_SMALL_INPUTS_DOCSTRING)
     @replace_return_docstrings(output_type=Seq2SeqLMOutput, config_class=_CONFIG_FOR_DOC)
-    @add_end_docstrings(BLENDERBOT_SMALL_GENERATION_EXAMPLE)
     def construct(
         self,
         input_ids: Optional[ms.Tensor] = None,
@@ -1224,6 +1176,7 @@ class BlenderbotSmallForConditionalGeneration(BlenderbotSmallPreTrainedModel, Ge
         output_attentions: Optional[bool] = None,
         output_hidden_states: Optional[bool] = None,
         return_dict: Optional[bool] = None,
+        cache_position=None,
     ) -> Union[Tuple[ms.Tensor], Seq2SeqLMOutput]:
         r"""
         labels (`ms.Tensor` of shape `(batch_size, sequence_length)`, *optional*):
@@ -1432,12 +1385,22 @@ class BlenderbotSmallForCausalLM(BlenderbotSmallPreTrainedModel, GenerationMixin
         Example:
 
         ```python
-        >>> from transformers import AutoTokenizer, BlenderbotSmallForCausalLM
+        >>> from transformers import AutoTokenizer
+        >>> from mindone.transformers import BlenderbotSmallForCausalLM
+        >>> import numpy as np
+        >>> import mindspore as ms
 
         >>> tokenizer = AutoTokenizer.from_pretrained("facebook/blenderbot_small-90M")
         >>> model = BlenderbotSmallForCausalLM.from_pretrained("facebook/blenderbot_small-90M", add_cross_attention=False)
         >>> assert model.config.is_decoder, f"{model.__class__} has to be configured as a decoder."
-        >>> inputs = tokenizer("Hello, my dog is cute", return_tensors="pt")
+        >>> inputs = tokenizer("Hello, my dog is cute", return_tensors="np")
+        >>> for key, value in inputs.items():  # by default input numpy array or list
+        >>>     if isinstance(value, np.ndarray):
+        >>>         inputs[key] = ms.Tensor(value)
+        >>>     elif isinstance(value, list):
+        >>>         inputs[key] = ms.Tensor(value)
+        >>>     if inputs[key].dtype == ms.int64:
+        >>>         inputs[key] = inputs[key].to(ms.int32)
         >>> outputs = model(**inputs)
 
         >>> logits = outputs.logits
