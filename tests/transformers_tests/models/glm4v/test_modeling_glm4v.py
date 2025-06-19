@@ -11,7 +11,7 @@
 import numpy as np
 import pytest
 import torch
-from mindone.transformers.models.glm4v.configuration_glm4v import Glm4vConfig
+from transformers.models.glm4v.configuration_glm4v import Glm4vConfig
 
 import mindspore as ms
 
