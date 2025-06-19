@@ -70,7 +70,7 @@ dataset:
         shuffle_buffer_size: 1000
         num_workers: 32
         resolution: 512
-        pin_memory: True
+        pin_memory: False
         persistent_workers: True
 
     preprocessing:

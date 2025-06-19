@@ -68,6 +68,7 @@ class TrainOneStepWrapper(nn.TrainOneStepWithLossScaleCell):
         super().__init__(network, optimizer, scale_sense)
         self.ema = ema
         self.drop_overflow_update = drop_overflow_update
+        clip_norm = float(clip_norm)
 
         assert isinstance(clip_grad, bool), f"Invalid type of clip_grad, got {type(clip_grad)}, expected bool"
         assert clip_norm > 0.0 and isinstance(clip_norm, float), f"clip_norm must be float > 1.0, but got {clip_norm}"

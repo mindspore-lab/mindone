@@ -339,6 +339,8 @@ def main():
         min_masking_rate: float = 0.0,
         is_train: bool = True,
     ):
+        if not isinstance(pixel_values_or_image_ids, ms.Tensor):
+            pixel_values_or_image_ids = ms.Tensor(pixel_values_or_image_ids)
         image_tokens = vq_model.get_code(pixel_values_or_image_ids)
         image_tokens = image_tokens + len(uni_prompting.text_tokenizer)
         # create MLM mask and labels
@@ -376,6 +378,8 @@ def main():
         return noisy_batch, labels_lm, p_mask
 
     def prepare_inputs_and_labels_for_mmu(input_ids_mmu, prompt_masks, labels_mmu, eps=1e-3):
+        if not isinstance(input_ids_mmu, ms.Tensor):
+            input_ids_mmu = ms.Tensor(input_ids_mmu)
         b, l = input_ids_mmu.shape
         t = mint.rand(
             b,
