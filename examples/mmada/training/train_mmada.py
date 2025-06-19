@@ -341,6 +341,9 @@ def main():
     ):
         if not isinstance(pixel_values_or_image_ids, ms.Tensor):
             pixel_values_or_image_ids = ms.Tensor(pixel_values_or_image_ids)
+        if not isinstance(texts, (list, tuple)):
+            texts = [str(t) for t in texts]
+
         image_tokens = vq_model.get_code(pixel_values_or_image_ids)
         image_tokens = image_tokens + len(uni_prompting.text_tokenizer)
         # create MLM mask and labels
@@ -354,8 +357,10 @@ def main():
         input_ids, masks, labels = uni_prompting((texts, input_ids, labels), "t2i")
         return input_ids, labels, mask_prob, image_tokens, masks
 
-    def prepare_inputs_and_labels_for_text(texts: Union[str, str], max_seq_len, eps=1e-3):
+    def prepare_inputs_and_labels_for_text(texts_lm: Union[str, str], max_seq_len, eps=1e-3):
         # create MLM mask and labels
+        if not isinstance(texts_lm, (list, tuple)):
+            texts_lm = [str(t) for t in texts_lm]
 
         input_ids_lm, prompt_mask, labels_lm = uni_prompting((texts_lm, max_seq_len), "lm")
         b, l = input_ids_lm.shape
