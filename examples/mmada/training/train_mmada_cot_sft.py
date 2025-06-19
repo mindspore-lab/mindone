@@ -138,20 +138,22 @@ def main():
     optimizer_config = config.optimizer.params
 
     # no decay on bias and layernorm and embedding
-    no_decay = ["bias", "layer_norm.weight", "mlm_ln.weight", "embeddings.weight"]
+    no_decay = ["bias", "layer_norm.weight", "mlm_ln.weight", "embeddings.weight", "embeddings.embedding_table"]
+    trainable_params = model.trainable_params()
     optimizer_grouped_parameters = [
         {
-            "params": [
-                p for n, p in model.named_parameters() if p.requires_grad and not any(nd in n for nd in no_decay)
-            ],
-            "weight_decay": optimizer_config.weight_decay,
+            "params": [p for p in trainable_params if not any(nd in p.name for nd in no_decay)],
+            "weight_decay": config.optimizer.params.weight_decay,
         },
         {
-            "params": [p for n, p in model.named_parameters() if p.requires_grad and any(nd in n for nd in no_decay)],
+            "params": [p for p in trainable_params if any(nd in p.name for nd in no_decay)],
             "weight_decay": 0.0,
         },
     ]
-    optimizer_grouped_parameters.append({"order_params": [p for _, p in model.name_cells().items() if p.requires_grad]})
+    # filter empty params
+    optimizer_grouped_parameters = [d for d in optimizer_grouped_parameters if len(d["params"])]
+    optimizer_grouped_parameters.append({"order_params": trainable_params})
+
     optimizer_type = config.optimizer.name
     if optimizer_type == "adamw":
         optimizer = create_optimizer(

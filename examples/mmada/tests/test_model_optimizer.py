@@ -134,7 +134,7 @@ def test_model_and_optimizer_initialization():
             },
         ]
         # filter empty params
-        optimizer_grouped_parameters = {d for d in optimizer_grouped_parameters if len(d["params"])}
+        optimizer_grouped_parameters = [d for d in optimizer_grouped_parameters if len(d["params"])]
         optimizer_grouped_parameters.append({"order_params": trainable_params})
 
         optimizer_type = config.optimizer.name
