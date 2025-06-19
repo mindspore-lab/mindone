@@ -112,6 +112,7 @@ def main():
     mmada_config_dict = {k: v for k, v in config.model.mmada.items()}
     merged_config = {**base_config, **mmada_config_dict}
     mmada_config = MMadaConfig(**merged_config)
+    # mmada_config.num_hidden_layers = 1 # debug
     model = MMadaModelLM(config=mmada_config)
     model.resize_token_embeddings(mmada_config.new_vocab_size)
     model.config.embedding_size = model.config.vocab_size
