@@ -118,6 +118,17 @@ from .models.deberta_v2 import (
     DebertaV2PreTrainedModel,
 )
 from .models.dpt import DPTForDepthEstimation
+from .models.electra import (
+    ElectraForCausalLM,
+    ElectraForMaskedLM,
+    ElectraForMultipleChoice,
+    ElectraForPreTraining,
+    ElectraForQuestionAnswering,
+    ElectraForSequenceClassification,
+    ElectraForTokenClassification,
+    ElectraModel,
+    ElectraPreTrainedModel,
+)
 from .models.fuyu import FuyuForCausalLM, FuyuPreTrainedModel
 from .models.gemma import (
     GemmaForCausalLM,
