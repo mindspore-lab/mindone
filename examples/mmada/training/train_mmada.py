@@ -23,10 +23,13 @@ from training.data import Text2ImageDataset
 from training.imagenet_dataset import ImageNetDataset
 from training.prompting_utils import UniversalPrompting
 from transformers import AutoConfig, AutoTokenizer
+from utils.net_with_loss import NetWithLoss, no_grad
+from utils.train_step import TrainOneStepWrapper
 
 import mindspore as ms
 import mindspore.mint as mint
 from mindspore.experimental import optim
+from mindspore.nn.wrap.loss_scale import DynamicLossScaleUpdateCell
 
 SYSTEM_PROMPT_LEN = 28
 
@@ -117,6 +120,9 @@ def main():
     model.resize_token_embeddings(mmada_config.new_vocab_size)
     model.config.embedding_size = model.config.vocab_size
     mask_id = model.config.mask_token_id
+
+    # network_with_loss
+    model = NetWithLoss(model, config)
     model.set_train(True)
 
     ##################################
@@ -419,6 +425,17 @@ def main():
     data_time_m = AverageMeter()
     end = time.time()
 
+    loss_scaler = DynamicLossScaleUpdateCell(loss_scale_value=65356, scale_factor=2, scale_window=2000)
+    train_step_model = TrainOneStepWrapper(
+        model,
+        optimizer=optimizer,
+        scale_sense=loss_scaler,
+        drop_overflow_update=True,
+        gradient_accumulation_steps=args.gradient_accumulation_steps,
+        clip_grad=config.training.max_grad_norm is not None,
+        clip_norm=config.training.max_grad_norm,
+        ema=False,
+    )
     for epoch in range(first_epoch, num_train_epochs):
         model.set_train(True)
         for batch in combined_dataloader:
@@ -433,111 +450,102 @@ def main():
             pixel_values, texts = batch["t2i_flow"]["images"], batch["t2i_flow"]["input_ids"]
 
             data_time_m.update(time.time() - end)
-
-            # Encode images to image tokens, mask them and create input and labels
-            (input_ids, labels, mask_prob, image_tokens_ori, t2i_masks) = prepare_inputs_and_labels(
-                pixel_values, texts, config.training.min_masking_rate
-            )
-
-            # *-------*-------*-------*-------*-------*-------*-------*-------*-------*-------*-------*
-            # Build formatted sequences for language modeling
-            # *-------*-------*-------*-------*-------*-------*-------*-------*-------*-------*-------*
-            max_seq_len = input_ids.shape[-1]
-            texts_lm = batch["lm_flow"]["input_ids"]
-            (input_ids_lm, labels_lm, p_mask_lm) = prepare_inputs_and_labels_for_text(texts_lm, max_seq_len)
-            input_ids = mint.cat((input_ids, input_ids_lm), dim=0)
-            labels = mint.cat((labels, labels_lm), dim=0)
-
-            # *-------*-------*-------*-------*-------*-------*-------*-------*-------*-------*-------*
-            # Build formatted sequences for captioning/multimodal understanding
-            # *-------*-------*-------*-------*-------*-------*-------*-------*-------*-------*-------*
-            if "llava" in config.dataset.und_type:
-                pixel_values_mmu, input_ids_mmu, labels_mmu = (
-                    batch["mmu_flow"]["images"],
-                    batch["mmu_flow"]["input_ids"],
-                    batch["mmu_flow"]["labels"],
+            with no_grad():
+                # Encode images to image tokens, mask them and create input and labels
+                (input_ids, labels, mask_prob, image_tokens_ori, t2i_masks) = prepare_inputs_and_labels(
+                    pixel_values, texts, config.training.min_masking_rate
                 )
 
-                image_tokens_mmu = vq_model.get_code(pixel_values_mmu)
-                image_tokens_mmu = image_tokens_mmu + len(uni_prompting.text_tokenizer)
+                # *-------*-------*-------*-------*-------*-------*-------*-------*-------*-------*-------*
+                # Build formatted sequences for language modeling
+                # *-------*-------*-------*-------*-------*-------*-------*-------*-------*-------*-------*
+                max_seq_len = input_ids.shape[-1]
+                texts_lm = batch["lm_flow"]["input_ids"]
+                (input_ids_lm, labels_lm, p_mask_lm) = prepare_inputs_and_labels_for_text(texts_lm, max_seq_len)
+                input_ids = mint.cat((input_ids, input_ids_lm), dim=0)
+                labels = mint.cat((labels, labels_lm), dim=0)
 
-                input_ids_mmu = mint.cat(
-                    [
-                        (mint.ones((input_ids_mmu.shape[0], 1)) * uni_prompting.sptids_dict["<|mmu|>"]),
-                        (mint.ones((input_ids_mmu.shape[0], 1)) * uni_prompting.sptids_dict["<|soi|>"]),
-                        image_tokens_mmu,
-                        (mint.ones((input_ids_mmu.shape[0], 1)) * uni_prompting.sptids_dict["<|eoi|>"]),
-                        input_ids_mmu,
-                    ],
-                    dim=1,
-                ).to(ms.int32)
+                # *-------*-------*-------*-------*-------*-------*-------*-------*-------*-------*-------*
+                # Build formatted sequences for captioning/multimodal understanding
+                # *-------*-------*-------*-------*-------*-------*-------*-------*-------*-------*-------*
+                if "llava" in config.dataset.und_type:
+                    pixel_values_mmu, input_ids_mmu, labels_mmu = (
+                        batch["mmu_flow"]["images"],
+                        batch["mmu_flow"]["input_ids"],
+                        batch["mmu_flow"]["labels"],
+                    )
 
-                labels_mmu = mint.cat(
-                    [
-                        (mint.ones((input_ids_mmu.shape[0], 1)) * uni_prompting.ignore_id),
-                        (mint.ones((input_ids_mmu.shape[0], 1)) * uni_prompting.ignore_id),
-                        mint.ones_like(image_tokens_mmu) * uni_prompting.ignore_id,
-                        (mint.ones((input_ids_mmu.shape[0], 1)) * uni_prompting.ignore_id),
-                        labels_mmu,
-                    ],
-                    dim=1,
-                ).to(ms.int32)
+                    image_tokens_mmu = vq_model.get_code(pixel_values_mmu)
+                    image_tokens_mmu = image_tokens_mmu + len(uni_prompting.text_tokenizer)
 
-            else:
-                pixel_values_mmu, texts_mmu = batch["mmu_flow"]["images"], batch["mmu_flow"]["input_ids"]
+                    input_ids_mmu = mint.cat(
+                        [
+                            (mint.ones((input_ids_mmu.shape[0], 1)) * uni_prompting.sptids_dict["<|mmu|>"]),
+                            (mint.ones((input_ids_mmu.shape[0], 1)) * uni_prompting.sptids_dict["<|soi|>"]),
+                            image_tokens_mmu,
+                            (mint.ones((input_ids_mmu.shape[0], 1)) * uni_prompting.sptids_dict["<|eoi|>"]),
+                            input_ids_mmu,
+                        ],
+                        dim=1,
+                    ).to(ms.int32)
 
-                image_tokens_mmu = vq_model.get_code(pixel_values_mmu)
-                image_tokens_mmu = image_tokens_mmu + len(uni_prompting.text_tokenizer)
+                    labels_mmu = mint.cat(
+                        [
+                            (mint.ones((input_ids_mmu.shape[0], 1)) * uni_prompting.ignore_id),
+                            (mint.ones((input_ids_mmu.shape[0], 1)) * uni_prompting.ignore_id),
+                            mint.ones_like(image_tokens_mmu) * uni_prompting.ignore_id,
+                            (mint.ones((input_ids_mmu.shape[0], 1)) * uni_prompting.ignore_id),
+                            labels_mmu,
+                        ],
+                        dim=1,
+                    ).to(ms.int32)
 
-                input_ids_mmu, prompt_masks, labels_mmu = uni_prompting((image_tokens_mmu, texts_mmu), "mmu")
-                (input_ids_mmu, labels_mmu, p_mask_mmu, answer_lengths) = prepare_inputs_and_labels_for_mmu(
-                    input_ids_mmu, prompt_masks, labels_mmu
-                )
+                else:
+                    pixel_values_mmu, texts_mmu = batch["mmu_flow"]["images"], batch["mmu_flow"]["input_ids"]
 
-            input_ids = mint.cat((input_ids, input_ids_mmu), dim=0)
-            labels = mint.cat((labels, labels_mmu), dim=0)
+                    image_tokens_mmu = vq_model.get_code(pixel_values_mmu)
+                    image_tokens_mmu = image_tokens_mmu + len(uni_prompting.text_tokenizer)
+
+                    input_ids_mmu, prompt_masks, labels_mmu = uni_prompting((image_tokens_mmu, texts_mmu), "mmu")
+                    (input_ids_mmu, labels_mmu, p_mask_mmu, answer_lengths) = prepare_inputs_and_labels_for_mmu(
+                        input_ids_mmu, prompt_masks, labels_mmu
+                    )
+
+                input_ids = mint.cat((input_ids, input_ids_mmu), dim=0)
+                labels = mint.cat((labels, labels_mmu), dim=0)
 
             if global_step == 0 and epoch == 0:
                 logger.info("Input ids: {}".format(input_ids))
                 logger.info("Labels: {}".format(labels))
 
-            logits, loss_t2i, loss_lm, loss_mmu = model.construct_process(
+            # compute_loss and logits
+
+            loss, overflow, scaling_sens, extra_outputs = train_step_model(
                 input_ids=input_ids,
                 labels=labels,
                 batch_size_t2i=batch_size_t2i,
                 batch_size_lm=batch_size_lm,
                 batch_size_mmu=batch_size_mmu,
-                max_seq_length=config.dataset.preprocessing.max_seq_length,
                 p_mask_lm=p_mask_lm,
                 p_mask_mmu=p_mask_mmu,
                 answer_lengths=answer_lengths,
                 t2i_masks=t2i_masks,
             )
+            logits, loss_t2i, loss_lm, loss_mmu = extra_outputs
+            if isinstance(scaling_sens, ms.Parameter):
+                scaling_sens = scaling_sens.value()
 
+            if overflow:
+                logger.warning(f"Overflow occurs in step {global_step} in autoencoder, drop update.")
+            lr_scheduler.step()
             avg_loss_t2i = loss_t2i.mean()
             avg_loss_lm = loss_lm.mean()
             avg_loss_mmu = loss_mmu.mean()
-            loss = (
-                config.training.t2i_coeff * loss_t2i
-                + config.training.lm_coeff * loss_lm
-                + config.training.mmu_coeff * loss_mmu
-            )
-
-            avg_masking_rate = mask_prob.mean()
-
-            loss.backward()
-
-            if config.training.max_grad_norm is not None:
-                mint.nn.utils.clip_grad_norm_(model.get_parameters(), config.training.max_grad_norm)
-
-            optimizer.step()
-            lr_scheduler.step()
+            # avg_masking_rate = mask_prob.mean()
 
             # log gradient norm before zeroing it
             if (global_step + 1) % config.experiment.log_grad_norm_every == 0:
                 log_grad_norm(model, global_step + 1)
-
-            optimizer.zero_grad(set_to_none=True)
 
             batch_time_m.update(time.time() - end)
             end = time.time()
@@ -547,25 +555,17 @@ def main():
                 samples_per_second_per_device = (
                     config.training.gradient_accumulation_steps * total_batch_size_per_device / batch_time_m.val
                 )
-                logs = {
-                    "step_loss_t2i": avg_loss_t2i.item(),
-                    "step_loss_mmu": avg_loss_mmu.item(),
-                    "step_loss_lm": avg_loss_lm.item(),
-                    "lr": lr_scheduler.get_last_lr()[0],
-                    "avg_masking_rate": avg_masking_rate.item(),
-                    "samples/sec/gpu": samples_per_second_per_device,
-                    "data_time": data_time_m.val,
-                    "batch_time": batch_time_m.val,
-                }
 
                 logger.info(
                     f"Step: {global_step + 1} "
-                    f"Loss_t2i: {avg_loss_t2i.item():0.4f} "
-                    f"Loss_mmu: {avg_loss_mmu.item():0.4f} "
-                    f"Loss_lm: {avg_loss_lm.item():0.4f} "
-                    f"Data (t): {data_time_m.val:0.4f}, {samples_per_second_per_device:0.2f}/s/gpu "
+                    f"Loss_t2i: {avg_loss_t2i.asnumpy().item():0.4f} "
+                    f"Loss_mmu: {avg_loss_mmu.asnumpy().item():0.4f} "
+                    f"Loss_lm: {avg_loss_lm.asnumpy().item():0.4f} "
+                    f"Loss_combined: {loss.asnumpy().item():0.4f} "
+                    f"Data (t): {data_time_m.val:0.4f}, {samples_per_second_per_device:0.2f}/s/device "
                     f"Batch (t): {batch_time_m.val:0.4f} "
-                    f"LR: {lr_scheduler.get_last_lr()[0]:0.6f}"
+                    f"LR: {lr_scheduler.get_last_lr()[0]:0.6f}",
+                    f"Loss scaler {scaling_sens.asnumpy().item()}",
                 )
 
                 # resetting batch / data time meters per log window
