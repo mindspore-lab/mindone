@@ -442,6 +442,7 @@ class BlenderbotSmallPreTrainedModel(PreTrainedModel):
     config_class = BlenderbotSmallConfig
     base_model_prefix = "model"
     supports_gradient_checkpointing = True
+    _supports_dynamic_input = True
 
     def _init_weights(self, module):
         std = self.config.init_std
@@ -1224,6 +1225,7 @@ class BlenderbotSmallForConditionalGeneration(BlenderbotSmallPreTrainedModel, Ge
         output_attentions: Optional[bool] = None,
         output_hidden_states: Optional[bool] = None,
         return_dict: Optional[bool] = None,
+        cache_position=None,
     ) -> Union[Tuple[ms.Tensor], Seq2SeqLMOutput]:
         r"""
         labels (`ms.Tensor` of shape `(batch_size, sequence_length)`, *optional*):
