@@ -40,7 +40,7 @@ Todo:
 from packaging.version import parse
 
 import mindspore as ms
-from mindspore import mint, ops
+from mindspore import mint, nn, ops
 from mindspore._c_expression.amp import AmpLevel, create_amp_strategy
 from mindspore.common.api import _function_forbid_reuse
 from mindspore.ops.function.nn_func import _interploate_ext_make_tuple, _interpolate_ext_scale_factor_convert_size
@@ -198,6 +198,24 @@ if MINDSPORE_VERSION >= parse("2.3.0"):
     group_norm = ms.mint.nn.functional.group_norm
 else:
     group_norm = _group_norm
+
+
+# ================================================================================
+# nn.GELU
+# ================================================================================
+class _GELU(nn.Cell):
+    def __init__(self, approximate: str = "none") -> None:
+        super().__init__()
+        self.approximate = approximate
+
+    def construct(self, input: ms.Tensor) -> ms.Tensor:
+        return mint.nn.functional.gelu(input, approximate=self.approximate)
+
+
+if MINDSPORE_VERSION >= parse("2.6.0"):
+    GELU = mint.nn.GELU
+else:
+    GELU = _GELU
 
 
 # ================================================================================

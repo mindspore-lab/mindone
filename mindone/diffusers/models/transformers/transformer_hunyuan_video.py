@@ -32,7 +32,7 @@ from ..embeddings import (
     apply_rotary_emb,
     get_1d_rotary_pos_embed,
 )
-from ..layers_compat import unflatten
+from ..layers_compat import GELU, unflatten
 from ..modeling_outputs import Transformer2DModelOutput
 from ..modeling_utils import ModelMixin
 from ..normalization import AdaLayerNormContinuous, AdaLayerNormZero, AdaLayerNormZeroSingle, FP32LayerNorm
@@ -506,7 +506,7 @@ class HunyuanVideoSingleTransformerBlock(nn.Cell):
 
         self.norm = AdaLayerNormZeroSingle(hidden_size, norm_type="layer_norm")
         self.proj_mlp = mint.nn.Linear(hidden_size, mlp_dim)
-        self.act_mlp = mint.nn.GELU(approximate="tanh")
+        self.act_mlp = GELU(approximate="tanh")
         self.proj_out = mint.nn.Linear(hidden_size + mlp_dim, hidden_size)
 
     def construct(
@@ -661,7 +661,7 @@ class HunyuanVideoTokenReplaceSingleTransformerBlock(nn.Cell):
 
         self.norm = HunyuanVideoTokenReplaceAdaLayerNormZeroSingle(hidden_size, norm_type="layer_norm")
         self.proj_mlp = mint.nn.Linear(hidden_size, mlp_dim)
-        self.act_mlp = mint.nn.GELU(approximate="tanh")
+        self.act_mlp = GELU(approximate="tanh")
         self.proj_out = mint.nn.Linear(hidden_size + mlp_dim, hidden_size)
 
     def construct(
@@ -909,7 +909,7 @@ class HunyuanVideoTransformer3DModel(ModelMixin, ConfigMixin, PeftAdapterMixin, 
         if image_condition_type == "token_replace":
             self.transformer_blocks = nn.CellList(
                 [
-                    HunyuanVideoTransformerBlock(
+                    HunyuanVideoTokenReplaceTransformerBlock(
                         num_attention_heads, attention_head_dim, mlp_ratio=mlp_ratio, qk_norm=qk_norm
                     )
                     for _ in range(num_layers)
@@ -929,7 +929,7 @@ class HunyuanVideoTransformer3DModel(ModelMixin, ConfigMixin, PeftAdapterMixin, 
         if image_condition_type == "token_replace":
             self.single_transformer_blocks = nn.CellList(
                 [
-                    HunyuanVideoSingleTransformerBlock(
+                    HunyuanVideoTokenReplaceSingleTransformerBlock(
                         num_attention_heads, attention_head_dim, mlp_ratio=mlp_ratio, qk_norm=qk_norm
                     )
                     for _ in range(num_single_layers)
@@ -1107,12 +1107,3 @@ class HunyuanVideoTransformer3DModel(ModelMixin, ConfigMixin, PeftAdapterMixin, 
             return (hidden_states,)
 
         return Transformer2DModelOutput(sample=hidden_states)
-
-
-class _GELU(nn.Cell):
-    def __init__(self, approximate: str = "none") -> None:
-        super().__init__()
-        self.approximate = approximate
-
-    def construct(self, input: ms.Tensor) -> ms.Tensor:
-        return mint.nn.functional.gelu(input, approximate=self.approximate)

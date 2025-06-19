@@ -26,6 +26,7 @@ from ...models.modeling_utils import ModelMixin
 from ...models.normalization import AdaLayerNormContinuous, AdaLayerNormZero, AdaLayerNormZeroSingle
 from ...utils import logging
 from ..embeddings import CombinedTimestepGuidanceTextProjEmbeddings, CombinedTimestepTextProjEmbeddings, FluxPosEmbed
+from ..layers_compat import GELU
 from ..modeling_outputs import Transformer2DModelOutput
 
 logger = logging.get_logger(__name__)  # pylint: disable=invalid-name
@@ -38,7 +39,7 @@ class FluxSingleTransformerBlock(nn.Cell):
 
         self.norm = AdaLayerNormZeroSingle(dim)
         self.proj_mlp = mint.nn.Linear(dim, self.mlp_hidden_dim)
-        self.act_mlp = mint.nn.GELU(approximate="tanh")
+        self.act_mlp = GELU(approximate="tanh")
         self.proj_out = mint.nn.Linear(dim + self.mlp_hidden_dim, dim)
 
         processor = FluxAttnProcessor2_0()

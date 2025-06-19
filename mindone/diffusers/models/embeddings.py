@@ -23,7 +23,7 @@ from mindspore import mint, nn, ops
 from ..utils import deprecate
 from .activations import FP32SiLU, get_activation
 from .attention_processor import Attention
-from .layers_compat import pad, unflatten, view_as_complex
+from .layers_compat import GELU, pad, unflatten, view_as_complex
 
 
 def get_timestep_embedding(
@@ -2233,7 +2233,7 @@ class PixArtAlphaTextProjection(nn.Cell):
             out_features = hidden_size
         self.linear_1 = mint.nn.Linear(in_features, hidden_size, bias=True)
         if act_fn == "gelu_tanh":
-            self.act_1 = mint.nn.GELU(approximate="tanh")
+            self.act_1 = GELU(approximate="tanh")
         elif act_fn == "silu":
             self.act_1 = mint.nn.SiLU()
         elif act_fn == "silu_fp32":
