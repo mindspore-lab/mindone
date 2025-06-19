@@ -1,9 +1,10 @@
 import math
-from typing import Optional, Union
+from typing import Optional
 
 import mindspore
 import mindspore.common.dtype as mstype
 import mindspore.ops as ops
+from mindspore import mint
 from mindspore.common.initializer import (
     HeUniform,
     Uniform,
@@ -36,14 +37,14 @@ def _scaled_dot_product_attention(query, key, value, attn_mask, dropout_p, is_ca
     if is_causal:
         L = query.shape[-2]
         S = key.shape[-2]
-        attn_mask = ops.ones((L, S), mstype.bool_).tril()
+        attn_mask = mint.ones((L, S), dtype=mstype.bool_).tril()
 
-    attn = ops.matmul(query, key.swapaxes(-2, -1) * scaling_factor)
+    attn = mint.matmul(query, key.swapaxes(-2, -1) * scaling_factor)
     if attn_mask is not None:
         attn = attn + attn_mask
-    attn = ops.softmax(attn, -1)
+    attn = mint.softmax(attn, -1)
     attn = _inner_dropout(attn, dropout_p, is_training)
-    output = ops.matmul(attn, value)
+    output = mint.matmul(attn, value)
 
     return (output, attn)
 
@@ -163,8 +164,8 @@ def multi_head_attention_forward(
             raise ValueError("The bias_k cannot be added to static_k.")
         if static_v is not None:
             raise ValueError("The bias_v cannot be added to static_v.")
-        k = ops.cat([k, bias_k.tile((1, bsz, 1))])
-        v = ops.cat([v, bias_v.tile((1, bsz, 1))])
+        k = mint.cat([k, bias_k.tile((1, bsz, 1))])
+        v = mint.cat([v, bias_v.tile((1, bsz, 1))])
         if attn_mask is not None:
             attn_mask = _inner_pad(attn_mask, (0, 1))
         if key_padding_mask is not None:
@@ -193,8 +194,8 @@ def multi_head_attention_forward(
 
     if add_zero_attn:
         zero_attn_shape = (bsz * num_heads, 1, head_dim)
-        k = ops.cat([k, ops.zeros(zero_attn_shape, dtype=k.dtype)], axis=1)
-        v = ops.cat([v, ops.zeros(zero_attn_shape, dtype=v.dtype)], axis=1)
+        k = mint.cat([k, mint.zeros(zero_attn_shape, dtype=k.dtype)], dim=1)
+        v = mint.cat([v, mint.zeros(zero_attn_shape, dtype=v.dtype)], dim=1)
         if attn_mask is not None:
             attn_mask = _inner_pad(attn_mask, (0, 1))
         if key_padding_mask is not None:
@@ -219,8 +220,8 @@ def multi_head_attention_forward(
             attn_mask = attn_mask + key_padding_mask
 
     if attn_mask is not None and attn_mask.dtype == mstype.bool_:
-        new_attn_mask = ops.zeros_like(attn_mask, dtype=q.dtype)
-        attn_mask = new_attn_mask.masked_fill(attn_mask, ops.cast(float("-inf"), new_attn_mask.dtype))
+        new_attn_mask = mint.zeros_like(attn_mask, dtype=q.dtype)
+        attn_mask = new_attn_mask.masked_fill(attn_mask, mint.cast(float("-inf"), new_attn_mask.dtype))
 
     if attn_mask is not None:
         if attn_mask.shape[0] == 1:

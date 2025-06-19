@@ -1,1 +1,1 @@
-from .MutiheadAttention import *
+from .MultiheadAttention import *
