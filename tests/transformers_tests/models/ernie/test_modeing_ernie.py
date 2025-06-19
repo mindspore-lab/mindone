@@ -146,7 +146,6 @@ BERT_CASES = [
             "token_type_ids": np.repeat(np.expand_dims(token_type_ids, 1), model_tester.num_choices, 1),
         },
         {
-            "loss": 0,
             "logits": 1,
         },
     ],
@@ -164,7 +163,6 @@ BERT_CASES = [
             "end_positions": sequence_labels,
         },
         {
-            "loss": 0,
             "start_logits": 1,
             "end_logits": 2,
         },
