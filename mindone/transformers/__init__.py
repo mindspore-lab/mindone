@@ -119,6 +119,7 @@ from .models.deberta_v2 import (
 )
 from .models.dpt import DPTForDepthEstimation
 from .models.fuyu import FuyuForCausalLM, FuyuPreTrainedModel
+from .models.fsmt import FSMTForConditionalGeneration, FSMTModel, PretrainedFSMTModel
 from .models.gemma import (
     GemmaForCausalLM,
     GemmaForSequenceClassification,
