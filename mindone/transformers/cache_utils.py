@@ -147,6 +147,7 @@ class Cache(nn.Cell):
     """
     Base, abstract class for all caches. The actual data structure is specific to each subclass.
     """
+    is_compileable = False
 
     def update(
         self,
@@ -587,6 +588,19 @@ class DynamicCache(Cache):
         for layer_idx in range(len(self)):
             self.key_cache[layer_idx] = self.key_cache[layer_idx][indices, ...]
             self.value_cache[layer_idx] = self.value_cache[layer_idx][indices, ...]
+
+    def get_max_cache_shape(self) -> Optional[int]:
+        return 32768
+
+    def get_mask_sizes(self, cache_position: ms.Tensor, layer_idx: int) -> tuple[int, int]:
+        """
+        Return a tuple (kv_length, kv_offset) corresponding to the length and offset that will be returned for
+        the given layer at `layer_idx`.
+        The masks are then prepared according to the given lengths (kv_length, kv_offset) and patterns (i.e. sliding_window, chunk_size),
+        for each layer.
+        """
+        kv_length = self.get_max_cache_shape()
+        return kv_length, 0
 
 
 class SlidingWindowCache(StaticCache):
