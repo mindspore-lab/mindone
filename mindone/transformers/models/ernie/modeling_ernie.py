@@ -33,7 +33,7 @@ from transformers.utils import (
 
 import mindspore as ms
 from mindspore import nn
-from mindspore.nn import BCEWithLogitsLoss, CrossEntropyLoss, MSELoss
+from mindspore.mint.nn import BCEWithLogitsLoss, CrossEntropyLoss, MSELoss
 
 from ...activations import ACT2FN
 from ...generation import GenerationMixin
