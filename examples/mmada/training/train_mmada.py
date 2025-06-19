@@ -451,8 +451,8 @@ def main():
                 max_seq_len = input_ids.shape[-1]
                 texts_lm = batch["lm_flow"]["input_ids"]
                 (input_ids_lm, labels_lm, p_mask_lm) = prepare_inputs_and_labels_for_text(texts_lm, max_seq_len)
-                input_ids = mint.cat((input_ids, input_ids_lm), dim=0)
-                labels = mint.cat((labels, labels_lm), dim=0)
+                input_ids = mint.cat((input_ids.to(ms.int32), input_ids_lm.to(ms.int32)), dim=0)
+                labels = mint.cat((labels.to(ms.int32), labels_lm.to(ms.int32)), dim=0)
 
                 # *-------*-------*-------*-------*-------*-------*-------*-------*-------*-------*-------*
                 # Build formatted sequences for captioning/multimodal understanding
@@ -515,8 +515,8 @@ def main():
                         input_ids_mmu, prompt_masks, labels_mmu
                     )
 
-                input_ids = mint.cat((input_ids, input_ids_mmu), dim=0)
-                labels = mint.cat((labels, labels_mmu), dim=0)
+                input_ids = mint.cat((input_ids.to(ms.int32), input_ids_mmu.to(ms.int32)), dim=0)
+                labels = mint.cat((labels.to(ms.int32), labels_mmu.to(ms.int32)), dim=0)
 
             if global_step == 0 and epoch == 0:
                 logger.info("Input ids: {}".format(input_ids))
@@ -761,15 +761,15 @@ def understanding_images(
 
         input_ids = mint.cat(
             [
-                (mint.ones((input_ids.shape[0], 1)) * uni_prompting.sptids_dict["<|mmu|>"]),
-                (mint.ones((input_ids.shape[0], 1)) * uni_prompting.sptids_dict["<|soi|>"]),
-                image_tokens,
-                (mint.ones((input_ids.shape[0], 1)) * uni_prompting.sptids_dict["<|eoi|>"]),
-                (mint.ones((input_ids.shape[0], 1)) * uni_prompting.sptids_dict["<|sot|>"]),
-                input_ids,
+                (mint.ones((input_ids.shape[0], 1)) * uni_prompting.sptids_dict["<|mmu|>"]).to(ms.int32),
+                (mint.ones((input_ids.shape[0], 1)) * uni_prompting.sptids_dict["<|soi|>"]).to(ms.int32),
+                image_tokens.to(ms.int32),
+                (mint.ones((input_ids.shape[0], 1)) * uni_prompting.sptids_dict["<|eoi|>"]).to(ms.int32),
+                (mint.ones((input_ids.shape[0], 1)) * uni_prompting.sptids_dict["<|sot|>"]).to(ms.int32),
+                input_ids.to(ms.int32),
             ],
             dim=1,
-        ).to(ms.int32)
+        )
 
         output_ids = model.mmu_generate(input_ids)
         # output_ids = mint.stack(output_ids).squeeze()[None]
