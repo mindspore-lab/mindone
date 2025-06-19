@@ -107,13 +107,13 @@ class NetworkWithLoss(nn.Cell):
         else:
             y = None
 
-        loss = self.compute_loss(x, y, text_embed)
+        loss = self.training_losses(x, y, text_embed)
         return loss
 
     def apply_model(self, *args, **kwargs):
         return self.network(*args, **kwargs)
 
-    def _cal_vb(self, model_output, model_var_values, x, x_t, t):
+    def _vb_terms_bpd(self, model_output, model_var_values, x, x_t, t):
         true_mean, _, true_log_variance_clipped = self.diffusion.q_posterior_mean_variance(x_start=x, x_t=x_t, t=t)
         min_log = _extract_into_tensor(self.diffusion.posterior_log_variance_clipped, t, x_t.shape)
         max_log = _extract_into_tensor(mint.log(self.diffusion.betas), t, x_t.shape)
@@ -130,7 +130,7 @@ class NetworkWithLoss(nn.Cell):
         vb = mint.where((t == 0), decoder_nll, kl)
         return vb
 
-    def compute_loss(self, x, y, text_embed):
+    def training_losses(self, x, y, text_embed):
         t = ops.randint(0, self.diffusion.num_timesteps, (x.shape[0],))
         noise = ops.randn_like(x)
         x_t = self.diffusion.q_sample(x, t, noise=noise)
@@ -141,7 +141,7 @@ class NetworkWithLoss(nn.Cell):
         model_output, model_var_values = mint.split(model_output, C, dim=1)
 
         # Learn the variance using the variational bound, but don't let it affect our mean prediction.
-        vb = self._cal_vb(ops.stop_gradient(model_output), model_var_values, x, x_t, t)
+        vb = self._vb_terms_bpd(ops.stop_gradient(model_output), model_var_values, x, x_t, t)
 
         loss = mean_flat((noise - model_output) ** 2) + vb
         loss = loss.mean()
