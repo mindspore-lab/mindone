@@ -23,10 +23,10 @@ from training.data import Text2ImageDataset
 from training.imagenet_dataset import ImageNetDataset
 from training.prompting_utils import UniversalPrompting
 from transformers import AutoConfig, AutoTokenizer
-from utils.optim import create_optimizer
 
 import mindspore as ms
 import mindspore.mint as mint
+from mindspore.experimental import optim
 
 SYSTEM_PROMPT_LEN = 28
 
@@ -139,13 +139,11 @@ def main():
     ]
     # filter empty params
     optimizer_grouped_parameters = [d for d in optimizer_grouped_parameters if len(d["params"])]
-    optimizer_grouped_parameters.append({"order_params": trainable_params})
 
     optimizer_type = config.optimizer.name
     if optimizer_type == "adamw":
-        optimizer = create_optimizer(
+        optimizer = optim.AdamW(
             optimizer_grouped_parameters,
-            name="adamw",
             lr=optimizer_config.learning_rate,
             betas=(optimizer_config.beta1, optimizer_config.beta2),
             weight_decay=optimizer_config.weight_decay,

@@ -7,7 +7,8 @@ import logging
 
 from models import MAGVITv2, MMadaConfig, MMadaModelLM
 from transformers import AutoConfig, AutoTokenizer
-from utils.optim import create_optimizer
+
+from mindspore.experimental import optim
 
 logger = logging.getLogger(__name__)
 
@@ -135,13 +136,11 @@ def test_model_and_optimizer_initialization():
         ]
         # filter empty params
         optimizer_grouped_parameters = [d for d in optimizer_grouped_parameters if len(d["params"])]
-        optimizer_grouped_parameters.append({"order_params": trainable_params})
 
         optimizer_type = config.optimizer.name
         if optimizer_type == "adamw":
-            optimizer = create_optimizer(
+            optimizer = optim.AdamW(
                 optimizer_grouped_parameters,
-                name="adamw",
                 lr=config.optimizer.params.learning_rate,
                 betas=(config.optimizer.params.beta1, config.optimizer.params.beta2),
                 weight_decay=config.optimizer.params.weight_decay,

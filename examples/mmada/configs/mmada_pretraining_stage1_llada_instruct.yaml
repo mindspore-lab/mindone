@@ -37,17 +37,17 @@ dataset:
     und_type: "captioning"
     combined_loader_mode: "max_size_cycle"
     params:
-        train_t2i_shards_path_or_url: "/data_storage/shared/datasets/imagenet-1k/data/train"
-        train_mmu_shards_path_or_url: [ "/data_storage/shared/datasets/SA-1B/sa_{000000..000999}.tar",
-                                        "/data_storage/shared/datasets/cc12m/raw/raw/{0000..0999}.tar",
-                                      "/data_storage/shared/datasets/laion-aesthetics-12m/{00000..00999}.tar"
+        train_t2i_shards_path_or_url: "train_datasets/imagenet-1k/data/train/"
+        train_mmu_shards_path_or_url: [ #"/data_storage/shared/datasets/SA-1B/sa_{000000..000999}.tar",
+                                       # "/data_storage/shared/datasets/cc12m/raw/raw/{0000..0999}.tar",
+                                      "train_datasets/laion-aesthetics-12m-data/{00000..00000}.tar"
         ]
-        train_lm_shards_path_or_url: "/data_storage/shared/datasets/falcon-refinedweb/data/data/*.parquet"
+        train_lm_shards_path_or_url: "train_datasets/falcon-refinedweb/data/*parquet"
         add_caption_prompt: True
-        external_caption_path: "/data_storage/shared/datasets/SAM-LLaVA-Captions10M"
-        external_journeydb_caption_path: "/data_storage/shared/datasets/journeydb_anno/train_journeydb_anno.json"
-        external_laion12m_caption_path: "/data_storage/shared/datasets/laion-aesthetic-12m-captions"
-        external_cc12m_caption_path: "/data_storage/shared/datasets/cc12m/captions"
+        external_caption_path: ""
+        external_journeydb_caption_path: ""
+        external_laion12m_caption_path: ""
+        external_cc12m_caption_path: ""
         validation_prompts_file: "validation_prompts/imagenet_prompts.txt"
         mmu_image_root: "/data_storage/ty/MMaDA/mmu_validation"
         shuffle_buffer_size: 1000
@@ -77,6 +77,7 @@ lr_scheduler:
     params:
         learning_rate: ${optimizer.params.learning_rate}
         warmup_steps: 5000
+        min_lr_scale: 0.1
 
 training:
     gradient_accumulation_steps: 2
