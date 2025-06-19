@@ -13,18 +13,9 @@ from ..models.mmdit import MMDiTModel
 from ..utils.inference import collect_references_batch, prepare_inference_condition
 from ..utils.sampling import SamplingOption
 from .denoisers import Denoiser
+from .utils_v2 import get_res_lin_function, time_shift
 
 __all__ = ["InferPipelineV2"]
-
-
-def time_shift(alpha: float, t: np.ndarray) -> np.ndarray:
-    return alpha * t / (1 + (alpha - 1) * t)
-
-
-def get_res_lin_function(x1: float = 256, y1: float = 1, x2: float = 4096, y2: float = 3) -> callable:
-    m = (y2 - y1) / (x2 - x1)
-    b = y1 - m * x1
-    return lambda x: m * x + b
 
 
 def get_schedule(
@@ -65,32 +56,18 @@ def unpack(x: Tensor, height: int, width: int, num_frames: int, patch_size: int 
 
 
 class InferPipelineV2:
-    """An Inference pipeline for diffusion model
-
-    Args:
-        model (nn.Cell): A noise prediction model to denoise the encoded image latents.
-        vae (nn.Cell): Variational Auto-Encoder (VAE) Model to encode and decode images or videos to and from latent representations.
-        scale_factor (float): scale_factor for vae.
-        guidance_rescale (float): A higher guidance scale value for noise rescale.
-        num_inference_steps: (int): The number of denoising steps.
-        sampling (str): sampling method, should be one of ['ddpm', 'ddim', 'rflow'].
-    """
-
     def __init__(
         self,
         model: MMDiTModel,
         model_ae,
+        denoiser: Denoiser,
         t5_encoder: Optional[nn.Cell] = None,
         clip_encoder: Optional[nn.Cell] = None,
-        scale_factor=1.0,
-        guidance_rescale=1.0,
-        guidance_channels: Optional[int] = None,
         num_inference_steps=50,
-        sampling: Literal["ddpm", "ddim", "rflow"] = "ddpm",
-        micro_batch_size=None,
     ):
         self.model = model
         self.vae = model_ae
+        self.denoiser = denoiser
         self.t5_enc = t5_encoder
         self.clip_enc = clip_encoder
         self.num_steps = num_inference_steps
@@ -102,7 +79,7 @@ class InferPipelineV2:
         cond_type: Literal["t2i", "t2v", "i2v", "v2v"] = "t2i",
         is_causal_vae: bool = False,
     ) -> Tensor:
-        x = self.vae.decode(x.to(mstype.bfloat16)).to(mstype.float32)  # FIXME
+        x = self.vae.decode(x.to(self.vae.dtype)).to(mstype.float32)
         x = x[:, :, :num_frames]  # image
 
         # remove the duplicate frames
@@ -215,13 +192,11 @@ class InferPipelineV2:
         neg_t5_emb: Optional[np.ndarray],
         clip_emb: Optional[np.ndarray],
         neg_clip_emb: Optional[np.ndarray],
-        denoiser: Denoiser,
         opt: SamplingOption,
         neg: list[str] = None,
         frames_mask: Optional[Tensor] = None,
         additional_kwargs: Optional[dict] = None,
         patch_size: int = 2,
-        channel: int = 16,
         cond_type: Literal["t2i", "t2v", "i2v", "v2v"] = "t2i",
         references: Optional[list[str]] = None,
     ) -> Tuple[Union[Tensor, None], Tensor]:
@@ -246,7 +221,7 @@ class InferPipelineV2:
             num_frames,
             # seed,
             patch_size=patch_size,
-            channel=channel // (patch_size**2),
+            channel=self.model.in_channels // (patch_size**2),
         )
 
         # step 3: collect references
@@ -274,7 +249,7 @@ class InferPipelineV2:
         )
 
         # step 5: prepare classifier-free guidance data (method specific)
-        out, additional_inp = denoiser.prepare_guidance(
+        out, additional_inp = self.denoiser.prepare_guidance(
             text=text,
             neg=neg,
             guidance_img=opt.guidance_img,
@@ -309,7 +284,7 @@ class InferPipelineV2:
             inp["masks"] = masks
             inp["masked_ref"] = masked_ref
 
-        x = denoiser.denoise(
+        x = self.denoiser.denoise(
             self.model,
             **inp,
             timesteps=timesteps,
