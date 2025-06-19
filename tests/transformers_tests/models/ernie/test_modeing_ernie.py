@@ -144,7 +144,6 @@ BERT_CASES = [
         {
             "attention_mask": np.repeat(np.expand_dims(input_mask, 1), model_tester.num_choices, 1),
             "token_type_ids": np.repeat(np.expand_dims(token_type_ids, 1), model_tester.num_choices, 1),
-            "labels": choice_labels,
         },
         {
             "loss": 0,
@@ -179,7 +178,6 @@ BERT_CASES = [
         (input_ids,),
         {
             "attention_mask": input_mask,
-            "labels": token_labels,
         },
         {
             "logits": 1,
