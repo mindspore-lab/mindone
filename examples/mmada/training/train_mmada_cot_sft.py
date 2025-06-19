@@ -238,7 +238,7 @@ def main():
 
         train_dataloader_t2i = create_dataloader(
             dataset_imagenet,
-            column_names=["image", "input_ids", "class_ids"],
+            column_names=["images", "input_ids", "class_ids"],
             batch_size=config.training.batch_size_t2i,
             sampler=sampler,
             shuffle=shuffle,
@@ -362,8 +362,6 @@ def main():
     #################################
     logger.info("Preparing model, optimizer and dataloaders")
 
-    mask_dtype = model.get_input_embeddings().weight.dtype
-
     ##################################
     #             Training          #
     #################################
@@ -471,7 +469,7 @@ def main():
 
     for epoch in range(first_epoch, num_train_epochs):
         model.set_train(True)
-        for batch, batch_idx, dataloader_idx in combined_dataloader:
+        for batch in combined_dataloader:
             # for loss calculation
             batch_size_t2i = batch["t2i_flow"]["images"].shape[0]
             batch_size_lm = len(batch["lm_flow"]["input_ids"])
@@ -753,7 +751,6 @@ def generate_images(model, vq_model, uni_prompting, config, global_step, mask_sc
     with open(config.dataset.params.validation_prompts_file, "r") as f:
         validation_prompts = f.read().splitlines()
 
-    mask_dtype = model.get_input_embeddings().weight.dtype
     mask_token_id = model.config.mask_token_id
     image_tokens = (
         mint.ones((len(validation_prompts), config.model.mmada.num_vq_tokens), dtype=ms.int64) * mask_token_id

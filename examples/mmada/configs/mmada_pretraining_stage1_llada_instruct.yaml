@@ -14,7 +14,7 @@ experiment:
     generate_every: 1000
     log_every: 50
     log_grad_norm_every: 100
-    resume_from_checkpoint: "latest"
+    resume_from_checkpoint: False
 
 model:
     vq_model:

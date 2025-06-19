@@ -143,7 +143,7 @@ def create_dataloaders(config):
 
         train_dataloader_t2i = create_dataloader(
             dataset_imagenet,
-            column_names=["image", "input_ids", "class_ids"],
+            column_names=["images", "input_ids", "class_ids"],
             batch_size=config.training.batch_size_t2i,
             sampler=sampler,
             shuffle=shuffle,
