@@ -463,35 +463,50 @@ def main():
                         batch["mmu_flow"]["input_ids"],
                         batch["mmu_flow"]["labels"],
                     )
+                    if not isinstance(pixel_values_mmu, ms.Tensor):
+                        pixel_values_mmu = ms.Tensor(pixel_values_mmu)
+
+                    if not isinstance(input_ids_mmu, ms.Tensor):
+                        input_ids_mmu = ms.Tensor(input_ids_mmu)
 
                     image_tokens_mmu = vq_model.get_code(pixel_values_mmu)
                     image_tokens_mmu = image_tokens_mmu + len(uni_prompting.text_tokenizer)
 
                     input_ids_mmu = mint.cat(
                         [
-                            (mint.ones((input_ids_mmu.shape[0], 1)) * uni_prompting.sptids_dict["<|mmu|>"]),
-                            (mint.ones((input_ids_mmu.shape[0], 1)) * uni_prompting.sptids_dict["<|soi|>"]),
-                            image_tokens_mmu,
-                            (mint.ones((input_ids_mmu.shape[0], 1)) * uni_prompting.sptids_dict["<|eoi|>"]),
-                            input_ids_mmu,
+                            (mint.ones((input_ids_mmu.shape[0], 1)) * uni_prompting.sptids_dict["<|mmu|>"]).to(
+                                ms.int32
+                            ),
+                            (mint.ones((input_ids_mmu.shape[0], 1)) * uni_prompting.sptids_dict["<|soi|>"]).to(
+                                ms.int32
+                            ),
+                            image_tokens_mmu.to(ms.int32),
+                            (mint.ones((input_ids_mmu.shape[0], 1)) * uni_prompting.sptids_dict["<|eoi|>"]).to(
+                                ms.int32
+                            ),
+                            input_ids_mmu.to(ms.int32),
                         ],
                         dim=1,
-                    ).to(ms.int32)
+                    )
 
                     labels_mmu = mint.cat(
                         [
-                            (mint.ones((input_ids_mmu.shape[0], 1)) * uni_prompting.ignore_id),
-                            (mint.ones((input_ids_mmu.shape[0], 1)) * uni_prompting.ignore_id),
-                            mint.ones_like(image_tokens_mmu) * uni_prompting.ignore_id,
-                            (mint.ones((input_ids_mmu.shape[0], 1)) * uni_prompting.ignore_id),
-                            labels_mmu,
+                            (mint.ones((input_ids_mmu.shape[0], 1)) * uni_prompting.ignore_id).to(ms.int32),
+                            (mint.ones((input_ids_mmu.shape[0], 1)) * uni_prompting.ignore_id).to(ms.int32),
+                            (mint.ones_like(image_tokens_mmu) * uni_prompting.ignore_id).to(ms.int32),
+                            (mint.ones((input_ids_mmu.shape[0], 1)) * uni_prompting.ignore_id).to(ms.int32),
+                            labels_mmu.to(ms.int32),
                         ],
                         dim=1,
-                    ).to(ms.int32)
+                    )
 
                 else:
                     pixel_values_mmu, texts_mmu = batch["mmu_flow"]["images"], batch["mmu_flow"]["input_ids"]
+                    if not isinstance(pixel_values_mmu, ms.Tensor):
+                        pixel_values_mmu = ms.Tensor(pixel_values_mmu)
 
+                    if not isinstance(texts_mmu, (list, tuple)):
+                        texts_mmu = [str(t) for t in texts_mmu]
                     image_tokens_mmu = vq_model.get_code(pixel_values_mmu)
                     image_tokens_mmu = image_tokens_mmu + len(uni_prompting.text_tokenizer)
 
