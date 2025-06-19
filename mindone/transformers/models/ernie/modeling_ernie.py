@@ -607,7 +607,7 @@ class ErnieLMPredictionHead(nn.Cell):
         # an output-only bias for each token.
         self.decoder = mint.nn.Linear(config.hidden_size, config.vocab_size, bias=False)
 
-        self.bias = nn.Parameter(mint.zeros(config.vocab_size))
+        self.bias = ms.Parameter(mint.zeros(config.vocab_size))
 
         # Need a link between the two variables so that the bias is correctly resized with `resize_token_embeddings`
         self.decoder.bias = self.bias
