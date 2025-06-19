@@ -121,19 +121,21 @@ def test_model_and_optimizer_initialization():
 
     try:
         # no decay on bias and layernorm and embedding
-        no_decay = ["bias", "layer_norm.weight", "mlm_ln.weight", "embeddings.weight"]
-        trainble_params = model.trainable_params()
+        no_decay = ["bias", "layer_norm.weight", "mlm_ln.weight", "embeddings.weight", "embeddings.embedding_table"]
+        trainable_params = model.trainable_params()
         optimizer_grouped_parameters = [
             {
-                "params": [p for p in trainble_params if not any(nd in p.name for nd in no_decay)],
+                "params": [p for p in trainable_params if not any(nd in p.name for nd in no_decay)],
                 "weight_decay": config.optimizer.params.weight_decay,
             },
             {
-                "params": [p for p in trainble_params if any(nd in p.name for nd in no_decay)],
+                "params": [p for p in trainable_params if any(nd in p.name for nd in no_decay)],
                 "weight_decay": 0.0,
             },
         ]
-        optimizer_grouped_parameters.append({"order_params": trainble_params})
+        # filter empty params
+        optimizer_grouped_parameters = {d for d in optimizer_grouped_parameters if len(d["params"])}
+        optimizer_grouped_parameters.append({"order_params": trainable_params})
 
         optimizer_type = config.optimizer.name
         if optimizer_type == "adamw":
