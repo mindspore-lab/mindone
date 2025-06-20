@@ -580,14 +580,15 @@ else:
             self.bias = None
 
             if elementwise_affine:
-                self.weight = ms.Parameter(ops.ones(dim), name="weight")
+                self.weight = ms.Parameter(mint.ones(dim), name="weight")
                 if bias:
-                    self.bias = ms.Parameter(ops.zeros(dim), name="bias")
+                    self.bias = ms.Parameter(mint.zeros(dim), name="bias")
 
         def construct(self, hidden_states):
             input_dtype = hidden_states.dtype
-            variance = hidden_states.to(ms.float32).pow(2).mean(-1, keep_dims=True)
-            hidden_states = hidden_states * ops.rsqrt(variance + self.eps)
+            # variance = hidden_states.to(ms.float32).pow(2).mean(-1, keep_dims=True)
+            variance = mint.pow(hidden_states.to(ms.float32), 2).mean(-1, keepdim=True)
+            hidden_states = hidden_states * mint.rsqrt(variance + self.eps)
 
             if self.weight is not None:
                 # convert into half-precision if necessary
