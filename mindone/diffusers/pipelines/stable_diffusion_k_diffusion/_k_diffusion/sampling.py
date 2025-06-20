@@ -126,11 +126,11 @@ class BrownianTreeNoiseSampler:
 
     def __init__(self, x, sigma_min, sigma_max, seed=None, transform=lambda x: x):
         self.transform = transform
-        t0, t1 = self.transform(ms.Tensor(sigma_min)), self.transform(ms.Tensor(sigma_max))
+        t0, t1 = self.transform(ms.tensor(sigma_min)), self.transform(ms.tensor(sigma_max))
         self.tree = BatchedBrownianTree(x, t0, t1, seed)
 
     def __call__(self, sigma, sigma_next):
-        t0, t1 = self.transform(ms.Tensor(sigma)), self.transform(ms.Tensor(sigma_next))
+        t0, t1 = self.transform(ms.tensor(sigma)), self.transform(ms.tensor(sigma_next))
         return self.tree(t0, t1) / (t1 - t0).abs().sqrt()
 
 

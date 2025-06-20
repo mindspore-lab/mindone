@@ -8,7 +8,7 @@ from transformers import CLIPTextConfig
 import mindspore as ms
 
 from mindone.diffusers import StableDiffusion3PAGPipeline
-from mindone.diffusers.utils.testing_utils import load_downloaded_numpy_from_hf_hub, slow
+from mindone.diffusers.utils.testing_utils import load_numpy_from_local_file, slow
 
 from ..pipeline_test_utils import (
     THRESHOLD_FP16,
@@ -228,8 +228,8 @@ class StableDiffusion3PAGPipelineIntegrationTests(PipelineTesterMixin, unittest.
         torch.manual_seed(0)
         image = pipe(prompt, guidance_scale=5.0, pag_scale=0.7)[0][0]
 
-        expected_image = load_downloaded_numpy_from_hf_hub(
-            "The-truth/mindone-testing-arrays",
+        expected_image = load_numpy_from_local_file(
+            "mindone-testing-arrays",
             f"sd3_{dtype}.npy",
             subfolder="pag",
         )

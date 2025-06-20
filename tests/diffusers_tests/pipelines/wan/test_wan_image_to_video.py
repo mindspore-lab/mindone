@@ -24,11 +24,7 @@ from transformers import CLIPVisionConfig
 import mindspore as ms
 
 from mindone.diffusers import AutoencoderKLWan, WanImageToVideoPipeline
-from mindone.diffusers.utils.testing_utils import (
-    load_downloaded_image_from_hf_hub,
-    load_downloaded_numpy_from_hf_hub,
-    slow,
-)
+from mindone.diffusers.utils.testing_utils import load_downloaded_image_from_hf_hub, load_numpy_from_local_file, slow
 from mindone.transformers import CLIPVisionModel
 
 from ..pipeline_test_utils import (
@@ -254,8 +250,8 @@ class WanImageToVideoPipelineIntegrationTests(PipelineTesterMixin, unittest.Test
         )[0][0][1]
         image = Image.fromarray((image * 255).astype("uint8"))
 
-        expected_image = load_downloaded_numpy_from_hf_hub(
-            "The-truth/mindone-testing-arrays",
+        expected_image = load_numpy_from_local_file(
+            "mindone-testing-arrays",
             f"wan_i2v_{dtype}.npy",
             subfolder="wan",
         )

@@ -17,7 +17,6 @@ from mindspore import mint
 
 from ...configuration_utils import ConfigMixin, register_to_config
 from ...models import ModelMixin
-from ...models.normalization import LayerNorm
 
 
 class UnCLIPTextProjModel(ModelMixin, ConfigMixin):
@@ -53,7 +52,7 @@ class UnCLIPTextProjModel(ModelMixin, ConfigMixin):
             clip_embeddings_dim, self.clip_extra_context_tokens * cross_attention_dim
         )
         self.encoder_hidden_states_proj = mint.nn.Linear(clip_embeddings_dim, cross_attention_dim)
-        self.text_encoder_hidden_states_norm = LayerNorm(cross_attention_dim)
+        self.text_encoder_hidden_states_norm = mint.nn.LayerNorm(cross_attention_dim)
 
     def construct(self, *, image_embeddings, prompt_embeds, text_encoder_hidden_states, do_classifier_free_guidance):
         if do_classifier_free_guidance:

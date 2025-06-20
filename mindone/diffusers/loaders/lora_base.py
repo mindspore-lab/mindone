@@ -26,9 +26,10 @@ import mindspore as ms
 from mindspore import nn
 
 from mindone.safetensors.mindspore import load_file, save_file
-from mindone.transformers import CLIPTextModel, CLIPTextModelWithProjection, MSPreTrainedModel
+from mindone.transformers import MSPreTrainedModel
 
 from .._peft.tuners.tuners_utils import BaseTunerLayer
+from ..models.lora import text_encoder_attn_modules, text_encoder_mlp_modules
 from ..models.modeling_utils import ModelMixin
 from ..utils import (
     _get_model_file,
@@ -296,34 +297,6 @@ def _best_guess_weight_name(
     return weight_name
 
 
-def text_encoder_attn_modules(text_encoder):
-    attn_modules = []
-
-    if isinstance(text_encoder, (CLIPTextModel, CLIPTextModelWithProjection)):
-        for i, layer in enumerate(text_encoder.text_model.encoder.layers):
-            name = f"text_model.encoder.layers.{i}.self_attn"
-            mod = layer.self_attn
-            attn_modules.append((name, mod))
-    else:
-        raise ValueError(f"Do not know how to get attention modules for: {text_encoder.__class__.__name__}")
-
-    return attn_modules
-
-
-def text_encoder_mlp_modules(text_encoder):
-    mlp_modules = []
-
-    if isinstance(text_encoder, (CLIPTextModel, CLIPTextModelWithProjection)):
-        for i, layer in enumerate(text_encoder.text_model.encoder.layers):
-            mlp_mod = layer.mlp
-            name = f"text_model.encoder.layers.{i}.mlp"
-            mlp_modules.append((name, mlp_mod))
-    else:
-        raise ValueError(f"Do not know how to get mlp modules for: {text_encoder.__class__.__name__}")
-
-    return mlp_modules
-
-
 def _load_lora_into_text_encoder(
     state_dict,
     network_alphas,
@@ -333,89 +306,98 @@ def _load_lora_into_text_encoder(
     text_encoder_name="text_encoder",
     adapter_name=None,
     _pipeline=None,
+    hotswap: bool = False,
 ):
     from mindone.diffusers._peft import LoraConfig
 
     # If the serialization format is new (introduced in https://github.com/huggingface/diffusers/pull/2918),
     # then the `state_dict` keys should have `unet_name` and/or `text_encoder_name` as
     # their prefixes.
-    keys = list(state_dict.keys())
     prefix = text_encoder_name if prefix is None else prefix
 
     # Safe prefix to check with.
-    if any(text_encoder_name in key for key in keys):
-        # Load the layers corresponding to text encoder and make necessary adjustments.
-        text_encoder_keys = [k for k in keys if k.startswith(prefix) and k.split(".")[0] == prefix]
-        text_encoder_lora_state_dict = {
-            k.replace(f"{prefix}.", ""): v for k, v in state_dict.items() if k in text_encoder_keys
-        }
+    if hotswap and any(text_encoder_name in key for key in state_dict.keys()):
+        raise ValueError("At the moment, hotswapping is not supported for text encoders, please pass `hotswap=False`.")
 
-        if len(text_encoder_lora_state_dict) > 0:
-            logger.info(f"Loading {prefix}.")
-            rank = {}
-            text_encoder_lora_state_dict = convert_state_dict_to_diffusers(text_encoder_lora_state_dict)
+    # Load the layers corresponding to text encoder and make necessary adjustments.
+    if prefix is not None:
+        state_dict = {k[len(f"{prefix}.") :]: v for k, v in state_dict.items() if k.startswith(f"{prefix}.")}
 
-            # convert state dict
-            text_encoder_lora_state_dict = convert_state_dict_to_peft(text_encoder_lora_state_dict)
+    if len(state_dict) > 0:
+        logger.info(f"Loading {prefix}.")
+        rank = {}
+        state_dict = convert_state_dict_to_diffusers(state_dict)
 
-            for name, _ in text_encoder_attn_modules(text_encoder):
-                for module in ("out_proj", "q_proj", "k_proj", "v_proj"):
-                    rank_key = f"{name}.{module}.lora_B.weight"
-                    if rank_key not in text_encoder_lora_state_dict:
-                        continue
-                    rank[rank_key] = text_encoder_lora_state_dict[rank_key].shape[1]
+        # convert state dict
+        state_dict = convert_state_dict_to_peft(state_dict)
 
-            for name, _ in text_encoder_mlp_modules(text_encoder):
-                for module in ("fc1", "fc2"):
-                    rank_key = f"{name}.{module}.lora_B.weight"
-                    if rank_key not in text_encoder_lora_state_dict:
-                        continue
-                    rank[rank_key] = text_encoder_lora_state_dict[rank_key].shape[1]
+        for name, _ in text_encoder_attn_modules(text_encoder):
+            for module in ("out_proj", "q_proj", "k_proj", "v_proj"):
+                rank_key = f"{name}.{module}.lora_B.weight"
+                if rank_key not in state_dict:
+                    continue
+                rank[rank_key] = state_dict[rank_key].shape[1]
 
-            if network_alphas is not None:
-                alpha_keys = [k for k in network_alphas.keys() if k.startswith(prefix) and k.split(".")[0] == prefix]
-                network_alphas = {k.replace(f"{prefix}.", ""): v for k, v in network_alphas.items() if k in alpha_keys}
+        for name, _ in text_encoder_mlp_modules(text_encoder):
+            for module in ("fc1", "fc2"):
+                rank_key = f"{name}.{module}.lora_B.weight"
+                if rank_key not in state_dict:
+                    continue
+                rank[rank_key] = state_dict[rank_key].shape[1]
 
-            lora_config_kwargs = get_peft_kwargs(rank, network_alphas, text_encoder_lora_state_dict, is_unet=False)
+        if network_alphas is not None:
+            alpha_keys = [k for k in network_alphas.keys() if k.startswith(prefix) and k.split(".")[0] == prefix]
+            network_alphas = {k.replace(f"{prefix}.", ""): v for k, v in network_alphas.items() if k in alpha_keys}
 
-            if "use_dora" in lora_config_kwargs:
-                if lora_config_kwargs["use_dora"]:
-                    if is_peft_version("<", "0.9.0"):
-                        raise ValueError(
-                            "You need `peft` 0.9.0 at least to use DoRA-enabled LoRAs. Please upgrade your installation of `peft`."
-                        )
-                else:
-                    if is_peft_version("<", "0.9.0"):
-                        lora_config_kwargs.pop("use_dora")
+        lora_config_kwargs = get_peft_kwargs(rank, network_alphas, state_dict, is_unet=False)
 
-            if "lora_bias" in lora_config_kwargs:
-                if lora_config_kwargs["lora_bias"]:
-                    if is_peft_version("<=", "0.13.2"):
-                        raise ValueError(
-                            "You need `peft` 0.14.0 at least to use `bias` in LoRAs. Please upgrade your installation of `peft`."
-                        )
-                else:
-                    if is_peft_version("<=", "0.13.2"):
-                        lora_config_kwargs.pop("lora_bias")
+        if "use_dora" in lora_config_kwargs:
+            if lora_config_kwargs["use_dora"]:
+                if is_peft_version("<", "0.9.0"):
+                    raise ValueError(
+                        "You need `peft` 0.9.0 at least to use DoRA-enabled LoRAs. Please upgrade your installation of `peft`."
+                    )
+            else:
+                if is_peft_version("<", "0.9.0"):
+                    lora_config_kwargs.pop("use_dora")
 
-            lora_config = LoraConfig(**lora_config_kwargs)
+        if "lora_bias" in lora_config_kwargs:
+            if lora_config_kwargs["lora_bias"]:
+                if is_peft_version("<=", "0.13.2"):
+                    raise ValueError(
+                        "You need `peft` 0.14.0 at least to use `bias` in LoRAs. Please upgrade your installation of `peft`."
+                    )
+            else:
+                if is_peft_version("<=", "0.13.2"):
+                    lora_config_kwargs.pop("lora_bias")
 
-            # adapter_name
-            if adapter_name is None:
-                adapter_name = get_adapter_name(text_encoder)
+        lora_config = LoraConfig(**lora_config_kwargs)
 
-            # inject LoRA layers and load the state dict
-            # in transformers we automatically check whether the adapter name is already in use or not
-            text_encoder.load_adapter(
-                adapter_name=adapter_name,
-                adapter_state_dict=text_encoder_lora_state_dict,
-                peft_config=lora_config,
-            )
+        # adapter_name
+        if adapter_name is None:
+            adapter_name = get_adapter_name(text_encoder)
 
-            # scale LoRA layers with `lora_scale`
-            scale_lora_layers(text_encoder, weight=lora_scale)
+        # inject LoRA layers and load the state dict
+        # in transformers we automatically check whether the adapter name is already in use or not
+        text_encoder.load_adapter(
+            adapter_name=adapter_name,
+            adapter_state_dict=state_dict,
+            peft_config=lora_config,
+        )
 
-            text_encoder.to(dtype=text_encoder.dtype)
+        # scale LoRA layers with `lora_scale`
+        scale_lora_layers(text_encoder, weight=lora_scale)
+
+        text_encoder.to(dtype=text_encoder.dtype)
+
+    if prefix is not None and not state_dict:
+        logger.warning(
+            f"No LoRA keys associated to {text_encoder.__class__.__name__} found with the {prefix=}. "
+            "This is safe to ignore if LoRA state dict didn't originally have any "
+            f"{text_encoder.__class__.__name__} related params. You can also try specifying `prefix=None` "
+            "to resolve the warning. Otherwise, open an issue if you think it's unexpected: "
+            "https://github.com/huggingface/diffusers/issues/new"
+        )
 
 
 class LoraBaseMixin:
@@ -613,8 +595,20 @@ class LoraBaseMixin:
         adapter_names: Union[List[str], str],
         adapter_weights: Optional[Union[float, Dict, List[float], List[Dict]]] = None,
     ):
-        adapter_names = [adapter_names] if isinstance(adapter_names, str) else adapter_names
+        if isinstance(adapter_weights, dict):
+            components_passed = set(adapter_weights.keys())
+            lora_components = set(self._lora_loadable_modules)
 
+            invalid_components = sorted(components_passed - lora_components)
+            if invalid_components:
+                logger.warning(
+                    f"The following components in `adapter_weights` are not part of the pipeline: {invalid_components}. "
+                    f"Available components that are LoRA-compatible: {self._lora_loadable_modules}. So, weights belonging "
+                    "to the invalid components will be removed and ignored."
+                )
+                adapter_weights = {k: v for k, v in adapter_weights.items() if k not in invalid_components}
+
+        adapter_names = [adapter_names] if isinstance(adapter_names, str) else adapter_names
         adapter_weights = copy.deepcopy(adapter_weights)
 
         # Expand weights into a list, one entry per adapter
@@ -647,12 +641,6 @@ class LoraBaseMixin:
             for adapter_name, weights in zip(adapter_names, adapter_weights):
                 if isinstance(weights, dict):
                     component_adapter_weights = weights.pop(component, None)
-
-                    if component_adapter_weights is not None and not hasattr(self, component):
-                        logger.warning(
-                            f"Lora weight dict contains {component} weights but will be ignored because pipeline does not have {component}."
-                        )
-
                     if component_adapter_weights is not None and component not in invert_list_adapters[adapter_name]:
                         logger.warning(
                             (
@@ -800,3 +788,23 @@ class LoraBaseMixin:
         # property function that returns the lora scale which can be set at run time by the pipeline.
         # if _lora_scale has not been set, return 1
         return self._lora_scale if hasattr(self, "_lora_scale") else 1.0
+
+    def enable_lora_hotswap(self, **kwargs) -> None:
+        """Enables the possibility to hotswap LoRA adapters.
+
+        Calling this method is only required when hotswapping adapters and if the model is compiled or if the ranks of
+        the loaded adapters differ.
+
+        Args:
+            target_rank (`int`):
+                The highest rank among all the adapters that will be loaded.
+            check_compiled (`str`, *optional*, defaults to `"error"`):
+                How to handle the case when the model is already compiled, which should generally be avoided. The
+                options are:
+                  - "error" (default): raise an error
+                  - "warn": issue a warning
+                  - "ignore": do nothing
+        """
+        for key, component in self.components.items():
+            if hasattr(component, "enable_lora_hotswap") and (key in self._lora_loadable_modules):
+                component.enable_lora_hotswap(**kwargs)
