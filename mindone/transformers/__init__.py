@@ -179,6 +179,7 @@ from .models.levit import (
 )
 from .models.llama import LlamaForCausalLM, LlamaForSequenceClassification, LlamaModel, LlamaPreTrainedModel
 from .models.llava import LlavaConfig, LlavaForConditionalGeneration
+from .models.marian import MarianForCausalLM, MarianModel, MarianMTModel, MarianPreTrainedModel
 from .models.megatron_bert import (
     MegatronBertForCausalLM,
     MegatronBertForMaskedLM,
