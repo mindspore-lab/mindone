@@ -51,6 +51,7 @@ def get_vq_model_class(model_type):
 def main():
     config = get_config()
     config.experiment.logging_dir = str(Path(config.experiment.output_dir) / "logs")
+    os.makedirs(config.experiment.logging_dir, exist_ok=True)
     LOG_FILE = os.path.join(config.experiment.logging_dir, "loss.log")
     total_batch_size_per_device = (
         config.training.batch_size_t2i + config.training.batch_size_lm + config.training.batch_size_mmu
@@ -588,19 +589,24 @@ def main():
                 # resetting batch / data time meters per log window
                 batch_time_m.reset()
                 data_time_m.reset()
-
-            if not os.path.exists(LOG_FILE):
-                with open(LOG_FILE, "w", encoding="utf-8") as fp:
-                    fp.write("\t".join(["step", "loss", "per step time (s)"]) + "\n")
-            else:
-                with open(LOG_FILE, "a", encoding="utf-8") as fp:
-                    fp.write(
-                        "\t".join(
-                            [f"{global_step + 1:<7}", f"{loss.asnumpy().item():<10.6f}", f"{batch_time_m.val:<13.3f}"]
+            try:
+                if not os.path.exists(LOG_FILE):
+                    with open(LOG_FILE, "w", encoding="utf-8") as fp:
+                        fp.write("\t".join(["step", "loss", "per step time (s)"]) + "\n")
+                else:
+                    with open(LOG_FILE, "a", encoding="utf-8") as fp:
+                        fp.write(
+                            "\t".join(
+                                [
+                                    f"{global_step + 1:<7}",
+                                    f"{loss.asnumpy().item():<10.6f}",
+                                    f"{batch_time_m.val:<13.3f}",
+                                ]
+                            )
+                            + "\n"
                         )
-                        + "\n"
-                    )
-
+            except (IOError, PermissionError) as e:
+                logger.error(f"Failed to write log: {e}")
             # Save model checkpoint
             if (global_step + 1) % config.experiment.save_every == 0:
                 save_checkpoint(model.network, config, global_step + 1)
