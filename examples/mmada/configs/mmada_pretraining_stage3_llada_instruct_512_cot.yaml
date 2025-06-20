@@ -14,6 +14,7 @@ experiment:
     resume_from_checkpoint: "latest"
     val_every: 50
     max_val_examples_t2i: 2000
+    profile: False
 
 model:
     vq_model:

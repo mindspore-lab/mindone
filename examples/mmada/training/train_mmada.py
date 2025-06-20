@@ -60,6 +60,13 @@ def main():
         config.training.batch_size_t2i + config.training.batch_size_lm + config.training.batch_size_mmu
     ) * config.training.gradient_accumulation_steps
 
+    if config.experiment.profile:
+        profiler = ms.Profiler(output_path="./mem_info", profile_memory=True)
+        ms.set_context(memory_optimize_level="O0")
+        ms.set_context(pynative_synchronize=True)
+    else:
+        profiler = None
+
     #####################################
     # SETUP LOGGING, SEED and CONFIG    #
     #####################################
@@ -443,6 +450,9 @@ def main():
         clip_norm=config.training.max_grad_norm,
         ema=None,
     )
+    if profiler is not None:
+        profiler.start()
+        logger.info("Memroy profiling starts!")
     for epoch in range(first_epoch, num_train_epochs):
         model.set_train(True)
         for batch in combined_dataloader:
@@ -648,7 +658,11 @@ def main():
                 model.set_train(True)
 
             global_step += 1
-
+            if profiler is not None and global_step == 2:
+                # save first two steps
+                profiler.stop()
+                profiler.analyse()
+                logger.info("Memroy profiling and analysis is finished! Check ./mem_info!")
             if global_step >= config.training.max_train_steps:
                 break
 
