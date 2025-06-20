@@ -5,7 +5,7 @@ experiment:
     max_train_examples_t2i: 40000000
     max_train_examples_mmu: 40000000
     save_every: 10000
-    eval_every: 2500
+    eval_during_train: False
     generate_every: 1000
     log_every: 50
     log_grad_norm_every: 100

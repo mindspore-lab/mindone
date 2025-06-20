@@ -611,7 +611,9 @@ def main():
             if (global_step + 1) % config.experiment.save_every == 0:
                 save_checkpoint(model.network, config, global_step + 1)
 
-            if (global_step + 1) % config.experiment.generate_every == 0 or global_step == 0:
+            if (
+                (global_step + 1) % config.experiment.generate_every == 0 or global_step == 0
+            ) and config.experiment.eval_during_train:
                 model.set_train(False)
                 with no_grad():
                     generate_images(
