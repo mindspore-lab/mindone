@@ -318,17 +318,21 @@ def main():
         path = dirs[-1] if len(dirs) > 0 else None
         logger.info(f"path: {path}")
         # if mindspore checkpoint file exists
-        if len(glob.glob(os.path.join(path, "unwrapped_model", "*.ckpt"))):
+        if len(glob.glob(os.path.join(config.experiment.output_dir, path, "unwrapped_model", "*.ckpt"))):
             ckpt_path = sorted(glob.glob(os.path.join(path, "unwrapped_model", "*.ckpt")))[-1]
             logger.info(f"Resuming from checkpoint: {ckpt_path}")
             global_step = int(os.path.basename(ckpt_path).split("-")[1])
             first_epoch = global_step // num_update_steps_per_epoch
-            init_from_ckpt(model, path)
+            init_from_ckpt(model.network, path)
 
         # if safetensors sharded checkpoint exists
-        elif os.path.exists(f"{path}/unwrapped_model/model.safetensors.index.json"):
-            index_file = f"{path}/unwrapped_model/model.safetensors.index.json"
-            load_checkpoint_and_dispatch(model, index_file, mindspore_dtype=ms.float32)
+        elif os.path.exists(
+            os.path.join(config.experiment.output_dir, f"{path}/unwrapped_model/model.safetensors.index.json")
+        ):
+            index_file = os.path.join(
+                config.experiment.output_dir, f"{path}/unwrapped_model/model.safetensors.index.json"
+            )
+            load_checkpoint_and_dispatch(model.network, index_file, dtype=ms.float32, strict=True)
         else:
             raise FileNotFoundError(f"Checkpoint {path}/unwrapped_model/pytorch_model.bin not found")
     else:
