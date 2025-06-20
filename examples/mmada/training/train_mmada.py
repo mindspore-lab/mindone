@@ -3,6 +3,7 @@ import sys
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 os.environ["TOKENIZERS_PARALLELISM"] = "true"
+import glob
 import json
 import logging
 import math
@@ -30,6 +31,7 @@ import mindspore.mint as mint
 from mindspore.experimental import optim
 from mindspore.nn.wrap.loss_scale import DynamicLossScaleUpdateCell
 
+from mindone.diffusers.models.model_loading_utils import load_checkpoint_and_dispatch
 from utils import NetWithLoss, TrainOneStepWrapper, init_from_ckpt, no_grad
 
 SYSTEM_PROMPT_LEN = 28
@@ -308,18 +310,27 @@ def main():
     first_epoch = 0
 
     if config.experiment.resume_from_checkpoint:
+        assert config.experiment.resume_from_checkpoint == "latest"
         dirs = os.listdir(config.experiment.output_dir)
         logger.info(f"dirs: {dirs}")
         dirs = [d for d in dirs if d.startswith("checkpoint")]
         dirs = sorted(dirs, key=lambda x: int(x.split("-")[1]))
         path = dirs[-1] if len(dirs) > 0 else None
         logger.info(f"path: {path}")
-        if path is not None:
-            path = os.path.join(config.experiment.output_dir, path)
-            logger.info(f"Resuming from checkpoint: {path}")
-            global_step = int(os.path.basename(path).split("-")[1])
+        # if mindspore checkpoint file exists
+        if len(glob.glob(os.path.join(path, "unwrapped_model", "*.ckpt"))):
+            ckpt_path = sorted(glob.glob(os.path.join(path, "unwrapped_model", "*.ckpt")))[-1]
+            logger.info(f"Resuming from checkpoint: {ckpt_path}")
+            global_step = int(os.path.basename(ckpt_path).split("-")[1])
             first_epoch = global_step // num_update_steps_per_epoch
             init_from_ckpt(model, path)
+
+        # if safetensors sharded checkpoint exists
+        elif os.path.exists(f"{path}/unwrapped_model/model.safetensors.index.json"):
+            index_file = f"{path}/unwrapped_model/model.safetensors.index.json"
+            load_checkpoint_and_dispatch(model, index_file, mindspore_dtype=ms.float32)
+        else:
+            raise FileNotFoundError(f"Checkpoint {path}/unwrapped_model/pytorch_model.bin not found")
     else:
         logger.info("Not resuming from checkpoint")
 
@@ -519,10 +530,6 @@ def main():
                 input_ids = mint.cat((input_ids.to(ms.int32), input_ids_mmu.to(ms.int32)), dim=0)
                 labels = mint.cat((labels.to(ms.int32), labels_mmu.to(ms.int32)), dim=0)
 
-            if global_step == 0 and epoch == 0:
-                logger.info("Input ids: {}".format(input_ids))
-                logger.info("Labels: {}".format(labels))
-
             # compute_loss and logits
 
             loss, overflow, scaling_sens, extra_outputs = train_step_model(
@@ -623,7 +630,7 @@ def main():
     save_checkpoint(model.network, config, global_step)
 
     # Save the final trained checkpoint
-    model.save_pretrained(config.experiment.output_dir, safe_serialization=True)
+    model.network.save_pretrained(config.experiment.output_dir, safe_serialization=True)
 
 
 def visualize_predictions(

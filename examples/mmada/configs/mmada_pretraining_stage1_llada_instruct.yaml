@@ -1,8 +1,3 @@
-wandb:
-  entity: null
-#  run_id: askkz9i2
-  resume: 'auto'
-
 experiment:
     project: "mmada-training-stage1"
     name: "mmada-training-stage1-llada-instruct"
