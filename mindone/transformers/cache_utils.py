@@ -28,7 +28,7 @@ def init_static_cache(config: PretrainedConfig, max_batch_size: int, max_cache_l
 
     dtype = dtype if dtype is not None else ms.float32
     num_key_value_heads = (
-        config.num_attention_heads if config.num_key_value_heads is None else config.num_key_value_heads
+        config.num_attention_heads if getattr(config, "num_key_value_heads", None) is None else config.num_key_value_heads
     )
 
     key_value_cache: Tuple[Tuple[ms.Tensor, ms.Tensor]] = []
