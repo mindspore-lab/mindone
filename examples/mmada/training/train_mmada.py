@@ -593,18 +593,18 @@ def main():
                 if not os.path.exists(LOG_FILE):
                     with open(LOG_FILE, "w", encoding="utf-8") as fp:
                         fp.write("\t".join(["step", "loss", "per step time (s)"]) + "\n")
-                else:
-                    with open(LOG_FILE, "a", encoding="utf-8") as fp:
-                        fp.write(
-                            "\t".join(
-                                [
-                                    f"{global_step + 1:<7}",
-                                    f"{loss.asnumpy().item():<10.6f}",
-                                    f"{batch_time_m.val:<13.3f}",
-                                ]
-                            )
-                            + "\n"
+
+                with open(LOG_FILE, "a", encoding="utf-8") as fp:
+                    fp.write(
+                        "\t".join(
+                            [
+                                f"{global_step + 1:<7}",
+                                f"{loss.asnumpy().item():<10.6f}",
+                                f"{batch_time_m.val:<13.3f}",
+                            ]
                         )
+                        + "\n"
+                    )
             except (IOError, PermissionError) as e:
                 logger.error(f"Failed to write log: {e}")
             # Save model checkpoint
@@ -613,35 +613,36 @@ def main():
 
             if (global_step + 1) % config.experiment.generate_every == 0 or global_step == 0:
                 model.set_train(False)
-                generate_images(
-                    model.network,
-                    vq_model,
-                    uni_prompting,
-                    config,
-                    global_step + 1,
-                    mask_schedule=mask_schedule,
-                )
+                with no_grad():
+                    generate_images(
+                        model.network,
+                        vq_model,
+                        uni_prompting,
+                        config,
+                        global_step + 1,
+                        mask_schedule=mask_schedule,
+                    )
 
-                visualize_predictions(
-                    model.network,
-                    vq_model,
-                    uni_prompting,
-                    config,
-                    global_step + 1,
-                    input_ids,
-                    image_tokens_ori,
-                    ms.Tensor(batch["t2i_flow"]["images"]),
-                    texts,
-                    logits,
-                )
+                    visualize_predictions(
+                        model.network,
+                        vq_model,
+                        uni_prompting,
+                        config,
+                        global_step + 1,
+                        input_ids,
+                        image_tokens_ori,
+                        ms.Tensor(batch["t2i_flow"]["images"]),
+                        texts,
+                        logits,
+                    )
 
-                understanding_images(
-                    model.network,
-                    vq_model,
-                    uni_prompting,
-                    config,
-                    global_step + 1,
-                )
+                    understanding_images(
+                        model.network,
+                        vq_model,
+                        uni_prompting,
+                        config,
+                        global_step + 1,
+                    )
                 model.set_train(True)
 
             global_step += 1
