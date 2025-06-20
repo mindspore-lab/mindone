@@ -825,7 +825,6 @@ class BertModel(BertPreTrainedModel):
         self.output_hidden_states = config.output_hidden_states
         self.use_return_dict = config.use_return_dict
         self.is_decoder = config.is_decoder
-        self.use_cache = config.use_cache
         self.num_hidden_layers = config.num_hidden_layers
 
         self.token_type_ids = self.embeddings.token_type_ids if hasattr(self.embeddings, "token_type_ids") else None
@@ -889,7 +888,7 @@ class BertModel(BertPreTrainedModel):
         return_dict = return_dict if return_dict is not None else self.use_return_dict
 
         if self.is_decoder:
-            use_cache = use_cache if use_cache is not None else self.use_cache
+            use_cache = use_cache if use_cache is not None else self.config.use_cache
         else:
             use_cache = False
 
