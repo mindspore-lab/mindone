@@ -126,7 +126,13 @@ from .models.gemma import (
     GemmaModel,
     GemmaPreTrainedModel,
 )
-from .models.gemma2 import Gemma2Model, Gemma2PreTrainedModel
+from .models.gemma2 import (
+    Gemma2ForCausalLM,
+    Gemma2ForSequenceClassification,
+    Gemma2ForTokenClassification,
+    Gemma2Model,
+    Gemma2PreTrainedModel,
+)
 from .models.gemma3 import Gemma3ForCausalLM, Gemma3ForConditionalGeneration, Gemma3PreTrainedModel, Gemma3TextModel
 from .models.glm import (
     GlmForCausalLM,
