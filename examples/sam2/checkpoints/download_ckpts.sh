@@ -1,11 +1,3 @@
-#!/bin/bash
-
-# Copyright (c) Meta Platforms, Inc. and affiliates.
-# All rights reserved.
-
-# This source code is licensed under the license found in the
-# LICENSE file in the root directory of this source tree.
-
 # Use either wget or curl to download the checkpoints
 if command -v wget &> /dev/null; then
     CMD="wget"
