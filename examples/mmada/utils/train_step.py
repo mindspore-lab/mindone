@@ -110,8 +110,16 @@ class TrainOneStepWrapper(nn.TrainOneStepWithLossScaleCell):
         loss = self.network(*inputs)  # mini-batch loss
         if isinstance(loss, (list, tuple)) and len(loss) > 0:
             loss, extra_outputs = loss[0], loss[1:]
+
+            def compute_loss_fn(*inputs):
+                return self.network(*inputs)[0]
+
         else:
             extra_outputs = None
+
+            def compute_loss_fn(*inputs):
+                return self.network(*inputs)
+
         scaling_sens = self.scale_sense
 
         # check loss overflow. (after ms2.1, it's done together with gradient overflow checking)
@@ -126,7 +134,7 @@ class TrainOneStepWrapper(nn.TrainOneStepWithLossScaleCell):
         scaling_sens_filled = C.ones_like(loss) * F.cast(scaling_sens, F.dtype(loss))  # loss scale value
 
         # 1. compute gradients (of the up-scaled loss w.r.t. the model weights)
-        grads = self.grad(self.network, weights)(*inputs, scaling_sens_filled)
+        grads = self.grad(compute_loss_fn, weights)(*inputs, scaling_sens_filled)
 
         # Gradient communication
         if self.zero_helper is not None:
@@ -178,7 +186,13 @@ class TrainOneStepWrapper(nn.TrainOneStepWithLossScaleCell):
                     # update LR in each gradient step but not optimize net parameter
                     # to ensure the LR curve is consistent
                     # FIXME: for ms>=2.2, get_lr() will not increase global step by 1. we need to do it manually.
-                    loss = F.depend(loss, self.optimizer.get_lr())
+                    if hasattr(self.optimizer, "get_lr"):
+                        get_lr_func = lambda x: x.get_lr()
+                    elif hasattr(self.optimizer, "param_groups"):
+                        get_lr_func = lambda x: [group["lr"] for group in x.param_groups]
+                    else:
+                        raise NotImplementedError()
+                    loss = F.depend(loss, get_lr_func(self.optimizer))
             else:
                 # 5. gradient reduction on distributed GPUs/NPUs
                 # 6. clip grad

@@ -423,7 +423,7 @@ def main():
         gradient_accumulation_steps=config.training.gradient_accumulation_steps,
         clip_grad=config.training.max_grad_norm is not None,
         clip_norm=config.training.max_grad_norm,
-        ema=False,
+        ema=None,
     )
     for epoch in range(first_epoch, num_train_epochs):
         model.set_train(True)
@@ -581,8 +581,9 @@ def main():
                 save_checkpoint(model, config, global_step + 1)
 
             if (global_step + 1) % config.experiment.generate_every == 0 or global_step == 0:
+                model.set_train(False)
                 generate_images(
-                    model,
+                    model.network,
                     vq_model,
                     uni_prompting,
                     config,
@@ -591,25 +592,26 @@ def main():
                 )
 
                 visualize_predictions(
-                    model,
+                    model.network,
                     vq_model,
                     uni_prompting,
                     config,
                     global_step + 1,
                     input_ids,
                     image_tokens_ori,
-                    batch["t2i_flow"]["images"],
+                    ms.Tensor(batch["t2i_flow"]["images"]),
                     texts,
                     logits,
                 )
 
                 understanding_images(
-                    model,
+                    model.network,
                     vq_model,
                     uni_prompting,
                     config,
                     global_step + 1,
                 )
+                model.set_train(True)
 
             global_step += 1
 
@@ -627,7 +629,6 @@ def visualize_predictions(
     model, vq_model, uni_prompting, config, global_step, input_ids, image_tokens_ori, ori_images, texts, logits
 ):
     logger.info("Visualizing predictions...")
-    model.set_train(False)
 
     recons_images = vq_model.decode_code(image_tokens_ori - len(uni_prompting.text_tokenizer))
     recons_images = mint.clamp((recons_images + 1.0) / 2.0, min=0.0, max=1.0)
@@ -662,7 +663,15 @@ def visualize_predictions(
     predicted_images = np.concatenate((images, recons_images, predicted_images), 2)
     pil_images = [Image.fromarray(image) for image in predicted_images]
 
-    model.set_train(True)
+    # save to directory
+    output_dir = os.path.join(config.experiment.logging_dir, f"visualization/{global_step}")
+    os.makedirs(output_dir, exist_ok=True)
+    index = 0
+    for image, mr in zip(pil_images, mask_ratio):
+        fn = f"{index}-mask_ratio{mr:3f}.png"
+        fp = os.path.join(output_dir, fn)
+        image.save(fp)
+    return
 
 
 def generate_images(
@@ -674,7 +683,6 @@ def generate_images(
     mask_schedule,
 ):
     logger.info("Generating images...")
-    model.set_train(False)
 
     # read validation prompts from file
     with open(config.dataset.params.validation_prompts_file, "r") as f:
@@ -714,8 +722,6 @@ def generate_images(
     gen_token_ids = mint.clamp(gen_token_ids, max=model.config.codebook_size - 1, min=0)
     images = vq_model.decode_code(gen_token_ids)
 
-    model.set_train(True)
-
     if config.training.get("pre_encode", False):
         del vq_model
 
@@ -724,6 +730,16 @@ def generate_images(
     images *= 255.0
     images = images.permute(0, 2, 3, 1).asnumpy().astype(np.uint8)
     pil_images = [Image.fromarray(image) for image in images]
+
+    # save to directory
+    output_dir = os.path.join(config.experiment.logging_dir, f"generated_images/{global_step}")
+    os.makedirs(output_dir, exist_ok=True)
+    for image, prompt in zip(pil_images, validation_prompts):
+        fn = validation_prompts.strip()[:50] + ".png"
+        fp = os.path.join(output_dir, fn)
+        image.save(fp)
+
+    return
 
 
 def understanding_images(
@@ -734,7 +750,6 @@ def understanding_images(
     global_step,
 ):
     logger.info("Understanding images...")
-    model.set_train(False)
 
     file_list = os.listdir(config.dataset.params.mmu_image_root)
     file_list = [f for f in file_list if f.lower().endswith((".jpg", ".png", ".jpeg"))]
@@ -748,7 +763,6 @@ def understanding_images(
         image = image.unsqueeze(0)
         images.append(image)
         image_tokens = vq_model.get_code(image) + len(uni_prompting.text_tokenizer)
-        batch_size = 1
 
         input_ids = uni_prompting.text_tokenizer(
             [
@@ -776,12 +790,22 @@ def understanding_images(
 
         text = uni_prompting.text_tokenizer.batch_decode(output_ids[:, input_ids.shape[1] :], skip_special_tokens=True)
         responses[i] += text[0]
-    model.set_train(True)
-    images = mint.cat(images, dim=0)
-    images = mint.clamp((images + 1.0) / 2.0, min=0.0, max=1.0)
-    images *= 255.0
-    images = images.permute(0, 2, 3, 1).asnumpy().astype(np.uint8)
-    pil_images = [Image.fromarray(image) for image in images]
+
+    # images = mint.cat(images, dim=0)
+    # images = mint.clamp((images + 1.0) / 2.0, min=0.0, max=1.0)
+    # images *= 255.0
+    # images = images.permute(0, 2, 3, 1).asnumpy().astype(np.uint8)
+    # pil_images = [Image.fromarray(image) for image in images]
+
+    # save to directory
+    output_dir = os.path.join(config.experiment.logging_dir, f"understanding_images/{global_step}")
+    os.makedirs(output_dir, exist_ok=True)
+    for fp, responses in zip(file_list, responses):
+        base_name = os.path.basename(fp)
+        fp = os.path.join(output_dir, base_name.split(".")[0] + ".txt")
+        with open(fp, "w") as f:
+            f.writelines([[responses]])
+    return
 
 
 def save_checkpoint(model, config, global_step):
