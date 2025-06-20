@@ -6,6 +6,7 @@ os.environ["TOKENIZERS_PARALLELISM"] = "true"
 import json
 import logging
 import math
+import pickle as pkl
 import random
 import shutil
 import time
@@ -578,7 +579,7 @@ def main():
 
             # Save model checkpoint
             if (global_step + 1) % config.experiment.save_every == 0:
-                save_checkpoint(model, config, global_step + 1)
+                save_checkpoint(model.network, config, global_step + 1)
 
             if (global_step + 1) % config.experiment.generate_every == 0 or global_step == 0:
                 model.set_train(False)
@@ -619,7 +620,7 @@ def main():
                 break
 
     # Evaluate and save checkpoint at the end of training
-    save_checkpoint(model, config, global_step)
+    save_checkpoint(model.network, config, global_step)
 
     # Save the final trained checkpoint
     model.save_pretrained(config.experiment.output_dir, safe_serialization=True)
@@ -671,6 +672,7 @@ def visualize_predictions(
         fn = f"{index}-mask_ratio{mr:3f}.png"
         fp = os.path.join(output_dir, fn)
         image.save(fp)
+    logger.info(f"Images, reconstructed images, and predicted images saved state to {output_dir}")
     return
 
 
@@ -735,9 +737,10 @@ def generate_images(
     output_dir = os.path.join(config.experiment.logging_dir, f"generated_images/{global_step}")
     os.makedirs(output_dir, exist_ok=True)
     for image, prompt in zip(pil_images, validation_prompts):
-        fn = validation_prompts.strip()[:50] + ".png"
+        fn = prompt.strip()[:50] + ".png"
         fp = os.path.join(output_dir, fn)
         image.save(fp)
+    logger.info(f"Generated images saved state to {output_dir}")
 
     return
 
@@ -760,7 +763,7 @@ def understanding_images(
         image_path = os.path.join(config.dataset.params.mmu_image_root, file_name)
         image_ori = Image.open(image_path).convert("RGB")
         image = image_transform(image_ori, resolution=config.dataset.params.resolution)
-        image = image.unsqueeze(0)
+        image = ms.Tensor(image).unsqueeze(0)
         images.append(image)
         image_tokens = vq_model.get_code(image) + len(uni_prompting.text_tokenizer)
 
@@ -804,7 +807,9 @@ def understanding_images(
         base_name = os.path.basename(fp)
         fp = os.path.join(output_dir, base_name.split(".")[0] + ".txt")
         with open(fp, "w") as f:
-            f.writelines([[responses]])
+            f.writelines([responses])
+
+    logger.info(f"Image understanding results saved state to {output_dir}")
     return
 
 
@@ -842,14 +847,20 @@ def save_checkpoint(model, config, global_step):
     logger.info(f"Saved state to {save_path}")
 
 
-def log_grad_norm(model, global_step):
+def log_grad_norm(model, config, global_step):
+    output_dir = os.path.join(config.experiment.logging_dir, f"grad_norm/{global_step}")
+    os.makedirs(output_dir, exist_ok=True)
+
     save_gradnorm_dict = {}
     for name, param in model.name_cells().items():
         if param.grad is not None:
             grads = param.grad.data
             grad_norm = (grads.norm(p=2) / grads.numel()).asnumpy().item()
-            save_gradnorm_dict[name].append({global_step: grad_norm})
-    return save_gradnorm_dict
+            save_gradnorm_dict[name] = grad_norm
+    fp = os.path.join(output_dir, "gradients_norm_dict.pkl")
+    with open(fp, "wb") as f:
+        pkl.dump(save_gradnorm_dict, f)
+    logger.info(f"Gradients norms saved state to {fp}")
 
 
 if __name__ == "__main__":

@@ -232,7 +232,10 @@ class LFQuantizer(nn.Cell):
             dim=-1,
         )
         probs = mint.softmax(logit, dim=-1)
-        probs = mint.where(probs == 1, 1 - 1e-6, probs)  # probs should be less than 1
+        # FIXME: probs should be IN (0, 1)
+        eps = 1e-6
+        probs = mint.clamlp(probs, eps, 1 - eps)
+        probs = probs / mint.sum(probs, dim=-1, keepdim=True)
         cat_dist = CatDist(probs=probs)
         entropy = cat_dist.entropy().mean()
         mean_prob = cat_dist.probs.mean(0)
