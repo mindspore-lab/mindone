@@ -89,11 +89,11 @@ class Glm4vVisionPatchEmbed(nn.Cell):
 class Glm4vVisionRotaryEmbedding(nn.Cell):
     def __init__(self, dim: int, theta: float = 10000.0) -> None:
         super().__init__()
-        inv_freq = 1.0 / (theta ** (ops.arange(0, dim, 2, dtype=ms.float32) / dim))
+        inv_freq = 1.0 / (theta ** (mint.arange(0, dim, 2, dtype=ms.float32) / dim))
         self.inv_freq = inv_freq
 
     def construct(self, seqlen: int) -> ms.Tensor:
-        seq = ops.arange(seqlen, dtype=self.inv_freq.dtype)
+        seq = mint.arange(seqlen.item(), dtype=self.inv_freq.dtype)
         freqs = mint.outer(seq, self.inv_freq)
         return freqs
 
@@ -144,7 +144,7 @@ class Glm4vPatchMerger(nn.Cell):
         self.gate_proj = nn.Dense(dim, context_dim, has_bias=bias)
         self.up_proj = nn.Dense(dim, context_dim, has_bias=bias)
         self.down_proj = nn.Dense(context_dim, dim, has_bias=bias)
-        self.act1 = nn.GELU()
+        self.act1 = mint.nn.GELU()
         self.act_fn = ACT2FN[hidden_act]
 
     def construct(self, hidden_state: ms.Tensor) -> ms.Tensor:
@@ -164,7 +164,7 @@ class Glm4vVisionEmbeddings(nn.Cell):
         self.num_patches = (self.image_size // self.patch_size) ** 2
         self.num_positions = self.num_patches
         self.position_embedding = mint.nn.Embedding(self.num_positions, self.embed_dim)
-        self.position_ids = ops.arange(self.num_positions).broadcast_to((1, -1))
+        self.position_ids = mint.arange(self.num_positions).broadcast_to((1, -1))
 
     def construct(self, embeddings, lengths, image_shapes, h_coords, w_coords) -> ms.Tensor:
         """
@@ -278,7 +278,7 @@ class Glm4vVisionAttention(nn.Cell):
                 "`position_embeddings` (Tuple of tensors, containing cos and sin). In v4.54 `rotary_pos_emb` will be "
                 "removed and `position_embeddings` will be mandatory."
             )
-            emb = ops.cat((rotary_pos_emb, rotary_pos_emb), dim=-1)
+            emb = mint.cat((rotary_pos_emb, rotary_pos_emb), dim=-1)
             cos = emb.cos()
             sin = emb.sin()
         else:
@@ -459,7 +459,7 @@ class Glm4vVisionModel(Glm4vPreTrainedModel):
         )
 
         self.post_conv_layernorm = Glm4vRMSNorm(config.hidden_size, eps=config.rms_norm_eps)
-        self.downsample = nn.Conv2d(
+        self.downsample = mint.nn.Conv2d(
             in_channels=config.hidden_size,
             out_channels=config.out_hidden_size,
             kernel_size=config.spatial_merge_size,
@@ -475,7 +475,7 @@ class Glm4vVisionModel(Glm4vPreTrainedModel):
             t = t.item()
             h = h.item()
             w = w.item()
-            hpos_ids = ops.arange(h).unsqueeze(1).broadcast_to((-1, w))
+            hpos_ids = mint.arange(h).unsqueeze(1).broadcast_to((-1, w))
             hpos_ids = hpos_ids.reshape(
                 h // self.spatial_merge_size,
                 self.spatial_merge_size,
@@ -485,7 +485,7 @@ class Glm4vVisionModel(Glm4vPreTrainedModel):
             hpos_ids = hpos_ids.permute(0, 2, 1, 3)
             hpos_ids = hpos_ids.flatten(start_dim=0)
 
-            wpos_ids = ops.arange(w).unsqueeze(0).broadcast_to((h, -1))
+            wpos_ids = mint.arange(w).unsqueeze(0).broadcast_to((h, -1))
             wpos_ids = wpos_ids.reshape(
                 h // self.spatial_merge_size,
                 self.spatial_merge_size,
@@ -494,8 +494,8 @@ class Glm4vVisionModel(Glm4vPreTrainedModel):
             )
             wpos_ids = wpos_ids.permute(0, 2, 1, 3)
             wpos_ids = wpos_ids.flatten(start_dim=0)
-            pos_ids.append(ops.stack([hpos_ids, wpos_ids], axis=-1).tile((t, 1)))
-        pos_ids = ops.cat(pos_ids, axis=0)
+            pos_ids.append(mint.stack([hpos_ids, wpos_ids], dim=-1).tile((t, 1)))
+        pos_ids = mint.cat(pos_ids, dim=0)
         max_grid_size = grid_thw[:, 1:].max()
         rotary_pos_emb_full = self.rotary_pos_emb(max_grid_size)
         rotary_pos_emb = rotary_pos_emb_full[pos_ids].flatten(start_dim=1)
@@ -879,7 +879,7 @@ class Glm4vTextModel(Glm4vPreTrainedModel):
 
         if cache_position is None:
             past_seen_tokens = past_key_values.get_seq_length() if past_key_values is not None else 0
-            cache_position = ops.arange(
+            cache_position = mint.arange(
                 past_seen_tokens, past_seen_tokens + inputs_embeds.shape[1]
             )
 
@@ -1110,9 +1110,9 @@ class Glm4vModel(Glm4vPreTrainedModel):
                             w.item() // spatial_merge_size,
                         )
 
-                        t_index = ops.arange(llm_grid_t).view(-1, 1).broadcast_to((-1, llm_grid_h * llm_grid_w)).flatten()
-                        h_index = ops.arange(llm_grid_h).view(1, -1, 1).broadcast_to((llm_grid_t, -1, llm_grid_w)).flatten()
-                        w_index = ops.arange(llm_grid_w).view(1, 1, -1).broadcast_to((llm_grid_t, llm_grid_h, -1)).flatten()
+                        t_index = mint.arange(llm_grid_t).view(-1, 1).broadcast_to((-1, llm_grid_h * llm_grid_w)).flatten()
+                        h_index = mint.arange(llm_grid_h).view(1, -1, 1).broadcast_to((llm_grid_t, -1, llm_grid_w)).flatten()
+                        w_index = mint.arange(llm_grid_w).view(1, 1, -1).broadcast_to((llm_grid_t, llm_grid_h, -1)).flatten()
                         llm_pos_ids_list.append(mint.stack([t_index, h_index, w_index]) + st_idx)
 
                         image_index += 1
@@ -1134,9 +1134,9 @@ class Glm4vModel(Glm4vPreTrainedModel):
                         for t_idx in range(llm_grid_t):
                             t_index = ms.tensor(t_idx).view(-1, 1).broadcast_to((-1, llm_grid_h * llm_grid_w)).flatten()
 
-                            h_index = ops.arange(llm_grid_h).view(1, -1, 1).broadcast_to((1, -1, llm_grid_w)).flatten()
+                            h_index = mint.arange(llm_grid_h).view(1, -1, 1).broadcast_to((1, -1, llm_grid_w)).flatten()
 
-                            w_index = ops.arange(llm_grid_w).view(1, 1, -1).broadcast_to((1, llm_grid_h, -1)).flatten()
+                            w_index = mint.arange(llm_grid_w).view(1, 1, -1).broadcast_to((1, llm_grid_h, -1)).flatten()
 
                             llm_pos_ids_list.append(mint.stack([t_index, h_index, w_index]) + st_idx)
 
@@ -1146,7 +1146,7 @@ class Glm4vModel(Glm4vPreTrainedModel):
 
                     else:
                         text_len = end_idx - start_idx
-                        llm_pos_ids_list.append(ops.arange(text_len).view(1, -1).broadcast_to((3, -1)) + st_idx)
+                        llm_pos_ids_list.append(mint.arange(text_len).view(1, -1).broadcast_to((3, -1)) + st_idx)
 
                         video_frame_num = 1
 
@@ -1164,7 +1164,7 @@ class Glm4vModel(Glm4vPreTrainedModel):
                 mrope_position_deltas = max_position_ids + 1 - attention_mask.shape[-1]
             else:
                 position_ids = (
-                    ops.arange(input_ids.shape[1])
+                    mint.arange(input_ids.shape[1])
                     .view(1, 1, -1)
                     .broadcast_to((3, input_ids.shape[0], -1))
                 )
@@ -1329,7 +1329,7 @@ class Glm4vModel(Glm4vPreTrainedModel):
                     if cache_position is not None
                     else 0
                 )
-                position_ids = ops.arange(seq_length)
+                position_ids = mint.arange(seq_length)
                 position_ids = position_ids.view(1, -1).broadcast_to((batch_size, -1))
                 if cache_position is not None:  # otherwise `deltas` is an int `0`
                     delta = delta.repeat_interleave(batch_size // delta.shape[0], dim=0)
