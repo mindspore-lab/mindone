@@ -12,9 +12,8 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-"""PyTorch GPT-J model."""
+"""Mindspore GPT-J model."""
 
-import warnings
 from typing import Optional, Tuple, Union
 
 import mindspore as ms
@@ -37,8 +36,7 @@ from ...modeling_utils import PreTrainedModel
 from ...utils import logging
 from .configuration_gptj import GPTJConfig
 
-from ...integrations.flex_attention import make_flex_block_causal_mask
-
+from mindone.transformers.cache_utils import Cache, DynamicCache, StaticCache
 
 if is_flash_attn_available():
     from mindspore.ops.operations.nn_ops import FlashAttentionScore as MSFlashAttention
@@ -48,13 +46,13 @@ logger = logging.get_logger(__name__)
 
 
 def create_sinusoidal_positions(num_pos: int, dim: int) -> ms.Tensor:
-    inv_freq = 1.0 / (10000 ** (ms.arange(0, dim, 2, dtype=ms.int64) / dim))
-    sinusoid_inp = mint.einsum("i , j -> i j", ms.arange(num_pos, dtype=ms.int64).float(), inv_freq).float()
+    inv_freq = 1.0 / (10000 ** (mint.arange(0, dim, 2, dtype=ms.int64) / dim))
+    sinusoid_inp = mint.einsum("i , j -> i j", mint.arange(num_pos, dtype=ms.int64).float(), inv_freq).float()
     return mint.cat((mint.sin(sinusoid_inp), mint.cos(sinusoid_inp)), dim=1)
 
 
 def get_embed_positions(embed_positions, position_ids):
-    return embed_positions.repeat(position_ids.shape[0], 1, 1)
+    return embed_positions.tile((position_ids.shape[0], 1, 1))
 
 
 def rotate_every_two(x: ms.Tensor) -> ms.Tensor:
@@ -96,7 +94,7 @@ class GPTJAttention(nn.Cell):
                 f"embed_dim must be divisible by num_attention_heads (got `embed_dim`: {self.embed_dim} and"
                 f" `num_attention_heads`: {self.num_attention_heads})."
             )
-        self.scale_attn = mint.sqrt(ms.tensor(self.head_dim, dtype=ms.float32)).to(mint.get_default_dtype())
+        self.scale_attn = mint.sqrt(ms.tensor(self.head_dim, dtype=ms.float32))
 
         self.k_proj = mint.nn.Linear(self.embed_dim, self.embed_dim, bias=False)
         self.v_proj = mint.nn.Linear(self.embed_dim, self.embed_dim, bias=False)
@@ -110,7 +108,7 @@ class GPTJAttention(nn.Cell):
         """
         Splits hidden dim into attn_head_size and num_attention_heads
         """
-        new_shape = tensor.size()[:-1] + (num_attention_heads, attn_head_size)
+        new_shape = tensor.shape[:-1] + (num_attention_heads, attn_head_size)
         tensor = tensor.view(new_shape)
         if rotary:
             return tensor
@@ -131,7 +129,7 @@ class GPTJAttention(nn.Cell):
             tensor = tensor.permute(0, 2, 1, 3).contiguous()
         else:
             raise ValueError(f"Input tensor rank should be one of [4, 5], but is: {len(tensor.shape)}")
-        new_shape = tensor.size()[:-2] + (num_attention_heads * attn_head_size,)
+        new_shape = tensor.shape[:-2] + (num_attention_heads * attn_head_size,)
         return tensor.view(new_shape)
 
     def _attn(
@@ -146,7 +144,7 @@ class GPTJAttention(nn.Cell):
         query = query.to(ms.float32)
         key = key.to(ms.float32)
 
-        attn_weights = mint.matmul(query, key.transpose(-1, -2))
+        attn_weights = mint.matmul(query, mint.transpose(key, -1, -2))
         attn_weights = attn_weights / self.scale_attn
 
         if attention_mask is not None:  # no matter the length, we just slice it
@@ -167,7 +165,7 @@ class GPTJAttention(nn.Cell):
 
     def _get_embed_positions(self, position_ids):
         embed_positions = self.embed_positions
-        return embed_positions.repeat(position_ids.shape[0], 1, 1)
+        return embed_positions.tile(position_ids.shape[0], 1, 1)
 
     def construct(
         self,
@@ -193,8 +191,8 @@ class GPTJAttention(nn.Cell):
 
         embed_positions = self._get_embed_positions(position_ids)
 
-        repeated_position_ids = position_ids.unsqueeze(-1).repeat(1, 1, embed_positions.shape[-1])
-        sincos = ms.gather(embed_positions, 1, repeated_position_ids)
+        repeated_position_ids = position_ids.unsqueeze(-1).tile((1, 1, embed_positions.shape[-1]))
+        sincos = mint.gather(embed_positions, 1, repeated_position_ids)
         sin, cos = mint.split(sincos, sincos.shape[-1] // 2, dim=-1)
 
         if self.rotary_dim is not None:
@@ -204,8 +202,8 @@ class GPTJAttention(nn.Cell):
             q_rot = query[:, :, :, : self.rotary_dim]
             q_pass = query[:, :, :, self.rotary_dim :]
 
-            k_rot = apply_rotary_pos_emb(k_rot, sin, cos)
-            q_rot = apply_rotary_pos_emb(q_rot, sin, cos)
+            k_rot = apply_rotary_pos_emb(k_rot, sin, cos).to(key.dtype)
+            q_rot = apply_rotary_pos_emb(q_rot, sin, cos).to(key.dtype)
 
             key = mint.cat([k_rot, k_pass], dim=-1)
             query = mint.cat([q_rot, q_pass], dim=-1)
@@ -250,7 +248,6 @@ class GPTJFlashAttention2(GPTJAttention):
         super().__init__(*args, **kwargs)
 
         attn_dropout = self.attn_pdrop if self.training else 0.0
-        # TODO: check scale_value, keep_prob with qwen2_5_omni
         self.flash_attention = MSFlashAttention(
             head_num=self.num_heads,
             keep_prob=1 - attn_dropout,
@@ -281,8 +278,8 @@ class GPTJFlashAttention2(GPTJAttention):
 
         embed_positions = self._get_embed_positions(position_ids)
 
-        repeated_position_ids = position_ids.unsqueeze(-1).repeat(1, 1, embed_positions.shape[-1])
-        sincos = ms.gather(embed_positions, 1, repeated_position_ids)
+        repeated_position_ids = position_ids.unsqueeze(-1).tile(1, 1, embed_positions.shape[-1])
+        sincos = mint.gather(embed_positions, 1, repeated_position_ids)
         sin, cos = mint.split(sincos, sincos.shape[-1] // 2, dim=-1)
 
         if self.rotary_dim is not None:
@@ -333,10 +330,8 @@ class GPTJFlashAttention2(GPTJAttention):
 
         input_dtype = query.dtype
         if input_dtype == ms.float32:
-            if torch.is_autocast_enabled():
-                target_dtype = torch.get_autocast_gpu_dtype()
             # Handle the case where the model is quantized
-            elif hasattr(self.config, "_pre_quantization_dtype"):
+            if hasattr(self.config, "_pre_quantization_dtype"):
                 target_dtype = self.config._pre_quantization_dtype
             else:
                 target_dtype = self.q_proj.weight.dtype
@@ -534,7 +529,7 @@ class GPTJModel(GPTJPreTrainedModel):
         use_cache = use_cache if use_cache is not None else self.config.use_cache
         return_dict = return_dict if return_dict is not None else self.config.use_return_dict
 
-        if (input_ids is None) ^ (inputs_embeds is not None):
+        if (input_ids is None) != (inputs_embeds is not None):
             raise ValueError("You must specify exactly one of input_ids or inputs_embeds")
 
         if self.gradient_checkpointing and self.training:
@@ -564,7 +559,7 @@ class GPTJModel(GPTJPreTrainedModel):
         seq_length = inputs_embeds.shape[1]
         if cache_position is None:
             past_key_values_length = past_key_values.get_seq_length() if past_key_values is not None else 0
-            cache_position = ms.arange(
+            cache_position = mint.arange(
                 past_key_values_length, past_key_values_length + seq_length
             )
 
@@ -588,7 +583,7 @@ class GPTJModel(GPTJPreTrainedModel):
             hidden_states = hidden_states + token_type_embeds
 
         hidden_states = self.drop(hidden_states)
-        output_shape = (-1, seq_length, hidden_states.size(-1))
+        output_shape = (-1, seq_length, hidden_states.shape[-1])
 
         next_decoder_cache = None
         all_self_attentions = () if output_attentions else None
@@ -669,31 +664,16 @@ class GPTJModel(GPTJPreTrainedModel):
             if attention_mask is not None and (attention_mask == 0.0).any():
                 return attention_mask
             return None
-        if self.config._attn_implementation == "flex_attention":
-            # TODO: need check
-            # if isinstance(attention_mask, ms.Tensor):
-            #     attention_mask = make_flex_block_causal_mask(attention_mask)
-            return attention_mask
 
         # For SDPA, when possible, we will rely on its `is_causal` argument instead of its `attn_mask` argument, in
         # order to dispatch on Flash Attention 2. This feature is not compatible with static cache, as SDPA will fail
         # to infer the attention mask.
         past_seen_tokens = past_key_values.get_seq_length() if past_key_values is not None else 0
-        using_compilable_cache = past_key_values.is_compileable if past_key_values is not None else False
-
-        # When output attentions is True, sdpa implementation's forward method calls the eager implementation's forward
-        if self.config._attn_implementation == "sdpa" and not using_compilable_cache and not output_attentions:
-            if AttentionMaskConverter._ignore_causal_mask_sdpa(
-                attention_mask,
-                inputs_embeds=input_tensor,
-                past_key_values_length=past_seen_tokens,
-                is_training=self.training,
-            ):
-                return None
+        using_static_cache = isinstance(past_key_values, StaticCache)
 
         dtype = input_tensor.dtype
         sequence_length = input_tensor.shape[1]
-        if using_compilable_cache:
+        if using_static_cache:
             target_length = past_key_values.get_max_cache_shape()
         else:
             target_length = (
@@ -761,12 +741,12 @@ class GPTJModel(GPTJPreTrainedModel):
         else:
             min_dtype = dtype_to_min(dtype)
             causal_mask = mint.full(
-                (sequence_length, target_length), fill_value=min_dtype, dtype=dtype
+                (sequence_length, target_length), fill_value=min_dtype.item(), dtype=dtype
             )
             if sequence_length != 1:
                 causal_mask = mint.triu(causal_mask, diagonal=1)
-            causal_mask *= ms.arange(target_length) > cache_position.reshape(-1, 1)
-            causal_mask = causal_mask[None, None, :, :].expand(batch_size, 1, -1, -1)
+            causal_mask *= mint.arange(target_length) > cache_position.reshape(-1, 1)
+            causal_mask = mint.broadcast_to(causal_mask[None, None, :, :], (batch_size, 1, -1, -1))
             if attention_mask is not None:
                 causal_mask = causal_mask.clone()  # copy to contiguous memory for in-place edit
                 mask_length = attention_mask.shape[-1]
@@ -967,14 +947,14 @@ class GPTJForSequenceClassification(GPTJPreTrainedModel):
                 "unexpected if using padding tokens in conjunction with `inputs_embeds.`"
             )
 
-        pooled_logits = logits[ms.arange(batch_size), last_non_pad_token]
+        pooled_logits = logits[mint.arange(batch_size), last_non_pad_token]
 
         loss = None
         if labels is not None:
             if self.config.problem_type is None:
                 if self.num_labels == 1:
                     self.config.problem_type = "regression"
-                elif self.num_labels > 1 and (labels.dtype == ms.long or labels.dtype == ms.int):
+                elif self.num_labels > 1 and (labels.dtype == ms.int64 or labels.dtype == ms.int):
                     self.config.problem_type = "single_label_classification"
                 else:
                     self.config.problem_type = "multi_label_classification"
@@ -1062,12 +1042,12 @@ class GPTJForQuestionAnswering(GPTJPreTrainedModel):
         total_loss = None
         if start_positions is not None and end_positions is not None:
             # If we are on multi-GPU, split add a dimension
-            if len(start_positions.size()) > 1:
+            if len(start_positions.shape) > 1:
                 start_positions = start_positions.squeeze(-1)
-            if len(end_positions.size()) > 1:
+            if len(end_positions.shape) > 1:
                 end_positions = end_positions.squeeze(-1)
             # sometimes the start/end positions are outside our model inputs, we ignore these terms
-            ignored_index = start_logits.size(1)
+            ignored_index = start_logits.shape(1)
             start_positions = start_positions.clamp(0, ignored_index)
             end_positions = end_positions.clamp(0, ignored_index)
 

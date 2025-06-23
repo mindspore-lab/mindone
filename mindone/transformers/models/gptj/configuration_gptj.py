@@ -14,7 +14,15 @@
 # limitations under the License.
 """GPT-J model configuration"""
 
+from collections import OrderedDict
+from typing import Any, List, Mapping, Optional
+
+from mindspore import mint
+
+from transformers import PreTrainedTokenizer
 from transformers.configuration_utils import PretrainedConfig
+from transformers.onnx import OnnxConfigWithPast, PatchingSpec
+
 from ...utils import logging
 
 
@@ -168,7 +176,7 @@ class GPTJOnnxConfig(OnnxConfigWithPast):
         batch_size: int = -1,
         seq_length: int = -1,
         is_pair: bool = False,
-        framework: Optional[TensorType] = None,
+        framework = None,
     ) -> Mapping[str, Any]:
         common_inputs = super(OnnxConfigWithPast, self).generate_dummy_inputs(
             tokenizer, batch_size=batch_size, seq_length=seq_length, is_pair=is_pair, framework=framework
@@ -179,11 +187,6 @@ class GPTJOnnxConfig(OnnxConfigWithPast):
 
         # Need to add the past_keys
         if self.use_past:
-            if not is_torch_available():
-                raise ValueError("Cannot generate dummy past_keys inputs without PyTorch installed.")
-            else:
-                import torch
-
                 batch, seqlen = common_inputs["input_ids"].shape
                 # Not using the same length for past_key_values
                 past_key_values_length = seqlen + 2
@@ -194,14 +197,14 @@ class GPTJOnnxConfig(OnnxConfigWithPast):
                     self._config.hidden_size // self.num_attention_heads,
                 )
                 ordered_inputs["past_key_values"] = [
-                    (torch.zeros(past_shape), torch.zeros(past_shape)) for _ in range(self.num_layers)
+                    (mint.zeros(past_shape), mint.zeros(past_shape)) for _ in range(self.num_layers)
                 ]
 
         ordered_inputs["attention_mask"] = common_inputs["attention_mask"]
         if self.use_past:
             mask_dtype = ordered_inputs["attention_mask"].dtype
-            ordered_inputs["attention_mask"] = torch.cat(
-                [ordered_inputs["attention_mask"], torch.ones(batch, past_key_values_length, dtype=mask_dtype)], dim=1
+            ordered_inputs["attention_mask"] = mint.cat(
+                [ordered_inputs["attention_mask"], mint.ones(batch, past_key_values_length, dtype=mask_dtype)], dim=1
             )
 
         return ordered_inputs
