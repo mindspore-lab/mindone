@@ -1,5 +1,6 @@
 import argparse
 import os
+import shlex
 import subprocess
 
 
@@ -30,11 +31,10 @@ def main():
 
     while i <= linenum:
         output_filename = os.path.join(output_dir, f"part{partid}.csv")
-        subprocess.run(f"head -n 1 {meta_filepath} > {output_filename}".split(" "), check=True, shell=False)
+        subprocess.run(shlex.split(f"head -n 1 {meta_filepath} > {output_filename}"), check=True, shell=False)
         end_line = min(i + stride - 1, linenum)  # Calculate the correct end line, ensuring not to exceed total lines
-        os.system(f"sed -n '{i},{end_line}p' {meta_filepath} >> {output_filename}")
         subprocess.run(
-            f"sed -n '{i},{end_line}p' {meta_filepath} >> {output_filename}".split(" "), check=True, shell=False
+            shlex.split(f"sed -n '{i},{end_line}p' {meta_filepath} >> {output_filename}"), check=True, shell=False
         )
         i += stride
         partid += 1

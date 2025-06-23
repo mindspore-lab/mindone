@@ -1,5 +1,6 @@
 import glob
 import os
+import shlex
 import subprocess
 import sys
 
@@ -17,7 +18,7 @@ with open(output_data_path, "w") as f:
             print(f"WARNING: Skip video '{video_path}' because its text label file doesn't exist in '{data_dir}'.")
             continue
         read_caption_cmd = f"cat {caption_path}"
-        result = subprocess.run(read_caption_cmd.split(" "), capture_output=True, text=True, shell=False)
+        result = subprocess.run(shlex.split(read_caption_cmd), capture_output=True, text=True, shell=False)
         caption_text = result.stdout
         caption_text = (
             '"' + caption_text.replace('"', "'") + '"'

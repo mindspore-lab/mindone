@@ -1,6 +1,7 @@
 import argparse
 import json
 import os
+import shlex
 import subprocess
 
 from tqdm import tqdm
@@ -63,7 +64,7 @@ def main():
         elif name.endswith(".tar"):
             # If error message appears, the tar file is invalid. Please download again.
             result = subprocess.run(
-                f"python -m tarfile -l {filepath} | wc -l".split(" "), capture_output=True, text=True, shell=False
+                shlex.split(f"python -m tarfile -l {filepath} | wc -l"), capture_output=True, text=True, shell=False
             )
             r = result.stdout
 

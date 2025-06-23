@@ -1,5 +1,6 @@
 import glob
 import os
+import shlex
 import subprocess
 import time
 
@@ -20,14 +21,14 @@ for part_dir in glob.glob(os.path.join(input_dir, "part*")):
         video_dir = os.path.splitext(tar)[0]
         os.makedirs(video_dir, exist_ok=True)
         tar_cmd = f"tar -xf {tar} -C {video_dir}"
-        subprocess.run(tar_cmd.split(" "), capture_output=True, text=True, shell=False)
+        subprocess.run(shlex.split(tar_cmd), capture_output=True, text=True, shell=False)
 
         print(f"\nExtracting frames of videos in {video_dir}")
         for video in tqdm(glob.glob(os.path.join(video_dir, "*.mp4"))):
             frames_dir = os.path.splitext(video)[0]
             os.makedirs(frames_dir, exist_ok=True)
             ffmpeg_cmd = f"ffmpeg -threads 8 -i {video} {frames_dir}/%d.jpg > /dev/null 2>&1"
-            subprocess.run(ffmpeg_cmd.split(" "), capture_output=True, text=True, shell=False)
+            subprocess.run(shlex.split(ffmpeg_cmd), capture_output=True, text=True, shell=False)
 
 end = time.time()
 print(f"time: {end-start}s")
