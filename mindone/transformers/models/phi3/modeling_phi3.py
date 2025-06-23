@@ -305,7 +305,7 @@ class Phi3Attention(nn.Cell):
             value_states,
             attention_mask,
             dropout=0.0 if not self.training else self.attention_dropout,
-            scaling=self.scaling,
+            scaling=1 / math.sqrt(self.head_dim),
             sliding_window=getattr(self.config, "sliding_window", None),
         )
 
