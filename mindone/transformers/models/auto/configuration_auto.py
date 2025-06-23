@@ -45,6 +45,7 @@ CONFIG_MAPPING_NAMES = OrderedDict(
         ("qwen2", "Qwen2Config"),
         ("t5", "T5Config"),
         ("xlm-roberta", "XLMRobertaConfig"),
+        ("gptj", "GPTJConfig"),
     ]
 )
 
@@ -70,6 +71,7 @@ MODEL_NAMES_MAPPING = OrderedDict(
         ("t5v1.1", "T5v1.1"),
         ("xlm-roberta", "XLM-RoBERTa"),
         ("xlm-roberta-xl", "XLM-RoBERTa-XL"),
+        ("gptj", "GPTJ"),
     ]
 )
 

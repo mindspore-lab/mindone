@@ -192,6 +192,13 @@ from .models.whisper import (
     WhisperPreTrainedModel,
     WhisperProcessor,
 )
+from .models.gptj import (
+    GPTJForCausalLM,
+    GPTJForQuestionAnswering,
+    GPTJForSequenceClassification,
+    GPTJModel,
+    GPTJPreTrainedModel,
+)
 from .models.xlm_roberta import XLMRobertaModel, XLMRobertaPreTrainedModel
 from .pipelines import TextGenerationPipeline, pipeline
 from .processing_utils import ProcessorMixin

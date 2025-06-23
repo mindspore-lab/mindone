@@ -22,7 +22,6 @@ from mindspore.nn import BCEWithLogitsLoss, CrossEntropyLoss, MSELoss
 
 from ...mindspore_adapter import dtype_to_min
 from ...activations import ACT2FN
-from ...cache_utils import Cache, DynamicCache
 from ...generation import GenerationMixin
 from ...modeling_attn_mask_utils import AttentionMaskConverter
 from ...modeling_flash_attention_utils import is_flash_attn_available
@@ -165,7 +164,7 @@ class GPTJAttention(nn.Cell):
 
     def _get_embed_positions(self, position_ids):
         embed_positions = self.embed_positions
-        return embed_positions.tile(position_ids.shape[0], 1, 1)
+        return embed_positions.tile((position_ids.shape[0], 1, 1))
 
     def construct(
         self,
