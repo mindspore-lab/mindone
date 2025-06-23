@@ -102,9 +102,10 @@ def test_model_and_optimizer_initialization():
     try:
         tokenizer = AutoTokenizer.from_pretrained(config.model.mmada.pretrained_model_path, padding_side="left")
         vq_model = get_vq_model_class(config.model.vq_model.type)
-        vq_model = vq_model.from_pretrained(config.model.vq_model.vq_model_name)
+        vq_model = vq_model.from_pretrained(config.model.vq_model.vq_model_name, use_safetensors=True)
         vq_model.set_train(False)
-        vq_model.requires_grad = False
+        for p in vq_model.get_parameters():
+            p.requires_grad = False
 
         base_config = AutoConfig.from_pretrained(config.model.mmada.pretrained_model_path).to_dict()
         mmada_config_dict = {k: v for k, v in config.model.mmada._asdict().items()}

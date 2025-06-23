@@ -123,7 +123,7 @@ def main():
         state_dict = torch.load(config.model.vq_model.pretrained_model_path)["model"]
         vq_model.load_state_dict(state_dict)
     else:
-        vq_model = vq_model.from_pretrained(config.model.vq_model.vq_model_name)
+        vq_model = vq_model.from_pretrained(config.model.vq_model.vq_model_name, use_safetensors=True)
     vq_model.set_train(False)
     for p in vq_model.get_parameters():
         p.requires_grad = False
