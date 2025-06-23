@@ -1,50 +1,44 @@
 import os
-import random
 import sys
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 os.environ["TOKENIZERS_PARALLELISM"] = "true"
-import html
+import glob
 import json
 import logging
 import math
+import pickle as pkl
+import random
 import shutil
 import time
-from functools import partial
 from pathlib import Path
 from typing import Union
-
-import ImageReward as RM
-import numpy as np
 import pandas
-from models import MAGVITv2, MMadaModelLM, get_mask_schedule
-from models.logging import set_verbosity_error, set_verbosity_info
+import numpy as np
+from models import MAGVITv2, MMadaConfig, MMadaModelLM, get_mask_schedule
 from models.lr_schedulers import get_scheduler
 from omegaconf import OmegaConf
-from parquet import ChatDataset
+from parquet import RefinedWebDataset, ChatDataset
 from parquet.loader import CombinedLoader, create_dataloader
 from PIL import Image
-from torchmetrics.functional.multimodal import clip_score
 from training.data import Text2ImageDataset
 from training.imagenet_dataset import ImageNetDataset
 from training.prompting_utils import UniversalPrompting
-from training.utils import (
-    AverageMeter,
-    flatten_omega_conf,
-    get_config,
-    image_transform,
-    image_transform_squash,
-    mask_or_random_replace_tokens,
-)
-from transformers import AutoTokenizer
-from utils.optim import create_optimizer
+from transformers import AutoConfig, AutoTokenizer
 
 import mindspore as ms
 import mindspore.mint as mint
+from mindspore.amp import DynamicLossScaler
 from mindspore.experimental import optim
 
+from mindone.diffusers.models.model_loading_utils import load_checkpoint_and_dispatch
+from utils import TrainOneStepWrapper, init_from_ckpt, no_grad
+
+SYSTEM_PROMPT_LEN = 28
+
+from training.utils import AverageMeter, get_config, image_transform, mask_or_random_replace_tokens
+
 logger = logging.getLogger(__name__)
-logger.setLevel(logging.INFO)
 
 
 def get_vq_model_class(model_type):
@@ -55,17 +49,24 @@ def get_vq_model_class(model_type):
 
 
 def main():
-    #########################
-    #     SETUP CONFIG      #
-    #########################
     config = get_config()
     config.experiment.logging_dir = str(Path(config.experiment.output_dir) / "logs")
+    os.makedirs(config.experiment.logging_dir, exist_ok=True)
+    LOG_FILE = os.path.join(config.experiment.logging_dir, "loss.log")
     total_batch_size_per_device = (
         config.training.batch_size_t2i + config.training.batch_size_lm + config.training.batch_size_mmu
     )
     total_batch_size = (
         config.training.batch_size_t2i + config.training.batch_size_lm + config.training.batch_size_mmu
     ) * config.training.gradient_accumulation_steps
+
+    if config.experiment.profile:
+        os.environ["MS_ALLOC_CONF"] = "memory_tracker:True"
+        profiler = ms.Profiler(output_path="./mem_info", profile_memory=True)
+        ms.set_context(memory_optimize_level="O0")
+        ms.set_context(pynative_synchronize=True)
+    else:
+        profiler = None
 
     #####################################
     # SETUP LOGGING, SEED and CONFIG    #
@@ -76,7 +77,6 @@ def main():
         datefmt="%m/%d/%Y %H:%M:%S",
         level=logging.INFO,
     )
-    set_verbosity_info()
 
     os.makedirs(config.experiment.output_dir, exist_ok=True)
     config_path = Path(config.experiment.output_dir) / "config.yaml"
@@ -118,19 +118,14 @@ def main():
 
     # VQ model for processing image into discrete tokens
     vq_model = get_vq_model_class(config.model.vq_model.type)
-    if config.model.vq_model.get("pretrained_model_path", None):
-        vq_model = vq_model()
-        state_dict = torch.load(config.model.vq_model.pretrained_model_path)["model"]
-        vq_model.load_state_dict(state_dict)
-    else:
-        vq_model = vq_model.from_pretrained(config.model.vq_model.vq_model_name, use_safetensors=True)
+    vq_model = vq_model.from_pretrained(config.model.vq_model.vq_model_name, use_safetensors=True)
     vq_model.set_train(False)
     for p in vq_model.get_parameters():
         p.requires_grad = False
 
+    # Initialize mmada in stage 2
     model = MMadaModelLM.from_pretrained(config.model.mmada.pretrained_model_path, mindspore_dtype=ms.bfloat16)
     model.set_train(True)
-
     mask_id = model.config.mask_token_id
 
     ##################################
@@ -222,17 +217,14 @@ def main():
             train_dataloader_t2i.num_batches / config.training.gradient_accumulation_steps
         )
         num_train_epochs = math.ceil(config.training.max_train_steps / num_update_steps_per_epoch)
-
     elif config.dataset.gen_type == "t2i_parquet":
         # this part relies on the internal packages, which will not be released
         raise NotImplementedError()
-
     elif config.dataset.gen_type == "imagenet1k":
         dataset_imagenet = ImageNetDataset(
             dataset_config.train_t2i_shards_path_or_url,
             image_size=preproc_config.resolution,
         )
-
         sampler = None
         shuffle = True
 
@@ -252,6 +244,7 @@ def main():
 
     else:
         raise ValueError(f"Unsupported dataset type {config.dataset.type}")
+
 
     total_batch_size_mmu_without_accum = config.training.batch_size_mmu
     # Data for image captioning
@@ -273,29 +266,21 @@ def main():
             external_laion12m_caption_path=dataset_config.external_laion12m_caption_path,
             external_cc12m_caption_path=dataset_config.external_cc12m_caption_path,
             external_text_to_image_2M_512_caption_path=dataset_config.external_text_to_image_2M_512_caption_path,
-            external_ai2d_caption_path=dataset_config.external_ai2d_caption_path,
-            external_clevr_caption_path=dataset_config.external_clevr_caption_path,
-            external_docvqa_caption_path=dataset_config.external_docvqa_caption_path,
-            external_geo_caption_path=dataset_config.external_geo_caption_path,
             is_captioning=True,
             add_caption_prompt=dataset_config.add_caption_prompt,
         )
         train_dataloader_mmu = dataset_mmu.train_dataloader
         train_dataloader_mmu.dataset_size = train_dataloader_mmu.num_batches
-
-    elif config.dataset.und_type == "captioning_parquet":
-        raise NotImplementedError()
     else:
         raise NotImplementedError(f"Unsupported dataset type {config.dataset.und_type}")
 
-    dataset_lm = ChatDataset(
-        data_path=dataset_config.train_lm_shards_path_or_url,
-        rank=0,
-        world_size=1,
-        num_workers=dataset_config.num_workers,
-        max_length=preproc_config.max_lm_text_length,
-        tokenizer=uni_prompting.text_tokenizer,
-    )
+    dataset_lm = ChatDataset(data_path=dataset_config.train_lm_shards_path_or_url,
+                                   rank=0,
+                                   world_size=1,
+                                   num_workers=dataset_config.num_workers,
+                                   max_length=preproc_config.max_seq_length,
+                                   tokenizer=uni_prompting.text_tokenizer,
+                                   )
 
     train_dataloader_lm = create_dataloader(
         dataset_lm,
@@ -314,7 +299,6 @@ def main():
         "mmu_flow": train_dataloader_mmu,
     }
 
-    #
     combined_dataloader = CombinedLoader(iterables, mode=config.dataset.combined_loader_mode)
 
     ##################################
@@ -325,41 +309,34 @@ def main():
     start_step = 0
 
     if config.experiment.resume_from_checkpoint:
+        assert config.experiment.resume_from_checkpoint == "latest"
         dirs = os.listdir(config.experiment.output_dir)
         logger.info(f"dirs: {dirs}")
         dirs = [d for d in dirs if d.startswith("checkpoint")]
         dirs = sorted(dirs, key=lambda x: int(x.split("-")[1]))
         path = dirs[-1] if len(dirs) > 0 else None
         logger.info(f"path: {path}")
-        if path is not None:
-            path = os.path.join(config.experiment.output_dir, path)
-            logger.info(f"Resuming from checkpoint: {path}")
+        # if mindspore checkpoint file exists
+        if len(glob.glob(os.path.join(config.experiment.output_dir, path, "unwrapped_model", "*.ckpt"))):
+            ckpt_path = sorted(glob.glob(os.path.join(path, "unwrapped_model", "*.ckpt")))[-1]
+            logger.info(f"Resuming from checkpoint: {ckpt_path}")
             global_step = start_step = int(os.path.basename(path).split("-")[1])
             first_epoch = global_step // num_update_steps_per_epoch
-            if os.path.exists(f"{path}/unwrapped_model/pytorch_model.bin"):
-                state_dict = torch.load(f"{path}/unwrapped_model/pytorch_model.bin", map_location="cpu")
-                model.load_state_dict(state_dict, strict=True)
-                del state_dict
-            elif os.path.exists(f"{path}/unwrapped_model/pytorch_model.bin.index.json"):
-                from safetensors.torch import load_file
-                from transformers.modeling_utils import load_sharded_checkpoint
+            init_from_ckpt(model, path)
 
-                load_sharded_checkpoint(model, f"{path}/unwrapped_model/")
-            elif os.path.exists(f"{path}/unwrapped_model/model.safetensors.index.json"):
-                from transformers.modeling_utils import load_sharded_checkpoint
-
-                load_sharded_checkpoint(
-                    model,
-                    f"{path}/unwrapped_model/",
-                )
-            else:
-                raise FileNotFoundError(f"Checkpoint {path}/unwrapped_model/pytorch_model.bin not found")
+        # if safetensors sharded checkpoint exists
+        elif os.path.exists(
+            os.path.join(config.experiment.output_dir, f"{path}/unwrapped_model/model.safetensors.index.json")
+        ):
+            index_file = os.path.join(
+                config.experiment.output_dir, f"{path}/unwrapped_model/model.safetensors.index.json"
+            )
+            load_checkpoint_and_dispatch(model, index_file, dtype=ms.float32, strict=True)
+        else:
+            raise FileNotFoundError(f"Checkpoint {path}/unwrapped_model/pytorch_model.bin not found")
     else:
         logger.info("Not resuming from checkpoint")
 
-    ##################################
-    #         Prepare model          #
-    #################################
     logger.info("Preparing model, optimizer and dataloaders")
 
     ##################################
@@ -373,24 +350,36 @@ def main():
 
     def prepare_inputs_and_labels(
         pixel_values_or_image_ids: Union[ms.Tensor, ms.Tensor],
-        texts: Union[str, list[str]],
+        texts: Union[str, str],
         min_masking_rate: float = 0.0,
         is_train: bool = True,
-        seed: int = None,
+        seed: int = None
     ):
+        if not isinstance(pixel_values_or_image_ids, ms.Tensor):
+            pixel_values_or_image_ids = ms.Tensor(pixel_values_or_image_ids)
+        if not isinstance(texts, (list, tuple)):
+            texts = [str(t) for t in texts]
+
         image_tokens = vq_model.get_code(pixel_values_or_image_ids)
         image_tokens = image_tokens + len(uni_prompting.text_tokenizer)
         # create MLM mask and labels
         input_ids, labels, loss_weight, mask_prob = mask_or_random_replace_tokens(
-            image_tokens, mask_id, config, mask_schedule=mask_schedule, is_train=is_train, seed=seed
+            image_tokens,
+            mask_id,
+            config,
+            mask_schedule=mask_schedule,
+            is_train=is_train,
+            seed=seed
         )
         input_ids, masks, labels = uni_prompting((texts, input_ids, labels), "t2i")
         return input_ids, labels, mask_prob, image_tokens, masks
 
-    def prepare_inputs_and_labels_for_text(texts: Union[str, list[str]], max_seq_len, eps=1e-3):
+    def prepare_inputs_and_labels_for_text(texts_lm: Union[str, str], max_seq_len, eps=1e-3):
         # create MLM mask and labels
+        if not isinstance(texts_lm, (list, tuple)):
+            texts_lm = [str(t) for t in texts_lm]
 
-        input_ids_lm, prompt_mask, labels_lm = uni_prompting((texts, max_seq_len), "lm")
+        input_ids_lm, prompt_mask, labels_lm = uni_prompting((texts_lm, max_seq_len), "lm")
         b, l = input_ids_lm.shape
         t = mint.rand(
             b,
@@ -409,35 +398,32 @@ def main():
         masked_indices = noisy_batch == mask_id
 
         return noisy_batch, labels_lm, p_mask
-
-    def prepare_inputs_and_labels_for_chat_text(texts: Union[str, list[str]], max_seq_len, eps=1e-3):
+    
+    def prepare_inputs_and_labels_for_chat_text(
+        texts: Union[str, list[str]], max_seq_len, eps=1e-3
+    ):
         # create MLM mask and labels
-
-        input_ids_lm, prompt_mask, labels_lm = uni_prompting((texts, max_seq_len), "lm_chat")
+        
+        input_ids_lm, prompt_mask, labels_lm = uni_prompting((texts, max_seq_len), 'lm_chat')
         b, l = input_ids_lm.shape
-        t = mint.rand(
-            b,
-        )
+        t = mint.rand((b,))
         p_mask = (1 - eps) * t + eps
         p_mask = p_mask[:, None].repeat(1, l)
 
-        masked_indices = (
-            mint.rand(
-                (b, l),
-            )
-            < p_mask
-        )
+        masked_indices = mint.rand((b, l)) < p_mask
         # 126336 is used for [MASK] token
         noisy_batch = mint.where(masked_indices, mask_id, input_ids_lm)
-        masked_indices = noisy_batch == mask_id
+        masked_indices = noisy_batch == mask_id 
         noisy_batch[prompt_mask.bool()] = input_ids_lm[prompt_mask.bool()]
-        masked_indices = noisy_batch == mask_id
+        masked_indices = noisy_batch == mask_id 
         answer_lengths_lm = mint.sum((1 - prompt_mask), dim=-1, keepdim=True)
         answer_lengths_lm = answer_lengths_lm.repeat(1, noisy_batch.shape[1])
-
+        
         return noisy_batch, labels_lm, p_mask, answer_lengths_lm
-
+    
     def prepare_inputs_and_labels_for_mmu(input_ids_mmu, prompt_masks, labels_mmu, eps=1e-3):
+        if not isinstance(input_ids_mmu, ms.Tensor):
+            input_ids_mmu = ms.Tensor(input_ids_mmu)
         b, l = input_ids_mmu.shape
         t = mint.rand(
             b,
@@ -467,6 +453,21 @@ def main():
     data_time_m = AverageMeter()
     end = time.time()
 
+    loss_scaler = DynamicLossScaler(scale_value=65356, scale_factor=2, scale_window=2000)
+    train_step_model = TrainOneStepWrapper(
+        model,
+        optimizer=optimizer,
+        loss_scaler=loss_scaler,
+        drop_overflow_update=True,
+        gradient_accumulation_steps=config.training.gradient_accumulation_steps,
+        clip_grad=config.training.max_grad_norm is not None,
+        clip_norm=config.training.max_grad_norm,
+        ema=None,
+        config=config,
+    )
+    if profiler is not None:
+        profiler.start()
+        logger.info("Memroy profiling starts!")
     for epoch in range(first_epoch, num_train_epochs):
         model.set_train(True)
         for batch in combined_dataloader:
@@ -481,164 +482,166 @@ def main():
             pixel_values, texts = batch["t2i_flow"]["images"], batch["t2i_flow"]["input_ids"]
 
             data_time_m.update(time.time() - end)
-            # print(f"t2i texts: {texts}")
+            with no_grad():
+                # Encode images to image tokens, mask them and create input and labels
+                (input_ids, labels, mask_prob, image_tokens_ori, t2i_masks) = prepare_inputs_and_labels(
+                    pixel_values, texts, config.training.min_masking_rate
+                )
 
-            # Encode images to image tokens, mask them and create input and labels
-            (input_ids, labels, mask_prob, image_tokens_ori, t2i_masks) = prepare_inputs_and_labels(
-                pixel_values, texts, config.training.min_masking_rate
+                # *-------*-------*-------*-------*-------*-------*-------*-------*-------*-------*-------*
+                # Build formatted sequences for language modeling
+                # *-------*-------*-------*-------*-------*-------*-------*-------*-------*-------*-------*
+                max_seq_len = input_ids.shape[-1]
+                texts_lm = batch["lm_flow"]["input_ids"]
+                (
+                    input_ids_lm,  
+                    labels_lm,
+                    p_mask_lm,
+                    answer_lengths_lm
+                ) = prepare_inputs_and_labels_for_chat_text(texts_lm, max_seq_len)  
+                input_ids = mint.cat((input_ids.to(ms.int32), input_ids_lm.to(ms.int32)), dim=0)
+                labels = mint.cat((labels.to(ms.int32), labels_lm.to(ms.int32)), dim=0)
+
+                # *-------*-------*-------*-------*-------*-------*-------*-------*-------*-------*-------*
+                # Build formatted sequences for captioning/multimodal understanding
+                # *-------*-------*-------*-------*-------*-------*-------*-------*-------*-------*-------*
+                if "llava" in config.dataset.und_type:
+                    pixel_values_mmu, input_ids_mmu, labels_mmu = (
+                        batch["mmu_flow"]["images"],
+                        batch["mmu_flow"]["input_ids"],
+                        batch["mmu_flow"]["labels"],
+                    )
+                    if not isinstance(pixel_values_mmu, ms.Tensor):
+                        pixel_values_mmu = ms.Tensor(pixel_values_mmu)
+
+                    if not isinstance(input_ids_mmu, ms.Tensor):
+                        input_ids_mmu = ms.Tensor(input_ids_mmu)
+
+                    image_tokens_mmu = vq_model.get_code(pixel_values_mmu)
+                    image_tokens_mmu = image_tokens_mmu + len(uni_prompting.text_tokenizer)
+
+                    input_ids_mmu = mint.cat(
+                        [
+                            (mint.ones((input_ids_mmu.shape[0], 1)) * uni_prompting.sptids_dict["<|mmu|>"]).to(
+                                ms.int32
+                            ),
+                            (mint.ones((input_ids_mmu.shape[0], 1)) * uni_prompting.sptids_dict["<|soi|>"]).to(
+                                ms.int32
+                            ),
+                            image_tokens_mmu.to(ms.int32),
+                            (mint.ones((input_ids_mmu.shape[0], 1)) * uni_prompting.sptids_dict["<|eoi|>"]).to(
+                                ms.int32
+                            ),
+                            input_ids_mmu.to(ms.int32),
+                        ],
+                        dim=1,
+                    )
+
+                    labels_mmu = mint.cat(
+                        [
+                            (mint.ones((input_ids_mmu.shape[0], 1)) * uni_prompting.ignore_id).to(ms.int32),
+                            (mint.ones((input_ids_mmu.shape[0], 1)) * uni_prompting.ignore_id).to(ms.int32),
+                            (mint.ones_like(image_tokens_mmu) * uni_prompting.ignore_id).to(ms.int32),
+                            (mint.ones((input_ids_mmu.shape[0], 1)) * uni_prompting.ignore_id).to(ms.int32),
+                            labels_mmu.to(ms.int32),
+                        ],
+                        dim=1,
+                    )
+
+                else:
+                    pixel_values_mmu, texts_mmu = batch["mmu_flow"]["images"], batch["mmu_flow"]["input_ids"]
+                    if not isinstance(pixel_values_mmu, ms.Tensor):
+                        pixel_values_mmu = ms.Tensor(pixel_values_mmu)
+
+                    if not isinstance(texts_mmu, (list, tuple)):
+                        texts_mmu = [str(t) for t in texts_mmu]
+                    image_tokens_mmu = vq_model.get_code(pixel_values_mmu)
+                    image_tokens_mmu = image_tokens_mmu + len(uni_prompting.text_tokenizer)
+
+                    input_ids_mmu, prompt_masks, labels_mmu = uni_prompting((image_tokens_mmu, texts_mmu), "mmu")
+                    (input_ids_mmu, labels_mmu, p_mask_mmu, answer_lengths) = prepare_inputs_and_labels_for_mmu(
+                        input_ids_mmu, prompt_masks, labels_mmu
+                    )
+
+                input_ids = mint.cat((input_ids.to(ms.int32), input_ids_mmu.to(ms.int32)), dim=0)
+                labels = mint.cat((labels.to(ms.int32), labels_mmu.to(ms.int32)), dim=0)
+
+            # compute_loss and logits
+
+            loss, logits, loss_t2i, loss_lm, loss_mmu = train_step_model.train_one_step(
+                input_ids,
+                labels,
+                batch_size_t2i,
+                batch_size_lm,
+                batch_size_mmu,
+                p_mask_lm,
+                p_mask_mmu,
+                answer_lengths,
+                t2i_masks,
+                answer_lengths_lm=answer_lengths_lm
             )
 
-            # *-------*-------*-------*-------*-------*-------*-------*-------*-------*-------*-------*
-            # Build formatted sequences for language modeling
-            # *-------*-------*-------*-------*-------*-------*-------*-------*-------*-------*-------*
-            max_seq_len = input_ids.shape[-1]
-            texts_lm = batch["lm_flow"]["input_ids"]
-            (input_ids_lm, labels_lm, p_mask_lm, answer_lengths_lm) = prepare_inputs_and_labels_for_chat_text(
-                texts_lm, max_seq_len
-            )
-            input_ids = mint.cat((input_ids, input_ids_lm), dim=0)
-            labels = mint.cat((labels, labels_lm), dim=0)
+            lr_scheduler.step()
+            avg_loss_t2i = loss_t2i.mean()
+            avg_loss_lm = loss_lm.mean()
+            avg_loss_mmu = loss_mmu.mean()
+            # avg_masking_rate = mask_prob.mean()
 
-            # *-------*-------*-------*-------*-------*-------*-------*-------*-------*-------*-------*
-            # Build formatted sequences for captioning/multimodal understanding
-            # *-------*-------*-------*-------*-------*-------*-------*-------*-------*-------*-------*
-            if "llava" in config.dataset.und_type:
-                pixel_values_mmu, input_ids_mmu, labels_mmu = (
-                    batch["mmu_flow"]["images"],
-                    batch["mmu_flow"]["input_ids"],
-                    batch["mmu_flow"]["labels"],
+            # log gradient norm before zeroing it
+            if (global_step + 1) % config.experiment.log_grad_norm_every == 0:
+                log_grad_norm(model, global_step + 1)
+
+            batch_time_m.update(time.time() - end)
+            end = time.time()
+
+            # Log metrics
+            if (global_step + 1) % config.experiment.log_every == 0:
+                samples_per_second_per_device = (
+                    config.training.gradient_accumulation_steps * total_batch_size_per_device / batch_time_m.val
                 )
 
-                image_tokens_mmu = vq_model.get_code(pixel_values_mmu)
-                image_tokens_mmu = image_tokens_mmu + len(uni_prompting.text_tokenizer)
-
-                input_ids_mmu = mint.cat(
-                    [
-                        (mint.ones((input_ids_mmu.shape[0], 1)) * uni_prompting.sptids_dict["<|mmu|>"]),
-                        (mint.ones((input_ids_mmu.shape[0], 1)) * uni_prompting.sptids_dict["<|soi|>"]),
-                        image_tokens_mmu,
-                        (mint.ones((input_ids_mmu.shape[0], 1)) * uni_prompting.sptids_dict["<|eoi|>"]),
-                        input_ids_mmu,
-                    ],
-                    dim=1,
-                ).to(ms.int32)
-
-                labels_mmu = mint.cat(
-                    [
-                        (mint.ones((input_ids_mmu.shape[0], 1)) * uni_prompting.ignore_id),
-                        (mint.ones((input_ids_mmu.shape[0], 1)) * uni_prompting.ignore_id),
-                        mint.ones_like(image_tokens_mmu) * uni_prompting.ignore_id,
-                        (mint.ones((input_ids_mmu.shape[0], 1)) * uni_prompting.ignore_id),
-                        labels_mmu,
-                    ],
-                    dim=1,
-                ).to(ms.int32)
-
-            else:
-                pixel_values_mmu, texts_mmu = batch["mmu_flow"]["images"], batch["mmu_flow"]["input_ids"]
-
-                image_tokens_mmu = vq_model.get_code(pixel_values_mmu)
-                image_tokens_mmu = image_tokens_mmu + len(uni_prompting.text_tokenizer)
-
-                input_ids_mmu, prompt_masks, labels_mmu = uni_prompting((image_tokens_mmu, texts_mmu), "mmu")
-                (input_ids_mmu, labels_mmu, p_mask_mmu, answer_lengths) = prepare_inputs_and_labels_for_mmu(
-                    input_ids_mmu, prompt_masks, labels_mmu
+                logger.info(
+                    f"Step: {global_step + 1} "
+                    f"Loss_t2i: {avg_loss_t2i.asnumpy().item():0.4f} "
+                    f"Loss_mmu: {avg_loss_mmu.asnumpy().item():0.4f} "
+                    f"Loss_lm: {avg_loss_lm.asnumpy().item():0.4f} "
+                    f"Loss_combined: {loss.asnumpy().item():0.4f} "
+                    f"Data (t): {data_time_m.val:0.4f}, {samples_per_second_per_device:0.2f}/s/device "
+                    f"Batch (t): {batch_time_m.val:0.4f} "
+                    f"LR: {lr_scheduler.get_last_lr()[0].asnumpy().item():0.6f}",
+                    f"Loss scaler {loss_scaler.scale_value.asnumpy().item()}",
                 )
 
-            input_ids = mint.cat((input_ids, input_ids_mmu), dim=0)
-            labels = mint.cat((labels, labels_mmu), dim=0)
+                # resetting batch / data time meters per log window
+                batch_time_m.reset()
+                data_time_m.reset()
+            try:
+                if not os.path.exists(LOG_FILE):
+                    with open(LOG_FILE, "w", encoding="utf-8") as fp:
+                        fp.write("\t".join(["step", "loss", "per step time (s)"]) + "\n")
 
-            if global_step == 0 and epoch == 0:
-                logger.info("Input ids: {}".format(input_ids))
-                logger.info("Labels: {}".format(labels))
-
-                # Training step
-                logits, loss_t2i, loss_lm, loss_mmu = model.construct_process(
-                    input_ids=input_ids,
-                    labels=labels,
-                    batch_size_t2i=batch_size_t2i,
-                    batch_size_lm=batch_size_lm,
-                    batch_size_mmu=batch_size_mmu,
-                    max_seq_length=config.dataset.preprocessing.max_seq_length,
-                    p_mask_lm=p_mask_lm,
-                    p_mask_mmu=p_mask_mmu,
-                    answer_lengths=answer_lengths,
-                    t2i_masks=t2i_masks,
-                    answer_lengths_lm=answer_lengths_lm,
-                )
-                avg_loss_t2i = loss_t2i.mean()
-                avg_loss_lm = loss_lm.mean()
-                avg_loss_mmu = loss_mmu.mean()
-                loss = (
-                    config.training.t2i_coeff * loss_t2i
-                    + config.training.lm_coeff * loss_lm
-                    + config.training.mmu_coeff * loss_mmu
-                )
-
-                avg_masking_rate = mask_prob.mean()
-
-                loss.backward()
-
-                if config.training.max_grad_norm is not None:
-                    mindspore.mint.nn.utils.clip_grad_norm_(model.get_parameters(), config.training.max_grad_norm)
-
-                optimizer.step()
-                lr_scheduler.step()
-
-                # log gradient norm before zeroing it
-                if (global_step + 1) % config.experiment.log_grad_norm_every == 0:
-                    log_grad_norm(model, None, global_step + 1)
-
-                optimizer.zero_grad(set_to_none=True)
-                # Log metrics after each step
-
-                batch_time_m.update(time.time() - end)
-                end = time.time()
-
-                # Log metrics
-                if (global_step + 1) % config.experiment.log_every == 0:
-                    samples_per_second_per_device = (
-                        config.training.gradient_accumulation_steps * total_batch_size_per_device / batch_time_m.val
+                with open(LOG_FILE, "a", encoding="utf-8") as fp:
+                    fp.write(
+                        "\t".join(
+                            [
+                                f"{global_step + 1:<7}",
+                                f"{loss.asnumpy().item():<10.6f}",
+                                f"{batch_time_m.val:<13.3f}",
+                            ]
+                        )
+                        + "\n"
                     )
-                    logs = {
-                        "step_loss_t2i": avg_loss_t2i.item(),
-                        "step_loss_mmu": avg_loss_mmu.item(),
-                        "step_loss_lm": avg_loss_lm.item(),
-                        "lr": lr_scheduler.get_last_lr()[0],
-                        "avg_masking_rate": avg_masking_rate.item(),
-                        "samples/sec/gpu": samples_per_second_per_device,
-                        "data_time": data_time_m.val,
-                        "batch_time": batch_time_m.val,
-                    }
+            except (IOError, PermissionError) as e:
+                logger.error(f"Failed to write log: {e}")
+            # Save model checkpoint
+            if (global_step + 1) % config.experiment.save_every == 0:
+                save_checkpoint(model, config, global_step + 1, uni_prompting)
 
-                    logger.info(
-                        f"Step: {global_step + 1} "
-                        f"Loss_t2i: {avg_loss_t2i.item():0.4f} "
-                        f"Loss_mmu: {avg_loss_mmu.item():0.4f} "
-                        f"Loss_lm: {avg_loss_lm.item():0.4f} "
-                        f"Data (t): {data_time_m.val:0.4f}, {samples_per_second_per_device:0.2f}/s/gpu "
-                        f"Batch (t): {batch_time_m.val:0.4f} "
-                        f"LR: {lr_scheduler.get_last_lr()[0]:0.6f}"
-                    )
-
-                    # resetting batch / data time meters per log window
-                    batch_time_m.reset()
-                    data_time_m.reset()
-
-                if (global_step + 1) % config.experiment.save_every == 0:
-                    save_checkpoint(model, config, None, global_step + 1, uni_prompting)
-
-                if (global_step + 1) % config.experiment.generate_every == 0 or global_step == start_step:
-                    quantative_images(
-                        model,
-                        vq_model,
-                        uni_prompting,
-                        config,
-                        global_step + 1,
-                        mask_schedule=mask_schedule,
-                        force_no_cfg=False,
-                    )
-
+            if (
+                (global_step + 1) % config.experiment.generate_every == 0 or global_step == start_step
+            ) and config.experiment.eval_during_train:
+                model.set_train(False)
+                with no_grad():
                     generate_images(
                         model,
                         vq_model,
@@ -646,9 +649,17 @@ def main():
                         config,
                         global_step + 1,
                         mask_schedule=mask_schedule,
-                        force_no_cfg=False,
+			            force_no_cfg=False
                     )
-
+                    generate_images(
+                        model,
+                        vq_model,
+                        uni_prompting,
+                        config,
+                        global_step + 1,
+                        mask_schedule=mask_schedule,
+			            force_no_cfg=True
+                    )
                     visualize_predictions(
                         model,
                         vq_model,
@@ -657,7 +668,7 @@ def main():
                         global_step + 1,
                         input_ids,
                         image_tokens_ori,
-                        batch["t2i_flow"]["images"],
+                        ms.Tensor(batch["t2i_flow"]["images"]),
                         texts,
                         logits,
                     )
@@ -669,39 +680,34 @@ def main():
                         config,
                         global_step + 1,
                     )
-
                     generate_chat_text(
                         model,
                         uni_prompting,
                         config,
                         global_step + 1,
                     )
+                model.set_train(True)
 
-                global_step += 1
-            # Stop training if max steps is reached
+            global_step += 1
+            if profiler is not None and global_step == 2:
+                # save first two steps
+                profiler.stop()
+                profiler.analyse()
+                logger.info("Memroy profiling and analysis is finished! Check ./mem_info!")
             if global_step >= config.training.max_train_steps:
                 break
-            # End for
 
-    # Save checkpoint at the end of training
-    save_checkpoint(model, config, None, global_step, uni_prompting)
+    # Evaluate and save checkpoint at the end of training
+    save_checkpoint(model, config, global_step, uni_prompting)
+
+    # Save the final trained checkpoint
     model.save_pretrained(config.experiment.output_dir, safe_serialization=True)
 
 
 def visualize_predictions(
-    model,
-    vq_model,
-    uni_prompting,
-    config,
-    global_step,
-    input_ids,
-    image_tokens_ori,
-    ori_images,
-    texts,
-    logits,
+    model, vq_model, uni_prompting, config, global_step, input_ids, image_tokens_ori, ori_images, texts, logits
 ):
     logger.info("Visualizing predictions...")
-    model.set_train(False)
 
     recons_images = vq_model.decode_code(image_tokens_ori - len(uni_prompting.text_tokenizer))
     recons_images = mint.clamp((recons_images + 1.0) / 2.0, min=0.0, max=1.0)
@@ -719,6 +725,7 @@ def visualize_predictions(
         + config.model.mmada.num_new_special_tokens
         + config.model.mmada.codebook_size,
     ]
+
     predictions = predictions.argmax(axis=-1)
     mask_token_id = model.config.mask_token_id - len(uni_prompting.text_tokenizer)
     input_ids = input_ids[: config.training.batch_size_t2i, -(config.model.mmada.num_vq_tokens + 1) : -1 :] - len(
@@ -735,17 +742,28 @@ def visualize_predictions(
     predicted_images = np.concatenate((images, recons_images, predicted_images), 2)
     pil_images = [Image.fromarray(image) for image in predicted_images]
 
-    # Log images
-    # Log images to console
-    for i, (image, r) in enumerate(zip(pil_images, mask_ratio)):
-        logger.info(f"Image {i} - Mask ratio: {r:0.2f} - Caption: {texts[i]}")
+    # save to directory
+    output_dir = os.path.join(config.experiment.logging_dir, f"visualization/{global_step}")
+    os.makedirs(output_dir, exist_ok=True)
+    index = 0
+    for image, mr in zip(pil_images, mask_ratio):
+        fn = f"{index}-mask_ratio{mr:3f}.png"
+        fp = os.path.join(output_dir, fn)
+        image.save(fp)
+    logger.info(f"Images, reconstructed images, and predicted images saved state to {output_dir}")
+    return
 
-    model.set_train(True)
 
-
-def generate_images(model, vq_model, uni_prompting, config, global_step, mask_schedule, force_no_cfg=False):
+def generate_images(
+    model,
+    vq_model,
+    uni_prompting,
+    config,
+    global_step,
+    mask_schedule,
+    force_no_cfg = False
+):
     logger.info("Generating images...")
-    model.set_train(False)
 
     # read validation prompts from file
     with open(config.dataset.params.validation_prompts_file, "r") as f:
@@ -757,47 +775,33 @@ def generate_images(model, vq_model, uni_prompting, config, global_step, mask_sc
     )
     input_ids, attention_mask = uni_prompting((validation_prompts, image_tokens), "t2i_gen")
     if not force_no_cfg and config.training.guidance_scale > 0:
-        uncond_input_ids, uncond_attention_mask = uni_prompting(
-            ([""] * len(validation_prompts), image_tokens), "t2i_gen"
-        )
+        uncond_input_ids, uncond_attention_mask = uni_prompting(([''] * len(validation_prompts), image_tokens), 't2i_gen')
         cfg_scale = config.training.guidance_scale
     else:
         uncond_input_ids = None
         uncond_attention_mask = None
         cfg_scale = 0
-    if config.training.mixed_precision == "fp16":
-        weight_dtype = ms.float16
-    elif config.training.mixed_precision == "bf16":
-        weight_dtype = ms.bfloat16
-    else:
-        weight_dtype = ms.float32
 
-    with torch.autocast(
-        "cuda",
-        dtype=weight_dtype,
-    ):
         # Generate images
-        gen_token_ids = model.t2i_generate(
-            input_ids=input_ids,
-            uncond_input_ids=uncond_input_ids,
-            attention_mask=attention_mask,
-            uncond_attention_mask=uncond_attention_mask,
-            guidance_scale=cfg_scale,
-            temperature=config.training.get("generation_temperature", 1.0),
-            timesteps=config.training.generation_timesteps,
-            noise_schedule=mask_schedule,
-            noise_type=config.training.get("noise_type", "mask"),
-            predict_all_tokens=config.training.get("predict_all_tokens", False),
-            seq_len=config.model.mmada.num_vq_tokens,
-            uni_prompting=uni_prompting,
-            config=config,
-        )
+    gen_token_ids = model.t2i_generate(
+        input_ids=input_ids,
+        uncond_input_ids=uncond_input_ids,
+        attention_mask=attention_mask,
+        uncond_attention_mask=uncond_attention_mask,
+        guidance_scale=cfg_scale,
+        temperature=config.training.get("generation_temperature", 1.0),
+        timesteps=config.training.generation_timesteps,
+        noise_schedule=mask_schedule,
+        noise_type=config.training.get("noise_type", "mask"),
+        predict_all_tokens=config.training.get("predict_all_tokens", False),
+        seq_len=config.model.mmada.num_vq_tokens,
+        uni_prompting=uni_prompting,
+        config=config,
+    )
     # In the beginning of training, the model is not fully trained and the generated token ids can be out of range
     # so we clamp them to the correct range.
     gen_token_ids = mint.clamp(gen_token_ids, max=model.config.codebook_size - 1, min=0)
     images = vq_model.decode_code(gen_token_ids)
-
-    model.set_train(True)
 
     if config.training.get("pre_encode", False):
         del vq_model
@@ -808,101 +812,16 @@ def generate_images(model, vq_model, uni_prompting, config, global_step, mask_sc
     images = images.permute(0, 2, 3, 1).asnumpy().astype(np.uint8)
     pil_images = [Image.fromarray(image) for image in images]
 
-    # Log images
-    log_images = [Image(image, caption=validation_prompts[i]) for i, image in enumerate(pil_images)]
+    # save to directory
+    output_dir = os.path.join(config.experiment.logging_dir, f"generated_images_cfg={cfg_scale}/{global_step}")
+    os.makedirs(output_dir, exist_ok=True)
+    for image, prompt in zip(pil_images, validation_prompts):
+        fn = prompt.strip()[:50] + ".png"
+        fp = os.path.join(output_dir, fn)
+        image.save(fp)
+    logger.info(f"Generated images saved state to {output_dir}")
 
-
-def quantative_images(model, vq_model, uni_prompting, config, global_step, mask_schedule, force_no_cfg=False):
-    logger.info("Quantative images...")
-    model.set_train(False)
-    clip_score_fn = partial(clip_score, model_name_or_path="/data_storage/shared/pretrained_models/")
-    image_reward_model = RM.load("/data_storage/shared/pretrained_models/ImageReward/ImageReward.pt")
-    # read validation prompts from file
-    with open(config.validation.quantative_prompts_file, "r") as f:
-        validation_prompts = f.read().splitlines()
-
-    mask_dtype = model.get_input_embeddings().weight.dtype
-    mask_token_id = model.config.mask_token_id
-    image_tokens = (
-        mint.ones((len(validation_prompts), config.model.mmada.num_vq_tokens), dtype=ms.int64) * mask_token_id
-    )
-    input_ids, attention_mask = uni_prompting((validation_prompts, image_tokens), "t2i_gen")
-    if not force_no_cfg and config.training.guidance_scale > 0:
-        uncond_input_ids, uncond_attention_mask = uni_prompting(
-            ([""] * len(validation_prompts), image_tokens), "t2i_gen"
-        )
-        cfg_scale = config.training.guidance_scale
-    else:
-        uncond_input_ids = None
-        uncond_attention_mask = None
-        cfg_scale = 0
-    if config.training.mixed_precision == "fp16":
-        weight_dtype = ms.float16
-    elif config.training.mixed_precision == "bf16":
-        weight_dtype = ms.bfloat16
-    else:
-        weight_dtype = ms.float32
-
-    validation_batch_size = config.validation.quantative_batch_size
-
-    pil_images = []
-    clip_scores = []
-    image_rewards = []
-    for i in range(0, len(validation_prompts), validation_batch_size):
-        batch_input_ids = input_ids[i : i + validation_batch_size]
-        batch_attention_mask = attention_mask[i : i + validation_batch_size]
-        batch_uncond_input_ids = uncond_input_ids[i : i + validation_batch_size]
-        batch_uncond_attention_mask = uncond_attention_mask[i : i + validation_batch_size]
-
-        # Generate images
-        gen_token_ids = model.t2i_generate(
-            input_ids=batch_input_ids,
-            uncond_input_ids=batch_uncond_input_ids,
-            attention_mask=batch_attention_mask,
-            uncond_attention_mask=batch_uncond_attention_mask,
-            guidance_scale=cfg_scale,
-            temperature=config.training.get("generation_temperature", 1.0),
-            timesteps=config.training.generation_timesteps,
-            noise_schedule=mask_schedule,
-            noise_type=config.training.get("noise_type", "mask"),
-            predict_all_tokens=config.training.get("predict_all_tokens", False),
-            seq_len=config.model.mmada.num_vq_tokens,
-            uni_prompting=uni_prompting,
-            config=config,
-        )
-        # In the beginning of training, the model is not fully trained and the generated token ids can be out of range
-        # so we clamp them to the correct range.
-        gen_token_ids = mint.clamp(gen_token_ids, max=model.config.codebook_size - 1, min=0)
-        images = vq_model.decode_code(gen_token_ids)
-        images = mint.clamp((images + 1.0) / 2.0, min=0.0, max=1.0)
-        images *= 255.0
-        image_tensor = images.to(ms.uint8)
-        images = images.permute(0, 2, 3, 1).asnumpy().astype(np.uint8)
-        batch_pil_images = [Image.fromarray(image) for image in images]
-        pil_images.extend(batch_pil_images)
-
-        # calculate CLIP score
-        batch_clip_score = clip_score_fn(image_tensor, validation_prompts[i : i + validation_batch_size])
-        # calculate image reward score
-        for j in range(validation_batch_size):
-            clip_scores.append(clip_score_fn(image_tensor[j], validation_prompts[i + j]))
-            image_reward_score = image_reward_model.score(validation_prompts[i + j], batch_pil_images[j])
-            image_rewards.append(image_reward_score)
-    clip_scores = ms.tensor(clip_scores)
-    image_rewards = ms.tensor(image_rewards)
-    logger.info(f"clip_scores: {clip_scores}, image_rewards: {image_rewards}")
-    clip_scores_mean = clip_scores.mean()
-    image_rewards_mean = image_rewards.mean()
-    logger.info(f"CLIP score mean: {clip_scores_mean}, Image reward score mean: {image_rewards_mean}")
-
-    # Log sample images to console
-    for i, image in enumerate(pil_images[: min(3, len(pil_images))]):
-        logger.info(f"Sample image {i+1} - CLIP score: {clip_scores[i]}, Reward score: {image_rewards[i]}")
-
-    if config.training.get("pre_encode", False):
-        del vq_model
-
-    model.set_train(True)
+    return
 
 
 def understanding_images(
@@ -913,160 +832,106 @@ def understanding_images(
     global_step,
 ):
     logger.info("Understanding images...")
-    model.set_train(False)
-
-    prompts_file_path = config.dataset.params.mmu_validation_prompts_file
-    prompts_dict = {}
-    try:
-        with open(prompts_file_path, "r") as f:
-            for line in f:
-                data = json.loads(line)
-                prompts_dict[data["file_name"]] = data["prompt"]
-    except Exception as e:
-        logger.error(f"Error loading prompts from {prompts_file_path}: {e}. Using default prompt.")
-        default_prompt = (
-            "<|start_header_id|>user<|end_header_id|>\n"
-            + "Please describe this image in detail."
-            + "<eot_id><|start_header_id|>assistant<|end_header_id|>\n"
-        )
 
     file_list = os.listdir(config.dataset.params.mmu_image_root)
     file_list = [f for f in file_list if f.lower().endswith((".jpg", ".png", ".jpeg"))]
-    file_list = sorted(file_list)
     responses = ["" for i in range(len(file_list))]
-    questions = ["" for i in range(len(file_list))]
     images = []
-
-    if config.training.mixed_precision == "fp16":
-        weight_dtype = ms.float16
-    elif config.training.mixed_precision == "bf16":
-        weight_dtype = ms.bfloat16
-    else:
-        weight_dtype = ms.float32
 
     for i, file_name in enumerate(file_list):
         image_path = os.path.join(config.dataset.params.mmu_image_root, file_name)
         image_ori = Image.open(image_path).convert("RGB")
-        if "ai2d" in file_name or "clevr" in file_name or "docvqa" in file_name or "geo" in file_name:
-            image = image_transform_squash(image_ori, resolution=config.dataset.params.resolution)
-        else:
-            image = image_transform(image_ori, resolution=config.dataset.params.resolution)
-        image = image.unsqueeze(0)
+        image = image_transform(image_ori, resolution=config.dataset.params.resolution)
+        image = ms.Tensor(image).unsqueeze(0)
         images.append(image)
         image_tokens = vq_model.get_code(image) + len(uni_prompting.text_tokenizer)
-        batch_size = 1
 
-        current_prompt = prompts_dict.get(file_name)
-        if current_prompt is None:
-            logger.warning(f"Prompt for {file_name} not found in {prompts_file_path}. Using default prompt.")
-            default_prompt_for_missing = (
+        input_ids = uni_prompting.text_tokenizer(
+            [
                 "<|start_header_id|>user<|end_header_id|>\n"
                 + "Please describe this image in detail."
                 + "<eot_id><|start_header_id|>assistant<|end_header_id|>\n"
-            )
-            current_prompt = default_prompt_for_missing if prompts_dict else default_prompt
-        input_ids = uni_prompting.text_tokenizer([current_prompt])["input_ids"]
+            ]
+        )["input_ids"]
         input_ids = ms.tensor(input_ids)
 
         input_ids = mint.cat(
             [
-                (mint.ones((input_ids.shape[0], 1)) * uni_prompting.sptids_dict["<|mmu|>"]),
-                (mint.ones((input_ids.shape[0], 1)) * uni_prompting.sptids_dict["<|soi|>"]),
-                image_tokens,
-                (mint.ones((input_ids.shape[0], 1)) * uni_prompting.sptids_dict["<|eoi|>"]),
-                (mint.ones((input_ids.shape[0], 1)) * uni_prompting.sptids_dict["<|sot|>"]),
-                input_ids,
+                (mint.ones((input_ids.shape[0], 1)) * uni_prompting.sptids_dict["<|mmu|>"]).to(ms.int32),
+                (mint.ones((input_ids.shape[0], 1)) * uni_prompting.sptids_dict["<|soi|>"]).to(ms.int32),
+                image_tokens.to(ms.int32),
+                (mint.ones((input_ids.shape[0], 1)) * uni_prompting.sptids_dict["<|eoi|>"]).to(ms.int32),
+                (mint.ones((input_ids.shape[0], 1)) * uni_prompting.sptids_dict["<|sot|>"]).to(ms.int32),
+                input_ids.to(ms.int32),
             ],
             dim=1,
-        ).to(ms.int32)
-
-        output_ids = model.mmu_generate(
-            input_ids,
-            max_new_tokens=config.dataset.preprocessing.max_seq_length,
-            steps=config.dataset.preprocessing.max_seq_length // 2,
-            block_length=config.dataset.preprocessing.max_seq_length // 4,
         )
+
+        output_ids = model.mmu_generate(input_ids)
+        # output_ids = mint.stack(output_ids).squeeze()[None]
 
         text = uni_prompting.text_tokenizer.batch_decode(output_ids[:, input_ids.shape[1] :], skip_special_tokens=True)
-        current_prompt = current_prompt.removeprefix("<|start_header_id|>user<|end_header_id|>\n").removesuffix(
-            "<eot_id><|start_header_id|>assistant<|end_header_id|>\n"
-        )
-        questions[i] += current_prompt
         responses[i] += text[0]
-    model.set_train(True)
-    images = mint.cat(images, dim=0)
-    images = mint.clamp((images + 1.0) / 2.0, min=0.0, max=1.0)
-    images *= 255.0
-    images = images.permute(0, 2, 3, 1).asnumpy().astype(np.uint8)
-    pil_images = [Image.fromarray(image) for image in images]
 
-    # Log images
-    log_images = [
-        Image(image, caption=f"**Question:** {questions[i]}\n**Response:** {responses[i]}")
-        for i, image in enumerate(pil_images)
-    ]
+    # images = mint.cat(images, dim=0)
+    # images = mint.clamp((images + 1.0) / 2.0, min=0.0, max=1.0)
+    # images *= 255.0
+    # images = images.permute(0, 2, 3, 1).asnumpy().astype(np.uint8)
+    # pil_images = [Image.fromarray(image) for image in images]
 
+    # save to directory
+    output_dir = os.path.join(config.experiment.logging_dir, f"understanding_images/{global_step}")
+    os.makedirs(output_dir, exist_ok=True)
+    for fp, responses in zip(file_list, responses):
+        base_name = os.path.basename(fp)
+        fp = os.path.join(output_dir, base_name.split(".")[0] + ".txt")
+        with open(fp, "w") as f:
+            f.writelines([responses])
 
+    logger.info(f"Image understanding results saved state to {output_dir}")
+    return
 def generate_chat_text(
-    model,
-    uni_prompting,
-    config,
-    global_step,
+        model,
+        uni_prompting,
+        accelerator,
+        config,
+        global_step,
 ):
     logger.info("Generating chat text...")
-    model.set_train(False)
 
     df = pandas.read_json(config.dataset.params.lm_chat_validation_jsonl, lines=True)
-    prompts = df["question"].tolist()
-    responses = [""] * len(prompts)
-
-    if config.training.mixed_precision == "fp16":
-        weight_dtype = ms.float16
-    elif config.training.mixed_precision == "bf16":
-        weight_dtype = ms.bfloat16
-    else:
-        weight_dtype = ms.float32
+    prompts = df['question'].tolist()
+    responses = [''] * len(prompts)
+    weight_dtype = ms.bfloat16
 
     html_content = "<div style='font-family:Arial, sans-serif;'>"
     html_content += f"<h2 style='color:navy;'>Step {global_step}</h2>"
 
     for i, prompt in enumerate(prompts):
         original_prompt = prompt
+        prompt_with_tags = "<|start_header_id|>user<|end_header_id|>\n" + f"{prompt}" + "<eot_id><|start_header_id|>assistant<|end_header_id|>\n"
+        input_ids = uni_prompting.text_tokenizer([prompt_with_tags])['input_ids']
+        input_ids = ms.Tensor(input_ids)
 
-        prompt_with_tags = (
-            "<|start_header_id|>user<|end_header_id|>\n"
-            + f"{prompt}"
-            + "<eot_id><|start_header_id|>assistant<|end_header_id|>\n"
+        output_ids = model.mmu_generate(
+            input_ids, 
+            max_new_tokens=config.dataset.preprocessing.max_seq_length, 
+            steps=config.dataset.preprocessing.max_seq_length // 2, 
+            block_length=config.dataset.preprocessing.max_seq_length // 4
         )
-        token_ids = uni_prompting.text_tokenizer([prompt_with_tags])["input_ids"][0]
-        token_ids = [uni_prompting.text_tokenizer.bos_token_id] + token_ids
-        input_ids = ms.tensor(token_ids).unsqueeze(0)
-
-        with torch.autocast("cuda", dtype=weight_dtype):
-            output_ids = model.mmu_generate(
-                input_ids,
-                max_new_tokens=config.dataset.preprocessing.max_seq_length,
-                steps=config.dataset.preprocessing.max_lm_text_length // 2,
-                block_length=config.dataset.preprocessing.max_seq_length // 4,
-            )
-        text = uni_prompting.text_tokenizer.batch_decode(output_ids[:, input_ids.shape[1] :], skip_special_tokens=True)
+        text = uni_prompting.text_tokenizer.batch_decode(output_ids[:, input_ids.shape[1]:], skip_special_tokens=True)
         responses[i] += text[0]
 
-        escaped_prompt = html.escape(original_prompt)
-        escaped_response = html.escape(responses[i])
-        html_content += f"""
-        <div style='border: 1px solid #ddd; margin:10px 0; padding:10px;'>
-          <h4 style='margin: 0;'>Prompt</h4>
-          <p style='margin: 0;'>{escaped_prompt}</p>
-          <h4 style='margin: 0; margin-top:5px;'>Response</h4>
-          <p style='margin: 0;'>{escaped_response}</p>
-        </div>
-        """
-
-    html_content += "</div>"
-
-    model.set_train(True)
-
+    # save prompts and responses to json file
+    output_dir = os.path.join(config.experiment.logging_dir, f"chat_text/{global_step}")
+    os.makedirs(output_dir, exist_ok=True)
+    output_path = os.path.join(output_dir, "chat_results.json")
+    results = []
+    for prompt, response in zip(prompts, responses):
+        results.append({"prompt": prompt, "response": response})
+    with open(output_path, "w", encoding="utf-8") as f:
+        json.dump(results, f, ensure_ascii=False, indent=2)
+    logger.info(f"Chat prompts and responses saved to {output_path}")
 
 def save_checkpoint(model, config, global_step, uni_prompting):
     output_dir = config.experiment.output_dir
@@ -1094,22 +959,30 @@ def save_checkpoint(model, config, global_step, uni_prompting):
 
     save_path = Path(output_dir) / f"checkpoint-{global_step}"
 
-    model.save_pretrained(save_path / "unwrapped_model", state_dict=model.state_dict(), safe_serialization=True)
+    # retrieve the model on all processes for deepspeed stage 3 to work then save on one process (we are not using stage 3 yet)
+    # XXX: could also make this conditional on deepspeed
+    state_dict = model.state_dict()
+    model.save_pretrained(save_path / "unwrapped_model", state_dict=state_dict, safe_serialization=True)
     json.dump({"global_step": global_step}, (save_path / "metadata.json").open("w+"))
     logger.info(f"Saved state to {save_path}")
 
     # save tokenizer
-    uni_prompting.text_tokenizer.save_pretrained(save_path / "unwrapped_model")
+    uni_prompting.text_tokenizer.save_pretrained(save_path/ "unwrapped_model")
+	
+def log_grad_norm(model, config, global_step):
+    output_dir = os.path.join(config.experiment.logging_dir, f"grad_norm/{global_step}")
+    os.makedirs(output_dir, exist_ok=True)
 
-
-def log_grad_norm(model, global_step):
     save_gradnorm_dict = {}
     for name, param in model.name_cells().items():
         if param.grad is not None:
             grads = param.grad.data
             grad_norm = (grads.norm(p=2) / grads.numel()).asnumpy().item()
-            save_gradnorm_dict[name].append({global_step: grad_norm})
-    return save_gradnorm_dict
+            save_gradnorm_dict[name] = grad_norm
+    fp = os.path.join(output_dir, "gradients_norm_dict.pkl")
+    with open(fp, "wb") as f:
+        pkl.dump(save_gradnorm_dict, f)
+    logger.info(f"Gradients norms at global step {global_step} saved state to {fp}")
 
 
 if __name__ == "__main__":
