@@ -22,7 +22,6 @@
 import math
 from typing import Callable, Optional, Tuple, Union
 
-import numpy as np
 from transformers import GlmConfig
 from transformers.utils import add_start_docstrings, add_start_docstrings_to_model_forward, logging
 

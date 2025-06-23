@@ -7,22 +7,22 @@ from transformers.utils import logging
 import mindspore as ms
 from mindspore import mint, nn, ops
 from mindspore.common.initializer import Normal, Zero, initializer
-from mindspore.ops.operations.nn_ops import FlashAttentionScore as FlashAttention
 
 from ...activations import ACT2FN
 from ...cache_utils import Cache, DynamicCache
 from ...mindspore_adapter import dtype_to_min
 from ...mindspore_utils import ALL_LAYERNORM_LAYERS
-from ...modeling_rope_utils import ROPE_INIT_FUNCTIONS
 from ...modeling_outputs import (
     BaseModelOutputWithPast,
     CausalLMOutputWithPast,
     SequenceClassifierOutputWithPast,
     TokenClassifierOutput,
 )
+from ...modeling_rope_utils import ROPE_INIT_FUNCTIONS
 from ...modeling_utils import ALL_ATTENTION_FUNCTIONS, MSPreTrainedModel
 
 logger = logging.get_logger(__name__)
+
 
 def eager_attention_forward(
     module: nn.Cell,
@@ -48,6 +48,7 @@ def eager_attention_forward(
     attn_output = attn_output.swapaxes(1, 2).contiguous()
 
     return attn_output, attn_weights
+
 
 class Phi3RMSNorm(nn.Cell):
     def __init__(self, hidden_size, eps=1e-5, dtype=ms.float32):
@@ -238,9 +239,7 @@ class Phi3Attention(nn.Cell):
 
     def _init_rope(self):
         if self.rope_scaling is None:
-            self.rotary_emb = Phi3RotaryEmbedding(
-                self.config
-            )
+            self.rotary_emb = Phi3RotaryEmbedding(self.config)
         else:
             scaling_type = self.config.rope_scaling["type"]
             if scaling_type == "longrope" or scaling_type == "su":
@@ -324,7 +323,7 @@ class Phi3DecoderLayer(nn.Cell):
         super().__init__()
         self.hidden_size = config.hidden_size
 
-        self.self_attn = PHI3_ATTENTION_CLASSES[config._attn_implementation](config=config, layer_idx=layer_idx)
+        self.self_attn = Phi3Attention(config=config, layer_idx=layer_idx)
 
         self.mlp = Phi3MLP(config)
         self.input_layernorm = Phi3RMSNorm(config.hidden_size, eps=config.rms_norm_eps)
@@ -607,13 +606,13 @@ class Phi3Model(Phi3PreTrainedModel):
     @staticmethod
     # Copied from transformers.models.gemma.modeling_gemma
     def _prepare_4d_causal_attention_mask_with_cache_position(
-            attention_mask: ms.Tensor,
-            sequence_length: int,
-            target_length: int,
-            dtype: ms.dtype,
-            min_dtype: float,
-            cache_position: ms.Tensor,
-            batch_size: int,
+        attention_mask: ms.Tensor,
+        sequence_length: int,
+        target_length: int,
+        dtype: ms.dtype,
+        min_dtype: float,
+        cache_position: ms.Tensor,
+        batch_size: int,
     ):
         """
         Creates a causal 4D mask of shape `(batch_size, 1, query_length, key_value_length)` from a 2D mask of shape
@@ -650,8 +649,9 @@ class Phi3Model(Phi3PreTrainedModel):
                 mask_length = attention_mask.shape[-1]
                 padding_mask = causal_mask[:, :, :, :mask_length] + attention_mask[:, None, None, :]
                 padding_mask = padding_mask == 0
-                causal_mask[:, :, :, :mask_length] = causal_mask[:, :, :, :mask_length].masked_fill(padding_mask,
-                                                                                                    min_dtype)
+                causal_mask[:, :, :, :mask_length] = causal_mask[:, :, :, :mask_length].masked_fill(
+                    padding_mask, min_dtype
+                )
 
         return causal_mask
 
