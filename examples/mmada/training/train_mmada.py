@@ -51,8 +51,20 @@ def get_vq_model_class(model_type):
 
 def main():
     config = get_config()
+
+    if config.training.get("distributed", False):
+        D.init()
+        rank_id = D.get_rank()
+        device_num = D.get_group_size()
+        ms.set_auto_parallel_context(device_num=device_num, parallel_mode=ms.ParallelMode.DATA_PARALLEL, gradients_mean=True)
+    else:
+        rank_id = 0
+        device_num = 1
     config.experiment.logging_dir = str(Path(config.experiment.output_dir) / "logs")
-    os.makedirs(config.experiment.logging_dir, exist_ok=True)
+    if rank_id == 0:
+        os.makedirs(config.experiment.output_dir, exist_ok=True)
+        os.makedirs(config.experiment.logging_dir, exist_ok=True)
+
     LOG_FILE = os.path.join(config.experiment.logging_dir, "loss.log")
     total_batch_size_per_device = (
         config.training.batch_size_t2i + config.training.batch_size_lm + config.training.batch_size_mmu
@@ -70,14 +82,6 @@ def main():
         profiler = None
 
 
-    if config.training.get("distributed", False):
-        D.init()
-        rank_id = D.get_rank()
-        device_num = D.get_group_size()
-        ms.set_auto_parallel_context(device_num=device_num, parallel_mode=ms.ParallelMode.DATA_PARALLEL, gradients_mean=True)
-    else:
-        rank_id = 0
-        device_num = 1
     #####################################
     # SETUP LOGGING, SEED and CONFIG    #
     #####################################
@@ -88,7 +92,7 @@ def main():
         level=logging.INFO,
     )
 
-    os.makedirs(config.experiment.output_dir, exist_ok=True)
+
     config_path = Path(config.experiment.output_dir) / "config.yaml"
     logging.info(f"Saving config to {config_path}")
     OmegaConf.save(config, config_path)
@@ -581,13 +585,13 @@ def main():
 
             # log gradient norm before zeroing it
             if (global_step + 1) % config.experiment.log_grad_norm_every == 0:
-                log_grad_norm(model, global_step + 1)
+                log_grad_norm(model, config, global_step + 1)
 
             batch_time_m.update(time.time() - end)
             end = time.time()
 
             # Log metrics
-            if (global_step + 1) % config.experiment.log_every == 0:
+            if (global_step + 1) % config.experiment.log_every == 0 and rank_id == 0:
                 samples_per_second_per_device = (
                     config.training.gradient_accumulation_steps * total_batch_size_per_device / batch_time_m.val
                 )
@@ -607,31 +611,31 @@ def main():
                 # resetting batch / data time meters per log window
                 batch_time_m.reset()
                 data_time_m.reset()
-            try:
-                if not os.path.exists(LOG_FILE):
-                    with open(LOG_FILE, "w", encoding="utf-8") as fp:
-                        fp.write("\t".join(["step", "loss", "per step time (s)"]) + "\n")
-
-                with open(LOG_FILE, "a", encoding="utf-8") as fp:
-                    fp.write(
-                        "\t".join(
-                            [
-                                f"{global_step + 1:<7}",
-                                f"{loss.asnumpy().item():<10.6f}",
-                                f"{batch_time_m.val:<13.3f}",
-                            ]
+            if rank_id == 0:
+                try:
+                    if not os.path.exists(LOG_FILE):
+                        with open(LOG_FILE, "w", encoding="utf-8") as fp:
+                            fp.write("\t".join(["step", "loss", "per step time (s)"]) + "\n")
+                    with open(LOG_FILE, "a", encoding="utf-8") as fp:
+                        fp.write(
+                            "\t".join(
+                                [
+                                    f"{global_step + 1:<7}",
+                                    f"{loss.asnumpy().item():<10.6f}",
+                                    f"{batch_time_m.val:<13.3f}",
+                                ]
+                            )
+                            + "\n"
                         )
-                        + "\n"
-                    )
-            except (IOError, PermissionError) as e:
-                logger.error(f"Failed to write log: {e}")
+                except (IOError, PermissionError) as e:
+                    logger.error(f"Failed to write log: {e}")
             # Save model checkpoint
-            if (global_step + 1) % config.experiment.save_every == 0:
+            if (global_step + 1) % config.experiment.save_every == 0 and rank_id == 0:
                 save_checkpoint(model, config, global_step + 1)
 
             if (
                 (global_step + 1) % config.experiment.generate_every == 0 or global_step == 0
-            ) and config.experiment.eval_during_train:
+            ) and config.experiment.eval_during_train and rank_id == 0:
                 model.set_train(False)
                 with no_grad():
                     generate_images(
@@ -675,10 +679,10 @@ def main():
                 break
 
     # Evaluate and save checkpoint at the end of training
-    save_checkpoint(model, config, global_step)
-
-    # Save the final trained checkpoint
-    model.save_pretrained(config.experiment.output_dir, safe_serialization=True)
+    if rank_id == 0:
+        save_checkpoint(model, config, global_step)
+        # Save the final trained checkpoint
+        model.save_pretrained(config.experiment.output_dir, safe_serialization=True)
 
 
 def visualize_predictions(
