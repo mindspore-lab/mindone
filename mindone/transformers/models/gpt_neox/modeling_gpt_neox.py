@@ -7,7 +7,7 @@
 from typing import Callable, Optional, Tuple, Union
 
 import mindspore as ms
-from mindspore import mint, nn
+from mindspore import Parameter, mint, nn, jit
 
 from ...activations import ACT2FN
 from ...cache_utils import Cache, DynamicCache
@@ -107,7 +107,7 @@ def eager_attention_forward(
     head_mask: Optional[ms.Tensor] = None,
     **kwargs,
 ):
-    attn_weights = mint.matmul(query, key.transpose(2, 3)) * scaling
+    attn_weights = mint.matmul(query, mint.transpose(key, 2, 3)) * scaling
 
     if attention_mask is not None:  # no matter the length, we just slice it
         causal_mask = attention_mask[:, :, :, : key.shape[-2]]
@@ -123,7 +123,7 @@ def eager_attention_forward(
     attn_output = mint.matmul(attn_weights, value)
 
     # Reshape outputs
-    attn_output = attn_output.transpose(1, 2).contiguous()
+    attn_output = mint..transpose(attn_output, 1, 2).contiguous()
 
     return attn_output, attn_weights
 
@@ -156,7 +156,7 @@ class GPTNeoXAttention(nn.Cell):
         input_shape = hidden_states.shape[:-1]
         hidden_shape = (*input_shape, -1, 3 * self.head_size)
 
-        qkv = self.query_key_value(hidden_states).view(hidden_shape).transpose(1, 2)
+        qkv = mint.transpose(self.query_key_value(hidden_states).view(hidden_shape), 1, 2)
         query_states, key_states, value_states = qkv.chunk(3, dim=-1)
 
         cos, sin = position_embeddings
@@ -271,18 +271,20 @@ class GPTNeoXRotaryEmbedding(nn.Cell):
         self.rope_init_fn = ROPE_INIT_FUNCTIONS[self.rope_type]
 
         inv_freq, self.attention_scaling = self.rope_init_fn(self.config)
-        self.register_buffer("inv_freq", inv_freq, persistent=False)
+        self.register_buffer("inv_freq", inv_freq)
         self.original_inv_freq = self.inv_freq
 
+    def register_buffer(self, name, attr):
+        setattr(self, name, Parameter(default_input=attr, requests_grad=False))
+
     def construct(self, x, position_ids):
-        inv_freq_expanded = self.inv_freq[None, :, None].float().expand(position_ids.shape[0], -1, 1)
+        inv_freq_expanded = mint.broadcast_to(self.inv_freq[None, :, None].float(), (position_ids.shape[0], -1, 1))
         position_ids_expanded = position_ids[:, None, :].float()
 
-        with mint.autocast( enabled=False):  # Force float32
-            freqs = (inv_freq_expanded.float() @ position_ids_expanded.float()).transpose(1, 2)
-            emb = mint.cat((freqs, freqs), dim=-1)
-            cos = emb.cos() * self.attention_scaling
-            sin = emb.sin() * self.attention_scaling
+        freqs = (inv_freq_expanded.float() @ position_ids_expanded.float()).transpose(1, 2)
+        emb = mint.cat((freqs, freqs), dim=-1)
+        cos = emb.cos() * self.attention_scaling
+        sin = emb.sin() * self.attention_scaling
 
         return cos.to(dtype=x.dtype), sin.to(dtype=x.dtype)
 
@@ -383,12 +385,8 @@ class GPTNeoXModel(GPTNeoXPreTrainedModel):
         if position_ids is None:
             position_ids = cache_position.unsqueeze(0)
 
-        causal_mask = create_causal_mask(
-            config=self.config,
-            input_embeds=inputs_embeds,
-            attention_mask=attention_mask,
-            cache_position=cache_position,
-            past_key_values=past_key_values,
+        causal_mask = self._update_causal_mask(
+            attention_mask, inputs_embeds, cache_position, past_key_values, output_attentions
         )
 
         # Prepare head mask if needed
@@ -456,6 +454,93 @@ class GPTNeoXModel(GPTNeoXPreTrainedModel):
             hidden_states=all_hidden_states,
             attentions=all_attentions,
         )
+
+    def _update_causal_mask(
+        self,
+        attention_mask: ms.Tensor,
+        input_tensor: ms.Tensor,
+        cache_position: ms.Tensor,
+        past_key_values: HybridCache,
+        output_attentions: bool,
+    ):
+        # Flash Attention currently doesn't support static cache but Gemma2 work only with static cache.
+        # So we will pass in attention mask as is in any case, not only when ther's padding. Then we'll use its shape
+        # to cut out keys/values trailing 0 used in static cache. This workaround should be compile compatible
+        # as it doesn't cause dynamic control issues.
+        if self.config._attn_implementation == "flash_attention_2":
+            return attention_mask
+
+        dtype = input_tensor.dtype
+        sequence_length = input_tensor.shape[1]
+        if isinstance(past_key_values, HybridCache):
+            raise NotImplementedError(
+                "Gemma2 is only used as diffusers text-encoder and will not be called sequently, it need no cache."
+            )
+            target_length = past_key_values.get_max_cache_shape()
+        else:
+            target_length = attention_mask.shape[-1] if attention_mask is not None else input_tensor.shape[1]
+
+        # In case the provided `attention` mask is 2D, we generate a causal mask here (4D).
+        causal_mask = self._prepare_4d_causal_attention_mask_with_cache_position(
+            attention_mask,
+            sequence_length=sequence_length,
+            target_length=target_length,
+            dtype=dtype,
+            cache_position=cache_position,
+            batch_size=input_tensor.shape[0],
+        )
+        return causal_mask
+
+    @staticmethod
+    def _prepare_4d_causal_attention_mask_with_cache_position(
+        attention_mask: ms.Tensor,
+        sequence_length: int,
+        target_length: int,
+        dtype: ms.Type,
+        cache_position: ms.Tensor,
+        batch_size: int,
+        **kwargs,
+    ):
+        """
+        Creates a causal 4D mask of shape `(batch_size, 1, query_length, key_value_length)` from a 2D mask of shape
+        `(batch_size, key_value_length)`, or if the input `attention_mask` is already 4D, do nothing.
+
+        Args:
+            attention_mask (`ms.Tensor`):
+                A 2D attention mask of shape `(batch_size, key_value_length)` or a 4D attention mask of shape
+                `(batch_size, 1, query_length, key_value_length)`.
+            sequence_length (`int`):
+                The sequence length being processed.
+            target_length (`int`):
+                The target length: when generating with static cache, the mask should be as long as the static cache,
+                to account for the 0 padding, the part of the cache that is not filled yet.
+            dtype (`ms.Type`):
+                The dtype to use for the 4D attention mask.
+            cache_position (`ms.Tensor`):
+                Indices depicting the position of the input sequence tokens in the sequence.
+            batch_size (`ms.Tensor`):
+                Batch size.
+        """
+        if attention_mask is not None and attention_mask.ndim == 4:
+            # In this case we assume that the mask comes already in inverted form and requires no inversion or slicing.
+            causal_mask = attention_mask
+        else:
+            min_dtype = dtype_to_min(dtype)
+            causal_mask = ops.full((sequence_length, target_length), fill_value=min_dtype, dtype=dtype)
+            if sequence_length != 1:
+                causal_mask = ops.triu(causal_mask, diagonal=1)
+            causal_mask *= ops.arange(target_length) > cache_position.reshape(-1, 1)
+            causal_mask = causal_mask[None, None, :, :].broadcast_to((batch_size, 1, -1, -1))
+            if attention_mask is not None:
+                causal_mask = causal_mask.copy()  # copy to contiguous memory for in-place edit
+                mask_length = attention_mask.shape[-1]
+                padding_mask = causal_mask[:, :, :, :mask_length] + attention_mask[:, None, None, :]
+                padding_mask = padding_mask == 0
+                causal_mask[:, :, :, :mask_length] = causal_mask[:, :, :, :mask_length].masked_fill(
+                    padding_mask, min_dtype
+                )
+
+        return causal_mask
 
 
 class GPTNeoXForCausalLM(GPTNeoXPreTrainedModel, GenerationMixin):
