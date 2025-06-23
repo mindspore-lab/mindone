@@ -137,6 +137,9 @@ def main():
     model = NetWithLoss(model, config)
     model.set_train(True)
 
+    if hasattr(config.model, "gradient_checkpointing"):
+        logger.info(f"Gradient Checkpointing during training: {config.model.gradient_checkpointing}")
+
     ##################################
     #   Optimizer and LR scheduler   #
     #################################

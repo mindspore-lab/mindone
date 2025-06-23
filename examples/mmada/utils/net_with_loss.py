@@ -31,6 +31,17 @@ class NetWithLoss(nn.Cell):
         self.config = model.config
         self.exp_config = exp_config
 
+        if hasattr(self.exp_config.model, "gradient_checkpointing") and self.exp_config.model.gradient_checkpointing:
+            self.recompute(self.network)
+
+    def recompute(self, b):
+        if not b._has_config_recompute:
+            b.recompute(parallel_optimizer_comm_recompute=True)
+        if isinstance(b, nn.CellList):
+            self.recompute(b[-1])
+        elif ms.get_context("mode") == ms.GRAPH_MODE:
+            b.add_flags(output_no_recompute=True)
+
     def construct(
         self,
         input_ids: ms.Tensor,
