@@ -17,13 +17,12 @@ import math
 from typing import List, Optional, Tuple, Union
 
 import mindspore as ms
-
-from mindspore import nn, mint
+from mindspore import Parameter, mint, nn
 from mindspore.nn import BCEWithLogitsLoss, CrossEntropyLoss, MSELoss
 
-from ...mindspore_adapter import dtype_to_min, scaled_dot_product_attention
 from ...activations import ACT2FN
 from ...generation import GenerationMixin
+from ...mindspore_adapter import dtype_to_min, scaled_dot_product_attention
 from ...modeling_attn_mask_utils import AttentionMaskConverter
 from ...modeling_flash_attention_utils import is_flash_attn_available
 from ...modeling_outputs import (
@@ -36,7 +35,6 @@ from ...modeling_utils import PreTrainedModel
 from ...utils import logging
 from .configuration_gpt_bigcode import GPTBigCodeConfig
 
-
 if is_flash_attn_available():
     from mindspore.ops.operations.nn_ops import FlashAttentionScore as MSFlashAttention
 
@@ -48,9 +46,7 @@ logger = logging.get_logger(__name__)
 # Use separate functions for each case because conditionals prevent kernel fusion.
 # TODO: Could have better fused kernels depending on scaling, dropout and head mask.
 #  Is it doable without writing 32 functions?
-def upcast_masked_softmax(
-    x: ms.Tensor, mask: ms.Tensor, mask_value: ms.Tensor, scale: float, softmax_dtype: ms.dtype
-):
+def upcast_masked_softmax(x: ms.Tensor, mask: ms.Tensor, mask_value: ms.Tensor, scale: float, softmax_dtype: ms.dtype):
     input_dtype = x.dtype
     x = x.to(softmax_dtype) * scale
     x = mint.where(mask.to(ms.bool_), x, mask_value)
@@ -173,7 +169,7 @@ class GPTBigCodeAttention(nn.Cell):
                 mask_value = self._get_mask_value(softmax_dtype)
 
                 # The fused kernel is very slow when the key length is not a multiple of 8, so we skip fusion.
-                attn_weights = mint.where(attention_mask, attn_weights, mask_value)
+                attn_weights = mint.where(attention_mask.to(ms.bool_), attn_weights, mask_value)
 
             attn_weights = mint.functional.softmax(attn_weights, dim=-1)
 
@@ -202,10 +198,7 @@ class GPTBigCodeAttention(nn.Cell):
         encoder_attention_mask: Optional[ms.Tensor] = None,
         use_cache: Optional[bool] = False,
         output_attentions: Optional[bool] = False,
-    ) -> Union[
-        Tuple[ms.Tensor, Optional[ms.Tensor]],
-        Tuple[ms.Tensor, Optional[ms.Tensor], Tuple[ms.Tensor, ...]],
-    ]:
+    ) -> Union[Tuple[ms.Tensor, Optional[ms.Tensor]], Tuple[ms.Tensor, Optional[ms.Tensor], Tuple[ms.Tensor, ...]],]:
         if encoder_hidden_states is not None:
             if not hasattr(self, "q_attn") or not self.is_cross_attention:
                 raise ValueError(
@@ -222,11 +215,9 @@ class GPTBigCodeAttention(nn.Cell):
             # Note: We split as (self.num_heads, 3, self.head_dim) instead of (3, self.num_heads, self.head_dim),
             # i.e., the memory layout is not the same as GPT2.
             # This makes the concatenation with past_key_value more efficient.
-            query, key_value = (
-                mint.transpose(self.c_attn(hidden_states)
-                .view(*hidden_states.shape[:2], self.num_heads, 3 * self.head_dim), 1, 2)
-                .split((self.head_dim, 2 * self.head_dim), dim=3)
-            )
+            query, key_value = mint.transpose(
+                self.c_attn(hidden_states).view(*hidden_states.shape[:2], self.num_heads, 3 * self.head_dim), 1, 2
+            ).split((self.head_dim, 2 * self.head_dim), dim=3)
 
         if layer_past is not None:
             key_value = mint.cat((layer_past, key_value), dim=-2)
@@ -278,10 +269,7 @@ class GPTBigCodeFlashAttention2(GPTBigCodeAttention):
         encoder_attention_mask: Optional[ms.Tensor] = None,
         use_cache: Optional[bool] = False,
         output_attentions: Optional[bool] = False,
-    ) -> Union[
-        Tuple[ms.Tensor, Optional[ms.Tensor]],
-        Tuple[ms.Tensor, Optional[ms.Tensor], Tuple[ms.Tensor, ...]],
-    ]:
+    ) -> Union[Tuple[ms.Tensor, Optional[ms.Tensor]], Tuple[ms.Tensor, Optional[ms.Tensor], Tuple[ms.Tensor, ...]],]:
         if encoder_hidden_states is not None:
             if not hasattr(self, "q_attn") or not self.is_cross_attention:
                 raise ValueError(
@@ -291,18 +279,15 @@ class GPTBigCodeFlashAttention2(GPTBigCodeAttention):
 
             query = self.q_attn(hidden_states)
             key_value = self.c_attn(encoder_hidden_states)
-            attention_mask = encoder_attention_mask
         elif self.multi_query:
             query, key_value = self.c_attn(hidden_states).split((self.embed_dim, 2 * self.kv_dim), dim=2)
         else:
             # Note: We split as (self.num_heads, 3, self.head_dim) instead of (3, self.num_heads, self.head_dim),
             # i.e., the memory layout is not the same as GPT2.
             # This makes the concatenation with past_key_value more efficient.
-            query, key_value = (
-                mint.transpose(self.c_attn(hidden_states)
-                .view(*hidden_states.shape[:2], self.num_heads, 3 * self.head_dim), 1, 2)
-                .split((self.head_dim, 2 * self.head_dim), dim=3)
-            )
+            query, key_value = mint.transpose(
+                self.c_attn(hidden_states).view(*hidden_states.shape[:2], self.num_heads, 3 * self.head_dim), 1, 2
+            ).split((self.head_dim, 2 * self.head_dim), dim=3)
 
         if layer_past is not None:
             key_value = mint.cat((layer_past, key_value), dim=-2)
@@ -366,10 +351,6 @@ class GPTBigCodeFlashAttention2(GPTBigCodeAttention):
 
 class GPTBigCodeSdpaAttention(GPTBigCodeAttention):
     def _attn(self, query, key, value, attention_mask=None, head_mask=None):
-        scale = None
-        if not self.scale_attn_weights:
-            scale = 1
-
         # MQA models: (batch_size, query_length, num_heads * head_dim)
         # MHA models: (batch_size, num_heads, query_length, head_dim)
         query_shape = query.shape
@@ -402,8 +383,10 @@ class GPTBigCodeSdpaAttention(GPTBigCodeAttention):
                 key = key.contiguous()
                 value = value.contiguous()
 
-        # We dispatch to SDPA's Flash Attention or Efficient kernels via this `is_causal` if statement instead of an inline conditional assignment
-        # in SDPA to support both torch.compile's dynamic shapes and full graph options. An inline conditional prevents dynamic shapes from compiling.
+        # We dispatch to SDPA's Flash Attention or Efficient kernels via this `is_causal` if statement instead of an
+        # inline conditional assignment
+        # in SDPA to support both torch.compile's dynamic shapes and full graph options. An inline conditional
+        # prevents dynamic shapes from compiling.
         # The query_length > 1 is necessary to match with AttentionMaskConverter.to_causal_4d that does not
         # create a causal mask in case query_length == 1.
 
@@ -430,10 +413,7 @@ class GPTBigCodeSdpaAttention(GPTBigCodeAttention):
         encoder_attention_mask: Optional[ms.Tensor] = None,
         use_cache: Optional[bool] = False,
         output_attentions: Optional[bool] = False,
-    ) -> Union[
-        Tuple[ms.Tensor, Optional[ms.Tensor]],
-        Tuple[ms.Tensor, Optional[ms.Tensor], Tuple[ms.Tensor, ...]],
-    ]:
+    ) -> Union[Tuple[ms.Tensor, Optional[ms.Tensor]], Tuple[ms.Tensor, Optional[ms.Tensor], Tuple[ms.Tensor, ...]],]:
         if encoder_hidden_states is not None:
             if not hasattr(self, "q_attn") or not self.is_cross_attention:
                 raise ValueError(
@@ -450,11 +430,9 @@ class GPTBigCodeSdpaAttention(GPTBigCodeAttention):
             # Note: We split as (self.num_heads, 3, self.head_dim) instead of (3, self.num_heads, self.head_dim),
             # i.e., the memory layout is not the same as GPT2.
             # This makes the concatenation with past_key_value more efficient.
-            query, key_value = (
-                mint.transpose(self.c_attn(hidden_states)
-                .view(*hidden_states.shape[:2], self.num_heads, 3 * self.head_dim), 1, 2)
-                .split((self.head_dim, 2 * self.head_dim), dim=3)
-            )
+            query, key_value = mint.transpose(
+                self.c_attn(hidden_states).view(*hidden_states.shape[:2], self.num_heads, 3 * self.head_dim), 1, 2
+            ).split((self.head_dim, 2 * self.head_dim), dim=3)
 
         if layer_past is not None:
             key_value = mint.cat((layer_past, key_value), dim=-2)
@@ -467,10 +445,14 @@ class GPTBigCodeSdpaAttention(GPTBigCodeAttention):
             # as SDPA expects seq_length to be at index -2 for the key as well
             attn_output, attn_weights = self._attn(query, key, value, attention_mask, head_mask)
         else:
-            # TODO: Improve this warning with e.g. `model.config._attn_implementation = "manual"` once this is implemented.
+            # TODO: Improve this warning with e.g. `model.config._attn_implementation = "manual"`
+            #  once this is implemented.
             logger.warning(
-                "GPTBigCodeModel is using GPTBigCodeSdpaAttention, but `torch.nn.functional.scaled_dot_product_attention` does not support `output_attentions=True`."
-                ' Falling back to the manual attention implementation, but specifying the manual implementation will be required from Transformers version v5.0.0 onwards. This warning can be removed using the argument `attn_implementation="eager"` when loading the model.'
+                "GPTBigCodeModel is using GPTBigCodeSdpaAttention, but `torch.nn.functional."
+                "scaled_dot_product_attention` does not support `output_attentions=True` and `head_mask` not None."
+                " Falling back to the manual attention implementation, but specifying the manual implementation will "
+                "be required from Transformers version v5.0.0 onwards. This warning can be removed using the argument "
+                '`attn_implementation="eager"` when loading the model.'
             )
             attn_output, attn_weights = super()._attn(query, key.transpose(-1, -2), value, attention_mask, head_mask)
 
@@ -549,9 +531,7 @@ class GPTBigCodeBlock(nn.Cell):
         use_cache: Optional[bool] = False,
         output_attentions: Optional[bool] = False,
         **kwargs,
-    ) -> Union[
-        Tuple[ms.Tensor], Tuple[ms.Tensor, ms.Tensor], Tuple[ms.Tensor, ms.Tensor, ms.Tensor]
-    ]:
+    ) -> Union[Tuple[ms.Tensor], Tuple[ms.Tensor, ms.Tensor], Tuple[ms.Tensor, ms.Tensor, ms.Tensor]]:
         residual = hidden_states
         hidden_states = self.ln_1(hidden_states)
         attn_outputs = self.attn(
@@ -614,13 +594,16 @@ class GPTBigCodePreTrainedModel(PreTrainedModel):
 
     def __init__(self, *inputs, **kwargs):
         super().__init__(*inputs, **kwargs)
+        self._supports_dynamic_input = True
 
     def _init_weights(self, module):
         """Initialize the weights."""
         if isinstance(module, (GPTBigCodeMLP, GPTBigCodeAttention)):
             # Reinitialize selected weights subject to the OpenAI GPT-2 Paper Scheme:
-            #   > A modified initialization which accounts for the accumulation on the residual path with model depth. Scale
-            #   > the weights of residual layers at initialization by a factor of 1/√N where N is the # of residual layers.
+            #   > A modified initialization which accounts for the accumulation on the residual path with model depth.
+            #   Scale
+            #   > the weights of residual layers at initialization by a factor of 1/√N where N is the # of
+            #   residual layers.
             #   >   -- GPT-2 :: https://openai.com/blog/better-language-models/
             #
             # Reference (Megatron-LM): https://github.com/NVIDIA/Megatron-LM/blob/main/megatron/model/gpt_model.py
@@ -657,7 +640,7 @@ class GPTBigCodeModel(GPTBigCodePreTrainedModel):
         self.ln_f = mint.nn.LayerNorm(self.embed_dim, eps=config.layer_norm_epsilon)
 
         max_positions = config.max_position_embeddings
-        self.register_bugger("bias", mint.tril(mint.ones((max_positions, max_positions), dtype=ms.int32)))
+        self.register_buffer("bias", mint.tril(mint.ones((max_positions, max_positions), dtype=ms.int32)))
 
         self.gradient_checkpointing = False
 
@@ -673,8 +656,8 @@ class GPTBigCodeModel(GPTBigCodePreTrainedModel):
     def set_input_embeddings(self, new_embeddings):
         self.wte = new_embeddings
 
-    def register_bugger(self, name, attr):
-        setattr(self, name, Paramter(default_input=attr, requires_grad=False))
+    def register_buffer(self, name, attr):
+        setattr(self, name, Parameter(default_input=attr, requires_grad=False))
 
     def construct(
         self,
@@ -771,11 +754,12 @@ class GPTBigCodeModel(GPTBigCodePreTrainedModel):
             self_attention_mask = self_attention_mask.unsqueeze(2 if self.multi_query else 1)
 
             if self._use_sdpa and head_mask is None and not output_attentions:
-                # SDPA with a custom mask is much faster in fp16/fp32 dtype rather than bool. Cast here to floating point instead of at every layer.
+                # SDPA with a custom mask is much faster in fp16/fp32 dtype rather than bool. Cast here to floating
+                # point instead of at every layer.
                 dtype = self.wte.weight.dtype
                 min_dtype = dtype_to_min(dtype)
                 self_attention_mask = mint.where(
-                    self_attention_mask,
+                    self_attention_mask.to(ms.bool_),
                     mint.full([], 0.0, dtype=dtype),
                     mint.full([], fill_value=min_dtype.item(), dtype=dtype),
                 )
@@ -788,8 +772,10 @@ class GPTBigCodeModel(GPTBigCodePreTrainedModel):
                     self_attention_mask = mint.transpose(self_attention_mask, 1, 2)
 
                 if query_length > 1 and attention_mask is not None:
-                    # From PyTorch 2.1 onwards, F.scaled_dot_product_attention with the memory-efficient attention backend
-                    # produces nans if sequences are completely unattended in the attention mask. Details: https://github.com/pytorch/pytorch/issues/110213
+                    # From PyTorch 2.1 onwards, F.scaled_dot_product_attention with the memory-efficient attention
+                    # backend
+                    # produces nans if sequences are completely unattended in the attention mask.
+                    # Details: https://github.com/pytorch/pytorch/issues/110213
                     self_attention_mask = AttentionMaskConverter._unmask_unattended(
                         self_attention_mask, min_dtype=min_dtype
                     )
@@ -998,18 +984,6 @@ class GPTBigCodeForCausalLM(GPTBigCodePreTrainedModel, GenerationMixin):
         **kwargs,
     ) -> Union[Tuple, CausalLMOutputWithCrossAttentions]:
         r"""
-        input_ids (`ms.Tensor` of shape `(batch_size, input_ids_length)`, *optional*):
-            `input_ids_length` = `sequence_length` if `past_key_values` is `None` else
-            `past_key_values[0][0].shape[-2]` (`sequence_length` of input past key value states). Indices of input
-            sequence tokens in the vocabulary.
-
-            If `past_key_values` is used, only `input_ids` that do not have their past calculated should be passed as
-            `input_ids`.
-
-            Indices can be obtained using [`AutoTokenizer`]. See [`PreTrainedTokenizer.encode`] and
-            [`PreTrainedTokenizer.__call__`] for details.
-
-            [What are input IDs?](../glossary#input-ids)
         labels (`ms.Tensor` of shape `(batch_size, input_ids_length)`, *optional*):
             Labels for language modeling. Note that the labels **are shifted** inside the model, i.e. you can set
             `labels = input_ids` Indices are selected in `[-100, 0, ..., config.vocab_size]` All labels set to `-100`
@@ -1059,9 +1033,7 @@ class GPTBigCodeForCausalLM(GPTBigCodePreTrainedModel, GenerationMixin):
         )
 
     @staticmethod
-    def _reorder_cache(
-        past_key_values: Tuple[Tuple[ms.Tensor]], beam_idx: ms.Tensor
-    ) -> Tuple[Tuple[ms.Tensor]]:
+    def _reorder_cache(past_key_values: Tuple[Tuple[ms.Tensor]], beam_idx: ms.Tensor) -> Tuple[Tuple[ms.Tensor]]:
         """
         This function is used to re-order the `past_key_values` cache if [`~PreTrainedModel.beam_search`] or
         [`~PreTrainedModel.beam_sample`] is called. This is required to match `past_key_values` with the correct

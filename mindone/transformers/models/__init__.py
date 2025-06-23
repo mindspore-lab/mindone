@@ -11,6 +11,7 @@ from . import (
     glm,
     glpn,
     gpt2,
+    gpt_bigcode,
     hiera,
     ijepa,
     imagegpt,

@@ -93,6 +93,13 @@ from .models.gpt2 import (
     GPT2Model,
     GPT2PreTrainedModel,
 )
+from .models.gpt_bigcode import (
+    GPTBigCodeForCausalLM,
+    GPTBigCodeForSequenceClassification,
+    GPTBigCodeForTokenClassification,
+    GPTBigCodeModel,
+    GPTBigCodePreTrainedModel,
+)
 from .models.hiera import (
     HieraBackbone,
     HieraForImageClassification,
