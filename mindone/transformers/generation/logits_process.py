@@ -395,8 +395,8 @@ class TopPLogitsWarper(LogitsWarper):
         if isinstance(scores, ms.Tensor):
             filter_value = self.filter_value if self.filter_value is not None else dtype_to_min(scores.dtype)
 
-            sorted_logits, sorted_indices = ops.sort(scores, descending=False)
-            cumulative_probs = sorted_logits.softmax(axis=-1).cumsum(axis=-1)
+            sorted_logits, sorted_indices = mint.sort(scores, descending=False)
+            cumulative_probs = sorted_logits.softmax(axis=-1).cumsum(dim=-1)
 
             # Remove tokens with cumulative top_p above the threshold (token with 0 are kept)
             sorted_indices_to_remove = cumulative_probs <= (1 - self.top_p)

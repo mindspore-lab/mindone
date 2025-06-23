@@ -8,7 +8,7 @@ import numpy as np
 from transformers import CLIPImageProcessor, T5Tokenizer
 
 import mindspore as ms
-from mindspore import ops
+from mindspore import mint
 
 from ....transformers import T5EncoderModel
 from ...loaders import LoraLoaderMixin
@@ -295,7 +295,7 @@ class IFPipeline(DiffusionPipeline, LoraLoaderMixin):
                 images=image,
                 clip_input=ms.Tensor.from_numpy(safety_checker_input.pixel_values).to(dtype=dtype),
             )
-            if ops.any(ops.cat([nsfw_detected[..., None].int(), watermark_detected[..., None].int()], axis=1), axis=1):
+            if mint.any(mint.cat([nsfw_detected[..., None].int(), watermark_detected[..., None].int()], dim=1), dim=1):
                 logger.warning(
                     "Potential NSFW or watermarked content was detected in one or more images. A black image will be returned instead."
                     " Try again with a different prompt and/or seed."
@@ -641,7 +641,7 @@ class IFPipeline(DiffusionPipeline, LoraLoaderMixin):
         )
 
         if do_classifier_free_guidance:
-            prompt_embeds = ops.cat([negative_prompt_embeds, prompt_embeds])
+            prompt_embeds = mint.cat([negative_prompt_embeds, prompt_embeds])
 
         # 4. Prepare timesteps
         if timesteps is not None:
@@ -679,7 +679,9 @@ class IFPipeline(DiffusionPipeline, LoraLoaderMixin):
         num_warmup_steps = len(timesteps) - num_inference_steps * self.scheduler.order
         with self.progress_bar(total=num_inference_steps) as progress_bar:
             for i, t in enumerate(timesteps):
-                model_input = ops.cat([intermediate_images] * 2) if do_classifier_free_guidance else intermediate_images
+                model_input = (
+                    mint.cat([intermediate_images] * 2) if do_classifier_free_guidance else intermediate_images
+                )
                 # TODO: method of scheduler should not change the dtype of input.
                 #  Remove the casting after cuiyushi confirm that.
                 tmp_dtype = model_input.dtype
@@ -698,13 +700,13 @@ class IFPipeline(DiffusionPipeline, LoraLoaderMixin):
                 # perform guidance
                 if do_classifier_free_guidance:
                     noise_pred_uncond, noise_pred_text = noise_pred.chunk(2)
-                    noise_pred_uncond, _ = noise_pred_uncond.split(model_input.shape[1], axis=1)
-                    noise_pred_text, predicted_variance = noise_pred_text.split(model_input.shape[1], axis=1)
+                    noise_pred_uncond, _ = noise_pred_uncond.split(model_input.shape[1], dim=1)
+                    noise_pred_text, predicted_variance = noise_pred_text.split(model_input.shape[1], dim=1)
                     noise_pred = noise_pred_uncond + guidance_scale * (noise_pred_text - noise_pred_uncond)
-                    noise_pred = ops.cat([noise_pred, predicted_variance], axis=1)
+                    noise_pred = mint.cat([noise_pred, predicted_variance], dim=1)
 
                 if self.scheduler.config.variance_type not in ["learned", "learned_range"]:
-                    noise_pred, _ = noise_pred.split(model_input.shape[1], axis=1)
+                    noise_pred, _ = noise_pred.split(model_input.shape[1], dim=1)
 
                 # compute the previous noisy sample x_t -> x_t-1
                 # TODO: method of scheduler should not change the dtype of input.

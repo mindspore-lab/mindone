@@ -1,11 +1,11 @@
-from typing import List, Optional, Tuple, Union
+from typing import Any, Dict, List, Optional, Tuple, Union
 
 import numpy as np
 import PIL
 from PIL import Image
 
 import mindspore as ms
-from mindspore import ops
+from mindspore import mint, ops
 
 from ... import ConfigMixin
 from ...configuration_utils import register_to_config
@@ -81,7 +81,7 @@ class MarigoldImageProcessor(ConfigMixin):
 
         antialias = is_aa and mode in ("bilinear", "bicubic")  # noqa
         # abandone argument `antialias=antialias` as MindSpore doesn't support
-        image = ops.interpolate(image, size, mode=mode)
+        image = mint.nn.functional.interpolate(image, size, mode=mode)
 
         return image
 
@@ -119,7 +119,7 @@ class MarigoldImageProcessor(ConfigMixin):
         ph, pw = -h % align, -w % align
 
         # FIXME: replace with layers_compat.pad (PR#608)
-        image = ops.pad(image, (0, pw, 0, ph), mode="replicate")
+        image = mint.nn.functional.pad(image, (0, pw, 0, ph), mode="replicate")
 
         return image, (ph, pw)
 
@@ -213,7 +213,7 @@ class MarigoldImageProcessor(ConfigMixin):
                             f"Input image[{i}] has incompatible dimensions {img.shape[2:]} with the previous images "
                             f"{images.shape[2:]}"
                         )
-                    images = ops.cat((images, img), axis=0)
+                    images = mint.cat((images, img), dim=0)
             image = images
             del images
         else:
@@ -527,6 +527,98 @@ class MarigoldImageProcessor(ConfigMixin):
             raise ValueError(f"Unexpected input type: {type(normals)}")
 
     @staticmethod
+    def visualize_intrinsics(
+        prediction: Union[
+            np.ndarray,
+            ms.Tensor,
+            List[np.ndarray],
+            List[ms.Tensor],
+        ],
+        target_properties: Dict[str, Any],
+        color_map: Union[str, Dict[str, str]] = "binary",
+    ) -> List[Dict[str, PIL.Image.Image]]:
+        """
+        Visualizes intrinsic image decomposition, such as predictions of the `MarigoldIntrinsicsPipeline`.
+
+        Args:
+            prediction (`Union[np.ndarray, ms.Tensor, List[np.ndarray], List[ms.Tensor]]`):
+                Intrinsic image decomposition.
+            target_properties (`Dict[str, Any]`):
+                Decomposition properties. Expected entries: `target_names: List[str]` and a dictionary with keys
+                `prediction_space: str`, `sub_target_names: List[Union[str, Null]]` (must have 3 entries, null for
+                missing modalities), `up_to_scale: bool`, one for each target and sub-target.
+            color_map (`Union[str, Dict[str, str]]`, *optional*, defaults to `"Spectral"`):
+                Color map used to convert a single-channel predictions into colored representations. When a dictionary
+                is passed, each modality can be colored with its own color map.
+
+        Returns: `List[Dict[str, PIL.Image.Image]]` with intrinsic image decomposition visualization.
+        """
+        if "target_names" not in target_properties:
+            raise ValueError("Missing `target_names` in target_properties")
+        if not isinstance(color_map, str) and not (
+            isinstance(color_map, dict) and all(isinstance(k, str) and isinstance(v, str) for k, v in color_map.items())
+        ):
+            raise ValueError("`color_map` must be a string or a dictionary of strings")
+        n_targets = len(target_properties["target_names"])
+
+        def visualize_targets_one(images, idx=None):
+            # img: [T, 3, H, W]
+            out = {}
+            for target_name, img in zip(target_properties["target_names"], images):
+                img = img.permute(1, 2, 0)  # [H, W, 3]
+                prediction_space = target_properties[target_name].get("prediction_space", "srgb")
+                if prediction_space == "stack":
+                    sub_target_names = target_properties[target_name]["sub_target_names"]
+                    if len(sub_target_names) != 3 or any(
+                        not (isinstance(s, str) or s is None) for s in sub_target_names
+                    ):
+                        raise ValueError(f"Unexpected target sub-names {sub_target_names} in {target_name}")
+                    for i, sub_target_name in enumerate(sub_target_names):
+                        if sub_target_name is None:
+                            continue
+                        sub_img = img[:, :, i]
+                        sub_prediction_space = target_properties[sub_target_name].get("prediction_space", "srgb")
+                        if sub_prediction_space == "linear":
+                            sub_up_to_scale = target_properties[sub_target_name].get("up_to_scale", False)
+                            if sub_up_to_scale:
+                                sub_img = sub_img / max(sub_img.max().item(), 1e-6)
+                            sub_img = sub_img ** (1 / 2.2)
+                        cmap_name = (
+                            color_map if isinstance(color_map, str) else color_map.get(sub_target_name, "binary")
+                        )
+                        sub_img = MarigoldImageProcessor.colormap(sub_img, cmap=cmap_name, bytes=True)
+                        sub_img = PIL.Image.fromarray(sub_img.numpy())
+                        out[sub_target_name] = sub_img
+                elif prediction_space == "linear":
+                    up_to_scale = target_properties[target_name].get("up_to_scale", False)
+                    if up_to_scale:
+                        img = img / max(img.max().item(), 1e-6)
+                    img = img ** (1 / 2.2)
+                elif prediction_space == "srgb":
+                    pass
+                img = (img * 255).to(dtype=ms.uint8).numpy()
+                img = PIL.Image.fromarray(img)
+                out[target_name] = img
+            return out
+
+        if prediction is None or isinstance(prediction, list) and any(o is None for o in prediction):
+            raise ValueError("Input prediction is `None`")
+        if isinstance(prediction, (np.ndarray, ms.Tensor)):
+            prediction = MarigoldImageProcessor.expand_tensor_or_array(prediction)
+            if isinstance(prediction, np.ndarray):
+                prediction = MarigoldImageProcessor.numpy_to_ms(prediction)  # [N*T,3,H,W]
+            if not (prediction.ndim == 4 and prediction.shape[1] == 3 and prediction.shape[0] % n_targets == 0):
+                raise ValueError(f"Unexpected input shape={prediction.shape}, expecting [N*T,3,H,W].")
+            N_T, _, H, W = prediction.shape
+            N = N_T // n_targets
+            prediction = prediction.reshape(N, n_targets, 3, H, W)
+            return [visualize_targets_one(img, idx) for idx, img in enumerate(prediction)]
+        elif isinstance(prediction, list):
+            return [visualize_targets_one(img, idx) for idx, img in enumerate(prediction)]
+        else:
+            raise ValueError(f"Unexpected input type: {type(prediction)}")
+
+    @staticmethod
     def visualize_uncertainty(
         uncertainty: Union[
             np.ndarray,
@@ -551,8 +643,9 @@ class MarigoldImageProcessor(ConfigMixin):
         def visualize_uncertainty_one(img, idx=None):
             prefix = "Uncertainty" + (f"[{idx}]" if idx else "")
             if img.min() < 0:
-                raise ValueError(f"{prefix}: unexected data range, min={img.min()}.")
-            img = img.squeeze(0).numpy()
+                raise ValueError(f"{prefix}: unexpected data range, min={img.min()}.")
+            img = img.permute(1, 2, 0)  # [H,W,C]
+            img = img.squeeze(2).numpy()  # [H,W] or [H,W,3]
             saturation_value = np.percentile(img, saturation_percentile)
             img = np.clip(img * 255 / saturation_value, 0, 255)
             img = img.astype(np.uint8)
@@ -564,9 +657,9 @@ class MarigoldImageProcessor(ConfigMixin):
         if isinstance(uncertainty, (np.ndarray, ms.Tensor)):
             uncertainty = MarigoldImageProcessor.expand_tensor_or_array(uncertainty)
             if isinstance(uncertainty, np.ndarray):
-                uncertainty = MarigoldImageProcessor.numpy_to_ms(uncertainty)  # [N,1,H,W]
-            if not (uncertainty.ndim == 4 and uncertainty.shape[1] == 1):
-                raise ValueError(f"Unexpected input shape={uncertainty.shape}, expecting [N,1,H,W].")
+                uncertainty = MarigoldImageProcessor.numpy_to_ms(uncertainty)  # [N,C,H,W]
+            if not (uncertainty.ndim == 4 and uncertainty.shape[1] in (1, 3)):
+                raise ValueError(f"Unexpected input shape={uncertainty.shape}, expecting [N,C,H,W].")
             return [visualize_uncertainty_one(img, idx) for idx, img in enumerate(uncertainty)]
         elif isinstance(uncertainty, list):
             return [visualize_uncertainty_one(img, idx) for idx, img in enumerate(uncertainty)]

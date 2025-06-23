@@ -18,7 +18,7 @@ from typing import Optional, Tuple, Union
 import numpy as np
 
 import mindspore as ms
-from mindspore import nn, ops
+from mindspore import mint, nn
 
 from ...configuration_utils import ConfigMixin, register_to_config
 from ...loaders import FromOriginalModelMixin
@@ -41,6 +41,7 @@ class LTXVideoCausalConv3d(nn.Cell):
         stride: Union[int, Tuple[int, int, int]] = 1,
         dilation: Union[int, Tuple[int, int, int]] = 1,
         groups: int = 1,
+        padding_mode: str = "zeros",
         is_causal: bool = True,
     ):
         super().__init__()
@@ -54,18 +55,17 @@ class LTXVideoCausalConv3d(nn.Cell):
         stride = stride if isinstance(stride, tuple) else (stride, stride, stride)
         height_pad = self.kernel_size[1] // 2
         width_pad = self.kernel_size[2] // 2
-        padding = (0, 0, height_pad, height_pad, width_pad, width_pad)
+        padding = (0, height_pad, width_pad)
 
-        self.conv = nn.Conv3d(
+        self.conv = mint.nn.Conv3d(
             in_channels,
             out_channels,
             self.kernel_size,
             stride=stride,
             dilation=dilation,
-            group=groups,
+            groups=groups,
             padding=padding,
-            pad_mode="pad",
-            has_bias=True,
+            padding_mode=padding_mode,
         )
 
     def construct(self, hidden_states: ms.Tensor) -> ms.Tensor:
@@ -73,11 +73,11 @@ class LTXVideoCausalConv3d(nn.Cell):
 
         if self.is_causal:
             pad_left = hidden_states[:, :, :1, :, :].tile((1, 1, time_kernel_size - 1, 1, 1))
-            hidden_states = ops.cat([pad_left, hidden_states], axis=2)
+            hidden_states = mint.cat([pad_left, hidden_states], dim=2)
         else:
             pad_left = hidden_states[:, :, :1, :, :].tile((1, 1, (time_kernel_size - 1) // 2, 1, 1))
             pad_right = hidden_states[:, :, -1:, :, :].tile((1, 1, (time_kernel_size - 1) // 2, 1, 1))
-            hidden_states = ops.cat([pad_left, hidden_states, pad_right], axis=2)
+            hidden_states = mint.cat([pad_left, hidden_states, pad_right], dim=2)
 
         hidden_states = self.conv(hidden_states)
         return hidden_states
@@ -128,7 +128,7 @@ class LTXVideoResnetBlock3d(nn.Cell):
         )
 
         self.norm2 = RMSNorm(out_channels, eps=1e-8, elementwise_affine=elementwise_affine)
-        self.dropout = nn.Dropout(p=dropout)
+        self.dropout = mint.nn.Dropout(p=dropout)
         self.conv2 = LTXVideoCausalConv3d(
             in_channels=out_channels, out_channels=out_channels, kernel_size=3, is_causal=is_causal
         )
@@ -144,13 +144,13 @@ class LTXVideoResnetBlock3d(nn.Cell):
         self.per_channel_scale1 = None
         self.per_channel_scale2 = None
         if inject_noise:
-            self.per_channel_scale1 = ms.Parameter(ops.zeros((in_channels, 1, 1)), name="per_channel_scale1")
-            self.per_channel_scale2 = ms.Parameter(ops.zeros((in_channels, 1, 1)), name="per_channel_scale2")
+            self.per_channel_scale1 = ms.Parameter(mint.zeros((in_channels, 1, 1)), name="per_channel_scale1")
+            self.per_channel_scale2 = ms.Parameter(mint.zeros((in_channels, 1, 1)), name="per_channel_scale2")
 
         self.scale_shift_table = None
         if timestep_conditioning:
             self.scale_shift_table = ms.Parameter(
-                ops.randn(4, in_channels) / in_channels**0.5, name="scale_shift_table"
+                mint.randn(4, in_channels) / in_channels**0.5, name="scale_shift_table"
             )
 
     def construct(
@@ -161,7 +161,11 @@ class LTXVideoResnetBlock3d(nn.Cell):
         hidden_states = self.norm1(hidden_states.movedim(1, -1)).movedim(-1, 1)
 
         if self.scale_shift_table is not None:
-            temb = temb.unflatten(1, (4, -1)) + self.scale_shift_table[None, ..., None, None, None]
+            # temb = temb.unflatten(1, (4, -1)) + self.scale_shift_table[None, ..., None, None, None]
+            temb = (
+                temb.reshape(temb.shape[:1] + (4, -1) + temb.shape[2:])
+                + self.scale_shift_table[None, ..., None, None, None]
+            )
             shift_1, scale_1, shift_2, scale_2 = temb.unbind(dim=1)
             hidden_states = hidden_states * (1 + scale_1) + shift_1
 
@@ -197,6 +201,63 @@ class LTXVideoResnetBlock3d(nn.Cell):
         return hidden_states
 
 
+class LTXVideoDownsampler3d(nn.Cell):
+    def __init__(
+        self,
+        in_channels: int,
+        out_channels: int,
+        stride: Union[int, Tuple[int, int, int]] = 1,
+        is_causal: bool = True,
+        padding_mode: str = "zeros",
+    ) -> None:
+        super().__init__()
+
+        self.stride = stride if isinstance(stride, tuple) else (stride, stride, stride)
+        self.group_size = (in_channels * stride[0] * stride[1] * stride[2]) // out_channels
+
+        out_channels = out_channels // (self.stride[0] * self.stride[1] * self.stride[2])
+
+        self.conv = LTXVideoCausalConv3d(
+            in_channels=in_channels,
+            out_channels=out_channels,
+            kernel_size=3,
+            stride=1,
+            is_causal=is_causal,
+            padding_mode=padding_mode,
+        )
+
+    def construct(self, hidden_states: ms.Tensor) -> ms.Tensor:
+        hidden_states = mint.cat([hidden_states[:, :, : self.stride[0] - 1], hidden_states], dim=2)
+
+        # residual = (
+        #     hidden_states.unflatten(4, (-1, self.stride[2]))
+        #     .unflatten(3, (-1, self.stride[1]))
+        #     .unflatten(2, (-1, self.stride[0]))
+        # )
+        residual = hidden_states.reshape(hidden_states.shape[:4] + (-1, self.stride[2]) + hidden_states.shape[5:])
+        residual = residual.reshape(residual.shape[:3] + (-1, self.stride[1]) + residual.shape[4:])
+        residual = residual.reshape(residual.shape[:2] + (-1, self.stride[0]) + residual.shape[3:])
+        residual = residual.permute(0, 1, 3, 5, 7, 2, 4, 6).flatten(1, 4)
+        # residual = residual.unflatten(1, (-1, self.group_size))
+        residual = residual.reshape(residual.shape[:1] + (-1, self.group_size) + residual.shape[2:])
+        residual = residual.mean(dim=2)
+
+        hidden_states = self.conv(hidden_states)
+        # hidden_states = (
+        #     hidden_states.unflatten(4, (-1, self.stride[2]))
+        #     .unflatten(3, (-1, self.stride[1]))
+        #     .unflatten(2, (-1, self.stride[0]))
+        # )
+        hidden_states = hidden_states.reshape(hidden_states.shape[:4] + (-1, self.stride[2]) + hidden_states.shape[5:])
+        hidden_states = hidden_states.reshape(hidden_states.shape[:3] + (-1, self.stride[1]) + hidden_states.shape[4:])
+        hidden_states = hidden_states.reshape(hidden_states.shape[:2] + (-1, self.stride[0]) + hidden_states.shape[3:])
+
+        hidden_states = hidden_states.permute(0, 1, 3, 5, 7, 2, 4, 6).flatten(1, 4)
+        hidden_states = hidden_states + residual
+
+        return hidden_states
+
+
 class LTXVideoUpsampler3d(nn.Cell):
     def __init__(
         self,
@@ -205,6 +266,7 @@ class LTXVideoUpsampler3d(nn.Cell):
         is_causal: bool = True,
         residual: bool = False,
         upscale_factor: int = 1,
+        padding_mode: str = "zeros",
     ) -> None:
         super().__init__()
 
@@ -220,6 +282,7 @@ class LTXVideoUpsampler3d(nn.Cell):
             kernel_size=3,
             stride=1,
             is_causal=is_causal,
+            padding_mode=padding_mode,
         )
 
     def construct(self, hidden_states: ms.Tensor) -> ms.Tensor:
@@ -356,6 +419,116 @@ class LTXVideoDownBlock3D(nn.Cell):
 
         if self.conv_out is not None:
             hidden_states = self.conv_out(hidden_states, temb, generator)
+
+        return hidden_states
+
+
+class LTXVideo095DownBlock3D(nn.Cell):
+    r"""
+    Down block used in the LTXVideo model.
+
+    Args:
+        in_channels (`int`):
+            Number of input channels.
+        out_channels (`int`, *optional*):
+            Number of output channels. If None, defaults to `in_channels`.
+        num_layers (`int`, defaults to `1`):
+            Number of resnet layers.
+        dropout (`float`, defaults to `0.0`):
+            Dropout rate.
+        resnet_eps (`float`, defaults to `1e-6`):
+            Epsilon value for normalization layers.
+        resnet_act_fn (`str`, defaults to `"swish"`):
+            Activation function to use.
+        spatio_temporal_scale (`bool`, defaults to `True`):
+            Whether or not to use a downsampling layer. If not used, output dimension would be same as input dimension.
+            Whether or not to downsample across temporal dimension.
+        is_causal (`bool`, defaults to `True`):
+            Whether this layer behaves causally (future frames depend only on past frames) or not.
+    """
+
+    _supports_gradient_checkpointing = True
+
+    def __init__(
+        self,
+        in_channels: int,
+        out_channels: Optional[int] = None,
+        num_layers: int = 1,
+        dropout: float = 0.0,
+        resnet_eps: float = 1e-6,
+        resnet_act_fn: str = "swish",
+        spatio_temporal_scale: bool = True,
+        is_causal: bool = True,
+        downsample_type: str = "conv",
+    ):
+        super().__init__()
+
+        out_channels = out_channels or in_channels
+
+        resnets = []
+        for _ in range(num_layers):
+            resnets.append(
+                LTXVideoResnetBlock3d(
+                    in_channels=in_channels,
+                    out_channels=in_channels,
+                    dropout=dropout,
+                    eps=resnet_eps,
+                    non_linearity=resnet_act_fn,
+                    is_causal=is_causal,
+                )
+            )
+        self.resnets = nn.CellList(resnets)
+
+        self.downsamplers = None
+        if spatio_temporal_scale:
+            downsamplers = []
+
+            if downsample_type == "conv":
+                downsamplers.append(
+                    LTXVideoCausalConv3d(
+                        in_channels=in_channels,
+                        out_channels=in_channels,
+                        kernel_size=3,
+                        stride=(2, 2, 2),
+                        is_causal=is_causal,
+                    )
+                )
+            elif downsample_type == "spatial":
+                downsamplers.append(
+                    LTXVideoDownsampler3d(
+                        in_channels=in_channels, out_channels=out_channels, stride=(1, 2, 2), is_causal=is_causal
+                    )
+                )
+            elif downsample_type == "temporal":
+                downsamplers.append(
+                    LTXVideoDownsampler3d(
+                        in_channels=in_channels, out_channels=out_channels, stride=(2, 1, 1), is_causal=is_causal
+                    )
+                )
+            elif downsample_type == "spatiotemporal":
+                downsamplers.append(
+                    LTXVideoDownsampler3d(
+                        in_channels=in_channels, out_channels=out_channels, stride=(2, 2, 2), is_causal=is_causal
+                    )
+                )
+            self.downsamplers = nn.CellList(downsamplers)
+
+        self.gradient_checkpointing = False
+
+    def construct(
+        self,
+        hidden_states: ms.Tensor,
+        temb: Optional[ms.Tensor] = None,
+        generator: Optional[np.random.Generator] = None,
+    ) -> ms.Tensor:
+        r"""Forward method of the `LTXDownBlock3D` class."""
+
+        for i, resnet in enumerate(self.resnets):
+            hidden_states = resnet(hidden_states, temb, generator)
+
+        if self.downsamplers is not None:
+            for downsampler in self.downsamplers:
+                hidden_states = downsampler(hidden_states)
 
         return hidden_states
 
@@ -595,8 +768,15 @@ class LTXVideoEncoder3d(nn.Cell):
         in_channels: int = 3,
         out_channels: int = 128,
         block_out_channels: Tuple[int, ...] = (128, 256, 512, 512),
+        down_block_types: Tuple[str, ...] = (
+            "LTXVideoDownBlock3D",
+            "LTXVideoDownBlock3D",
+            "LTXVideoDownBlock3D",
+            "LTXVideoDownBlock3D",
+        ),
         spatio_temporal_scaling: Tuple[bool, ...] = (True, True, True, False),
         layers_per_block: Tuple[int, ...] = (4, 3, 3, 3, 4),
+        downsample_type: Tuple[str, ...] = ("conv", "conv", "conv", "conv"),
         patch_size: int = 4,
         patch_size_t: int = 1,
         resnet_norm_eps: float = 1e-6,
@@ -619,20 +799,37 @@ class LTXVideoEncoder3d(nn.Cell):
         )
 
         # down blocks
-        num_block_out_channels = len(block_out_channels)
+        is_ltx_095 = down_block_types[-1] == "LTXVideo095DownBlock3D"
+        num_block_out_channels = len(block_out_channels) - (1 if is_ltx_095 else 0)
         self.down_blocks = nn.CellList([])
         for i in range(num_block_out_channels):
             input_channel = output_channel
-            output_channel = block_out_channels[i + 1] if i + 1 < num_block_out_channels else block_out_channels[i]
+            if not is_ltx_095:
+                output_channel = block_out_channels[i + 1] if i + 1 < num_block_out_channels else block_out_channels[i]
+            else:
+                output_channel = block_out_channels[i + 1]
 
-            down_block = LTXVideoDownBlock3D(
-                in_channels=input_channel,
-                out_channels=output_channel,
-                num_layers=layers_per_block[i],
-                resnet_eps=resnet_norm_eps,
-                spatio_temporal_scale=spatio_temporal_scaling[i],
-                is_causal=is_causal,
-            )
+            if down_block_types[i] == "LTXVideoDownBlock3D":
+                down_block = LTXVideoDownBlock3D(
+                    in_channels=input_channel,
+                    out_channels=output_channel,
+                    num_layers=layers_per_block[i],
+                    resnet_eps=resnet_norm_eps,
+                    spatio_temporal_scale=spatio_temporal_scaling[i],
+                    is_causal=is_causal,
+                )
+            elif down_block_types[i] == "LTXVideo095DownBlock3D":
+                down_block = LTXVideo095DownBlock3D(
+                    in_channels=input_channel,
+                    out_channels=output_channel,
+                    num_layers=layers_per_block[i],
+                    resnet_eps=resnet_norm_eps,
+                    spatio_temporal_scale=spatio_temporal_scaling[i],
+                    is_causal=is_causal,
+                    downsample_type=downsample_type[i],
+                )
+            else:
+                raise ValueError(f"Unknown down block type: {down_block_types[i]}")
 
             self.down_blocks.append(down_block)
 
@@ -646,7 +843,7 @@ class LTXVideoEncoder3d(nn.Cell):
 
         # out
         self.norm_out = RMSNorm(out_channels, eps=1e-8, elementwise_affine=False)
-        self.conv_act = nn.SiLU()
+        self.conv_act = mint.nn.SiLU()
         self.conv_out = LTXVideoCausalConv3d(
             in_channels=output_channel, out_channels=out_channels + 1, kernel_size=3, stride=1, is_causal=is_causal
         )
@@ -682,7 +879,7 @@ class LTXVideoEncoder3d(nn.Cell):
 
         last_channel = hidden_states[:, -1:]
         last_channel = last_channel.tile((1, hidden_states.shape[1] - 2, 1, 1, 1))
-        hidden_states = ops.cat([hidden_states, last_channel], axis=1)
+        hidden_states = mint.cat([hidden_states, last_channel], dim=1)
 
         return hidden_states
 
@@ -782,7 +979,7 @@ class LTXVideoDecoder3d(nn.Cell):
 
         # out
         self.norm_out = RMSNorm(out_channels, eps=1e-8, elementwise_affine=False)
-        self.conv_act = nn.SiLU()
+        self.conv_act = mint.nn.SiLU()
         self.conv_out = LTXVideoCausalConv3d(
             in_channels=output_channel, out_channels=self.out_channels, kernel_size=3, stride=1, is_causal=is_causal
         )
@@ -790,16 +987,21 @@ class LTXVideoDecoder3d(nn.Cell):
         # timestep embedding
         self.time_embedder = None
         self.scale_shift_table = None
+        self.timestep_scale_multiplier = None
         if timestep_conditioning:
+            self.timestep_scale_multiplier = ms.Parameter(ms.tensor(1000.0, dtype=ms.float32))
             self.time_embedder = PixArtAlphaCombinedTimestepSizeEmbeddings(output_channel * 2, 0)
             self.scale_shift_table = ms.Parameter(
-                ops.randn(2, output_channel) / output_channel**0.5, name="scale_shift_table"
+                mint.randn(2, output_channel) / output_channel**0.5, name="scale_shift_table"
             )
 
         self.gradient_checkpointing = False
 
     def construct(self, hidden_states: ms.Tensor, temb: Optional[ms.Tensor] = None) -> ms.Tensor:
         hidden_states = self.conv_in(hidden_states)
+
+        if self.timestep_scale_multiplier is not None:
+            temb = temb * self.timestep_scale_multiplier
 
         hidden_states = self.mid_block(hidden_states, temb)
 
@@ -888,12 +1090,19 @@ class AutoencoderKLLTXVideo(ModelMixin, ConfigMixin, FromOriginalModelMixin):
         out_channels: int = 3,
         latent_channels: int = 128,
         block_out_channels: Tuple[int, ...] = (128, 256, 512, 512),
+        down_block_types: Tuple[str, ...] = (
+            "LTXVideoDownBlock3D",
+            "LTXVideoDownBlock3D",
+            "LTXVideoDownBlock3D",
+            "LTXVideoDownBlock3D",
+        ),
         decoder_block_out_channels: Tuple[int, ...] = (128, 256, 512, 512),
         layers_per_block: Tuple[int, ...] = (4, 3, 3, 3, 4),
         decoder_layers_per_block: Tuple[int, ...] = (4, 3, 3, 3, 4),
         spatio_temporal_scaling: Tuple[bool, ...] = (True, True, True, False),
         decoder_spatio_temporal_scaling: Tuple[bool, ...] = (True, True, True, False),
         decoder_inject_noise: Tuple[bool, ...] = (False, False, False, False, False),
+        downsample_type: Tuple[str, ...] = ("conv", "conv", "conv", "conv"),
         upsample_residual: Tuple[bool, ...] = (False, False, False, False),
         upsample_factor: Tuple[int, ...] = (1, 1, 1, 1),
         timestep_conditioning: bool = False,
@@ -903,6 +1112,8 @@ class AutoencoderKLLTXVideo(ModelMixin, ConfigMixin, FromOriginalModelMixin):
         scaling_factor: float = 1.0,
         encoder_causal: bool = True,
         decoder_causal: bool = False,
+        spatial_compression_ratio: int = None,
+        temporal_compression_ratio: int = None,
     ) -> None:
         super().__init__()
 
@@ -910,8 +1121,10 @@ class AutoencoderKLLTXVideo(ModelMixin, ConfigMixin, FromOriginalModelMixin):
             in_channels=in_channels,
             out_channels=latent_channels,
             block_out_channels=block_out_channels,
+            down_block_types=down_block_types,
             spatio_temporal_scaling=spatio_temporal_scaling,
             layers_per_block=layers_per_block,
+            downsample_type=downsample_type,
             patch_size=patch_size,
             patch_size_t=patch_size_t,
             resnet_norm_eps=resnet_norm_eps,
@@ -933,11 +1146,19 @@ class AutoencoderKLLTXVideo(ModelMixin, ConfigMixin, FromOriginalModelMixin):
             upsample_factor=upsample_factor,
         )
 
-        self.latents_mean = ms.Parameter(ops.zeros((latent_channels,)), requires_grad=False, name="latents_mean")
-        self.latents_std = ms.Parameter(ops.ones((latent_channels,)), requires_grad=False, name="latents_std")
+        self.latents_mean = ms.Parameter(mint.zeros((latent_channels,)), requires_grad=False, name="latents_mean")
+        self.latents_std = ms.Parameter(mint.ones((latent_channels,)), requires_grad=False, name="latents_std")
 
-        self.spatial_compression_ratio = patch_size * 2 ** sum(spatio_temporal_scaling)
-        self.temporal_compression_ratio = patch_size_t * 2 ** sum(spatio_temporal_scaling)
+        self.spatial_compression_ratio = (
+            patch_size * 2 ** sum(spatio_temporal_scaling)
+            if spatial_compression_ratio is None
+            else spatial_compression_ratio
+        )
+        self.temporal_compression_ratio = (
+            patch_size_t * 2 ** sum(spatio_temporal_scaling)
+            if temporal_compression_ratio is None
+            else temporal_compression_ratio
+        )
 
         self.diag_gauss_dist = DiagonalGaussianDistribution()
 
@@ -964,10 +1185,12 @@ class AutoencoderKLLTXVideo(ModelMixin, ConfigMixin, FromOriginalModelMixin):
         # The minimal tile height and width for spatial tiling to be used
         self.tile_sample_min_height = 512
         self.tile_sample_min_width = 512
+        self.tile_sample_min_num_frames = 16
 
         # The minimal distance between two spatial tiles
         self.tile_sample_stride_height = 448
         self.tile_sample_stride_width = 448
+        self.tile_sample_stride_num_frames = 8
 
     def _set_gradient_checkpointing(self, module, value=False):
         if isinstance(module, (LTXVideoEncoder3d, LTXVideoDecoder3d)):
@@ -977,8 +1200,10 @@ class AutoencoderKLLTXVideo(ModelMixin, ConfigMixin, FromOriginalModelMixin):
         self,
         tile_sample_min_height: Optional[int] = None,
         tile_sample_min_width: Optional[int] = None,
+        tile_sample_min_num_frames: Optional[int] = None,
         tile_sample_stride_height: Optional[float] = None,
         tile_sample_stride_width: Optional[float] = None,
+        tile_sample_stride_num_frames: Optional[float] = None,
     ) -> None:
         r"""
         Enable tiled VAE decoding. When this option is enabled, the VAE will split the input tensor into tiles to
@@ -1000,8 +1225,10 @@ class AutoencoderKLLTXVideo(ModelMixin, ConfigMixin, FromOriginalModelMixin):
         self.use_tiling = True
         self.tile_sample_min_height = tile_sample_min_height or self.tile_sample_min_height
         self.tile_sample_min_width = tile_sample_min_width or self.tile_sample_min_width
+        self.tile_sample_min_num_frames = tile_sample_min_num_frames or self.tile_sample_min_num_frames
         self.tile_sample_stride_height = tile_sample_stride_height or self.tile_sample_stride_height
         self.tile_sample_stride_width = tile_sample_stride_width or self.tile_sample_stride_width
+        self.tile_sample_stride_num_frames = tile_sample_stride_num_frames or self.tile_sample_stride_num_frames
 
     def disable_tiling(self) -> None:
         r"""
@@ -1027,18 +1254,13 @@ class AutoencoderKLLTXVideo(ModelMixin, ConfigMixin, FromOriginalModelMixin):
     def _encode(self, x: ms.Tensor) -> ms.Tensor:
         batch_size, num_channels, num_frames, height, width = x.shape
 
+        if self.use_framewise_decoding and num_frames > self.tile_sample_min_num_frames:
+            return self._temporal_tiled_encode(x)
+
         if self.use_tiling and (width > self.tile_sample_min_width or height > self.tile_sample_min_height):
             return self.tiled_encode(x)
 
-        if self.use_framewise_encoding:
-            # TODO(aryan): requires investigation
-            raise NotImplementedError(
-                "Frame-wise encoding has not been implemented for AutoencoderKLLTXVideo, at the moment, due to "
-                "quality issues caused by splitting inference across frame dimension. If you believe this "
-                "should be possible, please submit a PR to https://github.com/huggingface/diffusers/pulls."
-            )
-        else:
-            enc = self.encoder(x)
+        enc = self.encoder(x)
 
         return enc
 
@@ -1049,7 +1271,7 @@ class AutoencoderKLLTXVideo(ModelMixin, ConfigMixin, FromOriginalModelMixin):
         Encode a batch of images into latents.
 
         Args:
-            x (`torch.Tensor`): Input batch of images.
+            x (`ms.Tensor`): Input batch of images.
             return_dict (`bool`, *optional*, defaults to `False`):
                 Whether to return a [`~models.autoencoder_kl.AutoencoderKLOutput`] instead of a plain tuple.
 
@@ -1059,7 +1281,7 @@ class AutoencoderKLLTXVideo(ModelMixin, ConfigMixin, FromOriginalModelMixin):
         """
         if self.use_slicing and x.shape[0] > 1:
             encoded_slices = [self._encode(x_slice) for x_slice in x.split(1)]
-            h = ops.cat(encoded_slices)
+            h = mint.cat(encoded_slices)
         else:
             h = self._encode(x)
 
@@ -1076,19 +1298,15 @@ class AutoencoderKLLTXVideo(ModelMixin, ConfigMixin, FromOriginalModelMixin):
         batch_size, num_channels, num_frames, height, width = z.shape
         tile_latent_min_height = self.tile_sample_min_height // self.spatial_compression_ratio
         tile_latent_min_width = self.tile_sample_stride_width // self.spatial_compression_ratio
+        tile_latent_min_num_frames = self.tile_sample_min_num_frames // self.temporal_compression_ratio
+
+        if self.use_framewise_decoding and num_frames > tile_latent_min_num_frames:
+            return self._temporal_tiled_decode(z, temb, return_dict=return_dict)
 
         if self.use_tiling and (width > tile_latent_min_width or height > tile_latent_min_height):
             return self.tiled_decode(z, temb, return_dict=return_dict)
 
-        if self.use_framewise_decoding:
-            # TODO(aryan): requires investigation
-            raise NotImplementedError(
-                "Frame-wise decoding has not been implemented for AutoencoderKLLTXVideo, at the moment, due to "
-                "quality issues caused by splitting inference across frame dimension. If you believe this "
-                "should be possible, please submit a PR to https://github.com/huggingface/diffusers/pulls."
-            )
-        else:
-            dec = self.decoder(z, temb)
+        dec = self.decoder(z, temb)
 
         if not return_dict:
             return (dec,)
@@ -1102,7 +1320,7 @@ class AutoencoderKLLTXVideo(ModelMixin, ConfigMixin, FromOriginalModelMixin):
         Decode a batch of images.
 
         Args:
-            z (`torch.Tensor`): Input batch of latent vectors.
+            z (`ms.Tensor`): Input batch of latent vectors.
             return_dict (`bool`, *optional*, defaults to `False`):
                 Whether to return a [`~models.vae.DecoderOutput`] instead of a plain tuple.
 
@@ -1116,7 +1334,7 @@ class AutoencoderKLLTXVideo(ModelMixin, ConfigMixin, FromOriginalModelMixin):
                 decoded_slices = [self._decode(z_slice, t_slice)[0] for z_slice, t_slice in (z.split(1), temb.split(1))]
             else:
                 decoded_slices = [self._decode(z_slice)[0] for z_slice in z.split(1)]
-            decoded = ops.cat(decoded_slices)
+            decoded = mint.cat(decoded_slices)
         else:
             decoded = self._decode(z, temb)[0]
 
@@ -1125,7 +1343,7 @@ class AutoencoderKLLTXVideo(ModelMixin, ConfigMixin, FromOriginalModelMixin):
 
         return DecoderOutput(sample=decoded)
 
-    def blend_v(self, a: ops.Tensor, b: ops.Tensor, blend_extent: int) -> ops.Tensor:
+    def blend_v(self, a: ms.Tensor, b: ms.Tensor, blend_extent: int) -> ms.Tensor:
         blend_extent = min(a.shape[3], b.shape[3], blend_extent)
         for y in range(blend_extent):
             b[:, :, :, y, :] = a[:, :, :, -blend_extent + y, :] * (1 - y / blend_extent) + b[:, :, :, y, :] * (
@@ -1133,7 +1351,7 @@ class AutoencoderKLLTXVideo(ModelMixin, ConfigMixin, FromOriginalModelMixin):
             )
         return b
 
-    def blend_h(self, a: ops.Tensor, b: ops.Tensor, blend_extent: int) -> ops.Tensor:
+    def blend_h(self, a: ms.Tensor, b: ms.Tensor, blend_extent: int) -> ms.Tensor:
         blend_extent = min(a.shape[4], b.shape[4], blend_extent)
         for x in range(blend_extent):
             b[:, :, :, :, x] = a[:, :, :, :, -blend_extent + x] * (1 - x / blend_extent) + b[:, :, :, :, x] * (
@@ -1141,14 +1359,22 @@ class AutoencoderKLLTXVideo(ModelMixin, ConfigMixin, FromOriginalModelMixin):
             )
         return b
 
-    def tiled_encode(self, x: ops.Tensor) -> ops.Tensor:
+    def blend_t(self, a: ms.Tensor, b: ms.Tensor, blend_extent: int) -> ms.Tensor:
+        blend_extent = min(a.shape[-3], b.shape[-3], blend_extent)
+        for x in range(blend_extent):
+            b[:, :, x, :, :] = a[:, :, -blend_extent + x, :, :] * (1 - x / blend_extent) + b[:, :, x, :, :] * (
+                x / blend_extent
+            )
+        return b
+
+    def tiled_encode(self, x: ms.Tensor) -> ms.Tensor:
         r"""Encode a batch of images using a tiled encoder.
 
         Args:
-            x (`torch.Tensor`): Input batch of videos.
+            x (`ms.Tensor`): Input batch of videos.
 
         Returns:
-            `torch.Tensor`:
+            `ms.Tensor`:
                 The latent representation of the encoded videos.
         """
         batch_size, num_channels, num_frames, height, width = x.shape
@@ -1169,17 +1395,7 @@ class AutoencoderKLLTXVideo(ModelMixin, ConfigMixin, FromOriginalModelMixin):
         for i in range(0, height, self.tile_sample_stride_height):
             row = []
             for j in range(0, width, self.tile_sample_stride_width):
-                if self.use_framewise_encoding:
-                    # TODO(aryan): requires investigation
-                    raise NotImplementedError(
-                        "Frame-wise encoding has not been implemented for AutoencoderKLLTXVideo, at the moment, due to "
-                        "quality issues caused by splitting inference across frame dimension. If you believe this "
-                        "should be possible, please submit a PR to https://github.com/huggingface/diffusers/pulls."
-                    )
-                else:
-                    time = self.encoder(
-                        x[:, :, :, i : i + self.tile_sample_min_height, j : j + self.tile_sample_min_width]
-                    )
+                time = self.encoder(x[:, :, :, i : i + self.tile_sample_min_height, j : j + self.tile_sample_min_width])
 
                 row.append(time)
             rows.append(row)
@@ -1195,9 +1411,9 @@ class AutoencoderKLLTXVideo(ModelMixin, ConfigMixin, FromOriginalModelMixin):
                 if j > 0:
                     tile = self.blend_h(row[j - 1], tile, blend_width)
                 result_row.append(tile[:, :, :, :tile_latent_stride_height, :tile_latent_stride_width])
-            result_rows.append(ops.cat(result_row, axis=4))
+            result_rows.append(mint.cat(result_row, dim=4))
 
-        enc = ops.cat(result_rows, axis=3)[:, :, :, :latent_height, :latent_width]
+        enc = mint.cat(result_rows, dim=3)[:, :, :, :latent_height, :latent_width]
         return enc
 
     def tiled_decode(
@@ -1207,7 +1423,7 @@ class AutoencoderKLLTXVideo(ModelMixin, ConfigMixin, FromOriginalModelMixin):
         Decode a batch of images using a tiled decoder.
 
         Args:
-            z (`torch.Tensor`): Input batch of latent vectors.
+            z (`ms.Tensor`): Input batch of latent vectors.
             return_dict (`bool`, *optional*, defaults to `False`):
                 Whether or not to return a [`~models.vae.DecoderOutput`] instead of a plain tuple.
 
@@ -1235,15 +1451,7 @@ class AutoencoderKLLTXVideo(ModelMixin, ConfigMixin, FromOriginalModelMixin):
         for i in range(0, height, tile_latent_stride_height):
             row = []
             for j in range(0, width, tile_latent_stride_width):
-                if self.use_framewise_decoding:
-                    # TODO(aryan): requires investigation
-                    raise NotImplementedError(
-                        "Frame-wise decoding has not been implemented for AutoencoderKLLTXVideo, at the moment, due to "
-                        "quality issues caused by splitting inference across frame dimension. If you believe this "
-                        "should be possible, please submit a PR to https://github.com/huggingface/diffusers/pulls."
-                    )
-                else:
-                    time = self.decoder(z[:, :, :, i : i + tile_latent_min_height, j : j + tile_latent_min_width], temb)
+                time = self.decoder(z[:, :, :, i : i + tile_latent_min_height, j : j + tile_latent_min_width], temb)
 
                 row.append(time)
             rows.append(row)
@@ -1259,13 +1467,81 @@ class AutoencoderKLLTXVideo(ModelMixin, ConfigMixin, FromOriginalModelMixin):
                 if j > 0:
                     tile = self.blend_h(row[j - 1], tile, blend_width)
                 result_row.append(tile[:, :, :, : self.tile_sample_stride_height, : self.tile_sample_stride_width])
-            result_rows.append(ops.cat(result_row, axis=4))
+            result_rows.append(mint.cat(result_row, dim=4))
 
-        dec = ops.cat(result_rows, axis=3)[:, :, :, :sample_height, :sample_width]
+        dec = mint.cat(result_rows, dim=3)[:, :, :, :sample_height, :sample_width]
 
         if not return_dict:
             return (dec,)
 
+        return DecoderOutput(sample=dec)
+
+    def _temporal_tiled_encode(self, x: ms.Tensor) -> AutoencoderKLOutput:
+        batch_size, num_channels, num_frames, height, width = x.shape
+        latent_num_frames = (num_frames - 1) // self.temporal_compression_ratio + 1
+
+        tile_latent_min_num_frames = self.tile_sample_min_num_frames // self.temporal_compression_ratio
+        tile_latent_stride_num_frames = self.tile_sample_stride_num_frames // self.temporal_compression_ratio
+        blend_num_frames = tile_latent_min_num_frames - tile_latent_stride_num_frames
+
+        row = []
+        for i in range(0, num_frames, self.tile_sample_stride_num_frames):
+            tile = x[:, :, i : i + self.tile_sample_min_num_frames + 1, :, :]
+            if self.use_tiling and (height > self.tile_sample_min_height or width > self.tile_sample_min_width):
+                tile = self.tiled_encode(tile)
+            else:
+                tile = self.encoder(tile)
+            if i > 0:
+                tile = tile[:, :, 1:, :, :]
+            row.append(tile)
+
+        result_row = []
+        for i, tile in enumerate(row):
+            if i > 0:
+                tile = self.blend_t(row[i - 1], tile, blend_num_frames)
+                result_row.append(tile[:, :, :tile_latent_stride_num_frames, :, :])
+            else:
+                result_row.append(tile[:, :, : tile_latent_stride_num_frames + 1, :, :])
+
+        enc = mint.cat(result_row, dim=2)[:, :, :latent_num_frames]
+        return enc
+
+    def _temporal_tiled_decode(
+        self, z: ms.Tensor, temb: Optional[ms.Tensor], return_dict: bool = True
+    ) -> Union[DecoderOutput, ms.Tensor]:
+        batch_size, num_channels, num_frames, height, width = z.shape
+        num_sample_frames = (num_frames - 1) * self.temporal_compression_ratio + 1
+
+        tile_latent_min_height = self.tile_sample_min_height // self.spatial_compression_ratio
+        tile_latent_min_width = self.tile_sample_min_width // self.spatial_compression_ratio
+        tile_latent_min_num_frames = self.tile_sample_min_num_frames // self.temporal_compression_ratio
+        tile_latent_stride_num_frames = self.tile_sample_stride_num_frames // self.temporal_compression_ratio
+        blend_num_frames = self.tile_sample_min_num_frames - self.tile_sample_stride_num_frames
+
+        row = []
+        for i in range(0, num_frames, tile_latent_stride_num_frames):
+            tile = z[:, :, i : i + tile_latent_min_num_frames + 1, :, :]
+            if self.use_tiling and (tile.shape[-1] > tile_latent_min_width or tile.shape[-2] > tile_latent_min_height):
+                decoded = self.tiled_decode(tile, temb, return_dict=True).sample
+            else:
+                decoded = self.decoder(tile, temb)
+            if i > 0:
+                decoded = decoded[:, :, :-1, :, :]
+            row.append(decoded)
+
+        result_row = []
+        for i, tile in enumerate(row):
+            if i > 0:
+                tile = self.blend_t(row[i - 1], tile, blend_num_frames)
+                tile = tile[:, :, : self.tile_sample_stride_num_frames, :, :]
+                result_row.append(tile)
+            else:
+                result_row.append(tile[:, :, : self.tile_sample_stride_num_frames + 1, :, :])
+
+        dec = mint.cat(result_row, dim=2)[:, :, :num_sample_frames]
+
+        if not return_dict:
+            return (dec,)
         return DecoderOutput(sample=dec)
 
     def construct(

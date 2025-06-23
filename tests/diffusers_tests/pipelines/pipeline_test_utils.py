@@ -8,7 +8,7 @@ from typing import Callable, List, Optional, Tuple, Union
 import torch
 
 import mindspore as ms
-from mindspore import nn, ops
+from mindspore import mint, nn, ops
 
 from mindone.diffusers.models.modeling_utils import ModelMixin
 from mindone.diffusers.pipelines.pipeline_utils import DiffusionPipeline
@@ -41,6 +41,8 @@ def get_pt2ms_mappings(m):
                 mappings[f"{name}.running_mean"] = f"{name}.moving_mean", lambda x: x
                 mappings[f"{name}.running_var"] = f"{name}.moving_variance", lambda x: x
                 mappings[f"{name}.num_batches_tracked"] = None, lambda x: x
+        elif isinstance(cell, mint.nn.BatchNorm2d):
+            mappings[f"{name}.num_batches_tracked"] = None, lambda x: x.to(ms.float32)
     return mappings
 
 
@@ -79,7 +81,7 @@ def randn_tensor(
         dtype = torch.float32
     elif dtype == ms.bfloat16:
         dtype = torch.bfloat16
-    else:
+    elif dtype == ms.float16:
         dtype = torch.float16
 
     layout = layout or torch.strided

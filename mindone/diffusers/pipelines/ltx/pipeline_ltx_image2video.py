@@ -19,7 +19,7 @@ import numpy as np
 from transformers import T5TokenizerFast
 
 import mindspore as ms
-from mindspore import ops
+from mindspore import mint
 
 from mindone.transformers import T5EncoderModel
 
@@ -501,10 +501,10 @@ class LTXImageToVideoPipeline(DiffusionPipeline, FromSingleFileMixin, LTXVideoLo
                 for img in image
             ]
 
-        init_latents = ops.cat(init_latents, axis=0).to(dtype)
+        init_latents = mint.cat(init_latents, dim=0).to(dtype)
         init_latents = self._normalize_latents(init_latents, self.vae.latents_mean, self.vae.latents_std)
         init_latents = init_latents.tile((1, 1, num_frames, 1, 1))
-        conditioning_mask = ops.zeros(mask_shape, dtype=dtype)
+        conditioning_mask = mint.zeros(mask_shape, dtype=dtype)
         conditioning_mask[:, :, 0] = 1.0
 
         noise = randn_tensor(shape, generator=generator, dtype=dtype)
@@ -690,8 +690,8 @@ class LTXImageToVideoPipeline(DiffusionPipeline, FromSingleFileMixin, LTXVideoLo
             max_sequence_length=max_sequence_length,
         )
         if self.do_classifier_free_guidance:
-            prompt_embeds = ops.cat([negative_prompt_embeds, prompt_embeds], axis=0)
-            prompt_attention_mask = ops.cat([negative_prompt_attention_mask, prompt_attention_mask], axis=0)
+            prompt_embeds = mint.cat([negative_prompt_embeds, prompt_embeds], dim=0)
+            prompt_attention_mask = mint.cat([negative_prompt_attention_mask, prompt_attention_mask], dim=0)
 
         # 4. Prepare latent variables
         if latents is None:
@@ -712,7 +712,7 @@ class LTXImageToVideoPipeline(DiffusionPipeline, FromSingleFileMixin, LTXVideoLo
         )
 
         if self.do_classifier_free_guidance:
-            conditioning_mask = ops.cat([conditioning_mask, conditioning_mask])
+            conditioning_mask = mint.cat([conditioning_mask, conditioning_mask])
 
         # 5. Prepare timesteps
         latent_num_frames = (num_frames - 1) // self.vae_temporal_compression_ratio + 1
@@ -738,9 +738,8 @@ class LTXImageToVideoPipeline(DiffusionPipeline, FromSingleFileMixin, LTXVideoLo
         self._num_timesteps = len(timesteps)
 
         # 6. Prepare micro-conditions
-        latent_frame_rate = frame_rate / self.vae_temporal_compression_ratio
         rope_interpolation_scale = (
-            1 / latent_frame_rate,
+            self.vae_temporal_compression_ratio / frame_rate,
             self.vae_spatial_compression_ratio,
             self.vae_spatial_compression_ratio,
         )
@@ -751,7 +750,7 @@ class LTXImageToVideoPipeline(DiffusionPipeline, FromSingleFileMixin, LTXVideoLo
                 if self.interrupt:
                     continue
 
-                latent_model_input = ops.cat([latents] * 2) if self.do_classifier_free_guidance else latents
+                latent_model_input = mint.cat([latents] * 2) if self.do_classifier_free_guidance else latents
                 latent_model_input = latent_model_input.to(prompt_embeds.dtype)
 
                 # broadcast to batch dimension in a way that's compatible with ONNX/Core ML
@@ -799,7 +798,7 @@ class LTXImageToVideoPipeline(DiffusionPipeline, FromSingleFileMixin, LTXVideoLo
                 noise_latents = latents[:, :, 1:]
                 pred_latents = self.scheduler.step(noise_pred, t, noise_latents, return_dict=False)[0]
 
-                latents = ops.cat([latents[:, :, :1], pred_latents], axis=2)
+                latents = mint.cat([latents[:, :, :1], pred_latents], dim=2)
                 latents = self._pack_latents(
                     latents, self.transformer_spatial_patch_size, self.transformer_temporal_patch_size
                 )

@@ -21,7 +21,7 @@ from abc import ABC, abstractmethod
 from typing import Any, List, Optional, Union
 
 import mindspore as ms
-from mindspore import nn
+from mindspore import mint, nn
 
 from ..config import PeftConfig
 from ..utils import INCLUDE_LINEAR_LAYERS_SHORTHAND, ModulesToSaveWrapper, _get_submodules
@@ -557,7 +557,7 @@ def _maybe_include_all_linear_layers(peft_config: PeftConfig, model: nn.Cell) ->
     ):
         return peft_config
 
-    linear_classes = nn.Dense
+    linear_classes = mint.nn.Linear
 
     linear_module_names = set()
     for name, module in model.cells_and_names():
