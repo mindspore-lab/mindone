@@ -240,6 +240,13 @@ from .models.phi3 import (
     Phi3Model,
     Phi3PreTrainedModel,
 )
+from .models.plbart import (
+    PLBartForCausalLM,
+    PLBartForConditionalGeneration,
+    PLBartForSequenceClassification,
+    PLBartModel,
+    PLBartPreTrainedModel,
+)
 from .models.qwen2 import Qwen2ForCausalLM, Qwen2ForSequenceClassification, Qwen2ForTokenClassification, Qwen2Model
 from .models.qwen2_5_omni import (
     Qwen2_5OmniForConditionalGeneration,
