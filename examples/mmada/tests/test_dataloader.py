@@ -10,6 +10,18 @@ from training.imagenet_dataset import ImageNetDataset
 logger = logging.getLogger(__name__)
 
 
+import mindspore.communication.management as D
+
+
+def get_rank_and_world_size():
+
+    if not D.is_initialized():
+        D.init()
+    rank = D.get_rank()
+    world_size = D.get_group_size()
+
+    return rank, world_size
+
 # Placeholder for config object for testing purposes
 class MockConfig:
     def __init__(self):
@@ -65,25 +77,11 @@ class MockDatasetParamsConfig:
         self.resolution = 256
 
 
-# Placeholder for create_imagetext_dataloader
-def create_imagetext_dataloader(*args, **kwargs):
-    logger.warning(
-        "Using a dummy create_imagetext_dataloader. This function needs to be properly implemented for actual use."
-    )
-
-    # Return a dummy DataLoader for testing
-    class DummyDataset(torch.utils.data.Dataset):
-        def __len__(self):
-            return 100
-
-        def __getitem__(self, idx):
-            return {"images": torch.randn(3, 256, 256), "input_ids": torch.randint(0, 100, (77,))}
-
-    return torch.utils.data.DataLoader(DummyDataset(), batch_size=kwargs.get("batch_size", 1))
 
 
-def create_dataloaders(config):
-    logger.info("Creating dataloaders and lr_scheduler")
+def create_dataloaders(config, rank_id=0, device_num=1):
+    logger.info(f"Creating dataloaders and lr_scheduler for rank {rank_id}/{device_num}")
+
 
     total_batch_size_t2i_without_accum = config.training.batch_size_t2i
     total_batch_size_t2i = config.training.batch_size_t2i * config.training.gradient_accumulation_steps
@@ -121,17 +119,7 @@ def create_dataloaders(config):
         num_update_steps_per_epoch = math.ceil(config.experiment.max_train_examples_t2i / total_batch_size_t2i)
         num_train_epochs = math.ceil(config.training.max_train_steps / num_update_steps_per_epoch)
 
-        train_dataloader_t2i = create_imagetext_dataloader(
-            train_shards_path_or_url=dataset_config.train_t2i_shards_path_or_url,
-            batch_size=config.training.batch_size_t2i,
-            image_size=preproc_config.resolution,
-            num_workers=dataset_config.num_workers,
-            num_readers=32,
-            predefined_steps=num_update_steps_per_epoch,
-            drop_last=True,
-            shuffle=True,
-            shuffle_buffer_size=dataset_config.shuffle_buffer_size,
-        )
+        raise NotImplementedError
 
     elif config.dataset.gen_type == "imagenet1k":
         dataset_imagenet = ImageNetDataset(
@@ -148,22 +136,27 @@ def create_dataloaders(config):
             sampler=sampler,
             shuffle=shuffle,
             num_workers=dataset_config.num_workers,
+            rank_id=rank_id,
+            device_num=device_num,
         )
         train_dataloader_t2i = train_dataloader_t2i.create_dict_iterator(num_epochs=1, output_numpy=True)
         train_dataloader_t2i.dataset_size = len(dataset_imagenet) // config.training.batch_size_t2i
 
         for x in train_dataloader_t2i:
-            for k, v in x.items():
-                if isinstance(v, (list, tuple)):
-                    print(k, len(v))
-                else:
-                    print(k, v.shape)
+            if isinstance(x, dict):
+                for k, v in x.items():
+                    if isinstance(v, (list, tuple)):
+                        if rank_id == 0:
+                            print(k, len(v))
+                    else:
+                        if rank_id == 0:
+                            print(k, v.shape)
             break
         num_update_steps_per_epoch = math.ceil(len(dataset_imagenet) / total_batch_size_t2i)
         num_train_epochs = math.ceil(config.training.max_train_steps / num_update_steps_per_epoch)
 
     else:
-        raise ValueError(f"Unsupported dataset type {config.dataset.gen_type}")  # Changed from config.dataset.type
+        raise ValueError(f"Unsupported dataset type {config.dataset.gen_type}")
 
     total_batch_size_mmu_without_accum = config.training.batch_size_mmu
     # Data for image captioning
@@ -190,25 +183,17 @@ def create_dataloaders(config):
         train_dataloader_mmu = dataset_mmu.train_dataloader
         train_dataloader_mmu.dataset_size = train_dataloader_mmu.num_batches
         for x in train_dataloader_mmu:
-            for k, v in x.items():
-                if isinstance(v, (list, tuple)):
-                    print(k, len(v))
-                else:
-                    print(k, v.shape)
+            if isinstance(x, dict):
+                for k, v in x.items():
+                    if isinstance(v, (list, tuple)):
+                        if rank_id == 0:
+                            print(k, len(v))
+                    else:
+                        if rank_id == 0:
+                            print(k, v.shape)
             break
     elif config.dataset.und_type == "captioning_parquet":
-        train_dataloader_mmu = create_imagetext_dataloader(
-            train_shards_path_or_url=dataset_config.train_mmu_shards_path_or_url,
-            batch_size=config.training.batch_size_mmu,
-            image_size=preproc_config.resolution,
-            num_workers=dataset_config.num_workers,
-            num_readers=32,
-            predefined_steps=num_update_steps_per_epoch,
-            drop_last=True,
-            shuffle=True,
-            shuffle_buffer_size=dataset_config.shuffle_buffer_size,
-            is_captioning=True,
-        )
+        raise NotImplementedError
 
     else:
         raise NotImplementedError(f"Unsupported dataset type {config.dataset.und_type}")
@@ -216,8 +201,8 @@ def create_dataloaders(config):
     # LLM pure text dataset: RefinedWeb
     dataset_lm = RefinedWebDataset(
         data_path=dataset_config.train_lm_shards_path_or_url,
-        rank=0,
-        world_size=1,
+        rank=rank_id,
+        world_size=device_num,
         num_workers=dataset_config.num_workers,
     )
 
@@ -227,16 +212,21 @@ def create_dataloaders(config):
         batch_size=config.training.batch_size_lm,
         sampler=None,
         num_workers=dataset_config.num_workers,
+        rank_id=rank_id,
+        device_num=device_num
     )
     train_dataloader_lm = train_dataloader_lm.create_dict_iterator(num_epochs=1, output_numpy=True)
     train_dataloader_lm.dataset_size = len(dataset_lm) // config.training.batch_size_lm
 
     for x in train_dataloader_lm:
-        for k, v in x.items():
-            if isinstance(v, (list, tuple)):
-                print(k, len(v))
-            else:
-                print(k, v.shape)
+        if isinstance(x, dict):
+            for k, v in x.items():
+                if isinstance(v, (list, tuple)):
+                    if rank_id == 0:
+                        print(k, len(v))
+                else:
+                    if rank_id == 0:
+                        print(k, v.shape)
         break
     # Combine these dataloaders into a single iterable model
     iterables = {
@@ -250,21 +240,29 @@ def create_dataloaders(config):
 
 
 def main():
+    rank_id, device_num = get_rank_and_world_size()
     config = MockConfig()
     # Add a dummy max_train_examples_t2i and max_train_examples_mmu to the mock config
     config.experiment.max_train_examples_t2i = 1000
     config.experiment.max_train_examples_mmu = 1000
 
-    combined_dataloader = create_dataloaders(config)
+    combined_dataloader = create_dataloaders(config, rank_id=rank_id, device_num=device_num)
 
     # You can now iterate through combined_dataloader for testing
     print("Successfully created combined_dataloader. You can now iterate through it for testing.")
     # Example of iterating through a few batches
     for i, batch in enumerate(combined_dataloader):
+
         print(f"Batch {i}:")
-        for key, value in batch.items():
-            print(f"  {key}: {value.keys()}")
-        if i > 2:  # Process a few batches
+        if isinstance(batch, dict):
+            for key, value in batch.items():
+                if hasattr(value, 'keys'):
+                    print(f"  {key}: {value.keys()}")
+                else:
+                    print(f"  {key}: {type(value)}")
+        else:
+            print(f"  batch type: {type(batch)}")
+        if i > 2:
             break
 
 
