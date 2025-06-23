@@ -31,10 +31,12 @@ def set_default_download_root(path):
     global _DEFAULT_DOWNLOAD_ROOT
     _DEFAULT_DOWNLOAD_ROOT = path
 
+
 def is_within_directory(directory, target):
     abs_directory = os.path.abspath(directory)
     abs_target = os.path.abspath(target)
     return abs_target.startswith(abs_directory)
+
 
 def safe_extract(tar, path=".", members=None):
     for member in tar.getmembers():
@@ -42,6 +44,7 @@ def safe_extract(tar, path=".", members=None):
         if not is_within_directory(path, member_path):
             raise Exception(f"risky member: {member.name}")
     tar.extractall(path, members)
+
 
 def safe_extract_zip(zip_file, path="."):
     for member in zip_file.namelist():

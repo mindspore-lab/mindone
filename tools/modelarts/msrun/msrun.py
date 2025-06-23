@@ -1,7 +1,7 @@
 import os
 import socket
-import sys
 import subprocess
+import sys
 
 """
 On modelarts, usage example:

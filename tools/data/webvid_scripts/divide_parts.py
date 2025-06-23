@@ -19,7 +19,7 @@ def main():
     output_dir = os.path.join(args.output_dir, os.path.splitext(meta_filename)[0])
     os.makedirs(output_dir, exist_ok=True)
 
-    result = subprocess.run(['wc', '-l', metadata_path], capture_output=True, text=True, shell=False)
+    result = subprocess.run(["wc", "-l", meta_filepath], capture_output=True, text=True, shell=False)
     linenum = int(result.stdout.strip().split()[0])
 
     stride = args.stride
@@ -33,7 +33,9 @@ def main():
         subprocess.run(f"head -n 1 {meta_filepath} > {output_filename}".split(" "), check=True, shell=False)
         end_line = min(i + stride - 1, linenum)  # Calculate the correct end line, ensuring not to exceed total lines
         os.system(f"sed -n '{i},{end_line}p' {meta_filepath} >> {output_filename}")
-        subprocess.run(f"sed -n '{i},{end_line}p' {meta_filepath} >> {output_filename}".split(" "), check=True, shell=False)
+        subprocess.run(
+            f"sed -n '{i},{end_line}p' {meta_filepath} >> {output_filename}".split(" "), check=True, shell=False
+        )
         i += stride
         partid += 1
 

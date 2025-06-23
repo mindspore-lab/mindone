@@ -48,6 +48,7 @@ def is_within_directory(directory, target):
     abs_target = os.path.abspath(target)
     return abs_target.startswith(abs_directory)
 
+
 def safe_extract(tar, path=".", members=None):
     for member in tar.getmembers():
         member_path = os.path.join(path, member.name)
@@ -55,12 +56,14 @@ def safe_extract(tar, path=".", members=None):
             raise Exception(f"risky member: {member.name}")
     tar.extractall(path, members)
 
+
 def safe_extract_zip(zip_file, path="."):
     for member in zip_file.namelist():
         member_path = os.path.join(path, member)
         if not is_within_directory(path, member_path):
             raise Exception(f"risk member: {member}")
     zip_file.extractall(path)
+
 
 class DownLoad:
     """Base utility class for downloading."""
@@ -88,7 +91,7 @@ class DownLoad:
         """Extract tar format file."""
 
         with tarfile.open(from_path, f"r:{compression[1:]}" if compression else "r") as tar:
-			safe_extract(tar, path=to_path)	
+            safe_extract(tar, to_path)
 
     @staticmethod
     def extract_zip(from_path: str, to_path: Optional[str] = None, compression: Optional[str] = None) -> None:

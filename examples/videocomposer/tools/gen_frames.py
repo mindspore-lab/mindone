@@ -1,7 +1,7 @@
 import glob
 import os
-import time
 import subprocess
+import time
 
 from tqdm import tqdm
 

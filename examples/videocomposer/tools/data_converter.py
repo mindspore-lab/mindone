@@ -1,7 +1,7 @@
 import glob
 import os
-import sys
 import subprocess
+import sys
 
 from tqdm import tqdm
 
