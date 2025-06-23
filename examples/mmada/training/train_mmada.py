@@ -586,7 +586,7 @@ def main():
                     f"Loss_combined: {loss.asnumpy().item():0.4f} "
                     f"Data (t): {data_time_m.val:0.4f}, {samples_per_second_per_device:0.2f}/s/device "
                     f"Batch (t): {batch_time_m.val:0.4f} "
-                    f"LR: {lr_scheduler.get_last_lr()[0]:0.6f}",
+                    f"LR: {lr_scheduler.get_last_lr()[0].asnumpy().item():0.6f}",
                     f"Loss scaler {loss_scaler.scale_value.asnumpy().item()}",
                 )
 
