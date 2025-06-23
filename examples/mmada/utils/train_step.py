@@ -2,40 +2,37 @@
 import logging
 from typing import Optional
 
-from packaging import version
-
 import mindspore as ms
-import mindspore.context as context
-from mindspore import Tensor, mint, nn, ops
+from mindspore import Tensor, nn, ops
 from mindspore.amp import all_finite
-from mindspore.boost.grad_accumulation import gradient_accumulation_op as _grad_accum_op
-from mindspore.boost.grad_accumulation import gradient_clear_op as _grad_clear_op
-from mindspore.common import RowTensor
-from mindspore.common import dtype as mstype
 from mindspore.communication import get_group_size
-from mindspore.ops import composite as C
-from mindspore.ops import functional as F
 
 from mindone.trainers.ema import EMA
 
 logger = logging.getLogger(__name__)
 
-_grad_scale = C.MultitypeFuncGraph("grad_scale")
-_grad_overflow = C.MultitypeFuncGraph("_grad_overflow")
 
+# @ms.jit_class
+class Accumulator:
+    def __init__(self, optimizer, accumulate_step):
+        self.optimizer = optimizer
 
-@_grad_scale.register("Tensor", "Tensor")
-def tensor_grad_scale(scale, grad):
-    return grad * F.cast(mint.reciprocal(scale), F.dtype(grad))
+        self.inner_grads = optimizer.parameters.clone(prefix="accumulate_", init="zeros")
+        self.zeros = optimizer.parameters.clone(prefix="zeros_", init="zeros")
+        self.counter = ms.Parameter(Tensor(1, ms.int32), "counter_")
+        assert accumulate_step > 0
+        self.accumulate_step = accumulate_step
+        self.map = ops.HyperMap()
 
+    def __call__(self, grads):
+        self.map(ops.partial(ops.assign_add), self.inner_grads, grads)
+        if self.counter % self.accumulate_step == 0:
+            self.optimizer(self.inner_grads)
+            self.map(ops.partial(ops.assign), self.inner_grads, self.zeros)
 
-@_grad_scale.register("Tensor", "RowTensor")
-def tensor_grad_scale_row_tensor(scale, grad):
-    return RowTensor(
-        grad.indices,
-        grad.values * F.cast(mint.reciprocal(scale), F.dtype(grad.values)),
-        grad.dense_shape,
-    )
+        ops.assign_add(self.counter, Tensor(1, ms.int32))
+
+        return True
 
 
 class TrainOneStepWrapper:
@@ -66,7 +63,6 @@ class TrainOneStepWrapper:
         gradient_accumulation_steps=1,
         clip_grad=False,
         clip_norm=1.0,
-        verbose=False,
         zero_helper=None,
         config=None,
     ):
@@ -87,19 +83,8 @@ class TrainOneStepWrapper:
         self.clip_norm = clip_norm
 
         assert gradient_accumulation_steps >= 1
-        self.accum_steps = gradient_accumulation_steps
-        if gradient_accumulation_steps > 1:
-            self.accumulated_grads = optimizer.parameters.clone(prefix="grad_accumulated_", init="zeros")
-
-            self.cur_accum_step = ms.Parameter(ms.Tensor(0, dtype=ms.int32), name="accum_step")
-            self.zero = Tensor(0, ms.int32)
-
-        self.verbose = verbose
-        self.is_cpu_device = context.get_context("device_target") == "CPU"  # to support CPU in CI
-        self.skip_start_overflow_check = version.parse(ms.__version__) >= version.parse("2.1")
-
-        self.map = ops.Map()
-        self.partial = ops.Partial()
+        self.gradient_accumulation_steps = gradient_accumulation_steps
+        self.accumulator = Accumulator(self.optimizer, gradient_accumulation_steps)
 
         # zero init
         self.zero_helper = zero_helper
@@ -156,6 +141,7 @@ class TrainOneStepWrapper:
         )
         if self.loss_scaler:
             loss = self.loss_scaler.scale(loss)
+        loss = loss / self.gradient_accumulation_steps
         return loss, logits, loss_t2i, loss_lm, loss_mmu
 
     def get_grad_reducer(self):
@@ -182,82 +168,11 @@ class TrainOneStepWrapper:
             self.loss_scaler.adjust(grads_finite)
 
         grads = self.grad_reducer(grads)
+        if self.clip_grad:
+            grads = ops.clip_by_global_norm(grads, self.clip_norm)
         if grads_finite or (not self.drop_overflow_update):
-            self.optimizer(grads)
+            self.accumulator(grads)
         else:
             logger.warning("WARNING: Gradient overflow! update skipped.")
 
         return loss, logits, loss_t2i, loss_lm, loss_mmu
-
-        # # Gradient communication
-        # if self.zero_helper is not None:
-        #     grads = self.zero_helper.cal_gradients(grads)
-
-        # if self.accum_steps == 1:
-        #     grads = self.grad_reducer(grads)
-        #     scaling_sens = ops.depend(scaling_sens, grads)
-
-        # # 2. down-scale gradients by loss_scale. grads = grads / scaling_sense  / grad_accum_steps
-        # # also divide gradients by accumulation steps to avoid taking mean of  the accumulated gradients later
-        # grads = self.hyper_map(F.partial(_grad_scale, scaling_sens), grads)  # accum_steps division is done later
-
-        # # 3. check gradient overflow
-        # if not self.is_cpu_device:
-        #     cond = self.get_overflow_status(status, grads)
-        #     overflow = self.process_loss_scale(cond)
-        # else:
-        #     overflow = ms.Tensor(False)
-        #     cond = ms.Tensor(False)
-
-        # # accumulate gradients and update model weights if no overflow or allow to update even when overflow
-        # if (not self.drop_overflow_update) or (not overflow):
-        #     # 4. gradient accumulation if enabled
-        #     if self.accum_steps > 1:
-        #         # self.accumulated_grads += grads / accum_steps
-        #         loss = F.depend(
-        #             loss, self.hyper_map(F.partial(_grad_accum_op, self.accum_steps), self.accumulated_grads, grads)
-        #         )
-
-        #         # self.cur_accum_step += 1
-        #         loss = F.depend(loss, ops.assign_add(self.cur_accum_step, Tensor(1, ms.int32)))
-
-        #         if self.cur_accum_step >= self.accum_steps:
-        #             # 5. gradient reduction on distributed GPUs/NPUs
-        #             grads = self.grad_reducer(self.accumulated_grads)
-
-        #             # 6. clip grad
-        #             if self.clip_grad:
-        #                 grads = ops.clip_by_global_norm(grads, self.clip_norm)
-        #             # 7. optimize
-        #             loss = F.depend(loss, self.run_optimizer(grads))
-
-        #             # clear gradient accumulation states
-        #             loss = F.depend(loss, self.hyper_map(F.partial(_grad_clear_op), self.accumulated_grads))
-        #             # self.cur_accum_step = 0
-        #             loss = F.depend(loss, ops.assign(self.cur_accum_step, self.zero))
-        #         else:
-        #             # update LR in each gradient step but not optimize net parameter
-        #             # to ensure the LR curve is consistent
-        #             # FIXME: for ms>=2.2, get_lr() will not increase global step by 1. we need to do it manually.
-        #             if hasattr(self.optimizer, "get_lr"):
-        #                 get_lr_func = lambda x: x.get_lr()
-        #             elif hasattr(self.optimizer, "param_groups"):
-        #                 get_lr_func = lambda x: [group["lr"] for group in x.param_groups]
-        #             else:
-        #                 raise NotImplementedError()
-        #             loss = F.depend(loss, get_lr_func(self.optimizer))
-        #     else:
-        #         # 5. gradient reduction on distributed GPUs/NPUs
-        #         # 6. clip grad
-        #         if self.clip_grad:
-        #             grads = ops.clip_by_global_norm(grads, self.clip_norm)
-        #         # 7. optimize
-        #         loss = F.depend(loss, self.run_optimizer(grads))
-
-        #     # 8.ema
-        #     if self.ema is not None:
-        #         self.ema.ema_update()
-        # # else:
-        # #    print("WARNING: Gradient overflow! update skipped.") # TODO: recover it after Ascend Atlas 800T A2 machines in-graph print issue fixed
-
-        # return loss, cond, scaling_sens, extra_outputs
