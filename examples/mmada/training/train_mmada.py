@@ -28,11 +28,11 @@ from transformers import AutoConfig, AutoTokenizer
 
 import mindspore as ms
 import mindspore.mint as mint
+from mindspore.amp import DynamicLossScaler
 from mindspore.experimental import optim
-from mindspore.nn.wrap.loss_scale import DynamicLossScaleUpdateCell
 
 from mindone.diffusers.models.model_loading_utils import load_checkpoint_and_dispatch
-from utils import NetWithLoss, TrainOneStepWrapper, init_from_ckpt, no_grad
+from utils import TrainOneStepWrapper, init_from_ckpt, no_grad
 
 SYSTEM_PROMPT_LEN = 28
 
@@ -132,13 +132,7 @@ def main():
     model.resize_token_embeddings(mmada_config.new_vocab_size)
     model.config.embedding_size = model.config.vocab_size
     mask_id = model.config.mask_token_id
-
-    # network_with_loss
-    model = NetWithLoss(model, config)
     model.set_train(True)
-
-    if hasattr(config.model, "gradient_checkpointing"):
-        logger.info(f"Gradient Checkpointing during training: {config.model.gradient_checkpointing}")
 
     ##################################
     #   Optimizer and LR scheduler   #
@@ -335,7 +329,7 @@ def main():
             logger.info(f"Resuming from checkpoint: {ckpt_path}")
             global_step = int(os.path.basename(ckpt_path).split("-")[1])
             first_epoch = global_step // num_update_steps_per_epoch
-            init_from_ckpt(model.network, path)
+            init_from_ckpt(model, path)
 
         # if safetensors sharded checkpoint exists
         elif os.path.exists(
@@ -344,7 +338,7 @@ def main():
             index_file = os.path.join(
                 config.experiment.output_dir, f"{path}/unwrapped_model/model.safetensors.index.json"
             )
-            load_checkpoint_and_dispatch(model.network, index_file, dtype=ms.float32, strict=True)
+            load_checkpoint_and_dispatch(model, index_file, dtype=ms.float32, strict=True)
         else:
             raise FileNotFoundError(f"Checkpoint {path}/unwrapped_model/pytorch_model.bin not found")
     else:
@@ -442,16 +436,17 @@ def main():
     data_time_m = AverageMeter()
     end = time.time()
 
-    loss_scaler = DynamicLossScaleUpdateCell(loss_scale_value=65356, scale_factor=2, scale_window=2000)
+    loss_scaler = DynamicLossScaler(scale_value=65356, scale_factor=2, scale_window=2000)
     train_step_model = TrainOneStepWrapper(
         model,
         optimizer=optimizer,
-        scale_sense=loss_scaler,
+        loss_scaler=loss_scaler,
         drop_overflow_update=True,
         gradient_accumulation_steps=config.training.gradient_accumulation_steps,
         clip_grad=config.training.max_grad_norm is not None,
         clip_norm=config.training.max_grad_norm,
         ema=None,
+        config=config,
     )
     if profiler is not None:
         profiler.start()
@@ -551,7 +546,7 @@ def main():
 
             # compute_loss and logits
 
-            loss, overflow, scaling_sens, extra_outputs = train_step_model(
+            loss, logits, loss_t2i, loss_lm, loss_mmu = train_step_model.train_one_step(
                 input_ids,
                 labels,
                 batch_size_t2i,
@@ -562,12 +557,7 @@ def main():
                 answer_lengths,
                 t2i_masks,
             )
-            logits, loss_t2i, loss_lm, loss_mmu = extra_outputs
-            if isinstance(scaling_sens, ms.Parameter):
-                scaling_sens = scaling_sens.value()
 
-            if overflow:
-                logger.warning(f"Overflow occurs in step {global_step} in autoencoder, drop update.")
             lr_scheduler.step()
             avg_loss_t2i = loss_t2i.mean()
             avg_loss_lm = loss_lm.mean()
@@ -596,7 +586,7 @@ def main():
                     f"Data (t): {data_time_m.val:0.4f}, {samples_per_second_per_device:0.2f}/s/device "
                     f"Batch (t): {batch_time_m.val:0.4f} "
                     f"LR: {lr_scheduler.get_last_lr()[0]:0.6f}",
-                    f"Loss scaler {scaling_sens.asnumpy().item()}",
+                    f"Loss scaler {loss_scaler.scale_value.asnumpy().item()}",
                 )
 
                 # resetting batch / data time meters per log window
@@ -622,7 +612,7 @@ def main():
                 logger.error(f"Failed to write log: {e}")
             # Save model checkpoint
             if (global_step + 1) % config.experiment.save_every == 0:
-                save_checkpoint(model.network, config, global_step + 1)
+                save_checkpoint(model, config, global_step + 1)
 
             if (
                 (global_step + 1) % config.experiment.generate_every == 0 or global_step == 0
@@ -630,7 +620,7 @@ def main():
                 model.set_train(False)
                 with no_grad():
                     generate_images(
-                        model.network,
+                        model,
                         vq_model,
                         uni_prompting,
                         config,
@@ -639,7 +629,7 @@ def main():
                     )
 
                     visualize_predictions(
-                        model.network,
+                        model,
                         vq_model,
                         uni_prompting,
                         config,
@@ -652,7 +642,7 @@ def main():
                     )
 
                     understanding_images(
-                        model.network,
+                        model,
                         vq_model,
                         uni_prompting,
                         config,
@@ -670,10 +660,10 @@ def main():
                 break
 
     # Evaluate and save checkpoint at the end of training
-    save_checkpoint(model.network, config, global_step)
+    save_checkpoint(model, config, global_step)
 
     # Save the final trained checkpoint
-    model.network.save_pretrained(config.experiment.output_dir, safe_serialization=True)
+    model.save_pretrained(config.experiment.output_dir, safe_serialization=True)
 
 
 def visualize_predictions(
