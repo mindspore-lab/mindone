@@ -61,6 +61,7 @@ def main():
     ) * config.training.gradient_accumulation_steps
 
     if config.experiment.profile:
+        os.environ["MS_ALLOC_CONF"] = "memory_tracker:True"
         profiler = ms.Profiler(output_path="./mem_info", profile_memory=True)
         ms.set_context(memory_optimize_level="O0")
         ms.set_context(pynative_synchronize=True)
