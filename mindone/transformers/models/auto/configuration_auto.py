@@ -47,6 +47,7 @@ CONFIG_MAPPING_NAMES = OrderedDict(
         ("qwen2_audio_encoder", "Qwen2AudioEncoderConfig"),
         ("t5", "T5Config"),
         ("xlm-roberta", "XLMRobertaConfig"),
+        ("gpt_neox", "GPTNeoXConfig"),
     ]
 )
 
@@ -74,6 +75,7 @@ MODEL_NAMES_MAPPING = OrderedDict(
         ("t5v1.1", "T5v1.1"),
         ("xlm-roberta", "XLM-RoBERTa"),
         ("xlm-roberta-xl", "XLM-RoBERTa-XL"),
+        ("gpt_neox", "GPTNeoX"),
     ]
 )
 

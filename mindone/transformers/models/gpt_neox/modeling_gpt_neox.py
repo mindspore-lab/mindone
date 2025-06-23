@@ -123,7 +123,7 @@ def eager_attention_forward(
     attn_output = mint.matmul(attn_weights, value)
 
     # Reshape outputs
-    attn_output = mint..transpose(attn_output, 1, 2).contiguous()
+    attn_output = mint.transpose(attn_output, 1, 2).contiguous()
 
     return attn_output, attn_weights
 
@@ -275,7 +275,7 @@ class GPTNeoXRotaryEmbedding(nn.Cell):
         self.original_inv_freq = self.inv_freq
 
     def register_buffer(self, name, attr):
-        setattr(self, name, Parameter(default_input=attr, requests_grad=False))
+        setattr(self, name, Parameter(default_input=attr, requires_grad=False))
 
     def construct(self, x, position_ids):
         inv_freq_expanded = mint.broadcast_to(self.inv_freq[None, :, None].float(), (position_ids.shape[0], -1, 1))
@@ -526,10 +526,10 @@ class GPTNeoXModel(GPTNeoXPreTrainedModel):
             causal_mask = attention_mask
         else:
             min_dtype = dtype_to_min(dtype)
-            causal_mask = ops.full((sequence_length, target_length), fill_value=min_dtype, dtype=dtype)
+            causal_mask = mint.full((sequence_length, target_length), fill_value=min_dtype.item(), dtype=dtype)
             if sequence_length != 1:
-                causal_mask = ops.triu(causal_mask, diagonal=1)
-            causal_mask *= ops.arange(target_length) > cache_position.reshape(-1, 1)
+                causal_mask = mint.triu(causal_mask, diagonal=1)
+            causal_mask *= mint.arange(target_length) > cache_position.reshape(-1, 1)
             causal_mask = causal_mask[None, None, :, :].broadcast_to((batch_size, 1, -1, -1))
             if attention_mask is not None:
                 causal_mask = causal_mask.copy()  # copy to contiguous memory for in-place edit

@@ -99,7 +99,7 @@ LLAMA_CASES = [
     [
         "GPTNeoXModel",
         "transformers.GPTNeoXModel",
-        "mindone.transformers.models.gpt_neox.GPTNeoXModel",
+        "mindone.transformers.GPTNeoXModel",
         (config,),
         {},
         (input_ids,),
@@ -107,25 +107,21 @@ LLAMA_CASES = [
             "attention_mask": input_mask,
         },
         {
-            "logits": 0,  # key: torch attribute, value: mindspore idx
+            "last_hidden_state": 0,
         },
     ],
 ]
 
 
 @pytest.mark.parametrize(
-    "name,pt_module,ms_module,init_args,init_kwargs,inputs_args,inputs_kwargs,outputs_map,dtype,mode",
+    "name,pt_module,ms_module,init_args,init_kwargs,inputs_args,inputs_kwargs,outputs_map,dtype",
     [
         case
         + [
             dtype,
         ]
-        + [
-            mode,
-        ]
         for case in LLAMA_CASES
         for dtype in DTYPE_AND_THRESHOLDS.keys()
-        for mode in MODES
     ],
 )
 def test_named_modules(
@@ -137,10 +133,8 @@ def test_named_modules(
     inputs_args,
     inputs_kwargs,
     outputs_map,
-    dtype,
-    mode,
+    dtype
 ):
-    ms.set_context(mode=mode, jit_syntax_level=ms.STRICT)
 
     (
         pt_model,

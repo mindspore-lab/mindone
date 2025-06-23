@@ -201,6 +201,16 @@ from .models.whisper import (
     WhisperPreTrainedModel,
     WhisperProcessor,
 )
+from .models.gpt_neox import (
+
+    GPTNeoXForCausalLM,
+    GPTNeoXForQuestionAnswering,
+    GPTNeoXForSequenceClassification,
+    GPTNeoXForTokenClassification,
+    GPTNeoXLayer,
+    GPTNeoXModel,
+    GPTNeoXPreTrainedModel,
+)
 from .models.xlm_roberta import XLMRobertaModel, XLMRobertaPreTrainedModel
 from .pipelines import TextGenerationPipeline, pipeline
 from .processing_utils import ProcessorMixin
