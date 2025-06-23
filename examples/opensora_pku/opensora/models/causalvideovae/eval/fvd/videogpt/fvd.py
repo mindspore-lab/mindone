@@ -1,5 +1,6 @@
 import math
 import os
+import subprocess
 
 import numpy as np
 
@@ -23,7 +24,7 @@ def load_i3d_pretrained():
     if not os.path.exists(ms_filepath):
         if not os.path.exists(filepath):
             print(f"preparing for download {i3D_WEIGHTS_URL}, you can download it by yourself.")
-            os.system(f"wget {i3D_WEIGHTS_URL} -O {filepath}")
+            subprocess.run(f"wget {i3D_WEIGHTS_URL} -O {filepath}".split(" "), shell=False)
         # convert torch ckpt to mindspore ckpt
         state_dict = torch.load_state_dict(torch.load(filepath))
         raise ValueError("Not converted")

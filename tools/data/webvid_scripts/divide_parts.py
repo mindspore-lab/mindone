@@ -1,5 +1,6 @@
 import argparse
 import os
+import subprocess
 
 
 def parse_args():
@@ -18,7 +19,9 @@ def main():
     output_dir = os.path.join(args.output_dir, os.path.splitext(meta_filename)[0])
     os.makedirs(output_dir, exist_ok=True)
 
-    linenum = int(os.popen(f"wc -l {meta_filepath}").read().split()[0])
+    result = subprocess.run(['wc', '-l', metadata_path], capture_output=True, text=True, shell=False)
+    linenum = int(result.stdout.strip().split()[0])
+
     stride = args.stride
     i = 2  # start from the second line, assuming the first line is a header
     partid = 0
@@ -27,9 +30,10 @@ def main():
 
     while i <= linenum:
         output_filename = os.path.join(output_dir, f"part{partid}.csv")
-        os.system(f"head -n 1 {meta_filepath} > {output_filename}")  # Write the header to each part
+        subprocess.run(f"head -n 1 {meta_filepath} > {output_filename}".split(" "), check=True, shell=False)
         end_line = min(i + stride - 1, linenum)  # Calculate the correct end line, ensuring not to exceed total lines
         os.system(f"sed -n '{i},{end_line}p' {meta_filepath} >> {output_filename}")
+        subprocess.run(f"sed -n '{i},{end_line}p' {meta_filepath} >> {output_filename}".split(" "), check=True, shell=False)
         i += stride
         partid += 1
 

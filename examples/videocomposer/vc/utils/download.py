@@ -31,6 +31,25 @@ def set_default_download_root(path):
     global _DEFAULT_DOWNLOAD_ROOT
     _DEFAULT_DOWNLOAD_ROOT = path
 
+def is_within_directory(directory, target):
+    abs_directory = os.path.abspath(directory)
+    abs_target = os.path.abspath(target)
+    return abs_target.startswith(abs_directory)
+
+def safe_extract(tar, path=".", members=None):
+    for member in tar.getmembers():
+        member_path = os.path.join(path, member.name)
+        if not is_within_directory(path, member_path):
+            raise Exception(f"risky member: {member.name}")
+    tar.extractall(path, members)
+
+def safe_extract_zip(zip_file, path="."):
+    for member in zip_file.namelist():
+        member_path = os.path.join(path, member)
+        if not is_within_directory(path, member_path):
+            raise Exception(f"risk member: {member}")
+    zip_file.extractall(path)
+
 
 class DownLoad:
     """Base utility class for downloading."""
@@ -43,7 +62,7 @@ class DownLoad:
     @staticmethod
     def calculate_md5(file_path: str, chunk_size: int = 1024 * 1024) -> str:
         """Calculate md5 value."""
-        md5 = hashlib.md5()
+        md5 = hashlib.md5(usedforsecurity=False)
         with open(file_path, "rb") as fp:
             for chunk in iter(lambda: fp.read(chunk_size), b""):
                 md5.update(chunk)
@@ -58,7 +77,7 @@ class DownLoad:
         """Extract tar format file."""
 
         with tarfile.open(from_path, f"r:{compression[1:]}" if compression else "r") as tar:
-            tar.extractall(to_path)
+            safe_extract(tar, to_path)
 
     @staticmethod
     def extract_zip(from_path: str, to_path: Optional[str] = None, compression: Optional[str] = None) -> None:
@@ -66,7 +85,7 @@ class DownLoad:
 
         compression_mode = zipfile.ZIP_BZIP2 if compression else zipfile.ZIP_STORED
         with zipfile.ZipFile(from_path, "r", compression=compression_mode) as zip_file:
-            zip_file.extractall(to_path)
+            safe_extract_zip(zip_file, to_path)
 
     def extract_archive(self, from_path: str, to_path: str = None) -> str:
         """Extract and  archive from path to path."""
