@@ -907,7 +907,7 @@ def log_grad_norm(model, config, global_step):
     fp = os.path.join(output_dir, "gradients_norm_dict.pkl")
     with open(fp, "wb") as f:
         pkl.dump(save_gradnorm_dict, f)
-    logger.info(f"Gradients norms saved state to {fp}")
+    logger.info(f"Gradients norms at global step {global_step} saved state to {fp}")
 
 
 if __name__ == "__main__":

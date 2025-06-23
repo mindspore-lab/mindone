@@ -109,7 +109,36 @@ The outputs are stored locally.
 
 ## 🔧 Training
 
-Coming soon...
+
+### Training Datasets
+
+Please refer to the Official PyTorch Repository [MmaDA](https://github.com/Gen-Verse/MMaDA) for the full information about the training datasets. You can download the relevant training datasets following the instructions from this [document](./docs/datasets.md).
+
+For demonstration purpose, we provide a toy example of training datasets in [hugginfgace](https://huggingface.co/datasets/ddengwtomin/mmada-repository/tree/main/train_datasets). You can download this toy dataset using:
+```bash
+cd examples/mmada
+huggingface-cli download --resume-download ddengwtomin/mmada-repository --local-dir ./ --include "train_datasets/*" --repo-type dataset
+```
+
+Afterwards, three datasets (t2i, text, and multimodal) will be downloaded in `./train_datasets`.
+
+
+### Pretraining Experiment
+
+After the training datasets are downloaded, please edit `configs/mmada_pretraining_stage1_llada_instruct.yaml` and revise the following dataset paths accordingly:
+```yaml
+train_t2i_shards_path_or_url: "path/to/your/dataset"
+train_mmu_shards_path_or_url: "path/to/your/dataset"
+train_lm_shards_path_or_url: "path/to/your/dataset"
+```
+
+Then you can start the standalone training experiment with the followin command:
+```bash
+python training/train_mmada.py config=configs/mmada_pretraining_stage1_llada_instruct.yaml
+```
+
+The experiment logs and checkpoints will be saved under `./mmada-training-stage1-llada-instruct`, as defined by the `experiment.output_dir` in the configuration file.
+
 
 
 ## 🤝 Acknowledgments

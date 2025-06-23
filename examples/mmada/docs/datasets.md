@@ -56,4 +56,4 @@ If a first download got interrupted for any reason, you can run again with `--in
 
 ## ImageNet-1K
 
-ImageNet-1K is available at [Huggingface](https://huggingface.co/datasets/imagenet-1k).
+ImageNet-1K is available at the offical [website](https://www.image-net.org/download.php).
