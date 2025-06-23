@@ -30,6 +30,7 @@ import mindspore as ms
 import mindspore.mint as mint
 from mindspore.amp import DynamicLossScaler
 from mindspore.experimental import optim
+import mindspore.communication.management as D
 
 from mindone.diffusers.models.model_loading_utils import load_checkpoint_and_dispatch
 from utils import TrainOneStepWrapper, init_from_ckpt, no_grad
@@ -68,6 +69,15 @@ def main():
     else:
         profiler = None
 
+
+    if config.training.get("distributed", False):
+        D.init()
+        rank_id = D.get_rank()
+        device_num = D.get_group_size()
+        ms.set_auto_parallel_context(device_num=device_num, parallel_mode=ms.ParallelMode.DATA_PARALLEL, gradients_mean=True)
+    else:
+        rank_id = 0
+        device_num = 1
     #####################################
     # SETUP LOGGING, SEED and CONFIG    #
     #####################################
@@ -242,6 +252,8 @@ def main():
             sampler=sampler,
             shuffle=shuffle,
             num_workers=dataset_config.num_workers,
+            rank_id=rank_id,
+            device_num=device_num
         )
         train_dataloader_t2i = train_dataloader_t2i.create_dict_iterator(num_epochs=1, output_numpy=True)
         train_dataloader_t2i.dataset_size = len(dataset_imagenet) // config.training.batch_size_t2i
@@ -286,8 +298,8 @@ def main():
     # LLM pure text dataset: RefinedWeb
     dataset_lm = RefinedWebDataset(
         data_path=dataset_config.train_lm_shards_path_or_url,
-        rank=0,
-        world_size=1,
+        rank=rank_id,
+        world_size=device_num,
         num_workers=dataset_config.num_workers,
     )
 
@@ -297,6 +309,8 @@ def main():
         batch_size=config.training.batch_size_lm,
         sampler=None,
         num_workers=dataset_config.num_workers,
+        rank_id=rank_id,
+        device_num=device_num
     )
     train_dataloader_lm = train_dataloader_lm.create_dict_iterator(num_epochs=1, output_numpy=True)
     train_dataloader_lm.dataset_size = len(dataset_lm) // config.training.batch_size_lm

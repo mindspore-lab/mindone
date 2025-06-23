@@ -20,6 +20,7 @@ from webdataset.tariterators import base_plus_ext, tar_file_expander, url_opener
 
 import mindspore.dataset.vision as transforms
 from mindspore.dataset.vision import Inter
+import mindspore.communication.management as D
 
 person_token = ["a person", "someone", "somebody"]
 
@@ -139,6 +140,13 @@ def remove_prefix(caption):
 
 def filter_long_samples(sample):
     return sample.get("input_ids") is not None
+
+def my_split_by_node(src):
+    rank = D.get_rank()
+    world_size = D.get_group_size()
+    for i, sample in enumerate(src):
+        if i % world_size == rank:
+            yield sample
 
 
 class Text2ImageDataset:
@@ -265,6 +273,8 @@ class Text2ImageDataset:
 
         pipeline = [
             wds.ResampledShards(train_shards_path_or_url),
+            my_split_by_node,
+            wds.split_by_worker,
             tarfile_to_samples_nothrow,
             wds.shuffle(shuffle_buffer_size),
             *processing_pipeline,
