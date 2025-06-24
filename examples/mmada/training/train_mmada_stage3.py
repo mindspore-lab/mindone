@@ -601,8 +601,8 @@ def main():
                     f"Loss_combined: {loss.asnumpy().item()} "
                     f"Data (t): {data_time_m.val}, {samples_per_second_per_device}/s/device "
                     f"Batch (t): {batch_time_m.val} "
-                    f"LR: {lr_scheduler.get_last_lr()[0].asnumpy().item()}",
-                    f"Loss scaler {loss_scaler.scale_value.asnumpy().item()}",
+                    f"LR: {lr_scheduler.get_last_lr()[0].asnumpy().item()} "
+                    f"Loss scaler {loss_scaler.scale_value.value().asnumpy().item()} "
                 )
 
                 # resetting batch / data time meters per log window
