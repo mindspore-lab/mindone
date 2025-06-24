@@ -40,13 +40,14 @@ def is_safe_member(member, target_dir):
     if not abs_member_path.startswith(abs_target_dir):
         return False
 
-    if member.name.startswith('/') or '..' in member.name:
+    if member.name.startswith("/") or ".." in member.name:
         return False
 
     if member.islnk() or member.issym():
         return False
 
     return True
+
 
 def safe_members(tar, target_dir):
     for member in tar.getmembers():
@@ -62,9 +63,11 @@ def extract_tar(file_path):
             if "/" not in archive.getnames()[1]:
                 subfolder_path = file_path[:-4]
                 os.makedirs(subfolder_path, exist_ok=True)
-                archive.extractall(subfolder_path, members=safe_member(archive, subfolder_path))
+                archive.extractall(subfolder_path, members=safe_members(archive, subfolder_path))
             else:
-                archive.extractall(os.path.dirname(file_path), members=safe_member(archive, os.path.dirname(file_path)))
+                archive.extractall(
+                    os.path.dirname(file_path), members=safe_members(archive, os.path.dirname(file_path))
+                )
         os.remove(file_path)
         _logger.info("finish extract: " + file_path)
         return True

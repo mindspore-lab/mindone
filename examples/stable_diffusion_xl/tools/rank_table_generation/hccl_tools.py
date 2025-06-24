@@ -16,10 +16,10 @@
 import json
 import os
 import re
-import socket
-import sys
 import shlex
+import socket
 import subprocess
+import sys
 from argparse import ArgumentParser
 from typing import Any, Dict
 
@@ -135,7 +135,8 @@ def main():
     device_ips: Dict[Any, Any] = {}
     try:
         for device_id in device_num_list:
-            result = subprocess.run(shlex.split(read_caption_cmd), capture_output=True, text=True, shell=False)
+            cmd = "hccn_tool -i %d -ip -g" % device_id
+            result = subprocess.run(shlex.split(cmd), capture_output=True, text=True, shell=False)
             output = result.stdout.strip()
             device_ips[str(device_id)] = output.split(":")[1].replace("\n", "")
 
