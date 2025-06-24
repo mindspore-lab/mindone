@@ -291,7 +291,7 @@ def main():
     # LLM pure text dataset: RefinedWeb
     dataset_lm = RefinedWebDataset(
         data_path=dataset_config.train_lm_shards_path_or_url,
-        rank_id=rank_id,
+        rank=rank_id,
         world_size=device_num,
         num_workers=dataset_config.num_workers,
     )

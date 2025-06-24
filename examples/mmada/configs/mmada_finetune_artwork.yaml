@@ -9,7 +9,7 @@ experiment:
     generate_every: 500
     log_every: 10
     log_grad_norm_every: 100
-    resume_from_checkpoint: "latest"
+    resume_from_checkpoint: False
     val_every: 50
     max_val_examples_t2i: 2000
     profile: False
@@ -44,7 +44,7 @@ dataset:
         train_mmu_shards_path_or_url: [
                                       "train_datasets/artwork/jade_dataset_{00000..00000}.tar"
         ]
-        train_lm_shards_path_or_url: "train_datasets/falcon-refinedweb/data/data/*.parquet"
+        train_lm_shards_path_or_url: "train_datasets/falcon-refinedweb/data/*.parquet"
         add_caption_prompt: True
         external_caption_path: ""
         external_journeydb_caption_path: ""
