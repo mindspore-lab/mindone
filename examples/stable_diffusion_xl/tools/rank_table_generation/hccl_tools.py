@@ -18,6 +18,8 @@ import os
 import re
 import socket
 import sys
+import shlex
+import subprocess
 from argparse import ArgumentParser
 from typing import Any, Dict
 
@@ -133,8 +135,10 @@ def main():
     device_ips: Dict[Any, Any] = {}
     try:
         for device_id in device_num_list:
-            ret = os.popen("hccn_tool -i %d -ip -g" % device_id).readlines()
-            device_ips[str(device_id)] = ret[0].split(":")[1].replace("\n", "")
+            result = subprocess.run(shlex.split(read_caption_cmd), capture_output=True, text=True, shell=False)
+            output = result.stdout.strip()
+            device_ips[str(device_id)] = output.split(":")[1].replace("\n", "")
+
     except IndexError:
         print("Failed to call hccn_tool, try to read /etc/hccn.conf instead")
         try:

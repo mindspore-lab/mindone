@@ -1,5 +1,6 @@
 import os
 import subprocess
+import shlex
 import sys
 
 import pytest
@@ -19,7 +20,7 @@ def test_train_infer(use_ema, finetuning):
     epochs = 1
     image_size = 512
     if os.path.exists(output_path):
-        os.system(f"rm {output_path} -rf")
+        subprocess.run(shlex.split(f"rm {output_path} -rf"), shell=False)
     if finetuning == "Vanilla":
         use_lora = False
     elif finetuning == "LoRA":
@@ -65,7 +66,7 @@ def test_train_infer_DreamBooth(use_ema):
     epochs = 1
     image_size = 512
     if os.path.exists(output_path):
-        os.system(f"rm {output_path} -rf")
+        subprocess.run(shlex.split(f"rm {output_path} -rf"), shell=False)
     cmd = (
         f"python train_dreambooth.py --mode=0 --instance_data_dir={data_path} --instance_prompt='{instance_prompt}' "
         f"--model_config={model_config_file} --class_data_dir={data_path} --class_prompt='{instance_prompt}' "
