@@ -22,7 +22,7 @@ from ...activations import ACT2FN
 from ...modeling_outputs import BaseModelOutput, ImageClassifierOutput
 from ...modeling_utils import ALL_ATTENTION_FUNCTIONS, PreTrainedModel
 from ...utils import logging
-from .configuration_vjepa2 import VJEPA2Config
+from transformers.models.vjepa2.configuration_vjepa2 import VJEPA2Config
 from transformers.utils import ModelOutput, auto_docstring
 from mindspore.common.initializer import TruncatedNormal, initializer
 
