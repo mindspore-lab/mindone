@@ -17,6 +17,7 @@ ms.set_device(device_target="Ascend")
 
 def get_rank_and_world_size():
     if not is_initialized():
+        ms.set_auto_parallel_context(parallel_mode=ms.ParallelMode.DATA_PARALLEL)
         init_process_group()
     rank = get_rank()
     world_size = get_world_size()

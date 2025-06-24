@@ -5,7 +5,7 @@ from typing import Optional
 import mindspore as ms
 from mindspore import Tensor, nn, ops
 from mindspore.amp import all_finite
-from mindspore.communication import get_group_size
+from mindspore.mint.distributed import get_world_size
 
 from mindone.trainers.ema import EMA
 
@@ -147,9 +147,9 @@ class TrainOneStepWrapper:
     def get_grad_reducer(self):
         grad_reducer = nn.Identity()
         # if training is distributed
-        group_size = get_group_size()
+        group_size = get_world_size()
         if group_size != 1:
-            grad_reducer = nn.DistributedGradReducer()
+            grad_reducer = nn.DistributedGradReducer(self.optimizer.parameters)
         return grad_reducer
 
     def set_train(self, mode: bool = True):

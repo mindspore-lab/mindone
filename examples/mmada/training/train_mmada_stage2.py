@@ -51,13 +51,13 @@ def get_vq_model_class(model_type):
 
 def main():
     config = get_config()
-    ms.set_device(device_target="Ascend")
+    ms.set_context(device_target="Ascend")
 
     if config.experiment.get("distributed", False):
+        ms.set_auto_parallel_context(parallel_mode=ms.ParallelMode.DATA_PARALLEL)
         init_process_group()
         rank_id = get_rank()
         device_num = get_world_size()
-        # ms.set_auto_parallel_context(device_num=device_num, parallel_mode=ms.ParallelMode.DATA_PARALLEL, gradients_mean=True)
     else:
         rank_id = 0
         device_num = 1

@@ -5,7 +5,6 @@ from typing import Any, Dict, Iterator, Tuple
 import numpy as np
 
 import mindspore as ms
-from mindspore.communication.management import get_local_rank, get_local_rank_size
 from mindspore.dataset import GeneratorDataset
 
 
@@ -20,7 +19,6 @@ def create_dataloader(
     rank_id=0,
     drop_last=True,
     prefetch_size=None,
-    enable_modelarts=False,
     collate_fn=None,
     sampler=None,
     batch_sampler=None,
@@ -34,10 +32,6 @@ def create_dataloader(
     if prefetch_size is not None:
         assert isinstance(prefetch_size, int)
         ms.dataset.config.set_prefetch_size(prefetch_size)
-
-    if enable_modelarts:
-        device_num = get_local_rank_size()
-        rank_id = get_local_rank() % 8
 
     dl = GeneratorDataset(
         dataset,
