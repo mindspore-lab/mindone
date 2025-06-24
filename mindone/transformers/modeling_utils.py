@@ -56,7 +56,7 @@ from transformers.utils.hub import convert_file_size_to_int, get_checkpoint_shar
 
 import mindspore as ms
 from mindspore import Parameter, Tensor, mint, nn, ops
-from mindspore.nn import CrossEntropyLoss, Identity
+from mindspore.mint.nn import CrossEntropyLoss, Identity
 
 from .activations import get_activation
 from .generation.utils import GenerationMixin
@@ -2785,9 +2785,9 @@ class PoolerEndLogits(nn.Cell):
         ), "One of start_states, start_positions should be not None"
         if start_positions is not None:
             slen, hsz = hidden_states.shape[-2:]
-            start_positions = start_positions[:, None, None].expand(-1, -1, hsz)  # shape (bsz, 1, hsz)
+            start_positions = start_positions[:, None, None].expand((-1, -1, hsz))  # shape (bsz, 1, hsz)
             start_states = hidden_states.gather(-2, start_positions)  # shape (bsz, 1, hsz)
-            start_states = start_states.expand(-1, slen, -1)  # shape (bsz, slen, hsz)
+            start_states = start_states.expand((-1, slen, -1))  # shape (bsz, slen, hsz)
 
         x = self.dense_0(mint.cat([hidden_states, start_states], dim=-1))
         x = self.activation(x)
@@ -2852,11 +2852,11 @@ class PoolerAnswerClass(nn.Cell):
             start_states is not None or start_positions is not None
         ), "One of start_states, start_positions should be not None"
         if start_positions is not None:
-            start_positions = start_positions[:, None, None].expand(-1, -1, hsz)  # shape (bsz, 1, hsz)
+            start_positions = start_positions[:, None, None].expand((-1, -1, hsz))  # shape (bsz, 1, hsz)
             start_states = hidden_states.gather(-2, start_positions).squeeze(-2)  # shape (bsz, hsz)
 
         if cls_index is not None:
-            cls_index = cls_index[:, None, None].expand(-1, -1, hsz)  # shape (bsz, 1, hsz)
+            cls_index = cls_index[:, None, None].expand((-1, -1, hsz))  # shape (bsz, 1, hsz)
             cls_token_state = hidden_states.gather(-2, cls_index).squeeze(-2)  # shape (bsz, hsz)
         else:
             cls_token_state = hidden_states[:, -1, :]  # shape (bsz, hsz)
@@ -2982,15 +2982,15 @@ class SQuADHead(nn.Cell):
 
         else:
             # during inference, compute the end logits based on beam search
-            bsz, slen, hsz = hidden_states.size()
+            bsz, slen, hsz = hidden_states.shape
             start_log_probs = mint.softmax(start_logits, dim=-1)  # shape (bsz, slen)
 
             start_top_log_probs, start_top_index = mint.topk(
                 start_log_probs, self.start_n_top, dim=-1
             )  # shape (bsz, start_n_top)
-            start_top_index_exp = start_top_index.unsqueeze(-1).expand(-1, -1, hsz)  # shape (bsz, start_n_top, hsz)
+            start_top_index_exp = start_top_index.unsqueeze(-1).expand((-1, -1, hsz))  # shape (bsz, start_n_top, hsz)
             start_states = mint.gather(hidden_states, -2, start_top_index_exp)  # shape (bsz, start_n_top, hsz)
-            start_states = start_states.unsqueeze(1).expand(-1, slen, -1, -1)  # shape (bsz, slen, start_n_top, hsz)
+            start_states = start_states.unsqueeze(1).expand((-1, slen, -1, -1))  # shape (bsz, slen, start_n_top, hsz)
 
             hidden_states_expanded = hidden_states.unsqueeze(2).expand_as(
                 start_states
@@ -3102,7 +3102,7 @@ class SequenceSummary(nn.Cell):
                 )
             else:
                 cls_index = cls_index.unsqueeze(-1).unsqueeze(-1)
-                cls_index = cls_index.expand((-1,) * (cls_index.dim() - 1) + (hidden_states.size(-1),))
+                cls_index = cls_index.expand((-1,) * (cls_index.dim() - 1) + (hidden_states.shape[-1],))
             # shape of cls_index: (bsz, XX, 1, hidden_size) where XX are optional leading dim of hidden_states
             output = hidden_states.gather(-2, cls_index).squeeze(-2)  # shape (bsz, XX, hidden_size)
         elif self.summary_type == "attn":

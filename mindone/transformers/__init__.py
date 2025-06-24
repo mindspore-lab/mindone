@@ -118,6 +118,16 @@ from .models.deberta_v2 import (
     DebertaV2PreTrainedModel,
 )
 from .models.dpt import DPTForDepthEstimation
+from .models.flaubert import (
+    FlaubertForMultipleChoice,
+    FlaubertForQuestionAnswering,
+    FlaubertForQuestionAnsweringSimple,
+    FlaubertForSequenceClassification,
+    FlaubertForTokenClassification,
+    FlaubertModel,
+    FlaubertPreTrainedModel,
+    FlaubertWithLMHeadModel,
+)
 from .models.fuyu import FuyuForCausalLM, FuyuPreTrainedModel
 from .models.gemma import (
     GemmaForCausalLM,
