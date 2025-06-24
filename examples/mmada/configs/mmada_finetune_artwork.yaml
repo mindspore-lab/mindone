@@ -22,7 +22,7 @@ model:
 
     mmada:
         tokenizer_path: "GSAI-ML/LLaDA-8B-Instruct"
-        pretrained_model_path: "path/to/your/checkpoint"
+        pretrained_model_path: "Gen-Verse/MMaDA-8B-Base"
         w_clip_vit: False
         new_vocab_size: 134656
         llm_vocab_size: 126464
