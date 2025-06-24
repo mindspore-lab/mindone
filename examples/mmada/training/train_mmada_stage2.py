@@ -226,6 +226,7 @@ def main():
             external_cc12m_caption_path=dataset_config.external_cc12m_caption_path,
         )
         train_dataloader_t2i = dataset.train_dataloader
+        train_dataloader_t2i.dataset_size = train_dataloader_t2i.num_batches
         num_update_steps_per_epoch = math.ceil(
             train_dataloader_t2i.num_batches / config.training.gradient_accumulation_steps
         )

@@ -47,7 +47,7 @@ class MockDatasetConfig:
     def __init__(self):
         self.preprocessing = MockPreprocessingConfig()
         self.params = MockDatasetParamsConfig()
-        self.gen_type = "imagenet1k"  # or "t2i_parquet", "imagenet1k"
+        self.gen_type = "t2i"  # or "t2i", "imagenet1k"
         self.und_type = "captioning"  # or "captioning_parquet"
         self.combined_loader_mode = "max_size_cycle"
 
@@ -66,7 +66,8 @@ class MockPreprocessingConfig:
 
 class MockDatasetParamsConfig:
     def __init__(self):
-        self.train_t2i_shards_path_or_url = "train_datasets/imagenet-1k/data/train/"
+        # "train_datasets/imagenet-1k/data/train/" if gen_type is "t2i"
+        self.train_t2i_shards_path_or_url = "train_datasets/laion-aesthetics-12m-data/{00000..00000}.tar"
         self.train_mmu_shards_path_or_url = "train_datasets/laion-aesthetics-12m-data/{00000..00000}.tar"
         self.train_lm_shards_path_or_url = "train_datasets/falcon-refinedweb/data/*parquet"
         self.num_workers = 1
@@ -110,6 +111,7 @@ def create_dataloaders(config, rank_id=0, device_num=1):
             external_cc12m_caption_path=dataset_config.external_cc12m_caption_path,
         )
         train_dataloader_t2i = dataset.train_dataloader
+        train_dataloader_t2i.dataset_size = train_dataloader_t2i.num_batches
         num_update_steps_per_epoch = math.ceil(
             train_dataloader_t2i.num_batches / config.training.gradient_accumulation_steps
         )
