@@ -474,6 +474,9 @@ def main():
             batch_size_t2i = batch["t2i_flow"]["images"].shape[0]
             batch_size_lm = len(batch["lm_flow"]["input_ids"])
             batch_size_mmu = batch["mmu_flow"]["images"].shape[0]
+            assert batch_size_t2i > 0, "batch_size_t2i is zero!"
+            assert batch_size_lm > 0, "batch_size_lm is zero!"
+            assert batch_size_mmu > 0, "batch_size_mmu is zero!"
 
             # *-------*-------*-------*-------*-------*-------*-------*-------*-------*-------*-------*
             # Build formatted sequences for class-conditional/text-to-image generation

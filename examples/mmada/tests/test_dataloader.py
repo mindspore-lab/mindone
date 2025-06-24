@@ -258,17 +258,12 @@ def main():
     # Example of iterating through a few batches
     for i, batch in enumerate(combined_dataloader):
         print(f"Batch {i}:")
-        if isinstance(batch, dict):
-            for key, value in batch.items():
-                if hasattr(value, "keys"):
-                    print(f"  {key}: {value.keys()}")
-                    for item_name, item in value.items():
-                        if isinstance(item, np.ndarray):
-                            print(f"{item_name} shape: {item.shape}")
-                else:
-                    print(f"  {key}: {type(value)}")
-        else:
-            print(f"  batch type: {type(batch)}")
+        batch_size_t2i = batch["t2i_flow"]["images"].shape[0]
+        batch_size_lm = len(batch["lm_flow"]["input_ids"])
+        batch_size_mmu = batch["mmu_flow"]["images"].shape[0]
+        assert batch_size_t2i > 0, "batch_size_t2i is zero!"
+        assert batch_size_lm > 0, "batch_size_lm is zero!"
+        assert batch_size_mmu > 0, "batch_size_mmu is zero!"
         if i > 10:
             break
 
