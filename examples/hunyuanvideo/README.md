@@ -134,6 +134,17 @@ range: 0.1–0.15).
 > [!NOTE]
 > The measured time includes only the backbone denoising steps, excluding VAE decoding.
 
+##### Evaluation
+
+<div align="center">
+
+| Method                  | LPIPS ↓ | SSIM ↑ | PSNR ↑ |
+|-------------------------|---------|--------|--------|
+| TeaCache-slow (𝝳=0.1)  | 0.1839  | 0.4670 | 22.08  |
+| TeaCache-fast (𝝳=0.15) | 0.2225  | 0.4059 | 23.64  |
+
+</div>
+
 ### Run Image-to-Video Inference
 
 Please find more information about HunyuanVideo Image-to-Video Inference at this [url](https://github.com/mindspore-lab/mindone/tree/master/examples/hunyuanvideo-i2v).
