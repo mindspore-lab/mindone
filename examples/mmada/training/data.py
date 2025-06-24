@@ -287,8 +287,8 @@ class Text2ImageDataset:
             wds.batched(per_device_batch_size, partial=False),
         ]
 
-        num_batches = math.floor(num_train_examples / global_batch_size)
-        num_worker_batches = math.floor(num_train_examples / (global_batch_size * num_workers))  # per dataloader worker
+        num_batches = math.ceil(num_train_examples / global_batch_size)
+        num_worker_batches = math.ceil(num_train_examples / (global_batch_size * num_workers))  # per dataloader worker
         num_batches = num_worker_batches * num_workers
         num_samples = num_batches * global_batch_size
 

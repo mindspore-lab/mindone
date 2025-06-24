@@ -71,8 +71,10 @@ def main():
         config.training.batch_size_t2i + config.training.batch_size_lm + config.training.batch_size_mmu
     )
     total_batch_size = (
-        config.training.batch_size_t2i + config.training.batch_size_lm + config.training.batch_size_mmu
-    ) * config.training.gradient_accumulation_steps
+        (config.training.batch_size_t2i + config.training.batch_size_lm + config.training.batch_size_mmu)
+        * config.training.gradient_accumulation_steps
+        * device_num
+    )
 
     if config.experiment.profile:
         os.environ["MS_ALLOC_CONF"] = "memory_tracker:True"
@@ -198,8 +200,8 @@ def main():
     #################################
     logger.info("Creating dataloaders and lr_scheduler")
 
-    total_batch_size_t2i_without_accum = config.training.batch_size_t2i
-    total_batch_size_t2i = config.training.batch_size_t2i * config.training.gradient_accumulation_steps
+    total_batch_size_t2i_without_accum = config.training.batch_size_t2i * device_num
+    total_batch_size_t2i = config.training.batch_size_t2i * config.training.gradient_accumulation_steps * device_num
 
     # DataLoaders creation:
     # We use webdataset for data loading. The dataloaders are created with sampling with replacement.
@@ -263,7 +265,7 @@ def main():
     else:
         raise ValueError(f"Unsupported dataset type {config.dataset.type}")
 
-    total_batch_size_mmu_without_accum = config.training.batch_size_mmu
+    total_batch_size_mmu_without_accum = config.training.batch_size_mmu * device_num
     # Data for image captioning
     if config.dataset.und_type == "captioning":
         dataset_mmu = Text2ImageDataset(
