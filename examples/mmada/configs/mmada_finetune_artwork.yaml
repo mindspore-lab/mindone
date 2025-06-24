@@ -1,0 +1,104 @@
+experiment:
+    project: "mmada-finetune"
+    name: "mmada-finetune-llada-instruct"
+    output_dir: "mmada-finetune-llada-instruct"
+    max_train_examples_t2i: 5000
+    max_train_examples_mmu: 5000
+    save_every: 1000
+    eval_during_train: False
+    generate_every: 500
+    log_every: 10
+    log_grad_norm_every: 100
+    resume_from_checkpoint: "latest"
+    val_every: 50
+    max_val_examples_t2i: 2000
+    profile: False
+    distributed: False
+
+model:
+    vq_model:
+        type: "magvitv2"
+        vq_model_name: "showlab/magvitv2"
+
+    mmada:
+        tokenizer_path: "GSAI-ML/LLaDA-8B-Instruct"
+        pretrained_model_path: "path/to/your/checkpoint"
+        w_clip_vit: False
+        new_vocab_size: 134656
+        llm_vocab_size: 126464
+        codebook_size: 8192
+        num_vq_tokens: 256
+        num_new_special_tokens: 0
+        tie_word_embeddings: False
+
+    gradient_checkpointing: True
+
+dataset:
+    gen_type: "t2i"
+    und_type: "captioning"
+    combined_loader_mode: "max_size_cycle"
+    params:
+        train_t2i_shards_path_or_url: [
+                                        "train_datasets/artwork/jade_dataset_{00000..00000}.tar"
+        ]
+        train_mmu_shards_path_or_url: [
+                                      "train_datasets/artwork/jade_dataset_{00000..00000}.tar"
+        ]
+        train_lm_shards_path_or_url: "train_datasets/falcon-refinedweb/data/data/*.parquet"
+        add_caption_prompt: True
+        external_caption_path: ""
+        external_journeydb_caption_path: ""
+        external_laion12m_caption_path: ""
+        external_cc12m_caption_path: ""
+        validation_prompts_file: "validation_prompts/jade_prompts.txt"
+        mmu_image_root: "/data_storage/ty/MMaDA/mmu_validation"
+        shuffle_buffer_size: 1000
+        num_workers: 32
+        resolution: 256
+        pin_memory: False
+        persistent_workers: True
+
+    preprocessing:
+        max_seq_length: 256 # for text tokens
+        resolution: 256
+        center_crop: False
+        random_flip: False
+
+optimizer:
+    name: adamw
+    params: # default adamw params
+        learning_rate: 5e-5
+        scale_lr: False # scale learning rate by total batch size
+        beta1: 0.9
+        beta2: 0.999
+        weight_decay: 0.01
+        epsilon: 1e-8
+
+lr_scheduler:
+    scheduler: "cosine"
+    params:
+        learning_rate: ${optimizer.params.learning_rate}
+        warmup_steps: 5000
+        min_lr_scale: 0.1
+
+training:
+    gradient_accumulation_steps: 1
+    noise_type: "mask"
+    batch_size_t2i: 4
+    batch_size_lm: 2
+    batch_size_mmu: 4
+    mixed_precision: "bf16"
+    enable_tf32: True
+    seed: 10086
+    max_train_steps: 5000
+    overfit_one_batch: False
+    cond_dropout_prob: 0.1
+    min_masking_rate: 0.0
+    label_smoothing: 0.0
+    max_grad_norm: 1
+    guidance_scale: 3
+    generation_timesteps: 12
+    t2i_coeff: 1.0
+    lm_coeff: 0.1
+    mmu_coeff: 0.5
+    validation_seed: 42
