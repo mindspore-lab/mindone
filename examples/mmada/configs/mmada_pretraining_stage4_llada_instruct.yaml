@@ -14,6 +14,7 @@ experiment:
     val_every: 50
     max_val_examples_t2i: 2000
     profile: False
+    distributed: False
 
 model:
     vq_model:
