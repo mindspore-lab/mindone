@@ -1,6 +1,7 @@
 import logging
 import math
 
+import numpy as np
 from parquet import RefinedWebDataset  # Assuming this is from a 'parquet' library
 from parquet.loader import CombinedLoader, create_dataloader
 from training.data import Text2ImageDataset
@@ -85,8 +86,8 @@ class MockDatasetParamsConfig:
 def create_dataloaders(config, rank_id=0, device_num=1):
     logger.info(f"Creating dataloaders and lr_scheduler for rank {rank_id}/{device_num}")
 
-    total_batch_size_t2i_without_accum = config.training.batch_size_t2i
-    total_batch_size_t2i = config.training.batch_size_t2i * config.training.gradient_accumulation_steps
+    total_batch_size_t2i_without_accum = config.training.batch_size_t2i * device_num
+    total_batch_size_t2i = config.training.batch_size_t2i * config.training.gradient_accumulation_steps * device_num
 
     preproc_config = config.dataset.preprocessing
     dataset_config = config.dataset.params
@@ -161,7 +162,7 @@ def create_dataloaders(config, rank_id=0, device_num=1):
     else:
         raise ValueError(f"Unsupported dataset type {config.dataset.gen_type}")
 
-    total_batch_size_mmu_without_accum = config.training.batch_size_mmu
+    total_batch_size_mmu_without_accum = config.training.batch_size_mmu * device_num
     # Data for image captioning
     if config.dataset.und_type == "captioning":
         dataset_mmu = Text2ImageDataset(
@@ -261,6 +262,9 @@ def main():
             for key, value in batch.items():
                 if hasattr(value, "keys"):
                     print(f"  {key}: {value.keys()}")
+                    for item_name, item in value.items():
+                        if isinstance(item, np.ndarray):
+                            print(f"{item_name} shape: {item.shape}")
                 else:
                     print(f"  {key}: {type(value)}")
         else:
