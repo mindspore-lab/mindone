@@ -33,7 +33,7 @@ from mindspore.experimental import optim
 from mindspore.mint.distributed import get_rank, get_world_size, init_process_group
 
 from mindone.diffusers.models.model_loading_utils import load_checkpoint_and_dispatch
-from utils import TrainOneStepWrapper, init_from_ckpt, no_grad
+from utils import TrainOneStepWrapper, init_from_ckpt, no_grad, prepare_train_network
 
 SYSTEM_PROMPT_LEN = 28
 
@@ -443,6 +443,11 @@ def main():
     end = time.time()
 
     loss_scaler = DynamicLossScaler(scale_value=65356, scale_factor=2, scale_window=2000)
+    if config.experiment.get("zero_stage", 0):
+        model, zero_helper = prepare_train_network(model, optimizer, zero_stage=config.experiment.zero_stage)
+    else:
+        zero_helper = None
+
     train_step_model = TrainOneStepWrapper(
         model,
         optimizer=optimizer,
@@ -453,6 +458,7 @@ def main():
         clip_norm=config.training.max_grad_norm,
         ema=None,
         config=config,
+        zero_helper=zero_helper,
     )
     if profiler is not None:
         profiler.start()

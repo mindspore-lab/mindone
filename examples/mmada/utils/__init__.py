@@ -2,7 +2,7 @@ import mindspore as ms
 
 from .net_with_loss import NetWithLoss, no_grad
 from .optim import create_optimizer
-from .train_step import TrainOneStepWrapper
+from .train_step import TrainOneStepWrapper, prepare_train_network
 
 
 def init_from_ckpt(model, path, ignore_keys=list()):

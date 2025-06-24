@@ -1,15 +1,71 @@
 """Train step wrapper supporting setting drop overflow update, ema etc"""
 import logging
-from typing import Callable, Optional
+from typing import Callable, Literal, Optional
 
 import mindspore as ms
 from mindspore import Tensor, nn, ops
 from mindspore.amp import all_finite
+from mindspore.communication.management import GlobalComm
+from mindspore.context import ParallelMode
 from mindspore.mint.distributed import get_world_size
+from mindspore.parallel._utils import _get_parallel_mode
 
 from mindone.trainers.ema import EMA
+from mindone.trainers.zero import ZeroHelper, prepare_network
 
 logger = logging.getLogger(__name__)
+
+
+def prepare_train_network(
+    network: nn.Cell,
+    optimizer: nn.Optimizer,
+    zero_stage: Literal[0, 1, 2, 3] = 0,
+    optimizer_offload: bool = False,
+    optimizer_parallel_group: str = None,
+    dp_group: str = None,
+    comm_fusion: dict = None,
+    parallel_modules=None,
+):
+    """
+    Prepare network and optimizer for distributed training.
+
+    Args:
+        network (`nn.Cell`): train network, not include grad function,
+            grad function must be built after rewrite train network.
+        optimizer (`nn.Optimizer`): Must be the subclass of MindSpore Optimizer.
+        zero_stage (`int`, *optional*): Stage setting of ZeRO, default is 0.
+        optimizer_offload (`bool`, *optional*): Only take effect when optimizer is AdamWeightDecay, default is False.
+        optimizer_parallel_group (`str`, *optional*): The name of the optimizer parallel communication group, default is None.
+        dp_group (`str`, *optional*): The name of the data parallel communication group, default is None.
+        comm_fusion (`dict`, *optional*): A dict contains the types and configurations
+            for setting the communication fusion, default is None, turn off the communication fusion. If set a dict,
+            turn on the communication fusion.
+            Examples: {"allreduce": {"openstate": True, "bucket_size": 5e8},
+                       "reduce_scatter": {"openstate": True, "bucket_size": 5e8},
+                       "allgather": {"openstate": False, "bucket_size": 5e8},}
+        parallel_modules (`dict`, *optional*): A dict of Cells could split parameters in zero3, default is None.
+            If None, use `PARALLEL_MODULES` from `mindone.models.modules.parallel`.
+    """
+    if zero_stage not in [0, 1, 2, 3]:
+        raise ValueError("Not support zero_stage {zero_stage}")
+    if optimizer_parallel_group is None:
+        logger.warning("Not set zero group, set it WORLD_COMM_GROUP.")
+        optimizer_parallel_group = GlobalComm.WORLD_COMM_GROUP
+    if optimizer_parallel_group != GlobalComm.WORLD_COMM_GROUP and dp_group is None:
+        raise ValueError(
+            "optimizer_parallel_group {optimizer_parallel_group} and dp_group {dp_group} not full network hccl group coverage"
+        )
+
+    is_parallel = _get_parallel_mode() == ParallelMode.DATA_PARALLEL
+    if not is_parallel and zero_stage == 0:
+        logger.info("No need prepare train_network with zero.")
+        zero_helper = None
+    else:
+        network = prepare_network(network, zero_stage, optimizer_parallel_group, parallel_modules=parallel_modules)
+        zero_helper = ZeroHelper(
+            optimizer, zero_stage, optimizer_parallel_group, dp_group, optimizer_offload, comm_fusion
+        )
+    return network, zero_helper
 
 
 # @ms.jit_class

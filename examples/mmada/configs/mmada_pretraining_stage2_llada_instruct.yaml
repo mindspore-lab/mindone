@@ -14,6 +14,7 @@ experiment:
     max_val_examples_t2i: 2000
     profile: False
     distributed: False
+    zero_stage: 0
 
 model:
     vq_model:
