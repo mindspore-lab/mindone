@@ -23,9 +23,14 @@ from mindspore import Tensor
 from mindspore.dataset.vision import Inter, Resize, ToPIL
 
 
-def read_pickle(pkl_path):
-    with open(pkl_path, "rb") as f:
-        return pickle.load(f)
+def read_np(np_path):
+    with np.load(np_path) as data:
+        return [data[key] for key in data.files]
+
+
+def read_json(json_path):
+    with open(json_path, "r") as f:
+        return json.load(f)
 
 
 def read_txt2list(txt_path):
@@ -50,29 +55,29 @@ def random_crop_return_params(imgs, height, width):
     left = np.random.randint(
         0, imgs.shape[2] - width + 1
     )  # same as torch left inclusive, right exclusive, caveat: if using random pkg, right is inclusive
-    imgs = np.array([img[top : top + height, left : left + width] for img in imgs])
+    imgs = np.array([img[top: top + height, left: left + width] for img in imgs])
     return imgs, (top, left, height, width)
 
 
 def crop_with_param(imgs, top, left, height, width):
-    return np.array([img[top : top + height, left : left + width] for img in imgs])
+    return np.array([img[top: top + height, left: left + width] for img in imgs])
 
 
 class ObjaverseDataset:
     def __init__(
-        self,
-        root_dir="training_examples/",
-        meta_fname="uid_set.pkl",
-        input_image_dir="input",
-        target_image_dir="input",
-        input_view_num=6,
-        target_view_num=4,
-        input_size=None,
-        render_size=None,
-        total_view_n=32,
-        fov=50,
-        camera_rotation=True,
-        camera_scaling=False,
+            self,
+            root_dir="training_examples/",
+            meta_fname="uid_set.json",
+            input_image_dir="input",
+            target_image_dir="input",
+            input_view_num=6,
+            target_view_num=4,
+            input_size=None,
+            render_size=None,
+            total_view_n=32,
+            fov=50,
+            camera_rotation=True,
+            camera_scaling=False,
     ):
         self.root_dir = Path(root_dir)
         self.input_image_dir = input_image_dir
@@ -94,9 +99,11 @@ class ObjaverseDataset:
         ]
 
         if meta_fname == "uid_set.pkl":
-            self.paths = read_pickle(os.path.join(root_dir, meta_fname))[-3:]
+            raise TypeError(f"Loading pickle file is unsafe, please use another file type.")
+        elif meta_fname == "uid_set.json":
+            self.paths = read_json(os.path.join(root_dir, meta_fname))[-3:]
             # [:1]  # only takes the first scene for debugging
-            print("dataset read pickle")
+            print("dataset read json")
         elif meta_fname.split(".")[-1] == "txt":
             self.paths = read_txt2list(os.path.join(root_dir, meta_fname))
             print("reading the fixed pose target list as the dataset")
@@ -226,7 +233,7 @@ class ObjaverseDataset:
 
         indices = np.random.choice(range(self.total_view_n), self.input_view_num + self.target_view_num, replace=False)
         input_indices = indices[: self.input_view_num]
-        target_indices = indices[self.input_view_num :]
+        target_indices = indices[self.input_view_num:]
 
         """background color, default: white"""
         bg_white = [1.0, 1.0, 1.0]
@@ -235,7 +242,7 @@ class ObjaverseDataset:
         alpha_list = []
         pose_list = []
 
-        K, azimuths, elevations, distances, cam_poses = read_pickle(os.path.join(input_image_path, "meta.pkl"))
+        K, azimuths, elevations, distances, cam_poses = read_np(os.path.join(input_image_path, "meta.npz"))
         input_cameras = cam_poses
         for idx in input_indices:
             image, alpha = self.load_im(os.path.join(input_image_path, "%03d.png" % idx), bg_white)
@@ -296,10 +303,10 @@ class ObjaverseDataset:
             "input_c2ws": c2ws[: self.input_view_num],  # (6, 4, 4)
             "input_Ks": Ks[: self.input_view_num],  # (6, 3, 3)
             # lrm generator input and supervision
-            "target_images": images[self.input_view_num :],  # (V, H, W, 3)
-            "target_alphas": alphas[self.input_view_num :],  # (V, H, W, 1)
-            "target_c2ws": c2ws[self.input_view_num :],  # (V, 4, 4)
-            "target_Ks": Ks[self.input_view_num :],  # (V, 3, 3)
+            "target_images": images[self.input_view_num:],  # (V, H, W, 3)
+            "target_alphas": alphas[self.input_view_num:],  # (V, H, W, 1)
+            "target_c2ws": c2ws[self.input_view_num:],  # (V, 4, 4)
+            "target_Ks": Ks[self.input_view_num:],  # (V, 3, 3)
         }
 
         lrm_generator_input, render_gt = self.prepare_sample_data(data)
@@ -317,11 +324,11 @@ class ObjaverseDataset:
 
 class ValidationDataset:
     def __init__(
-        self,
-        root_dir="objaverse/",
-        input_view_num=6,
-        input_image_size=320,
-        fov=30,
+            self,
+            root_dir="objaverse/",
+            input_view_num=6,
+            input_image_size=320,
+            fov=30,
     ):
         self.root_dir = Path(root_dir)
         self.input_view_num = input_view_num

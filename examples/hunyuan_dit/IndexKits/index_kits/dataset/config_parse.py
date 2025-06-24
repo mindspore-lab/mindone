@@ -1,6 +1,5 @@
 import json
 import pathlib
-import pickle
 from collections import defaultdict
 from glob import glob
 from pathlib import Path
@@ -107,9 +106,7 @@ class Operator(object):
             if not path.exists():
                 raise ValueError(f"Path not found: {path}")
             if path.suffix == ".pkl":
-                with path.open("rb") as f:
-                    md5s = pickle.load(f)
-                assert isinstance(md5s, (set, dict)), f"Invalid type: {type(md5s)}"
+                raise ValueError("Loading pickle file is unsafe, please use another file type.")
             elif path.suffix == ".json":
                 with path.open() as f:
                     md5s = json.load(f)
