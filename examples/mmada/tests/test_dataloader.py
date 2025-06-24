@@ -1,7 +1,6 @@
 import logging
 import math
 
-import torch
 from parquet import RefinedWebDataset  # Assuming this is from a 'parquet' library
 from parquet.loader import CombinedLoader, create_dataloader
 from training.data import Text2ImageDataset
@@ -10,17 +9,20 @@ from training.imagenet_dataset import ImageNetDataset
 logger = logging.getLogger(__name__)
 
 
-import mindspore.communication.management as D
+import mindspore as ms
+from mindspore.mint.distributed import get_rank, get_world_size, init_process_group, is_initialized
+
+ms.set_device(device_target="Ascend")
 
 
 def get_rank_and_world_size():
-
-    if not D.is_initialized():
-        D.init()
-    rank = D.get_rank()
-    world_size = D.get_group_size()
+    if not is_initialized():
+        init_process_group()
+    rank = get_rank()
+    world_size = get_world_size()
 
     return rank, world_size
+
 
 # Placeholder for config object for testing purposes
 class MockConfig:
@@ -37,6 +39,7 @@ class MockTrainingConfig:
         self.batch_size_mmu = 4
         self.gradient_accumulation_steps = 1
         self.max_train_steps = 1000
+        self.distributed = False
 
 
 class MockDatasetConfig:
@@ -77,11 +80,8 @@ class MockDatasetParamsConfig:
         self.resolution = 256
 
 
-
-
 def create_dataloaders(config, rank_id=0, device_num=1):
     logger.info(f"Creating dataloaders and lr_scheduler for rank {rank_id}/{device_num}")
-
 
     total_batch_size_t2i_without_accum = config.training.batch_size_t2i
     total_batch_size_t2i = config.training.batch_size_t2i * config.training.gradient_accumulation_steps
@@ -213,7 +213,7 @@ def create_dataloaders(config, rank_id=0, device_num=1):
         sampler=None,
         num_workers=dataset_config.num_workers,
         rank_id=rank_id,
-        device_num=device_num
+        device_num=device_num,
     )
     train_dataloader_lm = train_dataloader_lm.create_dict_iterator(num_epochs=1, output_numpy=True)
     train_dataloader_lm.dataset_size = len(dataset_lm) // config.training.batch_size_lm
@@ -240,8 +240,11 @@ def create_dataloaders(config, rank_id=0, device_num=1):
 
 
 def main():
-    rank_id, device_num = get_rank_and_world_size()
     config = MockConfig()
+    if config.training.distributed:
+        rank_id, device_num = get_rank_and_world_size()
+    else:
+        rank_id, device_num = 0, 1
     # Add a dummy max_train_examples_t2i and max_train_examples_mmu to the mock config
     config.experiment.max_train_examples_t2i = 1000
     config.experiment.max_train_examples_mmu = 1000
@@ -252,11 +255,10 @@ def main():
     print("Successfully created combined_dataloader. You can now iterate through it for testing.")
     # Example of iterating through a few batches
     for i, batch in enumerate(combined_dataloader):
-
         print(f"Batch {i}:")
         if isinstance(batch, dict):
             for key, value in batch.items():
-                if hasattr(value, 'keys'):
+                if hasattr(value, "keys"):
                     print(f"  {key}: {value.keys()}")
                 else:
                     print(f"  {key}: {type(value)}")

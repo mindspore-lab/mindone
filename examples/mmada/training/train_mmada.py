@@ -30,7 +30,7 @@ import mindspore as ms
 import mindspore.mint as mint
 from mindspore.amp import DynamicLossScaler
 from mindspore.experimental import optim
-import mindspore.communication.management as D
+from mindspore.mint.distributed import get_rank, get_world_size, init_process_group
 
 from mindone.diffusers.models.model_loading_utils import load_checkpoint_and_dispatch
 from utils import TrainOneStepWrapper, init_from_ckpt, no_grad
@@ -51,12 +51,13 @@ def get_vq_model_class(model_type):
 
 def main():
     config = get_config()
+    ms.set_device(device_target="Ascend")
 
     if config.training.get("distributed", False):
-        D.init()
-        rank_id = D.get_rank()
-        device_num = D.get_group_size()
-        ms.set_auto_parallel_context(device_num=device_num, parallel_mode=ms.ParallelMode.DATA_PARALLEL, gradients_mean=True)
+        init_process_group()
+        rank_id = get_rank()
+        device_num = get_world_size()
+        # ms.set_auto_parallel_context(device_num=device_num, parallel_mode=ms.ParallelMode.DATA_PARALLEL, gradients_mean=True)
     else:
         rank_id = 0
         device_num = 1
@@ -81,7 +82,6 @@ def main():
     else:
         profiler = None
 
-
     #####################################
     # SETUP LOGGING, SEED and CONFIG    #
     #####################################
@@ -91,7 +91,6 @@ def main():
         datefmt="%m/%d/%Y %H:%M:%S",
         level=logging.INFO,
     )
-
 
     config_path = Path(config.experiment.output_dir) / "config.yaml"
     logging.info(f"Saving config to {config_path}")
@@ -257,7 +256,7 @@ def main():
             shuffle=shuffle,
             num_workers=dataset_config.num_workers,
             rank_id=rank_id,
-            device_num=device_num
+            device_num=device_num,
         )
         train_dataloader_t2i = train_dataloader_t2i.create_dict_iterator(num_epochs=1, output_numpy=True)
         train_dataloader_t2i.dataset_size = len(dataset_imagenet) // config.training.batch_size_t2i
@@ -314,7 +313,7 @@ def main():
         sampler=None,
         num_workers=dataset_config.num_workers,
         rank_id=rank_id,
-        device_num=device_num
+        device_num=device_num,
     )
     train_dataloader_lm = train_dataloader_lm.create_dict_iterator(num_epochs=1, output_numpy=True)
     train_dataloader_lm.dataset_size = len(dataset_lm) // config.training.batch_size_lm
@@ -634,8 +633,10 @@ def main():
                 save_checkpoint(model, config, global_step + 1)
 
             if (
-                (global_step + 1) % config.experiment.generate_every == 0 or global_step == 0
-            ) and config.experiment.eval_during_train and rank_id == 0:
+                ((global_step + 1) % config.experiment.generate_every == 0 or global_step == 0)
+                and config.experiment.eval_during_train
+                and rank_id == 0
+            ):
                 model.set_train(False)
                 with no_grad():
                     generate_images(
