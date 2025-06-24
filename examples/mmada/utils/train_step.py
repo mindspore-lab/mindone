@@ -1,6 +1,6 @@
 """Train step wrapper supporting setting drop overflow update, ema etc"""
 import logging
-from typing import Optional
+from typing import Callable, Optional
 
 import mindspore as ms
 from mindspore import Tensor, nn, ops
@@ -14,7 +14,7 @@ logger = logging.getLogger(__name__)
 
 # @ms.jit_class
 class Accumulator:
-    def __init__(self, optimizer, accumulate_step):
+    def __init__(self, optimizer, accumulate_step, run_optimizer: Callable = None):
         self.optimizer = optimizer
 
         self.inner_grads = optimizer.parameters.clone(prefix="accumulate_", init="zeros")
@@ -24,11 +24,16 @@ class Accumulator:
         self.accumulate_step = accumulate_step
         self.map = ops.HyperMap()
 
+        self.run_optimizer = self.optimizer if run_optimizer is None else run_optimizer
+
     def __call__(self, grads):
         self.map(ops.partial(ops.assign_add), self.inner_grads, grads)
         if self.counter % self.accumulate_step == 0:
-            self.optimizer(self.inner_grads)
+            self.run_optimizer(self.inner_grads)
             self.map(ops.partial(ops.assign), self.inner_grads, self.zeros)
+
+            # reset counter
+            ops.assign(self.counter, Tensor(1, ms.int32))
 
         ops.assign_add(self.counter, Tensor(1, ms.int32))
 
@@ -84,7 +89,6 @@ class TrainOneStepWrapper:
 
         assert gradient_accumulation_steps >= 1
         self.gradient_accumulation_steps = gradient_accumulation_steps
-        self.accumulator = Accumulator(self.optimizer, gradient_accumulation_steps)
 
         # zero init
         self.zero_helper = zero_helper
@@ -93,8 +97,10 @@ class TrainOneStepWrapper:
         self.grad_reducer = self.get_grad_reducer() if self.zero_stage == 0 else nn.Identity()
         if self.zero_stage != 0:
             self.zero_helper.split_params()
-            if gradient_accumulation_steps > 1:
-                self.accumulated_grads = optimizer.parameters.clone(prefix="grad_accumulated_", init="zeros")
+
+        self.accumulator = Accumulator(
+            self.optimizer, self.gradient_accumulation_steps, run_optimizer=self.run_optimizer
+        )
 
         self.value_and_grad = ms.value_and_grad(self.forward_fn, None, weights=self.weights, has_aux=True)
         if hasattr(self.config.model, "gradient_checkpointing") and self.config.model.gradient_checkpointing:
