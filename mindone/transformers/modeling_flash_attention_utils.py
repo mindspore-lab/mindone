@@ -33,6 +33,7 @@ def is_flash_attn_available():
 
     return False
 
+
 def _flash_attention_forward(
     query: ms.Tensor,
     key: ms.Tensor,
