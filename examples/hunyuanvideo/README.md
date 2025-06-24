@@ -140,10 +140,13 @@ range: 0.1–0.15).
 
 | Method                  | LPIPS ↓ | SSIM ↑ | PSNR ↑ |
 |-------------------------|---------|--------|--------|
-| TeaCache-slow (𝝳=0.1)  | 0.1839  | 0.4670 | 22.08  |
-| TeaCache-fast (𝝳=0.15) | 0.2225  | 0.4059 | 23.64  |
+| TeaCache-slow (𝝳=0.1)  | 0.1263  | 0.8383 | 26.05  |
+| TeaCache-fast (𝝳=0.15) | 0.1676  | 0.8010 | 24.49  |
 
 </div>
+
+> [!NOTE]
+> The above metrics were collected from 12 randomly selected prompts.
 
 ### Run Image-to-Video Inference
 
