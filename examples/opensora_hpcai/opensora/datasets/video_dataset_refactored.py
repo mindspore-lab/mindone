@@ -246,7 +246,7 @@ class VideoDatasetRefactored(BaseDataset):
                 with VideoReader_CV2(data["video"]) as reader:
                     self._data[idx]["fps"] = data["fps"] = reader.fps
 
-            dim = 2 if self._v2_pipeline else 1  # OSv1.x: [T, C, H, W], OSv2: [C, T, H, W]
+            dim = 1 if self._v2_pipeline else 0  # OSv1.x: [T, C, H, W], OSv2: [C, T, H, W]
             latent_mean, latent_std = vae_latent_data["latent_mean"], vae_latent_data["latent_std"]
             if latent_mean.shape[dim] < self._min_length:
                 raise ValueError(f"Video is too short: {data['video']}")
