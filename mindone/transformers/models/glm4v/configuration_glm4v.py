@@ -261,7 +261,7 @@ class Glm4vTextConfig(PretrainedConfig):
         self.use_cache = use_cache
         self.rope_theta = rope_theta
         self.attention_dropout = attention_dropout
-        self.rope_scaling = rope_scaling
+        self.rope_scaling = {"type": "mrope", "mrope_section": [16, 24, 24]}
 
         # Validate the correctness of rotary position embeddings parameters
         # BC: if there is a 'type' field, move it to 'rope_type'.
