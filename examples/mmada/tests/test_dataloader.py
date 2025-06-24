@@ -35,9 +35,9 @@ class MockConfig:
 
 class MockTrainingConfig:
     def __init__(self):
-        self.batch_size_t2i = 4
-        self.batch_size_lm = 4
-        self.batch_size_mmu = 4
+        self.batch_size_t2i = 1
+        self.batch_size_lm = 2
+        self.batch_size_mmu = 1
         self.gradient_accumulation_steps = 1
         self.max_train_steps = 1000
         self.distributed = False
@@ -67,8 +67,8 @@ class MockPreprocessingConfig:
 class MockDatasetParamsConfig:
     def __init__(self):
         # "train_datasets/imagenet-1k/data/train/" if gen_type is "t2i"
-        self.train_t2i_shards_path_or_url = "train_datasets/laion-aesthetics-12m-data/{00000..00000}.tar"
-        self.train_mmu_shards_path_or_url = "train_datasets/laion-aesthetics-12m-data/{00000..00000}.tar"
+        self.train_t2i_shards_path_or_url = "train_datasets/artwork/jade_dataset_{00000..00000}.tar"
+        self.train_mmu_shards_path_or_url = "train_datasets/artwork/jade_dataset_{00000..00000}.tar"
         self.train_lm_shards_path_or_url = "train_datasets/falcon-refinedweb/data/*parquet"
         self.num_workers = 1
         self.shuffle_buffer_size = 1000
@@ -265,7 +265,7 @@ def main():
                     print(f"  {key}: {type(value)}")
         else:
             print(f"  batch type: {type(batch)}")
-        if i > 2:
+        if i > 10:
             break
 
 
