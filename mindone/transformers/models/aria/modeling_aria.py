@@ -46,6 +46,7 @@ from ...modeling_outputs import BaseModelOutputWithPast, CausalLMOutputWithPast,
 from ...modeling_rope_utils import ROPE_INIT_FUNCTIONS
 from ...modeling_utils import ALL_ATTENTION_FUNCTIONS, MSPreTrainedModel
 from ...processing_utils import Unpack
+from ...mindspore_adapter.nn import MultiheadAttention
 
 # from ..auto import AutoModelForCausalLM, AutoModel
 from ..idefics3 import Idefics3VisionTransformer
@@ -119,7 +120,7 @@ class AriaCrossAttention(nn.Cell):
         self.v_proj = mint.nn.Linear(hidden_size, hidden_size, bias=False)
 
         # Original code here: https://github.com/rhymes-ai/Aria/blob/719ff4e52b727443cba3793b0e27fe64e0244fe1/aria/model/projector.py#L48
-        self.multihead_attn = nn.MultiheadAttention(hidden_size, num_heads, batch_first=True)
+        self.multihead_attn = MultiheadAttention(hidden_size, num_heads, batch_first=True)
         # dafault use dtype=ms.float32, but weight and bias may be different
         self.linear = mint.nn.Linear(hidden_size, hidden_size)
         self.dropout = mint.nn.Dropout(dropout_rate)
@@ -143,21 +144,13 @@ class AriaCrossAttention(nn.Cell):
             ms.Tensor:
                 Output tensor after cross-attention.
         """
-        # change compuatation dtype, copy weight and bias
-        _multihead_attn = nn.MultiheadAttention(
-            self.hidden_size, self.num_heads, batch_first=True, dtype=hidden_states.dtype
-        )
-        _multihead_attn.in_proj_weight = self.multihead_attn.in_proj_weight
-        _multihead_attn.in_proj_bias = self.multihead_attn.in_proj_bias
-        _multihead_attn.out_proj = self.multihead_attn.out_proj
-
         query = self.q_proj(self.layer_norm(hidden_states))
 
         key_value_states = self.layer_norm_kv(key_value_states)
         key = self.k_proj(key_value_states)
         value = self.v_proj(key_value_states)
 
-        attn_output, _ = _multihead_attn(query, key, value, attn_mask=attn_mask)
+        attn_output, _ = self.multihead_attn(query, key, value, attn_mask=attn_mask)
 
         attn_output = self.dropout(self.linear(attn_output))
 
