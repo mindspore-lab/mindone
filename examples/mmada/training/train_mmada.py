@@ -91,10 +91,10 @@ def main():
         datefmt="%m/%d/%Y %H:%M:%S",
         level=logging.INFO,
     )
-
-    config_path = Path(config.experiment.output_dir) / "config.yaml"
-    logging.info(f"Saving config to {config_path}")
-    OmegaConf.save(config, config_path)
+    if rank_id == 0:
+        config_path = Path(config.experiment.output_dir) / "config.yaml"
+        logging.info(f"Saving config to {config_path}")
+        OmegaConf.save(config, config_path)
 
     # If passed along, set the training seed now.
     if config.training.seed is not None:
@@ -401,16 +401,16 @@ def main():
             texts_lm = [str(t) for t in texts_lm]
 
         input_ids_lm, prompt_mask, labels_lm = uni_prompting((texts_lm, max_seq_len), "lm")
-        b, l = input_ids_lm.shape
+        b, length = input_ids_lm.shape
         t = mint.rand(
             b,
         )
         p_mask = (1 - eps) * t + eps
-        p_mask = p_mask[:, None].repeat(1, l)
+        p_mask = p_mask[:, None].repeat(1, length)
 
         masked_indices = (
             mint.rand(
-                (b, l),
+                (b, length),
             )
             < p_mask
         )
@@ -423,16 +423,16 @@ def main():
     def prepare_inputs_and_labels_for_mmu(input_ids_mmu, prompt_masks, labels_mmu, eps=1e-3):
         if not isinstance(input_ids_mmu, ms.Tensor):
             input_ids_mmu = ms.Tensor(input_ids_mmu)
-        b, l = input_ids_mmu.shape
+        b, length = input_ids_mmu.shape
         t = mint.rand(
             b,
         )
         p_mask = (1 - eps) * t + eps
-        p_mask = p_mask[:, None].repeat(1, l)
+        p_mask = p_mask[:, None].repeat(1, length)
 
         masked_indices = (
             mint.rand(
-                (b, l),
+                (b, length),
             )
             < p_mask
         )

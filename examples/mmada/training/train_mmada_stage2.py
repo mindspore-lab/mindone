@@ -15,7 +15,7 @@ from pathlib import Path
 from typing import Union
 
 import numpy as np
-from models import MAGVITv2, MMadaConfig, MMadaModelLM, get_mask_schedule
+from models import MAGVITv2, MMadaModelLM, get_mask_schedule
 from models.lr_schedulers import get_scheduler
 from omegaconf import OmegaConf
 from parquet import RefinedWebDataset
@@ -24,12 +24,13 @@ from PIL import Image
 from training.data import Text2ImageDataset
 from training.imagenet_dataset import ImageNetDataset
 from training.prompting_utils import UniversalPrompting
-from transformers import AutoConfig, AutoTokenizer
+from transformers import AutoTokenizer
 
 import mindspore as ms
 import mindspore.mint as mint
 from mindspore.amp import DynamicLossScaler
 from mindspore.experimental import optim
+from mindspore.mint.distributed import get_rank, get_world_size, init_process_group
 
 from mindone.diffusers.models.model_loading_utils import load_checkpoint_and_dispatch
 from utils import TrainOneStepWrapper, init_from_ckpt, no_grad
@@ -50,8 +51,21 @@ def get_vq_model_class(model_type):
 
 def main():
     config = get_config()
+    ms.set_device(device_target="Ascend")
+
+    if config.experiment.get("distributed", False):
+        init_process_group()
+        rank_id = get_rank()
+        device_num = get_world_size()
+        # ms.set_auto_parallel_context(device_num=device_num, parallel_mode=ms.ParallelMode.DATA_PARALLEL, gradients_mean=True)
+    else:
+        rank_id = 0
+        device_num = 1
     config.experiment.logging_dir = str(Path(config.experiment.output_dir) / "logs")
-    os.makedirs(config.experiment.logging_dir, exist_ok=True)
+    if rank_id == 0:
+        os.makedirs(config.experiment.output_dir, exist_ok=True)
+        os.makedirs(config.experiment.logging_dir, exist_ok=True)
+
     LOG_FILE = os.path.join(config.experiment.logging_dir, "loss.log")
     total_batch_size_per_device = (
         config.training.batch_size_t2i + config.training.batch_size_lm + config.training.batch_size_mmu
@@ -78,10 +92,10 @@ def main():
         level=logging.INFO,
     )
 
-    os.makedirs(config.experiment.output_dir, exist_ok=True)
-    config_path = Path(config.experiment.output_dir) / "config.yaml"
-    logging.info(f"Saving config to {config_path}")
-    OmegaConf.save(config, config_path)
+    if rank_id == 0:
+        config_path = Path(config.experiment.output_dir) / "config.yaml"
+        logging.info(f"Saving config to {config_path}")
+        OmegaConf.save(config, config_path)
 
     # If passed along, set the training seed now.
     if config.training.seed is not None:
@@ -234,6 +248,8 @@ def main():
             sampler=sampler,
             shuffle=shuffle,
             num_workers=dataset_config.num_workers,
+            rank_id=rank_id,
+            device_num=device_num,
         )
         train_dataloader_t2i = train_dataloader_t2i.create_dict_iterator(num_epochs=1, output_numpy=True)
         train_dataloader_t2i.dataset_size = len(dataset_imagenet) // config.training.batch_size_t2i
@@ -243,7 +259,6 @@ def main():
 
     else:
         raise ValueError(f"Unsupported dataset type {config.dataset.type}")
-
 
     total_batch_size_mmu_without_accum = config.training.batch_size_mmu
     # Data for image captioning
@@ -275,8 +290,8 @@ def main():
     # LLM pure text dataset: RefinedWeb
     dataset_lm = RefinedWebDataset(
         data_path=dataset_config.train_lm_shards_path_or_url,
-        rank=0,
-        world_size=1,
+        rank_id=rank_id,
+        world_size=device_num,
         num_workers=dataset_config.num_workers,
     )
 
@@ -375,16 +390,16 @@ def main():
             texts_lm = [str(t) for t in texts_lm]
 
         input_ids_lm, prompt_mask, labels_lm = uni_prompting((texts_lm, max_seq_len), "lm")
-        b, l = input_ids_lm.shape
+        b, length = input_ids_lm.shape
         t = mint.rand(
             b,
         )
         p_mask = (1 - eps) * t + eps
-        p_mask = p_mask[:, None].repeat(1, l)
+        p_mask = p_mask[:, None].repeat(1, length)
 
         masked_indices = (
             mint.rand(
-                (b, l),
+                (b, length),
             )
             < p_mask
         )
@@ -397,16 +412,16 @@ def main():
     def prepare_inputs_and_labels_for_mmu(input_ids_mmu, prompt_masks, labels_mmu, eps=1e-3):
         if not isinstance(input_ids_mmu, ms.Tensor):
             input_ids_mmu = ms.Tensor(input_ids_mmu)
-        b, l = input_ids_mmu.shape
+        b, length = input_ids_mmu.shape
         t = mint.rand(
             b,
         )
         p_mask = (1 - eps) * t + eps
-        p_mask = p_mask[:, None].repeat(1, l)
+        p_mask = p_mask[:, None].repeat(1, length)
 
         masked_indices = (
             mint.rand(
-                (b, l),
+                (b, length),
             )
             < p_mask
         )
@@ -554,15 +569,15 @@ def main():
             avg_loss_mmu = loss_mmu.mean()
             # avg_masking_rate = mask_prob.mean()
 
-            # log gradient norm before zeroing it
-            if (global_step + 1) % config.experiment.log_grad_norm_every == 0:
-                log_grad_norm(model, global_step + 1)
+            # # log gradient norm before zeroing it
+            # if (global_step + 1) % config.experiment.log_grad_norm_every == 0:
+            #     log_grad_norm(model, global_step + 1)
 
             batch_time_m.update(time.time() - end)
             end = time.time()
 
             # Log metrics
-            if (global_step + 1) % config.experiment.log_every == 0:
+            if (global_step + 1) % config.experiment.log_every == 0 and rank_id == 0:
                 samples_per_second_per_device = (
                     config.training.gradient_accumulation_steps * total_batch_size_per_device / batch_time_m.val
                 )
@@ -576,37 +591,39 @@ def main():
                     f"Data (t): {data_time_m.val:0.4f}, {samples_per_second_per_device:0.2f}/s/device "
                     f"Batch (t): {batch_time_m.val:0.4f} "
                     f"LR: {lr_scheduler.get_last_lr()[0].asnumpy().item():0.6f}",
-                    f"Loss scaler {loss_scaler.scale_value.asnumpy().item()}",
+                    f"Loss scaler {loss_scaler.scale_value.value().asnumpy().item()}",
                 )
 
                 # resetting batch / data time meters per log window
                 batch_time_m.reset()
                 data_time_m.reset()
-            try:
-                if not os.path.exists(LOG_FILE):
-                    with open(LOG_FILE, "w", encoding="utf-8") as fp:
-                        fp.write("\t".join(["step", "loss", "per step time (s)"]) + "\n")
-
-                with open(LOG_FILE, "a", encoding="utf-8") as fp:
-                    fp.write(
-                        "\t".join(
-                            [
-                                f"{global_step + 1:<7}",
-                                f"{loss.asnumpy().item():<10.6f}",
-                                f"{batch_time_m.val:<13.3f}",
-                            ]
+            if rank_id == 0:
+                try:
+                    if not os.path.exists(LOG_FILE):
+                        with open(LOG_FILE, "w", encoding="utf-8") as fp:
+                            fp.write("\t".join(["step", "loss", "per step time (s)"]) + "\n")
+                    with open(LOG_FILE, "a", encoding="utf-8") as fp:
+                        fp.write(
+                            "\t".join(
+                                [
+                                    f"{global_step + 1:<7}",
+                                    f"{loss.asnumpy().item():<10.6f}",
+                                    f"{batch_time_m.val:<13.3f}",
+                                ]
+                            )
+                            + "\n"
                         )
-                        + "\n"
-                    )
-            except (IOError, PermissionError) as e:
-                logger.error(f"Failed to write log: {e}")
+                except (IOError, PermissionError) as e:
+                    logger.error(f"Failed to write log: {e}")
             # Save model checkpoint
-            if (global_step + 1) % config.experiment.save_every == 0:
+            if (global_step + 1) % config.experiment.save_every == 0 and rank_id == 0:
                 save_checkpoint(model, config, global_step + 1, uni_prompting)
 
             if (
-                (global_step + 1) % config.experiment.generate_every == 0 or global_step == 0
-            ) and config.experiment.eval_during_train:
+                ((global_step + 1) % config.experiment.generate_every == 0 or global_step == 0)
+                and config.experiment.eval_during_train
+                and rank_id == 0
+            ):
                 model.set_train(False)
                 with no_grad():
                     generate_images(
@@ -616,7 +633,7 @@ def main():
                         config,
                         global_step + 1,
                         mask_schedule=mask_schedule,
-			            force_no_cfg=False
+                        force_no_cfg=False,
                     )
                     generate_images(
                         model,
@@ -625,7 +642,7 @@ def main():
                         config,
                         global_step + 1,
                         mask_schedule=mask_schedule,
-			            force_no_cfg=True
+                        force_no_cfg=True,
                     )
                     visualize_predictions(
                         model,
@@ -659,10 +676,10 @@ def main():
                 break
 
     # Evaluate and save checkpoint at the end of training
-    save_checkpoint(model, config, global_step, uni_prompting)
-
-    # Save the final trained checkpoint
-    model.save_pretrained(config.experiment.output_dir, safe_serialization=True)
+    if rank_id == 0:
+        save_checkpoint(model, config, global_step)
+        # Save the final trained checkpoint
+        model.save_pretrained(config.experiment.output_dir, safe_serialization=True)
 
 
 def visualize_predictions(
@@ -715,15 +732,7 @@ def visualize_predictions(
     return
 
 
-def generate_images(
-    model,
-    vq_model,
-    uni_prompting,
-    config,
-    global_step,
-    mask_schedule,
-    force_no_cfg = False
-):
+def generate_images(model, vq_model, uni_prompting, config, global_step, mask_schedule, force_no_cfg=False):
     logger.info("Generating images...")
 
     # read validation prompts from file
@@ -736,7 +745,9 @@ def generate_images(
     )
     input_ids, attention_mask = uni_prompting((validation_prompts, image_tokens), "t2i_gen")
     if not force_no_cfg and config.training.guidance_scale > 0:
-        uncond_input_ids, uncond_attention_mask = uni_prompting(([''] * len(validation_prompts), image_tokens), 't2i_gen')
+        uncond_input_ids, uncond_attention_mask = uni_prompting(
+            ([""] * len(validation_prompts), image_tokens), "t2i_gen"
+        )
         cfg_scale = config.training.guidance_scale
     else:
         uncond_input_ids = None
@@ -887,8 +898,9 @@ def save_checkpoint(model, config, global_step, uni_prompting):
     logger.info(f"Saved state to {save_path}")
 
     # save tokenizer
-    uni_prompting.text_tokenizer.save_pretrained(save_path/ "unwrapped_model")
-	
+    uni_prompting.text_tokenizer.save_pretrained(save_path / "unwrapped_model")
+
+
 def log_grad_norm(model, config, global_step):
     output_dir = os.path.join(config.experiment.logging_dir, f"grad_norm/{global_step}")
     os.makedirs(output_dir, exist_ok=True)

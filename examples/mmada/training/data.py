@@ -20,7 +20,7 @@ from webdataset.tariterators import base_plus_ext, tar_file_expander, url_opener
 
 import mindspore.dataset.vision as transforms
 from mindspore.dataset.vision import Inter
-import mindspore.communication.management as D
+from mindspore.mint.distributed import get_rank, get_world_size, is_initialized
 
 person_token = ["a person", "someone", "somebody"]
 
@@ -141,9 +141,14 @@ def remove_prefix(caption):
 def filter_long_samples(sample):
     return sample.get("input_ids") is not None
 
+
 def my_split_by_node(src):
-    rank = D.get_rank()
-    world_size = D.get_group_size()
+    if not is_initialized():
+        rank, world_size = 0, 1
+    else:
+        rank = get_rank()
+        world_size = get_world_size()
+
     for i, sample in enumerate(src):
         if i % world_size == rank:
             yield sample
