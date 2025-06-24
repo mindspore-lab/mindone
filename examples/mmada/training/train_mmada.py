@@ -53,7 +53,7 @@ def main():
     config = get_config()
     ms.set_device(device_target="Ascend")
 
-    if config.training.get("distributed", False):
+    if config.experiment.get("distributed", False):
         init_process_group()
         rank_id = get_rank()
         device_num = get_world_size()
@@ -580,9 +580,9 @@ def main():
             avg_loss_mmu = loss_mmu.mean()
             # avg_masking_rate = mask_prob.mean()
 
-            # log gradient norm before zeroing it
-            if (global_step + 1) % config.experiment.log_grad_norm_every == 0:
-                log_grad_norm(model, config, global_step + 1)
+            # # log gradient norm before zeroing it
+            # if (global_step + 1) % config.experiment.log_grad_norm_every == 0:
+            #     log_grad_norm(model, config, global_step + 1)
 
             batch_time_m.update(time.time() - end)
             end = time.time()
@@ -602,7 +602,7 @@ def main():
                     f"Data (t): {data_time_m.val:0.4f}, {samples_per_second_per_device:0.2f}/s/device "
                     f"Batch (t): {batch_time_m.val:0.4f} "
                     f"LR: {lr_scheduler.get_last_lr()[0].asnumpy().item():0.6f}",
-                    f"Loss scaler {loss_scaler.scale_value.asnumpy().item()}",
+                    f"Loss scaler {loss_scaler.scale_value.value().asnumpy().item()}",
                 )
 
                 # resetting batch / data time meters per log window
