@@ -41,12 +41,12 @@ from mindone.transformers.modeling_attn_mask_utils import dtype_to_min
 from ...activations import ACT2FN
 from ...cache_utils import Cache, DynamicCache, StaticCache
 from ...generation import GenerationMixin
+from ...mindspore_adapter.nn import MultiheadAttention
 from ...modeling_flash_attention_utils import FlashAttentionKwargs
 from ...modeling_outputs import BaseModelOutputWithPast, CausalLMOutputWithPast, ModelOutput
 from ...modeling_rope_utils import ROPE_INIT_FUNCTIONS
 from ...modeling_utils import ALL_ATTENTION_FUNCTIONS, MSPreTrainedModel
 from ...processing_utils import Unpack
-from ...mindspore_adapter.nn import MultiheadAttention
 
 # from ..auto import AutoModelForCausalLM, AutoModel
 from ..idefics3 import Idefics3VisionTransformer
@@ -121,7 +121,6 @@ class AriaCrossAttention(nn.Cell):
 
         # Original code here: https://github.com/rhymes-ai/Aria/blob/719ff4e52b727443cba3793b0e27fe64e0244fe1/aria/model/projector.py#L48
         self.multihead_attn = MultiheadAttention(hidden_size, num_heads, batch_first=True)
-        # dafault use dtype=ms.float32, but weight and bias may be different
         self.linear = mint.nn.Linear(hidden_size, hidden_size)
         self.dropout = mint.nn.Dropout(dropout_rate)
 
