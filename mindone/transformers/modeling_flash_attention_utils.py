@@ -17,6 +17,7 @@ from typing import Optional, TypedDict
 from transformers.utils import logging
 
 import mindspore as ms
+from mindspore import ops
 
 logger = logging.get_logger(__name__)
 
@@ -28,6 +29,29 @@ def is_flash_attn_available():
         return True
 
     return False
+
+def _flash_attention_forward(
+    query: ms.Tensor,
+    key: ms.Tensor,
+    value: ms.Tensor,
+    num_head,
+    attention_mask,
+    dropout,
+    scaling,
+    input_layout,
+):
+    attn_output = ops.flash_attention_score(
+        query,
+        key,
+        value,
+        head_num=num_head,
+        attn_mask=attention_mask,
+        keep_prob=1.0 - dropout,
+        scalar_value=scaling,
+        input_layout=input_layout,
+    )
+
+    return attn_output
 
 
 class FlashAttentionKwargs(TypedDict, total=False):
