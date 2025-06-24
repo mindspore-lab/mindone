@@ -1,5 +1,6 @@
 import glob
 import json
+import logging
 import os
 import random
 
@@ -9,6 +10,8 @@ from PIL import Image
 
 import mindspore.dataset.vision as transforms
 from mindspore.dataset.vision import Inter
+
+logger = logging.getLogger(__name__)
 
 
 class RefinedWebDataset:
@@ -34,6 +37,15 @@ class RefinedWebDataset:
         self.buffer_size = buffer_size
         self.max_length = max_length
         self.num_workers = num_workers
+
+        if len(self.files) < self.world_size:
+            logger.warning(
+                f"Expect to have more files to be sharded for data parallel, but got {len(self.files)} files and {self.world_size} devices."
+            )
+            logger.warning("Replicating the files...")
+            self.files = self.files * (self.world_size // len(self.files))
+            if len(self.files) < self.world_size:
+                self.files += self.files
 
         self.files = self.files[self.rank :: self.world_size]
 
