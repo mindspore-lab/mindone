@@ -1,6 +1,6 @@
 """Train step wrapper supporting setting drop overflow update, ema etc"""
 import logging
-from typing import Callable, Literal, Optional
+from typing import Literal, Optional
 
 import mindspore as ms
 from mindspore import Tensor, nn, ops
@@ -68,34 +68,6 @@ def prepare_train_network(
     return network, zero_helper
 
 
-# @ms.jit_class
-class Accumulator:
-    def __init__(self, optimizer, accumulate_step, run_optimizer: Callable = None):
-        self.optimizer = optimizer
-
-        self.inner_grads = optimizer.parameters.clone(prefix="accumulate_", init="zeros")
-        self.zeros = optimizer.parameters.clone(prefix="zeros_", init="zeros")
-        self.counter = ms.Parameter(Tensor(1, ms.int32), "counter_")
-        assert accumulate_step > 0
-        self.accumulate_step = accumulate_step
-        self.map = ops.HyperMap()
-
-        self.run_optimizer = self.optimizer if run_optimizer is None else run_optimizer
-
-    def __call__(self, grads):
-        self.map(ops.partial(ops.assign_add), self.inner_grads, grads)
-        if self.counter % self.accumulate_step == 0:
-            self.run_optimizer(self.inner_grads)
-            self.map(ops.partial(ops.assign), self.inner_grads, self.zeros)
-
-            # reset counter
-            ops.assign(self.counter, Tensor(1, ms.int32))
-
-        ops.assign_add(self.counter, Tensor(1, ms.int32))
-
-        return True
-
-
 class TrainOneStepWrapper:
     """TrainStep with ema and clip grad.
 
@@ -154,9 +126,11 @@ class TrainOneStepWrapper:
         if self.zero_stage != 0:
             self.zero_helper.split_params()
 
-        self.accumulator = Accumulator(
-            self.optimizer, self.gradient_accumulation_steps, run_optimizer=self.run_optimizer
-        )
+        # gradient accumulator
+        self.inner_grads = optimizer.parameters.clone(prefix="accumulate_", init="zeros")
+        self.zeros = optimizer.parameters.clone(prefix="zeros_", init="zeros")
+        self.counter = ms.Parameter(Tensor(1, ms.int32), "counter_")
+        self.map = ops.HyperMap()
 
         self.value_and_grad = ms.value_and_grad(self.forward_fn, None, weights=self.weights, has_aux=True)
         if hasattr(self.config.model, "gradient_checkpointing") and self.config.model.gradient_checkpointing:
@@ -221,19 +195,43 @@ class TrainOneStepWrapper:
     def train_one_step(self, *inputs):
         # 1. compute gradients (of the up-scaled loss w.r.t. the model weights)
         (loss, logits, loss_t2i, loss_lm, loss_mmu), grads = self.value_and_grad(*inputs)
-        grads_finite = True  # valid gradients (no overflow)
+
+        # 1.1 if zero_helper is not None, compute gradients
+        if self.zero_helper is not None:
+            grads = self.zero_helper.cal_gradients(grads)
+
+        grads_finite = True  # assume valid gradients (no overflow)
+
+        # 2. unscale loss and grads, check overflow status
         if self.loss_scaler:
             loss = self.loss_scaler.unscale(loss)
             grads = self.loss_scaler.unscale(grads)
 
             grads_finite = all_finite(grads)
             self.loss_scaler.adjust(grads_finite)
-
-        grads = self.grad_reducer(grads)
-        if self.clip_grad:
-            grads = ops.clip_by_global_norm(grads, self.clip_norm)
+        # 3. update params if gradients are valid or no dropout
         if grads_finite or (not self.drop_overflow_update):
-            self.accumulator(grads)
+            # 3.1 gradient accumulation -> clip grads and updates when counter % acc_steps=0 -> reset states
+            if self.gradient_accumulation_steps > 1:
+                # accumulate grads to inner grads
+                self.map(ops.partial(ops.assign_add), self.inner_grads, grads)
+                if self.counter % self.gradient_accumulation_steps == 0:
+                    grads = self.grad_reducer(self.inner_grads)
+                    if self.clip_grad:
+                        grads = ops.clip_by_global_norm(grads, self.clip_norm)
+                    self.run_optimizer(grads)
+                    # reset inner grads to zeros
+                    self.map(ops.partial(ops.assign), self.inner_grads, self.zeros)
+                    # reset counter to 1
+                    ops.assign(self.counter, Tensor(1, ms.int32))
+
+                ops.assign_add(self.counter, Tensor(1, ms.int32))
+            else:
+                # 3.2 clip grads and updates
+                grads = self.grad_reducer(grads)
+                if self.clip_grad:
+                    grads = ops.clip_by_global_norm(grads, self.clip_norm)
+                self.run_optimizer(grads)
         else:
             logger.warning("WARNING: Gradient overflow! update skipped.")
 
