@@ -28,12 +28,9 @@ def create_laion_webdataset(csv_path, image_folder, output_tar, samples_per_tar=
 
     for tar_idx in range(num_tars):
         # Generate tar filename with index if multiple tars
-        if num_tars > 1:
-            tar_path = (
-                output_tar.format(tar_idx) if "{}" in output_tar else output_tar.replace(".tar", f"_{tar_idx:05d}.tar")
-            )
-        else:
-            tar_path = output_tar
+        tar_path = (
+            output_tar.format(tar_idx) if "{}" in output_tar else output_tar.replace(".tar", f"_{tar_idx:05d}.tar")
+        )
 
         start_idx = tar_idx * samples_per_tar
         end_idx = min((tar_idx + 1) * samples_per_tar, num_samples)
@@ -96,7 +93,7 @@ def create_laion_webdataset(csv_path, image_folder, output_tar, samples_per_tar=
                     tar.addfile(txt_info, txt_bytes)
 
                     # Save metadata
-                    json_content = json.dumps(metadata, ensure_ascii=False).encode("utf-8")
+                    json_content = json.dumps(metadata, ensure_ascii=False, indent=2).encode("utf-8")
                     json_info = tarfile.TarInfo(f"{key}.json")
                     json_info.size = len(json_content)
                     json_bytes = io.BytesIO(json_content)
