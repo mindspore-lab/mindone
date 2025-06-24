@@ -29,7 +29,7 @@ from transformers import AutoTokenizer
 import mindspore as ms
 import mindspore.mint as mint
 from mindspore.amp import DynamicLossScaler
-from mindspore.experimental import optim
+from mindspore.mint import optim
 from mindspore.mint.distributed import get_rank, get_world_size, init_process_group
 
 from mindone.diffusers.models.model_loading_utils import load_checkpoint_and_dispatch
@@ -138,7 +138,9 @@ def main():
         p.requires_grad = False
 
     # Initialize mmada in stage 2
-    model = MMadaModelLM.from_pretrained(config.model.mmada.pretrained_model_path, mindspore_dtype=ms.bfloat16)
+    weight_dtype = config.training.get("mixed_precision", "bf16")
+    weight_dtype = {"fp16": ms.float16, "bf16": ms.bfloat16, "fp32": ms.float32}[weight_dtype]
+    model = MMadaModelLM.from_pretrained(config.model.mmada.pretrained_model_path, mindspore_dtype=weight_dtype)
     model.set_train(True)
     mask_id = model.config.mask_token_id
 
@@ -591,13 +593,13 @@ def main():
 
                 logger.info(
                     f"Step: {global_step + 1} "
-                    f"Loss_t2i: {avg_loss_t2i.asnumpy().item():0.4f} "
-                    f"Loss_mmu: {avg_loss_mmu.asnumpy().item():0.4f} "
-                    f"Loss_lm: {avg_loss_lm.asnumpy().item():0.4f} "
-                    f"Loss_combined: {loss.asnumpy().item():0.4f} "
-                    f"Data (t): {data_time_m.val:0.4f}, {samples_per_second_per_device:0.2f}/s/device "
-                    f"Batch (t): {batch_time_m.val:0.4f} "
-                    f"LR: {lr_scheduler.get_last_lr()[0].asnumpy().item():0.6f}",
+                    f"Loss_t2i: {avg_loss_t2i.asnumpy().item()} "
+                    f"Loss_mmu: {avg_loss_mmu.asnumpy().item()} "
+                    f"Loss_lm: {avg_loss_lm.asnumpy().item()} "
+                    f"Loss_combined: {loss.asnumpy().item()} "
+                    f"Data (t): {data_time_m.val}, {samples_per_second_per_device}/s/device "
+                    f"Batch (t): {batch_time_m.val} "
+                    f"LR: {lr_scheduler.get_last_lr()[0].asnumpy().item()}",
                     f"Loss scaler {loss_scaler.scale_value.value().asnumpy().item()}",
                 )
 

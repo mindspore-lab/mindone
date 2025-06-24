@@ -8,7 +8,7 @@ import logging
 from models import MAGVITv2, MMadaConfig, MMadaModelLM
 from transformers import AutoConfig, AutoTokenizer
 
-from mindspore.experimental import optim
+from mindspore.mint import optim
 
 logger = logging.getLogger(__name__)
 

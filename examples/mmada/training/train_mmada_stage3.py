@@ -13,12 +13,13 @@ import shutil
 import time
 from pathlib import Path
 from typing import Union
-import pandas
+
 import numpy as np
+import pandas
 from models import MAGVITv2, MMadaConfig, MMadaModelLM, get_mask_schedule
 from models.lr_schedulers import get_scheduler
 from omegaconf import OmegaConf
-from parquet import RefinedWebDataset, ChatDataset
+from parquet import ChatDataset, RefinedWebDataset
 from parquet.loader import CombinedLoader, create_dataloader
 from PIL import Image
 from training.data import Text2ImageDataset
@@ -29,7 +30,7 @@ from transformers import AutoConfig, AutoTokenizer
 import mindspore as ms
 import mindspore.mint as mint
 from mindspore.amp import DynamicLossScaler
-from mindspore.experimental import optim
+from mindspore.mint import optim
 
 from mindone.diffusers.models.model_loading_utils import load_checkpoint_and_dispatch
 from utils import TrainOneStepWrapper, init_from_ckpt, no_grad
@@ -124,7 +125,9 @@ def main():
         p.requires_grad = False
 
     # Initialize mmada in stage 2
-    model = MMadaModelLM.from_pretrained(config.model.mmada.pretrained_model_path, mindspore_dtype=ms.bfloat16)
+    weight_dtype = config.training.get("mixed_precision", "bf16")
+    weight_dtype = {"fp16": ms.float16, "bf16": ms.bfloat16, "fp32": ms.float32}[weight_dtype]
+    model = MMadaModelLM.from_pretrained(config.model.mmada.pretrained_model_path, mindspore_dtype=weight_dtype)
     model.set_train(True)
     mask_id = model.config.mask_token_id
 
@@ -245,7 +248,6 @@ def main():
     else:
         raise ValueError(f"Unsupported dataset type {config.dataset.type}")
 
-
     total_batch_size_mmu_without_accum = config.training.batch_size_mmu
     # Data for image captioning
     if config.dataset.und_type == "captioning":
@@ -274,13 +276,14 @@ def main():
     else:
         raise NotImplementedError(f"Unsupported dataset type {config.dataset.und_type}")
 
-    dataset_lm = ChatDataset(data_path=dataset_config.train_lm_shards_path_or_url,
-                                   rank=0,
-                                   world_size=1,
-                                   num_workers=dataset_config.num_workers,
-                                   max_length=preproc_config.max_seq_length,
-                                   tokenizer=uni_prompting.text_tokenizer,
-                                   )
+    dataset_lm = ChatDataset(
+        data_path=dataset_config.train_lm_shards_path_or_url,
+        rank=0,
+        world_size=1,
+        num_workers=dataset_config.num_workers,
+        max_length=preproc_config.max_seq_length,
+        tokenizer=uni_prompting.text_tokenizer,
+    )
 
     train_dataloader_lm = create_dataloader(
         dataset_lm,
@@ -353,7 +356,7 @@ def main():
         texts: Union[str, str],
         min_masking_rate: float = 0.0,
         is_train: bool = True,
-        seed: int = None
+        seed: int = None,
     ):
         if not isinstance(pixel_values_or_image_ids, ms.Tensor):
             pixel_values_or_image_ids = ms.Tensor(pixel_values_or_image_ids)
@@ -364,12 +367,7 @@ def main():
         image_tokens = image_tokens + len(uni_prompting.text_tokenizer)
         # create MLM mask and labels
         input_ids, labels, loss_weight, mask_prob = mask_or_random_replace_tokens(
-            image_tokens,
-            mask_id,
-            config,
-            mask_schedule=mask_schedule,
-            is_train=is_train,
-            seed=seed
+            image_tokens, mask_id, config, mask_schedule=mask_schedule, is_train=is_train, seed=seed
         )
         input_ids, masks, labels = uni_prompting((texts, input_ids, labels), "t2i")
         return input_ids, labels, mask_prob, image_tokens, masks
@@ -398,13 +396,11 @@ def main():
         masked_indices = noisy_batch == mask_id
 
         return noisy_batch, labels_lm, p_mask
-    
-    def prepare_inputs_and_labels_for_chat_text(
-        texts: Union[str, list[str]], max_seq_len, eps=1e-3
-    ):
+
+    def prepare_inputs_and_labels_for_chat_text(texts: Union[str, list[str]], max_seq_len, eps=1e-3):
         # create MLM mask and labels
-        
-        input_ids_lm, prompt_mask, labels_lm = uni_prompting((texts, max_seq_len), 'lm_chat')
+
+        input_ids_lm, prompt_mask, labels_lm = uni_prompting((texts, max_seq_len), "lm_chat")
         b, l = input_ids_lm.shape
         t = mint.rand((b,))
         p_mask = (1 - eps) * t + eps
@@ -413,14 +409,14 @@ def main():
         masked_indices = mint.rand((b, l)) < p_mask
         # 126336 is used for [MASK] token
         noisy_batch = mint.where(masked_indices, mask_id, input_ids_lm)
-        masked_indices = noisy_batch == mask_id 
+        masked_indices = noisy_batch == mask_id
         noisy_batch[prompt_mask.bool()] = input_ids_lm[prompt_mask.bool()]
-        masked_indices = noisy_batch == mask_id 
+        masked_indices = noisy_batch == mask_id
         answer_lengths_lm = mint.sum((1 - prompt_mask), dim=-1, keepdim=True)
         answer_lengths_lm = answer_lengths_lm.repeat(1, noisy_batch.shape[1])
-        
+
         return noisy_batch, labels_lm, p_mask, answer_lengths_lm
-    
+
     def prepare_inputs_and_labels_for_mmu(input_ids_mmu, prompt_masks, labels_mmu, eps=1e-3):
         if not isinstance(input_ids_mmu, ms.Tensor):
             input_ids_mmu = ms.Tensor(input_ids_mmu)
@@ -493,12 +489,9 @@ def main():
                 # *-------*-------*-------*-------*-------*-------*-------*-------*-------*-------*-------*
                 max_seq_len = input_ids.shape[-1]
                 texts_lm = batch["lm_flow"]["input_ids"]
-                (
-                    input_ids_lm,  
-                    labels_lm,
-                    p_mask_lm,
-                    answer_lengths_lm
-                ) = prepare_inputs_and_labels_for_chat_text(texts_lm, max_seq_len)  
+                (input_ids_lm, labels_lm, p_mask_lm, answer_lengths_lm) = prepare_inputs_and_labels_for_chat_text(
+                    texts_lm, max_seq_len
+                )
                 input_ids = mint.cat((input_ids.to(ms.int32), input_ids_lm.to(ms.int32)), dim=0)
                 labels = mint.cat((labels.to(ms.int32), labels_lm.to(ms.int32)), dim=0)
 
@@ -578,7 +571,7 @@ def main():
                 p_mask_mmu,
                 answer_lengths,
                 t2i_masks,
-                answer_lengths_lm=answer_lengths_lm
+                answer_lengths_lm=answer_lengths_lm,
             )
 
             lr_scheduler.step()
@@ -602,13 +595,13 @@ def main():
 
                 logger.info(
                     f"Step: {global_step + 1} "
-                    f"Loss_t2i: {avg_loss_t2i.asnumpy().item():0.4f} "
-                    f"Loss_mmu: {avg_loss_mmu.asnumpy().item():0.4f} "
-                    f"Loss_lm: {avg_loss_lm.asnumpy().item():0.4f} "
-                    f"Loss_combined: {loss.asnumpy().item():0.4f} "
-                    f"Data (t): {data_time_m.val:0.4f}, {samples_per_second_per_device:0.2f}/s/device "
-                    f"Batch (t): {batch_time_m.val:0.4f} "
-                    f"LR: {lr_scheduler.get_last_lr()[0].asnumpy().item():0.6f}",
+                    f"Loss_t2i: {avg_loss_t2i.asnumpy().item()} "
+                    f"Loss_mmu: {avg_loss_mmu.asnumpy().item()} "
+                    f"Loss_lm: {avg_loss_lm.asnumpy().item()} "
+                    f"Loss_combined: {loss.asnumpy().item()} "
+                    f"Data (t): {data_time_m.val}, {samples_per_second_per_device}/s/device "
+                    f"Batch (t): {batch_time_m.val} "
+                    f"LR: {lr_scheduler.get_last_lr()[0].asnumpy().item()}",
                     f"Loss scaler {loss_scaler.scale_value.asnumpy().item()}",
                 )
 
@@ -649,7 +642,7 @@ def main():
                         config,
                         global_step + 1,
                         mask_schedule=mask_schedule,
-			            force_no_cfg=False
+                        force_no_cfg=False,
                     )
                     generate_images(
                         model,
@@ -658,7 +651,7 @@ def main():
                         config,
                         global_step + 1,
                         mask_schedule=mask_schedule,
-			            force_no_cfg=True
+                        force_no_cfg=True,
                     )
                     visualize_predictions(
                         model,
@@ -754,15 +747,7 @@ def visualize_predictions(
     return
 
 
-def generate_images(
-    model,
-    vq_model,
-    uni_prompting,
-    config,
-    global_step,
-    mask_schedule,
-    force_no_cfg = False
-):
+def generate_images(model, vq_model, uni_prompting, config, global_step, mask_schedule, force_no_cfg=False):
     logger.info("Generating images...")
 
     # read validation prompts from file
@@ -775,7 +760,9 @@ def generate_images(
     )
     input_ids, attention_mask = uni_prompting((validation_prompts, image_tokens), "t2i_gen")
     if not force_no_cfg and config.training.guidance_scale > 0:
-        uncond_input_ids, uncond_attention_mask = uni_prompting(([''] * len(validation_prompts), image_tokens), 't2i_gen')
+        uncond_input_ids, uncond_attention_mask = uni_prompting(
+            ([""] * len(validation_prompts), image_tokens), "t2i_gen"
+        )
         cfg_scale = config.training.guidance_scale
     else:
         uncond_input_ids = None
@@ -890,18 +877,20 @@ def understanding_images(
 
     logger.info(f"Image understanding results saved state to {output_dir}")
     return
+
+
 def generate_chat_text(
-        model,
-        uni_prompting,
-        accelerator,
-        config,
-        global_step,
+    model,
+    uni_prompting,
+    accelerator,
+    config,
+    global_step,
 ):
     logger.info("Generating chat text...")
 
     df = pandas.read_json(config.dataset.params.lm_chat_validation_jsonl, lines=True)
-    prompts = df['question'].tolist()
-    responses = [''] * len(prompts)
+    prompts = df["question"].tolist()
+    responses = [""] * len(prompts)
     weight_dtype = ms.bfloat16
 
     html_content = "<div style='font-family:Arial, sans-serif;'>"
@@ -909,17 +898,21 @@ def generate_chat_text(
 
     for i, prompt in enumerate(prompts):
         original_prompt = prompt
-        prompt_with_tags = "<|start_header_id|>user<|end_header_id|>\n" + f"{prompt}" + "<eot_id><|start_header_id|>assistant<|end_header_id|>\n"
-        input_ids = uni_prompting.text_tokenizer([prompt_with_tags])['input_ids']
+        prompt_with_tags = (
+            "<|start_header_id|>user<|end_header_id|>\n"
+            + f"{prompt}"
+            + "<eot_id><|start_header_id|>assistant<|end_header_id|>\n"
+        )
+        input_ids = uni_prompting.text_tokenizer([prompt_with_tags])["input_ids"]
         input_ids = ms.Tensor(input_ids)
 
         output_ids = model.mmu_generate(
-            input_ids, 
-            max_new_tokens=config.dataset.preprocessing.max_seq_length, 
-            steps=config.dataset.preprocessing.max_seq_length // 2, 
-            block_length=config.dataset.preprocessing.max_seq_length // 4
+            input_ids,
+            max_new_tokens=config.dataset.preprocessing.max_seq_length,
+            steps=config.dataset.preprocessing.max_seq_length // 2,
+            block_length=config.dataset.preprocessing.max_seq_length // 4,
         )
-        text = uni_prompting.text_tokenizer.batch_decode(output_ids[:, input_ids.shape[1]:], skip_special_tokens=True)
+        text = uni_prompting.text_tokenizer.batch_decode(output_ids[:, input_ids.shape[1] :], skip_special_tokens=True)
         responses[i] += text[0]
 
     # save prompts and responses to json file
@@ -932,6 +925,7 @@ def generate_chat_text(
     with open(output_path, "w", encoding="utf-8") as f:
         json.dump(results, f, ensure_ascii=False, indent=2)
     logger.info(f"Chat prompts and responses saved to {output_path}")
+
 
 def save_checkpoint(model, config, global_step, uni_prompting):
     output_dir = config.experiment.output_dir
@@ -967,8 +961,9 @@ def save_checkpoint(model, config, global_step, uni_prompting):
     logger.info(f"Saved state to {save_path}")
 
     # save tokenizer
-    uni_prompting.text_tokenizer.save_pretrained(save_path/ "unwrapped_model")
-	
+    uni_prompting.text_tokenizer.save_pretrained(save_path / "unwrapped_model")
+
+
 def log_grad_norm(model, config, global_step):
     output_dir = os.path.join(config.experiment.logging_dir, f"grad_norm/{global_step}")
     os.makedirs(output_dir, exist_ok=True)
