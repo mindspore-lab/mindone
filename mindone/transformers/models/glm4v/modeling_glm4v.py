@@ -98,7 +98,7 @@ class Glm4vVisionRotaryEmbedding(nn.Cell):
         return freqs
 
 
-class Glm4vMLP(nn.Cell):
+class Glm4vTextMLP(nn.Cell):
     def __init__(self, config):
         super().__init__()
 
@@ -136,7 +136,7 @@ class Glm4vRMSNorm(nn.Cell):
         return f"{tuple(self.weight.shape)}, eps={self.variance_epsilon}"
 
 
-class Glm4vPatchMerger(nn.Cell):
+class Glm4vVisionPatchMerger(nn.Cell):
     def __init__(self, dim: int, context_dim: int, hidden_act: str, bias: bool = False) -> None:
         super().__init__()
         self.proj = nn.Dense(dim, dim, has_bias=bias)
@@ -228,6 +228,44 @@ class Glm4vVisionEmbeddings(nn.Cell):
         embeddings = embeddings + adapted_pos_embed
         return embeddings
 
+def repeat_kv(hidden_states: ms.Tensor, n_rep: int) -> ms.Tensor:
+    """
+    This is the equivalent of torch.repeat_interleave(x, dim=1, repeats=n_rep). The hidden states go from (batch,
+    num_key_value_heads, seqlen, head_dim) to (batch, num_attention_heads, seqlen, head_dim)
+    """
+    batch, num_key_value_heads, slen, head_dim = hidden_states.shape
+    if n_rep == 1:
+        return hidden_states
+    hidden_states = hidden_states[:, :, None, :, :].broadcast_to((batch, num_key_value_heads, n_rep, slen, head_dim))
+    return hidden_states.reshape(batch, num_key_value_heads * n_rep, slen, head_dim)
+
+
+def eager_attention_forward(
+    module: nn.Cell,
+    query: ms.Tensor,
+    key: ms.Tensor,
+    value: ms.Tensor,
+    attention_mask: Optional[ms.Tensor],
+    scaling: float,
+    dropout: float = 0.0,
+    **kwargs,
+):
+    key_states = repeat_kv(key, module.num_key_value_groups)
+    value_states = repeat_kv(value, module.num_key_value_groups)
+
+    attn_weights = mint.matmul(query, key_states.swapaxes(2, 3)) * scaling
+    if attention_mask is not None:
+        causal_mask = attention_mask[:, :, :, : key_states.shape[-2]]
+        attn_weights = attn_weights + causal_mask
+
+    attn_weights = mint.softmax(attn_weights, dim=-1, dtype=ms.float32).to(query.dtype)
+    attn_weights = ops.dropout(attn_weights, p=dropout, training=module.training)
+    attn_output = mint.matmul(attn_weights, value_states)
+    attn_output = attn_output.swapaxes(1, 2).contiguous()
+
+    return attn_output, attn_weights
+
+
 
 def rotate_half(x):
     """Rotates half the hidden dims of the input."""
@@ -256,6 +294,7 @@ class Glm4vVisionAttention(nn.Cell):
         self.config = config
         self.num_heads = config.num_heads
         self.head_dim = config.hidden_size // self.num_heads
+        self.num_key_value_groups = 1
         self.scale = self.head_dim**-0.5
         self.attention_dropout = config.attention_dropout
         self.qkv = nn.Dense(config.hidden_size, config.hidden_size * 3, has_bias=config.attention_bias)
@@ -271,18 +310,7 @@ class Glm4vVisionAttention(nn.Cell):
     ) -> ms.Tensor:
         seq_length = hidden_states.shape[0]
         q, k, v = self.qkv(hidden_states).reshape(seq_length, 3, self.num_heads, -1).permute(1, 0, 2, 3).unbind(0)
-        if position_embeddings is None:
-            logger.warning_once(
-                "The attention layers in this model are transitioning from computing the RoPE embeddings internally "
-                "through `rotary_pos_emb` (2D tensor of RoPE theta values), to using externally computed "
-                "`position_embeddings` (Tuple of tensors, containing cos and sin). In v4.54 `rotary_pos_emb` will be "
-                "removed and `position_embeddings` will be mandatory."
-            )
-            emb = mint.cat((rotary_pos_emb, rotary_pos_emb), dim=-1)
-            cos = emb.cos()
-            sin = emb.sin()
-        else:
-            cos, sin = position_embeddings
+        cos, sin = position_embeddings
         q, k = apply_rotary_pos_emb_vision(q, k, cos, sin)
 
         attention_mask = mint.zeros([1, seq_length, seq_length], dtype=ms.bool_)
@@ -293,15 +321,22 @@ class Glm4vVisionAttention(nn.Cell):
         k = k.swapaxes(0, 1).unsqueeze(0)
         v = v.swapaxes(0, 1).unsqueeze(0)
         attention_mask = attention_mask.unsqueeze(1)
-        attn_weights = mint.matmul(q, k.swapaxes(2, 3)) * self.scale
-        if attention_mask is not None:
-            causal_mask = attention_mask[:, :, :, : k.shape[-2]]
-            attn_weights = attn_weights + causal_mask
 
-        attn_weights = mint.softmax(attn_weights, dim=-1, dtype=ms.float32).to(q.dtype)
-        attn_weights = ops.dropout(attn_weights, p=self.attention_dropout, training=self.training)
-        attn_output = mint.matmul(attn_weights, v)
-        attn_output = attn_output.swapaxes(1, 2).contiguous()
+        attention_interface: Callable = eager_attention_forward
+        if self.config._attn_implementation != "eager":
+            attention_interface = ALL_ATTENTION_FUNCTIONS[self.config._attn_implementation]
+
+        attn_output, attn_weights = attention_interface(
+            self,
+            q,
+            k,
+            v,
+            attention_mask,
+            dropout=0.0 if not self.training else self.attention_dropout,
+            scaling=self.scale,
+            **kwargs,
+        )
+
         attn_output = attn_output.squeeze(0)
         attn_output = attn_output.reshape(seq_length, -1).contiguous()
         attn_output = self.proj(attn_output)
@@ -331,89 +366,6 @@ class Glm4vVisionBlock(nn.Cell):
         )
         hidden_states = hidden_states + self.mlp(self.norm2(hidden_states))
         return hidden_states
-
-
-class Glm4vTextDecoderLayer(nn.Cell):
-    def __init__(self, config: Glm4vTextConfig, layer_idx: int):
-        super().__init__()
-        self.hidden_size = config.hidden_size
-        self.self_attn = Glm4vAttention(config, layer_idx)
-        self.mlp = Glm4vMLP(config)
-        self.input_layernorm = Glm4vRMSNorm(config.hidden_size, eps=config.rms_norm_eps)
-        self.post_attention_layernorm = Glm4vRMSNorm(config.hidden_size, eps=config.rms_norm_eps)
-        self.post_self_attn_layernorm = Glm4vRMSNorm(config.hidden_size, eps=config.rms_norm_eps)
-        self.post_mlp_layernorm = Glm4vRMSNorm(config.hidden_size, eps=config.rms_norm_eps)
-        self.attention_type = "full_attention"
-
-    def construct(
-        self,
-        hidden_states: ms.Tensor,
-        attention_mask: Optional[ms.Tensor] = None,
-        position_ids: Optional[ms.Tensor] = None,
-        past_key_value: Optional[Tuple[ms.Tensor]] = None,
-        output_attentions: Optional[bool] = False,
-        use_cache: Optional[bool] = False,
-        cache_position: Optional[ms.Tensor] = None,
-        position_embeddings: Optional[Tuple[ms.Tensor, ms.Tensor]] = None,  # necessary, but kept here for BC
-        **kwargs,
-    ) -> Tuple[ms.Tensor, Optional[Tuple[ms.Tensor, ms.Tensor]]]:
-        """
-        Args:
-            hidden_states (`torch.FloatTensor`): input to the layer of shape `(batch, seq_len, embed_dim)`
-            attention_mask (`torch.FloatTensor`, *optional*): attention mask of size
-                `(batch, sequence_length)` where padding elements are indicated by 0.
-            output_attentions (`bool`, *optional*):
-                Whether or not to return the attentions tensors of all attention layers. See `attentions` under
-                returned tensors for more detail.
-            use_cache (`bool`, *optional*):
-                If set to `True`, `past_key_values` key value states are returned and can be used to speed up decoding
-                (see `past_key_values`).
-            past_key_value (`Tuple(torch.FloatTensor)`, *optional*): cached past key and value projection states
-            cache_position (`torch.LongTensor` of shape `(sequence_length)`, *optional*):
-                Indices depicting the position of the input sequence tokens in the sequence.
-            position_embeddings (`Tuple[torch.FloatTensor, torch.FloatTensor]`, *optional*):
-                Tuple containing the cosine and sine positional embeddings of shape `(batch_size, seq_len, head_dim)`,
-                with `head_dim` being the embedding dimension of each attention head.
-            kwargs (`dict`, *optional*):
-                Arbitrary kwargs to be ignored, used for FSDP and other methods that injects code
-                into the model
-        """
-
-        residual = hidden_states
-
-        hidden_states = self.input_layernorm(hidden_states)
-
-        # Self Attention
-        hidden_states, self_attn_weights, present_key_value = self.self_attn(
-            hidden_states=hidden_states,
-            attention_mask=attention_mask,
-            position_ids=position_ids,
-            past_key_value=past_key_value,
-            output_attentions=output_attentions,
-            use_cache=use_cache,
-            cache_position=cache_position,
-            position_embeddings=position_embeddings,
-        )
-
-        hidden_states = self.post_self_attn_layernorm(hidden_states)
-        hidden_states = residual + hidden_states
-
-        # Fully Connected
-        residual = hidden_states
-        hidden_states = self.post_attention_layernorm(hidden_states)
-        hidden_states = self.mlp(hidden_states)
-        hidden_states = self.post_mlp_layernorm(hidden_states)
-        hidden_states = residual + hidden_states
-
-        outputs = (hidden_states,)
-
-        if output_attentions:
-            outputs += (self_attn_weights,)
-
-        if use_cache:
-            outputs += (present_key_value,)
-
-        return outputs
 
 
 class Glm4vPreTrainedModel(PreTrainedModel):
@@ -454,7 +406,7 @@ class Glm4vVisionModel(Glm4vPreTrainedModel):
         self.rotary_pos_emb = Glm4vVisionRotaryEmbedding(head_dim // 2)
 
         self.blocks = nn.CellList([Glm4vVisionBlock(config) for _ in range(config.depth)])
-        self.merger = Glm4vPatchMerger(
+        self.merger = Glm4vVisionPatchMerger(
             dim=config.out_hidden_size, context_dim=config.intermediate_size, hidden_act=config.hidden_act
         )
 
@@ -468,6 +420,7 @@ class Glm4vVisionModel(Glm4vPreTrainedModel):
         self.post_layernorm = Glm4vRMSNorm(config.hidden_size, eps=config.rms_norm_eps)
 
         self.gradient_checkpointing = False
+        self.post_init()
 
     def rot_pos_emb(self, grid_thw):
         pos_ids = []
@@ -591,7 +544,7 @@ class Glm4vModelOutputWithPast(ModelOutput):
     rope_deltas: Optional[ms.Tensor] = None
 
 
-class Glm4vRotaryEmbedding(nn.Cell):
+class Glm4vTextRotaryEmbedding(nn.Cell):
     def __init__(self, config: Glm4vTextConfig, device=None):
         super().__init__()
         # BC: "rope_type" was originally "type"
@@ -622,43 +575,6 @@ class Glm4vRotaryEmbedding(nn.Cell):
 
         return cos.to(dtype=x.dtype), sin.to(dtype=x.dtype)
 
-
-def repeat_kv(hidden_states: ms.Tensor, n_rep: int) -> ms.Tensor:
-    """
-    This is the equivalent of torch.repeat_interleave(x, dim=1, repeats=n_rep). The hidden states go from (batch,
-    num_key_value_heads, seqlen, head_dim) to (batch, num_attention_heads, seqlen, head_dim)
-    """
-    batch, num_key_value_heads, slen, head_dim = hidden_states.shape
-    if n_rep == 1:
-        return hidden_states
-    hidden_states = hidden_states[:, :, None, :, :].broadcast_to((batch, num_key_value_heads, n_rep, slen, head_dim))
-    return hidden_states.reshape(batch, num_key_value_heads * n_rep, slen, head_dim)
-
-
-def eager_attention_forward(
-    module: nn.Cell,
-    query: ms.Tensor,
-    key: ms.Tensor,
-    value: ms.Tensor,
-    attention_mask: Optional[ms.Tensor],
-    scaling: float,
-    dropout: float = 0.0,
-    **kwargs,
-):
-    key_states = repeat_kv(key, module.num_key_value_groups)
-    value_states = repeat_kv(value, module.num_key_value_groups)
-
-    attn_weights = mint.matmul(query, key_states.swapaxes(2, 3)) * scaling
-    if attention_mask is not None:
-        causal_mask = attention_mask[:, :, :, : key_states.shape[-2]]
-        attn_weights = attn_weights + causal_mask
-
-    attn_weights = mint.softmax(attn_weights, dim=-1, dtype=ms.float32).to(query.dtype)
-    attn_weights = ops.dropout(attn_weights, p=dropout, training=module.training)
-    attn_output = mint.matmul(attn_weights, value_states)
-    attn_output = attn_output.swapaxes(1, 2).contiguous()
-
-    return attn_output, attn_weights
 
 
 def rotate_half_llm(x):
@@ -725,7 +641,7 @@ def apply_multimodal_rotary_pos_emb(q, k, cos, sin, mrope_section, unsqueeze_dim
     return q_embed, k_embed
 
 
-class Glm4vAttention(nn.Cell):
+class Glm4vTextAttention(nn.Cell):
     """
     Multi-headed attention from 'Attention Is All You Need' paper.
     and "Generating Long Sequences with Sparse Transformers".
@@ -761,7 +677,6 @@ class Glm4vAttention(nn.Cell):
         self.k_proj = nn.Dense(self.hidden_size, self.num_key_value_heads * self.head_dim, has_bias=True)
         self.v_proj = nn.Dense(self.hidden_size, self.num_key_value_heads * self.head_dim, has_bias=True)
         self.o_proj = nn.Dense(self.num_heads * self.head_dim, self.hidden_size, has_bias=False)
-        self.rotary_emb = Glm4vRotaryEmbedding(config=config)
 
     def construct(
         self,
@@ -813,8 +728,90 @@ class Glm4vAttention(nn.Cell):
         attn_output = self.o_proj(attn_output)
         return attn_output, attn_weights, past_key_value
 
+class Glm4vTextDecoderLayer(nn.Cell):
+    def __init__(self, config: Glm4vTextConfig, layer_idx: int):
+        super().__init__()
+        self.hidden_size = config.hidden_size
+        self.self_attn = Glm4vTextAttention(config, layer_idx)
+        self.mlp = Glm4vTextMLP(config)
+        self.input_layernorm = Glm4vRMSNorm(config.hidden_size, eps=config.rms_norm_eps)
+        self.post_attention_layernorm = Glm4vRMSNorm(config.hidden_size, eps=config.rms_norm_eps)
+        self.post_self_attn_layernorm = Glm4vRMSNorm(config.hidden_size, eps=config.rms_norm_eps)
+        self.post_mlp_layernorm = Glm4vRMSNorm(config.hidden_size, eps=config.rms_norm_eps)
+        self.attention_type = "full_attention"
+
+    def construct(
+        self,
+        hidden_states: ms.Tensor,
+        attention_mask: Optional[ms.Tensor] = None,
+        position_ids: Optional[ms.Tensor] = None,
+        past_key_value: Optional[Tuple[ms.Tensor]] = None,
+        output_attentions: Optional[bool] = False,
+        use_cache: Optional[bool] = False,
+        cache_position: Optional[ms.Tensor] = None,
+        position_embeddings: Optional[Tuple[ms.Tensor, ms.Tensor]] = None,  # necessary, but kept here for BC
+        **kwargs,
+    ) -> Tuple[ms.Tensor, Optional[Tuple[ms.Tensor, ms.Tensor]]]:
+        """
+        Args:
+            hidden_states (`torch.FloatTensor`): input to the layer of shape `(batch, seq_len, embed_dim)`
+            attention_mask (`torch.FloatTensor`, *optional*): attention mask of size
+                `(batch, sequence_length)` where padding elements are indicated by 0.
+            output_attentions (`bool`, *optional*):
+                Whether or not to return the attentions tensors of all attention layers. See `attentions` under
+                returned tensors for more detail.
+            use_cache (`bool`, *optional*):
+                If set to `True`, `past_key_values` key value states are returned and can be used to speed up decoding
+                (see `past_key_values`).
+            past_key_value (`Tuple(torch.FloatTensor)`, *optional*): cached past key and value projection states
+            cache_position (`torch.LongTensor` of shape `(sequence_length)`, *optional*):
+                Indices depicting the position of the input sequence tokens in the sequence.
+            position_embeddings (`Tuple[torch.FloatTensor, torch.FloatTensor]`, *optional*):
+                Tuple containing the cosine and sine positional embeddings of shape `(batch_size, seq_len, head_dim)`,
+                with `head_dim` being the embedding dimension of each attention head.
+            kwargs (`dict`, *optional*):
+                Arbitrary kwargs to be ignored, used for FSDP and other methods that injects code
+                into the model
+        """
+
+        residual = hidden_states
+
+        hidden_states = self.input_layernorm(hidden_states)
+
+        # Self Attention
+        hidden_states, self_attn_weights, present_key_value = self.self_attn(
+            hidden_states=hidden_states,
+            attention_mask=attention_mask,
+            position_ids=position_ids,
+            past_key_value=past_key_value,
+            output_attentions=output_attentions,
+            use_cache=use_cache,
+            cache_position=cache_position,
+            position_embeddings=position_embeddings,
+        )
+
+        hidden_states = self.post_self_attn_layernorm(hidden_states)
+        hidden_states = residual + hidden_states
+
+        # Fully Connected
+        residual = hidden_states
+        hidden_states = self.post_attention_layernorm(hidden_states)
+        hidden_states = self.mlp(hidden_states)
+        hidden_states = self.post_mlp_layernorm(hidden_states)
+        hidden_states = residual + hidden_states
+
+        outputs = (hidden_states,)
+
+        if output_attentions:
+            outputs += (self_attn_weights,)
+
+        if use_cache:
+            outputs += (present_key_value,)
+
+        return outputs
 
 class Glm4vTextModel(Glm4vPreTrainedModel):
+    config_class = Glm4vConfig
     def __init__(self, config: Glm4vTextConfig):
         super().__init__(config)
         self.padding_idx = config.pad_token_id
@@ -826,7 +823,7 @@ class Glm4vTextModel(Glm4vPreTrainedModel):
         )
         self._attn_implementation = config._attn_implementation
         self.norm = Glm4vRMSNorm(config.hidden_size, eps=config.rms_norm_eps)
-        self.rotary_emb = Glm4vRotaryEmbedding(config=config)
+        self.rotary_emb = Glm4vTextRotaryEmbedding(config=config)
 
         self.gradient_checkpointing = False
         # Initialize weights and apply final processing
@@ -889,20 +886,13 @@ class Glm4vTextModel(Glm4vPreTrainedModel):
         elif position_ids.dim() == 2:
             position_ids = position_ids[None, ...].broadcast_to((3, position_ids.shape[0], -1))
 
-        # It may already have been prepared by e.g. `generate`
-        if not isinstance(causal_mask_mapping := attention_mask, dict):
-            # Prepare mask arguments
-            mask_kwargs = {
-                "config": self.config,
-                "input_embeds": inputs_embeds,
-                "attention_mask": attention_mask,
-                "cache_position": cache_position,
-                "past_key_values": past_key_values,
-            }
-            # Create the masks
-            causal_mask_mapping = {
-                "full_attention": create_causal_mask(**mask_kwargs),
-            }
+        causal_mask = create_causal_mask(
+            config=self.config,
+            input_embeds=inputs_embeds,
+            attention_mask=attention_mask,
+            cache_position=cache_position,
+            past_key_values=past_key_values,
+        )
 
         hidden_states = inputs_embeds
 
@@ -918,30 +908,18 @@ class Glm4vTextModel(Glm4vPreTrainedModel):
             if output_hidden_states:
                 all_hidden_states += (hidden_states,)
 
-            if self.gradient_checkpointing and self.training:
-                layer_outputs = self._gradient_checkpointing_func(
-                    decoder_layer.__call__,
-                    hidden_states,
-                    causal_mask_mapping[decoder_layer.attention_type],
-                    position_ids,
-                    past_key_values,
-                    output_attentions,
-                    use_cache,
-                    cache_position,
-                    position_embeddings,
-                )
-            else:
-                layer_outputs = decoder_layer(
-                    hidden_states,
-                    attention_mask=causal_mask_mapping[decoder_layer.attention_type],
-                    position_ids=position_ids,
-                    past_key_value=past_key_values,
-                    output_attentions=output_attentions,
-                    use_cache=use_cache,
-                    cache_position=cache_position,
-                    position_embeddings=position_embeddings,
-                    **kwargs,
-                )
+
+            layer_outputs = decoder_layer(
+                hidden_states,
+                attention_mask=causal_mask,
+                position_ids=position_ids,
+                past_key_value=past_key_values,
+                output_attentions=output_attentions,
+                use_cache=use_cache,
+                cache_position=cache_position,
+                position_embeddings=position_embeddings,
+                **kwargs,
+            )
 
             hidden_states = layer_outputs[0]
 
@@ -989,6 +967,12 @@ class Glm4vModel(Glm4vPreTrainedModel):
 
     def set_input_embeddings(self, value):
         self.language_model.set_input_embeddings(value)
+
+    def set_decoder(self, decoder):
+        self.language_model = decoder
+
+    def get_decoder(self):
+        return self.language_model
 
     def get_rope_index(
         self,
@@ -1051,8 +1035,8 @@ class Glm4vModel(Glm4vPreTrainedModel):
 
         spatial_merge_size = self.config.vision_config.spatial_merge_size
         image_token_id = self.config.image_token_id
-        vision_start_token_id = self.config.vision_start_token_id
-        vision_end_token_id = self.config.vision_end_token_id
+        video_start_token_id = self.config.video_start_token_id
+        video_end_token_id = self.config.video_end_token_id
 
         mrope_position_deltas = []
         if input_ids is not None and (image_grid_thw is not None or video_grid_thw is not None):
@@ -1071,11 +1055,11 @@ class Glm4vModel(Glm4vPreTrainedModel):
                 input_token_type = []
                 video_check_flg = False
                 for token in input_tokens:
-                    # Fixme should not delete it
-                    # if token == vision_start_token_id:
-                    #     video_check_flg = True
-                    # elif token == vision_end_token_id:
-                    #     video_check_flg = False
+
+                    if token == video_start_token_id:
+                        video_check_flg = True
+                    elif token == video_end_token_id:
+                        video_check_flg = False
 
                     if token == image_token_id and not video_check_flg:
                         input_token_type.append("image")
@@ -1246,6 +1230,14 @@ class Glm4vModel(Glm4vPreTrainedModel):
             output_hidden_states if output_hidden_states is not None else self.config.output_hidden_states
         )
         return_dict = return_dict if return_dict is not None else self.config.use_return_dict
+
+        if (input_ids is None) ^ (inputs_embeds is not None):
+            raise ValueError("You must specify exactly one of input_ids or inputs_embeds")
+
+        if pixel_values is not None and inputs_embeds is not None:
+            raise ValueError(
+                "You cannot specify both pixel_values and inputs_embeds at the same time, and must specify either one"
+            )
 
         if inputs_embeds is None:
             inputs_embeds = self.get_input_embeddings()(input_ids)
@@ -1424,10 +1416,10 @@ class Glm4vForConditionalGeneration(Glm4vPreTrainedModel, GenerationMixin):
         self.lm_head = new_embeddings
 
     def set_decoder(self, decoder):
-        self.model = decoder
+        self.model.set_decoder(decoder)
 
     def get_decoder(self):
-        return self.model
+        return self.model.get_decoder()
 
     def get_video_features(
         self, pixel_values_videos: ms.Tensor, video_grid_thw: Optional[ms.Tensor] = None
@@ -1543,7 +1535,7 @@ class Glm4vForConditionalGeneration(Glm4vPreTrainedModel, GenerationMixin):
 
         loss = None
         if labels is not None:
-            loss = self.loss_function(logits=logits, labels=labels, vocab_size=self.config.vocab_size)
+            loss = self.loss_function(logits=logits, labels=labels, vocab_size=self.config.text_config.vocab_size)
 
         if not return_dict:
             output = (logits,) + outputs[1:]
@@ -1615,18 +1607,23 @@ class Glm4vForConditionalGeneration(Glm4vPreTrainedModel, GenerationMixin):
             image_nums (`torch.LongTensor` of shape `(batch_size, num_images_sample)`)
             video_nums (`torch.LongTensor` of shape `(batch_size, num_videos_sample)`)
         """
-        image_token_id = self.config.image_token_id
-        video_token_id = self.config.video_token_id
-        vision_start_token_id = self.config.vision_start_token_id
+        is_image = input_ids == self.config.image_start_token_id
+        is_video_start = input_ids == self.config.video_start_token_id
+        is_video_end = input_ids == self.config.video_end_token_id
 
-        vision_start_mask = input_ids == vision_start_token_id
-        vision_first_mask = mint.roll(vision_start_mask, shifts=1, dims=1)
-        image_mask = input_ids == image_token_id
-        video_mask = input_ids == video_token_id
-        image_nums = mint.sum(vision_first_mask & image_mask, dim=1)
-        video_nums = mint.sum(vision_first_mask & video_mask, dim=1)
+        # Cumulative sum to track if we're inside a video span
+        # We'll assume well-formed video tags (i.e. matching starts and ends)
+        video_level = mint.cumsum(is_video_start.int() - is_video_end.int(), dim=1)
+        inside_video = video_level > 0  # shape (batch_size, seq_length)
 
-        return image_nums, video_nums
+        # Mask out image tokens that are inside video spans
+        standalone_images = is_image & (~inside_video)
+
+        # Count per batch
+        image_counts = standalone_images.sum(dim=1)
+        video_counts = is_video_start.sum(dim=1)
+
+        return image_counts, video_counts
 
     def _expand_inputs_for_generation(
         self,

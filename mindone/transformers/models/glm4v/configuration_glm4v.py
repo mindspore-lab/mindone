@@ -31,17 +31,15 @@ class Glm4vVisionConfig(PretrainedConfig):
     GLM-4.1V-9B-Thinking [THUDM/GLM-4.1V-9B-Thinking](https://huggingface.co/THUDM/GLM-4.1V-9B-Thinking).
 
     Args:
-        hidden_size (`int`, *optional*, defaults to 1024):
+        hidden_size (`int`, *optional*, defaults to 1536):
             Dimensionality of the encoder layers and the pooler layer.
-        num_hidden_layers (`int`, *optional*, defaults to 24):
-            Number of hidden layers in the Transformer encoder.
-        num_attention_heads (`int`, *optional*, defaults to 16):
-            Number of attention heads for each attention layer in the Transformer encoder.
+        depth (`int`, *optional*, defaults to 24):
+            Number of layers (depth) in the model.
         attention_bias (`bool`, *optional*, defaults to `False`):
             Whether to add a bias to the queries, keys and values.
-        intermediate_size (`int`, *optional*, defaults to 4096):
+        intermediate_size (`int`, *optional*, defaults to 13696):
             Dimensionality of the "intermediate" (i.e., feed-forward) layer in the Transformer encoder.
-        hidden_act (`str` or `function`, *optional*, defaults to `"gelu"`):
+        hidden_act (`str` or `function`, *optional*, defaults to `"selu"`):
             The non-linear activation function (function or string) in the encoder and pooler. If string, `"gelu"`,
             `"relu"`, `"selu"` and `"gelu_new"` are supported.
         hidden_dropout_prob (`float`, *optional*, defaults to 0.0):
@@ -52,15 +50,20 @@ class Glm4vVisionConfig(PretrainedConfig):
             Dropout probability for the projection layer.
         initializer_range (`float`, *optional*, defaults to 0.02):
             The standard deviation of the truncated_normal_initializer for initializing all weight matrices.
-        layer_norm_eps (`float`, *optional*, defaults to 1e-06):
-            The epsilon used by the layer normalization layers.
-        image_size (`int` or `list[int]`, *optional*, defaults to `[448, 448]`):
+        image_size (`int` or `list[int]`, *optional*, defaults to `[336, 336]`):
             The size (resolution) of each image.
-        patch_size (`int` or `list[int]`, *optional*, defaults to `[14, 14]`):
+        patch_size (`int`, *optional*, defaults to `14`):
             The size (resolution) of each patch.
         num_channels (`int`, *optional*, defaults to 3):
             The number of input channels.
-
+        out_hidden_size (`int`, *optional*, defaults to 4096):
+            The output hidden size of the vision model.
+        rms_norm_eps (`float`, *optional*, defaults to 1e-05):
+            The epsilon used by the rms normalization layers.
+        spatial_merge_size (`int`, *optional*, defaults to 2):
+            The size used for merging spatial dimensions.
+        temporal_patch_size (`int`, *optional*, defaults to 2):
+            The size used for patches along the temporal dimension.
     Example:
 
     ```python
@@ -92,7 +95,7 @@ class Glm4vVisionConfig(PretrainedConfig):
         patch_size=14,
         rms_norm_eps=1e-05,
         spatial_merge_size=2,
-        temporal_patch_size=2,
+        temporal_patch_size=1,
         out_hidden_size=4096,
         intermediate_size=13696,
         initializer_range=0.02,
@@ -128,18 +131,18 @@ class Glm4vTextConfig(PretrainedConfig):
     documentation from [`PretrainedConfig`] for more information.
 
     Args:
-        vocab_size (`int`, *optional*, defaults to 152064):
+        vocab_size (`int`, *optional*, defaults to 151552):
             Vocabulary size of the Glm4v model. Defines the number of different tokens that can be represented by the
             `inputs_ids` passed when calling [`Glm4vModel`]
-        hidden_size (`int`, *optional*, defaults to 8192):
+        hidden_size (`int`, *optional*, defaults to 4096):
             Dimension of the hidden representations.
-        intermediate_size (`int`, *optional*, defaults to 29568):
+        intermediate_size (`int`, *optional*, defaults to 13696):
             Dimension of the MLP representations.
-        num_hidden_layers (`int`, *optional*, defaults to 80):
+        num_hidden_layers (`int`, *optional*, defaults to 40):
             Number of hidden layers in the Transformer encoder.
-        num_attention_heads (`int`, *optional*, defaults to 64):
+        num_attention_heads (`int`, *optional*, defaults to 32):
             Number of attention heads for each attention layer in the Transformer encoder.
-        num_key_value_heads (`int`, *optional*, defaults to 8):
+        num_key_value_heads (`int`, *optional*, defaults to 2):
             This is the number of key_value heads that should be used to implement Grouped Query Attention. If
             `num_key_value_heads=num_attention_heads`, the model will use Multi Head Attention (MHA), if
             `num_key_value_heads=1` the model will use Multi Query Attention (MQA) otherwise GQA is used. When
@@ -159,7 +162,7 @@ class Glm4vTextConfig(PretrainedConfig):
             relevant if `config.is_decoder=True`.
         tie_word_embeddings (`bool`, *optional*, defaults to `False`):
             Whether the model's input and output word embeddings should be tied.
-        rope_theta (`float`, *optional*, defaults to 1000000.0):
+        rope_theta (`float`, *optional*, defaults to 10000.0):
             The base period of the RoPE embeddings.
         attention_dropout (`float`, *optional*, defaults to 0.0):
             The dropout ratio for the attention probabilities.
@@ -221,19 +224,19 @@ class Glm4vTextConfig(PretrainedConfig):
 
     def __init__(
         self,
-        vocab_size=152064,
-        hidden_size=8192,
-        intermediate_size=29568,
-        num_hidden_layers=32,
-        num_attention_heads=64,
-        num_key_value_heads=8,
+        vocab_size=151552,
+        hidden_size=4096,
+        intermediate_size=13696,
+        num_hidden_layers=40,
+        num_attention_heads=32,
+        num_key_value_heads=2,
         hidden_act="silu",
         max_position_embeddings=32768,
         initializer_range=0.02,
         rms_norm_eps=1e-05,
         use_cache=True,
         tie_word_embeddings=False,
-        rope_theta=1000000.0,
+        rope_theta=10000.0,
         attention_dropout=0.0,
         rope_scaling=None,
         image_token_id=None,
@@ -258,16 +261,11 @@ class Glm4vTextConfig(PretrainedConfig):
         self.use_cache = use_cache
         self.rope_theta = rope_theta
         self.attention_dropout = attention_dropout
-        self.rope_scaling = {"type": "mrope", "mrope_section": [16, 24, 24]}
+        self.rope_scaling = rope_scaling
 
         # Validate the correctness of rotary position embeddings parameters
         # BC: if there is a 'type' field, move it to 'rope_type'.
-        # and change type from 'mrope' to 'default' because `mrope` does default RoPE calculations
-        # one can set it to "linear"/"dynamic" etc. to have scaled RoPE
-        # TODO: @raushan update config in the hub
         if self.rope_scaling is not None and "type" in self.rope_scaling:
-            if self.rope_scaling["type"] == "mrope":
-                self.rope_scaling["type"] = "default"
             self.rope_scaling["rope_type"] = self.rope_scaling["type"]
         rope_config_validation(self, ignore_keys={"mrope_section"})
         self.image_token_id = image_token_id
@@ -296,10 +294,14 @@ class Glm4vConfig(PretrainedConfig):
             The image token index to encode the image prompt.
         video_token_id (`int`, *optional*, defaults to 151344):
             The video token index to encode the image prompt.
-        vision_start_token_id (`int`, *optional*, defaults to 151341):
-            The vision start token index to encode the start of vision.
-        vision_end_token_id (`int`, *optional*, defaults to 151342):
-            The vision end token index to encode the end of vision.
+        image_start_token_id (`int`, *optional*, defaults to 151339):
+            The image start token index to encode the start of image.
+        image_end_token_id (`int`, *optional*, defaults to 151340):
+            The image end token index to encode the end of image.
+        video_start_token_id (`int`, *optional*, defaults to 151341):
+            The video start token index to encode the start of video.
+        video_end_token_id (`int`, *optional*, defaults to 151342):
+            The video end token index to encode the end of video.
 
     ```python
     >>> from transformers import Glm4vForConditionalGeneration, Glm4vConfig
@@ -322,10 +324,12 @@ class Glm4vConfig(PretrainedConfig):
         self,
         text_config=None,
         vision_config=None,
-        image_token_id=151655,
-        video_token_id=151656,
-        vision_start_token_id=151652,
-        vision_end_token_id=151653,
+        image_token_id=151343,
+        video_token_id=151344,
+        image_start_token_id=151339,
+        image_end_token_id=151340,
+        video_start_token_id=151341,
+        video_end_token_id=151342,
         **kwargs,
     ):
         super().__init__(**kwargs)
@@ -342,8 +346,10 @@ class Glm4vConfig(PretrainedConfig):
 
         self.image_token_id = image_token_id
         self.video_token_id = video_token_id
-        self.vision_start_token_id = vision_start_token_id
-        self.vision_end_token_id = vision_end_token_id
+        self.video_start_token_id = video_start_token_id
+        self.video_end_token_id = video_end_token_id
+        self.image_start_token_id = image_start_token_id
+        self.image_end_token_id = image_end_token_id
 
 
 __all__ = ["Glm4vConfig", "Glm4vTextConfig"]
