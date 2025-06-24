@@ -212,8 +212,6 @@ def create_dataloaders(config, rank_id=0, device_num=1):
         batch_size=config.training.batch_size_lm,
         sampler=None,
         num_workers=dataset_config.num_workers,
-        rank_id=rank_id,
-        device_num=device_num,
     )
     train_dataloader_lm = train_dataloader_lm.create_dict_iterator(num_epochs=1, output_numpy=True)
     train_dataloader_lm.dataset_size = len(dataset_lm) // config.training.batch_size_lm
