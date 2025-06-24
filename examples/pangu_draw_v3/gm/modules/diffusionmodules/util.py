@@ -30,6 +30,7 @@ def make_beta_schedule(
 
     return betas
 
+
 # Adapted from https://github.com/CompVis/stable-diffusion/blob/main/ldm/modules/diffusionmodules/util.py
 def timestep_embedding(timesteps, dim, max_period=10000, repeat_only=False, dtype=ms.float32):
     """
@@ -98,6 +99,7 @@ def linear(*args, **kwargs):
     Create a linear module.
     """
     return nn.Dense(*args, **kwargs)
+
 
 # Copied from https://github.com/CompVis/latent-diffusion/blob/main/ldm/modules/diffusionmodules/util.py
 def avg_pool_nd(dims, *args, **kwargs):
