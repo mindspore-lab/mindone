@@ -3,7 +3,7 @@ from typing import Optional, Tuple
 from transformers.utils import logging
 
 import mindspore as ms
-from mindspore import mint, nn, ops
+from mindspore import mint, nn
 
 from mindone.transformers.modeling_flash_attention_utils import _flash_attention_forward
 
