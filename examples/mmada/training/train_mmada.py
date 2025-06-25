@@ -24,7 +24,7 @@ from training.data import Text2ImageDataset
 from training.imagenet_dataset import ImageNetDataset
 from training.prompting_utils import UniversalPrompting
 from transformers import AutoConfig, AutoTokenizer
-from utils.train_step import TrainOneStepWrapper, do_ckpt_combine_online, prepare_train_network
+from utils.train_step import TrainStepMmaDA, do_ckpt_combine_online, prepare_train_network
 
 import mindspore as ms
 import mindspore.mint as mint
@@ -462,17 +462,16 @@ def main():
     else:
         zero_helper = None
 
-    train_step_model = TrainOneStepWrapper(
+    train_step_model = TrainStepMmaDA(
         model,
         optimizer=optimizer,
         loss_scaler=loss_scaler,
-        drop_overflow_update=True,
         gradient_accumulation_steps=config.training.gradient_accumulation_steps,
-        clip_grad=config.training.max_grad_norm is not None,
-        clip_norm=config.training.max_grad_norm,
+        max_grad_norm=config.training.max_grad_norm,
         ema=None,
         config=config,
         zero_helper=zero_helper,
+        gradient_checkpointing=config.model.gradient_checkpointing,
     )
     if profiler is not None:
         profiler.start()

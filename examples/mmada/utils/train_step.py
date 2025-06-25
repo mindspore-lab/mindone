@@ -1,5 +1,6 @@
 """Train step wrapper supporting setting drop overflow update, ema etc"""
 import logging
+from abc import ABCMeta, abstractmethod
 from typing import Literal, Optional
 
 import mindspore as ms
@@ -84,7 +85,7 @@ def prepare_train_network(
     return network, zero_helper
 
 
-class TrainOneStepWrapper:
+class TrainStep(nn.Cell, metaclass=ABCMeta):
     """TrainStep with ema and clip grad.
 
     Args:
@@ -107,29 +108,32 @@ class TrainOneStepWrapper:
         network,
         optimizer,
         loss_scaler=None,
-        ema: Optional[EMA] = None,
-        drop_overflow_update=True,
         gradient_accumulation_steps=1,
-        clip_grad=False,
-        clip_norm=1.0,
+        max_grad_norm=None,
         zero_helper=None,
-        config=None,
+        drop_overflow_update=True,
+        ema: Optional[EMA] = None,
+        **kwargs,
     ):
+        super().__init__()
         self.network = network
         self.optimizer = optimizer
         self.weights = self.optimizer.parameters
         self.loss_scaler = loss_scaler
-        self.config = config
-        assert self.config is not None, "Expect to have configuration but got None!"
 
         self.ema = ema
         self.drop_overflow_update = drop_overflow_update
-        clip_norm = float(clip_norm)
 
-        assert isinstance(clip_grad, bool), f"Invalid type of clip_grad, got {type(clip_grad)}, expected bool"
-        assert clip_norm > 0.0 and isinstance(clip_norm, float), f"clip_norm must be float > 1.0, but got {clip_norm}"
-        self.clip_grad = clip_grad
-        self.clip_norm = clip_norm
+        if max_grad_norm is not None:
+            self.clip_grad = True
+            max_grad_norm = float(max_grad_norm)
+            assert max_grad_norm > 0.0 and isinstance(
+                max_grad_norm, float
+            ), f"clip_norm must be float > 1.0, but got {max_grad_norm}"
+        else:
+            self.clip_grad = False
+
+        self.max_grad_norm = max_grad_norm
 
         assert gradient_accumulation_steps >= 1
         self.gradient_accumulation_steps = gradient_accumulation_steps
@@ -148,10 +152,11 @@ class TrainOneStepWrapper:
         self.counter = ms.Parameter(Tensor(1, ms.int32), "counter_")
         self.map = ops.HyperMap()
 
-        self.value_and_grad = ms.value_and_grad(self.forward_fn, None, weights=self.weights, has_aux=True)
-        if hasattr(self.config.model, "gradient_checkpointing") and self.config.model.gradient_checkpointing:
+        self.value_and_grad = ms.value_and_grad(self.forward, None, weights=self.weights, has_aux=True)
+        gradient_checkpointing = kwargs.get("gradient_checkpointing", False)
+        if gradient_checkpointing:
             self.recompute(self.network)
-            logger.info(f"Gradient Checkpointing during training: {config.model.gradient_checkpointing}")
+            logger.info("Gradient Checkpointing is applied to model.")
 
     def recompute(self, b):
         if not b._has_config_recompute:
@@ -161,7 +166,81 @@ class TrainOneStepWrapper:
         elif ms.get_context("mode") == ms.GRAPH_MODE:
             b.add_flags(output_no_recompute=True)
 
-    def forward_fn(
+    def get_grad_reducer(self):
+        grad_reducer = nn.Identity()
+        # if training is distributed
+        group_size = get_world_size()
+        if group_size != 1:
+            grad_reducer = nn.DistributedGradReducer(self.optimizer.parameters)
+        return grad_reducer
+
+    @abstractmethod
+    def forward(self, *args, **kwargs):
+        # You need to scale the loss when performing the model forward pass to create scaled gradients.
+        # Do **NOT** forget to include 'loss = self.scale_loss(loss)' after loss calculation!
+        ...
+
+    def train_one_step(self, *inputs):
+        return self.construct(*inputs)
+
+    def construct(self, *inputs):
+        # 1. compute gradients (of the up-scaled loss w.r.t. the model weights)
+        outputs, grads = self.value_and_grad(*inputs)
+        loss = outputs[0]
+
+        # 1.1 if zero_helper is not None, compute gradients
+        if self.zero_helper is not None:
+            grads = self.zero_helper.cal_gradients(grads)
+
+        grads_finite = True  # assume valid gradients (no overflow)
+
+        # 2. unscale loss and grads, check overflow status
+        if self.loss_scaler:
+            loss = self.loss_scaler.unscale(loss)
+            grads = self.loss_scaler.unscale(grads)
+
+            grads_finite = all_finite(grads)
+            self.loss_scaler.adjust(grads_finite)
+        # 3. update params if gradients are valid or no dropout
+        if grads_finite or (not self.drop_overflow_update):
+            # 3.1 gradient accumulation -> clip grads and updates when counter % acc_steps=0 -> reset states
+            if self.gradient_accumulation_steps > 1:
+                # accumulate grads to inner grads
+                self.map(ops.partial(ops.assign_add), self.inner_grads, grads)
+                if self.counter % self.gradient_accumulation_steps == 0:
+                    grads = self.grad_reducer(self.inner_grads)
+                    if self.clip_grad:
+                        grads = ops.clip_by_global_norm(grads, self.max_grad_norm)
+                    self.run_optimizer(grads)
+                    # reset inner grads to zeros
+                    self.map(ops.partial(ops.assign), self.inner_grads, self.zeros)
+                    # reset counter to 1
+                    ops.assign(self.counter, Tensor(1, ms.int32))
+
+                ops.assign_add(self.counter, Tensor(1, ms.int32))
+            else:
+                # 3.2 clip grads and updates
+                grads = self.grad_reducer(grads)
+                if self.clip_grad:
+                    grads = ops.clip_by_global_norm(grads, self.max_grad_norm)
+                self.run_optimizer(grads)
+
+            if self.ema is not None:
+                self.ema.ema_update()
+        else:
+            logger.warning("WARNING: Gradient overflow! update skipped.")
+        outputs = (loss,) + outputs[1:]
+        return outputs
+
+
+class TrainStepMmaDA(TrainStep):
+    def __init__(self, *args, **kwargs):
+        self.config = kwargs.pop("config", None)
+        assert self.config is not None, "Must pass configugration via key arguments!"
+
+        super().__init__(*args, **kwargs)
+
+    def forward(
         self,
         input_ids: ms.Tensor,
         labels: ms.Tensor,
@@ -194,61 +273,4 @@ class TrainOneStepWrapper:
         if self.loss_scaler:
             loss = self.loss_scaler.scale(loss)
         loss = loss / self.gradient_accumulation_steps
-        return loss, logits, loss_t2i, loss_lm, loss_mmu
-
-    def get_grad_reducer(self):
-        grad_reducer = nn.Identity()
-        # if training is distributed
-        group_size = get_world_size()
-        if group_size != 1:
-            grad_reducer = nn.DistributedGradReducer(self.optimizer.parameters)
-        return grad_reducer
-
-    def set_train(self, mode: bool = True):
-        # Delegate the setting of training mode behavior to the network.
-        self.network.set_train(mode)
-
-    def train_one_step(self, *inputs):
-        # 1. compute gradients (of the up-scaled loss w.r.t. the model weights)
-        (loss, logits, loss_t2i, loss_lm, loss_mmu), grads = self.value_and_grad(*inputs)
-
-        # 1.1 if zero_helper is not None, compute gradients
-        if self.zero_helper is not None:
-            grads = self.zero_helper.cal_gradients(grads)
-
-        grads_finite = True  # assume valid gradients (no overflow)
-
-        # 2. unscale loss and grads, check overflow status
-        if self.loss_scaler:
-            loss = self.loss_scaler.unscale(loss)
-            grads = self.loss_scaler.unscale(grads)
-
-            grads_finite = all_finite(grads)
-            self.loss_scaler.adjust(grads_finite)
-        # 3. update params if gradients are valid or no dropout
-        if grads_finite or (not self.drop_overflow_update):
-            # 3.1 gradient accumulation -> clip grads and updates when counter % acc_steps=0 -> reset states
-            if self.gradient_accumulation_steps > 1:
-                # accumulate grads to inner grads
-                self.map(ops.partial(ops.assign_add), self.inner_grads, grads)
-                if self.counter % self.gradient_accumulation_steps == 0:
-                    grads = self.grad_reducer(self.inner_grads)
-                    if self.clip_grad:
-                        grads = ops.clip_by_global_norm(grads, self.clip_norm)
-                    self.run_optimizer(grads)
-                    # reset inner grads to zeros
-                    self.map(ops.partial(ops.assign), self.inner_grads, self.zeros)
-                    # reset counter to 1
-                    ops.assign(self.counter, Tensor(1, ms.int32))
-
-                ops.assign_add(self.counter, Tensor(1, ms.int32))
-            else:
-                # 3.2 clip grads and updates
-                grads = self.grad_reducer(grads)
-                if self.clip_grad:
-                    grads = ops.clip_by_global_norm(grads, self.clip_norm)
-                self.run_optimizer(grads)
-        else:
-            logger.warning("WARNING: Gradient overflow! update skipped.")
-
         return loss, logits, loss_t2i, loss_lm, loss_mmu
