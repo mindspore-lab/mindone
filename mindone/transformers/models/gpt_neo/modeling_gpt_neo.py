@@ -147,7 +147,7 @@ class GPTNeoSelfAttention(mindspore.nn.Cell):
         self.config = config
 
         max_positions = config.max_position_embeddings
-        bias = mindspore.mint.tril(mindspore.mint.ones((max_positions, max_positions), dtype=bool)).view(
+        bias = mindspore.mint.tril(mindspore.mint.ones((max_positions, max_positions), dtype=mindspore.bool_).view(
             1, 1, max_positions, max_positions
         )
 
