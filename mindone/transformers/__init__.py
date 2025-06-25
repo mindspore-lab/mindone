@@ -281,6 +281,16 @@ from .models.roberta import (
     RobertaModel,
     RobertaPreTrainedModel,
 )
+from .models.roberta_prelayernorm import (
+    RobertaPreLayerNormForCausalLM,
+    RobertaPreLayerNormForMaskedLM,
+    RobertaPreLayerNormForMultipleChoice,
+    RobertaPreLayerNormForQuestionAnswering,
+    RobertaPreLayerNormForSequenceClassification,
+    RobertaPreLayerNormForTokenClassification,
+    RobertaPreLayerNormModel,
+    RobertaPreLayerNormPreTrainedModel,
+)
 from .models.siglip import SiglipModel, SiglipPreTrainedModel, SiglipTextModel, SiglipVisionModel
 from .models.speecht5 import (
     SpeechT5ForSpeechToSpeech,
