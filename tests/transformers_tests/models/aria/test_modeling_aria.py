@@ -120,7 +120,6 @@ class AriaModelTester:
                 "4900": 256,
             },
             image_token_index=self.image_token_index,
-            tie_word_embeddings=text_config.tie_word_embeddings,  # Default config.tie_word_embeddings is True which is wrong
         )
         return text_config, config
 
@@ -156,10 +155,8 @@ ARIA_CASES = [
             "attention_mask": input_mask,
             "pixel_values": pixel_values,
             "pixel_mask": pixel_mask,
-            # "output_hidden_states": True,
         },
         {
-            # "hidden_states": 1,
             "logits": 0,
         },
     ],
