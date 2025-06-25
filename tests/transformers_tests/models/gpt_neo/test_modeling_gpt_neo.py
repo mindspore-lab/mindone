@@ -89,7 +89,7 @@ class GPTNeoModelTester:
 
         input_mask = None
         if self.use_input_mask:
-            input_mask = random_attention_mask([self.batch_size, self.seq_length])
+            input_mask = np.tril(np.ones_like(input_ids))
 
         token_type_ids = None
         if self.use_token_type_ids:
