@@ -22,7 +22,6 @@ from transformers.utils import (
     add_code_sample_docstrings,
     add_start_docstrings,
     add_start_docstrings_to_model_forward,
-    is_flash_attn_2_available,
     is_flash_attn_greater_or_equal_2_10,
     logging,
 )
@@ -44,7 +43,8 @@ from ...modeling_outputs import (
     SequenceClassifierOutputWithPast,
     TokenClassifierOutput,
 )
-from ...modeling_utils import PreTrainedModel
+
+from ...modeling_utils import PreTrainedModel, is_flash_attn_2_available
 
 if is_flash_attn_2_available():
     from ...integrations.flash_attention import flash_attention_forward
