@@ -1,6 +1,5 @@
 import mindspore as ms
 
-from .optim import create_optimizer
 from .train_step import TrainOneStepWrapper, do_ckpt_combine_online, prepare_train_network
 
 
