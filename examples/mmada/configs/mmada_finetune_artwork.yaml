@@ -2,11 +2,11 @@ experiment:
     project: "mmada-finetune"
     name: "mmada-finetune-llada-instruct"
     output_dir: "mmada-finetune-llada-instruct"
-    max_train_examples_t2i: 5000
-    max_train_examples_mmu: 5000
+    max_train_examples_t2i: 40000000
+    max_train_examples_mmu: 40000000
     save_every: 1000
-    eval_during_train: False
-    generate_every: 500
+    eval_during_train: True
+    generate_every: 1000
     log_every: 10
     log_grad_norm_every: 100
     resume_from_checkpoint: False
@@ -52,7 +52,7 @@ dataset:
         external_laion12m_caption_path: ""
         external_cc12m_caption_path: ""
         validation_prompts_file: "validation_prompts/jade_prompts.txt"
-        mmu_image_root: "/data_storage/ty/MMaDA/mmu_validation"
+        mmu_image_root: "mmu_validation/"
         shuffle_buffer_size: 1000
         num_workers: 32
         resolution: 256
@@ -72,14 +72,14 @@ optimizer:
         scale_lr: False # scale learning rate by total batch size
         beta1: 0.9
         beta2: 0.999
-        weight_decay: 0.01
+        weight_decay: 0.0001
         epsilon: 1e-8
 
 lr_scheduler:
     scheduler: "cosine"
     params:
         learning_rate: ${optimizer.params.learning_rate}
-        warmup_steps: 5000
+        warmup_steps: 200
         min_lr_scale: 0.1
 
 training:
