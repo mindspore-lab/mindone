@@ -23,25 +23,25 @@ import itertools
 from dataclasses import dataclass
 from typing import Any, Callable, Dict, List, Optional, Tuple, Union
 
+from transformers.utils import LossKwargs, logging
+
 import mindspore as ms
-import mindspore.nn as nn
 import mindspore.mint.nn.functional as F
-from mindspore import mint, ops, Parameter
+import mindspore.nn as nn
+from mindspore import Parameter, mint, ops
 from mindspore.mint.nn import LayerNorm
 
 from ...activations import ACT2FN
 from ...cache_utils import Cache, DynamicCache
 from ...generation import GenerationMixin
 from ...masking_utils import create_causal_mask
-from ...modeling_flash_attention_utils import FlashAttentionKwargs
 from ...modeling_attn_mask_utils import dtype_to_min
+from ...modeling_flash_attention_utils import FlashAttentionKwargs
 from ...modeling_outputs import BaseModelOutputWithPast, ModelOutput
 from ...modeling_rope_utils import ROPE_INIT_FUNCTIONS
 from ...modeling_utils import ALL_ATTENTION_FUNCTIONS, PreTrainedModel
 from ...processing_utils import Unpack
-from transformers.utils import LossKwargs, logging
 from .configuration_glm4v import Glm4vConfig, Glm4vTextConfig, Glm4vVisionConfig
-
 
 logger = logging.get_logger(__name__)
 
@@ -228,6 +228,7 @@ class Glm4vVisionEmbeddings(nn.Cell):
         embeddings = embeddings + adapted_pos_embed
         return embeddings
 
+
 def repeat_kv(hidden_states: ms.Tensor, n_rep: int) -> ms.Tensor:
     """
     This is the equivalent of torch.repeat_interleave(x, dim=1, repeats=n_rep). The hidden states go from (batch,
@@ -264,7 +265,6 @@ def eager_attention_forward(
     attn_output = attn_output.swapaxes(1, 2).contiguous()
 
     return attn_output, attn_weights
-
 
 
 def rotate_half(x):
@@ -505,7 +505,8 @@ class Glm4vVisionModel(Glm4vPreTrainedModel):
         return hidden_states
 
 
-class KwargsForCausalLM(FlashAttentionKwargs, LossKwargs): ...
+class KwargsForCausalLM(FlashAttentionKwargs, LossKwargs):
+    ...
 
 
 @dataclass
@@ -567,14 +568,13 @@ class Glm4vTextRotaryEmbedding(nn.Cell):
         # So we expand the inv_freq to shape (3, ...)
         inv_freq_expanded = self.inv_freq[None, None, :, None].float().broadcast_to((3, position_ids.shape[1], -1, 1))
         position_ids_expanded = position_ids[:, :, None, :].float()  # shape (3, bs, 1, positions)
-        
+
         freqs = (inv_freq_expanded.float() @ position_ids_expanded.float()).swapaxes(2, 3)
         emb = mint.cat((freqs, freqs), dim=-1)
         cos = emb.cos() * self.attention_scaling
         sin = emb.sin() * self.attention_scaling
 
         return cos.to(dtype=x.dtype), sin.to(dtype=x.dtype)
-
 
 
 def rotate_half_llm(x):
@@ -614,12 +614,8 @@ def apply_multimodal_rotary_pos_emb(q, k, cos, sin, mrope_section, unsqueeze_dim
         `tuple(torch.Tensor)` comprising of the query and key tensors rotated using the Rotary Position Embedding.
     """
     mrope_section = mrope_section * 2
-    cos = mint.cat([m[i % 3] for i, m in enumerate(cos.split(mrope_section, dim=-1))], dim=-1).unsqueeze(
-        unsqueeze_dim
-    )
-    sin = mint.cat([m[i % 3] for i, m in enumerate(sin.split(mrope_section, dim=-1))], dim=-1).unsqueeze(
-        unsqueeze_dim
-    )
+    cos = mint.cat([m[i % 3] for i, m in enumerate(cos.split(mrope_section, dim=-1))], dim=-1).unsqueeze(unsqueeze_dim)
+    sin = mint.cat([m[i % 3] for i, m in enumerate(sin.split(mrope_section, dim=-1))], dim=-1).unsqueeze(unsqueeze_dim)
 
     # Interleave them instead of usual shape
     cos = cos[..., : cos.shape[-1] // 2].repeat_interleave(2, dim=-1)
@@ -728,6 +724,7 @@ class Glm4vTextAttention(nn.Cell):
         attn_output = self.o_proj(attn_output)
         return attn_output, attn_weights, past_key_value
 
+
 class Glm4vTextDecoderLayer(nn.Cell):
     def __init__(self, config: Glm4vTextConfig, layer_idx: int):
         super().__init__()
@@ -810,8 +807,10 @@ class Glm4vTextDecoderLayer(nn.Cell):
 
         return outputs
 
+
 class Glm4vTextModel(Glm4vPreTrainedModel):
     config_class = Glm4vConfig
+
     def __init__(self, config: Glm4vTextConfig):
         super().__init__(config)
         self.padding_idx = config.pad_token_id
@@ -876,9 +875,7 @@ class Glm4vTextModel(Glm4vPreTrainedModel):
 
         if cache_position is None:
             past_seen_tokens = past_key_values.get_seq_length() if past_key_values is not None else 0
-            cache_position = mint.arange(
-                past_seen_tokens, past_seen_tokens + inputs_embeds.shape[1]
-            )
+            cache_position = mint.arange(past_seen_tokens, past_seen_tokens + inputs_embeds.shape[1])
 
         # the hard coded `3` is for temporal, height and width.
         if position_ids is None:
@@ -907,7 +904,6 @@ class Glm4vTextModel(Glm4vPreTrainedModel):
         for decoder_layer in self.layers:
             if output_hidden_states:
                 all_hidden_states += (hidden_states,)
-
 
             layer_outputs = decoder_layer(
                 hidden_states,
@@ -1002,9 +998,12 @@ class Glm4vModel(Glm4vPreTrainedModel):
                 Width: 2 patches, dividing each frame horizontally.
                 We also have some important parameters:
                 fps (Frames Per Second): The video's frame rate, set to 1. This means one frame is processed each second.
-                tokens_per_second: This is a crucial parameter. It dictates how many "time-steps" or "temporal tokens" are conceptually packed into a one-second interval of the video. In this case, we have 25 tokens per second. So each second of the video will be represented with 25 separate time points. It essentially defines the temporal granularity.
+                tokens_per_second: This is a crucial parameter. It dictates how many "time-steps" or "temporal tokens" are
+                conceptually packed into a one-second interval of the video. In this case, we have 25 tokens per second.
+                So each second of the video will be represented with 25 separate time points. It essentially defines the temporal granularity.
                 temporal_patch_size: The number of frames that compose one temporal patch. Here, it's 2 frames.
-                interval: The step size for the temporal position IDs, calculated as tokens_per_second * temporal_patch_size / fps. In this case, 25 * 2 / 1 = 50. This means that each temporal patch will be have a difference of 50 in the temporal position IDs.
+                interval: The step size for the temporal position IDs, calculated as tokens_per_second * temporal_patch_size / fps.
+                In this case, 25 * 2 / 1 = 50. This means that each temporal patch will be have a difference of 50 in the temporal position IDs.
                 input_ids: [V V V V V V V V V V V V T T T T T], here V is for vision.
                 vision temporal position_ids: [0, 0, 0, 0, 50, 50, 50, 50, 100, 100, 100, 100]
                 vision height position_ids: [0, 0, 1, 1, 0, 0, 1, 1, 0, 0, 1, 1]
@@ -1044,10 +1043,14 @@ class Glm4vModel(Glm4vPreTrainedModel):
             if attention_mask is None:
                 attention_mask = mint.ones_like(total_input_ids)
             position_ids = mint.ones(
-                (3, input_ids.shape[0], input_ids.shape[1],),
+                (
+                    3,
+                    input_ids.shape[0],
+                    input_ids.shape[1],
+                ),
                 dtype=input_ids.dtype,
             )
-            
+
             for i, input_ids in enumerate(total_input_ids):
                 input_ids = input_ids[attention_mask[i] == 1]
                 input_tokens = input_ids.tolist()
@@ -1055,7 +1058,6 @@ class Glm4vModel(Glm4vPreTrainedModel):
                 input_token_type = []
                 video_check_flg = False
                 for token in input_tokens:
-
                     if token == video_start_token_id:
                         video_check_flg = True
                     elif token == video_end_token_id:
@@ -1094,9 +1096,15 @@ class Glm4vModel(Glm4vPreTrainedModel):
                             w.item() // spatial_merge_size,
                         )
 
-                        t_index = mint.arange(llm_grid_t).view(-1, 1).broadcast_to((-1, llm_grid_h * llm_grid_w)).flatten()
-                        h_index = mint.arange(llm_grid_h).view(1, -1, 1).broadcast_to((llm_grid_t, -1, llm_grid_w)).flatten()
-                        w_index = mint.arange(llm_grid_w).view(1, 1, -1).broadcast_to((llm_grid_t, llm_grid_h, -1)).flatten()
+                        t_index = (
+                            mint.arange(llm_grid_t).view(-1, 1).broadcast_to((-1, llm_grid_h * llm_grid_w)).flatten()
+                        )
+                        h_index = (
+                            mint.arange(llm_grid_h).view(1, -1, 1).broadcast_to((llm_grid_t, -1, llm_grid_w)).flatten()
+                        )
+                        w_index = (
+                            mint.arange(llm_grid_w).view(1, 1, -1).broadcast_to((llm_grid_t, llm_grid_h, -1)).flatten()
+                        )
                         llm_pos_ids_list.append(mint.stack([t_index, h_index, w_index]) + st_idx)
 
                         image_index += 1
@@ -1147,11 +1155,7 @@ class Glm4vModel(Glm4vPreTrainedModel):
                 max_position_ids = position_ids.max(0, keepdim=False)[0].max(-1, keepdim=True)[0]
                 mrope_position_deltas = max_position_ids + 1 - attention_mask.shape[-1]
             else:
-                position_ids = (
-                    mint.arange(input_ids.shape[1])
-                    .view(1, 1, -1)
-                    .broadcast_to((3, input_ids.shape[0], -1))
-                )
+                position_ids = mint.arange(input_ids.shape[1]).view(1, 1, -1).broadcast_to((3, input_ids.shape[0], -1))
                 mrope_position_deltas = mint.zeros(
                     [input_ids.shape[0], 1],
                     dtype=input_ids.dtype,
@@ -1159,9 +1163,7 @@ class Glm4vModel(Glm4vPreTrainedModel):
 
             return position_ids, mrope_position_deltas
 
-    def get_video_features(
-        self, pixel_values_videos: ms.Tensor, video_grid_thw: Optional[ms.Tensor] = None
-    ):
+    def get_video_features(self, pixel_values_videos: ms.Tensor, video_grid_thw: Optional[ms.Tensor] = None):
         """
         Encodes videos into continuous embeddings that can be forwarded to the language model.
 
@@ -1301,9 +1303,8 @@ class Glm4vModel(Glm4vPreTrainedModel):
             #     or (past_key_values is None or past_key_values.get_seq_length() == 0)
             # )
             prefill_compiled_stage = False
-            prefill_noncompiled_stage = (
-                (cache_position is not None and cache_position[0] == 0)
-                or (past_key_values is None or past_key_values.get_seq_length() == 0)
+            prefill_noncompiled_stage = (cache_position is not None and cache_position[0] == 0) or (
+                past_key_values is None or past_key_values.get_seq_length() == 0
             )
             if (prefill_compiled_stage or prefill_noncompiled_stage) or self.rope_deltas is None:
                 position_ids, rope_deltas = self.get_rope_index(
@@ -1316,11 +1317,7 @@ class Glm4vModel(Glm4vPreTrainedModel):
             # then use the prev pre-calculated rope-deltas to get the correct position ids
             else:
                 batch_size, seq_length, _ = inputs_embeds.shape
-                delta = (
-                    (cache_position[0] + self.rope_deltas)
-                    if cache_position is not None
-                    else 0
-                )
+                delta = (cache_position[0] + self.rope_deltas) if cache_position is not None else 0
                 position_ids = mint.arange(seq_length)
                 position_ids = position_ids.view(1, -1).broadcast_to((batch_size, -1))
                 if cache_position is not None:  # otherwise `deltas` is an int `0`
@@ -1421,9 +1418,7 @@ class Glm4vForConditionalGeneration(Glm4vPreTrainedModel, GenerationMixin):
     def get_decoder(self):
         return self.model.get_decoder()
 
-    def get_video_features(
-        self, pixel_values_videos: ms.Tensor, video_grid_thw: Optional[ms.Tensor] = None
-    ):
+    def get_video_features(self, pixel_values_videos: ms.Tensor, video_grid_thw: Optional[ms.Tensor] = None):
         return self.model.get_video_features(pixel_values_videos, video_grid_thw)
 
     def get_image_features(self, pixel_values: ms.Tensor, image_grid_thw: Optional[ms.Tensor] = None):
@@ -1437,7 +1432,6 @@ class Glm4vForConditionalGeneration(Glm4vPreTrainedModel, GenerationMixin):
     @property
     def visual(self):
         return self.model.visual
-
 
     def construct(
         self,

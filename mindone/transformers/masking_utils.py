@@ -12,19 +12,17 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-import itertools
 from typing import Callable, Optional, Union
 
+from transformers.configuration_utils import PretrainedConfig
+
 import mindspore as ms
-from mindspore import mint, ops
 import mindspore.mint.nn.functional as F
+from mindspore import mint
 
 from .cache_utils import Cache
-from transformers.configuration_utils import PretrainedConfig
-from .utils.generic import GeneralInterface
-
 from .modeling_attn_mask_utils import dtype_to_min
-
+from .utils.generic import GeneralInterface
 
 BlockMask = ms.Tensor
 
@@ -185,6 +183,7 @@ def sdpa_mask_older_torch(
     #     causal_mask |= torch.all(~causal_mask, dim=-1, keepdim=True)
     return causal_mask
 
+
 def _ignore_causal_mask_sdpa(
     padding_mask: Optional[ms.Tensor],
     query_length: int,
@@ -222,6 +221,7 @@ def _ignore_causal_mask_sdpa(
         return True
 
     return False
+
 
 # We use the version with newer torch whenever possible, as it is more general and can handle arbitrary mask functions
 # (especially mask_function indexing a tensor, such as the padding mask function)
