@@ -25,6 +25,7 @@ from typing import Any, Callable, List, Optional, Union
 
 from huggingface_hub import create_repo
 from huggingface_hub.utils import validate_hf_hub_args
+from utils.train_step import do_ckpt_combine_online
 
 import mindspore as ms
 from mindspore import nn, ops
@@ -336,6 +337,9 @@ class ModelMixin(nn.Cell, PushToHubMixin):
             logger.error(f"Provided path ({save_directory}) should be a directory, not a file")
             return
 
+        zero_stage = kwargs.get("zero_stage", 0)
+        optimizer_parallel_group = kwargs.get("optimizer_parallel_group", None)
+
         weights_name = SAFETENSORS_WEIGHTS_NAME if safe_serialization else WEIGHTS_NAME
         weights_name = _add_variant(weights_name, variant)
         weights_name_pattern = weights_name.replace(".bin", "{suffix}.bin").replace(
@@ -362,6 +366,8 @@ class ModelMixin(nn.Cell, PushToHubMixin):
 
         # Save the model
         state_dict = {k: v for k, v in model_to_save.parameters_and_names()}
+        if zero_stage == 3:
+            state_dict = do_ckpt_combine_online(state_dict, optimizer_parallel_group=optimizer_parallel_group)
 
         # Save the model
         state_dict_split = split_torch_state_dict_into_shards(
