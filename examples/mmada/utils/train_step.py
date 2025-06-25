@@ -16,6 +16,22 @@ from mindone.trainers.zero import ZeroHelper, prepare_network
 logger = logging.getLogger(__name__)
 
 
+def do_ckpt_combine_online(net_to_save, optimizer_parallel_group=None):
+    new_net_to_save = []
+    all_gather_op = ops.AllGather(optimizer_parallel_group)
+    if optimizer_parallel_group is None:
+        logger.warning("Not set zero group, set it WORLD_COMM_GROUP.")
+        optimizer_parallel_group = GlobalComm.WORLD_COMM_GROUP
+    for item in net_to_save:
+        param = item["data"]
+        if param.parallel_optimizer:
+            new_data = ms.Tensor(all_gather_op(param).asnumpy())
+        else:
+            new_data = ms.Tensor(param.asnumpy())
+        new_net_to_save.append({"name": param.name, "data": new_data})
+    return new_net_to_save
+
+
 def prepare_train_network(
     network: nn.Cell,
     optimizer: nn.Optimizer,

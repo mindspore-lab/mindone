@@ -33,7 +33,7 @@ from mindspore.mint import optim
 from mindspore.mint.distributed import get_rank, get_world_size, init_process_group
 
 from mindone.diffusers.models.model_loading_utils import load_checkpoint_and_dispatch
-from utils import TrainOneStepWrapper, init_from_ckpt, no_grad, prepare_train_network
+from utils import TrainOneStepWrapper, do_ckpt_combine_online, init_from_ckpt, no_grad, prepare_train_network
 
 SYSTEM_PROMPT_LEN = 28
 
@@ -691,8 +691,6 @@ def main():
     # Evaluate and save checkpoint at the end of training
     if rank_id == 0:
         save_checkpoint(model, config, global_step)
-        # Save the final trained checkpoint
-        model.save_pretrained(config.experiment.output_dir, safe_serialization=True)
 
 
 def visualize_predictions(
@@ -908,9 +906,10 @@ def save_checkpoint(model, config, global_step):
 
     save_path = Path(output_dir) / f"checkpoint-{global_step}"
 
-    # retrieve the model on all processes for deepspeed stage 3 to work then save on one process (we are not using stage 3 yet)
-    # XXX: could also make this conditional on deepspeed
     state_dict = model.state_dict()
+    if config.experiment.get("zero_stage", 0) == 3:
+        # combine ckpt shards online before saving
+        state_dict = do_ckpt_combine_online(state_dict)
     model.save_pretrained(save_path / "unwrapped_model", state_dict=state_dict, safe_serialization=True)
     json.dump({"global_step": global_step}, (save_path / "metadata.json").open("w+"))
     logger.info(f"Saved state to {save_path}")
