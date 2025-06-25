@@ -147,9 +147,7 @@ class GPTNeoSelfAttention(mindspore.nn.Cell):
         self.config = config
 
         max_positions = config.max_position_embeddings
-        bias = mindspore.mint.tril(mindspore.mint.ones((max_positions, max_positions), dtype=mindspore.bool_).view(
-            1, 1, max_positions, max_positions
-        )
+        bias = mindspore.mint.tril(mindspore.mint.ones((max_positions, max_positions), dtype=mindspore.bool_)).view(1, 1, max_positions, max_positions)
 
         # local causal self attention is a sliding window where each token can only attend to the previous
         # window_size tokens. This is implemented by updating the causal mask such that for each token
