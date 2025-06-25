@@ -190,7 +190,7 @@ class MMadaModelLM(LLaDAModelLM):
         answer_lengths_lm=None,
     ):
         attention_bias = mint.ones((input_ids.shape[0], 1, input_ids.shape[1], input_ids.shape[1]))
-        attention_bias_t2i = (t2i_masks[:, :, None] * t2i_masks[:, None, :]).bool().unsqueeze(1)
+        attention_bias_t2i = (t2i_masks[:, :, None] & t2i_masks[:, None, :]).bool().unsqueeze(1)
         attention_bias[:batch_size_t2i] = attention_bias_t2i
         logits = self.construct(input_ids, attention_bias=attention_bias, return_dict=False)[0]
         self.output_size = logits.shape[-1]
@@ -208,37 +208,52 @@ class MMadaModelLM(LLaDAModelLM):
         masked_indices_lm = masked_indices[batch_size_t2i : batch_size_t2i + batch_size_lm]
         masked_indices_mmu = masked_indices[-batch_size_mmu:]
 
-        loss_lm = (
-            F.cross_entropy(
-                logits[batch_size_t2i : batch_size_t2i + batch_size_lm][masked_indices_lm]
-                .contiguous()
-                .view(-1, self.output_size),
-                labels[batch_size_t2i : batch_size_t2i + batch_size_lm][masked_indices_lm].contiguous().view(-1),
-                ignore_index=-100,
-                reduction="none",
-            )
-            / p_mask_lm[masked_indices_lm]
+        # check if the shape is valid
+        logits_lm_temp = (
+            logits[batch_size_t2i : batch_size_t2i + batch_size_lm][masked_indices_lm]
+            .contiguous()
+            .view(-1, self.output_size)
         )
-        if answer_lengths_lm is not None:
-            loss_lm = mint.sum(loss_lm / answer_lengths_lm[masked_indices_lm]) / (
-                logits[batch_size_t2i : batch_size_t2i + batch_size_lm].shape[0]
-            )
+        if logits_lm_temp.shape[0] == 0:
+            # no masked indices found, skip loss_lm
+            loss_lm = ms.Tensor(0.0, dtype=ms.float32)
         else:
-            loss_lm = loss_lm.sum() / (
-                logits[batch_size_t2i : batch_size_t2i + batch_size_lm].shape[0]
-                * logits[batch_size_t2i : batch_size_t2i + batch_size_lm].shape[1]
+            loss_lm = (
+                F.cross_entropy(
+                    logits[batch_size_t2i : batch_size_t2i + batch_size_lm][masked_indices_lm]
+                    .contiguous()
+                    .view(-1, self.output_size),
+                    labels[batch_size_t2i : batch_size_t2i + batch_size_lm][masked_indices_lm].contiguous().view(-1),
+                    ignore_index=-100,
+                    reduction="none",
+                )
+                / p_mask_lm[masked_indices_lm]
             )
+            if answer_lengths_lm is not None:
+                loss_lm = mint.sum(loss_lm / answer_lengths_lm[masked_indices_lm]) / (
+                    logits[batch_size_t2i : batch_size_t2i + batch_size_lm].shape[0]
+                )
+            else:
+                loss_lm = loss_lm.sum() / (
+                    logits[batch_size_t2i : batch_size_t2i + batch_size_lm].shape[0]
+                    * logits[batch_size_t2i : batch_size_t2i + batch_size_lm].shape[1]
+                )
 
-        loss_mmu = (
-            F.cross_entropy(
-                logits[-batch_size_mmu:][masked_indices_mmu].contiguous().view(-1, self.output_size),
-                labels[-batch_size_mmu:][masked_indices_mmu].contiguous().view(-1),
-                ignore_index=-100,
-                reduction="none",
+        logtis_mmu_temp = logits[-batch_size_mmu:][masked_indices_mmu].contiguous().view(-1, self.output_size)
+        if logtis_mmu_temp.shape[0] == 0:
+            # no masked indices found, skip loss_mu
+            loss_mmu = ms.Tensor(0.0, dtype=ms.float32)
+        else:
+            loss_mmu = (
+                F.cross_entropy(
+                    logits[-batch_size_mmu:][masked_indices_mmu].contiguous().view(-1, self.output_size),
+                    labels[-batch_size_mmu:][masked_indices_mmu].contiguous().view(-1),
+                    ignore_index=-100,
+                    reduction="none",
+                )
+                / p_mask_mmu[masked_indices_mmu]
             )
-            / p_mask_mmu[masked_indices_mmu]
-        )
-        loss_mmu = mint.sum(loss_mmu / answer_lengths[masked_indices_mmu]) / (logits[-batch_size_mmu:].shape[0])
+            loss_mmu = mint.sum(loss_mmu / answer_lengths[masked_indices_mmu]) / (logits[-batch_size_mmu:].shape[0])
 
         return logits, loss_t2i, loss_lm, loss_mmu
 
