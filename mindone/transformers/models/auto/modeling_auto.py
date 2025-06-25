@@ -82,6 +82,7 @@ MODEL_MAPPING_NAMES = OrderedDict(
         ("whisper", "WhisperModel"),
         ("xlm-roberta", "XLMRobertaModel"),
         ("xlm-roberta-xl", "XLMRobertaXLModel"),
+        ("gpt_neox_japanese", "GPTNeoXJapaneseModel"),
     ]
 )
 
@@ -103,6 +104,7 @@ MODEL_FOR_PRETRAINING_MAPPING_NAMES = OrderedDict(
         ("wav2vec2", "Wav2Vec2ForPreTraining"),
         ("xlm-roberta", "XLMRobertaForMaskedLM"),
         ("xlm-roberta-xl", "XLMRobertaXLForMaskedLM"),
+        ("gpt_neox_japanese", "GPTNeoXJapanesePreTrainedModel"),
     ]
 )
 
@@ -157,6 +159,7 @@ MODEL_FOR_CAUSAL_LM_MAPPING_NAMES = OrderedDict(
         ("whisper", "WhisperForCausalLM"),
         ("xlm-roberta", "XLMRobertaForCausalLM"),
         ("xlm-roberta-xl", "XLMRobertaXLForCausalLM"),
+        ("gpt_neox_japanese", "GPTNeoXJapaneseForCausalLM"),
     ]
 )
 

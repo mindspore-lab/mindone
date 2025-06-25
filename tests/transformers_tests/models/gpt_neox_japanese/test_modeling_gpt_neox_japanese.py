@@ -6,8 +6,6 @@ import pytest
 import torch
 from transformers import GPTNeoXJapaneseConfig
 
-import mindspore as ms
-
 from tests.modeling_test_utils import (
     MS_DTYPE_MAPPING,
     PT_DTYPE_MAPPING,
@@ -25,31 +23,31 @@ class GPTNeoXJapaneseModelTester:
     config_class = GPTNeoXJapaneseConfig
 
     def __init__(
-            self,
-            batch_size=13,
-            seq_length=7,
-            is_training=True,
-            use_input_mask=True,
-            use_token_type_ids=True,
-            use_labels=True,
-            vocab_size=99,
-            hidden_size=32,
-            num_hidden_layers=2,
-            num_attention_heads=4,
-            intermediate_multiple_size=4,
-            hidden_act="gelu",
-            hidden_dropout=0.0,
-            attention_dropout=0.1,
-            weight_tying=True,
-            max_position_embeddings=512,
-            type_vocab_size=16,
-            type_sequence_label_size=2,
-            initializer_range=0.02,
-            num_labels=3,
-            num_choices=4,
-            bos_token_id=1,
-            eos_token_id=0,
-            scope=None,
+        self,
+        batch_size=13,
+        seq_length=7,
+        is_training=True,
+        use_input_mask=True,
+        use_token_type_ids=True,
+        use_labels=True,
+        vocab_size=99,
+        hidden_size=32,
+        num_hidden_layers=2,
+        num_attention_heads=4,
+        intermediate_multiple_size=4,
+        hidden_act="gelu",
+        hidden_dropout=0.0,
+        attention_dropout=0.1,
+        weight_tying=True,
+        max_position_embeddings=512,
+        type_vocab_size=16,
+        type_sequence_label_size=2,
+        initializer_range=0.02,
+        num_labels=3,
+        num_choices=4,
+        bos_token_id=1,
+        eos_token_id=0,
+        scope=None,
     ):
         self.batch_size = batch_size
         self.seq_length = seq_length
@@ -112,13 +110,13 @@ class GPTNeoXJapaneseModelTester:
 
 
 model_tester = GPTNeoXJapaneseModelTester()
-config, input_ids, input_mask = model_tester.prepare_config_and_inputs()
+config, input_ids, input_mask, token_labels = model_tester.prepare_config_and_inputs()
 
 LLAMA_CASES = [
     [
         "GPTNeoXJapaneseModel",
         "transformers.GPTNeoXJapaneseModel",
-        "mindone.transformers.models.gpt_neox_japanese.GPTNeoXJapaneseModel",
+        "mindone.transformers.GPTNeoXJapaneseModel",
         (config,),
         {},
         (input_ids,),
@@ -144,15 +142,7 @@ LLAMA_CASES = [
     ],
 )
 def test_named_modules(
-        name,
-        pt_module,
-        ms_module,
-        init_args,
-        init_kwargs,
-        inputs_args,
-        inputs_kwargs,
-        outputs_map,
-        dtype
+    name, pt_module, ms_module, init_args, init_kwargs, inputs_args, inputs_kwargs, outputs_map, dtype
 ):
     (
         pt_model,

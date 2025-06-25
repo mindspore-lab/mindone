@@ -151,6 +151,13 @@ from .models.gpt2 import (
     GPT2Model,
     GPT2PreTrainedModel,
 )
+from .models.gpt_neox_japanese import (
+    GPTNeoXJapaneseForCausalLM,
+    GPTNeoXJapaneseLayer,
+    GPTNeoXJapaneseModel,
+    GPTNeoXJapanesePreTrainedModel,
+    GPTNeoXJapaneseTokenizer,
+)
 from .models.granite import GraniteForCausalLM, GraniteModel, GranitePreTrainedModel
 from .models.granitemoe import GraniteMoeForCausalLM, GraniteMoeModel, GraniteMoePreTrainedModel
 from .models.granitemoeshared import GraniteMoeSharedForCausalLM, GraniteMoeSharedModel, GraniteMoeSharedPreTrainedModel

@@ -21,7 +21,7 @@ import mindspore as ms
 from mindspore import Tensor, mint, nn
 
 from ...activations import ACT2FN
-from ...cache_utils import Cache, DynamicCache
+from ...cache_utils import Cache, DynamicCache, StaticCache
 from ...generation import GenerationMixin
 from ...modeling_attn_mask_utils import AttentionMaskConverter, dtype_to_min
 from ...modeling_outputs import BaseModelOutputWithPast, CausalLMOutputWithPast
@@ -29,7 +29,6 @@ from ...modeling_rope_utils import ROPE_INIT_FUNCTIONS
 from ...modeling_utils import PreTrainedModel
 from ...utils import logging
 from .configuration_gpt_neox_japanese import GPTNeoXJapaneseConfig
-
 
 logger = logging.get_logger(__name__)
 
@@ -85,7 +84,7 @@ class GPTNeoXJapaneseAttention(nn.Cell):
         self.dense = mint.nn.Linear(config.hidden_size, config.hidden_size, bias=False)
         # Activate bias if the last layer
         self.use_bias = use_bias
-        self.dense_bias = nn.Parameter(ms.zeros(config.hidden_size)) if use_bias else None
+        self.dense_bias = nn.Parameter(mint.zeros(config.hidden_size)) if use_bias else None
 
     def construct(
         self,
@@ -111,14 +110,14 @@ class GPTNeoXJapaneseAttention(nn.Cell):
 
         # [batch, seq_len, num_attention_heads, 3 * head_size] --> 3 [batch, num_attention_heads, seq_len, head_size]
         query = qkv[..., : self.head_size].permute(0, 2, 1, 3)
-        key = qkv[..., self.head_size:2 * self.head_size].permute(0, 2, 1, 3)
-        value = qkv[..., 2 * self.head_size:].permute(0, 2, 1, 3)
+        key = qkv[..., self.head_size : 2 * self.head_size].permute(0, 2, 1, 3)
+        value = qkv[..., 2 * self.head_size :].permute(0, 2, 1, 3)
 
         # Compute rotary embeddings on rotary_ndims
         query_rot = query[..., : self.rotary_ndims]
-        query_pass = query[..., self.rotary_ndims:]
+        query_pass = query[..., self.rotary_ndims :]
         key_rot = key[..., : self.rotary_ndims]
-        key_pass = key[..., self.rotary_ndims:]
+        key_pass = key[..., self.rotary_ndims :]
 
         cos, sin = position_embeddings
         query, key = apply_rotary_pos_emb(query_rot, key_rot, cos, sin)
@@ -184,9 +183,7 @@ class GPTNeoXJapaneseAttention(nn.Cell):
 
         # [batch_size * num_heads, q_length, kv_length]
         attn_scores = mint.zeros(
-            batch_size * num_attention_heads,
-            query_length,
-            key_length,
+            (batch_size * num_attention_heads, query_length, key_length),
             dtype=query.dtype,
         )
         attention_scores = mint.baddbmm(
@@ -234,10 +231,10 @@ class GPTNeoXJapaneseRotaryEmbedding(nn.Cell):
         self.original_inv_freq = self.inv_freq
 
     def construct(self, x, position_ids):
-        inv_freq_expanded = self.inv_freq[None, :, None].float().expand(position_ids.shape[0], -1, 1)
+        inv_freq_expanded = self.inv_freq[None, :, None].float().expand((position_ids.shape[0], -1, 1))
         position_ids_expanded = position_ids[:, None, :].float()
 
-        freqs = (inv_freq_expanded.float() @ mint.transpose(position_ids_expanded.float()), 1, 2)
+        freqs = mint.transpose(inv_freq_expanded.float() @ position_ids_expanded.float(), 1, 2)
         emb = mint.cat((freqs, freqs), dim=-1)
         cos = emb.cos() * self.attention_scaling
         sin = emb.sin() * self.attention_scaling
@@ -310,7 +307,7 @@ class GPTNeoXJapaneseMLP(nn.Cell):
         self.dense_4h_to_h = mint.nn.Linear(intermediate_size, config.hidden_size, bias=False)
         self.act = ACT2FN[config.hidden_act]
 
-    def forward(self, hidden_states):
+    def construct(self, hidden_states):
         intermediate = self.dense_h_to_4h(hidden_states)
         intermediate = self.act(intermediate)
         output = self.dense_4h_to_h(intermediate)
@@ -548,21 +545,11 @@ class GPTNeoXJapaneseModel(GPTNeoXJapanesePreTrainedModel):
         # order to dispatch on Flash Attention 2. This feature is not compatible with static cache, as SDPA will fail
         # to infer the attention mask.
         past_seen_tokens = past_key_values.get_seq_length() if past_key_values is not None else 0
-        using_compilable_cache = past_key_values.is_compileable if past_key_values is not None else False
-
-        # When output attentions is True, sdpa implementation's forward method calls the eager implementation's forward
-        if self.config._attn_implementation == "sdpa" and not using_compilable_cache and not output_attentions:
-            if AttentionMaskConverter._ignore_causal_mask_sdpa(
-                attention_mask,
-                inputs_embeds=input_tensor,
-                past_key_values_length=past_seen_tokens,
-                is_training=self.training,
-            ):
-                return None
+        using_static_cache = isinstance(past_key_values, StaticCache)
 
         dtype = input_tensor.dtype
         sequence_length = input_tensor.shape[1]
-        if using_compilable_cache:
+        if using_static_cache:
             target_length = past_key_values.get_max_cache_shape()
         else:
             target_length = (
@@ -581,11 +568,7 @@ class GPTNeoXJapaneseModel(GPTNeoXJapanesePreTrainedModel):
             batch_size=input_tensor.shape[0],
         )
 
-        if (
-            self.config._attn_implementation == "sdpa"
-            and attention_mask is not None
-            and not output_attentions
-        ):
+        if self.config._attn_implementation == "sdpa" and attention_mask is not None and not output_attentions:
             # Attend to all tokens in fully masked rows in the causal_mask, for example the relevant first rows when
             # using left padding. This is required by F.scaled_dot_product_attention memory-efficient attention path.
             # Details: https://github.com/pytorch/pytorch/issues/110213
@@ -630,13 +613,11 @@ class GPTNeoXJapaneseModel(GPTNeoXJapanesePreTrainedModel):
             causal_mask = attention_mask
         else:
             min_dtype = dtype_to_min(dtype)
-            causal_mask = mint.full(
-                (sequence_length, target_length), fill_value=min_dtype.item(), dtype=dtype
-            )
+            causal_mask = mint.full((sequence_length, target_length), fill_value=min_dtype.item(), dtype=dtype)
             if sequence_length != 1:
                 causal_mask = mint.triu(causal_mask, diagonal=1)
             causal_mask *= mint.arange(target_length) > cache_position.reshape(-1, 1)
-            causal_mask = causal_mask[None, None, :, :].expand(batch_size, 1, -1, -1)
+            causal_mask = causal_mask[None, None, :, :].expand((batch_size, 1, -1, -1))
             if attention_mask is not None:
                 causal_mask = causal_mask.clone()  # copy to contiguous memory for in-place edit
                 mask_length = attention_mask.shape[-1]
@@ -728,7 +709,6 @@ class GPTNeoXJapaneseForCausalLM(GPTNeoXJapanesePreTrainedModel, GenerationMixin
 
         lm_loss = None
         if labels is not None:
-
             lm_loss = self.loss_function(
                 lm_logits,
                 labels,
@@ -752,8 +732,7 @@ class GPTNeoXJapaneseForCausalLM(GPTNeoXJapanesePreTrainedModel, GenerationMixin
         reordered_past = ()
         for layer_past in past_key_values:
             reordered_past += (
-                tuple(past_state.index_select(0, beam_idx) for past_state in layer_past[:2])
-                + layer_past[2:],
+                tuple(past_state.index_select(0, beam_idx) for past_state in layer_past[:2]) + layer_past[2:],
             )
         return reordered_past
 
