@@ -147,6 +147,7 @@ class Cache(nn.Cell):
     """
     Base, abstract class for all caches. The actual data structure is specific to each subclass.
     """
+
     is_compileable = False
 
     def update(

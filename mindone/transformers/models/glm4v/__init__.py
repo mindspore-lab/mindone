@@ -1,1 +1,7 @@
-from .modeling_glm4v import Glm4vVisionModel, Glm4vTextModel, Glm4vForConditionalGeneration, Glm4vPreTrainedModel, Glm4vModel
+from .modeling_glm4v import (
+    Glm4vForConditionalGeneration,
+    Glm4vModel,
+    Glm4vPreTrainedModel,
+    Glm4vTextModel,
+    Glm4vVisionModel,
+)

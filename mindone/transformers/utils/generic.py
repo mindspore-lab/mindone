@@ -519,6 +519,7 @@ def filter_out_non_signature_kwargs(extra: Optional[list] = None):
 
     return decorator
 
+
 class GeneralInterface(MutableMapping):
     """
     Dict-like object keeping track of a class-wide mapping, as well as a local one. Allows to have library-wide

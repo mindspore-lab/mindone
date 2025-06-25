@@ -135,10 +135,10 @@ from .models.glm import (
     GlmPreTrainedModel,
 )
 from .models.glm4v import (
+    Glm4vForConditionalGeneration,
     Glm4vModel,
     Glm4vPreTrainedModel,
     Glm4vTextModel,
-    Glm4vForConditionalGeneration,
     Glm4vVisionModel,
 )
 from .models.glpn import (
@@ -240,6 +240,7 @@ from .models.phi3 import (
     Phi3PreTrainedModel,
 )
 from .models.qwen2 import Qwen2ForCausalLM, Qwen2ForSequenceClassification, Qwen2ForTokenClassification, Qwen2Model
+
 # from .models.qwen2_5_omni import (
 #     Qwen2_5OmniForConditionalGeneration,
 #     Qwen2_5OmniPreTrainedModel,
