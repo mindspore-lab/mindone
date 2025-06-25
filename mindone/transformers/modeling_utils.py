@@ -371,8 +371,6 @@ class ModuleUtilsMixin:
     def to(self, dtype: Optional[ms.Type] = None):
         for p in self.get_parameters():
             p.set_dtype(dtype)
-            if p.init_mode is not None:
-                p.init_mode.set_dtype(dtype)
         return self
 
     def float(self):
