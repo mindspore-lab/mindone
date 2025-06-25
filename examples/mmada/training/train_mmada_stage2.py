@@ -586,7 +586,25 @@ def main():
 
             batch_time_m.update(time.time() - end)
             end = time.time()
-
+            # save to log file
+            if rank_id == 0:
+                try:
+                    if not os.path.exists(LOG_FILE):
+                        with open(LOG_FILE, "w", encoding="utf-8") as fp:
+                            fp.write("\t".join(["step", "loss", "per step time (s)"]) + "\n")
+                    with open(LOG_FILE, "a", encoding="utf-8") as fp:
+                        fp.write(
+                            "\t".join(
+                                [
+                                    f"{global_step + 1:<7}",
+                                    f"{loss.asnumpy().item():<10.6f}",
+                                    f"{batch_time_m.val:<13.3f}",
+                                ]
+                            )
+                            + "\n"
+                        )
+                except (IOError, PermissionError) as e:
+                    logger.error(f"Failed to write log: {e}")
             # Log metrics
             if (global_step + 1) % config.experiment.log_every == 0 and rank_id == 0:
                 samples_per_second_per_device = (
@@ -608,24 +626,7 @@ def main():
                 # resetting batch / data time meters per log window
                 batch_time_m.reset()
                 data_time_m.reset()
-            if rank_id == 0:
-                try:
-                    if not os.path.exists(LOG_FILE):
-                        with open(LOG_FILE, "w", encoding="utf-8") as fp:
-                            fp.write("\t".join(["step", "loss", "per step time (s)"]) + "\n")
-                    with open(LOG_FILE, "a", encoding="utf-8") as fp:
-                        fp.write(
-                            "\t".join(
-                                [
-                                    f"{global_step + 1:<7}",
-                                    f"{loss.asnumpy().item():<10.6f}",
-                                    f"{batch_time_m.val:<13.3f}",
-                                ]
-                            )
-                            + "\n"
-                        )
-                except (IOError, PermissionError) as e:
-                    logger.error(f"Failed to write log: {e}")
+
             # Save model checkpoint
             if (global_step + 1) % config.experiment.save_every == 0 and rank_id == 0:
                 save_checkpoint(model, config, global_step + 1, uni_prompting)
