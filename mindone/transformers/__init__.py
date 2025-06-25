@@ -151,6 +151,14 @@ from .models.gpt2 import (
     GPT2Model,
     GPT2PreTrainedModel,
 )
+from .models.gpt_neo import (
+    GPTNeoForCausalLM,
+    GPTNeoForQuestionAnswering,
+    GPTNeoForSequenceClassification,
+    GPTNeoForTokenClassification,
+    GPTNeoModel,
+    GPTNeoPreTrainedModel,
+)
 from .models.granite import GraniteForCausalLM, GraniteModel, GranitePreTrainedModel
 from .models.granitemoe import GraniteMoeForCausalLM, GraniteMoeModel, GraniteMoePreTrainedModel
 from .models.granitemoeshared import GraniteMoeSharedForCausalLM, GraniteMoeSharedModel, GraniteMoeSharedPreTrainedModel
