@@ -240,19 +240,18 @@ from .models.phi3 import (
     Phi3PreTrainedModel,
 )
 from .models.qwen2 import Qwen2ForCausalLM, Qwen2ForSequenceClassification, Qwen2ForTokenClassification, Qwen2Model
-
-# from .models.qwen2_5_omni import (
-#     Qwen2_5OmniForConditionalGeneration,
-#     Qwen2_5OmniPreTrainedModel,
-#     Qwen2_5OmniPreTrainedModelForConditionalGeneration,
-#     Qwen2_5OmniTalkerForConditionalGeneration,
-#     Qwen2_5OmniTalkerModel,
-#     Qwen2_5OmniThinkerForConditionalGeneration,
-#     Qwen2_5OmniThinkerTextModel,
-#     Qwen2_5OmniToken2WavBigVGANModel,
-#     Qwen2_5OmniToken2WavDiTModel,
-#     Qwen2_5OmniToken2WavModel,
-# )
+from .models.qwen2_5_omni import (
+    Qwen2_5OmniForConditionalGeneration,
+    Qwen2_5OmniPreTrainedModel,
+    Qwen2_5OmniPreTrainedModelForConditionalGeneration,
+    Qwen2_5OmniTalkerForConditionalGeneration,
+    Qwen2_5OmniTalkerModel,
+    Qwen2_5OmniThinkerForConditionalGeneration,
+    Qwen2_5OmniThinkerTextModel,
+    Qwen2_5OmniToken2WavBigVGANModel,
+    Qwen2_5OmniToken2WavDiTModel,
+    Qwen2_5OmniToken2WavModel,
+)
 from .models.qwen2_5_vl import Qwen2_5_VLForConditionalGeneration, Qwen2_5_VLModel, Qwen2_5_VLPreTrainedModel
 from .models.qwen2_audio import Qwen2AudioEncoder, Qwen2AudioForConditionalGeneration, Qwen2AudioPreTrainedModel
 from .models.qwen2_vl import Qwen2VLForConditionalGeneration, Qwen2VLModel, Qwen2VLPreTrainedModel

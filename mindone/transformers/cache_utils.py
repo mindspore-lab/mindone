@@ -590,9 +590,6 @@ class DynamicCache(Cache):
             self.key_cache[layer_idx] = self.key_cache[layer_idx][indices, ...]
             self.value_cache[layer_idx] = self.value_cache[layer_idx][indices, ...]
 
-    def get_max_cache_shape(self) -> Optional[int]:
-        return 32768
-
     def get_mask_sizes(self, cache_position: ms.Tensor, layer_idx: int) -> tuple[int, int]:
         """
         Return a tuple (kv_length, kv_offset) corresponding to the length and offset that will be returned for
@@ -600,7 +597,9 @@ class DynamicCache(Cache):
         The masks are then prepared according to the given lengths (kv_length, kv_offset) and patterns (i.e. sliding_window, chunk_size),
         for each layer.
         """
-        kv_length = self.get_max_cache_shape()
+        query_length = cache_position.shape[0]
+        past_seen_tokens = self.get_seq_length()
+        kv_length = query_length + past_seen_tokens
         return kv_length, 0
 
 

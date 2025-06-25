@@ -27,6 +27,6 @@ python generate.py
 ```
 
 ## Inference Speed
-|      model name	      | precision* | cards | fa attn | 	tokens/s	 |
-|:---------------------:| :---:  |:---:  |:-------:|:----------:|
-| THUDM/GLM-4.1V-9B-Thinking |  bf16 | 1 |    ✅    |    1.38    |
+|      model name	      | precision* | cards | flash attn | 	tokens/s	 |
+|:---------------------:| :---:  |:---:  |:----------:|:----------:|
+| THUDM/GLM-4.1V-9B-Thinking |  bf16 | 1 |     ✅      |    1.38    |
