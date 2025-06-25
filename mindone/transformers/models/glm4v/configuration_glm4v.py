@@ -20,6 +20,7 @@
 # limitations under the License.
 
 from transformers.configuration_utils import PretrainedConfig
+
 from ...modeling_rope_utils import rope_config_validation
 
 

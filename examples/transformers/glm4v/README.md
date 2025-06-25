@@ -12,7 +12,7 @@
 git clone https://github.com/mindspore-lab/mindone.git
 cd mindone
 pip install -e .
-cd examples/minicpm
+cd examples/transformers/glm4v
 ```
 
 ## Quick Start

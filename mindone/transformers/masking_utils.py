@@ -17,7 +17,6 @@ from typing import Callable, Optional, Union
 from transformers.configuration_utils import PretrainedConfig
 
 import mindspore as ms
-import mindspore.mint.nn.functional as F
 from mindspore import mint
 
 from .cache_utils import Cache
