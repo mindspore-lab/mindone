@@ -33,7 +33,8 @@ from mindspore.mint import optim
 from mindspore.mint.distributed import get_rank, get_world_size, init_process_group
 
 from mindone.diffusers.models.model_loading_utils import load_checkpoint_and_dispatch
-from utils import TrainOneStepWrapper, do_ckpt_combine_online, init_from_ckpt, no_grad, prepare_train_network
+from mindone.diffusers.training_utils import pynative_no_grad, set_seed
+from utils import TrainOneStepWrapper, do_ckpt_combine_online, init_from_ckpt, prepare_train_network
 
 SYSTEM_PROMPT_LEN = 28
 
@@ -101,9 +102,7 @@ def main():
 
     # If passed along, set the training seed now.
     if config.training.seed is not None:
-        random.seed(config.training.seed)
-        np.random.seed(config.training.seed)
-        ms.set_seed(config.training.seed)
+        set_seed(config.training.seed)
     #########################
     # MODELS and OPTIMIZER  #
     #########################
@@ -481,7 +480,7 @@ def main():
             pixel_values, texts = batch["t2i_flow"]["images"], batch["t2i_flow"]["input_ids"]
 
             data_time_m.update(time.time() - end)
-            with no_grad():
+            with pynative_no_grad():
                 # Encode images to image tokens, mask them and create input and labels
                 (input_ids, labels, mask_prob, image_tokens_ori, t2i_masks) = prepare_inputs_and_labels(
                     pixel_values, texts, config.training.min_masking_rate
@@ -637,7 +636,7 @@ def main():
                 and rank_id == 0
             ):
                 model.set_train(False)
-                with no_grad():
+                with pynative_no_grad():
                     generate_images(
                         model,
                         vq_model,
