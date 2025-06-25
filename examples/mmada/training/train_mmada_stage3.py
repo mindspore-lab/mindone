@@ -8,7 +8,6 @@ import json
 import logging
 import math
 import pickle as pkl
-import random
 import shutil
 import time
 from pathlib import Path
@@ -16,16 +15,17 @@ from typing import Union
 
 import numpy as np
 import pandas
-from models import MAGVITv2, MMadaConfig, MMadaModelLM, get_mask_schedule
+from models import MAGVITv2, MMadaModelLM, get_mask_schedule
 from models.lr_schedulers import get_scheduler
 from omegaconf import OmegaConf
-from parquet import ChatDataset, RefinedWebDataset
+from parquet import ChatDataset
 from parquet.loader import CombinedLoader, create_dataloader
 from PIL import Image
 from training.data import Text2ImageDataset
 from training.imagenet_dataset import ImageNetDataset
 from training.prompting_utils import UniversalPrompting
-from transformers import AutoConfig, AutoTokenizer
+from transformers import AutoTokenizer
+from utils.train_step import TrainOneStepWrapper, do_ckpt_combine_online, prepare_train_network
 
 import mindspore as ms
 import mindspore.mint as mint
@@ -34,7 +34,7 @@ from mindspore.mint import optim
 
 from mindone.diffusers.models.model_loading_utils import load_checkpoint_and_dispatch
 from mindone.diffusers.training_utils import pynative_no_grad, set_seed
-from utils import TrainOneStepWrapper, init_from_ckpt
+from utils import init_from_ckpt
 
 SYSTEM_PROMPT_LEN = 28
 
@@ -377,16 +377,16 @@ def main():
             texts_lm = [str(t) for t in texts_lm]
 
         input_ids_lm, prompt_mask, labels_lm = uni_prompting((texts_lm, max_seq_len), "lm")
-        b, l = input_ids_lm.shape
+        b, length = input_ids_lm.shape
         t = mint.rand(
             b,
         )
         p_mask = (1 - eps) * t + eps
-        p_mask = p_mask[:, None].repeat(1, l)
+        p_mask = p_mask[:, None].repeat(1, length)
 
         masked_indices = (
             mint.rand(
-                (b, l),
+                (b, length),
             )
             < p_mask
         )
@@ -400,12 +400,12 @@ def main():
         # create MLM mask and labels
 
         input_ids_lm, prompt_mask, labels_lm = uni_prompting((texts, max_seq_len), "lm_chat")
-        b, l = input_ids_lm.shape
+        b, length = input_ids_lm.shape
         t = mint.rand((b,))
         p_mask = (1 - eps) * t + eps
-        p_mask = p_mask[:, None].repeat(1, l)
+        p_mask = p_mask[:, None].repeat(1, length)
 
-        masked_indices = mint.rand((b, l)) < p_mask
+        masked_indices = mint.rand((b, length)) < p_mask
         # 126336 is used for [MASK] token
         noisy_batch = mint.where(masked_indices, mask_id, input_ids_lm)
         masked_indices = noisy_batch == mask_id
@@ -419,16 +419,16 @@ def main():
     def prepare_inputs_and_labels_for_mmu(input_ids_mmu, prompt_masks, labels_mmu, eps=1e-3):
         if not isinstance(input_ids_mmu, ms.Tensor):
             input_ids_mmu = ms.Tensor(input_ids_mmu)
-        b, l = input_ids_mmu.shape
+        b, length = input_ids_mmu.shape
         t = mint.rand(
             b,
         )
         p_mask = (1 - eps) * t + eps
-        p_mask = p_mask[:, None].repeat(1, l)
+        p_mask = p_mask[:, None].repeat(1, length)
 
         masked_indices = (
             mint.rand(
-                (b, l),
+                (b, length),
             )
             < p_mask
         )
@@ -449,6 +449,10 @@ def main():
     end = time.time()
 
     loss_scaler = DynamicLossScaler(scale_value=65356, scale_factor=2, scale_window=2000)
+    if config.experiment.get("zero_stage", 0):
+        model, zero_helper = prepare_train_network(model, optimizer, zero_stage=config.experiment.zero_stage)
+    else:
+        zero_helper = None
     train_step_model = TrainOneStepWrapper(
         model,
         optimizer=optimizer,
@@ -459,6 +463,7 @@ def main():
         clip_norm=config.training.max_grad_norm,
         ema=None,
         config=config,
+        zero_helper=zero_helper,
     )
     if profiler is not None:
         profiler.start()
@@ -692,9 +697,6 @@ def main():
     # Evaluate and save checkpoint at the end of training
     save_checkpoint(model, config, global_step, uni_prompting)
 
-    # Save the final trained checkpoint
-    model.save_pretrained(config.experiment.output_dir, safe_serialization=True)
-
 
 def visualize_predictions(
     model, vq_model, uni_prompting, config, global_step, input_ids, image_tokens_ori, ori_images, texts, logits
@@ -890,13 +892,11 @@ def generate_chat_text(
     df = pandas.read_json(config.dataset.params.lm_chat_validation_jsonl, lines=True)
     prompts = df["question"].tolist()
     responses = [""] * len(prompts)
-    weight_dtype = ms.bfloat16
 
     html_content = "<div style='font-family:Arial, sans-serif;'>"
     html_content += f"<h2 style='color:navy;'>Step {global_step}</h2>"
 
     for i, prompt in enumerate(prompts):
-        original_prompt = prompt
         prompt_with_tags = (
             "<|start_header_id|>user<|end_header_id|>\n"
             + f"{prompt}"
@@ -955,6 +955,9 @@ def save_checkpoint(model, config, global_step, uni_prompting):
     # retrieve the model on all processes for deepspeed stage 3 to work then save on one process (we are not using stage 3 yet)
     # XXX: could also make this conditional on deepspeed
     state_dict = model.state_dict()
+    if config.experiment.get("zero_stage", 0) == 3:
+        # combine ckpt shards online before saving
+        state_dict = do_ckpt_combine_online(state_dict)
     model.save_pretrained(save_path / "unwrapped_model", state_dict=state_dict, safe_serialization=True)
     json.dump({"global_step": global_step}, (save_path / "metadata.json").open("w+"))
     logger.info(f"Saved state to {save_path}")

@@ -8,7 +8,6 @@ import json
 import logging
 import math
 import pickle as pkl
-import random
 import shutil
 import time
 from pathlib import Path
@@ -25,6 +24,7 @@ from training.data import Text2ImageDataset
 from training.imagenet_dataset import ImageNetDataset
 from training.prompting_utils import UniversalPrompting
 from transformers import AutoTokenizer
+from utils.train_step import TrainOneStepWrapper, do_ckpt_combine_online, prepare_train_network
 
 import mindspore as ms
 import mindspore.mint as mint
@@ -34,7 +34,7 @@ from mindspore.mint.distributed import get_rank, get_world_size, init_process_gr
 
 from mindone.diffusers.models.model_loading_utils import load_checkpoint_and_dispatch
 from mindone.diffusers.training_utils import pynative_no_grad, set_seed
-from utils import TrainOneStepWrapper, do_ckpt_combine_online, init_from_ckpt, prepare_train_network
+from utils import init_from_ckpt
 
 SYSTEM_PROMPT_LEN = 28
 
