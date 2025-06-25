@@ -80,6 +80,8 @@ MODEL_MAPPING_NAMES = OrderedDict(
         ("umt5", "UMT5Model"),
         ("wav2vec2", "Wav2Vec2Model"),
         ("whisper", "WhisperModel"),
+        ("xlm", "XLMModel"),
+        ("xlm-prophetnet", "XLMProphetNetModel"),
         ("xlm-roberta", "XLMRobertaModel"),
         ("xlm-roberta-xl", "XLMRobertaXLModel"),
     ]
@@ -101,6 +103,7 @@ MODEL_FOR_PRETRAINING_MAPPING_NAMES = OrderedDict(
         ("megatron-bert", "MegatronBertForPreTraining"),
         ("t5", "T5ForConditionalGeneration"),
         ("wav2vec2", "Wav2Vec2ForPreTraining"),
+        ("xlm", "XLMWithLMHeadModel"),
         ("xlm-roberta", "XLMRobertaForMaskedLM"),
         ("xlm-roberta-xl", "XLMRobertaXLForMaskedLM"),
     ]
@@ -122,6 +125,7 @@ MODEL_WITH_LM_HEAD_MAPPING_NAMES = OrderedDict(
         ("t5", "T5ForConditionalGeneration"),
         ("wav2vec2", "Wav2Vec2ForMaskedLM"),
         ("whisper", "WhisperForConditionalGeneration"),
+        ("xlm", "XLMWithLMHeadModel"),
         ("xlm-roberta", "XLMRobertaForMaskedLM"),
         ("xlm-roberta-xl", "XLMRobertaXLForMaskedLM"),
     ]
@@ -155,6 +159,8 @@ MODEL_FOR_CAUSAL_LM_MAPPING_NAMES = OrderedDict(
         ("recurrent_gemma", "RecurrentGemmaForCausalLM"),
         ("rembert", "RemBertForCausalLM"),
         ("whisper", "WhisperForCausalLM"),
+        ("xlm", "XLMWithLMHeadModel"),
+        ("xlm-prophetnet", "XLMProphetNetForCausalLM"),
         ("xlm-roberta", "XLMRobertaForCausalLM"),
         ("xlm-roberta-xl", "XLMRobertaXLForCausalLM"),
     ]
@@ -245,6 +251,7 @@ MODEL_FOR_MASKED_LM_MAPPING_NAMES = OrderedDict(
         ("mobilebert", "MobileBertForMaskedLM"),
         ("rembert", "RemBertForMaskedLM"),
         ("wav2vec2", "Wav2Vec2ForMaskedLM"),
+        ("xlm", "XLMWithLMHeadModel"),
         ("xlm-roberta", "XLMRobertaForMaskedLM"),
         ("xlm-roberta-xl", "XLMRobertaXLForMaskedLM"),
     ]
@@ -290,6 +297,7 @@ MODEL_FOR_SEQ_TO_SEQ_CAUSAL_LM_MAPPING_NAMES = OrderedDict(
         ("qwen2_audio", "Qwen2AudioForConditionalGeneration"),
         ("t5", "T5ForConditionalGeneration"),
         ("umt5", "UMT5ForConditionalGeneration"),
+        ("xlm-prophetnet", "XLMProphetNetForConditionalGeneration"),
     ]
 )
 
@@ -325,6 +333,7 @@ MODEL_FOR_SEQUENCE_CLASSIFICATION_MAPPING_NAMES = OrderedDict(
         ("rembert", "RemBertForSequenceClassification"),
         ("t5", "T5ForSequenceClassification"),
         ("umt5", "UMT5ForSequenceClassification"),
+        ("xlm", "XLMForSequenceClassification"),
         ("xlm-roberta-xl", "XLMRobertaXLForSequenceClassification"),
     ]
 )
@@ -347,6 +356,7 @@ MODEL_FOR_QUESTION_ANSWERING_MAPPING_NAMES = OrderedDict(
         ("t5", "T5ForQuestionAnswering"),
         ("mixtral", "MixtralForQuestionAnswering"),
         ("umt5", "UMT5ForQuestionAnswering"),
+        ("xlm", "XLMForSequenceClassification"),
         ("xlm-roberta", "XLMRobertaForQuestionAnswering"),
         ("xlm-roberta-xl", "XLMRobertaXLForQuestionAnswering"),
     ]
@@ -379,6 +389,7 @@ MODEL_FOR_TOKEN_CLASSIFICATION_MAPPING_NAMES = OrderedDict(
         ("rembert", "RemBertForTokenClassification"),
         ("t5", "T5ForTokenClassification"),
         ("umt5", "UMT5ForTokenClassification"),
+        ("xlm", "XLMForTokenClassification"),
         ("xlm-roberta", "XLMRobertaForTokenClassification"),
         ("xlm-roberta-xl", "XLMRobertaXLForTokenClassification"),
     ]
@@ -394,6 +405,7 @@ MODEL_FOR_MULTIPLE_CHOICE_MAPPING_NAMES = OrderedDict(
         ("megatron-bert", "MegatronBertForMultipleChoice"),
         ("mobilebert", "MobileBertForMultipleChoice"),
         ("rembert", "RemBertForMultipleChoice"),
+        ("xlm", "XLMForMultipleChoice"),
         ("xlm-roberta", "XLMRobertaForMultipleChoice"),
         ("xlm-roberta-xl", "XLMRobertaXLForMultipleChoice"),
     ]
@@ -471,6 +483,7 @@ MODEL_FOR_TEXT_ENCODING_MAPPING_NAMES = OrderedDict(
         ("rembert", "RemBertModel"),
         ("t5", "T5EncoderModel"),
         ("umt5", "UMT5EncoderModel"),
+        ("xlm", "XLMModel"),
         ("xlm-roberta", "XLMRobertaModel"),
         ("xlm-roberta-xl", "XLMRobertaXLModel"),
     ]

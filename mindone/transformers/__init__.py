@@ -117,6 +117,14 @@ from .models.deberta_v2 import (
     DebertaV2Model,
     DebertaV2PreTrainedModel,
 )
+from .models.deprecated.xlm_prophetnet import (
+    XLMProphetNetDecoder,
+    XLMProphetNetEncoder,
+    XLMProphetNetForCausalLM,
+    XLMProphetNetForConditionalGeneration,
+    XLMProphetNetModel,
+    XLMProphetNetPreTrainedModel,
+)
 from .models.dpt import DPTForDepthEstimation
 from .models.fuyu import FuyuForCausalLM, FuyuPreTrainedModel
 from .models.gemma import (
@@ -333,6 +341,16 @@ from .models.whisper import (
     WhisperModel,
     WhisperPreTrainedModel,
     WhisperProcessor,
+)
+from .models.xlm import (
+    XLMForMultipleChoice,
+    XLMForQuestionAnswering,
+    XLMForQuestionAnsweringSimple,
+    XLMForSequenceClassification,
+    XLMForTokenClassification,
+    XLMModel,
+    XLMPreTrainedModel,
+    XLMWithLMHeadModel,
 )
 from .models.xlm_roberta import XLMRobertaModel, XLMRobertaPreTrainedModel
 from .models.xlm_roberta_xl import (
