@@ -951,8 +951,8 @@ class Glm4vModel(Glm4vPreTrainedModel):
 
     def __init__(self, config):
         super().__init__(config)
-        self.visual = Glm4vVisionModel._from_config(config.vision_config)
-        self.language_model = Glm4vTextModel._from_config(config.text_config)
+        self.visual = Glm4vVisionModel(config.vision_config)
+        self.language_model = Glm4vTextModel(config.text_config)
         self.rope_deltas = None  # cache rope_deltas here
 
         # Initialize weights and apply final processing
