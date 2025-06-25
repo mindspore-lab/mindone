@@ -12,11 +12,16 @@ specific language governing permissions and limitations under the License.
 
 # Flux
 
+<div class="flex flex-wrap space-x-1">
+  <img alt="LoRA" src="https://img.shields.io/badge/LoRA-d8b4fe?style=flat"/>
+</div>
+
 Flux is a series of text-to-image generation models based on diffusion transformers. To know more about Flux, check out the original [blog post](https://blackforestlabs.ai/announcing-black-forest-labs/) by the creators of Flux, Black Forest Labs.
 
 Original model checkpoints for Flux can be found [here](https://huggingface.co/black-forest-labs). Original inference code can be found [here](https://github.com/black-forest-labs/flux).
 
-Flux comes in two variants:
+Flux comes in the following variants:
+
 | model type | model id |
 |:----------:|:--------:|
 | Timestep-distilled | [`black-forest-labs/FLUX.1-schnell`](https://huggingface.co/black-forest-labs/FLUX.1-schnell) |
@@ -24,7 +29,7 @@ Flux comes in two variants:
 | Fill Inpainting/Outpainting (Guidance-distilled) | [`black-forest-labs/FLUX.1-Fill-dev`](https://huggingface.co/black-forest-labs/FLUX.1-Fill-dev) |
 | Canny Control (Guidance-distilled) | [`black-forest-labs/FLUX.1-Canny-dev`](https://huggingface.co/black-forest-labs/FLUX.1-Canny-dev) |
 | Depth Control (Guidance-distilled) | [`black-forest-labs/FLUX.1-Depth-dev`](https://huggingface.co/black-forest-labs/FLUX.1-Depth-dev) |
-| Redux | [`black-forest-labs/FLUX.1-Redux-dev`](https://huggingface.co/black-forest-labs/FLUX.1-Redux-dev) |
+| Redux (Adapter) | [`black-forest-labs/FLUX.1-Redux-dev`](https://huggingface.co/black-forest-labs/FLUX.1-Redux-dev) |
 
 All checkpoints have different usage which we detail below.
 
@@ -208,6 +213,52 @@ images = pipe(
     pooled_prompt_embeds=pooled_prompt_embeds,
 )[0]
 images[0].save("flux-redux.png")
+```
+
+## Note about `unload_lora_weights()` when using Flux LoRAs
+
+When unloading the Control LoRA weights, call `pipe.unload_lora_weights(reset_to_overwritten_params=True)` to reset the `pipe.transformer` completely back to its original form. The resultant pipeline can then be used with methods like [`DiffusionPipeline.from_pipe`]. More details about this argument are available in [this PR](https://github.com/huggingface/diffusers/pull/10397).
+
+## IP-Adapter
+
+<Tip>
+
+Check out [IP-Adapter](../../../using-diffusers/ip_adapter.md) to learn more about how IP-Adapters work.
+
+</Tip>
+
+An IP-Adapter lets you prompt Flux with images, in addition to the text prompt. This is especially useful when describing complex concepts that are difficult to articulate through text alone and you have reference images.
+
+```python
+import mindspore as ms
+import numpy as np
+from mindone.diffusers import FluxPipeline
+from mindone.diffusers.utils import load_image
+
+pipe = FluxPipeline.from_pretrained(
+    "black-forest-labs/FLUX.1-dev", mindspore_dtype=ms.bfloat16
+)
+
+image = load_image("https://huggingface.co/datasets/huggingface/documentation-images/resolve/main/diffusers/flux_ip_adapter_input.jpg").resize((1024, 1024))
+
+pipe.load_ip_adapter(
+    "XLabs-AI/flux-ip-adapter",
+    weight_name="ip_adapter.safetensors",
+    image_encoder_pretrained_model_name_or_path="openai/clip-vit-large-patch14"
+)
+pipe.set_ip_adapter_scale(1.0)
+
+image = pipe(
+    width=1024,
+    height=1024,
+    prompt="wearing sunglasses",
+    negative_prompt="",
+    true_cfg=4.0,
+    generator=np.random.Generator(np.random.PCG64(0)),
+    ip_adapter_image=image,
+)[0][0]
+
+image.save('flux_ip_adapter_output.jpg')
 ```
 
 ## Running FP16 inference

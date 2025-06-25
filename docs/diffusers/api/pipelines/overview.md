@@ -48,7 +48,7 @@ The table below lists all the pipelines currently available in 🤗 Diffusers an
 | [DiT](dit.md)                                                  | text2image |
 | [Flux](flux) 													 | text2image |
 | [Hunyuan-DiT](hunyuandit.md)                                   | text2image |
-| [I2VGen-XL](i2vgenxl.md)                                       | text2video |
+| [I2VGen-XL](i2vgenxl.md)                                       | image2video |
 | [InstructPix2Pix](pix2pix.md)                                  | image editing |
 | [Kandinsky 2.1](kandinsky.md)                                  | text2image, image2image, inpainting, interpolation |
 | [Kandinsky 2.2](kandinsky_v22.md)                              | text2image, image2image, inpainting |
@@ -58,7 +58,7 @@ The table below lists all the pipelines currently available in 🤗 Diffusers an
 | [Latent Diffusion](latent_diffusion.md)                        | text2image, super-resolution |
 | [Latte](latte) 												 | text2image |
 | [Lumina-T2X](lumina) 											 | text2image |
-| [Marigold](marigold.md)                                        | depth |
+| [Marigold](marigold.md)                                        | depth-estimation, normals-estimation, intrinsic-decomposition |
 | [PAG](pag) 													 | text2image |
 | [PixArt-α](pixart.md)                                          | text2image |
 | [PixArt-Σ](pixart_sigma.md)                                    | text2image |

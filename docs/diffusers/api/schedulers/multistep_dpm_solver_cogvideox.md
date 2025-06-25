@@ -10,18 +10,8 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 specific language governing permissions and limitations under the License.
 -->
 
-# Activation functions
+# CogVideoXDPMScheduler
 
-Customized activation functions for supporting various models in 🤗 Diffusers.
+`CogVideoXDPMScheduler` is based on [DPM-Solver: A Fast ODE Solver for Diffusion Probabilistic Model Sampling in Around 10 Steps](https://huggingface.co/papers/2206.00927) and [DPM-Solver++: Fast Solver for Guided Sampling of Diffusion Probabilistic Models](https://huggingface.co/papers/2211.01095), specifically for CogVideoX models.
 
-::: mindone.diffusers.models.activations.GELU
-
-::: mindone.diffusers.models.activations.GEGLU
-
-::: mindone.diffusers.models.activations.ApproximateGELU
-
-::: mindone.diffusers.models.activations.SwiGLU
-
-::: mindone.diffusers.models.activations.FP32SiLU
-
-::: mindone.diffusers.models.activations.LinearActivation
+::: mindone.diffusers.CogVideoXDPMScheduler

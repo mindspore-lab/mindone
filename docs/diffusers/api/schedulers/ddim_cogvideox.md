@@ -10,18 +10,8 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 specific language governing permissions and limitations under the License.
 -->
 
-# Activation functions
+# CogVideoXDDIMScheduler
 
-Customized activation functions for supporting various models in 🤗 Diffusers.
+`CogVideoXDDIMScheduler` is based on [Denoising Diffusion Implicit Models](https://huggingface.co/papers/2010.02502), specifically for CogVideoX models.
 
-::: mindone.diffusers.models.activations.GELU
-
-::: mindone.diffusers.models.activations.GEGLU
-
-::: mindone.diffusers.models.activations.ApproximateGELU
-
-::: mindone.diffusers.models.activations.SwiGLU
-
-::: mindone.diffusers.models.activations.FP32SiLU
-
-::: mindone.diffusers.models.activations.LinearActivation
+::: mindone.diffusers.CogVideoXDDIMScheduler

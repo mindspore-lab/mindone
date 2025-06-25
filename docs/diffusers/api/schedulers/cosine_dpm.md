@@ -10,18 +10,13 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 specific language governing permissions and limitations under the License.
 -->
 
-# Activation functions
+# CosineDPMSolverMultistepScheduler
 
-Customized activation functions for supporting various models in 🤗 Diffusers.
+The [`CosineDPMSolverMultistepScheduler`] is a variant of [`DPMSolverMultistepScheduler`] with cosine schedule, proposed by Nichol and Dhariwal (2021).
+It is being used in the [Stable Audio Open](https://arxiv.org/abs/2407.14358) paper and the [Stability-AI/stable-audio-tool](https://github.com/Stability-AI/stable-audio-tool) codebase.
 
-::: mindone.diffusers.models.activations.GELU
+This scheduler was contributed by [Yoach Lacombe](https://huggingface.co/ylacombe).
 
-::: mindone.diffusers.models.activations.GEGLU
+::: mindone.diffusers.CosineDPMSolverMultistepScheduler
 
-::: mindone.diffusers.models.activations.ApproximateGELU
-
-::: mindone.diffusers.models.activations.SwiGLU
-
-::: mindone.diffusers.models.activations.FP32SiLU
-
-::: mindone.diffusers.models.activations.LinearActivation
+::: mindone.diffusers.schedulers.scheduling_utils.SchedulerOutput

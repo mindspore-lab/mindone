@@ -10,18 +10,15 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 specific language governing permissions and limitations under the License.
 -->
 
-# Activation functions
+# AutoModel
 
-Customized activation functions for supporting various models in 🤗 Diffusers.
+The `AutoModel` is designed to make it easy to load a checkpoint without needing to know the specific model class. `AutoModel` automatically retrieves the correct model class from the checkpoint `config.json` file.
 
-::: mindone.diffusers.models.activations.GELU
+```python
+from mindone.diffusers import AutoModel, AutoPipelineForText2Image
 
-::: mindone.diffusers.models.activations.GEGLU
+unet = AutoModel.from_pretrained("stable-diffusion-v1-5/stable-diffusion-v1-5", subfolder="unet")
+pipe = AutoPipelineForText2Image.from_pretrained("stable-diffusion-v1-5/stable-diffusion-v1-5", unet=unet)
+```
 
-::: mindone.diffusers.models.activations.ApproximateGELU
-
-::: mindone.diffusers.models.activations.SwiGLU
-
-::: mindone.diffusers.models.activations.FP32SiLU
-
-::: mindone.diffusers.models.activations.LinearActivation
+::: mindone.diffusers.AutoModel
