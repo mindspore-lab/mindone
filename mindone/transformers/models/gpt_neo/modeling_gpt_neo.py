@@ -299,9 +299,9 @@ class GPTNeoFlashAttention2(GPTNeoSelfAttention):
 
         # Flash attention requires the input to have the shape
         # batch_size x seq_length x head_dim x hidden_dim
-        query = query.transpose(1, 2).view(bsz, query_length, self.num_heads, self.head_dim)
-        key = key.transpose(1, 2).view(bsz, tgt_len, self.num_heads, self.head_dim)
-        value = value.transpose(1, 2).view(bsz, tgt_len, self.num_heads, self.head_dim)
+        query = query.view(bsz, self.num_heads, query_length, self.head_dim)
+        key = key.view(bsz, self.num_heads, tgt_len, self.head_dim)
+        value = value.view(bsz, self.num_heads, tgt_len, self.head_dim)
 
         attn_dropout = self.config.attention_dropout if self.training else 0.0
 
