@@ -13,8 +13,8 @@ experiment:
     val_every: 50
     max_val_examples_t2i: 2000
     profile: False
-    distributed: False
-    zero_stage: 0
+    distributed: True
+    zero_stage: 2
 
 model:
     vq_model:

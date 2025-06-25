@@ -211,7 +211,7 @@ class TrainStep(nn.Cell, metaclass=ABCMeta):
 
                 grads = self.grad_clipper.clip_grad_norm(grads)
 
-                self.grad_scaler.step(self.run_optimizer, grads)
+                self.grad_scaler.step(self.run_optimizer, grads)  # will skip update params if gradients have overflow
                 # zero_grad
                 self.map(ops.partial(ops.assign), self.inner_grads, self.zeros)
                 # reset counter to 1
@@ -222,7 +222,7 @@ class TrainStep(nn.Cell, metaclass=ABCMeta):
             # 3.2 clip grads and updates
             grads = self.grad_reducer(grads)
             grads = self.grad_clipper.clip_grad_norm(grads)
-            self.grad_scaler.step(self.run_optimizer, grads)
+            self.grad_scaler.step(self.run_optimizer, grads)  # will skip update params if gradients have overflow
 
         # 4. Updates the scale for next iteration.
         self.grad_scaler.update()

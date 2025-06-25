@@ -11,8 +11,9 @@ experiment:
     log_grad_norm_every: 100
     resume_from_checkpoint: False
     profile: False
-    distributed: False
-    zero_stage: 0
+    distributed: True
+    zero_stage: 2
+
 
 model:
     vq_model:
