@@ -15,17 +15,17 @@
 from dataclasses import dataclass
 from typing import Callable, Optional, Union
 
+from transformers import VJEPA2Config
+from transformers.utils import ModelOutput, auto_docstring
+
 import mindspore as ms
-from mindspore import nn, mint
+from mindspore import mint, nn
+from mindspore.common.initializer import TruncatedNormal, initializer
 
 from ...activations import ACT2FN
 from ...modeling_outputs import BaseModelOutput, ImageClassifierOutput
 from ...modeling_utils import ALL_ATTENTION_FUNCTIONS, PreTrainedModel
 from ...utils import logging
-from transformers.models.vjepa2.configuration_vjepa2 import VJEPA2Config
-from transformers.utils import ModelOutput, auto_docstring
-from mindspore.common.initializer import TruncatedNormal, initializer
-
 
 logger = logging.get_logger(__name__)
 
@@ -92,12 +92,6 @@ class VJEPA2WithMaskedInputModelOutput(ModelOutput):
     hidden_states: Optional[tuple[ms.Tensor, ...]] = None
     attentions: Optional[tuple[ms.Tensor, ...]] = None
     predictor_output: Optional[VJEPA2WithMaskedInputPredictorOutput] = None
-
-    # def to_tuple(self):
-    #     output = list(super().to_tuple())
-    #     if isinstance(output[-1], VJEPA2WithMaskedInputPredictorOutput):
-    #         output[-1] = output[-1].to_tuple()
-    #     return tuple(output)
 
 
 class VJEPA2PatchEmbeddings3D(nn.Cell):
@@ -219,7 +213,7 @@ def rotate_queries_or_keys(x, pos):
     emb_cos = emb_cos.squeeze(-1).tile((1, 1, 1, 2))
 
     # --
-    y = x.unflatten(-1, (-1, 2))
+    y = nn.Unflatten(-1, (-1, 2))(x)
     y1, y2 = y.unbind(dim=-1)
 
     y = mint.stack((-y2, y1), dim=-1)
@@ -421,7 +415,7 @@ class VJEPA2MLP(nn.Cell):
         return hidden_state
 
 
-class VJEPA2Layer(nn.Cell): # TODO: GradientCheckpointingLayer
+class VJEPA2Layer(nn.Cell):  # TODO: GradientCheckpointingLayer
     """This corresponds to the Block class in the original implementation."""
 
     def __init__(
@@ -507,7 +501,6 @@ class VJEPA2Encoder(nn.Cell):
         head_mask: Optional[ms.Tensor] = None,
         output_attentions: bool = False,
         output_hidden_states: bool = False,
-        return_dict: Optional[bool] = None,
     ) -> BaseModelOutput:
         all_hidden_states = () if output_hidden_states else None
         all_self_attentions = () if output_attentions else None
@@ -530,14 +523,7 @@ class VJEPA2Encoder(nn.Cell):
         if output_hidden_states:
             all_hidden_states = all_hidden_states + (hidden_states,)
 
-        if not return_dict:
-            return tuple(v for v in [hidden_states, all_hidden_states, all_self_attentions] if v is not None)
-
-        return BaseModelOutput(
-            last_hidden_state=hidden_states,
-            hidden_states=all_hidden_states,
-            attentions=all_self_attentions,
-        )
+        return hidden_states, all_hidden_states, all_self_attentions
 
 
 def apply_masks(tensor: ms.Tensor, masks: list[ms.Tensor]) -> ms.Tensor:
@@ -610,7 +596,7 @@ class VJEPA2PredictorEmbeddings(nn.Cell):
         # e.g. for scenarios if we want to run predictor for more tokens than in the config.
         # target = target.tile((B, self.num_patches(self.config), 1))
         # Remedy: use the provided target mask to get the max patch num
-        max_patch_num = target_mask[0].max() + 1  # one extra to include the last patch
+        max_patch_num = target_mask[0].max().item() + 1  # one extra to include the last patch
         target = target.tile((B, max_patch_num, 1))
         target = apply_masks(target, target_mask)
 
@@ -660,7 +646,7 @@ class VJEPA2Predictor(nn.Cell):
         position_masks = mint.gather(position_masks, dim=1, index=argsort)
 
         # gather hidden states
-        hidden_states_argsort = argsort.unsqueeze(-1).broadcast_to(-1, -1, hidden_states.shape[-1])
+        hidden_states_argsort = argsort.unsqueeze(-1).broadcast_to((-1, -1, hidden_states.shape[-1]))
         hidden_states = mint.gather(hidden_states, dim=1, index=hidden_states_argsort)
 
         # gather head mask
@@ -669,16 +655,16 @@ class VJEPA2Predictor(nn.Cell):
             argsort_4d = (
                 argsort.unsqueeze(1)
                 .unsqueeze(1)
-                .broadcast_to(-1, head_mask.shape[1], head_mask.shape[2], -1)
+                .broadcast_to((-1, head_mask.shape[1], head_mask.shape[2], -1))
                 .unsqueeze(-1)
-                .broadcast_to(-1, -1, -1, -1, head_mask.shape[-1])
+                .broadcast_to((-1, -1, -1, -1, head_mask.shape[-1]))
             )
             head_mask = mint.gather(head_mask, dim=3, index=argsort_4d)
             argsort_5d = (
                 argsort.unsqueeze(1)
                 .unsqueeze(1)
                 .unsqueeze(1)
-                .broadcast_to(-1, head_mask.shape[1], head_mask.shape[2], head_mask.shape[3], -1)
+                .broadcast_to((-1, head_mask.shape[1], head_mask.shape[2], head_mask.shape[3], -1))
             )
             head_mask = mint.gather(head_mask, dim=4, index=argsort_5d)
             head_mask = head_mask.permute(1, 0, 2, 3, 4)
@@ -687,7 +673,7 @@ class VJEPA2Predictor(nn.Cell):
 
     def unsort_tokens(self, hidden_states, argsort):
         reverse_argsort = mint.argsort(argsort, dim=1)
-        reverse_argsort = reverse_argsort.unsqueeze(-1).broadcast_to(-1, -1, hidden_states.shape[-1])
+        reverse_argsort = reverse_argsort.unsqueeze(-1).broadcast_to((-1, -1, hidden_states.shape[-1]))
         hidden_states = mint.gather(hidden_states, dim=1, index=reverse_argsort)
         return hidden_states
 
@@ -699,7 +685,6 @@ class VJEPA2Predictor(nn.Cell):
         head_mask: Optional[ms.Tensor] = None,
         output_attentions: bool = False,
         output_hidden_states: bool = False,
-        return_dict: Optional[bool] = None,
     ) -> BaseModelOutput:
         all_hidden_states = () if output_hidden_states else None
         all_self_attentions = () if output_attentions else None
@@ -735,14 +720,7 @@ class VJEPA2Predictor(nn.Cell):
         # projection
         hidden_states = self.proj(hidden_states)
 
-        if not return_dict:
-            return tuple(v for v in [hidden_states, all_hidden_states, all_self_attentions] if v is not None)
-
-        return BaseModelOutput(
-            last_hidden_state=hidden_states,
-            hidden_states=all_hidden_states,
-            attentions=all_self_attentions,
-        )
+        return hidden_states, all_hidden_states, all_self_attentions
 
 
 class VJEPA2PoolerSelfAttention(nn.Cell):
@@ -891,7 +869,7 @@ class VJEPA2PoolerCrossAttention(nn.Cell):
 
 
 # Modified from SiglipEncoderLayer, but we have to propagate proper hidden_size to VJEPA2MLP
-class VJEPA2PoolerSelfAttentionLayer(nn.Cell): # TODO: GradientCheckpointingLayer
+class VJEPA2PoolerSelfAttentionLayer(nn.Cell):  # TODO: GradientCheckpointingLayer
     def __init__(self, config: VJEPA2Config):
         super().__init__()
         self.layer_norm1 = mint.nn.LayerNorm(config.hidden_size, eps=config.layer_norm_eps)
@@ -937,7 +915,7 @@ class VJEPA2PoolerSelfAttentionLayer(nn.Cell): # TODO: GradientCheckpointingLaye
         return outputs
 
 
-class VJEPA2PoolerCrossAttentionLayer(nn.Cell): # TODO: GradientCheckpointingLayer
+class VJEPA2PoolerCrossAttentionLayer(nn.Cell):  # TODO: GradientCheckpointingLayer
     def __init__(self, config: VJEPA2Config):
         super().__init__()
         self.layer_norm1 = mint.nn.LayerNorm(config.hidden_size, eps=config.layer_norm_eps)
@@ -1056,7 +1034,7 @@ def _convert_head_mask_to_5d(head_mask, num_hidden_layers):
     """
     if head_mask is not None:
         head_mask = head_mask.unsqueeze(1).unsqueeze(0)
-        head_mask = head_mask.broadcast_to(num_hidden_layers, -1, -1, -1, -1)
+        head_mask = head_mask.broadcast_to((num_hidden_layers, -1, -1, -1, -1))
     else:
         head_mask = [None] * num_hidden_layers
     return head_mask
@@ -1077,6 +1055,7 @@ class VJEPA2Model(VJEPA2PreTrainedModel):
     def get_input_embeddings(self) -> VJEPA2PatchEmbeddings3D:
         return self.encoder.embeddings.patch_embeddings
 
+    @ms.jit
     @auto_docstring
     def construct(
         self,
@@ -1088,7 +1067,6 @@ class VJEPA2Model(VJEPA2PreTrainedModel):
         skip_predictor: bool = False,
         output_attentions: Optional[bool] = None,
         output_hidden_states: Optional[bool] = None,
-        return_dict: Optional[bool] = None,
     ) -> VJEPA2WithMaskedInputModelOutput:
         r"""
         pixel_values_videos (`ms.Tensor` with shape `[batch size x num_frames x num_channels x height x width]`, required):
@@ -1120,13 +1098,13 @@ class VJEPA2Model(VJEPA2PreTrainedModel):
         context_head_mask = _convert_head_mask_to_5d(context_head_mask, self.config.num_hidden_layers)
         target_head_mask = _convert_head_mask_to_5d(target_head_mask, self.config.pred_num_hidden_layers)
 
-        encoder_outputs: BaseModelOutput = self.encoder(
+        encoder_outputs = self.encoder(
             pixel_values_videos=pixel_values_videos,
             head_mask=context_head_mask,
             output_attentions=output_attentions,
             output_hidden_states=output_hidden_states,
         )
-        sequence_output = encoder_outputs.last_hidden_state
+        sequence_output = encoder_outputs[0]
 
         if context_mask is None and target_mask is None:
             B = pixel_values_videos.shape[0]
@@ -1135,7 +1113,7 @@ class VJEPA2Model(VJEPA2PreTrainedModel):
             target_mask = [mint.arange(N).unsqueeze(0).tile((B, 1))]
 
         if not skip_predictor:
-            predictor_outputs: BaseModelOutput = self.predictor(
+            predictor_outputs = self.predictor(
                 encoder_hidden_states=sequence_output,
                 context_mask=context_mask,
                 target_mask=target_mask,
@@ -1144,24 +1122,19 @@ class VJEPA2Model(VJEPA2PreTrainedModel):
                 output_hidden_states=output_hidden_states,
             )
             predictor_output = VJEPA2WithMaskedInputPredictorOutput(
-                last_hidden_state=predictor_outputs.last_hidden_state,
+                last_hidden_state=predictor_outputs[0],
                 target_hidden_state=apply_masks(sequence_output, target_mask),
-                hidden_states=predictor_outputs.hidden_states,
-                attentions=predictor_outputs.attentions,
+                hidden_states=predictor_outputs[1],
+                attentions=predictor_outputs[2],
             )
         else:
             predictor_output = None
 
-        if not return_dict:
-            encoder_output = (sequence_output, apply_masks(sequence_output, context_mask))
-            encoder_output = encoder_output + encoder_outputs[1:]
-            encoder_output = encoder_output + predictor_output if predictor_output is not None else encoder_output
-
         encoder_output = VJEPA2WithMaskedInputModelOutput(
             last_hidden_state=sequence_output,
             masked_hidden_state=apply_masks(sequence_output, context_mask),
-            hidden_states=encoder_outputs.hidden_states,
-            attentions=encoder_outputs.attentions,
+            hidden_states=encoder_outputs[1],
+            attentions=encoder_outputs[2],
             predictor_output=predictor_output,
         )
 
@@ -1198,7 +1171,6 @@ class VJEPA2ForVideoClassification(VJEPA2PreTrainedModel):
         labels: Optional[ms.Tensor] = None,
         output_attentions: Optional[bool] = None,
         output_hidden_states: Optional[bool] = None,
-        return_dict: Optional[bool] = None,
     ) -> Union[tuple, ImageClassifierOutput]:
         r"""
         pixel_values_videos (`ms.Tensor` with shape `[batch size x num_frames x num_channels x height x width]`):
@@ -1220,12 +1192,11 @@ class VJEPA2ForVideoClassification(VJEPA2PreTrainedModel):
         >>> model = VJEPA2ForVideoClassification.from_pretrained("facebook/vjepa2-vitl-fpc16-256-ssv2")
 
         >>> video = np.ones((64, 256, 256, 3))  # 64 frames, 256x256 RGB
-        >>> inputs = video_processor(video, return_tensors="np")
-        >>> TODO
+        >>> inputs = video_processor(video, return_tensors="pt")
+        >>> inputs["pixel_values_videos"] = ms.Tensor(inputs["pixel_values_videos"].cpu().numpy())
 
         >>> # For inference
-        >>> with no_grad():
-        ...     outputs = model(**inputs)
+        >>> outputs = model(**inputs)
         >>> logits = outputs.logits
 
         >>> predicted_label = logits.argmax(-1).item()
@@ -1251,10 +1222,6 @@ class VJEPA2ForVideoClassification(VJEPA2PreTrainedModel):
         loss = None
         if labels is not None:
             loss = self.loss_function(pooled_logits=logits, labels=labels, config=self.config)
-
-        if not return_dict:
-            output = (logits,) + outputs[1:]
-            return (loss,) + output if loss is not None else output
 
         return ImageClassifierOutput(
             loss=loss,

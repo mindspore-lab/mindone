@@ -1,3 +1,1 @@
-from .configuration_vjepa2 import VJEPA2Config
-from .modeling_vjepa2 import VJEPA2Model, VJEPA2PreTrainedModel, VJEPA2ForVideoClassification
-# from .video_processing_vjepa2 import VJEPA2VideoProcessor
+from .modeling_vjepa2 import VJEPA2ForVideoClassification, VJEPA2Model, VJEPA2PreTrainedModel
