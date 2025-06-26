@@ -18,6 +18,7 @@ from ..utils import _LazyModule
 
 _import_structure = {
     "adapter": ["MultiAdapter", "T2IAdapter"],
+    "auto_model": ["AutoModel"],
     "autoencoders.autoencoder_asym_kl": ["AsymmetricAutoencoderKL"],
     "autoencoders.autoencoder_dc": ["AutoencoderDC"],
     "autoencoders.autoencoder_kl": ["AutoencoderKL"],
@@ -68,10 +69,10 @@ _import_structure = {
     "transformers.transformer_hunyuan_video": ["HunyuanVideoTransformer3DModel"],
     "transformers.transformer_ltx": ["LTXVideoTransformer3DModel"],
     "transformers.transformer_lumina2": ["Lumina2Transformer2DModel"],
+    "transformers.transformer_mochi": ["MochiTransformer3DModel"],
     "transformers.transformer_sd3": ["SD3Transformer2DModel"],
     "transformers.transformer_temporal": ["TransformerTemporalModel"],
     "transformers.transformer_wan": ["WanTransformer3DModel"],
-    "transformers.transformer_mochi": ["MochiTransformer3DModel"],
     "unets.unet_1d": ["UNet1DModel"],
     "unets.unet_2d": ["UNet2DModel"],
     "unets.unet_2d_condition": ["UNet2DConditionModel"],

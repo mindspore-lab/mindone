@@ -146,7 +146,7 @@ class AutoModel(ConfigMixin):
         config = cls.load_config(pretrained_model_or_path, **load_config_kwargs)
         orig_class_name = config["_class_name"]
 
-        library = importlib.import_module("diffusers")
+        library = importlib.import_module("mindone.diffusers")
 
         model_cls = getattr(library, orig_class_name, None)
         if model_cls is None:

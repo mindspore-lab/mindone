@@ -86,6 +86,7 @@ _import_structure = {
         "FluxInpaintPipeline",
         "FluxPipeline",
         "FluxPriorReduxPipeline",
+        "ReduxImageEncoder",
     ],
     "hunyuandit": ["HunyuanDiTPipeline"],
     "hunyuan_video": ["HunyuanVideoPipeline"],
@@ -303,6 +304,7 @@ if TYPE_CHECKING:
         FluxInpaintPipeline,
         FluxPipeline,
         FluxPriorReduxPipeline,
+        ReduxImageEncoder,
     )
     from .hunyuan_video import HunyuanVideoPipeline
     from .hunyuandit import HunyuanDiTPipeline
