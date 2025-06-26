@@ -1279,7 +1279,9 @@ class Glm4vModel(Glm4vPreTrainedModel):
                 video_mask = mask_expanded
 
                 video_embeds = video_embeds.to(inputs_embeds.dtype)
-                inputs_embeds = inputs_embeds.masked_scatter(video_mask, video_embeds)
+                inputs_embeds = (
+                    inputs_embeds.float().masked_scatter(video_mask, video_embeds.float()).to(inputs_embeds.dtype)
+                )
 
         if position_ids is None:
             attention_mask_tensor = (
