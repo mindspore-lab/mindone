@@ -175,7 +175,7 @@ class TextClassificationPipeline(Pipeline):
                 ' dictionary `{"text": "My text", "text_pair": "My pair"}` in order to send a text pair.'
             )
         else:
-            model_inputs = self.tokenizer(**inputs, return_tensors=return_tensors, **tokenizer_kwargs)
+            model_inputs = self.tokenizer(inputs, return_tensors=return_tensors, **tokenizer_kwargs)
         for k, v in model_inputs.items():
             model_inputs[k] = ms.tensor(model_inputs[k])
         return model_inputs
