@@ -187,7 +187,6 @@ class CombinedLoader:
                 available_loaders = self.dataloader_names
 
             chosen_loader = random.choice(available_loaders)
-            dataloader_idx = self.dataloader_names.index(chosen_loader)
 
             combined_batch = {}
             for name in self.dataloader_names:
@@ -203,7 +202,7 @@ class CombinedLoader:
                         remaining = [n for n in available_loaders if n != name and n not in exhausted]
                         if remaining:
                             chosen_loader = random.choice(remaining)
-                            dataloader_idx = self.dataloader_names.index(chosen_loader)
+                            # dataloader_idx = self.dataloader_names.index(chosen_loader)
                             batch_data = next(iterators[chosen_loader])
                             combined_batch[chosen_loader] = batch_data
                             combined_batch[name] = self._create_empty_batch(name)

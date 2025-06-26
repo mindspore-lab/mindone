@@ -1,7 +1,5 @@
 import logging
-import math
 
-import numpy as np
 from parquet import RefinedWebDataset  # Assuming this is from a 'parquet' library
 from parquet.loader import CombinedLoader, create_dataloader
 from training.data import Text2ImageDataset
@@ -87,7 +85,7 @@ def create_dataloaders(config, rank_id=0, device_num=1):
     logger.info(f"Creating dataloaders and lr_scheduler for rank {rank_id}/{device_num}")
 
     total_batch_size_t2i_without_accum = config.training.batch_size_t2i * device_num
-    total_batch_size_t2i = config.training.batch_size_t2i * config.training.gradient_accumulation_steps * device_num
+    # total_batch_size_t2i = config.training.batch_size_t2i * config.training.gradient_accumulation_steps * device_num
 
     preproc_config = config.dataset.preprocessing
     dataset_config = config.dataset.params
@@ -113,15 +111,15 @@ def create_dataloaders(config, rank_id=0, device_num=1):
         )
         train_dataloader_t2i = dataset.train_dataloader
         train_dataloader_t2i.dataset_size = train_dataloader_t2i.num_batches
-        num_update_steps_per_epoch = math.ceil(
-            train_dataloader_t2i.num_batches / config.training.gradient_accumulation_steps
-        )
-        num_train_epochs = math.ceil(config.training.max_train_steps / num_update_steps_per_epoch)
+        # num_update_steps_per_epoch = math.ceil(
+        #     train_dataloader_t2i.num_batches / config.training.gradient_accumulation_steps
+        # )
+        # num_train_epochs = math.ceil(config.training.max_train_steps / num_update_steps_per_epoch)
 
     elif config.dataset.gen_type == "t2i_parquet":
         # this part relies on the internal packages, which will not be released
-        num_update_steps_per_epoch = math.ceil(config.experiment.max_train_examples_t2i / total_batch_size_t2i)
-        num_train_epochs = math.ceil(config.training.max_train_steps / num_update_steps_per_epoch)
+        # num_update_steps_per_epoch = math.ceil(config.experiment.max_train_examples_t2i / total_batch_size_t2i)
+        # num_train_epochs = math.ceil(config.training.max_train_steps / num_update_steps_per_epoch)
 
         raise NotImplementedError
 
@@ -156,8 +154,8 @@ def create_dataloaders(config, rank_id=0, device_num=1):
                         if rank_id == 0:
                             print(k, v.shape)
             break
-        num_update_steps_per_epoch = math.ceil(len(dataset_imagenet) / total_batch_size_t2i)
-        num_train_epochs = math.ceil(config.training.max_train_steps / num_update_steps_per_epoch)
+        # num_update_steps_per_epoch = math.ceil(len(dataset_imagenet) / total_batch_size_t2i)
+        # num_train_epochs = math.ceil(config.training.max_train_steps / num_update_steps_per_epoch)
 
     else:
         raise ValueError(f"Unsupported dataset type {config.dataset.gen_type}")

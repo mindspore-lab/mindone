@@ -101,6 +101,7 @@ def test_model_and_optimizer_initialization():
 
     try:
         tokenizer = AutoTokenizer.from_pretrained(config.model.mmada.pretrained_model_path, padding_side="left")
+        print(tokenizer)
         vq_model = get_vq_model_class(config.model.vq_model.type)
         vq_model = vq_model.from_pretrained(config.model.vq_model.vq_model_name, use_safetensors=True)
         vq_model.set_train(False)
@@ -147,6 +148,7 @@ def test_model_and_optimizer_initialization():
                 weight_decay=config.optimizer.params.weight_decay,
                 eps=config.optimizer.params.epsilon,
             )
+            print(optimizer)
         else:
             raise ValueError(f"Optimizer {optimizer_type} not supported")
 
