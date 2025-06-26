@@ -59,6 +59,6 @@ model = AutoencoderDC.from_single_file(ckpt_path, config="mit-han-lab/dc-ae-f128
 ```
 
 
-::: mindone.diffusersAutoencoderDC
+::: mindone.diffusers.AutoencoderDC
 
-::: mindone.diffusersmodels.autoencoders.vae.DecoderOutput
+::: mindone.diffusers.models.autoencoders.vae.DecoderOutput
