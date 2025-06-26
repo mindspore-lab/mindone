@@ -59,7 +59,7 @@ def generate(args):
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Glm4.1V demo.")
 
-    parser.add_argument("--prompt", type=str, default="Describe this image")
+    parser.add_argument("--prompt", type=str, default="Describe this image.")
     parser.add_argument(
         "--image",
         type=str,
