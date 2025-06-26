@@ -50,6 +50,7 @@ from . import (
     llava,
     megatron_bert,
     minicpm4,
+    minimax,
     mistral,
     mixtral,
     mobilebert,

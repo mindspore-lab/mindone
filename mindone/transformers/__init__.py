@@ -263,6 +263,14 @@ from .models.megatron_bert import (
     MegatronBertPreTrainedModel,
 )
 from .models.minicpm4 import MiniCPMForCausalLM, MiniCPMForSequenceClassification, MiniCPMModel
+from .models.minimax import (
+    MiniMaxForCausalLM,
+    MiniMaxForQuestionAnswering,
+    MiniMaxForSequenceClassification,
+    MiniMaxForTokenClassification,
+    MiniMaxModel,
+    MiniMaxPreTrainedModel,
+)
 from .models.mistral import (
     MistralForCausalLM,
     MistralForQuestionAnswering,
