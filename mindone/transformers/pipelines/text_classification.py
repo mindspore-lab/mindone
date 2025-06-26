@@ -3,14 +3,15 @@ import warnings
 from typing import Dict
 
 import numpy as np
+from transformers.utils import add_end_docstrings
 
 from ..utils import ExplicitEnum, is_mindspore_available
-from transformers.utils import add_end_docstrings
 from .base import GenericTensor, Pipeline, build_pipeline_init_args
 
 if is_mindspore_available():
-    from ..models.auto.modeling_auto import MODEL_FOR_SEQUENCE_CLASSIFICATION_MAPPING_NAMES
     import mindspore as ms
+
+    from ..models.auto.modeling_auto import MODEL_FOR_SEQUENCE_CLASSIFICATION_MAPPING_NAMES
 
 
 def sigmoid(_outputs):

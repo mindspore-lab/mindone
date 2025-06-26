@@ -38,13 +38,17 @@ from .base import (
     get_default_model_and_revision,
     infer_framework_load_model,
 )
-from .text_generation import TextGenerationPipeline
 from .text_classification import TextClassificationPipeline
+from .text_generation import TextGenerationPipeline
 
 if is_mindspore_available():
     import mindspore as ms
 
-    from ..models.auto.modeling_auto import AutoModelForCausalLM, AutoModelForTokenClassification, AutoModelForSequenceClassification
+    from ..models.auto.modeling_auto import (
+        AutoModelForCausalLM,
+        AutoModelForSequenceClassification,
+        AutoModelForTokenClassification,
+    )
 
 
 if TYPE_CHECKING:
