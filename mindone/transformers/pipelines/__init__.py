@@ -8,7 +8,7 @@ from transformers.configuration_utils import PretrainedConfig
 from transformers.dynamic_module_utils import get_class_from_dynamic_module
 from transformers.models.auto.feature_extraction_auto import FEATURE_EXTRACTOR_MAPPING, AutoFeatureExtractor
 from transformers.models.auto.image_processing_auto import IMAGE_PROCESSOR_MAPPING, AutoImageProcessor
-from transformers.models.auto.processing_auto import PROCESSOR_MAPPING, AutoProcessor
+from mindone.transformers.models.auto.processing_auto import PROCESSOR_MAPPING, AutoProcessor
 from transformers.models.auto.tokenization_auto import TOKENIZER_MAPPING, AutoTokenizer
 from transformers.tokenization_utils import PreTrainedTokenizer
 from transformers.utils import (
