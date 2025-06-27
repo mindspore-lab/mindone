@@ -147,7 +147,7 @@ The experiment logs and checkpoints will be saved under `./mmada-training-stage1
 
 We recommend you to start a ZERO2 parallel training task with `scripts/pretrain_stage1_parallel.sh`:
 ```bash
-export ASCEND_RT_VISIBLE_DEVICES=1,2,3,4,5,6,7
+export ASCEND_RT_VISIBLE_DEVICES=0,1,2,3,4,5,6,7
 msrun --bind_core=True --worker_num=8 --local_worker_num=8 --master_port=9000 --log_dir=./parallel_logs \
 python training/train_mmada.py config=configs/mmada_pretraining_stage1_llada_instruct.yaml
 ```
@@ -159,7 +159,7 @@ Finetuning experiment will load the pretrained `MMaDA-8B-Base` checkpoint before
 
 We provide a configuration file `configs/mmada_finetune_artwork.yaml` for finetuning experiment. Please start the finetuning experiment with `scripts/finetune_artwork.sh`:
 ```bash
-export ASCEND_RT_VISIBLE_DEVICES=1,2,3,4,5,6,7
+export ASCEND_RT_VISIBLE_DEVICES=0,1,2,3,4,5,6,7
 msrun --bind_core=True --worker_num=8 --local_worker_num=8 --master_port=9000 --log_dir=./parallel_logs \
 python training/train_mmada_stage2.py config=configs/mmada_finetune_artwork.yaml
 ```
