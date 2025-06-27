@@ -67,13 +67,19 @@ You can download `MMaDA-8B-Base` at [Huggingface](https://huggingface.co/Gen-Ver
 huggingface-cli download --resume-download Gen-Verse/MMaDA-8B-Base
 ```
 
-And download `MMaDA-8B-MixCoT` from [Huggingface](https://huggingface.co/Gen-Verse/MMaDA-8B-MixCoT) like this:
+If you want to run inference with the CoT checkpoint, please download `MMaDA-8B-MixCoT` from [Huggingface](https://huggingface.co/Gen-Verse/MMaDA-8B-MixCoT) like this:
 
 ```bash
 huggingface-cli download --resume-download Gen-Verse/MMaDA-8B-MixCoT
 ```
 
 `MMaDA-8B-Max` is comining soon. See latest updates from [HERE](https://github.com/Gen-Verse/MMaDA/blob/main/README.md#-mmada-series-overview).
+
+In addition, MMaDA uses MAGVIT-v2 as the discrete VAE encoder. You can download its checkpoint via:
+```bash
+huggingface-cli download --resume-download showlab/magvitv2
+```
+
 
 ### Inference Files Preparation
 
@@ -147,6 +153,9 @@ python training/train_mmada.py config=configs/mmada_pretraining_stage1_llada_ins
 ```
 
 ### Finetuning Experiment
+
+Finetuning experiment will load the pretrained `MMaDA-8B-Base` checkpoint before training. Please make sure you have downloaded [`MMaDA-8B-Base`](https://huggingface.co/Gen-Verse/MMaDA-8B-Base) and [MAGVIT-v2](https://huggingface.co/showlab/magvitv2) checkpoints.
+
 
 We provide a configuration file `configs/mmada_finetune_artwork.yaml` for finetuning experiment. Please start the finetuning experiment with `scripts/finetune_artwork.sh`:
 ```bash
