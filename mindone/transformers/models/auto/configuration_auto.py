@@ -95,6 +95,7 @@ MODEL_NAMES_MAPPING = OrderedDict(
         ("bert", "BERT"),
         ("bart", "BART"),
         ("bit", "BiT"),
+        ("blip", "BLIP"),
         ("blip-2", "BLIP-2"),
         ("chameleon", "Chameleon"),
         ("clap", "CLAP"),
