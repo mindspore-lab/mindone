@@ -18,9 +18,10 @@ Processor class for Blip.
 
 from typing import List, Optional, Union
 
+from transformers.tokenization_utils_base import BatchEncoding, PreTokenizedInput, TextInput
+
 from ...image_utils import ImageInput
 from ...processing_utils import ProcessingKwargs, ProcessorMixin, Unpack
-from transformers.tokenization_utils_base import BatchEncoding, PreTokenizedInput, TextInput
 
 
 class BlipProcessorKwargs(ProcessingKwargs, total=False):

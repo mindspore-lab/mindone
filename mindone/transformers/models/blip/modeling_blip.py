@@ -18,20 +18,19 @@ import warnings
 from dataclasses import dataclass
 from typing import Any, Optional, Tuple, Union
 
+from transformers.models.blip.configuration_blip import BlipConfig, BlipTextConfig, BlipVisionConfig
+from transformers.utils import ModelOutput
+
 import mindspore as ms
 from mindspore import mint, nn, ops
 from mindspore.mint.nn.functional import normalize
-
-from transformers.utils import ModelOutput
 
 from ...activations import ACT2FN
 from ...generation import GenerationMixin
 from ...modeling_outputs import BaseModelOutput, BaseModelOutputWithPooling
 from ...modeling_utils import PreTrainedModel
 from ...utils import logging, mindspore_int
-from transformers.models.blip.configuration_blip import BlipConfig, BlipTextConfig, BlipVisionConfig
 from .modeling_blip_text import BlipTextLMHeadModel, BlipTextModel
-
 
 logger = logging.get_logger(__name__)
 
@@ -647,9 +646,7 @@ class BlipEncoder(nn.Cell):
 
         if not return_dict:
             return tuple(v for v in [hidden_states, encoder_states, all_attentions] if v is not None)
-        return BaseModelOutput(
-            last_hidden_state=hidden_states, hidden_states=encoder_states, attentions=all_attentions
-        )
+        return BaseModelOutput(last_hidden_state=hidden_states, hidden_states=encoder_states, attentions=all_attentions)
 
 
 class BlipVisionModel(BlipPreTrainedModel):
@@ -750,7 +747,8 @@ class BlipModel(BlipPreTrainedModel):
         self.logit_scale = ms.Parameter(ms.tensor(self.config.logit_scale_init_value))
 
         logger.warning(
-            "`BlipModel` is going to be deprecated in future release, please use `BlipForConditionalGeneration`, `BlipForQuestionAnswering` or `BlipForImageTextRetrieval` depending on your usecase."
+            "`BlipModel` is going to be deprecated in future release, please use `BlipForConditionalGeneration`, "
+            "`BlipForQuestionAnswering` or `BlipForImageTextRetrieval` depending on your usecase."
         )
 
         # Initialize weights and apply final processing
@@ -1157,10 +1155,9 @@ class BlipForConditionalGeneration(BlipPreTrainedModel, GenerationMixin):
         if isinstance(input_ids, list):
             input_ids = ms.tensor(input_ids, dtype=ms.int64)
         elif input_ids is None:
-            input_ids = (
-                ms.tensor([[self.decoder_input_ids, self.config.text_config.eos_token_id]], dtype=ms.int64)
-                .tile((batch_size, 1))
-            )
+            input_ids = ms.tensor(
+                [[self.decoder_input_ids, self.config.text_config.eos_token_id]], dtype=ms.int64
+            ).tile((batch_size, 1))
 
         input_ids[:, 0] = self.config.text_config.bos_token_id
         attention_mask = attention_mask[:, :-1] if attention_mask is not None else None

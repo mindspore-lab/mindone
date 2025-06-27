@@ -17,17 +17,13 @@ import enum
 from collections.abc import Iterable  # pylint: disable=g-importing-member
 from typing import Dict, List, Optional, Union
 
-from ..processing_utils import ProcessingKwargs, Unpack
-from ..utils import (
-    is_mindspore_available,
-    is_vision_available,
-    logging,
-    requires_backends,
-)
 from transformers.utils import add_end_docstrings
-from .base import Pipeline, build_pipeline_init_args
 
 import mindspore as ms
+
+from ..processing_utils import ProcessingKwargs, Unpack
+from ..utils import is_mindspore_available, is_vision_available, logging, requires_backends
+from .base import Pipeline, build_pipeline_init_args
 
 if is_vision_available():
     from PIL import Image
@@ -370,7 +366,6 @@ class ImageTextToTextPipeline(Pipeline):
             else:
                 model_inputs[k] = ms.tensor(model_inputs[k]).to(self.torch_dtype)
 
-
         model_inputs["text"] = inputs_text
 
         return model_inputs
@@ -439,9 +434,7 @@ class ImageTextToTextPipeline(Pipeline):
                         ]
                     else:
                         # When we're not starting from a prefill, the output is a new assistant message
-                        generated_text = list(prompt_text.messages) + [
-                            {"role": "assistant", "content": generated_text}
-                        ]
+                        generated_text = list(prompt_text.messages) + [{"role": "assistant", "content": generated_text}]
                 full_texts.append(generated_text)
             generated_texts = full_texts
 

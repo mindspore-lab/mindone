@@ -17,6 +17,8 @@
 import math
 from typing import List, Optional, Tuple, Union
 
+from transformers.models.blip.configuration_blip import BlipTextConfig
+
 import mindspore as ms
 from mindspore import mint, nn
 from mindspore.mint.nn import CrossEntropyLoss
@@ -35,8 +37,6 @@ from ...modeling_utils import (
     prune_linear_layer,
 )
 from ...utils import logging
-from transformers.models.blip.configuration_blip import BlipTextConfig
-
 
 logger = logging.get_logger(__name__)
 
@@ -632,9 +632,7 @@ class BlipTextModel(BlipTextPreTrainedModel):
                     prefix_seq_len = attention_mask.shape[1] - causal_mask.shape[1]
                     causal_mask = mint.cat(
                         [
-                            mint.ones(
-                                (batch_size, seq_length, prefix_seq_len), dtype=causal_mask.dtype
-                            ),
+                            mint.ones((batch_size, seq_length, prefix_seq_len), dtype=causal_mask.dtype),
                             causal_mask,
                         ],
                         dim=-1,
@@ -939,7 +937,5 @@ class BlipTextLMHeadModel(BlipTextPreTrainedModel, GenerationMixin):
     def _reorder_cache(self, past_key_values, beam_idx):
         reordered_past = ()
         for layer_past in past_key_values:
-            reordered_past += (
-                tuple(past_state.index_select(0, beam_idx) for past_state in layer_past),
-            )
+            reordered_past += (tuple(past_state.index_select(0, beam_idx) for past_state in layer_past),)
         return reordered_past
