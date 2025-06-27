@@ -6,8 +6,6 @@ import pytest
 import torch
 from transformers import GPTNeoXConfig
 
-import mindspore as ms
-
 from tests.modeling_test_utils import (
     MS_DTYPE_MAPPING,
     PT_DTYPE_MAPPING,
@@ -125,17 +123,8 @@ LLAMA_CASES = [
     ],
 )
 def test_named_modules(
-    name,
-    pt_module,
-    ms_module,
-    init_args,
-    init_kwargs,
-    inputs_args,
-    inputs_kwargs,
-    outputs_map,
-    dtype
+    name, pt_module, ms_module, init_args, init_kwargs, inputs_args, inputs_kwargs, outputs_map, dtype
 ):
-
     (
         pt_model,
         ms_model,

@@ -48,6 +48,7 @@ CONFIG_MAPPING_NAMES = OrderedDict(
         ("t5", "T5Config"),
         ("xlm-roberta", "XLMRobertaConfig"),
         ("gpt_neox", "GPTNeoXConfig"),
+        ("xlm-roberta-xl", "XLMRobertaXLConfig"),
     ]
 )
 

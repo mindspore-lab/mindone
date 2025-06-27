@@ -17,10 +17,9 @@
 from typing import List, Optional, Tuple
 
 from tokenizers import processors
-
 from transformers.tokenization_utils_fast import PreTrainedTokenizerFast
-from ...utils import logging
 
+from ...utils import logging
 
 logger = logging.get_logger(__name__)
 

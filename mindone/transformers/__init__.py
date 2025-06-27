@@ -93,6 +93,15 @@ from .models.gpt2 import (
     GPT2Model,
     GPT2PreTrainedModel,
 )
+from .models.gpt_neox import (
+    GPTNeoXForCausalLM,
+    GPTNeoXForQuestionAnswering,
+    GPTNeoXForSequenceClassification,
+    GPTNeoXForTokenClassification,
+    GPTNeoXLayer,
+    GPTNeoXModel,
+    GPTNeoXPreTrainedModel,
+)
 from .models.hiera import (
     HieraBackbone,
     HieraForImageClassification,
@@ -200,16 +209,6 @@ from .models.whisper import (
     WhisperModel,
     WhisperPreTrainedModel,
     WhisperProcessor,
-)
-from .models.gpt_neox import (
-
-    GPTNeoXForCausalLM,
-    GPTNeoXForQuestionAnswering,
-    GPTNeoXForSequenceClassification,
-    GPTNeoXForTokenClassification,
-    GPTNeoXLayer,
-    GPTNeoXModel,
-    GPTNeoXPreTrainedModel,
 )
 from .models.xlm_roberta import XLMRobertaModel, XLMRobertaPreTrainedModel
 from .pipelines import TextGenerationPipeline, pipeline

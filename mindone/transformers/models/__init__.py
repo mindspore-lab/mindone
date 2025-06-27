@@ -11,6 +11,7 @@ from . import (
     glm,
     glpn,
     gpt2,
+    gpt_neox,
     hiera,
     ijepa,
     imagegpt,
@@ -30,5 +31,4 @@ from . import (
     umt5,
     wav2vec2,
     xlm_roberta,
-    gpt_neox,
 )
