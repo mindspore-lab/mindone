@@ -73,7 +73,7 @@ SUPPORTED_TASKS = {
     "text2text-generation": {
         "impl": Text2TextGenerationPipeline,
         "ms": (AutoModelForSeq2SeqLM,) if is_mindspore_available() else (),
-        "default": {"model": {"pt": ("google-t5/t5-base", "a9723ea"), "tf": ("google-t5/t5-base", "a9723ea")}},
+        "default": {"model": {"ms": ("google-t5/t5-base", "a9723ea")}},
         "type": "text",
     },
 }
