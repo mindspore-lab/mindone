@@ -36,6 +36,7 @@ _import_structure = {
     "consistency_models": ["ConsistencyModelPipeline"],
     "cogview3": ["CogView3PlusPipeline"],
     "cogview4": ["CogView4Pipeline", "CogView4ControlPipeline"],
+    "consisid": ["ConsisIDPipeline"],
     "controlnet": [
         "BlipDiffusionControlNetPipeline",
         "StableDiffusionControlNetImg2ImgPipeline",
@@ -266,6 +267,7 @@ if TYPE_CHECKING:
     )
     from .cogview3 import CogView3PlusPipeline
     from .cogview4 import CogView4ControlPipeline, CogView4Pipeline
+    from .consisid import ConsisIDPipeline
     from .consistency_models import ConsistencyModelPipeline
     from .controlnet import (
         BlipDiffusionControlNetPipeline,
