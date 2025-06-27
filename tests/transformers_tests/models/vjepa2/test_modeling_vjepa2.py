@@ -12,6 +12,7 @@
 # pip install -U git+https://github.com/huggingface/transformers
 
 import inspect
+
 import numpy as np
 import pytest
 import torch
@@ -28,8 +29,9 @@ from tests.modeling_test_utils import (
 )
 from tests.transformers_tests.models.modeling_common import floats_numpy
 
-DTYPE_AND_THRESHOLDS = {"fp32": 5e-4, "fp16": 5e-3, "bf16": 5e-2}
+DTYPE_AND_THRESHOLDS = {"fp32": 5e-4, "fp16": 8e-4, "bf16": 6e-3}
 MODES = [1]
+# NOTE: all compare with torch fp32 since LayerNorm does not supported in CPU with fp16/bf16
 
 
 class VJEPA2ModelTester:
@@ -40,7 +42,7 @@ class VJEPA2ModelTester:
         crop_size=64,
         frames_per_clip=16,
         tubelet_size=2,
-        hidden_size=32,
+        hidden_size=256,
         in_chans=3,
         num_attention_heads=4,
         num_hidden_layers=2,
@@ -91,46 +93,41 @@ class VJEPA2ModelTester:
         self.wide_SiLU = wide_SiLU
         self.attn_implementation = attn_implementation
 
-
     def prepare_config_and_inputs(self):
         config = self.get_config()
         num_frames = 16
-        pixel_values = floats_numpy(
-            [
-                1, num_frames, self.num_channels, self.crop_size, self.crop_size
-            ]
-        )
+        pixel_values = floats_numpy([1, num_frames, self.num_channels, self.crop_size, self.crop_size])
 
         return config, pixel_values
 
     def get_config(self):
         return VJEPA2Config(
-            patch_size = self.patch_size,
-            num_attention_heads = self.num_attention_heads,
-            num_hidden_layers = self.num_hidden_layers,
-            in_chans = self.in_chans,
-            qkv_bias = self.qkv_bias,
-            tubelet_size = self.tubelet_size,
-            hidden_size = self.hidden_size,
-            frames_per_clip = self.frames_per_clip,
-            crop_size = self.crop_size,
-            drop_path_rate = self.drop_path_rate,
-            attention_probs_dropout_prob = self.attention_probs_dropout_prob,
-            hidden_act = self.hidden_act,
-            hidden_dropout_prob = self.hidden_dropout_prob,
-            image_size = self.image_size,
-            initializer_range = self.initializer_range,
-            layer_norm_eps = self.layer_norm_eps,
-            mlp_ratio = self.mlp_ratio,
-            pred_hidden_size = self.pred_hidden_size,
-            pred_mlp_ratio = self.pred_mlp_ratio,
-            pred_num_attention_heads = self.pred_num_attention_heads,
-            pred_num_hidden_layers = self.pred_num_hidden_layers,
-            pred_num_mask_tokens = self.pred_num_mask_tokens,
-            pred_zero_init_mask_tokens = self.pred_zero_init_mask_tokens,
-            use_SiLU = self.use_SiLU,
-            wide_SiLU = self.wide_SiLU,
-            attn_implementation = self.attn_implementation,
+            patch_size=self.patch_size,
+            num_attention_heads=self.num_attention_heads,
+            num_hidden_layers=self.num_hidden_layers,
+            in_chans=self.in_chans,
+            qkv_bias=self.qkv_bias,
+            tubelet_size=self.tubelet_size,
+            hidden_size=self.hidden_size,
+            frames_per_clip=self.frames_per_clip,
+            crop_size=self.crop_size,
+            drop_path_rate=self.drop_path_rate,
+            attention_probs_dropout_prob=self.attention_probs_dropout_prob,
+            hidden_act=self.hidden_act,
+            hidden_dropout_prob=self.hidden_dropout_prob,
+            image_size=self.image_size,
+            initializer_range=self.initializer_range,
+            layer_norm_eps=self.layer_norm_eps,
+            mlp_ratio=self.mlp_ratio,
+            pred_hidden_size=self.pred_hidden_size,
+            pred_mlp_ratio=self.pred_mlp_ratio,
+            pred_num_attention_heads=self.pred_num_attention_heads,
+            pred_num_hidden_layers=self.pred_num_hidden_layers,
+            pred_num_mask_tokens=self.pred_num_mask_tokens,
+            pred_zero_init_mask_tokens=self.pred_zero_init_mask_tokens,
+            use_SiLU=self.use_SiLU,
+            wide_SiLU=self.wide_SiLU,
+            attn_implementation=self.attn_implementation,
         )
 
 
@@ -141,27 +138,29 @@ model_tester = VJEPA2ModelTester()
 ) = model_tester.prepare_config_and_inputs()
 
 
-
 VJEPA2_CASES = [
     [
         "VJEPA2Model",
         "transformers.VJEPA2Model",
-        "mindone.transformers.VJEPA2Model",
+        "mindone.transformers.models.vjepa2.VJEPA2Model",
         (config,),
         {},
         (pixel_values,),
+        {},
         {"last_hidden_state": 0},
     ],
     [
         "VJEPA2ForVideoClassification",
         "transformers.VJEPA2ForVideoClassification",
-        "mindone.transformers.VJEPA2ForVideoClassification",
+        "mindone.transformers.models.vjepa2.VJEPA2ForVideoClassification",
         (config,),
         {},
         (pixel_values,),
+        {},
         {"logits": 0},
     ],
 ]
+
 
 # transformers need >= 4.53.0.dev3
 @pytest.mark.parametrize(
@@ -179,8 +178,6 @@ VJEPA2_CASES = [
         for mode in MODES
     ],
 )
-
-
 def test_named_modules(
     name,
     pt_module,

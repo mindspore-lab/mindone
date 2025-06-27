@@ -218,7 +218,8 @@ def rotate_queries_or_keys(x, pos):
 
     y = mint.stack((-y2, y1), dim=-1)
     y = y.flatten(-2)
-    return (x * emb_cos) + (y * emb_sin)
+    result = (x * emb_cos) + (y * emb_sin)
+    return result.to(x.dtype)
 
 
 class VJEPA2RopeAttention(nn.Cell):
@@ -1055,7 +1056,7 @@ class VJEPA2Model(VJEPA2PreTrainedModel):
     def get_input_embeddings(self) -> VJEPA2PatchEmbeddings3D:
         return self.encoder.embeddings.patch_embeddings
 
-    @ms.jit
+    # @ms.jit
     @auto_docstring
     def construct(
         self,

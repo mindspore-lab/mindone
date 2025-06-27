@@ -14,7 +14,11 @@ from mindone.transformers.models.vjepa2 import VJEPA2Model
 
 start_time = time.time()
 model_repo = "facebook/vjepa2-vitl-fpc64-256"
-model = VJEPA2Model.from_pretrained(model_repo).set_train(False)
+model = VJEPA2Model.from_pretrained(
+    model_repo,
+    mindspore_dtype=ms.float16,
+    attn_implementation="flash_attention_2",  # "eager"
+).set_train(False)
 processor = VJEPA2VideoProcessor.from_pretrained(model_repo)
 print("Loaded model and processor, time elapse: %.4fs" % (time.time() - start_time))
 
