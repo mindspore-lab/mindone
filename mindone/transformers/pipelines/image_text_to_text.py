@@ -363,7 +363,7 @@ class ImageTextToTextPipeline(Pipeline):
         if isinstance(text, (list, tuple)) and len(text) > 1:
             processing_kwargs.setdefault("padding", True)
         # modified self.framework to adapt to mindspore
-        model_inputs = self.processor(images=images, text=text, return_tensors="np", use_fast=False, **processing_kwargs)
+        model_inputs = self.processor(images=images, text=text, return_tensors="np", **processing_kwargs)
         for k, v in model_inputs.items():
             model_inputs[k] = ms.tensor(model_inputs[k])
         model_inputs = model_inputs.to(self.torch_dtype)
