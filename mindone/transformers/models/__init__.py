@@ -47,4 +47,5 @@ from . import (  # qwen3,
     vits,
     wav2vec2,
     xlm_roberta,
+    xlnet,
 )

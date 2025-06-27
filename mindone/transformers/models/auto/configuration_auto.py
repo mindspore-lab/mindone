@@ -81,6 +81,7 @@ CONFIG_MAPPING_NAMES = OrderedDict(
         ("umt5", "UMT5Config"),
         ("wav2vec2", "Wav2Vec2Config"),
         ("whisper", "WhisperConfig"),
+        ("xlnet", "XLNetConfig"),
         ("xlm-roberta", "XLMRobertaConfig"),
         ("xlm-roberta-xl", "XLMRobertaXLConfig"),
     ]
@@ -149,6 +150,7 @@ MODEL_NAMES_MAPPING = OrderedDict(
         ("umt5", "UMT5"),
         ("wav2vec2", "Wav2Vec2"),
         ("whisper", "Whisper"),
+        ("xlnet", "XLNet"),
         ("xlm-roberta", "XLM-RoBERTa"),
         ("xlm-roberta-xl", "XLM-RoBERTa-XL"),
     ]

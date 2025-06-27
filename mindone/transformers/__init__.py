@@ -345,5 +345,15 @@ from .models.xlm_roberta_xl import (
     XLMRobertaXLModel,
     XLMRobertaXLPreTrainedModel,
 )
+from .models.xlnet import (
+    XLNetForMultipleChoice,
+    XLNetForQuestionAnswering,
+    XLNetForQuestionAnsweringSimple,
+    XLNetForSequenceClassification,
+    XLNetForTokenClassification,
+    XLNetLMHeadModel,
+    XLNetModel,
+    XLNetPreTrainedModel,
+)
 from .pipelines import TextGenerationPipeline, pipeline
 from .processing_utils import ProcessorMixin
