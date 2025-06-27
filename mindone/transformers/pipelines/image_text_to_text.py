@@ -27,6 +27,7 @@ from ..utils import (
 from transformers.utils import add_end_docstrings
 from .base import Pipeline, build_pipeline_init_args
 
+import mindspore as ms
 
 if is_vision_available():
     from PIL import Image
@@ -361,9 +362,11 @@ class ImageTextToTextPipeline(Pipeline):
         # if batched text inputs, we set padding to True unless specified otherwise
         if isinstance(text, (list, tuple)) and len(text) > 1:
             processing_kwargs.setdefault("padding", True)
-        model_inputs = self.processor(images=images, text=text, return_tensors="ms", **processing_kwargs).to(
-            dtype=self.torch_dtype
-        )
+        # modified self.framework to adapt to mindspore
+        model_inputs = self.processor(images=images, text=text, return_tensors="np", **processing_kwargs)
+        for k, v in model_inputs.items():
+            model_inputs[k] = ms.tensor(model_inputs[k])
+        model_inputs = model_inputs.to(self.torch_dtype)
 
         model_inputs["text"] = inputs_text
 
