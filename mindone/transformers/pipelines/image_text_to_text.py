@@ -365,8 +365,7 @@ class ImageTextToTextPipeline(Pipeline):
         # modified self.framework to adapt to mindspore
         model_inputs = self.processor(images=images, text=text, return_tensors="np", **processing_kwargs)
         for k, v in model_inputs.items():
-            model_inputs[k] = ms.tensor(model_inputs[k])
-        model_inputs = model_inputs.to(self.torch_dtype)
+            model_inputs[k] = ms.tensor(model_inputs[k]).to(self.torch_dtype)
 
         model_inputs["text"] = inputs_text
 
