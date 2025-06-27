@@ -18,7 +18,8 @@ The abstract from the paper is the following:
 ## Requirements:
 |mindspore | ascend driver | firmware | cann tookit/kernel|
 |--- |--- | ---| --- |
-|2.5.0 | 24.1RC3 | 7.3.0.1.231 | 8.0.RC3.beta1|
+|2.5.0 | 24.1.RC3 | 7.5.T11.0 | 8.0.0.beta1|
+|2.6.0 | 24.1.RC3 | 7.5.T11.0 | 8.0.0.beta1|
 
 ## Quick Start
 
@@ -38,7 +39,19 @@ python generate.py
 ```
 
 ## Inference Speed
+
+Experiments are tested on ascend 910* with pynative mode.
+
+- mindspore 2.5.0
+
 |model name	| precision | cards | fa  |	tokens/s	| weight |
 | :---: | :---:  |:---:  | :---:  |:---:  | ---|
 | Idefics3-8B-Llama3 |  fp16 | 1 | ON  | 3.86 | [weight](https://huggingface.co/HuggingFaceM4/Idefics3-8B-Llama3)
 | Idefics3-8B-Llama3 |  bf16 | 1 | ON  | 4.22 | [weight](https://huggingface.co/HuggingFaceM4/Idefics3-8B-Llama3)
+
+- mindspore 2.6.0
+
+|model name	| precision | cards | fa  |	tokens/s	| weight |
+| :---: | :---:  |:---:  | :---:  |:---:  | ---|
+| Idefics3-8B-Llama3 |  fp16 | 1 | ON  | 4.16 | [weight](https://huggingface.co/HuggingFaceM4/Idefics3-8B-Llama3)
+| Idefics3-8B-Llama3 |  bf16 | 1 | ON  | 4.53  | [weight](https://huggingface.co/HuggingFaceM4/Idefics3-8B-Llama3)
