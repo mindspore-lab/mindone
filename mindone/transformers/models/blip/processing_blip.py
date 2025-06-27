@@ -20,7 +20,7 @@ from typing import List, Optional, Union
 
 from ...image_utils import ImageInput
 from ...processing_utils import ProcessingKwargs, ProcessorMixin, Unpack
-from ...tokenization_utils_base import BatchEncoding, PreTokenizedInput, TextInput
+from transformers.tokenization_utils_base import BatchEncoding, PreTokenizedInput, TextInput
 
 
 class BlipProcessorKwargs(ProcessingKwargs, total=False):
