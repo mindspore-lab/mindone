@@ -39,11 +39,12 @@ from .base import (
     infer_framework_load_model,
 )
 from .text_generation import TextGenerationPipeline
+from .image_text_to_text import ImageTextToTextPipeline
 
 if is_mindspore_available():
     import mindspore as ms
 
-    from ..models.auto.modeling_auto import AutoModelForCausalLM, AutoModelForTokenClassification
+    from ..models.auto.modeling_auto import AutoModelForCausalLM, AutoModelForTokenClassification, AutoModelForImageTextToText
 
 
 if TYPE_CHECKING:
@@ -68,6 +69,16 @@ SUPPORTED_TASKS = {
         "ms": (AutoModelForCausalLM,) if is_mindspore_available() else (),
         "default": {"model": {"ms": ("openai-community/gpt2", "607a30d"), "tf": ("openai-community/gpt2", "607a30d")}},
         "type": "text",
+    },
+    "image-text-to-text": {
+        "impl": ImageTextToTextPipeline,
+        "ms": (AutoModelForImageTextToText,) if is_mindspore_available() else (),
+        "default": {
+            "model": {
+                "ms": ("llava-hf/llava-onevision-qwen2-0.5b-ov-hf", "2c9ba3b"),
+            }
+        },
+        "type": "multimodal",
     },
 }
 
