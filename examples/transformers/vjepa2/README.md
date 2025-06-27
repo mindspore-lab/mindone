@@ -16,7 +16,8 @@ You can find all original V-JEPA2 checkpoints under the [V-JEPA 2](https://huggi
 ## Requirements
 |mindspore |	ascend driver | firmware | cann tookit/kernel|
 |--- | --- | --- | --- |
-|2.5.0 | 24.1RC3 | 7.3.0.1.231 | 8.0.0.beta1|
+|2.5.0 | 24.1.RC3 | 7.5.T11.0 | 8.0.0.beta1|
+|2.6.0 | 24.1.RC3 | 7.5.T11.0 | 8.0.0.beta1|
 
 ### Installation
 ```
@@ -41,10 +42,21 @@ python classify.py
 
 ## Inference Performance
 
-Experiments are tested on ascend 910* with mindspore 2.5.0 pynative mode.
+Experiments are tested on ascend 910* with pynative mode.
 
-|model| precision |  resolution| FA | s/step | weight
+- mindspore 2.5.0
+
+|model| precision |  resolution| fa | s/step | weight
 |---|---|---|---|---|---|
 |vjepa2-vitl-fpc64-256| fp32 | 64x3x256x256 | OFF | 2.16  | [weight](https://huggingface.co/facebook/vjepa2-vitl-fpc64-256) |
-|vjepa2-vitl-fpc64-256| bf16 | 64x3x256x256 | ON | 0.13  | [weight](https://huggingface.co/facebook/vjepa2-vitl-fpc64-256) |
-|vjepa2-vitl-fpc64-256| fp16 | 64x3x256x256 | ON | 0.14  | [weight](https://huggingface.co/facebook/vjepa2-vitl-fpc64-256) |
+|vjepa2-vitl-fpc64-256| bf16 | 64x3x256x256 | ON | 0.71  | [weight](https://huggingface.co/facebook/vjepa2-vitl-fpc64-256) |
+|vjepa2-vitl-fpc64-256| fp16 | 64x3x256x256 | ON | 0.63  | [weight](https://huggingface.co/facebook/vjepa2-vitl-fpc64-256) |
+
+
+- mindspore 2.6.0
+
+|model| precision |  resolution| fa | s/step | weight
+|---|---|---|---|---|---|
+|vjepa2-vitl-fpc64-256| fp32 | 64x3x256x256 | OFF | 2.19  | [weight](https://huggingface.co/facebook/vjepa2-vitl-fpc64-256) |
+|vjepa2-vitl-fpc64-256| bf16 | 64x3x256x256 | ON | 0.74  | [weight](https://huggingface.co/facebook/vjepa2-vitl-fpc64-256) |
+|vjepa2-vitl-fpc64-256| fp16 | 64x3x256x256 | ON | 0.63  | [weight](https://huggingface.co/facebook/vjepa2-vitl-fpc64-256) |
