@@ -15,6 +15,7 @@
 """GPTNeoX model configuration"""
 
 from transformers import PretrainedConfig
+
 from ...modeling_rope_utils import rope_config_validation
 from ...utils import logging
 

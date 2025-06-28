@@ -31,11 +31,14 @@ from .configuration_gpt_neox import GPTNeoXConfig
 
 logger = logging.get_logger(__name__)
 
+
 class HybridCache(object):
-    "This class do nothing and will be never used in our implement."
+    """This class do nothing and will be never used in our implement."""
+
 
 class KwargsForCausalLM(FlashAttentionKwargs, LossKwargs):
     ...
+
 
 class GPTNeoXMLP(nn.Cell):
     def __init__(self, config):
