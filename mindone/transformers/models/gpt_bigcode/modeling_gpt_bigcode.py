@@ -198,7 +198,7 @@ class GPTBigCodeAttention(nn.Cell):
         encoder_attention_mask: Optional[ms.Tensor] = None,
         use_cache: Optional[bool] = False,
         output_attentions: Optional[bool] = False,
-    ) -> Union[Tuple[ms.Tensor, Optional[ms.Tensor]], Tuple[ms.Tensor, Optional[ms.Tensor], Tuple[ms.Tensor, ...]],]:
+    ) -> Union[Tuple[ms.Tensor, Optional[ms.Tensor]], Tuple[ms.Tensor, Optional[ms.Tensor], Tuple[ms.Tensor, ...]]]:
         if encoder_hidden_states is not None:
             if not hasattr(self, "q_attn") or not self.is_cross_attention:
                 raise ValueError(
@@ -269,7 +269,7 @@ class GPTBigCodeFlashAttention2(GPTBigCodeAttention):
         encoder_attention_mask: Optional[ms.Tensor] = None,
         use_cache: Optional[bool] = False,
         output_attentions: Optional[bool] = False,
-    ) -> Union[Tuple[ms.Tensor, Optional[ms.Tensor]], Tuple[ms.Tensor, Optional[ms.Tensor], Tuple[ms.Tensor, ...]],]:
+    ) -> Union[Tuple[ms.Tensor, Optional[ms.Tensor]], Tuple[ms.Tensor, Optional[ms.Tensor], Tuple[ms.Tensor, ...]]]:
         if encoder_hidden_states is not None:
             if not hasattr(self, "q_attn") or not self.is_cross_attention:
                 raise ValueError(
@@ -413,7 +413,7 @@ class GPTBigCodeSdpaAttention(GPTBigCodeAttention):
         encoder_attention_mask: Optional[ms.Tensor] = None,
         use_cache: Optional[bool] = False,
         output_attentions: Optional[bool] = False,
-    ) -> Union[Tuple[ms.Tensor, Optional[ms.Tensor]], Tuple[ms.Tensor, Optional[ms.Tensor], Tuple[ms.Tensor, ...]],]:
+    ) -> Union[Tuple[ms.Tensor, Optional[ms.Tensor]], Tuple[ms.Tensor, Optional[ms.Tensor], Tuple[ms.Tensor, ...]]]:
         if encoder_hidden_states is not None:
             if not hasattr(self, "q_attn") or not self.is_cross_attention:
                 raise ValueError(
