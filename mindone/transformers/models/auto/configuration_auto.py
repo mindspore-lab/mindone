@@ -83,7 +83,10 @@ CONFIG_MAPPING_NAMES = OrderedDict(
         ("whisper", "WhisperConfig"),
         ("xlm-roberta", "XLMRobertaConfig"),
         ("gpt_bigcode", "GPTBigCodeConfig"),
+        ("gpt_neox", "GPTNeoXConfig"),
+        ("gptj", "GPTJConfig"),
         ("xlm-roberta-xl", "XLMRobertaXLConfig"),
+        ("gpt_neox_japanese", "GPTNeoXJapaneseConfig"),
     ]
 )
 
@@ -153,6 +156,9 @@ MODEL_NAMES_MAPPING = OrderedDict(
         ("xlm-roberta", "XLM-RoBERTa"),
         ("xlm-roberta-xl", "XLM-RoBERTa-XL"),
         ("gpt_bigcode", "GPTBigCode"),
+        ("gpt_neox", "GPTNeoX"),
+        ("gpt_neox_japanese", "GPTNeoXJapaneseModel"),
+        ("gptj", "GPTJ"),
     ]
 )
 
