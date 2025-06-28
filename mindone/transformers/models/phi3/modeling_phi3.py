@@ -2,7 +2,7 @@ import math
 from typing import Callable, List, Optional, Tuple, Union
 
 from transformers.models.phi3.configuration_phi3 import Phi3Config
-from transformers.utils import logging, LossKwargs
+from transformers.utils import LossKwargs, logging
 
 import mindspore as ms
 from mindspore import mint, nn, ops
@@ -682,7 +682,10 @@ class Phi3Model(Phi3PreTrainedModel):
 
         logger.info(f"{self.__class__.__name__}: enable recompute.")
 
-class KwargsForCausalLM(FlashAttentionKwargs, LossKwargs): ...
+
+class KwargsForCausalLM(FlashAttentionKwargs, LossKwargs):
+    ...
+
 
 class Phi3ForCausalLM(Phi3PreTrainedModel):
     _tied_weights_keys = ["lm_head.weight"]

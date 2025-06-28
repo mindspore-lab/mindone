@@ -23,7 +23,7 @@ import math
 from typing import Callable, Optional, Tuple, Union
 
 from transformers import GlmConfig
-from transformers.utils import add_start_docstrings, add_start_docstrings_to_model_forward, logging, LossKwargs
+from transformers.utils import LossKwargs, add_start_docstrings, add_start_docstrings_to_model_forward, logging
 
 import mindspore as ms
 from mindspore import mint, nn, ops
@@ -742,7 +742,10 @@ class GlmModel(GlmPreTrainedModel):
 
         return causal_mask
 
-class KwargsForCausalLM(FlashAttentionKwargs, LossKwargs): ...
+
+class KwargsForCausalLM(FlashAttentionKwargs, LossKwargs):
+    ...
+
 
 class GlmForCausalLM(GlmPreTrainedModel, GenerationMixin):
     _tied_weights_keys = ["lm_head.weight"]
