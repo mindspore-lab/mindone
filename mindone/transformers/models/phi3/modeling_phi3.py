@@ -2,7 +2,7 @@ import math
 from typing import Callable, List, Optional, Tuple, Union
 
 from transformers.models.phi3.configuration_phi3 import Phi3Config
-from transformers.utils import logging
+from transformers.utils import logging, LossKwargs
 
 import mindspore as ms
 from mindspore import mint, nn, ops
@@ -12,6 +12,7 @@ from ...activations import ACT2FN
 from ...cache_utils import Cache, DynamicCache
 from ...mindspore_adapter import dtype_to_min
 from ...mindspore_utils import ALL_LAYERNORM_LAYERS
+from ...modeling_flash_attention_utils import FlashAttentionKwargs
 from ...modeling_outputs import (
     BaseModelOutputWithPast,
     CausalLMOutputWithPast,
@@ -20,6 +21,7 @@ from ...modeling_outputs import (
 )
 from ...modeling_rope_utils import ROPE_INIT_FUNCTIONS
 from ...modeling_utils import ALL_ATTENTION_FUNCTIONS, MSPreTrainedModel
+from ...processing_utils import Unpack
 
 logger = logging.get_logger(__name__)
 
@@ -220,6 +222,7 @@ class Phi3Attention(nn.Cell):
         self.head_dim = self.hidden_size // self.num_heads
         self.num_key_value_heads = config.num_key_value_heads
         self.num_key_value_groups = self.num_heads // self.num_key_value_heads
+        self.scaling = 1 / math.sqrt(self.head_dim)
         self.max_position_embeddings = config.max_position_embeddings
         self.original_max_position_embeddings = config.original_max_position_embeddings
         self.rope_theta = config.rope_theta
@@ -256,6 +259,7 @@ class Phi3Attention(nn.Cell):
         output_attentions: bool = False,
         use_cache: bool = False,
         cache_position: Optional[ms.Tensor] = None,
+        **kwargs: Unpack[FlashAttentionKwargs],
     ) -> Tuple[ms.Tensor, Optional[ms.Tensor], Optional[Tuple[ms.Tensor]]]:
         bsz, q_len, _ = hidden_states.shape
 
@@ -305,8 +309,9 @@ class Phi3Attention(nn.Cell):
             value_states,
             attention_mask,
             dropout=0.0 if not self.training else self.attention_dropout,
-            scaling=1 / math.sqrt(self.head_dim),
+            scaling=self.scaling,
             sliding_window=getattr(self.config, "sliding_window", None),
+            **kwargs,
         )
 
         attn_output = attn_output.reshape(bsz, q_len, self.hidden_size)
@@ -338,7 +343,7 @@ class Phi3DecoderLayer(nn.Cell):
         output_attentions: Optional[bool] = False,
         use_cache: Optional[bool] = False,
         cache_position: Optional[ms.Tensor] = None,
-        **kwargs,
+        **kwargs: Unpack[FlashAttentionKwargs],
     ) -> Tuple[ms.Tensor, Optional[Tuple[ms.Tensor, ms.Tensor]]]:
         """
         Args:
@@ -402,6 +407,7 @@ class Phi3PreTrainedModel(MSPreTrainedModel):
     # _supports_flash_attn_2 = True
     # _supports_sdpa = True
     _supports_cache_class = True
+    _supports_attention_backend = True
 
     def _init_weights(self, module):
         std = self.config.initializer_range
@@ -461,6 +467,7 @@ class Phi3Model(Phi3PreTrainedModel):
         output_hidden_states: Optional[bool] = None,
         return_dict: Optional[bool] = False,
         cache_position: Optional[ms.Tensor] = None,
+        **kwargs: Unpack[FlashAttentionKwargs],
     ) -> Union[Tuple, BaseModelOutputWithPast]:
         output_attentions = output_attentions if output_attentions is not None else self.config.output_attentions
         output_hidden_states = (
@@ -538,6 +545,7 @@ class Phi3Model(Phi3PreTrainedModel):
                     output_attentions=output_attentions,
                     use_cache=use_cache,
                     cache_position=cache_position,
+                    **kwargs,
                 )
 
             hidden_states = layer_outputs[0]
@@ -674,6 +682,7 @@ class Phi3Model(Phi3PreTrainedModel):
 
         logger.info(f"{self.__class__.__name__}: enable recompute.")
 
+class KwargsForCausalLM(FlashAttentionKwargs, LossKwargs): ...
 
 class Phi3ForCausalLM(Phi3PreTrainedModel):
     _tied_weights_keys = ["lm_head.weight"]
@@ -718,6 +727,7 @@ class Phi3ForCausalLM(Phi3PreTrainedModel):
         output_hidden_states: Optional[bool] = None,
         return_dict: Optional[bool] = False,
         cache_position: Optional[ms.Tensor] = None,
+        **kwargs: Unpack[KwargsForCausalLM],
     ) -> Union[Tuple, CausalLMOutputWithPast]:
         r"""
         Args:
@@ -763,6 +773,7 @@ class Phi3ForCausalLM(Phi3PreTrainedModel):
             output_hidden_states=output_hidden_states,
             return_dict=return_dict,
             cache_position=cache_position,
+            **kwargs,
         )
 
         hidden_states = outputs[0]

@@ -23,7 +23,7 @@ import math
 from typing import Callable, Optional, Tuple, Union
 
 from transformers import GlmConfig
-from transformers.utils import add_start_docstrings, add_start_docstrings_to_model_forward, logging
+from transformers.utils import add_start_docstrings, add_start_docstrings_to_model_forward, logging, LossKwargs
 
 import mindspore as ms
 from mindspore import mint, nn, ops
@@ -33,6 +33,7 @@ from ...cache_utils import get_max_length, get_seq_length, init_static_cache, up
 from ...generation import GenerationMixin
 from ...mindspore_adapter import recompute_except_output
 from ...modeling_attn_mask_utils import dtype_to_min
+from ...modeling_flash_attention_utils import FlashAttentionKwargs
 from ...modeling_outputs import (
     BaseModelOutputWithPast,
     CausalLMOutputWithPast,
@@ -41,6 +42,7 @@ from ...modeling_outputs import (
 )
 from ...modeling_rope_utils import ROPE_INIT_FUNCTIONS
 from ...modeling_utils import ALL_ATTENTION_FUNCTIONS, PreTrainedModel
+from ...processing_utils import Unpack
 
 
 class GlmRMSNorm(nn.Cell):
@@ -55,7 +57,7 @@ class GlmRMSNorm(nn.Cell):
     def construct(self, hidden_states):
         input_dtype = hidden_states.dtype
         hidden_states = hidden_states.to(ms.float32)
-        variance = hidden_states.pow(2).mean(-1, keep_dims=True)
+        variance = hidden_states.pow(2).mean(-1, keepdim=True)
         hidden_states = hidden_states * ops.rsqrt(variance + self.variance_epsilon)
         return self.weight * hidden_states.to(input_dtype)
 
@@ -246,7 +248,7 @@ class GlmAttention(nn.Cell):
         use_cache: bool = False,
         cache_position: Optional[ms.Tensor] = None,
         position_embeddings: Optional[Tuple[ms.Tensor, ms.Tensor]] = None,  # will become mandatory in v4.45
-        **kwargs,
+        **kwargs: Unpack[FlashAttentionKwargs],
     ) -> Tuple[ms.Tensor, Optional[ms.Tensor], Optional[Tuple[ms.Tensor]]]:
         bsz, q_len, _ = hidden_states.shape
 
@@ -316,7 +318,7 @@ class GlmDecoderLayer(nn.Cell):
         use_cache: Optional[bool] = False,
         cache_position: Optional[ms.Tensor] = None,
         position_embeddings: Optional[Tuple[ms.Tensor, ms.Tensor]] = None,  # will become mandatory in v4.46
-        **kwargs,
+        **kwargs: Unpack[FlashAttentionKwargs],
     ) -> Tuple[ms.Tensor, Optional[Tuple[ms.Tensor, ms.Tensor]]]:
         """
         Args:
@@ -407,6 +409,7 @@ class GlmPreTrainedModel(PreTrainedModel):
     _supports_cache_class = True
     _supports_quantized_cache = True
     _supports_static_cache = True
+    _support_attention_backend = True
 
     def _init_weights(self, module):
         std = self.config.initializer_range
@@ -577,6 +580,7 @@ class GlmModel(GlmPreTrainedModel):
         output_hidden_states: Optional[bool] = None,
         return_dict: Optional[bool] = False,
         cache_position: Optional[ms.Tensor] = None,
+        **flash_attn_kwargs: Unpack[FlashAttentionKwargs],
     ) -> Union[Tuple, BaseModelOutputWithPast]:
         output_attentions = output_attentions if output_attentions is not None else self.output_attentions
         output_hidden_states = output_hidden_states if output_hidden_states is not None else self.output_hidden_states
@@ -619,6 +623,7 @@ class GlmModel(GlmPreTrainedModel):
                 use_cache=use_cache,
                 cache_position=cache_position,
                 position_embeddings=position_embeddings,
+                **flash_attn_kwargs,
             )
 
             hidden_states = layer_outputs[0]
@@ -737,6 +742,7 @@ class GlmModel(GlmPreTrainedModel):
 
         return causal_mask
 
+class KwargsForCausalLM(FlashAttentionKwargs, LossKwargs): ...
 
 class GlmForCausalLM(GlmPreTrainedModel, GenerationMixin):
     _tied_weights_keys = ["lm_head.weight"]
@@ -788,7 +794,7 @@ class GlmForCausalLM(GlmPreTrainedModel, GenerationMixin):
         return_dict: Optional[bool] = False,
         cache_position: Optional[ms.Tensor] = None,
         num_logits_to_keep: int = 0,
-        **loss_kwargs,
+        **kwargs: Unpack[KwargsForCausalLM],
     ) -> Union[Tuple, CausalLMOutputWithPast]:
         r"""
         Args:
@@ -837,6 +843,7 @@ class GlmForCausalLM(GlmPreTrainedModel, GenerationMixin):
             output_hidden_states=output_hidden_states,
             return_dict=return_dict,
             cache_position=cache_position,
+            **kwargs,
         )
 
         hidden_states = outputs[0]
