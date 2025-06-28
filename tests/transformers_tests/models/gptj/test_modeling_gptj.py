@@ -22,29 +22,29 @@ class GPTJModelTester:
     config_class = GPTJConfig
 
     def __init__(
-            self,
-            batch_size=14,
-            seq_length=7,
-            is_training=True,
-            use_token_type_ids=True,
-            use_input_mask=True,
-            use_labels=True,
-            use_mc_token_ids=True,
-            vocab_size=99,
-            hidden_size=32,
-            rotary_dim=4,
-            num_hidden_layers=2,
-            num_attention_heads=4,
-            intermediate_size=37,
-            hidden_act="gelu",
-            hidden_dropout_prob=0.0,
-            attention_probs_dropout_prob=0.0,
-            max_position_embeddings=512,
-            type_vocab_size=16,
-            type_sequence_label_size=2,
-            initializer_range=0.02,
-            num_labels=3,
-            num_choices=4,
+        self,
+        batch_size=14,
+        seq_length=7,
+        is_training=True,
+        use_token_type_ids=True,
+        use_input_mask=True,
+        use_labels=True,
+        use_mc_token_ids=True,
+        vocab_size=99,
+        hidden_size=32,
+        rotary_dim=4,
+        num_hidden_layers=2,
+        num_attention_heads=4,
+        intermediate_size=37,
+        hidden_act="gelu",
+        hidden_dropout_prob=0.0,
+        attention_probs_dropout_prob=0.0,
+        max_position_embeddings=512,
+        type_vocab_size=16,
+        type_sequence_label_size=2,
+        initializer_range=0.02,
+        num_labels=3,
+        num_choices=4,
     ):
         self.batch_size = batch_size
         self.seq_length = seq_length
@@ -144,7 +144,7 @@ model_tester = GPTJModelTester()
     sequence_labels,
     token_labels,
     choice_labels,
-        ) = model_tester.prepare_config_and_inputs()
+) = model_tester.prepare_config_and_inputs()
 
 GPTJ_CASES = [
     [
@@ -186,7 +186,6 @@ def test_named_modules(
     outputs_map,
     dtype,
 ):
-
     (
         pt_model,
         ms_model,

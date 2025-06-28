@@ -20,9 +20,11 @@ import mindspore as ms
 from mindspore import mint, nn
 from mindspore.nn import BCEWithLogitsLoss, CrossEntropyLoss, MSELoss
 
-from ...mindspore_adapter import dtype_to_min
+from mindone.transformers.cache_utils import Cache, DynamicCache, StaticCache
+
 from ...activations import ACT2FN
 from ...generation import GenerationMixin
+from ...mindspore_adapter import dtype_to_min
 from ...modeling_attn_mask_utils import AttentionMaskConverter
 from ...modeling_flash_attention_utils import is_flash_attn_available
 from ...modeling_outputs import (
@@ -34,8 +36,6 @@ from ...modeling_outputs import (
 from ...modeling_utils import PreTrainedModel
 from ...utils import logging
 from .configuration_gptj import GPTJConfig
-
-from mindone.transformers.cache_utils import Cache, DynamicCache, StaticCache
 
 if is_flash_attn_available():
     from mindspore.ops.operations.nn_ops import FlashAttentionScore as MSFlashAttention
@@ -248,9 +248,7 @@ class GPTJFlashAttention2(GPTJAttention):
 
         attn_dropout = self.attn_pdrop if self.training else 0.0
         self.flash_attention = MSFlashAttention(
-            head_num=self.num_heads,
-            keep_prob=1 - attn_dropout,
-            input_layout="BSND"
+            head_num=self.num_heads, keep_prob=1 - attn_dropout, input_layout="BSND"
         )
 
     def construct(
@@ -348,13 +346,7 @@ class GPTJFlashAttention2(GPTJAttention):
         query_length = query.shape[1]
 
         # Compute attention
-        attn_weights = self.flash_attention(
-            query,
-            key,
-            value,
-            attention_mask,
-            query_length
-        )
+        attn_weights = self.flash_attention(query, key, value, attention_mask, query_length)
 
         # Reshape outputs
         attn_output = attn_weights.reshape(
@@ -558,9 +550,7 @@ class GPTJModel(GPTJPreTrainedModel):
         seq_length = inputs_embeds.shape[1]
         if cache_position is None:
             past_key_values_length = past_key_values.get_seq_length() if past_key_values is not None else 0
-            cache_position = mint.arange(
-                past_key_values_length, past_key_values_length + seq_length
-            )
+            cache_position = mint.arange(past_key_values_length, past_key_values_length + seq_length)
 
         if position_ids is None:
             position_ids = cache_position.unsqueeze(0)
@@ -691,11 +681,7 @@ class GPTJModel(GPTJPreTrainedModel):
             batch_size=input_tensor.shape[0],
         )
 
-        if (
-            self.config._attn_implementation == "sdpa"
-            and attention_mask is not None
-            and not output_attentions
-        ):
+        if self.config._attn_implementation == "sdpa" and attention_mask is not None and not output_attentions:
             # Attend to all tokens in fully masked rows in the causal_mask, for example the relevant first rows when
             # using left padding. This is required by F.scaled_dot_product_attention memory-efficient attention path.
             # Details: https://github.com/pytorch/pytorch/issues/110213
@@ -739,9 +725,7 @@ class GPTJModel(GPTJPreTrainedModel):
             causal_mask = attention_mask
         else:
             min_dtype = dtype_to_min(dtype)
-            causal_mask = mint.full(
-                (sequence_length, target_length), fill_value=min_dtype.item(), dtype=dtype
-            )
+            causal_mask = mint.full((sequence_length, target_length), fill_value=min_dtype.item(), dtype=dtype)
             if sequence_length != 1:
                 causal_mask = mint.triu(causal_mask, diagonal=1)
             causal_mask *= mint.arange(target_length) > cache_position.reshape(-1, 1)
@@ -854,17 +838,14 @@ class GPTJForCausalLM(GPTJPreTrainedModel, GenerationMixin):
         )
 
     @staticmethod
-    def _reorder_cache(
-        past_key_values: Tuple[Tuple[ms.Tensor]], beam_idx: ms.Tensor
-    ) -> Tuple[Tuple[ms.Tensor]]:
+    def _reorder_cache(past_key_values: Tuple[Tuple[ms.Tensor]], beam_idx: ms.Tensor) -> Tuple[Tuple[ms.Tensor]]:
         """
         This function is used to re-order the `past_key_values` cache if [`~PretrainedModel.beam_search`] or
         [`~PretrainedModel.beam_sample`] is called. This is required to match `past_key_values` with the correct
         beam_idx at every generation step.
         """
         return tuple(
-            tuple(past_state.index_select(0, beam_idx) for past_state in layer_past)
-            for layer_past in past_key_values
+            tuple(past_state.index_select(0, beam_idx) for past_state in layer_past) for layer_past in past_key_values
         )
 
 
@@ -936,7 +917,7 @@ class GPTJForSequenceClassification(GPTJPreTrainedModel):
             last_non_pad_token = -1
         elif input_ids is not None:
             # To handle both left- and right- padding, we take the rightmost token that is not equal to pad_token_id
-            non_pad_mask = (input_ids != self.config.pad_token_id).to( ms.int32)
+            non_pad_mask = (input_ids != self.config.pad_token_id).to(ms.int32)
             token_indices = ms.arange(input_ids.shape[-1], dtype=ms.int32)
             last_non_pad_token = (token_indices * non_pad_mask).argmax(-1)
         else:

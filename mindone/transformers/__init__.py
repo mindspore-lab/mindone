@@ -93,6 +93,16 @@ from .models.gpt2 import (
     GPT2Model,
     GPT2PreTrainedModel,
 )
+from .models.gptj import (
+    GPTJForCausalLM,
+    GPTJForQuestionAnswering,
+    GPTJForSequenceClassification,
+    GPTJModel,
+    GPTJPreTrainedModel,
+)
+from .models.granite import GraniteForCausalLM, GraniteModel, GranitePreTrainedModel
+from .models.granitemoe import GraniteMoeForCausalLM, GraniteMoeModel, GraniteMoePreTrainedModel
+from .models.granitemoeshared import GraniteMoeSharedForCausalLM, GraniteMoeSharedModel, GraniteMoeSharedPreTrainedModel
 from .models.hiera import (
     HieraBackbone,
     HieraForImageClassification,
@@ -191,13 +201,6 @@ from .models.whisper import (
     WhisperModel,
     WhisperPreTrainedModel,
     WhisperProcessor,
-)
-from .models.gptj import (
-    GPTJForCausalLM,
-    GPTJForQuestionAnswering,
-    GPTJForSequenceClassification,
-    GPTJModel,
-    GPTJPreTrainedModel,
 )
 from .models.xlm_roberta import XLMRobertaModel, XLMRobertaPreTrainedModel
 from .pipelines import TextGenerationPipeline, pipeline

@@ -17,11 +17,11 @@
 from collections import OrderedDict
 from typing import Any, List, Mapping, Optional
 
-from mindspore import mint
-
 from transformers import PreTrainedTokenizer
 from transformers.configuration_utils import PretrainedConfig
 from transformers.onnx import OnnxConfigWithPast, PatchingSpec
+
+from mindspore import mint
 
 from ...utils import logging
 
@@ -176,7 +176,7 @@ class GPTJOnnxConfig(OnnxConfigWithPast):
         batch_size: int = -1,
         seq_length: int = -1,
         is_pair: bool = False,
-        framework = None,
+        framework=None,
     ) -> Mapping[str, Any]:
         common_inputs = super(OnnxConfigWithPast, self).generate_dummy_inputs(
             tokenizer, batch_size=batch_size, seq_length=seq_length, is_pair=is_pair, framework=framework
@@ -187,18 +187,18 @@ class GPTJOnnxConfig(OnnxConfigWithPast):
 
         # Need to add the past_keys
         if self.use_past:
-                batch, seqlen = common_inputs["input_ids"].shape
-                # Not using the same length for past_key_values
-                past_key_values_length = seqlen + 2
-                past_shape = (
-                    batch,
-                    self.num_attention_heads,
-                    past_key_values_length,
-                    self._config.hidden_size // self.num_attention_heads,
-                )
-                ordered_inputs["past_key_values"] = [
-                    (mint.zeros(past_shape), mint.zeros(past_shape)) for _ in range(self.num_layers)
-                ]
+            batch, seqlen = common_inputs["input_ids"].shape
+            # Not using the same length for past_key_values
+            past_key_values_length = seqlen + 2
+            past_shape = (
+                batch,
+                self.num_attention_heads,
+                past_key_values_length,
+                self._config.hidden_size // self.num_attention_heads,
+            )
+            ordered_inputs["past_key_values"] = [
+                (mint.zeros(past_shape), mint.zeros(past_shape)) for _ in range(self.num_layers)
+            ]
 
         ordered_inputs["attention_mask"] = common_inputs["attention_mask"]
         if self.use_past:

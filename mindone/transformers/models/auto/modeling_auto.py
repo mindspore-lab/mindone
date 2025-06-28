@@ -42,6 +42,7 @@ MODEL_MAPPING_NAMES = OrderedDict(
         ("t5", "T5Model"),
         ("xlm-roberta", "XLMRobertaModel"),
         ("gptj", "GPTJModel"),
+        ("xlm-roberta-xl", "XLMRobertaXLModel"),
     ]
 )
 
@@ -79,7 +80,7 @@ MODEL_FOR_CAUSAL_LM_MAPPING_NAMES = OrderedDict(
         ("qwen2", "Qwen2ForCausalLM"),
         ("xlm-roberta", "XLMRobertaForCausalLM"),
         ("xlm-roberta-xl", "XLMRobertaXLForCausalLM"),
-        ("gptj", "GPTJForCausalLM")
+        ("gptj", "GPTJForCausalLM"),
     ]
 )
 
@@ -190,7 +191,9 @@ MODEL_FOR_SEQUENCE_CLASSIFICATION_MAPPING_NAMES = OrderedDict(
         ("mt5", "MT5ForSequenceClassification"),
         ("phi3", "Phi3ForSequenceClassification"),
         ("t5", "T5ForSequenceClassification"),
-        ("gptj", "GPTJForSequenceClassification")
+        ("gptj", "GPTJForSequenceClassification"),
+        ("umt5", "UMT5ForSequenceClassification"),
+        ("xlm-roberta-xl", "XLMRobertaXLForSequenceClassification"),
     ]
 )
 
@@ -203,6 +206,7 @@ MODEL_FOR_QUESTION_ANSWERING_MAPPING_NAMES = OrderedDict(
         ("umt5", "UMT5ForQuestionAnswering"),
         ("xlm-roberta", "XLMRobertaForQuestionAnswering"),
         ("gptj", "GPTJForQuestionAnswering"),
+        ("xlm-roberta-xl", "XLMRobertaXLForQuestionAnswering"),
     ]
 )
 
