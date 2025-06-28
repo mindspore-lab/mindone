@@ -30,7 +30,7 @@ from tqdm.auto import tqdm
 from transformers import CLIPTokenizer
 
 import mindspore as ms
-from mindspore import nn, ops
+from mindspore import mint, nn
 from mindspore.amp import StaticLossScaler
 from mindspore.dataset import GeneratorDataset, vision
 
@@ -828,7 +828,7 @@ def main():
                 loss, model_pred = train_step(*batch)
 
             # Let's make sure we don't update any embedding weights besides the newly added token
-            index_no_updates = ops.ones((len(tokenizer),), dtype=ms.bool_)
+            index_no_updates = mint.ones((len(tokenizer),), dtype=ms.bool_)
             index_no_updates[min(placeholder_token_ids) : max(placeholder_token_ids) + 1] = False
             text_encoder.get_input_embeddings().embedding_table[index_no_updates] = orig_embeds_params[index_no_updates]
 
@@ -945,10 +945,10 @@ class TrainStepForTI(TrainStep):
         latents = latents * self.vae_scaling_factor
 
         # Sample noise that we'll add to the latents
-        noise = ops.randn_like(latents, dtype=latents.dtype)
+        noise = mint.randn_like(latents, dtype=latents.dtype)
         bsz = latents.shape[0]
         # Sample a random timestep for each image
-        timesteps = ops.randint(0, self.noise_scheduler_num_train_timesteps, (bsz,))
+        timesteps = mint.randint(0, self.noise_scheduler_num_train_timesteps, (bsz,))
         timesteps = timesteps.long()
 
         # Add noise to the latents according to the noise magnitude at each timestep
@@ -969,7 +969,7 @@ class TrainStepForTI(TrainStep):
         else:
             raise ValueError(f"Unknown prediction type {self.noise_scheduler_prediction_type}")
 
-        loss = ops.mse_loss(model_pred.float(), target.float(), reduction="mean")
+        loss = mint.nn.functional.mse_loss(model_pred.float(), target.float(), reduction="mean")
 
         loss = self.scale_loss(loss)
         return loss, model_pred

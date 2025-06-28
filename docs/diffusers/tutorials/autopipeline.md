@@ -73,6 +73,8 @@ Under the hood, [AutoPipeline](../api/pipelines/auto_pipeline.md):
     image
     ```
 
+    You can learn more about the [`from_pipe`](https://mindspore-lab.github.io/mindone/latest/diffusers/api/pipelines/overview/#mindone.diffusers.DiffusionPipeline.from_pipe) method in the [Reuse a pipeline](../using-diffusers/loading.md#reuse-a-pipeline) guide.
+
     <div style="display: flex; justify-content: center; align-items: flex-start; text-align: center; max-width: 98%; margin: 0 auto; gap: 1vw;">
         <img src="https://github.com/user-attachments/assets/de3baa9e-b95f-462a-b2a0-5dc2f63cabb5"/>
     </div>

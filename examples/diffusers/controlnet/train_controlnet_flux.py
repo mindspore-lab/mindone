@@ -31,7 +31,7 @@ from tqdm.auto import tqdm
 from transformers import AutoTokenizer
 
 import mindspore as ms
-from mindspore import nn, ops
+from mindspore import mint, nn, ops
 from mindspore.amp import auto_mixed_precision
 from mindspore.dataset import GeneratorDataset, transforms, vision
 
@@ -766,7 +766,7 @@ def encode_prompt(prompt_batch, text_encoders, tokenizers, proportion_empty_prom
         max_sequence_length=512,
     )
     dtype = text_encoders[0].dtype
-    text_ids = ops.zeros((prompt_embeds.shape[1], 3), dtype=dtype)
+    text_ids = mint.zeros((prompt_embeds.shape[1], 3), dtype=dtype)
 
     return prompt_embeds, pooled_prompt_embeds, text_ids
 
@@ -1369,7 +1369,7 @@ class FluxControlNetWithLoss(nn.Cell):
         )
 
         bsz = pixel_latents.shape[0]
-        noise = ops.randn_like(pixel_latents).to(dtype=self.weight_dtype)
+        noise = mint.randn_like(pixel_latents).to(dtype=self.weight_dtype)
         # Sample a random timestep for each image
         # for weighting schemes where we sample timesteps non-uniformly
         u = compute_density_for_timestep_sampling(
@@ -1388,7 +1388,7 @@ class FluxControlNetWithLoss(nn.Cell):
 
         # handle guidance
         if self.flux_transformer_config_guidance_embeds:
-            guidance_vec = ops.full(
+            guidance_vec = mint.full(
                 (noisy_model_input.shape[0],),
                 self.args.guidance_scale,
                 dtype=self.weight_dtype,
@@ -1427,7 +1427,7 @@ class FluxControlNetWithLoss(nn.Cell):
             return_dict=False,
         )[0]
 
-        loss = ops.mse_loss(noise_pred.float(), (noise - pixel_latents).float(), reduction="mean")
+        loss = mint.nn.functional.mse_loss(noise_pred.float(), (noise - pixel_latents).float(), reduction="mean")
 
         return loss
 
