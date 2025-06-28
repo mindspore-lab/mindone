@@ -23,6 +23,7 @@ import math
 from typing import Callable, List, Optional, Tuple, Union
 
 from transformers import Qwen2Config, logging
+from transformers.utils import LossKwargs
 
 import mindspore as ms
 from mindspore import Parameter, Tensor, mint, nn, ops
@@ -35,6 +36,7 @@ from mindone.transformers.mindspore_adapter.paged_attention_freqs import FreqsMg
 from mindone.transformers.mindspore_adapter.paged_attention_infer_attention_block import InferAttention
 from mindone.transformers.mindspore_adapter.paged_attention_mask import LowerTriangularMaskWithDynamic
 from mindone.transformers.modeling_attn_mask_utils import dtype_to_min
+from mindone.transformers.modeling_flash_attention_utils import FlashAttentionKwargs
 from mindone.transformers.modeling_outputs import (
     BaseModelOutputWithPast,
     CausalLMOutputWithPast,
@@ -44,6 +46,7 @@ from mindone.transformers.modeling_outputs import (
 )
 from mindone.transformers.modeling_rope_utils import ROPE_INIT_FUNCTIONS
 from mindone.transformers.modeling_utils import ALL_ATTENTION_FUNCTIONS, MSPreTrainedModel
+from mindone.transformers.processing_utils import Unpack
 
 logger = logging.get_logger(__name__)
 
@@ -254,7 +257,7 @@ class Qwen2Attention(nn.Cell):
         output_attentions: bool = False,
         use_cache: bool = False,
         cache_position: Optional[ms.Tensor] = None,
-        **kwargs,
+        **kwargs: Unpack[FlashAttentionKwargs],
     ) -> Tuple[ms.Tensor, Optional[ms.Tensor], Optional[Tuple[ms.Tensor]]]:
         bsz, q_len, _ = hidden_states.shape
 
@@ -383,13 +386,6 @@ class Qwen2PageAttention(Qwen2Attention):
         return attn_output, None, past_key_value
 
 
-QWEN2_ATTENTION_CLASSES = {
-    "eager": Qwen2Attention,
-    "flash_attention_2": Qwen2Attention,
-    "paged_attention": Qwen2PageAttention,
-}
-
-
 class Qwen2DecoderLayer(nn.Cell):
     def __init__(self, config: Qwen2Config, layer_idx: int):
         super().__init__()
@@ -400,7 +396,8 @@ class Qwen2DecoderLayer(nn.Cell):
                 f"Sliding Window Attention is enabled but not implemented for `{config._attn_implementation}`; "
                 "unexpected results may be encountered."
             )
-        self.self_attn = QWEN2_ATTENTION_CLASSES[config._attn_implementation](config, layer_idx)
+        self.self_attn = Qwen2Attention(config, layer_idx) \
+                if not config._attn_implementation == "paged_attention" else Qwen2PageAttention(config=config, layer_idx=layer_idx)
 
         self.mlp = Qwen2MLP(config)
         self.input_layernorm = Qwen2RMSNorm(config.hidden_size, eps=config.rms_norm_eps)
@@ -423,7 +420,7 @@ class Qwen2DecoderLayer(nn.Cell):
         freqs_cis: Optional[ms.Tensor] = None,
         mask: Optional[ms.Tensor] = None,
         batch_valid_length: Optional[ms.Tensor] = None,
-        **kwargs,
+        **kwargs: Unpack[FlashAttentionKwargs],
     ) -> Tuple[ms.Tensor, Optional[Tuple[ms.Tensor, ms.Tensor]]]:
         """
         Args:
@@ -474,6 +471,7 @@ class Qwen2DecoderLayer(nn.Cell):
                 freqs_cis=freqs_cis,
                 mask=mask,
                 batch_valid_length=batch_valid_length,
+                **kwargs,
             )
         hidden_states = residual + hidden_states
 
@@ -520,6 +518,7 @@ class Qwen2PreTrainedModel(MSPreTrainedModel):
     _supports_flash_attn_2 = True
     _supports_sdpa = True
     _supports_cache_class = False  # FIXME
+    _supports_attention_backend = True
 
     def _init_weights(self, module):
         # std = self.config.initializer_range
@@ -658,6 +657,7 @@ class Qwen2Model(Qwen2PreTrainedModel):
         freqs_cis: Optional[ms.Tensor] = None,
         mask: Optional[ms.Tensor] = None,
         batch_valid_length: Optional[ms.Tensor] = None,
+        **flash_attn_kwargs: Unpack[FlashAttentionKwargs],
     ) -> Union[Tuple, BaseModelOutputWithPast]:
         output_attentions = output_attentions if output_attentions is not None else self.config.output_attentions
         output_hidden_states = (
@@ -715,6 +715,7 @@ class Qwen2Model(Qwen2PreTrainedModel):
                 freqs_cis=freqs_cis,
                 mask=mask,
                 batch_valid_length=batch_valid_length,
+                **flash_attn_kwargs,
             )
             hidden_states = layer_outputs[0]
 
@@ -853,6 +854,7 @@ class Qwen2Model(Qwen2PreTrainedModel):
 
         return causal_mask
 
+class KwargsForCausalLM(FlashAttentionKwargs, LossKwargs): ...
 
 class Qwen2ForCausalLM(Qwen2PreTrainedModel, GenerationMixin):
     _tied_weights_keys = ["lm_head.weight"]
@@ -960,6 +962,7 @@ class Qwen2ForCausalLM(Qwen2PreTrainedModel, GenerationMixin):
         block_tables: Optional[ms.Tensor] = None,
         slot_mapping: Optional[ms.Tensor] = None,
         batch_valid_length: Optional[ms.Tensor] = None,
+        **kwargs: Unpack[KwargsForCausalLM],
     ) -> Union[Tuple, CausalLMOutputWithPast]:
         r"""
         Args:
@@ -1021,6 +1024,7 @@ class Qwen2ForCausalLM(Qwen2PreTrainedModel, GenerationMixin):
             freqs_cis=freqs_cis,
             mask=mask,
             batch_valid_length=batch_valid_length,
+            **kwargs,
         )
 
         hidden_states = outputs[0]
