@@ -22,7 +22,7 @@ import PIL
 from transformers import T5Tokenizer
 
 import mindspore as ms
-from mindspore import ops
+from mindspore import mint
 
 from ....transformers import T5EncoderModel
 from ...callbacks import MultiPipelineCallbacks, PipelineCallback
@@ -373,7 +373,7 @@ class CogVideoXImageToVideoPipeline(DiffusionPipeline, CogVideoXLoraLoaderMixin)
                     retrieve_latents(self.vae, self.vae.encode(img.unsqueeze(0))[0], generator) for img in image
                 ]
 
-        image_latents = ops.cat(image_latents, axis=0).to(dtype).permute(0, 2, 1, 3, 4)  # [B, F, C, H, W]
+        image_latents = mint.cat(image_latents, dim=0).to(dtype).permute(0, 2, 1, 3, 4)  # [B, F, C, H, W]
 
         if not self.vae.config.invert_scale_latents:
             image_latents = self.vae_scaling_factor_image * image_latents
@@ -390,13 +390,13 @@ class CogVideoXImageToVideoPipeline(DiffusionPipeline, CogVideoXLoraLoaderMixin)
             width // self.vae_scale_factor_spatial,
         )
 
-        latent_padding = ops.zeros(padding_shape, dtype=dtype)
-        image_latents = ops.cat([image_latents, latent_padding], axis=1)
+        latent_padding = mint.zeros(padding_shape, dtype=dtype)
+        image_latents = mint.cat([image_latents, latent_padding], dim=1)
 
         # Select the first frame along the second dimension
         if self.transformer.config.patch_size_t is not None:
             first_frame = image_latents[:, : image_latents.shape[1] % self.transformer.config.patch_size_t, ...]
-            image_latents = ops.cat([first_frame, image_latents], axis=1)
+            image_latents = mint.cat([first_frame, image_latents], dim=1)
 
         if latents is None:
             latents = randn_tensor(shape, generator=generator, dtype=dtype)
@@ -733,7 +733,7 @@ class CogVideoXImageToVideoPipeline(DiffusionPipeline, CogVideoXLoraLoaderMixin)
             max_sequence_length=max_sequence_length,
         )
         if do_classifier_free_guidance:
-            prompt_embeds = ops.cat([negative_prompt_embeds, prompt_embeds], axis=0)
+            prompt_embeds = mint.cat([negative_prompt_embeds, prompt_embeds], dim=0)
 
         # 4. Prepare timesteps
         timesteps, num_inference_steps = retrieve_timesteps(self.scheduler, num_inference_steps, timesteps)
@@ -775,7 +775,7 @@ class CogVideoXImageToVideoPipeline(DiffusionPipeline, CogVideoXLoraLoaderMixin)
         )
 
         # 8. Create ofs embeds if required
-        ofs_emb = None if self.transformer.config.ofs_embed_dim is None else ops.ones((1,), dtype=latents.dtype) * 2.0
+        ofs_emb = None if self.transformer.config.ofs_embed_dim is None else mint.ones((1,), dtype=latents.dtype) * 2.0
 
         # we're popping the `scale` instead of getting it because otherwise `scale` will be propagated
         # to the transformer and will raise RuntimeError.
@@ -794,11 +794,11 @@ class CogVideoXImageToVideoPipeline(DiffusionPipeline, CogVideoXLoraLoaderMixin)
                 if self.interrupt:
                     continue
 
-                latent_model_input = ops.cat([latents] * 2) if do_classifier_free_guidance else latents
+                latent_model_input = mint.cat([latents] * 2) if do_classifier_free_guidance else latents
                 latent_model_input = self.scheduler.scale_model_input(latent_model_input, t)
 
-                latent_image_input = ops.cat([image_latents] * 2) if do_classifier_free_guidance else image_latents
-                latent_model_input = ops.cat([latent_model_input, latent_image_input], axis=2)
+                latent_image_input = mint.cat([image_latents] * 2) if do_classifier_free_guidance else image_latents
+                latent_model_input = mint.cat([latent_model_input, latent_image_input], dim=2)
 
                 # broadcast to batch dimension in a way that's compatible with ONNX/Core ML
                 timestep = t.broadcast_to((latent_model_input.shape[0],))

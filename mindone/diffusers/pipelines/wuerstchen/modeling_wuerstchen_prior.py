@@ -16,7 +16,7 @@
 import math
 from typing import Dict, Union
 
-from mindspore import nn, ops
+from mindspore import mint, nn
 
 from ...configuration_utils import ConfigMixin, register_to_config
 from ...loaders import PeftAdapterMixin, UNet2DConditionLoadersMixin
@@ -40,11 +40,12 @@ class WuerstchenPrior(ModelMixin, ConfigMixin, UNet2DConditionLoadersMixin, Peft
         super().__init__()
 
         self.c_r = c_r
-        self.projection = nn.Conv2d(c_in, c, kernel_size=1, has_bias=True, pad_mode="valid")
+        self.projection = mint.nn.Conv2d(c_in, c, kernel_size=1)
         self.cond_mapper = nn.SequentialCell(
-            nn.Dense(c_cond, c),
+            mint.nn.Linear(c_cond, c),
+            # todo: unavailable mint interface
             nn.LeakyReLU(0.2),
-            nn.Dense(c, c),
+            mint.nn.Linear(c, c),
         )
 
         blocks = []
@@ -55,7 +56,7 @@ class WuerstchenPrior(ModelMixin, ConfigMixin, UNet2DConditionLoadersMixin, Peft
         self.blocks = nn.CellList(blocks)
         self.out = nn.SequentialCell(
             WuerstchenLayerNorm(c, elementwise_affine=False, eps=1e-6),
-            nn.Conv2d(c, c_in * 2, kernel_size=1, has_bias=True, pad_mode="valid"),
+            mint.nn.Conv2d(c, c_in * 2, kernel_size=1),
         )
 
         self._gradient_checkpointing = False
@@ -151,11 +152,11 @@ class WuerstchenPrior(ModelMixin, ConfigMixin, UNet2DConditionLoadersMixin, Peft
         r = r * max_positions
         half_dim = self.c_r // 2
         emb = math.log(max_positions) / (half_dim - 1)
-        emb = ops.arange(half_dim).float().mul(-emb).exp()
+        emb = mint.arange(half_dim).float().mul(-emb).exp()
         emb = r[:, None] * emb[None, :]
-        emb = ops.cat([emb.sin(), emb.cos()], axis=1)
+        emb = mint.cat([emb.sin(), emb.cos()], dim=1)
         if self.c_r % 2 == 1:  # zero pad
-            emb = ops.pad(emb, (0, 1), mode="constant")
+            emb = mint.nn.functional.pad(emb, (0, 1), mode="constant")
         return emb.to(dtype=r.dtype)
 
     def construct(self, x, r, c):
@@ -171,5 +172,5 @@ class WuerstchenPrior(ModelMixin, ConfigMixin, UNet2DConditionLoadersMixin, Peft
                 x = block(x, r_embed)
             else:
                 x = block(x)
-        a, b = self.out(x).chunk(2, axis=1)
+        a, b = self.out(x).chunk(2, dim=1)
         return (x_in - a) / ((1 - b).abs() + 1e-5)
