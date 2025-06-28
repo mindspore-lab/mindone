@@ -20,6 +20,10 @@ from mindone.transformers.cache_utils import (
     Cache,
     DynamicCache,
     EncoderDecoderCache,
+    HybridCache,
+    MambaCache,
+    OffloadedStaticCache,
+    SlidingWindowCache,
     StaticCache,
     get_seq_length,
     init_static_cache,
@@ -82,7 +86,13 @@ if TYPE_CHECKING:
 logger = logging.get_logger(__name__)
 
 
-NEED_SETUP_CACHE_CLASSES_MAPPING = {}
+NEED_SETUP_CACHE_CLASSES_MAPPING = {
+    "static": StaticCache,
+    "offloaded_static": OffloadedStaticCache,
+    "sliding_window": SlidingWindowCache,
+    "hybrid": HybridCache,
+    "mamba": MambaCache,
+}
 QUANT_BACKEND_CLASSES_MAPPING = {}
 
 # Variable names used to hold the cache at generation time

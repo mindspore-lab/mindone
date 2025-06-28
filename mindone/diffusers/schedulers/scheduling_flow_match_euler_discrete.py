@@ -19,7 +19,7 @@ from typing import List, Optional, Tuple, Union
 import numpy as np
 
 import mindspore as ms
-from mindspore import ops
+from mindspore import mint
 
 from ..configuration_utils import ConfigMixin, register_to_config
 from ..utils import BaseOutput, is_scipy_available, logging
@@ -183,7 +183,7 @@ class FlowMatchEulerDiscreteScheduler(SchedulerMixin, ConfigMixin):
         sigma = sigmas[step_indices].flatten()
         # while len(sigma.shape) < len(sample.shape):
         #     sigma = sigma.unsqueeze(-1)
-        sigma = ops.reshape(sigma, (timestep.shape[0],) + (1,) * (len(broadcast_shape) - 1))
+        sigma = mint.reshape(sigma, (timestep.shape[0],) + (1,) * (len(broadcast_shape) - 1))
 
         sample = sigma * noise + (1.0 - sigma) * sample
 
@@ -309,9 +309,9 @@ class FlowMatchEulerDiscreteScheduler(SchedulerMixin, ConfigMixin):
         if self.config.invert_sigmas:
             sigmas = 1.0 - sigmas
             timesteps = sigmas * self.config.num_train_timesteps
-            sigmas = ops.cat([sigmas, ops.ones(1, dtype=sigmas.dtype)])
+            sigmas = mint.cat([sigmas, mint.ones(1, dtype=sigmas.dtype)])
         else:
-            sigmas = ops.cat([sigmas, ops.zeros(1, dtype=sigmas.dtype)])
+            sigmas = mint.cat([sigmas, mint.zeros(1, dtype=sigmas.dtype)])
 
         self.timesteps = timesteps
         self.sigmas = sigmas
@@ -348,6 +348,7 @@ class FlowMatchEulerDiscreteScheduler(SchedulerMixin, ConfigMixin):
         s_tmax: float = float("inf"),
         s_noise: float = 1.0,
         generator: Optional[np.random.Generator] = None,
+        per_token_timesteps: Optional[ms.Tensor] = None,
         return_dict: bool = False,
     ) -> Union[FlowMatchEulerDiscreteSchedulerOutput, Tuple]:
         """
@@ -368,6 +369,8 @@ class FlowMatchEulerDiscreteScheduler(SchedulerMixin, ConfigMixin):
                 Scaling factor for noise added to the sample.
             generator (`np.random.Generator`, *optional*):
                 A random number generator.
+            per_token_timesteps (`ms.Tensor`, *optional*):
+                The timesteps for each token in the sample.
             return_dict (`bool`):
                 Whether or not to return a [`~schedulers.scheduling_euler_discrete.EulerDiscreteSchedulerOutput`] or
                 tuple.
@@ -395,16 +398,27 @@ class FlowMatchEulerDiscreteScheduler(SchedulerMixin, ConfigMixin):
         # Upcast to avoid precision issues when computing prev_sample
         sample = sample.to(ms.float32)
 
-        sigma = self.sigmas[self.step_index]
-        sigma_next = self.sigmas[self.step_index + 1]
+        if per_token_timesteps is not None:
+            per_token_sigmas = per_token_timesteps / self.config.num_train_timesteps
 
-        prev_sample = sample + (sigma_next - sigma) * model_output
+            sigmas = self.sigmas[:, None, None]
+            lower_mask = sigmas < per_token_sigmas[None] - 1e-6
+            lower_sigmas = lower_mask * sigmas
+            lower_sigmas, _ = lower_sigmas.max(dim=0)
+            dt = (per_token_sigmas - lower_sigmas)[..., None]
 
-        # Cast sample back to model compatible dtype
-        prev_sample = prev_sample.to(model_output.dtype)
+        else:
+            sigma = self.sigmas[self.step_index]
+            sigma_next = self.sigmas[self.step_index + 1]
+            dt = sigma_next - sigma
+
+        prev_sample = sample + dt * model_output
 
         # upon completion increase step index by one
         self._step_index += 1
+        if per_token_timesteps is None:
+            # Cast sample back to model compatible dtype
+            prev_sample = prev_sample.to(model_output.dtype)
 
         if not return_dict:
             return (prev_sample,)

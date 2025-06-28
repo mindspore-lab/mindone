@@ -18,7 +18,7 @@ from typing import Optional, Tuple, Union
 import numpy as np
 
 import mindspore as ms
-from mindspore import Parameter, nn, ops
+from mindspore import Parameter, mint, nn
 
 from ....utils import WeightNorm
 from ...configuration_utils import ConfigMixin, register_to_config
@@ -34,8 +34,8 @@ class Snake1d(nn.Cell):
 
     def __init__(self, hidden_dim, logscale=True):
         super().__init__()
-        self.alpha = Parameter(ops.zeros((1, hidden_dim, 1)))
-        self.beta = Parameter(ops.zeros((1, hidden_dim, 1)))
+        self.alpha = Parameter(mint.zeros((1, hidden_dim, 1)))
+        self.beta = Parameter(mint.zeros((1, hidden_dim, 1)))
         self.alpha.requires_grad = True
         self.beta.requires_grad = True
         self.logscale = logscale
@@ -43,11 +43,11 @@ class Snake1d(nn.Cell):
     def construct(self, hidden_states):
         shape = hidden_states.shape
 
-        alpha = self.alpha if not self.logscale else ops.exp(self.alpha)
-        beta = self.beta if not self.logscale else ops.exp(self.beta)
+        alpha = self.alpha if not self.logscale else mint.exp(self.alpha)
+        beta = self.beta if not self.logscale else mint.exp(self.beta)
 
         hidden_states = hidden_states.reshape(shape[0], shape[1], -1)
-        hidden_states = hidden_states + (beta + 1e-9).reciprocal() * ops.sin(alpha * hidden_states).pow(2)
+        hidden_states = hidden_states + (beta + 1e-9).reciprocal() * mint.sin(alpha * hidden_states).pow(2)
         hidden_states = hidden_states.reshape(shape)
         return hidden_states
 
@@ -63,11 +63,13 @@ class OobleckResidualUnit(nn.Cell):
 
         self.snake1 = Snake1d(dimension)
         self.conv1 = WeightNorm(
+            # todo: unavailable mint interface
             nn.Conv1d(
                 dimension, dimension, kernel_size=7, pad_mode="pad", dilation=dilation, padding=pad, has_bias=True
             )
         )
         self.snake2 = Snake1d(dimension)
+        # todo: unavailable mint interface
         self.conv2 = WeightNorm(nn.Conv1d(dimension, dimension, kernel_size=1, has_bias=True))
 
     def construct(self, hidden_state):
@@ -104,6 +106,7 @@ class OobleckEncoderBlock(nn.Cell):
         self.res_unit3 = OobleckResidualUnit(input_dim, dilation=9)
         self.snake1 = Snake1d(input_dim)
         self.conv1 = WeightNorm(
+            # todo: unavailable mint interface
             nn.Conv1d(
                 input_dim,
                 output_dim,
@@ -132,6 +135,7 @@ class OobleckDecoderBlock(nn.Cell):
 
         self.snake1 = Snake1d(input_dim)
         self.conv_t1 = WeightNorm(
+            # todo: unavailable mint interface
             nn.Conv1dTranspose(
                 input_dim,
                 output_dim,
@@ -160,9 +164,9 @@ class OobleckDiagonalGaussianDistribution(object):
     def __init__(self, parameters: ms.Tensor, deterministic: bool = False):
         self.parameters = parameters
         self.mean, self.scale = parameters.chunk(2, dim=1)
-        self.std = nn.functional.softplus(self.scale) + 1e-4
+        self.std = mint.nn.functional.softplus(self.scale) + 1e-4
         self.var = self.std * self.std
-        self.logvar = ops.log(self.var)
+        self.logvar = mint.log(self.var)
         self.deterministic = deterministic
 
     def sample(self, generator: Optional[np.random.Generator] = None) -> ms.Tensor:
@@ -170,7 +174,6 @@ class OobleckDiagonalGaussianDistribution(object):
         sample = randn_tensor(
             self.mean.shape,
             generator=generator,
-            device=self.parameters.device,
             dtype=self.parameters.dtype,
         )
         x = self.mean + self.std * sample
@@ -183,7 +186,7 @@ class OobleckDiagonalGaussianDistribution(object):
             if other is None:
                 return (self.mean * self.mean + self.var - self.logvar - 1.0).sum(1).mean()
             else:
-                normalized_diff = ops.pow(self.mean - other.mean, 2) / other.var
+                normalized_diff = mint.pow(self.mean - other.mean, 2) / other.var
                 var_ratio = self.var / other.var
                 logvar_diff = self.logvar - other.logvar
 
@@ -235,6 +238,7 @@ class OobleckEncoder(nn.Cell):
 
         # Create first convolution
         self.conv1 = WeightNorm(
+            # todo: unavailable mint interface
             nn.Conv1d(audio_channels, encoder_hidden_size, kernel_size=7, pad_mode="pad", padding=3, has_bias=True)
         )
         self.block = []
@@ -252,6 +256,7 @@ class OobleckEncoder(nn.Cell):
         d_model = encoder_hidden_size * channel_multiples[-1]
         self.snake1 = Snake1d(d_model)
         self.conv2 = WeightNorm(
+            # todo: unavailable mint interface
             nn.Conv1d(d_model, encoder_hidden_size, pad_mode="pad", kernel_size=3, padding=1, has_bias=True)
         )
 
@@ -278,6 +283,7 @@ class OobleckDecoder(nn.Cell):
 
         # Add first conv layer
         self.conv1 = WeightNorm(
+            # todo: unavailable mint interface
             nn.Conv1d(
                 input_channels,
                 channels * channel_multiples[-1],
@@ -412,7 +418,7 @@ class AutoencoderOobleck(ModelMixin, ConfigMixin):
         """
         if self.use_slicing and x.shape[0] > 1:
             encoded_slices = [self.encoder(x_slice) for x_slice in x.split(1)]
-            h = ops.cat(encoded_slices)
+            h = mint.cat(encoded_slices)
         else:
             h = self.encoder(x)
 
@@ -448,7 +454,7 @@ class AutoencoderOobleck(ModelMixin, ConfigMixin):
         """
         if self.use_slicing and z.shape[0] > 1:
             decoded_slices = [self._decode(z_slice).sample for z_slice in z.split(1)]
-            decoded = ops.cat(decoded_slices)
+            decoded = mint.cat(decoded_slices)
         else:
             decoded = self._decode(z).sample
 
