@@ -25,7 +25,6 @@ from mindspore import mint
 
 from ...utils import logging
 
-
 logger = logging.get_logger(__name__)
 
 
