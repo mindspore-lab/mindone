@@ -396,8 +396,11 @@ class Qwen2DecoderLayer(nn.Cell):
                 f"Sliding Window Attention is enabled but not implemented for `{config._attn_implementation}`; "
                 "unexpected results may be encountered."
             )
-        self.self_attn = Qwen2Attention(config, layer_idx) \
-                if not config._attn_implementation == "paged_attention" else Qwen2PageAttention(config=config, layer_idx=layer_idx)
+        self.self_attn = (
+            Qwen2Attention(config, layer_idx)
+            if not config._attn_implementation == "paged_attention"
+            else Qwen2PageAttention(config=config, layer_idx=layer_idx)
+        )
 
         self.mlp = Qwen2MLP(config)
         self.input_layernorm = Qwen2RMSNorm(config.hidden_size, eps=config.rms_norm_eps)
@@ -854,7 +857,10 @@ class Qwen2Model(Qwen2PreTrainedModel):
 
         return causal_mask
 
-class KwargsForCausalLM(FlashAttentionKwargs, LossKwargs): ...
+
+class KwargsForCausalLM(FlashAttentionKwargs, LossKwargs):
+    ...
+
 
 class Qwen2ForCausalLM(Qwen2PreTrainedModel, GenerationMixin):
     _tied_weights_keys = ["lm_head.weight"]
