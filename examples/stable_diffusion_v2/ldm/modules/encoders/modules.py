@@ -93,12 +93,12 @@ class FrozenCLIPEmbedder(nn.Cell):
         tokens = ms.Tensor(batch_encoding["input_ids"], ms.int32)
         return tokens
 
-    def encode(self, tokenized_text):
-        outputs = self.transformer(tokenized_text)
+    def encode(self, tokenized_text, *args, **kwargs):
+        outputs = self.transformer(tokenized_text, *args, **kwargs)
         return outputs
 
-    def construct(self, c):
-        outputs = self.transformer(c)
+    def construct(self, c, *args, **kwargs):
+        outputs = self.transformer(c, *args, **kwargs)
         return outputs
 
     def get_input_embeddings(self) -> ms.Parameter:
