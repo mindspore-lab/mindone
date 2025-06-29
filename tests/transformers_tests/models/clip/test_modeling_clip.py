@@ -8,22 +8,18 @@
 # In cases where models have unique initialization procedures or require testing with specialized output formats,
 # it is necessary to develop distinct, dedicated test cases.
 
-import inspect
+import unittest
 
 import numpy as np
 import pytest
-import torch
-from transformers import CLIPConfig, CLIPTextConfig, CLIPVisionConfig
+from parameterized import parameterized
+from transformers import CLIPConfig, CLIPTextConfig, CLIPVisionConfig, CLIPProcessor
 
 import mindspore as ms
+from transformers.testing_utils import slow
 
-from tests.modeling_test_utils import (
-    MS_DTYPE_MAPPING,
-    PT_DTYPE_MAPPING,
-    compute_diffs,
-    generalized_parse_args,
-    get_modules,
-)
+from mindone.transformers import CLIPModel
+from tests.modeling_test_utils import forward_compare, prepare_img
 from tests.transformers_tests.models.modeling_common import floats_numpy, ids_numpy, random_attention_mask
 
 DTYPE_AND_THRESHOLDS = {"fp32": 5e-4, "fp16": 5e-3, "bf16": 5e-2}
@@ -185,165 +181,156 @@ class CLIPModelTester:
         )
 
 
-clip_text_tester = CLIPTextModelTester()
-clip_text_config, input_ids, input_mask = clip_text_tester.prepare_config_and_inputs()
-clip_vision_tester = CLIPVisionModelTester()
-clip_vision_config, pixel_values = clip_vision_tester.prepare_config_and_inputs()
-clip_tester = CLIPModelTester()
-clip_config = clip_tester.prepare_config_and_inputs()[0]
+class CLIPModelTest(unittest.TestCase):
+    # 初始化用例参数
+    clip_text_tester = CLIPTextModelTester()
+    clip_text_config, input_ids, input_mask = clip_text_tester.prepare_config_and_inputs()
+    clip_vision_tester = CLIPVisionModelTester()
+    clip_vision_config, pixel_values = clip_vision_tester.prepare_config_and_inputs()
+    clip_tester = CLIPModelTester()
+    clip_config = clip_tester.prepare_config_and_inputs()[0]
 
+    CLIP_CASES = [
+        [
+            "CLIPTextModel",
+            "transformers.CLIPTextModel",
+            "mindone.transformers.CLIPTextModel",
+            (clip_text_config,),
+            {},
+            (input_ids,),
+            {
+                "attention_mask": input_mask,
+            },
+            {
+                "last_hidden_state": 0,
+                "pooler_output": 1,
+            },
+        ],
+        [
+            "CLIPTextModelWithProjection",
+            "transformers.CLIPTextModelWithProjection",
+            "mindone.transformers.CLIPTextModelWithProjection",
+            (clip_text_config,),
+            {},
+            (input_ids,),
+            {
+                "attention_mask": input_mask,
+            },
+            {
+                "text_embeds": 0,
+                "last_hidden_state": 1,
+            },
+        ],
+        [
+            "CLIPVisionModel",
+            "transformers.CLIPVisionModel",
+            "mindone.transformers.CLIPVisionModel",
+            (clip_vision_config,),
+            {},
+            (pixel_values,),
+            {},
+            {
+                "last_hidden_state": 0,
+                "pooler_output": 1,
+            },
+        ],
+        [
+            "CLIPVisionModelWithProjection",
+            "transformers.CLIPVisionModelWithProjection",
+            "mindone.transformers.CLIPVisionModelWithProjection",
+            (clip_vision_config,),
+            {},
+            (pixel_values,),
+            {},
+            {
+                "image_embeds": 0,
+                "last_hidden_state": 1,
+            },
+        ],
+        [
+            "CLIPModel",
+            "transformers.CLIPModel",
+            "mindone.transformers.CLIPModel",
+            (clip_config,),
+            {},
+            (input_ids, pixel_values, input_mask),
+            {},
+            {
+                "logits_per_image": 0,
+                "logits_per_text": 1,
+                "text_embeds": 2,
+                "image_embeds": 3,
+            },
+        ],
+    ]
 
-CLIP_CASES = [
-    [
-        "CLIPTextModel",
-        "transformers.CLIPTextModel",
-        "mindone.transformers.CLIPTextModel",
-        (clip_text_config,),
-        {},
-        (input_ids,),
-        {
-            "attention_mask": input_mask,
-        },
-        {
-            "last_hidden_state": 0,
-            "pooler_output": 1,
-        },
-    ],
-    [
-        "CLIPTextModelWithProjection",
-        "transformers.CLIPTextModelWithProjection",
-        "mindone.transformers.CLIPTextModelWithProjection",
-        (clip_text_config,),
-        {},
-        (input_ids,),
-        {
-            "attention_mask": input_mask,
-        },
-        {
-            "text_embeds": 0,
-            "last_hidden_state": 1,
-        },
-    ],
-    [
-        "CLIPVisionModel",
-        "transformers.CLIPVisionModel",
-        "mindone.transformers.CLIPVisionModel",
-        (clip_vision_config,),
-        {},
-        (pixel_values,),
-        {},
-        {
-            "last_hidden_state": 0,
-            "pooler_output": 1,
-        },
-    ],
-    [
-        "CLIPVisionModelWithProjection",
-        "transformers.CLIPVisionModelWithProjection",
-        "mindone.transformers.CLIPVisionModelWithProjection",
-        (clip_vision_config,),
-        {},
-        (pixel_values,),
-        {},
-        {
-            "image_embeds": 0,
-            "last_hidden_state": 1,
-        },
-    ],
-    [
-        "CLIPModel",
-        "transformers.CLIPModel",
-        "mindone.transformers.CLIPModel",
-        (clip_config,),
-        {},
-        (input_ids, pixel_values, input_mask),
-        {},
-        {
-            "logits_per_image": 0,
-            "logits_per_text": 1,
-            "text_embeds": 2,
-            "image_embeds": 3,
-        },
-    ],
-]
-
-
-@pytest.mark.parametrize(
-    "name,pt_module,ms_module,init_args,init_kwargs,inputs_args,inputs_kwargs,outputs_map,dtype,mode",
-    [
-        case
-        + [
+    @parameterized.expand(
+        [
+            case
+            + [
+                dtype,
+            ]
+            + [
+                mode,
+            ]
+            for case in CLIP_CASES
+            for dtype in DTYPE_AND_THRESHOLDS
+            for mode in MODES
+        ],
+    )
+    def test_model_forward(
+            self,
+            name,
+            pt_module,
+            ms_module,
+            init_args,
+            init_kwargs,
+            inputs_args,
+            inputs_kwargs,
+            outputs_map,
             dtype,
-        ]
-        + [
             mode,
-        ]
-        for case in CLIP_CASES
-        for dtype in DTYPE_AND_THRESHOLDS.keys()
-        for mode in MODES
-    ],
-)
-def test_named_modules(
-    name,
-    pt_module,
-    ms_module,
-    init_args,
-    init_kwargs,
-    inputs_args,
-    inputs_kwargs,
-    outputs_map,
-    dtype,
-    mode,
-):
-    # set seed
-    ms.set_seed(42)
-    np.random.seed(42)
-    torch.manual_seed(42)
+    ):
+        ms.set_context(mode=mode)
 
-    ms.set_context(mode=mode)
+        diffs, pt_dtype, ms_dtype = forward_compare(
+            pt_module, ms_module, init_args, init_kwargs, inputs_args, inputs_kwargs, outputs_map, dtype
+        )
 
-    (
-        pt_model,
-        ms_model,
-        pt_dtype,
-        ms_dtype,
-    ) = get_modules(pt_module, ms_module, dtype, *init_args, **init_kwargs)
-    pt_inputs_args, pt_inputs_kwargs, ms_inputs_args, ms_inputs_kwargs = generalized_parse_args(
-        pt_dtype, ms_dtype, *inputs_args, **inputs_kwargs
-    )
+        THRESHOLD = DTYPE_AND_THRESHOLDS[ms_dtype]
+        self.assertTrue(
+            (np.array(diffs) < THRESHOLD).all(),
+            f"For {name} forward test, mode: {mode}, ms_dtype: {ms_dtype}, pt_type:{pt_dtype}, "
+            f"Outputs({np.array(diffs).tolist()}) has diff bigger than {THRESHOLD}")
 
-    # set `hidden_dtype` if requiring, for some modules always compute in float
-    # precision and require specific `hidden_dtype` to cast before return
-    if "hidden_dtype" in inspect.signature(pt_model.forward).parameters:
-        pt_inputs_kwargs.update({"hidden_dtype": PT_DTYPE_MAPPING[pt_dtype]})
-        ms_inputs_kwargs.update({"hidden_dtype": MS_DTYPE_MAPPING[ms_dtype]})
 
-    with torch.no_grad():
-        pt_outputs = pt_model(*pt_inputs_args, **pt_inputs_kwargs)
-    ms_outputs = ms_model(*ms_inputs_args, **ms_inputs_kwargs)
-    # print("ms:", ms_outputs)
-    # print("pt:", pt_outputs)
-    if outputs_map:
-        pt_outputs_n = []
-        ms_outputs_n = []
-        for pt_key, ms_idx in outputs_map.items():
-            # print("===map", pt_key, ms_idx)
-            pt_output = getattr(pt_outputs, pt_key)
-            ms_output = ms_outputs[ms_idx]
-            if isinstance(pt_output, (list, tuple)):
-                pt_outputs_n += list(pt_output)
-                ms_outputs_n += list(ms_output)
-            else:
-                pt_outputs_n.append(pt_output)
-                ms_outputs_n.append(ms_output)
-        diffs = compute_diffs(pt_outputs_n, ms_outputs_n)
-    else:
-        diffs = compute_diffs(pt_outputs, ms_outputs)
+class CLIPModelIntegrationTest(unittest.TestCase):
+    @parameterized.expand(MODES)
+    @slow
+    def test_model_inference_logits(self, mode):
+        ms.set_context(mode=mode)
+        model_name = "openai/clip-vit-base-patch32"
+        model = CLIPModel.from_pretrained(model_name)
+        processor = CLIPProcessor.from_pretrained(model_name)
 
-    THRESHOLD = DTYPE_AND_THRESHOLDS[ms_dtype]
+        image_url = "http://images.cocodataset.org/val2017/000000039769.jpg"
+        image = prepare_img(image_url)
+        text = ["a photo of a cat", "a photo of a dog"]
+        inputs = processor(text=text, images=image, padding=True, return_tensors="np")
 
-    THRESHOLD = DTYPE_AND_THRESHOLDS[ms_dtype]
-    assert (np.array(diffs) < THRESHOLD).all(), (
-        f"ms_dtype: {ms_dtype}, pt_type:{pt_dtype}, "
-        f"Outputs({np.array(diffs).tolist()}) has diff bigger than {THRESHOLD}"
-    )
+        input_ids = ms.Tensor(inputs.input_ids)
+        pixel_values = ms.Tensor(inputs.pixel_values)
+        outputs = model(input_ids=input_ids, pixel_values=pixel_values)
+
+        # check logits
+        self.assertEqual(
+            outputs[0].shape,
+            (pixel_values.shape[0], input_ids.shape[0])
+        )
+        self.assertEqual(
+            outputs[1].shape,
+            (input_ids.shape[0], pixel_values.shape[0])
+        )
+
+        EXPECTED_LOGITS = ms.Tensor([[24.5701, 19.3049]])
+        np.testing.assert_allclose(outputs[0], EXPECTED_LOGITS, rtol=1e-3, atol=1e-3)
