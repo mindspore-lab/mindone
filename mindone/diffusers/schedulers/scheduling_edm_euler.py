@@ -112,6 +112,7 @@ class EDMEulerScheduler(SchedulerMixin, ConfigMixin):
         self.sigmas = mint.cat([sigmas, mint.zeros(1, dtype=sigmas.dtype)])
 
         self.is_scale_input_called = False
+        self.sigma_data = self.config.sigma_data
 
         self._step_index = None
         self._begin_index = None
