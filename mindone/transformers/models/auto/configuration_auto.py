@@ -36,6 +36,7 @@ CONFIG_MAPPING_NAMES = OrderedDict(
         ("bart", "BartConfig"),
         ("bit", "BitConfig"),
         ("blip-2", "Blip2Config"),
+        ("chameleon", "ChameleonConfig"),
         ("clip", "CLIPConfig"),
         ("clip_vision_model", "CLIPVisionConfig"),
         ("deberta", "DebertaConfig"),
