@@ -768,7 +768,7 @@ def pipeline(
         # Instantiate processor if needed
         if isinstance(processor, (str, tuple)):
             processor = AutoProcessor.from_pretrained(
-                processor, _from_pipeline=task, use_fast=False, **hub_kwargs, **model_kwargs
+                processor, _from_pipeline=task, **hub_kwargs, **model_kwargs
             )
             if not isinstance(processor, ProcessorMixin):
                 raise TypeError(
