@@ -80,6 +80,7 @@ _import_structure = {
         "UVit2DModel",
         "VQModel",
         "WanTransformer3DModel",
+        "WanVACETransformer3DModel",
     ],
     "optimization": [
         "get_constant_schedule",
@@ -391,6 +392,7 @@ if TYPE_CHECKING:
         UVit2DModel,
         VQModel,
         WanTransformer3DModel,
+        WanVACETransformer3DModel,
     )
     from .optimization import (
         get_constant_schedule,

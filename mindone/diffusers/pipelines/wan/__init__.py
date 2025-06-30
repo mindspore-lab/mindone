@@ -8,11 +8,13 @@ _import_structure = {}
 _import_structure["pipeline_wan"] = ["WanPipeline"]
 _import_structure["pipeline_wan_i2v"] = ["WanImageToVideoPipeline"]
 _import_structure["pipeline_wan_video2video"] = ["WanVideoToVideoPipeline"]
+_import_structure["pipeline_wan_vace"] = ["WanVACEPipeline"]
 
 if TYPE_CHECKING:
     from .pipeline_wan import WanPipeline
     from .pipeline_wan_i2v import WanImageToVideoPipeline
     from .pipeline_wan_video2video import WanVideoToVideoPipeline
+    from .pipeline_wan_vace import WanVACEPipeline
 
 else:
     import sys
