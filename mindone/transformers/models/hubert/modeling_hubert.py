@@ -8,20 +8,19 @@ import warnings
 from typing import Optional, Tuple, Union
 
 import numpy as np
-import mindspore
-from mindspore import mint, nn, Parameter, ops
-from mindspore.mint.nn import CrossEntropyLoss
-from mindspore.common.initializer import Constant, HeNormal, Normal, One, Uniform, Zero, initializer
-from ...mindspore_adapter import dtype_to_min
-
-from ...activations import ACT2FN
-from ...modeling_flash_attention_utils import is_flash_attn_available
-from ...modeling_outputs import BaseModelOutput, CausalLMOutput, SequenceClassifierOutput
-from ...utils import logging
 from transformers.models.hubert.configuration_hubert import HubertConfig
-from ...modeling_utils import MSPreTrainedModel
-from ....utils import WeightNorm
 
+import mindspore
+from mindspore import Parameter, mint, nn, ops
+from mindspore.common.initializer import HeNormal, Normal, One, Uniform, Zero, initializer
+from mindspore.mint.nn import CrossEntropyLoss
+
+from ....utils import WeightNorm
+from ...activations import ACT2FN
+from ...mindspore_adapter import dtype_to_min
+from ...modeling_outputs import BaseModelOutput, CausalLMOutput, SequenceClassifierOutput
+from ...modeling_utils import MSPreTrainedModel
+from ...utils import logging
 
 logger = logging.get_logger(__name__)
 
@@ -371,6 +370,7 @@ class HubertAttention(nn.Cell):
 
         return attn_output, attn_weights_reshaped, past_key_value
 
+
 class HubertFeedForward(nn.Cell):
     def __init__(self, config):
         super().__init__()
@@ -395,9 +395,7 @@ class HubertFeedForward(nn.Cell):
         return hidden_states
 
 
-HUBERT_ATTENTION_CLASSES = {
-    "eager": HubertAttention
-}
+HUBERT_ATTENTION_CLASSES = {"eager": HubertAttention}
 
 
 class HubertEncoderLayer(nn.Cell):
@@ -468,9 +466,9 @@ class HubertEncoder(nn.Cell):
                 # extend attention_mask
                 attention_mask = 1.0 - attention_mask[:, None, None, :].to(dtype=hidden_states.dtype)
                 attention_mask = attention_mask * dtype_to_min(hidden_states.dtype)
-                attention_mask = attention_mask.expand((
-                    attention_mask.shape[0], 1, attention_mask.shape[-1], attention_mask.shape[-1]
-                ))
+                attention_mask = attention_mask.expand(
+                    (attention_mask.shape[0], 1, attention_mask.shape[-1], attention_mask.shape[-1])
+                )
 
         position_embeddings = self.pos_conv_embed(hidden_states)
         hidden_states = hidden_states + position_embeddings
@@ -486,9 +484,7 @@ class HubertEncoder(nn.Cell):
 
             skip_the_layer = True if self.training and (dropout_probability < self.config.layerdrop) else False
             if not skip_the_layer:
-                layer_outputs = layer(
-                    hidden_states, attention_mask=attention_mask, output_attentions=output_attentions
-                )
+                layer_outputs = layer(hidden_states, attention_mask=attention_mask, output_attentions=output_attentions)
                 hidden_states = layer_outputs[0]
 
             if skip_the_layer:
@@ -586,9 +582,7 @@ class HubertEncoderStableLayerNorm(nn.Cell):
         self.pos_conv_embed = HubertPositionalConvEmbedding(config)
         self.layer_norm = mint.nn.LayerNorm(config.hidden_size, eps=config.layer_norm_eps)
         self.dropout = mint.nn.Dropout(config.hidden_dropout)
-        self.layers = nn.CellList(
-            [HubertEncoderLayerStableLayerNorm(config) for _ in range(config.num_hidden_layers)]
-        )
+        self.layers = nn.CellList([HubertEncoderLayerStableLayerNorm(config) for _ in range(config.num_hidden_layers)])
         self.gradient_checkpointing = False
         self._use_flash_attention_2 = config._attn_implementation == "flash_attention_2"
 
@@ -614,14 +608,13 @@ class HubertEncoderStableLayerNorm(nn.Cell):
                 # extend attention_mask
                 attention_mask = 1.0 - attention_mask[:, None, None, :].to(dtype=hidden_states.dtype)
                 attention_mask = attention_mask * dtype_to_min(hidden_states.dtype)
-                attention_mask = attention_mask.expand((
-                    attention_mask.shape[0], 1, attention_mask.shape[-1], attention_mask.shape[-1]
-                ))
+                attention_mask = attention_mask.expand(
+                    (attention_mask.shape[0], 1, attention_mask.shape[-1], attention_mask.shape[-1])
+                )
 
         position_embeddings = self.pos_conv_embed(hidden_states)
         hidden_states = hidden_states + position_embeddings
         hidden_states = self.dropout(hidden_states)
-
 
         for layer in self.layers:
             if output_hidden_states:
@@ -631,21 +624,10 @@ class HubertEncoderStableLayerNorm(nn.Cell):
             dropout_probability = mint.rand([])
 
             skip_the_layer = True if self.training and (dropout_probability < self.config.layerdrop) else False
-            if not skip_the_layer or synced_gpus:
-                # under fsdp or deepspeed zero3 all gpus must run in sync
-                # XXX: could optimize this like synced_gpus in generate_utils but not sure if it's worth the code complication
-                if self.gradient_checkpointing and self.training:
-                    layer_outputs = self._gradient_checkpointing_func(
-                        layer.__call__,
-                        hidden_states,
-                        attention_mask,
-                        output_attentions,
-                    )
-                else:
-                    layer_outputs = layer(
-                        hidden_states, attention_mask=attention_mask, output_attentions=output_attentions
-                    )
-                hidden_states = layer_outputs[0]
+            layer_outputs = layer(
+                hidden_states, attention_mask=attention_mask, output_attentions=output_attentions
+            )
+            hidden_states = layer_outputs[0]
 
             if skip_the_layer:
                 layer_outputs = (None, None)
@@ -690,24 +672,20 @@ class HubertPreTrainedModel(MSPreTrainedModel):
                 )
             )
             if module.bias is not None:
-                module.bias.set_data(
-                initializer(Zero(), shape=module.bias.shape, dtype=module.bias.dtype)
-            )
+                module.bias.set_data(initializer(Zero(), shape=module.bias.shape, dtype=module.bias.dtype))
         elif isinstance(module, (mint.nn.LayerNorm, mint.nn.GroupNorm, nn.BatchNorm1d)):
-            module.bias.set_data(
-                initializer(Zero(), shape=module.bias.shape, dtype=module.bias.dtype)
-            )
+            module.bias.set_data(initializer(Zero(), shape=module.bias.shape, dtype=module.bias.dtype))
             module.weight.set_data(initializer(One(), shape=module.weight.shape, dtype=module.weight.dtype))
         elif isinstance(module, nn.Conv1d):
             module.weight.set_data(initializer(HeNormal(), shape=module.weight.shape, dtype=module.weight.dtype))
 
             if module.bias is not None:
-                module.bias.set_data(
-                initializer(Zero(), shape=module.bias.shape, dtype=module.bias.dtype)
-            )
+                module.bias.set_data(initializer(Zero(), shape=module.bias.shape, dtype=module.bias.dtype))
         elif isinstance(module, HubertModel):
             if hasattr(module, "masked_spec_embed"):
-                module.masked_spec_embed.set_data(initializer(Uniform(), shape=module.masked_spec_embed.shape, dtype=module.masked_spec_embed.dtype))
+                module.masked_spec_embed.set_data(
+                    initializer(Uniform(), shape=module.masked_spec_embed.shape, dtype=module.masked_spec_embed.dtype)
+                )
         elif isinstance(module, HubertForSequenceClassification):
             if hasattr(module, "layer_weights"):
                 module.layer_weights.data.fill_(1.0 / (self.config.num_hidden_layers + 1))
@@ -730,8 +708,7 @@ class HubertPreTrainedModel(MSPreTrainedModel):
         output_lengths = self._get_feat_extract_output_lengths(attention_mask.sum(-1)).to(mindspore.int64)
         batch_size = attention_mask.shape[0]
 
-        attention_mask = mint.zeros(
-            (batch_size, feature_vector_length), dtype=attention_mask.dtype)
+        attention_mask = mint.zeros((batch_size, feature_vector_length), dtype=attention_mask.dtype)
         # these two operations makes sure that all values before the output lengths idxs are attended to
         attention_mask[(mint.arange(attention_mask.shape[0]), output_lengths - 1)] = 1
         attention_mask = attention_mask.flip([-1]).cumsum(-1).flip([-1]).bool()
@@ -835,9 +812,7 @@ def _compute_mask_indices(
     spec_aug_mask_idxs = np.array(spec_aug_mask_idxs)
 
     # expand masked indices to masked spans
-    spec_aug_mask_idxs = np.broadcast_to(
-        spec_aug_mask_idxs[:, :, None], (batch_size, max_num_masked_span, mask_length)
-    )
+    spec_aug_mask_idxs = np.broadcast_to(spec_aug_mask_idxs[:, :, None], (batch_size, max_num_masked_span, mask_length))
     spec_aug_mask_idxs = spec_aug_mask_idxs.reshape(batch_size, max_num_masked_span * mask_length)
 
     # add offset to the starting indexes so that indexes now create a span
@@ -991,6 +966,7 @@ _HIDDEN_STATES_START_POSITION = 1
 _CTC_EXPECTED_OUTPUT = "'MISTER QUILTER IS THE APOSTLE OF THE MIDDLE CLASSES AND WE ARE GLAD TO WELCOME HIS GOSPEL'"
 _CTC_EXPECTED_LOSS = 22.68
 
+
 class HubertForCTC(HubertPreTrainedModel):
     def __init__(self, config, target_lang: Optional[str] = None):
         super().__init__(config)
@@ -1136,6 +1112,7 @@ class HubertForCTC(HubertPreTrainedModel):
 _SEQ_CLASS_CHECKPOINT = "superb/hubert-base-superb-ks"
 _SEQ_CLASS_EXPECTED_OUTPUT = "'_unknown_'"
 _SEQ_CLASS_EXPECTED_LOSS = 8.53
+
 
 class HubertForSequenceClassification(HubertPreTrainedModel):
     def __init__(self, config):

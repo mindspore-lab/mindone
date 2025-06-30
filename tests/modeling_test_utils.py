@@ -125,6 +125,7 @@ def get_pt2ms_mappings(m):
                 mappings[f"{ori_name}.bias"] = f"{name}.bias", lambda x: x
                 mappings[f"{ori_name}.parametrizations.weight.original0"] = f"{ori_name}.weight_g", lambda x: ms.Parameter(
                     ops.expand_dims(x, axis=-2), name=f"{ori_name}.weight_g"
+                )
                 mappings[f"{ori_name}.parametrizations.weight.original1"] = f"{ori_name}.weight_v", lambda x: ms.Parameter(
                     ops.expand_dims(x, axis=-2), name=f"{ori_name}.weight_v"
                 )
