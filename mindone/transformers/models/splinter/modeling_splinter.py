@@ -19,16 +19,15 @@ from dataclasses import dataclass
 from typing import List, Optional, Tuple, Union
 
 import mindspore
-import torch.utils.checkpoint
-from mindspore import nn
 from mindspore.mint.nn import CrossEntropyLoss
 
 from ...activations import ACT2FN
+from ...mindspore_adapter import dtype_to_min
 from ...modeling_outputs import BaseModelOutputWithPastAndCrossAttentions, ModelOutput, QuestionAnsweringModelOutput
 from ...modeling_utils import PreTrainedModel
-from ...pytorch_utils import apply_chunking_to_forward, find_pruneable_heads_and_indices, prune_linear_layer
-from ...utils import add_code_sample_docstrings, add_start_docstrings, add_start_docstrings_to_model_forward, logging
-from .configuration_splinter import SplinterConfig
+from ...mindspore_utils import apply_chunking_to_forward, find_pruneable_heads_and_indices, prune_linear_layer
+from transformers.utils import add_code_sample_docstrings, add_start_docstrings, add_start_docstrings_to_model_forward, logging
+from transformers.models.splinter.configuration_splinter import SplinterConfig
 
 
 logger = logging.get_logger(__name__)
@@ -905,8 +904,8 @@ class SplinterForQuestionAnswering(SplinterPreTrainedModel):
             start_logits, end_logits = start_logits.squeeze(1), end_logits.squeeze(1)
 
         if attention_mask is not None:
-            start_logits = start_logits + (1 - attention_mask) * torch.finfo(start_logits.dtype).min
-            end_logits = end_logits + (1 - attention_mask) * torch.finfo(end_logits.dtype).min
+            start_logits = start_logits + (1 - attention_mask) * dtype_to_min(start_logits.dtype)
+            end_logits = end_logits + (1 - attention_mask) * dtype_to_min(end_logits.dtype)
 
         total_loss = None
         if start_positions is not None and end_positions is not None:
@@ -1053,10 +1052,10 @@ class SplinterForPreTraining(SplinterPreTrainedModel):
         num_questions = question_positions.shape[1]
         if attention_mask is not None:
             attention_mask_for_each_question = attention_mask.unsqueeze(1).expand(
-                batch_size, num_questions, sequence_length
+                (batch_size, num_questions, sequence_length)
             )
-            start_logits = start_logits + (1 - attention_mask_for_each_question) * torch.finfo(start_logits.dtype).min
-            end_logits = end_logits + (1 - attention_mask_for_each_question) * torch.finfo(end_logits.dtype).min
+            start_logits = start_logits + (1 - attention_mask_for_each_question) * dtype_to_min(start_logits.dtype)
+            end_logits = end_logits + (1 - attention_mask_for_each_question) * dtype_to_min(end_logits.dtype)
 
         total_loss = None
         # [batch_size, num_questions, sequence_length]
