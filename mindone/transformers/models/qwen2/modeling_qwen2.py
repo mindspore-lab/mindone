@@ -113,7 +113,7 @@ def rotate_half(x):
 
 
 # Copied from transformers.models.mixtral.modeling_mixtral.apply_rotary_pos_emb
-def apply_rotary_pos_emb(q, k, cos, sin, position_ids, unsqueeze_dim=1):
+def apply_rotary_pos_emb(q, k, cos, sin, position_ids=None, unsqueeze_dim=1):
     """Applies Rotary Position Embedding to the query and key tensors.
 
     Args:
@@ -259,16 +259,6 @@ class Qwen2Attention(nn.Cell):
         key_states = key_states.view(bsz, q_len, self.num_key_value_heads, self.head_dim).swapaxes(1, 2)
         value_states = value_states.view(bsz, q_len, self.num_key_value_heads, self.head_dim).swapaxes(1, 2)
 
-        kv_seq_len = key_states.shape[-2]  # seq/1
-        if past_key_value is not None:
-            # this is commented for solving control flow problem in dynamic shape scene
-            # if self.layer_idx is None:
-            #     raise ValueError(
-            #         f"The cache structure has changed since version v4.36. If you are using {self.__class__.__name__} "
-            #         "for auto-regressive decoding with k/v caching, please make sure to initialize the attention class "
-            #         "with a layer index."
-            #     )
-            kv_seq_len = past_key_value[0].shape[-2]  # seq
         cos, sin = position_embeddings
         query_states, key_states = apply_rotary_pos_emb(query_states, key_states, cos, sin)
 
@@ -288,9 +278,9 @@ class Qwen2Attention(nn.Cell):
 
         sliding_window = None
         if (
-                self.config.use_sliding_window
-                and getattr(self.config, "sliding_window", None) is not None
-                and self.layer_idx >= self.config.max_window_layers
+            self.config.use_sliding_window
+            and getattr(self.config, "sliding_window", None) is not None
+            and self.layer_idx >= self.config.max_window_layers
         ):
             sliding_window = self.config.sliding_window
 
