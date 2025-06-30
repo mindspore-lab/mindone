@@ -1245,6 +1245,37 @@ LUMINA2_TRANSFORMER2D_CASES = [
 ]
 
 
+CHROMA_TRANSFORMER2D_CASES = [
+    [
+        "ChromaTransformer2DModel",
+        "diffusers.models.transformers.transformer_chroma.ChromaTransformer2DModel",
+        "mindone.diffusers.models.transformers.transformer_chroma.ChromaTransformer2DModel",
+        (),
+        {
+            "patch_size": 1,
+            "in_channels": 4,
+            "num_layers": 1,
+            "num_single_layers": 1,
+            "attention_head_dim": 16,
+            "num_attention_heads": 2,
+            "joint_attention_dim": 32,
+            "axes_dims_rope": [4, 4, 8],
+            "approximator_num_channels": 8,
+            "approximator_hidden_dim": 16,
+            "approximator_layers": 1,
+        },
+        (),
+        {
+            "hidden_states": np.random.randn(1, 16, 4),
+            "encoder_hidden_states": np.random.randn(1, 48, 32),
+            "img_ids": np.random.randn(48, 3),
+            "txt_ids": np.random.randn(16, 3),
+            "timestep": np.ones(1),
+        },
+    ]
+]
+
+
 TRANSFORMERS_CASES = (
     ALLEGRO_TRANSFORMER3D_CASES
     + AURAFLOW_TRANSFORMER2D_CASES
@@ -1263,6 +1294,7 @@ TRANSFORMERS_CASES = (
     + LATTE_TRANSORMER3D_CASES
     + LUMINA_NEXTDIT2D_CASES
     + LUMINA2_TRANSFORMER2D_CASES
+    + CHROMA_TRANSFORMER2D_CASES
 )
 
 

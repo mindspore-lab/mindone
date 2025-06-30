@@ -61,6 +61,7 @@ _import_structure = {
     "transformers.t5_film_transformer": ["T5FilmDecoder"],
     "transformers.transformer_2d": ["Transformer2DModel"],
     "transformers.transformer_allegro": ["AllegroTransformer3DModel"],
+    "transformers.transformer_chroma": ["ChromaTransformer2DModel"],
     "transformers.transformer_cogview3plus": ["CogView3PlusTransformer2DModel"],
     "transformers.transformer_cogview4": ["CogView4Transformer2DModel"],
     "transformers.transformer_easyanimate": ["EasyAnimateTransformer3DModel"],
@@ -123,6 +124,7 @@ if TYPE_CHECKING:
     from .transformers import (
         AllegroTransformer3DModel,
         AuraFlowTransformer2DModel,
+        ChromaTransformer2DModel,
         CogVideoXTransformer3DModel,
         CogView3PlusTransformer2DModel,
         CogView4Transformer2DModel,

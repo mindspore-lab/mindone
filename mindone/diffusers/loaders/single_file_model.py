@@ -25,6 +25,7 @@ from .single_file_utils import (
     _load_param_into_net,
     convert_animatediff_checkpoint_to_diffusers,
     convert_autoencoder_dc_checkpoint_to_diffusers,
+    convert_chroma_transformer_checkpoint_to_diffusers,
     convert_controlnet_checkpoint,
     convert_flux_transformer_checkpoint_to_diffusers,
     convert_hunyuan_video_transformer_to_diffusers,
@@ -81,6 +82,10 @@ SINGLE_FILE_LOADABLE_CLASSES = {
     },
     "FluxTransformer2DModel": {
         "checkpoint_mapping_fn": convert_flux_transformer_checkpoint_to_diffusers,
+        "default_subfolder": "transformer",
+    },
+    "ChromaTransformer2DModel": {
+        "checkpoint_mapping_fn": convert_chroma_transformer_checkpoint_to_diffusers,
         "default_subfolder": "transformer",
     },
     "LTXVideoTransformer3DModel": {
@@ -162,8 +167,8 @@ class FromOriginalModelMixin:
             original_config (`str`, *optional*):
                 Dict or path to a yaml file containing the configuration for the model in its original format.
                     If a dict is provided, it will be used to initialize the model configuration.
-            torch_dtype (`str` or `torch.dtype`, *optional*):
-                Override the default `torch.dtype` and load the model with another dtype. If `"auto"` is passed, the
+            mindspore_dtype (`str` or `ms.Type`, *optional*):
+                Override the default `ms.Type` and load the model with another dtype. If `"auto"` is passed, the
                 dtype is automatically derived from the model's weights.
             force_download (`bool`, *optional*, defaults to `False`):
                 Whether or not to force the (re-)download of the model weights and configuration files, overriding the
