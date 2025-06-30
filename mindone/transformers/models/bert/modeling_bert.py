@@ -564,7 +564,7 @@ class BertEncoder(nn.Cell):
         use_cache: Optional[bool] = None,
         output_attentions: Optional[bool] = False,
         output_hidden_states: Optional[bool] = False,
-        return_dict: Optional[bool] = False,
+        return_dict: Optional[bool] = True,
     ) -> Union[Tuple[ms.Tensor], BaseModelOutputWithPastAndCrossAttentions]:
         all_hidden_states = () if output_hidden_states else None
         all_self_attentions = () if output_attentions else None
@@ -861,7 +861,7 @@ class BertModel(BertPreTrainedModel):
         use_cache: Optional[bool] = None,
         output_attentions: Optional[bool] = None,
         output_hidden_states: Optional[bool] = None,
-        return_dict: Optional[bool] = False,
+        return_dict: Optional[bool] = True,
     ) -> Union[Tuple[ms.Tensor], BaseModelOutputWithPoolingAndCrossAttentions]:
         r"""
         encoder_hidden_states  (`ms.Tensor` of shape `(batch_size, sequence_length, hidden_size)`, *optional*):
@@ -1043,7 +1043,7 @@ class BertForPreTraining(BertPreTrainedModel):
         next_sentence_label: Optional[ms.Tensor] = None,
         output_attentions: Optional[bool] = None,
         output_hidden_states: Optional[bool] = None,
-        return_dict: Optional[bool] = False,
+        return_dict: Optional[bool] = True,
     ) -> Union[Tuple[ms.Tensor], BertForPreTrainingOutput]:
         r"""
             labels (`ms.Tensor` of shape `(batch_size, sequence_length)`, *optional*):
@@ -1153,7 +1153,7 @@ class BertLMHeadModel(BertPreTrainedModel):
         use_cache: Optional[bool] = None,
         output_attentions: Optional[bool] = None,
         output_hidden_states: Optional[bool] = None,
-        return_dict: Optional[bool] = False,
+        return_dict: Optional[bool] = True,
     ) -> Union[Tuple[ms.Tensor], CausalLMOutputWithCrossAttentions]:
         r"""
         encoder_hidden_states  (`ms.Tensor` of shape `(batch_size, sequence_length, hidden_size)`, *optional*):
@@ -1300,7 +1300,7 @@ class BertForMaskedLM(BertPreTrainedModel):
         labels: Optional[ms.Tensor] = None,
         output_attentions: Optional[bool] = None,
         output_hidden_states: Optional[bool] = None,
-        return_dict: Optional[bool] = False,
+        return_dict: Optional[bool] = True,
     ) -> Union[Tuple[ms.Tensor], MaskedLMOutput]:
         r"""
         labels (`ms.Tensor` of shape `(batch_size, sequence_length)`, *optional*):
@@ -1381,7 +1381,7 @@ class BertForNextSentencePrediction(BertPreTrainedModel):
         labels: Optional[ms.Tensor] = None,
         output_attentions: Optional[bool] = None,
         output_hidden_states: Optional[bool] = None,
-        return_dict: Optional[bool] = False,
+        return_dict: Optional[bool] = True,
         **kwargs,
     ) -> Union[Tuple[ms.Tensor], NextSentencePredictorOutput]:
         r"""
@@ -1485,7 +1485,7 @@ class BertForSequenceClassification(BertPreTrainedModel):
         labels: Optional[ms.Tensor] = None,
         output_attentions: Optional[bool] = None,
         output_hidden_states: Optional[bool] = None,
-        return_dict: Optional[bool] = False,
+        return_dict: Optional[bool] = True,
     ) -> Union[Tuple[ms.Tensor], SequenceClassifierOutput]:
         r"""
         labels (`ms.Tensor` of shape `(batch_size,)`, *optional*):
@@ -1575,7 +1575,7 @@ class BertForMultipleChoice(BertPreTrainedModel):
         labels: Optional[ms.Tensor] = None,
         output_attentions: Optional[bool] = None,
         output_hidden_states: Optional[bool] = None,
-        return_dict: Optional[bool] = False,
+        return_dict: Optional[bool] = True,
     ) -> Union[Tuple[ms.Tensor], MultipleChoiceModelOutput]:
         r"""
         labels (`ms.Tensor` of shape `(batch_size,)`, *optional*):
@@ -1658,7 +1658,7 @@ class BertForTokenClassification(BertPreTrainedModel):
         labels: Optional[ms.Tensor] = None,
         output_attentions: Optional[bool] = None,
         output_hidden_states: Optional[bool] = None,
-        return_dict: Optional[bool] = False,
+        return_dict: Optional[bool] = True,
     ) -> Union[Tuple[ms.Tensor], TokenClassifierOutput]:
         r"""
         labels (`ms.Tensor` of shape `(batch_size, sequence_length)`, *optional*):
@@ -1723,7 +1723,7 @@ class BertForQuestionAnswering(BertPreTrainedModel):
         end_positions: Optional[ms.Tensor] = None,
         output_attentions: Optional[bool] = None,
         output_hidden_states: Optional[bool] = None,
-        return_dict: Optional[bool] = False,
+        return_dict: Optional[bool] = True,
     ) -> Union[Tuple[ms.Tensor], QuestionAnsweringModelOutput]:
         r"""
         start_positions (`ms.Tensor` of shape `(batch_size,)`, *optional*):
