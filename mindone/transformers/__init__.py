@@ -290,6 +290,13 @@ from .models.speecht5 import (
     SpeechT5Model,
     SpeechT5PreTrainedModel,
 )
+from .models.splinter import (
+    SplinterForPreTraining,
+    SplinterForQuestionAnswering,
+    SplinterLayer,
+    SplinterModel,
+    SplinterPreTrainedModel,
+)
 from .models.switch_transformers import (
     SwitchTransformersEncoderModel,
     SwitchTransformersForConditionalGeneration,

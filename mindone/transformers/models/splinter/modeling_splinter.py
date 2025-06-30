@@ -18,17 +18,22 @@ import math
 from dataclasses import dataclass
 from typing import List, Optional, Tuple, Union
 
+from transformers.models.splinter.configuration_splinter import SplinterConfig
+from transformers.utils import (
+    add_code_sample_docstrings,
+    add_start_docstrings,
+    add_start_docstrings_to_model_forward,
+    logging,
+)
+
 import mindspore
 from mindspore.mint.nn import CrossEntropyLoss
 
 from ...activations import ACT2FN
 from ...mindspore_adapter import dtype_to_min
+from ...mindspore_utils import apply_chunking_to_forward, find_pruneable_heads_and_indices, prune_linear_layer
 from ...modeling_outputs import BaseModelOutputWithPastAndCrossAttentions, ModelOutput, QuestionAnsweringModelOutput
 from ...modeling_utils import PreTrainedModel
-from ...mindspore_utils import apply_chunking_to_forward, find_pruneable_heads_and_indices, prune_linear_layer
-from transformers.utils import add_code_sample_docstrings, add_start_docstrings, add_start_docstrings_to_model_forward, logging
-from transformers.models.splinter.configuration_splinter import SplinterConfig
-
 
 logger = logging.get_logger(__name__)
 
@@ -41,7 +46,9 @@ class SplinterEmbeddings(mindspore.nn.Cell):
 
     def __init__(self, config):
         super().__init__()
-        self.word_embeddings = mindspore.mint.nn.Embedding(config.vocab_size, config.hidden_size, padding_idx=config.pad_token_id)
+        self.word_embeddings = mindspore.mint.nn.Embedding(
+            config.vocab_size, config.hidden_size, padding_idx=config.pad_token_id
+        )
         self.position_embeddings = mindspore.mint.nn.Embedding(config.max_position_embeddings, config.hidden_size)
         self.token_type_embeddings = mindspore.mint.nn.Embedding(config.type_vocab_size, config.hidden_size)
 
@@ -75,7 +82,10 @@ class SplinterEmbeddings(mindspore.nn.Cell):
             position_ids = self.position_ids[:, past_key_values_length : seq_length + past_key_values_length]
 
         if token_type_ids is None:
-            token_type_ids = mindspore.mint.zeros(input_shape, dtype=mindspore.int64, )
+            token_type_ids = mindspore.mint.zeros(
+                input_shape,
+                dtype=mindspore.int64,
+            )
 
         if inputs_embeds is None:
             inputs_embeds = self.word_embeddings(input_ids)
@@ -109,12 +119,12 @@ class SplinterSelfAttention(mindspore.nn.Cell):
         self.value = mindspore.mint.nn.Linear(config.hidden_size, self.all_head_size)
 
         self.dropout = mindspore.mint.nn.Dropout(config.attention_probs_dropout_prob)
-        self.position_embedding_type = position_embedding_type or getattr(
-            config, "position_embedding_type", "absolute"
-        )
+        self.position_embedding_type = position_embedding_type or getattr(config, "position_embedding_type", "absolute")
         if self.position_embedding_type == "relative_key" or self.position_embedding_type == "relative_key_query":
             self.max_position_embeddings = config.max_position_embeddings
-            self.distance_embedding = mindspore.mint.nn.Embedding(2 * config.max_position_embeddings - 1, self.attention_head_size)
+            self.distance_embedding = mindspore.mint.nn.Embedding(
+                2 * config.max_position_embeddings - 1, self.attention_head_size
+            )
 
         self.is_decoder = config.is_decoder
 
@@ -177,12 +187,19 @@ class SplinterSelfAttention(mindspore.nn.Cell):
         if self.position_embedding_type == "relative_key" or self.position_embedding_type == "relative_key_query":
             query_length, key_length = query_layer.shape[2], key_layer.shape[2]
             if use_cache:
-                position_ids_l = mindspore.Tensor(key_length - 1, dtype=mindspore.int64, ).view(
-                    -1, 1
-                )
+                position_ids_l = mindspore.Tensor(
+                    key_length - 1,
+                    dtype=mindspore.int64,
+                ).view(-1, 1)
             else:
-                position_ids_l = mindspore.mint.arange(query_length, dtype=mindspore.int64, ).view(-1, 1)
-            position_ids_r = mindspore.mint.arange(key_length, dtype=mindspore.int64, ).view(1, -1)
+                position_ids_l = mindspore.mint.arange(
+                    query_length,
+                    dtype=mindspore.int64,
+                ).view(-1, 1)
+            position_ids_r = mindspore.mint.arange(
+                key_length,
+                dtype=mindspore.int64,
+            ).view(1, -1)
             distance = position_ids_l - position_ids_r
 
             positional_embedding = self.distance_embedding(distance + self.max_position_embeddings - 1)
@@ -192,7 +209,9 @@ class SplinterSelfAttention(mindspore.nn.Cell):
                 relative_position_scores = mindspore.mint.einsum("bhld,lrd->bhlr", query_layer, positional_embedding)
                 attention_scores = attention_scores + relative_position_scores
             elif self.position_embedding_type == "relative_key_query":
-                relative_position_scores_query = mindspore.mint.einsum("bhld,lrd->bhlr", query_layer, positional_embedding)
+                relative_position_scores_query = mindspore.mint.einsum(
+                    "bhld,lrd->bhlr", query_layer, positional_embedding
+                )
                 relative_position_scores_key = mindspore.mint.einsum("bhrd,lrd->bhlr", key_layer, positional_embedding)
                 attention_scores = attention_scores + relative_position_scores_query + relative_position_scores_key
 
@@ -665,7 +684,8 @@ class SplinterModel(SplinterPreTrainedModel):
 
             - 1 for tokens that are **not masked**,
             - 0 for tokens that are **masked**.
-        past_key_values (`tuple(tuple(torch.FloatTensor))` of length `config.n_layers` with each tuple having 4 tensors of shape `(batch_size, num_heads, sequence_length - 1, embed_size_per_head)`):
+        past_key_values (`tuple(tuple(torch.FloatTensor))` of length `config.n_layers` with each tuple having 4 tensors of shape
+            `(batch_size, num_heads, sequence_length - 1, embed_size_per_head)`):
             Contains precomputed key and value hidden states of the attention blocks. Can be used to speed up decoding.
             If `past_key_values` are used, the user can optionally input only the last `decoder_input_ids` (those that
             don't have their past key value states given to this model) of shape `(batch_size, 1)` instead of all
@@ -696,15 +716,19 @@ class SplinterModel(SplinterPreTrainedModel):
             raise ValueError("You have to specify either input_ids or inputs_embeds")
 
         batch_size, seq_length = input_shape
-        device = input_ids.device if input_ids is not None else inputs_embeds.device
 
         # past_key_values_length
         past_key_values_length = past_key_values[0][0].shape[2] if past_key_values is not None else 0
 
         if attention_mask is None:
-            attention_mask = mindspore.mint.ones(((batch_size, seq_length + past_key_values_length)), )
+            attention_mask = mindspore.mint.ones(
+                ((batch_size, seq_length + past_key_values_length)),
+            )
         if token_type_ids is None:
-            token_type_ids = mindspore.mint.zeros(input_shape, dtype=mindspore.int64, )
+            token_type_ids = mindspore.mint.zeros(
+                input_shape,
+                dtype=mindspore.int64,
+            )
 
         # We can provide a self-attention mask of dimensions [batch_size, from_seq_length, to_seq_length]
         # ourselves in which case we just need to make it broadcastable to all heads.
@@ -716,7 +740,9 @@ class SplinterModel(SplinterPreTrainedModel):
             encoder_batch_size, encoder_sequence_length, _ = encoder_hidden_states.shape
             encoder_hidden_shape = (encoder_batch_size, encoder_sequence_length)
             if encoder_attention_mask is None:
-                encoder_attention_mask = mindspore.mint.ones(encoder_hidden_shape, )
+                encoder_attention_mask = mindspore.mint.ones(
+                    encoder_hidden_shape,
+                )
             encoder_extended_attention_mask = self.invert_attention_mask(encoder_attention_mask)
         else:
             encoder_extended_attention_mask = None
@@ -881,7 +907,10 @@ class SplinterForQuestionAnswering(SplinterPreTrainedModel):
                 )
             else:
                 question_position_for_each_example = mindspore.mint.zeros(
-                    inputs_embeds.shape[0], dtype=mindspore.int64, layout=inputs_embeds.layout, )
+                    inputs_embeds.shape[0],
+                    dtype=mindspore.int64,
+                    layout=inputs_embeds.layout,
+                )
             question_positions = question_position_for_each_example.unsqueeze(-1)
             question_positions_were_none = True
 
@@ -1098,7 +1127,7 @@ class SplinterForPreTraining(SplinterPreTrainedModel):
             (input_ids.shape[0], num_questions.max()),
             self.config.pad_token_id,
             dtype=mindspore.int64,
-            )
+        )
         cols = mindspore.mint.cat([mindspore.mint.arange(n) for n in num_questions])
         positions[rows, cols] = flat_positions
         return positions
