@@ -141,6 +141,13 @@ from .models.glm import (
     GlmModel,
     GlmPreTrainedModel,
 )
+from .models.glm4v import (
+    Glm4vForConditionalGeneration,
+    Glm4vModel,
+    Glm4vPreTrainedModel,
+    Glm4vTextModel,
+    Glm4vVisionModel,
+)
 from .models.glpn import (
     GLPNFeatureExtractor,
     GLPNForDepthEstimation,
