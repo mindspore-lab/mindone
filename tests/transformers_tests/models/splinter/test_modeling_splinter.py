@@ -124,7 +124,7 @@ class SplinterModelTester:
         )
 
 
-model_tester = SplinterConfig()
+model_tester = SplinterModelTester()
 (
     config, input_ids, token_type_ids, input_mask, start_positions, end_positions, question_positions
 ) = model_tester.prepare_config_and_inputs()
