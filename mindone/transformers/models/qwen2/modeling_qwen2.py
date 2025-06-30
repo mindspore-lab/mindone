@@ -89,30 +89,19 @@ class Qwen2RotaryEmbedding(nn.Cell):
 
         rope_init_fn = ROPE_INIT_FUNCTIONS[rope_type]
 
-        inv_freq, _ = rope_init_fn(config)
+        inv_freq, self.attention_scaling = rope_init_fn(config)
         self.inv_freq = inv_freq
-        # Build here to make `torch.jit.trace` work.
-        self._set_cos_sin_cache(seq_len=config.max_position_embeddings, dtype=ms.float32)
 
-    def _set_cos_sin_cache(self, seq_len, dtype):
-        self.max_seq_len_cached = seq_len
-        t = ops.arange(self.max_seq_len_cached, dtype=ms.int64).type_as(self.inv_freq)
+    def construct(self, x, position_ids):
+        inv_freq_expanded = self.inv_freq[None, :, None].float().broadcast_to((position_ids.shape[0], -1, 1))
+        position_ids_expanded = position_ids[:, None, :].float()
 
-        freqs = ops.outer(t, self.inv_freq)
-        # Different from paper, but it uses a different permutation in order to obtain the same calculation
-        emb = ops.cat((freqs, freqs), axis=-1)
-        self.cos_cached = emb.cos().to(dtype)
-        self.sin_cached = emb.sin().to(dtype)
+        freqs = (inv_freq_expanded.float() @ position_ids_expanded.float()).swapaxes(1, 2)
+        emb = mint.cat((freqs, freqs), dim=-1)
+        cos = emb.cos() * self.attention_scaling
+        sin = emb.sin() * self.attention_scaling
 
-    def construct(self, x, seq_len=None):
-        # x: [bs, num_attention_heads, seq_len, head_size]
-        # if seq_len > self.max_seq_len_cached:
-        #     self._set_cos_sin_cache(seq_len=seq_len, device=None, dtype=x.dtype)
-
-        return (
-            self.cos_cached[:seq_len].to(dtype=x.dtype),
-            self.sin_cached[:seq_len].to(dtype=x.dtype),
-        )
+        return cos.to(dtype=x.dtype), sin.to(dtype=x.dtype)
 
 
 # Copied from transformers.models.llama.modeling_llama.rotate_half
@@ -145,8 +134,8 @@ def apply_rotary_pos_emb(q, k, cos, sin, position_ids, unsqueeze_dim=1):
     Returns:
         `tuple(ms.Tensor)` comprising of the query and key tensors rotated using the Rotary Position Embedding.
     """
-    cos = cos[position_ids].unsqueeze(unsqueeze_dim)
-    sin = sin[position_ids].unsqueeze(unsqueeze_dim)
+    cos = cos.unsqueeze(unsqueeze_dim)
+    sin = sin.unsqueeze(unsqueeze_dim)
     q_embed = (q * cos) + (rotate_half(q) * sin)
     k_embed = (k * cos) + (rotate_half(k) * sin)
     return q_embed, k_embed
@@ -257,6 +246,7 @@ class Qwen2Attention(nn.Cell):
         output_attentions: bool = False,
         use_cache: bool = False,
         cache_position: Optional[ms.Tensor] = None,
+        position_embeddings: Optional[Tuple[ms.Tensor, ms.Tensor]] = None,
         **kwargs: Unpack[FlashAttentionKwargs],
     ) -> Tuple[ms.Tensor, Optional[ms.Tensor], Optional[Tuple[ms.Tensor]]]:
         bsz, q_len, _ = hidden_states.shape
@@ -279,8 +269,8 @@ class Qwen2Attention(nn.Cell):
             #         "with a layer index."
             #     )
             kv_seq_len = past_key_value[0].shape[-2]  # seq
-        cos, sin = self.rotary_emb(value_states, seq_len=kv_seq_len)
-        query_states, key_states = apply_rotary_pos_emb(query_states, key_states, cos, sin, position_ids)
+        cos, sin = position_embeddings
+        query_states, key_states = apply_rotary_pos_emb(query_states, key_states, cos, sin)
 
         if past_key_value is not None:
             key_states, value_states = update(past_key_value, key_states, value_states, cache_position)
@@ -296,6 +286,14 @@ class Qwen2Attention(nn.Cell):
             else:
                 attention_interface = ALL_ATTENTION_FUNCTIONS[self.config._attn_implementation]
 
+        sliding_window = None
+        if (
+                self.config.use_sliding_window
+                and getattr(self.config, "sliding_window", None) is not None
+                and self.layer_idx >= self.config.max_window_layers
+        ):
+            sliding_window = self.config.sliding_window
+
         attn_output, attn_weights = attention_interface(
             self,
             query_states,
@@ -304,6 +302,7 @@ class Qwen2Attention(nn.Cell):
             attention_mask,
             dropout=0.0 if not self.training else self.attention_dropout,
             scaling=self.scale,
+            sliding_window=sliding_window,
             **kwargs,
         )
 
@@ -418,6 +417,7 @@ class Qwen2DecoderLayer(nn.Cell):
         output_attentions: Optional[bool] = False,
         use_cache: Optional[bool] = False,
         cache_position: Optional[ms.Tensor] = None,
+        position_embeddings: Optional[Tuple[ms.Tensor, ms.Tensor]] = None,
         block_tables: Optional[ms.Tensor] = None,
         slot_mapping: Optional[ms.Tensor] = None,
         freqs_cis: Optional[ms.Tensor] = None,
@@ -458,6 +458,7 @@ class Qwen2DecoderLayer(nn.Cell):
                 output_attentions=output_attentions,
                 use_cache=use_cache,
                 cache_position=cache_position,
+                position_embeddings=position_embeddings,
                 **kwargs,
             )
         else:
@@ -469,6 +470,7 @@ class Qwen2DecoderLayer(nn.Cell):
                 output_attentions=output_attentions,
                 use_cache=use_cache,
                 cache_position=cache_position,
+                position_embeddings=position_embeddings,
                 block_tables=block_tables,
                 slot_mapping=slot_mapping,
                 freqs_cis=freqs_cis,
@@ -630,6 +632,8 @@ class Qwen2Model(Qwen2PreTrainedModel):
         self._attn_implementation = config._attn_implementation
         self.norm = Qwen2RMSNorm(config.hidden_size, eps=config.rms_norm_eps)
 
+        self.rotary_emb = Qwen2RotaryEmbedding(config)
+
         if self.config._attn_implementation == "paged_attention":
             self.is_first_iteration = True
 
@@ -696,6 +700,9 @@ class Qwen2Model(Qwen2PreTrainedModel):
 
         hidden_states = inputs_embeds
 
+        # create position embeddings to be shared across the decoder layers
+        position_embeddings = self.rotary_emb(hidden_states, position_ids)
+
         # decoder layers
         all_hidden_states = () if output_hidden_states else None
         all_self_attns = () if output_attentions else None
@@ -713,6 +720,7 @@ class Qwen2Model(Qwen2PreTrainedModel):
                 output_attentions=output_attentions,
                 use_cache=use_cache,
                 cache_position=cache_position,
+                position_embeddings=position_embeddings,
                 block_tables=block_tables,
                 slot_mapping=slot_mapping,
                 freqs_cis=freqs_cis,
