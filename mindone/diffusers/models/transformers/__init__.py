@@ -24,3 +24,4 @@ from .transformer_omnigen import OmniGenTransformer2DModel
 from .transformer_sd3 import SD3Transformer2DModel
 from .transformer_temporal import TransformerTemporalModel
 from .transformer_wan import WanTransformer3DModel
+from .transformer_wan_vace import WanVACETransformer3DModel

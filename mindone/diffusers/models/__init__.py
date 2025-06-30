@@ -71,6 +71,7 @@ _import_structure = {
     "transformers.transformer_sd3": ["SD3Transformer2DModel"],
     "transformers.transformer_temporal": ["TransformerTemporalModel"],
     "transformers.transformer_wan": ["WanTransformer3DModel"],
+    "transformers.transformer_wan_vace": ["WanVACETransformer3DModel"],
     "transformers.transformer_mochi": ["MochiTransformer3DModel"],
     "transformers.transformer_omnigen": ["OmniGenTransformer2DModel"],
     "unets.unet_1d": ["UNet1DModel"],
@@ -147,6 +148,7 @@ if TYPE_CHECKING:
         Transformer2DModel,
         TransformerTemporalModel,
         WanTransformer3DModel,
+        WanVACETransformer3DModel,
     )
     from .unets import (
         I2VGenXLUNet,
