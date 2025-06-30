@@ -452,7 +452,7 @@ class HubertEncoder(nn.Cell):
         attention_mask: Optional[mindspore.tensor] = None,
         output_attentions: bool = False,
         output_hidden_states: bool = False,
-        return_dict: bool = True,
+        return_dict: bool = False,
     ):
         all_hidden_states = () if output_hidden_states else None
         all_self_attentions = () if output_attentions else None
@@ -598,7 +598,7 @@ class HubertEncoderStableLayerNorm(nn.Cell):
         attention_mask=None,
         output_attentions=False,
         output_hidden_states=False,
-        return_dict=True,
+        return_dict=False,
     ):
         all_hidden_states = () if output_hidden_states else None
         all_self_attentions = () if output_attentions else None
@@ -929,7 +929,7 @@ class HubertModel(HubertPreTrainedModel):
         mask_time_indices: Optional[mindspore.tensor] = None,
         output_attentions: Optional[bool] = None,
         output_hidden_states: Optional[bool] = None,
-        return_dict: Optional[bool] = None,
+        return_dict: Optional[bool] = False,
     ) -> Union[Tuple, BaseModelOutput]:
         """
 
@@ -943,22 +943,11 @@ class HubertModel(HubertPreTrainedModel):
         >>> from mindone.transformers import HubertModel
         >>> from datasets import load_dataset
         >>> import soundfile as sf
-
         >>> processor = AutoProcessor.from_pretrained("facebook/hubert-large-ls960-ft")
-        >>> model = HubertModel.from_pretrained("facebook/hubert-large-ls960-ft")
-
-
-        >>> def map_to_array(batch):
-        ...     speech, _ = sf.read(batch["file"])
-        ...     batch["speech"] = speech
-        ...     return batch
-
-
+        >>> model = HubertModel.from_pretrained("facebook/hubert-large-ls960-ft", use_safetensor=True)
         >>> ds = load_dataset("hf-internal-testing/librispeech_asr_dummy", "clean", split="validation")
-        >>> ds = ds.map(map_to_array)
-
-        >>> input_values = processor(ds["speech"][0], return_tensors="np").input_values  # Batch size 1
-        >>> hidden_states = model(mindspore.tensor(input_values)).last_hidden_state
+        >>> input_values = processor(ds["audio"]["array"], return_tensors="np").input_values  # Batch size 1
+        >>> hidden_states = model(mindspore.tensor(input_values))[0]
         ```"""
         output_attentions = output_attentions if output_attentions is not None else self.config.output_attentions
         output_hidden_states = (
@@ -1080,7 +1069,7 @@ class HubertForCTC(HubertPreTrainedModel):
         attention_mask: Optional[mindspore.tensor] = None,
         output_attentions: Optional[bool] = None,
         output_hidden_states: Optional[bool] = None,
-        return_dict: Optional[bool] = None,
+        return_dict: Optional[bool] = False,
         labels: Optional[mindspore.tensor] = None,
     ) -> Union[Tuple, CausalLMOutput]:
         r"""
@@ -1199,7 +1188,7 @@ class HubertForSequenceClassification(HubertPreTrainedModel):
         attention_mask: Optional[mindspore.tensor] = None,
         output_attentions: Optional[bool] = None,
         output_hidden_states: Optional[bool] = None,
-        return_dict: Optional[bool] = None,
+        return_dict: Optional[bool] = False,
         labels: Optional[mindspore.tensor] = None,
     ) -> Union[Tuple, SequenceClassifierOutput]:
         r"""
