@@ -225,6 +225,7 @@ from .models.mt5 import (
     MT5Model,
     MT5PreTrainedModel,
 )
+from .models.paligemma import PaliGemmaForConditionalGeneration, PaliGemmaPreTrainedModel
 from .models.persimmon import (
     PersimmonForCausalLM,
     PersimmonForSequenceClassification,
@@ -287,7 +288,13 @@ from .models.roberta import (
     RobertaModel,
     RobertaPreTrainedModel,
 )
-from .models.siglip import SiglipModel, SiglipPreTrainedModel, SiglipTextModel, SiglipVisionModel
+from .models.siglip import (
+    SiglipForImageClassification,
+    SiglipModel,
+    SiglipPreTrainedModel,
+    SiglipTextModel,
+    SiglipVisionModel,
+)
 from .models.speecht5 import (
     SpeechT5ForSpeechToSpeech,
     SpeechT5ForSpeechToText,
