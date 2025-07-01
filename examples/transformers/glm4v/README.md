@@ -3,9 +3,9 @@
 # Get Started
 
 ## Requirements:
-|mindspore | 	ascend driver | firmware       | cann tookit/kernel|
-|--- |----------------|----------------| --- |
-|2.5.0 | 24.1.RC3.b080  | 7.5.T11.0.B088 | 8.0.RC3.beta1|
+| mindspore   | 	ascend driver | firmware       | cann tookit/kernel|
+|-------------|----------------|----------------| --- |
+| 2.5.0/2.6.0 | 24.1.RC3.b080  | 7.5.T11.0.B088 | 8.0.RC3.beta1|
 
 ### Installation:
 ```
@@ -13,6 +13,7 @@ git clone https://github.com/mindspore-lab/mindone.git
 cd mindone
 pip install -e .
 cd examples/transformers/glm4v
+pip install -r requirements.txt
 ```
 
 ## Quick Start
@@ -27,6 +28,7 @@ python generate.py
 ```
 
 ## Inference Speed
-|      model name	      | precision* | cards | flash attn | 	tokens/s	 |
-|:---------------------:| :---:  |:---:  |:----------:|:----------:|
-| THUDM/GLM-4.1V-9B-Thinking |  bf16 | 1 |     ✅      |    1.38    |
+|      model name	      | mindspore version |   precision*   | cards | flash attn | 	tokens/s	 |
+|:---------------------:|:-----------------:|:--------------:|:---:  |:----------:|:----------:|
+| THUDM/GLM-4.1V-9B-Thinking |       2.5.0       |   bf16 | 1 |     ✅      |    1.38    |
+| THUDM/GLM-4.1V-9B-Thinking |       2.6.0       |   bf16 | 1 |     ✅      |    1.63    |
