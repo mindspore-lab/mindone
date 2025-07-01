@@ -27,6 +27,9 @@ from ...models import UVit2DModel, VQModel
 from ...schedulers import AmusedScheduler
 from ..pipeline_utils import DiffusionPipeline, ImagePipelineOutput
 
+XLA_AVAILABLE = False
+
+
 EXAMPLE_DOC_STRING = """
     Examples:
         ```py
@@ -90,7 +93,9 @@ class AmusedInpaintPipeline(DiffusionPipeline):
             transformer=transformer,
             scheduler=scheduler,
         )
-        self.vae_scale_factor = 2 ** (len(self.vqvae.config.block_out_channels) - 1)
+        self.vae_scale_factor = (
+            2 ** (len(self.vqvae.config.block_out_channels) - 1) if getattr(self, "vqvae", None) else 8
+        )
         self.image_processor = VaeImageProcessor(vae_scale_factor=self.vae_scale_factor, do_normalize=False)
         self.mask_processor = VaeImageProcessor(
             vae_scale_factor=self.vae_scale_factor,
