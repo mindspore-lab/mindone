@@ -6,3 +6,4 @@ from .controlnet_sparsectrl import SparseControlNetConditioningEmbedding, Sparse
 from .controlnet_union import ControlNetUnionModel
 from .controlnet_xs import ControlNetXSAdapter, ControlNetXSOutput, UNetControlNetXSModel
 from .multicontrolnet import MultiControlNetModel
+from .multicontrolnet_union import MultiControlNetUnionModel
