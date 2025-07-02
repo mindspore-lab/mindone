@@ -129,7 +129,6 @@ class UniDiffuserPipeline(DiffusionPipeline):
             self.text_intermediate_dim = self.text_decoder.prefix_hidden_dim
 
         self.mode = None
-        self.text_decoder.set_share_weight(True)
 
         # TODO: handle safety checking?
         self.safety_checker = None

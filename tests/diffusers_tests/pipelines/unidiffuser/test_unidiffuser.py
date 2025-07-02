@@ -9,11 +9,7 @@ from PIL import Image
 
 import mindspore as ms
 
-from mindone.diffusers.utils.testing_utils import (
-    load_downloaded_image_from_hf_hub,
-    load_numpy_from_local_file,
-    slow,
-)
+from mindone.diffusers.utils.testing_utils import load_downloaded_image_from_hf_hub, load_numpy_from_local_file, slow
 
 from ..pipeline_test_utils import (
     THRESHOLD_FP16,
@@ -237,6 +233,10 @@ class UniDiffuserPipelineFastTests(PipelineTesterMixin, unittest.TestCase):
 
         pt_pipe = pt_pipe.to(pt_dtype)
         ms_pipe = ms_pipe.to(ms_dtype)
+        pt_pipe.text_decoder.transformer.lm_head.weight = pt_pipe.text_decoder.transformer.transformer.wte.weight
+        weight = ms.Tensor(pt_pipe.text_decoder.transformer.lm_head.weight.detach().numpy())
+        ms_pipe.text_decoder.transformer.lm_head.weight = weight
+        ms_pipe.text_decoder.transformer.transformer.wte.embedding_table = weight
 
         # inputs = self.get_dummy_inputs(device)
         pt_inputs, ms_inputs = self.get_dummy_inputs_with_latents()
@@ -340,6 +340,11 @@ class UniDiffuserPipelineFastTests(PipelineTesterMixin, unittest.TestCase):
         pt_pipe = pt_pipe.to(pt_dtype)
         ms_pipe = ms_pipe.to(ms_dtype)
 
+        pt_pipe.text_decoder.transformer.lm_head.weight = pt_pipe.text_decoder.transformer.transformer.wte.weight
+        weight = ms.Tensor(pt_pipe.text_decoder.transformer.lm_head.weight.detach().numpy())
+        ms_pipe.text_decoder.transformer.lm_head.weight = weight
+        ms_pipe.text_decoder.transformer.transformer.wte.embedding_table = weight
+
         # inputs = self.get_dummy_inputs(device)
         pt_inputs, ms_inputs = self.get_dummy_inputs_with_latents()
         # Delete prompt and image for joint inference.
@@ -421,7 +426,7 @@ class UniDiffuserPipelineSlowTests(PipelineTesterMixin, unittest.TestCase):
         pipe = pipe_cls.from_pretrained("thu-ml/unidiffuser-v1", mindspore_dtype=ms_dtype, revision="refs/pr/6")
 
         image = load_downloaded_image_from_hf_hub(
-             "hf-internal-testing/diffusers-images",
+            "hf-internal-testing/diffusers-images",
             "unidiffuser_example_image.jpg",
             subfolder="unidiffuser",
         )
