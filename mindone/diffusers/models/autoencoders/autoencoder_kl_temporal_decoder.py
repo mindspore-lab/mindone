@@ -186,10 +186,6 @@ class AutoencoderKLTemporalDecoder(ModelMixin, ConfigMixin):
         self.quant_conv = mint.nn.Conv2d(2 * latent_channels, 2 * latent_channels, 1)
         self.diag_gauss_dist = DiagonalGaussianDistribution()
 
-    def _set_gradient_checkpointing(self, module, value=False):
-        if isinstance(module, (Encoder, TemporalDecoder)):
-            module.gradient_checkpointing = value
-
     @property
     # Copied from diffusers.models.unets.unet_2d_condition.UNet2DConditionModel.attn_processors
     def attn_processors(self) -> Dict[str, AttentionProcessor]:  # type: ignore

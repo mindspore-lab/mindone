@@ -33,7 +33,10 @@ from ...utils.mindspore_utils import randn_tensor
 from ...video_processor import VideoProcessor
 from ..pipeline_utils import DiffusionPipeline, StableDiffusionMixin
 
+XLA_AVAILABLE = False
+
 logger = logging.get_logger(__name__)  # pylint: disable=invalid-name
+
 
 EXAMPLE_DOC_STRING = """
     Examples:
@@ -128,7 +131,7 @@ class I2VGenXLPipeline(DiffusionPipeline, StableDiffusionMixin):
             unet=unet,
             scheduler=scheduler,
         )
-        self.vae_scale_factor = 2 ** (len(self.vae.config.block_out_channels) - 1)
+        self.vae_scale_factor = 2 ** (len(self.vae.config.block_out_channels) - 1) if getattr(self, "vae", None) else 8
         # `do_resize=False` as we do custom resizing.
         self.video_processor = VideoProcessor(vae_scale_factor=self.vae_scale_factor, do_resize=False)
 
@@ -324,7 +327,7 @@ class I2VGenXLPipeline(DiffusionPipeline, StableDiffusionMixin):
                 do_rescale=False,
                 return_tensors="np",
             ).pixel_values
-            image = ms.Tensor(image)
+            image = ms.tensor(image)
 
         image = image.to(dtype=dtype)
         image_embeddings = self.image_encoder(image)[0]
@@ -634,9 +637,9 @@ class I2VGenXLPipeline(DiffusionPipeline, StableDiffusionMixin):
 
         # 3.3 Prepare additional conditions for the UNet.
         if self.do_classifier_free_guidance:
-            fps_tensor = ms.Tensor([target_fps, target_fps])
+            fps_tensor = ms.tensor([target_fps, target_fps])
         else:
-            fps_tensor = ms.Tensor([target_fps])
+            fps_tensor = ms.tensor([target_fps])
         fps_tensor = fps_tensor.tile((batch_size * num_videos_per_prompt, 1)).ravel()
 
         # 4. Prepare timesteps
