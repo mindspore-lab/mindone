@@ -1,11 +1,13 @@
 import inspect
 import math
-import numpy as np
 from typing import Any, Callable, Dict, List, Optional, Union
+
+import numpy as np
+from transformers import CLIPTokenizer, PreTrainedTokenizerFast, T5Tokenizer
 
 import mindspore as ms
 from mindspore import mint
-from transformers import CLIPTokenizer, PreTrainedTokenizerFast, T5Tokenizer
+
 from mindone.transformers import CLIPTextModelWithProjection, LlamaForCausalLM, T5EncoderModel
 
 from ...image_processor import VaeImageProcessor
@@ -17,15 +19,13 @@ from ...utils.mindspore_utils import randn_tensor
 from ..pipeline_utils import DiffusionPipeline
 from .pipeline_output import HiDreamImagePipelineOutput
 
-
-
 logger = logging.get_logger(__name__)  # pylint: disable=invalid-name
 
 EXAMPLE_DOC_STRING = """
     Examples:
         ```py
         >>> import mindspore
-        >>> import numpy as np        
+        >>> import numpy as np
         >>> from transformers import AutoTokenizer, LlamaForCausalLM
         >>> from diffusers import HiDreamImagePipeline
 
@@ -176,7 +176,7 @@ class HiDreamImagePipeline(DiffusionPipeline, HiDreamImageLoraLoaderMixin):
         self,
         prompt: Union[str, List[str]] = None,
         max_sequence_length: int = 128,
-        dtype: Optional[ms.dtype] = None,
+        dtype: Optional[ms.Type] = None,
     ):
         dtype = dtype or self.text_encoder_3.dtype
 
@@ -194,7 +194,9 @@ class HiDreamImagePipeline(DiffusionPipeline, HiDreamImageLoraLoaderMixin):
         attention_mask = text_inputs.attention_mask
         untruncated_ids = self.tokenizer_3(prompt, padding="longest", return_tensors="np").input_ids
 
-        if untruncated_ids.shape[-1] >= text_input_ids.shape[-1] and not np.array_equal(text_input_ids, untruncated_ids):
+        if untruncated_ids.shape[-1] >= text_input_ids.shape[-1] and not np.array_equal(
+            text_input_ids, untruncated_ids
+        ):
             removed_text = self.tokenizer_3.batch_decode(
                 untruncated_ids[:, min(max_sequence_length, self.tokenizer_3.model_max_length) - 1 : -1]
             )
@@ -213,7 +215,7 @@ class HiDreamImagePipeline(DiffusionPipeline, HiDreamImageLoraLoaderMixin):
         text_encoder,
         prompt: Union[str, List[str]],
         max_sequence_length: int = 128,
-        dtype: Optional[ms.dtype] = None,
+        dtype: Optional[ms.Type] = None,
     ):
         dtype = dtype or text_encoder.dtype
 
@@ -229,7 +231,9 @@ class HiDreamImagePipeline(DiffusionPipeline, HiDreamImageLoraLoaderMixin):
 
         text_input_ids = text_inputs.input_ids
         untruncated_ids = tokenizer(prompt, padding="longest", return_tensors="np").input_ids
-        if untruncated_ids.shape[-1] >= text_input_ids.shape[-1] and not np.array_equal(text_input_ids, untruncated_ids):
+        if untruncated_ids.shape[-1] >= text_input_ids.shape[-1] and not np.array_equal(
+            text_input_ids, untruncated_ids
+        ):
             removed_text = tokenizer.batch_decode(untruncated_ids[:, 218 - 1 : -1])
             logger.warning(
                 "The following part of your input was truncated because CLIP can only handle sequences up to"
@@ -246,7 +250,7 @@ class HiDreamImagePipeline(DiffusionPipeline, HiDreamImageLoraLoaderMixin):
         self,
         prompt: Union[str, List[str]] = None,
         max_sequence_length: int = 128,
-        dtype: Optional[ms.dtype] = None,
+        dtype: Optional[ms.Type] = None,
     ):
         dtype = dtype or self.text_encoder_4.dtype
 
@@ -264,7 +268,9 @@ class HiDreamImagePipeline(DiffusionPipeline, HiDreamImageLoraLoaderMixin):
         attention_mask = text_inputs.attention_mask
         untruncated_ids = self.tokenizer_4(prompt, padding="longest", return_tensors="np").input_ids
 
-        if untruncated_ids.shape[-1] >= text_input_ids.shape[-1] and not np.array_equal(text_input_ids, untruncated_ids):
+        if untruncated_ids.shape[-1] >= text_input_ids.shape[-1] and not np.array_equal(
+            text_input_ids, untruncated_ids
+        ):
             removed_text = self.tokenizer_4.batch_decode(
                 untruncated_ids[:, min(max_sequence_length, self.tokenizer_4.model_max_length) - 1 : -1]
             )
@@ -281,7 +287,7 @@ class HiDreamImagePipeline(DiffusionPipeline, HiDreamImageLoraLoaderMixin):
         )
 
         # prompt_embeds = outputs.hidden_states[1:]
-        prompt_embeds = outputs[2][1:]
+        prompt_embeds = outputs[1][1:]
         prompt_embeds = mint.stack(prompt_embeds, dim=0)
         return prompt_embeds
 
@@ -291,7 +297,7 @@ class HiDreamImagePipeline(DiffusionPipeline, HiDreamImageLoraLoaderMixin):
         prompt_2: Optional[Union[str, List[str]]] = None,
         prompt_3: Optional[Union[str, List[str]]] = None,
         prompt_4: Optional[Union[str, List[str]]] = None,
-        dtype: Optional[ms.dtype] = None,
+        dtype: Optional[ms.Type] = None,
         num_images_per_prompt: int = 1,
         do_classifier_free_guidance: bool = True,
         negative_prompt: Optional[Union[str, List[str]]] = None,
@@ -387,9 +393,7 @@ class HiDreamImagePipeline(DiffusionPipeline, HiDreamImageLoraLoaderMixin):
             if len(negative_prompt_3) > 1 and len(negative_prompt_3) != batch_size:
                 raise ValueError(f"negative_prompt_3 must be of length 1 or {batch_size}")
 
-            negative_prompt_embeds_t5 = self._get_t5_prompt_embeds(
-                negative_prompt_3, max_sequence_length, dtype
-            )
+            negative_prompt_embeds_t5 = self._get_t5_prompt_embeds(negative_prompt_3, max_sequence_length, dtype)
 
             if negative_prompt_embeds_t5.shape[0] == 1 and batch_size > 1:
                 negative_prompt_embeds_t5 = negative_prompt_embeds_t5.repeat(batch_size, 1, 1)
@@ -532,7 +536,8 @@ class HiDreamImagePipeline(DiffusionPipeline, HiDreamImageLoraLoaderMixin):
             k in self._callback_tensor_inputs for k in callback_on_step_end_tensor_inputs
         ):
             raise ValueError(
-                f"`callback_on_step_end_tensor_inputs` has to be in {self._callback_tensor_inputs}, but found {[k for k in callback_on_step_end_tensor_inputs if k not in self._callback_tensor_inputs]}"
+                f"`callback_on_step_end_tensor_inputs` has to be in {self._callback_tensor_inputs},\
+                      but found {[k for k in callback_on_step_end_tensor_inputs if k not in self._callback_tensor_inputs]}"
             )
 
         if prompt is not None and pooled_prompt_embeds is not None:
@@ -797,13 +802,15 @@ class HiDreamImagePipeline(DiffusionPipeline, HiDreamImageLoraLoaderMixin):
         negative_prompt_embeds = kwargs.get("negative_prompt_embeds", None)
 
         if prompt_embeds is not None:
-            deprecation_message = "The `prompt_embeds` argument is deprecated. Please use `prompt_embeds_t5` and `prompt_embeds_llama3` instead."
+            deprecation_message = "The `prompt_embeds` argument is deprecated. \
+                Please use `prompt_embeds_t5` and `prompt_embeds_llama3` instead."
             deprecate("prompt_embeds", "0.35.0", deprecation_message)
             prompt_embeds_t5 = prompt_embeds[0]
             prompt_embeds_llama3 = prompt_embeds[1]
 
         if negative_prompt_embeds is not None:
-            deprecation_message = "The `negative_prompt_embeds` argument is deprecated. Please use `negative_prompt_embeds_t5` and `negative_prompt_embeds_llama3` instead."
+            deprecation_message = "The `negative_prompt_embeds` argument is deprecated. \
+                Please use `negative_prompt_embeds_t5` and `negative_prompt_embeds_llama3` instead."
             deprecate("negative_prompt_embeds", "0.35.0", deprecation_message)
             negative_prompt_embeds_t5 = negative_prompt_embeds[0]
             negative_prompt_embeds_llama3 = negative_prompt_embeds[1]
@@ -920,7 +927,7 @@ class HiDreamImagePipeline(DiffusionPipeline, HiDreamImageLoraLoaderMixin):
                 # expand the latents if we are doing classifier free guidance
                 latent_model_input = mint.cat([latents] * 2) if self.do_classifier_free_guidance else latents
                 # broadcast to batch dimension in a way that's compatible with ONNX/Core ML
-                timestep = t.broadcast_to((latent_model_input.shape[0],)) # .to(latents.dtype) ?
+                timestep = t.broadcast_to((latent_model_input.shape[0],))  # .to(latents.dtype) ?
 
                 noise_pred = self.transformer(
                     hidden_states=latent_model_input,
@@ -958,7 +965,6 @@ class HiDreamImagePipeline(DiffusionPipeline, HiDreamImageLoraLoaderMixin):
                 # call the callback, if provided
                 if i == len(timesteps) - 1 or ((i + 1) > num_warmup_steps and (i + 1) % self.scheduler.order == 0):
                     progress_bar.update()
-
 
         if output_type == "latent":
             image = latents

@@ -1,17 +1,16 @@
 from typing import Any, Dict, List, Optional, Tuple, Union
 
 import mindspore as ms
-from mindspore import mint, nn
+from mindspore import mint, nn, ops
 
 from ...configuration_utils import ConfigMixin, register_to_config
 from ...loaders import FromOriginalModelMixin, PeftAdapterMixin
 from ...models.modeling_outputs import Transformer2DModelOutput
 from ...models.modeling_utils import ModelMixin
-from ...utils import logging, deprecate
+from ...utils import deprecate, logging
 from ..attention import Attention
 from ..embeddings import TimestepEmbedding, Timesteps
 from ..normalization import RMSNorm
-
 
 logger = logging.get_logger(__name__)  # pylint: disable=invalid-name
 
@@ -54,7 +53,7 @@ class HiDreamImageTimestepEmbed(nn.Cell):
         self.time_proj = Timesteps(num_channels=frequency_embedding_size, flip_sin_to_cos=True, downscale_freq_shift=0)
         self.timestep_embedder = TimestepEmbedding(in_channels=frequency_embedding_size, time_embed_dim=hidden_size)
 
-    def construct(self, timesteps: ms.Tensor, wdtype: Optional[ms.dtype] = None):
+    def construct(self, timesteps: ms.Tensor, wdtype: Optional[ms.Type] = None):
         t_emb = self.time_proj(timesteps).to(dtype=wdtype)
         t_emb = self.timestep_embedder(t_emb)
         return t_emb
@@ -65,7 +64,9 @@ class HiDreamImageOutEmbed(nn.Cell):
         super().__init__()
         self.norm_final = mint.nn.LayerNorm(hidden_size, elementwise_affine=False, eps=1e-6)
         self.linear = mint.nn.Linear(hidden_size, patch_size * patch_size * out_channels, bias=True)
-        self.adaLN_modulation = nn.SequentialCell(mint.nn.SiLU(), mint.nn.Linear(hidden_size, 2 * hidden_size, bias=True))
+        self.adaLN_modulation = nn.SequentialCell(
+            mint.nn.SiLU(), mint.nn.Linear(hidden_size, 2 * hidden_size, bias=True)
+        )
 
     def construct(self, hidden_states: ms.Tensor, temb: ms.Tensor) -> ms.Tensor:
         shift, scale = self.adaLN_modulation(temb).chunk(2, dim=1)
@@ -94,10 +95,10 @@ class HiDreamImagePatchEmbed(nn.Cell):
 def rope(pos: ms.Tensor, dim: int, theta: int) -> ms.Tensor:
     assert dim % 2 == 0, "The dimension must be even."
 
-    # TODO check here, notes: hf use ms.float32 if npu else 
+    # TODO check here, notes: hf use ms.float32 if npu else
     # dtype = ms.float32 if (is_mps or is_npu) else ms.float64
     dtype = ms.float32
-    
+
     scale = mint.arange(0, dim, 2, dtype=dtype) / dim
     omega = 1.0 / (theta**scale)
 
@@ -178,6 +179,58 @@ class HiDreamAttention(Attention):
             self.k_rms_norm_t = RMSNorm(self.inner_dim, eps)
 
         self.set_processor(processor)
+
+    def scaled_dot_product_attention(
+        self,
+        query: ms.Tensor,
+        key: ms.Tensor,
+        value: ms.Tensor,
+        attn_mask: Optional[ms.Tensor] = None,
+        dropout_p: float = 0.0,
+        is_causal: bool = False,
+        scale: Optional[float] = None,
+    ):
+        if query.dtype in (ms.float16, ms.bfloat16):
+            return self.flash_attention_op(query, key, value, attn_mask, keep_prob=1 - dropout_p, scale=scale)
+        else:
+            return self.flash_attention_op(
+                query.to(ms.float16),
+                key.to(ms.float16),
+                value.to(ms.float16),
+                attn_mask,
+                keep_prob=1 - dropout_p,
+                scale=scale,
+            ).to(query.dtype)
+
+    def flash_attention_op(
+        self,
+        query: ms.Tensor,
+        key: ms.Tensor,
+        value: ms.Tensor,
+        attn_mask: Optional[ms.Tensor] = None,
+        keep_prob: float = 1.0,
+        scale: Optional[float] = None,
+    ):
+        # For most scenarios, qkv has been processed into a BNSD layout before sdp
+        input_layout = "BNSD"
+        head_num = self.heads
+
+        # In case qkv is 3-dim after `head_to_batch_dim`
+        if query.ndim == 3:
+            input_layout = "BSH"
+            head_num = 1
+
+        # process `attn_mask` as logic is different between PyTorch and Mindspore
+        # In MindSpore, False indicates retention and True indicates discard, in PyTorch it is the opposite
+        if attn_mask is not None:
+            attn_mask = mint.logical_not(attn_mask) if attn_mask.dtype == ms.bool_ else attn_mask.bool()
+            attn_mask = mint.broadcast_to(
+                attn_mask, (attn_mask.shape[0], attn_mask.shape[1], query.shape[-2], key.shape[-2])
+            )[:, :1, :, :]
+
+        return ops.operations.nn_ops.FlashAttentionScore(
+            head_num=head_num, keep_prob=keep_prob, scale_value=scale or self.scale, input_layout=input_layout
+        )(query, key, value, None, None, None, attn_mask)[3]
 
     def construct(
         self,
@@ -291,29 +344,29 @@ class MoEGate(nn.Cell):
         # topk selection algorithm
         self.norm_topk_prob = False
         self.gating_dim = embed_dim
-        self.weight = nn.Parameter(mint.randn(self.n_routed_experts, self.gating_dim) / embed_dim**0.5)
+        self.weight = ms.Parameter(mint.randn(self.n_routed_experts, self.gating_dim) / embed_dim**0.5)
 
         self._force_inference_output = _force_inference_output
 
     def construct(self, hidden_states):
         bsz, seq_len, h = hidden_states.shape
-        ### compute gating score
+        # compute gating score
         hidden_states = hidden_states.view(-1, h)
         logits = mint.functional.linear(hidden_states, self.weight, None)
         if self.scoring_func == "softmax":
-            scores = logits.softmax(dim=-1)
+            scores = logits.softmax(axis=-1)
         else:
             raise NotImplementedError(f"insupportable scoring function for MoE gating: {self.scoring_func}")
 
-        ### select top-k experts
+        # select top-k experts
         topk_weight, topk_idx = mint.topk(scores, k=self.top_k, dim=-1, sorted=False)
 
-        ### norm gate to sum 1
+        # norm gate to sum 1
         if self.top_k > 1 and self.norm_topk_prob:
             denominator = topk_weight.sum(dim=-1, keepdim=True) + 1e-20
             topk_weight = topk_weight / denominator
 
-        ### expert-level computation auxiliary loss
+        # expert-level computation auxiliary loss
         if self.training and self.alpha > 0.0 and not self._force_inference_output:
             scores_for_aux = scores
             aux_topk = self.top_k
@@ -321,10 +374,10 @@ class MoEGate(nn.Cell):
             topk_idx_for_aux_loss = topk_idx.view(bsz, -1)
             if self.seq_aux:
                 scores_for_seq_aux = scores_for_aux.view(bsz, seq_len, -1)
-                ce = mint.zeros(bsz, self.n_routed_experts)
-                ce.scatter_add_(
-                    1, topk_idx_for_aux_loss, mint.ones(bsz, seq_len * aux_topk)
-                ).div_(seq_len * aux_topk / self.n_routed_experts)
+                ce = mint.zeros((bsz, self.n_routed_experts))
+                ce.scatter_add_(1, topk_idx_for_aux_loss, mint.ones(bsz, seq_len * aux_topk)).div_(
+                    seq_len * aux_topk / self.n_routed_experts
+                )
                 aux_loss = (ce * scores_for_seq_aux.mean(dim=1)).sum(dim=1).mean() * self.alpha
             else:
                 mask_ce = mint.functional.one_hot(topk_idx_for_aux_loss.view(-1), num_classes=self.n_routed_experts)
@@ -350,9 +403,7 @@ class MOEFeedForwardSwiGLU(nn.Cell):
     ):
         super().__init__()
         self.shared_experts = HiDreamImageFeedForwardSwiGLU(dim, hidden_dim // 2)
-        self.experts = nn.CellList(
-            [HiDreamImageFeedForwardSwiGLU(dim, hidden_dim) for i in range(num_routed_experts)]
-        )
+        self.experts = nn.CellList([HiDreamImageFeedForwardSwiGLU(dim, hidden_dim) for i in range(num_routed_experts)])
         self._force_inference_output = _force_inference_output
         self.gate = MoEGate(
             embed_dim=dim,
@@ -385,10 +436,11 @@ class MOEFeedForwardSwiGLU(nn.Cell):
     def moe_infer(self, x, flat_expert_indices, flat_expert_weights):
         expert_cache = mint.zeros_like(x)
         idxs = flat_expert_indices.argsort()
-        tokens_per_expert = flat_expert_indices.bincount().cpu().numpy().cumsum(0)
+        tokens_per_expert = flat_expert_indices.bincount().numpy().cumsum(0)
         token_idxs = idxs // self.num_activated_experts
         for i, end_idx in enumerate(tokens_per_expert):
-            start_idx = 0 if i == 0 else tokens_per_expert[i - 1]
+            end_idx = int(end_idx)
+            start_idx = 0 if i == 0 else int(tokens_per_expert[i - 1])
             if start_idx == end_idx:
                 continue
             expert = self.experts[i]
@@ -399,7 +451,9 @@ class MOEFeedForwardSwiGLU(nn.Cell):
 
             # for fp16 and other dtype
             expert_cache = expert_cache.to(expert_out.dtype)
-            expert_cache.scatter_reduce_(0, exp_token_idx.view(-1, 1).repeat(1, x.shape[-1]), expert_out, reduce="sum")
+            # FIXME: mindspore lacks tensor.scatter_reduce_
+            # expert_cache.scatter_reduce_(0, exp_token_idx.view(-1, 1).repeat(1, x.shape[-1]), expert_out, reduce="sum")
+            expert_cache.scatter_add_(0, exp_token_idx.view(-1, 1).repeat(1, x.shape[-1]), expert_out)
         return expert_cache
 
 
@@ -675,34 +729,38 @@ class HiDreamImageTransformer2DModel(ModelMixin, ConfigMixin, PeftAdapterMixin, 
 
         self.gradient_checkpointing = False
 
+        self.patch_size = self.patch_size
+        self.force_inference_output = self.config.force_inference_output
+        self.llama_layers = self.config.llama_layers
+
     def unpatchify(self, x: ms.Tensor, img_sizes: List[Tuple[int, int]], is_training: bool) -> List[ms.Tensor]:
-        if is_training and not self.config.force_inference_output:
+        if is_training and not self.force_inference_output:
             B, S, F = x.shape
-            C = F // (self.config.patch_size * self.config.patch_size)
+            C = F // (self.patch_size * self.patch_size)
             x = (
-                x.reshape(B, S, self.config.patch_size, self.config.patch_size, C)
+                x.reshape((B, S, self.patch_size, self.patch_size, C))
                 .permute(0, 4, 1, 2, 3)
-                .reshape(B, C, S, self.config.patch_size * self.config.patch_size)
+                .reshape((B, C, S, self.patch_size * self.patch_size))
             )
         else:
             x_arr = []
-            p1 = self.config.patch_size
-            p2 = self.config.patch_size
+            p1 = self.patch_size
+            p2 = self.patch_size
             for i, img_size in enumerate(img_sizes):
                 pH, pW = img_size
-                t = x[i, : pH * pW].reshape(1, pH, pW, -1)
+                t = x[i, : pH * pW].reshape((1, pH, pW, -1))
                 F_token = t.shape[-1]
                 C = F_token // (p1 * p2)
-                t = t.reshape(1, pH, pW, p1, p2, C)
+                t = t.reshape((1, pH, pW, p1, p2, C))
                 t = t.permute(0, 5, 1, 3, 2, 4)
-                t = t.reshape(1, C, pH * p1, pW * p2)
+                t = t.reshape((1, C, pH * p1, pW * p2))
                 x_arr.append(t)
             x = mint.cat(x_arr, dim=0)
         return x
 
     def patchify(self, hidden_states):
         batch_size, channels, height, width = hidden_states.shape
-        patch_size = self.config.patch_size
+        patch_size = self.patch_size
         patch_height, patch_width = height // patch_size, width // patch_size
         dtype = hidden_states.dtype
 
@@ -718,7 +776,7 @@ class HiDreamImageTransformer2DModel(ModelMixin, ConfigMixin, PeftAdapterMixin, 
             hidden_states_masks = None
 
         # create img_ids
-        img_ids = mint.zeros(patch_height, patch_width, 3)
+        img_ids = mint.zeros((patch_height, patch_width, 3))
         row_indices = mint.arange(patch_height)[:, None]
         col_indices = mint.arange(patch_width)[None, :]
         img_ids[..., 1] = img_ids[..., 1] + row_indices
@@ -727,7 +785,7 @@ class HiDreamImageTransformer2DModel(ModelMixin, ConfigMixin, PeftAdapterMixin, 
 
         if hidden_states.shape[-2] != hidden_states.shape[-1]:
             # Handle non-square latents
-            img_ids_pad = mint.zeros(self.max_seq, 3)
+            img_ids_pad = mint.zeros((self.max_seq, 3))
             img_ids_pad[: patch_height * patch_width, :] = img_ids
             img_ids = img_ids_pad.unsqueeze(0).repeat(batch_size, 1, 1)
         else:
@@ -782,7 +840,8 @@ class HiDreamImageTransformer2DModel(ModelMixin, ConfigMixin, PeftAdapterMixin, 
         encoder_hidden_states = kwargs.get("encoder_hidden_states", None)
 
         if encoder_hidden_states is not None:
-            deprecation_message = "The `encoder_hidden_states` argument is deprecated. Please use `encoder_hidden_states_t5` and `encoder_hidden_states_llama3` instead."
+            deprecation_message = "The `encoder_hidden_states` argument is deprecated. \
+                Please use `encoder_hidden_states_t5` and `encoder_hidden_states_llama3` instead."
             deprecate("encoder_hidden_states", "0.35.0", deprecation_message)
             encoder_hidden_states_t5 = encoder_hidden_states[0]
             encoder_hidden_states_llama3 = encoder_hidden_states[1]
@@ -797,14 +856,12 @@ class HiDreamImageTransformer2DModel(ModelMixin, ConfigMixin, PeftAdapterMixin, 
             raise ValueError("if `hidden_states_masks` is passed, `img_ids` and `img_sizes` must also be passed.")
         elif hidden_states_masks is not None and hidden_states.ndim != 3:
             raise ValueError(
-                "if `hidden_states_masks` is passed, `hidden_states` must be a 3D tensors with shape (batch_size, patch_height * patch_width, patch_size * patch_size * channels)"
+                "if `hidden_states_masks` is passed, `hidden_states` must be a 3D tensors with shape \
+                    (batch_size, patch_height * patch_width, patch_size * patch_size * channels)"
             )
-
 
         if attention_kwargs is not None and attention_kwargs.get("scale", None) is not None:
-            logger.warning(
-                "Passing `scale` via `attention_kwargs` when not using the PEFT backend is ineffective."
-            )
+            logger.warning("Passing `scale` via `attention_kwargs` when not using the PEFT backend is ineffective.")
 
         # spatial forward
         batch_size = hidden_states.shape[0]
@@ -822,7 +879,7 @@ class HiDreamImageTransformer2DModel(ModelMixin, ConfigMixin, PeftAdapterMixin, 
         p_embedder = self.p_embedder(pooled_embeds)
         temb = timesteps + p_embedder
 
-        encoder_hidden_states = [encoder_hidden_states_llama3[k] for k in self.config.llama_layers]
+        encoder_hidden_states = [encoder_hidden_states_llama3[k] for k in self.llama_layers]
 
         if self.caption_projection is not None:
             new_encoder_hidden_states = []
@@ -836,11 +893,13 @@ class HiDreamImageTransformer2DModel(ModelMixin, ConfigMixin, PeftAdapterMixin, 
             encoder_hidden_states.append(encoder_hidden_states_t5)
 
         txt_ids = mint.zeros(
-            batch_size,
-            encoder_hidden_states[-1].shape[1]
-            + encoder_hidden_states[-2].shape[1]
-            + encoder_hidden_states[0].shape[1],
-            3,
+            (
+                batch_size,
+                encoder_hidden_states[-1].shape[1]
+                + encoder_hidden_states[-2].shape[1]
+                + encoder_hidden_states[0].shape[1],
+                3,
+            ),
             dtype=img_ids.dtype,
         )
         ids = mint.cat((img_ids, txt_ids), dim=1)
@@ -895,7 +954,6 @@ class HiDreamImageTransformer2DModel(ModelMixin, ConfigMixin, PeftAdapterMixin, 
         output = self.unpatchify(output, img_sizes, self.training)
         if hidden_states_masks is not None:
             hidden_states_masks = hidden_states_masks[:, :image_tokens_seq_len]
-
 
         if not return_dict:
             return (output,)

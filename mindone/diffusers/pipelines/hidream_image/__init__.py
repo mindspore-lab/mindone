@@ -2,12 +2,13 @@ from typing import TYPE_CHECKING
 
 from ...utils import _LazyModule
 
-
-_import_structure = {"pipeline_output": ["HiDreamImagePipelineOutput"],
-                     "pipeline_hidream_image": ["HiDreamImagePipeline"]}
+_import_structure = {
+    "pipeline_output": ["HiDreamImagePipelineOutput"],
+    "pipeline_hidream_image": ["HiDreamImagePipeline"],
+}
 
 if TYPE_CHECKING:
-        from .pipeline_hidream_image import HiDreamImagePipeline
+    from .pipeline_hidream_image import HiDreamImagePipeline
 else:
     import sys
 

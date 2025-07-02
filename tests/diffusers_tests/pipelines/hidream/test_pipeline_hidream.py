@@ -7,12 +7,11 @@ from transformers import CLIPTextConfig
 
 import mindspore as ms
 
-from mindone.diffusers.utils.testing_utils import load_downloaded_numpy_from_hf_hub, slow
+from mindone.diffusers.utils.testing_utils import load_downloaded_numpy_from_hf_hub, slow  # noqa F401
 
 from ..pipeline_test_utils import (
     THRESHOLD_FP16,
     THRESHOLD_FP32,
-    THRESHOLD_PIXEL,
     PipelineTesterMixin,
     get_module,
     get_pipeline_components,
@@ -26,19 +25,7 @@ test_cases = [
 
 
 @ddt
-
-
 class HiDreamImagePipelineFastTests(PipelineTesterMixin, unittest.TestCase):
-    # pipeline_class = HiDreamImagePipeline
-    # params = TEXT_TO_IMAGE_PARAMS - {"cross_attention_kwargs", "prompt_embeds", "negative_prompt_embeds"}
-    # batch_params = TEXT_TO_IMAGE_BATCH_PARAMS
-    # image_params = TEXT_TO_IMAGE_IMAGE_PARAMS
-    # image_latents_params = TEXT_TO_IMAGE_IMAGE_PARAMS
-
-    # required_optional_params = PipelineTesterMixin.required_optional_params
-    # test_layerwise_casting = True
-    # supports_dduf = False
-
     pipeline_config = [
         [
             "transformer",
@@ -130,7 +117,7 @@ class HiDreamImagePipelineFastTests(PipelineTesterMixin, unittest.TestCase):
         [
             "text_encoder_4",
             "transformers.models.llama.modeling_llama.LlamaForCausalLM",
-            "mindone.transformers.models.t5.modeling_t5.LlamaForCausalLM",
+            "mindone.transformers.models.llama.modeling_llama.LlamaForCausalLM",
             dict(
                 pretrained_model_name_or_path="hf-internal-testing/tiny-random-LlamaForCausalLM",
             ),
@@ -157,6 +144,7 @@ class HiDreamImagePipelineFastTests(PipelineTesterMixin, unittest.TestCase):
             "transformers.models.auto.tokenization_auto.AutoTokenizer",
             dict(
                 pretrained_model_name_or_path="hf-internal-testing/tiny-random-t5",
+                revision="refs/pr/1",
             ),
         ],
         [
@@ -189,7 +177,6 @@ class HiDreamImagePipelineFastTests(PipelineTesterMixin, unittest.TestCase):
 
         return get_pipeline_components(components, self.pipeline_config)
 
-
     def get_dummy_inputs(self, seed=0):
         inputs = {
             "prompt": "A painting of a squirrel eating a burger",
@@ -199,17 +186,18 @@ class HiDreamImagePipelineFastTests(PipelineTesterMixin, unittest.TestCase):
         }
         return inputs
 
-
     @data(*test_cases)
     @unpack
     def test_hidream(self, dtype):
-
         pt_components, ms_components = self.get_dummy_components()
-        pt_pipe_cls = get_module("diffusers.pipelines.pipeline_hidream_image.HiDreamImagePipeline")
-        ms_pipe_cls = get_module("mindone.diffusers.pipelines.pipeline_hidream_image.HiDreamImagePipeline")
+        pt_pipe_cls = get_module("diffusers.pipelines.hidream_image.HiDreamImagePipeline")
+        ms_pipe_cls = get_module("mindone.diffusers.pipelines.hidream_image.HiDreamImagePipeline")
 
         pt_pipe = pt_pipe_cls(**pt_components)
         ms_pipe = ms_pipe_cls(**ms_components)
+
+        pt_pipe.text_encoder_4.generation_config.pad_token_id = 1
+        ms_pipe.text_encoder_4.generation_config.pad_token_id = 1
 
         ms_dtype, pt_dtype = getattr(ms, dtype), getattr(torch, dtype)
         pt_pipe = pt_pipe.to(pt_dtype)
@@ -227,4 +215,3 @@ class HiDreamImagePipelineFastTests(PipelineTesterMixin, unittest.TestCase):
 
         threshold = THRESHOLD_FP32 if dtype == "float32" else THRESHOLD_FP16
         assert np.linalg.norm(pt_image_slice - ms_image_slice) / np.linalg.norm(pt_image_slice) < threshold
-

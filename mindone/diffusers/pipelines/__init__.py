@@ -88,6 +88,7 @@ _import_structure = {
         "FluxPriorReduxPipeline",
         "ReduxImageEncoder",
     ],
+    "hidream_image": ["HiDreamImagePipeline"],
     "hunyuandit": ["HunyuanDiTPipeline"],
     "hunyuan_video": ["HunyuanVideoPipeline"],
     "i2vgen_xl": ["I2VGenXLPipeline"],
@@ -308,6 +309,7 @@ if TYPE_CHECKING:
         FluxPriorReduxPipeline,
         ReduxImageEncoder,
     )
+    from .hidream_image import HiDreamImagePipeline
     from .hunyuan_video import HunyuanVideoPipeline
     from .hunyuandit import HunyuanDiTPipeline
     from .i2vgen_xl import I2VGenXLPipeline
