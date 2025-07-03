@@ -1,0 +1,1 @@
+from .modeling_idefics import IdeficsForVisionText2Text, IdeficsModel, IdeficsPreTrainedModel

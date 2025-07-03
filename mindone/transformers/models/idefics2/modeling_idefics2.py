@@ -12,51 +12,50 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-"""MindSpore Idefics3 model."""
+"""MindSpore Idefics2 model."""
 
+import math
 from dataclasses import dataclass
 from typing import List, Optional, Tuple, Union
 
-import numpy as np
-from transformers import Idefics3Config, Idefics3VisionConfig
-from transformers.utils import (
-    add_start_docstrings,
-    add_start_docstrings_to_model_forward,
-    logging,
-    replace_return_docstrings,
-)
-
 import mindspore as ms
+from mindspore import mint, ops, nn
 import mindspore.mint.nn.functional as F
-from mindspore import mint, nn, ops
 from mindspore.mint.nn import CrossEntropyLoss
 
 from ...activations import ACT2FN
 from ...cache_utils import Cache, DynamicCache
 from ...generation import GenerationMixin
 from ...modeling_attn_mask_utils import _prepare_4d_attention_mask
-from ...modeling_outputs import BaseModelOutput, CausalLMOutputWithPast, ModelOutput
-from ...modeling_utils import MSPreTrainedModel
+from ...modeling_outputs import BaseModelOutput, ModelOutput
+from ...modeling_utils import PreTrainedModel
 from ...utils import is_flash_attn_2_available
+from transformers.utils import (
+    add_start_docstrings,
+    add_start_docstrings_to_model_forward,
+    logging,
+    replace_return_docstrings,
+)
+from transformers.utils.deprecation import deprecate_kwarg
+from ..auto import AutoModel
+from transformers import Idefics2Config, Idefics2PerceiverConfig, Idefics2VisionConfig
+from mindone.models.utils import normal_, zeros_
+from mindspore_adapter.nn import MultiheadAttention
 
-# from ..auto import AutoModel
 
 if is_flash_attn_2_available():
     from ...integrations.flash_attention import flash_attention_forward
 
-from mindone.models.utils import normal_, zeros_
-
-from ..llama import LlamaModel
 
 logger = logging.get_logger(__name__)
 
-_CONFIG_FOR_DOC = "Idefics3Config"
+_CONFIG_FOR_DOC = "Idefics2Config"
 
 
 @dataclass
-class Idefics3BaseModelOutputWithPast(ModelOutput):
+class Idefics2BaseModelOutputWithPast(ModelOutput):
     """
-    Base class for Idefics3 model's outputs that may also contain a past key/values (to speed up sequential decoding).
+    Base class for Idefics2 model's outputs that may also contain a past key/values (to speed up sequential decoding).
     Args:
         last_hidden_state (`ms.Tensor` of shape `(batch_size, sequence_length, hidden_size)`):
             Sequence of hidden-states at the output of the last layer of the model.
@@ -82,7 +81,7 @@ class Idefics3BaseModelOutputWithPast(ModelOutput):
         image_hidden_states (`tuple(ms.Tensor)`, *optional*):
             Tuple of `ms.Tensor` (one for the output of the image embeddings, `(batch_size, num_images,
             sequence_length, hidden_size)`.
-            image_hidden_states of the model produced by the vision encoder
+            image_hidden_states of the model produced by the vision encoder, and optionally by the perceiver
     """
 
     last_hidden_state: ms.Tensor = None
@@ -93,10 +92,10 @@ class Idefics3BaseModelOutputWithPast(ModelOutput):
 
 
 @dataclass
-class Idefics3CausalLMOutputWithPast(CausalLMOutputWithPast):
+# Copied from transformers.models.idefics.modeling_idefics.IdeficsCausalLMOutputWithPast with Idefics->Idefics2
+class Idefics2CausalLMOutputWithPast(CausalLMOutputWithPast):
     """
-    Base class for Idefics causal language model (or autoregressive) outputs.
-
+    Base class for Idefics2 causal language model (or autoregressive) outputs.
     Args:
         loss (`ms.Tensor` of shape `(1,)`, *optional*, returned when `labels` is provided):
             Language modeling loss (for next-token prediction).
@@ -119,7 +118,7 @@ class Idefics3CausalLMOutputWithPast(CausalLMOutputWithPast):
         image_hidden_states (`tuple(ms.Tensor)`, *optional*):
             Tuple of `ms.Tensor` (one for the output of the image embeddings, `(batch_size, num_images,
             sequence_length, hidden_size)`.
-            image_hidden_states of the model produced by the vision encoder
+            image_hidden_states of the model produced by the vision encoder, and optionally by the perceiver
     """
 
     loss: Optional[ms.Tensor] = None
@@ -130,8 +129,7 @@ class Idefics3CausalLMOutputWithPast(CausalLMOutputWithPast):
     image_hidden_states: Optional[Tuple[ms.Tensor]] = None
 
 
-# Copied from transformers.models.idefics2.modeling_idefics2.Idefics2VisionEmbeddings with Idefics2->Idefics3
-class Idefics3VisionEmbeddings(nn.Cell):
+class Idefics2VisionEmbeddings(nn.Cell):
     """
     This is a modified version of `siglip.modelign_siglip.SiglipVisionEmbeddings` to enable images of variable
     resolution.
@@ -142,7 +140,7 @@ class Idefics3VisionEmbeddings(nn.Cell):
     (which uses images of fixed-size square images) and adapt it by training on images of variable resolutions.
     """
 
-    def __init__(self, config: Idefics3VisionConfig):
+    def __init__(self, config: Idefics2VisionConfig):
         super().__init__()
         self.embed_dim = config.hidden_size
         self.image_size = config.image_size
@@ -165,7 +163,7 @@ class Idefics3VisionEmbeddings(nn.Cell):
         batch_size, _, max_im_h, max_im_w = pixel_values.shape
 
         patch_embeds = self.patch_embedding(pixel_values)
-        embeddings = patch_embeds.flatten(start_dim=2).swapaxes(1, 2)
+        embeddings = patch_embeds.flatten(2).swapaxes(1, 2)
 
         max_nb_patches_h, max_nb_patches_w = max_im_h // self.patch_size, max_im_w // self.patch_size
         boundaries = list(np.arange(1 / self.num_patches_per_side, 1.0, 1 / self.num_patches_per_side))
@@ -181,15 +179,15 @@ class Idefics3VisionEmbeddings(nn.Cell):
             bucket_coords_h = ops.bucketize(fractional_coords_h, boundaries, right=True)
             bucket_coords_w = ops.bucketize(fractional_coords_w, boundaries, right=True)
 
-            pos_ids = (bucket_coords_h[:, None] * self.num_patches_per_side + bucket_coords_w).flatten(start_dim=0)
+            pos_ids = (bucket_coords_h[:, None] * self.num_patches_per_side + bucket_coords_w).flatten()
             position_ids[batch_idx][p_attn_mask.view(-1)] = pos_ids
 
         embeddings = embeddings + self.position_embedding(position_ids)
         return embeddings
 
 
-# Copied from transformers.models.siglip.modeling_siglip.SiglipAttention with Siglip->Idefics3Vision
-class Idefics3VisionAttention(nn.Cell):
+# Copied from transformers.models.siglip.modeling_siglip.SiglipAttention with Siglip->Idefics2Vision
+class Idefics2VisionAttention(nn.Cell):
     """Multi-headed attention from 'Attention Is All You Need' paper"""
 
     # Copied from transformers.models.clip.modeling_clip.CLIPAttention.__init__
@@ -268,11 +266,10 @@ class Idefics3VisionAttention(nn.Cell):
         return attn_output, attn_weights
 
 
-# Copied from transformers.models.idefics2.modeling_idefics2.Idefics2VisionFlashAttention2 with Idefics2->Idefics3
-class Idefics3VisionFlashAttention2(Idefics3VisionAttention):
+class Idefics2VisionFlashAttention2(Idefics2VisionAttention):
     """
-    Idefics3Vision flash attention module. This module inherits from `Idefics3VisionAttention` as the weights of the module stays
-    untouched. The only required change would be on the forward pass where it needs to correctly call the public API of
+    Idefics2Vision flash attention module. This module inherits from `Idefics2VisionAttention` as the weights of the module stays
+    untouched. The only required change would be on the construct pass where it needs to correctly call the public API of
     flash attention and deal with padding tokens in case the input contains any of them.
     """
 
@@ -298,9 +295,9 @@ class Idefics3VisionFlashAttention2(Idefics3VisionAttention):
         value_states = self.v_proj(hidden_states)
 
         # Flash attention requires the input to have the shape
-        # batch_size x seq_length x head_dim x hidden_dim
+        # batch_size x head_dim x seq_length x hidden_dim
         # therefore we just need to keep the original shape
-        query_states = query_states.view(bsz, q_len, self.num_heads, self.head_dim)
+        query_states = query_states.view(bsz, q_len, self.num_heads, self.head_dim).swapaxes(1, 2)
         key_states = key_states.view(bsz, q_len, self.num_heads, self.head_dim).swapaxes(1, 2)
         value_states = value_states.view(bsz, q_len, self.num_heads, self.head_dim).swapaxes(1, 2)
 
@@ -308,11 +305,6 @@ class Idefics3VisionFlashAttention2(Idefics3VisionAttention):
         if past_key_value is not None:
             kv_seq_len += past_key_value.get_usable_length(kv_seq_len, self.layer_idx)
 
-        # Flash Attention requires the layout [batch_size, sequence_length, num_heads, head_dim].
-        # We would need to refactor the KV cache
-        # to be able to avoid many of these transpose/reshape/view.
-        key_states = key_states.swapaxes(1, 2)
-        value_states = value_states.swapaxes(1, 2)
 
         dropout_rate = self.dropout if self.training else 0.0
 
@@ -320,11 +312,15 @@ class Idefics3VisionFlashAttention2(Idefics3VisionAttention):
         # therefore the input hidden states gets silently casted in float32. Hence, we need
         # cast them back in the correct dtype just to be sure everything works as expected.
         # This might slowdown training & inference so it is recommended to not cast the LayerNorms
-        # in fp32. (Idefics3VisionRMSNorm handles it correctly)
+        # in fp32. (Idefics2VisionRMSNorm handles it correctly)
 
         input_dtype = query_states.dtype
         if input_dtype == ms.float32:
-            target_dtype = self.q_proj.weight.dtype
+            # Handle the case where the model is quantized
+            if hasattr(self.config, "_pre_quantization_dtype"):
+                target_dtype = self.config._pre_quantization_dtype
+            else:
+                target_dtype = self.q_proj.weight.dtype
 
             logger.warning_once(
                 f"The input hidden states seems to be silently casted in float32, this might be related to"
@@ -337,7 +333,6 @@ class Idefics3VisionFlashAttention2(Idefics3VisionAttention):
             value_states = value_states.to(target_dtype)
 
         attn_output = flash_attention_forward(
-            self,
             query_states,
             key_states,
             value_states,
@@ -347,7 +342,7 @@ class Idefics3VisionFlashAttention2(Idefics3VisionAttention):
             scaling=self.scale,
             # is_causal=self.is_causal,
             # use_top_left_mask=self._flash_attn_uses_top_left_mask,
-        )
+        ) # BNSD -> BSND
 
         attn_output = attn_output.reshape(bsz, q_len, self.embed_dim).contiguous()
         attn_output = self.out_proj(attn_output)
@@ -359,13 +354,13 @@ class Idefics3VisionFlashAttention2(Idefics3VisionAttention):
 
 
 IDEFICS_VISION_ATTENTION_CLASSES = {
-    "eager": Idefics3VisionAttention,
-    "flash_attention_2": Idefics3VisionFlashAttention2,
+    "eager": Idefics2VisionAttention,
+    "flash_attention_2": Idefics2VisionFlashAttention2,
 }
 
 
-# Copied from transformers.models.siglip.modeling_siglip.SiglipMLP with Siglip->Idefics3Vision
-class Idefics3VisionMLP(nn.Cell):
+# Copied from transformers.models.siglip.modeling_siglip.SiglipMLP with Siglip->Idefics2Vision
+class Idefics2VisionMLP(nn.Cell):
     def __init__(self, config):
         super().__init__()
         self.config = config
@@ -380,28 +375,65 @@ class Idefics3VisionMLP(nn.Cell):
         return hidden_states
 
 
-class Idefics3SimpleMLP(nn.Cell):
-    def __init__(self, config):
+class Idefics2MLP(nn.Cell):
+    def __init__(
+        self,
+        hidden_size: int,
+        intermediate_size: int,
+        output_size: int,
+        hidden_act: str,
+    ):
         super().__init__()
-        input_size = config.vision_config.hidden_size * (config.scale_factor**2)
-        output_size = config.text_config.hidden_size
-        self.proj = mint.nn.Linear(input_size, output_size, bias=False)
+        self.gate_proj = mint.nn.Linear(hidden_size, intermediate_size, bias=False)
+        self.up_proj = mint.nn.Linear(hidden_size, intermediate_size, bias=False)
+        self.down_proj = mint.nn.Linear(intermediate_size, output_size, bias=False)
+        self.act_fn = ACT2FN[hidden_act]
 
     def construct(self, x):
-        return self.proj(x)
+        return self.down_proj(self.act_fn(self.gate_proj(x)) * self.up_proj(x))
 
 
-# Copied from transformers.models.idefics2.modeling_idefics2.Idefics2EncoderLayer with Idefics2->Idefics3
-class Idefics3EncoderLayer(nn.Cell):
-    def __init__(self, config: Idefics3VisionConfig):
+# Copied from transformers.models.siglip.modeling_siglip.SiglipMultiheadAttentionPoolingHead with Siglip->Idefics2
+class Idefics2MultiheadAttentionPoolingHead(nn.Cell):
+    """Multihead Attention Pooling."""
+
+    def __init__(self, config: Idefics2VisionConfig):
+        super().__init__()
+
+        self.probe = ms.Parameter(mint.randn(1, 1, config.hidden_size))
+        self.attention = MultiheadAttention(config.hidden_size, config.num_attention_heads, batch_first=True)
+        self.layernorm = mint.nn.LayerNorm(config.hidden_size, eps=config.layer_norm_eps)
+        # Ignore copy
+        self.mlp = Idefics2MLP(
+            hidden_size=config.hidden_size,
+            intermediate_size=config.intermediate_size,
+            hidden_act=config.hidden_act,
+            output_size=config.hidden_size,
+        )
+
+    def construct(self, hidden_state):
+        batch_size = hidden_state.shape[0]
+        probe = self.probe.tile((batch_size, 1, 1))
+
+        hidden_state = self.attention(probe, hidden_state, hidden_state)[0]
+
+        residual = hidden_state
+        hidden_state = self.layernorm(hidden_state)
+        hidden_state = residual + self.mlp(hidden_state)
+
+        return hidden_state[:, 0]
+
+
+class Idefics2EncoderLayer(nn.Cell):
+    def __init__(self, config: Idefics2VisionConfig):
         super().__init__()
         self.embed_dim = config.hidden_size
         self.self_attn = IDEFICS_VISION_ATTENTION_CLASSES[config._attn_implementation](config)
         self.layer_norm1 = mint.nn.LayerNorm(self.embed_dim, eps=config.layer_norm_eps)
-        self.mlp = Idefics3VisionMLP(config)
+        self.mlp = Idefics2VisionMLP(config)
         self.layer_norm2 = mint.nn.LayerNorm(self.embed_dim, eps=config.layer_norm_eps)
 
-    # Copied from transformers.models.siglip.modeling_siglip.SiglipEncoderLayer.forward
+    # Copied from transformers.models.siglip.modeling_siglip.SiglipEncoderLayer.construct
     def construct(
         self,
         hidden_states: ms.Tensor,
@@ -441,20 +473,20 @@ class Idefics3EncoderLayer(nn.Cell):
         return outputs
 
 
-# Copied from transformers.models.siglip.modeling_siglip.SiglipEncoder with Siglip->Idefics3
-class Idefics3Encoder(nn.Cell):
+# Copied from transformers.models.siglip.modeling_siglip.SiglipEncoder with Siglip->Idefics2
+class Idefics2Encoder(nn.Cell):
     """
     Transformer encoder consisting of `config.num_hidden_layers` self attention layers. Each layer is a
-    [`Idefics3EncoderLayer`].
+    [`Idefics2EncoderLayer`].
 
     Args:
-        config: Idefics3Config
+        config: Idefics2Config
     """
 
-    def __init__(self, config: Idefics3Config):
+    def __init__(self, config: Idefics2Config):
         super().__init__()
         self.config = config
-        self.layers = nn.CellList([Idefics3EncoderLayer(config) for _ in range(config.num_hidden_layers)])
+        self.layers = nn.CellList([Idefics2EncoderLayer(config) for _ in range(config.num_hidden_layers)])
         self.gradient_checkpointing = False
 
     # Ignore copy
@@ -501,7 +533,14 @@ class Idefics3Encoder(nn.Cell):
         for encoder_layer in self.layers:
             if output_hidden_states:
                 encoder_states = encoder_states + (hidden_states,)
-
+            # if self.gradient_checkpointing and self.training:
+            #     layer_outputs = self._gradient_checkpointing_func(
+            #         encoder_layer.__call__,
+            #         hidden_states,
+            #         attention_mask,
+            #         output_attentions,
+            #     )
+            # else:
             layer_outputs = encoder_layer(
                 hidden_states,
                 attention_mask,
@@ -518,98 +557,42 @@ class Idefics3Encoder(nn.Cell):
 
         if not return_dict:
             return tuple(v for v in [hidden_states, encoder_states, all_attentions] if v is not None)
-        return BaseModelOutput(last_hidden_state=hidden_states, hidden_states=encoder_states, attentions=all_attentions)
+        return BaseModelOutput(
+            last_hidden_state=hidden_states, hidden_states=encoder_states, attentions=all_attentions
+        )
 
 
-# Copied from transformers.models.llama.modeling_llama.repeat_kv
-def repeat_kv(hidden_states: ms.Tensor, n_rep: int) -> ms.Tensor:
-    """
-    This is the equivalent of mint.repeat_interleave(x, dim=1, repeats=n_rep). The hidden states go from (batch,
-    num_key_value_heads, seqlen, head_dim) to (batch, num_attention_heads, seqlen, head_dim)
-    """
-    batch, num_key_value_heads, slen, head_dim = hidden_states.shape
-    if n_rep == 1:
-        return hidden_states
-    hidden_states = hidden_states[:, :, None, :, :].broadcast_to((batch, num_key_value_heads, n_rep, slen, head_dim))
-    return hidden_states.reshape(batch, num_key_value_heads * n_rep, slen, head_dim)
-
-
-# Copied from transformers.models.llama.modeling_llama.LlamaRMSNorm with Llama->Idefics3
-class Idefics3RMSNorm(nn.Cell):
-    def __init__(self, hidden_size, eps=1e-6):
-        """
-        Idefics3RMSNorm is equivalent to T5LayerNorm
-        """
-        super().__init__()
-        self.weight = nn.Parameter(mint.ones(hidden_size))
-        self.variance_epsilon = eps
-
-    def construct(self, hidden_states):
-        input_dtype = hidden_states.dtype
-        hidden_states = hidden_states.to(ms.float32)
-        variance = hidden_states.pow(2).mean(-1, keepdim=True)
-        hidden_states = hidden_states * mint.rsqrt(variance + self.variance_epsilon)
-        return self.weight * hidden_states.to(input_dtype)
-
-    def extra_repr(self):
-        return f"{tuple(self.weight.shape)}, eps={self.variance_epsilon}"
-
-
-class Idefics3Connector(nn.Cell):
-    def __init__(self, config):
-        super().__init__()
-        self.scale_factor = config.scale_factor
-        self.modality_projection = Idefics3SimpleMLP(config)
-
-    def pixel_shuffle(self, x, scale_factor=2):
-        bsz, seq, embed_dim = x.shape
-        height = width = int(seq**0.5)
-        x = x.view(bsz, height, width, embed_dim)
-        x = x.view(bsz, height, int(width / scale_factor), embed_dim * scale_factor)
-        x = x.permute(0, 2, 1, 3)
-        x = x.reshape(bsz, int(width / scale_factor), int(height / scale_factor), embed_dim * (scale_factor**2))
-        x = x.permute(0, 2, 1, 3)
-        x = x.reshape(bsz, int(seq / (scale_factor**2)), embed_dim * (scale_factor**2))
-        return x
-
-    def construct(self, image_hidden_states):
-        image_hidden_states = self.pixel_shuffle(image_hidden_states, self.scale_factor)
-        image_hidden_states = self.modality_projection(image_hidden_states)
-        return image_hidden_states
-
-
-IDEFICS3_START_DOCSTRING = r"""
-    This model inherits from [`MSPreTrainedModel`]. Check the superclass documentation for the generic methods the
+IDEFICS2_START_DOCSTRING = r"""
+    This model inherits from [`PreTrainedModel`]. Check the superclass documentation for the generic methods the
     library implements for all its model (such as downloading or saving, resizing the input embeddings, pruning heads
     etc.)
 
-    This model is also a MindSpore [mindspore.nn.Cell](https://www.mindspore.cn/docs/en/master/api_python/nn/mindspore.nn.Cell.html) subclass.
+    This model is also a MindSpore [mindspore.mint.nn.Cell](https://mindspore.org/docs/stable/nn.html#mindspore.mint.nn.Cell) subclass.
     Use it as a regular MindSpore Module and refer to the MindSpore documentation for all matter related to general usage
     and behavior.
 
     Parameters:
-        config ([`Idefics3Config`] or [`Idefics3VisionConfig`]):
+        config ([`Idefics2Config`] or [`Idefics2VisionConfig`]):
             Model configuration class with all the parameters of the model. Initializing with a config file does not
             load the weights associated with the model, only the configuration. Check out the
-            [`~MSPreTrainedModel.from_pretrained`] method to load the model weights.
+            [`~PreTrainedModel.from_pretrained`] method to load the model weights.
 """
 
 
 @add_start_docstrings(
-    "The bare Idefics3 Model outputting raw hidden-states without any specific head on top.",
-    IDEFICS3_START_DOCSTRING,
+    "The bare Idefics2 Model outputting raw hidden-states without any specific head on top.",
+    IDEFICS2_START_DOCSTRING,
 )
-class Idefics3PreTrainedModel(MSPreTrainedModel):
-    config_class = Idefics3Config
+class Idefics2PreTrainedModel(PreTrainedModel):
+    config_class = Idefics2Config
     base_model_prefix = "model"
     supports_gradient_checkpointing = True
-    _no_split_modules = ["Idefics3VisionAttention", "Idefics3DecoderLayer"]
+    _no_split_modules = ["Idefics2VisionAttention", "Idefics2MLP", "Idefics2PerceiverLayer", "Idefics2DecoderLayer"]
     _skip_keys_device_placement = "past_key_values"
     _supports_flash_attn_2 = True
-    _supports_sdpa = True
+    _supports_sdpa = False
     _supports_cache_class = True
 
-    # Copied from transformers.models.idefics2.modeling_idefics2.Idefics2PreTrainedModel._init_weights
     def _init_weights(self, module):
         std = (
             self.config.text_config.initializer_range
@@ -629,47 +612,46 @@ class Idefics3PreTrainedModel(MSPreTrainedModel):
             if module.padding_idx is not None:
                 zeros_(module.weight.data[module.padding_idx])
 
-
-IDEFICS3_VISION_START_DOCSTRING = r"""
-    This model inherits from [`MSPreTrainedModel`]. Check the superclass documentation for the generic methods the
-    library implements for all its model (such as downloading or saving, resizing the input embeddings, pruning heads
-    etc.)
-
-    This model is also a MindSpore [mindspore.nn.Cell](https://www.mindspore.cn/docs/en/master/api_python/nn/mindspore.nn.Cell.html) subclass.
-    Use it as a regular MindSpore Module and refer to the MindSpore documentation for all matter related to general usage
-    and behavior.
-
-    Parameters:
-        config ([`Idefics3VisionConfig`]):
-            Model configuration class with all the parameters of the model. Initializing with a config file does not
-            load the weights associated with the model, only the configuration. Check out the
-            [`~MSPreTrainedModel.from_pretrained`] method to load the model weights.
+IDEFICS2_INPUTS_DOCSTRING = r"""
+    Args:
+        pixel_values (`ms.Tensor` of shape `(batch_size, num_channels, image_size, image_size)):
+            The tensors corresponding to the input images. Pixel values can be obtained using
+            [`AutoImageProcessor`]. See [`CLIPImageProcessor.__call__`] for details ([]`LlavaProcessor`] uses
+            [`CLIPImageProcessor`] for processing images).
+        pixel_attention_mask (`ms.Tensor` of shape `(batch_size, image_size, image_size)`, *optional*):
+            Mask to avoid performing attention on padding pixel indices.
+        output_attentions (`bool`, *optional*):
+            Whether or not to return the attentions tensors of all attention layers. See `attentions` under returned
+            tensors for more detail.
+        output_hidden_states (`bool`, *optional*):
+            Whether or not to return the hidden states of all layers. See `hidden_states` under returned tensors for
+            more detail.
+        return_dict (`bool`, *optional*):
+            Whether or not to return a [`~utils.ModelOutput`] instead of a plain tuple.
 """
 
 
 @add_start_docstrings(
-    "The Idefics3 Vision Transformer Model outputting raw image embedding.",
-    IDEFICS3_VISION_START_DOCSTRING,
+    """Idefics2 vision encoder model that returnss raw image embeddings.""",
+    IDEFICS2_START_DOCSTRING,
 )
-class Idefics3VisionTransformer(Idefics3PreTrainedModel):
-    config_class = Idefics3VisionConfig
+class Idefics2VisionTransformer(Idefics2PreTrainedModel):
     _supports_sdpa = False
+    config_class = Idefics2VisionConfig
 
-    def __init__(self, config: Idefics3VisionConfig):
+    def __init__(self, config: Idefics2VisionConfig):
         super().__init__(config)
         embed_dim = config.hidden_size
 
-        self.embeddings = Idefics3VisionEmbeddings(config)
-        self.encoder = Idefics3Encoder(config)
-        self.patch_size = config.patch_size
+        self.config = config
+        self.embeddings = Idefics2VisionEmbeddings(config)
+        self.encoder = Idefics2Encoder(config)
         self.post_layernorm = mint.nn.LayerNorm(embed_dim, eps=config.layer_norm_eps)
         self._use_flash_attention_2 = config._attn_implementation == "flash_attention_2"
 
-    # Copied from transformers.models.idefics2.modeling_idefics2.Idefics2VisionTransformer.get_input_embeddings
     def get_input_embeddings(self):
         return self.embeddings
 
-    # Copied from transformers.models.idefics2.modeling_idefics2.Idefics2VisionTransformer.set_input_embeddings
     def set_input_embeddings(self, value):
         self.embeddings = value
 
@@ -689,7 +671,7 @@ class Idefics3VisionTransformer(Idefics3PreTrainedModel):
 
         batch_size = pixel_values.shape[0]
         if patch_attention_mask is None:
-            patch_size = self.patch_size
+            patch_size = self.config.patch_size
             patch_attention_mask = mint.ones(
                 (
                     batch_size,
@@ -697,18 +679,18 @@ class Idefics3VisionTransformer(Idefics3PreTrainedModel):
                     pixel_values.shape[3] // patch_size,
                 )
             )
-        patch_attention_mask = patch_attention_mask.to(dtype=ms.bool_)
+            patch_attention_mask = patch_attention_mask.to(dtype=ms.bool_)
 
         hidden_states = self.embeddings(pixel_values=pixel_values, patch_attention_mask=patch_attention_mask)
 
         patch_attention_mask = patch_attention_mask.view(batch_size, -1)
-        # The call to `_upad_input` in `_flash_attention_forward` is expensive
+        # The call to `_upad_input` in `_flash_attention_construct` is expensive
         # So when the `patch_attention_mask` is full of 1s (i.e. attending to the whole sequence),
         # avoiding passing the attention_mask, which is equivalent to attending to the full sequence
         if not mint.any(~patch_attention_mask):
             patch_attention_mask = None
         elif not self._use_flash_attention_2:
-            patch_attention_mask = _prepare_4d_attention_mask(patch_attention_mask, ms.float16)
+            patch_attention_mask = _prepare_4d_attention_mask(patch_attention_mask, hidden_states.dtype)
 
         encoder_outputs = self.encoder(
             inputs_embeds=hidden_states,
@@ -731,7 +713,430 @@ class Idefics3VisionTransformer(Idefics3PreTrainedModel):
         )
 
 
-IDEFICS3_INPUTS_DOCSTRING = r"""
+# Copied from transformers.models.llama.modeling_llama.repeat_kv
+def repeat_kv(hidden_states: ms.Tensor, n_rep: int) -> ms.Tensor:
+    """
+    This is the equivalent of mint.repeat_interleave(x, dim=1, repeats=n_rep). The hidden states go from (batch,
+    num_key_value_heads, seqlen, head_dim) to (batch, num_attention_heads, seqlen, head_dim)
+    """
+    batch, num_key_value_heads, slen, head_dim = hidden_states.shape
+    if n_rep == 1:
+        return hidden_states
+    hidden_states = hidden_states[:, :, None, :, :]. broadcast_to((batch, num_key_value_heads, n_rep, slen, head_dim))
+    return hidden_states.reshape(batch, num_key_value_heads * n_rep, slen, head_dim)
+
+
+# Copied from transformers.models.llama.modeling_llama.LlamaRMSNorm with Llama->Idefics2
+class Idefics2RMSNorm(nn.Cell):
+    def __init__(self, hidden_size, eps=1e-6):
+        """
+        Idefics2RMSNorm is equivalent to T5LayerNorm
+        """
+        super().__init__()
+        self.weight = ms.Parameter(mint.ones(hidden_size))
+        self.variance_epsilon = eps
+
+    def construct(self, hidden_states):
+        input_dtype = hidden_states.dtype
+        hidden_states = hidden_states.to(ms.float32)
+        variance = hidden_states.pow(2).mean(-1, keepdim=True)
+        hidden_states = hidden_states * mint.rsqrt(variance + self.variance_epsilon)
+        return self.weight * hidden_states.to(input_dtype)
+
+    def extra_repr(self):
+        return f"{tuple(self.weight.shape)}, eps={self.variance_epsilon}"
+
+
+class Idefics2PerceiverAttention(nn.Cell):
+    def __init__(self, config, layer_idx: Optional[int] = None) -> None:
+        """Perceiver Cross-Attention Module --> let long-form inputs be `context`, resampled embeddings be `latents`"""
+        super().__init__()
+
+        self.layer_idx = None
+        self.hidden_size = config.hidden_size
+        self.num_heads = config.resampler_n_heads
+        self.head_dim = config.resampler_head_dim
+        self.num_key_value_heads = config.num_key_value_heads
+        self.num_key_value_groups = self.num_heads // self.num_key_value_heads
+        self.attention_dropout = config.attention_dropout
+
+        self.q_proj = mint.nn.Linear(self.hidden_size, self.num_heads * self.head_dim, bias=False)
+        self.k_proj = mint.nn.Linear(self.hidden_size, self.num_key_value_heads * self.head_dim, bias=False)
+        self.v_proj = mint.nn.Linear(self.hidden_size, self.num_key_value_heads * self.head_dim, bias=False)
+        self.o_proj = mint.nn.Linear(self.num_heads * self.head_dim, self.hidden_size, bias=False)
+
+        self.is_causal = False
+
+    def construct(
+        self,
+        latents: ms.Tensor,
+        context: ms.Tensor,
+        attention_mask: Optional[ms.Tensor] = None,
+        position_ids: Optional[ms.Tensor] = None,
+        past_key_value: Optional[Tuple[ms.Tensor]] = None,
+        output_attentions: bool = False,
+        use_cache: bool = False,
+    ) -> Tuple[ms.Tensor, Optional[ms.Tensor], Optional[Tuple[ms.Tensor]]]:
+        """
+        Runs Perceiver Self-Attention, with special (context, latents) appended along the `seq` dimension!
+
+        Args:
+            latents (`ms.Tensor`): Tensor of shape [bsz, n_latents, embed_dim] representing fixed length latents to compress to.
+            context (`ms.Tensor`): Tensor of shape [bsz, seq, embed_dim] representing long-form context to resample.
+            attention_mask (`ms.Tensor`, *optional*): Tensor of shape [bsz, 1, seq, n_latents] representing attention mask.
+            position_ids (`ms.Tensor`, *optional*): Tensor of shape [bsz, seq] representing position indices of each input token.
+            past_key_value (`Tuple[ms.Tensor]`, *optional*): Tuple of tensors containing cached key and value states.
+            output_attentions (`bool`, *optional*, defaults to `False`): Whether to return attention weights.
+            use_cache (`bool`, *optional*, defaults to `False`): Whether to use past_key_value for caching.
+        """
+        bsz, q_len, _ = latents.shape
+        kv_seq_len = q_len + context.shape[1]
+
+        hidden_states = mint.concat([context, latents], dim=-2)
+
+        query_states = self.q_proj(latents)
+        key_states = self.k_proj(hidden_states)
+        value_states = self.v_proj(hidden_states)
+
+        query_states = query_states.view(bsz, q_len, self.num_heads, self.head_dim).swapaxes(1, 2)
+        key_states = key_states.view(bsz, kv_seq_len, self.num_key_value_heads, self.head_dim).swapaxes(1, 2)
+        value_states = value_states.view(bsz, kv_seq_len, self.num_key_value_heads, self.head_dim).swapaxes(1, 2)
+
+        past_key_value = getattr(self, "past_key_value", past_key_value)
+
+        if past_key_value is not None:
+            key_states, value_states = past_key_value.update(key_states, value_states, self.layer_idx)
+
+        # repeat k/v heads if n_kv_heads < n_heads
+        key_states = repeat_kv(key_states, self.num_key_value_groups)
+        value_states = repeat_kv(value_states, self.num_key_value_groups)
+
+        attn_weights = mint.matmul(query_states, key_states.swapaxes(2, 3)) / math.sqrt(self.head_dim)
+
+        if attn_weights.shape != (bsz, self.num_heads, q_len, kv_seq_len):
+            raise ValueError(
+                f"Attention weights should be of size {(bsz, self.num_heads, q_len, kv_seq_len)}, but is"
+                f" {attn_weights.shape}"
+            )
+
+        if attention_mask is not None:
+            if attention_mask.shape != (bsz, 1, q_len, kv_seq_len):
+                raise ValueError(
+                    f"Attention mask should be of size {(bsz, 1, q_len, kv_seq_len)}, but is {attention_mask.shape}"
+                )
+
+            attn_weights = attn_weights + attention_mask
+
+        # upcast attention to fp32
+        attn_weights = mint.nn.functional.softmax(attn_weights, dim=-1, dtype=ms.float32).to(query_states.dtype)
+        attn_output = mint.matmul(attn_weights, value_states)
+
+        if attn_output.shape != (bsz, self.num_heads, q_len, self.head_dim):
+            raise ValueError(
+                f"`attn_output` should be of size {(bsz, self.num_heads, q_len, self.head_dim)}, but is"
+                f" {attn_output.shape}"
+            )
+
+        attn_output = attn_output.swapaxes(1, 2).contiguous()
+        attn_output = attn_output.reshape(bsz, q_len, self.num_heads * self.head_dim)
+
+        attn_output = self.o_proj(attn_output)
+
+        if not output_attentions:
+            attn_weights = None
+
+        return attn_output, attn_weights, past_key_value
+
+
+# NO LONGER EXIST Copied from transformers.models.mistral.modeling_mistral.MistralFlashAttention2 with MistralAttention->Idefics2PerceiverAttention,MistralFlashAttention->Idefics2PerceiverFlashAttention,Mistral->Idefics2
+class Idefics2PerceiverFlashAttention2(Idefics2PerceiverAttention):
+    """
+    Idefics2 flash attention module. This module inherits from `Idefics2PerceiverAttention` as the weights of the module stays
+    untouched. The only required change would be on the construct pass where it needs to correctly call the public API of
+    flash attention and deal with padding tokens in case the input contains any of them.
+    """
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+
+    # Ignore copy
+    def construct(
+        self,
+        latents: ms.Tensor,
+        context: ms.Tensor,
+        attention_mask: Optional[ms.Tensor] = None,
+        position_ids: Optional[ms.Tensor] = None,
+        past_key_value: Optional[Cache] = None,
+        output_attentions: bool = False,
+        use_cache: bool = False,
+        **kwargs,
+    ) -> Tuple[ms.Tensor, Optional[ms.Tensor], Optional[Tuple[ms.Tensor]]]:
+        bsz, q_len, _ = latents.shape
+        kv_seq_len = q_len + context.shape[1]
+
+        # Query, Key, Value Projections --> Note that in Flamingo, latents are *concatenated* with context prior to attn!
+        #   Note: This results in queries w/ `seq = n_latents`, and keys, values with `seq = len(context) + n_latents`
+        query_states = self.q_proj(latents)
+        key_states = self.k_proj(mint.cat([context, latents], dim=-2))
+        value_states = self.v_proj(mint.cat([context, latents], dim=-2))
+
+        query_states = query_states.view(bsz, q_len, self.num_heads, self.head_dim).swapaxes(1, 2)
+        key_states = key_states.view(bsz, kv_seq_len, self.num_key_value_heads, self.head_dim).swapaxes(1, 2)
+        value_states = value_states.view(bsz, kv_seq_len, self.num_key_value_heads, self.head_dim).swapaxes(1, 2)
+
+        kv_seq_len = key_states.shape[-2]
+        if past_key_value is not None:
+            kv_seq_len += past_key_value[0].shape[-2]
+
+        if past_key_value is not None:
+            # Activate slicing cache only if the config has a value `sliding_windows` attribute
+            if hasattr(self.config, "sliding_window") and kv_seq_len > self.config.sliding_window:
+                slicing_tokens = kv_seq_len - self.config.sliding_window
+
+                past_key = past_key_value[0]
+                past_value = past_key_value[1]
+
+                past_key = past_key[:, :, slicing_tokens:, :].contiguous()
+                past_value = past_value[:, :, slicing_tokens:, :].contiguous()
+
+                if past_key.shape[-2] != self.config.sliding_window - 1:
+                    raise ValueError(
+                        "past key must have a shape of (`batch_size, num_heads, self.config.sliding_window-1,"
+                        f" head_dim`), got {past_key.shape}"
+                    )
+
+                past_key_value = (past_key, past_value)
+
+                if attention_mask is not None:
+                    attention_mask = attention_mask[:, slicing_tokens:]
+                    attention_mask = mint.cat([attention_mask, mint.ones_like(attention_mask[:, -1:])], dim=-1)
+
+            key_states = mint.cat([past_key_value[0], key_states], dim=2)
+            value_states = mint.cat([past_key_value[1], value_states], dim=2)
+
+        past_key_value = (key_states, value_states) if use_cache else None
+
+        # repeat k/v heads if n_kv_heads < n_heads
+        key_states = repeat_kv(key_states, self.num_key_value_groups)
+        value_states = repeat_kv(value_states, self.num_key_value_groups)
+        dropout_rate = 0.0 if not self.training else self.attention_dropout
+
+        # In PEFT, usually we cast the layer norms in float32 for training stability reasons
+        # therefore the input hidden states gets silently casted in float32. Hence, we need
+        # cast them back in float16 just to be sure everything works as expected.
+        input_dtype = query_states.dtype
+        if input_dtype == ms.float32:
+            # Handle the case where the model is quantized
+            if hasattr(self.config, "_pre_quantization_dtype"):
+                target_dtype = self.config._pre_quantization_dtype
+            else:
+                target_dtype = self.q_proj.weight.dtype
+
+            logger.warning_once(
+                f"The input hidden states seems to be silently casted in float32, this might be related to"
+                f" the fact you have upcasted embedding or layer norm layers in float32. We will cast back the input in"
+                f" {target_dtype}."
+            )
+
+            query_states = query_states.to(target_dtype)
+            key_states = key_states.to(target_dtype)
+            value_states = value_states.to(target_dtype)
+
+        attn_output = flash_attention_forward(
+            query_states,
+            key_states,
+            value_states,
+            attention_mask,
+            # q_len,
+            dropout=dropout_rate,
+            scaling=1 / math.sqrt(query_states.shape[-1]),
+            sliding_window=None,
+            # is_causal=self.is_causal,
+        ) # BNSD -> BSND
+
+        attn_output = attn_output.reshape(bsz, q_len, self.num_heads * self.head_dim).contiguous()
+        attn_output = self.o_proj(attn_output)
+
+        if not output_attentions:
+            attn_weights = None
+
+        return attn_output, attn_weights, past_key_value
+
+
+IDEFICS2_PERCEIVER_ATTENTION_CLASSES = {
+    "eager": Idefics2PerceiverAttention,
+    "flash_attention_2": Idefics2PerceiverFlashAttention2,
+}
+
+
+class Idefics2PerceiverLayer(nn.Cell):
+    def __init__(self, config, layer_idx: int):
+        super().__init__()
+        self.hidden_size = config.hidden_size
+        self.n_latents = config.resampler_n_latents
+        self.depth = config.resampler_depth
+        self.rms_norm_eps = config.rms_norm_eps
+
+        self.input_latents_norm = Idefics2RMSNorm(self.hidden_size, eps=self.rms_norm_eps)
+        self.input_context_norm = Idefics2RMSNorm(self.hidden_size, eps=self.rms_norm_eps)
+        self.self_attn = IDEFICS2_PERCEIVER_ATTENTION_CLASSES[config._attn_implementation](config, layer_idx=layer_idx)
+        self.post_attention_layernorm = Idefics2RMSNorm(self.hidden_size, eps=self.rms_norm_eps)
+        self.mlp = Idefics2MLP(
+            hidden_size=config.hidden_size,
+            intermediate_size=config.hidden_size * 4,
+            output_size=config.hidden_size,
+            hidden_act=config.hidden_act,
+        )
+
+    def construct(
+        self,
+        latents: ms.Tensor,
+        context: ms.Tensor,
+        attention_mask: Optional[ms.Tensor] = None,
+        position_ids: Optional[ms.Tensor] = None,
+        past_key_value: Optional[Tuple[ms.Tensor]] = None,
+        output_attentions: Optional[bool] = False,
+        use_cache: Optional[bool] = False,
+        **kwargs,
+    ) -> Tuple[ms.Tensor, Optional[Tuple[ms.Tensor, ms.Tensor]]]:
+        """
+        Args:
+            latents (`ms.Tensor`): input to the layer of shape `(batch, seq_len, embed_dim)`
+            context (`ms.Tensor`): input to the layer of shape `(batch, seq_len, embed_dim)`
+            attention_mask (`ms.Tensor`, *optional*): attention mask of size
+                `(batch, sequence_length)` where padding elements are indicated by 0.
+            output_attentions (`bool`, *optional*):
+                Whether or not to return the attentions tensors of all attention layers. See `attentions` under
+                returned tensors for more detail.
+            use_cache (`bool`, *optional*):
+                If set to `True`, `past_key_values` key value states are returned and can be used to speed up decoding
+                (see `past_key_values`).
+            past_key_value (`Tuple(ms.Tensor)`, *optional*): cached past key and value projection states
+        """
+        residual = latents
+
+        latents = self.input_latents_norm(latents)
+        context = self.input_context_norm(context)
+
+        latents, self_attn_weights, present_key_value = self.self_attn(
+            latents=latents,
+            context=context,
+            attention_mask=attention_mask,
+        )
+        latents = residual + latents
+        residual = latents
+
+        latents = self.post_attention_layernorm(latents)
+        latents = self.mlp(latents)
+        latents = residual + latents
+
+        outputs = (latents,)
+
+        if output_attentions:
+            outputs += (self_attn_weights,)
+
+        if use_cache:
+            outputs += (present_key_value,)
+
+        return outputs
+
+
+IDEFICS2_INPUTS_DOCSTRING = r"""
+    Args:
+        context (`ms.Tensor` of shape `(batch_size, sequence_length, hidden_dim)`):
+            The hidden states of the image after vision encoder and modality projection.
+        attention_mask (`ms.Tensor` of shape `(batch_size, sequence_length)`, *optional*):
+            Mask to avoid performing attention on padding token indices. Mask values selected in `[0, 1]`:
+
+            - 1 for tokens that are **not masked**,
+            - 0 for tokens that are **masked**.
+
+            [What are attention masks?](../glossary#attention-mask)
+"""
+
+
+@add_start_docstrings(
+    "Idefics2 perceiver resampler model that performs `depth` blocks of cross-attention with a fixed ",
+    "`n_latents` inputs to decrease embedding sequence length. The Resampler acts as a form of learned pooling and ",
+    "is derived from [Perceiver: General Perception with Iterative Attention](https://arxiv.org/abs/2103.03206)",
+    IDEFICS2_START_DOCSTRING,
+)
+class Idefics2PerceiverResampler(Idefics2PreTrainedModel):
+    _supports_sdpa = False
+    config_class = Idefics2PerceiverConfig
+
+    def __init__(self, config) -> None:
+        super().__init__(config)
+        self.hidden_size = config.hidden_size
+        self.hidden_act = config.hidden_act
+        self.n_latents = config.resampler_n_latents
+        self.depth = config.resampler_depth
+        self.rms_norm_eps = config.rms_norm_eps
+
+        # Create Latents for Perceiver
+        self.latents = ms.Parameter(mint.ones((self.n_latents, self.hidden_size)))
+
+        # Create Transformer Blocks
+        self.layers = nn.CellList([Idefics2PerceiverLayer(config, idx) for idx in range(self.depth)])
+        self.norm = Idefics2RMSNorm(self.hidden_size, eps=self.rms_norm_eps)
+
+        self._use_flash_attention_2 = config._attn_implementation == "flash_attention_2"
+
+    def construct(
+        self,
+        context: ms.Tensor,
+        attention_mask: ms.Tensor,
+    ) -> ms.Tensor:
+        # seq embed -> bsz seq embed
+        latents = self.latents.unsqueeze(0).broadcast_to((context.shape[0], *self.latents.shape))
+
+        latent_attention_mask = mint.ones(
+            (attention_mask.shape[0], latents.shape[1]), dtype=attention_mask.dtype
+        )
+        attention_mask = mint.cat([attention_mask, latent_attention_mask], dim=-1)
+        attention_mask = (
+            _prepare_4d_attention_mask(attention_mask, latents.dtype, tgt_len=self.n_latents)
+            if not self._use_flash_attention_2
+            else attention_mask
+        )
+
+        compressed_context = latents
+        for perceiver_layer in self.layers:
+            layer_outputs = perceiver_layer(
+                compressed_context,
+                context,
+                attention_mask=attention_mask,
+                position_ids=None,
+                past_key_value=None,
+                output_attentions=False,
+                use_cache=False,
+            )
+
+            compressed_context = layer_outputs[0]
+
+        compressed_context = self.norm(compressed_context)
+
+        return compressed_context
+
+
+class Idefics2Connector(nn.Cell):
+    def __init__(self, config):
+        super().__init__()
+        self.modality_projection = Idefics2MLP(
+            hidden_size=config.vision_config.hidden_size,
+            intermediate_size=config.text_config.intermediate_size,
+            output_size=config.text_config.hidden_size,
+            hidden_act=config.text_config.hidden_act,
+        )
+        self.perceiver_resampler = Idefics2PerceiverResampler._from_config(config.perceiver_config)
+
+    def construct(self, image_hidden_states, attention_mask):
+        image_hidden_states = self.modality_projection(image_hidden_states)
+        image_hidden_states = self.perceiver_resampler(context=image_hidden_states, attention_mask=attention_mask)
+        return image_hidden_states
+
+
+IDEFICS2_INPUTS_DOCSTRING = r"""
     Args:
         input_ids (`ms.Tensor` of shape `(batch_size, sequence_length)`):
             Indices of input sequence tokens in the vocabulary. Padding will be ignored by default should you provide
@@ -786,7 +1191,7 @@ IDEFICS3_INPUTS_DOCSTRING = r"""
         pixel_attention_mask (`ms.Tensor` of shape `(batch_size, image_size, image_size)`, *optional*):
             Mask to avoid performing attention on padding pixel indices.
         image_hidden_states (`ms.Tensor` of shape `(batch_size, num_channels, image_size, image_size)`):
-            The hidden states of the image encoder after modality projection.
+            The hidden states of the image encoder after modality projection and perceiver resampling.
         use_cache (`bool`, *optional*):
             If set to `True`, `past_key_values` key value states are returned and can be used to speed up decoding (see
             `past_key_values`).
@@ -806,36 +1211,29 @@ IDEFICS3_INPUTS_DOCSTRING = r"""
 
 
 @add_start_docstrings(
-    """Idefics3 model consisting of a SIGLIP vision encoder and Llama3 language decoder""",
-    IDEFICS3_START_DOCSTRING,
+    """Idefics2 model consisting of a SIGLIP vision encoder and Mistral language decoder""",
+    IDEFICS2_START_DOCSTRING,
 )
-class Idefics3Model(Idefics3PreTrainedModel):
-    def __init__(self, config: Idefics3Config):
+class Idefics2Model(Idefics2PreTrainedModel):
+    def __init__(self, config: Idefics2Config):
         super().__init__(config)
         self.padding_idx = self.config.text_config.pad_token_id
         self.vocab_size = self.config.text_config.vocab_size
 
-        self.vision_model = Idefics3VisionTransformer._from_config(config.vision_config)
-        self.connector = Idefics3Connector(config)
+        self.vision_model = Idefics2VisionTransformer._from_config(config.vision_config)
+        self.connector = Idefics2Connector(config)
+        self.text_model = AutoModel.from_config(config.text_config)
 
-        config.text_config.torch_dtype = str(config.text_config.torch_dtype).replace("torch.", "")  # TODO: how to fix?
-        # self.text_model = AutoModel.from_config(config.text_config) # LlamaModel
-        self.text_model = LlamaModel._from_config(config.text_config)
-
-        self.image_seq_len = int(
-            ((config.vision_config.image_size // config.vision_config.patch_size) ** 2) / (config.scale_factor**2)
-        )
+        self.image_seq_len = config.perceiver_config.resampler_n_latents
         self.image_token_id = self.config.image_token_id
 
         self._use_flash_attention_2 = config.text_config._attn_implementation == "flash_attention_2"
 
         self.post_init()
 
-    # Copied from transformers.models.idefics2.modeling_idefics2.Idefics2Model.get_input_embeddings
     def get_input_embeddings(self):
         return self.text_model.get_input_embeddings()
 
-    # Copied from transformers.models.idefics2.modeling_idefics2.Idefics2Model.set_input_embeddings
     def set_input_embeddings(self, value):
         self.text_model.set_input_embeddings(value)
 
@@ -849,23 +1247,15 @@ class Idefics3Model(Idefics3PreTrainedModel):
         This method aims at merging the token embeddings with the image hidden states into one single sequence of vectors that are fed to the transformer LM.
         The merging happens as follows:
         - The text token sequence is: `tok_1 tok_2 tok_3 <fake_token_around_image> <image> <image> ... <image> <fake_token_around_image> tok_4`.
-        - We get the image hidden states for the image through the vision encoder and
-          that hidden state, after a pixel shuffle operation, is then projected into the text embedding space.
-          We thus have a sequence of image hidden states of size (1, image_seq_len, hidden_dim),
-          where 1 is for batch_size of 1 image and hidden_dim is the hidden_dim of the LM transformer.
-        - The merging happens so that we obtain the following sequence:
-          `vector_tok_1 vector_tok_2 vector_tok_3 vector_fake_tok_around_image vector_fake_toke_around_image vector_tok_4`
-          (vector_fake_tok_around_image {sequence of image_seq_len image hidden states}).
-          That sequence is fed to the LM.
+        - We get the image hidden states for the image through the vision encoder (and potentially the perceiver), and that hidden state is then projected into the text embedding space.
+        We thus have a sequence of image hidden states of size (1, image_seq_len, hidden_dim), where 1 is for batch_size of 1 image and hidden_dim is the hidden_dim of the LM transformer.
+        - The merging happens so that we obtain the following sequence: `vector_tok_1 vector_tok_2 vector_tok_3 vector_fake_tok_around_image {sequence of image_seq_len image hidden states} vector_fake_toke_around_image vector_tok_4`. That sequence is fed to the LM.
         - To fit the format of that sequence, `input_ids`, `input_embeds`, `attention_mask` are all 3 adapted to insert the image hidden states.
         """
         num_images, _, vision_hidden_size = image_hidden_states.shape
         special_image_token_mask = input_ids == self.image_token_id
-        #  Fixes RuntimeError: a leaf Variable that requires grad is being used in an in-place operation.
         new_inputs_embeds = inputs_embeds.clone()
         reshaped_image_hidden_states = image_hidden_states.view(-1, vision_hidden_size)
-        # cast to the dtype of the input_embeds to support quantized models
-        reshaped_image_hidden_states = reshaped_image_hidden_states.to(inputs_embeds.dtype)
         new_inputs_embeds[special_image_token_mask] = reshaped_image_hidden_states
         return new_inputs_embeds
 
@@ -874,12 +1264,13 @@ class Idefics3Model(Idefics3PreTrainedModel):
         Inputs fed to the model can have an arbitrary number of images. To account for this, pixel_values fed to
         the model have image padding -> (batch_size, max_num_images, 3, max_heights, max_widths) where
         max_num_images is the maximum number of images among the batch_size samples in the batch.
+
         Padding images are not needed beyond padding the pixel_values at the entrance of the model.
-        For efficiency, we only pass through the vision_model's forward the real images by
+        For efficiency, we only pass through the vision_model's construct the real images by
         discarding the padding images i.e. pixel_values of size (image_batch_size, 3, height, width) where
         image_batch_size would be 7 when num_images_per_sample=[1, 3, 1, 2] and max_num_images would be 3.
         """,
-        IDEFICS3_INPUTS_DOCSTRING,
+        IDEFICS2_INPUTS_DOCSTRING,
     )
     def construct(
         self,
@@ -896,7 +1287,7 @@ class Idefics3Model(Idefics3PreTrainedModel):
         output_hidden_states: Optional[bool] = None,
         cache_position: Optional[ms.Tensor] = None,
         return_dict: Optional[bool] = None,
-    ) -> Union[Tuple, Idefics3BaseModelOutputWithPast]:
+    ) -> Union[Tuple, Idefics2BaseModelOutputWithPast]:
         output_attentions = output_attentions if output_attentions is not None else self.config.output_attentions
         output_hidden_states = (
             output_hidden_states if output_hidden_states is not None else self.config.output_hidden_states
@@ -919,9 +1310,20 @@ class Idefics3Model(Idefics3PreTrainedModel):
             raise ValueError("You have to specify either input_ids or inputs_embeds")
 
         past_seen_tokens = 0
+        # kept for BC (non `Cache` `past_key_values` inputs)
+        return_legacy_cache = False
         if use_cache:
-            if past_key_values is None:
-                past_key_values = DynamicCache()
+            if not isinstance(past_key_values, Cache):
+                return_legacy_cache = True
+                if past_key_values is None:
+                    past_key_values = DynamicCache()
+                else:
+                    past_key_values = DynamicCache.from_legacy_cache(past_key_values)
+                    logger.warning_once(
+                        "We detected that you are passing `past_key_values` as a tuple of tuples. This is deprecated and "
+                        "will be removed in v4.47. Please convert your cache or use an appropriate `Cache` class "
+                        "(https://huggingface.co/docs/transformers/kv_cache#legacy-cache-format)"
+                    )
             past_seen_tokens = past_key_values.get_seq_length()
 
         if inputs_embeds is not None and input_ids is None and past_seen_tokens == 0:
@@ -946,7 +1348,7 @@ class Idefics3Model(Idefics3PreTrainedModel):
             # Handle the vision attention mask
             if pixel_attention_mask is None:
                 pixel_attention_mask = mint.ones(
-                    (pixel_values.shape[0], pixel_values.shape[2], pixel_values.shape[3]),
+                    size=(pixel_values.shape[0], pixel_values.shape[2], pixel_values.shape[3]),
                     dtype=ms.bool_,
                 )
             else:
@@ -973,7 +1375,7 @@ class Idefics3Model(Idefics3PreTrainedModel):
             )
             # ref: https://zhuanlan.zhihu.com/p/673802546
 
-            patch_attention_mask = (patches_subgrid.sum(dim=(-1, -2)) > 0).bool()
+            patch_attention_mask = (patches_subgrid.sum(dim=(-1, -2)) == patch_size * patch_size).bool()
 
             # Get sequence from the vision encoder
             image_hidden_states = self.vision_model(
@@ -982,7 +1384,9 @@ class Idefics3Model(Idefics3PreTrainedModel):
             ).last_hidden_state
 
             # Modality projection & resampling
-            image_hidden_states = self.connector(image_hidden_states)
+            image_hidden_states = self.connector(
+                image_hidden_states, attention_mask=patch_attention_mask.view(pixel_values.shape[0], -1)
+            )
 
         elif image_hidden_states is not None:
             image_hidden_states = image_hidden_states.to(dtype=self.dtype)
@@ -1008,10 +1412,13 @@ class Idefics3Model(Idefics3PreTrainedModel):
             return_dict=return_dict,
         )
 
+        if return_legacy_cache and use_cache:
+            outputs.past_key_values = outputs.past_key_values.to_legacy_cache()
+
         if not return_dict:
             return tuple(v for v in [*outputs, image_hidden_states] if v is not None)
 
-        return Idefics3BaseModelOutputWithPast(
+        return Idefics2BaseModelOutputWithPast(
             last_hidden_state=outputs.last_hidden_state,
             past_key_values=outputs.past_key_values,
             hidden_states=outputs.hidden_states,
@@ -1021,16 +1428,15 @@ class Idefics3Model(Idefics3PreTrainedModel):
 
 
 @add_start_docstrings(
-    """The Idefics3 Model with a language modeling head. It is made up a SigLIP vision encoder, with a language modeling head on top. """,
-    IDEFICS3_START_DOCSTRING,
+    """The Idefics2 Model with a language modeling head. It is made up a SigLIP vision encoder, with a language modeling head on top. """,
+    IDEFICS2_START_DOCSTRING,
 )
-class Idefics3ForConditionalGeneration(Idefics3PreTrainedModel, GenerationMixin):
+class Idefics2ForConditionalGeneration(Idefics2PreTrainedModel, GenerationMixin):
     _tied_weights_keys = ["lm_head.weight"]
 
-    # Copied from transformers.models.idefics2.modeling_idefics2.Idefics2ForConditionalGeneration.__init__ with Idefics2->Idefics3
     def __init__(self, config):
         super().__init__(config)
-        self.model = Idefics3Model(config)
+        self.model = Idefics2Model(config)
         self.image_token_id = self.config.image_token_id
 
         self.lm_head = mint.nn.Linear(config.text_config.hidden_size, config.text_config.vocab_size, bias=False)
@@ -1039,24 +1445,21 @@ class Idefics3ForConditionalGeneration(Idefics3PreTrainedModel, GenerationMixin)
         # Initialize weights and apply final processing
         self.post_init()
 
-    # Copied from transformers.models.idefics2.modeling_idefics2.Idefics2ForConditionalGeneration.get_input_embeddings
     def get_input_embeddings(self):
         return self.model.text_model.get_input_embeddings()
 
-    # Copied from transformers.models.idefics2.modeling_idefics2.Idefics2ForConditionalGeneration.set_input_embeddings
     def set_input_embeddings(self, value):
         self.model.text_model.set_input_embeddings(value)
 
-    # Copied from transformers.models.idefics2.modeling_idefics2.Idefics2ForConditionalGeneration.get_output_embeddings
     def get_output_embeddings(self):
         return self.lm_head
 
-    # Copied from transformers.models.idefics2.modeling_idefics2.Idefics2ForConditionalGeneration.set_output_embeddings
     def set_output_embeddings(self, new_embeddings):
         self.lm_head = new_embeddings
 
-    @add_start_docstrings_to_model_forward(IDEFICS3_INPUTS_DOCSTRING)
-    @replace_return_docstrings(output_type=Idefics3CausalLMOutputWithPast, config_class=_CONFIG_FOR_DOC)
+    @deprecate_kwarg("num_logits_to_keep", version="4.50", new_name="logits_to_keep")
+    @add_start_docstrings_to_model_forward(IDEFICS2_INPUTS_DOCSTRING)
+    @replace_return_docstrings(output_type=Idefics2CausalLMOutputWithPast, config_class=_CONFIG_FOR_DOC)
     def construct(
         self,
         input_ids: ms.Tensor = None,
@@ -1071,14 +1474,14 @@ class Idefics3ForConditionalGeneration(Idefics3PreTrainedModel, GenerationMixin)
         use_cache: Optional[bool] = None,
         output_attentions: Optional[bool] = None,
         output_hidden_states: Optional[bool] = None,
-        cache_position: Optional[ms.Tensor] = None,
         return_dict: Optional[bool] = None,
+        cache_position: Optional[ms.Tensor] = None,
         logits_to_keep: Union[int, ms.Tensor] = 0,
-    ) -> Union[Tuple, Idefics3CausalLMOutputWithPast]:
+    ) -> Union[Tuple, Idefics2CausalLMOutputWithPast]:
         r"""
             labels (`ms.Tensor` of shape `(batch_size, sequence_length)`, *optional*):
                 Labels for computing the masked language modeling loss. Indices should either be in `[0, ...,
-                config.vocab_size]` or `model.image_token_id` (where `model` is your instance of `Idefics3ForConditionalGeneration`).
+                config.vocab_size]` or `model.image_token_id` (where `model` is your instance of `Idefics2ForConditionalGeneration`).
                 Tokens with indices set to `model.image_token_id` are ignored (masked), the loss is only
                 computed for the tokens with labels in `[0, ..., config.vocab_size]`.
 
@@ -1088,6 +1491,7 @@ class Idefics3ForConditionalGeneration(Idefics3PreTrainedModel, GenerationMixin)
                 token can save memory, which becomes pretty significant for long sequences or large vocabulary size.
                 If a `ms.Tensor`, must be 1D corresponding to the indices to keep in the sequence length dimension.
                 This is useful when using packed tensor format (single dimension for batch and sequence length).
+
         Returns:
 
         Example:
@@ -1107,49 +1511,33 @@ class Idefics3ForConditionalGeneration(Idefics3PreTrainedModel, GenerationMixin)
         >>> image2 = load_image("https://cdn.britannica.com/59/94459-050-DBA42467/Skyline-Chicago.jpg")
         >>> image3 = load_image("https://cdn.britannica.com/68/170868-050-8DDE8263/Golden-Gate-Bridge-San-Francisco.jpg")
 
-        >>> processor = AutoProcessor.from_pretrained("HuggingFaceM4/Idefics3-8B-Llama3")
-        >>> model = AutoModelForVision2Seq.from_pretrained("HuggingFaceM4/Idefics3-8B-Llama3", mindspore_dtype=ms.bfloat16)
+        >>> processor = AutoProcessor.from_pretrained("HuggingFaceM4/idefics2-8b-base")
+        >>> model = AutoModelForVision2Seq.from_pretrained("HuggingFaceM4/idefics2-8b-base")
+
+        >>> BAD_WORDS_IDS = processor.tokenizer(["<image>", "<fake_token_around_image>"], add_special_tokens=False).input_ids
+        >>> EOS_WORDS_IDS = [processor.tokenizer.eos_token_id]
 
         >>> # Create inputs
-        >>> messages = [
-        ...     {
-        ...         "role": "user",
-        ...         "content": [
-        ...             {"type": "image"},
-        ...             {"type": "text", "text": "In this image, we can see the city of New York, and more specifically the Statue of Liberty."},
-        ...             {"type": "image"},
-        ...             {"type": "text", "text": "What can we see in this image?"},
-        ...         ]
-        ...     },
-        ...     {
-        ...         "role": "user",
-        ...         "content": [
-        ...             {"type": "image"},
-        ...             {"type": "text", "text": "In which city is that bridge located?"},
-        ...         ]
-        ...     }
+        >>> prompts = [
+        ...   "<image>In this image, we can see the city of New York, and more specifically the Statue of Liberty.<image>In this image,",
+        ...   "In which city is that bridge located?<image>",
         ... ]
-
-        >>> prompts = [processor.apply_chat_template([message], add_generation_prompt=True) for message in messages]
         >>> images = [[image1, image2], [image3]]
-        >>> inputs = processor(text=prompts, images=images, padding=True, return_tensors="np")
+        >>> inputs = processor(images=images, text=prompts, padding=True, return_tensors="np")
         >>> for k, v in inputs.items():
         ...     inputs[k] = ms.tensor(v)
         ...     if inputs[k].dtype == ms.int64:
         ...         inputs[k] = inputs[k].to(ms.int32)
         ...     else:
         ...         inputs[k] = inputs[k].to(model.dtype)
-
         >>> # Generate
-        >>> generated_ids = model.generate(**inputs, max_new_tokens=256)
+        >>> generated_ids = model.generate(**inputs, bad_words_ids=BAD_WORDS_IDS, max_new_tokens=20)
         >>> generated_texts = processor.batch_decode(generated_ids, skip_special_tokens=True)
 
-        >>> print(generated_texts[0])
-        Assistant: There are buildings, trees, lights, and water visible in this image.
-
-        >>> print(generated_texts[1])
-        Assistant: The bridge is in San Francisco.
+        >>> print(generated_texts)
+        ['In this image, we can see the city of New York, and more specifically the Statue of Liberty. In this image, we can see the city of New York, and more specifically the Statue of Liberty.\n\n', 'In which city is that bridge located?\n\nThe bridge is located in the city of Pittsburgh, Pennsylvania.\n\n\nThe bridge is']
         ```"""
+
         output_attentions = output_attentions if output_attentions is not None else self.config.output_attentions
         output_hidden_states = (
             output_hidden_states if output_hidden_states is not None else self.config.output_hidden_states
@@ -1202,7 +1590,7 @@ class Idefics3ForConditionalGeneration(Idefics3PreTrainedModel, GenerationMixin)
             output = (logits,) + outputs[1:]
             return (loss,) + output if loss is not None else output
 
-        return Idefics3CausalLMOutputWithPast(
+        return Idefics2CausalLMOutputWithPast(
             loss=loss,
             logits=logits,
             past_key_values=outputs.past_key_values,
@@ -1211,7 +1599,6 @@ class Idefics3ForConditionalGeneration(Idefics3PreTrainedModel, GenerationMixin)
             image_hidden_states=outputs.image_hidden_states,
         )
 
-    # Copied from transformers.models.idefics2.modeling_idefics2.Idefics2ForConditionalGeneration.prepare_inputs_for_generation
     def prepare_inputs_for_generation(
         self,
         input_ids,
@@ -1252,7 +1639,6 @@ class Idefics3ForConditionalGeneration(Idefics3PreTrainedModel, GenerationMixin)
 
         return model_inputs
 
-    # Copied from transformers.models.idefics2.modeling_idefics2.Idefics2ForConditionalGeneration._update_model_kwargs_for_generation
     def _update_model_kwargs_for_generation(self, outputs, model_kwargs, is_encoder_decoder, **kwargs):
         model_kwargs = super()._update_model_kwargs_for_generation(
             outputs=outputs,
@@ -1264,5 +1650,15 @@ class Idefics3ForConditionalGeneration(Idefics3PreTrainedModel, GenerationMixin)
         model_kwargs["image_hidden_states"] = outputs.image_hidden_states
         return model_kwargs
 
+    @staticmethod
+    # Copied from transformers.models.opt.modeling_opt.OPTForCausalLM._reorder_cache
+    def _reorder_cache(past_key_values, beam_idx):
+        reordered_past = ()
+        for layer_past in past_key_values:
+            reordered_past += (
+                tuple(past_state.index_select(0, beam_idx) for past_state in layer_past),
+            )
+        return reordered_past
 
-__all__ = ["Idefics3ForConditionalGeneration", "Idefics3PreTrainedModel", "Idefics3Model", "Idefics3VisionTransformer"]
+
+__all__ = ["Idefics2ForConditionalGeneration", "Idefics2PreTrainedModel", "Idefics2Model"]

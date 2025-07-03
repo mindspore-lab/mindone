@@ -13,7 +13,7 @@ import inspect
 import numpy as np
 import pytest
 import torch
-from transformers import Idefics3Config, Idefics3VisionConfig, LlamaConfig
+from transformers import Idefics2Config, Idefics2VisionConfig, LlamaConfig
 
 import mindspore as ms
 
@@ -28,10 +28,10 @@ from tests.transformers_tests.models.modeling_common import ids_numpy
 
 DTYPE_AND_THRESHOLDS = {"fp32": 5e-2, "fp16": 5e-3, "bf16": 5e-2}
 # Since some operators not supported in CPU for fp16, all evaluation is under **ms.precision vs torch.float32**
-MODES = [1]  # Note that Idefics3VisionTransformer does not support Graph mode
+MODES = [1]
 
 
-class Idefics3ModelTester:
+class Idefics2ModelTester:
     def __init__(
         self,
         batch_size=1,
@@ -77,7 +77,7 @@ class Idefics3ModelTester:
         self.torch_dtype = torch_dtype
 
     def get_large_model_config(self):
-        return Idefics3Config.from_pretrained("HuggingFaceM4/Idefics3-8B-Llama3")
+        return Idefics2Config.from_pretrained("HuggingFaceM4/idefics2-8b")
 
     def prepare_config_and_inputs(self):
         input_ids = ids_numpy([self.batch_size, self.seq_length], self.vocab_size)
@@ -112,7 +112,7 @@ class Idefics3ModelTester:
             attn_implementation=self.attn_implementation,
             torch_dtype=self.torch_dtype,  # ??
         )
-        vision_config = Idefics3VisionConfig(
+        vision_config = Idefics2VisionConfig(
             hidden_size=self.hidden_size,
             intermediate_size=self.intermediate_size,
             num_hidden_layers=self.num_hidden_layers,
@@ -122,17 +122,37 @@ class Idefics3ModelTester:
             patch_size=32,
             attn_implementation=self.attn_implementation,
         )
-        config = Idefics3Config(
+        config = Idefics2Config(
             use_cache=self.use_cache,
             vision_config=vision_config,
             text_config=text_config,
+            vision_config=dict( # Idefics2VisionConfig
+                hidden_size=self.hidden_size,
+                intermediate_size=self.intermediate_size,
+                num_hidden_layers=self.num_hidden_layers,
+                num_attention_heads=self.num_attention_heads,
+                num_channels=3,
+                image_size=64,
+                patch_size=32,
+                attn_implementation=self.attn_implementation,
+            ),
+            perceiver_config=dict( # Idefics2PerceiverConfig
+                hidden_size=self.hidden_size,
+                num_key_value_heads=self.num_key_value_heads,
+                resampler_n_latents = self.resampler_n_latents,
+                resampler_depth = self.resampler_depth,
+                resampler_n_heads = self.resampler_n_heads,
+                resampler_head_dim = self.resampler_head_dim,
+                qk_layer_norms_perceiver = self.qk_layer_norms_perceiver,
+                attn_implementation=self.attn_implementation,
+            ),
             attn_implementation=self.attn_implementation,
         )
 
         return config
 
 
-model_tester = Idefics3ModelTester()
+model_tester = Idefics2ModelTester()
 (
     config,
     input_ids,
@@ -143,9 +163,9 @@ model_tester = Idefics3ModelTester()
 
 TEST_CASES = [
     [  # text Q&A
-        "Idefics3Model",
-        "transformers.Idefics3Model",
-        "mindone.transformers.Idefics3Model",
+        "Idefics2Model",
+        "transformers.Idefics2Model",
+        "mindone.transformers.Idefics2Model",
         (config,),
         {},
         (),
@@ -158,9 +178,9 @@ TEST_CASES = [
         },
     ],
     [  # VQA
-        "Idefics3Model",
-        "transformers.Idefics3Model",
-        "mindone.transformers.Idefics3Model",
+        "Idefics2Model",
+        "transformers.Idefics2Model",
+        "mindone.transformers.Idefics2Model",
         (config,),
         {},
         (),
@@ -171,7 +191,7 @@ TEST_CASES = [
         },
         {
             "last_hidden_state": 0,  # text_model, i.e., LlamaModel
-            "image_hidden_states": -1,  # vision_modal, i.e., Idefics3VisionTransformer
+            "image_hidden_states": -1,  # vision_modal, i.e., Idefics2VisionTransformer
         },
     ],
 ]

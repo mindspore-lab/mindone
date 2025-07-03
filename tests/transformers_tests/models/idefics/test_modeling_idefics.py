@@ -13,7 +13,7 @@ import inspect
 import numpy as np
 import pytest
 import torch
-from transformers import Idefics3Config, Idefics3VisionConfig, LlamaConfig
+from transformers import IdeficsConfig
 
 import mindspore as ms
 
@@ -28,10 +28,9 @@ from tests.transformers_tests.models.modeling_common import ids_numpy
 
 DTYPE_AND_THRESHOLDS = {"fp32": 5e-2, "fp16": 5e-3, "bf16": 5e-2}
 # Since some operators not supported in CPU for fp16, all evaluation is under **ms.precision vs torch.float32**
-MODES = [1]  # Note that Idefics3VisionTransformer does not support Graph mode
+MODES = [1]
 
-
-class Idefics3ModelTester:
+class IdeficsModelTester:
     def __init__(
         self,
         batch_size=1,
@@ -53,7 +52,16 @@ class Idefics3ModelTester:
         max_position_embeddings=512,
         use_sliding_window=False,
         attn_implementation="eager",
-        torch_dtype="bfloat16",
+        # torch_dtype="bfloat16",
+        use_resampler=True,
+        # vision config
+        embed_dim=128,
+        # perceiver config
+        resampler_n_latents=32,
+        resampler_depth=3,
+        resampler_n_heads=8,
+        resampler_head_dim=12,
+        qk_layer_norms_perceiver=True,
     ):
         self.batch_size = batch_size
         self.seq_length = seq_length
@@ -74,10 +82,18 @@ class Idefics3ModelTester:
         self.max_position_embeddings = max_position_embeddings
         self.use_sliding_window = use_sliding_window
         self.attn_implementation = attn_implementation
-        self.torch_dtype = torch_dtype
+        # self.torch_dtype = torch_dtype
+        self.use_resampler = use_resampler
+        self.embed_dim = embed_dim
+        # perceiver config
+        self.resampler_n_latents = resampler_n_latents
+        self.resampler_depth = resampler_depth
+        self.resampler_n_heads = resampler_n_heads
+        self.resampler_head_dim = resampler_head_dim
+        self.qk_layer_norms_perceiver = qk_layer_norms_perceiver
 
     def get_large_model_config(self):
-        return Idefics3Config.from_pretrained("HuggingFaceM4/Idefics3-8B-Llama3")
+        return IdeficsConfig.from_pretrained("HuggingFaceM4/idefics-9b-instruct")
 
     def prepare_config_and_inputs(self):
         input_ids = ids_numpy([self.batch_size, self.seq_length], self.vocab_size)
@@ -99,40 +115,49 @@ class Idefics3ModelTester:
         return (config, input_ids, attention_mask, pixel_values)
 
     def get_config(self):
-        text_config = LlamaConfig(
+        config = IdeficsConfig(
             vocab_size=self.vocab_size,
-            hidden_size=self.hidden_size,
-            num_hidden_layers=self.num_hidden_layers,
-            num_attention_heads=self.num_attention_heads,
-            num_key_value_heads=self.num_key_value_heads,
-            intermediate_size=self.intermediate_size,
-            hidden_act=self.hidden_act,
-            max_position_embeddings=self.max_position_embeddings,
-            use_cache=self.use_cache,
-            attn_implementation=self.attn_implementation,
-            torch_dtype=self.torch_dtype,  # ??
-        )
-        vision_config = Idefics3VisionConfig(
+            additional_vocab_size=2,
             hidden_size=self.hidden_size,
             intermediate_size=self.intermediate_size,
             num_hidden_layers=self.num_hidden_layers,
             num_attention_heads=self.num_attention_heads,
-            num_channels=3,
-            image_size=64,
-            patch_size=32,
-            attn_implementation=self.attn_implementation,
-        )
-        config = Idefics3Config(
             use_cache=self.use_cache,
-            vision_config=vision_config,
-            text_config=text_config,
+            pad_token_id=0,
+            bos_token_id=1,
+            eos_token_id=2,
+            tie_word_embeddings=False,
+            cross_layer_interval=1,
+            qk_layer_norms=False,
+            freeze_text_layers=True,
+            freeze_text_module_exceptions=[],
+            freeze_lm_head=False,
+            freeze_vision_layers=True,
+            freeze_vision_module_exceptions=[],
+            use_resampler=self.use_resampler,
+            vision_config=dict( # IdeficsVisionConfig
+                num_channels=3,
+                image_size=224,
+                patch_size=14,
+                embed_dim = self.embed_dim,
+                intermediate_size=self.intermediate_size,
+                num_hidden_layers=self.num_hidden_layers,
+                num_attention_heads=self.num_attention_heads,
+            ),
+            perceiver_config=dict( # IdeficsPerceiverConfig
+                resampler_n_latents = self.resampler_n_latents,
+                resampler_depth = self.resampler_depth,
+                resampler_n_heads = self.resampler_n_heads,
+                resampler_head_dim = self.resampler_head_dim,
+                qk_layer_norms_perceiver = self.qk_layer_norms_perceiver,
+            ),
             attn_implementation=self.attn_implementation,
         )
 
         return config
 
 
-model_tester = Idefics3ModelTester()
+model_tester = IdeficsModelTester()
 (
     config,
     input_ids,
@@ -143,9 +168,9 @@ model_tester = Idefics3ModelTester()
 
 TEST_CASES = [
     [  # text Q&A
-        "Idefics3Model",
-        "transformers.Idefics3Model",
-        "mindone.transformers.Idefics3Model",
+        "IdeficsModel",
+        "transformers.IdeficsModel",
+        "mindone.transformers.IdeficsModel",
         (config,),
         {},
         (),
@@ -158,9 +183,9 @@ TEST_CASES = [
         },
     ],
     [  # VQA
-        "Idefics3Model",
-        "transformers.Idefics3Model",
-        "mindone.transformers.Idefics3Model",
+        "IdeficsModel",
+        "transformers.IdeficsModel",
+        "mindone.transformers.IdeficsModel",
         (config,),
         {},
         (),
@@ -171,7 +196,7 @@ TEST_CASES = [
         },
         {
             "last_hidden_state": 0,  # text_model, i.e., LlamaModel
-            "image_hidden_states": -1,  # vision_modal, i.e., Idefics3VisionTransformer
+            "image_hidden_states": -1,  # vision_modal, i.e., IdeficsVisionTransformer
         },
     ],
 ]
