@@ -21,11 +21,12 @@ import logging
 import re
 from typing import List, Optional, Union
 
-from transformers.image_utils import ImageInput, VideoInput, make_batched_videos  # TODO?
 from transformers.processing_utils import ImagesKwargs, ProcessingKwargs, ProcessorMixin, Unpack, VideosKwargs  # TODO?
 from transformers.tokenization_utils_base import AudioInput, PreTokenizedInput, TextInput  # TODO?
 
 from mindspore import mint
+
+from mindone.transformers.image_utils import ImageInput, VideoInput, make_batched_videos  # TODO?
 
 from ...feature_extraction_utils import BatchFeature
 

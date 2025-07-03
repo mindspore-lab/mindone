@@ -860,7 +860,7 @@ def get_sigmas(noise_scheduler, timesteps, n_dim=4, dtype=ms.float32):
     sigmas = noise_scheduler.sigmas.to(dtype=dtype)
     schedule_timesteps = noise_scheduler.timesteps
 
-    step_indices = [(schedule_timesteps == t).nonzero()[0][0].item(0) for t in timesteps]
+    step_indices = [(schedule_timesteps == t).nonzero()[0][0].item() for t in timesteps]
 
     sigma = sigmas[step_indices].flatten()
     while len(sigma.shape) < n_dim:

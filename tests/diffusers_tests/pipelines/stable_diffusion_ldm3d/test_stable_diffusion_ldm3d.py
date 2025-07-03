@@ -24,7 +24,7 @@ from transformers import CLIPTextConfig
 import mindspore as ms
 
 from mindone.diffusers import StableDiffusionLDM3DPipeline
-from mindone.diffusers.utils.testing_utils import load_downloaded_numpy_from_hf_hub, slow
+from mindone.diffusers.utils.testing_utils import load_numpy_from_local_file, slow
 
 from ..pipeline_test_utils import (
     THRESHOLD_FP16,
@@ -199,8 +199,8 @@ class StableDiffusionPipelineNightlyTests(PipelineTesterMixin, unittest.TestCase
         output = pipe(prompt)
         rgb_image = output[0][0][0]
 
-        expected_rgb_image = load_downloaded_numpy_from_hf_hub(
-            "The-truth/mindone-testing-arrays",
+        expected_rgb_image = load_numpy_from_local_file(
+            "mindone-testing-arrays",
             f"ldm3d_rgb_{dtype}.npy",
             subfolder="stable_diffusion_ldm3d",
         )

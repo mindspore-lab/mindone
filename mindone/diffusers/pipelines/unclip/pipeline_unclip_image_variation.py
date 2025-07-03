@@ -30,6 +30,8 @@ from ...utils.mindspore_utils import randn_tensor
 from ..pipeline_utils import DiffusionPipeline, ImagePipelineOutput
 from .text_proj import UnCLIPTextProjModel
 
+XLA_AVAILABLE = False
+
 logger = logging.get_logger(__name__)  # pylint: disable=invalid-name
 
 
@@ -186,7 +188,7 @@ class UnCLIPImageVariationPipeline(DiffusionPipeline):
         if image_embeddings is None:
             if not isinstance(image, ms.Tensor):
                 image = self.feature_extractor(images=image, return_tensors="np").pixel_values
-                image = ms.Tensor(image)
+                image = ms.tensor(image)
 
             image = image.to(dtype=dtype)
             image_embeddings = self.image_encoder(image)[0]

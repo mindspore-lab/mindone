@@ -28,16 +28,18 @@ logger = logging.get_logger(__name__)  # pylint: disable=invalid-name
 
 class SparseControlNetOutput(SparseControlNetOutput):
     def __init__(self, *args, **kwargs):
-        deprecation_message = "Importing `SparseControlNetOutput` from `diffusers.models.controlnet_sparsectrl` is deprecated and this will be removed in a future version. Please use `from diffusers.models.controlnets.controlnet_sparsectrl import SparseControlNetOutput`, instead."  # noqa: E501
-        deprecate("diffusers.models.controlnet_sparsectrl.SparseControlNetOutput", "0.34", deprecation_message)
+        deprecation_message = "Importing `SparseControlNetOutput` from `mindone.diffusers.models.controlnet_sparsectrl` is deprecated and this will be removed in a future version. Please use `from mindone.diffusers.models.controlnets.controlnet_sparsectrl import SparseControlNetOutput`, instead."  # noqa: E501
+        deprecate("mindone.diffusers.models.controlnet_sparsectrl.SparseControlNetOutput", "0.34", deprecation_message)
         super().__init__(*args, **kwargs)
 
 
 class SparseControlNetConditioningEmbedding(SparseControlNetConditioningEmbedding):
     def __init__(self, *args, **kwargs):
-        deprecation_message = "Importing `SparseControlNetConditioningEmbedding` from `diffusers.models.controlnet_sparsectrl` is deprecated and this will be removed in a future version. Please use `from diffusers.models.controlnets.controlnet_sparsectrl import SparseControlNetConditioningEmbedding`, instead."  # noqa: E501
+        deprecation_message = "Importing `SparseControlNetConditioningEmbedding` from `mindone.diffusers.models.controlnet_sparsectrl` is deprecated and this will be removed in a future version. Please use `from mindone.diffusers.models.controlnets.controlnet_sparsectrl import SparseControlNetConditioningEmbedding`, instead."  # noqa: E501
         deprecate(
-            "diffusers.models.controlnet_sparsectrl.SparseControlNetConditioningEmbedding", "0.34", deprecation_message
+            "mindone.diffusers.models.controlnet_sparsectrl.SparseControlNetConditioningEmbedding",
+            "0.34",
+            deprecation_message,
         )
         super().__init__(*args, **kwargs)
 
@@ -80,8 +82,8 @@ class SparseControlNetModel(SparseControlNetModel):
         concat_conditioning_mask: bool = True,
         use_simplified_condition_embedding: bool = True,
     ):
-        deprecation_message = "Importing `SparseControlNetModel` from `diffusers.models.controlnet_sparsectrl` is deprecated and this will be removed in a future version. Please use `from diffusers.models.controlnets.controlnet_sparsectrl import SparseControlNetModel`, instead."  # noqa: E501
-        deprecate("diffusers.models.controlnet_sparsectrl.SparseControlNetModel", "0.34", deprecation_message)
+        deprecation_message = "Importing `SparseControlNetModel` from `mindone.diffusers.models.controlnet_sparsectrl` is deprecated and this will be removed in a future version. Please use `from mindone.diffusers.models.controlnets.controlnet_sparsectrl import SparseControlNetModel`, instead."  # noqa: E501
+        deprecate("mindone.diffusers.models.controlnet_sparsectrl.SparseControlNetModel", "0.34", deprecation_message)
         super().__init__(
             in_channels=in_channels,
             conditioning_channels=conditioning_channels,

@@ -178,7 +178,7 @@ class FluxPriorReduxPipeline(DiffusionPipeline):
         image = self.feature_extractor.preprocess(
             images=image, do_resize=True, return_tensors="np", do_convert_rgb=True
         ).pixel_values
-        image = ms.Tensor(image).to(dtype=dtype)
+        image = ms.tensor(image).to(dtype=dtype)
 
         # image_enc_hidden_states = self.image_encoder(**image).last_hidden_state
         image_enc_hidden_states = self.image_encoder(pixel_values=image)[0]

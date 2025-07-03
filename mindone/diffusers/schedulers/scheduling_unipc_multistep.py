@@ -264,7 +264,7 @@ class UniPCMultistepScheduler(SchedulerMixin, ConfigMixin):
         # setable values
         self.num_inference_steps = None
         timesteps = np.linspace(0, num_train_timesteps - 1, num_train_timesteps, dtype=np.float32)[::-1].copy()
-        self.timesteps = ms.Tensor(timesteps)
+        self.timesteps = ms.tensor(timesteps)
         self.model_outputs = [None] * solver_order
         self.timestep_list = [None] * solver_order
         self.lower_order_nums = 0
@@ -404,7 +404,7 @@ class UniPCMultistepScheduler(SchedulerMixin, ConfigMixin):
                 )
             sigmas = np.concatenate([sigmas, [sigma_last]]).astype(np.float32)
 
-        self.sigmas = ms.Tensor(sigmas)
+        self.sigmas = ms.tensor(sigmas)
         self.timesteps = ms.tensor(timesteps, dtype=ms.int64)
 
         self.num_inference_steps = len(timesteps)
@@ -717,7 +717,7 @@ class UniPCMultistepScheduler(SchedulerMixin, ConfigMixin):
             D1s.append((mi - m0) / rk)
 
         rks.append(1.0)
-        rks = ms.Tensor(rks)
+        rks = ms.tensor(rks)
 
         R = []
         b = []
@@ -742,7 +742,7 @@ class UniPCMultistepScheduler(SchedulerMixin, ConfigMixin):
             h_phi_k = h_phi_k / hh - 1 / factorial_i
 
         R = mint.stack(R)
-        b = ms.Tensor(b)
+        b = ms.tensor(b)
 
         if len(D1s) > 0:
             D1s = mint.stack(D1s, dim=1)  # (B, K)
@@ -750,7 +750,7 @@ class UniPCMultistepScheduler(SchedulerMixin, ConfigMixin):
             if order == 2:
                 rhos_p = ms.tensor([0.5], dtype=x.dtype)
             else:
-                rhos_p = ms.Tensor(np.linalg.solve(R[:-1, :-1].asnumpy(), b[:-1].asnumpy()), dtype=x.dtype)
+                rhos_p = ms.tensor(np.linalg.solve(R[:-1, :-1].asnumpy(), b[:-1].asnumpy()), dtype=x.dtype)
         else:
             D1s = None
 
@@ -851,7 +851,7 @@ class UniPCMultistepScheduler(SchedulerMixin, ConfigMixin):
             D1s.append((mi - m0) / rk)
 
         rks.append(1.0)
-        rks = ms.Tensor(rks)
+        rks = ms.tensor(rks)
 
         R = []
         b = []
@@ -876,7 +876,7 @@ class UniPCMultistepScheduler(SchedulerMixin, ConfigMixin):
             h_phi_k = h_phi_k / hh - 1 / factorial_i
 
         R = mint.stack(R)
-        b = ms.Tensor(b)
+        b = ms.tensor(b)
 
         if len(D1s) > 0:
             D1s = mint.stack(D1s, dim=1)
@@ -887,7 +887,7 @@ class UniPCMultistepScheduler(SchedulerMixin, ConfigMixin):
         if order == 1:
             rhos_c = ms.tensor([0.5], dtype=x.dtype)
         else:
-            rhos_c = ms.Tensor(np.linalg.solve(R.asnumpy(), b.asnumpy()), dtype=x.dtype)
+            rhos_c = ms.tensor(np.linalg.solve(R.asnumpy(), b.asnumpy()), dtype=x.dtype)
 
         if self.predict_x0:
             x_t_ = sigma_t / sigma_s0 * x - alpha_t * h_phi_1 * m0

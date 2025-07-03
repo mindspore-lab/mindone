@@ -219,7 +219,7 @@ class PNDMScheduler(SchedulerMixin, ConfigMixin):
             ].copy()  # we copy to avoid having negative strides which are not supported by torch.from_numpy
 
         timesteps = np.concatenate([self.prk_timesteps, self.plms_timesteps]).astype(np.int64)
-        self.timesteps = ms.Tensor(timesteps)
+        self.timesteps = ms.tensor(timesteps)
 
         self.ets = []
         self.counter = 0
@@ -293,7 +293,7 @@ class PNDMScheduler(SchedulerMixin, ConfigMixin):
 
         diff_to_prev = 0 if self.counter % 2 else self.config.num_train_timesteps // self.num_inference_steps // 2
         prev_timestep = timestep - diff_to_prev
-        timestep = ms.Tensor(self.prk_timesteps[self.counter // 4 * 4])
+        timestep = ms.tensor(self.prk_timesteps[self.counter // 4 * 4])
 
         if self.counter % 4 == 0:
             self.cur_model_output += 1 / 6 * model_output

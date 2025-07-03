@@ -18,7 +18,7 @@ The model can be loaded with the following code snippet.
 ```python
 from mindone.diffusers import CogVideoXTransformer3DModel
 
-vae = CogVideoXTransformer3DModel.from_pretrained("THUDM/CogVideoX-2b", subfolder="transformer", mindspore_dtype=mindspore.float16)
+transformer = CogVideoXTransformer3DModel.from_pretrained("THUDM/CogVideoX-2b", subfolder="transformer", mindspore_dtype=mindspore.float16)
 ```
 
 
