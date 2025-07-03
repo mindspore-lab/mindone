@@ -26,8 +26,9 @@ EXAMPLE_DOC_STRING = """
         ```py
         >>> import mindspore
         >>> import numpy as np
-        >>> from transformers import AutoTokenizer, LlamaForCausalLM
-        >>> from diffusers import HiDreamImagePipeline
+        >>> from transformers import AutoTokenizer
+        >>> form mindone.transformers import LlamaForCausalLM
+        >>> from mindone.diffusers import HiDreamImagePipeline
 
 
         >>> tokenizer_4 = AutoTokenizer.from_pretrained("meta-llama/Meta-Llama-3.1-8B-Instruct")
@@ -52,7 +53,7 @@ EXAMPLE_DOC_STRING = """
         ...     guidance_scale=5.0,
         ...     num_inference_steps=50,
         ...     generator=np.random.Generator(np.random.PCG64(42)),
-        ... ).images[0]
+        ... )[0][0]
         >>> image.save("output.png")
         ```
 """

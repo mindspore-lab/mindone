@@ -198,6 +198,7 @@ class HiDreamImagePipelineFastTests(PipelineTesterMixin, unittest.TestCase):
 
         pt_pipe.text_encoder_4.generation_config.pad_token_id = 1
         ms_pipe.text_encoder_4.generation_config.pad_token_id = 1
+        pt_pipe.transformer.eval()
 
         ms_dtype, pt_dtype = getattr(ms, dtype), getattr(torch, dtype)
         pt_pipe = pt_pipe.to(pt_dtype)
