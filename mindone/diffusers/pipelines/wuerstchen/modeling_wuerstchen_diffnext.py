@@ -23,7 +23,6 @@ from mindspore.common.initializer import Constant, Normal, XavierUniform, initia
 from ...configuration_utils import ConfigMixin, register_to_config
 from ...models.activations import sigmoid
 from ...models.modeling_utils import ModelMixin
-from ...models.normalization import LayerNorm
 from .modeling_wuerstchen_common import AttnBlock, GlobalResponseNorm, TimestepBlock, WuerstchenLayerNorm
 
 
@@ -60,7 +59,7 @@ class WuerstchenDiffNeXt(ModelMixin, ConfigMixin):
                 for inject in inject_effnet + list(reversed(inject_effnet))
             ]
         )
-        self.seq_norm = LayerNorm(c_cond, elementwise_affine=False, eps=1e-6)
+        self.seq_norm = mint.nn.LayerNorm(c_cond, elementwise_affine=False, eps=1e-6)
 
         self.embedding = nn.SequentialCell(
             # todo: unavailable mint interface

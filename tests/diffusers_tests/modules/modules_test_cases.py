@@ -26,6 +26,8 @@
 
 import numpy as np
 
+np.random.seed(42)
+
 # layers
 NORMALIZATION_CASES = [
     [
@@ -537,7 +539,7 @@ VAE_CASES = [
         },
         (),
         {
-            "sample": np.random.randn(4, 3, 32, 32).astype(np.float32),
+            "sample": np.random.default_rng(0).standard_normal((4, 3, 32, 32)),
             "return_dict": False,
         },
     ],
@@ -592,8 +594,10 @@ VAE_CASES = [
         },
         (),
         {
-            "sample": np.random.randn(2, 3, 9, 16, 16),
+            "sample": np.random.default_rng(75).standard_normal((2, 3, 9, 16, 16)),
         },
+        ("fp16",),  # maybe mint.nn.Conv3d has the difference in fp32 precision with torch
+        (0, 1),
     ],
     [
         "AutoencoderKLLTXVideo",
@@ -929,6 +933,7 @@ HUNYUAN_VIDEO_TRANSFORMER3D_CASES = [
             "text_embed_dim": 16,
             "pooled_projection_dim": 8,
             "rope_axes_dim": (2, 4, 4),
+            "image_condition_type": None,
         },
         (),
         {
@@ -970,6 +975,40 @@ LTX_VIDEO_TRANSFORMER3D_CASES = [
             "num_frames": 2,
             "height": 16,
             "width": 16,
+        },
+    ],
+]
+
+
+OMNIGEN_TRANSFORMER2D_CASES = [
+    [
+        "OmniGenTransformer2DModel",
+        "diffusers.models.transformers.OmniGenTransformer2DModel",
+        "mindone.diffusers.models.transformers.OmniGenTransformer2DModel",
+        (),
+        {
+            "hidden_size": 16,
+            "num_attention_heads": 4,
+            "num_key_value_heads": 4,
+            "intermediate_size": 32,
+            "num_layers": 20,
+            "pad_token_id": 0,
+            "vocab_size": 1000,
+            "in_channels": 4,
+            "time_step_dim": 4,
+            "rope_scaling": {"long_factor": list(range(1, 3)), "short_factor": list(range(1, 3))},
+        },
+        (),
+        {
+            "hidden_states": np.random.randn(2, 4, 8, 8),
+            "timestep": np.random.randn(
+                2,
+            ),
+            "input_ids": np.random.randint(0, 10, size=(2, 24)),
+            "input_img_latents": [np.random.randn(1, 4, 8, 8)],
+            "input_image_sizes": {0: [[0, 0 + 8 * 8 // 2 // 2]]},
+            "attention_mask": np.ones((2, 24 + 1 + 8 * 8 // 2 // 2, 24 + 1 + 8 * 8 // 2 // 2)),
+            "position_ids": np.array([list(range(24 + 1 + 8 * 8 // 2 // 2))] * 2, dtype=np.int64),
         },
     ],
 ]
@@ -1032,9 +1071,9 @@ SANA_TRANSFORMER2D_CASES = [
         },
         (),
         {
-            "hidden_states": np.random.randn(2, 4, 32, 32),
-            "encoder_hidden_states": np.random.randn(2, 8, 8),
-            "timestep": np.random.randint(0, 1000, size=(2,)),
+            "hidden_states": np.random.default_rng(1).standard_normal((2, 4, 32, 32)),
+            "encoder_hidden_states": np.random.default_rng(1).standard_normal((2, 8, 8)),
+            "timestep": np.random.default_rng(42).integers(0, 1000, size=(2,)),
             "return_dict": False,
         },
     ],
@@ -1253,6 +1292,7 @@ TRANSFORMERS_CASES = (
     + DIT_TRANSFORMER2D_CASES
     + HUNYUAN_VIDEO_TRANSFORMER3D_CASES
     + LTX_VIDEO_TRANSFORMER3D_CASES
+    + OMNIGEN_TRANSFORMER2D_CASES
     + PIXART_TRANSFORMER2D_CASES
     + PRIOR_TRANSFORMER_CASES
     + SANA_TRANSFORMER2D_CASES

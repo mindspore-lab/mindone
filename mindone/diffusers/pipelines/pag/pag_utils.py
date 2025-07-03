@@ -157,7 +157,7 @@ class PAGMixin:
         ),
     ):
         r"""
-        Set the the self-attention layers to apply PAG. Raise ValueError if the input is invalid.
+        Set the self-attention layers to apply PAG. Raise ValueError if the input is invalid.
 
         Args:
             pag_applied_layers (`str` or `List[str]`):

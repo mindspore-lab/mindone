@@ -437,7 +437,7 @@ class EulerDiscreteScheduler(SchedulerMixin, ConfigMixin):
 
             sigmas = np.concatenate([sigmas, [sigma_last]]).astype(np.float32)
 
-        sigmas = ms.Tensor(sigmas).to(dtype=ms.float32)
+        sigmas = ms.tensor(sigmas).to(dtype=ms.float32)
 
         # TODO: Support the full EDM scalings for all prediction types and timestep types
         if self.config.timestep_type == "continuous" and self.config.prediction_type == "v_prediction":

@@ -19,10 +19,8 @@ from mindspore import mint, nn, ops
 
 from ...configuration_utils import ConfigMixin, register_to_config
 from ...utils import BaseOutput
-from ..activations import get_activation
 from ..embeddings import GaussianFourierProjection, TimestepEmbedding, Timesteps
 from ..modeling_utils import ModelMixin
-from ..normalization import GroupNorm
 from .unet_2d_blocks import UNetMidBlock2D, get_down_block, get_up_block
 
 
@@ -60,7 +58,7 @@ class UNet2DModel(ModelMixin, ConfigMixin):
         down_block_types (`Tuple[str]`, *optional*, defaults to `("DownBlock2D", "AttnDownBlock2D", "AttnDownBlock2D", "AttnDownBlock2D")`):
             Tuple of downsample block types.
         mid_block_type (`str`, *optional*, defaults to `"UNetMidBlock2D"`):
-            Block type for middle of UNet, it can be either `UNetMidBlock2D` or `UnCLIPUNetMidBlock2D`.
+            Block type for middle of UNet, it can be either `UNetMidBlock2D` or `None`.
         up_block_types (`Tuple[str]`, *optional*, defaults to `("AttnUpBlock2D", "AttnUpBlock2D", "AttnUpBlock2D", "UpBlock2D")`):
             Tuple of upsample block types.
         block_out_channels (`Tuple[int]`, *optional*, defaults to `(224, 448, 672, 896)`):
@@ -91,6 +89,9 @@ class UNet2DModel(ModelMixin, ConfigMixin):
             conditioning with `class_embed_type` equal to `None`.
     """
 
+    _supports_gradient_checkpointing = True
+    _skip_layerwise_casting_patterns = ["norm"]
+
     @register_to_config
     def __init__(
         self,
@@ -103,6 +104,7 @@ class UNet2DModel(ModelMixin, ConfigMixin):
         freq_shift: int = 0,
         flip_sin_to_cos: bool = True,
         down_block_types: Tuple[str, ...] = ("DownBlock2D", "AttnDownBlock2D", "AttnDownBlock2D", "AttnDownBlock2D"),
+        mid_block_type: Optional[str] = "UNetMidBlock2D",
         up_block_types: Tuple[str, ...] = ("AttnUpBlock2D", "AttnUpBlock2D", "AttnUpBlock2D", "UpBlock2D"),
         block_out_channels: Tuple[int, ...] = (224, 448, 672, 896),
         layers_per_block: int = 2,
@@ -160,9 +162,11 @@ class UNet2DModel(ModelMixin, ConfigMixin):
         elif class_embed_type == "timestep":
             self.class_embedding = TimestepEmbedding(timestep_input_dim, time_embed_dim)
         elif class_embed_type == "identity":
-            self.class_embedding = mint.nn.Identity()
+            self.class_embedding = mint.nn.Identity(time_embed_dim, time_embed_dim)
         else:
             self.class_embedding = None
+
+        self.mid_block = None
 
         # down
         down_blocks = []
@@ -192,19 +196,22 @@ class UNet2DModel(ModelMixin, ConfigMixin):
         self.down_blocks = nn.CellList(down_blocks)
 
         # mid
-        self.mid_block = UNetMidBlock2D(
-            in_channels=block_out_channels[-1],
-            temb_channels=time_embed_dim,
-            dropout=dropout,
-            resnet_eps=norm_eps,
-            resnet_act_fn=act_fn,
-            output_scale_factor=mid_block_scale_factor,
-            resnet_time_scale_shift=resnet_time_scale_shift,
-            attention_head_dim=attention_head_dim if attention_head_dim is not None else block_out_channels[-1],
-            resnet_groups=norm_num_groups,
-            attn_groups=attn_norm_num_groups,
-            add_attention=add_attention,
-        )
+        if mid_block_type is None:
+            self.mid_block = None
+        else:
+            self.mid_block = UNetMidBlock2D(
+                in_channels=block_out_channels[-1],
+                temb_channels=time_embed_dim,
+                dropout=dropout,
+                resnet_eps=norm_eps,
+                resnet_act_fn=act_fn,
+                output_scale_factor=mid_block_scale_factor,
+                resnet_time_scale_shift=resnet_time_scale_shift,
+                attention_head_dim=attention_head_dim if attention_head_dim is not None else block_out_channels[-1],
+                resnet_groups=norm_num_groups,
+                attn_groups=attn_norm_num_groups,
+                add_attention=add_attention,
+            )
 
         # up
         up_blocks = []
@@ -235,23 +242,20 @@ class UNet2DModel(ModelMixin, ConfigMixin):
                 dropout=dropout,
             )
             up_blocks.append(up_block)
-            prev_output_channel = output_channel
             layers_per_resnet_in_up_blocks.append(len(up_block.resnets))
         self.up_blocks = nn.CellList(up_blocks)
         self.layers_per_resnet_in_up_blocks = layers_per_resnet_in_up_blocks
 
         # out
         num_groups_out = norm_num_groups if norm_num_groups is not None else min(block_out_channels[0] // 4, 32)
-        self.conv_norm_out = GroupNorm(num_channels=block_out_channels[0], num_groups=num_groups_out, eps=norm_eps)
-        self.conv_act = get_activation(act_fn)()
+        self.conv_norm_out = mint.nn.GroupNorm(
+            num_channels=block_out_channels[0], num_groups=num_groups_out, eps=norm_eps
+        )
+        self.conv_act = mint.nn.SiLU()
         self.conv_out = mint.nn.Conv2d(block_out_channels[0], out_channels, kernel_size=3, padding=1)
 
         self.center_input_sample = self.config.center_input_sample
         self.class_embed_type = self.config.class_embed_type
-
-    def _set_gradient_checkpointing(self, module, value=False):
-        if hasattr(module, "gradient_checkpointing"):
-            module.gradient_checkpointing = value
 
     def construct(
         self,
@@ -285,7 +289,7 @@ class UNet2DModel(ModelMixin, ConfigMixin):
         timesteps = timestep
         # todo: unavailable mint interface
         if not ops.is_tensor(timesteps):
-            timesteps = ms.Tensor([timesteps], dtype=ms.int64)
+            timesteps = ms.tensor([timesteps], dtype=ms.int64)
         # todo: unavailable mint interface
         elif ops.is_tensor(timesteps) and len(timesteps.shape) == 0:
             timesteps = timesteps[None]
@@ -335,7 +339,8 @@ class UNet2DModel(ModelMixin, ConfigMixin):
             down_block_res_samples += res_samples
 
         # 4. mid
-        sample = self.mid_block(sample, emb)
+        if self.mid_block is not None:
+            sample = self.mid_block(sample, emb)
 
         # 5. up
         skip_sample = None

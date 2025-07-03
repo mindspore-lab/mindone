@@ -21,7 +21,7 @@ from ddt import data, ddt, unpack
 
 import mindspore as ms
 
-from mindone.diffusers.utils.testing_utils import load_downloaded_numpy_from_hf_hub, slow
+from mindone.diffusers.utils.testing_utils import load_numpy_from_local_file, slow
 
 from ..pipeline_test_utils import (
     THRESHOLD_FP16,
@@ -190,8 +190,8 @@ class Kandinsky3PipelineIntegrationTests(PipelineTesterMixin, unittest.TestCase)
         torch.manual_seed(0)
         image = pipe(prompt, height=512, width=512, num_inference_steps=5)[0][0]
 
-        expected_image = load_downloaded_numpy_from_hf_hub(
-            "The-truth/mindone-testing-arrays",
+        expected_image = load_numpy_from_local_file(
+            "mindone-testing-arrays",
             f"t2i_{dtype}.npy",
             subfolder="kandinsky3",
         )
