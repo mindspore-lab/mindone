@@ -7,7 +7,7 @@ name = "mindone"
 dynamic = ["version"]
 description = "ONE for all, Optimal generator with No Exception."
 readme = "README.md"
-requires-python = ">=3.8"
+requires-python = ">=3.9"
 license = "Apache-2.0"
 authors = [
   { name = "MindSpore Lab", email = "mindspore-lab@example.com" },
