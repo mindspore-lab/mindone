@@ -21,7 +21,6 @@ from mindspore import mint, nn
 from ...configuration_utils import ConfigMixin, register_to_config
 from ...models.autoencoders.vae import DecoderOutput, VectorQuantizer
 from ...models.modeling_utils import ModelMixin
-from ...models.normalization import LayerNorm
 from ...models.vq_model import VQEncoderOutput
 
 
@@ -33,14 +32,14 @@ class MixingResidualBlock(nn.Cell):
     def __init__(self, inp_channels, embed_dim):
         super().__init__()
         # depthwise
-        self.norm1 = LayerNorm(inp_channels, elementwise_affine=False, eps=1e-6)
+        self.norm1 = mint.nn.LayerNorm(inp_channels, elementwise_affine=False, eps=1e-6)
         self.depthwise = nn.SequentialCell(
             mint.nn.Identity(),
             mint.nn.Conv2d(inp_channels, inp_channels, kernel_size=3, groups=inp_channels),
         )
 
         # channelwise
-        self.norm2 = LayerNorm(inp_channels, elementwise_affine=False, eps=1e-6)
+        self.norm2 = mint.nn.LayerNorm(inp_channels, elementwise_affine=False, eps=1e-6)
         self.channelwise = nn.SequentialCell(
             mint.nn.Linear(inp_channels, embed_dim), mint.nn.GELU(), mint.nn.Linear(embed_dim, inp_channels)
         )

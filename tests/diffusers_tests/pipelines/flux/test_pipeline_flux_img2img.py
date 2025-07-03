@@ -8,11 +8,7 @@ from transformers import CLIPTextConfig
 
 import mindspore as ms
 
-from mindone.diffusers.utils.testing_utils import (
-    load_downloaded_image_from_hf_hub,
-    load_downloaded_numpy_from_hf_hub,
-    slow,
-)
+from mindone.diffusers.utils.testing_utils import load_downloaded_image_from_hf_hub, load_numpy_from_local_file, slow
 
 from ..pipeline_test_utils import (
     THRESHOLD_FP16,
@@ -213,8 +209,8 @@ class FluxImg2ImgPipelineIntegrationTests(PipelineTesterMixin, unittest.TestCase
         torch.manual_seed(0)
         image = pipe(prompt=prompt, image=init_image, num_inference_steps=4, strength=0.95, guidance_scale=0.0)[0][0]
 
-        expected_image = load_downloaded_numpy_from_hf_hub(
-            "The-truth/mindone-testing-arrays",
+        expected_image = load_numpy_from_local_file(
+            "mindone-testing-arrays",
             f"flux_img2img_{dtype}.npy",
             subfolder="flux",
         )

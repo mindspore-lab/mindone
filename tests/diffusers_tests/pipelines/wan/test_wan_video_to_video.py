@@ -23,11 +23,7 @@ from PIL import Image
 import mindspore as ms
 
 from mindone.diffusers import AutoencoderKLWan, UniPCMultistepScheduler, WanVideoToVideoPipeline
-from mindone.diffusers.utils.testing_utils import (
-    load_downloaded_numpy_from_hf_hub,
-    load_downloaded_video_from_hf_hub,
-    slow,
-)
+from mindone.diffusers.utils.testing_utils import load_downloaded_video_from_hf_hub, load_numpy_from_local_file, slow
 
 from ..pipeline_test_utils import (
     THRESHOLD_FP16,
@@ -208,8 +204,8 @@ class WanVideoToVideoPipelineIntegrationTests(PipelineTesterMixin, unittest.Test
         )[0][0][1]
         image = Image.fromarray((image * 255).astype("uint8"))
 
-        expected_image = load_downloaded_numpy_from_hf_hub(
-            "The-truth/mindone-testing-arrays",
+        expected_image = load_numpy_from_local_file(
+            "mindone-testing-arrays",
             f"wan_v2v_{dtype}.npy",
             subfolder="wan",
         )

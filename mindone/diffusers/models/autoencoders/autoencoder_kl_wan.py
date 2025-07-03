@@ -231,7 +231,7 @@ class WanResidualBlock(nn.Cell):
         super().__init__()
         self.in_dim = in_dim
         self.out_dim = out_dim
-        self.nonlinearity = get_activation(non_linearity)()
+        self.nonlinearity = get_activation(non_linearity)
 
         # layers
         self.norm1 = WanRMS_norm(in_dim, images=False)
@@ -403,7 +403,7 @@ class WanEncoder3d(nn.Cell):
         self.num_res_blocks = num_res_blocks
         self.attn_scales = attn_scales
         self.temperal_downsample = temperal_downsample
-        self.nonlinearity = get_activation(non_linearity)()
+        self.nonlinearity = get_activation(non_linearity)
 
         # dimensions
         dims = [dim * u for u in [1] + dim_mult]
@@ -580,7 +580,7 @@ class WanDecoder3d(nn.Cell):
         self.attn_scales = attn_scales
         self.temperal_upsample = temperal_upsample
 
-        self.nonlinearity = get_activation(non_linearity)()
+        self.nonlinearity = get_activation(non_linearity)
 
         # dimensions
         dims = [dim * u for u in [dim_mult[-1]] + dim_mult[::-1]]

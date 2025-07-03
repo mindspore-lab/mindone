@@ -532,10 +532,6 @@ class SparseControlNetModel(ModelMixin, ConfigMixin, FromOriginalModelMixin):
 
         self.set_attn_processor(processor)
 
-    def _set_gradient_checkpointing(self, module, value: bool = False) -> None:
-        if isinstance(module, (CrossAttnDownBlockMotion, DownBlockMotion, UNetMidBlock2DCrossAttn)):
-            module.gradient_checkpointing = value
-
     def construct(
         self,
         sample: ms.Tensor,
@@ -612,10 +608,10 @@ class SparseControlNetModel(ModelMixin, ConfigMixin, FromOriginalModelMixin):
         # todo: unavailable mint interface
         if not ops.is_tensor(timesteps):
             if isinstance(timestep, float):
-                dtype = ms.float64
+                dtype = ms.float32
             else:
-                dtype = ms.int64
-            timesteps = ms.Tensor([timesteps], dtype=dtype)
+                dtype = ms.int32
+            timesteps = ms.tensor([timesteps], dtype=dtype)
         elif len(timesteps.shape) == 0:
             timesteps = timesteps[None]
 
@@ -630,7 +626,7 @@ class SparseControlNetModel(ModelMixin, ConfigMixin, FromOriginalModelMixin):
         t_emb = t_emb.to(dtype=sample.dtype)
 
         emb = self.time_embedding(t_emb, timestep_cond)
-        emb = emb.repeat_interleave(sample_num_frames, dim=0)
+        emb = emb.repeat_interleave(sample_num_frames, dim=0, output_size=emb.shape[0] * sample_num_frames)
 
         # 2. pre-process
         batch_size, channels, num_frames, height, width = sample.shape
