@@ -55,6 +55,7 @@ MODEL_MAPPING_NAMES = OrderedDict(
         ("gemma3_text", "Gemma3TextModel"),
         ("qwen2_audio_encoder", "Qwen2AudioEncoder"),
         ("siglip", "SiglipModel"),
+        ("grounding-dino", "GroundingDinoModel"),
         ("hiera", "HieraModel"),
         ("idefics", "IdeficsModel"),
         ("idefics2", "Idefics2Model"),
@@ -465,6 +466,7 @@ MODEL_FOR_ZERO_SHOT_IMAGE_CLASSIFICATION_MAPPING_NAMES = OrderedDict(
 MODEL_FOR_BACKBONE_MAPPING_NAMES = OrderedDict(
     [
         ("hiera", "HieraBackbone"),
+        ("swin", "SwinBackbone"),
     ]
 )
 
