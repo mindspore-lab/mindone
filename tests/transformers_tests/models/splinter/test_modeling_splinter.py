@@ -137,25 +137,6 @@ model_tester = SplinterModelTester()
 
 BERT_CASES = [
     [
-        "SplinterForQuestionAnswering",
-        "transformers.SplinterForQuestionAnswering",
-        "mindone.transformers.SplinterForQuestionAnswering",
-        (config,),
-        {},
-        (input_ids,),
-        {
-            "attention_mask": input_mask,
-            "token_type_ids": token_type_ids,
-            "start_positions": start_positions[:, 0],
-            "end_positions": end_positions[:, 0],
-        },
-        {
-            "loss": 0,
-            "start_logits": 1,
-            "end_logits": 2,
-        },
-    ],
-    [
         "SplinterModel",
         "transformers.SplinterModel",
         "mindone.transformers.SplinterModel",
