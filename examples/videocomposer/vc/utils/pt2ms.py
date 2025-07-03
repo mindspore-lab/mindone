@@ -77,10 +77,11 @@ def auto_map(model, param_dict, verbose=True):
 def load_pt_weights_in_model(model, checkpoint_file_pt, state_dict_refiners=None):
     checkpoint_file_ms = f"{os.path.splitext(checkpoint_file_pt)[0]}.ckpt"
     if not os.path.exists(checkpoint_file_ms):  # try to load weights from intermediary numpy file.
-        checkpoint_file_np = f"{os.path.splitext(checkpoint_file_pt)[0]}.npy"
+        checkpoint_file_np = f"{os.path.splitext(checkpoint_file_pt)[0]}.npz"
         if not os.path.exists(checkpoint_file_np):
             raise FileNotFoundError(f"You need to manually convert {checkpoint_file_pt} to {checkpoint_file_np}")
-        sd_original = np.load(checkpoint_file_np, allow_pickle=True).item()
+        with np.load(checkpoint_file_np) as data:
+            sd_original = {key: data[key] for key in data.files}
         # refine state dict of pytorch
         sd_refined = sd_original
         if state_dict_refiners:
@@ -125,7 +126,7 @@ if __name__ == "__main__":
             state_dict = state_dict["state_dict"]
         print(state_dict.keys())
         state_dict_np = {k: v.numpy() for k, v in state_dict.items()}
-        np.save(f"{os.path.splitext(pytorch_model_path)[0]}.npy", state_dict_np)
+        np.savez(f"{os.path.splitext(pytorch_model_path)[0]}.npz", **state_dict_np)
 
     print("[WARNING] Backing up original pytorch file to avoid potential filename conflict.")
     for src_path in pytorch_model_paths:

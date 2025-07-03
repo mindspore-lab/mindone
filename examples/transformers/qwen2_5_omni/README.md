@@ -29,7 +29,7 @@ The speakers checkpoint need to be converted before use:
 ```python
 python mindone\transformers\models\qwen2_5_omni\convert_spk_dict_pt2np.py \
     --spk_path "Qwen/Qwen2.5-Omni-7B/spk_dict.pt" \
-    --np_spk_path"Qwen/Qwen2.5-Omni-7B/spk_dict.npy"
+    --zip_spk_path"Qwen/Qwen2.5-Omni-7B/spk_dict.zip"
 ```
 ### Usage Examples
 
