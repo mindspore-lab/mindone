@@ -1,0 +1,11 @@
+transformers==4.46.0
+webdataset
+omegaconf
+pyarrow
+pandas
+jaxtyping
+typeguard
+datasets
+image-reward
+gradio>=4.44.1
+huggingface_hub[cli]
