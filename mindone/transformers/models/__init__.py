@@ -1,5 +1,6 @@
 from . import (  # qwen3,
     albert,
+    aria,
     auto,
     bart,
     bert,
