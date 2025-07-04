@@ -401,8 +401,8 @@ class BaseImageProcessorFast(BaseImageProcessor):
         Returns:
             `torch.Tensor`: The normalized image.
         """
-        mean = [float(mean[0]), float(mean[1]), float(mean(2))]
-        std = [float(std[0]), float(std[1]), float(std(2))]
+        mean = [float(mean[0]), float(mean[1]), float(mean[2])]
+        std = [float(std[0]), float(std[1]), float(std[2])]
         image = image.squeeze(0).permute(1, 2, 0).asnumpy()
         normalize = vision.Normalize(
             mean=mean,
