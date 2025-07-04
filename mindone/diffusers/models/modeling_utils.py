@@ -1180,12 +1180,13 @@ class ModelMixin(nn.Cell, PushToHubMixin):
                 state_dict[f"{path}.to_out.0.weight"] = state_dict.pop(f"{path}.proj_attn.weight")
             if f"{path}.proj_attn.bias" in state_dict:
                 state_dict[f"{path}.to_out.0.bias"] = state_dict.pop(f"{path}.proj_attn.bias")
-        return state_dict
 
         # TODO : MindSpore 2.6 share weight bug. Unable to load WTE and LM-Head layer weights properly. It will be
         #  deleted until fixed load_state_dict_into_model and parameters_and_names。
         if hasattr(self, "wte_lm_share") and self.wte_lm_share:
-            self.text_decoder.transformer.transformer.wte.embedding_table = self.text_decoder.transformer.lm_head.weight
+            state_dict["transformer.transformer.wte.embedding_table"] = state_dict["transformer.lm_head.weight"]
+
+        return state_dict
 
     def get_submodule(self, target: str) -> nn.Cell:
         """Return the submodule given by ``target`` if it exists, otherwise throw an error.
