@@ -90,6 +90,12 @@ from .models.clap import (
     ClapTextModel,
     ClapTextModelWithProjection,
 )
+from .models.instructblip import (
+    InstructBlipQFormerModel,
+    InstructBlipPreTrainedModel,
+    InstructBlipForConditionalGeneration,
+    InstructBlipVisionModel,
+)
 from .models.clip import (
     CLIP_PRETRAINED_MODEL_ARCHIVE_LIST,
     CLIPModel,
