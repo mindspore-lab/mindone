@@ -21,6 +21,10 @@ _MIN_FP16 = ms.tensor(np.finfo(np.float16).min, dtype=ms.float16)
 _MIN_FP32 = ms.tensor(np.finfo(np.float32).min, dtype=ms.float32)
 _MIN_FP64 = ms.tensor(np.finfo(np.float64).min, dtype=ms.float64)
 _MIN_BF16 = ms.tensor(float.fromhex("-0x1.fe00000000000p+127"), dtype=ms.bfloat16)
+_MAX_FP16 = ms.tensor(np.finfo(np.float16).max, dtype=ms.float16)
+_MAX_FP32 = ms.tensor(np.finfo(np.float32).max, dtype=ms.float32)
+_MAX_FP64 = ms.tensor(np.finfo(np.float64).max, dtype=ms.float64)
+_MAX_BF16 = ms.tensor(float.fromhex("0x1.fe00000000000p+127"), dtype=ms.bfloat16)
 
 
 _DTYPE_2_MIN = {
@@ -28,6 +32,12 @@ _DTYPE_2_MIN = {
     ms.float32: _MIN_FP32,
     ms.float64: _MIN_FP64,
     ms.bfloat16: _MIN_BF16,
+}
+_DTYPE_2_MAX = {
+    ms.float16: _MAX_FP16,
+    ms.float32: _MAX_FP32,
+    ms.float64: _MAX_FP64,
+    ms.bfloat16: _MAX_BF16,
 }
 
 
