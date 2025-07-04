@@ -23,11 +23,7 @@ from PIL import Image
 
 import mindspore as ms
 
-from mindone.diffusers.utils.testing_utils import (
-    load_downloaded_image_from_hf_hub,
-    load_downloaded_numpy_from_hf_hub,
-    slow,
-)
+from mindone.diffusers.utils.testing_utils import load_downloaded_image_from_hf_hub, load_numpy_from_local_file, slow
 
 from ..pipeline_test_utils import (
     THRESHOLD_FP16,
@@ -251,8 +247,8 @@ class KandinskyV22InpaintPipelineIntegrationTests(PipelineTesterMixin, unittest.
             width=768,
         )[0][0]
 
-        expected_image = load_downloaded_numpy_from_hf_hub(
-            "The-truth/mindone-testing-arrays",
+        expected_image = load_numpy_from_local_file(
+            "mindone-testing-arrays",
             f"kandinsky_inpaint_{dtype}.npy",
             subfolder="kandinsky2_2",
         )

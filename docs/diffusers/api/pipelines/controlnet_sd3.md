@@ -12,6 +12,10 @@ specific language governing permissions and limitations under the License.
 
 # ControlNet with Stable Diffusion 3
 
+<div class="flex flex-wrap space-x-1">
+  <img alt="LoRA" src="https://img.shields.io/badge/LoRA-d8b4fe?style=flat"/>
+</div>
+
 StableDiffusion3ControlNetPipeline is an implementation of ControlNet for Stable Diffusion 3.
 
 ControlNet was introduced in [Adding Conditional Control to Text-to-Image Diffusion Models](https://huggingface.co/papers/2302.05543) by Lvmin Zhang, Anyi Rao, and Maneesh Agrawala.
@@ -35,7 +39,7 @@ This controlnet code is mainly implemented by [The InstantX Team](https://huggin
 
 !!! tip
 
-    Make sure to check out the Schedulers [guide](../../using-diffusers/schedulers.md) to learn how to explore the tradeoff between scheduler speed and quality, and see the [reuse components across pipelines](../../using-diffusers/loading.md#reuse-components-across-pipelines) section to learn how to efficiently load the same components into multiple pipelines.
+    Make sure to check out the Schedulers [guide](../../using-diffusers/schedulers.md) to learn how to explore the tradeoff between scheduler speed and quality, and see the [reuse components across pipelines](../../using-diffusers/loading.md#reuse-a-pipeline) section to learn how to efficiently load the same components into multiple pipelines.
 
 
 ::: mindone.diffusers.StableDiffusion3ControlNetPipeline

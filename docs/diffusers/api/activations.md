@@ -14,14 +14,14 @@ specific language governing permissions and limitations under the License.
 
 Customized activation functions for supporting various models in 🤗 Diffusers.
 
-::: mindone.diffusers.models.activations.sigmoid
-
-::: mindone.diffusers.models.activations.SiLU
-
-::: mindone.diffusers.models.activations.FP32SiLU
-
 ::: mindone.diffusers.models.activations.GELU
 
 ::: mindone.diffusers.models.activations.GEGLU
 
 ::: mindone.diffusers.models.activations.ApproximateGELU
+
+::: mindone.diffusers.models.activations.SwiGLU
+
+::: mindone.diffusers.models.activations.FP32SiLU
+
+::: mindone.diffusers.models.activations.LinearActivation

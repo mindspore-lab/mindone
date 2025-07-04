@@ -25,7 +25,6 @@ from ...utils import BaseOutput
 from ...utils.mindspore_utils import randn_tensor
 from ..activations import get_activation
 from ..attention_processor import SpatialNorm
-from ..normalization import GroupNorm
 from ..unets.unet_2d_blocks import AutoencoderTinyBlock, UNetMidBlock2D, get_down_block, get_up_block
 
 
@@ -140,24 +139,15 @@ class Encoder(nn.Cell):
         )
 
         # out
-        self.conv_norm_out = GroupNorm(num_channels=block_out_channels[-1], num_groups=norm_num_groups, eps=1e-6)
+        self.conv_norm_out = mint.nn.GroupNorm(
+            num_channels=block_out_channels[-1], num_groups=norm_num_groups, eps=1e-6
+        )
         self.conv_act = mint.nn.SiLU()
 
         conv_out_channels = 2 * out_channels if double_z else out_channels
         self.conv_out = mint.nn.Conv2d(block_out_channels[-1], conv_out_channels, 3, padding=1)
 
-        self._gradient_checkpointing = False
-
-    @property
-    def gradient_checkpointing(self):
-        return self._gradient_checkpointing
-
-    @gradient_checkpointing.setter
-    def gradient_checkpointing(self, value=False):
-        self._gradient_checkpointing = value
-        for down_block in self.down_blocks:
-            down_block._recompute(value)
-        self.mid_block._recompute(value)
+        self.gradient_checkpointing = False
 
     def construct(self, sample: ms.Tensor) -> ms.Tensor:
         r"""The forward method of the `Encoder` class."""
@@ -272,22 +262,13 @@ class Decoder(nn.Cell):
         if norm_type == "spatial":
             self.conv_norm_out = SpatialNorm(block_out_channels[0], temb_channels)
         else:
-            self.conv_norm_out = GroupNorm(num_channels=block_out_channels[0], num_groups=norm_num_groups, eps=1e-6)
+            self.conv_norm_out = mint.nn.GroupNorm(
+                num_channels=block_out_channels[0], num_groups=norm_num_groups, eps=1e-6
+            )
         self.conv_act = mint.nn.SiLU()
         self.conv_out = mint.nn.Conv2d(block_out_channels[0], out_channels, 3, padding=1)
 
-        self._gradient_checkpointing = False
-
-    @property
-    def gradient_checkpointing(self):
-        return self._gradient_checkpointing
-
-    @gradient_checkpointing.setter
-    def gradient_checkpointing(self, value=False):
-        self._gradient_checkpointing = value
-        self.mid_block._recompute(value)
-        for up_block in self.up_blocks:
-            up_block._recompute(value)
+        self.gradient_checkpointing = False
 
     def construct(
         self,
@@ -498,7 +479,9 @@ class MaskConditionDecoder(nn.Cell):
         if norm_type == "spatial":
             self.conv_norm_out = SpatialNorm(block_out_channels[0], temb_channels)
         else:
-            self.conv_norm_out = GroupNorm(num_channels=block_out_channels[0], num_groups=norm_num_groups, eps=1e-6)
+            self.conv_norm_out = mint.nn.GroupNorm(
+                num_channels=block_out_channels[0], num_groups=norm_num_groups, eps=1e-6
+            )
         self.conv_act = mint.nn.SiLU()
         self.conv_out = mint.nn.Conv2d(block_out_channels[0], out_channels, 3, padding=1)
 
@@ -577,7 +560,7 @@ class VectorQuantizer(nn.Cell):
 
         self.remap = remap
         if self.remap is not None:
-            self.used = ms.Tensor(np.load(self.remap))
+            self.used = ms.tensor(np.load(self.remap))
             self.used: ms.Tensor
             self.re_embed = self.used.shape[0]
             self.unknown_index = unknown_index  # "random" or "extra" or integer
@@ -704,7 +687,7 @@ class DiagonalGaussianDistribution(object):
     def kl(self, parameters: ms.Tensor, other: ms.Tensor = None) -> ms.Tensor:
         mean, logvar, var, std = self.init(parameters)
         if self.deterministic:
-            return ms.Tensor([0.0])
+            return ms.tensor([0.0])
         else:
             if other is None:
                 return 0.5 * mint.sum(
@@ -727,7 +710,7 @@ class DiagonalGaussianDistribution(object):
     def nll(self, parameters: ms.Tensor, sample: ms.Tensor, dims: Tuple[int, ...] = (1, 2, 3)) -> ms.Tensor:
         mean, logvar, var, std = self.init(parameters)
         if self.deterministic:
-            return ms.Tensor([0.0])
+            return ms.tensor([0.0])
         logtwopi = np.log(2.0 * np.pi)
         return 0.5 * mint.sum(
             logtwopi + logvar + mint.pow(sample - mean, 2) / var,
@@ -835,7 +818,7 @@ class DecoderTiny(nn.Cell):
 
         layers = [
             mint.nn.Conv2d(in_channels, block_out_channels[0], kernel_size=3, padding=1),
-            get_activation(act_fn)(),
+            get_activation(act_fn),
         ]
 
         for i, num_block in enumerate(num_blocks):

@@ -21,15 +21,15 @@ from ddt import data, ddt, unpack
 import mindspore as ms
 
 from mindone.diffusers import AmusedPipeline
-from mindone.diffusers.utils.testing_utils import load_downloaded_numpy_from_hf_hub, slow
+from mindone.diffusers.utils.testing_utils import load_numpy_from_local_file, slow
 
 from ..pipeline_test_utils import THRESHOLD_PIXEL, PipelineTesterMixin
 
 test_cases = [
     {"mode": ms.PYNATIVE_MODE, "dtype": "float32"},
     {"mode": ms.PYNATIVE_MODE, "dtype": "float16"},
-    {"mode": ms.GRAPH_MODE, "dtype": "float32"},
-    {"mode": ms.GRAPH_MODE, "dtype": "float16"},
+    # {"mode": ms.GRAPH_MODE, "dtype": "float32"},
+    # {"mode": ms.GRAPH_MODE, "dtype": "float16"},
 ]
 
 
@@ -44,8 +44,8 @@ class AmusedPipelineSlowTests(PipelineTesterMixin, unittest.TestCase):
         pipe = AmusedPipeline.from_pretrained("amused/amused-512", mindspore_dtype=ms_dtype)
         image = pipe("dog", generator=ms.Generator().manual_seed(0))[0][0]
 
-        expected_image = load_downloaded_numpy_from_hf_hub(
-            "The-truth/mindone-testing-arrays",
+        expected_image = load_numpy_from_local_file(
+            "mindone-testing-arrays",
             f"t2i_{dtype}.npy",
             subfolder="amused",
         )

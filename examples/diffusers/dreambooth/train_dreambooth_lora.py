@@ -661,7 +661,7 @@ def encode_prompt(text_encoder, input_ids, attention_mask, text_encoder_use_atte
 
 def main():
     args = parse_args()
-    ms.set_context(mode=ms.GRAPH_MODE, jit_syntax_level=ms.STRICT)
+    ms.set_context(mode=ms.GRAPH_MODE)
     init_distributed_device(args)  # read attr distributed, writer attrs rank/local_rank/world_size
 
     # tensorboard, mindinsight, wandb logging stuff into logging_dir

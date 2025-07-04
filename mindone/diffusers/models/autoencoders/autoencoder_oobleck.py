@@ -181,7 +181,7 @@ class OobleckDiagonalGaussianDistribution(object):
 
     def kl(self, other: "OobleckDiagonalGaussianDistribution" = None) -> ms.Tensor:
         if self.deterministic:
-            return ms.Tensor([0.0])
+            return ms.tensor([0.0])
         else:
             if other is None:
                 return (self.mean * self.mean + self.var - self.logvar - 1.0).sum(1).mean()
@@ -349,6 +349,7 @@ class AutoencoderOobleck(ModelMixin, ConfigMixin):
     """
 
     _supports_gradient_checkpointing = False
+    _supports_group_offloading = False
 
     @register_to_config
     def __init__(

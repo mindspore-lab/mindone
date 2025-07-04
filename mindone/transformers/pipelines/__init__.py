@@ -38,12 +38,13 @@ from .base import (
     get_default_model_and_revision,
     infer_framework_load_model,
 )
+from .text2text_generation import Text2TextGenerationPipeline
 from .text_generation import TextGenerationPipeline
 
 if is_mindspore_available():
     import mindspore as ms
 
-    from ..models.auto.modeling_auto import AutoModelForCausalLM, AutoModelForTokenClassification
+    from ..models.auto.modeling_auto import AutoModelForCausalLM, AutoModelForSeq2SeqLM, AutoModelForTokenClassification
 
 
 if TYPE_CHECKING:
@@ -67,6 +68,12 @@ SUPPORTED_TASKS = {
         "impl": TextGenerationPipeline,
         "ms": (AutoModelForCausalLM,) if is_mindspore_available() else (),
         "default": {"model": {"ms": ("openai-community/gpt2", "607a30d"), "tf": ("openai-community/gpt2", "607a30d")}},
+        "type": "text",
+    },
+    "text2text-generation": {
+        "impl": Text2TextGenerationPipeline,
+        "ms": (AutoModelForSeq2SeqLM,) if is_mindspore_available() else (),
+        "default": {"model": {"ms": ("google-t5/t5-base", "a9723ea")}},
         "type": "text",
     },
 }

@@ -11,26 +11,22 @@ from transformers import CLIPImageProcessor, T5Tokenizer
 import mindspore as ms
 from mindspore import mint
 
-from ....transformers import T5EncoderModel
-from ...loaders import LoraLoaderMixin
+from mindone.transformers import T5EncoderModel
+
+from ...loaders import StableDiffusionLoraLoaderMixin
 from ...models import UNet2DConditionModel
 from ...schedulers import DDPMScheduler
-from ...utils import (
-    BACKENDS_MAPPING,
-    PIL_INTERPOLATION,
-    is_bs4_available,
-    is_ftfy_available,
-    logging,
-    scale_lora_layers,
-    unscale_lora_layers,
-)
+from ...utils import BACKENDS_MAPPING, PIL_INTERPOLATION, is_bs4_available, is_ftfy_available, logging
 from ...utils.mindspore_utils import randn_tensor
 from ..pipeline_utils import DiffusionPipeline
 from .pipeline_output import IFPipelineOutput
 from .safety_checker import IFSafetyChecker
 from .watermark import IFWatermarker
 
+XLA_AVAILABLE = False
+
 logger = logging.get_logger(__name__)  # pylint: disable=invalid-name
+
 
 if is_bs4_available():
     from bs4 import BeautifulSoup
@@ -78,7 +74,7 @@ EXAMPLE_DOC_STRING = """
         >>> mask_image = mask_image
 
         >>> pipe = IFInpaintingPipeline.from_pretrained(
-        ...     "DeepFloyd/IF-I-XL-v1.0", use_safetensors=True, mindspore_dtype=mindspore.float16
+        ...     "DeepFloyd/IF-I-XL-v1.0", variant="fp16", mindspore_dtype=mindspore.float16
         ... )
 
         >>> prompt = "blue sunglasses"
@@ -97,7 +93,7 @@ EXAMPLE_DOC_STRING = """
         >>> pil_image[0].save("./if_stage_I.png")
 
         >>> super_res_1_pipe = IFInpaintingSuperResolutionPipeline.from_pretrained(
-        ...     "DeepFloyd/IF-II-L-v1.0", text_encoder=None, use_safetensors=True, mindspore_dtype=mindspore.float16
+        ...     "DeepFloyd/IF-II-L-v1.0", text_encoder=None, variant="fp16", mindspore_dtype=mindspore.float16
         ... )
 
         >>> image = super_res_1_pipe(
@@ -112,7 +108,7 @@ EXAMPLE_DOC_STRING = """
 """
 
 
-class IFInpaintingPipeline(DiffusionPipeline, LoraLoaderMixin):
+class IFInpaintingPipeline(DiffusionPipeline, StableDiffusionLoraLoaderMixin):
     tokenizer: T5Tokenizer
     text_encoder: T5EncoderModel
 
@@ -142,6 +138,7 @@ class IFInpaintingPipeline(DiffusionPipeline, LoraLoaderMixin):
 
     _optional_components = ["tokenizer", "text_encoder", "safety_checker", "feature_extractor", "watermarker"]
     model_cpu_offload_seq = "text_encoder->unet"
+    _exclude_from_cpu_offload = ["watermarker"]
 
     def __init__(
         self,
@@ -257,7 +254,7 @@ class IFInpaintingPipeline(DiffusionPipeline, LoraLoaderMixin):
                     f" {max_length} tokens: {removed_text}"
                 )
 
-            attention_mask = ms.Tensor.from_numpy(text_inputs.attention_mask)
+            attention_mask = ms.tensor(text_inputs.attention_mask)
 
             prompt_embeds = self.text_encoder(
                 ms.tensor(text_input_ids),
@@ -306,10 +303,10 @@ class IFInpaintingPipeline(DiffusionPipeline, LoraLoaderMixin):
                 add_special_tokens=True,
                 return_tensors="np",
             )
-            attention_mask = ms.Tensor.from_numpy(uncond_input.attention_mask)
+            attention_mask = ms.tensor(uncond_input.attention_mask)
 
             negative_prompt_embeds = self.text_encoder(
-                ms.Tensor.from_numpy(uncond_input.input_ids),
+                ms.tensor(uncond_input.input_ids),
                 attention_mask=attention_mask,
             )
             negative_prompt_embeds = negative_prompt_embeds[0]
@@ -334,16 +331,11 @@ class IFInpaintingPipeline(DiffusionPipeline, LoraLoaderMixin):
     # Copied from diffusers.pipelines.deepfloyd_if.pipeline_if.IFPipeline.run_safety_checker
     def run_safety_checker(self, image, dtype):
         if self.safety_checker is not None:
-            safety_checker_input = self.feature_extractor(self.numpy_to_pil(image.numpy()), return_tensors="np")
+            safety_checker_input = self.feature_extractor(self.numpy_to_pil(image), return_tensors="np")
             image, nsfw_detected, watermark_detected = self.safety_checker(
                 images=image,
-                clip_input=ms.Tensor.from_numpy(safety_checker_input.pixel_values).to(dtype=dtype),
+                clip_input=ms.tensor(safety_checker_input.pixel_values).to(dtype=dtype),
             )
-            if mint.any(mint.cat([nsfw_detected[..., None].int(), watermark_detected[..., None].int()], dim=1), dim=1):
-                logger.warning(
-                    "Potential NSFW or watermarked content was detected in one or more images. A black image will be returned instead."
-                    " Try again with a different prompt and/or seed."
-                )
         else:
             nsfw_detected = None
             watermark_detected = None
@@ -626,7 +618,7 @@ class IFInpaintingPipeline(DiffusionPipeline, LoraLoaderMixin):
             if images.ndim == 3:
                 images = images[..., None]
 
-            images = ms.Tensor.from_numpy(images.transpose(0, 3, 1, 2))
+            images = ms.tensor(images.transpose(0, 3, 1, 2))
             return images
 
         if isinstance(image[0], PIL.Image.Image):
@@ -692,14 +684,14 @@ class IFInpaintingPipeline(DiffusionPipeline, LoraLoaderMixin):
             mask_image = mask_image.astype(np.float32) / 255.0
             mask_image[mask_image < 0.5] = 0
             mask_image[mask_image >= 0.5] = 1
-            mask_image = ms.Tensor.from_numpy(mask_image)
+            mask_image = ms.tensor(mask_image)
 
         elif isinstance(mask_image[0], np.ndarray):
             mask_image = np.concatenate([m[None, None, :] for m in mask_image], axis=0)
 
             mask_image[mask_image < 0.5] = 0
             mask_image[mask_image >= 0.5] = 1
-            mask_image = ms.Tensor.from_numpy(mask_image)
+            mask_image = ms.tensor(mask_image)
 
         return mask_image
 
@@ -921,13 +913,6 @@ class IFInpaintingPipeline(DiffusionPipeline, LoraLoaderMixin):
         # 6. Prepare extra step kwargs. TODO: Logic should ideally just be moved out of the pipeline
         extra_step_kwargs = self.prepare_extra_step_kwargs(generator, eta)
 
-        # we're popping the `scale` instead of getting it because otherwise `scale` will be propagated
-        # to the unet and will raise RuntimeError.
-        lora_scale = cross_attention_kwargs.pop("scale", None) if cross_attention_kwargs is not None else None
-        if lora_scale is not None:
-            # weight the lora layers by setting `lora_scale` for each PEFT layer
-            scale_lora_layers(self.unet, lora_scale)
-
         # 7. Denoising loop
         num_warmup_steps = len(timesteps) - num_inference_steps * self.scheduler.order
         with self.progress_bar(total=num_inference_steps) as progress_bar:
@@ -935,11 +920,7 @@ class IFInpaintingPipeline(DiffusionPipeline, LoraLoaderMixin):
                 model_input = (
                     mint.cat([intermediate_images] * 2) if do_classifier_free_guidance else intermediate_images
                 )
-                # TODO: method of scheduler should not change the dtype of input.
-                #  Remove the casting after cuiyushi confirm that.
-                tmp_dtype = model_input.dtype
                 model_input = self.scheduler.scale_model_input(model_input, t)
-                model_input = model_input.to(tmp_dtype)
 
                 # predict the noise residual
                 noise_pred = self.unet(
@@ -964,13 +945,9 @@ class IFInpaintingPipeline(DiffusionPipeline, LoraLoaderMixin):
                 # compute the previous noisy sample x_t -> x_t-1
                 prev_intermediate_images = intermediate_images
 
-                # TODO: method of scheduler should not change the dtype of input.
-                #  Remove the casting after cuiyushi confirm that.
-                tmp_dtype = intermediate_images.dtype
                 intermediate_images = self.scheduler.step(
                     noise_pred, t, intermediate_images, **extra_step_kwargs, return_dict=False
                 )[0]
-                intermediate_images = intermediate_images.to(tmp_dtype)
 
                 intermediate_images = (1 - mask_image) * prev_intermediate_images + mask_image * intermediate_images
 
@@ -980,22 +957,18 @@ class IFInpaintingPipeline(DiffusionPipeline, LoraLoaderMixin):
                     if callback is not None and i % callback_steps == 0:
                         callback(i, t, intermediate_images)
 
-        if lora_scale is not None:
-            # remove `lora_scale` from each PEFT layer
-            unscale_lora_layers(self.unet, lora_scale)
-
         image = intermediate_images
 
         if output_type == "pil":
             # 8. Post-processing
             image = (image / 2 + 0.5).clamp(0, 1)
-            image = image.permute(0, 2, 3, 1).float()
+            image = image.permute(0, 2, 3, 1).float().numpy()
 
             # 9. Run safety checker
             image, nsfw_detected, watermark_detected = self.run_safety_checker(image, prompt_embeds.dtype)
 
             # 10. Convert to PIL
-            image = self.numpy_to_pil(image.numpy())
+            image = self.numpy_to_pil(image)
 
             # 11. Apply watermark
             if self.watermarker is not None:
@@ -1006,11 +979,10 @@ class IFInpaintingPipeline(DiffusionPipeline, LoraLoaderMixin):
         else:
             # 8. Post-processing
             image = (image / 2 + 0.5).clamp(0, 1)
-            image = image.permute(0, 2, 3, 1).float()
+            image = image.permute(0, 2, 3, 1).float().numpy()
 
             # 9. Run safety checker
             image, nsfw_detected, watermark_detected = self.run_safety_checker(image, prompt_embeds.dtype)
-            image = image.numpy()
 
         if not return_dict:
             return (image, nsfw_detected, watermark_detected)
