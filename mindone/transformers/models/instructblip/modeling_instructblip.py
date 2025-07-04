@@ -188,7 +188,7 @@ class InstructBlipAttention(mindspore.nn.Cell):
             v_bias = None
 
         if q_bias is not None:
-            qkv_bias = mindspore.mint.cat((q_bias, mindspore.mint.zeros_like(v_bias, requires_grad=False), v_bias))
+            qkv_bias = mindspore.mint.cat((q_bias, mindspore.mint.zeros_like(v_bias), v_bias))
             self.qkv.bias = mindspore.Parameter(qkv_bias)
 
         self.projection = mindspore.mint.nn.Linear(self.embed_dim, self.embed_dim)
