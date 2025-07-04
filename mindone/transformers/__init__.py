@@ -126,7 +126,13 @@ from .models.gemma import (
     GemmaModel,
     GemmaPreTrainedModel,
 )
-from .models.gemma2 import Gemma2Model, Gemma2PreTrainedModel
+from .models.gemma2 import (
+    Gemma2ForCausalLM,
+    Gemma2ForSequenceClassification,
+    Gemma2ForTokenClassification,
+    Gemma2Model,
+    Gemma2PreTrainedModel,
+)
 from .models.gemma3 import Gemma3ForCausalLM, Gemma3ForConditionalGeneration, Gemma3PreTrainedModel, Gemma3TextModel
 from .models.glm import (
     GlmForCausalLM,
@@ -134,6 +140,13 @@ from .models.glm import (
     GlmForTokenClassification,
     GlmModel,
     GlmPreTrainedModel,
+)
+from .models.glm4v import (
+    Glm4vForConditionalGeneration,
+    Glm4vModel,
+    Glm4vPreTrainedModel,
+    Glm4vTextModel,
+    Glm4vVisionModel,
 )
 from .models.glpn import (
     GLPNFeatureExtractor,
@@ -160,6 +173,12 @@ from .models.hiera import (
     HieraForPreTraining,
     HieraModel,
     HieraPreTrainedModel,
+)
+from .models.idefics3 import (
+    Idefics3ForConditionalGeneration,
+    Idefics3Model,
+    Idefics3PreTrainedModel,
+    Idefics3VisionTransformer,
 )
 from .models.ijepa import IJepaForImageClassification, IJepaModel, IJepaPreTrainedModel
 from .models.imagegpt import (
@@ -220,6 +239,7 @@ from .models.mt5 import (
     MT5Model,
     MT5PreTrainedModel,
 )
+from .models.paligemma import PaliGemmaForConditionalGeneration, PaliGemmaPreTrainedModel
 from .models.persimmon import (
     PersimmonForCausalLM,
     PersimmonForSequenceClassification,
@@ -282,7 +302,13 @@ from .models.roberta import (
     RobertaModel,
     RobertaPreTrainedModel,
 )
-from .models.siglip import SiglipModel, SiglipPreTrainedModel, SiglipTextModel, SiglipVisionModel
+from .models.siglip import (
+    SiglipForImageClassification,
+    SiglipModel,
+    SiglipPreTrainedModel,
+    SiglipTextModel,
+    SiglipVisionModel,
+)
 from .models.speecht5 import (
     SpeechT5ForSpeechToSpeech,
     SpeechT5ForSpeechToText,

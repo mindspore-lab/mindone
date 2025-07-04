@@ -8,7 +8,7 @@ from transformers import CLIPTextConfig, CLIPTokenizer
 import mindspore as ms
 
 from mindone.diffusers import DDPMScheduler, PriorTransformer, StableUnCLIPPipeline, UnCLIPScheduler
-from mindone.diffusers.utils.testing_utils import load_downloaded_numpy_from_hf_hub, slow
+from mindone.diffusers.utils.testing_utils import load_numpy_from_local_file, slow
 from mindone.transformers import CLIPTextModelWithProjection
 
 from ..pipeline_test_utils import (
@@ -271,8 +271,8 @@ class StableUnCLIPPipelineIntegrationTests(PipelineTesterMixin, unittest.TestCas
         torch.manual_seed(0)
         image = pipe(prompt=wave_prompt)[0][0]
 
-        expected_image = load_downloaded_numpy_from_hf_hub(
-            "The-truth/mindone-testing-arrays",
+        expected_image = load_numpy_from_local_file(
+            "mindone-testing-arrays",
             f"stable_unclip_t2i_{dtype}.npy",
             subfolder="stable_unclip",
         )

@@ -1052,11 +1052,7 @@ class UNetMidBlockSpatioTemporal(nn.Cell):
                 image_only_indicator=image_only_indicator,
                 return_dict=False,
             )[0]
-            hidden_states = resnet(
-                hidden_states,
-                temb,
-                image_only_indicator=image_only_indicator,
-            )
+            hidden_states = resnet(hidden_states, temb, image_only_indicator=image_only_indicator)
 
         return hidden_states
 
@@ -1111,11 +1107,7 @@ class DownBlockSpatioTemporal(nn.Cell):
     ) -> Tuple[ms.Tensor, Tuple[ms.Tensor, ...]]:
         output_states = ()
         for resnet in self.resnets:
-            hidden_states = resnet(
-                hidden_states,
-                temb,
-                image_only_indicator=image_only_indicator,
-            )
+            hidden_states = resnet(hidden_states, temb, image_only_indicator=image_only_indicator)
 
             output_states = output_states + (hidden_states,)
 
@@ -1200,11 +1192,7 @@ class CrossAttnDownBlockSpatioTemporal(nn.Cell):
 
         blocks = list(zip(self.resnets, self.attentions))
         for resnet, attn in blocks:
-            hidden_states = resnet(
-                hidden_states,
-                temb,
-                image_only_indicator=image_only_indicator,
-            )
+            hidden_states = resnet(hidden_states, temb, image_only_indicator=image_only_indicator)
             hidden_states = attn(
                 hidden_states,
                 encoder_hidden_states=encoder_hidden_states,
@@ -1277,11 +1265,7 @@ class UpBlockSpatioTemporal(nn.Cell):
 
             hidden_states = mint.cat([hidden_states, res_hidden_states], dim=1)
 
-            hidden_states = resnet(
-                hidden_states,
-                temb,
-                image_only_indicator=image_only_indicator,
-            )
+            hidden_states = resnet(hidden_states, temb, image_only_indicator=image_only_indicator)
 
         if self.upsamplers is not None:
             for upsampler in self.upsamplers:
@@ -1364,11 +1348,7 @@ class CrossAttnUpBlockSpatioTemporal(nn.Cell):
 
             hidden_states = mint.cat([hidden_states, res_hidden_states], dim=1)
 
-            hidden_states = resnet(
-                hidden_states,
-                temb,
-                image_only_indicator=image_only_indicator,
-            )
+            hidden_states = resnet(hidden_states, temb, image_only_indicator=image_only_indicator)
             hidden_states = attn(
                 hidden_states,
                 encoder_hidden_states=encoder_hidden_states,

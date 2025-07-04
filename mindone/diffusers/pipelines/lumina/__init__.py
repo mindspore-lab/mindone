@@ -4,10 +4,10 @@ from ...utils import _LazyModule
 
 _import_structure = {}
 
-_import_structure["pipeline_lumina"] = ["LuminaText2ImgPipeline"]
+_import_structure["pipeline_lumina"] = ["LuminaPipeline", "LuminaText2ImgPipeline"]
 
 if TYPE_CHECKING:
-    from .pipeline_lumina import LuminaText2ImgPipeline
+    from .pipeline_lumina import LuminaPipeline, LuminaText2ImgPipeline
 
 else:
     import sys
