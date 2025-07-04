@@ -75,7 +75,7 @@ Issues = "https://github.com/mindspore-lab/mindone/issues"
 Source = "https://github.com/mindspore-lab/mindone"
 
 [tool.hatch.envs.default]
-python = "3.8"
+python = "3.9"
 
 [tool.hatch.version]
 source = "bgd"
