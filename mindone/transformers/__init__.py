@@ -198,6 +198,18 @@ from .models.levit import (
 )
 from .models.llama import LlamaForCausalLM, LlamaForSequenceClassification, LlamaModel, LlamaPreTrainedModel
 from .models.llava import LlavaConfig, LlavaForConditionalGeneration
+from .models.luke import (
+    LukeForEntityClassification,
+    LukeForEntityPairClassification,
+    LukeForEntitySpanClassification,
+    LukeForMaskedLM,
+    LukeForMultipleChoice,
+    LukeForQuestionAnswering,
+    LukeForSequenceClassification,
+    LukeForTokenClassification,
+    LukeModel,
+    LukePreTrainedModel,
+)
 from .models.megatron_bert import (
     MegatronBertForCausalLM,
     MegatronBertForMaskedLM,
