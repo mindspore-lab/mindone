@@ -76,6 +76,9 @@ from .models.blip import (
     BlipPreTrainedModel,
     BlipTextModel,
     BlipVisionModel,
+    BlipProcessor,
+    BlipImageProcessor,
+    BlipImageProcessorFast,
 )
 from .models.blip_2 import (
     Blip2ForConditionalGeneration,
