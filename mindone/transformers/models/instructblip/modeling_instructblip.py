@@ -1308,7 +1308,7 @@ class InstructBlipForConditionalGeneration(InstructBlipPreTrainedModel, Generati
 
         self.vision_model = InstructBlipVisionModel(config.vision_config)
 
-        self.query_tokens = mindspore.Parameter(mindspore.mint.zeros(1, config.num_query_tokens, config.qformer_config.hidden_size))
+        self.query_tokens = mindspore.Parameter(mindspore.mint.zeros((1, config.num_query_tokens, config.qformer_config.hidden_size)))
         self.qformer = InstructBlipQFormerModel(config.qformer_config)
 
         self.language_projection = mindspore.mint.nn.Linear(config.qformer_config.hidden_size, config.text_config.hidden_size)
