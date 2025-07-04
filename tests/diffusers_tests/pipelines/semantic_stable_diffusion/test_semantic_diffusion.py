@@ -23,7 +23,7 @@ from transformers import CLIPTextConfig
 import mindspore as ms
 
 from mindone.diffusers import SemanticStableDiffusionPipeline
-from mindone.diffusers.utils.testing_utils import load_downloaded_numpy_from_hf_hub, slow
+from mindone.diffusers.utils.testing_utils import load_numpy_from_local_file, slow
 
 from ..pipeline_test_utils import (
     THRESHOLD_FP16,
@@ -244,8 +244,8 @@ class SemanticDiffusionPipelineIntegrationTests(PipelineTesterMixin, unittest.Te
             edit_weights=[1, 1, 1, 1, 1],
         )[0][0]
 
-        expected_image = load_downloaded_numpy_from_hf_hub(
-            "The-truth/mindone-testing-arrays",
+        expected_image = load_numpy_from_local_file(
+            "mindone-testing-arrays",
             f"semantic_stable_diffusion_t2i_{dtype}.npy",
             subfolder="semantic_stable_diffusion",
         )

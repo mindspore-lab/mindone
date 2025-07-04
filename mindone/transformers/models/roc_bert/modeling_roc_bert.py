@@ -1,6 +1,9 @@
 # coding=utf-8
 # Copyright 2022 WeChatAI The HuggingFace Inc. team. All rights reserved.
 #
+# This code is adapted from https://github.com/huggingface/transformers
+# with modifications to run transformers on mindspore.
+#
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -570,16 +573,7 @@ class RoCBertEncoder(nn.Cell):
             past_key_value = past_key_values[i] if past_key_values is not None else None
 
             if self.gradient_checkpointing and self.training:
-                layer_outputs = self._gradient_checkpointing_func(
-                    layer_module.__call__,
-                    hidden_states,
-                    attention_mask,
-                    layer_head_mask,
-                    encoder_hidden_states,
-                    encoder_attention_mask,
-                    past_key_value,
-                    output_attentions,
-                )
+                raise NotImplementedError("Gradient checkpoint is not yet supported.")
             else:
                 layer_outputs = layer_module(
                     hidden_states,
@@ -628,7 +622,7 @@ class RoCBertPooler(nn.Cell):
     def __init__(self, config):
         super().__init__()
         self.dense = mint.nn.Linear(config.hidden_size, config.hidden_size)
-        self.activation = nn.Tanh()
+        self.activation = mint.nn.Tanh()
 
     def construct(self, hidden_states: ms.Tensor) -> ms.Tensor:
         # We "pool" the model by simply taking the hidden state corresponding
@@ -721,7 +715,7 @@ class RoCBertPreTrainedModel(PreTrainedModel):
 
 
 ROC_BERT_START_DOCSTRING = r"""
-    This model is a Mindspore [torch.nn.Cell](https://pytorch.org/docs/stable/nn.html#torch.nn.Cell) sub-class. Use
+    This model is a Mindspore [mindspore.nn.Cell](https://pytorch.org/docs/stable/nn.html#torch.nn.Cell) sub-class. Use
     it as a regular Mindspore Module and refer to the Mindspore documentation for all matter related to general usage and
     behavior.
 
@@ -1084,13 +1078,15 @@ class RoCBertForPreTraining(RoCBertPreTrainedModel):
         Example:
 
         ```python
-        >>> from transformers import AutoTokenizer, RoCBertForPreTraining
+        >>> from transformers import AutoTokenizer
+        >>> from mindone.transformers import RoCBertForPreTraining
         >>> import mindspore as ms
+        >>> import numpy as np
 
         >>> tokenizer = AutoTokenizer.from_pretrained("weiweishi/roc-bert-base-zh")
         >>> model = RoCBertForPreTraining.from_pretrained("weiweishi/roc-bert-base-zh")
 
-        >>> inputs = tokenizer("你好，很高兴认识你", return_tensors="pt")
+        >>> inputs = tokenizer("你好，很高兴认识你", return_tensors="np")
         >>> attack_inputs = {}
         >>> for key in list(inputs.keys()):
         ...     attack_inputs[f"attack_{key}"] = inputs[key]
@@ -1100,6 +1096,13 @@ class RoCBertForPreTraining(RoCBertPreTrainedModel):
 
         >>> inputs.update(label_inputs)
         >>> inputs.update(attack_inputs)
+        >>> for key, value in inputs.items():  # by default input numpy array or list
+        >>>     if isinstance(value, np.ndarray):
+        >>>         inputs[key] = ms.Tensor(value)
+        >>>     elif isinstance(value, list):
+        >>>         inputs[key] = ms.Tensor(value)
+        >>>     if inputs[key].dtype == ms.int64:
+        >>>         inputs[key] = inputs[key].to(ms.int32)
         >>> outputs = model(**inputs)
 
         >>> logits = outputs.logits
@@ -1240,16 +1243,24 @@ class RoCBertForMaskedLM(RoCBertPreTrainedModel):
 
         Example:
         ```python
-        >>> from transformers import AutoTokenizer, RoCBertForMaskedLM
+        >>> from transformers import AutoTokenizer
+        >>> from mindone.transformers import RoCBertForMaskedLM
         >>> import mindspore as ms
+        >>> import numpy as np
 
         >>> tokenizer = AutoTokenizer.from_pretrained("weiweishi/roc-bert-base-zh")
         >>> model = RoCBertForMaskedLM.from_pretrained("weiweishi/roc-bert-base-zh")
 
-        >>> inputs = tokenizer("法国是首都[MASK].", return_tensors="pt")
+        >>> inputs = tokenizer("法国是首都[MASK].", return_tensors="np")
+        >>> for key, value in inputs.items():  # by default input numpy array or list
+        >>>     if isinstance(value, np.ndarray):
+        >>>         inputs[key] = ms.Tensor(value)
+        >>>     elif isinstance(value, list):
+        >>>         inputs[key] = ms.Tensor(value)
+        >>>     if inputs[key].dtype == ms.int64:
+        >>>         inputs[key] = inputs[key].to(ms.int32)
 
-        >>> with torch.no_grad():
-        ...     logits = model(**inputs).logits
+        >>> logits = model(**inputs).logits
 
         >>> # retrieve index of {mask}
         >>> mask_token_index = (inputs.input_ids == tokenizer.mask_token_id)[0].nonzero(as_tuple=True)[0]
@@ -1407,15 +1418,24 @@ class RoCBertForCausalLM(RoCBertPreTrainedModel, GenerationMixin):
         Example:
 
         ```python
-        >>> from transformers import AutoTokenizer, RoCBertForCausalLM, RoCBertConfig
+        >>> from transformers import AutoTokenizer, RoCBertConfig
+        >>> from mindone.transformers import RoCBertForCausalLM
         >>> import mindspore as ms
+        >>> import numpy as np
 
         >>> tokenizer = AutoTokenizer.from_pretrained("weiweishi/roc-bert-base-zh")
         >>> config = RoCBertConfig.from_pretrained("weiweishi/roc-bert-base-zh")
         >>> config.is_decoder = True
         >>> model = RoCBertForCausalLM.from_pretrained("weiweishi/roc-bert-base-zh", config=config)
+        >>> for key, value in inputs.items():  # by default input numpy array or list
+        >>>     if isinstance(value, np.ndarray):
+        >>>         inputs[key] = ms.Tensor(value)
+        >>>     elif isinstance(value, list):
+        >>>         inputs[key] = ms.Tensor(value)
+        >>>     if inputs[key].dtype == ms.int64:
+        >>>         inputs[key] = inputs[key].to(ms.int32)
+        >>> inputs = tokenizer("你好，很高兴认识你", return_tensors="np")
 
-        >>> inputs = tokenizer("你好，很高兴认识你", return_tensors="pt")
         >>> outputs = model(**inputs)
 
         >>> prediction_logits = outputs.logits

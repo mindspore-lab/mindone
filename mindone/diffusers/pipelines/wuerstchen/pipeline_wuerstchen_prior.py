@@ -31,7 +31,10 @@ from ...utils.mindspore_utils import randn_tensor
 from ..pipeline_utils import DiffusionPipeline
 from .modeling_wuerstchen_prior import WuerstchenPrior
 
+XLA_AVAILABLE = False
+
 logger = logging.get_logger(__name__)  # pylint: disable=invalid-name
+
 
 DEFAULT_STAGE_C_TIMESTEPS = list(np.linspace(1.0, 2 / 3, 20)) + list(np.linspace(2 / 3, 0.0, 11))[1:]
 
@@ -155,7 +158,7 @@ class WuerstchenPriorPipeline(DiffusionPipeline, LoraLoaderMixin):
                 return_tensors="np",
             )
             text_input_ids = text_inputs.input_ids
-            attention_mask = ms.Tensor(text_inputs.attention_mask)
+            attention_mask = ms.tensor(text_inputs.attention_mask)
 
             untruncated_ids = self.tokenizer(prompt, padding="longest", return_tensors="np").input_ids
 
@@ -170,7 +173,7 @@ class WuerstchenPriorPipeline(DiffusionPipeline, LoraLoaderMixin):
                 text_input_ids = text_input_ids[:, : self.tokenizer.model_max_length]
                 attention_mask = attention_mask[:, : self.tokenizer.model_max_length]
 
-            text_encoder_output = self.text_encoder(ms.Tensor(text_input_ids), attention_mask=attention_mask)
+            text_encoder_output = self.text_encoder(ms.tensor(text_input_ids), attention_mask=attention_mask)
             prompt_embeds = text_encoder_output[0]
 
         prompt_embeds = prompt_embeds.to(dtype=self.text_encoder.dtype)
@@ -204,7 +207,7 @@ class WuerstchenPriorPipeline(DiffusionPipeline, LoraLoaderMixin):
                 return_tensors="np",
             )
             negative_prompt_embeds_text_encoder_output = self.text_encoder(
-                ms.Tensor(uncond_input.input_ids), attention_mask=ms.Tensor(uncond_input.attention_mask)
+                ms.tensor(uncond_input.input_ids), attention_mask=ms.tensor(uncond_input.attention_mask)
             )
 
             negative_prompt_embeds = negative_prompt_embeds_text_encoder_output[0]

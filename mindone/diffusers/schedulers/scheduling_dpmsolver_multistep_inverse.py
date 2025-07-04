@@ -314,7 +314,7 @@ class DPMSolverMultistepInverseScheduler(SchedulerMixin, ConfigMixin):
             ) ** 0.5
             sigmas = np.concatenate([sigmas, [sigma_max]]).astype(np.float32)
 
-        self.sigmas = ms.Tensor(sigmas)
+        self.sigmas = ms.tensor(sigmas)
 
         # when num_inference_steps == num_train_timesteps, we can end up with
         # duplicates in timesteps.
