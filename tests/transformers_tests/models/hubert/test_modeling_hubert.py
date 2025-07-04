@@ -147,7 +147,7 @@ HUBERT_CASES = [
             "attention_mask": attention_mask,
         },
         {
-            "logits": 0,  # key: torch attribute, value: mindspore idx
+            "last_hidden_state": 0,  # key: torch attribute, value: mindspore idx
         },
     ],
 ]
