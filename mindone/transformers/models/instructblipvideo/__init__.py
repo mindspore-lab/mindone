@@ -14,5 +14,11 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-from .modeling_instructblip import *
-from .processing_instructblip import *
+from .modeling_instructblipvideo import (
+    InstructBlipVideoForConditionalGeneration,
+    InstructBlipVideoPreTrainedModel,
+    InstructBlipVideoQFormerModel,
+    InstructBlipVideoVisionModel,
+)
+from .processing_instructblipvideo import *
+from .image_processing_instructblipvideo import *

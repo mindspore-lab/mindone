@@ -21,7 +21,7 @@ import inspect
 import numpy as np
 import pytest
 import torch
-from transformers import InstructBlipVisionConfig, InstructBlipQFormerConfig, LlamaConfig, InstructBlipConfig
+from transformers.models.kosmos2.configuration_kosmos2 import Kosmos2Config, Kosmos2TextConfig, Kosmos2VisionConfig
 
 import mindspore as ms
 
@@ -35,20 +35,19 @@ from tests.modeling_test_utils import (
 from tests.transformers_tests.models.modeling_common import floats_numpy, ids_numpy, random_attention_mask
 
 # CrossEntropyLoss not support bf16
-DTYPE_AND_THRESHOLDS = {"fp32": 5e-4, "fp16": 5e-3, "bf16": 1e-2}
+DTYPE_AND_THRESHOLDS = {"fp32": 5e-4, "fp16": 5e-3, "bf16": 7e-3}
 MODES = [1]
 
 
-class InstructBlipVisionModelTester:
+class Kosmos2VisionModelTester:
     def __init__(
         self,
         batch_size=12,
-        image_size=30,
-        patch_size=2,
+        image_size=32,
+        patch_size=4,
         num_channels=3,
         is_training=True,
         hidden_size=32,
-        projection_dim=32,
         num_hidden_layers=2,
         num_attention_heads=4,
         intermediate_size=37,
@@ -63,7 +62,6 @@ class InstructBlipVisionModelTester:
         self.num_channels = num_channels
         self.is_training = is_training
         self.hidden_size = hidden_size
-        self.projection_dim = projection_dim
         self.num_hidden_layers = num_hidden_layers
         self.num_attention_heads = num_attention_heads
         self.intermediate_size = intermediate_size
@@ -72,7 +70,7 @@ class InstructBlipVisionModelTester:
         self.initializer_range = initializer_range
         self.scope = scope
 
-        # in case of a vision transformer, the seq length equals the number of patches + 1 (we add 1 for the [CLS] token)
+        # in ViT, the seq length equals the number of patches + 1 (we add 1 for the [CLS] token)
         num_patches = (image_size // patch_size) ** 2
         self.seq_length = num_patches + 1
 
@@ -83,12 +81,11 @@ class InstructBlipVisionModelTester:
         return config, pixel_values
 
     def get_config(self):
-        return InstructBlipVisionConfig(
+        return Kosmos2VisionConfig(
             image_size=self.image_size,
             patch_size=self.patch_size,
             num_channels=self.num_channels,
             hidden_size=self.hidden_size,
-            projection_dim=self.projection_dim,
             num_hidden_layers=self.num_hidden_layers,
             num_attention_heads=self.num_attention_heads,
             intermediate_size=self.intermediate_size,
@@ -97,7 +94,7 @@ class InstructBlipVisionModelTester:
             initializer_range=self.initializer_range,
         )
 
-class InstructBlipQFormerModelTester:
+class Kosmos2TextModelTester:
     def __init__(
         self,
         batch_size=12,
@@ -107,15 +104,12 @@ class InstructBlipQFormerModelTester:
         use_labels=True,
         vocab_size=99,
         hidden_size=32,
-        projection_dim=32,
         num_hidden_layers=2,
         num_attention_heads=4,
         intermediate_size=37,
         dropout=0.1,
         attention_dropout=0.1,
         max_position_embeddings=512,
-        initializer_range=0.02,
-        bos_token_id=0,
         scope=None,
     ):
         self.batch_size = batch_size
@@ -125,25 +119,20 @@ class InstructBlipQFormerModelTester:
         self.use_labels = use_labels
         self.vocab_size = vocab_size
         self.hidden_size = hidden_size
-        self.projection_dim = projection_dim
         self.num_hidden_layers = num_hidden_layers
         self.num_attention_heads = num_attention_heads
         self.intermediate_size = intermediate_size
         self.dropout = dropout
         self.attention_dropout = attention_dropout
         self.max_position_embeddings = max_position_embeddings
-        self.initializer_range = initializer_range
         self.scope = scope
-        self.bos_token_id = bos_token_id
 
     def prepare_config_and_inputs(self):
         input_ids = ids_numpy([self.batch_size, self.seq_length], self.vocab_size)
-        qformer_input_ids = ids_numpy([self.batch_size, self.seq_length], self.vocab_size)
 
         input_mask = None
         if self.use_input_mask:
             input_mask = random_attention_mask([self.batch_size, self.seq_length])
-            qformer_attention_mask = ids_numpy([self.batch_size, self.seq_length], vocab_size=2)
 
         if input_mask is not None:
             batch_size, seq_length = input_mask.shape
@@ -154,162 +143,76 @@ class InstructBlipQFormerModelTester:
 
         config = self.get_config()
 
-        return config, input_ids, input_mask, qformer_input_ids, qformer_attention_mask
-
-    def get_config(self):
-        return InstructBlipQFormerConfig(
-            vocab_size=self.vocab_size,
-            hidden_size=self.hidden_size,
-            projection_dim=self.projection_dim,
-            num_hidden_layers=self.num_hidden_layers,
-            num_attention_heads=self.num_attention_heads,
-            intermediate_size=self.intermediate_size,
-            dropout=self.dropout,
-            attention_dropout=self.attention_dropout,
-            max_position_embeddings=self.max_position_embeddings,
-            initializer_range=self.initializer_range,
-            bos_token_id=self.bos_token_id,
-        )
-
-
-# this class is based on `LlamaModelTester` found in tests/models/opt/test_modeling_llama.py
-class InstructBlipTextModelDecoderOnlyTester:
-    def __init__(
-        self,
-        batch_size=12,
-        seq_length=7,
-        is_training=True,
-        use_input_mask=True,
-        vocab_size=99,
-        hidden_size=32,
-        num_hidden_layers=2,
-        num_attention_heads=4,
-        num_key_value_heads=2,
-        intermediate_size=37,
-        hidden_act="silu",
-        max_position_embeddings=512,
-        initializer_range=0.02,
-        pad_token_id=0,
-        rms_norm_eps=1e-6,
-    ):
-        self.batch_size = batch_size
-        self.seq_length = seq_length
-        self.is_training = is_training
-        self.use_input_mask = use_input_mask
-        self.vocab_size = vocab_size
-        self.hidden_size = hidden_size
-        self.num_hidden_layers = num_hidden_layers
-        self.num_attention_heads = num_attention_heads
-        self.num_key_value_heads = num_key_value_heads
-        self.intermediate_size = intermediate_size
-        self.hidden_act = hidden_act
-        self.max_position_embeddings = max_position_embeddings
-        self.initializer_range = initializer_range
-        self.pad_token_id = pad_token_id
-        self.rms_norm_eps = rms_norm_eps
-
-        self.head_dim = self.hidden_size // self.num_attention_heads
-
-    def prepare_config_and_inputs(self):
-        input_ids = ids_numpy([self.batch_size, self.seq_length], self.vocab_size)
-
-        input_mask = None
-        if self.use_input_mask:
-            input_mask = np.tril(np.ones_like(input_ids))
-
-        config = self.get_config()
-
-        # set _attn_implementationa
-        config._attn_implementation = "eager"
-
         return config, input_ids, input_mask
 
     def get_config(self):
-        return LlamaConfig(
+        return Kosmos2TextConfig(
             vocab_size=self.vocab_size,
-            hidden_size=self.hidden_size,
-            num_hidden_layers=self.num_hidden_layers,
-            num_attention_heads=self.num_attention_heads,
-            num_key_value_heads=self.num_key_value_heads,
-            intermediate_size=self.intermediate_size,
-            hidden_act=self.hidden_act,
+            embed_dim=self.hidden_size,
+            layers=self.num_hidden_layers,
+            attention_heads=self.num_attention_heads,
+            ffn_dim=self.intermediate_size,
+            dropout=self.dropout,
+            attention_dropout=self.attention_dropout,
             max_position_embeddings=self.max_position_embeddings,
-            initializer_range=self.initializer_range,
-            pad_token_id=self.pad_token_id,
-            rms_norm_eps=self.rms_norm_eps,
         )
 
-
-# this model tester uses a decoder-only language model (llama)
-class InstructBlipForConditionalGenerationDecoderOnlyModelTester:
-    def __init__(
-        self,
-        vision_kwargs=None,
-        qformer_kwargs=None,
-        text_kwargs=None,
-        is_training=True,
-        num_query_tokens=10,
-        image_token_index=4,
-    ):
-        if vision_kwargs is None:
-            vision_kwargs = {}
-        if qformer_kwargs is None:
-            qformer_kwargs = {}
+class Kosmos2ModelTester:
+    def __init__(self, text_kwargs=None, vision_kwargs=None, latent_query_num=3, is_training=True):
         if text_kwargs is None:
             text_kwargs = {}
+        if vision_kwargs is None:
+            vision_kwargs = {}
 
-        self.vision_model_tester = InstructBlipVisionModelTester(**vision_kwargs)
-        self.qformer_model_tester = InstructBlipQFormerModelTester(**qformer_kwargs)
-        self.text_model_tester = InstructBlipTextModelDecoderOnlyTester(**text_kwargs)
+        self.text_model_tester = Kosmos2TextModelTester(**text_kwargs)
+        self.vision_model_tester = Kosmos2VisionModelTester(**vision_kwargs)
         self.batch_size = self.text_model_tester.batch_size  # need bs for batching_equivalence test
-        self.seq_length = self.text_model_tester.seq_length + num_query_tokens  # need seq_length for common tests
+        self.seq_length = self.text_model_tester.seq_length
+        self.latent_query_num = latent_query_num
         self.is_training = is_training
-        self.num_query_tokens = num_query_tokens
-        self.image_token_index = image_token_index
 
     def prepare_config_and_inputs(self):
-        _, pixel_values = self.vision_model_tester.prepare_config_and_inputs()
-        _, _, _, qformer_input_ids, qformer_attention_mask = self.qformer_model_tester.prepare_config_and_inputs()
-        _, input_ids, attention_mask = self.text_model_tester.prepare_config_and_inputs()
+        text_config, input_ids, attention_mask = self.text_model_tester.prepare_config_and_inputs()
+        vision_config, pixel_values = self.vision_model_tester.prepare_config_and_inputs()
+
+        # build `image_embeds_position_mask`
+        image_embeds_position_mask = np.zeros_like(input_ids)
+        image_embeds_position_mask[:, 1 : 1 + self.latent_query_num :] = 1
 
         config = self.get_config()
-        vision_tokens = (
-            np.ones((input_ids.shape[0], self.num_query_tokens), dtype=input_ids.dtype)
-            * self.image_token_index
-        )
-        input_ids[input_ids == self.image_token_index] = self.text_model_tester.pad_token_id
-        input_ids = np.concatenate([vision_tokens, input_ids], axis=-1)
-        vision_attention_mask = np.ones_like(vision_tokens)
-        attention_mask = np.concatenate([vision_attention_mask, attention_mask], axis=-1)
 
-        return config, input_ids, attention_mask, qformer_input_ids, qformer_attention_mask, pixel_values
+        return config, input_ids, attention_mask, image_embeds_position_mask, pixel_values
 
     def get_config(self):
-        return InstructBlipConfig.from_vision_qformer_text_configs(
-            vision_config=self.vision_model_tester.get_config(),
-            qformer_config=self.qformer_model_tester.get_config(),
-            text_config=self.text_model_tester.get_config(),
-            num_query_tokens=self.num_query_tokens,
-            image_token_index=self.image_token_index,
+        return Kosmos2Config(
+            self.text_model_tester.get_config().to_dict(),
+            self.vision_model_tester.get_config().to_dict(),
+            latent_query_num=self.latent_query_num,
         )
 
-generation_test = InstructBlipForConditionalGenerationDecoderOnlyModelTester()
-config, input_ids, attention_mask, qformer_input_ids, qformer_attention_mask, pixel_values = generation_test.prepare_config_and_inputs()
+    def prepare_config_and_inputs_for_common(self):
+        config_and_inputs = self.prepare_config_and_inputs()
+        config, input_ids, attention_mask, image_embeds_position_mask, pixel_values = config_and_inputs
+        inputs_dict = {
+            "input_ids": input_ids,
+            "attention_mask": attention_mask,
+            "image_embeds_position_mask": image_embeds_position_mask,
+            "pixel_values": pixel_values,
+        }
+        return config, inputs_dict
+
+model_tester = Kosmos2ModelTester()
+config, inputs_dict = model_tester.prepare_config_and_inputs_for_common()
 
 BERT_CASES = [
     [
-        "InstructBlipForConditionalGeneration",
-        "transformers.InstructBlipForConditionalGeneration",
-        "mindone.transformers.InstructBlipForConditionalGeneration",
+        "Kosmos2ForConditionalGeneration",
+        "transformers.Kosmos2ForConditionalGeneration",
+        "mindone.transformers.Kosmos2ForConditionalGeneration",
         (config,),
         {},
-        (pixel_values,),
-        {
-            "input_ids": input_ids,
-            "attention_mask": attention_mask,
-            "qformer_input_ids": qformer_input_ids,
-            "qformer_attention_mask": qformer_attention_mask,
-        },
+        (),
+        {**inputs_dict},
         {
             "logits": 0,
         },

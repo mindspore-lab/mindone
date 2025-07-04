@@ -21,7 +21,7 @@ import inspect
 import numpy as np
 import pytest
 import torch
-from transformers import InstructBlipVisionConfig, InstructBlipQFormerConfig, LlamaConfig, InstructBlipConfig
+from transformers import Pix2StructConfig, Pix2StructTextConfig, Pix2StructVisionConfig
 
 import mindspore as ms
 
@@ -35,11 +35,11 @@ from tests.modeling_test_utils import (
 from tests.transformers_tests.models.modeling_common import floats_numpy, ids_numpy, random_attention_mask
 
 # CrossEntropyLoss not support bf16
-DTYPE_AND_THRESHOLDS = {"fp32": 5e-4, "fp16": 5e-3, "bf16": 1e-2}
+DTYPE_AND_THRESHOLDS = {"fp32": 5e-4, "fp16": 5e-3, "bf16": 2e-2}
 MODES = [1]
 
 
-class InstructBlipVisionModelTester:
+class Pix2StructVisionModelTester:
     def __init__(
         self,
         batch_size=12,
@@ -47,8 +47,10 @@ class InstructBlipVisionModelTester:
         patch_size=2,
         num_channels=3,
         is_training=True,
-        hidden_size=32,
+        hidden_size=12,
+        patch_embed_hidden_size=12,
         projection_dim=32,
+        max_patches=64,
         num_hidden_layers=2,
         num_attention_heads=4,
         intermediate_size=37,
@@ -59,10 +61,15 @@ class InstructBlipVisionModelTester:
     ):
         self.batch_size = batch_size
         self.image_size = image_size
+        self.patch_embed_hidden_size = patch_embed_hidden_size
         self.patch_size = patch_size
         self.num_channels = num_channels
         self.is_training = is_training
         self.hidden_size = hidden_size
+        self.max_patches = max_patches
+        self.seq_length = self.max_patches
+        self.patch_proj_dim = ((patch_size**2) * num_channels) + 2
+
         self.projection_dim = projection_dim
         self.num_hidden_layers = num_hidden_layers
         self.num_attention_heads = num_attention_heads
@@ -72,18 +79,14 @@ class InstructBlipVisionModelTester:
         self.initializer_range = initializer_range
         self.scope = scope
 
-        # in case of a vision transformer, the seq length equals the number of patches + 1 (we add 1 for the [CLS] token)
-        num_patches = (image_size // patch_size) ** 2
-        self.seq_length = num_patches + 1
-
     def prepare_config_and_inputs(self):
-        pixel_values = floats_numpy([self.batch_size, self.num_channels, self.image_size, self.image_size])
+        flattened_patches = floats_numpy([self.batch_size, self.max_patches, self.patch_proj_dim])
         config = self.get_config()
 
-        return config, pixel_values
+        return config, flattened_patches
 
     def get_config(self):
-        return InstructBlipVisionConfig(
+        return Pix2StructVisionConfig(
             image_size=self.image_size,
             patch_size=self.patch_size,
             num_channels=self.num_channels,
@@ -95,9 +98,11 @@ class InstructBlipVisionModelTester:
             dropout=self.dropout,
             attention_dropout=self.attention_dropout,
             initializer_range=self.initializer_range,
+            patch_embed_hidden_size=self.patch_embed_hidden_size,
         )
 
-class InstructBlipQFormerModelTester:
+
+class Pix2StructTextModelTester:
     def __init__(
         self,
         batch_size=12,
@@ -106,7 +111,7 @@ class InstructBlipQFormerModelTester:
         use_input_mask=True,
         use_labels=True,
         vocab_size=99,
-        hidden_size=32,
+        hidden_size=12,
         projection_dim=32,
         num_hidden_layers=2,
         num_attention_heads=4,
@@ -123,6 +128,7 @@ class InstructBlipQFormerModelTester:
         self.is_training = is_training
         self.use_input_mask = use_input_mask
         self.use_labels = use_labels
+        self.d_kv = hidden_size // num_attention_heads
         self.vocab_size = vocab_size
         self.hidden_size = hidden_size
         self.projection_dim = projection_dim
@@ -138,12 +144,10 @@ class InstructBlipQFormerModelTester:
 
     def prepare_config_and_inputs(self):
         input_ids = ids_numpy([self.batch_size, self.seq_length], self.vocab_size)
-        qformer_input_ids = ids_numpy([self.batch_size, self.seq_length], self.vocab_size)
 
         input_mask = None
         if self.use_input_mask:
             input_mask = random_attention_mask([self.batch_size, self.seq_length])
-            qformer_attention_mask = ids_numpy([self.batch_size, self.seq_length], vocab_size=2)
 
         if input_mask is not None:
             batch_size, seq_length = input_mask.shape
@@ -154,10 +158,10 @@ class InstructBlipQFormerModelTester:
 
         config = self.get_config()
 
-        return config, input_ids, input_mask, qformer_input_ids, qformer_attention_mask
+        return config, input_ids, input_mask
 
     def get_config(self):
-        return InstructBlipQFormerConfig(
+        return Pix2StructTextConfig(
             vocab_size=self.vocab_size,
             hidden_size=self.hidden_size,
             projection_dim=self.projection_dim,
@@ -169,147 +173,63 @@ class InstructBlipQFormerModelTester:
             max_position_embeddings=self.max_position_embeddings,
             initializer_range=self.initializer_range,
             bos_token_id=self.bos_token_id,
+            d_kv=self.d_kv,
         )
 
-
-# this class is based on `LlamaModelTester` found in tests/models/opt/test_modeling_llama.py
-class InstructBlipTextModelDecoderOnlyTester:
-    def __init__(
-        self,
-        batch_size=12,
-        seq_length=7,
-        is_training=True,
-        use_input_mask=True,
-        vocab_size=99,
-        hidden_size=32,
-        num_hidden_layers=2,
-        num_attention_heads=4,
-        num_key_value_heads=2,
-        intermediate_size=37,
-        hidden_act="silu",
-        max_position_embeddings=512,
-        initializer_range=0.02,
-        pad_token_id=0,
-        rms_norm_eps=1e-6,
-    ):
-        self.batch_size = batch_size
-        self.seq_length = seq_length
-        self.is_training = is_training
-        self.use_input_mask = use_input_mask
-        self.vocab_size = vocab_size
-        self.hidden_size = hidden_size
-        self.num_hidden_layers = num_hidden_layers
-        self.num_attention_heads = num_attention_heads
-        self.num_key_value_heads = num_key_value_heads
-        self.intermediate_size = intermediate_size
-        self.hidden_act = hidden_act
-        self.max_position_embeddings = max_position_embeddings
-        self.initializer_range = initializer_range
-        self.pad_token_id = pad_token_id
-        self.rms_norm_eps = rms_norm_eps
-
-        self.head_dim = self.hidden_size // self.num_attention_heads
-
-    def prepare_config_and_inputs(self):
-        input_ids = ids_numpy([self.batch_size, self.seq_length], self.vocab_size)
-
-        input_mask = None
-        if self.use_input_mask:
-            input_mask = np.tril(np.ones_like(input_ids))
-
-        config = self.get_config()
-
-        # set _attn_implementationa
-        config._attn_implementation = "eager"
-
-        return config, input_ids, input_mask
-
-    def get_config(self):
-        return LlamaConfig(
-            vocab_size=self.vocab_size,
-            hidden_size=self.hidden_size,
-            num_hidden_layers=self.num_hidden_layers,
-            num_attention_heads=self.num_attention_heads,
-            num_key_value_heads=self.num_key_value_heads,
-            intermediate_size=self.intermediate_size,
-            hidden_act=self.hidden_act,
-            max_position_embeddings=self.max_position_embeddings,
-            initializer_range=self.initializer_range,
-            pad_token_id=self.pad_token_id,
-            rms_norm_eps=self.rms_norm_eps,
-        )
-
-
-# this model tester uses a decoder-only language model (llama)
-class InstructBlipForConditionalGenerationDecoderOnlyModelTester:
-    def __init__(
-        self,
-        vision_kwargs=None,
-        qformer_kwargs=None,
-        text_kwargs=None,
-        is_training=True,
-        num_query_tokens=10,
-        image_token_index=4,
-    ):
-        if vision_kwargs is None:
-            vision_kwargs = {}
-        if qformer_kwargs is None:
-            qformer_kwargs = {}
+class Pix2StructModelTester:
+    def __init__(self, text_kwargs=None, vision_kwargs=None, is_training=True):
         if text_kwargs is None:
             text_kwargs = {}
+        if vision_kwargs is None:
+            vision_kwargs = {}
 
-        self.vision_model_tester = InstructBlipVisionModelTester(**vision_kwargs)
-        self.qformer_model_tester = InstructBlipQFormerModelTester(**qformer_kwargs)
-        self.text_model_tester = InstructBlipTextModelDecoderOnlyTester(**text_kwargs)
+        self.text_model_tester = Pix2StructTextModelTester(**text_kwargs)
+        self.vision_model_tester = Pix2StructVisionModelTester(**vision_kwargs)
         self.batch_size = self.text_model_tester.batch_size  # need bs for batching_equivalence test
-        self.seq_length = self.text_model_tester.seq_length + num_query_tokens  # need seq_length for common tests
+        self.seq_length = self.text_model_tester.seq_length  # need seq_length for common tests
         self.is_training = is_training
-        self.num_query_tokens = num_query_tokens
-        self.image_token_index = image_token_index
+        self.max_patches = self.vision_model_tester.max_patches
 
     def prepare_config_and_inputs(self):
-        _, pixel_values = self.vision_model_tester.prepare_config_and_inputs()
-        _, _, _, qformer_input_ids, qformer_attention_mask = self.qformer_model_tester.prepare_config_and_inputs()
-        _, input_ids, attention_mask = self.text_model_tester.prepare_config_and_inputs()
+        text_config, input_ids, attention_mask = self.text_model_tester.prepare_config_and_inputs()
+        vision_config, flattened_patches = self.vision_model_tester.prepare_config_and_inputs()
 
-        config = self.get_config()
-        vision_tokens = (
-            np.ones((input_ids.shape[0], self.num_query_tokens), dtype=input_ids.dtype)
-            * self.image_token_index
-        )
-        input_ids[input_ids == self.image_token_index] = self.text_model_tester.pad_token_id
-        input_ids = np.concatenate([vision_tokens, input_ids], axis=-1)
-        vision_attention_mask = np.ones_like(vision_tokens)
-        attention_mask = np.concatenate([vision_attention_mask, attention_mask], axis=-1)
+        config = self.get_config(text_config, vision_config)
 
-        return config, input_ids, attention_mask, qformer_input_ids, qformer_attention_mask, pixel_values
+        return config, input_ids, attention_mask, flattened_patches
 
-    def get_config(self):
-        return InstructBlipConfig.from_vision_qformer_text_configs(
-            vision_config=self.vision_model_tester.get_config(),
-            qformer_config=self.qformer_model_tester.get_config(),
-            text_config=self.text_model_tester.get_config(),
-            num_query_tokens=self.num_query_tokens,
-            image_token_index=self.image_token_index,
-        )
+    def get_config(self, text_config, vision_config):
+        return Pix2StructConfig.from_text_vision_configs(text_config, vision_config, projection_dim=64)
 
-generation_test = InstructBlipForConditionalGenerationDecoderOnlyModelTester()
-config, input_ids, attention_mask, qformer_input_ids, qformer_attention_mask, pixel_values = generation_test.prepare_config_and_inputs()
+
+    def prepare_config_and_inputs_for_common(self):
+        config_and_inputs = self.prepare_config_and_inputs()
+        config, input_ids, decoder_attention_mask, flattened_patches = config_and_inputs
+
+        attention_mask = np.array(flattened_patches.sum(axis=-1) != 0, dtype=np.float32)
+
+        inputs_dict = {
+            "decoder_input_ids": input_ids,
+            "labels": input_ids,
+            "decoder_attention_mask": decoder_attention_mask,
+            "flattened_patches": flattened_patches,
+            "attention_mask": attention_mask,
+        }
+        return config, inputs_dict
+
+
+model_tester = Pix2StructModelTester()
+config, inputs_dict = model_tester.prepare_config_and_inputs_for_common()
 
 BERT_CASES = [
     [
-        "InstructBlipForConditionalGeneration",
-        "transformers.InstructBlipForConditionalGeneration",
-        "mindone.transformers.InstructBlipForConditionalGeneration",
+        "Pix2StructForConditionalGeneration",
+        "transformers.Pix2StructForConditionalGeneration",
+        "mindone.transformers.Pix2StructForConditionalGeneration",
         (config,),
         {},
-        (pixel_values,),
-        {
-            "input_ids": input_ids,
-            "attention_mask": attention_mask,
-            "qformer_input_ids": qformer_input_ids,
-            "qformer_attention_mask": qformer_attention_mask,
-        },
+        (),
+        {**inputs_dict},
         {
             "logits": 0,
         },

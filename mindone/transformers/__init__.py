@@ -1,4 +1,4 @@
-__version__ = "4.46.3"
+__version__ =  "4.46.3"
 # Feature Extractor
 from .feature_extraction_utils import BatchFeature, FeatureExtractionMixin
 from .image_processing_base import ImageProcessingMixin
@@ -89,6 +89,32 @@ from .models.clap import (
     ClapPreTrainedModel,
     ClapTextModel,
     ClapTextModelWithProjection,
+)
+from .models.instructblip import (
+    InstructBlipQFormerModel,
+    InstructBlipPreTrainedModel,
+    InstructBlipForConditionalGeneration,
+    InstructBlipVisionModel,
+    InstructBlipProcessor,
+)
+from .models.pix2struct import (
+    Pix2StructPreTrainedModel,
+    Pix2StructForConditionalGeneration,
+    Pix2StructVisionModel,
+    Pix2StructTextModel,
+    Pix2StructProcessor,
+    Pix2StructImageProcessor,
+)
+from .models.kosmos2 import (
+    Kosmos2ForConditionalGeneration, Kosmos2Model, Kosmos2PreTrainedModel, Kosmos2Processor,
+)
+from .models.instructblipvideo import (
+    InstructBlipVideoForConditionalGeneration,
+    InstructBlipVideoPreTrainedModel,
+    InstructBlipVideoQFormerModel,
+    InstructBlipVideoVisionModel,
+    InstructBlipVideoProcessor,
+    InstructBlipVideoImageProcessor,
 )
 from .models.clip import (
     CLIP_PRETRAINED_MODEL_ARCHIVE_LIST,

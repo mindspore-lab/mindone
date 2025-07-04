@@ -21,7 +21,6 @@ import inspect
 import numpy as np
 import pytest
 import torch
-from transformers import InstructBlipVisionConfig, InstructBlipQFormerConfig, LlamaConfig, InstructBlipConfig
 
 import mindspore as ms
 
@@ -32,18 +31,20 @@ from tests.modeling_test_utils import (
     generalized_parse_args,
     get_modules,
 )
+from transformers import InstructBlipVideoVisionConfig, InstructBlipVideoQFormerConfig, LlamaConfig, InstructBlipVideoConfig
+
 from tests.transformers_tests.models.modeling_common import floats_numpy, ids_numpy, random_attention_mask
 
 # CrossEntropyLoss not support bf16
 DTYPE_AND_THRESHOLDS = {"fp32": 5e-4, "fp16": 5e-3, "bf16": 1e-2}
 MODES = [1]
 
-
-class InstructBlipVisionModelTester:
+class InstructBlipVideoVisionModelTester:
     def __init__(
         self,
         batch_size=12,
         image_size=30,
+        frames=4,
         patch_size=2,
         num_channels=3,
         is_training=True,
@@ -59,6 +60,7 @@ class InstructBlipVisionModelTester:
     ):
         self.batch_size = batch_size
         self.image_size = image_size
+        self.frames = frames
         self.patch_size = patch_size
         self.num_channels = num_channels
         self.is_training = is_training
@@ -77,13 +79,15 @@ class InstructBlipVisionModelTester:
         self.seq_length = num_patches + 1
 
     def prepare_config_and_inputs(self):
-        pixel_values = floats_numpy([self.batch_size, self.num_channels, self.image_size, self.image_size])
+        pixel_values = floats_numpy(
+            [self.batch_size * self.frames, self.num_channels, self.image_size, self.image_size]
+        )
         config = self.get_config()
 
         return config, pixel_values
 
     def get_config(self):
-        return InstructBlipVisionConfig(
+        return InstructBlipVideoVisionConfig(
             image_size=self.image_size,
             patch_size=self.patch_size,
             num_channels=self.num_channels,
@@ -97,7 +101,8 @@ class InstructBlipVisionModelTester:
             initializer_range=self.initializer_range,
         )
 
-class InstructBlipQFormerModelTester:
+
+class InstructBlipVideoQFormerModelTester:
     def __init__(
         self,
         batch_size=12,
@@ -157,7 +162,7 @@ class InstructBlipQFormerModelTester:
         return config, input_ids, input_mask, qformer_input_ids, qformer_attention_mask
 
     def get_config(self):
-        return InstructBlipQFormerConfig(
+        return InstructBlipVideoQFormerConfig(
             vocab_size=self.vocab_size,
             hidden_size=self.hidden_size,
             projection_dim=self.projection_dim,
@@ -173,7 +178,7 @@ class InstructBlipQFormerModelTester:
 
 
 # this class is based on `LlamaModelTester` found in tests/models/opt/test_modeling_llama.py
-class InstructBlipTextModelDecoderOnlyTester:
+class InstructBlipVideoTextModelDecoderOnlyTester:
     def __init__(
         self,
         batch_size=12,
@@ -239,9 +244,8 @@ class InstructBlipTextModelDecoderOnlyTester:
             rms_norm_eps=self.rms_norm_eps,
         )
 
-
-# this model tester uses a decoder-only language model (llama)
-class InstructBlipForConditionalGenerationDecoderOnlyModelTester:
+# this model tester uses a decoder-only language model (Llama)
+class InstructBlipVideoForConditionalGenerationDecoderOnlyModelTester:
     def __init__(
         self,
         vision_kwargs=None,
@@ -249,7 +253,7 @@ class InstructBlipForConditionalGenerationDecoderOnlyModelTester:
         text_kwargs=None,
         is_training=True,
         num_query_tokens=10,
-        image_token_index=4,
+        video_token_index=4,
     ):
         if vision_kwargs is None:
             vision_kwargs = {}
@@ -258,49 +262,57 @@ class InstructBlipForConditionalGenerationDecoderOnlyModelTester:
         if text_kwargs is None:
             text_kwargs = {}
 
-        self.vision_model_tester = InstructBlipVisionModelTester(**vision_kwargs)
-        self.qformer_model_tester = InstructBlipQFormerModelTester(**qformer_kwargs)
-        self.text_model_tester = InstructBlipTextModelDecoderOnlyTester(**text_kwargs)
+        self.vision_model_tester = InstructBlipVideoVisionModelTester(**vision_kwargs)
+        self.qformer_model_tester = InstructBlipVideoQFormerModelTester(**qformer_kwargs)
+        self.text_model_tester = InstructBlipVideoTextModelDecoderOnlyTester(**text_kwargs)
         self.batch_size = self.text_model_tester.batch_size  # need bs for batching_equivalence test
-        self.seq_length = self.text_model_tester.seq_length + num_query_tokens  # need seq_length for common tests
+        self.frames = self.vision_model_tester.frames
+        # need seq_length for common tests
+        self.seq_length = self.text_model_tester.seq_length + (num_query_tokens * self.frames)
         self.is_training = is_training
         self.num_query_tokens = num_query_tokens
-        self.image_token_index = image_token_index
+        self.video_token_index = video_token_index
 
     def prepare_config_and_inputs(self):
         _, pixel_values = self.vision_model_tester.prepare_config_and_inputs()
         _, _, _, qformer_input_ids, qformer_attention_mask = self.qformer_model_tester.prepare_config_and_inputs()
         _, input_ids, attention_mask = self.text_model_tester.prepare_config_and_inputs()
+        _, c, h, w = pixel_values.shape
+        pixel_values = pixel_values.reshape(-1, self.frames, c, h, w)
 
-        config = self.get_config()
         vision_tokens = (
-            np.ones((input_ids.shape[0], self.num_query_tokens), dtype=input_ids.dtype)
-            * self.image_token_index
+            np.ones(
+                (input_ids.shape[0], self.num_query_tokens * self.frames), dtype=input_ids.dtype
+            )
+            * self.video_token_index
         )
-        input_ids[input_ids == self.image_token_index] = self.text_model_tester.pad_token_id
+        input_ids[input_ids == self.video_token_index] = self.text_model_tester.pad_token_id
         input_ids = np.concatenate([vision_tokens, input_ids], axis=-1)
         vision_attention_mask = np.ones_like(vision_tokens)
         attention_mask = np.concatenate([vision_attention_mask, attention_mask], axis=-1)
 
+        config = self.get_config()
+
         return config, input_ids, attention_mask, qformer_input_ids, qformer_attention_mask, pixel_values
 
     def get_config(self):
-        return InstructBlipConfig.from_vision_qformer_text_configs(
+        return InstructBlipVideoConfig.from_vision_qformer_text_configs(
             vision_config=self.vision_model_tester.get_config(),
             qformer_config=self.qformer_model_tester.get_config(),
             text_config=self.text_model_tester.get_config(),
             num_query_tokens=self.num_query_tokens,
-            image_token_index=self.image_token_index,
+            video_token_index=self.video_token_index,
         )
 
-generation_test = InstructBlipForConditionalGenerationDecoderOnlyModelTester()
+generation_test = InstructBlipVideoForConditionalGenerationDecoderOnlyModelTester()
 config, input_ids, attention_mask, qformer_input_ids, qformer_attention_mask, pixel_values = generation_test.prepare_config_and_inputs()
+
 
 BERT_CASES = [
     [
-        "InstructBlipForConditionalGeneration",
-        "transformers.InstructBlipForConditionalGeneration",
-        "mindone.transformers.InstructBlipForConditionalGeneration",
+        "InstructBlipVideoForConditionalGeneration",
+        "transformers.InstructBlipVideoForConditionalGeneration",
+        "mindone.transformers.InstructBlipVideoForConditionalGeneration",
         (config,),
         {},
         (pixel_values,),
