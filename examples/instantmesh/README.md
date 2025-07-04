@@ -118,6 +118,37 @@ One needs to patch `mindcv.models.vgg` in L62 to enable conv kernel bias to alig
 + conv2d = nn.Conv2d(in_channels, v, kernel_size=3, pad_mode="pad", padding=1, has_bias=True)
 ```
 
+### ⚠️ Warning:
+If the dataset has pickle files, you need to pay attention to the following security risks.
+
+- Loading Pickle files will lead to the following risks:
+   - Remote Code Execution (RCE)
+   - Sensitive data leakage
+   - System compromise
+- By using pickle files, you acknowledge the risks and agree to:
+   - Covert pickle files in isolated environments (e.g., sandbox/container)
+   - Never load `.pkl` files from untrusted sources
+
+For more information, review the [Documentation](https://docs.python.org/3/library/pickle.html) for the ``pickle`` module.
+
+Taking the following training dataset as an example:
+```shell
+unzip training_examples.zip && tree training_examples
+```
+```text
+training_examples
+ ├─input
+ │  └──uid_0
+ │      ├─000.png
+ │      └──meta.pkl
+ ├─target
+ │  └──uid_0
+ │      └──000.png
+ └──uid_set.pkl
+```
+The data type stored in ``meta.pkl`` is `List[np.ndarray]`, and the data type stored in ``uid_set.pkl`` is `List[str]`.
+We recommend that you convert the ``meta.pkl`` file to ``meta.npz`` format and convert the ``uid_set.pkl`` file to ``uid_set.json`` format by yourself before training.
+
 ### Data Curation
 Following the original paper, we used Blender to render multiview frames for a 3D object in `.obj` for training. Typically for overfitting, three 3D objects from the objaverse dataset are used. We rendered 5 arbitral views for each object with the corresponding camera parameters extracted.
 

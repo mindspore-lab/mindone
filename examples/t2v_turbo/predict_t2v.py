@@ -66,9 +66,9 @@ def download_vc2(args):
         DownLoad().download_url(LORA_URL_VC2, path=MODEL_CACHE_VC2)
         convert_lora(
             src_path=os.path.join(MODEL_CACHE_VC2, "unet_lora.pt"),
-            target_path=os.path.join(MODEL_CACHE_VC2, "unet_lora.ckpt"),
+            target_path=os.path.join(MODEL_CACHE_VC2, "unet_lora.npz"),
         )
-        unet_dir = os.path.join(MODEL_CACHE_VC2, "unet_lora.ckpt")
+        unet_dir = os.path.join(MODEL_CACHE_VC2, "unet_lora.npz")
 
     if not os.path.exists(t2v_dir):
         logger.info(f"Downloading base model to {t2v_dir}...")
@@ -90,9 +90,9 @@ def download_ms(args):
         DownLoad().download_url(LORA_URL_MS, path=MODEL_CACHE_MS)
         convert_lora(
             src_path=os.path.join(MODEL_CACHE_MS, "unet_lora.pt"),
-            target_path=os.path.join(MODEL_CACHE_MS, "unet_lora.ckpt"),
+            target_path=os.path.join(MODEL_CACHE_MS, "unet_lora.npz"),
         )
-        unet_dir = os.path.join(MODEL_CACHE_MS, "unet_lora.ckpt")
+        unet_dir = os.path.join(MODEL_CACHE_MS, "unet_lora.npz")
 
     return args.base_model_dir, unet_dir
 
@@ -285,7 +285,7 @@ def parse_args():
         "--teacher", type=str, choices=["vc2", "ms"], required=True, help="Select the model type: 'vc2' or 'ms'."
     )
     parser.add_argument(
-        "--unet_dir", type=str, default="model_cache/t2v-vc2/unet_lora.ckpt", help="Directory of the UNet model."
+        "--unet_dir", type=str, default="model_cache/t2v-vc2/unet_lora.npz", help="Directory of the UNet model."
     )
     parser.add_argument(
         "--base_model_dir",
