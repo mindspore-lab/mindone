@@ -1,6 +1,9 @@
 # coding=utf-8
 # Copyright 2021 The Marian Team Authors and The HuggingFace Inc. team. All rights reserved.
 #
+# This code is adapted from https://github.com/huggingface/transformers
+# with modifications to run transformers on mindspore.
+#
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -777,13 +780,7 @@ class MarianEncoder(MarianPreTrainedModel):
                 layer_outputs = (None, None)
             else:
                 if self.gradient_checkpointing and self.training:
-                    layer_outputs = self._gradient_checkpointing_func(
-                        encoder_layer.__call__,
-                        hidden_states,
-                        attention_mask,
-                        (head_mask[idx] if head_mask is not None else None),
-                        output_attentions,
-                    )
+                    raise NotImplementedError("Gradient checkpoint is not yet supported.")
                 else:
                     layer_outputs = encoder_layer(
                         hidden_states,
@@ -1029,19 +1026,7 @@ class MarianDecoder(MarianPreTrainedModel):
                     continue
 
             if self.gradient_checkpointing and self.training:
-                layer_outputs = self._gradient_checkpointing_func(
-                    decoder_layer.__call__,
-                    hidden_states,
-                    causal_mask,
-                    encoder_hidden_states,
-                    encoder_attention_mask,
-                    head_mask[idx] if head_mask is not None else None,
-                    cross_attn_head_mask[idx] if cross_attn_head_mask is not None else None,
-                    None,
-                    output_attentions,
-                    use_cache,
-                    cache_position,
-                )
+                raise NotImplementedError("Gradient checkpoint is not yet supported.")
             else:
                 layer_outputs = decoder_layer(
                     hidden_states,
@@ -1219,7 +1204,8 @@ class MarianModel(MarianPreTrainedModel):
         Example:
 
         ```python
-        >>> from transformers import AutoTokenizer, MarianModel
+        >>> from transformers import AutoTokenizer
+        >>> from mindone.transformers import MarianModel
 
         >>> tokenizer = AutoTokenizer.from_pretrained("Helsinki-NLP/opus-mt-en-de")
         >>> model = MarianModel.from_pretrained("Helsinki-NLP/opus-mt-en-de")
@@ -1227,10 +1213,10 @@ class MarianModel(MarianPreTrainedModel):
         >>> inputs = tokenizer("Studies have been shown that owning a dog is good for you", return_tensors="pt")
         >>> decoder_inputs = tokenizer(
         ...     "<pad> Studien haben gezeigt dass es hilfreich ist einen Hund zu besitzen",
-        ...     return_tensors="pt",
+        ...     return_tensors="np",
         ...     add_special_tokens=False,
         ... )
-        >>> outputs = model(input_ids=inputs.input_ids, decoder_input_ids=decoder_inputs.input_ids)
+        >>> outputs = model(input_ids=ms.tensor(inputs.input_ids), decoder_input_ids=ms.tensor(decoder_inputs.input_ids))
 
         >>> last_hidden_states = outputs.last_hidden_state
         >>> list(last_hidden_states.shape)
@@ -1475,7 +1461,10 @@ class MarianMTModel(MarianPreTrainedModel, GenerationMixin):
         Example:
 
         ```python
-        >>> from transformers import AutoTokenizer, MarianMTModel
+        >>> from transformers import AutoTokenizer
+        >>> from mindone.transformers import MarianMTModel
+        >>> import numpy as np
+        >>> import mindspore as ms
 
         >>> src = "fr"  # source language
         >>> trg = "en"  # target language
@@ -1485,7 +1474,14 @@ class MarianMTModel(MarianPreTrainedModel, GenerationMixin):
         >>> tokenizer = AutoTokenizer.from_pretrained(model_name)
 
         >>> sample_text = "où est l'arrêt de bus ?"
-        >>> batch = tokenizer([sample_text], return_tensors="pt")
+        >>> batch = tokenizer([sample_text], return_tensors="np")
+        >>> for key, value in batch.items():  # by default input numpy array or list
+        >>>     if isinstance(value, np.ndarray):
+        >>>         batch[key] = ms.Tensor(value)
+        >>>     elif isinstance(value, list):
+        >>>         batch[key] = ms.Tensor(value)
+        >>>     if batch[key].dtype == ms.int64:
+        >>>         batch[key] = batch[key].to(ms.int32)
 
         >>> generated_ids = model.generate(**batch)
         >>> tokenizer.batch_decode(generated_ids, skip_special_tokens=True)[0]
@@ -1638,12 +1634,22 @@ class MarianForCausalLM(MarianPreTrainedModel, GenerationMixin):
         Example:
 
         ```python
-        >>> from transformers import AutoTokenizer, MarianForCausalLM
+        >>> from transformers import AutoTokenizer
+        >>> from mindone.transformers import MarianForCausalLM
+        >>> import numpy as np
+        >>> import mindspore as ms
 
         >>> tokenizer = AutoTokenizer.from_pretrained("Helsinki-NLP/opus-mt-fr-en")
         >>> model = MarianForCausalLM.from_pretrained("Helsinki-NLP/opus-mt-fr-en", add_cross_attention=False)
         >>> assert model.config.is_decoder, f"{model.__class__} has to be configured as a decoder."
-        >>> inputs = tokenizer("Hello, my dog is cute", return_tensors="pt")
+        >>> inputs = tokenizer("Hello, my dog is cute", return_tensors="np")
+        >>> for key, value in inputs.items():  # by default input numpy array or list
+        >>>     if isinstance(value, np.ndarray):
+        >>>         inputs[key] = ms.Tensor(value)
+        >>>     elif isinstance(value, list):
+        >>>         inputs[key] = ms.Tensor(value)
+        >>>     if inputs[key].dtype == ms.int64:
+        >>>         inputs[key] = inputs[key].to(ms.int32)
         >>> outputs = model(**inputs)
 
         >>> logits = outputs.logits

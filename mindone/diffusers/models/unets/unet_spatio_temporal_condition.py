@@ -10,7 +10,6 @@ from ...utils import BaseOutput, logging
 from ..attention_processor import CROSS_ATTENTION_PROCESSORS, AttentionProcessor, AttnProcessor
 from ..embeddings import TimestepEmbedding, Timesteps
 from ..modeling_utils import ModelMixin
-from ..normalization import GroupNorm
 from .unet_3d_blocks import UNetMidBlockSpatioTemporal, get_down_block, get_up_block
 
 logger = logging.get_logger(__name__)  # pylint: disable=invalid-name
@@ -246,7 +245,7 @@ class UNetSpatioTemporalConditionModel(ModelMixin, ConfigMixin, UNet2DConditionL
         self.layers_per_resnet_in_up_blocks = layers_per_resnet_in_up_blocks
 
         # out
-        self.conv_norm_out = GroupNorm(num_channels=block_out_channels[0], num_groups=32, eps=1e-5)
+        self.conv_norm_out = mint.nn.GroupNorm(num_channels=block_out_channels[0], num_groups=32, eps=1e-5)
         self.conv_act = mint.nn.SiLU()
 
         self.conv_out = mint.nn.Conv2d(
@@ -323,10 +322,6 @@ class UNetSpatioTemporalConditionModel(ModelMixin, ConfigMixin, UNet2DConditionL
             )
 
         self.set_attn_processor(processor)
-
-    def _set_gradient_checkpointing(self, module, value=False):
-        if hasattr(module, "gradient_checkpointing"):
-            module.gradient_checkpointing = value
 
     # Copied from diffusers.models.unets.unet_3d_condition.UNet3DConditionModel.enable_forward_chunking
     def enable_forward_chunking(self, chunk_size: Optional[int] = None, dim: int = 0) -> None:
@@ -406,10 +401,10 @@ class UNetSpatioTemporalConditionModel(ModelMixin, ConfigMixin, UNet2DConditionL
         if not ops.is_tensor(timesteps):
             # TODO: this requires sync between CPU and GPU. So try to pass timesteps as tensors if you can
             if isinstance(timestep, float):
-                dtype = ms.float64
+                dtype = ms.float32
             else:
-                dtype = ms.int64
-            timesteps = ms.Tensor([timesteps], dtype=dtype)
+                dtype = ms.int32
+            timesteps = ms.tensor([timesteps], dtype=dtype)
         elif len(timesteps.shape) == 0:
             timesteps = timesteps[None]
 
@@ -434,12 +429,14 @@ class UNetSpatioTemporalConditionModel(ModelMixin, ConfigMixin, UNet2DConditionL
 
         # Flatten the batch and frames dimensions
         # sample: [batch, frames, channels, height, width] -> [batch * frames, channels, height, width]
-        sample = sample.flatten(start_dim=0, end_dim=1)
+        sample = sample.flatten(0, 1)
         # Repeat the embeddings num_video_frames times
         # emb: [batch, channels] -> [batch * frames, channels]
-        emb = emb.repeat_interleave(num_frames, dim=0)
+        emb = emb.repeat_interleave(num_frames, dim=0, output_size=emb.shape[0] * num_frames)
         # encoder_hidden_states: [batch, 1, channels] -> [batch * frames, 1, channels]
-        encoder_hidden_states = encoder_hidden_states.repeat_interleave(num_frames, dim=0)
+        encoder_hidden_states = encoder_hidden_states.repeat_interleave(
+            num_frames, dim=0, output_size=encoder_hidden_states.shape[0] * num_frames
+        )
 
         # 2. pre-process
         sample = self.conv_in(sample)
