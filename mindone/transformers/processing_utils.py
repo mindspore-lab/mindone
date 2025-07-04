@@ -469,7 +469,7 @@ class ProcessorMixin(PushToHubMixin):
             # Nothing is ever going to be an instance of "AutoXxx", in that case we check the base class.
             class_name = AUTO_TO_BASE_CLASS_MAPPING.get(class_name, class_name)
             if isinstance(class_name, tuple):
-                if "ImageProcess" in class_name:
+                if "ImageProcess" in class_name[0]:
                     sub_path = os.path.abspath(os.path.dirname(__file__))
                     sub_path = str(Path(sub_path).parent)
                     sys.path.insert(0, sub_path)
