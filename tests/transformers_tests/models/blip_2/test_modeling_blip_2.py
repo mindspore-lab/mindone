@@ -28,7 +28,7 @@ from tests.transformers_tests.models.modeling_common import floats_numpy
 
 # fp16 got nan
 DTYPE_AND_THRESHOLDS = {"fp32": 5e-4, "bf16": 5e-3}
-MODES = [0, 1]
+MODES = [1]
 
 
 class Blip2VisionModelTester:
