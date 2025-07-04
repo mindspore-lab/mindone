@@ -22,7 +22,6 @@ from ...configuration_utils import ConfigMixin, register_to_config
 from ..attention_processor import CROSS_ATTENTION_PROCESSORS, AttentionProcessor, AttnProcessor
 from ..modeling_outputs import AutoencoderKLOutput
 from ..modeling_utils import ModelMixin
-from ..normalization import GroupNorm
 from ..unets.unet_3d_blocks import MidBlockTemporalDecoder, UpBlockTemporalDecoder
 from .vae import DecoderOutput, DiagonalGaussianDistribution, Encoder
 
@@ -65,7 +64,7 @@ class TemporalDecoder(nn.Cell):
             prev_output_channel = output_channel
         self.up_blocks = nn.CellList(self.up_blocks)
 
-        self.conv_norm_out = GroupNorm(num_channels=block_out_channels[0], num_groups=32, eps=1e-6)
+        self.conv_norm_out = mint.nn.GroupNorm(num_channels=block_out_channels[0], num_groups=32, eps=1e-6)
 
         self.conv_act = mint.nn.SiLU()
         self.conv_out = mint.nn.Conv2d(
