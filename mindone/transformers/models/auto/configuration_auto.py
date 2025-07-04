@@ -67,6 +67,8 @@ CONFIG_MAPPING_NAMES = OrderedDict(
         ("mt5", "MT5Config"),
         ("megatron-bert", "MegatronBertConfig"),
         ("mixtral", "MixtralConfig"),
+        ("mobilevit", "MobileViTConfig"),
+        ("mobilevitv2", "MobileViTV2Config"),
         ("paligemma", "PaliGemmaConfig"),
         ("phi", "PhiConfig"),
         ("phi3", "Phi3Config"),
@@ -86,6 +88,7 @@ CONFIG_MAPPING_NAMES = OrderedDict(
         ("umt5", "UMT5Config"),
         ("wav2vec2", "Wav2Vec2Config"),
         ("whisper", "WhisperConfig"),
+        ("xlnet", "XLNetConfig"),
         ("xlm-roberta", "XLMRobertaConfig"),
         ("xlm-roberta-xl", "XLMRobertaXLConfig"),
     ]
@@ -140,6 +143,8 @@ MODEL_NAMES_MAPPING = OrderedDict(
         ("mt5", "MT5"),
         ("megatron-bert", "Megatron-BERT"),
         ("mixtral", "Mixtral"),
+        ("mobilevit", "MobileViT"),
+        ("mobilevitv2", "MobileViTV2"),
         ("paligemma", "PaliGemma"),
         ("phi", "Phi"),
         ("phi3", "Phi3"),
@@ -159,6 +164,7 @@ MODEL_NAMES_MAPPING = OrderedDict(
         ("umt5", "UMT5"),
         ("wav2vec2", "Wav2Vec2"),
         ("whisper", "Whisper"),
+        ("xlnet", "XLNet"),
         ("xlm-roberta", "XLM-RoBERTa"),
         ("xlm-roberta-xl", "XLM-RoBERTa-XL"),
     ]
