@@ -38,11 +38,13 @@ The [`from_single_file`](single_file.md#mindone.diffusers.loaders.single_file.Fr
 - [`StableDiffusionXLInpaintPipeline`](../pipelines/stable_diffusion/stable_diffusion_xl.md#stable-diffusion-xl)
 - [`StableDiffusionXLInstructPix2PixPipeline`](../pipelines/pix2pix.md#instructpix2pix)
 - [`StableDiffusionXLControlNetPipeline`](../pipelines/controlnet_sdxl.md)
+- [`StableDiffusionXLKDiffusionPipeline`](../pipelines/stable_diffusion/k_diffusion.md)
 - [`StableDiffusion3Pipeline`](../pipelines/stable_diffusion/stable_diffusion_3.md)
 - [`LatentConsistencyModelPipeline`](../pipelines/latent_consistency_models.md)
 - [`LatentConsistencyModelImg2ImgPipeline`](../pipelines/latent_consistency_models.md)
 - [`StableDiffusionControlNetXSPipeline`](../pipelines/controlnetxs.md)
 - [`StableDiffusionXLControlNetXSPipeline`](../pipelines/controlnetxs_sdxl.md)
+- [`PIAPipeline`](../pipelines/pia.md)
 
 ## Supported models
 

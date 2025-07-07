@@ -21,7 +21,7 @@ from packaging import version
 from transformers import CLIPImageProcessor, CLIPTokenizer
 
 import mindspore as ms
-from mindspore import ops
+from mindspore import mint, ops
 
 from mindone.transformers import CLIPTextModel, CLIPVisionModelWithProjection
 
@@ -38,7 +38,10 @@ from ..stable_diffusion.pipeline_output import StableDiffusionPipelineOutput
 from ..stable_diffusion.safety_checker import StableDiffusionSafetyChecker
 from .pag_utils import PAGMixin
 
+XLA_AVAILABLE = False
+
 logger = logging.get_logger(__name__)  # pylint: disable=invalid-name
+
 
 EXAMPLE_DOC_STRING = """
     Examples:
@@ -195,7 +198,7 @@ class StableDiffusionPAGImg2ImgPipeline(
     ):
         super().__init__()
 
-        if hasattr(scheduler.config, "steps_offset") and scheduler.config.steps_offset != 1:
+        if scheduler is not None and getattr(scheduler.config, "steps_offset", 1) != 1:
             deprecation_message = (
                 f"The configuration file of this scheduler: {scheduler} is outdated. `steps_offset`"
                 f" should be set to 1 instead of {scheduler.config.steps_offset}. Please make sure "
@@ -209,7 +212,7 @@ class StableDiffusionPAGImg2ImgPipeline(
             new_config["steps_offset"] = 1
             scheduler._internal_dict = FrozenDict(new_config)
 
-        if hasattr(scheduler.config, "clip_sample") and scheduler.config.clip_sample is True:
+        if scheduler is not None and getattr(scheduler.config, "clip_sample", False) is True:
             deprecation_message = (
                 f"The configuration file of this scheduler: {scheduler} has not set the configuration `clip_sample`."
                 " `clip_sample` should be set to False in the configuration file. Please make sure to update the"
@@ -238,10 +241,14 @@ class StableDiffusionPAGImg2ImgPipeline(
                 " checker. If you do not want to use the safety checker, you can pass `'safety_checker=None'` instead."
             )
 
-        is_unet_version_less_0_9_0 = hasattr(unet.config, "_diffusers_version") and version.parse(
-            version.parse(unet.config._diffusers_version).base_version
-        ) < version.parse("0.9.0.dev0")
-        is_unet_sample_size_less_64 = hasattr(unet.config, "sample_size") and unet.config.sample_size < 64
+        is_unet_version_less_0_9_0 = (
+            unet is not None
+            and hasattr(unet.config, "_diffusers_version")
+            and version.parse(version.parse(unet.config._diffusers_version).base_version) < version.parse("0.9.0.dev0")
+        )
+        is_unet_sample_size_less_64 = (
+            unet is not None and hasattr(unet.config, "sample_size") and unet.config.sample_size < 64
+        )
         if is_unet_version_less_0_9_0 and is_unet_sample_size_less_64:
             deprecation_message = (
                 "The configuration file of the unet has set the default `sample_size` to smaller than"
@@ -269,7 +276,7 @@ class StableDiffusionPAGImg2ImgPipeline(
             feature_extractor=feature_extractor,
             image_encoder=image_encoder,
         )
-        self.vae_scale_factor = 2 ** (len(self.vae.config.block_out_channels) - 1)
+        self.vae_scale_factor = 2 ** (len(self.vae.config.block_out_channels) - 1) if getattr(self, "vae", None) else 8
         self.image_processor = VaeImageProcessor(vae_scale_factor=self.vae_scale_factor)
         self.register_to_config(requires_safety_checker=requires_safety_checker)
 
@@ -462,7 +469,9 @@ class StableDiffusionPAGImg2ImgPipeline(
         if output_hidden_states:
             image_enc_hidden_states = self.image_encoder(image, output_hidden_states=True)[2][-2]
             image_enc_hidden_states = image_enc_hidden_states.repeat_interleave(num_images_per_prompt, dim=0)
-            uncond_image_enc_hidden_states = self.image_encoder(ops.zeros_like(image), output_hidden_states=True)[2][-2]
+            uncond_image_enc_hidden_states = self.image_encoder(mint.zeros_like(image), output_hidden_states=True)[2][
+                -2
+            ]
             uncond_image_enc_hidden_states = uncond_image_enc_hidden_states.repeat_interleave(
                 num_images_per_prompt, dim=0
             )
@@ -470,7 +479,7 @@ class StableDiffusionPAGImg2ImgPipeline(
         else:
             image_embeds = self.image_encoder(image)[0]
             image_embeds = image_embeds.repeat_interleave(num_images_per_prompt, dim=0)
-            uncond_image_embeds = ops.zeros_like(image_embeds)
+            uncond_image_embeds = mint.zeros_like(image_embeds)
 
             return image_embeds, uncond_image_embeds
 
@@ -510,10 +519,10 @@ class StableDiffusionPAGImg2ImgPipeline(
 
         ip_adapter_image_embeds = []
         for i, single_image_embeds in enumerate(image_embeds):
-            single_image_embeds = ops.cat([single_image_embeds] * num_images_per_prompt, axis=0)
+            single_image_embeds = mint.cat([single_image_embeds] * num_images_per_prompt, dim=0)
             if do_classifier_free_guidance:
-                single_negative_image_embeds = ops.cat([negative_image_embeds[i]] * num_images_per_prompt, axis=0)
-                single_image_embeds = ops.cat([single_negative_image_embeds, single_image_embeds], axis=0)
+                single_negative_image_embeds = mint.cat([negative_image_embeds[i]] * num_images_per_prompt, dim=0)
+                single_image_embeds = mint.cat([single_negative_image_embeds, single_image_embeds], dim=0)
 
             ip_adapter_image_embeds.append(single_image_embeds)
 
@@ -646,7 +655,7 @@ class StableDiffusionPAGImg2ImgPipeline(
 
             elif isinstance(generator, list):
                 if image.shape[0] < batch_size and batch_size % image.shape[0] == 0:
-                    image = ops.cat([image] * (batch_size // image.shape[0]), axis=0)
+                    image = mint.cat([image] * (batch_size // image.shape[0]), dim=0)
                 elif image.shape[0] < batch_size and batch_size % image.shape[0] != 0:
                     raise ValueError(
                         f"Cannot duplicate `image` of batch size {image.shape[0]} to effective batch_size {batch_size} "
@@ -656,7 +665,7 @@ class StableDiffusionPAGImg2ImgPipeline(
                     retrieve_latents(self.vae, self.vae.encode(image[i : i + 1])[0], generator=generator[i])
                     for i in range(batch_size)
                 ]
-                init_latents = ops.cat(init_latents, axis=0)
+                init_latents = mint.cat(init_latents, dim=0)
             else:
                 init_latents = retrieve_latents(self.vae, self.vae.encode(image)[0], generator=generator)
 
@@ -672,13 +681,13 @@ class StableDiffusionPAGImg2ImgPipeline(
             )
             deprecate("len(prompt) != len(image)", "1.0.0", deprecation_message, standard_warn=False)
             additional_image_per_prompt = batch_size // init_latents.shape[0]
-            init_latents = ops.cat([init_latents] * additional_image_per_prompt, axis=0)
+            init_latents = mint.cat([init_latents] * additional_image_per_prompt, dim=0)
         elif batch_size > init_latents.shape[0] and batch_size % init_latents.shape[0] != 0:
             raise ValueError(
                 f"Cannot duplicate `image` of batch size {init_latents.shape[0]} to {batch_size} text prompts."
             )
         else:
-            init_latents = ops.cat([init_latents], axis=0)
+            init_latents = mint.cat([init_latents], dim=0)
 
         shape = init_latents.shape
         noise = randn_tensor(shape, generator=generator, dtype=dtype)
@@ -711,12 +720,12 @@ class StableDiffusionPAGImg2ImgPipeline(
         w = w * 1000.0
 
         half_dim = embedding_dim // 2
-        emb = ops.log(ms.tensor(10000.0)) / (half_dim - 1)
-        emb = ops.exp(ops.arange(half_dim, dtype=dtype) * -emb)
+        emb = mint.log(ms.tensor(10000.0)) / (half_dim - 1)
+        emb = mint.exp(mint.arange(half_dim, dtype=dtype) * -emb)
         emb = w.to(dtype)[:, None] * emb[None, :]
-        emb = ops.cat([ops.sin(emb), ops.cos(emb)], axis=1)
+        emb = mint.cat([mint.sin(emb), mint.cos(emb)], dim=1)
         if embedding_dim % 2 == 1:  # zero pad
-            emb = ops.pad(emb, (0, 1))
+            emb = mint.nn.functional.pad(emb, (0, 1))
         assert emb.shape == (w.shape[0], embedding_dim)
         return emb
 
@@ -920,7 +929,7 @@ class StableDiffusionPAGImg2ImgPipeline(
                 prompt_embeds, negative_prompt_embeds, self.do_classifier_free_guidance
             )
         elif self.do_classifier_free_guidance:
-            prompt_embeds = ops.cat([negative_prompt_embeds, prompt_embeds])
+            prompt_embeds = mint.cat([negative_prompt_embeds, prompt_embeds])
 
         if ip_adapter_image is not None or ip_adapter_image_embeds is not None:
             ip_adapter_image_embeds = self.prepare_ip_adapter_image_embeds(
@@ -940,7 +949,7 @@ class StableDiffusionPAGImg2ImgPipeline(
                     )
 
                 elif self.do_classifier_free_guidance:
-                    image_embeds = ops.cat([negative_image_embeds, image_embeds], axis=0)
+                    image_embeds = mint.cat([negative_image_embeds, image_embeds], dim=0)
                 ip_adapter_image_embeds[i] = image_embeds
 
         # 4. Preprocess image
@@ -996,7 +1005,7 @@ class StableDiffusionPAGImg2ImgPipeline(
                     continue
 
                 # expand the latents if we are doing classifier free guidance
-                latent_model_input = ops.cat([latents] * (prompt_embeds.shape[0] // latents.shape[0]))
+                latent_model_input = mint.cat([latents] * (prompt_embeds.shape[0] // latents.shape[0]))
                 latent_model_input = self.scheduler.scale_model_input(latent_model_input, t)
 
                 # predict the noise residual

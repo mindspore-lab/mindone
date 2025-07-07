@@ -24,7 +24,7 @@ import numpy as np
 from transformers import T5Tokenizer
 
 import mindspore as ms
-from mindspore import ops
+from mindspore import mint, ops
 
 from mindone.transformers import T5EncoderModel
 
@@ -32,11 +32,14 @@ from ...callbacks import MultiPipelineCallbacks, PipelineCallback
 from ...models import AutoencoderKL, LatteTransformer3DModel
 from ...pipelines.pipeline_utils import DiffusionPipeline
 from ...schedulers import KarrasDiffusionSchedulers
-from ...utils import BACKENDS_MAPPING, BaseOutput, is_bs4_available, is_ftfy_available, logging
+from ...utils import BACKENDS_MAPPING, BaseOutput, deprecate, is_bs4_available, is_ftfy_available, logging
 from ...utils.mindspore_utils import randn_tensor
 from ...video_processor import VideoProcessor
 
+XLA_AVAILABLE = False
+
 logger = logging.get_logger(__name__)  # pylint: disable=invalid-name
+
 
 if is_bs4_available():
     from bs4 import BeautifulSoup
@@ -172,7 +175,7 @@ class LattePipeline(DiffusionPipeline):
             tokenizer=tokenizer, text_encoder=text_encoder, vae=vae, transformer=transformer, scheduler=scheduler
         )
 
-        self.vae_scale_factor = 2 ** (len(self.vae.config.block_out_channels) - 1)
+        self.vae_scale_factor = 2 ** (len(self.vae.config.block_out_channels) - 1) if getattr(self, "vae", None) else 8
         self.video_processor = VideoProcessor(vae_scale_factor=self.vae_scale_factor)
 
     # Adapted from https://github.com/PixArt-alpha/PixArt-alpha/blob/master/diffusion/model/utils.py
@@ -260,7 +263,7 @@ class LattePipeline(DiffusionPipeline):
             prompt_embeds = self.text_encoder(ms.tensor(text_input_ids), attention_mask=attention_mask)
             prompt_embeds = prompt_embeds[0]
         else:
-            prompt_embeds_attention_mask = ops.ones_like(prompt_embeds)
+            prompt_embeds_attention_mask = mint.ones_like(prompt_embeds)
 
         if self.text_encoder is not None:
             dtype = self.text_encoder.dtype
@@ -578,6 +581,10 @@ class LattePipeline(DiffusionPipeline):
         return self._num_timesteps
 
     @property
+    def current_timestep(self):
+        return self._current_timestep
+
+    @property
     def interrupt(self):
         return self._interrupt
 
@@ -606,7 +613,7 @@ class LattePipeline(DiffusionPipeline):
         clean_caption: bool = True,
         mask_feature: bool = True,
         enable_temporal_attentions: bool = True,
-        decode_chunk_size: Optional[int] = None,
+        decode_chunk_size: int = 14,
     ) -> Union[LattePipelineOutput, Tuple]:
         """
         Function invoked when calling the pipeline for generation.
@@ -702,6 +709,7 @@ class LattePipeline(DiffusionPipeline):
             negative_prompt_embeds,
         )
         self._guidance_scale = guidance_scale
+        self._current_timestep = None
         self._interrupt = False
 
         # 2. Default height and width to transformer
@@ -729,7 +737,7 @@ class LattePipeline(DiffusionPipeline):
             mask_feature=mask_feature,
         )
         if do_classifier_free_guidance:
-            prompt_embeds = ops.cat([negative_prompt_embeds, prompt_embeds], axis=0)
+            prompt_embeds = mint.cat([negative_prompt_embeds, prompt_embeds], dim=0)
 
         # 4. Prepare timesteps
         timesteps, num_inference_steps = retrieve_timesteps(self.scheduler, num_inference_steps, timesteps)
@@ -759,7 +767,8 @@ class LattePipeline(DiffusionPipeline):
                 if self.interrupt:
                     continue
 
-                latent_model_input = ops.cat([latents] * 2) if do_classifier_free_guidance else latents
+                self._current_timestep = t
+                latent_model_input = mint.cat([latents] * 2) if do_classifier_free_guidance else latents
                 latent_model_input = self.scheduler.scale_model_input(latent_model_input, t)
 
                 current_timestep = t
@@ -776,7 +785,7 @@ class LattePipeline(DiffusionPipeline):
 
                 # predict noise model_output
                 noise_pred = self.transformer(
-                    latent_model_input,
+                    hidden_states=latent_model_input,
                     encoder_hidden_states=prompt_embeds,
                     timestep=current_timestep,
                     enable_temporal_attentions=enable_temporal_attentions,
@@ -793,7 +802,7 @@ class LattePipeline(DiffusionPipeline):
                     hasattr(self.scheduler.config, "variance_type")
                     and self.scheduler.config.variance_type in ["learned", "learned_range"]
                 ):
-                    noise_pred = noise_pred.chunk(2, axis=1)[0]
+                    noise_pred = noise_pred.chunk(2, dim=1)[0]
 
                 # compute previous video: x_t -> x_t-1
                 latents = self.scheduler.step(noise_pred, t, latents, **extra_step_kwargs, return_dict=False)[0]
@@ -812,8 +821,17 @@ class LattePipeline(DiffusionPipeline):
                 if i == len(timesteps) - 1 or ((i + 1) > num_warmup_steps and (i + 1) % self.scheduler.order == 0):
                     progress_bar.update()
 
-        if not output_type == "latents":
-            video = self.decode_latents(latents, video_length, decode_chunk_size=14)
+        self._current_timestep = None
+
+        if output_type == "latents":
+            deprecation_message = (
+                "Passing `output_type='latents'` is deprecated. Please pass `output_type='latent'` instead."
+            )
+            deprecate("output_type_latents", "1.0.0", deprecation_message, standard_warn=False)
+            output_type = "latent"
+
+        if not output_type == "latent":
+            video = self.decode_latents(latents, video_length, decode_chunk_size=decode_chunk_size)
             video = self.video_processor.postprocess_video(video=video, output_type=output_type)
         else:
             video = latents
@@ -844,7 +862,7 @@ class LattePipeline(DiffusionPipeline):
 
             frame = self.vae.decode(latents[i : i + decode_chunk_size], **decode_kwargs)[0]
             frames.append(frame)
-        frames = ops.cat(frames, axis=0)
+        frames = mint.cat(frames, dim=0)
 
         # [batch*frames, channels, height, width] -> [batch, channels, frames, height, width]
         frames = frames.reshape((-1, video_length) + frames.shape[1:]).permute(0, 2, 1, 3, 4)

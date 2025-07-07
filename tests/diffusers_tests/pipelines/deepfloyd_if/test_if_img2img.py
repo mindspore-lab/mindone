@@ -22,7 +22,7 @@ from ddt import data, ddt, unpack
 
 import mindspore as ms
 
-from mindone.diffusers.utils.testing_utils import load_downloaded_numpy_from_hf_hub, slow
+from mindone.diffusers.utils.testing_utils import load_numpy_from_local_file, slow
 
 from ..pipeline_test_utils import (
     THRESHOLD_FP16,
@@ -112,7 +112,7 @@ class IFImg2ImgPipelineSlowTests(PipelineTesterMixin, unittest.TestCase):
         pipe_cls = get_module("mindone.diffusers.pipelines.deepfloyd_if.IFImg2ImgPipeline")
         pipe = pipe_cls.from_pretrained(
             "DeepFloyd/IF-I-L-v1.0",
-            variant="fp16",
+            # variant="fp16",
             mindspore_dtype=ms_dtype,
         )
 
@@ -125,8 +125,8 @@ class IFImg2ImgPipelineSlowTests(PipelineTesterMixin, unittest.TestCase):
         )
         image = output[0][0]
 
-        expected_image = load_downloaded_numpy_from_hf_hub(
-            "The-truth/mindone-testing-arrays",
+        expected_image = load_numpy_from_local_file(
+            "mindone-testing-arrays",
             f"img2img_{dtype}.npy",
             subfolder="deepfloyd_if",
         )

@@ -22,7 +22,7 @@ from typing import List, Optional, Tuple, Union
 import numpy as np
 
 import mindspore as ms
-from mindspore import nn, ops
+from mindspore import mint, nn
 
 from . import logging
 
@@ -33,6 +33,12 @@ _MIN_FP16 = ms.tensor(np.finfo(np.float16).min, dtype=ms.float16)
 _MIN_FP32 = ms.tensor(np.finfo(np.float32).min, dtype=ms.float32)
 _MIN_FP64 = ms.tensor(np.finfo(np.float64).min, dtype=ms.float64)
 _MIN_BF16 = ms.tensor(float.fromhex("-0x1.fe00000000000p+127"), dtype=ms.bfloat16)
+
+
+_MAX_FP16 = ms.tensor(np.finfo(np.float16).max, dtype=ms.float16)
+_MAX_FP32 = ms.tensor(np.finfo(np.float32).max, dtype=ms.float32)
+_MAX_FP64 = ms.tensor(np.finfo(np.float64).max, dtype=ms.float64)
+_MAX_BF16 = ms.tensor(float.fromhex("0x1.fe00000000000p+127"), dtype=ms.bfloat16)
 
 
 # Copied from mindone.transformers.modeling_attn_mask_utils.dtype_to_min
@@ -47,6 +53,19 @@ def dtype_to_min(dtype):
         return _MIN_BF16
     else:
         raise ValueError(f"Only support get minimum value of (bfloat16, float16, float32, float64), but got {dtype}")
+
+
+def dtype_to_max(dtype):
+    if dtype == ms.float16:
+        return _MAX_FP16
+    if dtype == ms.float32:
+        return _MAX_FP32
+    if dtype == ms.float64:
+        return _MAX_FP64
+    if dtype == ms.bfloat16:
+        return _MAX_BF16
+    else:
+        raise ValueError(f"Only support get maximum value of (float16, ), but got {dtype}")
 
 
 def get_state_dict(module: nn.Cell, name_prefix="", recurse=True):
@@ -93,7 +112,7 @@ def randn_tensor(
     if isinstance(generator, list):
         shape = (1,) + shape[1:]
         latents = [randn(shape, generator=generator[i], dtype=dtype) for i in range(batch_size)]
-        latents = ops.cat(latents, axis=0)
+        latents = mint.cat(latents, dim=0)
     else:
         latents = randn(shape, generator=generator, dtype=dtype)
 

@@ -19,7 +19,7 @@ from typing import Optional, Tuple, Union
 import numpy as np
 
 import mindspore as ms
-from mindspore import ops
+from mindspore import mint
 
 from ..configuration_utils import ConfigMixin, register_to_config
 from ..utils import BaseOutput
@@ -145,12 +145,12 @@ class RePaintScheduler(SchedulerMixin, ConfigMixin):
         elif beta_schedule == "sigmoid":
             # GeoDiff sigmoid schedule
             betas = ms.tensor(np.linspace(-6, 6, num_train_timesteps))
-            self.betas = ops.sigmoid(betas) * (beta_end - beta_start) + beta_start
+            self.betas = mint.sigmoid(betas) * (beta_end - beta_start) + beta_start
         else:
             raise NotImplementedError(f"{beta_schedule} is not implemented for {self.__class__}")
 
         self.alphas = 1.0 - self.betas
-        self.alphas_cumprod = ops.cumprod(self.alphas, dim=0)
+        self.alphas_cumprod = mint.cumprod(self.alphas, dim=0)
         self.one = ms.tensor(1.0)
 
         self.final_alpha_cumprod = ms.tensor(1.0)
@@ -297,7 +297,7 @@ class RePaintScheduler(SchedulerMixin, ConfigMixin):
 
         # 3. Clip "predicted x_0"
         if self.config.clip_sample:
-            pred_original_sample = ops.clamp(pred_original_sample, -1, 1)
+            pred_original_sample = mint.clamp(pred_original_sample, -1, 1)
 
         # We choose to follow RePaint Algorithm 1 to get x_{t-1}, however we
         # substitute formula (7) in the algorithm coming from DDPM paper
@@ -324,7 +324,11 @@ class RePaintScheduler(SchedulerMixin, ConfigMixin):
         )
 
         # 8. Algorithm 1 Line 5 https://arxiv.org/pdf/2201.09865.pdf
-        prev_known_part = (alpha_prod_t_prev**0.5).to(dtype) * original_image + (1 - alpha_prod_t_prev).to(
+        # The computation reported in Algorithm 1 Line 5 is incorrect. Line 5 refers to formula (8a) of the same paper,
+        # which tells to sample from a Gaussian distribution with mean "(alpha_prod_t_prev**0.5) * original_image"
+        # and variance "(1 - alpha_prod_t_prev)". This means that the standard Gaussian distribution "noise" should be
+        # scaled by the square root of the variance (as it is done here), however Algorithm 1 Line 5 tells to scale by the variance.
+        prev_known_part = (alpha_prod_t_prev**0.5).to(dtype) * original_image + ((1 - alpha_prod_t_prev) ** 0.5).to(
             dtype
         ) * noise
 

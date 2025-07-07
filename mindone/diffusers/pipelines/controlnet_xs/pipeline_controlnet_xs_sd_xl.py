@@ -20,7 +20,7 @@ import PIL.Image
 from transformers import CLIPImageProcessor, CLIPTokenizer
 
 import mindspore as ms
-from mindspore import ops
+from mindspore import mint
 
 from ....transformers import CLIPTextModel, CLIPTextModelWithProjection
 from ...callbacks import MultiPipelineCallbacks, PipelineCallback
@@ -36,6 +36,8 @@ from ..stable_diffusion_xl.pipeline_output import StableDiffusionXLPipelineOutpu
 if is_invisible_watermark_available():
     from ..stable_diffusion_xl.watermark import StableDiffusionXLWatermarker
 
+
+XLA_AVAILABLE = False
 
 logger = logging.get_logger(__name__)  # pylint: disable=invalid-name
 
@@ -178,7 +180,7 @@ class StableDiffusionXLControlNetXSPipeline(
             scheduler=scheduler,
             feature_extractor=feature_extractor,
         )
-        self.vae_scale_factor = 2 ** (len(self.vae.config.block_out_channels) - 1)
+        self.vae_scale_factor = 2 ** (len(self.vae.config.block_out_channels) - 1) if getattr(self, "vae", None) else 8
         self.image_processor = VaeImageProcessor(vae_scale_factor=self.vae_scale_factor, do_convert_rgb=True)
         self.control_image_processor = VaeImageProcessor(
             vae_scale_factor=self.vae_scale_factor, do_convert_rgb=True, do_normalize=False
@@ -304,10 +306,12 @@ class StableDiffusionXLControlNetXSPipeline(
                         f" {tokenizer.model_max_length} tokens: {removed_text}"
                     )
 
-                prompt_embeds = text_encoder(ms.Tensor(text_input_ids), output_hidden_states=True)
+                prompt_embeds = text_encoder(ms.tensor(text_input_ids), output_hidden_states=True)
 
                 # We are only ALWAYS interested in the pooled output of the final text encoder
-                pooled_prompt_embeds = prompt_embeds[0]
+                if pooled_prompt_embeds is None and prompt_embeds[0].ndim == 2:
+                    pooled_prompt_embeds = prompt_embeds[0]
+
                 if clip_skip is None:
                     prompt_embeds = prompt_embeds[-1][-2]
                 else:
@@ -316,13 +320,13 @@ class StableDiffusionXLControlNetXSPipeline(
 
                 prompt_embeds_list.append(prompt_embeds)
 
-            prompt_embeds = ops.concat(prompt_embeds_list, axis=-1)
+            prompt_embeds = mint.concat(prompt_embeds_list, dim=-1)
 
         # get unconditional embeddings for classifier free guidance
         zero_out_negative_prompt = negative_prompt is None and self.config.force_zeros_for_empty_prompt
         if do_classifier_free_guidance and negative_prompt_embeds is None and zero_out_negative_prompt:
-            negative_prompt_embeds = ops.zeros_like(prompt_embeds)
-            negative_pooled_prompt_embeds = ops.zeros_like(pooled_prompt_embeds)
+            negative_prompt_embeds = mint.zeros_like(prompt_embeds)
+            negative_pooled_prompt_embeds = mint.zeros_like(pooled_prompt_embeds)
         elif do_classifier_free_guidance and negative_prompt_embeds is None:
             negative_prompt = negative_prompt or ""
             negative_prompt_2 = negative_prompt_2 or negative_prompt
@@ -363,16 +367,18 @@ class StableDiffusionXLControlNetXSPipeline(
                 )
 
                 negative_prompt_embeds = text_encoder(
-                    ms.Tensor(uncond_input.input_ids),
+                    ms.tensor(uncond_input.input_ids),
                     output_hidden_states=True,
                 )
+
                 # We are only ALWAYS interested in the pooled output of the final text encoder
-                negative_pooled_prompt_embeds = negative_prompt_embeds[0]
+                if negative_pooled_prompt_embeds is None and negative_prompt_embeds[0].ndim == 2:
+                    negative_pooled_prompt_embeds = negative_prompt_embeds[0]
                 negative_prompt_embeds = negative_prompt_embeds[-1][-2]
 
                 negative_prompt_embeds_list.append(negative_prompt_embeds)
 
-            negative_prompt_embeds = ops.concat(negative_prompt_embeds_list, axis=-1)
+            negative_prompt_embeds = mint.concat(negative_prompt_embeds_list, dim=-1)
 
         if self.text_encoder_2 is not None:
             prompt_embeds = prompt_embeds.to(dtype=self.text_encoder_2.dtype)
@@ -585,7 +591,7 @@ class StableDiffusionXLControlNetXSPipeline(
         image = image.to(dtype=dtype)
 
         if do_classifier_free_guidance:
-            image = ops.cat([image] * 2)
+            image = mint.cat([image] * 2)
 
         return image
 
@@ -622,14 +628,14 @@ class StableDiffusionXLControlNetXSPipeline(
         passed_add_embed_dim = (
             self.unet.config.addition_time_embed_dim * len(add_time_ids) + text_encoder_projection_dim
         )
-        expected_add_embed_dim = self.unet.base_add_embedding.linear_1.in_channels
+        expected_add_embed_dim = self.unet.base_add_embedding.linear_1.in_features
 
         if expected_add_embed_dim != passed_add_embed_dim:
             raise ValueError(
                 f"Model expects an added time embedding vector of length {expected_add_embed_dim}, but a vector of {passed_add_embed_dim} was created. The model has an incorrect config. Please check `unet.config.time_embedding_type` and `text_encoder_2.config.projection_dim`."  # noqa: E501
             )
 
-        add_time_ids = ms.Tensor([add_time_ids], dtype=dtype)
+        add_time_ids = ms.tensor([add_time_ids], dtype=dtype)
         return add_time_ids
 
     def upcast_vae(self):
@@ -955,9 +961,9 @@ class StableDiffusionXLControlNetXSPipeline(
             negative_add_time_ids = add_time_ids
 
         if do_classifier_free_guidance:
-            prompt_embeds = ops.cat([negative_prompt_embeds, prompt_embeds], axis=0)
-            add_text_embeds = ops.cat([negative_pooled_prompt_embeds, add_text_embeds], axis=0)
-            add_time_ids = ops.cat([negative_add_time_ids, add_time_ids], axis=0)
+            prompt_embeds = mint.cat([negative_prompt_embeds, prompt_embeds], dim=0)
+            add_text_embeds = mint.cat([negative_pooled_prompt_embeds, add_text_embeds], dim=0)
+            add_time_ids = mint.cat([negative_add_time_ids, add_time_ids], dim=0)
 
         add_time_ids = add_time_ids.tile((batch_size * num_images_per_prompt, 1))
 
@@ -967,7 +973,7 @@ class StableDiffusionXLControlNetXSPipeline(
         with self.progress_bar(total=num_inference_steps) as progress_bar:
             for i, t in enumerate(timesteps):
                 # expand the latents if we are doing classifier free guidance
-                latent_model_input = ops.cat([latents] * 2) if do_classifier_free_guidance else latents
+                latent_model_input = mint.cat([latents] * 2) if do_classifier_free_guidance else latents
                 latent_model_input = self.scheduler.scale_model_input(latent_model_input, t)
 
                 added_cond_kwargs = {"text_embeds": add_text_embeds, "time_ids": add_time_ids}

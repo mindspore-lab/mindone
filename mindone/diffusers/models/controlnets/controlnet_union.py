@@ -14,7 +14,7 @@
 from typing import Any, Dict, List, Optional, Tuple, Union
 
 import mindspore as ms
-from mindspore import nn, ops
+from mindspore import mint, nn, ops
 
 from ...configuration_utils import ConfigMixin, register_to_config
 from ...loaders.single_file_model import FromOriginalModelMixin
@@ -28,10 +28,9 @@ from ..attention_processor import (
 )
 from ..embeddings import TextImageTimeEmbedding, TextTimeEmbedding, TimestepEmbedding, Timesteps
 from ..modeling_utils import ModelMixin
-from ..normalization import LayerNorm
-from ..unets.unet_2d_blocks import CrossAttnDownBlock2D, DownBlock2D, UNetMidBlock2DCrossAttn, get_down_block
+from ..unets.unet_2d_blocks import UNetMidBlock2DCrossAttn, get_down_block
 from ..unets.unet_2d_condition import UNet2DConditionModel
-from .controlnet import ControlNetConditioningEmbedding, ControlNetOutput
+from .controlnet import ControlNetConditioningEmbedding, ControlNetOutput, zero_module
 
 logger = logging.get_logger(__name__)  # pylint: disable=invalid-name
 
@@ -42,15 +41,15 @@ class QuickGELU(nn.Cell):
     """
 
     def construct(self, input: ms.Tensor) -> ms.Tensor:
-        return input * ops.sigmoid(1.702 * input)
+        return input * mint.sigmoid(1.702 * input)
 
 
 class ResidualAttentionMlp(nn.Cell):
     def __init__(self, d_model: int):
         super().__init__()
-        self.c_fc = nn.Dense(d_model, d_model * 4)
+        self.c_fc = mint.nn.Linear(d_model, d_model * 4)
         self.gelu = QuickGELU()
-        self.c_proj = nn.Dense(d_model * 4, d_model)
+        self.c_proj = mint.nn.Linear(d_model * 4, d_model)
 
     def construct(self, x: ms.Tensor):
         x = self.c_fc(x)
@@ -62,10 +61,11 @@ class ResidualAttentionMlp(nn.Cell):
 class ResidualAttentionBlock(nn.Cell):
     def __init__(self, d_model: int, n_head: int, attn_mask: ms.Tensor = None):
         super().__init__()
+        # todo: unavailable mint interface
         self.attn = nn.MultiheadAttention(d_model, n_head)
-        self.ln_1 = LayerNorm(d_model)
+        self.ln_1 = mint.nn.LayerNorm(d_model)
         self.mlp = ResidualAttentionMlp(d_model)
-        self.ln_2 = LayerNorm(d_model)
+        self.ln_2 = mint.nn.LayerNorm(d_model)
         self.attn_mask = attn_mask
 
     def attention(self, x: ms.Tensor):
@@ -223,13 +223,8 @@ class ControlNetUnionModel(ModelMixin, ConfigMixin, FromOriginalModelMixin):
         # input
         conv_in_kernel = 3
         conv_in_padding = (conv_in_kernel - 1) // 2
-        self.conv_in = nn.Conv2d(
-            in_channels,
-            block_out_channels[0],
-            kernel_size=conv_in_kernel,
-            pad_mode="pad",
-            padding=conv_in_padding,
-            has_bias=True,
+        self.conv_in = mint.nn.Conv2d(
+            in_channels, block_out_channels[0], kernel_size=conv_in_kernel, padding=conv_in_padding, bias=True
         )
 
         # time
@@ -249,11 +244,11 @@ class ControlNetUnionModel(ModelMixin, ConfigMixin, FromOriginalModelMixin):
 
         # class embedding
         if class_embed_type is None and num_class_embeds is not None:
-            self.class_embedding = nn.Embedding(num_class_embeds, time_embed_dim)
+            self.class_embedding = mint.nn.Embedding(num_class_embeds, time_embed_dim)
         elif class_embed_type == "timestep":
             self.class_embedding = TimestepEmbedding(timestep_input_dim, time_embed_dim)
         elif class_embed_type == "identity":
-            self.class_embedding = nn.Identity(time_embed_dim, time_embed_dim)
+            self.class_embedding = mint.nn.Identity(time_embed_dim, time_embed_dim)
         elif class_embed_type == "projection":
             if projection_class_embeddings_input_dim is None:
                 raise ValueError(
@@ -302,12 +297,12 @@ class ControlNetUnionModel(ModelMixin, ConfigMixin, FromOriginalModelMixin):
 
         task_scale_factor = num_trans_channel**0.5
         self.task_embedding = ms.Parameter(
-            task_scale_factor * ops.randn(num_control_type, num_trans_channel), name="task_embedding"
+            task_scale_factor * mint.randn(num_control_type, num_trans_channel), name="task_embedding"
         )
         self.transformer_layes = nn.CellList(
             [ResidualAttentionBlock(num_trans_channel, num_trans_head) for _ in range(num_trans_layer)]
         )
-        self.spatial_ch_projs = nn.Dense(num_trans_channel, num_proj_channel, weight_init="zeros", bias_init="zeros")
+        self.spatial_ch_projs = zero_module(mint.nn.Linear(num_trans_channel, num_proj_channel))
         self.control_type_proj = Timesteps(addition_time_embed_dim, flip_sin_to_cos, freq_shift)
         self.control_add_embedding = TimestepEmbedding(addition_time_embed_dim * num_control_type, time_embed_dim)
 
@@ -326,16 +321,8 @@ class ControlNetUnionModel(ModelMixin, ConfigMixin, FromOriginalModelMixin):
         # down
         output_channel = block_out_channels[0]
 
-        controlnet_block = nn.Conv2d(
-            output_channel,
-            output_channel,
-            kernel_size=1,
-            pad_mode="pad",
-            padding=0,
-            has_bias=True,
-            weight_init="zeros",
-            bias_init="zeros",
-        )
+        controlnet_block = mint.nn.Conv2d(output_channel, output_channel, kernel_size=1)
+        controlnet_block = zero_module(controlnet_block)
         self.controlnet_down_blocks.append(controlnet_block)
 
         for i, down_block_type in enumerate(down_block_types):
@@ -366,29 +353,13 @@ class ControlNetUnionModel(ModelMixin, ConfigMixin, FromOriginalModelMixin):
             self.down_blocks.append(down_block)
 
             for _ in range(layers_per_block):
-                controlnet_block = nn.Conv2d(
-                    output_channel,
-                    output_channel,
-                    kernel_size=1,
-                    pad_mode="pad",
-                    padding=0,
-                    has_bias=True,
-                    weight_init="zeros",
-                    bias_init="zeros",
-                )
+                controlnet_block = mint.nn.Conv2d(output_channel, output_channel, kernel_size=1)
+                controlnet_block = zero_module(controlnet_block)
                 self.controlnet_down_blocks.append(controlnet_block)
 
             if not is_final_block:
-                controlnet_block = nn.Conv2d(
-                    output_channel,
-                    output_channel,
-                    kernel_size=1,
-                    pad_mode="pad",
-                    padding=0,
-                    has_bias=True,
-                    weight_init="zeros",
-                    bias_init="zeros",
-                )
+                controlnet_block = mint.nn.Conv2d(output_channel, output_channel, kernel_size=1)
+                controlnet_block = zero_module(controlnet_block)
                 self.controlnet_down_blocks.append(controlnet_block)
 
         self.down_blocks = nn.CellList(self.down_blocks)
@@ -397,16 +368,8 @@ class ControlNetUnionModel(ModelMixin, ConfigMixin, FromOriginalModelMixin):
         # mid
         mid_block_channel = block_out_channels[-1]
 
-        controlnet_block = nn.Conv2d(
-            mid_block_channel,
-            mid_block_channel,
-            kernel_size=1,
-            pad_mode="pad",
-            padding=0,
-            has_bias=True,
-            weight_init="zeros",
-            bias_init="zeros",
-        )
+        controlnet_block = mint.nn.Conv2d(mid_block_channel, mid_block_channel, kernel_size=1)
+        controlnet_block = zero_module(controlnet_block)
         self.controlnet_mid_block = controlnet_block
 
         self.mid_block = UNetMidBlock2DCrossAttn(
@@ -570,10 +533,6 @@ class ControlNetUnionModel(ModelMixin, ConfigMixin, FromOriginalModelMixin):
 
         self.set_attn_processor(processor)
 
-    def _set_gradient_checkpointing(self, module, value: bool = False) -> None:
-        if isinstance(module, (CrossAttnDownBlock2D, DownBlock2D)):
-            module.gradient_checkpointing = value
-
     def construct(
         self,
         sample: ms.Tensor,
@@ -582,12 +541,13 @@ class ControlNetUnionModel(ModelMixin, ConfigMixin, FromOriginalModelMixin):
         controlnet_cond: List[ms.Tensor],
         control_type: ms.Tensor,
         control_type_idx: List[int],
-        conditioning_scale: float = 1.0,
+        conditioning_scale: Union[float, List[float]] = 1.0,
         class_labels: Optional[ms.Tensor] = None,
         timestep_cond: Optional[ms.Tensor] = None,
         attention_mask: Optional[ms.Tensor] = None,
         added_cond_kwargs: Optional[Dict[str, ms.Tensor]] = None,
         cross_attention_kwargs: Optional[Dict[str, Any]] = None,
+        from_multi: bool = False,
         guess_mode: bool = False,
         return_dict: bool = False,
     ) -> Union[ControlNetOutput, Tuple[Tuple[ms.Tensor, ...], ms.Tensor]]:
@@ -624,6 +584,8 @@ class ControlNetUnionModel(ModelMixin, ConfigMixin, FromOriginalModelMixin):
                 Additional conditions for the Stable Diffusion XL UNet.
             cross_attention_kwargs (`dict[str]`, *optional*, defaults to `None`):
                 A kwargs dictionary that if specified is passed along to the `AttnProcessor`.
+            from_multi (`bool`, defaults to `False`):
+                Use standard scaling when called from `MultiControlNetUnionModel`.
             guess_mode (`bool`, defaults to `False`):
                 In this mode, the ControlNet encoder tries its best to recognize the input content of the input even if
                 you remove all prompts. A `guidance_scale` between 3.0 and 5.0 is recommended.
@@ -635,6 +597,9 @@ class ControlNetUnionModel(ModelMixin, ConfigMixin, FromOriginalModelMixin):
                 If `return_dict` is `True`, a [`~models.controlnet.ControlNetOutput`] is returned, otherwise a tuple is
                 returned where the first element is the sample tensor.
         """
+        if isinstance(conditioning_scale, float):
+            conditioning_scale = [conditioning_scale] * len(controlnet_cond)
+
         # check channel order
         channel_order = self.config.controlnet_conditioning_channel_order
 
@@ -648,14 +613,15 @@ class ControlNetUnionModel(ModelMixin, ConfigMixin, FromOriginalModelMixin):
 
         # 1. time
         timesteps = timestep
+        # todo: unavailable mint interface
         if not ops.is_tensor(timesteps):
             # TODO: this requires sync between CPU and GPU. So try to pass timesteps as tensors if you can
             # This would be a good case for the `match` statement (Python 3.10+)
             if isinstance(timestep, float):
-                dtype = ms.float64
+                dtype = ms.float32
             else:
-                dtype = ms.int64
-            timesteps = ms.Tensor([timesteps], dtype=dtype)
+                dtype = ms.int32
+            timesteps = ms.tensor([timesteps], dtype=dtype)
         elif len(timesteps.shape) == 0:
             timesteps = timesteps[None]
 
@@ -700,7 +666,7 @@ class ControlNetUnionModel(ModelMixin, ConfigMixin, FromOriginalModelMixin):
                 time_embeds = self.add_time_proj(time_ids.flatten())
                 time_embeds = time_embeds.reshape((text_embeds.shape[0], -1))
 
-                add_embeds = ops.concat([text_embeds, time_embeds.to(text_embeds.dtype)], axis=-1)
+                add_embeds = mint.concat([text_embeds, time_embeds.to(text_embeds.dtype)], dim=-1)
                 add_embeds = add_embeds.to(emb.dtype)
                 aug_emb = self.add_embedding(add_embeds)
 
@@ -717,27 +683,34 @@ class ControlNetUnionModel(ModelMixin, ConfigMixin, FromOriginalModelMixin):
         inputs = []
         condition_list = []
 
-        for cond, control_idx in zip(controlnet_cond, control_type_idx):
+        for cond, control_idx, scale in zip(controlnet_cond, control_type_idx, conditioning_scale):
             condition = self.controlnet_cond_embedding(cond)
-            feat_seq = ops.mean(condition, axis=(2, 3))
+            feat_seq = mint.mean(condition, dim=(2, 3))
             feat_seq = feat_seq + self.task_embedding[control_idx]
-            inputs.append(feat_seq.unsqueeze(1))
-            condition_list.append(condition)
+            if from_multi:
+                inputs.append(feat_seq.unsqueeze(1))
+                condition_list.append(condition)
+            else:
+                inputs.append(feat_seq.unsqueeze(1) * scale)
+                condition_list.append(condition * scale)
 
         condition = sample
-        feat_seq = ops.mean(condition, axis=(2, 3))
+        feat_seq = mint.mean(condition, dim=(2, 3))
         inputs.append(feat_seq.unsqueeze(1))
         condition_list.append(condition)
 
-        x = ops.cat(inputs, axis=1)
+        x = mint.cat(inputs, dim=1)
         for layer in self.transformer_layes:
             x = layer(x)
 
         controlnet_cond_fuser = sample * 0.0
-        for idx, condition in enumerate(condition_list[:-1]):
+        for (idx, condition), scale in zip(enumerate(condition_list[:-1]), conditioning_scale):
             alpha = self.spatial_ch_projs(x[:, idx])
             alpha = alpha.unsqueeze(-1).unsqueeze(-1)
-            controlnet_cond_fuser += condition + alpha
+            if from_multi:
+                controlnet_cond_fuser += condition + alpha
+            else:
+                controlnet_cond_fuser += condition + alpha * scale
 
         sample = sample + controlnet_cond_fuser
 
@@ -780,19 +753,19 @@ class ControlNetUnionModel(ModelMixin, ConfigMixin, FromOriginalModelMixin):
 
         # 6. scaling
         if guess_mode and not self.config.global_pool_conditions:
+            # todo: unavailable mint interface
             scales = ops.logspace(-1, 0, len(down_block_res_samples) + 1)  # 0.1 to 1.0
-            scales = scales * conditioning_scale
+            if from_multi:
+                scales = scales * conditioning_scale[0]
             down_block_res_samples = [sample * scale for sample, scale in zip(down_block_res_samples, scales)]
             mid_block_res_sample = mid_block_res_sample * scales[-1]  # last one
-        else:
-            down_block_res_samples = [sample * conditioning_scale for sample in down_block_res_samples]
-            mid_block_res_sample = mid_block_res_sample * conditioning_scale
+        elif from_multi:
+            down_block_res_samples = [sample * conditioning_scale[0] for sample in down_block_res_samples]
+            mid_block_res_sample = mid_block_res_sample * conditioning_scale[0]
 
         if self.config.global_pool_conditions:
-            down_block_res_samples = [
-                ops.mean(sample, axis=(2, 3), keep_dims=True) for sample in down_block_res_samples
-            ]
-            mid_block_res_sample = ops.mean(mid_block_res_sample, axis=(2, 3), keep_dims=True)
+            down_block_res_samples = [mint.mean(sample, dim=(2, 3), keepdim=True) for sample in down_block_res_samples]
+            mid_block_res_sample = mint.mean(mid_block_res_sample, dim=(2, 3), keepdim=True)
 
         if not return_dict:
             return (down_block_res_samples, mid_block_res_sample)

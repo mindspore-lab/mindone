@@ -16,6 +16,7 @@ from typing import TYPE_CHECKING
 from ..utils import _LazyModule
 
 _import_structure = {
+    "scheduling_amused": ["AmusedScheduler"],
     "scheduling_consistency_models": ["CMStochasticIterativeScheduler"],
     "scheduling_consistency_decoder": ["ConsistencyDecoderScheduler"],
     "scheduling_ddim_inverse": ["DDIMInverseScheduler"],
@@ -45,6 +46,7 @@ _import_structure = {
     "scheduling_pndm": ["PNDMScheduler"],
     "scheduling_repaint": ["RePaintScheduler"],
     "scheduling_sasolver": ["SASolverScheduler"],
+    "scheduling_scm": ["SCMScheduler"],
     "scheduling_sde_ve": ["ScoreSdeVeScheduler"],
     "scheduling_tcd": ["TCDScheduler"],
     "scheduling_unclip": ["UnCLIPScheduler"],
@@ -56,6 +58,7 @@ _import_structure = {
 }
 
 if TYPE_CHECKING:
+    from .scheduling_amused import AmusedScheduler
     from .scheduling_consistency_decoder import ConsistencyDecoderScheduler
     from .scheduling_consistency_models import CMStochasticIterativeScheduler
     from .scheduling_cosine_dpmsolver_multistep import CosineDPMSolverMultistepScheduler
@@ -87,13 +90,13 @@ if TYPE_CHECKING:
     from .scheduling_pndm import PNDMScheduler
     from .scheduling_repaint import RePaintScheduler
     from .scheduling_sasolver import SASolverScheduler
+    from .scheduling_scm import SCMScheduler
     from .scheduling_sde_ve import ScoreSdeVeScheduler
     from .scheduling_tcd import TCDScheduler
     from .scheduling_unclip import UnCLIPScheduler
     from .scheduling_unipc_multistep import UniPCMultistepScheduler
     from .scheduling_utils import AysSchedules, KarrasDiffusionSchedulers, SchedulerMixin
     from .scheduling_vq_diffusion import VQDiffusionScheduler
-
 else:
     import sys
 

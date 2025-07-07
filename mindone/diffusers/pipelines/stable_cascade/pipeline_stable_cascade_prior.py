@@ -21,7 +21,7 @@ import PIL
 from transformers import CLIPImageProcessor, CLIPTokenizer
 
 import mindspore as ms
-from mindspore import ops
+from mindspore import mint
 
 from mindone.transformers import CLIPTextModelWithProjection, CLIPVisionModelWithProjection
 
@@ -31,7 +31,10 @@ from ...utils import BaseOutput, logging
 from ...utils.mindspore_utils import randn_tensor
 from ..pipeline_utils import DiffusionPipeline
 
+XLA_AVAILABLE = False
+
 logger = logging.get_logger(__name__)  # pylint: disable=invalid-name
+
 
 DEFAULT_STAGE_C_TIMESTEPS = list(np.linspace(1.0, 2 / 3, 20)) + list(np.linspace(2 / 3, 0.0, 11))[1:]
 
@@ -218,8 +221,8 @@ class StableCascadePriorPipeline(DiffusionPipeline):
                 return_tensors="np",
             )
             negative_prompt_embeds_text_encoder_output = self.text_encoder(
-                ms.Tensor(uncond_input.input_ids),
-                attention_mask=ms.Tensor(uncond_input.attention_mask),
+                ms.tensor(uncond_input.input_ids),
+                attention_mask=ms.tensor(uncond_input.attention_mask),
                 output_hidden_states=True,
             )
 
@@ -250,10 +253,10 @@ class StableCascadePriorPipeline(DiffusionPipeline):
             image = ms.tensor(image, dtype=dtype)
             image_embed = self.image_encoder(image)[0].unsqueeze(1)
             image_embeds.append(image_embed)
-        image_embeds = ops.cat(image_embeds, axis=1)
+        image_embeds = mint.cat(image_embeds, dim=1)
 
         image_embeds = image_embeds.tile((batch_size * num_images_per_prompt, 1, 1))
-        negative_image_embeds = ops.zeros_like(image_embeds)
+        negative_image_embeds = mint.zeros_like(image_embeds)
 
         return image_embeds, negative_image_embeds
 
@@ -352,7 +355,7 @@ class StableCascadePriorPipeline(DiffusionPipeline):
     def get_timestep_ratio_conditioning(self, t, alphas_cumprod):
         s = ms.tensor([0.008])
         clamp_range = [0, 1]
-        min_var = ops.cos(s / (1 + s) * pi * 0.5) ** 2
+        min_var = mint.cos(s / (1 + s) * pi * 0.5) ** 2
         var = alphas_cumprod[t]
         var = var.clamp(*clamp_range)
         ratio = (((var * min_var) ** 0.5).acos() / (pi * 0.5)) * (1 + s) - s
@@ -502,17 +505,17 @@ class StableCascadePriorPipeline(DiffusionPipeline):
             )
         elif image_embeds is not None:
             image_embeds_pooled = image_embeds.tile((batch_size * num_images_per_prompt, 1, 1))
-            uncond_image_embeds_pooled = ops.zeros_like(image_embeds_pooled)
+            uncond_image_embeds_pooled = mint.zeros_like(image_embeds_pooled)
         else:
-            image_embeds_pooled = ops.zeros(
+            image_embeds_pooled = mint.zeros(
                 (batch_size * num_images_per_prompt, 1, self.prior.config.clip_image_in_channels), dtype=dtype
             )
-            uncond_image_embeds_pooled = ops.zeros(
+            uncond_image_embeds_pooled = mint.zeros(
                 (batch_size * num_images_per_prompt, 1, self.prior.config.clip_image_in_channels), dtype=dtype
             )
 
         if self.do_classifier_free_guidance:
-            image_embeds = ops.cat([image_embeds_pooled, uncond_image_embeds_pooled], axis=0)
+            image_embeds = mint.cat([image_embeds_pooled, uncond_image_embeds_pooled], dim=0)
         else:
             image_embeds = image_embeds_pooled
 
@@ -520,10 +523,10 @@ class StableCascadePriorPipeline(DiffusionPipeline):
         # Here we concatenate the unconditional and text embeddings into a single batch
         # to avoid doing two forward passes
         text_encoder_hidden_states = (
-            ops.cat([prompt_embeds, negative_prompt_embeds]) if negative_prompt_embeds is not None else prompt_embeds
+            mint.cat([prompt_embeds, negative_prompt_embeds]) if negative_prompt_embeds is not None else prompt_embeds
         )
         text_encoder_pooled = (
-            ops.cat([prompt_embeds_pooled, negative_prompt_embeds_pooled])
+            mint.cat([prompt_embeds_pooled, negative_prompt_embeds_pooled])
             if negative_prompt_embeds is not None
             else prompt_embeds_pooled
         )
@@ -546,7 +549,7 @@ class StableCascadePriorPipeline(DiffusionPipeline):
         # 6. Run denoising loop
         if hasattr(self.scheduler, "betas"):
             alphas = 1.0 - self.scheduler.betas
-            alphas_cumprod = ops.cumprod(alphas, dim=0)
+            alphas_cumprod = mint.cumprod(alphas, dim=0)
         else:
             alphas_cumprod = []
 
@@ -564,8 +567,8 @@ class StableCascadePriorPipeline(DiffusionPipeline):
                 timestep_ratio = t.broadcast_to((latents.shape[0],)).to(dtype)
             # 7. Denoise image embeddings
             predicted_image_embedding = self.prior(
-                sample=ops.cat([latents] * 2) if self.do_classifier_free_guidance else latents,
-                timestep_ratio=ops.cat([timestep_ratio] * 2) if self.do_classifier_free_guidance else timestep_ratio,
+                sample=mint.cat([latents] * 2) if self.do_classifier_free_guidance else latents,
+                timestep_ratio=mint.cat([timestep_ratio] * 2) if self.do_classifier_free_guidance else timestep_ratio,
                 clip_text_pooled=text_encoder_pooled,
                 clip_text=text_encoder_hidden_states,
                 clip_img=image_embeds,
@@ -575,7 +578,7 @@ class StableCascadePriorPipeline(DiffusionPipeline):
             # 8. Check for classifier free guidance and apply it
             if self.do_classifier_free_guidance:
                 predicted_image_embedding_text, predicted_image_embedding_uncond = predicted_image_embedding.chunk(2)
-                predicted_image_embedding = ops.lerp(
+                predicted_image_embedding = mint.lerp(
                     predicted_image_embedding_uncond,
                     predicted_image_embedding_text,
                     ms.tensor(self.guidance_scale, dtype=predicted_image_embedding_text.dtype),

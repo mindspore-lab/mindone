@@ -19,7 +19,7 @@ from typing import List, Optional, Tuple, Union
 import numpy as np
 
 import mindspore as ms
-from mindspore import ops
+from mindspore import mint
 
 from ..configuration_utils import ConfigMixin, register_to_config
 from ..utils import BaseOutput, is_scipy_available
@@ -172,7 +172,7 @@ class KDPM2AncestralDiscreteScheduler(SchedulerMixin, ConfigMixin):
             raise NotImplementedError(f"{beta_schedule} is not implemented for {self.__class__}")
 
         self.alphas = 1.0 - self.betas
-        self.alphas_cumprod = ops.cumprod(self.alphas, dim=0)
+        self.alphas_cumprod = mint.cumprod(self.alphas, dim=0)
 
         #  set all values
         self.set_timesteps(num_train_timesteps, num_train_timesteps)
@@ -293,12 +293,12 @@ class KDPM2AncestralDiscreteScheduler(SchedulerMixin, ConfigMixin):
             sigmas = self._convert_to_beta(in_sigmas=sigmas, num_inference_steps=num_inference_steps)
             timesteps = np.array([self._sigma_to_t(sigma, log_sigmas) for sigma in sigmas])
 
-        self.log_sigmas = ms.Tensor(log_sigmas)
+        self.log_sigmas = ms.tensor(log_sigmas)
         sigmas = np.concatenate([sigmas, [0.0]]).astype(np.float32)
-        sigmas = ms.Tensor(sigmas)
+        sigmas = ms.tensor(sigmas)
 
         # compute up and down sigmas
-        sigmas_next = ms.Tensor(np.roll(sigmas.asnumpy(), -1))
+        sigmas_next = ms.tensor(np.roll(sigmas.asnumpy(), -1))
         sigmas_next[-1] = 0.0
         sigmas_up = (sigmas_next**2 * (sigmas**2 - sigmas_next**2) / sigmas**2) ** 0.5
         sigmas_down = (sigmas_next**2 - sigmas_up**2) ** 0.5
@@ -309,14 +309,14 @@ class KDPM2AncestralDiscreteScheduler(SchedulerMixin, ConfigMixin):
         sigmas_interpol[-2:] = 0.0
 
         # set sigmas
-        self.sigmas = ops.cat([sigmas[:1], sigmas[1:].repeat_interleave(2), sigmas[-1:]])
-        self.sigmas_interpol = ops.cat(
+        self.sigmas = mint.cat([sigmas[:1], sigmas[1:].repeat_interleave(2), sigmas[-1:]])
+        self.sigmas_interpol = mint.cat(
             [sigmas_interpol[:1], sigmas_interpol[1:].repeat_interleave(2), sigmas_interpol[-1:]]
         )
-        self.sigmas_up = ops.cat([sigmas_up[:1], sigmas_up[1:].repeat_interleave(2), sigmas_up[-1:]])
-        self.sigmas_down = ops.cat([sigmas_down[:1], sigmas_down[1:].repeat_interleave(2), sigmas_down[-1:]])
+        self.sigmas_up = mint.cat([sigmas_up[:1], sigmas_up[1:].repeat_interleave(2), sigmas_up[-1:]])
+        self.sigmas_down = mint.cat([sigmas_down[:1], sigmas_down[1:].repeat_interleave(2), sigmas_down[-1:]])
 
-        timesteps = ms.Tensor(timesteps)
+        timesteps = ms.tensor(timesteps)
 
         log_sigmas = self.log_sigmas
         timesteps_interpol = np.array(
@@ -324,9 +324,9 @@ class KDPM2AncestralDiscreteScheduler(SchedulerMixin, ConfigMixin):
         )
 
         timesteps_interpol = ms.tensor(timesteps_interpol, dtype=timesteps.dtype)
-        interleaved_timesteps = ops.stack((timesteps_interpol[:-2, None], timesteps[1:, None]), axis=-1).flatten()
+        interleaved_timesteps = mint.stack((timesteps_interpol[:-2, None], timesteps[1:, None]), dim=-1).flatten()
 
-        self.timesteps = ops.cat([timesteps[:1], interleaved_timesteps])
+        self.timesteps = mint.cat([timesteps[:1], interleaved_timesteps])
 
         self.sample = None
 
@@ -594,7 +594,7 @@ class KDPM2AncestralDiscreteScheduler(SchedulerMixin, ConfigMixin):
         sigma = sigmas[step_indices].flatten()
         # while len(sigma.shape) < len(original_samples.shape):
         #     sigma = sigma.unsqueeze(-1)
-        sigma = ops.reshape(sigma, (timesteps.shape[0],) + (1,) * (len(broadcast_shape) - 1))
+        sigma = mint.reshape(sigma, (timesteps.shape[0],) + (1,) * (len(broadcast_shape) - 1))
 
         noisy_samples = original_samples + noise * sigma
         return noisy_samples

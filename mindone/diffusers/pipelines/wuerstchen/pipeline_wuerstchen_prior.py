@@ -20,7 +20,7 @@ import numpy as np
 from transformers import CLIPTokenizer
 
 import mindspore as ms
-from mindspore import ops
+from mindspore import mint
 
 from mindone.transformers import CLIPTextModel
 
@@ -31,7 +31,10 @@ from ...utils.mindspore_utils import randn_tensor
 from ..pipeline_utils import DiffusionPipeline
 from .modeling_wuerstchen_prior import WuerstchenPrior
 
+XLA_AVAILABLE = False
+
 logger = logging.get_logger(__name__)  # pylint: disable=invalid-name
+
 
 DEFAULT_STAGE_C_TIMESTEPS = list(np.linspace(1.0, 2 / 3, 20)) + list(np.linspace(2 / 3, 0.0, 11))[1:]
 
@@ -155,7 +158,7 @@ class WuerstchenPriorPipeline(DiffusionPipeline, LoraLoaderMixin):
                 return_tensors="np",
             )
             text_input_ids = text_inputs.input_ids
-            attention_mask = ms.Tensor(text_inputs.attention_mask)
+            attention_mask = ms.tensor(text_inputs.attention_mask)
 
             untruncated_ids = self.tokenizer(prompt, padding="longest", return_tensors="np").input_ids
 
@@ -170,7 +173,7 @@ class WuerstchenPriorPipeline(DiffusionPipeline, LoraLoaderMixin):
                 text_input_ids = text_input_ids[:, : self.tokenizer.model_max_length]
                 attention_mask = attention_mask[:, : self.tokenizer.model_max_length]
 
-            text_encoder_output = self.text_encoder(ms.Tensor(text_input_ids), attention_mask=attention_mask)
+            text_encoder_output = self.text_encoder(ms.tensor(text_input_ids), attention_mask=attention_mask)
             prompt_embeds = text_encoder_output[0]
 
         prompt_embeds = prompt_embeds.to(dtype=self.text_encoder.dtype)
@@ -204,7 +207,7 @@ class WuerstchenPriorPipeline(DiffusionPipeline, LoraLoaderMixin):
                 return_tensors="np",
             )
             negative_prompt_embeds_text_encoder_output = self.text_encoder(
-                ms.Tensor(uncond_input.input_ids), attention_mask=ms.Tensor(uncond_input.attention_mask)
+                ms.tensor(uncond_input.input_ids), attention_mask=ms.tensor(uncond_input.attention_mask)
             )
 
             negative_prompt_embeds = negative_prompt_embeds_text_encoder_output[0]
@@ -428,7 +431,7 @@ class WuerstchenPriorPipeline(DiffusionPipeline, LoraLoaderMixin):
         # Here we concatenate the unconditional and text embeddings into a single batch
         # to avoid doing two forward passes
         text_encoder_hidden_states = (
-            ops.cat([prompt_embeds, negative_prompt_embeds]) if negative_prompt_embeds is not None else prompt_embeds
+            mint.cat([prompt_embeds, negative_prompt_embeds]) if negative_prompt_embeds is not None else prompt_embeds
         )
 
         # 3. Determine latent shape of image embeddings
@@ -457,15 +460,15 @@ class WuerstchenPriorPipeline(DiffusionPipeline, LoraLoaderMixin):
 
             # 7. Denoise image embeddings
             predicted_image_embedding = self.prior(
-                ops.cat([latents] * 2) if self.do_classifier_free_guidance else latents,
-                r=ops.cat([ratio] * 2) if self.do_classifier_free_guidance else ratio,
+                mint.cat([latents] * 2) if self.do_classifier_free_guidance else latents,
+                r=mint.cat([ratio] * 2) if self.do_classifier_free_guidance else ratio,
                 c=text_encoder_hidden_states,
             )
 
             # 8. Check for classifier free guidance and apply it
             if self.do_classifier_free_guidance:
                 predicted_image_embedding_text, predicted_image_embedding_uncond = predicted_image_embedding.chunk(2)
-                predicted_image_embedding = ops.lerp(
+                predicted_image_embedding = mint.lerp(
                     predicted_image_embedding_uncond,
                     predicted_image_embedding_text,
                     ms.tensor(self.guidance_scale, dtype=predicted_image_embedding_text.dtype),

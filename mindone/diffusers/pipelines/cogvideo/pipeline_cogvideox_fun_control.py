@@ -22,7 +22,7 @@ from PIL import Image
 from transformers import T5Tokenizer
 
 import mindspore as ms
-from mindspore import ops
+from mindspore import mint
 
 from mindone.transformers import T5EncoderModel
 
@@ -36,6 +36,8 @@ from ...utils import logging
 from ...utils.mindspore_utils import pynative_context, randn_tensor
 from ...video_processor import VideoProcessor
 from .pipeline_output import CogVideoXPipelineOutput
+
+XLA_AVAILABLE = False
 
 logger = logging.get_logger(__name__)  # pylint: disable=invalid-name
 
@@ -190,14 +192,10 @@ class CogVideoXFunControlPipeline(DiffusionPipeline, CogVideoXLoraLoaderMixin):
             tokenizer=tokenizer, text_encoder=text_encoder, vae=vae, transformer=transformer, scheduler=scheduler
         )
         self.vae_scale_factor_spatial = (
-            2 ** (len(self.vae.config.block_out_channels) - 1) if hasattr(self, "vae") and self.vae is not None else 8
+            2 ** (len(self.vae.config.block_out_channels) - 1) if getattr(self, "vae", None) else 8
         )
-        self.vae_scale_factor_temporal = (
-            self.vae.config.temporal_compression_ratio if hasattr(self, "vae") and self.vae is not None else 4
-        )
-        self.vae_scaling_factor_image = (
-            self.vae.config.scaling_factor if hasattr(self, "vae") and self.vae is not None else 0.7
-        )
+        self.vae_scale_factor_temporal = self.vae.config.temporal_compression_ratio if getattr(self, "vae", None) else 4
+        self.vae_scaling_factor_image = self.vae.config.scaling_factor if getattr(self, "vae", None) else 0.7
 
         self.video_processor = VideoProcessor(vae_scale_factor=self.vae_scale_factor_spatial)
 
@@ -355,7 +353,7 @@ class CogVideoXFunControlPipeline(DiffusionPipeline, CogVideoXLoraLoaderMixin):
                 current_mask = self.vae.encode(current_mask)[0]
                 current_mask = self.vae.diag_gauss_dist.mode(current_mask)
                 masks.append(current_mask)
-            mask = ops.cat(masks, axis=0)
+            mask = mint.cat(masks, dim=0)
             mask = mask * self.vae.config.scaling_factor
 
         if masked_image is not None:
@@ -365,7 +363,7 @@ class CogVideoXFunControlPipeline(DiffusionPipeline, CogVideoXLoraLoaderMixin):
                 mask_pixel_value = self.vae.encode(mask_pixel_value)[0]
                 mask_pixel_value = self.vae.diag_gauss_dist.mode(mask_pixel_value)
                 mask_pixel_values.append(mask_pixel_value)
-            masked_image_latents = ops.cat(mask_pixel_values, axis=0)
+            masked_image_latents = mint.cat(mask_pixel_values, dim=0)
             masked_image_latents = masked_image_latents * self.vae.config.scaling_factor
         else:
             masked_image_latents = None
@@ -525,6 +523,10 @@ class CogVideoXFunControlPipeline(DiffusionPipeline, CogVideoXLoraLoaderMixin):
         return self._attention_kwargs
 
     @property
+    def current_timestep(self):
+        return self._current_timestep
+
+    @property
     def interrupt(self):
         return self._interrupt
 
@@ -662,6 +664,7 @@ class CogVideoXFunControlPipeline(DiffusionPipeline, CogVideoXLoraLoaderMixin):
         )
         self._guidance_scale = guidance_scale
         self._attention_kwargs = attention_kwargs
+        self._current_timestep = None
         self._interrupt = False
 
         # 2. Default call parameters
@@ -688,7 +691,7 @@ class CogVideoXFunControlPipeline(DiffusionPipeline, CogVideoXLoraLoaderMixin):
             max_sequence_length=max_sequence_length,
         )
         if do_classifier_free_guidance:
-            prompt_embeds = ops.cat([negative_prompt_embeds, prompt_embeds], axis=0)
+            prompt_embeds = mint.cat([negative_prompt_embeds, prompt_embeds], dim=0)
 
         # 4. Prepare timesteps
         timesteps, num_inference_steps = retrieve_timesteps(self.scheduler, num_inference_steps, timesteps)
@@ -744,13 +747,14 @@ class CogVideoXFunControlPipeline(DiffusionPipeline, CogVideoXLoraLoaderMixin):
                 if self.interrupt:
                     continue
 
-                latent_model_input = ops.cat([latents] * 2) if do_classifier_free_guidance else latents
+                self._current_timestep = t
+                latent_model_input = mint.cat([latents] * 2) if do_classifier_free_guidance else latents
                 latent_model_input = self.scheduler.scale_model_input(latent_model_input, t)
 
                 latent_control_input = (
-                    ops.cat([control_video_latents] * 2) if do_classifier_free_guidance else control_video_latents
+                    mint.cat([control_video_latents] * 2) if do_classifier_free_guidance else control_video_latents
                 )
-                latent_model_input = ops.cat([latent_model_input, latent_control_input], axis=2)
+                latent_model_input = mint.cat([latent_model_input, latent_control_input], dim=2)
 
                 # broadcast to batch dimension in a way that's compatible with ONNX/Core ML
                 timestep = t.broadcast_to((latent_model_input.shape[0],))
@@ -792,6 +796,8 @@ class CogVideoXFunControlPipeline(DiffusionPipeline, CogVideoXLoraLoaderMixin):
 
                 if i == len(timesteps) - 1 or ((i + 1) > num_warmup_steps and (i + 1) % self.scheduler.order == 0):
                     progress_bar.update()
+
+        self._current_timestep = None
 
         if not output_type == "latent":
             video = self.decode_latents(latents)
