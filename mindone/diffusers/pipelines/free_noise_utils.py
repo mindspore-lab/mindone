@@ -406,10 +406,10 @@ class AnimateDiffFreeNoiseMixin:
                 if window_length == 0:
                     break
 
-                indices = ms.Tensor(list(range(window_start, window_end)), dtype=ms.int64)
+                indices = ms.tensor(list(range(window_start, window_end)), dtype=ms.int64)
                 if generator is None:
                     generator = np.random.default_rng()
-                shuffled_indices = indices[ms.Tensor(generator.permutation(window_length))]
+                shuffled_indices = indices[ms.tensor(generator.permutation(window_length))]
 
                 current_start = i
                 current_end = min(num_frames, current_start + window_length)

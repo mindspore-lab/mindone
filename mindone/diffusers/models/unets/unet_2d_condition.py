@@ -15,7 +15,7 @@ from dataclasses import dataclass
 from typing import Any, Dict, Optional, Tuple, Union
 
 import mindspore as ms
-from mindspore import nn, ops
+from mindspore import mint, nn, ops
 
 from ...configuration_utils import ConfigMixin, register_to_config
 from ...loaders import PeftAdapterMixin, UNet2DConditionLoadersMixin
@@ -42,7 +42,6 @@ from ..embeddings import (
     Timesteps,
 )
 from ..modeling_utils import ModelMixin
-from ..normalization import GroupNorm
 from .unet_2d_blocks import get_down_block, get_mid_block, get_up_block
 
 logger = logging.get_logger(__name__)  # pylint: disable=invalid-name
@@ -159,6 +158,7 @@ class UNet2DConditionModel(
 
     _supports_gradient_checkpointing = True
     _no_split_modules = ["BasicTransformerBlock", "ResnetBlock2D", "CrossAttnUpBlock2D"]
+    _skip_layerwise_casting_patterns = ["norm"]
 
     @register_to_config
     def __init__(
@@ -250,13 +250,11 @@ class UNet2DConditionModel(
 
         # input
         conv_in_padding = (conv_in_kernel - 1) // 2
-        self.conv_in = nn.Conv2d(
+        self.conv_in = mint.nn.Conv2d(
             in_channels,
             block_out_channels[0],
             kernel_size=conv_in_kernel,
-            pad_mode="pad",
             padding=conv_in_padding,
-            has_bias=True,
         )
 
         # time
@@ -311,7 +309,7 @@ class UNet2DConditionModel(
         if time_embedding_act_fn is None:
             self.time_embed_act = None
         else:
-            self.time_embed_act = get_activation(time_embedding_act_fn)()
+            self.time_embed_act = get_activation(time_embedding_act_fn)
 
         if isinstance(only_cross_attention, bool):
             if mid_block_only_cross_attention is None:
@@ -474,22 +472,22 @@ class UNet2DConditionModel(
 
         # out
         if norm_num_groups is not None:
-            self.conv_norm_out = GroupNorm(num_channels=block_out_channels[0], num_groups=norm_num_groups, eps=norm_eps)
+            self.conv_norm_out = mint.nn.GroupNorm(
+                num_channels=block_out_channels[0], num_groups=norm_num_groups, eps=norm_eps
+            )
 
-            self.conv_act = get_activation(act_fn)()
+            self.conv_act = get_activation(act_fn)
 
         else:
             self.conv_norm_out = None
             self.conv_act = None
 
         conv_out_padding = (conv_out_kernel - 1) // 2
-        self.conv_out = nn.Conv2d(
+        self.conv_out = mint.nn.Conv2d(
             block_out_channels[0],
             out_channels,
             kernel_size=conv_out_kernel,
-            pad_mode="pad",
             padding=conv_out_padding,
-            has_bias=True,
         )
 
         self._set_pos_net_if_use_gligen(attention_type=attention_type, cross_attention_dim=cross_attention_dim)
@@ -596,7 +594,7 @@ class UNet2DConditionModel(
             )
 
         if encoder_hid_dim_type == "text_proj":
-            self.encoder_hid_proj = nn.Dense(encoder_hid_dim, cross_attention_dim)
+            self.encoder_hid_proj = mint.nn.Linear(encoder_hid_dim, cross_attention_dim)
         elif encoder_hid_dim_type == "text_image_proj":
             # image_embed_dim DOESN'T have to be `cross_attention_dim`. To not clutter the __init__ too much
             # they are set to `cross_attention_dim` here as this is exactly the required dimension for the currently only use
@@ -629,11 +627,11 @@ class UNet2DConditionModel(
         timestep_input_dim: int,
     ):
         if class_embed_type is None and num_class_embeds is not None:
-            self.class_embedding = nn.Embedding(num_class_embeds, time_embed_dim)
+            self.class_embedding = mint.nn.Embedding(num_class_embeds, time_embed_dim)
         elif class_embed_type == "timestep":
             self.class_embedding = TimestepEmbedding(timestep_input_dim, time_embed_dim, act_fn=act_fn)
         elif class_embed_type == "identity":
-            self.class_embedding = nn.Identity()
+            self.class_embedding = mint.nn.Identity()
         elif class_embed_type == "projection":
             if projection_class_embeddings_input_dim is None:
                 raise ValueError(
@@ -652,7 +650,7 @@ class UNet2DConditionModel(
                 raise ValueError(
                     "`class_embed_type`: 'simple_projection' requires `projection_class_embeddings_input_dim` be set"
                 )
-            self.class_embedding = nn.Dense(projection_class_embeddings_input_dim, time_embed_dim)
+            self.class_embedding = mint.nn.Linear(projection_class_embeddings_input_dim, time_embed_dim)
         else:
             self.class_embedding = None
 
@@ -784,18 +782,15 @@ class UNet2DConditionModel(
 
         self.set_attn_processor(processor)
 
-    def _set_gradient_checkpointing(self, module, value=False):
-        if hasattr(module, "gradient_checkpointing"):
-            module.gradient_checkpointing = value
-
     def get_time_embed(self, sample: ms.Tensor, timestep: Union[ms.Tensor, float, int]) -> Optional[ms.Tensor]:
         timesteps = timestep
+        # todo: unavailable mint interface
         if not ops.is_tensor(timesteps):
             # TODO: this requires sync between CPU and GPU. So try to pass timesteps as tensors if you can
             if isinstance(timestep, float):
-                dtype = ms.float64
+                dtype = ms.float32
             else:
-                dtype = ms.int64
+                dtype = ms.int32
             timesteps = ms.tensor([timesteps], dtype=dtype)
         elif len(timesteps.shape) == 0:
             timesteps = timesteps[None]
@@ -861,7 +856,7 @@ class UNet2DConditionModel(
             # there might be better ways to encapsulate this.
             time_embeds = time_embeds.to(emb.dtype)
             time_embeds = time_embeds.reshape((text_embeds.shape[0], -1))
-            add_embeds = ops.concat([text_embeds, time_embeds], axis=-1)
+            add_embeds = mint.concat([text_embeds, time_embeds], dim=-1)
             add_embeds = add_embeds.to(emb.dtype)
             aug_emb = self.add_embedding(add_embeds)
         elif self.addition_embed_type == "image":
@@ -1029,7 +1024,7 @@ class UNet2DConditionModel(
         class_emb = self.get_class_embed(sample=sample, class_labels=class_labels)
         if class_emb is not None:
             if self.class_embeddings_concat:
-                emb = ops.cat([emb, class_emb], axis=-1)
+                emb = mint.cat([emb, class_emb], dim=-1)
             else:
                 emb = emb + class_emb
 
@@ -1038,7 +1033,7 @@ class UNet2DConditionModel(
         )
         if self.addition_embed_type == "image_hint":
             aug_emb, hint = aug_emb
-            sample = ops.cat([sample, hint], axis=1)
+            sample = mint.cat([sample, hint], dim=1)
 
         emb = emb + aug_emb if aug_emb is not None else emb
 

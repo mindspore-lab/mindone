@@ -19,7 +19,7 @@ import numpy as np
 from transformers import RobertaTokenizer, RobertaTokenizerFast
 
 import mindspore as ms
-from mindspore import ops
+from mindspore import mint, ops
 
 from ....transformers import ClapTextModelWithProjection, SpeechT5HifiGan
 from ...models import AutoencoderKL, UNet2DConditionModel
@@ -28,7 +28,10 @@ from ...utils import logging
 from ...utils.mindspore_utils import randn_tensor
 from ..pipeline_utils import AudioPipelineOutput, DiffusionPipeline, StableDiffusionMixin
 
+XLA_AVAILABLE = False
+
 logger = logging.get_logger(__name__)  # pylint: disable=invalid-name
+
 
 EXAMPLE_DOC_STRING = """
     Examples:
@@ -94,7 +97,7 @@ class AudioLDMPipeline(DiffusionPipeline, StableDiffusionMixin):
             scheduler=scheduler,
             vocoder=vocoder,
         )
-        self.vae_scale_factor = 2 ** (len(self.vae.config.block_out_channels) - 1)
+        self.vae_scale_factor = 2 ** (len(self.vae.config.block_out_channels) - 1) if getattr(self, "vae", None) else 8
 
     def _encode_prompt(
         self,
@@ -142,11 +145,13 @@ class AudioLDMPipeline(DiffusionPipeline, StableDiffusionMixin):
                 truncation=True,
                 return_tensors="np",
             )
-            text_input_ids = ms.Tensor(text_inputs.input_ids)
-            attention_mask = ms.Tensor(text_inputs.attention_mask)
-            untruncated_ids = ms.Tensor(self.tokenizer(prompt, padding="longest", return_tensors="np").input_ids)
+            text_input_ids = ms.tensor(text_inputs.input_ids)
+            attention_mask = ms.tensor(text_inputs.attention_mask)
+            untruncated_ids = ms.tensor(self.tokenizer(prompt, padding="longest", return_tensors="np").input_ids)
 
-            if untruncated_ids.shape[-1] >= text_input_ids.shape[-1] and not ops.equal(text_input_ids, untruncated_ids):
+            if untruncated_ids.shape[-1] >= text_input_ids.shape[-1] and not mint.equal(
+                text_input_ids, untruncated_ids
+            ):
                 removed_text = self.tokenizer.batch_decode(untruncated_ids[:, self.tokenizer.model_max_length - 1 : -1])
                 logger.warning(
                     "The following part of your input was truncated because CLAP can only handle sequences up to"
@@ -159,6 +164,7 @@ class AudioLDMPipeline(DiffusionPipeline, StableDiffusionMixin):
             )
             prompt_embeds = prompt_embeds[0]
             # additional L_2 normalization over each hidden-state
+            # todo: unavailable mint interface
             normalize = ops.L2Normalize(axis=-1, epsilon=1e-12)
             prompt_embeds = normalize(prompt_embeds)
 
@@ -169,7 +175,7 @@ class AudioLDMPipeline(DiffusionPipeline, StableDiffusionMixin):
             seq_len,
         ) = prompt_embeds.shape
         # duplicate text embeddings for each generation per prompt, using mps friendly method
-        prompt_embeds = prompt_embeds.repeat(1, num_waveforms_per_prompt)
+        prompt_embeds = prompt_embeds.tile((1, num_waveforms_per_prompt))
         prompt_embeds = prompt_embeds.view(bs_embed * num_waveforms_per_prompt, seq_len)
 
         # get unconditional embeddings for classifier free guidance
@@ -202,8 +208,8 @@ class AudioLDMPipeline(DiffusionPipeline, StableDiffusionMixin):
                 return_tensors="np",
             )
 
-            uncond_input_ids = ms.Tensor(uncond_input.input_ids)
-            attention_mask = ms.Tensor(uncond_input.attention_mask)
+            uncond_input_ids = ms.tensor(uncond_input.input_ids)
+            attention_mask = ms.tensor(uncond_input.attention_mask)
 
             negative_prompt_embeds = self.text_encoder(
                 uncond_input_ids,
@@ -211,6 +217,7 @@ class AudioLDMPipeline(DiffusionPipeline, StableDiffusionMixin):
             )
             negative_prompt_embeds = negative_prompt_embeds[0]
             # additional L_2 normalization over each hidden-state
+            # todo: unavailable mint interface
             normalize = ops.L2Normalize(axis=-1, epsilon=1e-12)
             negative_prompt_embeds = normalize(negative_prompt_embeds)
 
@@ -226,7 +233,7 @@ class AudioLDMPipeline(DiffusionPipeline, StableDiffusionMixin):
             # For classifier free guidance, we need to do two forward passes.
             # Here we concatenate the unconditional and text embeddings into a single batch
             # to avoid doing two forward passes
-            prompt_embeds = ops.cat([negative_prompt_embeds, prompt_embeds])
+            prompt_embeds = mint.cat([negative_prompt_embeds, prompt_embeds])
 
         return prompt_embeds
 
@@ -493,7 +500,7 @@ class AudioLDMPipeline(DiffusionPipeline, StableDiffusionMixin):
         with self.progress_bar(total=num_inference_steps) as progress_bar:
             for i, t in enumerate(timesteps):
                 # expand the latents if we are doing classifier free guidance
-                latent_model_input = ops.cat([latents] * 2) if do_classifier_free_guidance else latents
+                latent_model_input = mint.cat([latents] * 2) if do_classifier_free_guidance else latents
                 latent_model_input = self.scheduler.scale_model_input(latent_model_input, t)
 
                 # predict the noise residual

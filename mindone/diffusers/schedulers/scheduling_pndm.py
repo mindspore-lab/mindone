@@ -20,7 +20,7 @@ from typing import List, Optional, Tuple, Union
 import numpy as np
 
 import mindspore as ms
-from mindspore import ops
+from mindspore import mint
 
 from ..configuration_utils import ConfigMixin, register_to_config
 from .scheduling_utils import KarrasDiffusionSchedulers, SchedulerMixin, SchedulerOutput
@@ -142,7 +142,7 @@ class PNDMScheduler(SchedulerMixin, ConfigMixin):
             raise NotImplementedError(f"{beta_schedule} is not implemented for {self.__class__}")
 
         self.alphas = 1.0 - self.betas
-        self.alphas_cumprod = ops.cumprod(self.alphas, dim=0)
+        self.alphas_cumprod = mint.cumprod(self.alphas, dim=0)
 
         self.final_alpha_cumprod = ms.tensor(1.0) if set_alpha_to_one else self.alphas_cumprod[0]
 
@@ -219,7 +219,7 @@ class PNDMScheduler(SchedulerMixin, ConfigMixin):
             ].copy()  # we copy to avoid having negative strides which are not supported by torch.from_numpy
 
         timesteps = np.concatenate([self.prk_timesteps, self.plms_timesteps]).astype(np.int64)
-        self.timesteps = ms.Tensor(timesteps)
+        self.timesteps = ms.tensor(timesteps)
 
         self.ets = []
         self.counter = 0
@@ -293,7 +293,7 @@ class PNDMScheduler(SchedulerMixin, ConfigMixin):
 
         diff_to_prev = 0 if self.counter % 2 else self.config.num_train_timesteps // self.num_inference_steps // 2
         prev_timestep = timestep - diff_to_prev
-        timestep = ms.Tensor(self.prk_timesteps[self.counter // 4 * 4])
+        timestep = ms.tensor(self.prk_timesteps[self.counter // 4 * 4])
 
         if self.counter % 4 == 0:
             self.cur_model_output += 1 / 6 * model_output
@@ -466,13 +466,13 @@ class PNDMScheduler(SchedulerMixin, ConfigMixin):
         sqrt_alpha_prod = sqrt_alpha_prod.flatten()
         # while len(sqrt_alpha_prod.shape) < len(original_samples.shape):
         #     sqrt_alpha_prod = sqrt_alpha_prod.unsqueeze(-1)
-        sqrt_alpha_prod = ops.reshape(sqrt_alpha_prod, (timesteps.shape[0],) + (1,) * (len(broadcast_shape) - 1))
+        sqrt_alpha_prod = mint.reshape(sqrt_alpha_prod, (timesteps.shape[0],) + (1,) * (len(broadcast_shape) - 1))
 
         sqrt_one_minus_alpha_prod = (1 - alphas_cumprod[timesteps]) ** 0.5
         sqrt_one_minus_alpha_prod = sqrt_one_minus_alpha_prod.flatten()
         # while len(sqrt_one_minus_alpha_prod.shape) < len(original_samples.shape):
         #     sqrt_one_minus_alpha_prod = sqrt_one_minus_alpha_prod.unsqueeze(-1)
-        sqrt_one_minus_alpha_prod = ops.reshape(
+        sqrt_one_minus_alpha_prod = mint.reshape(
             sqrt_one_minus_alpha_prod, (timesteps.shape[0],) + (1,) * (len(broadcast_shape) - 1)
         )
 

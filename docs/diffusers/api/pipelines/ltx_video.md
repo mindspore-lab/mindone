@@ -14,11 +14,15 @@
 
 # LTX Video
 
+<div class="flex flex-wrap space-x-1">
+  <img alt="LoRA" src="https://img.shields.io/badge/LoRA-d8b4fe?style=flat"/>
+</div>
+
 [LTX Video](https://huggingface.co/Lightricks/LTX-Video) is the first DiT-based video generation model capable of generating high-quality videos in real-time. It produces 24 FPS videos at a 768x512 resolution faster than they can be watched. Trained on a large-scale dataset of diverse videos, the model generates high-resolution videos with realistic and varied content. We provide a model for both text-to-video as well as image + text-to-video usecases.
 
 !!! tip
 
-Make sure to check out the Schedulers [guide](../../using-diffusers/schedulers.md) to learn how to explore the tradeoff between scheduler speed and quality.
+Make sure to check out the Schedulers [guide](../../using-diffusers/schedulers.md) to learn how to explore the tradeoff between scheduler speed and quality, and see the [reuse components across pipelines](../../using-diffusers/loading.md#reuse-a-pipeline) section to learn how to efficiently load the same components into multiple pipelines.
 
 Available models:
 
@@ -26,6 +30,7 @@ Available models:
 |:----------------------------------------------------------------------------------------------------------:|:-----------------:|
 | [`LTX Video 0.9.0`](https://huggingface.co/Lightricks/LTX-Video/blob/main/ltx-video-2b-v0.9.safetensors)   |   `ms.bfloat16`   |
 | [`LTX Video 0.9.1`](https://huggingface.co/Lightricks/LTX-Video/blob/main/ltx-video-2b-v0.9.1.safetensors) |   `ms.bfloat16`   |
+| [`LTX Video 0.9.5`](https://huggingface.co/Lightricks/LTX-Video/blob/main/ltx-video-2b-v0.9.5.safetensors) | `ms.bfloat16` |
 
 Note: The recommended dtype is for the transformer component. The VAE and text encoders can be either `ms.float32`, `ms.bfloat16` or `ms.float16` but the recommended dtype is `ms.bfloat16` as used in the original repository.
 
@@ -100,5 +105,7 @@ Refer to [this section](https://mindspore-lab.github.io/mindone/latest/diffusers
 ::: mindone.diffusers.LTXPipeline
 
 ::: mindone.diffusers.LTXImageToVideoPipeline
+
+::: mindone.diffusers.LTXConditionPipeline
 
 ::: mindone.diffusers.pipelines.ltx.pipeline_output.LTXPipelineOutput

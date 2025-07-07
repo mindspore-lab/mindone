@@ -11,10 +11,11 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+
 from typing import Optional
 
 import mindspore as ms
-from mindspore import nn, ops
+from mindspore import mint, nn
 
 from ...configuration_utils import ConfigMixin, register_to_config
 from ...models.embeddings import PixArtAlphaTextProjection, get_1d_sincos_pos_embed_from_grid
@@ -22,7 +23,7 @@ from ..attention import BasicTransformerBlock
 from ..embeddings import PatchEmbed
 from ..modeling_outputs import Transformer2DModelOutput
 from ..modeling_utils import ModelMixin
-from ..normalization import AdaLayerNormSingle, LayerNorm
+from ..normalization import AdaLayerNormSingle
 
 
 class LatteTransformer3DModel(ModelMixin, ConfigMixin):
@@ -64,6 +65,8 @@ class LatteTransformer3DModel(ModelMixin, ConfigMixin):
         video_length (`int`, *optional*):
             The number of frames in the video-like data.
     """
+
+    _skip_layerwise_casting_patterns = ["pos_embed", "norm"]
 
     @register_to_config
     def __init__(
@@ -147,9 +150,9 @@ class LatteTransformer3DModel(ModelMixin, ConfigMixin):
 
         # 4. Define output layers
         self.out_channels = in_channels if out_channels is None else out_channels
-        self.norm_out = LayerNorm(inner_dim, elementwise_affine=False, eps=1e-6)
-        self.scale_shift_table = ms.Parameter(ops.randn((2, inner_dim)) / inner_dim**0.5)
-        self.proj_out = nn.Dense(inner_dim, patch_size * patch_size * self.out_channels)
+        self.norm_out = mint.nn.LayerNorm(inner_dim, elementwise_affine=False, eps=1e-6)
+        self.scale_shift_table = ms.Parameter(mint.randn(2, inner_dim) / inner_dim**0.5)
+        self.proj_out = mint.nn.Linear(inner_dim, patch_size * patch_size * self.out_channels)
 
         # 5. Latte other blocks.
         self.adaln_single = AdaLayerNormSingle(inner_dim, use_additional_conditions=False)
@@ -157,14 +160,11 @@ class LatteTransformer3DModel(ModelMixin, ConfigMixin):
 
         # define temporal positional embedding
         temp_pos_embed = get_1d_sincos_pos_embed_from_grid(
-            inner_dim, ops.arange(0, video_length).unsqueeze(1), output_type="ms"
+            inner_dim, mint.arange(0, video_length).unsqueeze(1), output_type="ms"
         )  # 1152 hidden size
         self.temp_pos_embed = temp_pos_embed.float().unsqueeze(0)
 
         self.gradient_checkpointing = False
-
-    def _set_gradient_checkpointing(self, module, value=False):
-        self.gradient_checkpointing = value
 
     def construct(
         self,
@@ -227,13 +227,17 @@ class LatteTransformer3DModel(ModelMixin, ConfigMixin):
         # Prepare text embeddings for spatial block
         # batch_size num_tokens hidden_size -> (batch_size * num_frame) num_tokens hidden_size
         encoder_hidden_states = self.caption_projection(encoder_hidden_states)  # 3 120 1152
-        encoder_hidden_states_spatial = encoder_hidden_states.repeat_interleave(num_frame, dim=0).view(
-            -1, encoder_hidden_states.shape[-2], encoder_hidden_states.shape[-1]
-        )
+        encoder_hidden_states_spatial = encoder_hidden_states.repeat_interleave(
+            num_frame, dim=0, output_size=encoder_hidden_states.shape[0] * num_frame
+        ).view(-1, encoder_hidden_states.shape[-2], encoder_hidden_states.shape[-1])
 
         # Prepare timesteps for spatial and temporal block
-        timestep_spatial = timestep.repeat_interleave(num_frame, dim=0).view(-1, timestep.shape[-1])
-        timestep_temp = timestep.repeat_interleave(num_patches, dim=0).view(-1, timestep.shape[-1])
+        timestep_spatial = timestep.repeat_interleave(num_frame, dim=0, output_size=timestep.shape[0] * num_frame).view(
+            -1, timestep.shape[-1]
+        )
+        timestep_temp = timestep.repeat_interleave(
+            num_patches, dim=0, output_size=timestep.shape[0] * num_patches
+        ).view(-1, timestep.shape[-1])
 
         # Spatial and temporal transformer blocks
         for i, (spatial_block, temp_block) in enumerate(zip(self.transformer_blocks, self.temporal_transformer_blocks)):
@@ -255,7 +259,7 @@ class LatteTransformer3DModel(ModelMixin, ConfigMixin):
                 hidden_states = hidden_states.reshape(-1, hidden_states.shape[-2], hidden_states.shape[-1])
 
                 if i == 0 and num_frame > 1:
-                    hidden_states = (hidden_states + self.temp_pos_embed).to(hidden_states.dtype)
+                    hidden_states = hidden_states + self.temp_pos_embed.to(hidden_states.dtype)
 
                 hidden_states = temp_block(
                     hidden_states,
@@ -273,8 +277,10 @@ class LatteTransformer3DModel(ModelMixin, ConfigMixin):
                 ).permute(0, 2, 1, 3)
                 hidden_states = hidden_states.reshape(-1, hidden_states.shape[-2], hidden_states.shape[-1])
 
-        embedded_timestep = embedded_timestep.repeat_interleave(num_frame, dim=0).view(-1, embedded_timestep.shape[-1])
-        shift, scale = (self.scale_shift_table[None] + embedded_timestep[:, None]).chunk(2, axis=1)
+        embedded_timestep = embedded_timestep.repeat_interleave(
+            num_frame, dim=0, output_size=embedded_timestep.shape[0] * num_frame
+        ).view(-1, embedded_timestep.shape[-1])
+        shift, scale = (self.scale_shift_table[None] + embedded_timestep[:, None]).chunk(2, dim=1)
         hidden_states = self.norm_out(hidden_states)
         # Modulation
         hidden_states = hidden_states * (1 + scale) + shift
@@ -284,7 +290,7 @@ class LatteTransformer3DModel(ModelMixin, ConfigMixin):
         if self.adaln_single is None:
             height = width = int(hidden_states.shape[1] ** 0.5)
         hidden_states = hidden_states.reshape((-1, height, width, self.patch_size, self.patch_size, self.out_channels))
-        hidden_states = hidden_states.transpose(0, 5, 1, 3, 2, 4)
+        hidden_states = mint.einsum("nhwpqc->nchpwq", hidden_states)
         output = hidden_states.reshape((-1, self.out_channels, height * self.patch_size, width * self.patch_size))
         output = output.reshape(batch_size, -1, output.shape[-3], output.shape[-2], output.shape[-1]).permute(
             0, 2, 1, 3, 4

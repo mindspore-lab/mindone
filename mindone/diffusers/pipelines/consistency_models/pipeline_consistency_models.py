@@ -17,13 +17,15 @@ from typing import Callable, List, Optional, Union
 import numpy as np
 
 import mindspore as ms
-from mindspore import ops
+from mindspore import mint
 
 from ...models import UNet2DModel
 from ...schedulers import CMStochasticIterativeScheduler
 from ...utils import logging
 from ...utils.mindspore_utils import randn_tensor
 from ..pipeline_utils import DiffusionPipeline, ImagePipelineOutput
+
+XLA_AVAILABLE = False
 
 logger = logging.get_logger(__name__)  # pylint: disable=invalid-name
 
@@ -130,7 +132,7 @@ class ConsistencyModelPipeline(DiffusionPipeline):
             elif class_labels is None:
                 # Randomly generate batch_size class labels
                 # TODO: should use generator here? int analogue of randn_tensor is not exposed in ...utils
-                class_labels = ops.randint(0, self.unet.config.num_class_embeds, size=(batch_size,))
+                class_labels = mint.randint(0, self.unet.config.num_class_embeds, size=(batch_size,))
         else:
             class_labels = None
         return class_labels

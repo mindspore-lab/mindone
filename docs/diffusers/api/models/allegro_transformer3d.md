@@ -18,7 +18,7 @@ The model can be loaded with the following code snippet.
 ```python
 from mindone.diffusers import AllegroTransformer3DModel
 
-vae = AllegroTransformer3DModel.from_pretrained("rhymes-ai/Allegro", subfolder="transformer", mindspore_dtype=ms.bfloat16)
+transformer = AllegroTransformer3DModel.from_pretrained("rhymes-ai/Allegro", subfolder="transformer", mindspore_dtype=ms.bfloat16)
 ```
 
 ::: mindone.diffusers.AllegroTransformer3DModel

@@ -20,7 +20,7 @@ import PIL.Image
 from transformers import CLIPImageProcessor, CLIPTokenizer
 
 import mindspore as ms
-from mindspore import ops
+from mindspore import mint
 
 from mindone.transformers import CLIPTextModelWithProjection, CLIPVisionModelWithProjection
 
@@ -30,7 +30,10 @@ from ...utils import BaseOutput, logging
 from ...utils.mindspore_utils import randn_tensor
 from ..pipeline_utils import DiffusionPipeline
 
+XLA_AVAILABLE = False
+
 logger = logging.get_logger(__name__)  # pylint: disable=invalid-name
+
 
 EXAMPLE_DOC_STRING = """
     Examples:
@@ -247,7 +250,7 @@ class KandinskyPriorPipeline(DiffusionPipeline):
 
             image_embeddings.append(image_emb * weight)
 
-        image_emb = ops.cat(image_embeddings).sum(axis=0, keepdims=True)
+        image_emb = mint.sum(mint.cat(image_embeddings), dim=0, keepdim=True)
 
         out_zero = self(
             negative_prompt,
@@ -274,7 +277,7 @@ class KandinskyPriorPipeline(DiffusionPipeline):
         return latents
 
     def get_zero_embed(self, batch_size=1):
-        zero_img = ops.zeros((1, 3, self.image_encoder.config.image_size, self.image_encoder.config.image_size)).to(
+        zero_img = mint.zeros((1, 3, self.image_encoder.config.image_size, self.image_encoder.config.image_size)).to(
             dtype=self.image_encoder.dtype
         )
         zero_image_emb = self.image_encoder(zero_img)[0]
@@ -298,7 +301,7 @@ class KandinskyPriorPipeline(DiffusionPipeline):
             return_tensors="np",
         )
         text_input_ids = text_inputs.input_ids
-        text_mask = ms.Tensor(text_inputs.attention_mask)
+        text_mask = ms.tensor(text_inputs.attention_mask)
 
         untruncated_ids = self.tokenizer(prompt, padding="longest", return_tensors="np").input_ids
 
@@ -348,8 +351,8 @@ class KandinskyPriorPipeline(DiffusionPipeline):
                 truncation=True,
                 return_tensors="np",
             )
-            uncond_text_mask = ms.Tensor(uncond_input.attention_mask)
-            negative_prompt_embeds_text_encoder_output = self.text_encoder(ms.Tensor(uncond_input.input_ids))
+            uncond_text_mask = ms.tensor(uncond_input.attention_mask)
+            negative_prompt_embeds_text_encoder_output = self.text_encoder(ms.tensor(uncond_input.input_ids))
 
             negative_prompt_embeds = negative_prompt_embeds_text_encoder_output[0]
             uncond_text_encoder_hidden_states = negative_prompt_embeds_text_encoder_output[1]
@@ -372,10 +375,10 @@ class KandinskyPriorPipeline(DiffusionPipeline):
             # For classifier free guidance, we need to do two forward passes.
             # Here we concatenate the unconditional and text embeddings into a single batch
             # to avoid doing two forward passes
-            prompt_embeds = ops.cat([negative_prompt_embeds, prompt_embeds])
-            text_encoder_hidden_states = ops.cat([uncond_text_encoder_hidden_states, text_encoder_hidden_states])
+            prompt_embeds = mint.cat([negative_prompt_embeds, prompt_embeds])
+            text_encoder_hidden_states = mint.cat([uncond_text_encoder_hidden_states, text_encoder_hidden_states])
 
-            text_mask = ops.cat([uncond_text_mask, text_mask])
+            text_mask = mint.cat([uncond_text_mask, text_mask])
 
         return prompt_embeds, text_encoder_hidden_states, text_mask
 
@@ -470,7 +473,7 @@ class KandinskyPriorPipeline(DiffusionPipeline):
 
         for i, t in enumerate(self.progress_bar(prior_timesteps_tensor)):
             # expand the latents if we are doing classifier free guidance
-            latent_model_input = ops.cat([latents] * 2) if do_classifier_free_guidance else latents
+            latent_model_input = mint.cat([latents] * 2) if do_classifier_free_guidance else latents
 
             predicted_image_embedding = self.prior(
                 latent_model_input,

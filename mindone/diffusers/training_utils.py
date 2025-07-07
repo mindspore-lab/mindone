@@ -12,7 +12,7 @@ import numpy as np
 from tqdm.auto import tqdm
 
 import mindspore as ms
-from mindspore import context, nn, ops
+from mindspore import context, mint, nn, ops
 from mindspore.amp import DynamicLossScaler, StaticLossScaler, all_finite
 from mindspore.common import dtype as mstype
 from mindspore.common.api import _pynative_executor
@@ -149,7 +149,7 @@ def _set_state_dict_into_text_encoder(lora_state_dict: Dict[str, ms.Tensor], pre
     """
 
     text_encoder_state_dict = {
-        f'{k.replace(prefix, "")}': v for k, v in lora_state_dict.items() if k.startswith(prefix)
+        f"{k.replace(prefix, '')}": v for k, v in lora_state_dict.items() if k.startswith(prefix)
     }
     text_encoder_state_dict = convert_state_dict_to_peft(convert_state_dict_to_diffusers(text_encoder_state_dict))
     set_peft_model_state_dict(text_encoder, text_encoder_state_dict, adapter_name="default")
@@ -167,13 +167,13 @@ def compute_density_for_timestep_sampling(
     """
     if weighting_scheme == "logit_normal":
         # See 3.1 in the SD3 paper ($rf/lognorm(0.00,1.00)$).
-        u = ops.normal(mean=logit_mean, stddev=logit_std, shape=(batch_size,))
-        u = ops.sigmoid(u)
+        u = mint.normal(mean=logit_mean, std=logit_std, size=(batch_size,))
+        u = mint.sigmoid(u)
     elif weighting_scheme == "mode":
-        u = ops.rand(batch_size)
-        u = 1 - u - mode_scale * (ops.cos(ms.numpy.pi * u / 2) ** 2 - 1 + u)
+        u = mint.rand(batch_size)
+        u = 1 - u - mode_scale * (mint.cos(ms.numpy.pi * u / 2) ** 2 - 1 + u)
     else:
-        u = ops.rand(batch_size)
+        u = mint.rand(batch_size)
     return u
 
 
@@ -191,7 +191,7 @@ def compute_loss_weighting_for_sd3(weighting_scheme: str, sigmas=None):
         bot = 1 - 2 * sigmas + 2 * sigmas**2
         weighting = 2 / (ms.numpy.pi * bot)
     else:
-        weighting = ops.ones_like(sigmas)
+        weighting = mint.ones_like(sigmas)
     return weighting
 
 
@@ -506,7 +506,7 @@ def _grad_accum(cumulative_grad, grad):
 
 
 def _grad_clear(cumulative_grad):
-    return ops.assign(cumulative_grad, ops.zeros_like(cumulative_grad))
+    return ops.assign(cumulative_grad, mint.zeros_like(cumulative_grad))
 
 
 @ms.jit_class
@@ -585,8 +585,8 @@ class GradAccumulator:
             raise ValueError(f"'gradient_accumulation_steps' must be positive, but got {gradient_accumulation_steps}")
 
         self.gradient_accumulation_steps = gradient_accumulation_steps
-        self.batch_idx = ms.Parameter(ms.Tensor(0, ms.int64), name="batch_idx", requires_grad=False)
-        self.sync_gradients = ms.Parameter(ms.Tensor(True), name="sync_gradients", requires_grad=False)
+        self.batch_idx = ms.Parameter(ms.tensor(0, ms.int64), name="batch_idx", requires_grad=False)
+        self.sync_gradients = ms.Parameter(ms.tensor(True), name="sync_gradients", requires_grad=False)
         self.hyper_map = ops.HyperMap()
 
         if self.sync_with_dataloader and self.length_of_dataloader <= 0:
@@ -660,7 +660,7 @@ class GradScaler:
             self.step = self._maybe_opt_step
         else:
             raise NotImplementedError(f"Unsupported loss scaler: {type(loss_scaler)}")
-        self.all_finite = ms.Parameter(ms.Tensor(True), name="all_finite", requires_grad=False)
+        self.all_finite = ms.Parameter(ms.tensor(True), name="all_finite", requires_grad=False)
 
     def scale(self, inputs):
         return self.loss_scaler.scale(inputs)
@@ -931,7 +931,7 @@ def prepare_train_network(
         )
 
     if isinstance(scale_sense, float):
-        scale_sense = ms.Tensor(scale_sense, ms.float32)
+        scale_sense = ms.tensor(scale_sense, ms.float32)
     train_network = DiffusersTrainOneStepWrapper(
         network,
         optimizer,
@@ -1012,7 +1012,7 @@ class DiffusersTrainOneStepWrapper(TrainOneStepWrapper):
         loss_scaler_file = os.path.join(input_dir, "loss_scaler.ckpt")
         loss_scaler_state_dict = ms.load_checkpoint(loss_scaler_file)
 
-        scale_sense = loss_scaler_state_dict.get("scale_sense", ms.Tensor(1.0, dtype=mstype.float32))
+        scale_sense = loss_scaler_state_dict.get("scale_sense", ms.tensor(1.0, dtype=mstype.float32))
         cur_iter = loss_scaler_state_dict.get("cur_iter", None)
         last_overflow_iter = loss_scaler_state_dict.get("last_overflow_iter", None)
 

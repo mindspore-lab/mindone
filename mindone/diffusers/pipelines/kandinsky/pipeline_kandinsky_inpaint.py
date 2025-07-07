@@ -21,7 +21,7 @@ from PIL import Image
 from transformers import XLMRobertaTokenizer
 
 import mindspore as ms
-from mindspore import ops
+from mindspore import mint
 
 from ... import __version__
 from ...models import UNet2DConditionModel, VQModel
@@ -31,7 +31,10 @@ from ...utils.mindspore_utils import randn_tensor
 from ..pipeline_utils import DiffusionPipeline, ImagePipelineOutput
 from .text_encoder import MultilingualCLIP
 
+XLA_AVAILABLE = False
+
 logger = logging.get_logger(__name__)  # pylint: disable=invalid-name
+
 
 EXAMPLE_DOC_STRING = """
     Examples:
@@ -108,7 +111,7 @@ def prepare_mask(masks):
                 if i != mask.shape[1] - 1 and j != mask.shape[2] - 1:
                     mask[:, i + 1, j + 1] = 0
         prepared_masks.append(mask)
-    return ops.stack(prepared_masks, axis=0)
+    return mint.stack(prepared_masks, dim=0)
 
 
 def prepare_mask_and_masked_image(image, mask, height, width):
@@ -311,7 +314,7 @@ class KandinskyInpaintPipeline(DiffusionPipeline):
                 f" {self.tokenizer.model_max_length} tokens: {removed_text}"
             )
 
-        text_mask = ms.Tensor(text_inputs.attention_mask)
+        text_mask = ms.tensor(text_inputs.attention_mask)
 
         prompt_embeds, text_encoder_hidden_states = self.text_encoder(
             input_ids=ms.tensor(text_input_ids), attention_mask=text_mask
@@ -350,8 +353,8 @@ class KandinskyInpaintPipeline(DiffusionPipeline):
                 add_special_tokens=True,
                 return_tensors="np",
             )
-            uncond_text_input_ids = ms.Tensor(uncond_input.input_ids)
-            uncond_text_mask = ms.Tensor(uncond_input.attention_mask)
+            uncond_text_input_ids = ms.tensor(uncond_input.input_ids)
+            uncond_text_mask = ms.tensor(uncond_input.attention_mask)
 
             negative_prompt_embeds, uncond_text_encoder_hidden_states = self.text_encoder(
                 input_ids=uncond_text_input_ids, attention_mask=uncond_text_mask
@@ -375,10 +378,10 @@ class KandinskyInpaintPipeline(DiffusionPipeline):
             # For classifier free guidance, we need to do two forward passes.
             # Here we concatenate the unconditional and text embeddings into a single batch
             # to avoid doing two forward passes
-            prompt_embeds = ops.cat([negative_prompt_embeds, prompt_embeds])
-            text_encoder_hidden_states = ops.cat([uncond_text_encoder_hidden_states, text_encoder_hidden_states])
+            prompt_embeds = mint.cat([negative_prompt_embeds, prompt_embeds])
+            text_encoder_hidden_states = mint.cat([uncond_text_encoder_hidden_states, text_encoder_hidden_states])
 
-            text_mask = ops.cat([uncond_text_mask, text_mask])
+            text_mask = mint.cat([uncond_text_mask, text_mask])
 
         return prompt_embeds, text_encoder_hidden_states, text_mask
 
@@ -495,15 +498,15 @@ class KandinskyInpaintPipeline(DiffusionPipeline):
         )
 
         if isinstance(image_embeds, list):
-            image_embeds = ops.cat(image_embeds, axis=0)
+            image_embeds = mint.cat(image_embeds, dim=0)
         if isinstance(negative_image_embeds, list):
-            negative_image_embeds = ops.cat(negative_image_embeds, axis=0)
+            negative_image_embeds = mint.cat(negative_image_embeds, dim=0)
 
         if do_classifier_free_guidance:
             image_embeds = image_embeds.repeat_interleave(num_images_per_prompt, dim=0)
             negative_image_embeds = negative_image_embeds.repeat_interleave(num_images_per_prompt, dim=0)
 
-            image_embeds = ops.cat([negative_image_embeds, image_embeds], axis=0).to(dtype=prompt_embeds.dtype)
+            image_embeds = mint.cat([negative_image_embeds, image_embeds], dim=0).to(dtype=prompt_embeds.dtype)
 
         # preprocess image and mask
         mask_image, image = prepare_mask_and_masked_image(image, mask_image, height, width)
@@ -514,7 +517,7 @@ class KandinskyInpaintPipeline(DiffusionPipeline):
         mask_image = mask_image.to(dtype=prompt_embeds.dtype)
 
         image_shape = tuple(image.shape[-2:])
-        mask_image = ops.interpolate(
+        mask_image = mint.nn.functional.interpolate(
             mask_image,
             image_shape,
             mode="nearest",
@@ -553,14 +556,14 @@ class KandinskyInpaintPipeline(DiffusionPipeline):
                 f"Incorrect configuration settings! The config of `pipeline.unet`: {self.unet.config} expects"
                 f" {self.unet.config.in_channels} but received `num_channels_latents`: {num_channels_latents} +"
                 f" `num_channels_mask`: {num_channels_mask} + `num_channels_masked_image`: {num_channels_masked_image}"
-                f" = {num_channels_latents+num_channels_masked_image+num_channels_mask}. Please verify the config of"
+                f" = {num_channels_latents + num_channels_masked_image + num_channels_mask}. Please verify the config of"
                 " `pipeline.unet` or your `mask_image` or `image` input."
             )
 
         for i, t in enumerate(self.progress_bar(timesteps_tensor)):
             # expand the latents if we are doing classifier free guidance
-            latent_model_input = ops.cat([latents] * 2) if do_classifier_free_guidance else latents
-            latent_model_input = ops.cat([latent_model_input, masked_image, mask_image], axis=1)
+            latent_model_input = mint.cat([latents] * 2) if do_classifier_free_guidance else latents
+            latent_model_input = mint.cat([latent_model_input, masked_image, mask_image], dim=1)
 
             added_cond_kwargs = {"text_embeds": prompt_embeds, "image_embeds": image_embeds}
             noise_pred = self.unet(
@@ -572,17 +575,17 @@ class KandinskyInpaintPipeline(DiffusionPipeline):
             )[0]
 
             if do_classifier_free_guidance:
-                noise_pred, variance_pred = noise_pred.split(latents.shape[1], axis=1)
+                noise_pred, variance_pred = noise_pred.split(latents.shape[1], dim=1)
                 noise_pred_uncond, noise_pred_text = noise_pred.chunk(2)
                 _, variance_pred_text = variance_pred.chunk(2)
                 noise_pred = noise_pred_uncond + guidance_scale * (noise_pred_text - noise_pred_uncond)
-                noise_pred = ops.cat([noise_pred, variance_pred_text], axis=1)
+                noise_pred = mint.cat([noise_pred, variance_pred_text], dim=1)
 
             if not (
                 hasattr(self.scheduler.config, "variance_type")
                 and self.scheduler.config.variance_type in ["learned", "learned_range"]
             ):
-                noise_pred, _ = noise_pred.split(latents.shape[1], axis=1)
+                noise_pred, _ = noise_pred.split(latents.shape[1], dim=1)
 
             # compute the previous noisy sample x_t -> x_t-1
             latents = self.scheduler.step(

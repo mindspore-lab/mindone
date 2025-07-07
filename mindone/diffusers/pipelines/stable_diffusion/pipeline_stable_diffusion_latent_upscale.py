@@ -20,7 +20,7 @@ import PIL.Image
 from transformers import CLIPTokenizer
 
 import mindspore as ms
-from mindspore import ops
+from mindspore import mint
 
 from mindone.transformers import CLIPTextModel
 
@@ -31,6 +31,8 @@ from ...schedulers import EulerDiscreteScheduler
 from ...utils import deprecate, logging
 from ...utils.mindspore_utils import randn_tensor
 from ..pipeline_utils import DiffusionPipeline, ImagePipelineOutput, StableDiffusionMixin
+
+XLA_AVAILABLE = False
 
 logger = logging.get_logger(__name__)  # pylint: disable=invalid-name
 
@@ -73,7 +75,7 @@ def preprocess(image):
         image = 2.0 * image - 1.0
         image = ms.Tensor.from_numpy(image)
     elif isinstance(image[0], ms.Tensor):
-        image = ops.cat(image, axis=0)
+        image = mint.cat(image, dim=0)
     return image
 
 
@@ -119,7 +121,7 @@ class StableDiffusionLatentUpscalePipeline(DiffusionPipeline, StableDiffusionMix
             unet=unet,
             scheduler=scheduler,
         )
-        self.vae_scale_factor = 2 ** (len(self.vae.config.block_out_channels) - 1)
+        self.vae_scale_factor = 2 ** (len(self.vae.config.block_out_channels) - 1) if getattr(self, "vae", None) else 8
         self.image_processor = VaeImageProcessor(vae_scale_factor=self.vae_scale_factor, resample="bicubic")
 
     def _encode_prompt(
@@ -152,8 +154,8 @@ class StableDiffusionLatentUpscalePipeline(DiffusionPipeline, StableDiffusionMix
             **kwargs,
         )
 
-        prompt_embeds = ops.cat([negative_prompt_embeds, prompt_embeds])
-        pooled_prompt_embeds = ops.cat([negative_pooled_prompt_embeds, pooled_prompt_embeds])
+        prompt_embeds = mint.cat([negative_prompt_embeds, prompt_embeds])
+        pooled_prompt_embeds = mint.cat([negative_pooled_prompt_embeds, pooled_prompt_embeds])
 
         return prompt_embeds, pooled_prompt_embeds
 
@@ -524,8 +526,8 @@ class StableDiffusionLatentUpscalePipeline(DiffusionPipeline, StableDiffusionMix
         )
 
         if do_classifier_free_guidance:
-            prompt_embeds = ops.cat([negative_prompt_embeds, prompt_embeds])
-            pooled_prompt_embeds = ops.cat([negative_pooled_prompt_embeds, pooled_prompt_embeds])
+            prompt_embeds = mint.cat([negative_prompt_embeds, prompt_embeds])
+            pooled_prompt_embeds = mint.cat([negative_pooled_prompt_embeds, pooled_prompt_embeds])
 
         # 4. Preprocess image
         image = self.image_processor.preprocess(image)
@@ -543,32 +545,32 @@ class StableDiffusionLatentUpscalePipeline(DiffusionPipeline, StableDiffusionMix
 
         batch_multiplier = 2 if do_classifier_free_guidance else 1
         image = image[None, :] if image.ndim == 3 else image
-        image = ops.cat([image] * batch_multiplier)
+        image = mint.cat([image] * batch_multiplier)
 
         # 5. Add noise to image (set to be 0):
         # (see below notes from the author):
         # "the This step theoretically can make the model work better on out-of-distribution inputs, but mostly just
         # seems to make it match the input less, so it's turned off by default."
-        noise_level = ms.Tensor([0.0], dtype=ms.int32)
-        noise_level = ops.cat([noise_level] * image.shape[0])
+        noise_level = ms.tensor([0.0], dtype=ms.int32)
+        noise_level = mint.cat([noise_level] * image.shape[0])
         inv_noise_level = (noise_level**2 + 1) ** (-0.5)
 
         # TODO: maybe Numerical error
         image_cond = (
-            ops.interpolate(image, scale_factor=2.0, mode="nearest", recompute_scale_factor=True)
+            mint.nn.functional.interpolate(image, scale_factor=2.0, mode="nearest", recompute_scale_factor=True)
             * inv_noise_level[:, None, None, None]
         )
         image_cond = image_cond.to(prompt_embeds.dtype)
 
-        noise_level_embed = ops.cat(
+        noise_level_embed = mint.cat(
             [
-                ops.ones((pooled_prompt_embeds.shape[0], 64), dtype=pooled_prompt_embeds.dtype),
-                ops.zeros((pooled_prompt_embeds.shape[0], 64), dtype=pooled_prompt_embeds.dtype),
+                mint.ones((pooled_prompt_embeds.shape[0], 64), dtype=pooled_prompt_embeds.dtype),
+                mint.zeros((pooled_prompt_embeds.shape[0], 64), dtype=pooled_prompt_embeds.dtype),
             ],
-            axis=1,
+            dim=1,
         )
 
-        timestep_condition = ops.cat([noise_level_embed, pooled_prompt_embeds], axis=1)
+        timestep_condition = mint.cat([noise_level_embed, pooled_prompt_embeds], dim=1)
 
         # 6. Prepare latent variables
         height, width = image.shape[2:]
@@ -590,7 +592,7 @@ class StableDiffusionLatentUpscalePipeline(DiffusionPipeline, StableDiffusionMix
                 f"Incorrect configuration settings! The config of `pipeline.unet`: {self.unet.config} expects"
                 f" {self.unet.config.in_channels} but received `num_channels_latents`: {num_channels_latents} +"
                 f" `num_channels_image`: {num_channels_image} "
-                f" = {num_channels_latents+num_channels_image}. Please verify the config of"
+                f" = {num_channels_latents + num_channels_image}. Please verify the config of"
                 " `pipeline.unet` or your `image` input."
             )
 
@@ -601,12 +603,12 @@ class StableDiffusionLatentUpscalePipeline(DiffusionPipeline, StableDiffusionMix
             for i, t in enumerate(timesteps):
                 sigma = self.scheduler.sigmas[i]
                 # expand the latents if we are doing classifier free guidance
-                latent_model_input = ops.cat([latents] * 2) if do_classifier_free_guidance else latents
+                latent_model_input = mint.cat([latents] * 2) if do_classifier_free_guidance else latents
                 scaled_model_input = self.scheduler.scale_model_input(latent_model_input, t)
 
-                scaled_model_input = ops.cat([scaled_model_input, image_cond], axis=1)
+                scaled_model_input = mint.cat([scaled_model_input, image_cond], dim=1)
                 # preconditioning parameter based on  Karras et al. (2022) (table 1)
-                timestep = ops.log(sigma) * 0.25
+                timestep = mint.log(sigma) * 0.25
 
                 noise_pred = self.unet(
                     scaled_model_input,

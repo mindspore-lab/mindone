@@ -19,7 +19,7 @@ from typing import List, Optional, Tuple, Union
 import numpy as np
 
 import mindspore as ms
-from mindspore import ops
+from mindspore import mint
 
 from ..configuration_utils import ConfigMixin, register_to_config
 from ..utils import BaseOutput, is_scipy_available, logging
@@ -55,11 +55,32 @@ class FlowMatchEulerDiscreteScheduler(SchedulerMixin, ConfigMixin):
     Args:
         num_train_timesteps (`int`, defaults to 1000):
             The number of diffusion steps to train the model.
-        timestep_spacing (`str`, defaults to `"linspace"`):
-            The way the timesteps should be scaled. Refer to Table 2 of the [Common Diffusion Noise Schedules and
-            Sample Steps are Flawed](https://huggingface.co/papers/2305.08891) for more information.
         shift (`float`, defaults to 1.0):
             The shift value for the timestep schedule.
+        use_dynamic_shifting (`bool`, defaults to False):
+            Whether to apply timestep shifting on-the-fly based on the image resolution.
+        base_shift (`float`, defaults to 0.5):
+            Value to stabilize image generation. Increasing `base_shift` reduces variation and image is more consistent
+            with desired output.
+        max_shift (`float`, defaults to 1.15):
+            Value change allowed to latent vectors. Increasing `max_shift` encourages more variation and image may be
+            more exaggerated or stylized.
+        base_image_seq_len (`int`, defaults to 256):
+            The base image sequence length.
+        max_image_seq_len (`int`, defaults to 4096):
+            The maximum image sequence length.
+        invert_sigmas (`bool`, defaults to False):
+            Whether to invert the sigmas.
+        shift_terminal (`float`, defaults to None):
+            The end value of the shifted timestep schedule.
+        use_karras_sigmas (`bool`, defaults to False):
+            Whether to use Karras sigmas for step sizes in the noise schedule during sampling.
+        use_exponential_sigmas (`bool`, defaults to False):
+            Whether to use exponential sigmas for step sizes in the noise schedule during sampling.
+        use_beta_sigmas (`bool`, defaults to False):
+            Whether to use beta sigmas for step sizes in the noise schedule during sampling.
+        time_shift_type (`str`, defaults to "exponential"):
+            The type of dynamic resolution-dependent timestep shifting to apply. Either "exponential" or "linear".
     """
 
     _compatibles = []
@@ -183,7 +204,7 @@ class FlowMatchEulerDiscreteScheduler(SchedulerMixin, ConfigMixin):
         sigma = sigmas[step_indices].flatten()
         # while len(sigma.shape) < len(sample.shape):
         #     sigma = sigma.unsqueeze(-1)
-        sigma = ops.reshape(sigma, (timestep.shape[0],) + (1,) * (len(broadcast_shape) - 1))
+        sigma = mint.reshape(sigma, (timestep.shape[0],) + (1,) * (len(broadcast_shape) - 1))
 
         sample = sigma * noise + (1.0 - sigma) * sample
 
@@ -309,9 +330,9 @@ class FlowMatchEulerDiscreteScheduler(SchedulerMixin, ConfigMixin):
         if self.config.invert_sigmas:
             sigmas = 1.0 - sigmas
             timesteps = sigmas * self.config.num_train_timesteps
-            sigmas = ops.cat([sigmas, ops.ones(1, dtype=sigmas.dtype)])
+            sigmas = mint.cat([sigmas, mint.ones(1, dtype=sigmas.dtype)])
         else:
-            sigmas = ops.cat([sigmas, ops.zeros(1, dtype=sigmas.dtype)])
+            sigmas = mint.cat([sigmas, mint.zeros(1, dtype=sigmas.dtype)])
 
         self.timesteps = timesteps
         self.sigmas = sigmas
@@ -348,6 +369,7 @@ class FlowMatchEulerDiscreteScheduler(SchedulerMixin, ConfigMixin):
         s_tmax: float = float("inf"),
         s_noise: float = 1.0,
         generator: Optional[np.random.Generator] = None,
+        per_token_timesteps: Optional[ms.Tensor] = None,
         return_dict: bool = False,
     ) -> Union[FlowMatchEulerDiscreteSchedulerOutput, Tuple]:
         """
@@ -368,14 +390,17 @@ class FlowMatchEulerDiscreteScheduler(SchedulerMixin, ConfigMixin):
                 Scaling factor for noise added to the sample.
             generator (`np.random.Generator`, *optional*):
                 A random number generator.
+            per_token_timesteps (`ms.Tensor`, *optional*):
+                The timesteps for each token in the sample.
             return_dict (`bool`):
-                Whether or not to return a [`~schedulers.scheduling_euler_discrete.EulerDiscreteSchedulerOutput`] or
-                tuple.
+                Whether or not to return a
+                [`~schedulers.scheduling_flow_match_euler_discrete.FlowMatchEulerDiscreteSchedulerOutput`] or tuple.
 
         Returns:
-            [`~schedulers.scheduling_euler_discrete.EulerDiscreteSchedulerOutput`] or `tuple`:
-                If return_dict is `True`, [`~schedulers.scheduling_euler_discrete.EulerDiscreteSchedulerOutput`] is
-                returned, otherwise a tuple is returned where the first element is the sample tensor.
+            [`~schedulers.scheduling_flow_match_euler_discrete.FlowMatchEulerDiscreteSchedulerOutput`] or `tuple`:
+                If return_dict is `True`,
+                [`~schedulers.scheduling_flow_match_euler_discrete.FlowMatchEulerDiscreteSchedulerOutput`] is returned,
+                otherwise a tuple is returned where the first element is the sample tensor.
         """
 
         if isinstance(timestep, int) or (
@@ -384,7 +409,7 @@ class FlowMatchEulerDiscreteScheduler(SchedulerMixin, ConfigMixin):
             raise ValueError(
                 (
                     "Passing integer indices (e.g. from `enumerate(timesteps)`) as timesteps to"
-                    " `EulerDiscreteScheduler.step()` is not supported. Make sure to pass"
+                    " `FlowMatchEulerDiscreteScheduler.step()` is not supported. Make sure to pass"
                     " one of the `scheduler.timesteps` as a timestep."
                 ),
             )
@@ -395,16 +420,26 @@ class FlowMatchEulerDiscreteScheduler(SchedulerMixin, ConfigMixin):
         # Upcast to avoid precision issues when computing prev_sample
         sample = sample.to(ms.float32)
 
-        sigma = self.sigmas[self.step_index]
-        sigma_next = self.sigmas[self.step_index + 1]
+        if per_token_timesteps is not None:
+            per_token_sigmas = per_token_timesteps / self.config.num_train_timesteps
 
-        prev_sample = sample + (sigma_next - sigma) * model_output
+            sigmas = self.sigmas[:, None, None]
+            lower_mask = sigmas < per_token_sigmas[None] - 1e-6
+            lower_sigmas = lower_mask * sigmas
+            lower_sigmas, _ = lower_sigmas.max(dim=0)
+            dt = (per_token_sigmas - lower_sigmas)[..., None]
+        else:
+            sigma = self.sigmas[self.step_index]
+            sigma_next = self.sigmas[self.step_index + 1]
+            dt = sigma_next - sigma
 
-        # Cast sample back to model compatible dtype
-        prev_sample = prev_sample.to(model_output.dtype)
+        prev_sample = sample + dt * model_output
 
         # upon completion increase step index by one
         self._step_index += 1
+        if per_token_timesteps is None:
+            # Cast sample back to model compatible dtype
+            prev_sample = prev_sample.to(model_output.dtype)
 
         if not return_dict:
             return (prev_sample,)

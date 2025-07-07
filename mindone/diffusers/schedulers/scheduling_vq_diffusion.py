@@ -18,7 +18,7 @@ from typing import Optional, Tuple, Union
 import numpy as np
 
 import mindspore as ms
-from mindspore import ops
+from mindspore import mint
 
 from ..configuration_utils import ConfigMixin, register_to_config
 from ..utils import BaseOutput
@@ -54,9 +54,9 @@ def index_to_log_onehot(x: ms.Tensor, num_classes: int) -> ms.Tensor:
         `ms.Tensor` of shape `(batch size, num classes, vector length)`:
             Log onehot vectors
     """
-    x_onehot = ops.OneHot()(x, num_classes, ms.tensor(1.0, dtype=ms.float32), ms.tensor(0.0, dtype=ms.float32))
+    x_onehot = mint.nn.functional.one_hot(x, num_classes)
     x_onehot = x_onehot.permute(0, 2, 1)
-    log_x = ops.log(x_onehot.float().clamp(min=1e-30))
+    log_x = mint.log(x_onehot.float().clamp(min=1e-30))
     return log_x
 
 
@@ -65,7 +65,7 @@ def gumbel_noised(logits: ms.Tensor, generator: Optional[np.random.Generator]) -
     Apply gumbel noise to `logits`
     """
     uniform = ms.tensor(generator.uniform(logits.shape))
-    gumbel_noise = -ops.log(-ops.log(uniform + 1e-30) + 1e-30)
+    gumbel_noise = -mint.log(-mint.log(uniform + 1e-30) + 1e-30)
     noised = gumbel_noise + logits
     return noised
 
@@ -154,16 +154,16 @@ class VQDiffusionScheduler(SchedulerMixin, ConfigMixin):
         at = ms.tensor(at.astype("float64"))
         bt = ms.tensor(bt.astype("float64"))
         ct = ms.tensor(ct.astype("float64"))
-        log_at = ops.log(at)
-        log_bt = ops.log(bt)
-        log_ct = ops.log(ct)
+        log_at = mint.log(at)
+        log_bt = mint.log(bt)
+        log_ct = mint.log(ct)
 
         att = ms.tensor(att.astype("float64"))
         btt = ms.tensor(btt.astype("float64"))
         ctt = ms.tensor(ctt.astype("float64"))
-        log_cumprod_at = ops.log(att)
-        log_cumprod_bt = ops.log(btt)
-        log_cumprod_ct = ops.log(ctt)
+        log_cumprod_at = mint.log(att)
+        log_cumprod_bt = mint.log(btt)
+        log_cumprod_ct = mint.log(ctt)
 
         self.log_at = log_at.float()
         self.log_bt = log_bt.float()
@@ -226,7 +226,7 @@ class VQDiffusionScheduler(SchedulerMixin, ConfigMixin):
 
         log_p_x_t_min_1 = gumbel_noised(log_p_x_t_min_1, generator)
 
-        x_t_min_1 = log_p_x_t_min_1.argmax(axis=1)
+        x_t_min_1 = log_p_x_t_min_1.argmax(dim=1)
 
         if not return_dict:
             return (x_t_min_1,)
@@ -273,7 +273,7 @@ class VQDiffusionScheduler(SchedulerMixin, ConfigMixin):
 
         # sum_0 = p_0(x_0=C_0 | x_t) / q(x_t | x_0=C_0) + ... + p_0(x_0=C_{k-1} | x_t) / q(x_t | x_0=C_{k-1}), ... ,
         # sum_n = p_n(x_0=C_0 | x_t) / q(x_t | x_0=C_0) + ... + p_n(x_0=C_{k-1} | x_t) / q(x_t | x_0=C_{k-1})
-        q_log_sum_exp = ops.logsumexp(q, axis=1, keep_dims=True)
+        q_log_sum_exp = mint.logsumexp(q, dim=1, keepdim=True)
 
         # p_0(x_0=C_0 | x_t) / q(x_t | x_0=C_0) / sum_0          ...      p_n(x_0=C_0 | x_t) / q(x_t | x_0=C_0) / sum_n
         #                        .                             .                                   .
@@ -450,7 +450,7 @@ class VQDiffusionScheduler(SchedulerMixin, ConfigMixin):
         log_Q_t[mask_class_mask] = c
 
         if not cumulative:
-            log_Q_t = ops.cat((log_Q_t, log_onehot_x_t_transitioning_from_masked), axis=1)
+            log_Q_t = mint.cat((log_Q_t, log_onehot_x_t_transitioning_from_masked), dim=1)
 
         return log_Q_t
 
@@ -464,6 +464,6 @@ class VQDiffusionScheduler(SchedulerMixin, ConfigMixin):
         c = c.broadcast_to((bsz, 1, num_latent_pixels))
 
         q = (q + a).logaddexp(b)
-        q = ops.cat((q, c), axis=1)
+        q = mint.cat((q, c), dim=1)
 
         return q

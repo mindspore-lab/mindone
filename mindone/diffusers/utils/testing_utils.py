@@ -1,4 +1,5 @@
 import functools
+import importlib
 import inspect
 import io
 import logging
@@ -10,6 +11,7 @@ import struct
 import sys
 import tempfile
 import time
+import unittest
 import urllib.parse
 from contextlib import contextmanager
 from io import BytesIO, StringIO
@@ -28,8 +30,9 @@ from packaging import version
 from PIL import Image
 
 import mindspore as ms
-from mindspore import ops
+from mindspore import mint, ops
 
+from .constants import DIFFUSERS_REQUEST_TIMEOUT
 from .import_utils import BACKENDS_MAPPING, is_opencv_available
 from .logging import get_logger
 
@@ -39,7 +42,7 @@ logger = get_logger(__name__)
 
 
 def mindspore_all_close(a, b, *args, **kwargs):
-    if not ops.all(ops.isclose(a, b, *args, **kwargs)):
+    if not mint.all(mint.isclose(a, b, *args, **kwargs)):
         assert False, f"Max diff is absolute {(a - b).abs().max()}. Diff tensor is {(a - b).abs()}."
     return True
 
@@ -62,6 +65,7 @@ def print_tensor_test(
         np.set_printoptions(threshold=10000)  # str(ms.Tensor) -> str(tensor.asnumpy())
 
     test_name = os.environ.get("PYTEST_CURRENT_TEST")
+    # todo: unavailable mint interface
     if not ops.is_tensor(tensor):
         tensor = ms.Tensor.from_numpy(tensor)
     if limit_to_slices:
@@ -200,6 +204,18 @@ def require_peft_version_greater(peft_version):
     return decorator
 
 
+def require_hf_hub_version_greater(hf_hub_version):
+    def decorator(test_case):
+        correct_hf_hub_version = version.parse(
+            version.parse(importlib.metadata.version("huggingface_hub")).base_version
+        ) > version.parse(hf_hub_version)
+        return unittest.skipUnless(
+            correct_hf_hub_version, f"Test requires huggingface_hub with the version greater than {hf_hub_version}."
+        )(test_case)
+
+    return decorator
+
+
 def get_python_version():
     sys_info = sys.version_info
     major, minor = sys_info.major, sys_info.minor
@@ -212,7 +228,7 @@ def load_numpy(arry: Union[str, np.ndarray], local_path: Optional[str] = None) -
             # local_path can be passed to correct images of tests
             return Path(local_path, arry.split("/")[-5], arry.split("/")[-2], arry.split("/")[-1]).as_posix()
         elif arry.startswith("http://") or arry.startswith("https://"):
-            response = requests.get(arry)
+            response = requests.get(arry, timeout=DIFFUSERS_REQUEST_TIMEOUT)
             response.raise_for_status()
             arry = np.load(BytesIO(response.content))
         elif os.path.isfile(arry):
@@ -245,7 +261,7 @@ def load_image(image: Union[str, PIL.Image.Image]) -> PIL.Image.Image:
     """
     if isinstance(image, str):
         if image.startswith("http://") or image.startswith("https://"):
-            image = PIL.Image.open(requests.get(image, stream=True).raw)
+            image = PIL.Image.open(requests.get(image, stream=True, timeout=DIFFUSERS_REQUEST_TIMEOUT).raw)
         elif os.path.isfile(image):
             image = PIL.Image.open(image)
         else:
@@ -518,7 +534,7 @@ def pytest_terminal_summary_main(tr, id):
             f.write("slowest durations\n")
             for i, rep in enumerate(dlist):
                 if rep.duration < durations_min:
-                    f.write(f"{len(dlist)-i} durations < {durations_min} secs were omitted")
+                    f.write(f"{len(dlist) - i} durations < {durations_min} secs were omitted")
                     break
                 f.write(f"{rep.duration:02.2f}s {rep.when:<8} {rep.nodeid}\n")
 
@@ -663,7 +679,7 @@ def run_test_in_subprocess(test_case, target_func, inputs=None, timeout=None):
     process.join(timeout=timeout)
 
     if results["error"] is not None:
-        test_case.fail(f'{results["error"]}')
+        test_case.fail(f"{results['error']}")
 
 
 class CaptureLogger:
@@ -715,3 +731,13 @@ def enable_full_determinism():
 
 def disable_full_determinism():
     ms.set_context(deterministic="OFF", pynative_synchronize=False)
+
+
+def load_numpy_from_local_file(repo_id, filename, subfolder=None):
+    file_path = os.path.join(".", repo_id, subfolder, filename)
+
+    if not os.path.exists(file_path):
+        raise FileNotFoundError(f"Test result not found: {file_path}")
+
+    ndarray = np.load(file_path)
+    return ndarray

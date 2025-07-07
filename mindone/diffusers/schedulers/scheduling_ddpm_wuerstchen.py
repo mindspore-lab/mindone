@@ -22,7 +22,7 @@ from typing import List, Optional, Tuple, Union
 import numpy as np
 
 import mindspore as ms
-from mindspore import ops
+from mindspore import mint
 
 from ..configuration_utils import ConfigMixin, register_to_config
 from ..utils import BaseOutput
@@ -113,7 +113,7 @@ class DDPMWuerstchenScheduler(SchedulerMixin, ConfigMixin):
     ):
         self.scaler = scaler
         self.s = ms.tensor([s])
-        self._init_alpha_cumprod = ops.cos(self.s / (1 + self.s) * math.pi * 0.5) ** 2
+        self._init_alpha_cumprod = mint.cos(self.s / (1 + self.s) * math.pi * 0.5) ** 2
 
         # standard deviation of the initial noise distribution
         self.init_noise_sigma = 1.0
@@ -123,7 +123,7 @@ class DDPMWuerstchenScheduler(SchedulerMixin, ConfigMixin):
             t = 1 - (1 - t) ** self.scaler
         elif self.scaler < 1:
             t = t**self.scaler
-        alpha_cumprod = ops.cos((t + self.s) / (1 + self.s) * math.pi * 0.5) ** 2 / self._init_alpha_cumprod
+        alpha_cumprod = mint.cos((t + self.s) / (1 + self.s) * math.pi * 0.5) ** 2 / self._init_alpha_cumprod
         return alpha_cumprod.clamp(0.0001, 0.9999)
 
     def scale_model_input(self, sample: ms.Tensor, timestep: Optional[int] = None) -> ms.Tensor:
@@ -156,7 +156,7 @@ class DDPMWuerstchenScheduler(SchedulerMixin, ConfigMixin):
         if timesteps is None:
             timesteps = ms.tensor(np.linspace(1.0, 0.0, num_inference_steps + 1), dtype=ms.float32)
         if not isinstance(timesteps, ms.Tensor):
-            timesteps = ms.Tensor(timesteps)
+            timesteps = ms.tensor(timesteps)
         self.timesteps = timesteps
 
     def step(

@@ -17,7 +17,7 @@ from dataclasses import dataclass
 from typing import Any, Dict, List, Optional, Tuple, Union
 
 import mindspore as ms
-from mindspore import nn
+from mindspore import mint, nn
 
 from ...configuration_utils import ConfigMixin, register_to_config
 from ...loaders import FromOriginalModelMixin, PeftAdapterMixin
@@ -28,7 +28,7 @@ from ..embeddings import CombinedTimestepTextProjEmbeddings, PatchEmbed
 from ..modeling_outputs import Transformer2DModelOutput
 from ..modeling_utils import ModelMixin
 from ..transformers.transformer_sd3 import SD3SingleTransformerBlock
-from .controlnet import BaseOutput
+from .controlnet import BaseOutput, zero_module
 
 logger = logging.get_logger(__name__)  # pylint: disable=invalid-name
 
@@ -39,6 +39,48 @@ class SD3ControlNetOutput(BaseOutput):
 
 
 class SD3ControlNetModel(ModelMixin, ConfigMixin, PeftAdapterMixin, FromOriginalModelMixin):
+    r"""
+    ControlNet model for [Stable Diffusion 3](https://huggingface.co/papers/2403.03206).
+
+    Parameters:
+        sample_size (`int`, defaults to `128`):
+            The width/height of the latents. This is fixed during training since it is used to learn a number of
+            position embeddings.
+        patch_size (`int`, defaults to `2`):
+            Patch size to turn the input data into small patches.
+        in_channels (`int`, defaults to `16`):
+            The number of latent channels in the input.
+        num_layers (`int`, defaults to `18`):
+            The number of layers of transformer blocks to use.
+        attention_head_dim (`int`, defaults to `64`):
+            The number of channels in each head.
+        num_attention_heads (`int`, defaults to `18`):
+            The number of heads to use for multi-head attention.
+        joint_attention_dim (`int`, defaults to `4096`):
+            The embedding dimension to use for joint text-image attention.
+        caption_projection_dim (`int`, defaults to `1152`):
+            The embedding dimension of caption embeddings.
+        pooled_projection_dim (`int`, defaults to `2048`):
+            The embedding dimension of pooled text projections.
+        out_channels (`int`, defaults to `16`):
+            The number of latent channels in the output.
+        pos_embed_max_size (`int`, defaults to `96`):
+            The maximum latent height/width of positional embeddings.
+        extra_conditioning_channels (`int`, defaults to `0`):
+            The number of extra channels to use for conditioning for patch embedding.
+        dual_attention_layers (`Tuple[int, ...]`, defaults to `()`):
+            The number of dual-stream transformer blocks to use.
+        qk_norm (`str`, *optional*, defaults to `None`):
+            The normalization to use for query and key in the attention layer. If `None`, no normalization is used.
+        pos_embed_type (`str`, defaults to `"sincos"`):
+            The type of positional embedding to use. Choose between `"sincos"` and `None`.
+        use_pos_embed (`bool`, defaults to `True`):
+            Whether to use positional embeddings.
+        force_zeros_for_pooled_projection (`bool`, defaults to `True`):
+            Whether to force zeros for pooled projection embeddings. This is handled in the pipelines by reading the
+            config value of the ControlNet model.
+    """
+
     _supports_gradient_checkpointing = False  # not supported now
 
     @register_to_config
@@ -83,7 +125,7 @@ class SD3ControlNetModel(ModelMixin, ConfigMixin, PeftAdapterMixin, FromOriginal
             embedding_dim=self.inner_dim, pooled_projection_dim=pooled_projection_dim
         )
         if joint_attention_dim is not None:
-            self.context_embedder = nn.Dense(joint_attention_dim, caption_projection_dim)
+            self.context_embedder = mint.nn.Linear(joint_attention_dim, caption_projection_dim)
 
             # `attention_head_dim` is doubled to account for the mixing.
             # It needs to crafted when we get the actual checkpoints.
@@ -92,7 +134,7 @@ class SD3ControlNetModel(ModelMixin, ConfigMixin, PeftAdapterMixin, FromOriginal
                     JointTransformerBlock(
                         dim=self.inner_dim,
                         num_attention_heads=num_attention_heads,
-                        attention_head_dim=self.config.attention_head_dim,
+                        attention_head_dim=attention_head_dim,
                         context_pre_only=False,
                         qk_norm=qk_norm,
                         use_dual_attention=True if i in dual_attention_layers else False,
@@ -107,7 +149,7 @@ class SD3ControlNetModel(ModelMixin, ConfigMixin, PeftAdapterMixin, FromOriginal
                     SD3SingleTransformerBlock(
                         dim=self.inner_dim,
                         num_attention_heads=num_attention_heads,
-                        attention_head_dim=self.config.attention_head_dim,
+                        attention_head_dim=attention_head_dim,
                     )
                     for _ in range(num_layers)
                 ]
@@ -116,12 +158,7 @@ class SD3ControlNetModel(ModelMixin, ConfigMixin, PeftAdapterMixin, FromOriginal
         # controlnet_blocks
         self.controlnet_blocks = []
         for _ in range(len(self.transformer_blocks)):
-            controlnet_block = nn.Dense(
-                self.inner_dim,
-                self.inner_dim,
-                weight_init="zeros",
-                bias_init="zeros",
-            )  # zero_module
+            controlnet_block = zero_module(mint.nn.Linear(self.inner_dim, self.inner_dim))  # zero_module
             self.controlnet_blocks.append(controlnet_block)
         self.controlnet_blocks = nn.CellList(self.controlnet_blocks)
 
@@ -226,10 +263,6 @@ class SD3ControlNetModel(ModelMixin, ConfigMixin, PeftAdapterMixin, FromOriginal
 
         for name, module in self.name_cells().items():
             fn_recursive_attn_processor(name, module, processor)
-
-    def _set_gradient_checkpointing(self, module, value=False):
-        if hasattr(module, "gradient_checkpointing"):
-            module.gradient_checkpointing = value
 
     # Notes: This is for SD3.5 8b controlnet, which shares the pos_embed with the transformer
     # we should have handled this in conversion script

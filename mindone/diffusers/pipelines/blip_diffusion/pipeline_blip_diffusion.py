@@ -18,7 +18,7 @@ import PIL.Image
 from transformers import CLIPTokenizer
 
 import mindspore as ms
-from mindspore import ops
+from mindspore import mint
 
 from ...models import AutoencoderKL, UNet2DConditionModel
 from ...schedulers import PNDMScheduler
@@ -29,7 +29,10 @@ from .blip_image_processing import BlipImageProcessor
 from .modeling_blip2 import Blip2QFormerModel
 from .modeling_ctx_clip import ContextCLIPTextModel
 
+XLA_AVAILABLE = False
+
 logger = logging.get_logger(__name__)  # pylint: disable=invalid-name
+
 
 EXAMPLE_DOC_STRING = """
     Examples:
@@ -126,8 +129,8 @@ class BlipDiffusionPipeline(DiffusionPipeline):
 
     def get_query_embeddings(self, input_image, src_subject):
         text = self.qformer.tokenizer(src_subject, return_tensors="np", padding=True)
-        input_ids = ms.Tensor(text.input_ids)
-        attention_mask = ms.Tensor(text.attention_mask)
+        input_ids = ms.tensor(text.input_ids)
+        attention_mask = ms.tensor(text.attention_mask)
         return self.qformer(
             image_input=input_image, text_input_ids=input_ids, text_attention_mask=attention_mask, return_dict=False
         )
@@ -177,7 +180,7 @@ class BlipDiffusionPipeline(DiffusionPipeline):
         ctx_begin_pos = [self.config.ctx_begin_pos] * batch_size
 
         text_embeddings = self.text_encoder(
-            input_ids=ms.Tensor(tokenized_prompt.input_ids),
+            input_ids=ms.tensor(tokenized_prompt.input_ids),
             ctx_embeddings=query_embeds,
             ctx_begin_pos=ctx_begin_pos,
         )[0]
@@ -255,7 +258,7 @@ class BlipDiffusionPipeline(DiffusionPipeline):
         reference_image = self.image_processor.preprocess(
             reference_image, image_mean=self.config.mean, image_std=self.config.std, return_tensors="np"
         )["pixel_values"]
-        reference_image = ms.Tensor(reference_image)
+        reference_image = ms.tensor(reference_image)
 
         if isinstance(prompt, str):
             prompt = [prompt]
@@ -285,13 +288,13 @@ class BlipDiffusionPipeline(DiffusionPipeline):
                 return_tensors="np",
             )
             uncond_embeddings = self.text_encoder(
-                input_ids=ms.Tensor(uncond_input.input_ids),
+                input_ids=ms.tensor(uncond_input.input_ids),
                 ctx_embeddings=None,
             )[0]
             # For classifier free guidance, we need to do two forward passes.
             # Here we concatenate the unconditional and text embeddings into a single batch
             # to avoid doing two forward passes
-            text_embeddings = ops.cat([uncond_embeddings, text_embeddings])
+            text_embeddings = mint.cat([uncond_embeddings, text_embeddings])
 
         scale_down_factor = 2 ** (len(self.unet.config.block_out_channels) - 1)
         latents = self.prepare_latents(
@@ -311,7 +314,7 @@ class BlipDiffusionPipeline(DiffusionPipeline):
             # expand the latents if we are doing classifier free guidance
             do_classifier_free_guidance = guidance_scale > 1.0
 
-            latent_model_input = ops.cat([latents] * 2) if do_classifier_free_guidance else latents
+            latent_model_input = mint.cat([latents] * 2) if do_classifier_free_guidance else latents
 
             noise_pred = self.unet(
                 latent_model_input,

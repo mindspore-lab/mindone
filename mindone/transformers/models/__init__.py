@@ -17,5 +17,6 @@ from . import (
     speecht5,
     t5,
     umt5,
+    vits,
     xlm_roberta,
 )

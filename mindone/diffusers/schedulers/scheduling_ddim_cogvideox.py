@@ -23,7 +23,7 @@ from typing import List, Optional, Tuple, Union
 import numpy as np
 
 import mindspore as ms
-from mindspore import ops
+from mindspore import mint
 
 from ..configuration_utils import ConfigMixin, register_to_config
 from ..utils import BaseOutput
@@ -91,7 +91,7 @@ def betas_for_alpha_bar(
         t1 = i / num_diffusion_timesteps
         t2 = (i + 1) / num_diffusion_timesteps
         betas.append(min(1 - alpha_bar_fn(t2) / alpha_bar_fn(t1), max_beta))
-    return ms.Tensor(betas, dtype=ms.float32)
+    return ms.tensor(betas, dtype=ms.float32)
 
 
 def rescale_zero_terminal_snr(alphas_cumprod):
@@ -197,7 +197,7 @@ class CogVideoXDDIMScheduler(SchedulerMixin, ConfigMixin):
         snr_shift_scale: float = 3.0,
     ):
         if trained_betas is not None:
-            self.betas = ms.Tensor(trained_betas, dtype=ms.float32)
+            self.betas = ms.tensor(trained_betas, dtype=ms.float32)
         elif beta_schedule == "linear":
             self.betas = ms.Tensor.from_numpy(np.linspace(beta_start, beta_end, num_train_timesteps, dtype=np.float32))
         elif beta_schedule == "scaled_linear":
@@ -212,7 +212,7 @@ class CogVideoXDDIMScheduler(SchedulerMixin, ConfigMixin):
             raise NotImplementedError(f"{beta_schedule} is not implemented for {self.__class__}")
 
         self.alphas = 1.0 - self.betas
-        self.alphas_cumprod = ops.cumprod(self.alphas, dim=0)
+        self.alphas_cumprod = mint.cumprod(self.alphas, dim=0)
 
         # Modify: SNR shift following SD3
         self.alphas_cumprod = self.alphas_cumprod / (snr_shift_scale + (1 - snr_shift_scale) * self.alphas_cumprod)
@@ -225,7 +225,7 @@ class CogVideoXDDIMScheduler(SchedulerMixin, ConfigMixin):
         # For the final step, there is no previous alphas_cumprod because we are already at 0
         # `set_alpha_to_one` decides whether we set this parameter simply to one or
         # whether we use the final alpha of the "non-previous" one.
-        self.final_alpha_cumprod = ms.Tensor(1.0) if set_alpha_to_one else self.alphas_cumprod[0]
+        self.final_alpha_cumprod = ms.tensor(1.0) if set_alpha_to_one else self.alphas_cumprod[0]
 
         # standard deviation of the initial noise distribution
         self.init_noise_sigma = 1.0
@@ -315,7 +315,7 @@ class CogVideoXDDIMScheduler(SchedulerMixin, ConfigMixin):
         use_clipped_model_output: bool = False,
         generator=None,
         variance_noise: Optional[ms.Tensor] = None,
-        return_dict: bool = True,
+        return_dict: bool = False,
     ) -> Union[DDIMSchedulerOutput, Tuple]:
         """
         Predict the sample from the previous timestep by reversing the SDE. This function propagates the diffusion
@@ -335,12 +335,12 @@ class CogVideoXDDIMScheduler(SchedulerMixin, ConfigMixin):
                 because predicted original sample is clipped to [-1, 1] when `self.config.clip_sample` is `True`. If no
                 clipping has happened, "corrected" `model_output` would coincide with the one provided as input and
                 `use_clipped_model_output` has no effect.
-            generator (`torch.Generator`, *optional*):
+            generator (`np.random.Generator`, *optional*):
                 A random number generator.
             variance_noise (`ms.Tensor`):
                 Alternative to generating noise with `generator` by directly providing the noise for the variance
                 itself. Useful for methods such as [`CycleDiffusion`].
-            return_dict (`bool`, *optional*, defaults to `True`):
+            return_dict (`bool`, *optional*, defaults to `False`):
                 Whether or not to return a [`~schedulers.scheduling_ddim.DDIMSchedulerOutput`] or `tuple`.
 
         Returns:
