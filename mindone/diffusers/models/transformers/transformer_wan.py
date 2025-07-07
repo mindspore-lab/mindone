@@ -111,7 +111,7 @@ class WanImageEmbedding(nn.Cell):
         self.ff = FeedForward(in_features, out_features, mult=1, activation_fn="gelu")
         self.norm2 = FP32LayerNorm(out_features)
         if pos_embed_seq_len is not None:
-            self.pos_embed = ms.Parameter(mint.zeros((1, pos_embed_seq_len, in_features)))
+            self.pos_embed = ms.Parameter(mint.zeros((1, pos_embed_seq_len, in_features)), name="pos_embed")
         else:
             self.pos_embed = None
 

@@ -18,16 +18,16 @@ from typing import Any, Dict, List, Optional, Tuple, Union
 import mindspore as ms
 from mindspore import nn, mint
 
-USE_PEFT_BACKEND = False
 from ...configuration_utils import ConfigMixin, register_to_config
 from ...loaders import FromOriginalModelMixin, PeftAdapterMixin
-from ...utils import logging, scale_lora_layers, unscale_lora_layers
+from ...utils import logging
 from ..attention import FeedForward
 from ..attention_processor import Attention
 from ..modeling_outputs import Transformer2DModelOutput
 from ..modeling_utils import ModelMixin
 from ..normalization import FP32LayerNorm
 from .transformer_wan import WanAttnProcessor2_0, WanRotaryPosEmbed, WanTimeTextImageEmbedding, WanTransformerBlock
+from ..layers_compat import unflatten
 
 logger = logging.get_logger(__name__)  # pylint: disable=invalid-name
 
@@ -65,10 +65,10 @@ class WanVACETransformerBlock(nn.Cell):
         if apply_output_projection:
             self.proj_out = mint.nn.Linear(dim, dim)
 
-        self.scale_shift_table = ms.Parameter(mint.randn(1, 6, dim) / dim ** 0.5)
+        self.scale_shift_table = ms.Parameter(mint.randn(1, 6, dim) / dim ** 0.5, name="scale_shift_table")
 
     def construct(self, hidden_states: ms.Tensor, encoder_hidden_states: ms.Tensor, control_hidden_states: ms.Tensor,
-                temb: ms.Tensor, rotary_emb: ms.Tensor, ) -> ms.Tensor:
+                  temb: ms.Tensor, rotary_emb: ms.Tensor, ) -> ms.Tensor:
         if self.proj_in is not None:
             control_hidden_states = self.proj_in(control_hidden_states)
             control_hidden_states = control_hidden_states + hidden_states
@@ -191,32 +191,26 @@ class WanVACETransformer3DModel(ModelMixin, ConfigMixin, PeftAdapterMixin, FromO
         self.norm_out = FP32LayerNorm(inner_dim, eps, elementwise_affine=False)
         self.proj_out = mint.nn.Linear(inner_dim, out_channels * math.prod(patch_size))
         self.scale_shift_table = ms.Parameter(mint.randn(1, 2, inner_dim) / inner_dim ** 0.5)
-        self.unflatten = nn.Unflatten(1, (6, -1))
 
         self.gradient_checkpointing = False
 
+        self.p_t, self.p_h, self.p_w = self.config.patch_size
+
     def construct(self, hidden_states: ms.Tensor, timestep: ms.Tensor, encoder_hidden_states: ms.Tensor,
-                encoder_hidden_states_image: Optional[ms.Tensor] = None, control_hidden_states: ms.Tensor = None,
-                control_hidden_states_scale: ms.Tensor = None, return_dict: bool = True,
-                attention_kwargs: Optional[Dict[str, Any]] = None, ) -> Union[ms.Tensor, Dict[str, ms.Tensor]]:
+                  encoder_hidden_states_image: Optional[ms.Tensor] = None, control_hidden_states: ms.Tensor = None,
+                  control_hidden_states_scale: ms.Tensor = None, return_dict: bool = True,
+                  attention_kwargs: Optional[Dict[str, Any]] = None) -> Union[ms.Tensor, Dict[str, ms.Tensor]]:
         if attention_kwargs is not None:
             attention_kwargs = attention_kwargs.copy()
             lora_scale = attention_kwargs.pop("scale", 1.0)
         else:
             lora_scale = 1.0
 
-        if USE_PEFT_BACKEND:
-            # weight the lora layers by setting `lora_scale` for each PEFT layer
-            scale_lora_layers(self, lora_scale)
-        else:
-            if attention_kwargs is not None and attention_kwargs.get("scale", None) is not None:
-                logger.warning("Passing `scale` via `attention_kwargs` when not using the PEFT backend is ineffective.")
-
         batch_size, num_channels, num_frames, height, width = hidden_states.shape
-        p_t, p_h, p_w = self.config.patch_size
-        post_patch_num_frames = num_frames // p_t
-        post_patch_height = height // p_h
-        post_patch_width = width // p_w
+
+        post_patch_num_frames = num_frames // self.p_t
+        post_patch_height = height // self.p_h
+        post_patch_width = width // self.p_w
 
         if control_hidden_states_scale is None:
             control_hidden_states_scale = control_hidden_states.new_ones(len(self.config.vace_layers))
@@ -230,20 +224,20 @@ class WanVACETransformer3DModel(ModelMixin, ConfigMixin, PeftAdapterMixin, FromO
 
         # 2. Patch embedding
         hidden_states = self.patch_embedding(hidden_states)
-        hidden_states = hidden_states.flatten(2).transpose(1, 2)
+        hidden_states = mint.transpose(hidden_states.flatten(2), 1, 2)
 
         control_hidden_states = self.vace_patch_embedding(control_hidden_states)
-        control_hidden_states = control_hidden_states.flatten(2).transpose(1, 2)
-        control_hidden_states_padding = control_hidden_states.new_zeros(batch_size, hidden_states.shape[1] -
-                                                                        control_hidden_states.shape[1],
-                                                                        control_hidden_states.shape[2])
+        control_hidden_states = mint.transpose(control_hidden_states.flatten(2), 1, 2)
+        control_hidden_states_padding = control_hidden_states.new_zeros((batch_size, hidden_states.shape[1] -
+                                                                         control_hidden_states.shape[1],
+                                                                         control_hidden_states.shape[2]))
         control_hidden_states = mint.cat([control_hidden_states, control_hidden_states_padding], dim=1)
 
         # 3. Time embedding
         temb, timestep_proj, encoder_hidden_states, encoder_hidden_states_image = self.condition_embedder(timestep,
                                                                                                           encoder_hidden_states,
                                                                                                           encoder_hidden_states_image)
-        timestep_proj = self.unflatten(timestep_proj)
+        timestep_proj = unflatten(timestep_proj, 1, (6, -1))
 
         # 4. Image embedding
         if encoder_hidden_states_image is not None:
@@ -266,8 +260,9 @@ class WanVACETransformer3DModel(ModelMixin, ConfigMixin, PeftAdapterMixin, FromO
                 hidden_states = self._gradient_checkpointing_func(block, hidden_states, encoder_hidden_states,
                                                                   timestep_proj, rotary_emb)
                 if i in self.config.vace_layers:
-                    control_hint, scale = control_hidden_states_list.pop()
+                    control_hint, scale = control_hidden_states_list[-1]
                     hidden_states = hidden_states + control_hint * scale
+                    control_hidden_states_list = control_hidden_states_list[:-1]
         else:
             # Prepare VACE hints
             control_hidden_states_list = []
@@ -280,8 +275,9 @@ class WanVACETransformer3DModel(ModelMixin, ConfigMixin, PeftAdapterMixin, FromO
             for i, block in enumerate(self.blocks):
                 hidden_states = block(hidden_states, encoder_hidden_states, timestep_proj, rotary_emb)
                 if i in self.config.vace_layers:
-                    control_hint, scale = control_hidden_states_list.pop()
+                    control_hint, scale = control_hidden_states_list[-1]
                     hidden_states = hidden_states + control_hint * scale
+                    control_hidden_states_list = control_hidden_states_list[:-1]
 
         # 6. Output norm, projection & unpatchify
         shift, scale = (self.scale_shift_table + temb.unsqueeze(1)).chunk(2, dim=1)
@@ -290,13 +286,9 @@ class WanVACETransformer3DModel(ModelMixin, ConfigMixin, PeftAdapterMixin, FromO
         hidden_states = self.proj_out(hidden_states)
 
         hidden_states = hidden_states.reshape(batch_size, post_patch_num_frames, post_patch_height, post_patch_width,
-                                              p_t, p_h, p_w, -1)
+                                              self.p_t, self.p_h, self.p_w, -1)
         hidden_states = hidden_states.permute(0, 7, 1, 4, 2, 5, 3, 6)
         output = hidden_states.flatten(6, 7).flatten(4, 5).flatten(2, 3)
-
-        if USE_PEFT_BACKEND:
-            # remove `lora_scale` from each PEFT layer
-            unscale_lora_layers(self, lora_scale)
 
         if not return_dict:
             return (output,)
