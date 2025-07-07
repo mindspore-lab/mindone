@@ -768,7 +768,7 @@ class Pix2StructTextAttention(mindspore.nn.Cell):
         if cache_position is None:
             context_position = mindspore.mint.arange(query_length, dtype=mindspore.int64, )[:, None]
         else:
-            context_position = cache_position[:, None].to(device)
+            context_position = cache_position[:, None]
         memory_position = mindspore.mint.arange(key_length, dtype=mindspore.int64, )[None, :]
         relative_position = memory_position - context_position  # shape (query_length, key_length)
         relative_position_bucket = self._relative_position_bucket(
