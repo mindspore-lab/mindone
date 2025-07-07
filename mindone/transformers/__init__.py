@@ -96,6 +96,12 @@ from .models.instructblip import (
     InstructBlipForConditionalGeneration,
     InstructBlipVisionModel,
 )
+from .models.instructblipvideo import (
+    InstructBlipVideoForConditionalGeneration,
+    InstructBlipVideoPreTrainedModel,
+    InstructBlipVideoQFormerModel,
+    InstructBlipVideoVisionModel,
+)
 from .models.clip import (
     CLIP_PRETRAINED_MODEL_ARCHIVE_LIST,
     CLIPModel,

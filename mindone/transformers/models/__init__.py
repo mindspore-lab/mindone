@@ -52,4 +52,5 @@ from . import (  # qwen3,
     wav2vec2,
     xlm_roberta,
     instructblip,
+    instructblipvideo,
 )
