@@ -3053,8 +3053,6 @@ class GenerationMixin:
             dim=0,
         )
 
-        model_kwargs = self._get_initial_cache_position(input_ids, model_kwargs)
-
         # (joao) feature lost in the refactor. Probably won't implement, hurts readbility with minimal gains (there
         # are newer low-memory alternatives like the offloaded cache)
         sequential = generation_config.low_memory
@@ -3071,13 +3069,6 @@ class GenerationMixin:
         decoder_attentions = () if (return_dict_in_generate and output_attentions) else None
         cross_attentions = () if (return_dict_in_generate and output_attentions) else None
         decoder_hidden_states = () if (return_dict_in_generate and output_hidden_states) else None
-
-        # if model is an encoder-decoder, retrieve encoder attention weights and hidden states
-        if return_dict_in_generate and self.config.is_encoder_decoder:
-            encoder_attentions = model_kwargs["encoder_outputs"].get("attentions") if output_attentions else None
-            encoder_hidden_states = (
-                model_kwargs["encoder_outputs"].get("hidden_states") if output_hidden_states else None
-            )
 
         # 3. init running tensors and static-shaped placeholders
 
@@ -3108,6 +3099,42 @@ class GenerationMixin:
         running_beam_indices = mint.full((batch_size, num_beams, max_length - cur_len), fill_value=-1, dtype=ms.int32)
         beam_indices = running_beam_indices.copy()  # .detach()
 
+        # Padding inputs to avoid dynamic shape
+        if not self._supports_default_dynamic_input():
+            (
+                padded_input_ids,
+                padded_inputs_embeds,
+                padded_labels,
+                padded_position_ids,
+                padded_attention_mask,
+            ) = self._padding_inputs(
+                generation_config,
+                input_ids,
+                model_kwargs.get("inputs_embeds", None),
+                model_kwargs.get("labels", None),
+                model_kwargs.get("position_ids", None),
+                model_kwargs.get("attention_mask", None),
+            )
+            input_ids = padded_input_ids
+            model_kwargs["attention_mask"] = padded_attention_mask
+            if model_kwargs.get("inputs_embeds", None) is not None:
+                model_kwargs["inputs_embeds"] = padded_inputs_embeds
+            if model_kwargs.get("labels", None) is not None:
+                model_kwargs["labels"] = padded_labels
+            if model_kwargs.get("position_ids", None) is not None:
+                model_kwargs["position_ids"] = padded_position_ids
+        model_kwargs = self._get_initial_cache_position(input_ids, model_kwargs)
+        # if model is an encoder-decoder, retrieve encoder attention weights and hidden states
+        if return_dict_in_generate and self.config.is_encoder_decoder:
+            encoder_attentions = model_kwargs["encoder_outputs"].get("attentions") if output_attentions else None
+            encoder_hidden_states = (
+                model_kwargs["encoder_outputs"].get("hidden_states") if output_hidden_states else None
+            )
+
+        step = 0
+        s_time = time.time()
+        graph_compiled_time_buffer = []
+
         # 4. run the generation loop
         while self._has_unfinished_sequences(this_peer_finished, synced_gpus):
             # a. Forward current tokens, obtain the logits
@@ -3120,6 +3147,13 @@ class GenerationMixin:
 
             model_outputs = self(**model_inputs, return_dict=True)
 
+            if not self._supports_default_dynamic_input():
+                attention_mask = model_kwargs["attention_mask"]
+                cur_idx = int(attention_mask.sum(-1).max()) - 1
+                # `input_ids` obtain effective length after 1st step
+                if input_ids.shape[1] == attention_mask.shape[1]:
+                    input_ids = input_ids[:, : cur_idx + 1]
+
             # synced_gpus: don't waste resources running the code we don't need; kwargs must be updated before skipping
             model_kwargs = self._update_model_kwargs_for_generation(
                 model_outputs,
@@ -3128,6 +3162,18 @@ class GenerationMixin:
             )
             if synced_gpus and this_peer_finished:
                 continue
+
+            step_time = time.time() - s_time
+            if step < 2:
+                print(f"==> sampling, step: {step}, time cost: {step_time:.5f}s")
+            else:
+                graph_compiled_time_buffer.append(step_time)
+                token_speed = len(graph_compiled_time_buffer) / sum(graph_compiled_time_buffer)
+                print(
+                    f"==> sampling, step: {step}, time cost: {step_time:.5f}s, running avg speed: {token_speed:.5f}token/s"
+                )
+            s_time = time.time()
+            step += 1
 
             logits = model_outputs.logits[:, -1, :].copy().float()  # copy is needed to avoid keeping a hanging ref
 
