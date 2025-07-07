@@ -16,6 +16,7 @@
 
 import math
 from typing import Dict, List, Optional, Tuple, Union
+from mindspore.common.initializer import initializer, TruncatedNormal
 
 import mindspore
 from mindspore import nn
@@ -440,9 +441,13 @@ class Pix2StructPreTrainedModel(PreTrainedModel):
         elif isinstance(module, (mindspore.mint.nn.Linear, mindspore.mint.nn.Conv2d)):
             # Upcast the input in `fp32` and cast it back to desired `dtype` to avoid
             # `trunc_normal_cpu` not implemented in `half` issues
-            module.weight.data = nn.init.trunc_normal_(
-                module.weight.data.to(mindspore.float32), mean=0.0, std=self.config.initializer_range
-            ).to(module.weight.dtype)
+            module.weight.data.set_data(
+                initializer(
+                    TruncatedNormal(mean=0.0, sigma=self.config.initializer_range),
+                    shape=module.weight.data.shape,
+                    dtype=module.weight.data.dtype,
+                )
+            )
             if module.bias is not None:
                 module.bias.data.zero_()
         elif isinstance(module, Pix2StructLayerNorm):
