@@ -1474,10 +1474,26 @@ class Kosmos2PreTrainedModel(PreTrainedModel):
             module.post_layernorm.bias.data.zero_()
             module.post_layernorm.weight.data.fill_(1.0)
         elif isinstance(module, KosmosTextAttention):
-            nn.init.normal_(module.q_proj.weight, std=std)
-            nn.init.normal_(module.k_proj.weight, std=std)
-            nn.init.normal_(module.v_proj.weight, std=std)
-            nn.init.normal_(module.out_proj.weight, std=std)
+            module.q_proj.weight.set_data(
+                initializer(
+                    Normal(sigma=std), module.q_proj.weight.shape, module.q_proj.weight.dtype
+                )
+            )
+            module.k_proj.weight.set_data(
+                initializer(
+                    Normal(sigma=std), module.k_proj.weight.shape, module.k_proj.weight.dtype
+                )
+            )
+            module.v_proj.weight.set_data(
+                initializer(
+                    Normal(sigma=std), module.v_proj.weight.shape, module.v_proj.weight.dtype
+                )
+            )
+            module.out_proj.weight.set_data(
+                initializer(
+                    Normal(sigma=std), module.out_proj.weight.shape, module.out_proj.weight.dtype
+                )
+            )
             if module.q_proj.bias is not None:
                 module.q_proj.bias.data.zero_()
             if module.k_proj.bias is not None:
@@ -1487,18 +1503,34 @@ class Kosmos2PreTrainedModel(PreTrainedModel):
             if module.out_proj.bias is not None:
                 module.out_proj.bias.data.zero_()
         elif isinstance(module, Kosmos2TextFFN):
-            nn.init.normal_(module.fc1.weight, std=std)
-            nn.init.normal_(module.fc2.weight, std=std)
+            module.fc1.weight.set_data(
+                initializer(
+                    Normal(sigma=std), module.fc1.weight.shape, module.fc1.weight.dtype
+                )
+            )
+            module.fc2.weight.set_data(
+                initializer(
+                    Normal(sigma=std), module.fc2.weight.shape, module.fc2.weight.dtype
+                )
+            )
             if module.fc1.bias is not None:
                 module.fc1.bias.data.zero_()
             if module.fc2.bias is not None:
                 module.fc2.bias.data.zero_()
         elif isinstance(module, Kosmos2TextForCausalLM):
-            nn.init.normal_(module.lm_head.weight, std=std)
+            module.lm_head.weight.set_data(
+                initializer(
+                    Normal(sigma=std), module.lm_head.weight.shape, module.lm_head.weight.dtype
+                )
+            )
             if module.lm_head.bias is not None:
                 module.lm_head.bias.data.zero_()
         elif isinstance(module, Kosmos2ImageToTextProjection):
-            nn.init.normal_(module.dense.weight, std=std)
+            module.dense.weight.set_data(
+                initializer(
+                    Normal(sigma=std), module.dense.weight.shape, module.dense.weight.dtype
+                )
+            )
             if module.dense.bias is not None:
                 module.dense.bias.data.zero_()
         elif isinstance(module, Kosmos2TextTransformer):
