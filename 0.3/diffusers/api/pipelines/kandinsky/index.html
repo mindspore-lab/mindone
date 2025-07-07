@@ -1477,6 +1477,29 @@
   
   
     <li class="md-nav__item">
+      <a href="../../../using-diffusers/consisid/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    ConsisID
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../../../using-diffusers/sdxl/" class="md-nav__link">
         
   
@@ -3209,6 +3232,29 @@
   
   
     <li class="md-nav__item">
+      <a href="../../models/consisid_transformer3d/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    ConsisIDTransformer3DModel
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../../models/cogview3plus_transformer2d/" class="md-nav__link">
         
   
@@ -4637,6 +4683,29 @@
   
   
     <li class="md-nav__item">
+      <a href="../consisid/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    ConsisID
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../consistency_models/" class="md-nav__link">
         
   
@@ -6019,10 +6088,10 @@
       
         
         
-        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2_11_4_64" >
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2_11_4_65" >
         
           
-          <label class="md-nav__link" for="__nav_2_11_4_64" id="__nav_2_11_4_64_label" tabindex="0">
+          <label class="md-nav__link" for="__nav_2_11_4_65" id="__nav_2_11_4_65_label" tabindex="0">
             
   
   
@@ -6035,8 +6104,8 @@
             <span class="md-nav__icon md-icon"></span>
           </label>
         
-        <nav class="md-nav" data-md-level="4" aria-labelledby="__nav_2_11_4_64_label" aria-expanded="false">
-          <label class="md-nav__title" for="__nav_2_11_4_64">
+        <nav class="md-nav" data-md-level="4" aria-labelledby="__nav_2_11_4_65_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_2_11_4_65">
             <span class="md-nav__icon md-icon"></span>
             Stable Diffusion
           </label>
@@ -8356,7 +8425,7 @@ specific language governing permissions and limitations under the License.
 
     <div class="doc doc-contents first">
             <p class="doc doc-class-bases">
-              Bases: <code><a class="autorefs autorefs-internal" title="mindone.diffusers.pipelines.pipeline_utils.DiffusionPipeline" href="../overview/#mindone.diffusers.DiffusionPipeline">DiffusionPipeline</a></code></p>
+              Bases: <code><a class="autorefs autorefs-internal" title="mindone.diffusers.DiffusionPipeline (mindone.diffusers.pipelines.pipeline_utils.DiffusionPipeline)" href="../overview/#mindone.diffusers.DiffusionPipeline">DiffusionPipeline</a></code></p>
 
 
         <p>Pipeline for generating image prior for Kandinsky</p>
@@ -8373,7 +8442,9 @@ library implements for all the pipelines (such as downloading or saving, running
       </thead>
       <tbody>
           <tr class="doc-section-item">
-            <td><code>prior</code></td>
+            <td>
+                <code>prior</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The canonincal unCLIP prior to approximate the image embedding from the text embedding.</p>
@@ -8387,7 +8458,9 @@ library implements for all the pipelines (such as downloading or saving, running
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>image_encoder</code></td>
+            <td>
+                <code>image_encoder</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Frozen image-encoder.</p>
@@ -8401,7 +8474,9 @@ library implements for all the pipelines (such as downloading or saving, running
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>text_encoder</code></td>
+            <td>
+                <code>text_encoder</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Frozen text-encoder.</p>
@@ -8415,7 +8490,9 @@ library implements for all the pipelines (such as downloading or saving, running
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>tokenizer</code></td>
+            <td>
+                <code>tokenizer</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Tokenizer of class
@@ -8430,7 +8507,9 @@ library implements for all the pipelines (such as downloading or saving, running
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>scheduler</code></td>
+            <td>
+                <code>scheduler</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>A scheduler to be used in combination with <code>prior</code> to generate image embedding.</p>
@@ -8445,6 +8524,12 @@ library implements for all the pipelines (such as downloading or saving, running
           </tr>
       </tbody>
     </table>
+
+
+
+
+
+
 
               <details class="quote">
                 <summary>Source code in <code>mindone/diffusers/pipelines/kandinsky/pipeline_kandinsky_prior.py</code></summary>
@@ -9287,7 +9372,9 @@ library implements for all the pipelines (such as downloading or saving, running
       </thead>
       <tbody>
           <tr class="doc-section-item">
-            <td><code>prompt</code></td>
+            <td>
+                <code>prompt</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The prompt or prompts to guide the image generation.</p>
@@ -9301,7 +9388,9 @@ library implements for all the pipelines (such as downloading or saving, running
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>negative_prompt</code></td>
+            <td>
+                <code>negative_prompt</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The prompt or prompts not to guide the image generation. Ignored when not using guidance (i.e., ignored
@@ -9320,7 +9409,9 @@ if <code>guidance_scale</code> is less than <code>1</code>).</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>num_images_per_prompt</code></td>
+            <td>
+                <code>num_images_per_prompt</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The number of images to generate per prompt.</p>
@@ -9338,7 +9429,9 @@ if <code>guidance_scale</code> is less than <code>1</code>).</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>num_inference_steps</code></td>
+            <td>
+                <code>num_inference_steps</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The number of denoising steps. More denoising steps usually lead to a higher quality image at the
@@ -9357,7 +9450,9 @@ expense of slower inference.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>generator</code></td>
+            <td>
+                <code>generator</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>One or a list of <a href="https://numpy.org/doc/stable/reference/random/generator.html">np.random.Generator(s)</a>
@@ -9376,7 +9471,9 @@ to make generation deterministic.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>latents</code></td>
+            <td>
+                <code>latents</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Pre-generated noisy latents, sampled from a Gaussian distribution, to be used as inputs for image
@@ -9396,7 +9493,9 @@ tensor will ge generated by sampling using the supplied random <code>generator</
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>guidance_scale</code></td>
+            <td>
+                <code>guidance_scale</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Guidance scale as defined in <a href="https://arxiv.org/abs/2207.12598">Classifier-Free Diffusion Guidance</a>.
@@ -9418,7 +9517,9 @@ usually at the expense of lower image quality.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>output_type</code></td>
+            <td>
+                <code>output_type</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The output format of the generate image. Choose between: <code>"np"</code> (<code>np.array</code>) or <code>"ms"</code>
@@ -9437,7 +9538,9 @@ usually at the expense of lower image quality.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>return_dict</code></td>
+            <td>
+                <code>return_dict</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Whether or not to return a [<code>~pipelines.ImagePipelineOutput</code>] instead of a plain tuple.</p>
@@ -9478,6 +9581,7 @@ usually at the expense of lower image quality.</p>
           </tr>
       </tbody>
     </table>
+
 
             <details class="quote">
               <summary>Source code in <code>mindone/diffusers/pipelines/kandinsky/pipeline_kandinsky_prior.py</code></summary>
@@ -9791,7 +9895,9 @@ usually at the expense of lower image quality.</p>
       </thead>
       <tbody>
           <tr class="doc-section-item">
-            <td><code>images_and_prompts</code></td>
+            <td>
+                <code>images_and_prompts</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>list of prompts and images to guide the image generation.</p>
@@ -9805,7 +9911,9 @@ usually at the expense of lower image quality.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>weights</code></td>
+            <td>
+                <code>weights</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>(<code>List[float]</code>):
@@ -9814,13 +9922,15 @@ list of weights for each condition in <code>images_and_prompts</code></p>
               <p>
                   <span class="doc-param-annotation">
                     <b>TYPE:</b>
-                      <code><span title="typing.List">List</span>[float]</code>
+                      <code><span title="typing.List">List</span>[<span title="float">float</span>]</code>
                   </span>
               </p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>num_images_per_prompt</code></td>
+            <td>
+                <code>num_images_per_prompt</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The number of images to generate per prompt.</p>
@@ -9838,7 +9948,9 @@ list of weights for each condition in <code>images_and_prompts</code></p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>num_inference_steps</code></td>
+            <td>
+                <code>num_inference_steps</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The number of denoising steps. More denoising steps usually lead to a higher quality image at the
@@ -9857,7 +9969,9 @@ expense of slower inference.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>generator</code></td>
+            <td>
+                <code>generator</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>One or a list of <a href="https://numpy.org/doc/stable/reference/random/generator.html">np.random.Generator(s)</a>
@@ -9876,7 +9990,9 @@ to make generation deterministic.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>latents</code></td>
+            <td>
+                <code>latents</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Pre-generated noisy latents, sampled from a Gaussian distribution, to be used as inputs for image
@@ -9896,7 +10012,9 @@ tensor will ge generated by sampling using the supplied random <code>generator</
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>negative_prior_prompt</code></td>
+            <td>
+                <code>negative_prior_prompt</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The prompt not to guide the prior diffusion process. Ignored when not using guidance (i.e., ignored if
@@ -9915,7 +10033,9 @@ tensor will ge generated by sampling using the supplied random <code>generator</
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>negative_prompt</code></td>
+            <td>
+                <code>negative_prompt</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The prompt not to guide the image generation. Ignored when not using guidance (i.e., ignored if
@@ -9934,7 +10054,9 @@ tensor will ge generated by sampling using the supplied random <code>generator</
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>guidance_scale</code></td>
+            <td>
+                <code>guidance_scale</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Guidance scale as defined in <a href="https://arxiv.org/abs/2207.12598">Classifier-Free Diffusion Guidance</a>.
@@ -9979,6 +10101,7 @@ usually at the expense of lower image quality.</p>
           </tr>
       </tbody>
     </table>
+
 
             <details class="quote">
               <summary>Source code in <code>mindone/diffusers/pipelines/kandinsky/pipeline_kandinsky_prior.py</code></summary>
@@ -10210,7 +10333,7 @@ usually at the expense of lower image quality.</p>
 
     <div class="doc doc-contents first">
             <p class="doc doc-class-bases">
-              Bases: <code><a class="autorefs autorefs-internal" title="mindone.diffusers.pipelines.pipeline_utils.DiffusionPipeline" href="../overview/#mindone.diffusers.DiffusionPipeline">DiffusionPipeline</a></code></p>
+              Bases: <code><a class="autorefs autorefs-internal" title="mindone.diffusers.DiffusionPipeline (mindone.diffusers.pipelines.pipeline_utils.DiffusionPipeline)" href="../overview/#mindone.diffusers.DiffusionPipeline">DiffusionPipeline</a></code></p>
 
 
         <p>Pipeline for text-to-image generation using Kandinsky</p>
@@ -10227,7 +10350,9 @@ library implements for all the pipelines (such as downloading or saving, running
       </thead>
       <tbody>
           <tr class="doc-section-item">
-            <td><code>text_encoder</code></td>
+            <td>
+                <code>text_encoder</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Frozen text-encoder.</p>
@@ -10241,7 +10366,9 @@ library implements for all the pipelines (such as downloading or saving, running
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>tokenizer</code></td>
+            <td>
+                <code>tokenizer</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Tokenizer of class</p>
@@ -10255,7 +10382,9 @@ library implements for all the pipelines (such as downloading or saving, running
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>scheduler</code></td>
+            <td>
+                <code>scheduler</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>A scheduler to be used in combination with <code>unet</code> to generate image latents.</p>
@@ -10269,7 +10398,9 @@ library implements for all the pipelines (such as downloading or saving, running
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>unet</code></td>
+            <td>
+                <code>unet</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Conditional U-Net architecture to denoise the image embedding.</p>
@@ -10283,7 +10414,9 @@ library implements for all the pipelines (such as downloading or saving, running
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>movq</code></td>
+            <td>
+                <code>movq</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>MoVQ Decoder to generate the image from the latents.</p>
@@ -10298,6 +10431,12 @@ library implements for all the pipelines (such as downloading or saving, running
           </tr>
       </tbody>
     </table>
+
+
+
+
+
+
 
               <details class="quote">
                 <summary>Source code in <code>mindone/diffusers/pipelines/kandinsky/pipeline_kandinsky.py</code></summary>
@@ -10982,7 +11121,9 @@ library implements for all the pipelines (such as downloading or saving, running
       </thead>
       <tbody>
           <tr class="doc-section-item">
-            <td><code>prompt</code></td>
+            <td>
+                <code>prompt</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The prompt or prompts to guide the image generation.</p>
@@ -10996,7 +11137,9 @@ library implements for all the pipelines (such as downloading or saving, running
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>image_embeds</code></td>
+            <td>
+                <code>image_embeds</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The clip image embeddings for text prompt, that will be used to condition the image generation.</p>
@@ -11010,7 +11153,9 @@ library implements for all the pipelines (such as downloading or saving, running
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>negative_image_embeds</code></td>
+            <td>
+                <code>negative_image_embeds</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The clip image embeddings for negative text prompt, will be used to condition the image generation.</p>
@@ -11024,7 +11169,9 @@ library implements for all the pipelines (such as downloading or saving, running
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>negative_prompt</code></td>
+            <td>
+                <code>negative_prompt</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The prompt or prompts not to guide the image generation. Ignored when not using guidance (i.e., ignored
@@ -11043,7 +11190,9 @@ if <code>guidance_scale</code> is less than <code>1</code>).</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>height</code></td>
+            <td>
+                <code>height</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The height in pixels of the generated image.</p>
@@ -11061,7 +11210,9 @@ if <code>guidance_scale</code> is less than <code>1</code>).</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>width</code></td>
+            <td>
+                <code>width</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The width in pixels of the generated image.</p>
@@ -11079,7 +11230,9 @@ if <code>guidance_scale</code> is less than <code>1</code>).</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>num_inference_steps</code></td>
+            <td>
+                <code>num_inference_steps</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The number of denoising steps. More denoising steps usually lead to a higher quality image at the
@@ -11098,7 +11251,9 @@ expense of slower inference.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>guidance_scale</code></td>
+            <td>
+                <code>guidance_scale</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Guidance scale as defined in <a href="https://arxiv.org/abs/2207.12598">Classifier-Free Diffusion Guidance</a>.
@@ -11120,7 +11275,9 @@ usually at the expense of lower image quality.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>num_images_per_prompt</code></td>
+            <td>
+                <code>num_images_per_prompt</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The number of images to generate per prompt.</p>
@@ -11138,7 +11295,9 @@ usually at the expense of lower image quality.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>generator</code></td>
+            <td>
+                <code>generator</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>One or a list of <a href="https://numpy.org/doc/stable/reference/random/generator.html">np.random.Generator(s)</a>
@@ -11157,7 +11316,9 @@ to make generation deterministic.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>latents</code></td>
+            <td>
+                <code>latents</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Pre-generated noisy latents, sampled from a Gaussian distribution, to be used as inputs for image
@@ -11177,7 +11338,9 @@ tensor will ge generated by sampling using the supplied random <code>generator</
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>output_type</code></td>
+            <td>
+                <code>output_type</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The output format of the generate image. Choose between: <code>"pil"</code> (<code>PIL.Image.Image</code>), <code>"np"</code>
@@ -11196,7 +11359,9 @@ tensor will ge generated by sampling using the supplied random <code>generator</
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>callback</code></td>
+            <td>
+                <code>callback</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>A function that calls every <code>callback_steps</code> steps during inference. The function is called with the
@@ -11215,7 +11380,9 @@ following arguments: <code>callback(step: int, timestep: int, latents: ms.Tensor
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>callback_steps</code></td>
+            <td>
+                <code>callback_steps</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The frequency at which the <code>callback</code> function is called. If not specified, the callback is called at
@@ -11234,7 +11401,9 @@ every step.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>return_dict</code></td>
+            <td>
+                <code>return_dict</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Whether or not to return a [<code>~pipelines.ImagePipelineOutput</code>] instead of a plain tuple.</p>
@@ -11275,6 +11444,7 @@ every step.</p>
           </tr>
       </tbody>
     </table>
+
 
             <details class="quote">
               <summary>Source code in <code>mindone/diffusers/pipelines/kandinsky/pipeline_kandinsky.py</code></summary>
@@ -11640,7 +11810,7 @@ every step.</p>
 
     <div class="doc doc-contents first">
             <p class="doc doc-class-bases">
-              Bases: <code><a class="autorefs autorefs-internal" title="mindone.diffusers.pipelines.pipeline_utils.DiffusionPipeline" href="../overview/#mindone.diffusers.DiffusionPipeline">DiffusionPipeline</a></code></p>
+              Bases: <code><a class="autorefs autorefs-internal" title="mindone.diffusers.DiffusionPipeline (mindone.diffusers.pipelines.pipeline_utils.DiffusionPipeline)" href="../overview/#mindone.diffusers.DiffusionPipeline">DiffusionPipeline</a></code></p>
 
 
         <p>Combined Pipeline for text-to-image generation using Kandinsky</p>
@@ -11657,7 +11827,9 @@ library implements for all the pipelines (such as downloading or saving, running
       </thead>
       <tbody>
           <tr class="doc-section-item">
-            <td><code>text_encoder</code></td>
+            <td>
+                <code>text_encoder</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Frozen text-encoder.</p>
@@ -11671,7 +11843,9 @@ library implements for all the pipelines (such as downloading or saving, running
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>tokenizer</code></td>
+            <td>
+                <code>tokenizer</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Tokenizer of class</p>
@@ -11685,7 +11859,9 @@ library implements for all the pipelines (such as downloading or saving, running
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>scheduler</code></td>
+            <td>
+                <code>scheduler</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>A scheduler to be used in combination with <code>unet</code> to generate image latents.</p>
@@ -11699,7 +11875,9 @@ library implements for all the pipelines (such as downloading or saving, running
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>unet</code></td>
+            <td>
+                <code>unet</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Conditional U-Net architecture to denoise the image embedding.</p>
@@ -11713,7 +11891,9 @@ library implements for all the pipelines (such as downloading or saving, running
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>movq</code></td>
+            <td>
+                <code>movq</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>MoVQ Decoder to generate the image from the latents.</p>
@@ -11727,7 +11907,9 @@ library implements for all the pipelines (such as downloading or saving, running
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>prior_prior</code></td>
+            <td>
+                <code>prior_prior</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The canonincal unCLIP prior to approximate the image embedding from the text embedding.</p>
@@ -11741,7 +11923,9 @@ library implements for all the pipelines (such as downloading or saving, running
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>prior_image_encoder</code></td>
+            <td>
+                <code>prior_image_encoder</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Frozen image-encoder.</p>
@@ -11755,7 +11939,9 @@ library implements for all the pipelines (such as downloading or saving, running
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>prior_text_encoder</code></td>
+            <td>
+                <code>prior_text_encoder</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Frozen text-encoder.</p>
@@ -11769,7 +11955,9 @@ library implements for all the pipelines (such as downloading or saving, running
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>prior_tokenizer</code></td>
+            <td>
+                <code>prior_tokenizer</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Tokenizer of class
@@ -11784,7 +11972,9 @@ library implements for all the pipelines (such as downloading or saving, running
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>prior_scheduler</code></td>
+            <td>
+                <code>prior_scheduler</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>A scheduler to be used in combination with <code>prior</code> to generate image embedding.</p>
@@ -11799,6 +11989,12 @@ library implements for all the pipelines (such as downloading or saving, running
           </tr>
       </tbody>
     </table>
+
+
+
+
+
+
 
               <details class="quote">
                 <summary>Source code in <code>mindone/diffusers/pipelines/kandinsky/pipeline_kandinsky_combined.py</code></summary>
@@ -12239,7 +12435,9 @@ library implements for all the pipelines (such as downloading or saving, running
       </thead>
       <tbody>
           <tr class="doc-section-item">
-            <td><code>prompt</code></td>
+            <td>
+                <code>prompt</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The prompt or prompts to guide the image generation.</p>
@@ -12253,7 +12451,9 @@ library implements for all the pipelines (such as downloading or saving, running
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>negative_prompt</code></td>
+            <td>
+                <code>negative_prompt</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The prompt or prompts not to guide the image generation. Ignored when not using guidance (i.e., ignored
@@ -12272,7 +12472,9 @@ if <code>guidance_scale</code> is less than <code>1</code>).</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>num_images_per_prompt</code></td>
+            <td>
+                <code>num_images_per_prompt</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The number of images to generate per prompt.</p>
@@ -12290,7 +12492,9 @@ if <code>guidance_scale</code> is less than <code>1</code>).</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>num_inference_steps</code></td>
+            <td>
+                <code>num_inference_steps</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The number of denoising steps. More denoising steps usually lead to a higher quality image at the
@@ -12309,7 +12513,9 @@ expense of slower inference.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>height</code></td>
+            <td>
+                <code>height</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The height in pixels of the generated image.</p>
@@ -12327,7 +12533,9 @@ expense of slower inference.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>width</code></td>
+            <td>
+                <code>width</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The width in pixels of the generated image.</p>
@@ -12345,7 +12553,9 @@ expense of slower inference.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>prior_guidance_scale</code></td>
+            <td>
+                <code>prior_guidance_scale</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Guidance scale as defined in <a href="https://arxiv.org/abs/2207.12598">Classifier-Free Diffusion Guidance</a>.
@@ -12367,7 +12577,9 @@ usually at the expense of lower image quality.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>prior_num_inference_steps</code></td>
+            <td>
+                <code>prior_num_inference_steps</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The number of denoising steps. More denoising steps usually lead to a higher quality image at the
@@ -12386,7 +12598,9 @@ expense of slower inference.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>guidance_scale</code></td>
+            <td>
+                <code>guidance_scale</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Guidance scale as defined in <a href="https://arxiv.org/abs/2207.12598">Classifier-Free Diffusion Guidance</a>.
@@ -12408,7 +12622,9 @@ usually at the expense of lower image quality.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>generator</code></td>
+            <td>
+                <code>generator</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>One or a list of <a href="https://numpy.org/doc/stable/reference/random/generator.html">np.random.Generator(s)</a>
@@ -12427,7 +12643,9 @@ to make generation deterministic.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>latents</code></td>
+            <td>
+                <code>latents</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Pre-generated noisy latents, sampled from a Gaussian distribution, to be used as inputs for image
@@ -12447,7 +12665,9 @@ tensor will ge generated by sampling using the supplied random <code>generator</
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>output_type</code></td>
+            <td>
+                <code>output_type</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The output format of the generate image. Choose between: <code>"pil"</code> (<code>PIL.Image.Image</code>), <code>"np"</code>
@@ -12466,7 +12686,9 @@ tensor will ge generated by sampling using the supplied random <code>generator</
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>callback</code></td>
+            <td>
+                <code>callback</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>A function that calls every <code>callback_steps</code> steps during inference. The function is called with the
@@ -12485,7 +12707,9 @@ following arguments: <code>callback(step: int, timestep: int, latents: ms.Tensor
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>callback_steps</code></td>
+            <td>
+                <code>callback_steps</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The frequency at which the <code>callback</code> function is called. If not specified, the callback is called at
@@ -12504,7 +12728,9 @@ every step.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>return_dict</code></td>
+            <td>
+                <code>return_dict</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Whether or not to return a [<code>~pipelines.ImagePipelineOutput</code>] instead of a plain tuple.</p>
@@ -12545,6 +12771,7 @@ every step.</p>
           </tr>
       </tbody>
     </table>
+
 
             <details class="quote">
               <summary>Source code in <code>mindone/diffusers/pipelines/kandinsky/pipeline_kandinsky_combined.py</code></summary>
@@ -12794,7 +13021,7 @@ every step.</p>
 
     <div class="doc doc-contents first">
             <p class="doc doc-class-bases">
-              Bases: <code><a class="autorefs autorefs-internal" title="mindone.diffusers.pipelines.pipeline_utils.DiffusionPipeline" href="../overview/#mindone.diffusers.DiffusionPipeline">DiffusionPipeline</a></code></p>
+              Bases: <code><a class="autorefs autorefs-internal" title="mindone.diffusers.DiffusionPipeline (mindone.diffusers.pipelines.pipeline_utils.DiffusionPipeline)" href="../overview/#mindone.diffusers.DiffusionPipeline">DiffusionPipeline</a></code></p>
 
 
         <p>Pipeline for image-to-image generation using Kandinsky</p>
@@ -12811,7 +13038,9 @@ library implements for all the pipelines (such as downloading or saving, running
       </thead>
       <tbody>
           <tr class="doc-section-item">
-            <td><code>text_encoder</code></td>
+            <td>
+                <code>text_encoder</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Frozen text-encoder.</p>
@@ -12825,7 +13054,9 @@ library implements for all the pipelines (such as downloading or saving, running
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>tokenizer</code></td>
+            <td>
+                <code>tokenizer</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Tokenizer of class</p>
@@ -12839,7 +13070,9 @@ library implements for all the pipelines (such as downloading or saving, running
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>scheduler</code></td>
+            <td>
+                <code>scheduler</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>A scheduler to be used in combination with <code>unet</code> to generate image latents.</p>
@@ -12853,7 +13086,9 @@ library implements for all the pipelines (such as downloading or saving, running
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>unet</code></td>
+            <td>
+                <code>unet</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Conditional U-Net architecture to denoise the image embedding.</p>
@@ -12867,7 +13102,9 @@ library implements for all the pipelines (such as downloading or saving, running
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>movq</code></td>
+            <td>
+                <code>movq</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>MoVQ image encoder and decoder</p>
@@ -12882,6 +13119,12 @@ library implements for all the pipelines (such as downloading or saving, running
           </tr>
       </tbody>
     </table>
+
+
+
+
+
+
 
               <details class="quote">
                 <summary>Source code in <code>mindone/diffusers/pipelines/kandinsky/pipeline_kandinsky_img2img.py</code></summary>
@@ -13710,7 +13953,9 @@ library implements for all the pipelines (such as downloading or saving, running
       </thead>
       <tbody>
           <tr class="doc-section-item">
-            <td><code>prompt</code></td>
+            <td>
+                <code>prompt</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The prompt or prompts to guide the image generation.</p>
@@ -13724,7 +13969,9 @@ library implements for all the pipelines (such as downloading or saving, running
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>image</code></td>
+            <td>
+                <code>image</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p><code>Image</code>, or tensor representing an image batch, that will be used as the starting point for the
@@ -13739,7 +13986,9 @@ process.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>image_embeds</code></td>
+            <td>
+                <code>image_embeds</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The clip image embeddings for text prompt, that will be used to condition the image generation.</p>
@@ -13753,7 +14002,9 @@ process.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>negative_image_embeds</code></td>
+            <td>
+                <code>negative_image_embeds</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The clip image embeddings for negative text prompt, will be used to condition the image generation.</p>
@@ -13767,7 +14018,9 @@ process.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>negative_prompt</code></td>
+            <td>
+                <code>negative_prompt</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The prompt or prompts not to guide the image generation. Ignored when not using guidance (i.e., ignored
@@ -13786,7 +14039,9 @@ if <code>guidance_scale</code> is less than <code>1</code>).</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>height</code></td>
+            <td>
+                <code>height</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The height in pixels of the generated image.</p>
@@ -13804,7 +14059,9 @@ if <code>guidance_scale</code> is less than <code>1</code>).</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>width</code></td>
+            <td>
+                <code>width</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The width in pixels of the generated image.</p>
@@ -13822,7 +14079,9 @@ if <code>guidance_scale</code> is less than <code>1</code>).</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>num_inference_steps</code></td>
+            <td>
+                <code>num_inference_steps</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The number of denoising steps. More denoising steps usually lead to a higher quality image at the
@@ -13841,7 +14100,9 @@ expense of slower inference.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>strength</code></td>
+            <td>
+                <code>strength</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Conceptually, indicates how much to transform the reference <code>image</code>. Must be between 0 and 1. <code>image</code>
@@ -13863,7 +14124,9 @@ be maximum and the denoising process will run for the full number of iterations 
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>guidance_scale</code></td>
+            <td>
+                <code>guidance_scale</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Guidance scale as defined in <a href="https://arxiv.org/abs/2207.12598">Classifier-Free Diffusion Guidance</a>.
@@ -13885,7 +14148,9 @@ usually at the expense of lower image quality.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>num_images_per_prompt</code></td>
+            <td>
+                <code>num_images_per_prompt</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The number of images to generate per prompt.</p>
@@ -13903,7 +14168,9 @@ usually at the expense of lower image quality.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>generator</code></td>
+            <td>
+                <code>generator</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>One or a list of <a href="https://numpy.org/doc/stable/reference/random/generator.html">np.random.Generator(s)</a>
@@ -13922,7 +14189,9 @@ to make generation deterministic.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>output_type</code></td>
+            <td>
+                <code>output_type</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The output format of the generate image. Choose between: <code>"pil"</code> (<code>PIL.Image.Image</code>), <code>"np"</code>
@@ -13941,7 +14210,9 @@ to make generation deterministic.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>callback</code></td>
+            <td>
+                <code>callback</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>A function that calls every <code>callback_steps</code> steps during inference. The function is called with the
@@ -13960,7 +14231,9 @@ following arguments: <code>callback(step: int, timestep: int, latents: ms.Tensor
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>callback_steps</code></td>
+            <td>
+                <code>callback_steps</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The frequency at which the <code>callback</code> function is called. If not specified, the callback is called at
@@ -13979,7 +14252,9 @@ every step.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>return_dict</code></td>
+            <td>
+                <code>return_dict</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Whether or not to return a [<code>~pipelines.ImagePipelineOutput</code>] instead of a plain tuple.</p>
@@ -14020,6 +14295,7 @@ every step.</p>
           </tr>
       </tbody>
     </table>
+
 
             <details class="quote">
               <summary>Source code in <code>mindone/diffusers/pipelines/kandinsky/pipeline_kandinsky_img2img.py</code></summary>
@@ -14447,7 +14723,7 @@ every step.</p>
 
     <div class="doc doc-contents first">
             <p class="doc doc-class-bases">
-              Bases: <code><a class="autorefs autorefs-internal" title="mindone.diffusers.pipelines.pipeline_utils.DiffusionPipeline" href="../overview/#mindone.diffusers.DiffusionPipeline">DiffusionPipeline</a></code></p>
+              Bases: <code><a class="autorefs autorefs-internal" title="mindone.diffusers.DiffusionPipeline (mindone.diffusers.pipelines.pipeline_utils.DiffusionPipeline)" href="../overview/#mindone.diffusers.DiffusionPipeline">DiffusionPipeline</a></code></p>
 
 
         <p>Combined Pipeline for image-to-image generation using Kandinsky</p>
@@ -14464,7 +14740,9 @@ library implements for all the pipelines (such as downloading or saving, running
       </thead>
       <tbody>
           <tr class="doc-section-item">
-            <td><code>text_encoder</code></td>
+            <td>
+                <code>text_encoder</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Frozen text-encoder.</p>
@@ -14478,7 +14756,9 @@ library implements for all the pipelines (such as downloading or saving, running
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>tokenizer</code></td>
+            <td>
+                <code>tokenizer</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Tokenizer of class</p>
@@ -14492,7 +14772,9 @@ library implements for all the pipelines (such as downloading or saving, running
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>scheduler</code></td>
+            <td>
+                <code>scheduler</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>A scheduler to be used in combination with <code>unet</code> to generate image latents.</p>
@@ -14506,7 +14788,9 @@ library implements for all the pipelines (such as downloading or saving, running
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>unet</code></td>
+            <td>
+                <code>unet</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Conditional U-Net architecture to denoise the image embedding.</p>
@@ -14520,7 +14804,9 @@ library implements for all the pipelines (such as downloading or saving, running
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>movq</code></td>
+            <td>
+                <code>movq</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>MoVQ Decoder to generate the image from the latents.</p>
@@ -14534,7 +14820,9 @@ library implements for all the pipelines (such as downloading or saving, running
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>prior_prior</code></td>
+            <td>
+                <code>prior_prior</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The canonincal unCLIP prior to approximate the image embedding from the text embedding.</p>
@@ -14548,7 +14836,9 @@ library implements for all the pipelines (such as downloading or saving, running
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>prior_image_encoder</code></td>
+            <td>
+                <code>prior_image_encoder</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Frozen image-encoder.</p>
@@ -14562,7 +14852,9 @@ library implements for all the pipelines (such as downloading or saving, running
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>prior_text_encoder</code></td>
+            <td>
+                <code>prior_text_encoder</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Frozen text-encoder.</p>
@@ -14576,7 +14868,9 @@ library implements for all the pipelines (such as downloading or saving, running
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>prior_tokenizer</code></td>
+            <td>
+                <code>prior_tokenizer</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Tokenizer of class
@@ -14591,7 +14885,9 @@ library implements for all the pipelines (such as downloading or saving, running
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>prior_scheduler</code></td>
+            <td>
+                <code>prior_scheduler</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>A scheduler to be used in combination with <code>prior</code> to generate image embedding.</p>
@@ -14606,6 +14902,12 @@ library implements for all the pipelines (such as downloading or saving, running
           </tr>
       </tbody>
     </table>
+
+
+
+
+
+
 
               <details class="quote">
                 <summary>Source code in <code>mindone/diffusers/pipelines/kandinsky/pipeline_kandinsky_combined.py</code></summary>
@@ -15090,7 +15392,9 @@ library implements for all the pipelines (such as downloading or saving, running
       </thead>
       <tbody>
           <tr class="doc-section-item">
-            <td><code>prompt</code></td>
+            <td>
+                <code>prompt</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The prompt or prompts to guide the image generation.</p>
@@ -15104,7 +15408,9 @@ library implements for all the pipelines (such as downloading or saving, running
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>image</code></td>
+            <td>
+                <code>image</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p><code>Image</code>, or tensor representing an image batch, that will be used as the starting point for the
@@ -15120,7 +15426,9 @@ again.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>negative_prompt</code></td>
+            <td>
+                <code>negative_prompt</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The prompt or prompts not to guide the image generation. Ignored when not using guidance (i.e., ignored
@@ -15139,7 +15447,9 @@ if <code>guidance_scale</code> is less than <code>1</code>).</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>num_images_per_prompt</code></td>
+            <td>
+                <code>num_images_per_prompt</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The number of images to generate per prompt.</p>
@@ -15157,7 +15467,9 @@ if <code>guidance_scale</code> is less than <code>1</code>).</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>num_inference_steps</code></td>
+            <td>
+                <code>num_inference_steps</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The number of denoising steps. More denoising steps usually lead to a higher quality image at the
@@ -15176,7 +15488,9 @@ expense of slower inference.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>height</code></td>
+            <td>
+                <code>height</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The height in pixels of the generated image.</p>
@@ -15194,7 +15508,9 @@ expense of slower inference.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>width</code></td>
+            <td>
+                <code>width</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The width in pixels of the generated image.</p>
@@ -15212,7 +15528,9 @@ expense of slower inference.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>strength</code></td>
+            <td>
+                <code>strength</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Conceptually, indicates how much to transform the reference <code>image</code>. Must be between 0 and 1. <code>image</code>
@@ -15234,7 +15552,9 @@ be maximum and the denoising process will run for the full number of iterations 
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>prior_guidance_scale</code></td>
+            <td>
+                <code>prior_guidance_scale</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Guidance scale as defined in <a href="https://arxiv.org/abs/2207.12598">Classifier-Free Diffusion Guidance</a>.
@@ -15256,7 +15576,9 @@ usually at the expense of lower image quality.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>prior_num_inference_steps</code></td>
+            <td>
+                <code>prior_num_inference_steps</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The number of denoising steps. More denoising steps usually lead to a higher quality image at the
@@ -15275,7 +15597,9 @@ expense of slower inference.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>guidance_scale</code></td>
+            <td>
+                <code>guidance_scale</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Guidance scale as defined in <a href="https://arxiv.org/abs/2207.12598">Classifier-Free Diffusion Guidance</a>.
@@ -15297,7 +15621,9 @@ usually at the expense of lower image quality.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>generator</code></td>
+            <td>
+                <code>generator</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>One or a list of <a href="https://numpy.org/doc/stable/reference/random/generator.html">np.random.Generator(s)</a>
@@ -15316,7 +15642,9 @@ to make generation deterministic.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>latents</code></td>
+            <td>
+                <code>latents</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Pre-generated noisy latents, sampled from a Gaussian distribution, to be used as inputs for image
@@ -15336,7 +15664,9 @@ tensor will ge generated by sampling using the supplied random <code>generator</
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>output_type</code></td>
+            <td>
+                <code>output_type</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The output format of the generate image. Choose between: <code>"pil"</code> (<code>PIL.Image.Image</code>), <code>"np"</code>
@@ -15355,7 +15685,9 @@ tensor will ge generated by sampling using the supplied random <code>generator</
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>callback</code></td>
+            <td>
+                <code>callback</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>A function that calls every <code>callback_steps</code> steps during inference. The function is called with the
@@ -15374,7 +15706,9 @@ following arguments: <code>callback(step: int, timestep: int, latents: ms.Tensor
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>callback_steps</code></td>
+            <td>
+                <code>callback_steps</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The frequency at which the <code>callback</code> function is called. If not specified, the callback is called at
@@ -15393,7 +15727,9 @@ every step.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>return_dict</code></td>
+            <td>
+                <code>return_dict</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Whether or not to return a [<code>~pipelines.ImagePipelineOutput</code>] instead of a plain tuple.</p>
@@ -15434,6 +15770,7 @@ every step.</p>
           </tr>
       </tbody>
     </table>
+
 
             <details class="quote">
               <summary>Source code in <code>mindone/diffusers/pipelines/kandinsky/pipeline_kandinsky_combined.py</code></summary>
@@ -15727,7 +16064,7 @@ every step.</p>
 
     <div class="doc doc-contents first">
             <p class="doc doc-class-bases">
-              Bases: <code><a class="autorefs autorefs-internal" title="mindone.diffusers.pipelines.pipeline_utils.DiffusionPipeline" href="../overview/#mindone.diffusers.DiffusionPipeline">DiffusionPipeline</a></code></p>
+              Bases: <code><a class="autorefs autorefs-internal" title="mindone.diffusers.DiffusionPipeline (mindone.diffusers.pipelines.pipeline_utils.DiffusionPipeline)" href="../overview/#mindone.diffusers.DiffusionPipeline">DiffusionPipeline</a></code></p>
 
 
         <p>Pipeline for text-guided image inpainting using Kandinsky2.1</p>
@@ -15744,7 +16081,9 @@ library implements for all the pipelines (such as downloading or saving, running
       </thead>
       <tbody>
           <tr class="doc-section-item">
-            <td><code>text_encoder</code></td>
+            <td>
+                <code>text_encoder</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Frozen text-encoder.</p>
@@ -15758,7 +16097,9 @@ library implements for all the pipelines (such as downloading or saving, running
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>tokenizer</code></td>
+            <td>
+                <code>tokenizer</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Tokenizer of class</p>
@@ -15772,7 +16113,9 @@ library implements for all the pipelines (such as downloading or saving, running
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>scheduler</code></td>
+            <td>
+                <code>scheduler</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>A scheduler to be used in combination with <code>unet</code> to generate image latents.</p>
@@ -15786,7 +16129,9 @@ library implements for all the pipelines (such as downloading or saving, running
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>unet</code></td>
+            <td>
+                <code>unet</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Conditional U-Net architecture to denoise the image embedding.</p>
@@ -15800,7 +16145,9 @@ library implements for all the pipelines (such as downloading or saving, running
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>movq</code></td>
+            <td>
+                <code>movq</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>MoVQ image encoder and decoder</p>
@@ -15815,6 +16162,12 @@ library implements for all the pipelines (such as downloading or saving, running
           </tr>
       </tbody>
     </table>
+
+
+
+
+
+
 
               <details class="quote">
                 <summary>Source code in <code>mindone/diffusers/pipelines/kandinsky/pipeline_kandinsky_inpaint.py</code></summary>
@@ -16625,7 +16978,9 @@ library implements for all the pipelines (such as downloading or saving, running
       </thead>
       <tbody>
           <tr class="doc-section-item">
-            <td><code>prompt</code></td>
+            <td>
+                <code>prompt</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The prompt or prompts to guide the image generation.</p>
@@ -16639,7 +16994,9 @@ library implements for all the pipelines (such as downloading or saving, running
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>image</code></td>
+            <td>
+                <code>image</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p><code>Image</code>, or tensor representing an image batch, that will be used as the starting point for the
@@ -16654,7 +17011,9 @@ process.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>mask_image</code></td>
+            <td>
+                <code>mask_image</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p><code>Image</code>, or a tensor representing an image batch, to mask <code>image</code>. White pixels in the mask will be
@@ -16674,7 +17033,9 @@ shape is <code>(H, W)</code>.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>image_embeds</code></td>
+            <td>
+                <code>image_embeds</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The clip image embeddings for text prompt, that will be used to condition the image generation.</p>
@@ -16688,7 +17049,9 @@ shape is <code>(H, W)</code>.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>negative_image_embeds</code></td>
+            <td>
+                <code>negative_image_embeds</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The clip image embeddings for negative text prompt, will be used to condition the image generation.</p>
@@ -16702,7 +17065,9 @@ shape is <code>(H, W)</code>.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>negative_prompt</code></td>
+            <td>
+                <code>negative_prompt</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The prompt or prompts not to guide the image generation. Ignored when not using guidance (i.e., ignored
@@ -16721,7 +17086,9 @@ if <code>guidance_scale</code> is less than <code>1</code>).</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>height</code></td>
+            <td>
+                <code>height</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The height in pixels of the generated image.</p>
@@ -16739,7 +17106,9 @@ if <code>guidance_scale</code> is less than <code>1</code>).</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>width</code></td>
+            <td>
+                <code>width</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The width in pixels of the generated image.</p>
@@ -16757,7 +17126,9 @@ if <code>guidance_scale</code> is less than <code>1</code>).</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>num_inference_steps</code></td>
+            <td>
+                <code>num_inference_steps</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The number of denoising steps. More denoising steps usually lead to a higher quality image at the
@@ -16776,7 +17147,9 @@ expense of slower inference.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>guidance_scale</code></td>
+            <td>
+                <code>guidance_scale</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Guidance scale as defined in <a href="https://arxiv.org/abs/2207.12598">Classifier-Free Diffusion Guidance</a>.
@@ -16798,7 +17171,9 @@ usually at the expense of lower image quality.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>num_images_per_prompt</code></td>
+            <td>
+                <code>num_images_per_prompt</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The number of images to generate per prompt.</p>
@@ -16816,7 +17191,9 @@ usually at the expense of lower image quality.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>generator</code></td>
+            <td>
+                <code>generator</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>One or a list of <a href="https://numpy.org/doc/stable/reference/random/generator.html">np.random.Generator(s)</a>
@@ -16835,7 +17212,9 @@ to make generation deterministic.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>latents</code></td>
+            <td>
+                <code>latents</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Pre-generated noisy latents, sampled from a Gaussian distribution, to be used as inputs for image
@@ -16855,7 +17234,9 @@ tensor will ge generated by sampling using the supplied random <code>generator</
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>output_type</code></td>
+            <td>
+                <code>output_type</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The output format of the generate image. Choose between: <code>"pil"</code> (<code>PIL.Image.Image</code>), <code>"np"</code>
@@ -16874,7 +17255,9 @@ tensor will ge generated by sampling using the supplied random <code>generator</
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>callback</code></td>
+            <td>
+                <code>callback</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>A function that calls every <code>callback_steps</code> steps during inference. The function is called with the
@@ -16893,7 +17276,9 @@ following arguments: <code>callback(step: int, timestep: int, latents: ms.Tensor
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>callback_steps</code></td>
+            <td>
+                <code>callback_steps</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The frequency at which the <code>callback</code> function is called. If not specified, the callback is called at
@@ -16912,7 +17297,9 @@ every step.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>return_dict</code></td>
+            <td>
+                <code>return_dict</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Whether or not to return a [<code>~pipelines.ImagePipelineOutput</code>] instead of a plain tuple.</p>
@@ -16953,6 +17340,7 @@ every step.</p>
           </tr>
       </tbody>
     </table>
+
 
             <details class="quote">
               <summary>Source code in <code>mindone/diffusers/pipelines/kandinsky/pipeline_kandinsky_inpaint.py</code></summary>
@@ -17446,7 +17834,7 @@ every step.</p>
 
     <div class="doc doc-contents first">
             <p class="doc doc-class-bases">
-              Bases: <code><a class="autorefs autorefs-internal" title="mindone.diffusers.pipelines.pipeline_utils.DiffusionPipeline" href="../overview/#mindone.diffusers.DiffusionPipeline">DiffusionPipeline</a></code></p>
+              Bases: <code><a class="autorefs autorefs-internal" title="mindone.diffusers.DiffusionPipeline (mindone.diffusers.pipelines.pipeline_utils.DiffusionPipeline)" href="../overview/#mindone.diffusers.DiffusionPipeline">DiffusionPipeline</a></code></p>
 
 
         <p>Combined Pipeline for generation using Kandinsky</p>
@@ -17463,7 +17851,9 @@ library implements for all the pipelines (such as downloading or saving, running
       </thead>
       <tbody>
           <tr class="doc-section-item">
-            <td><code>text_encoder</code></td>
+            <td>
+                <code>text_encoder</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Frozen text-encoder.</p>
@@ -17477,7 +17867,9 @@ library implements for all the pipelines (such as downloading or saving, running
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>tokenizer</code></td>
+            <td>
+                <code>tokenizer</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Tokenizer of class</p>
@@ -17491,7 +17883,9 @@ library implements for all the pipelines (such as downloading or saving, running
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>scheduler</code></td>
+            <td>
+                <code>scheduler</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>A scheduler to be used in combination with <code>unet</code> to generate image latents.</p>
@@ -17505,7 +17899,9 @@ library implements for all the pipelines (such as downloading or saving, running
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>unet</code></td>
+            <td>
+                <code>unet</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Conditional U-Net architecture to denoise the image embedding.</p>
@@ -17519,7 +17915,9 @@ library implements for all the pipelines (such as downloading or saving, running
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>movq</code></td>
+            <td>
+                <code>movq</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>MoVQ Decoder to generate the image from the latents.</p>
@@ -17533,7 +17931,9 @@ library implements for all the pipelines (such as downloading or saving, running
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>prior_prior</code></td>
+            <td>
+                <code>prior_prior</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The canonincal unCLIP prior to approximate the image embedding from the text embedding.</p>
@@ -17547,7 +17947,9 @@ library implements for all the pipelines (such as downloading or saving, running
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>prior_image_encoder</code></td>
+            <td>
+                <code>prior_image_encoder</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Frozen image-encoder.</p>
@@ -17561,7 +17963,9 @@ library implements for all the pipelines (such as downloading or saving, running
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>prior_text_encoder</code></td>
+            <td>
+                <code>prior_text_encoder</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Frozen text-encoder.</p>
@@ -17575,7 +17979,9 @@ library implements for all the pipelines (such as downloading or saving, running
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>prior_tokenizer</code></td>
+            <td>
+                <code>prior_tokenizer</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Tokenizer of class
@@ -17590,7 +17996,9 @@ library implements for all the pipelines (such as downloading or saving, running
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>prior_scheduler</code></td>
+            <td>
+                <code>prior_scheduler</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>A scheduler to be used in combination with <code>prior</code> to generate image embedding.</p>
@@ -17605,6 +18013,12 @@ library implements for all the pipelines (such as downloading or saving, running
           </tr>
       </tbody>
     </table>
+
+
+
+
+
+
 
               <details class="quote">
                 <summary>Source code in <code>mindone/diffusers/pipelines/kandinsky/pipeline_kandinsky_combined.py</code></summary>
@@ -18103,7 +18517,9 @@ library implements for all the pipelines (such as downloading or saving, running
       </thead>
       <tbody>
           <tr class="doc-section-item">
-            <td><code>prompt</code></td>
+            <td>
+                <code>prompt</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The prompt or prompts to guide the image generation.</p>
@@ -18117,7 +18533,9 @@ library implements for all the pipelines (such as downloading or saving, running
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>image</code></td>
+            <td>
+                <code>image</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p><code>Image</code>, or tensor representing an image batch, that will be used as the starting point for the
@@ -18133,7 +18551,9 @@ again.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>mask_image</code></td>
+            <td>
+                <code>mask_image</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Tensor representing an image batch, to mask <code>image</code>. White pixels in the mask will be repainted, while
@@ -18150,7 +18570,9 @@ so the expected shape would be <code>(B, H, W, 1)</code>.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>negative_prompt</code></td>
+            <td>
+                <code>negative_prompt</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The prompt or prompts not to guide the image generation. Ignored when not using guidance (i.e., ignored
@@ -18169,7 +18591,9 @@ if <code>guidance_scale</code> is less than <code>1</code>).</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>num_images_per_prompt</code></td>
+            <td>
+                <code>num_images_per_prompt</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The number of images to generate per prompt.</p>
@@ -18187,7 +18611,9 @@ if <code>guidance_scale</code> is less than <code>1</code>).</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>num_inference_steps</code></td>
+            <td>
+                <code>num_inference_steps</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The number of denoising steps. More denoising steps usually lead to a higher quality image at the
@@ -18206,7 +18632,9 @@ expense of slower inference.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>height</code></td>
+            <td>
+                <code>height</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The height in pixels of the generated image.</p>
@@ -18224,7 +18652,9 @@ expense of slower inference.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>width</code></td>
+            <td>
+                <code>width</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The width in pixels of the generated image.</p>
@@ -18242,7 +18672,9 @@ expense of slower inference.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>prior_guidance_scale</code></td>
+            <td>
+                <code>prior_guidance_scale</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Guidance scale as defined in <a href="https://arxiv.org/abs/2207.12598">Classifier-Free Diffusion Guidance</a>.
@@ -18264,7 +18696,9 @@ usually at the expense of lower image quality.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>prior_num_inference_steps</code></td>
+            <td>
+                <code>prior_num_inference_steps</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The number of denoising steps. More denoising steps usually lead to a higher quality image at the
@@ -18283,7 +18717,9 @@ expense of slower inference.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>guidance_scale</code></td>
+            <td>
+                <code>guidance_scale</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Guidance scale as defined in <a href="https://arxiv.org/abs/2207.12598">Classifier-Free Diffusion Guidance</a>.
@@ -18305,7 +18741,9 @@ usually at the expense of lower image quality.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>generator</code></td>
+            <td>
+                <code>generator</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>One or a list of <a href="https://numpy.org/doc/stable/reference/random/generator.html">np.random.Generator(s)</a>
@@ -18324,7 +18762,9 @@ to make generation deterministic.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>latents</code></td>
+            <td>
+                <code>latents</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Pre-generated noisy latents, sampled from a Gaussian distribution, to be used as inputs for image
@@ -18344,7 +18784,9 @@ tensor will ge generated by sampling using the supplied random <code>generator</
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>output_type</code></td>
+            <td>
+                <code>output_type</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The output format of the generate image. Choose between: <code>"pil"</code> (<code>PIL.Image.Image</code>), <code>"np"</code>
@@ -18363,7 +18805,9 @@ tensor will ge generated by sampling using the supplied random <code>generator</
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>callback</code></td>
+            <td>
+                <code>callback</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>A function that calls every <code>callback_steps</code> steps during inference. The function is called with the
@@ -18382,7 +18826,9 @@ following arguments: <code>callback(step: int, timestep: int, latents: ms.Tensor
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>callback_steps</code></td>
+            <td>
+                <code>callback_steps</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The frequency at which the <code>callback</code> function is called. If not specified, the callback is called at
@@ -18401,7 +18847,9 @@ every step.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>return_dict</code></td>
+            <td>
+                <code>return_dict</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Whether or not to return a [<code>~pipelines.ImagePipelineOutput</code>] instead of a plain tuple.</p>
@@ -18442,6 +18890,7 @@ every step.</p>
           </tr>
       </tbody>
     </table>
+
 
             <details class="quote">
               <summary>Source code in <code>mindone/diffusers/pipelines/kandinsky/pipeline_kandinsky_combined.py</code></summary>

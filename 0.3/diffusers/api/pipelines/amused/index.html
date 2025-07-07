@@ -1477,6 +1477,29 @@
   
   
     <li class="md-nav__item">
+      <a href="../../../using-diffusers/consisid/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    ConsisID
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../../../using-diffusers/sdxl/" class="md-nav__link">
         
   
@@ -3209,6 +3232,29 @@
   
   
     <li class="md-nav__item">
+      <a href="../../models/consisid_transformer3d/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    ConsisIDTransformer3DModel
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../../models/cogview3plus_transformer2d/" class="md-nav__link">
         
   
@@ -4760,6 +4806,29 @@
   
   
     <li class="md-nav__item">
+      <a href="../consisid/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    ConsisID
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../consistency_models/" class="md-nav__link">
         
   
@@ -5923,10 +5992,10 @@
       
         
         
-        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2_11_4_64" >
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2_11_4_65" >
         
           
-          <label class="md-nav__link" for="__nav_2_11_4_64" id="__nav_2_11_4_64_label" tabindex="0">
+          <label class="md-nav__link" for="__nav_2_11_4_65" id="__nav_2_11_4_65_label" tabindex="0">
             
   
   
@@ -5939,8 +6008,8 @@
             <span class="md-nav__icon md-icon"></span>
           </label>
         
-        <nav class="md-nav" data-md-level="4" aria-labelledby="__nav_2_11_4_64_label" aria-expanded="false">
-          <label class="md-nav__title" for="__nav_2_11_4_64">
+        <nav class="md-nav" data-md-level="4" aria-labelledby="__nav_2_11_4_65_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_2_11_4_65">
             <span class="md-nav__icon md-icon"></span>
             Stable Diffusion
           </label>
@@ -8179,7 +8248,13 @@ specific language governing permissions and limitations under the License.
 
     <div class="doc doc-contents first">
             <p class="doc doc-class-bases">
-              Bases: <code><a class="autorefs autorefs-internal" title="mindone.diffusers.pipelines.pipeline_utils.DiffusionPipeline" href="../overview/#mindone.diffusers.DiffusionPipeline">DiffusionPipeline</a></code></p>
+              Bases: <code><a class="autorefs autorefs-internal" title="mindone.diffusers.DiffusionPipeline (mindone.diffusers.pipelines.pipeline_utils.DiffusionPipeline)" href="../overview/#mindone.diffusers.DiffusionPipeline">DiffusionPipeline</a></code></p>
+
+
+
+
+
+
 
 
               <details class="quote">
@@ -8785,7 +8860,9 @@ specific language governing permissions and limitations under the License.
       </thead>
       <tbody>
           <tr class="doc-section-item">
-            <td><code>prompt</code></td>
+            <td>
+                <code>prompt</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The prompt or prompts to guide image generation. If not defined, you need to pass <code>prompt_embeds</code>.</p>
@@ -8803,7 +8880,9 @@ specific language governing permissions and limitations under the License.
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>height</code></td>
+            <td>
+                <code>height</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The height in pixels of the generated image.</p>
@@ -8821,7 +8900,9 @@ specific language governing permissions and limitations under the License.
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>width</code></td>
+            <td>
+                <code>width</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The width in pixels of the generated image.</p>
@@ -8839,7 +8920,9 @@ specific language governing permissions and limitations under the License.
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>num_inference_steps</code></td>
+            <td>
+                <code>num_inference_steps</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The number of denoising steps. More denoising steps usually lead to a higher quality image at the
@@ -8858,7 +8941,9 @@ expense of slower inference.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>guidance_scale</code></td>
+            <td>
+                <code>guidance_scale</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>A higher guidance scale value encourages the model to generate images closely linked to the text
@@ -8877,7 +8962,9 @@ expense of slower inference.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>negative_prompt</code></td>
+            <td>
+                <code>negative_prompt</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The prompt or prompts to guide what to not include in image generation. If not defined, you need to
@@ -8896,7 +8983,9 @@ pass <code>negative_prompt_embeds</code> instead. Ignored when not using guidanc
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>num_images_per_prompt</code></td>
+            <td>
+                <code>num_images_per_prompt</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The number of images to generate per prompt.</p>
@@ -8914,7 +9003,9 @@ pass <code>negative_prompt_embeds</code> instead. Ignored when not using guidanc
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>generator</code></td>
+            <td>
+                <code>generator</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>A <a href="https://www.mindspore.cn/docs/zh-CN/r2.5.0/api_python/mindspore/mindspore.Generator.html#mindspore.Generator"><code>ms.Generator</code></a> to make
@@ -8933,7 +9024,9 @@ generation deterministic.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>latents</code></td>
+            <td>
+                <code>latents</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Pre-generated tokens representing latent vectors in <code>self.vqvae</code>, to be used as inputs for image
@@ -8952,7 +9045,9 @@ gneration. If not provided, the starting latents will be completely masked.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>prompt_embeds</code></td>
+            <td>
+                <code>prompt_embeds</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Pre-generated text embeddings. Can be used to easily tweak text inputs (prompt weighting). If not
@@ -8972,7 +9067,9 @@ pooled and projected final hidden states.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>encoder_hidden_states</code></td>
+            <td>
+                <code>encoder_hidden_states</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Pre-generated penultimate hidden states from the text encoder providing additional text conditioning.</p>
@@ -8990,7 +9087,9 @@ pooled and projected final hidden states.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>negative_prompt_embeds</code></td>
+            <td>
+                <code>negative_prompt_embeds</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Pre-generated negative text embeddings. Can be used to easily tweak text inputs (prompt weighting). If
@@ -9009,7 +9108,9 @@ not provided, <code>negative_prompt_embeds</code> are generated from the <code>n
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>negative_encoder_hidden_states</code></td>
+            <td>
+                <code>negative_encoder_hidden_states</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Analogous to <code>encoder_hidden_states</code> for the positive prompt.</p>
@@ -9027,7 +9128,9 @@ not provided, <code>negative_prompt_embeds</code> are generated from the <code>n
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>output_type</code></td>
+            <td>
+                <code>output_type</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The output format of the generated image. Choose between <code>PIL.Image</code> or <code>np.array</code>.</p>
@@ -9045,7 +9148,9 @@ not provided, <code>negative_prompt_embeds</code> are generated from the <code>n
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>return_dict</code></td>
+            <td>
+                <code>return_dict</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Whether or not to return a [<code>~pipelines.stable_diffusion.StableDiffusionPipelineOutput</code>] instead of a
@@ -9064,7 +9169,9 @@ plain tuple.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>callback</code></td>
+            <td>
+                <code>callback</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>A function that calls every <code>callback_steps</code> steps during inference. The function is called with the
@@ -9083,7 +9190,9 @@ following arguments: <code>callback(step: int, timestep: int, latents: ms.Tensor
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>callback_steps</code></td>
+            <td>
+                <code>callback_steps</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The frequency at which the <code>callback</code> function is called. If not specified, the callback is called at
@@ -9102,7 +9211,9 @@ every step.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>cross_attention_kwargs</code></td>
+            <td>
+                <code>cross_attention_kwargs</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>A kwargs dictionary that if specified is passed along to the [<code>AttentionProcessor</code>] as defined in
@@ -9121,7 +9232,9 @@ every step.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>micro_conditioning_aesthetic_score</code></td>
+            <td>
+                <code>micro_conditioning_aesthetic_score</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The targeted aesthetic score according to the laion aesthetic classifier. See
@@ -9141,7 +9254,9 @@ https://arxiv.org/abs/2307.01952.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>micro_conditioning_crop_coord</code></td>
+            <td>
+                <code>micro_conditioning_crop_coord</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The targeted height, width crop coordinates. See the micro-conditioning section of
@@ -9160,7 +9275,9 @@ https://arxiv.org/abs/2307.01952.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>temperature</code></td>
+            <td>
+                <code>temperature</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Configures the temperature scheduler on <code>self.scheduler</code> see <code>AmusedScheduler#set_timesteps</code>.</p>
@@ -9203,6 +9320,7 @@ If <code>return_dict</code> is <code>True</code>, [<code>~pipelines.pipeline_uti
           </tr>
       </tbody>
     </table>
+
 
             <details class="quote">
               <summary>Source code in <code>mindone/diffusers/pipelines/amused/pipeline_amused.py</code></summary>
@@ -9732,7 +9850,13 @@ If <code>return_dict</code> is <code>True</code>, [<code>~pipelines.pipeline_uti
 
     <div class="doc doc-contents first">
             <p class="doc doc-class-bases">
-              Bases: <code><a class="autorefs autorefs-internal" title="mindone.diffusers.pipelines.pipeline_utils.DiffusionPipeline" href="../overview/#mindone.diffusers.DiffusionPipeline">DiffusionPipeline</a></code></p>
+              Bases: <code><a class="autorefs autorefs-internal" title="mindone.diffusers.DiffusionPipeline (mindone.diffusers.pipelines.pipeline_utils.DiffusionPipeline)" href="../overview/#mindone.diffusers.DiffusionPipeline">DiffusionPipeline</a></code></p>
+
+
+
+
+
+
 
 
               <details class="quote">
@@ -10368,7 +10492,9 @@ If <code>return_dict</code> is <code>True</code>, [<code>~pipelines.pipeline_uti
       </thead>
       <tbody>
           <tr class="doc-section-item">
-            <td><code>prompt</code></td>
+            <td>
+                <code>prompt</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The prompt or prompts to guide image generation. If not defined, you need to pass <code>prompt_embeds</code>.</p>
@@ -10386,7 +10512,9 @@ If <code>return_dict</code> is <code>True</code>, [<code>~pipelines.pipeline_uti
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>image</code></td>
+            <td>
+                <code>image</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p><code>Image</code>, numpy array or tensor representing an image batch to be used as the starting point. For both
@@ -10408,7 +10536,9 @@ latents as <code>image</code>, but if passing latents directly it is not encoded
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>strength</code></td>
+            <td>
+                <code>strength</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Indicates extent to transform the reference <code>image</code>. Must be between 0 and 1. <code>image</code> is used as a
@@ -10430,7 +10560,9 @@ essentially ignores <code>image</code>.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>num_inference_steps</code></td>
+            <td>
+                <code>num_inference_steps</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The number of denoising steps. More denoising steps usually lead to a higher quality image at the
@@ -10449,7 +10581,9 @@ expense of slower inference.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>guidance_scale</code></td>
+            <td>
+                <code>guidance_scale</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>A higher guidance scale value encourages the model to generate images closely linked to the text
@@ -10468,7 +10602,9 @@ expense of slower inference.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>negative_prompt</code></td>
+            <td>
+                <code>negative_prompt</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The prompt or prompts to guide what to not include in image generation. If not defined, you need to
@@ -10487,7 +10623,9 @@ pass <code>negative_prompt_embeds</code> instead. Ignored when not using guidanc
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>num_images_per_prompt</code></td>
+            <td>
+                <code>num_images_per_prompt</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The number of images to generate per prompt.</p>
@@ -10505,7 +10643,9 @@ pass <code>negative_prompt_embeds</code> instead. Ignored when not using guidanc
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>generator</code></td>
+            <td>
+                <code>generator</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>A <a href="https://www.mindspore.cn/docs/zh-CN/r2.5.0/api_python/mindspore/mindspore.Generator.html#mindspore.Generator"><code>ms.Generator</code></a> to make
@@ -10524,7 +10664,9 @@ generation deterministic.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>prompt_embeds</code></td>
+            <td>
+                <code>prompt_embeds</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Pre-generated text embeddings. Can be used to easily tweak text inputs (prompt weighting). If not
@@ -10544,7 +10686,9 @@ pooled and projected final hidden states.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>encoder_hidden_states</code></td>
+            <td>
+                <code>encoder_hidden_states</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Pre-generated penultimate hidden states from the text encoder providing additional text conditioning.</p>
@@ -10562,7 +10706,9 @@ pooled and projected final hidden states.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>negative_prompt_embeds</code></td>
+            <td>
+                <code>negative_prompt_embeds</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Pre-generated negative text embeddings. Can be used to easily tweak text inputs (prompt weighting). If
@@ -10581,7 +10727,9 @@ not provided, <code>negative_prompt_embeds</code> are generated from the <code>n
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>negative_encoder_hidden_states</code></td>
+            <td>
+                <code>negative_encoder_hidden_states</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Analogous to <code>encoder_hidden_states</code> for the positive prompt.</p>
@@ -10599,7 +10747,9 @@ not provided, <code>negative_prompt_embeds</code> are generated from the <code>n
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>output_type</code></td>
+            <td>
+                <code>output_type</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The output format of the generated image. Choose between <code>PIL.Image</code> or <code>np.array</code>.</p>
@@ -10617,7 +10767,9 @@ not provided, <code>negative_prompt_embeds</code> are generated from the <code>n
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>return_dict</code></td>
+            <td>
+                <code>return_dict</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Whether or not to return a [<code>~pipelines.stable_diffusion.StableDiffusionPipelineOutput</code>] instead of a
@@ -10636,7 +10788,9 @@ plain tuple.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>callback</code></td>
+            <td>
+                <code>callback</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>A function that calls every <code>callback_steps</code> steps during inference. The function is called with the
@@ -10655,7 +10809,9 @@ following arguments: <code>callback(step: int, timestep: int, latents: ms.Tensor
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>callback_steps</code></td>
+            <td>
+                <code>callback_steps</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The frequency at which the <code>callback</code> function is called. If not specified, the callback is called at
@@ -10674,7 +10830,9 @@ every step.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>cross_attention_kwargs</code></td>
+            <td>
+                <code>cross_attention_kwargs</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>A kwargs dictionary that if specified is passed along to the [<code>AttentionProcessor</code>] as defined in
@@ -10693,7 +10851,9 @@ every step.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>micro_conditioning_aesthetic_score</code></td>
+            <td>
+                <code>micro_conditioning_aesthetic_score</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The targeted aesthetic score according to the laion aesthetic classifier. See
@@ -10713,7 +10873,9 @@ https://arxiv.org/abs/2307.01952.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>micro_conditioning_crop_coord</code></td>
+            <td>
+                <code>micro_conditioning_crop_coord</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The targeted height, width crop coordinates. See the micro-conditioning section of
@@ -10732,7 +10894,9 @@ https://arxiv.org/abs/2307.01952.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>temperature</code></td>
+            <td>
+                <code>temperature</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Configures the temperature scheduler on <code>self.scheduler</code> see <code>AmusedScheduler#set_timesteps</code>.</p>
@@ -10775,6 +10939,7 @@ If <code>return_dict</code> is <code>True</code>, [<code>~pipelines.pipeline_uti
           </tr>
       </tbody>
     </table>
+
 
             <details class="quote">
               <summary>Source code in <code>mindone/diffusers/pipelines/amused/pipeline_amused_img2img.py</code></summary>
@@ -11324,7 +11489,13 @@ If <code>return_dict</code> is <code>True</code>, [<code>~pipelines.pipeline_uti
 
     <div class="doc doc-contents first">
             <p class="doc doc-class-bases">
-              Bases: <code><a class="autorefs autorefs-internal" title="mindone.diffusers.pipelines.pipeline_utils.DiffusionPipeline" href="../overview/#mindone.diffusers.DiffusionPipeline">DiffusionPipeline</a></code></p>
+              Bases: <code><a class="autorefs autorefs-internal" title="mindone.diffusers.DiffusionPipeline (mindone.diffusers.pipelines.pipeline_utils.DiffusionPipeline)" href="../overview/#mindone.diffusers.DiffusionPipeline">DiffusionPipeline</a></code></p>
+
+
+
+
+
+
 
 
               <details class="quote">
@@ -12002,7 +12173,9 @@ If <code>return_dict</code> is <code>True</code>, [<code>~pipelines.pipeline_uti
       </thead>
       <tbody>
           <tr class="doc-section-item">
-            <td><code>prompt</code></td>
+            <td>
+                <code>prompt</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The prompt or prompts to guide image generation. If not defined, you need to pass <code>prompt_embeds</code>.</p>
@@ -12020,7 +12193,9 @@ If <code>return_dict</code> is <code>True</code>, [<code>~pipelines.pipeline_uti
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>image</code></td>
+            <td>
+                <code>image</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p><code>Image</code>, numpy array or tensor representing an image batch to be used as the starting point. For both
@@ -12042,7 +12217,9 @@ latents as <code>image</code>, but if passing latents directly it is not encoded
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>mask_image</code></td>
+            <td>
+                <code>mask_image</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p><code>Image</code>, numpy array or tensor representing an image batch to mask <code>image</code>. White pixels in the mask
@@ -12065,7 +12242,9 @@ H, W)</code>, <code>(1, H, W)</code>, <code>(H, W)</code>. And for numpy array w
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>strength</code></td>
+            <td>
+                <code>strength</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Indicates extent to transform the reference <code>image</code>. Must be between 0 and 1. <code>image</code> is used as a
@@ -12087,7 +12266,9 @@ essentially ignores <code>image</code>.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>num_inference_steps</code></td>
+            <td>
+                <code>num_inference_steps</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The number of denoising steps. More denoising steps usually lead to a higher quality image at the
@@ -12106,7 +12287,9 @@ expense of slower inference.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>guidance_scale</code></td>
+            <td>
+                <code>guidance_scale</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>A higher guidance scale value encourages the model to generate images closely linked to the text
@@ -12125,7 +12308,9 @@ expense of slower inference.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>negative_prompt</code></td>
+            <td>
+                <code>negative_prompt</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The prompt or prompts to guide what to not include in image generation. If not defined, you need to
@@ -12144,7 +12329,9 @@ pass <code>negative_prompt_embeds</code> instead. Ignored when not using guidanc
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>num_images_per_prompt</code></td>
+            <td>
+                <code>num_images_per_prompt</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The number of images to generate per prompt.</p>
@@ -12162,7 +12349,9 @@ pass <code>negative_prompt_embeds</code> instead. Ignored when not using guidanc
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>generator</code></td>
+            <td>
+                <code>generator</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>A <a href="https://www.mindspore.cn/docs/zh-CN/r2.5.0/api_python/mindspore/mindspore.Generator.html#mindspore.Generator"><code>ms.Generator</code></a> to make
@@ -12181,7 +12370,9 @@ generation deterministic.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>prompt_embeds</code></td>
+            <td>
+                <code>prompt_embeds</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Pre-generated text embeddings. Can be used to easily tweak text inputs (prompt weighting). If not
@@ -12201,7 +12392,9 @@ pooled and projected final hidden states.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>encoder_hidden_states</code></td>
+            <td>
+                <code>encoder_hidden_states</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Pre-generated penultimate hidden states from the text encoder providing additional text conditioning.</p>
@@ -12219,7 +12412,9 @@ pooled and projected final hidden states.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>negative_prompt_embeds</code></td>
+            <td>
+                <code>negative_prompt_embeds</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Pre-generated negative text embeddings. Can be used to easily tweak text inputs (prompt weighting). If
@@ -12238,7 +12433,9 @@ not provided, <code>negative_prompt_embeds</code> are generated from the <code>n
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>negative_encoder_hidden_states</code></td>
+            <td>
+                <code>negative_encoder_hidden_states</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Analogous to <code>encoder_hidden_states</code> for the positive prompt.</p>
@@ -12256,7 +12453,9 @@ not provided, <code>negative_prompt_embeds</code> are generated from the <code>n
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>output_type</code></td>
+            <td>
+                <code>output_type</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The output format of the generated image. Choose between <code>PIL.Image</code> or <code>np.array</code>.</p>
@@ -12274,7 +12473,9 @@ not provided, <code>negative_prompt_embeds</code> are generated from the <code>n
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>return_dict</code></td>
+            <td>
+                <code>return_dict</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Whether or not to return a [<code>~pipelines.stable_diffusion.StableDiffusionPipelineOutput</code>] instead of a
@@ -12293,7 +12494,9 @@ plain tuple.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>callback</code></td>
+            <td>
+                <code>callback</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>A function that calls every <code>callback_steps</code> steps during inference. The function is called with the
@@ -12312,7 +12515,9 @@ following arguments: <code>callback(step: int, timestep: int, latents: ms.Tensor
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>callback_steps</code></td>
+            <td>
+                <code>callback_steps</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The frequency at which the <code>callback</code> function is called. If not specified, the callback is called at
@@ -12331,7 +12536,9 @@ every step.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>cross_attention_kwargs</code></td>
+            <td>
+                <code>cross_attention_kwargs</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>A kwargs dictionary that if specified is passed along to the [<code>AttentionProcessor</code>] as defined in
@@ -12350,7 +12557,9 @@ every step.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>micro_conditioning_aesthetic_score</code></td>
+            <td>
+                <code>micro_conditioning_aesthetic_score</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The targeted aesthetic score according to the laion aesthetic classifier. See
@@ -12370,7 +12579,9 @@ https://arxiv.org/abs/2307.01952.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>micro_conditioning_crop_coord</code></td>
+            <td>
+                <code>micro_conditioning_crop_coord</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The targeted height, width crop coordinates. See the micro-conditioning section of
@@ -12389,7 +12600,9 @@ https://arxiv.org/abs/2307.01952.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>temperature</code></td>
+            <td>
+                <code>temperature</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Configures the temperature scheduler on <code>self.scheduler</code> see <code>AmusedScheduler#set_timesteps</code>.</p>
@@ -12432,6 +12645,7 @@ If <code>return_dict</code> is <code>True</code>, [<code>~pipelines.pipeline_uti
           </tr>
       </tbody>
     </table>
+
 
             <details class="quote">
               <summary>Source code in <code>mindone/diffusers/pipelines/amused/pipeline_amused_inpaint.py</code></summary>

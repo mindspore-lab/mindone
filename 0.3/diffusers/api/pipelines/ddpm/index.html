@@ -1477,6 +1477,29 @@
   
   
     <li class="md-nav__item">
+      <a href="../../../using-diffusers/consisid/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    ConsisID
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../../../using-diffusers/sdxl/" class="md-nav__link">
         
   
@@ -3209,6 +3232,29 @@
   
   
     <li class="md-nav__item">
+      <a href="../../models/consisid_transformer3d/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    ConsisIDTransformer3DModel
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../../models/cogview3plus_transformer2d/" class="md-nav__link">
         
   
@@ -4637,6 +4683,29 @@
   
   
     <li class="md-nav__item">
+      <a href="../consisid/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    ConsisID
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../consistency_models/" class="md-nav__link">
         
   
@@ -5875,10 +5944,10 @@
       
         
         
-        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2_11_4_64" >
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2_11_4_65" >
         
           
-          <label class="md-nav__link" for="__nav_2_11_4_64" id="__nav_2_11_4_64_label" tabindex="0">
+          <label class="md-nav__link" for="__nav_2_11_4_65" id="__nav_2_11_4_65_label" tabindex="0">
             
   
   
@@ -5891,8 +5960,8 @@
             <span class="md-nav__icon md-icon"></span>
           </label>
         
-        <nav class="md-nav" data-md-level="4" aria-labelledby="__nav_2_11_4_64_label" aria-expanded="false">
-          <label class="md-nav__title" for="__nav_2_11_4_64">
+        <nav class="md-nav" data-md-level="4" aria-labelledby="__nav_2_11_4_65_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_2_11_4_65">
             <span class="md-nav__icon md-icon"></span>
             Stable Diffusion
           </label>
@@ -8067,7 +8136,7 @@ specific language governing permissions and limitations under the License.
 
     <div class="doc doc-contents first">
             <p class="doc doc-class-bases">
-              Bases: <code><a class="autorefs autorefs-internal" title="mindone.diffusers.pipelines.pipeline_utils.DiffusionPipeline" href="../overview/#mindone.diffusers.DiffusionPipeline">DiffusionPipeline</a></code></p>
+              Bases: <code><a class="autorefs autorefs-internal" title="mindone.diffusers.DiffusionPipeline (mindone.diffusers.pipelines.pipeline_utils.DiffusionPipeline)" href="../overview/#mindone.diffusers.DiffusionPipeline">DiffusionPipeline</a></code></p>
 
 
         <p>Pipeline for image generation.</p>
@@ -8084,7 +8153,9 @@ implemented for all pipelines (downloading, saving, running on a particular devi
       </thead>
       <tbody>
           <tr class="doc-section-item">
-            <td><code>unet</code></td>
+            <td>
+                <code>unet</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>A <code>UNet2DModel</code> to denoise the encoded image latents.</p>
@@ -8098,7 +8169,9 @@ implemented for all pipelines (downloading, saving, running on a particular devi
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>scheduler</code></td>
+            <td>
+                <code>scheduler</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>A scheduler to be used in combination with <code>unet</code> to denoise the encoded image. Can be one of
@@ -8114,6 +8187,12 @@ implemented for all pipelines (downloading, saving, running on a particular devi
           </tr>
       </tbody>
     </table>
+
+
+
+
+
+
 
               <details class="quote">
                 <summary>Source code in <code>mindone/diffusers/pipelines/ddpm/pipeline_ddpm.py</code></summary>
@@ -8362,7 +8441,9 @@ implemented for all pipelines (downloading, saving, running on a particular devi
       </thead>
       <tbody>
           <tr class="doc-section-item">
-            <td><code>batch_size</code></td>
+            <td>
+                <code>batch_size</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The number of images to generate.</p>
@@ -8380,7 +8461,9 @@ implemented for all pipelines (downloading, saving, running on a particular devi
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>generator</code></td>
+            <td>
+                <code>generator</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>A <a href="https://numpy.org/doc/stable/reference/random/generator.html"><code>np.random.Generator</code></a> to make
@@ -8399,7 +8482,9 @@ generation deterministic.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>num_inference_steps</code></td>
+            <td>
+                <code>num_inference_steps</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The number of denoising steps. More denoising steps usually lead to a higher quality image at the
@@ -8418,7 +8503,9 @@ expense of slower inference.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>output_type</code></td>
+            <td>
+                <code>output_type</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The output format of the generated image. Choose between <code>PIL.Image</code> or <code>np.array</code>.</p>
@@ -8436,7 +8523,9 @@ expense of slower inference.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>return_dict</code></td>
+            <td>
+                <code>return_dict</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Whether or not to return a [<code>~pipelines.ImagePipelineOutput</code>] instead of a plain tuple.</p>
@@ -8479,7 +8568,12 @@ expense of slower inference.</p>
           <tr class="doc-section-item">
             <td>
                 <span class="doc-returns-annotation">
-                    <code><span title="typing.Union">Union</span>[<a class="autorefs autorefs-internal" title="mindone.diffusers.pipelines.pipeline_utils.ImagePipelineOutput" href="../../outputs/#mindone.diffusers.pipelines.pipeline_utils.ImagePipelineOutput">ImagePipelineOutput</a>, <span title="typing.Tuple">Tuple</span>]</code>
+                    <code><span title="typing.Union">Union</span>[<a class="autorefs autorefs-internal" title="mindone.diffusers.pipelines.pipeline_utils.ImagePipelineOutput
+
+
+  
+      dataclass
+  " href="../../outputs/#mindone.diffusers.pipelines.pipeline_utils.ImagePipelineOutput">ImagePipelineOutput</a>, <span title="typing.Tuple">Tuple</span>]</code>
                 </span>
             </td>
             <td class="doc-returns-details">
@@ -8492,6 +8586,7 @@ returned where the first element is a list with the generated images</p>
           </tr>
       </tbody>
     </table>
+
 
             <details class="quote">
               <summary>Source code in <code>mindone/diffusers/pipelines/ddpm/pipeline_ddpm.py</code></summary>
@@ -8695,6 +8790,12 @@ returned where the first element is a list with the generated images</p>
 
 
         <p>Output class for image pipelines.</p>
+
+
+
+
+
+
 
               <details class="quote">
                 <summary>Source code in <code>mindone/diffusers/pipelines/pipeline_utils.py</code></summary>

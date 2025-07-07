@@ -1477,6 +1477,29 @@
   
   
     <li class="md-nav__item">
+      <a href="../../../using-diffusers/consisid/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    ConsisID
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../../../using-diffusers/sdxl/" class="md-nav__link">
         
   
@@ -3211,6 +3234,29 @@
   
   
     <li class="md-nav__item">
+      <a href="../consisid_transformer3d/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    ConsisIDTransformer3DModel
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../cogview3plus_transformer2d/" class="md-nav__link">
         
   
@@ -4768,6 +4814,29 @@
   
   
     <li class="md-nav__item">
+      <a href="../../pipelines/consisid/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    ConsisID
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../../pipelines/consistency_models/" class="md-nav__link">
         
   
@@ -5931,10 +6000,10 @@
       
         
         
-        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2_11_4_64" >
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2_11_4_65" >
         
           
-          <label class="md-nav__link" for="__nav_2_11_4_64" id="__nav_2_11_4_64_label" tabindex="0">
+          <label class="md-nav__link" for="__nav_2_11_4_65" id="__nav_2_11_4_65_label" tabindex="0">
             
   
   
@@ -5947,8 +6016,8 @@
             <span class="md-nav__icon md-icon"></span>
           </label>
         
-        <nav class="md-nav" data-md-level="4" aria-labelledby="__nav_2_11_4_64_label" aria-expanded="false">
-          <label class="md-nav__title" for="__nav_2_11_4_64">
+        <nav class="md-nav" data-md-level="4" aria-labelledby="__nav_2_11_4_65_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_2_11_4_65">
             <span class="md-nav__icon md-icon"></span>
             Stable Diffusion
           </label>
@@ -8228,7 +8297,7 @@ specific language governing permissions and limitations under the License. -->
 
     <div class="doc doc-contents first">
             <p class="doc doc-class-bases">
-              Bases: <code><a class="autorefs autorefs-internal" title="mindone.diffusers.models.modeling_utils.ModelMixin" href="../overview/#mindone.diffusers.ModelMixin">ModelMixin</a></code>, <code><a class="autorefs autorefs-internal" title="mindone.diffusers.configuration_utils.ConfigMixin" href="../../configuration/#mindone.diffusers.configuration_utils.ConfigMixin">ConfigMixin</a></code>, <code><span title="mindone.diffusers.loaders.FromOriginalModelMixin">FromOriginalModelMixin</span></code></p>
+              Bases: <code><a class="autorefs autorefs-internal" title="mindone.diffusers.ModelMixin (mindone.diffusers.models.modeling_utils.ModelMixin)" href="../overview/#mindone.diffusers.ModelMixin">ModelMixin</a></code>, <code><a class="autorefs autorefs-internal" title="mindone.diffusers.configuration_utils.ConfigMixin" href="../../configuration/#mindone.diffusers.configuration_utils.ConfigMixin">ConfigMixin</a></code>, <code><span title="mindone.diffusers.loaders.FromOriginalModelMixin">FromOriginalModelMixin</span></code></p>
 
 
         <p>An Autoencoder model introduced in <a href="https://arxiv.org/abs/2410.10733">DCAE</a> and used in
@@ -8246,7 +8315,9 @@ for all models (such as downloading or saving).</p>
       </thead>
       <tbody>
           <tr class="doc-section-item">
-            <td><code>in_channels</code></td>
+            <td>
+                <code>in_channels</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The number of input channels in samples.</p>
@@ -8264,7 +8335,9 @@ for all models (such as downloading or saving).</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>latent_channels</code></td>
+            <td>
+                <code>latent_channels</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The number of channels in the latent space representation.</p>
@@ -8282,7 +8355,9 @@ for all models (such as downloading or saving).</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>encoder_block_types</code></td>
+            <td>
+                <code>encoder_block_types</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The type(s) of block to use in the encoder.</p>
@@ -8300,7 +8375,9 @@ for all models (such as downloading or saving).</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>decoder_block_types</code></td>
+            <td>
+                <code>decoder_block_types</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The type(s) of block to use in the decoder.</p>
@@ -8318,7 +8395,9 @@ for all models (such as downloading or saving).</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>encoder_block_out_channels</code></td>
+            <td>
+                <code>encoder_block_out_channels</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The number of output channels for each block in the encoder.</p>
@@ -8336,7 +8415,9 @@ for all models (such as downloading or saving).</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>decoder_block_out_channels</code></td>
+            <td>
+                <code>decoder_block_out_channels</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The number of output channels for each block in the decoder.</p>
@@ -8354,7 +8435,9 @@ for all models (such as downloading or saving).</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>encoder_layers_per_block</code></td>
+            <td>
+                <code>encoder_layers_per_block</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The number of layers per block in the encoder.</p>
@@ -8372,7 +8455,9 @@ for all models (such as downloading or saving).</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>decoder_layers_per_block</code></td>
+            <td>
+                <code>decoder_layers_per_block</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The number of layers per block in the decoder.</p>
@@ -8390,7 +8475,9 @@ for all models (such as downloading or saving).</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>encoder_qkv_multiscales</code></td>
+            <td>
+                <code>encoder_qkv_multiscales</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Multi-scale configurations for the encoder's QKV (query-key-value) transformations.</p>
@@ -8402,13 +8489,15 @@ for all models (such as downloading or saving).</p>
                   </span>
                   <span class="doc-param-default">
                     <b>DEFAULT:</b>
-                      <code>((), (), (), (5), (5), (5))</code>
+                      <code>((), (), (), (5,), (5,), (5,))</code>
                   </span>
               </p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>decoder_qkv_multiscales</code></td>
+            <td>
+                <code>decoder_qkv_multiscales</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Multi-scale configurations for the decoder's QKV (query-key-value) transformations.</p>
@@ -8420,13 +8509,15 @@ for all models (such as downloading or saving).</p>
                   </span>
                   <span class="doc-param-default">
                     <b>DEFAULT:</b>
-                      <code>((), (), (), (5), (5), (5))</code>
+                      <code>((), (), (), (5,), (5,), (5,))</code>
                   </span>
               </p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>upsample_block_type</code></td>
+            <td>
+                <code>upsample_block_type</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The type of block to use for upsampling in the decoder.</p>
@@ -8444,7 +8535,9 @@ for all models (such as downloading or saving).</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>downsample_block_type</code></td>
+            <td>
+                <code>downsample_block_type</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The type of block to use for downsampling in the encoder.</p>
@@ -8462,7 +8555,9 @@ for all models (such as downloading or saving).</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>decoder_norm_types</code></td>
+            <td>
+                <code>decoder_norm_types</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The normalization type(s) to use in the decoder.</p>
@@ -8480,7 +8575,9 @@ for all models (such as downloading or saving).</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>decoder_act_fns</code></td>
+            <td>
+                <code>decoder_act_fns</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The activation function(s) to use in the decoder.</p>
@@ -8498,7 +8595,9 @@ for all models (such as downloading or saving).</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>scaling_factor</code></td>
+            <td>
+                <code>scaling_factor</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The multiplicative inverse of the root mean square of the latent features. This is used to scale the latent
@@ -8520,6 +8619,12 @@ to the original scale with the formula: <code>z = 1 / scaling_factor * z</code>.
           </tr>
       </tbody>
     </table>
+
+
+
+
+
+
 
               <details class="quote">
                 <summary>Source code in <code>mindone/diffusers/models/autoencoders/autoencoder_dc.py</code></summary>
@@ -9242,7 +9347,9 @@ to the original scale with the formula: <code>z = 1 / scaling_factor * z</code>.
       </thead>
       <tbody>
           <tr class="doc-section-item">
-            <td><code>z</code></td>
+            <td>
+                <code>z</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Input batch of latent vectors.</p>
@@ -9256,7 +9363,9 @@ to the original scale with the formula: <code>z = 1 / scaling_factor * z</code>.
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>return_dict</code></td>
+            <td>
+                <code>return_dict</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Whether to return a [<code>~models.vae.DecoderOutput</code>] instead of a plain tuple.</p>
@@ -9288,7 +9397,12 @@ to the original scale with the formula: <code>z = 1 / scaling_factor * z</code>.
           <tr class="doc-section-item">
             <td>
                 <span class="doc-returns-annotation">
-                    <code><span title="typing.Union">Union</span>[<a class="autorefs autorefs-internal" title="mindone.diffusers.models.autoencoders.vae.DecoderOutput" href="../asymmetricautoencoderkl/#mindone.diffusers.models.autoencoders.vae.DecoderOutput">DecoderOutput</a>, <span title="typing.Tuple">Tuple</span>[<span title="mindspore.Tensor">Tensor</span>]]</code>
+                    <code><span title="typing.Union">Union</span>[<a class="autorefs autorefs-internal" title="mindone.diffusers.models.autoencoders.vae.DecoderOutput
+
+
+  
+      dataclass
+  " href="../asymmetricautoencoderkl/#mindone.diffusers.models.autoencoders.vae.DecoderOutput">DecoderOutput</a>, <span title="typing.Tuple">Tuple</span>[<span title="mindspore.Tensor">Tensor</span>]]</code>
                 </span>
             </td>
             <td class="doc-returns-details">
@@ -9301,6 +9415,7 @@ returned.</p>
           </tr>
       </tbody>
     </table>
+
 
             <details class="quote">
               <summary>Source code in <code>mindone/diffusers/models/autoencoders/autoencoder_dc.py</code></summary>
@@ -9369,6 +9484,7 @@ returned.</p>
         <p>Disable sliced AE decoding. If <code>enable_slicing</code> was previously enabled, this method will go back to computing
 decoding in one step.</p>
 
+
             <details class="quote">
               <summary>Source code in <code>mindone/diffusers/models/autoencoders/autoencoder_dc.py</code></summary>
               <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">552</span>
@@ -9402,6 +9518,7 @@ decoding in one step.</p>
         <p>Disable tiled AE decoding. If <code>enable_tiling</code> was previously enabled, this method will go back to computing
 decoding in one step.</p>
 
+
             <details class="quote">
               <summary>Source code in <code>mindone/diffusers/models/autoencoders/autoencoder_dc.py</code></summary>
               <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">538</span>
@@ -9434,6 +9551,7 @@ decoding in one step.</p>
 
         <p>Enable sliced AE decoding. When this option is enabled, the AE will split the input tensor in slices to compute
 decoding in several steps. This is useful to save some memory and allow larger batch sizes.</p>
+
 
             <details class="quote">
               <summary>Source code in <code>mindone/diffusers/models/autoencoders/autoencoder_dc.py</code></summary>
@@ -9479,7 +9597,9 @@ processing larger images.</p>
       </thead>
       <tbody>
           <tr class="doc-section-item">
-            <td><code>tile_sample_min_height</code></td>
+            <td>
+                <code>tile_sample_min_height</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The minimum height required for a sample to be separated into tiles across the height dimension.</p>
@@ -9497,7 +9617,9 @@ processing larger images.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>tile_sample_min_width</code></td>
+            <td>
+                <code>tile_sample_min_width</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The minimum width required for a sample to be separated into tiles across the width dimension.</p>
@@ -9515,7 +9637,9 @@ processing larger images.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>tile_sample_stride_height</code></td>
+            <td>
+                <code>tile_sample_stride_height</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The minimum amount of overlap between two consecutive vertical tiles. This is to ensure that there are
@@ -9534,7 +9658,9 @@ no tiling artifacts produced across the height dimension.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>tile_sample_stride_width</code></td>
+            <td>
+                <code>tile_sample_stride_width</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The stride between two consecutive horizontal tiles. This is to ensure that there are no tiling
@@ -9554,6 +9680,7 @@ artifacts produced across the width dimension.</p>
           </tr>
       </tbody>
     </table>
+
 
             <details class="quote">
               <summary>Source code in <code>mindone/diffusers/models/autoencoders/autoencoder_dc.py</code></summary>
@@ -9647,7 +9774,9 @@ artifacts produced across the width dimension.</p>
       </thead>
       <tbody>
           <tr class="doc-section-item">
-            <td><code>x</code></td>
+            <td>
+                <code>x</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Input batch of images.</p>
@@ -9661,7 +9790,9 @@ artifacts produced across the width dimension.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>return_dict</code></td>
+            <td>
+                <code>return_dict</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Whether to return a [<code>~models.vae.EncoderOutput</code>] instead of a plain tuple.</p>
@@ -9716,6 +9847,7 @@ artifacts produced across the width dimension.</p>
           </tr>
       </tbody>
     </table>
+
 
             <details class="quote">
               <summary>Source code in <code>mindone/diffusers/models/autoencoders/autoencoder_dc.py</code></summary>
@@ -9808,7 +9940,9 @@ artifacts produced across the width dimension.</p>
       </thead>
       <tbody>
           <tr class="doc-section-item">
-            <td><code>sample</code></td>
+            <td>
+                <code>sample</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The decoded output sample from the last layer of the model.</p>
@@ -9823,6 +9957,12 @@ artifacts produced across the width dimension.</p>
           </tr>
       </tbody>
     </table>
+
+
+
+
+
+
 
               <details class="quote">
                 <summary>Source code in <code>mindone/diffusers/models/autoencoders/vae.py</code></summary>

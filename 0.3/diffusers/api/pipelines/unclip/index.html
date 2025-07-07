@@ -1477,6 +1477,29 @@
   
   
     <li class="md-nav__item">
+      <a href="../../../using-diffusers/consisid/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    ConsisID
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../../../using-diffusers/sdxl/" class="md-nav__link">
         
   
@@ -3209,6 +3232,29 @@
   
   
     <li class="md-nav__item">
+      <a href="../../models/consisid_transformer3d/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    ConsisIDTransformer3DModel
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../../models/cogview3plus_transformer2d/" class="md-nav__link">
         
   
@@ -4637,6 +4683,29 @@
   
   
     <li class="md-nav__item">
+      <a href="../consisid/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    ConsisID
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../consistency_models/" class="md-nav__link">
         
   
@@ -5800,10 +5869,10 @@
       
         
         
-        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2_11_4_64" >
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2_11_4_65" >
         
           
-          <label class="md-nav__link" for="__nav_2_11_4_64" id="__nav_2_11_4_64_label" tabindex="0">
+          <label class="md-nav__link" for="__nav_2_11_4_65" id="__nav_2_11_4_65_label" tabindex="0">
             
   
   
@@ -5816,8 +5885,8 @@
             <span class="md-nav__icon md-icon"></span>
           </label>
         
-        <nav class="md-nav" data-md-level="4" aria-labelledby="__nav_2_11_4_64_label" aria-expanded="false">
-          <label class="md-nav__title" for="__nav_2_11_4_64">
+        <nav class="md-nav" data-md-level="4" aria-labelledby="__nav_2_11_4_65_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_2_11_4_65">
             <span class="md-nav__icon md-icon"></span>
             Stable Diffusion
           </label>
@@ -8112,7 +8181,7 @@ specific language governing permissions and limitations under the License.
 
     <div class="doc doc-contents first">
             <p class="doc doc-class-bases">
-              Bases: <code><a class="autorefs autorefs-internal" title="mindone.diffusers.pipelines.pipeline_utils.DiffusionPipeline" href="../overview/#mindone.diffusers.DiffusionPipeline">DiffusionPipeline</a></code></p>
+              Bases: <code><a class="autorefs autorefs-internal" title="mindone.diffusers.DiffusionPipeline (mindone.diffusers.pipelines.pipeline_utils.DiffusionPipeline)" href="../overview/#mindone.diffusers.DiffusionPipeline">DiffusionPipeline</a></code></p>
 
 
         <p>Pipeline for text-to-image generation using unCLIP.</p>
@@ -8129,7 +8198,9 @@ implemented for all pipelines (downloading, saving, running on a particular devi
       </thead>
       <tbody>
           <tr class="doc-section-item">
-            <td><code>text_encoder</code></td>
+            <td>
+                <code>text_encoder</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Frozen text-encoder.</p>
@@ -8143,7 +8214,9 @@ implemented for all pipelines (downloading, saving, running on a particular devi
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>tokenizer</code></td>
+            <td>
+                <code>tokenizer</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>A <code>CLIPTokenizer</code> to tokenize text.</p>
@@ -8157,7 +8230,9 @@ implemented for all pipelines (downloading, saving, running on a particular devi
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>prior</code></td>
+            <td>
+                <code>prior</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The canonical unCLIP prior to approximate the image embedding from the text embedding.</p>
@@ -8171,7 +8246,9 @@ implemented for all pipelines (downloading, saving, running on a particular devi
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>text_proj</code></td>
+            <td>
+                <code>text_proj</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Utility class to prepare and combine the embeddings before they are passed to the decoder.</p>
@@ -8185,7 +8262,9 @@ implemented for all pipelines (downloading, saving, running on a particular devi
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>decoder</code></td>
+            <td>
+                <code>decoder</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The decoder to invert the image embedding into an image.</p>
@@ -8199,7 +8278,9 @@ implemented for all pipelines (downloading, saving, running on a particular devi
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>super_res_first</code></td>
+            <td>
+                <code>super_res_first</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Super resolution UNet. Used in all but the last step of the super resolution diffusion process.</p>
@@ -8213,7 +8294,9 @@ implemented for all pipelines (downloading, saving, running on a particular devi
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>super_res_last</code></td>
+            <td>
+                <code>super_res_last</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Super resolution UNet. Used in the last step of the super resolution diffusion process.</p>
@@ -8227,7 +8310,9 @@ implemented for all pipelines (downloading, saving, running on a particular devi
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>prior_scheduler</code></td>
+            <td>
+                <code>prior_scheduler</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Scheduler used in the prior denoising process (a modified [<code>DDPMScheduler</code>]).</p>
@@ -8241,7 +8326,9 @@ implemented for all pipelines (downloading, saving, running on a particular devi
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>decoder_scheduler</code></td>
+            <td>
+                <code>decoder_scheduler</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Scheduler used in the decoder denoising process (a modified [<code>DDPMScheduler</code>]).</p>
@@ -8255,7 +8342,9 @@ implemented for all pipelines (downloading, saving, running on a particular devi
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>super_res_scheduler</code></td>
+            <td>
+                <code>super_res_scheduler</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Scheduler used in the super resolution denoising process (a modified [<code>DDPMScheduler</code>]).</p>
@@ -8270,6 +8359,12 @@ implemented for all pipelines (downloading, saving, running on a particular devi
           </tr>
       </tbody>
     </table>
+
+
+
+
+
+
 
               <details class="quote">
                 <summary>Source code in <code>mindone/diffusers/pipelines/unclip/pipeline_unclip.py</code></summary>
@@ -9190,7 +9285,9 @@ implemented for all pipelines (downloading, saving, running on a particular devi
       </thead>
       <tbody>
           <tr class="doc-section-item">
-            <td><code>prompt</code></td>
+            <td>
+                <code>prompt</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The prompt or prompts to guide image generation. This can only be left undefined if <code>text_model_output</code>
@@ -9209,7 +9306,9 @@ and <code>text_attention_mask</code> is passed.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>num_images_per_prompt</code></td>
+            <td>
+                <code>num_images_per_prompt</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The number of images to generate per prompt.</p>
@@ -9227,7 +9326,9 @@ and <code>text_attention_mask</code> is passed.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>prior_num_inference_steps</code></td>
+            <td>
+                <code>prior_num_inference_steps</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The number of denoising steps for the prior. More denoising steps usually lead to a higher quality
@@ -9246,7 +9347,9 @@ image at the expense of slower inference.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>decoder_num_inference_steps</code></td>
+            <td>
+                <code>decoder_num_inference_steps</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The number of denoising steps for the decoder. More denoising steps usually lead to a higher quality
@@ -9265,7 +9368,9 @@ image at the expense of slower inference.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>super_res_num_inference_steps</code></td>
+            <td>
+                <code>super_res_num_inference_steps</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The number of denoising steps for super resolution. More denoising steps usually lead to a higher
@@ -9284,7 +9389,9 @@ quality image at the expense of slower inference.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>generator</code></td>
+            <td>
+                <code>generator</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>A <a href="https://pytorch.org/docs/stable/generated/torch.Generator.html"><code>np.random.Generator</code></a> to make
@@ -9303,7 +9410,9 @@ generation deterministic.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>prior_latents</code></td>
+            <td>
+                <code>prior_latents</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Pre-generated noisy latents to be used as inputs for the prior.</p>
@@ -9321,7 +9430,9 @@ generation deterministic.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>decoder_latents</code></td>
+            <td>
+                <code>decoder_latents</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Pre-generated noisy latents to be used as inputs for the decoder.</p>
@@ -9339,7 +9450,9 @@ generation deterministic.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>super_res_latents</code></td>
+            <td>
+                <code>super_res_latents</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Pre-generated noisy latents to be used as inputs for the decoder.</p>
@@ -9357,7 +9470,9 @@ generation deterministic.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>prior_guidance_scale</code></td>
+            <td>
+                <code>prior_guidance_scale</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>A higher guidance scale value encourages the model to generate images closely linked to the text
@@ -9376,7 +9491,9 @@ generation deterministic.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>decoder_guidance_scale</code></td>
+            <td>
+                <code>decoder_guidance_scale</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>A higher guidance scale value encourages the model to generate images closely linked to the text
@@ -9395,7 +9512,9 @@ generation deterministic.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>text_model_output</code></td>
+            <td>
+                <code>text_model_output</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Pre-defined [<code>CLIPTextModel</code>] outputs that can be derived from the text encoder. Pre-defined text
@@ -9415,7 +9534,9 @@ outputs can be passed for tasks like text embedding interpolations. Make sure to
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>text_attention_mask</code></td>
+            <td>
+                <code>text_attention_mask</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Pre-defined CLIP text attention mask that can be derived from the tokenizer. Pre-defined text attention
@@ -9434,7 +9555,9 @@ masks are necessary when passing <code>text_model_output</code>.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>output_type</code></td>
+            <td>
+                <code>output_type</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The output format of the generated image. Choose between <code>PIL.Image</code> or <code>np.array</code>.</p>
@@ -9452,7 +9575,9 @@ masks are necessary when passing <code>text_model_output</code>.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>return_dict</code></td>
+            <td>
+                <code>return_dict</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Whether or not to return a [<code>~pipelines.ImagePipelineOutput</code>] instead of a plain tuple.</p>
@@ -9494,6 +9619,7 @@ returned where the first element is a list with the generated images.</p>
           </tr>
       </tbody>
     </table>
+
 
             <details class="quote">
               <summary>Source code in <code>mindone/diffusers/pipelines/unclip/pipeline_unclip.py</code></summary>
@@ -10053,7 +10179,7 @@ returned where the first element is a list with the generated images.</p>
 
     <div class="doc doc-contents first">
             <p class="doc doc-class-bases">
-              Bases: <code><a class="autorefs autorefs-internal" title="mindone.diffusers.pipelines.pipeline_utils.DiffusionPipeline" href="../overview/#mindone.diffusers.DiffusionPipeline">DiffusionPipeline</a></code></p>
+              Bases: <code><a class="autorefs autorefs-internal" title="mindone.diffusers.DiffusionPipeline (mindone.diffusers.pipelines.pipeline_utils.DiffusionPipeline)" href="../overview/#mindone.diffusers.DiffusionPipeline">DiffusionPipeline</a></code></p>
 
 
         <p>Pipeline to generate image variations from an input image using UnCLIP.</p>
@@ -10070,7 +10196,9 @@ implemented for all pipelines (downloading, saving, running on a particular devi
       </thead>
       <tbody>
           <tr class="doc-section-item">
-            <td><code>text_encoder</code></td>
+            <td>
+                <code>text_encoder</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Frozen text-encoder.</p>
@@ -10084,7 +10212,9 @@ implemented for all pipelines (downloading, saving, running on a particular devi
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>tokenizer</code></td>
+            <td>
+                <code>tokenizer</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>A <code>CLIPTokenizer</code> to tokenize text.</p>
@@ -10098,7 +10228,9 @@ implemented for all pipelines (downloading, saving, running on a particular devi
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>feature_extractor</code></td>
+            <td>
+                <code>feature_extractor</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Model that extracts features from generated images to be used as inputs for the <code>image_encoder</code>.</p>
@@ -10112,7 +10244,9 @@ implemented for all pipelines (downloading, saving, running on a particular devi
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>image_encoder</code></td>
+            <td>
+                <code>image_encoder</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Frozen CLIP image-encoder (<a href="https://huggingface.co/openai/clip-vit-large-patch14">clip-vit-large-patch14</a>).</p>
@@ -10126,7 +10260,9 @@ implemented for all pipelines (downloading, saving, running on a particular devi
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>text_proj</code></td>
+            <td>
+                <code>text_proj</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Utility class to prepare and combine the embeddings before they are passed to the decoder.</p>
@@ -10140,7 +10276,9 @@ implemented for all pipelines (downloading, saving, running on a particular devi
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>decoder</code></td>
+            <td>
+                <code>decoder</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The decoder to invert the image embedding into an image.</p>
@@ -10154,7 +10292,9 @@ implemented for all pipelines (downloading, saving, running on a particular devi
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>super_res_first</code></td>
+            <td>
+                <code>super_res_first</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Super resolution UNet. Used in all but the last step of the super resolution diffusion process.</p>
@@ -10168,7 +10308,9 @@ implemented for all pipelines (downloading, saving, running on a particular devi
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>super_res_last</code></td>
+            <td>
+                <code>super_res_last</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Super resolution UNet. Used in the last step of the super resolution diffusion process.</p>
@@ -10182,7 +10324,9 @@ implemented for all pipelines (downloading, saving, running on a particular devi
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>decoder_scheduler</code></td>
+            <td>
+                <code>decoder_scheduler</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Scheduler used in the decoder denoising process (a modified [<code>DDPMScheduler</code>]).</p>
@@ -10196,7 +10340,9 @@ implemented for all pipelines (downloading, saving, running on a particular devi
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>super_res_scheduler</code></td>
+            <td>
+                <code>super_res_scheduler</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Scheduler used in the super resolution denoising process (a modified [<code>DDPMScheduler</code>]).</p>
@@ -10211,6 +10357,12 @@ implemented for all pipelines (downloading, saving, running on a particular devi
           </tr>
       </tbody>
     </table>
+
+
+
+
+
+
 
               <details class="quote">
                 <summary>Source code in <code>mindone/diffusers/pipelines/unclip/pipeline_unclip_image_variation.py</code></summary>
@@ -10981,7 +11133,9 @@ implemented for all pipelines (downloading, saving, running on a particular devi
       </thead>
       <tbody>
           <tr class="doc-section-item">
-            <td><code>image</code></td>
+            <td>
+                <code>image</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p><code>Image</code> or tensor representing an image batch to be used as the starting point. If you provide a
@@ -11001,7 +11155,9 @@ Can be left as <code>None</code> only when <code>image_embeddings</code> are pas
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>num_images_per_prompt</code></td>
+            <td>
+                <code>num_images_per_prompt</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The number of images to generate per prompt.</p>
@@ -11019,7 +11175,9 @@ Can be left as <code>None</code> only when <code>image_embeddings</code> are pas
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>decoder_num_inference_steps</code></td>
+            <td>
+                <code>decoder_num_inference_steps</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The number of denoising steps for the decoder. More denoising steps usually lead to a higher quality
@@ -11038,7 +11196,9 @@ image at the expense of slower inference.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>super_res_num_inference_steps</code></td>
+            <td>
+                <code>super_res_num_inference_steps</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The number of denoising steps for super resolution. More denoising steps usually lead to a higher
@@ -11057,7 +11217,9 @@ quality image at the expense of slower inference.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>generator</code></td>
+            <td>
+                <code>generator</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>A <a href="https://pytorch.org/docs/stable/generated/torch.Generator.html"><code>np.random.Generator</code></a> to make
@@ -11076,7 +11238,9 @@ generation deterministic.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>decoder_latents</code></td>
+            <td>
+                <code>decoder_latents</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Pre-generated noisy latents to be used as inputs for the decoder.</p>
@@ -11094,7 +11258,9 @@ generation deterministic.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>super_res_latents</code></td>
+            <td>
+                <code>super_res_latents</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Pre-generated noisy latents to be used as inputs for the decoder.</p>
@@ -11112,7 +11278,9 @@ generation deterministic.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>decoder_guidance_scale</code></td>
+            <td>
+                <code>decoder_guidance_scale</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>A higher guidance scale value encourages the model to generate images closely linked to the text
@@ -11131,7 +11299,9 @@ generation deterministic.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>image_embeddings</code></td>
+            <td>
+                <code>image_embeddings</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Pre-defined image embeddings that can be derived from the image encoder. Pre-defined image embeddings
@@ -11150,7 +11320,9 @@ can be passed for tasks like image interpolations. <code>image</code> can be lef
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>output_type</code></td>
+            <td>
+                <code>output_type</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The output format of the generated image. Choose between <code>PIL.Image</code> or <code>np.array</code>.</p>
@@ -11168,7 +11340,9 @@ can be passed for tasks like image interpolations. <code>image</code> can be lef
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>return_dict</code></td>
+            <td>
+                <code>return_dict</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Whether or not to return a [<code>~pipelines.ImagePipelineOutput</code>] instead of a plain tuple.</p>
@@ -11210,6 +11384,7 @@ returned where the first element is a list with the generated images.</p>
           </tr>
       </tbody>
     </table>
+
 
             <details class="quote">
               <summary>Source code in <code>mindone/diffusers/pipelines/unclip/pipeline_unclip_image_variation.py</code></summary>
@@ -11653,6 +11828,12 @@ returned where the first element is a list with the generated images.</p>
 
 
         <p>Output class for image pipelines.</p>
+
+
+
+
+
+
 
               <details class="quote">
                 <summary>Source code in <code>mindone/diffusers/pipelines/pipeline_utils.py</code></summary>

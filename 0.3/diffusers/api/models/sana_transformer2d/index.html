@@ -1477,6 +1477,29 @@
   
   
     <li class="md-nav__item">
+      <a href="../../../using-diffusers/consisid/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    ConsisID
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../../../using-diffusers/sdxl/" class="md-nav__link">
         
   
@@ -3213,6 +3236,29 @@
   
   
     <li class="md-nav__item">
+      <a href="../consisid_transformer3d/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    ConsisIDTransformer3DModel
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../cogview3plus_transformer2d/" class="md-nav__link">
         
   
@@ -4723,6 +4769,29 @@
   
   
     <li class="md-nav__item">
+      <a href="../../pipelines/consisid/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    ConsisID
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../../pipelines/consistency_models/" class="md-nav__link">
         
   
@@ -5886,10 +5955,10 @@
       
         
         
-        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2_11_4_64" >
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2_11_4_65" >
         
           
-          <label class="md-nav__link" for="__nav_2_11_4_64" id="__nav_2_11_4_64_label" tabindex="0">
+          <label class="md-nav__link" for="__nav_2_11_4_65" id="__nav_2_11_4_65_label" tabindex="0">
             
   
   
@@ -5902,8 +5971,8 @@
             <span class="md-nav__icon md-icon"></span>
           </label>
         
-        <nav class="md-nav" data-md-level="4" aria-labelledby="__nav_2_11_4_64_label" aria-expanded="false">
-          <label class="md-nav__title" for="__nav_2_11_4_64">
+        <nav class="md-nav" data-md-level="4" aria-labelledby="__nav_2_11_4_65_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_2_11_4_65">
             <span class="md-nav__icon md-icon"></span>
             Stable Diffusion
           </label>
@@ -8086,7 +8155,7 @@ specific language governing permissions and limitations under the License. -->
 
     <div class="doc doc-contents first">
             <p class="doc doc-class-bases">
-              Bases: <code><a class="autorefs autorefs-internal" title="mindone.diffusers.models.modeling_utils.ModelMixin" href="../overview/#mindone.diffusers.ModelMixin">ModelMixin</a></code>, <code><a class="autorefs autorefs-internal" title="mindone.diffusers.configuration_utils.ConfigMixin" href="../../configuration/#mindone.diffusers.configuration_utils.ConfigMixin">ConfigMixin</a></code>, <code><a class="autorefs autorefs-internal" title="mindone.diffusers.loaders.PeftAdapterMixin" href="../../loaders/peft/#mindone.diffusers.loaders.peft.PeftAdapterMixin">PeftAdapterMixin</a></code>, <code><span title="mindone.diffusers.loaders.FromOriginalModelMixin">FromOriginalModelMixin</span></code></p>
+              Bases: <code><a class="autorefs autorefs-internal" title="mindone.diffusers.ModelMixin (mindone.diffusers.models.modeling_utils.ModelMixin)" href="../overview/#mindone.diffusers.ModelMixin">ModelMixin</a></code>, <code><a class="autorefs autorefs-internal" title="mindone.diffusers.configuration_utils.ConfigMixin" href="../../configuration/#mindone.diffusers.configuration_utils.ConfigMixin">ConfigMixin</a></code>, <code><a class="autorefs autorefs-internal" title="mindone.diffusers.loaders.peft.PeftAdapterMixin (mindone.diffusers.loaders.PeftAdapterMixin)" href="../../loaders/peft/#mindone.diffusers.loaders.peft.PeftAdapterMixin">PeftAdapterMixin</a></code>, <code><span title="mindone.diffusers.loaders.FromOriginalModelMixin">FromOriginalModelMixin</span></code></p>
 
 
         <p>A 2D Transformer model introduced in <a href="https://huggingface.co/papers/2410.10629">Sana</a> family of models.</p>
@@ -8101,7 +8170,9 @@ specific language governing permissions and limitations under the License. -->
       </thead>
       <tbody>
           <tr class="doc-section-item">
-            <td><code>in_channels</code></td>
+            <td>
+                <code>in_channels</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The number of channels in the input.</p>
@@ -8119,7 +8190,9 @@ specific language governing permissions and limitations under the License. -->
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>out_channels</code></td>
+            <td>
+                <code>out_channels</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The number of channels in the output.</p>
@@ -8137,7 +8210,9 @@ specific language governing permissions and limitations under the License. -->
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>num_attention_heads</code></td>
+            <td>
+                <code>num_attention_heads</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The number of heads to use for multi-head attention.</p>
@@ -8155,7 +8230,9 @@ specific language governing permissions and limitations under the License. -->
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>attention_head_dim</code></td>
+            <td>
+                <code>attention_head_dim</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The number of channels in each head.</p>
@@ -8173,7 +8250,9 @@ specific language governing permissions and limitations under the License. -->
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>num_layers</code></td>
+            <td>
+                <code>num_layers</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The number of layers of Transformer blocks to use.</p>
@@ -8191,7 +8270,9 @@ specific language governing permissions and limitations under the License. -->
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>num_cross_attention_heads</code></td>
+            <td>
+                <code>num_cross_attention_heads</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The number of heads to use for cross-attention.</p>
@@ -8209,7 +8290,9 @@ specific language governing permissions and limitations under the License. -->
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>cross_attention_head_dim</code></td>
+            <td>
+                <code>cross_attention_head_dim</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The number of channels in each head for cross-attention.</p>
@@ -8227,7 +8310,9 @@ specific language governing permissions and limitations under the License. -->
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>cross_attention_dim</code></td>
+            <td>
+                <code>cross_attention_dim</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The number of channels in the cross-attention output.</p>
@@ -8245,7 +8330,9 @@ specific language governing permissions and limitations under the License. -->
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>caption_channels</code></td>
+            <td>
+                <code>caption_channels</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The number of channels in the caption embeddings.</p>
@@ -8263,7 +8350,9 @@ specific language governing permissions and limitations under the License. -->
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>mlp_ratio</code></td>
+            <td>
+                <code>mlp_ratio</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The expansion ratio to use in the GLUMBConv layer.</p>
@@ -8281,7 +8370,9 @@ specific language governing permissions and limitations under the License. -->
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>dropout</code></td>
+            <td>
+                <code>dropout</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The dropout probability.</p>
@@ -8299,7 +8390,9 @@ specific language governing permissions and limitations under the License. -->
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>attention_bias</code></td>
+            <td>
+                <code>attention_bias</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Whether to use bias in the attention layer.</p>
@@ -8317,7 +8410,9 @@ specific language governing permissions and limitations under the License. -->
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>sample_size</code></td>
+            <td>
+                <code>sample_size</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The base size of the input latent.</p>
@@ -8335,7 +8430,9 @@ specific language governing permissions and limitations under the License. -->
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>patch_size</code></td>
+            <td>
+                <code>patch_size</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The size of the patches to use in the patch embedding layer.</p>
@@ -8353,7 +8450,9 @@ specific language governing permissions and limitations under the License. -->
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>norm_elementwise_affine</code></td>
+            <td>
+                <code>norm_elementwise_affine</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Whether to use elementwise affinity in the normalization layer.</p>
@@ -8371,7 +8470,9 @@ specific language governing permissions and limitations under the License. -->
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>norm_eps</code></td>
+            <td>
+                <code>norm_eps</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The epsilon value for the normalization layer.</p>
@@ -8389,7 +8490,9 @@ specific language governing permissions and limitations under the License. -->
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>qk_norm</code></td>
+            <td>
+                <code>qk_norm</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The normalization to use for the query and key.</p>
@@ -8407,7 +8510,9 @@ specific language governing permissions and limitations under the License. -->
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>timestep_scale</code></td>
+            <td>
+                <code>timestep_scale</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The scale to use for the timesteps.</p>
@@ -8426,6 +8531,12 @@ specific language governing permissions and limitations under the License. -->
           </tr>
       </tbody>
     </table>
+
+
+
+
+
+
 
               <details class="quote">
                 <summary>Source code in <code>mindone/diffusers/models/transformers/sana_transformer.py</code></summary>
@@ -9002,7 +9113,7 @@ specific language governing permissions and limitations under the License. -->
 
 
 <h3 id="mindone.diffusers.SanaTransformer2DModel.attn_processors" class="doc doc-heading">
-            <code class="highlight language-python"><span class="n">mindone</span><span class="o">.</span><span class="n">diffusers</span><span class="o">.</span><span class="n">SanaTransformer2DModel</span><span class="o">.</span><span class="n">attn_processors</span><span class="p">:</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">AttentionProcessor</span><span class="p">]</span></code>
+            <code class="highlight language-python"><span class="n">mindone</span><span class="o">.</span><span class="n">diffusers</span><span class="o">.</span><span class="n">SanaTransformer2DModel</span><span class="o">.</span><span class="n">attn_processors</span></code>
 
   <span class="doc doc-labels">
       <small class="doc doc-label doc-label-property"><code>property</code></small>
@@ -9026,7 +9137,7 @@ specific language governing permissions and limitations under the License. -->
           <tr class="doc-section-item">
             <td>
                 <span class="doc-returns-annotation">
-                    <code><span title="typing.Dict">Dict</span>[str, <span title="mindone.diffusers.models.attention_processor.AttentionProcessor">AttentionProcessor</span>]</code>
+                    <code><span title="typing.Dict">Dict</span>[<span title="str">str</span>, <span title="mindone.diffusers.models.attention_processor.AttentionProcessor">AttentionProcessor</span>]</code>
                 </span>
             </td>
             <td class="doc-returns-details">
@@ -9038,7 +9149,7 @@ specific language governing permissions and limitations under the License. -->
           <tr class="doc-section-item">
             <td>
                 <span class="doc-returns-annotation">
-                    <code><span title="typing.Dict">Dict</span>[str, <span title="mindone.diffusers.models.attention_processor.AttentionProcessor">AttentionProcessor</span>]</code>
+                    <code><span title="typing.Dict">Dict</span>[<span title="str">str</span>, <span title="mindone.diffusers.models.attention_processor.AttentionProcessor">AttentionProcessor</span>]</code>
                 </span>
             </td>
             <td class="doc-returns-details">
@@ -9049,6 +9160,7 @@ specific language governing permissions and limitations under the License. -->
           </tr>
       </tbody>
     </table>
+
     </div>
 
 </div>
@@ -9078,7 +9190,9 @@ specific language governing permissions and limitations under the License. -->
       </thead>
       <tbody>
           <tr class="doc-section-item">
-            <td><code>processor</code></td>
+            <td>
+                <code>processor</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The instantiated processor class or a dictionary of processor classes that will be set as the processor
@@ -9096,6 +9210,7 @@ processor. This is strongly recommended when setting trainable attention process
           </tr>
       </tbody>
     </table>
+
 
             <details class="quote">
               <summary>Source code in <code>mindone/diffusers/models/transformers/sana_transformer.py</code></summary>
@@ -9210,7 +9325,9 @@ processor. This is strongly recommended when setting trainable attention process
       </thead>
       <tbody>
           <tr class="doc-section-item">
-            <td><code>`(batch</code></td>
+            <td>
+                <code>`(batch</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The hidden states output conditioned on the <code>encoder_hidden_states</code> input. If discrete, returns probability
@@ -9226,6 +9343,12 @@ distributions for the unnoised latent pixels.</p>
           </tr>
       </tbody>
     </table>
+
+
+
+
+
+
 
               <details class="quote">
                 <summary>Source code in <code>mindone/diffusers/models/modeling_outputs.py</code></summary>

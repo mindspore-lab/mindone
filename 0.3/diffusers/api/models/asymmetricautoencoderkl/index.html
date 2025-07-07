@@ -1477,6 +1477,29 @@
   
   
     <li class="md-nav__item">
+      <a href="../../../using-diffusers/consisid/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    ConsisID
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../../../using-diffusers/sdxl/" class="md-nav__link">
         
   
@@ -3211,6 +3234,29 @@
   
   
     <li class="md-nav__item">
+      <a href="../consisid_transformer3d/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    ConsisIDTransformer3DModel
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../cogview3plus_transformer2d/" class="md-nav__link">
         
   
@@ -4732,6 +4778,29 @@
   
   
     <li class="md-nav__item">
+      <a href="../../pipelines/consisid/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    ConsisID
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../../pipelines/consistency_models/" class="md-nav__link">
         
   
@@ -5895,10 +5964,10 @@
       
         
         
-        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2_11_4_64" >
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2_11_4_65" >
         
           
-          <label class="md-nav__link" for="__nav_2_11_4_64" id="__nav_2_11_4_64_label" tabindex="0">
+          <label class="md-nav__link" for="__nav_2_11_4_65" id="__nav_2_11_4_65_label" tabindex="0">
             
   
   
@@ -5911,8 +5980,8 @@
             <span class="md-nav__icon md-icon"></span>
           </label>
         
-        <nav class="md-nav" data-md-level="4" aria-labelledby="__nav_2_11_4_64_label" aria-expanded="false">
-          <label class="md-nav__title" for="__nav_2_11_4_64">
+        <nav class="md-nav" data-md-level="4" aria-labelledby="__nav_2_11_4_65_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_2_11_4_65">
             <span class="md-nav__icon md-icon"></span>
             Stable Diffusion
           </label>
@@ -8119,7 +8188,7 @@ specific language governing permissions and limitations under the License.
 
     <div class="doc doc-contents first">
             <p class="doc doc-class-bases">
-              Bases: <code><a class="autorefs autorefs-internal" title="mindone.diffusers.models.modeling_utils.ModelMixin" href="../overview/#mindone.diffusers.ModelMixin">ModelMixin</a></code>, <code><a class="autorefs autorefs-internal" title="mindone.diffusers.configuration_utils.ConfigMixin" href="../../configuration/#mindone.diffusers.configuration_utils.ConfigMixin">ConfigMixin</a></code></p>
+              Bases: <code><a class="autorefs autorefs-internal" title="mindone.diffusers.ModelMixin (mindone.diffusers.models.modeling_utils.ModelMixin)" href="../overview/#mindone.diffusers.ModelMixin">ModelMixin</a></code>, <code><a class="autorefs autorefs-internal" title="mindone.diffusers.configuration_utils.ConfigMixin" href="../../configuration/#mindone.diffusers.configuration_utils.ConfigMixin">ConfigMixin</a></code></p>
 
 
         <p>Designing a Better Asymmetric VQGAN for StableDiffusion https://arxiv.org/abs/2306.04632 . A VAE model with KL loss
@@ -8137,7 +8206,9 @@ for all models (such as downloading or saving).</p>
       </thead>
       <tbody>
           <tr class="doc-section-item">
-            <td><code>in_channels</code></td>
+            <td>
+                <code>in_channels</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Number of channels in the input image.</p>
@@ -8155,7 +8226,9 @@ for all models (such as downloading or saving).</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>out_channels</code></td>
+            <td>
+                <code>out_channels</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Number of channels in the output.</p>
@@ -8173,7 +8246,9 @@ for all models (such as downloading or saving).</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>down_block_types</code></td>
+            <td>
+                <code>down_block_types</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Tuple of downsample block types.</p>
@@ -8185,13 +8260,15 @@ for all models (such as downloading or saving).</p>
                   </span>
                   <span class="doc-param-default">
                     <b>DEFAULT:</b>
-                      <code>(&#39;DownEncoderBlock2D&#39;)</code>
+                      <code>(&#39;DownEncoderBlock2D&#39;,)</code>
                   </span>
               </p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>down_block_out_channels</code></td>
+            <td>
+                <code>down_block_out_channels</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Tuple of down block output channels.</p>
@@ -8203,13 +8280,15 @@ for all models (such as downloading or saving).</p>
                   </span>
                   <span class="doc-param-default">
                     <b>DEFAULT:</b>
-                      <code>(64)</code>
+                      <code>(64,)</code>
                   </span>
               </p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>layers_per_down_block</code></td>
+            <td>
+                <code>layers_per_down_block</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Number layers for down block.</p>
@@ -8227,7 +8306,9 @@ for all models (such as downloading or saving).</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>up_block_types</code></td>
+            <td>
+                <code>up_block_types</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Tuple of upsample block types.</p>
@@ -8239,13 +8320,15 @@ for all models (such as downloading or saving).</p>
                   </span>
                   <span class="doc-param-default">
                     <b>DEFAULT:</b>
-                      <code>(&#39;UpDecoderBlock2D&#39;)</code>
+                      <code>(&#39;UpDecoderBlock2D&#39;,)</code>
                   </span>
               </p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>up_block_out_channels</code></td>
+            <td>
+                <code>up_block_out_channels</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Tuple of up block output channels.</p>
@@ -8257,13 +8340,15 @@ for all models (such as downloading or saving).</p>
                   </span>
                   <span class="doc-param-default">
                     <b>DEFAULT:</b>
-                      <code>(64)</code>
+                      <code>(64,)</code>
                   </span>
               </p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>layers_per_up_block</code></td>
+            <td>
+                <code>layers_per_up_block</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Number layers for up block.</p>
@@ -8281,7 +8366,9 @@ for all models (such as downloading or saving).</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>act_fn</code></td>
+            <td>
+                <code>act_fn</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The activation function to use.</p>
@@ -8299,7 +8386,9 @@ for all models (such as downloading or saving).</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>latent_channels</code></td>
+            <td>
+                <code>latent_channels</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Number of channels in the latent space.</p>
@@ -8317,7 +8406,9 @@ for all models (such as downloading or saving).</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>sample_size</code></td>
+            <td>
+                <code>sample_size</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Sample input size.</p>
@@ -8335,7 +8426,9 @@ for all models (such as downloading or saving).</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>norm_num_groups</code></td>
+            <td>
+                <code>norm_num_groups</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Number of groups to use for the first normalization layer in ResNet blocks.</p>
@@ -8353,7 +8446,9 @@ for all models (such as downloading or saving).</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>scaling_factor</code></td>
+            <td>
+                <code>scaling_factor</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The component-wise standard deviation of the trained latent space computed using the first batch of the
@@ -8377,6 +8472,12 @@ Synthesis with Latent Diffusion Models</a> paper.</p>
           </tr>
       </tbody>
     </table>
+
+
+
+
+
+
 
               <details class="quote">
                 <summary>Source code in <code>mindone/diffusers/models/autoencoders/autoencoder_asym_kl.py</code></summary>
@@ -8736,7 +8837,9 @@ Synthesis with Latent Diffusion Models</a> paper.</p>
       </thead>
       <tbody>
           <tr class="doc-section-item">
-            <td><code>sample</code></td>
+            <td>
+                <code>sample</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Input sample.</p>
@@ -8750,7 +8853,9 @@ Synthesis with Latent Diffusion Models</a> paper.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>mask</code></td>
+            <td>
+                <code>mask</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Optional inpainting mask.</p>
@@ -8768,7 +8873,9 @@ Synthesis with Latent Diffusion Models</a> paper.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>sample_posterior</code></td>
+            <td>
+                <code>sample_posterior</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Whether to sample from the posterior.</p>
@@ -8786,7 +8893,9 @@ Synthesis with Latent Diffusion Models</a> paper.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>return_dict</code></td>
+            <td>
+                <code>return_dict</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Whether or not to return a [<code>DecoderOutput</code>] instead of a plain tuple.</p>
@@ -8805,6 +8914,7 @@ Synthesis with Latent Diffusion Models</a> paper.</p>
           </tr>
       </tbody>
     </table>
+
 
             <details class="quote">
               <summary>Source code in <code>mindone/diffusers/models/autoencoders/autoencoder_asym_kl.py</code></summary>
@@ -8913,7 +9023,9 @@ Synthesis with Latent Diffusion Models</a> paper.</p>
       </thead>
       <tbody>
           <tr class="doc-section-item">
-            <td><code>latent</code></td>
+            <td>
+                <code>latent</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Encoded outputs of <code>Encoder</code> represented as the mean and logvar of <code>DiagonalGaussianDistribution</code>.
@@ -8929,6 +9041,12 @@ Synthesis with Latent Diffusion Models</a> paper.</p>
           </tr>
       </tbody>
     </table>
+
+
+
+
+
+
 
               <details class="quote">
                 <summary>Source code in <code>mindone/diffusers/models/modeling_outputs.py</code></summary>
@@ -9010,7 +9128,9 @@ Synthesis with Latent Diffusion Models</a> paper.</p>
       </thead>
       <tbody>
           <tr class="doc-section-item">
-            <td><code>sample</code></td>
+            <td>
+                <code>sample</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The decoded output sample from the last layer of the model.</p>
@@ -9025,6 +9145,12 @@ Synthesis with Latent Diffusion Models</a> paper.</p>
           </tr>
       </tbody>
     </table>
+
+
+
+
+
+
 
               <details class="quote">
                 <summary>Source code in <code>mindone/diffusers/models/autoencoders/vae.py</code></summary>

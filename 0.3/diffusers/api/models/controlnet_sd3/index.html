@@ -1477,6 +1477,29 @@
   
   
     <li class="md-nav__item">
+      <a href="../../../using-diffusers/consisid/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    ConsisID
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../../../using-diffusers/sdxl/" class="md-nav__link">
         
   
@@ -3324,6 +3347,29 @@
   
   
     <li class="md-nav__item">
+      <a href="../consisid_transformer3d/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    ConsisIDTransformer3DModel
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../cogview3plus_transformer2d/" class="md-nav__link">
         
   
@@ -4750,6 +4796,29 @@
   
   
     <li class="md-nav__item">
+      <a href="../../pipelines/consisid/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    ConsisID
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../../pipelines/consistency_models/" class="md-nav__link">
         
   
@@ -5913,10 +5982,10 @@
       
         
         
-        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2_11_4_64" >
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2_11_4_65" >
         
           
-          <label class="md-nav__link" for="__nav_2_11_4_64" id="__nav_2_11_4_64_label" tabindex="0">
+          <label class="md-nav__link" for="__nav_2_11_4_65" id="__nav_2_11_4_65_label" tabindex="0">
             
   
   
@@ -5929,8 +5998,8 @@
             <span class="md-nav__icon md-icon"></span>
           </label>
         
-        <nav class="md-nav" data-md-level="4" aria-labelledby="__nav_2_11_4_64_label" aria-expanded="false">
-          <label class="md-nav__title" for="__nav_2_11_4_64">
+        <nav class="md-nav" data-md-level="4" aria-labelledby="__nav_2_11_4_65_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_2_11_4_65">
             <span class="md-nav__icon md-icon"></span>
             Stable Diffusion
           </label>
@@ -8146,7 +8215,7 @@ specific language governing permissions and limitations under the License.
 
     <div class="doc doc-contents first">
             <p class="doc doc-class-bases">
-              Bases: <code><a class="autorefs autorefs-internal" title="mindone.diffusers.models.modeling_utils.ModelMixin" href="../overview/#mindone.diffusers.ModelMixin">ModelMixin</a></code>, <code><a class="autorefs autorefs-internal" title="mindone.diffusers.configuration_utils.ConfigMixin" href="../../configuration/#mindone.diffusers.configuration_utils.ConfigMixin">ConfigMixin</a></code>, <code><a class="autorefs autorefs-internal" title="mindone.diffusers.loaders.PeftAdapterMixin" href="../../loaders/peft/#mindone.diffusers.loaders.peft.PeftAdapterMixin">PeftAdapterMixin</a></code>, <code><span title="mindone.diffusers.loaders.FromOriginalModelMixin">FromOriginalModelMixin</span></code></p>
+              Bases: <code><a class="autorefs autorefs-internal" title="mindone.diffusers.ModelMixin (mindone.diffusers.models.modeling_utils.ModelMixin)" href="../overview/#mindone.diffusers.ModelMixin">ModelMixin</a></code>, <code><a class="autorefs autorefs-internal" title="mindone.diffusers.configuration_utils.ConfigMixin" href="../../configuration/#mindone.diffusers.configuration_utils.ConfigMixin">ConfigMixin</a></code>, <code><a class="autorefs autorefs-internal" title="mindone.diffusers.loaders.peft.PeftAdapterMixin (mindone.diffusers.loaders.PeftAdapterMixin)" href="../../loaders/peft/#mindone.diffusers.loaders.peft.PeftAdapterMixin">PeftAdapterMixin</a></code>, <code><span title="mindone.diffusers.loaders.FromOriginalModelMixin">FromOriginalModelMixin</span></code></p>
 
 
         <p>ControlNet model for <a href="https://huggingface.co/papers/2403.03206">Stable Diffusion 3</a>.</p>
@@ -8161,7 +8230,9 @@ specific language governing permissions and limitations under the License.
       </thead>
       <tbody>
           <tr class="doc-section-item">
-            <td><code>sample_size</code></td>
+            <td>
+                <code>sample_size</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The width/height of the latents. This is fixed during training since it is used to learn a number of
@@ -8180,7 +8251,9 @@ position embeddings.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>patch_size</code></td>
+            <td>
+                <code>patch_size</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Patch size to turn the input data into small patches.</p>
@@ -8198,7 +8271,9 @@ position embeddings.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>in_channels</code></td>
+            <td>
+                <code>in_channels</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The number of latent channels in the input.</p>
@@ -8216,7 +8291,9 @@ position embeddings.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>num_layers</code></td>
+            <td>
+                <code>num_layers</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The number of layers of transformer blocks to use.</p>
@@ -8234,7 +8311,9 @@ position embeddings.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>attention_head_dim</code></td>
+            <td>
+                <code>attention_head_dim</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The number of channels in each head.</p>
@@ -8252,7 +8331,9 @@ position embeddings.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>num_attention_heads</code></td>
+            <td>
+                <code>num_attention_heads</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The number of heads to use for multi-head attention.</p>
@@ -8270,7 +8351,9 @@ position embeddings.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>joint_attention_dim</code></td>
+            <td>
+                <code>joint_attention_dim</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The embedding dimension to use for joint text-image attention.</p>
@@ -8288,7 +8371,9 @@ position embeddings.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>caption_projection_dim</code></td>
+            <td>
+                <code>caption_projection_dim</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The embedding dimension of caption embeddings.</p>
@@ -8306,7 +8391,9 @@ position embeddings.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>pooled_projection_dim</code></td>
+            <td>
+                <code>pooled_projection_dim</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The embedding dimension of pooled text projections.</p>
@@ -8324,7 +8411,9 @@ position embeddings.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>out_channels</code></td>
+            <td>
+                <code>out_channels</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The number of latent channels in the output.</p>
@@ -8342,7 +8431,9 @@ position embeddings.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>pos_embed_max_size</code></td>
+            <td>
+                <code>pos_embed_max_size</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The maximum latent height/width of positional embeddings.</p>
@@ -8360,7 +8451,9 @@ position embeddings.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>extra_conditioning_channels</code></td>
+            <td>
+                <code>extra_conditioning_channels</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The number of extra channels to use for conditioning for patch embedding.</p>
@@ -8378,7 +8471,9 @@ position embeddings.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>dual_attention_layers</code></td>
+            <td>
+                <code>dual_attention_layers</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The number of dual-stream transformer blocks to use.</p>
@@ -8396,7 +8491,9 @@ position embeddings.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>qk_norm</code></td>
+            <td>
+                <code>qk_norm</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The normalization to use for query and key in the attention layer. If <code>None</code>, no normalization is used.</p>
@@ -8414,7 +8511,9 @@ position embeddings.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>pos_embed_type</code></td>
+            <td>
+                <code>pos_embed_type</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The type of positional embedding to use. Choose between <code>"sincos"</code> and <code>None</code>.</p>
@@ -8432,7 +8531,9 @@ position embeddings.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>use_pos_embed</code></td>
+            <td>
+                <code>use_pos_embed</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Whether to use positional embeddings.</p>
@@ -8450,7 +8551,9 @@ position embeddings.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>force_zeros_for_pooled_projection</code></td>
+            <td>
+                <code>force_zeros_for_pooled_projection</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Whether to force zeros for pooled projection embeddings. This is handled in the pipelines by reading the
@@ -8470,6 +8573,12 @@ config value of the ControlNet model.</p>
           </tr>
       </tbody>
     </table>
+
+
+
+
+
+
 
               <details class="quote">
                 <summary>Source code in <code>mindone/diffusers/models/controlnets/controlnet_sd3.py</code></summary>
@@ -9212,7 +9321,7 @@ config value of the ControlNet model.</p>
 
 
 <h3 id="mindone.diffusers.SD3ControlNetModel.attn_processors" class="doc doc-heading">
-            <code class="highlight language-python"><span class="n">mindone</span><span class="o">.</span><span class="n">diffusers</span><span class="o">.</span><span class="n">SD3ControlNetModel</span><span class="o">.</span><span class="n">attn_processors</span><span class="p">:</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">AttentionProcessor</span><span class="p">]</span></code>
+            <code class="highlight language-python"><span class="n">mindone</span><span class="o">.</span><span class="n">diffusers</span><span class="o">.</span><span class="n">SD3ControlNetModel</span><span class="o">.</span><span class="n">attn_processors</span></code>
 
   <span class="doc doc-labels">
       <small class="doc doc-label doc-label-property"><code>property</code></small>
@@ -9236,7 +9345,7 @@ config value of the ControlNet model.</p>
           <tr class="doc-section-item">
             <td>
                 <span class="doc-returns-annotation">
-                    <code><span title="typing.Dict">Dict</span>[str, <span title="mindone.diffusers.models.attention_processor.AttentionProcessor">AttentionProcessor</span>]</code>
+                    <code><span title="typing.Dict">Dict</span>[<span title="str">str</span>, <span title="mindone.diffusers.models.attention_processor.AttentionProcessor">AttentionProcessor</span>]</code>
                 </span>
             </td>
             <td class="doc-returns-details">
@@ -9248,7 +9357,7 @@ config value of the ControlNet model.</p>
           <tr class="doc-section-item">
             <td>
                 <span class="doc-returns-annotation">
-                    <code><span title="typing.Dict">Dict</span>[str, <span title="mindone.diffusers.models.attention_processor.AttentionProcessor">AttentionProcessor</span>]</code>
+                    <code><span title="typing.Dict">Dict</span>[<span title="str">str</span>, <span title="mindone.diffusers.models.attention_processor.AttentionProcessor">AttentionProcessor</span>]</code>
                 </span>
             </td>
             <td class="doc-returns-details">
@@ -9259,6 +9368,7 @@ config value of the ControlNet model.</p>
           </tr>
       </tbody>
     </table>
+
     </div>
 
 </div>
@@ -9288,7 +9398,9 @@ config value of the ControlNet model.</p>
       </thead>
       <tbody>
           <tr class="doc-section-item">
-            <td><code>hidden_states</code></td>
+            <td>
+                <code>hidden_states</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Input <code>hidden_states</code>.</p>
@@ -9302,7 +9414,9 @@ config value of the ControlNet model.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>controlnet_cond</code></td>
+            <td>
+                <code>controlnet_cond</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The conditional input tensor of shape <code>(batch_size, sequence_length, hidden_size)</code>.</p>
@@ -9316,7 +9430,9 @@ config value of the ControlNet model.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>conditioning_scale</code></td>
+            <td>
+                <code>conditioning_scale</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The scale factor for ControlNet outputs.</p>
@@ -9334,7 +9450,9 @@ config value of the ControlNet model.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>encoder_hidden_states</code></td>
+            <td>
+                <code>encoder_hidden_states</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Conditional embeddings (embeddings computed from the input conditions such as prompts) to use.</p>
@@ -9352,7 +9470,9 @@ config value of the ControlNet model.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>pooled_projections</code></td>
+            <td>
+                <code>pooled_projections</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Embeddings projected
@@ -9371,7 +9491,9 @@ from the embeddings of input conditions.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>timestep</code></td>
+            <td>
+                <code>timestep</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Used to indicate denoising step.</p>
@@ -9389,7 +9511,9 @@ from the embeddings of input conditions.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>joint_attention_kwargs</code></td>
+            <td>
+                <code>joint_attention_kwargs</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>A kwargs dictionary that if specified is passed along to the <code>AttentionProcessor</code> as defined under
@@ -9409,7 +9533,9 @@ from the embeddings of input conditions.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>return_dict</code></td>
+            <td>
+                <code>return_dict</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Whether or not to return a [<code>~models.transformer_2d.Transformer2DModelOutput</code>] instead of a plain
@@ -9442,7 +9568,12 @@ tuple.</p>
           <tr class="doc-section-item">
             <td>
                 <span class="doc-returns-annotation">
-                    <code><span title="typing.Union">Union</span>[<span title="mindspore.Tensor">Tensor</span>, <a class="autorefs autorefs-internal" title="mindone.diffusers.models.modeling_outputs.Transformer2DModelOutput" href="../allegro_transformer3d/#mindone.diffusers.models.modeling_outputs.Transformer2DModelOutput">Transformer2DModelOutput</a>]</code>
+                    <code><span title="typing.Union">Union</span>[<span title="mindspore.Tensor">Tensor</span>, <a class="autorefs autorefs-internal" title="mindone.diffusers.models.modeling_outputs.Transformer2DModelOutput
+
+
+  
+      dataclass
+  " href="../allegro_transformer3d/#mindone.diffusers.models.modeling_outputs.Transformer2DModelOutput">Transformer2DModelOutput</a>]</code>
                 </span>
             </td>
             <td class="doc-returns-details">
@@ -9454,7 +9585,12 @@ tuple.</p>
           <tr class="doc-section-item">
             <td>
                 <span class="doc-returns-annotation">
-                    <code><span title="typing.Union">Union</span>[<span title="mindspore.Tensor">Tensor</span>, <a class="autorefs autorefs-internal" title="mindone.diffusers.models.modeling_outputs.Transformer2DModelOutput" href="../allegro_transformer3d/#mindone.diffusers.models.modeling_outputs.Transformer2DModelOutput">Transformer2DModelOutput</a>]</code>
+                    <code><span title="typing.Union">Union</span>[<span title="mindspore.Tensor">Tensor</span>, <a class="autorefs autorefs-internal" title="mindone.diffusers.models.modeling_outputs.Transformer2DModelOutput
+
+
+  
+      dataclass
+  " href="../allegro_transformer3d/#mindone.diffusers.models.modeling_outputs.Transformer2DModelOutput">Transformer2DModelOutput</a>]</code>
                 </span>
             </td>
             <td class="doc-returns-details">
@@ -9465,6 +9601,7 @@ tuple.</p>
           </tr>
       </tbody>
     </table>
+
 
             <details class="quote">
               <summary>Source code in <code>mindone/diffusers/models/controlnets/controlnet_sd3.py</code></summary>
@@ -9699,7 +9836,9 @@ chunking</a>.</p>
       </thead>
       <tbody>
           <tr class="doc-section-item">
-            <td><code>chunk_size</code></td>
+            <td>
+                <code>chunk_size</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The chunk size of the feed-forward layers. If not specified, will run feed-forward layer individually
@@ -9718,7 +9857,9 @@ over each tensor of dim=<code>dim</code>.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>dim</code></td>
+            <td>
+                <code>dim</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The dimension over which the feed-forward computation should be chunked. Choose between dim=0 (batch)
@@ -9738,6 +9879,7 @@ or dim=1 (sequence length).</p>
           </tr>
       </tbody>
     </table>
+
 
             <details class="quote">
               <summary>Source code in <code>mindone/diffusers/models/controlnets/controlnet_sd3.py</code></summary>
@@ -9825,7 +9967,9 @@ or dim=1 (sequence length).</p>
       </thead>
       <tbody>
           <tr class="doc-section-item">
-            <td><code>processor</code></td>
+            <td>
+                <code>processor</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The instantiated processor class or a dictionary of processor classes that will be set as the processor
@@ -9843,6 +9987,7 @@ processor. This is strongly recommended when setting trainable attention process
           </tr>
       </tbody>
     </table>
+
 
             <details class="quote">
               <summary>Source code in <code>mindone/diffusers/models/controlnets/controlnet_sd3.py</code></summary>
@@ -9939,6 +10084,12 @@ processor. This is strongly recommended when setting trainable attention process
     <div class="doc doc-contents first">
             <p class="doc doc-class-bases">
               Bases: <code><a class="autorefs autorefs-internal" title="mindone.diffusers.models.controlnet_sd3.SD3ControlNetOutput" href="#mindone.diffusers.models.controlnet_sd3.SD3ControlNetOutput">SD3ControlNetOutput</a></code></p>
+
+
+
+
+
+
 
 
               <details class="quote">

@@ -1477,6 +1477,29 @@
   
   
     <li class="md-nav__item">
+      <a href="../../../using-diffusers/consisid/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    ConsisID
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../../../using-diffusers/sdxl/" class="md-nav__link">
         
   
@@ -3209,6 +3232,29 @@
   
   
     <li class="md-nav__item">
+      <a href="../../models/consisid_transformer3d/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    ConsisIDTransformer3DModel
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../../models/cogview3plus_transformer2d/" class="md-nav__link">
         
   
@@ -4635,6 +4681,29 @@
   
   
     <li class="md-nav__item">
+      <a href="../../pipelines/consisid/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    ConsisID
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../../pipelines/consistency_models/" class="md-nav__link">
         
   
@@ -5798,10 +5867,10 @@
       
         
         
-        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2_11_4_64" >
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2_11_4_65" >
         
           
-          <label class="md-nav__link" for="__nav_2_11_4_64" id="__nav_2_11_4_64_label" tabindex="0">
+          <label class="md-nav__link" for="__nav_2_11_4_65" id="__nav_2_11_4_65_label" tabindex="0">
             
   
   
@@ -5814,8 +5883,8 @@
             <span class="md-nav__icon md-icon"></span>
           </label>
         
-        <nav class="md-nav" data-md-level="4" aria-labelledby="__nav_2_11_4_64_label" aria-expanded="false">
-          <label class="md-nav__title" for="__nav_2_11_4_64">
+        <nav class="md-nav" data-md-level="4" aria-labelledby="__nav_2_11_4_65_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_2_11_4_65">
             <span class="md-nav__icon md-icon"></span>
             Stable Diffusion
           </label>
@@ -8168,7 +8237,7 @@ specific language governing permissions and limitations under the License.
 
     <div class="doc doc-contents first">
             <p class="doc doc-class-bases">
-              Bases: <code><a class="autorefs autorefs-internal" title="mindone.diffusers.schedulers.scheduling_utils.SchedulerMixin" href="../overview/#mindone.diffusers.SchedulerMixin">SchedulerMixin</a></code>, <code><a class="autorefs autorefs-internal" title="mindone.diffusers.configuration_utils.ConfigMixin" href="../../configuration/#mindone.diffusers.configuration_utils.ConfigMixin">ConfigMixin</a></code></p>
+              Bases: <code><a class="autorefs autorefs-internal" title="mindone.diffusers.SchedulerMixin (mindone.diffusers.schedulers.scheduling_utils.SchedulerMixin)" href="../overview/#mindone.diffusers.SchedulerMixin">SchedulerMixin</a></code>, <code><a class="autorefs autorefs-internal" title="mindone.diffusers.configuration_utils.ConfigMixin" href="../../configuration/#mindone.diffusers.configuration_utils.ConfigMixin">ConfigMixin</a></code></p>
 
 
         <p>A linear multistep scheduler for discrete beta schedules.</p>
@@ -8185,7 +8254,9 @@ methods the library implements for all schedulers such as loading and saving.</p
       </thead>
       <tbody>
           <tr class="doc-section-item">
-            <td><code>num_train_timesteps</code></td>
+            <td>
+                <code>num_train_timesteps</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The number of diffusion steps to train the model.</p>
@@ -8203,7 +8274,9 @@ methods the library implements for all schedulers such as loading and saving.</p
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>beta_start</code></td>
+            <td>
+                <code>beta_start</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The starting <code>beta</code> value of inference.</p>
@@ -8221,7 +8294,9 @@ methods the library implements for all schedulers such as loading and saving.</p
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>beta_end</code></td>
+            <td>
+                <code>beta_end</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The final <code>beta</code> value.</p>
@@ -8239,7 +8314,9 @@ methods the library implements for all schedulers such as loading and saving.</p
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>beta_schedule</code></td>
+            <td>
+                <code>beta_schedule</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The beta schedule, a mapping from a beta range to a sequence of betas for stepping the model. Choose from
@@ -8258,7 +8335,9 @@ methods the library implements for all schedulers such as loading and saving.</p
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>trained_betas</code></td>
+            <td>
+                <code>trained_betas</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Pass an array of betas directly to the constructor to bypass <code>beta_start</code> and <code>beta_end</code>.</p>
@@ -8276,7 +8355,9 @@ methods the library implements for all schedulers such as loading and saving.</p
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>use_karras_sigmas</code></td>
+            <td>
+                <code>use_karras_sigmas</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Whether to use Karras sigmas for step sizes in the noise schedule during the sampling process. If <code>True</code>,
@@ -8295,7 +8376,9 @@ the sigmas are determined according to a sequence of noise levels {σi}.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>use_exponential_sigmas</code></td>
+            <td>
+                <code>use_exponential_sigmas</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Whether to use exponential sigmas for step sizes in the noise schedule during the sampling process.</p>
@@ -8313,7 +8396,9 @@ the sigmas are determined according to a sequence of noise levels {σi}.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>use_beta_sigmas</code></td>
+            <td>
+                <code>use_beta_sigmas</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Whether to use beta sigmas for step sizes in the noise schedule during the sampling process. Refer to <a href="https://huggingface.co/papers/2407.12173">Beta
@@ -8332,7 +8417,9 @@ Sampling is All You Need</a> for more information.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>prediction_type</code></td>
+            <td>
+                <code>prediction_type</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Prediction type of the scheduler function; can be <code>epsilon</code> (predicts the noise of the diffusion process),
@@ -8352,7 +8439,9 @@ Video</a> paper).</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>timestep_spacing</code></td>
+            <td>
+                <code>timestep_spacing</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The way the timesteps should be scaled. Refer to Table 2 of the <a href="https://huggingface.co/papers/2305.08891">Common Diffusion Noise Schedules and
@@ -8371,7 +8460,9 @@ Sample Steps are Flawed</a> for more information.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>steps_offset</code></td>
+            <td>
+                <code>steps_offset</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>An offset added to the inference steps, as required by some model families.</p>
@@ -8390,6 +8481,12 @@ Sample Steps are Flawed</a> for more information.</p>
           </tr>
       </tbody>
     </table>
+
+
+
+
+
+
 
               <details class="quote">
                 <summary>Source code in <code>mindone/diffusers/schedulers/scheduling_lms_discrete.py</code></summary>
@@ -9338,6 +9435,7 @@ Sample Steps are Flawed</a> for more information.</p>
     <div class="doc doc-contents ">
 
         <p>The index for the first timestep. It should be set from pipeline with <code>set_begin_index</code> method.</p>
+
     </div>
 
 </div>
@@ -9359,6 +9457,7 @@ Sample Steps are Flawed</a> for more information.</p>
     <div class="doc doc-contents ">
 
         <p>The index counter for current timestep. It will increase 1 after each scheduler step.</p>
+
     </div>
 
 </div>
@@ -9388,7 +9487,9 @@ Sample Steps are Flawed</a> for more information.</p>
       </thead>
       <tbody>
           <tr class="doc-section-item">
-            <td><code>order</code></td>
+            <td>
+                <code>order</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 
@@ -9398,7 +9499,9 @@ Sample Steps are Flawed</a> for more information.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>t</code></td>
+            <td>
+                <code>t</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 
@@ -9408,7 +9511,9 @@ Sample Steps are Flawed</a> for more information.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>current_order</code></td>
+            <td>
+                <code>current_order</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 
@@ -9419,6 +9524,7 @@ Sample Steps are Flawed</a> for more information.</p>
           </tr>
       </tbody>
     </table>
+
 
             <details class="quote">
               <summary>Source code in <code>mindone/diffusers/schedulers/scheduling_lms_discrete.py</code></summary>
@@ -9493,7 +9599,9 @@ current timestep.</p>
       </thead>
       <tbody>
           <tr class="doc-section-item">
-            <td><code>sample</code></td>
+            <td>
+                <code>sample</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The input sample.</p>
@@ -9507,7 +9615,9 @@ current timestep.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>timestep</code></td>
+            <td>
+                <code>timestep</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The current timestep in the diffusion chain.</p>
@@ -9547,6 +9657,7 @@ A scaled input sample.</p>
           </tr>
       </tbody>
     </table>
+
 
             <details class="quote">
               <summary>Source code in <code>mindone/diffusers/schedulers/scheduling_lms_discrete.py</code></summary>
@@ -9624,7 +9735,9 @@ A scaled input sample.</p>
       </thead>
       <tbody>
           <tr class="doc-section-item">
-            <td><code>begin_index</code></td>
+            <td>
+                <code>begin_index</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The begin index for the scheduler.</p>
@@ -9643,6 +9756,7 @@ A scaled input sample.</p>
           </tr>
       </tbody>
     </table>
+
 
             <details class="quote">
               <summary>Source code in <code>mindone/diffusers/schedulers/scheduling_lms_discrete.py</code></summary>
@@ -9692,7 +9806,9 @@ A scaled input sample.</p>
       </thead>
       <tbody>
           <tr class="doc-section-item">
-            <td><code>num_inference_steps</code></td>
+            <td>
+                <code>num_inference_steps</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The number of diffusion steps used when generating samples with a pre-trained model.</p>
@@ -9707,6 +9823,7 @@ A scaled input sample.</p>
           </tr>
       </tbody>
     </table>
+
 
             <details class="quote">
               <summary>Source code in <code>mindone/diffusers/schedulers/scheduling_lms_discrete.py</code></summary>
@@ -9847,7 +9964,9 @@ process from the learned model outputs (most often the predicted noise).</p>
       </thead>
       <tbody>
           <tr class="doc-section-item">
-            <td><code>model_output</code></td>
+            <td>
+                <code>model_output</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The direct output from learned diffusion model.</p>
@@ -9861,7 +9980,9 @@ process from the learned model outputs (most often the predicted noise).</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>timestep</code></td>
+            <td>
+                <code>timestep</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The current discrete timestep in the diffusion chain.</p>
@@ -9875,7 +9996,9 @@ process from the learned model outputs (most often the predicted noise).</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>sample</code></td>
+            <td>
+                <code>sample</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>A current instance of a sample created by the diffusion process.</p>
@@ -9889,7 +10012,9 @@ process from the learned model outputs (most often the predicted noise).</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>order</code></td>
+            <td>
+                <code>order</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The order of the linear multistep method.</p>
@@ -9907,7 +10032,9 @@ process from the learned model outputs (most often the predicted noise).</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>return_dict</code></td>
+            <td>
+                <code>return_dict</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Whether or not to return a [<code>~schedulers.scheduling_utils.SchedulerOutput</code>] or tuple.</p>
@@ -9939,7 +10066,12 @@ process from the learned model outputs (most often the predicted noise).</p>
           <tr class="doc-section-item">
             <td>
                 <span class="doc-returns-annotation">
-                    <code><span title="typing.Union">Union</span>[<a class="autorefs autorefs-internal" title="mindone.diffusers.schedulers.scheduling_lms_discrete.LMSDiscreteSchedulerOutput" href="#mindone.diffusers.schedulers.scheduling_lms_discrete.LMSDiscreteSchedulerOutput">LMSDiscreteSchedulerOutput</a>, <span title="typing.Tuple">Tuple</span>]</code>
+                    <code><span title="typing.Union">Union</span>[<a class="autorefs autorefs-internal" title="mindone.diffusers.schedulers.scheduling_lms_discrete.LMSDiscreteSchedulerOutput
+
+
+  
+      dataclass
+  " href="#mindone.diffusers.schedulers.scheduling_lms_discrete.LMSDiscreteSchedulerOutput">LMSDiscreteSchedulerOutput</a>, <span title="typing.Tuple">Tuple</span>]</code>
                 </span>
             </td>
             <td class="doc-returns-details">
@@ -9952,6 +10084,7 @@ tuple is returned where the first element is the sample tensor.</p>
           </tr>
       </tbody>
     </table>
+
 
             <details class="quote">
               <summary>Source code in <code>mindone/diffusers/schedulers/scheduling_lms_discrete.py</code></summary>
@@ -10164,7 +10297,9 @@ tuple is returned where the first element is the sample tensor.</p>
       </thead>
       <tbody>
           <tr class="doc-section-item">
-            <td><code>prev_sample</code></td>
+            <td>
+                <code>prev_sample</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Computed sample <code>(x_{t-1})</code> of previous timestep. <code>prev_sample</code> should be used as next model input in the
@@ -10179,7 +10314,9 @@ denoising loop.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>pred_original_sample</code></td>
+            <td>
+                <code>pred_original_sample</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The predicted denoised sample <code>(x_{0})</code> based on the model output from the current timestep.
@@ -10199,6 +10336,12 @@ denoising loop.</p>
           </tr>
       </tbody>
     </table>
+
+
+
+
+
+
 
               <details class="quote">
                 <summary>Source code in <code>mindone/diffusers/schedulers/scheduling_lms_discrete.py</code></summary>

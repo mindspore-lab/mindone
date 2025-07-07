@@ -1477,6 +1477,29 @@
   
   
     <li class="md-nav__item">
+      <a href="../../../using-diffusers/consisid/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    ConsisID
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../../../using-diffusers/sdxl/" class="md-nav__link">
         
   
@@ -4108,6 +4131,29 @@
   
   
     <li class="md-nav__item">
+      <a href="../../models/consisid_transformer3d/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    ConsisIDTransformer3DModel
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../../models/cogview3plus_transformer2d/" class="md-nav__link">
         
   
@@ -5534,6 +5580,29 @@
   
   
     <li class="md-nav__item">
+      <a href="../../pipelines/consisid/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    ConsisID
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../../pipelines/consistency_models/" class="md-nav__link">
         
   
@@ -6697,10 +6766,10 @@
       
         
         
-        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2_11_4_64" >
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2_11_4_65" >
         
           
-          <label class="md-nav__link" for="__nav_2_11_4_64" id="__nav_2_11_4_64_label" tabindex="0">
+          <label class="md-nav__link" for="__nav_2_11_4_65" id="__nav_2_11_4_65_label" tabindex="0">
             
   
   
@@ -6713,8 +6782,8 @@
             <span class="md-nav__icon md-icon"></span>
           </label>
         
-        <nav class="md-nav" data-md-level="4" aria-labelledby="__nav_2_11_4_64_label" aria-expanded="false">
-          <label class="md-nav__title" for="__nav_2_11_4_64">
+        <nav class="md-nav" data-md-level="4" aria-labelledby="__nav_2_11_4_65_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_2_11_4_65">
             <span class="md-nav__icon md-icon"></span>
             Stable Diffusion
           </label>
@@ -9728,6 +9797,12 @@ specific language governing permissions and limitations under the License.
         <p>Load LoRA layers into Stable Diffusion [<code>UNet2DConditionModel</code>] and
 <a href="https://huggingface.co/docs/transformers/model_doc/clip#transformers.CLIPTextModel"><code>CLIPTextModel</code></a>.</p>
 
+
+
+
+
+
+
               <details class="quote">
                 <summary>Source code in <code>mindone/diffusers/loaders/lora_pipeline.py</code></summary>
                 <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal"> 55</span>
@@ -10692,7 +10767,9 @@ specific language governing permissions and limitations under the License.
       </thead>
       <tbody>
           <tr class="doc-section-item">
-            <td><code>components</code></td>
+            <td>
+                <code>components</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>(<code>List[str]</code>): List of LoRA-injectable components to fuse the LoRAs into.</p>
@@ -10700,7 +10777,7 @@ specific language governing permissions and limitations under the License.
               <p>
                   <span class="doc-param-annotation">
                     <b>TYPE:</b>
-                      <code><span title="typing.List">List</span>[str]</code>
+                      <code><span title="typing.List">List</span>[<span title="str">str</span>]</code>
                   </span>
                   <span class="doc-param-default">
                     <b>DEFAULT:</b>
@@ -10710,7 +10787,9 @@ specific language governing permissions and limitations under the License.
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>lora_scale</code></td>
+            <td>
+                <code>lora_scale</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Controls how much to influence the outputs with the LoRA parameters.</p>
@@ -10728,7 +10807,9 @@ specific language governing permissions and limitations under the License.
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>safe_fusing</code></td>
+            <td>
+                <code>safe_fusing</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Whether to check fused weights for NaN values before fusing and if values are NaN not fusing them.</p>
@@ -10746,7 +10827,9 @@ specific language governing permissions and limitations under the License.
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>adapter_names</code></td>
+            <td>
+                <code>adapter_names</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Adapter names to be used for fusing. If nothing is passed, all active adapters will be fused.</p>
@@ -10774,6 +10857,7 @@ specific language governing permissions and limitations under the License.
 <span class="n">pipeline</span><span class="o">.</span><span class="n">load_lora_weights</span><span class="p">(</span><span class="s2">&quot;nerijs/pixel-art-xl&quot;</span><span class="p">,</span> <span class="n">weight_name</span><span class="o">=</span><span class="s2">&quot;pixel-art-xl.safetensors&quot;</span><span class="p">,</span> <span class="n">adapter_name</span><span class="o">=</span><span class="s2">&quot;pixel&quot;</span><span class="p">)</span>
 <span class="n">pipeline</span><span class="o">.</span><span class="n">fuse_lora</span><span class="p">(</span><span class="n">lora_scale</span><span class="o">=</span><span class="mf">0.7</span><span class="p">)</span>
 </code></pre></div>
+
 
             <details class="quote">
               <summary>Source code in <code>mindone/diffusers/loaders/lora_pipeline.py</code></summary>
@@ -10901,7 +10985,9 @@ specific language governing permissions and limitations under the License.
       </thead>
       <tbody>
           <tr class="doc-section-item">
-            <td><code>state_dict</code></td>
+            <td>
+                <code>state_dict</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>A standard state dict containing the lora layer parameters. The key should be prefixed with an
@@ -10916,7 +11002,9 @@ additional <code>text_encoder</code> to distinguish between unet lora layers.</p
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>network_alphas</code></td>
+            <td>
+                <code>network_alphas</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The value of the network alpha used for stable learning and preventing underflow. This value has the
@@ -10932,7 +11020,9 @@ link</a>.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>text_encoder</code></td>
+            <td>
+                <code>text_encoder</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The text encoder model to load the LoRA layers into.</p>
@@ -10946,7 +11036,9 @@ link</a>.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>prefix</code></td>
+            <td>
+                <code>prefix</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Expected prefix of the <code>text_encoder</code> in the <code>state_dict</code>.</p>
@@ -10964,7 +11056,9 @@ link</a>.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>lora_scale</code></td>
+            <td>
+                <code>lora_scale</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>How much to scale the output of the lora linear layer before it is added with the output of the regular
@@ -10983,7 +11077,9 @@ lora layer.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>adapter_name</code></td>
+            <td>
+                <code>adapter_name</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Adapter name to be used for referencing the loaded adapter model. If not specified, it will use
@@ -11002,7 +11098,9 @@ lora layer.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>hotswap</code></td>
+            <td>
+                <code>hotswap</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>(<code>bool</code>, <em>optional</em>)
@@ -11035,6 +11133,7 @@ https://huggingface.co/docs/peft/main/en/package_reference/hotswap</p>
           </tr>
       </tbody>
     </table>
+
 
             <details class="quote">
               <summary>Source code in <code>mindone/diffusers/loaders/lora_pipeline.py</code></summary>
@@ -11206,7 +11305,9 @@ https://huggingface.co/docs/peft/main/en/package_reference/hotswap</p>
       </thead>
       <tbody>
           <tr class="doc-section-item">
-            <td><code>state_dict</code></td>
+            <td>
+                <code>state_dict</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>A standard state dict containing the lora layer parameters. The keys can either be indexed directly
@@ -11222,7 +11323,9 @@ encoder lora layers.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>network_alphas</code></td>
+            <td>
+                <code>network_alphas</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The value of the network alpha used for stable learning and preventing underflow. This value has the
@@ -11238,7 +11341,9 @@ link</a>.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>unet</code></td>
+            <td>
+                <code>unet</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The UNet model to load the LoRA layers into.</p>
@@ -11252,7 +11357,9 @@ link</a>.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>adapter_name</code></td>
+            <td>
+                <code>adapter_name</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Adapter name to be used for referencing the loaded adapter model. If not specified, it will use
@@ -11271,7 +11378,9 @@ link</a>.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>hotswap</code></td>
+            <td>
+                <code>hotswap</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>(<code>bool</code>, <em>optional</em>)
@@ -11304,6 +11413,7 @@ https://huggingface.co/docs/peft/main/en/package_reference/hotswap</p>
           </tr>
       </tbody>
     </table>
+
 
             <details class="quote">
               <summary>Source code in <code>mindone/diffusers/loaders/lora_pipeline.py</code></summary>
@@ -11469,7 +11579,9 @@ dict is loaded into <code>self.text_encoder</code>.</p>
       </thead>
       <tbody>
           <tr class="doc-section-item">
-            <td><code>pretrained_model_name_or_path_or_dict</code></td>
+            <td>
+                <code>pretrained_model_name_or_path_or_dict</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>See [<code>~loaders.StableDiffusionLoraLoaderMixin.lora_state_dict</code>].</p>
@@ -11483,7 +11595,9 @@ dict is loaded into <code>self.text_encoder</code>.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>adapter_name</code></td>
+            <td>
+                <code>adapter_name</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Adapter name to be used for referencing the loaded adapter model. If not specified, it will use
@@ -11502,7 +11616,9 @@ dict is loaded into <code>self.text_encoder</code>.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>hotswap</code></td>
+            <td>
+                <code>hotswap</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>(<code>bool</code>, <em>optional</em>)
@@ -11534,7 +11650,9 @@ https://huggingface.co/docs/peft/main/en/package_reference/hotswap</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>kwargs</code></td>
+            <td>
+                <code>kwargs</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>See [<code>~loaders.StableDiffusionLoraLoaderMixin.lora_state_dict</code>].</p>
@@ -11553,6 +11671,7 @@ https://huggingface.co/docs/peft/main/en/package_reference/hotswap</p>
           </tr>
       </tbody>
     </table>
+
 
             <details class="quote">
               <summary>Source code in <code>mindone/diffusers/loaders/lora_pipeline.py</code></summary>
@@ -11758,7 +11877,9 @@ https://huggingface.co/docs/peft/main/en/package_reference/hotswap</p>
       </thead>
       <tbody>
           <tr class="doc-section-item">
-            <td><code>pretrained_model_name_or_path_or_dict</code></td>
+            <td>
+                <code>pretrained_model_name_or_path_or_dict</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Can be either:</p>
@@ -11778,7 +11899,9 @@ https://huggingface.co/docs/peft/main/en/package_reference/hotswap</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>cache_dir</code></td>
+            <td>
+                <code>cache_dir</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Path to a directory where a downloaded pretrained model configuration is cached if the standard cache
@@ -11793,7 +11916,9 @@ is not used.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>force_download</code></td>
+            <td>
+                <code>force_download</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Whether or not to force the (re-)download of the model weights and configuration files, overriding the
@@ -11808,7 +11933,9 @@ cached versions if they exist.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>proxies</code></td>
+            <td>
+                <code>proxies</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>A dictionary of proxy servers to use by protocol or endpoint, for example, <code>{'http': 'foo.bar:3128',
@@ -11823,7 +11950,9 @@ cached versions if they exist.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>local_files_only</code></td>
+            <td>
+                <code>local_files_only</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Whether to only load local model weights and configuration files or not. If set to <code>True</code>, the model
@@ -11838,7 +11967,9 @@ won't be downloaded from the Hub.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>token</code></td>
+            <td>
+                <code>token</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The token to use as HTTP bearer authorization for remote files. If <code>True</code>, the token generated from
@@ -11853,7 +11984,9 @@ won't be downloaded from the Hub.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>revision</code></td>
+            <td>
+                <code>revision</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The specific model version to use. It can be a branch name, a tag name, a commit id, or any identifier
@@ -11868,7 +12001,9 @@ allowed by Git.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>subfolder</code></td>
+            <td>
+                <code>subfolder</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The subfolder location of a model file within a larger model repository on the Hub or locally.</p>
@@ -11882,7 +12017,9 @@ allowed by Git.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>weight_name</code></td>
+            <td>
+                <code>weight_name</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Name of the serialized state dict file.</p>
@@ -11897,6 +12034,7 @@ allowed by Git.</p>
           </tr>
       </tbody>
     </table>
+
 
             <details class="quote">
               <summary>Source code in <code>mindone/diffusers/loaders/lora_pipeline.py</code></summary>
@@ -12158,7 +12296,9 @@ allowed by Git.</p>
       </thead>
       <tbody>
           <tr class="doc-section-item">
-            <td><code>save_directory</code></td>
+            <td>
+                <code>save_directory</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Directory to save LoRA parameters to. Will be created if it doesn't exist.</p>
@@ -12172,7 +12312,9 @@ allowed by Git.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>unet_lora_layers</code></td>
+            <td>
+                <code>unet_lora_layers</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>State dict of the LoRA layers corresponding to the <code>unet</code>.</p>
@@ -12190,7 +12332,9 @@ allowed by Git.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>text_encoder_lora_layers</code></td>
+            <td>
+                <code>text_encoder_lora_layers</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>State dict of the LoRA layers corresponding to the <code>text_encoder</code>. Must explicitly pass the text
@@ -12209,7 +12353,9 @@ encoder LoRA state dict because it comes from 🤗 Transformers.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>is_main_process</code></td>
+            <td>
+                <code>is_main_process</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Whether the process calling this is the main process or not. Useful during distributed training and you
@@ -12229,7 +12375,9 @@ process to avoid race conditions.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>save_function</code></td>
+            <td>
+                <code>save_function</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The function to use to save the state dictionary. Useful during distributed training when you need to
@@ -12249,7 +12397,9 @@ replace <code>mindspore.save_checkpoint</code> with another method. Can be confi
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>safe_serialization</code></td>
+            <td>
+                <code>safe_serialization</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Whether to save the model using <code>safetensors</code> or the traditional MindSpore way.</p>
@@ -12268,6 +12418,7 @@ replace <code>mindspore.save_checkpoint</code> with another method. Can be confi
           </tr>
       </tbody>
     </table>
+
 
             <details class="quote">
               <summary>Source code in <code>mindone/diffusers/loaders/lora_pipeline.py</code></summary>
@@ -12409,7 +12560,9 @@ replace <code>mindspore.save_checkpoint</code> with another method. Can be confi
       </thead>
       <tbody>
           <tr class="doc-section-item">
-            <td><code>components</code></td>
+            <td>
+                <code>components</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>List of LoRA-injectable components to unfuse LoRA from.</p>
@@ -12427,7 +12580,9 @@ replace <code>mindspore.save_checkpoint</code> with another method. Can be confi
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>unfuse_unet</code></td>
+            <td>
+                <code>unfuse_unet</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Whether to unfuse the UNet LoRA parameters.</p>
@@ -12441,7 +12596,9 @@ replace <code>mindspore.save_checkpoint</code> with another method. Can be confi
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>unfuse_text_encoder</code></td>
+            <td>
+                <code>unfuse_text_encoder</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Whether to unfuse the text encoder LoRA parameters. If the text encoder wasn't monkey-patched with the
@@ -12457,6 +12614,7 @@ LoRA parameters then it won't have any effect.</p>
           </tr>
       </tbody>
     </table>
+
 
             <details class="quote">
               <summary>Source code in <code>mindone/diffusers/loaders/lora_pipeline.py</code></summary>
@@ -12530,6 +12688,12 @@ LoRA parameters then it won't have any effect.</p>
         <p>Load LoRA layers into Stable Diffusion XL [<code>UNet2DConditionModel</code>],
 <a href="https://huggingface.co/docs/transformers/model_doc/clip#transformers.CLIPTextModel"><code>CLIPTextModel</code></a>, and
 <a href="https://huggingface.co/docs/transformers/model_doc/clip#transformers.CLIPTextModelWithProjection"><code>CLIPTextModelWithProjection</code></a>.</p>
+
+
+
+
+
+
 
               <details class="quote">
                 <summary>Source code in <code>mindone/diffusers/loaders/lora_pipeline.py</code></summary>
@@ -13503,7 +13667,9 @@ LoRA parameters then it won't have any effect.</p>
       </thead>
       <tbody>
           <tr class="doc-section-item">
-            <td><code>components</code></td>
+            <td>
+                <code>components</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>(<code>List[str]</code>): List of LoRA-injectable components to fuse the LoRAs into.</p>
@@ -13511,7 +13677,7 @@ LoRA parameters then it won't have any effect.</p>
               <p>
                   <span class="doc-param-annotation">
                     <b>TYPE:</b>
-                      <code><span title="typing.List">List</span>[str]</code>
+                      <code><span title="typing.List">List</span>[<span title="str">str</span>]</code>
                   </span>
                   <span class="doc-param-default">
                     <b>DEFAULT:</b>
@@ -13521,7 +13687,9 @@ LoRA parameters then it won't have any effect.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>lora_scale</code></td>
+            <td>
+                <code>lora_scale</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Controls how much to influence the outputs with the LoRA parameters.</p>
@@ -13539,7 +13707,9 @@ LoRA parameters then it won't have any effect.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>safe_fusing</code></td>
+            <td>
+                <code>safe_fusing</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Whether to check fused weights for NaN values before fusing and if values are NaN not fusing them.</p>
@@ -13557,7 +13727,9 @@ LoRA parameters then it won't have any effect.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>adapter_names</code></td>
+            <td>
+                <code>adapter_names</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Adapter names to be used for fusing. If nothing is passed, all active adapters will be fused.</p>
@@ -13585,6 +13757,7 @@ LoRA parameters then it won't have any effect.</p>
 <span class="n">pipeline</span><span class="o">.</span><span class="n">load_lora_weights</span><span class="p">(</span><span class="s2">&quot;nerijs/pixel-art-xl&quot;</span><span class="p">,</span> <span class="n">weight_name</span><span class="o">=</span><span class="s2">&quot;pixel-art-xl.safetensors&quot;</span><span class="p">,</span> <span class="n">adapter_name</span><span class="o">=</span><span class="s2">&quot;pixel&quot;</span><span class="p">)</span>
 <span class="n">pipeline</span><span class="o">.</span><span class="n">fuse_lora</span><span class="p">(</span><span class="n">lora_scale</span><span class="o">=</span><span class="mf">0.7</span><span class="p">)</span>
 </code></pre></div>
+
 
             <details class="quote">
               <summary>Source code in <code>mindone/diffusers/loaders/lora_pipeline.py</code></summary>
@@ -13712,7 +13885,9 @@ LoRA parameters then it won't have any effect.</p>
       </thead>
       <tbody>
           <tr class="doc-section-item">
-            <td><code>state_dict</code></td>
+            <td>
+                <code>state_dict</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>A standard state dict containing the lora layer parameters. The key should be prefixed with an
@@ -13727,7 +13902,9 @@ additional <code>text_encoder</code> to distinguish between unet lora layers.</p
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>network_alphas</code></td>
+            <td>
+                <code>network_alphas</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The value of the network alpha used for stable learning and preventing underflow. This value has the
@@ -13743,7 +13920,9 @@ link</a>.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>text_encoder</code></td>
+            <td>
+                <code>text_encoder</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The text encoder model to load the LoRA layers into.</p>
@@ -13757,7 +13936,9 @@ link</a>.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>prefix</code></td>
+            <td>
+                <code>prefix</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Expected prefix of the <code>text_encoder</code> in the <code>state_dict</code>.</p>
@@ -13775,7 +13956,9 @@ link</a>.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>lora_scale</code></td>
+            <td>
+                <code>lora_scale</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>How much to scale the output of the lora linear layer before it is added with the output of the regular
@@ -13794,7 +13977,9 @@ lora layer.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>adapter_name</code></td>
+            <td>
+                <code>adapter_name</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Adapter name to be used for referencing the loaded adapter model. If not specified, it will use
@@ -13813,7 +13998,9 @@ lora layer.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>hotswap</code></td>
+            <td>
+                <code>hotswap</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>(<code>bool</code>, <em>optional</em>)
@@ -13846,6 +14033,7 @@ https://huggingface.co/docs/peft/main/en/package_reference/hotswap</p>
           </tr>
       </tbody>
     </table>
+
 
             <details class="quote">
               <summary>Source code in <code>mindone/diffusers/loaders/lora_pipeline.py</code></summary>
@@ -14019,7 +14207,9 @@ https://huggingface.co/docs/peft/main/en/package_reference/hotswap</p>
       </thead>
       <tbody>
           <tr class="doc-section-item">
-            <td><code>state_dict</code></td>
+            <td>
+                <code>state_dict</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>A standard state dict containing the lora layer parameters. The keys can either be indexed directly
@@ -14035,7 +14225,9 @@ encoder lora layers.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>network_alphas</code></td>
+            <td>
+                <code>network_alphas</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The value of the network alpha used for stable learning and preventing underflow. This value has the
@@ -14051,7 +14243,9 @@ link</a>.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>unet</code></td>
+            <td>
+                <code>unet</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The UNet model to load the LoRA layers into.</p>
@@ -14065,7 +14259,9 @@ link</a>.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>adapter_name</code></td>
+            <td>
+                <code>adapter_name</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Adapter name to be used for referencing the loaded adapter model. If not specified, it will use
@@ -14084,7 +14280,9 @@ link</a>.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>hotswap</code></td>
+            <td>
+                <code>hotswap</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>(<code>bool</code>, <em>optional</em>)
@@ -14117,6 +14315,7 @@ https://huggingface.co/docs/peft/main/en/package_reference/hotswap</p>
           </tr>
       </tbody>
     </table>
+
 
             <details class="quote">
               <summary>Source code in <code>mindone/diffusers/loaders/lora_pipeline.py</code></summary>
@@ -14284,7 +14483,9 @@ dict is loaded into <code>self.text_encoder</code>.</p>
       </thead>
       <tbody>
           <tr class="doc-section-item">
-            <td><code>pretrained_model_name_or_path_or_dict</code></td>
+            <td>
+                <code>pretrained_model_name_or_path_or_dict</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>See [<code>~loaders.StableDiffusionLoraLoaderMixin.lora_state_dict</code>].</p>
@@ -14298,7 +14499,9 @@ dict is loaded into <code>self.text_encoder</code>.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>adapter_name</code></td>
+            <td>
+                <code>adapter_name</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Adapter name to be used for referencing the loaded adapter model. If not specified, it will use
@@ -14317,7 +14520,9 @@ dict is loaded into <code>self.text_encoder</code>.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>Speed</code></td>
+            <td>
+                <code>Speed</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 
@@ -14331,7 +14536,9 @@ dict is loaded into <code>self.text_encoder</code>.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>kwargs</code></td>
+            <td>
+                <code>kwargs</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>See [<code>~loaders.StableDiffusionLoraLoaderMixin.lora_state_dict</code>].</p>
@@ -14350,6 +14557,7 @@ dict is loaded into <code>self.text_encoder</code>.</p>
           </tr>
       </tbody>
     </table>
+
 
             <details class="quote">
               <summary>Source code in <code>mindone/diffusers/loaders/lora_pipeline.py</code></summary>
@@ -14539,7 +14747,9 @@ dict is loaded into <code>self.text_encoder</code>.</p>
       </thead>
       <tbody>
           <tr class="doc-section-item">
-            <td><code>pretrained_model_name_or_path_or_dict</code></td>
+            <td>
+                <code>pretrained_model_name_or_path_or_dict</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Can be either:</p>
@@ -14559,7 +14769,9 @@ dict is loaded into <code>self.text_encoder</code>.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>cache_dir</code></td>
+            <td>
+                <code>cache_dir</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Path to a directory where a downloaded pretrained model configuration is cached if the standard cache
@@ -14574,7 +14786,9 @@ is not used.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>force_download</code></td>
+            <td>
+                <code>force_download</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Whether or not to force the (re-)download of the model weights and configuration files, overriding the
@@ -14589,7 +14803,9 @@ cached versions if they exist.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>proxies</code></td>
+            <td>
+                <code>proxies</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>A dictionary of proxy servers to use by protocol or endpoint, for example, <code>{'http': 'foo.bar:3128',
@@ -14604,7 +14820,9 @@ cached versions if they exist.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>local_files_only</code></td>
+            <td>
+                <code>local_files_only</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Whether to only load local model weights and configuration files or not. If set to <code>True</code>, the model
@@ -14619,7 +14837,9 @@ won't be downloaded from the Hub.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>token</code></td>
+            <td>
+                <code>token</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The token to use as HTTP bearer authorization for remote files. If <code>True</code>, the token generated from
@@ -14634,7 +14854,9 @@ won't be downloaded from the Hub.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>revision</code></td>
+            <td>
+                <code>revision</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The specific model version to use. It can be a branch name, a tag name, a commit id, or any identifier
@@ -14649,7 +14871,9 @@ allowed by Git.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>subfolder</code></td>
+            <td>
+                <code>subfolder</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The subfolder location of a model file within a larger model repository on the Hub or locally.</p>
@@ -14663,7 +14887,9 @@ allowed by Git.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>weight_name</code></td>
+            <td>
+                <code>weight_name</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Name of the serialized state dict file.</p>
@@ -14678,6 +14904,7 @@ allowed by Git.</p>
           </tr>
       </tbody>
     </table>
+
 
             <details class="quote">
               <summary>Source code in <code>mindone/diffusers/loaders/lora_pipeline.py</code></summary>
@@ -14941,7 +15168,9 @@ allowed by Git.</p>
       </thead>
       <tbody>
           <tr class="doc-section-item">
-            <td><code>save_directory</code></td>
+            <td>
+                <code>save_directory</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Directory to save LoRA parameters to. Will be created if it doesn't exist.</p>
@@ -14955,7 +15184,9 @@ allowed by Git.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>unet_lora_layers</code></td>
+            <td>
+                <code>unet_lora_layers</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>State dict of the LoRA layers corresponding to the <code>unet</code>.</p>
@@ -14973,7 +15204,9 @@ allowed by Git.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>text_encoder_lora_layers</code></td>
+            <td>
+                <code>text_encoder_lora_layers</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>State dict of the LoRA layers corresponding to the <code>text_encoder</code>. Must explicitly pass the text
@@ -14992,7 +15225,9 @@ encoder LoRA state dict because it comes from 🤗 Transformers.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>text_encoder_2_lora_layers</code></td>
+            <td>
+                <code>text_encoder_2_lora_layers</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>State dict of the LoRA layers corresponding to the <code>text_encoder_2</code>. Must explicitly pass the text
@@ -15011,7 +15246,9 @@ encoder LoRA state dict because it comes from 🤗 Transformers.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>is_main_process</code></td>
+            <td>
+                <code>is_main_process</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Whether the process calling this is the main process or not. Useful during distributed training and you
@@ -15031,7 +15268,9 @@ process to avoid race conditions.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>save_function</code></td>
+            <td>
+                <code>save_function</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The function to use to save the state dictionary. Useful during distributed training when you need to
@@ -15051,7 +15290,9 @@ replace <code>mindspore.save_checkpoint</code> with another method. Can be confi
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>safe_serialization</code></td>
+            <td>
+                <code>safe_serialization</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Whether to save the model using <code>safetensors</code> or the traditional MindSpore way.</p>
@@ -15070,6 +15311,7 @@ replace <code>mindspore.save_checkpoint</code> with another method. Can be confi
           </tr>
       </tbody>
     </table>
+
 
             <details class="quote">
               <summary>Source code in <code>mindone/diffusers/loaders/lora_pipeline.py</code></summary>
@@ -15227,7 +15469,9 @@ replace <code>mindspore.save_checkpoint</code> with another method. Can be confi
       </thead>
       <tbody>
           <tr class="doc-section-item">
-            <td><code>components</code></td>
+            <td>
+                <code>components</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>List of LoRA-injectable components to unfuse LoRA from.</p>
@@ -15245,7 +15489,9 @@ replace <code>mindspore.save_checkpoint</code> with another method. Can be confi
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>unfuse_unet</code></td>
+            <td>
+                <code>unfuse_unet</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Whether to unfuse the UNet LoRA parameters.</p>
@@ -15259,7 +15505,9 @@ replace <code>mindspore.save_checkpoint</code> with another method. Can be confi
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>unfuse_text_encoder</code></td>
+            <td>
+                <code>unfuse_text_encoder</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Whether to unfuse the text encoder LoRA parameters. If the text encoder wasn't monkey-patched with the
@@ -15275,6 +15523,7 @@ LoRA parameters then it won't have any effect.</p>
           </tr>
       </tbody>
     </table>
+
 
             <details class="quote">
               <summary>Source code in <code>mindone/diffusers/loaders/lora_pipeline.py</code></summary>
@@ -15349,6 +15598,12 @@ LoRA parameters then it won't have any effect.</p>
 <a href="https://huggingface.co/docs/transformers/model_doc/clip#transformers.CLIPTextModel"><code>CLIPTextModel</code></a>, and
 <a href="https://huggingface.co/docs/transformers/model_doc/clip#transformers.CLIPTextModelWithProjection"><code>CLIPTextModelWithProjection</code></a>.</p>
 <p>Specific to [<code>StableDiffusion3Pipeline</code>].</p>
+
+
+
+
+
+
 
               <details class="quote">
                 <summary>Source code in <code>mindone/diffusers/loaders/lora_pipeline.py</code></summary>
@@ -16294,7 +16549,9 @@ LoRA parameters then it won't have any effect.</p>
       </thead>
       <tbody>
           <tr class="doc-section-item">
-            <td><code>components</code></td>
+            <td>
+                <code>components</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>(<code>List[str]</code>): List of LoRA-injectable components to fuse the LoRAs into.</p>
@@ -16302,7 +16559,7 @@ LoRA parameters then it won't have any effect.</p>
               <p>
                   <span class="doc-param-annotation">
                     <b>TYPE:</b>
-                      <code><span title="typing.List">List</span>[str]</code>
+                      <code><span title="typing.List">List</span>[<span title="str">str</span>]</code>
                   </span>
                   <span class="doc-param-default">
                     <b>DEFAULT:</b>
@@ -16312,7 +16569,9 @@ LoRA parameters then it won't have any effect.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>lora_scale</code></td>
+            <td>
+                <code>lora_scale</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Controls how much to influence the outputs with the LoRA parameters.</p>
@@ -16330,7 +16589,9 @@ LoRA parameters then it won't have any effect.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>safe_fusing</code></td>
+            <td>
+                <code>safe_fusing</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Whether to check fused weights for NaN values before fusing and if values are NaN not fusing them.</p>
@@ -16348,7 +16609,9 @@ LoRA parameters then it won't have any effect.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>adapter_names</code></td>
+            <td>
+                <code>adapter_names</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Adapter names to be used for fusing. If nothing is passed, all active adapters will be fused.</p>
@@ -16376,6 +16639,7 @@ LoRA parameters then it won't have any effect.</p>
 <span class="n">pipeline</span><span class="o">.</span><span class="n">load_lora_weights</span><span class="p">(</span><span class="s2">&quot;nerijs/pixel-art-xl&quot;</span><span class="p">,</span> <span class="n">weight_name</span><span class="o">=</span><span class="s2">&quot;pixel-art-xl.safetensors&quot;</span><span class="p">,</span> <span class="n">adapter_name</span><span class="o">=</span><span class="s2">&quot;pixel&quot;</span><span class="p">)</span>
 <span class="n">pipeline</span><span class="o">.</span><span class="n">fuse_lora</span><span class="p">(</span><span class="n">lora_scale</span><span class="o">=</span><span class="mf">0.7</span><span class="p">)</span>
 </code></pre></div>
+
 
             <details class="quote">
               <summary>Source code in <code>mindone/diffusers/loaders/lora_pipeline.py</code></summary>
@@ -16503,7 +16767,9 @@ LoRA parameters then it won't have any effect.</p>
       </thead>
       <tbody>
           <tr class="doc-section-item">
-            <td><code>state_dict</code></td>
+            <td>
+                <code>state_dict</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>A standard state dict containing the lora layer parameters. The key should be prefixed with an
@@ -16518,7 +16784,9 @@ additional <code>text_encoder</code> to distinguish between unet lora layers.</p
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>network_alphas</code></td>
+            <td>
+                <code>network_alphas</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The value of the network alpha used for stable learning and preventing underflow. This value has the
@@ -16534,7 +16802,9 @@ link</a>.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>text_encoder</code></td>
+            <td>
+                <code>text_encoder</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The text encoder model to load the LoRA layers into.</p>
@@ -16548,7 +16818,9 @@ link</a>.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>prefix</code></td>
+            <td>
+                <code>prefix</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Expected prefix of the <code>text_encoder</code> in the <code>state_dict</code>.</p>
@@ -16566,7 +16838,9 @@ link</a>.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>lora_scale</code></td>
+            <td>
+                <code>lora_scale</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>How much to scale the output of the lora linear layer before it is added with the output of the regular
@@ -16585,7 +16859,9 @@ lora layer.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>adapter_name</code></td>
+            <td>
+                <code>adapter_name</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Adapter name to be used for referencing the loaded adapter model. If not specified, it will use
@@ -16604,7 +16880,9 @@ lora layer.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>hotswap</code></td>
+            <td>
+                <code>hotswap</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>(<code>bool</code>, <em>optional</em>)
@@ -16637,6 +16915,7 @@ https://huggingface.co/docs/peft/main/en/package_reference/hotswap</p>
           </tr>
       </tbody>
     </table>
+
 
             <details class="quote">
               <summary>Source code in <code>mindone/diffusers/loaders/lora_pipeline.py</code></summary>
@@ -16810,7 +17089,9 @@ https://huggingface.co/docs/peft/main/en/package_reference/hotswap</p>
       </thead>
       <tbody>
           <tr class="doc-section-item">
-            <td><code>state_dict</code></td>
+            <td>
+                <code>state_dict</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>A standard state dict containing the lora layer parameters. The keys can either be indexed directly
@@ -16826,7 +17107,9 @@ encoder lora layers.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>transformer</code></td>
+            <td>
+                <code>transformer</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The Transformer model to load the LoRA layers into.</p>
@@ -16840,7 +17123,9 @@ encoder lora layers.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>adapter_name</code></td>
+            <td>
+                <code>adapter_name</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Adapter name to be used for referencing the loaded adapter model. If not specified, it will use
@@ -16859,7 +17144,9 @@ encoder lora layers.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>hotswap</code></td>
+            <td>
+                <code>hotswap</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>(<code>bool</code>, <em>optional</em>)
@@ -16892,6 +17179,7 @@ https://huggingface.co/docs/peft/main/en/package_reference/hotswap</p>
           </tr>
       </tbody>
     </table>
+
 
             <details class="quote">
               <summary>Source code in <code>mindone/diffusers/loaders/lora_pipeline.py</code></summary>
@@ -17029,7 +17317,9 @@ dict is loaded into <code>self.transformer</code>.</p>
       </thead>
       <tbody>
           <tr class="doc-section-item">
-            <td><code>pretrained_model_name_or_path_or_dict</code></td>
+            <td>
+                <code>pretrained_model_name_or_path_or_dict</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>See [<code>~loaders.StableDiffusionLoraLoaderMixin.lora_state_dict</code>].</p>
@@ -17043,7 +17333,9 @@ dict is loaded into <code>self.transformer</code>.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>adapter_name</code></td>
+            <td>
+                <code>adapter_name</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Adapter name to be used for referencing the loaded adapter model. If not specified, it will use
@@ -17062,7 +17354,9 @@ dict is loaded into <code>self.transformer</code>.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>hotswap</code></td>
+            <td>
+                <code>hotswap</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>(<code>bool</code>, <em>optional</em>)
@@ -17094,7 +17388,9 @@ https://huggingface.co/docs/peft/main/en/package_reference/hotswap</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>kwargs</code></td>
+            <td>
+                <code>kwargs</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>See [<code>~loaders.StableDiffusionLoraLoaderMixin.lora_state_dict</code>].</p>
@@ -17113,6 +17409,7 @@ https://huggingface.co/docs/peft/main/en/package_reference/hotswap</p>
           </tr>
       </tbody>
     </table>
+
 
             <details class="quote">
               <summary>Source code in <code>mindone/diffusers/loaders/lora_pipeline.py</code></summary>
@@ -17330,7 +17627,9 @@ https://huggingface.co/docs/peft/main/en/package_reference/hotswap</p>
       </thead>
       <tbody>
           <tr class="doc-section-item">
-            <td><code>pretrained_model_name_or_path_or_dict</code></td>
+            <td>
+                <code>pretrained_model_name_or_path_or_dict</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Can be either:</p>
@@ -17350,7 +17649,9 @@ https://huggingface.co/docs/peft/main/en/package_reference/hotswap</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>cache_dir</code></td>
+            <td>
+                <code>cache_dir</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Path to a directory where a downloaded pretrained model configuration is cached if the standard cache
@@ -17365,7 +17666,9 @@ is not used.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>force_download</code></td>
+            <td>
+                <code>force_download</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Whether or not to force the (re-)download of the model weights and configuration files, overriding the
@@ -17380,7 +17683,9 @@ cached versions if they exist.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>proxies</code></td>
+            <td>
+                <code>proxies</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>A dictionary of proxy servers to use by protocol or endpoint, for example, <code>{'http': 'foo.bar:3128',
@@ -17395,7 +17700,9 @@ cached versions if they exist.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>local_files_only</code></td>
+            <td>
+                <code>local_files_only</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Whether to only load local model weights and configuration files or not. If set to <code>True</code>, the model
@@ -17410,7 +17717,9 @@ won't be downloaded from the Hub.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>token</code></td>
+            <td>
+                <code>token</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The token to use as HTTP bearer authorization for remote files. If <code>True</code>, the token generated from
@@ -17425,7 +17734,9 @@ won't be downloaded from the Hub.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>revision</code></td>
+            <td>
+                <code>revision</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The specific model version to use. It can be a branch name, a tag name, a commit id, or any identifier
@@ -17440,7 +17751,9 @@ allowed by Git.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>subfolder</code></td>
+            <td>
+                <code>subfolder</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The subfolder location of a model file within a larger model repository on the Hub or locally.</p>
@@ -17455,6 +17768,7 @@ allowed by Git.</p>
           </tr>
       </tbody>
     </table>
+
 
             <details class="quote">
               <summary>Source code in <code>mindone/diffusers/loaders/lora_pipeline.py</code></summary>
@@ -17680,7 +17994,9 @@ allowed by Git.</p>
       </thead>
       <tbody>
           <tr class="doc-section-item">
-            <td><code>save_directory</code></td>
+            <td>
+                <code>save_directory</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Directory to save LoRA parameters to. Will be created if it doesn't exist.</p>
@@ -17694,7 +18010,9 @@ allowed by Git.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>transformer_lora_layers</code></td>
+            <td>
+                <code>transformer_lora_layers</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>State dict of the LoRA layers corresponding to the <code>transformer</code>.</p>
@@ -17712,7 +18030,9 @@ allowed by Git.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>text_encoder_lora_layers</code></td>
+            <td>
+                <code>text_encoder_lora_layers</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>State dict of the LoRA layers corresponding to the <code>text_encoder</code>. Must explicitly pass the text
@@ -17731,7 +18051,9 @@ encoder LoRA state dict because it comes from 🤗 Transformers.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>text_encoder_2_lora_layers</code></td>
+            <td>
+                <code>text_encoder_2_lora_layers</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>State dict of the LoRA layers corresponding to the <code>text_encoder_2</code>. Must explicitly pass the text
@@ -17750,7 +18072,9 @@ encoder LoRA state dict because it comes from 🤗 Transformers.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>is_main_process</code></td>
+            <td>
+                <code>is_main_process</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Whether the process calling this is the main process or not. Useful during distributed training and you
@@ -17770,7 +18094,9 @@ process to avoid race conditions.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>save_function</code></td>
+            <td>
+                <code>save_function</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The function to use to save the state dictionary. Useful during distributed training when you need to
@@ -17790,7 +18116,9 @@ replace <code>mindspore.save_checkpoint</code> with another method. Can be confi
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>safe_serialization</code></td>
+            <td>
+                <code>safe_serialization</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Whether to save the model using <code>safetensors</code> or the traditional MindSpore way.</p>
@@ -17809,6 +18137,7 @@ replace <code>mindspore.save_checkpoint</code> with another method. Can be confi
           </tr>
       </tbody>
     </table>
+
 
             <details class="quote">
               <summary>Source code in <code>mindone/diffusers/loaders/lora_pipeline.py</code></summary>
@@ -17968,7 +18297,9 @@ replace <code>mindspore.save_checkpoint</code> with another method. Can be confi
       </thead>
       <tbody>
           <tr class="doc-section-item">
-            <td><code>components</code></td>
+            <td>
+                <code>components</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>List of LoRA-injectable components to unfuse LoRA from.</p>
@@ -17986,7 +18317,9 @@ replace <code>mindspore.save_checkpoint</code> with another method. Can be confi
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>unfuse_transformer</code></td>
+            <td>
+                <code>unfuse_transformer</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Whether to unfuse the UNet LoRA parameters.</p>
@@ -18000,7 +18333,9 @@ replace <code>mindspore.save_checkpoint</code> with another method. Can be confi
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>unfuse_text_encoder</code></td>
+            <td>
+                <code>unfuse_text_encoder</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Whether to unfuse the text encoder LoRA parameters. If the text encoder wasn't monkey-patched with the
@@ -18016,6 +18351,7 @@ LoRA parameters then it won't have any effect.</p>
           </tr>
       </tbody>
     </table>
+
 
             <details class="quote">
               <summary>Source code in <code>mindone/diffusers/loaders/lora_pipeline.py</code></summary>
@@ -18089,6 +18425,12 @@ LoRA parameters then it won't have any effect.</p>
         <p>Load LoRA layers into [<code>FluxTransformer2DModel</code>],
 <a href="https://huggingface.co/docs/transformers/model_doc/clip#transformers.CLIPTextModel"><code>CLIPTextModel</code></a>.</p>
 <p>Specific to [<code>StableDiffusion3Pipeline</code>].</p>
+
+
+
+
+
+
 
               <details class="quote">
                 <summary>Source code in <code>mindone/diffusers/loaders/lora_pipeline.py</code></summary>
@@ -19810,7 +20152,9 @@ LoRA parameters then it won't have any effect.</p>
       </thead>
       <tbody>
           <tr class="doc-section-item">
-            <td><code>components</code></td>
+            <td>
+                <code>components</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>(<code>List[str]</code>): List of LoRA-injectable components to fuse the LoRAs into.</p>
@@ -19818,7 +20162,7 @@ LoRA parameters then it won't have any effect.</p>
               <p>
                   <span class="doc-param-annotation">
                     <b>TYPE:</b>
-                      <code><span title="typing.List">List</span>[str]</code>
+                      <code><span title="typing.List">List</span>[<span title="str">str</span>]</code>
                   </span>
                   <span class="doc-param-default">
                     <b>DEFAULT:</b>
@@ -19828,7 +20172,9 @@ LoRA parameters then it won't have any effect.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>lora_scale</code></td>
+            <td>
+                <code>lora_scale</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Controls how much to influence the outputs with the LoRA parameters.</p>
@@ -19846,7 +20192,9 @@ LoRA parameters then it won't have any effect.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>safe_fusing</code></td>
+            <td>
+                <code>safe_fusing</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Whether to check fused weights for NaN values before fusing and if values are NaN not fusing them.</p>
@@ -19864,7 +20212,9 @@ LoRA parameters then it won't have any effect.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>adapter_names</code></td>
+            <td>
+                <code>adapter_names</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Adapter names to be used for fusing. If nothing is passed, all active adapters will be fused.</p>
@@ -19892,6 +20242,7 @@ LoRA parameters then it won't have any effect.</p>
 <span class="n">pipeline</span><span class="o">.</span><span class="n">load_lora_weights</span><span class="p">(</span><span class="s2">&quot;nerijs/pixel-art-xl&quot;</span><span class="p">,</span> <span class="n">weight_name</span><span class="o">=</span><span class="s2">&quot;pixel-art-xl.safetensors&quot;</span><span class="p">,</span> <span class="n">adapter_name</span><span class="o">=</span><span class="s2">&quot;pixel&quot;</span><span class="p">)</span>
 <span class="n">pipeline</span><span class="o">.</span><span class="n">fuse_lora</span><span class="p">(</span><span class="n">lora_scale</span><span class="o">=</span><span class="mf">0.7</span><span class="p">)</span>
 </code></pre></div>
+
 
             <details class="quote">
               <summary>Source code in <code>mindone/diffusers/loaders/lora_pipeline.py</code></summary>
@@ -20045,7 +20396,9 @@ LoRA parameters then it won't have any effect.</p>
       </thead>
       <tbody>
           <tr class="doc-section-item">
-            <td><code>state_dict</code></td>
+            <td>
+                <code>state_dict</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>A standard state dict containing the lora layer parameters. The key should be prefixed with an
@@ -20060,7 +20413,9 @@ additional <code>text_encoder</code> to distinguish between unet lora layers.</p
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>network_alphas</code></td>
+            <td>
+                <code>network_alphas</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The value of the network alpha used for stable learning and preventing underflow. This value has the
@@ -20076,7 +20431,9 @@ link</a>.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>text_encoder</code></td>
+            <td>
+                <code>text_encoder</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The text encoder model to load the LoRA layers into.</p>
@@ -20090,7 +20447,9 @@ link</a>.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>prefix</code></td>
+            <td>
+                <code>prefix</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Expected prefix of the <code>text_encoder</code> in the <code>state_dict</code>.</p>
@@ -20108,7 +20467,9 @@ link</a>.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>lora_scale</code></td>
+            <td>
+                <code>lora_scale</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>How much to scale the output of the lora linear layer before it is added with the output of the regular
@@ -20127,7 +20488,9 @@ lora layer.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>adapter_name</code></td>
+            <td>
+                <code>adapter_name</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Adapter name to be used for referencing the loaded adapter model. If not specified, it will use
@@ -20146,7 +20509,9 @@ lora layer.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>hotswap</code></td>
+            <td>
+                <code>hotswap</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>(<code>bool</code>, <em>optional</em>)
@@ -20179,6 +20544,7 @@ https://huggingface.co/docs/peft/main/en/package_reference/hotswap</p>
           </tr>
       </tbody>
     </table>
+
 
             <details class="quote">
               <summary>Source code in <code>mindone/diffusers/loaders/lora_pipeline.py</code></summary>
@@ -20352,7 +20718,9 @@ https://huggingface.co/docs/peft/main/en/package_reference/hotswap</p>
       </thead>
       <tbody>
           <tr class="doc-section-item">
-            <td><code>state_dict</code></td>
+            <td>
+                <code>state_dict</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>A standard state dict containing the lora layer parameters. The keys can either be indexed directly
@@ -20368,7 +20736,9 @@ encoder lora layers.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>network_alphas</code></td>
+            <td>
+                <code>network_alphas</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The value of the network alpha used for stable learning and preventing underflow. This value has the
@@ -20384,7 +20754,9 @@ link</a>.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>transformer</code></td>
+            <td>
+                <code>transformer</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The Transformer model to load the LoRA layers into.</p>
@@ -20398,7 +20770,9 @@ link</a>.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>adapter_name</code></td>
+            <td>
+                <code>adapter_name</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Adapter name to be used for referencing the loaded adapter model. If not specified, it will use
@@ -20417,7 +20791,9 @@ link</a>.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>hotswap</code></td>
+            <td>
+                <code>hotswap</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>(<code>bool</code>, <em>optional</em>)
@@ -20450,6 +20826,7 @@ https://huggingface.co/docs/peft/main/en/package_reference/hotswap</p>
           </tr>
       </tbody>
     </table>
+
 
             <details class="quote">
               <summary>Source code in <code>mindone/diffusers/loaders/lora_pipeline.py</code></summary>
@@ -20607,7 +20984,9 @@ dict is loaded into <code>self.transformer</code>.</p>
       </thead>
       <tbody>
           <tr class="doc-section-item">
-            <td><code>pretrained_model_name_or_path_or_dict</code></td>
+            <td>
+                <code>pretrained_model_name_or_path_or_dict</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>See [<code>~loaders.StableDiffusionLoraLoaderMixin.lora_state_dict</code>].</p>
@@ -20621,7 +21000,9 @@ dict is loaded into <code>self.transformer</code>.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>kwargs</code></td>
+            <td>
+                <code>kwargs</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>See [<code>~loaders.StableDiffusionLoraLoaderMixin.lora_state_dict</code>].</p>
@@ -20639,7 +21020,9 @@ dict is loaded into <code>self.transformer</code>.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>adapter_name</code></td>
+            <td>
+                <code>adapter_name</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Adapter name to be used for referencing the loaded adapter model. If not specified, it will use
@@ -20658,7 +21041,9 @@ dict is loaded into <code>self.transformer</code>.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>hotswap</code></td>
+            <td>
+                <code>hotswap</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>(<code>bool</code>, <em>optional</em>)
@@ -20691,6 +21076,7 @@ https://huggingface.co/docs/peft/main/en/package_reference/hotswap</p>
           </tr>
       </tbody>
     </table>
+
 
             <details class="quote">
               <summary>Source code in <code>mindone/diffusers/loaders/lora_pipeline.py</code></summary>
@@ -20980,7 +21366,9 @@ https://huggingface.co/docs/peft/main/en/package_reference/hotswap</p>
       </thead>
       <tbody>
           <tr class="doc-section-item">
-            <td><code>pretrained_model_name_or_path_or_dict</code></td>
+            <td>
+                <code>pretrained_model_name_or_path_or_dict</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Can be either:</p>
@@ -21000,7 +21388,9 @@ https://huggingface.co/docs/peft/main/en/package_reference/hotswap</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>cache_dir</code></td>
+            <td>
+                <code>cache_dir</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Path to a directory where a downloaded pretrained model configuration is cached if the standard cache
@@ -21015,7 +21405,9 @@ is not used.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>force_download</code></td>
+            <td>
+                <code>force_download</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Whether or not to force the (re-)download of the model weights and configuration files, overriding the
@@ -21030,7 +21422,9 @@ cached versions if they exist.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>proxies</code></td>
+            <td>
+                <code>proxies</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>A dictionary of proxy servers to use by protocol or endpoint, for example, <code>{'http': 'foo.bar:3128',
@@ -21045,7 +21439,9 @@ cached versions if they exist.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>local_files_only</code></td>
+            <td>
+                <code>local_files_only</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Whether to only load local model weights and configuration files or not. If set to <code>True</code>, the model
@@ -21060,7 +21456,9 @@ won't be downloaded from the Hub.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>token</code></td>
+            <td>
+                <code>token</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The token to use as HTTP bearer authorization for remote files. If <code>True</code>, the token generated from
@@ -21075,7 +21473,9 @@ won't be downloaded from the Hub.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>revision</code></td>
+            <td>
+                <code>revision</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The specific model version to use. It can be a branch name, a tag name, a commit id, or any identifier
@@ -21090,7 +21490,9 @@ allowed by Git.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>subfolder</code></td>
+            <td>
+                <code>subfolder</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The subfolder location of a model file within a larger model repository on the Hub or locally.</p>
@@ -21105,6 +21507,7 @@ allowed by Git.</p>
           </tr>
       </tbody>
     </table>
+
 
             <details class="quote">
               <summary>Source code in <code>mindone/diffusers/loaders/lora_pipeline.py</code></summary>
@@ -21406,7 +21809,9 @@ allowed by Git.</p>
       </thead>
       <tbody>
           <tr class="doc-section-item">
-            <td><code>save_directory</code></td>
+            <td>
+                <code>save_directory</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Directory to save LoRA parameters to. Will be created if it doesn't exist.</p>
@@ -21420,7 +21825,9 @@ allowed by Git.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>transformer_lora_layers</code></td>
+            <td>
+                <code>transformer_lora_layers</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>State dict of the LoRA layers corresponding to the <code>transformer</code>.</p>
@@ -21438,7 +21845,9 @@ allowed by Git.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>text_encoder_lora_layers</code></td>
+            <td>
+                <code>text_encoder_lora_layers</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>State dict of the LoRA layers corresponding to the <code>text_encoder</code>. Must explicitly pass the text
@@ -21457,7 +21866,9 @@ encoder LoRA state dict because it comes from 🤗 Transformers.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>is_main_process</code></td>
+            <td>
+                <code>is_main_process</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Whether the process calling this is the main process or not. Useful during distributed training and you
@@ -21477,7 +21888,9 @@ process to avoid race conditions.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>save_function</code></td>
+            <td>
+                <code>save_function</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The function to use to save the state dictionary. Useful during distributed training when you need to
@@ -21497,7 +21910,9 @@ replace <code>mindspore.save_checkpoint</code> with another method. Can be confi
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>safe_serialization</code></td>
+            <td>
+                <code>safe_serialization</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Whether to save the model using <code>safetensors</code> or the traditional MindSpore way.</p>
@@ -21516,6 +21931,7 @@ replace <code>mindspore.save_checkpoint</code> with another method. Can be confi
           </tr>
       </tbody>
     </table>
+
 
             <details class="quote">
               <summary>Source code in <code>mindone/diffusers/loaders/lora_pipeline.py</code></summary>
@@ -21659,7 +22075,9 @@ replace <code>mindspore.save_checkpoint</code> with another method. Can be confi
       </thead>
       <tbody>
           <tr class="doc-section-item">
-            <td><code>components</code></td>
+            <td>
+                <code>components</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>List of LoRA-injectable components to unfuse LoRA from.</p>
@@ -21678,6 +22096,7 @@ replace <code>mindspore.save_checkpoint</code> with another method. Can be confi
           </tr>
       </tbody>
     </table>
+
 
             <details class="quote">
               <summary>Source code in <code>mindone/diffusers/loaders/lora_pipeline.py</code></summary>
@@ -21747,7 +22166,9 @@ replace <code>mindspore.save_checkpoint</code> with another method. Can be confi
       </thead>
       <tbody>
           <tr class="doc-section-item">
-            <td><code>reset_to_overwritten_params</code></td>
+            <td>
+                <code>reset_to_overwritten_params</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Whether to reset the LoRA-loaded modules
@@ -21772,6 +22193,7 @@ documentation</a> to learn more.</p>
 <span class="o">&gt;&gt;&gt;</span> <span class="n">pipeline</span><span class="o">.</span><span class="n">unload_lora_weights</span><span class="p">()</span>
 <span class="o">&gt;&gt;&gt;</span> <span class="o">...</span>
 </code></pre></div>
+
 
             <details class="quote">
               <summary>Source code in <code>mindone/diffusers/loaders/lora_pipeline.py</code></summary>
@@ -21923,6 +22345,12 @@ documentation</a> to learn more.</p>
 
 
         <p>Load LoRA layers into [<code>CogVideoXTransformer3DModel</code>]. Specific to [<code>CogVideoXPipeline</code>].</p>
+
+
+
+
+
+
 
               <details class="quote">
                 <summary>Source code in <code>mindone/diffusers/loaders/lora_pipeline.py</code></summary>
@@ -22578,7 +23006,9 @@ documentation</a> to learn more.</p>
       </thead>
       <tbody>
           <tr class="doc-section-item">
-            <td><code>components</code></td>
+            <td>
+                <code>components</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>(<code>List[str]</code>): List of LoRA-injectable components to fuse the LoRAs into.</p>
@@ -22586,7 +23016,7 @@ documentation</a> to learn more.</p>
               <p>
                   <span class="doc-param-annotation">
                     <b>TYPE:</b>
-                      <code><span title="typing.List">List</span>[str]</code>
+                      <code><span title="typing.List">List</span>[<span title="str">str</span>]</code>
                   </span>
                   <span class="doc-param-default">
                     <b>DEFAULT:</b>
@@ -22596,7 +23026,9 @@ documentation</a> to learn more.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>lora_scale</code></td>
+            <td>
+                <code>lora_scale</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Controls how much to influence the outputs with the LoRA parameters.</p>
@@ -22614,7 +23046,9 @@ documentation</a> to learn more.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>safe_fusing</code></td>
+            <td>
+                <code>safe_fusing</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Whether to check fused weights for NaN values before fusing and if values are NaN not fusing them.</p>
@@ -22632,7 +23066,9 @@ documentation</a> to learn more.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>adapter_names</code></td>
+            <td>
+                <code>adapter_names</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Adapter names to be used for fusing. If nothing is passed, all active adapters will be fused.</p>
@@ -22660,6 +23096,7 @@ documentation</a> to learn more.</p>
 <span class="n">pipeline</span><span class="o">.</span><span class="n">load_lora_weights</span><span class="p">(</span><span class="s2">&quot;nerijs/pixel-art-xl&quot;</span><span class="p">,</span> <span class="n">weight_name</span><span class="o">=</span><span class="s2">&quot;pixel-art-xl.safetensors&quot;</span><span class="p">,</span> <span class="n">adapter_name</span><span class="o">=</span><span class="s2">&quot;pixel&quot;</span><span class="p">)</span>
 <span class="n">pipeline</span><span class="o">.</span><span class="n">fuse_lora</span><span class="p">(</span><span class="n">lora_scale</span><span class="o">=</span><span class="mf">0.7</span><span class="p">)</span>
 </code></pre></div>
+
 
             <details class="quote">
               <summary>Source code in <code>mindone/diffusers/loaders/lora_pipeline.py</code></summary>
@@ -22787,7 +23224,9 @@ documentation</a> to learn more.</p>
       </thead>
       <tbody>
           <tr class="doc-section-item">
-            <td><code>state_dict</code></td>
+            <td>
+                <code>state_dict</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>A standard state dict containing the lora layer parameters. The keys can either be indexed directly
@@ -22803,7 +23242,9 @@ encoder lora layers.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>transformer</code></td>
+            <td>
+                <code>transformer</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The Transformer model to load the LoRA layers into.</p>
@@ -22817,7 +23258,9 @@ encoder lora layers.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>adapter_name</code></td>
+            <td>
+                <code>adapter_name</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Adapter name to be used for referencing the loaded adapter model. If not specified, it will use
@@ -22836,7 +23279,9 @@ encoder lora layers.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>hotswap</code></td>
+            <td>
+                <code>hotswap</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>(<code>bool</code>, <em>optional</em>)
@@ -22869,6 +23314,7 @@ https://huggingface.co/docs/peft/main/en/package_reference/hotswap</p>
           </tr>
       </tbody>
     </table>
+
 
             <details class="quote">
               <summary>Source code in <code>mindone/diffusers/loaders/lora_pipeline.py</code></summary>
@@ -23006,7 +23452,9 @@ dict is loaded into <code>self.transformer</code>.</p>
       </thead>
       <tbody>
           <tr class="doc-section-item">
-            <td><code>pretrained_model_name_or_path_or_dict</code></td>
+            <td>
+                <code>pretrained_model_name_or_path_or_dict</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>See [<code>~loaders.StableDiffusionLoraLoaderMixin.lora_state_dict</code>].</p>
@@ -23020,7 +23468,9 @@ dict is loaded into <code>self.transformer</code>.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>adapter_name</code></td>
+            <td>
+                <code>adapter_name</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Adapter name to be used for referencing the loaded adapter model. If not specified, it will use
@@ -23039,7 +23489,9 @@ dict is loaded into <code>self.transformer</code>.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>kwargs</code></td>
+            <td>
+                <code>kwargs</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>See [<code>~loaders.StableDiffusionLoraLoaderMixin.lora_state_dict</code>].</p>
@@ -23058,6 +23510,7 @@ dict is loaded into <code>self.transformer</code>.</p>
           </tr>
       </tbody>
     </table>
+
 
             <details class="quote">
               <summary>Source code in <code>mindone/diffusers/loaders/lora_pipeline.py</code></summary>
@@ -23169,7 +23622,9 @@ dict is loaded into <code>self.transformer</code>.</p>
       </thead>
       <tbody>
           <tr class="doc-section-item">
-            <td><code>pretrained_model_name_or_path_or_dict</code></td>
+            <td>
+                <code>pretrained_model_name_or_path_or_dict</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Can be either:</p>
@@ -23190,7 +23645,9 @@ dict is loaded into <code>self.transformer</code>.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>cache_dir</code></td>
+            <td>
+                <code>cache_dir</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Path to a directory where a downloaded pretrained model configuration is cached if the standard cache
@@ -23205,7 +23662,9 @@ is not used.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>force_download</code></td>
+            <td>
+                <code>force_download</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Whether or not to force the (re-)download of the model weights and configuration files, overriding the
@@ -23220,7 +23679,9 @@ cached versions if they exist.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>proxies</code></td>
+            <td>
+                <code>proxies</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>A dictionary of proxy servers to use by protocol or endpoint, for example, <code>{'http': 'foo.bar:3128',
@@ -23235,7 +23696,9 @@ cached versions if they exist.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>local_files_only</code></td>
+            <td>
+                <code>local_files_only</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Whether to only load local model weights and configuration files or not. If set to <code>True</code>, the model
@@ -23250,7 +23713,9 @@ won't be downloaded from the Hub.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>token</code></td>
+            <td>
+                <code>token</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The token to use as HTTP bearer authorization for remote files. If <code>True</code>, the token generated from
@@ -23265,7 +23730,9 @@ won't be downloaded from the Hub.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>revision</code></td>
+            <td>
+                <code>revision</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The specific model version to use. It can be a branch name, a tag name, a commit id, or any identifier
@@ -23280,7 +23747,9 @@ allowed by Git.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>subfolder</code></td>
+            <td>
+                <code>subfolder</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The subfolder location of a model file within a larger model repository on the Hub or locally.</p>
@@ -23295,6 +23764,7 @@ allowed by Git.</p>
           </tr>
       </tbody>
     </table>
+
 
             <details class="quote">
               <summary>Source code in <code>mindone/diffusers/loaders/lora_pipeline.py</code></summary>
@@ -23524,7 +23994,9 @@ allowed by Git.</p>
       </thead>
       <tbody>
           <tr class="doc-section-item">
-            <td><code>save_directory</code></td>
+            <td>
+                <code>save_directory</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Directory to save LoRA parameters to. Will be created if it doesn't exist.</p>
@@ -23538,7 +24010,9 @@ allowed by Git.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>transformer_lora_layers</code></td>
+            <td>
+                <code>transformer_lora_layers</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>State dict of the LoRA layers corresponding to the <code>transformer</code>.</p>
@@ -23556,7 +24030,9 @@ allowed by Git.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>is_main_process</code></td>
+            <td>
+                <code>is_main_process</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Whether the process calling this is the main process or not. Useful during distributed training and you
@@ -23576,7 +24052,9 @@ process to avoid race conditions.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>save_function</code></td>
+            <td>
+                <code>save_function</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The function to use to save the state dictionary. Useful during distributed training when you need to
@@ -23596,7 +24074,9 @@ replace <code>mindspore.save_checkpoint</code> with another method. Can be confi
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>safe_serialization</code></td>
+            <td>
+                <code>safe_serialization</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Whether to save the model using <code>safetensors</code> or the traditional PyTorch way with <code>pickle</code>.</p>
@@ -23615,6 +24095,7 @@ replace <code>mindspore.save_checkpoint</code> with another method. Can be confi
           </tr>
       </tbody>
     </table>
+
 
             <details class="quote">
               <summary>Source code in <code>mindone/diffusers/loaders/lora_pipeline.py</code></summary>
@@ -23744,7 +24225,9 @@ replace <code>mindspore.save_checkpoint</code> with another method. Can be confi
       </thead>
       <tbody>
           <tr class="doc-section-item">
-            <td><code>components</code></td>
+            <td>
+                <code>components</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>List of LoRA-injectable components to unfuse LoRA from.</p>
@@ -23762,7 +24245,9 @@ replace <code>mindspore.save_checkpoint</code> with another method. Can be confi
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>unfuse_transformer</code></td>
+            <td>
+                <code>unfuse_transformer</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Whether to unfuse the UNet LoRA parameters.</p>
@@ -23777,6 +24262,7 @@ replace <code>mindspore.save_checkpoint</code> with another method. Can be confi
           </tr>
       </tbody>
     </table>
+
 
             <details class="quote">
               <summary>Source code in <code>mindone/diffusers/loaders/lora_pipeline.py</code></summary>
@@ -23842,6 +24328,12 @@ replace <code>mindspore.save_checkpoint</code> with another method. Can be confi
 
 
         <p>Load LoRA layers into [<code>MochiTransformer3DModel</code>]. Specific to [<code>MochiPipeline</code>].</p>
+
+
+
+
+
+
 
               <details class="quote">
                 <summary>Source code in <code>mindone/diffusers/loaders/lora_pipeline.py</code></summary>
@@ -24503,7 +24995,9 @@ replace <code>mindspore.save_checkpoint</code> with another method. Can be confi
       </thead>
       <tbody>
           <tr class="doc-section-item">
-            <td><code>components</code></td>
+            <td>
+                <code>components</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>(<code>List[str]</code>): List of LoRA-injectable components to fuse the LoRAs into.</p>
@@ -24511,7 +25005,7 @@ replace <code>mindspore.save_checkpoint</code> with another method. Can be confi
               <p>
                   <span class="doc-param-annotation">
                     <b>TYPE:</b>
-                      <code><span title="typing.List">List</span>[str]</code>
+                      <code><span title="typing.List">List</span>[<span title="str">str</span>]</code>
                   </span>
                   <span class="doc-param-default">
                     <b>DEFAULT:</b>
@@ -24521,7 +25015,9 @@ replace <code>mindspore.save_checkpoint</code> with another method. Can be confi
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>lora_scale</code></td>
+            <td>
+                <code>lora_scale</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Controls how much to influence the outputs with the LoRA parameters.</p>
@@ -24539,7 +25035,9 @@ replace <code>mindspore.save_checkpoint</code> with another method. Can be confi
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>safe_fusing</code></td>
+            <td>
+                <code>safe_fusing</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Whether to check fused weights for NaN values before fusing and if values are NaN not fusing them.</p>
@@ -24557,7 +25055,9 @@ replace <code>mindspore.save_checkpoint</code> with another method. Can be confi
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>adapter_names</code></td>
+            <td>
+                <code>adapter_names</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Adapter names to be used for fusing. If nothing is passed, all active adapters will be fused.</p>
@@ -24585,6 +25085,7 @@ replace <code>mindspore.save_checkpoint</code> with another method. Can be confi
 <span class="n">pipeline</span><span class="o">.</span><span class="n">load_lora_weights</span><span class="p">(</span><span class="s2">&quot;nerijs/pixel-art-xl&quot;</span><span class="p">,</span> <span class="n">weight_name</span><span class="o">=</span><span class="s2">&quot;pixel-art-xl.safetensors&quot;</span><span class="p">,</span> <span class="n">adapter_name</span><span class="o">=</span><span class="s2">&quot;pixel&quot;</span><span class="p">)</span>
 <span class="n">pipeline</span><span class="o">.</span><span class="n">fuse_lora</span><span class="p">(</span><span class="n">lora_scale</span><span class="o">=</span><span class="mf">0.7</span><span class="p">)</span>
 </code></pre></div>
+
 
             <details class="quote">
               <summary>Source code in <code>mindone/diffusers/loaders/lora_pipeline.py</code></summary>
@@ -24712,7 +25213,9 @@ replace <code>mindspore.save_checkpoint</code> with another method. Can be confi
       </thead>
       <tbody>
           <tr class="doc-section-item">
-            <td><code>state_dict</code></td>
+            <td>
+                <code>state_dict</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>A standard state dict containing the lora layer parameters. The keys can either be indexed directly
@@ -24728,7 +25231,9 @@ encoder lora layers.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>transformer</code></td>
+            <td>
+                <code>transformer</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The Transformer model to load the LoRA layers into.</p>
@@ -24742,7 +25247,9 @@ encoder lora layers.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>adapter_name</code></td>
+            <td>
+                <code>adapter_name</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Adapter name to be used for referencing the loaded adapter model. If not specified, it will use
@@ -24761,7 +25268,9 @@ encoder lora layers.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>hotswap</code></td>
+            <td>
+                <code>hotswap</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>(<code>bool</code>, <em>optional</em>)
@@ -24794,6 +25303,7 @@ https://huggingface.co/docs/peft/main/en/package_reference/hotswap</p>
           </tr>
       </tbody>
     </table>
+
 
             <details class="quote">
               <summary>Source code in <code>mindone/diffusers/loaders/lora_pipeline.py</code></summary>
@@ -24931,7 +25441,9 @@ dict is loaded into <code>self.transformer</code>.</p>
       </thead>
       <tbody>
           <tr class="doc-section-item">
-            <td><code>pretrained_model_name_or_path_or_dict</code></td>
+            <td>
+                <code>pretrained_model_name_or_path_or_dict</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>See [<code>~loaders.StableDiffusionLoraLoaderMixin.lora_state_dict</code>].</p>
@@ -24945,7 +25457,9 @@ dict is loaded into <code>self.transformer</code>.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>adapter_name</code></td>
+            <td>
+                <code>adapter_name</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Adapter name to be used for referencing the loaded adapter model. If not specified, it will use
@@ -24964,7 +25478,9 @@ dict is loaded into <code>self.transformer</code>.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>kwargs</code></td>
+            <td>
+                <code>kwargs</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>See [<code>~loaders.StableDiffusionLoraLoaderMixin.lora_state_dict</code>].</p>
@@ -24983,6 +25499,7 @@ dict is loaded into <code>self.transformer</code>.</p>
           </tr>
       </tbody>
     </table>
+
 
             <details class="quote">
               <summary>Source code in <code>mindone/diffusers/loaders/lora_pipeline.py</code></summary>
@@ -25094,7 +25611,9 @@ dict is loaded into <code>self.transformer</code>.</p>
       </thead>
       <tbody>
           <tr class="doc-section-item">
-            <td><code>pretrained_model_name_or_path_or_dict</code></td>
+            <td>
+                <code>pretrained_model_name_or_path_or_dict</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Can be either:</p>
@@ -25115,7 +25634,9 @@ dict is loaded into <code>self.transformer</code>.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>cache_dir</code></td>
+            <td>
+                <code>cache_dir</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Path to a directory where a downloaded pretrained model configuration is cached if the standard cache
@@ -25130,7 +25651,9 @@ is not used.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>force_download</code></td>
+            <td>
+                <code>force_download</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Whether or not to force the (re-)download of the model weights and configuration files, overriding the
@@ -25145,7 +25668,9 @@ cached versions if they exist.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>proxies</code></td>
+            <td>
+                <code>proxies</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>A dictionary of proxy servers to use by protocol or endpoint, for example, <code>{'http': 'foo.bar:3128',
@@ -25160,7 +25685,9 @@ cached versions if they exist.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>local_files_only</code></td>
+            <td>
+                <code>local_files_only</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Whether to only load local model weights and configuration files or not. If set to <code>True</code>, the model
@@ -25175,7 +25702,9 @@ won't be downloaded from the Hub.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>token</code></td>
+            <td>
+                <code>token</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The token to use as HTTP bearer authorization for remote files. If <code>True</code>, the token generated from
@@ -25190,7 +25719,9 @@ won't be downloaded from the Hub.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>revision</code></td>
+            <td>
+                <code>revision</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The specific model version to use. It can be a branch name, a tag name, a commit id, or any identifier
@@ -25205,7 +25736,9 @@ allowed by Git.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>subfolder</code></td>
+            <td>
+                <code>subfolder</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The subfolder location of a model file within a larger model repository on the Hub or locally.</p>
@@ -25220,6 +25753,7 @@ allowed by Git.</p>
           </tr>
       </tbody>
     </table>
+
 
             <details class="quote">
               <summary>Source code in <code>mindone/diffusers/loaders/lora_pipeline.py</code></summary>
@@ -25449,7 +25983,9 @@ allowed by Git.</p>
       </thead>
       <tbody>
           <tr class="doc-section-item">
-            <td><code>save_directory</code></td>
+            <td>
+                <code>save_directory</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Directory to save LoRA parameters to. Will be created if it doesn't exist.</p>
@@ -25463,7 +25999,9 @@ allowed by Git.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>transformer_lora_layers</code></td>
+            <td>
+                <code>transformer_lora_layers</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>State dict of the LoRA layers corresponding to the <code>transformer</code>.</p>
@@ -25481,7 +26019,9 @@ allowed by Git.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>is_main_process</code></td>
+            <td>
+                <code>is_main_process</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Whether the process calling this is the main process or not. Useful during distributed training and you
@@ -25501,7 +26041,9 @@ process to avoid race conditions.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>save_function</code></td>
+            <td>
+                <code>save_function</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The function to use to save the state dictionary. Useful during distributed training when you need to
@@ -25521,7 +26063,9 @@ replace <code>mindspore.save_checkpoint</code> with another method. Can be confi
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>safe_serialization</code></td>
+            <td>
+                <code>safe_serialization</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Whether to save the model using <code>safetensors</code> or the traditional PyTorch way with <code>pickle</code>.</p>
@@ -25540,6 +26084,7 @@ replace <code>mindspore.save_checkpoint</code> with another method. Can be confi
           </tr>
       </tbody>
     </table>
+
 
             <details class="quote">
               <summary>Source code in <code>mindone/diffusers/loaders/lora_pipeline.py</code></summary>
@@ -25669,7 +26214,9 @@ replace <code>mindspore.save_checkpoint</code> with another method. Can be confi
       </thead>
       <tbody>
           <tr class="doc-section-item">
-            <td><code>components</code></td>
+            <td>
+                <code>components</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>List of LoRA-injectable components to unfuse LoRA from.</p>
@@ -25687,7 +26234,9 @@ replace <code>mindspore.save_checkpoint</code> with another method. Can be confi
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>unfuse_transformer</code></td>
+            <td>
+                <code>unfuse_transformer</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Whether to unfuse the UNet LoRA parameters.</p>
@@ -25702,6 +26251,7 @@ replace <code>mindspore.save_checkpoint</code> with another method. Can be confi
           </tr>
       </tbody>
     </table>
+
 
             <details class="quote">
               <summary>Source code in <code>mindone/diffusers/loaders/lora_pipeline.py</code></summary>
@@ -25767,6 +26317,12 @@ replace <code>mindspore.save_checkpoint</code> with another method. Can be confi
 
 
         <p>Load LoRA layers into [<code>LTXVideoTransformer3DModel</code>]. Specific to [<code>LTXPipeline</code>].</p>
+
+
+
+
+
+
 
               <details class="quote">
                 <summary>Source code in <code>mindone/diffusers/loaders/lora_pipeline.py</code></summary>
@@ -26428,7 +26984,9 @@ replace <code>mindspore.save_checkpoint</code> with another method. Can be confi
       </thead>
       <tbody>
           <tr class="doc-section-item">
-            <td><code>components</code></td>
+            <td>
+                <code>components</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>(<code>List[str]</code>): List of LoRA-injectable components to fuse the LoRAs into.</p>
@@ -26436,7 +26994,7 @@ replace <code>mindspore.save_checkpoint</code> with another method. Can be confi
               <p>
                   <span class="doc-param-annotation">
                     <b>TYPE:</b>
-                      <code><span title="typing.List">List</span>[str]</code>
+                      <code><span title="typing.List">List</span>[<span title="str">str</span>]</code>
                   </span>
                   <span class="doc-param-default">
                     <b>DEFAULT:</b>
@@ -26446,7 +27004,9 @@ replace <code>mindspore.save_checkpoint</code> with another method. Can be confi
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>lora_scale</code></td>
+            <td>
+                <code>lora_scale</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Controls how much to influence the outputs with the LoRA parameters.</p>
@@ -26464,7 +27024,9 @@ replace <code>mindspore.save_checkpoint</code> with another method. Can be confi
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>safe_fusing</code></td>
+            <td>
+                <code>safe_fusing</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Whether to check fused weights for NaN values before fusing and if values are NaN not fusing them.</p>
@@ -26482,7 +27044,9 @@ replace <code>mindspore.save_checkpoint</code> with another method. Can be confi
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>adapter_names</code></td>
+            <td>
+                <code>adapter_names</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Adapter names to be used for fusing. If nothing is passed, all active adapters will be fused.</p>
@@ -26510,6 +27074,7 @@ replace <code>mindspore.save_checkpoint</code> with another method. Can be confi
 <span class="n">pipeline</span><span class="o">.</span><span class="n">load_lora_weights</span><span class="p">(</span><span class="s2">&quot;nerijs/pixel-art-xl&quot;</span><span class="p">,</span> <span class="n">weight_name</span><span class="o">=</span><span class="s2">&quot;pixel-art-xl.safetensors&quot;</span><span class="p">,</span> <span class="n">adapter_name</span><span class="o">=</span><span class="s2">&quot;pixel&quot;</span><span class="p">)</span>
 <span class="n">pipeline</span><span class="o">.</span><span class="n">fuse_lora</span><span class="p">(</span><span class="n">lora_scale</span><span class="o">=</span><span class="mf">0.7</span><span class="p">)</span>
 </code></pre></div>
+
 
             <details class="quote">
               <summary>Source code in <code>mindone/diffusers/loaders/lora_pipeline.py</code></summary>
@@ -26637,7 +27202,9 @@ replace <code>mindspore.save_checkpoint</code> with another method. Can be confi
       </thead>
       <tbody>
           <tr class="doc-section-item">
-            <td><code>state_dict</code></td>
+            <td>
+                <code>state_dict</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>A standard state dict containing the lora layer parameters. The keys can either be indexed directly
@@ -26653,7 +27220,9 @@ encoder lora layers.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>transformer</code></td>
+            <td>
+                <code>transformer</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The Transformer model to load the LoRA layers into.</p>
@@ -26667,7 +27236,9 @@ encoder lora layers.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>adapter_name</code></td>
+            <td>
+                <code>adapter_name</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Adapter name to be used for referencing the loaded adapter model. If not specified, it will use
@@ -26686,7 +27257,9 @@ encoder lora layers.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>hotswap</code></td>
+            <td>
+                <code>hotswap</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>(<code>bool</code>, <em>optional</em>)
@@ -26719,6 +27292,7 @@ https://huggingface.co/docs/peft/main/en/package_reference/hotswap</p>
           </tr>
       </tbody>
     </table>
+
 
             <details class="quote">
               <summary>Source code in <code>mindone/diffusers/loaders/lora_pipeline.py</code></summary>
@@ -26856,7 +27430,9 @@ dict is loaded into <code>self.transformer</code>.</p>
       </thead>
       <tbody>
           <tr class="doc-section-item">
-            <td><code>pretrained_model_name_or_path_or_dict</code></td>
+            <td>
+                <code>pretrained_model_name_or_path_or_dict</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>See [<code>~loaders.StableDiffusionLoraLoaderMixin.lora_state_dict</code>].</p>
@@ -26870,7 +27446,9 @@ dict is loaded into <code>self.transformer</code>.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>adapter_name</code></td>
+            <td>
+                <code>adapter_name</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Adapter name to be used for referencing the loaded adapter model. If not specified, it will use
@@ -26889,7 +27467,9 @@ dict is loaded into <code>self.transformer</code>.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>kwargs</code></td>
+            <td>
+                <code>kwargs</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>See [<code>~loaders.StableDiffusionLoraLoaderMixin.lora_state_dict</code>].</p>
@@ -26908,6 +27488,7 @@ dict is loaded into <code>self.transformer</code>.</p>
           </tr>
       </tbody>
     </table>
+
 
             <details class="quote">
               <summary>Source code in <code>mindone/diffusers/loaders/lora_pipeline.py</code></summary>
@@ -27019,7 +27600,9 @@ dict is loaded into <code>self.transformer</code>.</p>
       </thead>
       <tbody>
           <tr class="doc-section-item">
-            <td><code>pretrained_model_name_or_path_or_dict</code></td>
+            <td>
+                <code>pretrained_model_name_or_path_or_dict</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Can be either:</p>
@@ -27040,7 +27623,9 @@ dict is loaded into <code>self.transformer</code>.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>cache_dir</code></td>
+            <td>
+                <code>cache_dir</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Path to a directory where a downloaded pretrained model configuration is cached if the standard cache
@@ -27055,7 +27640,9 @@ is not used.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>force_download</code></td>
+            <td>
+                <code>force_download</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Whether or not to force the (re-)download of the model weights and configuration files, overriding the
@@ -27070,7 +27657,9 @@ cached versions if they exist.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>proxies</code></td>
+            <td>
+                <code>proxies</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>A dictionary of proxy servers to use by protocol or endpoint, for example, <code>{'http': 'foo.bar:3128',
@@ -27085,7 +27674,9 @@ cached versions if they exist.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>local_files_only</code></td>
+            <td>
+                <code>local_files_only</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Whether to only load local model weights and configuration files or not. If set to <code>True</code>, the model
@@ -27100,7 +27691,9 @@ won't be downloaded from the Hub.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>token</code></td>
+            <td>
+                <code>token</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The token to use as HTTP bearer authorization for remote files. If <code>True</code>, the token generated from
@@ -27115,7 +27708,9 @@ won't be downloaded from the Hub.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>revision</code></td>
+            <td>
+                <code>revision</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The specific model version to use. It can be a branch name, a tag name, a commit id, or any identifier
@@ -27130,7 +27725,9 @@ allowed by Git.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>subfolder</code></td>
+            <td>
+                <code>subfolder</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The subfolder location of a model file within a larger model repository on the Hub or locally.</p>
@@ -27145,6 +27742,7 @@ allowed by Git.</p>
           </tr>
       </tbody>
     </table>
+
 
             <details class="quote">
               <summary>Source code in <code>mindone/diffusers/loaders/lora_pipeline.py</code></summary>
@@ -27374,7 +27972,9 @@ allowed by Git.</p>
       </thead>
       <tbody>
           <tr class="doc-section-item">
-            <td><code>save_directory</code></td>
+            <td>
+                <code>save_directory</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Directory to save LoRA parameters to. Will be created if it doesn't exist.</p>
@@ -27388,7 +27988,9 @@ allowed by Git.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>transformer_lora_layers</code></td>
+            <td>
+                <code>transformer_lora_layers</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>State dict of the LoRA layers corresponding to the <code>transformer</code>.</p>
@@ -27406,7 +28008,9 @@ allowed by Git.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>is_main_process</code></td>
+            <td>
+                <code>is_main_process</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Whether the process calling this is the main process or not. Useful during distributed training and you
@@ -27426,7 +28030,9 @@ process to avoid race conditions.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>save_function</code></td>
+            <td>
+                <code>save_function</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The function to use to save the state dictionary. Useful during distributed training when you need to
@@ -27446,7 +28052,9 @@ replace <code>mindspore.save_checkpoint</code> with another method. Can be confi
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>safe_serialization</code></td>
+            <td>
+                <code>safe_serialization</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Whether to save the model using <code>safetensors</code> or the traditional PyTorch way with <code>pickle</code>.</p>
@@ -27465,6 +28073,7 @@ replace <code>mindspore.save_checkpoint</code> with another method. Can be confi
           </tr>
       </tbody>
     </table>
+
 
             <details class="quote">
               <summary>Source code in <code>mindone/diffusers/loaders/lora_pipeline.py</code></summary>
@@ -27594,7 +28203,9 @@ replace <code>mindspore.save_checkpoint</code> with another method. Can be confi
       </thead>
       <tbody>
           <tr class="doc-section-item">
-            <td><code>components</code></td>
+            <td>
+                <code>components</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>List of LoRA-injectable components to unfuse LoRA from.</p>
@@ -27612,7 +28223,9 @@ replace <code>mindspore.save_checkpoint</code> with another method. Can be confi
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>unfuse_transformer</code></td>
+            <td>
+                <code>unfuse_transformer</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Whether to unfuse the UNet LoRA parameters.</p>
@@ -27627,6 +28240,7 @@ replace <code>mindspore.save_checkpoint</code> with another method. Can be confi
           </tr>
       </tbody>
     </table>
+
 
             <details class="quote">
               <summary>Source code in <code>mindone/diffusers/loaders/lora_pipeline.py</code></summary>
@@ -27692,6 +28306,12 @@ replace <code>mindspore.save_checkpoint</code> with another method. Can be confi
 
 
         <p>Load LoRA layers into [<code>SanaTransformer2DModel</code>]. Specific to [<code>SanaPipeline</code>].</p>
+
+
+
+
+
+
 
               <details class="quote">
                 <summary>Source code in <code>mindone/diffusers/loaders/lora_pipeline.py</code></summary>
@@ -28353,7 +28973,9 @@ replace <code>mindspore.save_checkpoint</code> with another method. Can be confi
       </thead>
       <tbody>
           <tr class="doc-section-item">
-            <td><code>components</code></td>
+            <td>
+                <code>components</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>(<code>List[str]</code>): List of LoRA-injectable components to fuse the LoRAs into.</p>
@@ -28361,7 +28983,7 @@ replace <code>mindspore.save_checkpoint</code> with another method. Can be confi
               <p>
                   <span class="doc-param-annotation">
                     <b>TYPE:</b>
-                      <code><span title="typing.List">List</span>[str]</code>
+                      <code><span title="typing.List">List</span>[<span title="str">str</span>]</code>
                   </span>
                   <span class="doc-param-default">
                     <b>DEFAULT:</b>
@@ -28371,7 +28993,9 @@ replace <code>mindspore.save_checkpoint</code> with another method. Can be confi
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>lora_scale</code></td>
+            <td>
+                <code>lora_scale</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Controls how much to influence the outputs with the LoRA parameters.</p>
@@ -28389,7 +29013,9 @@ replace <code>mindspore.save_checkpoint</code> with another method. Can be confi
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>safe_fusing</code></td>
+            <td>
+                <code>safe_fusing</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Whether to check fused weights for NaN values before fusing and if values are NaN not fusing them.</p>
@@ -28407,7 +29033,9 @@ replace <code>mindspore.save_checkpoint</code> with another method. Can be confi
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>adapter_names</code></td>
+            <td>
+                <code>adapter_names</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Adapter names to be used for fusing. If nothing is passed, all active adapters will be fused.</p>
@@ -28435,6 +29063,7 @@ replace <code>mindspore.save_checkpoint</code> with another method. Can be confi
 <span class="n">pipeline</span><span class="o">.</span><span class="n">load_lora_weights</span><span class="p">(</span><span class="s2">&quot;nerijs/pixel-art-xl&quot;</span><span class="p">,</span> <span class="n">weight_name</span><span class="o">=</span><span class="s2">&quot;pixel-art-xl.safetensors&quot;</span><span class="p">,</span> <span class="n">adapter_name</span><span class="o">=</span><span class="s2">&quot;pixel&quot;</span><span class="p">)</span>
 <span class="n">pipeline</span><span class="o">.</span><span class="n">fuse_lora</span><span class="p">(</span><span class="n">lora_scale</span><span class="o">=</span><span class="mf">0.7</span><span class="p">)</span>
 </code></pre></div>
+
 
             <details class="quote">
               <summary>Source code in <code>mindone/diffusers/loaders/lora_pipeline.py</code></summary>
@@ -28562,7 +29191,9 @@ replace <code>mindspore.save_checkpoint</code> with another method. Can be confi
       </thead>
       <tbody>
           <tr class="doc-section-item">
-            <td><code>state_dict</code></td>
+            <td>
+                <code>state_dict</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>A standard state dict containing the lora layer parameters. The keys can either be indexed directly
@@ -28578,7 +29209,9 @@ encoder lora layers.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>transformer</code></td>
+            <td>
+                <code>transformer</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The Transformer model to load the LoRA layers into.</p>
@@ -28592,7 +29225,9 @@ encoder lora layers.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>adapter_name</code></td>
+            <td>
+                <code>adapter_name</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Adapter name to be used for referencing the loaded adapter model. If not specified, it will use
@@ -28611,7 +29246,9 @@ encoder lora layers.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>hotswap</code></td>
+            <td>
+                <code>hotswap</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>(<code>bool</code>, <em>optional</em>)
@@ -28644,6 +29281,7 @@ https://huggingface.co/docs/peft/main/en/package_reference/hotswap</p>
           </tr>
       </tbody>
     </table>
+
 
             <details class="quote">
               <summary>Source code in <code>mindone/diffusers/loaders/lora_pipeline.py</code></summary>
@@ -28781,7 +29419,9 @@ dict is loaded into <code>self.transformer</code>.</p>
       </thead>
       <tbody>
           <tr class="doc-section-item">
-            <td><code>pretrained_model_name_or_path_or_dict</code></td>
+            <td>
+                <code>pretrained_model_name_or_path_or_dict</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>See [<code>~loaders.StableDiffusionLoraLoaderMixin.lora_state_dict</code>].</p>
@@ -28795,7 +29435,9 @@ dict is loaded into <code>self.transformer</code>.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>adapter_name</code></td>
+            <td>
+                <code>adapter_name</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Adapter name to be used for referencing the loaded adapter model. If not specified, it will use
@@ -28814,7 +29456,9 @@ dict is loaded into <code>self.transformer</code>.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>kwargs</code></td>
+            <td>
+                <code>kwargs</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>See [<code>~loaders.StableDiffusionLoraLoaderMixin.lora_state_dict</code>].</p>
@@ -28833,6 +29477,7 @@ dict is loaded into <code>self.transformer</code>.</p>
           </tr>
       </tbody>
     </table>
+
 
             <details class="quote">
               <summary>Source code in <code>mindone/diffusers/loaders/lora_pipeline.py</code></summary>
@@ -28944,7 +29589,9 @@ dict is loaded into <code>self.transformer</code>.</p>
       </thead>
       <tbody>
           <tr class="doc-section-item">
-            <td><code>pretrained_model_name_or_path_or_dict</code></td>
+            <td>
+                <code>pretrained_model_name_or_path_or_dict</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Can be either:</p>
@@ -28965,7 +29612,9 @@ dict is loaded into <code>self.transformer</code>.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>cache_dir</code></td>
+            <td>
+                <code>cache_dir</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Path to a directory where a downloaded pretrained model configuration is cached if the standard cache
@@ -28980,7 +29629,9 @@ is not used.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>force_download</code></td>
+            <td>
+                <code>force_download</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Whether or not to force the (re-)download of the model weights and configuration files, overriding the
@@ -28995,7 +29646,9 @@ cached versions if they exist.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>proxies</code></td>
+            <td>
+                <code>proxies</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>A dictionary of proxy servers to use by protocol or endpoint, for example, <code>{'http': 'foo.bar:3128',
@@ -29010,7 +29663,9 @@ cached versions if they exist.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>local_files_only</code></td>
+            <td>
+                <code>local_files_only</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Whether to only load local model weights and configuration files or not. If set to <code>True</code>, the model
@@ -29025,7 +29680,9 @@ won't be downloaded from the Hub.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>token</code></td>
+            <td>
+                <code>token</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The token to use as HTTP bearer authorization for remote files. If <code>True</code>, the token generated from
@@ -29040,7 +29697,9 @@ won't be downloaded from the Hub.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>revision</code></td>
+            <td>
+                <code>revision</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The specific model version to use. It can be a branch name, a tag name, a commit id, or any identifier
@@ -29055,7 +29714,9 @@ allowed by Git.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>subfolder</code></td>
+            <td>
+                <code>subfolder</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The subfolder location of a model file within a larger model repository on the Hub or locally.</p>
@@ -29070,6 +29731,7 @@ allowed by Git.</p>
           </tr>
       </tbody>
     </table>
+
 
             <details class="quote">
               <summary>Source code in <code>mindone/diffusers/loaders/lora_pipeline.py</code></summary>
@@ -29299,7 +29961,9 @@ allowed by Git.</p>
       </thead>
       <tbody>
           <tr class="doc-section-item">
-            <td><code>save_directory</code></td>
+            <td>
+                <code>save_directory</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Directory to save LoRA parameters to. Will be created if it doesn't exist.</p>
@@ -29313,7 +29977,9 @@ allowed by Git.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>transformer_lora_layers</code></td>
+            <td>
+                <code>transformer_lora_layers</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>State dict of the LoRA layers corresponding to the <code>transformer</code>.</p>
@@ -29331,7 +29997,9 @@ allowed by Git.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>is_main_process</code></td>
+            <td>
+                <code>is_main_process</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Whether the process calling this is the main process or not. Useful during distributed training and you
@@ -29351,7 +30019,9 @@ process to avoid race conditions.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>save_function</code></td>
+            <td>
+                <code>save_function</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The function to use to save the state dictionary. Useful during distributed training when you need to
@@ -29371,7 +30041,9 @@ replace <code>mindspore.save_checkpoint</code> with another method. Can be confi
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>safe_serialization</code></td>
+            <td>
+                <code>safe_serialization</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Whether to save the model using <code>safetensors</code> or the traditional PyTorch way with <code>pickle</code>.</p>
@@ -29390,6 +30062,7 @@ replace <code>mindspore.save_checkpoint</code> with another method. Can be confi
           </tr>
       </tbody>
     </table>
+
 
             <details class="quote">
               <summary>Source code in <code>mindone/diffusers/loaders/lora_pipeline.py</code></summary>
@@ -29519,7 +30192,9 @@ replace <code>mindspore.save_checkpoint</code> with another method. Can be confi
       </thead>
       <tbody>
           <tr class="doc-section-item">
-            <td><code>components</code></td>
+            <td>
+                <code>components</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>List of LoRA-injectable components to unfuse LoRA from.</p>
@@ -29537,7 +30212,9 @@ replace <code>mindspore.save_checkpoint</code> with another method. Can be confi
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>unfuse_transformer</code></td>
+            <td>
+                <code>unfuse_transformer</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Whether to unfuse the UNet LoRA parameters.</p>
@@ -29552,6 +30229,7 @@ replace <code>mindspore.save_checkpoint</code> with another method. Can be confi
           </tr>
       </tbody>
     </table>
+
 
             <details class="quote">
               <summary>Source code in <code>mindone/diffusers/loaders/lora_pipeline.py</code></summary>
@@ -29617,6 +30295,12 @@ replace <code>mindspore.save_checkpoint</code> with another method. Can be confi
 
 
         <p>Load LoRA layers into [<code>HunyuanVideoTransformer3DModel</code>]. Specific to [<code>HunyuanVideoPipeline</code>].</p>
+
+
+
+
+
+
 
               <details class="quote">
                 <summary>Source code in <code>mindone/diffusers/loaders/lora_pipeline.py</code></summary>
@@ -30284,7 +30968,9 @@ replace <code>mindspore.save_checkpoint</code> with another method. Can be confi
       </thead>
       <tbody>
           <tr class="doc-section-item">
-            <td><code>components</code></td>
+            <td>
+                <code>components</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>(<code>List[str]</code>): List of LoRA-injectable components to fuse the LoRAs into.</p>
@@ -30292,7 +30978,7 @@ replace <code>mindspore.save_checkpoint</code> with another method. Can be confi
               <p>
                   <span class="doc-param-annotation">
                     <b>TYPE:</b>
-                      <code><span title="typing.List">List</span>[str]</code>
+                      <code><span title="typing.List">List</span>[<span title="str">str</span>]</code>
                   </span>
                   <span class="doc-param-default">
                     <b>DEFAULT:</b>
@@ -30302,7 +30988,9 @@ replace <code>mindspore.save_checkpoint</code> with another method. Can be confi
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>lora_scale</code></td>
+            <td>
+                <code>lora_scale</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Controls how much to influence the outputs with the LoRA parameters.</p>
@@ -30320,7 +31008,9 @@ replace <code>mindspore.save_checkpoint</code> with another method. Can be confi
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>safe_fusing</code></td>
+            <td>
+                <code>safe_fusing</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Whether to check fused weights for NaN values before fusing and if values are NaN not fusing them.</p>
@@ -30338,7 +31028,9 @@ replace <code>mindspore.save_checkpoint</code> with another method. Can be confi
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>adapter_names</code></td>
+            <td>
+                <code>adapter_names</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Adapter names to be used for fusing. If nothing is passed, all active adapters will be fused.</p>
@@ -30366,6 +31058,7 @@ replace <code>mindspore.save_checkpoint</code> with another method. Can be confi
 <span class="n">pipeline</span><span class="o">.</span><span class="n">load_lora_weights</span><span class="p">(</span><span class="s2">&quot;nerijs/pixel-art-xl&quot;</span><span class="p">,</span> <span class="n">weight_name</span><span class="o">=</span><span class="s2">&quot;pixel-art-xl.safetensors&quot;</span><span class="p">,</span> <span class="n">adapter_name</span><span class="o">=</span><span class="s2">&quot;pixel&quot;</span><span class="p">)</span>
 <span class="n">pipeline</span><span class="o">.</span><span class="n">fuse_lora</span><span class="p">(</span><span class="n">lora_scale</span><span class="o">=</span><span class="mf">0.7</span><span class="p">)</span>
 </code></pre></div>
+
 
             <details class="quote">
               <summary>Source code in <code>mindone/diffusers/loaders/lora_pipeline.py</code></summary>
@@ -30493,7 +31186,9 @@ replace <code>mindspore.save_checkpoint</code> with another method. Can be confi
       </thead>
       <tbody>
           <tr class="doc-section-item">
-            <td><code>state_dict</code></td>
+            <td>
+                <code>state_dict</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>A standard state dict containing the lora layer parameters. The keys can either be indexed directly
@@ -30509,7 +31204,9 @@ encoder lora layers.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>transformer</code></td>
+            <td>
+                <code>transformer</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The Transformer model to load the LoRA layers into.</p>
@@ -30523,7 +31220,9 @@ encoder lora layers.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>adapter_name</code></td>
+            <td>
+                <code>adapter_name</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Adapter name to be used for referencing the loaded adapter model. If not specified, it will use
@@ -30542,7 +31241,9 @@ encoder lora layers.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>hotswap</code></td>
+            <td>
+                <code>hotswap</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>(<code>bool</code>, <em>optional</em>)
@@ -30575,6 +31276,7 @@ https://huggingface.co/docs/peft/main/en/package_reference/hotswap</p>
           </tr>
       </tbody>
     </table>
+
 
             <details class="quote">
               <summary>Source code in <code>mindone/diffusers/loaders/lora_pipeline.py</code></summary>
@@ -30712,7 +31414,9 @@ dict is loaded into <code>self.transformer</code>.</p>
       </thead>
       <tbody>
           <tr class="doc-section-item">
-            <td><code>pretrained_model_name_or_path_or_dict</code></td>
+            <td>
+                <code>pretrained_model_name_or_path_or_dict</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>See [<code>~loaders.StableDiffusionLoraLoaderMixin.lora_state_dict</code>].</p>
@@ -30726,7 +31430,9 @@ dict is loaded into <code>self.transformer</code>.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>adapter_name</code></td>
+            <td>
+                <code>adapter_name</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Adapter name to be used for referencing the loaded adapter model. If not specified, it will use
@@ -30745,7 +31451,9 @@ dict is loaded into <code>self.transformer</code>.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>kwargs</code></td>
+            <td>
+                <code>kwargs</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>See [<code>~loaders.StableDiffusionLoraLoaderMixin.lora_state_dict</code>].</p>
@@ -30764,6 +31472,7 @@ dict is loaded into <code>self.transformer</code>.</p>
           </tr>
       </tbody>
     </table>
+
 
             <details class="quote">
               <summary>Source code in <code>mindone/diffusers/loaders/lora_pipeline.py</code></summary>
@@ -30875,7 +31584,9 @@ dict is loaded into <code>self.transformer</code>.</p>
       </thead>
       <tbody>
           <tr class="doc-section-item">
-            <td><code>pretrained_model_name_or_path_or_dict</code></td>
+            <td>
+                <code>pretrained_model_name_or_path_or_dict</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Can be either:</p>
@@ -30896,7 +31607,9 @@ dict is loaded into <code>self.transformer</code>.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>cache_dir</code></td>
+            <td>
+                <code>cache_dir</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Path to a directory where a downloaded pretrained model configuration is cached if the standard cache
@@ -30911,7 +31624,9 @@ is not used.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>force_download</code></td>
+            <td>
+                <code>force_download</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Whether or not to force the (re-)download of the model weights and configuration files, overriding the
@@ -30926,7 +31641,9 @@ cached versions if they exist.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>proxies</code></td>
+            <td>
+                <code>proxies</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>A dictionary of proxy servers to use by protocol or endpoint, for example, <code>{'http': 'foo.bar:3128',
@@ -30941,7 +31658,9 @@ cached versions if they exist.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>local_files_only</code></td>
+            <td>
+                <code>local_files_only</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Whether to only load local model weights and configuration files or not. If set to <code>True</code>, the model
@@ -30956,7 +31675,9 @@ won't be downloaded from the Hub.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>token</code></td>
+            <td>
+                <code>token</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The token to use as HTTP bearer authorization for remote files. If <code>True</code>, the token generated from
@@ -30971,7 +31692,9 @@ won't be downloaded from the Hub.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>revision</code></td>
+            <td>
+                <code>revision</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The specific model version to use. It can be a branch name, a tag name, a commit id, or any identifier
@@ -30986,7 +31709,9 @@ allowed by Git.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>subfolder</code></td>
+            <td>
+                <code>subfolder</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The subfolder location of a model file within a larger model repository on the Hub or locally.</p>
@@ -31001,6 +31726,7 @@ allowed by Git.</p>
           </tr>
       </tbody>
     </table>
+
 
             <details class="quote">
               <summary>Source code in <code>mindone/diffusers/loaders/lora_pipeline.py</code></summary>
@@ -31236,7 +31962,9 @@ allowed by Git.</p>
       </thead>
       <tbody>
           <tr class="doc-section-item">
-            <td><code>save_directory</code></td>
+            <td>
+                <code>save_directory</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Directory to save LoRA parameters to. Will be created if it doesn't exist.</p>
@@ -31250,7 +31978,9 @@ allowed by Git.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>transformer_lora_layers</code></td>
+            <td>
+                <code>transformer_lora_layers</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>State dict of the LoRA layers corresponding to the <code>transformer</code>.</p>
@@ -31268,7 +31998,9 @@ allowed by Git.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>is_main_process</code></td>
+            <td>
+                <code>is_main_process</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Whether the process calling this is the main process or not. Useful during distributed training and you
@@ -31288,7 +32020,9 @@ process to avoid race conditions.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>save_function</code></td>
+            <td>
+                <code>save_function</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The function to use to save the state dictionary. Useful during distributed training when you need to
@@ -31308,7 +32042,9 @@ replace <code>mindspore.save_checkpoint</code> with another method. Can be confi
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>safe_serialization</code></td>
+            <td>
+                <code>safe_serialization</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Whether to save the model using <code>safetensors</code> or the traditional PyTorch way with <code>pickle</code>.</p>
@@ -31327,6 +32063,7 @@ replace <code>mindspore.save_checkpoint</code> with another method. Can be confi
           </tr>
       </tbody>
     </table>
+
 
             <details class="quote">
               <summary>Source code in <code>mindone/diffusers/loaders/lora_pipeline.py</code></summary>
@@ -31456,7 +32193,9 @@ replace <code>mindspore.save_checkpoint</code> with another method. Can be confi
       </thead>
       <tbody>
           <tr class="doc-section-item">
-            <td><code>components</code></td>
+            <td>
+                <code>components</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>List of LoRA-injectable components to unfuse LoRA from.</p>
@@ -31474,7 +32213,9 @@ replace <code>mindspore.save_checkpoint</code> with another method. Can be confi
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>unfuse_transformer</code></td>
+            <td>
+                <code>unfuse_transformer</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Whether to unfuse the UNet LoRA parameters.</p>
@@ -31489,6 +32230,7 @@ replace <code>mindspore.save_checkpoint</code> with another method. Can be confi
           </tr>
       </tbody>
     </table>
+
 
             <details class="quote">
               <summary>Source code in <code>mindone/diffusers/loaders/lora_pipeline.py</code></summary>
@@ -31554,6 +32296,12 @@ replace <code>mindspore.save_checkpoint</code> with another method. Can be confi
 
 
         <p>Load LoRA layers into [<code>Lumina2Transformer2DModel</code>]. Specific to [<code>Lumina2Text2ImgPipeline</code>].</p>
+
+
+
+
+
+
 
               <details class="quote">
                 <summary>Source code in <code>mindone/diffusers/loaders/lora_pipeline.py</code></summary>
@@ -32223,7 +32971,9 @@ replace <code>mindspore.save_checkpoint</code> with another method. Can be confi
       </thead>
       <tbody>
           <tr class="doc-section-item">
-            <td><code>components</code></td>
+            <td>
+                <code>components</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>(<code>List[str]</code>): List of LoRA-injectable components to fuse the LoRAs into.</p>
@@ -32231,7 +32981,7 @@ replace <code>mindspore.save_checkpoint</code> with another method. Can be confi
               <p>
                   <span class="doc-param-annotation">
                     <b>TYPE:</b>
-                      <code><span title="typing.List">List</span>[str]</code>
+                      <code><span title="typing.List">List</span>[<span title="str">str</span>]</code>
                   </span>
                   <span class="doc-param-default">
                     <b>DEFAULT:</b>
@@ -32241,7 +32991,9 @@ replace <code>mindspore.save_checkpoint</code> with another method. Can be confi
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>lora_scale</code></td>
+            <td>
+                <code>lora_scale</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Controls how much to influence the outputs with the LoRA parameters.</p>
@@ -32259,7 +33011,9 @@ replace <code>mindspore.save_checkpoint</code> with another method. Can be confi
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>safe_fusing</code></td>
+            <td>
+                <code>safe_fusing</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Whether to check fused weights for NaN values before fusing and if values are NaN not fusing them.</p>
@@ -32277,7 +33031,9 @@ replace <code>mindspore.save_checkpoint</code> with another method. Can be confi
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>adapter_names</code></td>
+            <td>
+                <code>adapter_names</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Adapter names to be used for fusing. If nothing is passed, all active adapters will be fused.</p>
@@ -32305,6 +33061,7 @@ replace <code>mindspore.save_checkpoint</code> with another method. Can be confi
 <span class="n">pipeline</span><span class="o">.</span><span class="n">load_lora_weights</span><span class="p">(</span><span class="s2">&quot;nerijs/pixel-art-xl&quot;</span><span class="p">,</span> <span class="n">weight_name</span><span class="o">=</span><span class="s2">&quot;pixel-art-xl.safetensors&quot;</span><span class="p">,</span> <span class="n">adapter_name</span><span class="o">=</span><span class="s2">&quot;pixel&quot;</span><span class="p">)</span>
 <span class="n">pipeline</span><span class="o">.</span><span class="n">fuse_lora</span><span class="p">(</span><span class="n">lora_scale</span><span class="o">=</span><span class="mf">0.7</span><span class="p">)</span>
 </code></pre></div>
+
 
             <details class="quote">
               <summary>Source code in <code>mindone/diffusers/loaders/lora_pipeline.py</code></summary>
@@ -32432,7 +33189,9 @@ replace <code>mindspore.save_checkpoint</code> with another method. Can be confi
       </thead>
       <tbody>
           <tr class="doc-section-item">
-            <td><code>state_dict</code></td>
+            <td>
+                <code>state_dict</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>A standard state dict containing the lora layer parameters. The keys can either be indexed directly
@@ -32448,7 +33207,9 @@ encoder lora layers.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>transformer</code></td>
+            <td>
+                <code>transformer</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The Transformer model to load the LoRA layers into.</p>
@@ -32462,7 +33223,9 @@ encoder lora layers.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>adapter_name</code></td>
+            <td>
+                <code>adapter_name</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Adapter name to be used for referencing the loaded adapter model. If not specified, it will use
@@ -32481,7 +33244,9 @@ encoder lora layers.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>hotswap</code></td>
+            <td>
+                <code>hotswap</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>(<code>bool</code>, <em>optional</em>)
@@ -32514,6 +33279,7 @@ https://huggingface.co/docs/peft/main/en/package_reference/hotswap</p>
           </tr>
       </tbody>
     </table>
+
 
             <details class="quote">
               <summary>Source code in <code>mindone/diffusers/loaders/lora_pipeline.py</code></summary>
@@ -32651,7 +33417,9 @@ dict is loaded into <code>self.transformer</code>.</p>
       </thead>
       <tbody>
           <tr class="doc-section-item">
-            <td><code>pretrained_model_name_or_path_or_dict</code></td>
+            <td>
+                <code>pretrained_model_name_or_path_or_dict</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>See [<code>~loaders.StableDiffusionLoraLoaderMixin.lora_state_dict</code>].</p>
@@ -32665,7 +33433,9 @@ dict is loaded into <code>self.transformer</code>.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>adapter_name</code></td>
+            <td>
+                <code>adapter_name</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Adapter name to be used for referencing the loaded adapter model. If not specified, it will use
@@ -32684,7 +33454,9 @@ dict is loaded into <code>self.transformer</code>.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>kwargs</code></td>
+            <td>
+                <code>kwargs</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>See [<code>~loaders.StableDiffusionLoraLoaderMixin.lora_state_dict</code>].</p>
@@ -32703,6 +33475,7 @@ dict is loaded into <code>self.transformer</code>.</p>
           </tr>
       </tbody>
     </table>
+
 
             <details class="quote">
               <summary>Source code in <code>mindone/diffusers/loaders/lora_pipeline.py</code></summary>
@@ -32814,7 +33587,9 @@ dict is loaded into <code>self.transformer</code>.</p>
       </thead>
       <tbody>
           <tr class="doc-section-item">
-            <td><code>pretrained_model_name_or_path_or_dict</code></td>
+            <td>
+                <code>pretrained_model_name_or_path_or_dict</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Can be either:</p>
@@ -32835,7 +33610,9 @@ dict is loaded into <code>self.transformer</code>.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>cache_dir</code></td>
+            <td>
+                <code>cache_dir</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Path to a directory where a downloaded pretrained model configuration is cached if the standard cache
@@ -32850,7 +33627,9 @@ is not used.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>force_download</code></td>
+            <td>
+                <code>force_download</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Whether or not to force the (re-)download of the model weights and configuration files, overriding the
@@ -32865,7 +33644,9 @@ cached versions if they exist.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>proxies</code></td>
+            <td>
+                <code>proxies</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>A dictionary of proxy servers to use by protocol or endpoint, for example, <code>{'http': 'foo.bar:3128',
@@ -32880,7 +33661,9 @@ cached versions if they exist.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>local_files_only</code></td>
+            <td>
+                <code>local_files_only</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Whether to only load local model weights and configuration files or not. If set to <code>True</code>, the model
@@ -32895,7 +33678,9 @@ won't be downloaded from the Hub.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>token</code></td>
+            <td>
+                <code>token</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The token to use as HTTP bearer authorization for remote files. If <code>True</code>, the token generated from
@@ -32910,7 +33695,9 @@ won't be downloaded from the Hub.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>revision</code></td>
+            <td>
+                <code>revision</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The specific model version to use. It can be a branch name, a tag name, a commit id, or any identifier
@@ -32925,7 +33712,9 @@ allowed by Git.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>subfolder</code></td>
+            <td>
+                <code>subfolder</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The subfolder location of a model file within a larger model repository on the Hub or locally.</p>
@@ -32940,6 +33729,7 @@ allowed by Git.</p>
           </tr>
       </tbody>
     </table>
+
 
             <details class="quote">
               <summary>Source code in <code>mindone/diffusers/loaders/lora_pipeline.py</code></summary>
@@ -33177,7 +33967,9 @@ allowed by Git.</p>
       </thead>
       <tbody>
           <tr class="doc-section-item">
-            <td><code>save_directory</code></td>
+            <td>
+                <code>save_directory</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Directory to save LoRA parameters to. Will be created if it doesn't exist.</p>
@@ -33191,7 +33983,9 @@ allowed by Git.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>transformer_lora_layers</code></td>
+            <td>
+                <code>transformer_lora_layers</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>State dict of the LoRA layers corresponding to the <code>transformer</code>.</p>
@@ -33209,7 +34003,9 @@ allowed by Git.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>is_main_process</code></td>
+            <td>
+                <code>is_main_process</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Whether the process calling this is the main process or not. Useful during distributed training and you
@@ -33229,7 +34025,9 @@ process to avoid race conditions.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>save_function</code></td>
+            <td>
+                <code>save_function</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The function to use to save the state dictionary. Useful during distributed training when you need to
@@ -33249,7 +34047,9 @@ replace <code>torch.save</code> with another method. Can be configured with the 
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>safe_serialization</code></td>
+            <td>
+                <code>safe_serialization</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Whether to save the model using <code>safetensors</code> or the traditional PyTorch way with <code>pickle</code>.</p>
@@ -33268,6 +34068,7 @@ replace <code>torch.save</code> with another method. Can be configured with the 
           </tr>
       </tbody>
     </table>
+
 
             <details class="quote">
               <summary>Source code in <code>mindone/diffusers/loaders/lora_pipeline.py</code></summary>
@@ -33397,7 +34198,9 @@ replace <code>torch.save</code> with another method. Can be configured with the 
       </thead>
       <tbody>
           <tr class="doc-section-item">
-            <td><code>components</code></td>
+            <td>
+                <code>components</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>List of LoRA-injectable components to unfuse LoRA from.</p>
@@ -33415,7 +34218,9 @@ replace <code>torch.save</code> with another method. Can be configured with the 
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>unfuse_transformer</code></td>
+            <td>
+                <code>unfuse_transformer</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Whether to unfuse the UNet LoRA parameters.</p>
@@ -33430,6 +34235,7 @@ replace <code>torch.save</code> with another method. Can be configured with the 
           </tr>
       </tbody>
     </table>
+
 
             <details class="quote">
               <summary>Source code in <code>mindone/diffusers/loaders/lora_pipeline.py</code></summary>
@@ -33492,6 +34298,12 @@ replace <code>torch.save</code> with another method. Can be configured with the 
     <div class="doc doc-contents first">
             <p class="doc doc-class-bases">
               Bases: <code><a class="autorefs autorefs-internal" title="mindone.diffusers.loaders.lora_pipeline.StableDiffusionLoraLoaderMixin" href="#mindone.diffusers.loaders.lora_pipeline.StableDiffusionLoraLoaderMixin">StableDiffusionLoraLoaderMixin</a></code></p>
+
+
+
+
+
+
 
 
               <details class="quote">
@@ -33917,7 +34729,9 @@ replace <code>torch.save</code> with another method. Can be configured with the 
       </thead>
       <tbody>
           <tr class="doc-section-item">
-            <td><code>state_dict</code></td>
+            <td>
+                <code>state_dict</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>A standard state dict containing the lora layer parameters. The key should be prefixed with an
@@ -33932,7 +34746,9 @@ additional <code>text_encoder</code> to distinguish between unet lora layers.</p
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>network_alphas</code></td>
+            <td>
+                <code>network_alphas</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The value of the network alpha used for stable learning and preventing underflow. This value has the
@@ -33948,7 +34764,9 @@ link</a>.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>text_encoder</code></td>
+            <td>
+                <code>text_encoder</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The text encoder model to load the LoRA layers into.</p>
@@ -33962,7 +34780,9 @@ link</a>.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>prefix</code></td>
+            <td>
+                <code>prefix</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Expected prefix of the <code>text_encoder</code> in the <code>state_dict</code>.</p>
@@ -33980,7 +34800,9 @@ link</a>.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>lora_scale</code></td>
+            <td>
+                <code>lora_scale</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>How much to scale the output of the lora linear layer before it is added with the output of the regular
@@ -33999,7 +34821,9 @@ lora layer.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>adapter_name</code></td>
+            <td>
+                <code>adapter_name</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Adapter name to be used for referencing the loaded adapter model. If not specified, it will use
@@ -34018,7 +34842,9 @@ lora layer.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>hotswap</code></td>
+            <td>
+                <code>hotswap</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>(<code>bool</code>, <em>optional</em>)
@@ -34051,6 +34877,7 @@ https://huggingface.co/docs/peft/main/en/package_reference/hotswap</p>
           </tr>
       </tbody>
     </table>
+
 
             <details class="quote">
               <summary>Source code in <code>mindone/diffusers/loaders/lora_pipeline.py</code></summary>
@@ -34224,7 +35051,9 @@ https://huggingface.co/docs/peft/main/en/package_reference/hotswap</p>
       </thead>
       <tbody>
           <tr class="doc-section-item">
-            <td><code>state_dict</code></td>
+            <td>
+                <code>state_dict</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>A standard state dict containing the lora layer parameters. The keys can either be indexed directly
@@ -34240,7 +35069,9 @@ encoder lora layers.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>network_alphas</code></td>
+            <td>
+                <code>network_alphas</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The value of the network alpha used for stable learning and preventing underflow. This value has the
@@ -34256,7 +35087,9 @@ link</a>.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>transformer</code></td>
+            <td>
+                <code>transformer</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The Transformer model to load the LoRA layers into.</p>
@@ -34270,7 +35103,9 @@ link</a>.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>adapter_name</code></td>
+            <td>
+                <code>adapter_name</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Adapter name to be used for referencing the loaded adapter model. If not specified, it will use
@@ -34289,7 +35124,9 @@ link</a>.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>hotswap</code></td>
+            <td>
+                <code>hotswap</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>(<code>bool</code>, <em>optional</em>)
@@ -34322,6 +35159,7 @@ https://huggingface.co/docs/peft/main/en/package_reference/hotswap</p>
           </tr>
       </tbody>
     </table>
+
 
             <details class="quote">
               <summary>Source code in <code>mindone/diffusers/loaders/lora_pipeline.py</code></summary>
@@ -34479,7 +35317,9 @@ https://huggingface.co/docs/peft/main/en/package_reference/hotswap</p>
       </thead>
       <tbody>
           <tr class="doc-section-item">
-            <td><code>save_directory</code></td>
+            <td>
+                <code>save_directory</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Directory to save LoRA parameters to. Will be created if it doesn't exist.</p>
@@ -34493,7 +35333,9 @@ https://huggingface.co/docs/peft/main/en/package_reference/hotswap</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>unet_lora_layers</code></td>
+            <td>
+                <code>unet_lora_layers</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>State dict of the LoRA layers corresponding to the <code>unet</code>.</p>
@@ -34507,7 +35349,9 @@ https://huggingface.co/docs/peft/main/en/package_reference/hotswap</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>text_encoder_lora_layers</code></td>
+            <td>
+                <code>text_encoder_lora_layers</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>State dict of the LoRA layers corresponding to the <code>text_encoder</code>. Must explicitly pass the text
@@ -34526,7 +35370,9 @@ encoder LoRA state dict because it comes from 🤗 Transformers.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>is_main_process</code></td>
+            <td>
+                <code>is_main_process</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Whether the process calling this is the main process or not. Useful during distributed training and you
@@ -34546,7 +35392,9 @@ process to avoid race conditions.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>save_function</code></td>
+            <td>
+                <code>save_function</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The function to use to save the state dictionary. Useful during distributed training when you need to
@@ -34566,7 +35414,9 @@ replace <code>mindspore.save_checkpoint</code> with another method. Can be confi
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>safe_serialization</code></td>
+            <td>
+                <code>safe_serialization</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Whether to save the model using <code>safetensors</code> or the traditional MindSpore way.</p>
@@ -34585,6 +35435,7 @@ replace <code>mindspore.save_checkpoint</code> with another method. Can be confi
           </tr>
       </tbody>
     </table>
+
 
             <details class="quote">
               <summary>Source code in <code>mindone/diffusers/loaders/lora_pipeline.py</code></summary>
@@ -34722,6 +35573,12 @@ replace <code>mindspore.save_checkpoint</code> with another method. Can be confi
 
 
         <p>Utility class for handling LoRAs.</p>
+
+
+
+
+
+
 
               <details class="quote">
                 <summary>Source code in <code>mindone/diffusers/loaders/lora_base.py</code></summary>
@@ -35570,6 +36427,7 @@ replace <code>mindspore.save_checkpoint</code> with another method. Can be confi
     adapter_names (<code>Union[List[str], str]</code>):
         The names of the adapter to delete. Can be a single string or a list of strings</p>
 
+
             <details class="quote">
               <summary>Source code in <code>mindone/diffusers/loaders/lora_base.py</code></summary>
               <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">682</span>
@@ -35638,7 +36496,9 @@ the loaded adapters differ.</p>
       </thead>
       <tbody>
           <tr class="doc-section-item">
-            <td><code>target_rank</code></td>
+            <td>
+                <code>target_rank</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The highest rank among all the adapters that will be loaded.</p>
@@ -35652,7 +36512,9 @@ the loaded adapters differ.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>check_compiled</code></td>
+            <td>
+                <code>check_compiled</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>How to handle the case when the model is already compiled, which should generally be avoided. The
@@ -35671,6 +36533,7 @@ options are:
           </tr>
       </tbody>
     </table>
+
 
             <details class="quote">
               <summary>Source code in <code>mindone/diffusers/loaders/lora_base.py</code></summary>
@@ -35743,7 +36606,9 @@ options are:
       </thead>
       <tbody>
           <tr class="doc-section-item">
-            <td><code>components</code></td>
+            <td>
+                <code>components</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>(<code>List[str]</code>): List of LoRA-injectable components to fuse the LoRAs into.</p>
@@ -35751,7 +36616,7 @@ options are:
               <p>
                   <span class="doc-param-annotation">
                     <b>TYPE:</b>
-                      <code><span title="typing.List">List</span>[str]</code>
+                      <code><span title="typing.List">List</span>[<span title="str">str</span>]</code>
                   </span>
                   <span class="doc-param-default">
                     <b>DEFAULT:</b>
@@ -35761,7 +36626,9 @@ options are:
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>lora_scale</code></td>
+            <td>
+                <code>lora_scale</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Controls how much to influence the outputs with the LoRA parameters.</p>
@@ -35779,7 +36646,9 @@ options are:
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>safe_fusing</code></td>
+            <td>
+                <code>safe_fusing</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Whether to check fused weights for NaN values before fusing and if values are NaN not fusing them.</p>
@@ -35797,7 +36666,9 @@ options are:
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>adapter_names</code></td>
+            <td>
+                <code>adapter_names</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Adapter names to be used for fusing. If nothing is passed, all active adapters will be fused.</p>
@@ -35825,6 +36696,7 @@ options are:
 <span class="n">pipeline</span><span class="o">.</span><span class="n">load_lora_weights</span><span class="p">(</span><span class="s2">&quot;nerijs/pixel-art-xl&quot;</span><span class="p">,</span> <span class="n">weight_name</span><span class="o">=</span><span class="s2">&quot;pixel-art-xl.safetensors&quot;</span><span class="p">,</span> <span class="n">adapter_name</span><span class="o">=</span><span class="s2">&quot;pixel&quot;</span><span class="p">)</span>
 <span class="n">pipeline</span><span class="o">.</span><span class="n">fuse_lora</span><span class="p">(</span><span class="n">lora_scale</span><span class="o">=</span><span class="mf">0.7</span><span class="p">)</span>
 </code></pre></div>
+
 
             <details class="quote">
               <summary>Source code in <code>mindone/diffusers/loaders/lora_base.py</code></summary>
@@ -36015,6 +36887,7 @@ options are:
 <span class="n">pipeline</span><span class="o">.</span><span class="n">get_active_adapters</span><span class="p">()</span>
 </code></pre></div>
 
+
             <details class="quote">
               <summary>Source code in <code>mindone/diffusers/loaders/lora_base.py</code></summary>
               <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">701</span>
@@ -36089,6 +36962,7 @@ options are:
 
         <p>Gets the current list of all available adapters in the pipeline.</p>
 
+
             <details class="quote">
               <summary>Source code in <code>mindone/diffusers/loaders/lora_base.py</code></summary>
               <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">729</span>
@@ -36155,7 +37029,9 @@ options are:
       </thead>
       <tbody>
           <tr class="doc-section-item">
-            <td><code>components</code></td>
+            <td>
+                <code>components</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>List of LoRA-injectable components to unfuse LoRA from.</p>
@@ -36173,7 +37049,9 @@ options are:
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>unfuse_unet</code></td>
+            <td>
+                <code>unfuse_unet</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Whether to unfuse the UNet LoRA parameters.</p>
@@ -36187,7 +37065,9 @@ options are:
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>unfuse_text_encoder</code></td>
+            <td>
+                <code>unfuse_text_encoder</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Whether to unfuse the text encoder LoRA parameters. If the text encoder wasn't monkey-patched with the
@@ -36203,6 +37083,7 @@ LoRA parameters then it won't have any effect.</p>
           </tr>
       </tbody>
     </table>
+
 
             <details class="quote">
               <summary>Source code in <code>mindone/diffusers/loaders/lora_base.py</code></summary>
@@ -36338,6 +37219,7 @@ LoRA parameters then it won't have any effect.</p>
 <span class="o">&gt;&gt;&gt;</span> <span class="n">pipeline</span><span class="o">.</span><span class="n">unload_lora_weights</span><span class="p">()</span>
 <span class="o">&gt;&gt;&gt;</span> <span class="o">...</span>
 </code></pre></div>
+
 
             <details class="quote">
               <summary>Source code in <code>mindone/diffusers/loaders/lora_base.py</code></summary>

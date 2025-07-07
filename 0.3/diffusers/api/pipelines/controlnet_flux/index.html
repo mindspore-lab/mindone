@@ -1477,6 +1477,29 @@
   
   
     <li class="md-nav__item">
+      <a href="../../../using-diffusers/consisid/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    ConsisID
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../../../using-diffusers/sdxl/" class="md-nav__link">
         
   
@@ -3209,6 +3232,29 @@
   
   
     <li class="md-nav__item">
+      <a href="../../models/consisid_transformer3d/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    ConsisIDTransformer3DModel
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../../models/cogview3plus_transformer2d/" class="md-nav__link">
         
   
@@ -4637,6 +4683,29 @@
   
   
     <li class="md-nav__item">
+      <a href="../consisid/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    ConsisID
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../consistency_models/" class="md-nav__link">
         
   
@@ -5884,10 +5953,10 @@
       
         
         
-        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2_11_4_64" >
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2_11_4_65" >
         
           
-          <label class="md-nav__link" for="__nav_2_11_4_64" id="__nav_2_11_4_64_label" tabindex="0">
+          <label class="md-nav__link" for="__nav_2_11_4_65" id="__nav_2_11_4_65_label" tabindex="0">
             
   
   
@@ -5900,8 +5969,8 @@
             <span class="md-nav__icon md-icon"></span>
           </label>
         
-        <nav class="md-nav" data-md-level="4" aria-labelledby="__nav_2_11_4_64_label" aria-expanded="false">
-          <label class="md-nav__title" for="__nav_2_11_4_64">
+        <nav class="md-nav" data-md-level="4" aria-labelledby="__nav_2_11_4_65_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_2_11_4_65">
             <span class="md-nav__icon md-icon"></span>
             Stable Diffusion
           </label>
@@ -8144,7 +8213,7 @@ specific language governing permissions and limitations under the License.
 
     <div class="doc doc-contents first">
             <p class="doc doc-class-bases">
-              Bases: <code><a class="autorefs autorefs-internal" title="mindone.diffusers.pipelines.pipeline_utils.DiffusionPipeline" href="../overview/#mindone.diffusers.DiffusionPipeline">DiffusionPipeline</a></code>, <code><a class="autorefs autorefs-internal" title="mindone.diffusers.loaders.FluxLoraLoaderMixin" href="../../loaders/lora/#mindone.diffusers.loaders.lora_pipeline.FluxLoraLoaderMixin">FluxLoraLoaderMixin</a></code>, <code><a class="autorefs autorefs-internal" title="mindone.diffusers.loaders.FromSingleFileMixin" href="../../loaders/single_file/#mindone.diffusers.loaders.single_file.FromSingleFileMixin">FromSingleFileMixin</a></code>, <code><span title="mindone.diffusers.loaders.FluxIPAdapterMixin">FluxIPAdapterMixin</span></code></p>
+              Bases: <code><a class="autorefs autorefs-internal" title="mindone.diffusers.DiffusionPipeline (mindone.diffusers.pipelines.pipeline_utils.DiffusionPipeline)" href="../overview/#mindone.diffusers.DiffusionPipeline">DiffusionPipeline</a></code>, <code><a class="autorefs autorefs-internal" title="mindone.diffusers.loaders.lora_pipeline.FluxLoraLoaderMixin (mindone.diffusers.loaders.FluxLoraLoaderMixin)" href="../../loaders/lora/#mindone.diffusers.loaders.lora_pipeline.FluxLoraLoaderMixin">FluxLoraLoaderMixin</a></code>, <code><a class="autorefs autorefs-internal" title="mindone.diffusers.loaders.single_file.FromSingleFileMixin (mindone.diffusers.loaders.FromSingleFileMixin)" href="../../loaders/single_file/#mindone.diffusers.loaders.single_file.FromSingleFileMixin">FromSingleFileMixin</a></code>, <code><span title="mindone.diffusers.loaders.FluxIPAdapterMixin">FluxIPAdapterMixin</span></code></p>
 
 
         <p>The Flux pipeline for text-to-image generation.</p>
@@ -8160,7 +8229,9 @@ specific language governing permissions and limitations under the License.
       </thead>
       <tbody>
           <tr class="doc-section-item">
-            <td><code>transformer</code></td>
+            <td>
+                <code>transformer</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Conditional Transformer (MMDiT) architecture to denoise the encoded image latents.</p>
@@ -8174,7 +8245,9 @@ specific language governing permissions and limitations under the License.
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>scheduler</code></td>
+            <td>
+                <code>scheduler</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>A scheduler to be used in combination with <code>transformer</code> to denoise the encoded image latents.</p>
@@ -8188,7 +8261,9 @@ specific language governing permissions and limitations under the License.
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>vae</code></td>
+            <td>
+                <code>vae</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Variational Auto-Encoder (VAE) Model to encode and decode images to and from latent representations.</p>
@@ -8202,7 +8277,9 @@ specific language governing permissions and limitations under the License.
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>text_encoder</code></td>
+            <td>
+                <code>text_encoder</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p><a href="https://huggingface.co/docs/transformers/model_doc/clip#transformers.CLIPTextModel">CLIP</a>, specifically
@@ -8217,7 +8294,9 @@ the <a href="https://huggingface.co/openai/clip-vit-large-patch14">clip-vit-larg
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>text_encoder_2</code></td>
+            <td>
+                <code>text_encoder_2</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p><a href="https://huggingface.co/docs/transformers/en/model_doc/t5#transformers.T5EncoderModel">T5</a>, specifically
@@ -8232,7 +8311,9 @@ the <a href="https://huggingface.co/google/t5-v1_1-xxl">google/t5-v1_1-xxl</a> v
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>tokenizer</code></td>
+            <td>
+                <code>tokenizer</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Tokenizer of class
@@ -8247,7 +8328,9 @@ the <a href="https://huggingface.co/google/t5-v1_1-xxl">google/t5-v1_1-xxl</a> v
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>tokenizer_2</code></td>
+            <td>
+                <code>tokenizer_2</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Second Tokenizer of class
@@ -8263,6 +8346,12 @@ the <a href="https://huggingface.co/google/t5-v1_1-xxl">google/t5-v1_1-xxl</a> v
           </tr>
       </tbody>
     </table>
+
+
+
+
+
+
 
               <details class="quote">
                 <summary>Source code in <code>mindone/diffusers/pipelines/flux/pipeline_flux_controlnet.py</code></summary>
@@ -10231,7 +10320,9 @@ the <a href="https://huggingface.co/google/t5-v1_1-xxl">google/t5-v1_1-xxl</a> v
       </thead>
       <tbody>
           <tr class="doc-section-item">
-            <td><code>prompt</code></td>
+            <td>
+                <code>prompt</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The prompt or prompts to guide the image generation. If not defined, one has to pass <code>prompt_embeds</code>.
@@ -10250,7 +10341,9 @@ instead.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>prompt_2</code></td>
+            <td>
+                <code>prompt_2</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The prompt or prompts to be sent to <code>tokenizer_2</code> and <code>text_encoder_2</code>. If not defined, <code>prompt</code> is
@@ -10269,7 +10362,9 @@ will be used instead</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>height</code></td>
+            <td>
+                <code>height</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The height in pixels of the generated image. This is set to 1024 by default for the best results.</p>
@@ -10287,7 +10382,9 @@ will be used instead</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>width</code></td>
+            <td>
+                <code>width</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The width in pixels of the generated image. This is set to 1024 by default for the best results.</p>
@@ -10305,7 +10402,9 @@ will be used instead</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>num_inference_steps</code></td>
+            <td>
+                <code>num_inference_steps</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The number of denoising steps. More denoising steps usually lead to a higher quality image at the
@@ -10324,7 +10423,9 @@ expense of slower inference.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>sigmas</code></td>
+            <td>
+                <code>sigmas</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Custom sigmas to use for the denoising process with schedulers which support a <code>sigmas</code> argument in
@@ -10344,7 +10445,9 @@ will be used.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>guidance_scale</code></td>
+            <td>
+                <code>guidance_scale</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Guidance scale as defined in <a href="https://arxiv.org/abs/2207.12598">Classifier-Free Diffusion Guidance</a>.
@@ -10366,7 +10469,9 @@ usually at the expense of lower image quality.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>control_guidance_start</code></td>
+            <td>
+                <code>control_guidance_start</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The percentage of total steps at which the ControlNet starts applying.</p>
@@ -10384,7 +10489,9 @@ usually at the expense of lower image quality.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>control_guidance_end</code></td>
+            <td>
+                <code>control_guidance_end</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The percentage of total steps at which the ControlNet stops applying.</p>
@@ -10402,7 +10509,9 @@ usually at the expense of lower image quality.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>control_image</code></td>
+            <td>
+                <code>control_image</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <div class="highlight"><pre><span></span><code>`List[List[ms.Tensor]]`, `List[List[np.ndarray]]` or `List[List[PIL.Image.Image]]`):
@@ -10427,7 +10536,9 @@ to a single ControlNet.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>controlnet_conditioning_scale</code></td>
+            <td>
+                <code>controlnet_conditioning_scale</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The outputs of the ControlNet are multiplied by <code>controlnet_conditioning_scale</code> before they are added
@@ -10447,7 +10558,9 @@ the corresponding scale as a list.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>control_mode</code></td>
+            <td>
+                <code>control_mode</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The control mode when applying ControlNet-Union.</p>
@@ -10465,7 +10578,9 @@ the corresponding scale as a list.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>num_images_per_prompt</code></td>
+            <td>
+                <code>num_images_per_prompt</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The number of images to generate per prompt.</p>
@@ -10483,7 +10598,9 @@ the corresponding scale as a list.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>generator</code></td>
+            <td>
+                <code>generator</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>One or a list of <a href="https://numpy.org/doc/stable/reference/random/generator.html">np.random.Generator(s)</a>
@@ -10502,7 +10619,9 @@ to make generation deterministic.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>latents</code></td>
+            <td>
+                <code>latents</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Pre-generated noisy latents, sampled from a Gaussian distribution, to be used as inputs for image
@@ -10522,7 +10641,9 @@ tensor will ge generated by sampling using the supplied random <code>generator</
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>prompt_embeds</code></td>
+            <td>
+                <code>prompt_embeds</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Pre-generated text embeddings. Can be used to easily tweak text inputs, <em>e.g.</em> prompt weighting. If not
@@ -10541,7 +10662,9 @@ provided, text embeddings will be generated from <code>prompt</code> input argum
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>pooled_prompt_embeds</code></td>
+            <td>
+                <code>pooled_prompt_embeds</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Pre-generated pooled text embeddings. Can be used to easily tweak text inputs, <em>e.g.</em> prompt weighting.
@@ -10560,7 +10683,9 @@ If not provided, pooled text embeddings will be generated from <code>prompt</cod
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>ip_adapter_image</code></td>
+            <td>
+                <code>ip_adapter_image</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>(<code>PipelineImageInput</code>, <em>optional</em>): Optional image input to work with IP Adapters.</p>
@@ -10578,7 +10703,9 @@ If not provided, pooled text embeddings will be generated from <code>prompt</cod
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>ip_adapter_image_embeds</code></td>
+            <td>
+                <code>ip_adapter_image_embeds</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Pre-generated image embeddings for IP-Adapter. It should be a list of length same as number of
@@ -10598,7 +10725,9 @@ provided, embeddings are computed from the <code>ip_adapter_image</code> input a
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>negative_ip_adapter_image</code></td>
+            <td>
+                <code>negative_ip_adapter_image</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>(<code>PipelineImageInput</code>, <em>optional</em>): Optional image input to work with IP Adapters.</p>
@@ -10616,7 +10745,9 @@ provided, embeddings are computed from the <code>ip_adapter_image</code> input a
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>negative_ip_adapter_image_embeds</code></td>
+            <td>
+                <code>negative_ip_adapter_image_embeds</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Pre-generated image embeddings for IP-Adapter. It should be a list of length same as number of
@@ -10636,7 +10767,9 @@ provided, embeddings are computed from the <code>ip_adapter_image</code> input a
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>output_type</code></td>
+            <td>
+                <code>output_type</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The output format of the generate image. Choose between
@@ -10655,7 +10788,9 @@ provided, embeddings are computed from the <code>ip_adapter_image</code> input a
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>return_dict</code></td>
+            <td>
+                <code>return_dict</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Whether or not to return a [<code>~pipelines.flux.FluxPipelineOutput</code>] instead of a plain tuple.</p>
@@ -10673,7 +10808,9 @@ provided, embeddings are computed from the <code>ip_adapter_image</code> input a
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>joint_attention_kwargs</code></td>
+            <td>
+                <code>joint_attention_kwargs</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>A kwargs dictionary that if specified is passed along to the <code>AttentionProcessor</code> as defined under
@@ -10693,7 +10830,9 @@ provided, embeddings are computed from the <code>ip_adapter_image</code> input a
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>callback_on_step_end</code></td>
+            <td>
+                <code>callback_on_step_end</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>A function that calls at the end of each denoising steps during the inference. The function is called
@@ -10714,7 +10853,9 @@ callback_kwargs: Dict)</code>. <code>callback_kwargs</code> will include a list 
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>callback_on_step_end_tensor_inputs</code></td>
+            <td>
+                <code>callback_on_step_end_tensor_inputs</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The list of tensor inputs for the <code>callback_on_step_end</code> function. The tensors specified in the list
@@ -10734,7 +10875,9 @@ will be passed as <code>callback_kwargs</code> argument. You will only be able t
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>max_sequence_length</code></td>
+            <td>
+                <code>max_sequence_length</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Maximum sequence length to use with the <code>prompt</code>.</p>
@@ -10793,6 +10936,7 @@ will be passed as <code>callback_kwargs</code> argument. You will only be able t
           </tr>
       </tbody>
     </table>
+
 
             <details class="quote">
               <summary>Source code in <code>mindone/diffusers/pipelines/flux/pipeline_flux_controlnet.py</code></summary>
@@ -11773,7 +11917,9 @@ will be passed as <code>callback_kwargs</code> argument. You will only be able t
       </thead>
       <tbody>
           <tr class="doc-section-item">
-            <td><code>prompt</code></td>
+            <td>
+                <code>prompt</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>prompt to be encoded</p>
@@ -11787,7 +11933,9 @@ will be passed as <code>callback_kwargs</code> argument. You will only be able t
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>prompt_2</code></td>
+            <td>
+                <code>prompt_2</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The prompt or prompts to be sent to the <code>tokenizer_2</code> and <code>text_encoder_2</code>. If not defined, <code>prompt</code> is
@@ -11802,7 +11950,9 @@ used in all text-encoders</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>num_images_per_prompt</code></td>
+            <td>
+                <code>num_images_per_prompt</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>number of images that should be generated per prompt</p>
@@ -11820,7 +11970,9 @@ used in all text-encoders</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>prompt_embeds</code></td>
+            <td>
+                <code>prompt_embeds</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Pre-generated text embeddings. Can be used to easily tweak text inputs, <em>e.g.</em> prompt weighting. If not
@@ -11839,7 +11991,9 @@ provided, text embeddings will be generated from <code>prompt</code> input argum
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>pooled_prompt_embeds</code></td>
+            <td>
+                <code>pooled_prompt_embeds</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Pre-generated pooled text embeddings. Can be used to easily tweak text inputs, <em>e.g.</em> prompt weighting.
@@ -11858,7 +12012,9 @@ If not provided, pooled text embeddings will be generated from <code>prompt</cod
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>clip_skip</code></td>
+            <td>
+                <code>clip_skip</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Number of layers to be skipped from CLIP while computing the prompt embeddings. A value of 1 means that
@@ -11873,7 +12029,9 @@ the output of the pre-final layer will be used for computing the prompt embeddin
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>lora_scale</code></td>
+            <td>
+                <code>lora_scale</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>A lora scale that will be applied to all LoRA layers of the text encoder if LoRA layers are loaded.</p>
@@ -11892,6 +12050,7 @@ the output of the pre-final layer will be used for computing the prompt embeddin
           </tr>
       </tbody>
     </table>
+
 
             <details class="quote">
               <summary>Source code in <code>mindone/diffusers/pipelines/flux/pipeline_flux_controlnet.py</code></summary>
@@ -12077,6 +12236,12 @@ the output of the pre-final layer will be used for computing the prompt embeddin
 
 
         <p>Output class for Stable Diffusion pipelines.</p>
+
+
+
+
+
+
 
               <details class="quote">
                 <summary>Source code in <code>mindone/diffusers/pipelines/flux/pipeline_output.py</code></summary>

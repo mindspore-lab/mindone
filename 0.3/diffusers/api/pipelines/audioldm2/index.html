@@ -1477,6 +1477,29 @@
   
   
     <li class="md-nav__item">
+      <a href="../../../using-diffusers/consisid/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    ConsisID
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../../../using-diffusers/sdxl/" class="md-nav__link">
         
   
@@ -3209,6 +3232,29 @@
   
   
     <li class="md-nav__item">
+      <a href="../../models/consisid_transformer3d/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    ConsisIDTransformer3DModel
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../../models/cogview3plus_transformer2d/" class="md-nav__link">
         
   
@@ -4877,6 +4923,29 @@
   
   
     <li class="md-nav__item">
+      <a href="../consisid/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    ConsisID
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../consistency_models/" class="md-nav__link">
         
   
@@ -6040,10 +6109,10 @@
       
         
         
-        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2_11_4_64" >
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2_11_4_65" >
         
           
-          <label class="md-nav__link" for="__nav_2_11_4_64" id="__nav_2_11_4_64_label" tabindex="0">
+          <label class="md-nav__link" for="__nav_2_11_4_65" id="__nav_2_11_4_65_label" tabindex="0">
             
   
   
@@ -6056,8 +6125,8 @@
             <span class="md-nav__icon md-icon"></span>
           </label>
         
-        <nav class="md-nav" data-md-level="4" aria-labelledby="__nav_2_11_4_64_label" aria-expanded="false">
-          <label class="md-nav__title" for="__nav_2_11_4_64">
+        <nav class="md-nav" data-md-level="4" aria-labelledby="__nav_2_11_4_65_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_2_11_4_65">
             <span class="md-nav__icon md-icon"></span>
             Stable Diffusion
           </label>
@@ -8469,7 +8538,7 @@ See table below for details on the three checkpoints:</p>
 
     <div class="doc doc-contents first">
             <p class="doc doc-class-bases">
-              Bases: <code><a class="autorefs autorefs-internal" title="mindone.diffusers.pipelines.pipeline_utils.DiffusionPipeline" href="../overview/#mindone.diffusers.DiffusionPipeline">DiffusionPipeline</a></code></p>
+              Bases: <code><a class="autorefs autorefs-internal" title="mindone.diffusers.DiffusionPipeline (mindone.diffusers.pipelines.pipeline_utils.DiffusionPipeline)" href="../overview/#mindone.diffusers.DiffusionPipeline">DiffusionPipeline</a></code></p>
 
 
         <p>Pipeline for text-to-audio generation using AudioLDM2.</p>
@@ -8486,7 +8555,9 @@ implemented for all pipelines (downloading, saving etc.).</p>
       </thead>
       <tbody>
           <tr class="doc-section-item">
-            <td><code>vae</code></td>
+            <td>
+                <code>vae</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Variational Auto-Encoder (VAE) model to encode and decode images to and from latent representations.</p>
@@ -8500,7 +8571,9 @@ implemented for all pipelines (downloading, saving etc.).</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>text_encoder</code></td>
+            <td>
+                <code>text_encoder</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>First frozen text-encoder. AudioLDM2 uses the joint audio-text embedding model
@@ -8518,7 +8591,9 @@ rank generated waveforms against the text prompt by computing similarity scores.
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>text_encoder_2</code></td>
+            <td>
+                <code>text_encoder_2</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Second frozen text-encoder. AudioLDM2 uses the encoder of
@@ -8536,7 +8611,9 @@ for TTS. AudioLDM2 uses the encoder of
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>projection_model</code></td>
+            <td>
+                <code>projection_model</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>A trained model used to linearly project the hidden-states from the first and second text encoder models
@@ -8553,7 +8630,9 @@ hidden-states</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>language_model</code></td>
+            <td>
+                <code>language_model</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>An auto-regressive language model used to generate a sequence of hidden-states conditioned on the projected
@@ -8568,7 +8647,9 @@ outputs from the two text encoders.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>tokenizer</code></td>
+            <td>
+                <code>tokenizer</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Tokenizer to tokenize text for the first frozen text-encoder.</p>
@@ -8582,7 +8663,9 @@ outputs from the two text encoders.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>tokenizer_2</code></td>
+            <td>
+                <code>tokenizer_2</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Tokenizer to tokenize text for the second frozen text-encoder.</p>
@@ -8596,7 +8679,9 @@ outputs from the two text encoders.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>feature_extractor</code></td>
+            <td>
+                <code>feature_extractor</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Feature extractor to pre-process generated audio waveforms to log-mel spectrograms for automatic scoring.</p>
@@ -8610,7 +8695,9 @@ outputs from the two text encoders.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>unet</code></td>
+            <td>
+                <code>unet</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>A <code>UNet2DConditionModel</code> to denoise the encoded audio latents.</p>
@@ -8624,7 +8711,9 @@ outputs from the two text encoders.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>scheduler</code></td>
+            <td>
+                <code>scheduler</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>A scheduler to be used in combination with <code>unet</code> to denoise the encoded audio latents. Can be one of
@@ -8639,7 +8728,9 @@ outputs from the two text encoders.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>vocoder</code></td>
+            <td>
+                <code>vocoder</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Vocoder of class <code>SpeechT5HifiGan</code> to convert the mel-spectrogram latents to the final audio waveform.</p>
@@ -8654,6 +8745,12 @@ outputs from the two text encoders.</p>
           </tr>
       </tbody>
     </table>
+
+
+
+
+
+
 
               <details class="quote">
                 <summary>Source code in <code>mindone/diffusers/pipelines/audioldm2/pipeline_audioldm2.py</code></summary>
@@ -10460,7 +10557,9 @@ outputs from the two text encoders.</p>
       </thead>
       <tbody>
           <tr class="doc-section-item">
-            <td><code>prompt</code></td>
+            <td>
+                <code>prompt</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The prompt or prompts to guide audio generation. If not defined, you need to pass <code>prompt_embeds</code>.</p>
@@ -10478,7 +10577,9 @@ outputs from the two text encoders.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>transcription</code></td>
+            <td>
+                <code>transcription</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>\
@@ -10497,7 +10598,9 @@ The transcript for text to speech.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>audio_length_in_s</code></td>
+            <td>
+                <code>audio_length_in_s</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The length of the generated audio sample in seconds.</p>
@@ -10515,7 +10618,9 @@ The transcript for text to speech.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>num_inference_steps</code></td>
+            <td>
+                <code>num_inference_steps</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The number of denoising steps. More denoising steps usually lead to a higher quality audio at the
@@ -10534,7 +10639,9 @@ expense of slower inference.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>guidance_scale</code></td>
+            <td>
+                <code>guidance_scale</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>A higher guidance scale value encourages the model to generate audio that is closely linked to the text
@@ -10553,7 +10660,9 @@ expense of slower inference.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>negative_prompt</code></td>
+            <td>
+                <code>negative_prompt</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The prompt or prompts to guide what to not include in audio generation. If not defined, you need to
@@ -10572,7 +10681,9 @@ pass <code>negative_prompt_embeds</code> instead. Ignored when not using guidanc
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>num_waveforms_per_prompt</code></td>
+            <td>
+                <code>num_waveforms_per_prompt</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The number of waveforms to generate per prompt. If <code>num_waveforms_per_prompt &gt; 1</code>, then automatic
@@ -10593,7 +10704,9 @@ embedding space.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>eta</code></td>
+            <td>
+                <code>eta</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Corresponds to parameter eta (η) from the <a href="https://arxiv.org/abs/2010.02502">DDIM</a> paper. Only applies
@@ -10612,7 +10725,9 @@ to the [<code>~schedulers.DDIMScheduler</code>], and is ignored in other schedul
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>generator</code></td>
+            <td>
+                <code>generator</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>A <a href="https://pytorch.org/docs/stable/generated/np.random.Generator.html"><code>np.random.Generator</code></a> to make
@@ -10631,7 +10746,9 @@ generation deterministic.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>latents</code></td>
+            <td>
+                <code>latents</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Pre-generated noisy latents sampled from a Gaussian distribution, to be used as inputs for spectrogram
@@ -10651,7 +10768,9 @@ tensor is generated by sampling using the supplied random <code>generator</code>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>prompt_embeds</code></td>
+            <td>
+                <code>prompt_embeds</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Pre-generated text embeddings. Can be used to easily tweak text inputs (prompt weighting). If not
@@ -10670,7 +10789,9 @@ provided, text embeddings are generated from the <code>prompt</code> input argum
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>negative_prompt_embeds</code></td>
+            <td>
+                <code>negative_prompt_embeds</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Pre-generated negative text embeddings. Can be used to easily tweak text inputs (prompt weighting). If
@@ -10689,7 +10810,9 @@ not provided, <code>negative_prompt_embeds</code> are generated from the <code>n
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>generated_prompt_embeds</code></td>
+            <td>
+                <code>generated_prompt_embeds</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Pre-generated text embeddings from the GPT2 langauge model. Can be used to easily tweak text inputs,
@@ -10709,7 +10832,9 @@ not provided, <code>negative_prompt_embeds</code> are generated from the <code>n
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>negative_generated_prompt_embeds</code></td>
+            <td>
+                <code>negative_generated_prompt_embeds</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Pre-generated negative text embeddings from the GPT2 language model. Can be used to easily tweak text
@@ -10729,7 +10854,9 @@ inputs, <em>e.g.</em> prompt weighting. If not provided, negative_prompt_embeds 
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>attention_mask</code></td>
+            <td>
+                <code>attention_mask</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Pre-computed attention mask to be applied to the <code>prompt_embeds</code>. If not provided, attention mask will
@@ -10748,7 +10875,9 @@ be computed from <code>prompt</code> input argument.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>negative_attention_mask</code></td>
+            <td>
+                <code>negative_attention_mask</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Pre-computed attention mask to be applied to the <code>negative_prompt_embeds</code>. If not provided, attention
@@ -10767,7 +10896,9 @@ mask will be computed from <code>negative_prompt</code> input argument.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>max_new_tokens</code></td>
+            <td>
+                <code>max_new_tokens</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Number of new tokens to generate with the GPT2 language model. If not provided, number of tokens will
@@ -10786,7 +10917,9 @@ be taken from the config of the model.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>return_dict</code></td>
+            <td>
+                <code>return_dict</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Whether or not to return a [<code>~pipelines.stable_diffusion.StableDiffusionPipelineOutput</code>] instead of a
@@ -10805,7 +10938,9 @@ plain tuple.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>callback</code></td>
+            <td>
+                <code>callback</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>A function that calls every <code>callback_steps</code> steps during inference. The function is called with the
@@ -10824,7 +10959,9 @@ following arguments: <code>callback(step: int, timestep: int, latents: mindspore
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>callback_steps</code></td>
+            <td>
+                <code>callback_steps</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The frequency at which the <code>callback</code> function is called. If not specified, the callback is called at
@@ -10843,7 +10980,9 @@ every step.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>cross_attention_kwargs</code></td>
+            <td>
+                <code>cross_attention_kwargs</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>A kwargs dictionary that if specified is passed along to the [<code>AttentionProcessor</code>] as defined in
@@ -10862,7 +11001,9 @@ every step.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>output_type</code></td>
+            <td>
+                <code>output_type</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The output format of the generated audio. Choose between <code>"np"</code> to return a NumPy <code>np.ndarray</code> or
@@ -10907,6 +11048,7 @@ otherwise a <code>tuple</code> is returned where the first element is a list wit
           </tr>
       </tbody>
     </table>
+
 
             <details class="quote">
               <summary>Source code in <code>mindone/diffusers/pipelines/audioldm2/pipeline_audioldm2.py</code></summary>
@@ -11421,6 +11563,7 @@ otherwise a <code>tuple</code> is returned where the first element is a list wit
         <p>Disable sliced VAE decoding. If <code>enable_vae_slicing</code> was previously enabled, this method will go back to
 computing decoding in one step.</p>
 
+
             <details class="quote">
               <summary>Source code in <code>mindone/diffusers/pipelines/audioldm2/pipeline_audioldm2.py</code></summary>
               <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">202</span>
@@ -11455,6 +11598,7 @@ computing decoding in one step.</p>
 to <code>enable_sequential_cpu_offload</code>, this method moves one whole model at a time to the GPU when its <code>forward</code>
 method is called, and the model remains in GPU until the next model runs. Memory savings are lower than with
 <code>enable_sequential_cpu_offload</code>, but performance is much better due to the iterative execution of the <code>unet</code>.</p>
+
 
             <details class="quote">
               <summary>Source code in <code>mindone/diffusers/pipelines/audioldm2/pipeline_audioldm2.py</code></summary>
@@ -11499,6 +11643,7 @@ method is called, and the model remains in GPU until the next model runs. Memory
         <p>Enable sliced VAE decoding. When this option is enabled, the VAE will split the input tensor in slices to
 compute decoding in several steps. This is useful to save some memory and allow larger batch sizes.</p>
 
+
             <details class="quote">
               <summary>Source code in <code>mindone/diffusers/pipelines/audioldm2/pipeline_audioldm2.py</code></summary>
               <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">194</span>
@@ -11541,7 +11686,9 @@ compute decoding in several steps. This is useful to save some memory and allow 
       </thead>
       <tbody>
           <tr class="doc-section-item">
-            <td><code>prompt</code></td>
+            <td>
+                <code>prompt</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>prompt to be encoded</p>
@@ -11555,7 +11702,9 @@ compute decoding in several steps. This is useful to save some memory and allow 
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>transcription</code></td>
+            <td>
+                <code>transcription</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>transcription of text to speech</p>
@@ -11573,7 +11722,9 @@ compute decoding in several steps. This is useful to save some memory and allow 
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>num_waveforms_per_prompt</code></td>
+            <td>
+                <code>num_waveforms_per_prompt</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>number of waveforms that should be generated per prompt</p>
@@ -11587,7 +11738,9 @@ compute decoding in several steps. This is useful to save some memory and allow 
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>do_classifier_free_guidance</code></td>
+            <td>
+                <code>do_classifier_free_guidance</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>whether to use classifier free guidance or not</p>
@@ -11601,7 +11754,9 @@ compute decoding in several steps. This is useful to save some memory and allow 
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>negative_prompt</code></td>
+            <td>
+                <code>negative_prompt</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The prompt or prompts not to guide the audio generation. If not defined, one has to pass
@@ -11621,7 +11776,9 @@ less than <code>1</code>).</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>prompt_embeds</code></td>
+            <td>
+                <code>prompt_embeds</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Pre-computed text embeddings from the Flan T5 model. Can be used to easily tweak text inputs, <em>e.g.</em>
@@ -11640,7 +11797,9 @@ prompt weighting. If not provided, text embeddings will be computed from <code>p
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>negative_prompt_embeds</code></td>
+            <td>
+                <code>negative_prompt_embeds</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Pre-computed negative text embeddings from the Flan T5 model. Can be used to easily tweak text inputs,
@@ -11660,7 +11819,9 @@ prompt weighting. If not provided, text embeddings will be computed from <code>p
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>generated_prompt_embeds</code></td>
+            <td>
+                <code>generated_prompt_embeds</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Pre-generated text embeddings from the GPT2 langauge model. Can be used to easily tweak text inputs,
@@ -11680,7 +11841,9 @@ prompt weighting. If not provided, text embeddings will be computed from <code>p
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>negative_generated_prompt_embeds</code></td>
+            <td>
+                <code>negative_generated_prompt_embeds</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Pre-generated negative text embeddings from the GPT2 language model. Can be used to easily tweak text
@@ -11700,7 +11863,9 @@ inputs, <em>e.g.</em> prompt weighting. If not provided, negative_prompt_embeds 
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>attention_mask</code></td>
+            <td>
+                <code>attention_mask</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Pre-computed attention mask to be applied to the <code>prompt_embeds</code>. If not provided, attention mask will
@@ -11719,7 +11884,9 @@ be computed from <code>prompt</code> input argument.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>negative_attention_mask</code></td>
+            <td>
+                <code>negative_attention_mask</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Pre-computed attention mask to be applied to the <code>negative_prompt_embeds</code>. If not provided, attention
@@ -11738,7 +11905,9 @@ mask will be computed from <code>negative_prompt</code> input argument.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>max_new_tokens</code></td>
+            <td>
+                <code>max_new_tokens</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The number of new tokens to generate with the GPT2 language model.</p>
@@ -11783,6 +11952,7 @@ mask will be computed from <code>negative_prompt</code> input argument.</p>
 <span class="o">&gt;&gt;&gt;</span> <span class="c1"># save generated audio sample</span>
 <span class="o">&gt;&gt;&gt;</span> <span class="n">scipy</span><span class="o">.</span><span class="n">io</span><span class="o">.</span><span class="n">wavfile</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="s2">&quot;techno.wav&quot;</span><span class="p">,</span> <span class="n">rate</span><span class="o">=</span><span class="mi">16000</span><span class="p">,</span> <span class="n">data</span><span class="o">=</span><span class="n">audio</span><span class="p">)</span>
 </code></pre></div>
+
 
             <details class="quote">
               <summary>Source code in <code>mindone/diffusers/pipelines/audioldm2/pipeline_audioldm2.py</code></summary>
@@ -12458,7 +12628,9 @@ mask will be computed from <code>negative_prompt</code> input argument.</p>
       </thead>
       <tbody>
           <tr class="doc-section-item">
-            <td><code>inputs_embeds</code></td>
+            <td>
+                <code>inputs_embeds</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The sequence used as a prompt for the generation.</p>
@@ -12476,7 +12648,9 @@ mask will be computed from <code>negative_prompt</code> input argument.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>max_new_tokens</code></td>
+            <td>
+                <code>max_new_tokens</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Number of new tokens to generate.</p>
@@ -12494,7 +12668,9 @@ mask will be computed from <code>negative_prompt</code> input argument.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>model_kwargs</code></td>
+            <td>
+                <code>model_kwargs</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Ad hoc parametrization of additional model-specific kwargs that will be forwarded to the <code>forward</code>
@@ -12521,6 +12697,7 @@ function of the model.</p>
   <p><code>inputs_embeds (</code>mindspore.tensor<code>of shape</code>(batch_size, sequence_length, hidden_size)`):
     The sequence of generated hidden-states.</p>
 </details>
+
             <details class="quote">
               <summary>Source code in <code>mindone/diffusers/pipelines/audioldm2/pipeline_audioldm2.py</code></summary>
               <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">221</span>
@@ -12633,7 +12810,7 @@ function of the model.</p>
 
     <div class="doc doc-contents first">
             <p class="doc doc-class-bases">
-              Bases: <code><a class="autorefs autorefs-internal" title="mindone.diffusers.models.modeling_utils.ModelMixin" href="../../models/overview/#mindone.diffusers.ModelMixin">ModelMixin</a></code>, <code><a class="autorefs autorefs-internal" title="mindone.diffusers.configuration_utils.ConfigMixin" href="../../configuration/#mindone.diffusers.configuration_utils.ConfigMixin">ConfigMixin</a></code></p>
+              Bases: <code><a class="autorefs autorefs-internal" title="mindone.diffusers.ModelMixin (mindone.diffusers.models.modeling_utils.ModelMixin)" href="../../models/overview/#mindone.diffusers.ModelMixin">ModelMixin</a></code>, <code><a class="autorefs autorefs-internal" title="mindone.diffusers.configuration_utils.ConfigMixin" href="../../configuration/#mindone.diffusers.configuration_utils.ConfigMixin">ConfigMixin</a></code></p>
 
 
         <p>A simple linear projection model to map two text embeddings to a shared latent space. It also inserts learned
@@ -12650,7 +12827,9 @@ embedding vectors at the start and end of each text embedding sequence respectiv
       </thead>
       <tbody>
           <tr class="doc-section-item">
-            <td><code>text_encoder_dim</code></td>
+            <td>
+                <code>text_encoder_dim</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Dimensionality of the text embeddings from the first text encoder (CLAP).</p>
@@ -12664,7 +12843,9 @@ embedding vectors at the start and end of each text embedding sequence respectiv
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>text_encoder_1_dim</code></td>
+            <td>
+                <code>text_encoder_1_dim</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Dimensionality of the text embeddings from the second text encoder (T5 or VITS).</p>
@@ -12678,7 +12859,9 @@ embedding vectors at the start and end of each text embedding sequence respectiv
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>langauge_model_dim</code></td>
+            <td>
+                <code>langauge_model_dim</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Dimensionality of the text embeddings from the language model (GPT2).</p>
@@ -12693,6 +12876,12 @@ embedding vectors at the start and end of each text embedding sequence respectiv
           </tr>
       </tbody>
     </table>
+
+
+
+
+
+
 
               <details class="quote">
                 <summary>Source code in <code>mindone/diffusers/pipelines/audioldm2/modeling_audioldm2.py</code></summary>
@@ -12893,7 +13082,7 @@ embedding vectors at the start and end of each text embedding sequence respectiv
 
     <div class="doc doc-contents first">
             <p class="doc doc-class-bases">
-              Bases: <code><a class="autorefs autorefs-internal" title="mindone.diffusers.models.modeling_utils.ModelMixin" href="../../models/overview/#mindone.diffusers.ModelMixin">ModelMixin</a></code>, <code><a class="autorefs autorefs-internal" title="mindone.diffusers.configuration_utils.ConfigMixin" href="../../configuration/#mindone.diffusers.configuration_utils.ConfigMixin">ConfigMixin</a></code>, <code><a class="autorefs autorefs-internal" title="mindone.diffusers.loaders.UNet2DConditionLoadersMixin" href="../../loaders/unet/#mindone.diffusers.loaders.unet.UNet2DConditionLoadersMixin">UNet2DConditionLoadersMixin</a></code></p>
+              Bases: <code><a class="autorefs autorefs-internal" title="mindone.diffusers.ModelMixin (mindone.diffusers.models.modeling_utils.ModelMixin)" href="../../models/overview/#mindone.diffusers.ModelMixin">ModelMixin</a></code>, <code><a class="autorefs autorefs-internal" title="mindone.diffusers.configuration_utils.ConfigMixin" href="../../configuration/#mindone.diffusers.configuration_utils.ConfigMixin">ConfigMixin</a></code>, <code><a class="autorefs autorefs-internal" title="mindone.diffusers.loaders.unet.UNet2DConditionLoadersMixin (mindone.diffusers.loaders.UNet2DConditionLoadersMixin)" href="../../loaders/unet/#mindone.diffusers.loaders.unet.UNet2DConditionLoadersMixin">UNet2DConditionLoadersMixin</a></code></p>
 
 
         <p>A conditional 2D UNet model that takes a noisy sample, conditional state, and a timestep and returns a sample
@@ -12913,7 +13102,9 @@ for all models (such as downloading or saving).</p>
       </thead>
       <tbody>
           <tr class="doc-section-item">
-            <td><code>sample_size</code></td>
+            <td>
+                <code>sample_size</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Height and width of input/output sample.</p>
@@ -12931,7 +13122,9 @@ for all models (such as downloading or saving).</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>in_channels</code></td>
+            <td>
+                <code>in_channels</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Number of channels in the input sample.</p>
@@ -12949,7 +13142,9 @@ for all models (such as downloading or saving).</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>out_channels</code></td>
+            <td>
+                <code>out_channels</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Number of channels in the output.</p>
@@ -12967,7 +13162,9 @@ for all models (such as downloading or saving).</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>flip_sin_to_cos</code></td>
+            <td>
+                <code>flip_sin_to_cos</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Whether to flip the sin to cos in the time embedding.</p>
@@ -12985,7 +13182,9 @@ for all models (such as downloading or saving).</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>freq_shift</code></td>
+            <td>
+                <code>freq_shift</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The frequency shift to apply to the time embedding.</p>
@@ -13003,7 +13202,9 @@ for all models (such as downloading or saving).</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>down_block_types</code></td>
+            <td>
+                <code>down_block_types</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The tuple of downsample blocks to use.</p>
@@ -13021,7 +13222,9 @@ for all models (such as downloading or saving).</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>mid_block_type</code></td>
+            <td>
+                <code>mid_block_type</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Block type for middle of UNet, it can only be <code>UNetMidBlock2DCrossAttn</code> for AudioLDM2.</p>
@@ -13039,7 +13242,9 @@ for all models (such as downloading or saving).</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>up_block_types</code></td>
+            <td>
+                <code>up_block_types</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The tuple of upsample blocks to use.</p>
@@ -13057,7 +13262,9 @@ for all models (such as downloading or saving).</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>only_cross_attention</code></td>
+            <td>
+                <code>only_cross_attention</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Whether to include self-attention in the basic transformer blocks, see
@@ -13076,7 +13283,9 @@ for all models (such as downloading or saving).</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>block_out_channels</code></td>
+            <td>
+                <code>block_out_channels</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The tuple of output channels for each block.</p>
@@ -13094,7 +13303,9 @@ for all models (such as downloading or saving).</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>layers_per_block</code></td>
+            <td>
+                <code>layers_per_block</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The number of layers per block.</p>
@@ -13112,7 +13323,9 @@ for all models (such as downloading or saving).</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>downsample_padding</code></td>
+            <td>
+                <code>downsample_padding</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The padding to use for the downsampling convolution.</p>
@@ -13130,7 +13343,9 @@ for all models (such as downloading or saving).</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>mid_block_scale_factor</code></td>
+            <td>
+                <code>mid_block_scale_factor</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The scale factor to use for the mid block.</p>
@@ -13148,7 +13363,9 @@ for all models (such as downloading or saving).</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>act_fn</code></td>
+            <td>
+                <code>act_fn</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The activation function to use.</p>
@@ -13166,7 +13383,9 @@ for all models (such as downloading or saving).</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>norm_num_groups</code></td>
+            <td>
+                <code>norm_num_groups</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The number of groups to use for the normalization.
@@ -13185,7 +13404,9 @@ If <code>None</code>, normalization and activation layers is skipped in post-pro
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>norm_eps</code></td>
+            <td>
+                <code>norm_eps</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The epsilon to use for the normalization.</p>
@@ -13203,7 +13424,9 @@ If <code>None</code>, normalization and activation layers is skipped in post-pro
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>cross_attention_dim</code></td>
+            <td>
+                <code>cross_attention_dim</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The dimension of the cross attention features.</p>
@@ -13221,7 +13444,9 @@ If <code>None</code>, normalization and activation layers is skipped in post-pro
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>transformer_layers_per_block</code></td>
+            <td>
+                <code>transformer_layers_per_block</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The number of transformer blocks of type [<code>~models.attention.BasicTransformerBlock</code>]. Only relevant for
@@ -13241,7 +13466,9 @@ If <code>None</code>, normalization and activation layers is skipped in post-pro
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>attention_head_dim</code></td>
+            <td>
+                <code>attention_head_dim</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The dimension of the attention heads.</p>
@@ -13259,7 +13486,9 @@ If <code>None</code>, normalization and activation layers is skipped in post-pro
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>num_attention_heads</code></td>
+            <td>
+                <code>num_attention_heads</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The number of attention heads. If not defined, defaults to <code>attention_head_dim</code></p>
@@ -13277,7 +13506,9 @@ If <code>None</code>, normalization and activation layers is skipped in post-pro
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>resnet_time_scale_shift</code></td>
+            <td>
+                <code>resnet_time_scale_shift</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Time scale shift config
@@ -13296,7 +13527,9 @@ for ResNet blocks (see [<code>~models.resnet.ResnetBlock2D</code>]). Choose from
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>class_embed_type</code></td>
+            <td>
+                <code>class_embed_type</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The type of class embedding to use which is ultimately summed with the time embeddings. Choose from <code>None</code>,
@@ -13315,7 +13548,9 @@ for ResNet blocks (see [<code>~models.resnet.ResnetBlock2D</code>]). Choose from
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>num_class_embeds</code></td>
+            <td>
+                <code>num_class_embeds</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Input dimension of the learnable embedding matrix to be projected to <code>time_embed_dim</code>, when performing
@@ -13334,7 +13569,9 @@ class conditioning with <code>class_embed_type</code> equal to <code>None</code>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>time_embedding_type</code></td>
+            <td>
+                <code>time_embedding_type</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The type of position embedding to use for timesteps. Choose from <code>positional</code> or <code>fourier</code>.</p>
@@ -13352,7 +13589,9 @@ class conditioning with <code>class_embed_type</code> equal to <code>None</code>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>time_embedding_dim</code></td>
+            <td>
+                <code>time_embedding_dim</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>An optional override for the dimension of the projected time embedding.</p>
@@ -13370,7 +13609,9 @@ class conditioning with <code>class_embed_type</code> equal to <code>None</code>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>time_embedding_act_fn</code></td>
+            <td>
+                <code>time_embedding_act_fn</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Optional activation function to use only once on the time embeddings before they are passed to the rest of
@@ -13389,7 +13630,9 @@ the UNet. Choose from <code>silu</code>, <code>mish</code>, <code>gelu</code>, a
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>timestep_post_act</code></td>
+            <td>
+                <code>timestep_post_act</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The second activation function to use in timestep embedding. Choose from <code>silu</code>, <code>mish</code> and <code>gelu</code>.</p>
@@ -13407,7 +13650,9 @@ the UNet. Choose from <code>silu</code>, <code>mish</code>, <code>gelu</code>, a
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>time_cond_proj_dim</code></td>
+            <td>
+                <code>time_cond_proj_dim</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The dimension of <code>cond_proj</code> layer in the timestep embedding.</p>
@@ -13425,7 +13670,9 @@ the UNet. Choose from <code>silu</code>, <code>mish</code>, <code>gelu</code>, a
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>conv_in_kernel</code></td>
+            <td>
+                <code>conv_in_kernel</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The kernel size of <code>conv_in</code> layer.</p>
@@ -13443,7 +13690,9 @@ the UNet. Choose from <code>silu</code>, <code>mish</code>, <code>gelu</code>, a
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>conv_out_kernel</code></td>
+            <td>
+                <code>conv_out_kernel</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The kernel size of <code>conv_out</code> layer.</p>
@@ -13461,7 +13710,9 @@ the UNet. Choose from <code>silu</code>, <code>mish</code>, <code>gelu</code>, a
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>projection_class_embeddings_input_dim</code></td>
+            <td>
+                <code>projection_class_embeddings_input_dim</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The dimension of the <code>class_labels</code> input when
@@ -13480,7 +13731,9 @@ the UNet. Choose from <code>silu</code>, <code>mish</code>, <code>gelu</code>, a
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>class_embeddings_concat</code></td>
+            <td>
+                <code>class_embeddings_concat</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Whether to concatenate the time
@@ -13500,6 +13753,12 @@ embeddings with the class embeddings.</p>
           </tr>
       </tbody>
     </table>
+
+
+
+
+
+
 
               <details class="quote">
                 <summary>Source code in <code>mindone/diffusers/pipelines/audioldm2/modeling_audioldm2.py</code></summary>
@@ -14990,7 +15249,7 @@ embeddings with the class embeddings.</p>
 
 
 <h3 id="mindone.diffusers.AudioLDM2UNet2DConditionModel.attn_processors" class="doc doc-heading">
-            <code class="highlight language-python"><span class="n">mindone</span><span class="o">.</span><span class="n">diffusers</span><span class="o">.</span><span class="n">AudioLDM2UNet2DConditionModel</span><span class="o">.</span><span class="n">attn_processors</span><span class="p">:</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">AttentionProcessor</span><span class="p">]</span></code>
+            <code class="highlight language-python"><span class="n">mindone</span><span class="o">.</span><span class="n">diffusers</span><span class="o">.</span><span class="n">AudioLDM2UNet2DConditionModel</span><span class="o">.</span><span class="n">attn_processors</span></code>
 
   <span class="doc doc-labels">
       <small class="doc doc-label doc-label-property"><code>property</code></small>
@@ -15014,7 +15273,7 @@ embeddings with the class embeddings.</p>
           <tr class="doc-section-item">
             <td>
                 <span class="doc-returns-annotation">
-                    <code><span title="typing.Dict">Dict</span>[str, <span title="mindone.diffusers.models.attention_processor.AttentionProcessor">AttentionProcessor</span>]</code>
+                    <code><span title="typing.Dict">Dict</span>[<span title="str">str</span>, <span title="mindone.diffusers.models.attention_processor.AttentionProcessor">AttentionProcessor</span>]</code>
                 </span>
             </td>
             <td class="doc-returns-details">
@@ -15026,7 +15285,7 @@ embeddings with the class embeddings.</p>
           <tr class="doc-section-item">
             <td>
                 <span class="doc-returns-annotation">
-                    <code><span title="typing.Dict">Dict</span>[str, <span title="mindone.diffusers.models.attention_processor.AttentionProcessor">AttentionProcessor</span>]</code>
+                    <code><span title="typing.Dict">Dict</span>[<span title="str">str</span>, <span title="mindone.diffusers.models.attention_processor.AttentionProcessor">AttentionProcessor</span>]</code>
                 </span>
             </td>
             <td class="doc-returns-details">
@@ -15037,6 +15296,7 @@ embeddings with the class embeddings.</p>
           </tr>
       </tbody>
     </table>
+
     </div>
 
 </div>
@@ -15066,7 +15326,9 @@ embeddings with the class embeddings.</p>
       </thead>
       <tbody>
           <tr class="doc-section-item">
-            <td><code>sample</code></td>
+            <td>
+                <code>sample</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The noisy input tensor with the following shape <code>(batch, channel, height, width)</code>.</p>
@@ -15080,7 +15342,9 @@ embeddings with the class embeddings.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>timestep</code></td>
+            <td>
+                <code>timestep</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The number of timesteps to denoise an input.</p>
@@ -15094,7 +15358,9 @@ embeddings with the class embeddings.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>encoder_hidden_states</code></td>
+            <td>
+                <code>encoder_hidden_states</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The encoder hidden states with shape <code>(batch, sequence_length, feature_dim)</code>.</p>
@@ -15108,7 +15374,9 @@ embeddings with the class embeddings.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>encoder_attention_mask</code></td>
+            <td>
+                <code>encoder_attention_mask</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>A cross-attention mask of shape <code>(batch, sequence_length)</code> is applied to <code>encoder_hidden_states</code>. If
@@ -15128,7 +15396,9 @@ which adds large negative values to the attention scores corresponding to "disca
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>return_dict</code></td>
+            <td>
+                <code>return_dict</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Whether or not to return a [<code>~models.unets.unet_2d_condition.UNet2DConditionOutput</code>] instead of a plain
@@ -15147,7 +15417,9 @@ tuple.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>cross_attention_kwargs</code></td>
+            <td>
+                <code>cross_attention_kwargs</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>A kwargs dictionary that if specified is passed along to the [<code>AttnProcessor</code>].</p>
@@ -15165,7 +15437,9 @@ tuple.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>encoder_hidden_states_1</code></td>
+            <td>
+                <code>encoder_hidden_states_1</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>A second set of encoder hidden states with shape <code>(batch, sequence_length_2, feature_dim_2)</code>. Can be
@@ -15184,7 +15458,9 @@ used to condition the model on a different set of embeddings to <code>encoder_hi
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>encoder_attention_mask_1</code></td>
+            <td>
+                <code>encoder_attention_mask_1</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>A cross-attention mask of shape <code>(batch, sequence_length_2)</code> is applied to <code>encoder_hidden_states_1</code>.
@@ -15218,7 +15494,12 @@ which adds large negative values to the attention scores corresponding to "disca
           <tr class="doc-section-item">
             <td>
                 <span class="doc-returns-annotation">
-                    <code><span title="typing.Union">Union</span>[<a class="autorefs autorefs-internal" title="mindone.diffusers.models.unets.unet_2d_condition.UNet2DConditionOutput" href="../../models/unet2d-cond/#mindone.diffusers.models.unets.unet_2d_condition.UNet2DConditionOutput">UNet2DConditionOutput</a>, <span title="typing.Tuple">Tuple</span>]</code>
+                    <code><span title="typing.Union">Union</span>[<a class="autorefs autorefs-internal" title="mindone.diffusers.models.unets.unet_2d_condition.UNet2DConditionOutput
+
+
+  
+      dataclass
+  " href="../../models/unet2d-cond/#mindone.diffusers.models.unets.unet_2d_condition.UNet2DConditionOutput">UNet2DConditionOutput</a>, <span title="typing.Tuple">Tuple</span>]</code>
                 </span>
             </td>
             <td class="doc-returns-details">
@@ -15231,6 +15512,7 @@ otherwise a <code>tuple</code> is returned where the first element is the sample
           </tr>
       </tbody>
     </table>
+
 
             <details class="quote">
               <summary>Source code in <code>mindone/diffusers/pipelines/audioldm2/modeling_audioldm2.py</code></summary>
@@ -15674,7 +15956,9 @@ several steps. This is useful for saving some memory in exchange for a small dec
       </thead>
       <tbody>
           <tr class="doc-section-item">
-            <td><code>slice_size</code></td>
+            <td>
+                <code>slice_size</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>When <code>"auto"</code>, input to the attention heads is halved, so attention is computed in two steps. If
@@ -15692,6 +15976,7 @@ must be a multiple of <code>slice_size</code>.</p>
           </tr>
       </tbody>
     </table>
+
 
             <details class="quote">
               <summary>Source code in <code>mindone/diffusers/pipelines/audioldm2/modeling_audioldm2.py</code></summary>
@@ -15851,7 +16136,9 @@ must be a multiple of <code>slice_size</code>.</p>
       </thead>
       <tbody>
           <tr class="doc-section-item">
-            <td><code>processor</code></td>
+            <td>
+                <code>processor</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The instantiated processor class or a dictionary of processor classes that will be set as the processor
@@ -15869,6 +16156,7 @@ processor. This is strongly recommended when setting trainable attention process
           </tr>
       </tbody>
     </table>
+
 
             <details class="quote">
               <summary>Source code in <code>mindone/diffusers/pipelines/audioldm2/modeling_audioldm2.py</code></summary>
@@ -15956,6 +16244,7 @@ processor. This is strongly recommended when setting trainable attention process
 
         <p>Disables custom attention processors and sets the default attention implementation.</p>
 
+
             <details class="quote">
               <summary>Source code in <code>mindone/diffusers/pipelines/audioldm2/modeling_audioldm2.py</code></summary>
               <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">604</span>
@@ -16020,6 +16309,12 @@ processor. This is strongly recommended when setting trainable attention process
 
 
         <p>Output class for audio pipelines.</p>
+
+
+
+
+
+
 
               <details class="quote">
                 <summary>Source code in <code>mindone/diffusers/pipelines/pipeline_utils.py</code></summary>

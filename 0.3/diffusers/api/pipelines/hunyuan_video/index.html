@@ -1477,6 +1477,29 @@
   
   
     <li class="md-nav__item">
+      <a href="../../../using-diffusers/consisid/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    ConsisID
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../../../using-diffusers/sdxl/" class="md-nav__link">
         
   
@@ -3209,6 +3232,29 @@
   
   
     <li class="md-nav__item">
+      <a href="../../models/consisid_transformer3d/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    ConsisIDTransformer3DModel
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../../models/cogview3plus_transformer2d/" class="md-nav__link">
         
   
@@ -4637,6 +4683,29 @@
   
   
     <li class="md-nav__item">
+      <a href="../consisid/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    ConsisID
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../consistency_models/" class="md-nav__link">
         
   
@@ -5920,10 +5989,10 @@
       
         
         
-        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2_11_4_64" >
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2_11_4_65" >
         
           
-          <label class="md-nav__link" for="__nav_2_11_4_64" id="__nav_2_11_4_64_label" tabindex="0">
+          <label class="md-nav__link" for="__nav_2_11_4_65" id="__nav_2_11_4_65_label" tabindex="0">
             
   
   
@@ -5936,8 +6005,8 @@
             <span class="md-nav__icon md-icon"></span>
           </label>
         
-        <nav class="md-nav" data-md-level="4" aria-labelledby="__nav_2_11_4_64_label" aria-expanded="false">
-          <label class="md-nav__title" for="__nav_2_11_4_64">
+        <nav class="md-nav" data-md-level="4" aria-labelledby="__nav_2_11_4_65_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_2_11_4_65">
             <span class="md-nav__icon md-icon"></span>
             Stable Diffusion
           </label>
@@ -8211,7 +8280,7 @@
 
     <div class="doc doc-contents first">
             <p class="doc doc-class-bases">
-              Bases: <code><a class="autorefs autorefs-internal" title="mindone.diffusers.pipelines.pipeline_utils.DiffusionPipeline" href="../overview/#mindone.diffusers.DiffusionPipeline">DiffusionPipeline</a></code>, <code><a class="autorefs autorefs-internal" title="mindone.diffusers.loaders.HunyuanVideoLoraLoaderMixin" href="../../loaders/lora/#mindone.diffusers.loaders.lora_pipeline.HunyuanVideoLoraLoaderMixin">HunyuanVideoLoraLoaderMixin</a></code></p>
+              Bases: <code><a class="autorefs autorefs-internal" title="mindone.diffusers.DiffusionPipeline (mindone.diffusers.pipelines.pipeline_utils.DiffusionPipeline)" href="../overview/#mindone.diffusers.DiffusionPipeline">DiffusionPipeline</a></code>, <code><a class="autorefs autorefs-internal" title="mindone.diffusers.loaders.lora_pipeline.HunyuanVideoLoraLoaderMixin (mindone.diffusers.loaders.HunyuanVideoLoraLoaderMixin)" href="../../loaders/lora/#mindone.diffusers.loaders.lora_pipeline.HunyuanVideoLoraLoaderMixin">HunyuanVideoLoraLoaderMixin</a></code></p>
 
 
         <p>Pipeline for text-to-video generation using HunyuanVideo.</p>
@@ -8228,7 +8297,9 @@ implemented for all pipelines (downloading, saving, running on a particular devi
       </thead>
       <tbody>
           <tr class="doc-section-item">
-            <td><code>text_encoder</code></td>
+            <td>
+                <code>text_encoder</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p><a href="https://huggingface.co/xtuner/llava-llama-3-8b-v1_1-transformers">Llava Llama3-8B</a>.</p>
@@ -8242,7 +8313,9 @@ implemented for all pipelines (downloading, saving, running on a particular devi
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>tokenizer</code></td>
+            <td>
+                <code>tokenizer</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Tokenizer from <a href="https://huggingface.co/xtuner/llava-llama-3-8b-v1_1-transformers">Llava Llama3-8B</a>.</p>
@@ -8256,7 +8329,9 @@ implemented for all pipelines (downloading, saving, running on a particular devi
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>transformer</code></td>
+            <td>
+                <code>transformer</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Conditional Transformer to denoise the encoded image latents.</p>
@@ -8270,7 +8345,9 @@ implemented for all pipelines (downloading, saving, running on a particular devi
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>scheduler</code></td>
+            <td>
+                <code>scheduler</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>A scheduler to be used in combination with <code>transformer</code> to denoise the encoded image latents.</p>
@@ -8284,7 +8361,9 @@ implemented for all pipelines (downloading, saving, running on a particular devi
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>vae</code></td>
+            <td>
+                <code>vae</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Variational Auto-Encoder (VAE) Model to encode and decode videos to and from latent representations.</p>
@@ -8298,7 +8377,9 @@ implemented for all pipelines (downloading, saving, running on a particular devi
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>text_encoder_2</code></td>
+            <td>
+                <code>text_encoder_2</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p><a href="https://huggingface.co/docs/transformers/model_doc/clip#transformers.CLIPTextModel">CLIP</a>, specifically
@@ -8313,7 +8394,9 @@ the <a href="https://huggingface.co/openai/clip-vit-large-patch14">clip-vit-larg
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>tokenizer_2</code></td>
+            <td>
+                <code>tokenizer_2</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Tokenizer of class
@@ -8329,6 +8412,12 @@ the <a href="https://huggingface.co/openai/clip-vit-large-patch14">clip-vit-larg
           </tr>
       </tbody>
     </table>
+
+
+
+
+
+
 
               <details class="quote">
                 <summary>Source code in <code>mindone/diffusers/pipelines/hunyuan_video/pipeline_hunyuan_video.py</code></summary>
@@ -9553,7 +9642,9 @@ the <a href="https://huggingface.co/openai/clip-vit-large-patch14">clip-vit-larg
       </thead>
       <tbody>
           <tr class="doc-section-item">
-            <td><code>prompt</code></td>
+            <td>
+                <code>prompt</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The prompt or prompts to guide the image generation. If not defined, one has to pass <code>prompt_embeds</code>.
@@ -9572,7 +9663,9 @@ instead.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>prompt_2</code></td>
+            <td>
+                <code>prompt_2</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The prompt or prompts to be sent to <code>tokenizer_2</code> and <code>text_encoder_2</code>. If not defined, <code>prompt</code> is
@@ -9591,7 +9684,9 @@ will be used instead.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>negative_prompt</code></td>
+            <td>
+                <code>negative_prompt</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The prompt or prompts not to guide the image generation. If not defined, one has to pass
@@ -9611,7 +9706,9 @@ not greater than <code>1</code>).</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>negative_prompt_2</code></td>
+            <td>
+                <code>negative_prompt_2</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The prompt or prompts not to guide the image generation to be sent to <code>tokenizer_2</code> and
@@ -9630,7 +9727,9 @@ not greater than <code>1</code>).</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>height</code></td>
+            <td>
+                <code>height</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The height in pixels of the generated image.</p>
@@ -9648,7 +9747,9 @@ not greater than <code>1</code>).</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>width</code></td>
+            <td>
+                <code>width</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The width in pixels of the generated image.</p>
@@ -9666,7 +9767,9 @@ not greater than <code>1</code>).</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>num_frames</code></td>
+            <td>
+                <code>num_frames</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The number of frames in the generated video.</p>
@@ -9684,7 +9787,9 @@ not greater than <code>1</code>).</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>num_inference_steps</code></td>
+            <td>
+                <code>num_inference_steps</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The number of denoising steps. More denoising steps usually lead to a higher quality image at the
@@ -9703,7 +9808,9 @@ expense of slower inference.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>sigmas</code></td>
+            <td>
+                <code>sigmas</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Custom sigmas to use for the denoising process with schedulers which support a <code>sigmas</code> argument in
@@ -9723,7 +9830,9 @@ will be used.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>true_cfg_scale</code></td>
+            <td>
+                <code>true_cfg_scale</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>When &gt; 1.0 and a provided <code>negative_prompt</code>, enables true classifier-free guidance.</p>
@@ -9741,7 +9850,9 @@ will be used.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>guidance_scale</code></td>
+            <td>
+                <code>guidance_scale</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Guidance scale as defined in <a href="https://arxiv.org/abs/2207.12598">Classifier-Free Diffusion Guidance</a>.
@@ -9765,7 +9876,9 @@ not applied.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>num_videos_per_prompt</code></td>
+            <td>
+                <code>num_videos_per_prompt</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The number of images to generate per prompt.</p>
@@ -9783,7 +9896,9 @@ not applied.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>generator</code></td>
+            <td>
+                <code>generator</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>A <a href="https://pytorch.org/docs/stable/generated/torch.Generator.html"><code>torch.Generator</code></a> to make
@@ -9802,7 +9917,9 @@ generation deterministic.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>latents</code></td>
+            <td>
+                <code>latents</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Pre-generated noisy latents sampled from a Gaussian distribution, to be used as inputs for image
@@ -9822,7 +9939,9 @@ tensor is generated by sampling using the supplied random <code>generator</code>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>prompt_embeds</code></td>
+            <td>
+                <code>prompt_embeds</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Pre-generated text embeddings. Can be used to easily tweak text inputs (prompt weighting). If not
@@ -9841,7 +9960,9 @@ provided, text embeddings are generated from the <code>prompt</code> input argum
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>pooled_prompt_embeds</code></td>
+            <td>
+                <code>pooled_prompt_embeds</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Pre-generated pooled text embeddings. Can be used to easily tweak text inputs, <em>e.g.</em> prompt weighting.
@@ -9860,7 +9981,9 @@ If not provided, pooled text embeddings will be generated from <code>prompt</cod
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>negative_prompt_embeds</code></td>
+            <td>
+                <code>negative_prompt_embeds</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Pre-generated negative text embeddings. Can be used to easily tweak text inputs, <em>e.g.</em> prompt
@@ -9880,7 +10003,9 @@ argument.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>negative_pooled_prompt_embeds</code></td>
+            <td>
+                <code>negative_pooled_prompt_embeds</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Pre-generated negative pooled text embeddings. Can be used to easily tweak text inputs, <em>e.g.</em> prompt
@@ -9900,7 +10025,9 @@ input argument.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>output_type</code></td>
+            <td>
+                <code>output_type</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The output format of the generated image. Choose between <code>PIL.Image</code> or <code>np.array</code>.</p>
@@ -9918,7 +10045,9 @@ input argument.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>return_dict</code></td>
+            <td>
+                <code>return_dict</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Whether or not to return a [<code>HunyuanVideoPipelineOutput</code>] instead of a plain tuple.</p>
@@ -9936,7 +10065,9 @@ input argument.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>attention_kwargs</code></td>
+            <td>
+                <code>attention_kwargs</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>A kwargs dictionary that if specified is passed along to the <code>AttentionProcessor</code> as defined under
@@ -9956,7 +10087,9 @@ input argument.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>clip_skip</code></td>
+            <td>
+                <code>clip_skip</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Number of layers to be skipped from CLIP while computing the prompt embeddings. A value of 1 means that
@@ -9971,7 +10104,9 @@ the output of the pre-final layer will be used for computing the prompt embeddin
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>callback_on_step_end</code></td>
+            <td>
+                <code>callback_on_step_end</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>A function or a subclass of <code>PipelineCallback</code> or <code>MultiPipelineCallbacks</code> that is called at the end of
@@ -9992,7 +10127,9 @@ list of all tensors as specified by <code>callback_on_step_end_tensor_inputs</co
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>callback_on_step_end_tensor_inputs</code></td>
+            <td>
+                <code>callback_on_step_end_tensor_inputs</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The list of tensor inputs for the <code>callback_on_step_end</code> function. The tensors specified in the list
@@ -10038,6 +10175,7 @@ indicating whether the corresponding generated image contains "not-safe-for-work
           </tr>
       </tbody>
     </table>
+
 
             <details class="quote">
               <summary>Source code in <code>mindone/diffusers/pipelines/hunyuan_video/pipeline_hunyuan_video.py</code></summary>
@@ -10610,6 +10748,7 @@ indicating whether the corresponding generated image contains "not-safe-for-work
         <p>Disable sliced VAE decoding. If <code>enable_vae_slicing</code> was previously enabled, this method will go back to
 computing decoding in one step.</p>
 
+
             <details class="quote">
               <summary>Source code in <code>mindone/diffusers/pipelines/hunyuan_video/pipeline_hunyuan_video.py</code></summary>
               <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">412</span>
@@ -10642,6 +10781,7 @@ computing decoding in one step.</p>
 
         <p>Disable tiled VAE decoding. If <code>enable_vae_tiling</code> was previously enabled, this method will go back to
 computing decoding in one step.</p>
+
 
             <details class="quote">
               <summary>Source code in <code>mindone/diffusers/pipelines/hunyuan_video/pipeline_hunyuan_video.py</code></summary>
@@ -10676,6 +10816,7 @@ computing decoding in one step.</p>
         <p>Enable sliced VAE decoding. When this option is enabled, the VAE will split the input tensor in slices to
 compute decoding in several steps. This is useful to save some memory and allow larger batch sizes.</p>
 
+
             <details class="quote">
               <summary>Source code in <code>mindone/diffusers/pipelines/hunyuan_video/pipeline_hunyuan_video.py</code></summary>
               <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">405</span>
@@ -10709,6 +10850,7 @@ compute decoding in several steps. This is useful to save some memory and allow 
         <p>Enable tiled VAE decoding. When this option is enabled, the VAE will split the input tensor into tiles to
 compute decoding and encoding in several steps. This is useful for saving a large amount of memory and to allow
 processing larger images.</p>
+
 
             <details class="quote">
               <summary>Source code in <code>mindone/diffusers/pipelines/hunyuan_video/pipeline_hunyuan_video.py</code></summary>
@@ -10771,7 +10913,9 @@ processing larger images.</p>
       </thead>
       <tbody>
           <tr class="doc-section-item">
-            <td><code>frames</code></td>
+            <td>
+                <code>frames</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>List of video outputs - It can be a nested list of length <code>batch_size,</code> with each sub-list containing
@@ -10788,6 +10932,12 @@ denoised PIL image sequences of length <code>num_frames.</code> It can also be a
           </tr>
       </tbody>
     </table>
+
+
+
+
+
+
 
               <details class="quote">
                 <summary>Source code in <code>mindone/diffusers/pipelines/hunyuan_video/pipeline_output.py</code></summary>

@@ -1477,6 +1477,29 @@
   
   
     <li class="md-nav__item">
+      <a href="../../../using-diffusers/consisid/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    ConsisID
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../../../using-diffusers/sdxl/" class="md-nav__link">
         
   
@@ -3213,6 +3236,29 @@
   
   
     <li class="md-nav__item">
+      <a href="../consisid_transformer3d/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    ConsisIDTransformer3DModel
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../cogview3plus_transformer2d/" class="md-nav__link">
         
   
@@ -4741,6 +4787,29 @@
   
   
     <li class="md-nav__item">
+      <a href="../../pipelines/consisid/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    ConsisID
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../../pipelines/consistency_models/" class="md-nav__link">
         
   
@@ -5904,10 +5973,10 @@
       
         
         
-        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2_11_4_64" >
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2_11_4_65" >
         
           
-          <label class="md-nav__link" for="__nav_2_11_4_64" id="__nav_2_11_4_64_label" tabindex="0">
+          <label class="md-nav__link" for="__nav_2_11_4_65" id="__nav_2_11_4_65_label" tabindex="0">
             
   
   
@@ -5920,8 +5989,8 @@
             <span class="md-nav__icon md-icon"></span>
           </label>
         
-        <nav class="md-nav" data-md-level="4" aria-labelledby="__nav_2_11_4_64_label" aria-expanded="false">
-          <label class="md-nav__title" for="__nav_2_11_4_64">
+        <nav class="md-nav" data-md-level="4" aria-labelledby="__nav_2_11_4_65_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_2_11_4_65">
             <span class="md-nav__icon md-icon"></span>
             Stable Diffusion
           </label>
@@ -8116,7 +8185,7 @@ specific language governing permissions and limitations under the License.
 
     <div class="doc doc-contents first">
             <p class="doc doc-class-bases">
-              Bases: <code><a class="autorefs autorefs-internal" title="mindone.diffusers.models.modeling_utils.ModelMixin" href="../overview/#mindone.diffusers.ModelMixin">ModelMixin</a></code>, <code><a class="autorefs autorefs-internal" title="mindone.diffusers.configuration_utils.ConfigMixin" href="../../configuration/#mindone.diffusers.configuration_utils.ConfigMixin">ConfigMixin</a></code></p>
+              Bases: <code><a class="autorefs autorefs-internal" title="mindone.diffusers.ModelMixin (mindone.diffusers.models.modeling_utils.ModelMixin)" href="../overview/#mindone.diffusers.ModelMixin">ModelMixin</a></code>, <code><a class="autorefs autorefs-internal" title="mindone.diffusers.configuration_utils.ConfigMixin" href="../../configuration/#mindone.diffusers.configuration_utils.ConfigMixin">ConfigMixin</a></code></p>
 
 
         <p>Inherit ModelMixin and ConfigMixin to be compatible with the sampler StableDiffusionPipeline of diffusers.</p>
@@ -8131,7 +8200,9 @@ specific language governing permissions and limitations under the License.
       </thead>
       <tbody>
           <tr class="doc-section-item">
-            <td><code>num_attention_heads</code></td>
+            <td>
+                <code>num_attention_heads</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The number of heads to use for multi-head attention.</p>
@@ -8149,7 +8220,9 @@ specific language governing permissions and limitations under the License.
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>attention_head_dim</code></td>
+            <td>
+                <code>attention_head_dim</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The number of channels in each head.</p>
@@ -8167,7 +8240,9 @@ specific language governing permissions and limitations under the License.
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>in_channels</code></td>
+            <td>
+                <code>in_channels</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The number of channels in the input and output (specify if the input is <strong>continuous</strong>).</p>
@@ -8185,7 +8260,9 @@ specific language governing permissions and limitations under the License.
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>patch_size</code></td>
+            <td>
+                <code>patch_size</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The size of the patch to use for the input.</p>
@@ -8203,7 +8280,9 @@ specific language governing permissions and limitations under the License.
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>activation_fn</code></td>
+            <td>
+                <code>activation_fn</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Activation function to use in feed-forward.</p>
@@ -8221,7 +8300,9 @@ specific language governing permissions and limitations under the License.
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>sample_size</code></td>
+            <td>
+                <code>sample_size</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The width of the latent images. This is fixed during training since it is used to learn a number of
@@ -8240,7 +8321,9 @@ position embeddings.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>dropout</code></td>
+            <td>
+                <code>dropout</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The dropout probability to use.</p>
@@ -8254,7 +8337,9 @@ position embeddings.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>cross_attention_dim</code></td>
+            <td>
+                <code>cross_attention_dim</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The number of dimension in the clip text embedding.</p>
@@ -8272,7 +8357,9 @@ position embeddings.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>hidden_size</code></td>
+            <td>
+                <code>hidden_size</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The size of hidden layer in the conditioning embedding layers.</p>
@@ -8290,7 +8377,9 @@ position embeddings.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>num_layers</code></td>
+            <td>
+                <code>num_layers</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The number of layers of Transformer blocks to use.</p>
@@ -8308,7 +8397,9 @@ position embeddings.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>mlp_ratio</code></td>
+            <td>
+                <code>mlp_ratio</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The ratio of the hidden layer size to the input size.</p>
@@ -8326,7 +8417,9 @@ position embeddings.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>learn_sigma</code></td>
+            <td>
+                <code>learn_sigma</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Whether to predict variance.</p>
@@ -8344,7 +8437,9 @@ position embeddings.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>cross_attention_dim_t5</code></td>
+            <td>
+                <code>cross_attention_dim_t5</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The number dimensions in t5 text embedding.</p>
@@ -8362,7 +8457,9 @@ position embeddings.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>pooled_projection_dim</code></td>
+            <td>
+                <code>pooled_projection_dim</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The size of the pooled projection.</p>
@@ -8380,7 +8477,9 @@ position embeddings.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>text_len</code></td>
+            <td>
+                <code>text_len</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The length of the clip text embedding.</p>
@@ -8398,7 +8497,9 @@ position embeddings.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>text_len_t5</code></td>
+            <td>
+                <code>text_len_t5</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The length of the T5 text embedding.</p>
@@ -8416,7 +8517,9 @@ position embeddings.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>use_style_cond_and_image_meta_size</code></td>
+            <td>
+                <code>use_style_cond_and_image_meta_size</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Whether or not to use style condition and image meta size. True for version &lt;=1.1, False for version &gt;= 1.2</p>
@@ -8435,6 +8538,12 @@ position embeddings.</p>
           </tr>
       </tbody>
     </table>
+
+
+
+
+
+
 
               <details class="quote">
                 <summary>Source code in <code>mindone/diffusers/models/transformers/hunyuan_transformer_2d.py</code></summary>
@@ -9141,7 +9250,7 @@ position embeddings.</p>
 
 
 <h3 id="mindone.diffusers.HunyuanDiT2DModel.attn_processors" class="doc doc-heading">
-            <code class="highlight language-python"><span class="n">mindone</span><span class="o">.</span><span class="n">diffusers</span><span class="o">.</span><span class="n">HunyuanDiT2DModel</span><span class="o">.</span><span class="n">attn_processors</span><span class="p">:</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">AttentionProcessor</span><span class="p">]</span></code>
+            <code class="highlight language-python"><span class="n">mindone</span><span class="o">.</span><span class="n">diffusers</span><span class="o">.</span><span class="n">HunyuanDiT2DModel</span><span class="o">.</span><span class="n">attn_processors</span></code>
 
   <span class="doc doc-labels">
       <small class="doc doc-label doc-label-property"><code>property</code></small>
@@ -9165,7 +9274,7 @@ position embeddings.</p>
           <tr class="doc-section-item">
             <td>
                 <span class="doc-returns-annotation">
-                    <code><span title="typing.Dict">Dict</span>[str, <span title="mindone.diffusers.models.attention_processor.AttentionProcessor">AttentionProcessor</span>]</code>
+                    <code><span title="typing.Dict">Dict</span>[<span title="str">str</span>, <span title="mindone.diffusers.models.attention_processor.AttentionProcessor">AttentionProcessor</span>]</code>
                 </span>
             </td>
             <td class="doc-returns-details">
@@ -9177,7 +9286,7 @@ position embeddings.</p>
           <tr class="doc-section-item">
             <td>
                 <span class="doc-returns-annotation">
-                    <code><span title="typing.Dict">Dict</span>[str, <span title="mindone.diffusers.models.attention_processor.AttentionProcessor">AttentionProcessor</span>]</code>
+                    <code><span title="typing.Dict">Dict</span>[<span title="str">str</span>, <span title="mindone.diffusers.models.attention_processor.AttentionProcessor">AttentionProcessor</span>]</code>
                 </span>
             </td>
             <td class="doc-returns-details">
@@ -9188,6 +9297,7 @@ position embeddings.</p>
           </tr>
       </tbody>
     </table>
+
     </div>
 
 </div>
@@ -9228,6 +9338,7 @@ image_rotary_emb (<code>ms.Tensor</code>):
     The image rotary embeddings to apply on query and key tensors during attention calculation.
 return_dict: bool
     Whether to return a dictionary.</p>
+
 
             <details class="quote">
               <summary>Source code in <code>mindone/diffusers/models/transformers/hunyuan_transformer_2d.py</code></summary>
@@ -9488,7 +9599,9 @@ chunking</a>.</p>
       </thead>
       <tbody>
           <tr class="doc-section-item">
-            <td><code>chunk_size</code></td>
+            <td>
+                <code>chunk_size</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The chunk size of the feed-forward layers. If not specified, will run feed-forward layer individually
@@ -9507,7 +9620,9 @@ over each tensor of dim=<code>dim</code>.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>dim</code></td>
+            <td>
+                <code>dim</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The dimension over which the feed-forward computation should be chunked. Choose between dim=0 (batch)
@@ -9527,6 +9642,7 @@ or dim=1 (sequence length).</p>
           </tr>
       </tbody>
     </table>
+
 
             <details class="quote">
               <summary>Source code in <code>mindone/diffusers/models/transformers/hunyuan_transformer_2d.py</code></summary>
@@ -9614,7 +9730,9 @@ or dim=1 (sequence length).</p>
       </thead>
       <tbody>
           <tr class="doc-section-item">
-            <td><code>processor</code></td>
+            <td>
+                <code>processor</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The instantiated processor class or a dictionary of processor classes that will be set as the processor
@@ -9632,6 +9750,7 @@ processor. This is strongly recommended when setting trainable attention process
           </tr>
       </tbody>
     </table>
+
 
             <details class="quote">
               <summary>Source code in <code>mindone/diffusers/models/transformers/hunyuan_transformer_2d.py</code></summary>
@@ -9718,6 +9837,7 @@ processor. This is strongly recommended when setting trainable attention process
     <div class="doc doc-contents ">
 
         <p>Disables custom attention processors and sets the default attention implementation.</p>
+
 
             <details class="quote">
               <summary>Source code in <code>mindone/diffusers/models/transformers/hunyuan_transformer_2d.py</code></summary>

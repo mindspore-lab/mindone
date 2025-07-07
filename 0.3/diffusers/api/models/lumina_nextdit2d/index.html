@@ -1477,6 +1477,29 @@
   
   
     <li class="md-nav__item">
+      <a href="../../../using-diffusers/consisid/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    ConsisID
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../../../using-diffusers/sdxl/" class="md-nav__link">
         
   
@@ -3213,6 +3236,29 @@
   
   
     <li class="md-nav__item">
+      <a href="../consisid_transformer3d/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    ConsisIDTransformer3DModel
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../cogview3plus_transformer2d/" class="md-nav__link">
         
   
@@ -4705,6 +4751,29 @@
   
   
     <li class="md-nav__item">
+      <a href="../../pipelines/consisid/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    ConsisID
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../../pipelines/consistency_models/" class="md-nav__link">
         
   
@@ -5868,10 +5937,10 @@
       
         
         
-        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2_11_4_64" >
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2_11_4_65" >
         
           
-          <label class="md-nav__link" for="__nav_2_11_4_64" id="__nav_2_11_4_64_label" tabindex="0">
+          <label class="md-nav__link" for="__nav_2_11_4_65" id="__nav_2_11_4_65_label" tabindex="0">
             
   
   
@@ -5884,8 +5953,8 @@
             <span class="md-nav__icon md-icon"></span>
           </label>
         
-        <nav class="md-nav" data-md-level="4" aria-labelledby="__nav_2_11_4_64_label" aria-expanded="false">
-          <label class="md-nav__title" for="__nav_2_11_4_64">
+        <nav class="md-nav" data-md-level="4" aria-labelledby="__nav_2_11_4_65_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_2_11_4_65">
             <span class="md-nav__icon md-icon"></span>
             Stable Diffusion
           </label>
@@ -8044,7 +8113,7 @@ specific language governing permissions and limitations under the License.
 
     <div class="doc doc-contents first">
             <p class="doc doc-class-bases">
-              Bases: <code><a class="autorefs autorefs-internal" title="mindone.diffusers.models.modeling_utils.ModelMixin" href="../overview/#mindone.diffusers.ModelMixin">ModelMixin</a></code>, <code><a class="autorefs autorefs-internal" title="mindone.diffusers.configuration_utils.ConfigMixin" href="../../configuration/#mindone.diffusers.configuration_utils.ConfigMixin">ConfigMixin</a></code></p>
+              Bases: <code><a class="autorefs autorefs-internal" title="mindone.diffusers.ModelMixin (mindone.diffusers.models.modeling_utils.ModelMixin)" href="../overview/#mindone.diffusers.ModelMixin">ModelMixin</a></code>, <code><a class="autorefs autorefs-internal" title="mindone.diffusers.configuration_utils.ConfigMixin" href="../../configuration/#mindone.diffusers.configuration_utils.ConfigMixin">ConfigMixin</a></code></p>
 
 
         <p>Inherit ModelMixin and ConfigMixin to be compatible with the sampler StableDiffusionPipeline of diffusers.</p>
@@ -8059,7 +8128,9 @@ specific language governing permissions and limitations under the License.
       </thead>
       <tbody>
           <tr class="doc-section-item">
-            <td><code>sample_size</code></td>
+            <td>
+                <code>sample_size</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The width of the latent images. This is fixed during training since
@@ -8078,7 +8149,9 @@ it is used to learn a number of position embeddings.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>patch_size</code></td>
+            <td>
+                <code>patch_size</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The size of each patch in the image. This parameter defines the resolution of patches fed into the model.</p>
@@ -8096,7 +8169,9 @@ it is used to learn a number of position embeddings.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>in_channels</code></td>
+            <td>
+                <code>in_channels</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The number of input channels for the model. Typically, this matches the number of channels in the input
@@ -8115,7 +8190,9 @@ images.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>hidden_size</code></td>
+            <td>
+                <code>hidden_size</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The dimensionality of the hidden layers in the model. This parameter determines the width of the model's
@@ -8134,7 +8211,9 @@ hidden representations.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>num_layers</code></td>
+            <td>
+                <code>num_layers</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The number of layers in the model. This defines the depth of the neural network.</p>
@@ -8152,7 +8231,9 @@ hidden representations.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>num_attention_heads</code></td>
+            <td>
+                <code>num_attention_heads</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The number of attention heads in each attention layer. This parameter specifies how many separate attention
@@ -8171,7 +8252,9 @@ mechanisms are used.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>num_kv_heads</code></td>
+            <td>
+                <code>num_kv_heads</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The number of key-value heads in the attention mechanism, if different from the number of attention heads.
@@ -8190,7 +8273,9 @@ If None, it defaults to num_attention_heads.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>multiple_of</code></td>
+            <td>
+                <code>multiple_of</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>A factor that the hidden size should be a multiple of. This can help optimize certain hardware
@@ -8209,7 +8294,9 @@ configurations.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>ffn_dim_multiplier</code></td>
+            <td>
+                <code>ffn_dim_multiplier</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>A multiplier for the dimensionality of the feed-forward network. If None, it uses a default value based on
@@ -8228,7 +8315,9 @@ the model configuration.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>norm_eps</code></td>
+            <td>
+                <code>norm_eps</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>A small value added to the denominator for numerical stability in normalization layers.</p>
@@ -8246,7 +8335,9 @@ the model configuration.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>learn_sigma</code></td>
+            <td>
+                <code>learn_sigma</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Whether the model should learn the sigma parameter, which might be related to uncertainty or variance in
@@ -8265,7 +8356,9 @@ predictions.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>qk_norm</code></td>
+            <td>
+                <code>qk_norm</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Indicates if the queries and keys in the attention mechanism should be normalized.</p>
@@ -8283,7 +8376,9 @@ predictions.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>cross_attention_dim</code></td>
+            <td>
+                <code>cross_attention_dim</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The dimensionality of the text embeddings. This parameter defines the size of the text representations used
@@ -8302,7 +8397,9 @@ in the model.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>scaling_factor</code></td>
+            <td>
+                <code>scaling_factor</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>A scaling factor applied to certain parameters or layers in the model. This can be used for adjusting the
@@ -8322,6 +8419,12 @@ overall scale of the model's operations.</p>
           </tr>
       </tbody>
     </table>
+
+
+
+
+
+
 
               <details class="quote">
                 <summary>Source code in <code>mindone/diffusers/models/transformers/lumina_nextdit2d.py</code></summary>
@@ -8690,7 +8793,9 @@ overall scale of the model's operations.</p>
       </thead>
       <tbody>
           <tr class="doc-section-item">
-            <td><code>hidden_states</code></td>
+            <td>
+                <code>hidden_states</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Input tensor of shape (N, C, H, W).</p>
@@ -8704,7 +8809,9 @@ overall scale of the model's operations.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>timestep</code></td>
+            <td>
+                <code>timestep</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Tensor of diffusion timesteps of shape (N,).</p>
@@ -8718,7 +8825,9 @@ overall scale of the model's operations.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>encoder_hidden_states</code></td>
+            <td>
+                <code>encoder_hidden_states</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Tensor of caption features of shape (N, D).</p>
@@ -8732,7 +8841,9 @@ overall scale of the model's operations.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>encoder_mask</code></td>
+            <td>
+                <code>encoder_mask</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Tensor of caption masks of shape (N, L).</p>
@@ -8747,6 +8858,7 @@ overall scale of the model's operations.</p>
           </tr>
       </tbody>
     </table>
+
 
             <details class="quote">
               <summary>Source code in <code>mindone/diffusers/models/transformers/lumina_nextdit2d.py</code></summary>

@@ -1477,6 +1477,29 @@
   
   
     <li class="md-nav__item">
+      <a href="../../../../using-diffusers/consisid/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    ConsisID
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../../../../using-diffusers/sdxl/" class="md-nav__link">
         
   
@@ -3209,6 +3232,29 @@
   
   
     <li class="md-nav__item">
+      <a href="../../../models/consisid_transformer3d/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    ConsisIDTransformer3DModel
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../../../models/cogview3plus_transformer2d/" class="md-nav__link">
         
   
@@ -4637,6 +4683,29 @@
   
   
     <li class="md-nav__item">
+      <a href="../../consisid/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    ConsisID
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../../consistency_models/" class="md-nav__link">
         
   
@@ -5802,10 +5871,10 @@
       
         
         
-        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2_11_4_64" checked>
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2_11_4_65" checked>
         
           
-          <label class="md-nav__link" for="__nav_2_11_4_64" id="__nav_2_11_4_64_label" tabindex="0">
+          <label class="md-nav__link" for="__nav_2_11_4_65" id="__nav_2_11_4_65_label" tabindex="0">
             
   
   
@@ -5818,8 +5887,8 @@
             <span class="md-nav__icon md-icon"></span>
           </label>
         
-        <nav class="md-nav" data-md-level="4" aria-labelledby="__nav_2_11_4_64_label" aria-expanded="true">
-          <label class="md-nav__title" for="__nav_2_11_4_64">
+        <nav class="md-nav" data-md-level="4" aria-labelledby="__nav_2_11_4_65_label" aria-expanded="true">
+          <label class="md-nav__title" for="__nav_2_11_4_65">
             <span class="md-nav__icon md-icon"></span>
             Stable Diffusion
           </label>
@@ -8105,7 +8174,7 @@ For each image generation the active concept is also contained in [<code>StableD
 
     <div class="doc doc-contents first">
             <p class="doc doc-class-bases">
-              Bases: <code><a class="autorefs autorefs-internal" title="mindone.diffusers.pipelines.pipeline_utils.DiffusionPipeline" href="../../overview/#mindone.diffusers.DiffusionPipeline">DiffusionPipeline</a></code>, <code><span title="mindone.diffusers.pipelines.pipeline_utils.StableDiffusionMixin">StableDiffusionMixin</span></code>, <code><a class="autorefs autorefs-internal" title="mindone.diffusers.loaders.IPAdapterMixin" href="../../../loaders/ip_adapter/#mindone.diffusers.loaders.ip_adapter.IPAdapterMixin">IPAdapterMixin</a></code></p>
+              Bases: <code><a class="autorefs autorefs-internal" title="mindone.diffusers.DiffusionPipeline (mindone.diffusers.pipelines.pipeline_utils.DiffusionPipeline)" href="../../overview/#mindone.diffusers.DiffusionPipeline">DiffusionPipeline</a></code>, <code><span title="mindone.diffusers.pipelines.pipeline_utils.StableDiffusionMixin">StableDiffusionMixin</span></code>, <code><a class="autorefs autorefs-internal" title="mindone.diffusers.loaders.ip_adapter.IPAdapterMixin (mindone.diffusers.loaders.IPAdapterMixin)" href="../../../loaders/ip_adapter/#mindone.diffusers.loaders.ip_adapter.IPAdapterMixin">IPAdapterMixin</a></code></p>
 
 
         <p>Pipeline based on the [<code>StableDiffusionPipeline</code>] for text-to-image generation using Safe Latent Diffusion.</p>
@@ -8129,7 +8198,9 @@ implemented for all pipelines (downloading, saving, running on a particular devi
       </thead>
       <tbody>
           <tr class="doc-section-item">
-            <td><code>vae</code></td>
+            <td>
+                <code>vae</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Variational Auto-Encoder (VAE) model to encode and decode images to and from latent representations.</p>
@@ -8143,7 +8214,9 @@ implemented for all pipelines (downloading, saving, running on a particular devi
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>text_encoder</code></td>
+            <td>
+                <code>text_encoder</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Frozen text-encoder (<a href="https://huggingface.co/openai/clip-vit-large-patch14">clip-vit-large-patch14</a>).</p>
@@ -8157,7 +8230,9 @@ implemented for all pipelines (downloading, saving, running on a particular devi
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>tokenizer</code></td>
+            <td>
+                <code>tokenizer</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>A <code>CLIPTokenizer</code> to tokenize text.</p>
@@ -8171,7 +8246,9 @@ implemented for all pipelines (downloading, saving, running on a particular devi
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>unet</code></td>
+            <td>
+                <code>unet</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>A <code>UNet2DConditionModel</code> to denoise the encoded image latents.</p>
@@ -8185,7 +8262,9 @@ implemented for all pipelines (downloading, saving, running on a particular devi
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>scheduler</code></td>
+            <td>
+                <code>scheduler</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>A scheduler to be used in combination with <code>unet</code> to denoise the encoded image latents. Can be one of
@@ -8200,7 +8279,9 @@ implemented for all pipelines (downloading, saving, running on a particular devi
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>safety_checker</code></td>
+            <td>
+                <code>safety_checker</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Classification module that estimates whether generated images could be considered offensive or harmful.
@@ -8216,7 +8297,9 @@ more details about a model's potential harms.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>feature_extractor</code></td>
+            <td>
+                <code>feature_extractor</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>A <code>CLIPImageProcessor</code> to extract features from generated images; used as inputs to the <code>safety_checker</code>.</p>
@@ -8231,6 +8314,12 @@ more details about a model's potential harms.</p>
           </tr>
       </tbody>
     </table>
+
+
+
+
+
+
 
               <details class="quote">
                 <summary>Source code in <code>mindone/diffusers/pipelines/stable_diffusion_safe/pipeline_stable_diffusion_safe.py</code></summary>
@@ -9771,6 +9860,7 @@ more details about a model's potential harms.</p>
           </tr>
       </tbody>
     </table>
+
     </div>
 
 </div>
@@ -9800,7 +9890,9 @@ more details about a model's potential harms.</p>
       </thead>
       <tbody>
           <tr class="doc-section-item">
-            <td><code>prompt</code></td>
+            <td>
+                <code>prompt</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The prompt or prompts to guide image generation. If not defined, you need to pass <code>prompt_embeds</code>.</p>
@@ -9814,7 +9906,9 @@ more details about a model's potential harms.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>height</code></td>
+            <td>
+                <code>height</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The height in pixels of the generated image.</p>
@@ -9832,7 +9926,9 @@ more details about a model's potential harms.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>width</code></td>
+            <td>
+                <code>width</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The width in pixels of the generated image.</p>
@@ -9850,7 +9946,9 @@ more details about a model's potential harms.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>num_inference_steps</code></td>
+            <td>
+                <code>num_inference_steps</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The number of denoising steps. More denoising steps usually lead to a higher quality image at the
@@ -9869,7 +9967,9 @@ expense of slower inference.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>guidance_scale</code></td>
+            <td>
+                <code>guidance_scale</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>A higher guidance scale value encourages the model to generate images closely linked to the text
@@ -9888,7 +9988,9 @@ expense of slower inference.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>negative_prompt</code></td>
+            <td>
+                <code>negative_prompt</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The prompt or prompts to guide what to not include in image generation. If not defined, you need to
@@ -9907,7 +10009,9 @@ pass <code>negative_prompt_embeds</code> instead. Ignored when not using guidanc
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>num_images_per_prompt</code></td>
+            <td>
+                <code>num_images_per_prompt</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The number of images to generate per prompt.</p>
@@ -9925,7 +10029,9 @@ pass <code>negative_prompt_embeds</code> instead. Ignored when not using guidanc
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>eta</code></td>
+            <td>
+                <code>eta</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Corresponds to parameter eta (η) from the <a href="https://arxiv.org/abs/2010.02502">DDIM</a> paper. Only applies
@@ -9944,7 +10050,9 @@ to the [<code>~schedulers.DDIMScheduler</code>], and is ignored in other schedul
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>generator</code></td>
+            <td>
+                <code>generator</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>A <a href="https://numpy.org/doc/stable/reference/random/generator.html"><code>np.random.Generator</code></a> to make
@@ -9963,7 +10071,9 @@ generation deterministic.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>latents</code></td>
+            <td>
+                <code>latents</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Pre-generated noisy latents sampled from a Gaussian distribution, to be used as inputs for image
@@ -9983,7 +10093,9 @@ tensor is generated by sampling using the supplied random <code>generator</code>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>ip_adapter_image</code></td>
+            <td>
+                <code>ip_adapter_image</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>(<code>PipelineImageInput</code>, <em>optional</em>):
@@ -10002,7 +10114,9 @@ Optional image input to work with IP Adapters.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>output_type</code></td>
+            <td>
+                <code>output_type</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The output format of the generated image. Choose between <code>PIL.Image</code> or <code>np.array</code>.</p>
@@ -10020,7 +10134,9 @@ Optional image input to work with IP Adapters.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>return_dict</code></td>
+            <td>
+                <code>return_dict</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Whether or not to return a [<code>~pipelines.stable_diffusion.StableDiffusionPipelineOutput</code>] instead of a
@@ -10039,7 +10155,9 @@ plain tuple.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>callback</code></td>
+            <td>
+                <code>callback</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>A function that calls every <code>callback_steps</code> steps during inference. The function is called with the
@@ -10058,7 +10176,9 @@ following arguments: <code>callback(step: int, timestep: int, latents: ms.Tensor
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>callback_steps</code></td>
+            <td>
+                <code>callback_steps</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The frequency at which the <code>callback</code> function is called. If not specified, the callback is called at
@@ -10077,7 +10197,9 @@ every step.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>sld_guidance_scale</code></td>
+            <td>
+                <code>sld_guidance_scale</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>If <code>sld_guidance_scale &lt; 1</code>, safety guidance is disabled.</p>
@@ -10095,7 +10217,9 @@ every step.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>sld_warmup_steps</code></td>
+            <td>
+                <code>sld_warmup_steps</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Number of warmup steps for safety guidance. SLD is only be applied for diffusion steps greater than
@@ -10114,7 +10238,9 @@ every step.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>sld_threshold</code></td>
+            <td>
+                <code>sld_threshold</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Threshold that separates the hyperplane between appropriate and inappropriate images.</p>
@@ -10132,7 +10258,9 @@ every step.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>sld_momentum_scale</code></td>
+            <td>
+                <code>sld_momentum_scale</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Scale of the SLD momentum to be added to the safety guidance at each diffusion step. If set to 0.0,
@@ -10152,7 +10280,9 @@ momentum is disabled. Momentum is built up during warmup for diffusion steps sma
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>sld_mom_beta</code></td>
+            <td>
+                <code>sld_mom_beta</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Defines how safety guidance momentum builds up. <code>sld_mom_beta</code> indicates how much of the previous
@@ -10208,6 +10338,7 @@ second element is a list of <code>bool</code>s indicating whether the correspond
 <span class="n">prompt</span> <span class="o">=</span> <span class="s2">&quot;the four horsewomen of the apocalypse, painting by tom of finland, gaston bussiere, craig mullins, j. c. leyendecker&quot;</span>
 <span class="n">image</span> <span class="o">=</span> <span class="n">pipeline</span><span class="p">(</span><span class="n">prompt</span><span class="o">=</span><span class="n">prompt</span><span class="p">,</span> <span class="o">**</span><span class="n">SafetyConfig</span><span class="o">.</span><span class="n">MEDIUM</span><span class="p">)[</span><span class="mi">0</span><span class="p">][</span><span class="mi">0</span><span class="p">]</span>
 </code></pre></div>
+
 
             <details class="quote">
               <summary>Source code in <code>mindone/diffusers/pipelines/stable_diffusion_safe/pipeline_stable_diffusion_safe.py</code></summary>
@@ -10765,6 +10896,12 @@ second element is a list of <code>bool</code>s indicating whether the correspond
 
 
         <p>Output class for Safe Stable Diffusion pipelines.</p>
+
+
+
+
+
+
 
               <details class="quote">
                 <summary>Source code in <code>mindone/diffusers/pipelines/stable_diffusion_safe/pipeline_output.py</code></summary>

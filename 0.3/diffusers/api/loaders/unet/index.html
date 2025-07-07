@@ -1477,6 +1477,29 @@
   
   
     <li class="md-nav__item">
+      <a href="../../../using-diffusers/consisid/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    ConsisID
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../../../using-diffusers/sdxl/" class="md-nav__link">
         
   
@@ -3286,6 +3309,29 @@
   
   
     <li class="md-nav__item">
+      <a href="../../models/consisid_transformer3d/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    ConsisIDTransformer3DModel
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../../models/cogview3plus_transformer2d/" class="md-nav__link">
         
   
@@ -4712,6 +4758,29 @@
   
   
     <li class="md-nav__item">
+      <a href="../../pipelines/consisid/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    ConsisID
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../../pipelines/consistency_models/" class="md-nav__link">
         
   
@@ -5875,10 +5944,10 @@
       
         
         
-        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2_11_4_64" >
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2_11_4_65" >
         
           
-          <label class="md-nav__link" for="__nav_2_11_4_64" id="__nav_2_11_4_64_label" tabindex="0">
+          <label class="md-nav__link" for="__nav_2_11_4_65" id="__nav_2_11_4_65_label" tabindex="0">
             
   
   
@@ -5891,8 +5960,8 @@
             <span class="md-nav__icon md-icon"></span>
           </label>
         
-        <nav class="md-nav" data-md-level="4" aria-labelledby="__nav_2_11_4_64_label" aria-expanded="false">
-          <label class="md-nav__title" for="__nav_2_11_4_64">
+        <nav class="md-nav" data-md-level="4" aria-labelledby="__nav_2_11_4_65_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_2_11_4_65">
             <span class="md-nav__icon md-icon"></span>
             Stable Diffusion
           </label>
@@ -8068,6 +8137,12 @@ specific language governing permissions and limitations under the License.
 
         <p>Load LoRA layers into a [<code>UNet2DConditionModel</code>].</p>
 
+
+
+
+
+
+
               <details class="quote">
                 <summary>Source code in <code>mindone/diffusers/loaders/unet.py</code></summary>
                 <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal"> 52</span>
@@ -9485,7 +9560,9 @@ and be a <code>mindspore.nn.Cell</code> class. Currently supported: LoRA, Custom
       </thead>
       <tbody>
           <tr class="doc-section-item">
-            <td><code>pretrained_model_name_or_path_or_dict</code></td>
+            <td>
+                <code>pretrained_model_name_or_path_or_dict</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Can be either:</p>
@@ -9505,7 +9582,9 @@ and be a <code>mindspore.nn.Cell</code> class. Currently supported: LoRA, Custom
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>cache_dir</code></td>
+            <td>
+                <code>cache_dir</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Path to a directory where a downloaded pretrained model configuration is cached if the standard cache
@@ -9520,7 +9599,9 @@ is not used.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>force_download</code></td>
+            <td>
+                <code>force_download</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Whether or not to force the (re-)download of the model weights and configuration files, overriding the
@@ -9535,7 +9616,9 @@ cached versions if they exist.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>proxies</code></td>
+            <td>
+                <code>proxies</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>A dictionary of proxy servers to use by protocol or endpoint, for example, <code>{'http': 'foo.bar:3128',
@@ -9550,7 +9633,9 @@ cached versions if they exist.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>local_files_only</code></td>
+            <td>
+                <code>local_files_only</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Whether to only load local model weights and configuration files or not. If set to <code>True</code>, the model
@@ -9565,7 +9650,9 @@ won't be downloaded from the Hub.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>token</code></td>
+            <td>
+                <code>token</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The token to use as HTTP bearer authorization for remote files. If <code>True</code>, the token generated from
@@ -9580,7 +9667,9 @@ won't be downloaded from the Hub.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>revision</code></td>
+            <td>
+                <code>revision</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The specific model version to use. It can be a branch name, a tag name, a commit id, or any identifier
@@ -9595,7 +9684,9 @@ allowed by Git.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>subfolder</code></td>
+            <td>
+                <code>subfolder</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The subfolder location of a model file within a larger model repository on the Hub or locally.</p>
@@ -9609,7 +9700,9 @@ allowed by Git.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>network_alphas</code></td>
+            <td>
+                <code>network_alphas</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The value of the network alpha used for stable learning and preventing underflow. This value has the
@@ -9625,7 +9718,9 @@ link</a>.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>adapter_name</code></td>
+            <td>
+                <code>adapter_name</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Adapter name to be used for referencing the loaded adapter model. If not specified, it will use
@@ -9640,7 +9735,9 @@ link</a>.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>weight_name</code></td>
+            <td>
+                <code>weight_name</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Name of the serialized state dict file.</p>
@@ -9665,6 +9762,7 @@ link</a>.</p>
     <span class="s2">&quot;jbilcke-hf/sdxl-cinematic-1&quot;</span><span class="p">,</span> <span class="n">weight_name</span><span class="o">=</span><span class="s2">&quot;pytorch_lora_weights.safetensors&quot;</span><span class="p">,</span> <span class="n">adapter_name</span><span class="o">=</span><span class="s2">&quot;cinematic&quot;</span>
 <span class="p">)</span>
 </code></pre></div>
+
 
             <details class="quote">
               <summary>Source code in <code>mindone/diffusers/loaders/unet.py</code></summary>
@@ -10013,7 +10111,9 @@ link</a>.</p>
       </thead>
       <tbody>
           <tr class="doc-section-item">
-            <td><code>save_directory</code></td>
+            <td>
+                <code>save_directory</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Directory to save an attention processor to (will be created if it doesn't exist).</p>
@@ -10027,7 +10127,9 @@ link</a>.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>is_main_process</code></td>
+            <td>
+                <code>is_main_process</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Whether the process calling this is the main process or not. Useful during distributed training and you
@@ -10047,7 +10149,9 @@ process to avoid race conditions.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>save_function</code></td>
+            <td>
+                <code>save_function</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The function to use to save the state dictionary. Useful during distributed training when you need to
@@ -10067,7 +10171,9 @@ replace <code>MindSpore.save_checkpoint</code> with another method. Can be confi
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>safe_serialization</code></td>
+            <td>
+                <code>safe_serialization</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Whether to save the model using <code>safetensors</code> or with <code>pickle</code>.</p>
@@ -10096,6 +10202,7 @@ replace <code>MindSpore.save_checkpoint</code> with another method. Can be confi
 <span class="n">pipeline</span><span class="o">.</span><span class="n">unet</span><span class="o">.</span><span class="n">load_attn_procs</span><span class="p">(</span><span class="s2">&quot;path-to-save-model&quot;</span><span class="p">,</span> <span class="n">weight_name</span><span class="o">=</span><span class="s2">&quot;lora_diffusion_weights.safetensors&quot;</span><span class="p">)</span>
 <span class="n">pipeline</span><span class="o">.</span><span class="n">unet</span><span class="o">.</span><span class="n">save_attn_procs</span><span class="p">(</span><span class="s2">&quot;path-to-save-model&quot;</span><span class="p">,</span> <span class="n">weight_name</span><span class="o">=</span><span class="s2">&quot;lora_diffusion_weights.safetensors&quot;</span><span class="p">)</span>
 </code></pre></div>
+
 
             <details class="quote">
               <summary>Source code in <code>mindone/diffusers/loaders/unet.py</code></summary>

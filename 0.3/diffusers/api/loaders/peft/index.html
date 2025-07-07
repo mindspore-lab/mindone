@@ -1477,6 +1477,29 @@
   
   
     <li class="md-nav__item">
+      <a href="../../../using-diffusers/consisid/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    ConsisID
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../../../using-diffusers/sdxl/" class="md-nav__link">
         
   
@@ -3376,6 +3399,29 @@
   
   
     <li class="md-nav__item">
+      <a href="../../models/consisid_transformer3d/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    ConsisIDTransformer3DModel
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../../models/cogview3plus_transformer2d/" class="md-nav__link">
         
   
@@ -4802,6 +4848,29 @@
   
   
     <li class="md-nav__item">
+      <a href="../../pipelines/consisid/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    ConsisID
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../../pipelines/consistency_models/" class="md-nav__link">
         
   
@@ -5965,10 +6034,10 @@
       
         
         
-        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2_11_4_64" >
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2_11_4_65" >
         
           
-          <label class="md-nav__link" for="__nav_2_11_4_64" id="__nav_2_11_4_64_label" tabindex="0">
+          <label class="md-nav__link" for="__nav_2_11_4_65" id="__nav_2_11_4_65_label" tabindex="0">
             
   
   
@@ -5981,8 +6050,8 @@
             <span class="md-nav__icon md-icon"></span>
           </label>
         
-        <nav class="md-nav" data-md-level="4" aria-labelledby="__nav_2_11_4_64_label" aria-expanded="false">
-          <label class="md-nav__title" for="__nav_2_11_4_64">
+        <nav class="md-nav" data-md-level="4" aria-labelledby="__nav_2_11_4_65_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_2_11_4_65">
             <span class="md-nav__icon md-icon"></span>
             Stable Diffusion
           </label>
@@ -8256,6 +8325,12 @@ more details about adapters and injecting them in a base model, check out the PE
 <li>Get a list of the active adapters.</li>
 </ul>
 
+
+
+
+
+
+
               <details class="quote">
                 <summary>Source code in <code>mindone/diffusers/loaders/peft.py</code></summary>
                 <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal"> 76</span>
@@ -9691,6 +9766,7 @@ more details about adapters and injecting them in a base model, check out the PE
 <p>If you are not familiar with adapters and PEFT methods, we invite you to read more about them on the PEFT
 <a href="https://huggingface.co/docs/peft">documentation</a>.</p>
 
+
             <details class="quote">
               <summary>Source code in <code>mindone/diffusers/loaders/peft.py</code></summary>
               <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">615</span>
@@ -9754,7 +9830,9 @@ to the adapter to follow the convention of the PEFT library.</p>
       </thead>
       <tbody>
           <tr class="doc-section-item">
-            <td><code>adapter_config</code></td>
+            <td>
+                <code>adapter_config</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The configuration of the adapter to add; supported adapters are non-prefix tuning and adaption prompt
@@ -9769,7 +9847,9 @@ methods.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>adapter_name</code></td>
+            <td>
+                <code>adapter_name</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The name of the adapter to add. If no name is passed, a default name is assigned to the adapter.</p>
@@ -9788,6 +9868,7 @@ methods.</p>
           </tr>
       </tbody>
     </table>
+
 
             <details class="quote">
               <summary>Source code in <code>mindone/diffusers/loaders/peft.py</code></summary>
@@ -9879,7 +9960,9 @@ methods.</p>
       </thead>
       <tbody>
           <tr class="doc-section-item">
-            <td><code>adapter_names</code></td>
+            <td>
+                <code>adapter_names</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The names (single string or list of strings) of the adapter to delete.</p>
@@ -9905,6 +9988,7 @@ methods.</p>
 <span class="p">)</span>
 <span class="n">pipeline</span><span class="o">.</span><span class="n">delete_adapters</span><span class="p">(</span><span class="s2">&quot;cinematic&quot;</span><span class="p">)</span>
 </code></pre></div>
+
 
             <details class="quote">
               <summary>Source code in <code>mindone/diffusers/loaders/peft.py</code></summary>
@@ -9992,6 +10076,7 @@ methods.</p>
 <p>If you are not familiar with adapters and PEFT methods, we invite you to read more about them on the PEFT
 <a href="https://huggingface.co/docs/peft">documentation</a>.</p>
 
+
             <details class="quote">
               <summary>Source code in <code>mindone/diffusers/loaders/peft.py</code></summary>
               <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">576</span>
@@ -10060,6 +10145,7 @@ methods.</p>
 <span class="n">pipeline</span><span class="o">.</span><span class="n">disable_lora</span><span class="p">()</span>
 </code></pre></div>
 
+
             <details class="quote">
               <summary>Source code in <code>mindone/diffusers/loaders/peft.py</code></summary>
               <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">671</span>
@@ -10122,6 +10208,7 @@ methods.</p>
 adapters to enable.</p>
 <p>If you are not familiar with adapters and PEFT methods, we invite you to read more about them on the PEFT
 <a href="https://huggingface.co/docs/peft">documentation</a>.</p>
+
 
             <details class="quote">
               <summary>Source code in <code>mindone/diffusers/loaders/peft.py</code></summary>
@@ -10192,6 +10279,7 @@ adapters to enable.</p>
 <span class="p">)</span>
 <span class="n">pipeline</span><span class="o">.</span><span class="n">enable_lora</span><span class="p">()</span>
 </code></pre></div>
+
 
             <details class="quote">
               <summary>Source code in <code>mindone/diffusers/loaders/peft.py</code></summary>
@@ -10265,7 +10353,9 @@ the loaded adapters differ.</p>
       </thead>
       <tbody>
           <tr class="doc-section-item">
-            <td><code>target_rank</code></td>
+            <td>
+                <code>target_rank</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The highest rank among all the adapters that will be loaded.</p>
@@ -10283,7 +10373,9 @@ the loaded adapters differ.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>check_compiled</code></td>
+            <td>
+                <code>check_compiled</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>How to handle the case when the model is already compiled, which should generally be avoided. The
@@ -10306,6 +10398,7 @@ options are:
           </tr>
       </tbody>
     </table>
+
 
             <details class="quote">
               <summary>Source code in <code>mindone/diffusers/loaders/peft.py</code></summary>
@@ -10401,7 +10494,9 @@ options are:
       </thead>
       <tbody>
           <tr class="doc-section-item">
-            <td><code>pretrained_model_name_or_path_or_dict</code></td>
+            <td>
+                <code>pretrained_model_name_or_path_or_dict</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Can be either:</p>
@@ -10422,7 +10517,9 @@ options are:
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>prefix</code></td>
+            <td>
+                <code>prefix</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Prefix to filter the state dict.</p>
@@ -10440,7 +10537,9 @@ options are:
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>cache_dir</code></td>
+            <td>
+                <code>cache_dir</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Path to a directory where a downloaded pretrained model configuration is cached if the standard cache
@@ -10455,7 +10554,9 @@ is not used.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>force_download</code></td>
+            <td>
+                <code>force_download</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Whether or not to force the (re-)download of the model weights and configuration files, overriding the
@@ -10470,7 +10571,9 @@ cached versions if they exist.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>proxies</code></td>
+            <td>
+                <code>proxies</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>A dictionary of proxy servers to use by protocol or endpoint, for example, <code>{'http': 'foo.bar:3128',
@@ -10485,7 +10588,9 @@ cached versions if they exist.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>local_files_only</code></td>
+            <td>
+                <code>local_files_only</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Whether to only load local model weights and configuration files or not. If set to <code>True</code>, the model
@@ -10500,7 +10605,9 @@ won't be downloaded from the Hub.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>token</code></td>
+            <td>
+                <code>token</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The token to use as HTTP bearer authorization for remote files. If <code>True</code>, the token generated from
@@ -10515,7 +10622,9 @@ won't be downloaded from the Hub.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>revision</code></td>
+            <td>
+                <code>revision</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The specific model version to use. It can be a branch name, a tag name, a commit id, or any identifier
@@ -10530,7 +10639,9 @@ allowed by Git.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>subfolder</code></td>
+            <td>
+                <code>subfolder</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The subfolder location of a model file within a larger model repository on the Hub or locally.</p>
@@ -10544,7 +10655,9 @@ allowed by Git.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>network_alphas</code></td>
+            <td>
+                <code>network_alphas</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The value of the network alpha used for stable learning and preventing underflow. This value has the
@@ -10560,7 +10673,9 @@ link</a>.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>hotswap</code></td>
+            <td>
+                <code>hotswap</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>(<code>bool</code>, <em>optional</em>)
@@ -10593,6 +10708,7 @@ https://huggingface.co/docs/peft/main/en/package_reference/hotswap</p>
           </tr>
       </tbody>
     </table>
+
 
             <details class="quote">
               <summary>Source code in <code>mindone/diffusers/loaders/peft.py</code></summary>
@@ -11200,7 +11316,9 @@ https://huggingface.co/docs/peft/main/en/package_reference/hotswap</p>
       </thead>
       <tbody>
           <tr class="doc-section-item">
-            <td><code>save_directory</code></td>
+            <td>
+                <code>save_directory</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Directory to save LoRA parameters to. Will be created if it doesn't exist.</p>
@@ -11214,7 +11332,9 @@ https://huggingface.co/docs/peft/main/en/package_reference/hotswap</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>adapter_name</code></td>
+            <td>
+                <code>adapter_name</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>(<code>str</code>, defaults to "default"): The name of the adapter to serialize. Useful when the
@@ -11223,7 +11343,7 @@ underlying model has multiple adapters loaded.</p>
               <p>
                   <span class="doc-param-annotation">
                     <b>TYPE:</b>
-                      <code>str</code>
+                      <code><span title="str">str</span></code>
                   </span>
                   <span class="doc-param-default">
                     <b>DEFAULT:</b>
@@ -11233,7 +11353,9 @@ underlying model has multiple adapters loaded.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>upcast_before_saving</code></td>
+            <td>
+                <code>upcast_before_saving</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Whether to cast the underlying model to <code>torch.float32</code> before serialization.</p>
@@ -11251,7 +11373,9 @@ underlying model has multiple adapters loaded.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>save_function</code></td>
+            <td>
+                <code>save_function</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The function to use to save the state dictionary. Useful during distributed training when you need to
@@ -11267,7 +11391,9 @@ replace <code>torch.save</code> with another method. Can be configured with the 
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>safe_serialization</code></td>
+            <td>
+                <code>safe_serialization</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Whether to save the model using <code>safetensors</code> or the traditional PyTorch way with <code>pickle</code>.</p>
@@ -11285,7 +11411,9 @@ replace <code>torch.save</code> with another method. Can be configured with the 
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>weight_name</code></td>
+            <td>
+                <code>weight_name</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>(<code>str</code>, <em>optional</em>, defaults to <code>None</code>): Name of the file to serialize the state dict with.</p>
@@ -11293,7 +11421,7 @@ replace <code>torch.save</code> with another method. Can be configured with the 
               <p>
                   <span class="doc-param-annotation">
                     <b>TYPE:</b>
-                      <code><span title="typing.Optional">Optional</span>[str]</code>
+                      <code><span title="typing.Optional">Optional</span>[<span title="str">str</span>]</code>
                   </span>
                   <span class="doc-param-default">
                     <b>DEFAULT:</b>
@@ -11304,6 +11432,7 @@ replace <code>torch.save</code> with another method. Can be configured with the 
           </tr>
       </tbody>
     </table>
+
 
             <details class="quote">
               <summary>Source code in <code>mindone/diffusers/loaders/peft.py</code></summary>
@@ -11461,7 +11590,9 @@ replace <code>torch.save</code> with another method. Can be configured with the 
       </thead>
       <tbody>
           <tr class="doc-section-item">
-            <td><code>adapter_name</code></td>
+            <td>
+                <code>adapter_name</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The list of adapters to set or the adapter name in the case of a single adapter.</p>
@@ -11469,13 +11600,14 @@ replace <code>torch.save</code> with another method. Can be configured with the 
               <p>
                   <span class="doc-param-annotation">
                     <b>TYPE:</b>
-                      <code><span title="typing.Union">Union</span>[str, <span title="typing.List">List</span>[str]]</code>
+                      <code><span title="typing.Union">Union</span>[<span title="str">str</span>, <span title="typing.List">List</span>[<span title="str">str</span>]]</code>
                   </span>
               </p>
             </td>
           </tr>
       </tbody>
     </table>
+
 
             <details class="quote">
               <summary>Source code in <code>mindone/diffusers/loaders/peft.py</code></summary>
@@ -11587,7 +11719,9 @@ replace <code>torch.save</code> with another method. Can be configured with the 
       </thead>
       <tbody>
           <tr class="doc-section-item">
-            <td><code>adapter_names</code></td>
+            <td>
+                <code>adapter_names</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The names of the adapters to use.</p>
@@ -11601,7 +11735,9 @@ replace <code>torch.save</code> with another method. Can be configured with the 
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>adapter_weights</code></td>
+            <td>
+                <code>adapter_weights</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The adapter(s) weights to use with the UNet. If <code>None</code>, the weights are set to <code>1.0</code> for all the
@@ -11629,6 +11765,7 @@ adapters.</p>
 <span class="n">pipeline</span><span class="o">.</span><span class="n">load_lora_weights</span><span class="p">(</span><span class="s2">&quot;nerijs/pixel-art-xl&quot;</span><span class="p">,</span> <span class="n">weight_name</span><span class="o">=</span><span class="s2">&quot;pixel-art-xl.safetensors&quot;</span><span class="p">,</span> <span class="n">adapter_name</span><span class="o">=</span><span class="s2">&quot;pixel&quot;</span><span class="p">)</span>
 <span class="n">pipeline</span><span class="o">.</span><span class="n">set_adapters</span><span class="p">([</span><span class="s2">&quot;cinematic&quot;</span><span class="p">,</span> <span class="s2">&quot;pixel&quot;</span><span class="p">],</span> <span class="n">adapter_weights</span><span class="o">=</span><span class="p">[</span><span class="mf">0.5</span><span class="p">,</span> <span class="mf">0.5</span><span class="p">])</span>
 </code></pre></div>
+
 
             <details class="quote">
               <summary>Source code in <code>mindone/diffusers/loaders/peft.py</code></summary>

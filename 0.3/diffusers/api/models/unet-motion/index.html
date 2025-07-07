@@ -1477,6 +1477,29 @@
   
   
     <li class="md-nav__item">
+      <a href="../../../using-diffusers/consisid/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    ConsisID
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../../../using-diffusers/sdxl/" class="md-nav__link">
         
   
@@ -3211,6 +3234,29 @@
   
   
     <li class="md-nav__item">
+      <a href="../consisid_transformer3d/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    ConsisIDTransformer3DModel
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../cogview3plus_transformer2d/" class="md-nav__link">
         
   
@@ -4759,6 +4805,29 @@
   
   
     <li class="md-nav__item">
+      <a href="../../pipelines/consisid/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    ConsisID
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../../pipelines/consistency_models/" class="md-nav__link">
         
   
@@ -5922,10 +5991,10 @@
       
         
         
-        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2_11_4_64" >
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2_11_4_65" >
         
           
-          <label class="md-nav__link" for="__nav_2_11_4_64" id="__nav_2_11_4_64_label" tabindex="0">
+          <label class="md-nav__link" for="__nav_2_11_4_65" id="__nav_2_11_4_65_label" tabindex="0">
             
   
   
@@ -5938,8 +6007,8 @@
             <span class="md-nav__icon md-icon"></span>
           </label>
         
-        <nav class="md-nav" data-md-level="4" aria-labelledby="__nav_2_11_4_64_label" aria-expanded="false">
-          <label class="md-nav__title" for="__nav_2_11_4_64">
+        <nav class="md-nav" data-md-level="4" aria-labelledby="__nav_2_11_4_65_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_2_11_4_65">
             <span class="md-nav__icon md-icon"></span>
             Stable Diffusion
           </label>
@@ -8154,13 +8223,19 @@ specific language governing permissions and limitations under the License.
 
     <div class="doc doc-contents first">
             <p class="doc doc-class-bases">
-              Bases: <code><a class="autorefs autorefs-internal" title="mindone.diffusers.models.modeling_utils.ModelMixin" href="../overview/#mindone.diffusers.ModelMixin">ModelMixin</a></code>, <code><a class="autorefs autorefs-internal" title="mindone.diffusers.configuration_utils.ConfigMixin" href="../../configuration/#mindone.diffusers.configuration_utils.ConfigMixin">ConfigMixin</a></code>, <code><a class="autorefs autorefs-internal" title="mindone.diffusers.loaders.UNet2DConditionLoadersMixin" href="../../loaders/unet/#mindone.diffusers.loaders.unet.UNet2DConditionLoadersMixin">UNet2DConditionLoadersMixin</a></code>, <code><a class="autorefs autorefs-internal" title="mindone.diffusers.loaders.PeftAdapterMixin" href="../../loaders/peft/#mindone.diffusers.loaders.peft.PeftAdapterMixin">PeftAdapterMixin</a></code></p>
+              Bases: <code><a class="autorefs autorefs-internal" title="mindone.diffusers.ModelMixin (mindone.diffusers.models.modeling_utils.ModelMixin)" href="../overview/#mindone.diffusers.ModelMixin">ModelMixin</a></code>, <code><a class="autorefs autorefs-internal" title="mindone.diffusers.configuration_utils.ConfigMixin" href="../../configuration/#mindone.diffusers.configuration_utils.ConfigMixin">ConfigMixin</a></code>, <code><a class="autorefs autorefs-internal" title="mindone.diffusers.loaders.unet.UNet2DConditionLoadersMixin (mindone.diffusers.loaders.UNet2DConditionLoadersMixin)" href="../../loaders/unet/#mindone.diffusers.loaders.unet.UNet2DConditionLoadersMixin">UNet2DConditionLoadersMixin</a></code>, <code><a class="autorefs autorefs-internal" title="mindone.diffusers.loaders.peft.PeftAdapterMixin (mindone.diffusers.loaders.PeftAdapterMixin)" href="../../loaders/peft/#mindone.diffusers.loaders.peft.PeftAdapterMixin">PeftAdapterMixin</a></code></p>
 
 
         <p>A modified conditional 2D UNet model that takes a noisy sample, conditional state, and a timestep and returns a
 sample shaped output.</p>
 <p>This model inherits from [<code>ModelMixin</code>]. Check the superclass documentation for it's generic methods implemented
 for all models (such as downloading or saving).</p>
+
+
+
+
+
+
 
               <details class="quote">
                 <summary>Source code in <code>mindone/diffusers/models/unets/unet_motion_model.py</code></summary>
@@ -10001,7 +10076,7 @@ for all models (such as downloading or saving).</p>
 
 
 <h3 id="mindone.diffusers.UNetMotionModel.attn_processors" class="doc doc-heading">
-            <code class="highlight language-python"><span class="n">mindone</span><span class="o">.</span><span class="n">diffusers</span><span class="o">.</span><span class="n">UNetMotionModel</span><span class="o">.</span><span class="n">attn_processors</span><span class="p">:</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">AttentionProcessor</span><span class="p">]</span></code>
+            <code class="highlight language-python"><span class="n">mindone</span><span class="o">.</span><span class="n">diffusers</span><span class="o">.</span><span class="n">UNetMotionModel</span><span class="o">.</span><span class="n">attn_processors</span></code>
 
   <span class="doc doc-labels">
       <small class="doc doc-label doc-label-property"><code>property</code></small>
@@ -10025,7 +10100,7 @@ for all models (such as downloading or saving).</p>
           <tr class="doc-section-item">
             <td>
                 <span class="doc-returns-annotation">
-                    <code><span title="typing.Dict">Dict</span>[str, <span title="mindone.diffusers.models.attention_processor.AttentionProcessor">AttentionProcessor</span>]</code>
+                    <code><span title="typing.Dict">Dict</span>[<span title="str">str</span>, <span title="mindone.diffusers.models.attention_processor.AttentionProcessor">AttentionProcessor</span>]</code>
                 </span>
             </td>
             <td class="doc-returns-details">
@@ -10037,7 +10112,7 @@ for all models (such as downloading or saving).</p>
           <tr class="doc-section-item">
             <td>
                 <span class="doc-returns-annotation">
-                    <code><span title="typing.Dict">Dict</span>[str, <span title="mindone.diffusers.models.attention_processor.AttentionProcessor">AttentionProcessor</span>]</code>
+                    <code><span title="typing.Dict">Dict</span>[<span title="str">str</span>, <span title="mindone.diffusers.models.attention_processor.AttentionProcessor">AttentionProcessor</span>]</code>
                 </span>
             </td>
             <td class="doc-returns-details">
@@ -10048,6 +10123,7 @@ for all models (such as downloading or saving).</p>
           </tr>
       </tbody>
     </table>
+
     </div>
 
 </div>
@@ -10077,7 +10153,9 @@ for all models (such as downloading or saving).</p>
       </thead>
       <tbody>
           <tr class="doc-section-item">
-            <td><code>sample</code></td>
+            <td>
+                <code>sample</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The noisy input tensor with the following shape <code>(batch, num_frames, channel, height, width</code>.</p>
@@ -10091,7 +10169,9 @@ for all models (such as downloading or saving).</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>timestep</code></td>
+            <td>
+                <code>timestep</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The number of timesteps to denoise an input.</p>
@@ -10105,7 +10185,9 @@ for all models (such as downloading or saving).</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>encoder_hidden_states</code></td>
+            <td>
+                <code>encoder_hidden_states</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The encoder hidden states with shape <code>(batch, sequence_length, feature_dim)</code>.</p>
@@ -10119,7 +10201,9 @@ for all models (such as downloading or saving).</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>timestep_cond</code></td>
+            <td>
+                <code>timestep_cond</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>(<code>ms.Tensor</code>, <em>optional</em>, defaults to <code>None</code>):
@@ -10139,7 +10223,9 @@ through the <code>self.time_embedding</code> layer to obtain the timestep embedd
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>attention_mask</code></td>
+            <td>
+                <code>attention_mask</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>An attention mask of shape <code>(batch, key_tokens)</code> is applied to <code>encoder_hidden_states</code>. If <code>1</code> the mask
@@ -10159,7 +10245,9 @@ negative values to the attention scores corresponding to "discard" tokens.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>cross_attention_kwargs</code></td>
+            <td>
+                <code>cross_attention_kwargs</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>A kwargs dictionary that if specified is passed along to the <code>AttentionProcessor</code> as defined under
@@ -10179,7 +10267,9 @@ negative values to the attention scores corresponding to "discard" tokens.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>down_block_additional_residuals</code></td>
+            <td>
+                <code>down_block_additional_residuals</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>(<code>tuple</code> of <code>ms.Tensor</code>, <em>optional</em>):
@@ -10198,7 +10288,9 @@ A tuple of tensors that if specified are added to the residuals of down unet blo
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>mid_block_additional_residual</code></td>
+            <td>
+                <code>mid_block_additional_residual</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>(<code>ms.Tensor</code>, <em>optional</em>):
@@ -10217,7 +10309,9 @@ A tensor that if specified is added to the residual of the middle unet block.</p
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>return_dict</code></td>
+            <td>
+                <code>return_dict</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Whether or not to return a [<code>~models.unets.unet_motion_model.UNetMotionOutput</code>] instead of a plain
@@ -10263,6 +10357,7 @@ otherwise a <code>tuple</code> is returned where the first element is the sample
           </tr>
       </tbody>
     </table>
+
 
             <details class="quote">
               <summary>Source code in <code>mindone/diffusers/models/unets/unet_motion_model.py</code></summary>
@@ -10751,7 +10846,9 @@ chunking</a>.</p>
       </thead>
       <tbody>
           <tr class="doc-section-item">
-            <td><code>chunk_size</code></td>
+            <td>
+                <code>chunk_size</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The chunk size of the feed-forward layers. If not specified, will run feed-forward layer individually
@@ -10770,7 +10867,9 @@ over each tensor of dim=<code>dim</code>.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>dim</code></td>
+            <td>
+                <code>dim</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The dimension over which the feed-forward computation should be chunked. Choose between dim=0 (batch)
@@ -10790,6 +10889,7 @@ or dim=1 (sequence length).</p>
           </tr>
       </tbody>
     </table>
+
 
             <details class="quote">
               <summary>Source code in <code>mindone/diffusers/models/unets/unet_motion_model.py</code></summary>
@@ -10868,6 +10968,7 @@ or dim=1 (sequence length).</p>
         <p>Freeze the weights of just the UNet2DConditionModel, and leave the motion modules
 unfrozen for fine tuning.</p>
 
+
             <details class="quote">
               <summary>Source code in <code>mindone/diffusers/models/unets/unet_motion_model.py</code></summary>
               <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">1628</span>
@@ -10939,6 +11040,7 @@ Parameters:
         for <strong>all</strong> <code>Attention</code> layers.
         If <code>processor</code> is a dict, the key needs to define the path to the corresponding cross attention
         processor. This is strongly recommended when setting trainable attention processors.</p>
+
 
             <details class="quote">
               <summary>Source code in <code>mindone/diffusers/models/unets/unet_motion_model.py</code></summary>
@@ -11020,6 +11122,7 @@ Parameters:
 
         <p>Disables custom attention processors and sets the default attention implementation.</p>
 
+
             <details class="quote">
               <summary>Source code in <code>mindone/diffusers/models/unets/unet_motion_model.py</code></summary>
               <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">1797</span>
@@ -11091,7 +11194,9 @@ Parameters:
       </thead>
       <tbody>
           <tr class="doc-section-item">
-            <td><code>sample</code></td>
+            <td>
+                <code>sample</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The hidden states output conditioned on <code>encoder_hidden_states</code> input. Output of last layer of model.</p>
@@ -11106,6 +11211,12 @@ Parameters:
           </tr>
       </tbody>
     </table>
+
+
+
+
+
+
 
               <details class="quote">
                 <summary>Source code in <code>mindone/diffusers/models/unets/unet_3d_condition.py</code></summary>

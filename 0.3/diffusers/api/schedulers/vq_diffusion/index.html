@@ -1477,6 +1477,29 @@
   
   
     <li class="md-nav__item">
+      <a href="../../../using-diffusers/consisid/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    ConsisID
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../../../using-diffusers/sdxl/" class="md-nav__link">
         
   
@@ -3209,6 +3232,29 @@
   
   
     <li class="md-nav__item">
+      <a href="../../models/consisid_transformer3d/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    ConsisIDTransformer3DModel
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../../models/cogview3plus_transformer2d/" class="md-nav__link">
         
   
@@ -4635,6 +4681,29 @@
   
   
     <li class="md-nav__item">
+      <a href="../../pipelines/consisid/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    ConsisID
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../../pipelines/consistency_models/" class="md-nav__link">
         
   
@@ -5798,10 +5867,10 @@
       
         
         
-        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2_11_4_64" >
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2_11_4_65" >
         
           
-          <label class="md-nav__link" for="__nav_2_11_4_64" id="__nav_2_11_4_64_label" tabindex="0">
+          <label class="md-nav__link" for="__nav_2_11_4_65" id="__nav_2_11_4_65_label" tabindex="0">
             
   
   
@@ -5814,8 +5883,8 @@
             <span class="md-nav__icon md-icon"></span>
           </label>
         
-        <nav class="md-nav" data-md-level="4" aria-labelledby="__nav_2_11_4_64_label" aria-expanded="false">
-          <label class="md-nav__title" for="__nav_2_11_4_64">
+        <nav class="md-nav" data-md-level="4" aria-labelledby="__nav_2_11_4_65_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_2_11_4_65">
             <span class="md-nav__icon md-icon"></span>
             Stable Diffusion
           </label>
@@ -8116,7 +8185,7 @@ specific language governing permissions and limitations under the License.
 
     <div class="doc doc-contents first">
             <p class="doc doc-class-bases">
-              Bases: <code><a class="autorefs autorefs-internal" title="mindone.diffusers.schedulers.scheduling_utils.SchedulerMixin" href="../overview/#mindone.diffusers.SchedulerMixin">SchedulerMixin</a></code>, <code><a class="autorefs autorefs-internal" title="mindone.diffusers.configuration_utils.ConfigMixin" href="../../configuration/#mindone.diffusers.configuration_utils.ConfigMixin">ConfigMixin</a></code></p>
+              Bases: <code><a class="autorefs autorefs-internal" title="mindone.diffusers.SchedulerMixin (mindone.diffusers.schedulers.scheduling_utils.SchedulerMixin)" href="../overview/#mindone.diffusers.SchedulerMixin">SchedulerMixin</a></code>, <code><a class="autorefs autorefs-internal" title="mindone.diffusers.configuration_utils.ConfigMixin" href="../../configuration/#mindone.diffusers.configuration_utils.ConfigMixin">ConfigMixin</a></code></p>
 
 
         <p>A scheduler for vector quantized diffusion.</p>
@@ -8133,7 +8202,9 @@ methods the library implements for all schedulers such as loading and saving.</p
       </thead>
       <tbody>
           <tr class="doc-section-item">
-            <td><code>num_vec_classes</code></td>
+            <td>
+                <code>num_vec_classes</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The number of classes of the vector embeddings of the latent pixels. Includes the class for the masked
@@ -8148,7 +8219,9 @@ latent pixel.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>num_train_timesteps</code></td>
+            <td>
+                <code>num_train_timesteps</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The number of diffusion steps to train the model.</p>
@@ -8166,7 +8239,9 @@ latent pixel.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>alpha_cum_start</code></td>
+            <td>
+                <code>alpha_cum_start</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The starting cumulative alpha value.</p>
@@ -8184,7 +8259,9 @@ latent pixel.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>alpha_cum_end</code></td>
+            <td>
+                <code>alpha_cum_end</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The ending cumulative alpha value.</p>
@@ -8202,7 +8279,9 @@ latent pixel.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>gamma_cum_start</code></td>
+            <td>
+                <code>gamma_cum_start</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The starting cumulative gamma value.</p>
@@ -8220,7 +8299,9 @@ latent pixel.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>gamma_cum_end</code></td>
+            <td>
+                <code>gamma_cum_end</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The ending cumulative gamma value.</p>
@@ -8239,6 +8320,12 @@ latent pixel.</p>
           </tr>
       </tbody>
     </table>
+
+
+
+
+
+
 
               <details class="quote">
                 <summary>Source code in <code>mindone/diffusers/schedulers/scheduling_vq_diffusion.py</code></summary>
@@ -9006,7 +9093,9 @@ latent pixel in <code>x_t</code>.</p>
       </thead>
       <tbody>
           <tr class="doc-section-item">
-            <td><code>t</code></td>
+            <td>
+                <code>t</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The timestep that determines which transition matrix is used.</p>
@@ -9020,7 +9109,9 @@ latent pixel in <code>x_t</code>.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>x_t</code></td>
+            <td>
+                <code>x_t</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The classes of each latent pixel at time <code>t</code>.</p>
@@ -9034,7 +9125,9 @@ latent pixel in <code>x_t</code>.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>log_onehot_x_t</code></td>
+            <td>
+                <code>log_onehot_x_t</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The log one-hot vectors of <code>x_t</code>.</p>
@@ -9048,7 +9141,9 @@ latent pixel in <code>x_t</code>.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>cumulative</code></td>
+            <td>
+                <code>cumulative</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>If cumulative is <code>False</code>, the single step transition matrix <code>t-1</code>-&gt;<code>t</code> is used. If cumulative is
@@ -9107,6 +9202,7 @@ q_0_cumulative(x_t | x_0 = C_{k-1}) ... q_n_cumulative(x_t | x_0 = C_{k-1})
           </tr>
       </tbody>
     </table>
+
 
             <details class="quote">
               <summary>Source code in <code>mindone/diffusers/schedulers/scheduling_vq_diffusion.py</code></summary>
@@ -9336,7 +9432,9 @@ q_0_cumulative(x_t | x_0 = C_{k-1}) ... q_n_cumulative(x_t | x_0 = C_{k-1})
       </thead>
       <tbody>
           <tr class="doc-section-item">
-            <td><code>log_p_x_0</code></td>
+            <td>
+                <code>log_p_x_0</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The log probabilities for the predicted classes of the initial latent pixels. Does not include a
@@ -9351,7 +9449,9 @@ prediction for the masked class as the initial unnoised image cannot be masked.<
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>x_t</code></td>
+            <td>
+                <code>x_t</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The classes of each latent pixel at time <code>t</code>.</p>
@@ -9365,7 +9465,9 @@ prediction for the masked class as the initial unnoised image cannot be masked.<
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>t</code></td>
+            <td>
+                <code>t</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The timestep that determines which transition matrix is used.</p>
@@ -9402,6 +9504,7 @@ The log probabilities for the predicted classes of the image at timestep <code>t
           </tr>
       </tbody>
     </table>
+
 
             <details class="quote">
               <summary>Source code in <code>mindone/diffusers/schedulers/scheduling_vq_diffusion.py</code></summary>
@@ -9675,7 +9778,9 @@ The log probabilities for the predicted classes of the image at timestep <code>t
       </thead>
       <tbody>
           <tr class="doc-section-item">
-            <td><code>num_inference_steps</code></td>
+            <td>
+                <code>num_inference_steps</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The number of diffusion steps used when generating samples with a pre-trained model.</p>
@@ -9690,6 +9795,7 @@ The log probabilities for the predicted classes of the image at timestep <code>t
           </tr>
       </tbody>
     </table>
+
 
             <details class="quote">
               <summary>Source code in <code>mindone/diffusers/schedulers/scheduling_vq_diffusion.py</code></summary>
@@ -9744,7 +9850,9 @@ The log probabilities for the predicted classes of the image at timestep <code>t
       </thead>
       <tbody>
           <tr class="doc-section-item">
-            <td><code>log_p_x_0</code></td>
+            <td>
+                <code>log_p_x_0</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>(<code>ms.Tensor</code> of shape <code>(batch size, num classes - 1, num latent pixels)</code>):
@@ -9756,7 +9864,9 @@ prediction for the masked class as the initial unnoised image cannot be masked.<
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>t</code></td>
+            <td>
+                <code>t</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The timestep that determines which transition matrices are used.</p>
@@ -9770,7 +9880,9 @@ prediction for the masked class as the initial unnoised image cannot be masked.<
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>x_t</code></td>
+            <td>
+                <code>x_t</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The classes of each latent pixel at time <code>t</code>.</p>
@@ -9784,7 +9896,9 @@ prediction for the masked class as the initial unnoised image cannot be masked.<
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>generator</code></td>
+            <td>
+                <code>generator</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>A random number generator for the noise applied to <code>p(x_{t-1} | x_t)</code> before it is sampled from.</p>
@@ -9802,7 +9916,9 @@ prediction for the masked class as the initial unnoised image cannot be masked.<
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>return_dict</code></td>
+            <td>
+                <code>return_dict</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Whether or not to return a [<code>~schedulers.scheduling_vq_diffusion.VQDiffusionSchedulerOutput</code>] or
@@ -9835,7 +9951,12 @@ prediction for the masked class as the initial unnoised image cannot be masked.<
           <tr class="doc-section-item">
             <td>
                 <span class="doc-returns-annotation">
-                    <code><span title="typing.Union">Union</span>[<a class="autorefs autorefs-internal" title="mindone.diffusers.schedulers.scheduling_vq_diffusion.VQDiffusionSchedulerOutput" href="#mindone.diffusers.schedulers.scheduling_vq_diffusion.VQDiffusionSchedulerOutput">VQDiffusionSchedulerOutput</a>, <span title="typing.Tuple">Tuple</span>]</code>
+                    <code><span title="typing.Union">Union</span>[<a class="autorefs autorefs-internal" title="mindone.diffusers.schedulers.scheduling_vq_diffusion.VQDiffusionSchedulerOutput
+
+
+  
+      dataclass
+  " href="#mindone.diffusers.schedulers.scheduling_vq_diffusion.VQDiffusionSchedulerOutput">VQDiffusionSchedulerOutput</a>, <span title="typing.Tuple">Tuple</span>]</code>
                 </span>
             </td>
             <td class="doc-returns-details">
@@ -9848,6 +9969,7 @@ returned, otherwise a tuple is returned where the first element is the sample te
           </tr>
       </tbody>
     </table>
+
 
             <details class="quote">
               <summary>Source code in <code>mindone/diffusers/schedulers/scheduling_vq_diffusion.py</code></summary>
@@ -9984,7 +10106,9 @@ returned, otherwise a tuple is returned where the first element is the sample te
       </thead>
       <tbody>
           <tr class="doc-section-item">
-            <td><code>prev_sample</code></td>
+            <td>
+                <code>prev_sample</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Computed sample x_{t-1} of previous timestep. <code>prev_sample</code> should be used as next model input in the
@@ -10000,6 +10124,12 @@ denoising loop.</p>
           </tr>
       </tbody>
     </table>
+
+
+
+
+
+
 
               <details class="quote">
                 <summary>Source code in <code>mindone/diffusers/schedulers/scheduling_vq_diffusion.py</code></summary>

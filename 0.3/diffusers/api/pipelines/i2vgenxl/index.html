@@ -1477,6 +1477,29 @@
   
   
     <li class="md-nav__item">
+      <a href="../../../using-diffusers/consisid/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    ConsisID
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../../../using-diffusers/sdxl/" class="md-nav__link">
         
   
@@ -3209,6 +3232,29 @@
   
   
     <li class="md-nav__item">
+      <a href="../../models/consisid_transformer3d/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    ConsisIDTransformer3DModel
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../../models/cogview3plus_transformer2d/" class="md-nav__link">
         
   
@@ -4637,6 +4683,29 @@
   
   
     <li class="md-nav__item">
+      <a href="../consisid/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    ConsisID
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../consistency_models/" class="md-nav__link">
         
   
@@ -5893,10 +5962,10 @@
       
         
         
-        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2_11_4_64" >
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2_11_4_65" >
         
           
-          <label class="md-nav__link" for="__nav_2_11_4_64" id="__nav_2_11_4_64_label" tabindex="0">
+          <label class="md-nav__link" for="__nav_2_11_4_65" id="__nav_2_11_4_65_label" tabindex="0">
             
   
   
@@ -5909,8 +5978,8 @@
             <span class="md-nav__icon md-icon"></span>
           </label>
         
-        <nav class="md-nav" data-md-level="4" aria-labelledby="__nav_2_11_4_64_label" aria-expanded="false">
-          <label class="md-nav__title" for="__nav_2_11_4_64">
+        <nav class="md-nav" data-md-level="4" aria-labelledby="__nav_2_11_4_65_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_2_11_4_65">
             <span class="md-nav__icon md-icon"></span>
             Stable Diffusion
           </label>
@@ -8125,7 +8194,7 @@ specific language governing permissions and limitations under the License.
 
     <div class="doc doc-contents first">
             <p class="doc doc-class-bases">
-              Bases: <code><a class="autorefs autorefs-internal" title="mindone.diffusers.pipelines.pipeline_utils.DiffusionPipeline" href="../overview/#mindone.diffusers.DiffusionPipeline">DiffusionPipeline</a></code>, <code><span title="mindone.diffusers.pipelines.pipeline_utils.StableDiffusionMixin">StableDiffusionMixin</span></code></p>
+              Bases: <code><a class="autorefs autorefs-internal" title="mindone.diffusers.DiffusionPipeline (mindone.diffusers.pipelines.pipeline_utils.DiffusionPipeline)" href="../overview/#mindone.diffusers.DiffusionPipeline">DiffusionPipeline</a></code>, <code><span title="mindone.diffusers.pipelines.pipeline_utils.StableDiffusionMixin">StableDiffusionMixin</span></code></p>
 
 
         <p>Pipeline for image-to-video generation as proposed in <a href="https://i2vgen-xl.github.io/">I2VGenXL</a>.</p>
@@ -8142,7 +8211,9 @@ implemented for all pipelines (downloading, saving, running on a particular devi
       </thead>
       <tbody>
           <tr class="doc-section-item">
-            <td><code>vae</code></td>
+            <td>
+                <code>vae</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Variational Auto-Encoder (VAE) Model to encode and decode images to and from latent representations.</p>
@@ -8156,7 +8227,9 @@ implemented for all pipelines (downloading, saving, running on a particular devi
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>text_encoder</code></td>
+            <td>
+                <code>text_encoder</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Frozen text-encoder (<a href="https://huggingface.co/openai/clip-vit-large-patch14">clip-vit-large-patch14</a>).</p>
@@ -8170,7 +8243,9 @@ implemented for all pipelines (downloading, saving, running on a particular devi
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>tokenizer</code></td>
+            <td>
+                <code>tokenizer</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>A [<code>~transformers.CLIPTokenizer</code>] to tokenize text.</p>
@@ -8184,7 +8259,9 @@ implemented for all pipelines (downloading, saving, running on a particular devi
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>unet</code></td>
+            <td>
+                <code>unet</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>A [<code>I2VGenXLUNet</code>] to denoise the encoded video latents.</p>
@@ -8198,7 +8275,9 @@ implemented for all pipelines (downloading, saving, running on a particular devi
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>scheduler</code></td>
+            <td>
+                <code>scheduler</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>A scheduler to be used in combination with <code>unet</code> to denoise the encoded image latents.</p>
@@ -8213,6 +8292,12 @@ implemented for all pipelines (downloading, saving, running on a particular devi
           </tr>
       </tbody>
     </table>
+
+
+
+
+
+
 
               <details class="quote">
                 <summary>Source code in <code>mindone/diffusers/pipelines/i2vgen_xl/pipeline_i2vgen_xl.py</code></summary>
@@ -9517,7 +9602,9 @@ implemented for all pipelines (downloading, saving, running on a particular devi
       </thead>
       <tbody>
           <tr class="doc-section-item">
-            <td><code>prompt</code></td>
+            <td>
+                <code>prompt</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The prompt or prompts to guide image generation. If not defined, you need to pass <code>prompt_embeds</code>.</p>
@@ -9535,7 +9622,9 @@ implemented for all pipelines (downloading, saving, running on a particular devi
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>image</code></td>
+            <td>
+                <code>image</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Image or images to guide image generation. If you provide a tensor, it needs to be compatible with
@@ -9554,7 +9643,9 @@ implemented for all pipelines (downloading, saving, running on a particular devi
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>height</code></td>
+            <td>
+                <code>height</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The height in pixels of the generated image.</p>
@@ -9572,7 +9663,9 @@ implemented for all pipelines (downloading, saving, running on a particular devi
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>width</code></td>
+            <td>
+                <code>width</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The width in pixels of the generated image.</p>
@@ -9590,7 +9683,9 @@ implemented for all pipelines (downloading, saving, running on a particular devi
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>target_fps</code></td>
+            <td>
+                <code>target_fps</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Frames per second. The rate at which the generated images shall be exported to a video after
@@ -9609,7 +9704,9 @@ generation. This is also used as a "micro-condition" while generation.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>num_frames</code></td>
+            <td>
+                <code>num_frames</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The number of video frames to generate.</p>
@@ -9627,7 +9724,9 @@ generation. This is also used as a "micro-condition" while generation.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>num_inference_steps</code></td>
+            <td>
+                <code>num_inference_steps</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The number of denoising steps.</p>
@@ -9645,7 +9744,9 @@ generation. This is also used as a "micro-condition" while generation.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>guidance_scale</code></td>
+            <td>
+                <code>guidance_scale</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>A higher guidance scale value encourages the model to generate images closely linked to the text
@@ -9664,7 +9765,9 @@ generation. This is also used as a "micro-condition" while generation.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>negative_prompt</code></td>
+            <td>
+                <code>negative_prompt</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The prompt or prompts to guide what to not include in image generation. If not defined, you need to
@@ -9683,7 +9786,9 @@ pass <code>negative_prompt_embeds</code> instead. Ignored when not using guidanc
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>eta</code></td>
+            <td>
+                <code>eta</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Corresponds to parameter eta (η) from the <a href="https://arxiv.org/abs/2010.02502">DDIM</a> paper. Only applies
@@ -9702,7 +9807,9 @@ to the [<code>~schedulers.DDIMScheduler</code>], and is ignored in other schedul
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>num_videos_per_prompt</code></td>
+            <td>
+                <code>num_videos_per_prompt</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The number of images to generate per prompt.</p>
@@ -9720,7 +9827,9 @@ to the [<code>~schedulers.DDIMScheduler</code>], and is ignored in other schedul
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>decode_chunk_size</code></td>
+            <td>
+                <code>decode_chunk_size</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The number of frames to decode at a time. The higher the chunk size, the higher the temporal
@@ -9740,7 +9849,9 @@ decode all frames at once for maximal quality. Reduce <code>decode_chunk_size</c
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>generator</code></td>
+            <td>
+                <code>generator</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>A <a href="https://pytorch.org/docs/stable/generated/torch.Generator.html"><code>np.random.Generator</code></a> to make
@@ -9759,7 +9870,9 @@ generation deterministic.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>latents</code></td>
+            <td>
+                <code>latents</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Pre-generated noisy latents sampled from a Gaussian distribution, to be used as inputs for image
@@ -9779,7 +9892,9 @@ tensor is generated by sampling using the supplied random <code>generator</code>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>prompt_embeds</code></td>
+            <td>
+                <code>prompt_embeds</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Pre-generated text embeddings. Can be used to easily tweak text inputs (prompt weighting). If not
@@ -9798,7 +9913,9 @@ provided, text embeddings are generated from the <code>prompt</code> input argum
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>negative_prompt_embeds</code></td>
+            <td>
+                <code>negative_prompt_embeds</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Pre-generated negative text embeddings. Can be used to easily tweak text inputs (prompt weighting). If
@@ -9817,7 +9934,9 @@ not provided, <code>negative_prompt_embeds</code> are generated from the <code>n
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>output_type</code></td>
+            <td>
+                <code>output_type</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The output format of the generated image. Choose between <code>PIL.Image</code> or <code>np.array</code>.</p>
@@ -9835,7 +9954,9 @@ not provided, <code>negative_prompt_embeds</code> are generated from the <code>n
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>return_dict</code></td>
+            <td>
+                <code>return_dict</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Whether or not to return a [<code>~pipelines.stable_diffusion.StableDiffusionPipelineOutput</code>] instead of a
@@ -9854,7 +9975,9 @@ plain tuple.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>cross_attention_kwargs</code></td>
+            <td>
+                <code>cross_attention_kwargs</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>A kwargs dictionary that if specified is passed along to the [<code>AttentionProcessor</code>] as defined in
@@ -9873,7 +9996,9 @@ plain tuple.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>clip_skip</code></td>
+            <td>
+                <code>clip_skip</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Number of layers to be skipped from CLIP while computing the prompt embeddings. A value of 1 means that
@@ -9917,6 +10042,7 @@ returned, otherwise a <code>tuple</code> is returned where the first element is 
           </tr>
       </tbody>
     </table>
+
 
             <details class="quote">
               <summary>Source code in <code>mindone/diffusers/pipelines/i2vgen_xl/pipeline_i2vgen_xl.py</code></summary>
@@ -10420,7 +10546,9 @@ returned, otherwise a <code>tuple</code> is returned where the first element is 
       </thead>
       <tbody>
           <tr class="doc-section-item">
-            <td><code>prompt</code></td>
+            <td>
+                <code>prompt</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>prompt to be encoded</p>
@@ -10434,7 +10562,9 @@ returned, otherwise a <code>tuple</code> is returned where the first element is 
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>num_videos_per_prompt</code></td>
+            <td>
+                <code>num_videos_per_prompt</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>number of images that should be generated per prompt</p>
@@ -10448,7 +10578,9 @@ returned, otherwise a <code>tuple</code> is returned where the first element is 
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>do_classifier_free_guidance</code></td>
+            <td>
+                <code>do_classifier_free_guidance</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>whether to use classifier free guidance or not</p>
@@ -10462,7 +10594,9 @@ returned, otherwise a <code>tuple</code> is returned where the first element is 
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>negative_prompt</code></td>
+            <td>
+                <code>negative_prompt</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The prompt or prompts not to guide the image generation. If not defined, one has to pass
@@ -10482,7 +10616,9 @@ less than <code>1</code>).</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>prompt_embeds</code></td>
+            <td>
+                <code>prompt_embeds</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Pre-generated text embeddings. Can be used to easily tweak text inputs, <em>e.g.</em> prompt weighting. If not
@@ -10501,7 +10637,9 @@ provided, text embeddings will be generated from <code>prompt</code> input argum
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>negative_prompt_embeds</code></td>
+            <td>
+                <code>negative_prompt_embeds</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Pre-generated negative text embeddings. Can be used to easily tweak text inputs, <em>e.g.</em> prompt
@@ -10521,7 +10659,9 @@ argument.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>clip_skip</code></td>
+            <td>
+                <code>clip_skip</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Number of layers to be skipped from CLIP while computing the prompt embeddings. A value of 1 means that
@@ -10541,6 +10681,7 @@ the output of the pre-final layer will be used for computing the prompt embeddin
           </tr>
       </tbody>
     </table>
+
 
             <details class="quote">
               <summary>Source code in <code>mindone/diffusers/pipelines/i2vgen_xl/pipeline_i2vgen_xl.py</code></summary>
@@ -10914,6 +11055,12 @@ the output of the pre-final layer will be used for computing the prompt embeddin
         denoised
  PIL image sequences of length <code>num_frames.</code> It can also be a NumPy array or Torch tensor of shape
 <code>(batch_size, num_frames, channels, height, width)</code></p>
+
+
+
+
+
+
 
               <details class="quote">
                 <summary>Source code in <code>mindone/diffusers/pipelines/i2vgen_xl/pipeline_i2vgen_xl.py</code></summary>

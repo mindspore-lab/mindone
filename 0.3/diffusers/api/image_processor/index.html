@@ -1477,6 +1477,29 @@
   
   
     <li class="md-nav__item">
+      <a href="../../using-diffusers/consisid/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    ConsisID
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../../using-diffusers/sdxl/" class="md-nav__link">
         
   
@@ -3209,6 +3232,29 @@
   
   
     <li class="md-nav__item">
+      <a href="../models/consisid_transformer3d/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    ConsisIDTransformer3DModel
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../models/cogview3plus_transformer2d/" class="md-nav__link">
         
   
@@ -4635,6 +4681,29 @@
   
   
     <li class="md-nav__item">
+      <a href="../pipelines/consisid/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    ConsisID
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../pipelines/consistency_models/" class="md-nav__link">
         
   
@@ -5798,10 +5867,10 @@
       
         
         
-        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2_11_4_64" >
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2_11_4_65" >
         
           
-          <label class="md-nav__link" for="__nav_2_11_4_64" id="__nav_2_11_4_64_label" tabindex="0">
+          <label class="md-nav__link" for="__nav_2_11_4_65" id="__nav_2_11_4_65_label" tabindex="0">
             
   
   
@@ -5814,8 +5883,8 @@
             <span class="md-nav__icon md-icon"></span>
           </label>
         
-        <nav class="md-nav" data-md-level="4" aria-labelledby="__nav_2_11_4_64_label" aria-expanded="false">
-          <label class="md-nav__title" for="__nav_2_11_4_64">
+        <nav class="md-nav" data-md-level="4" aria-labelledby="__nav_2_11_4_65_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_2_11_4_65">
             <span class="md-nav__icon md-icon"></span>
             Stable Diffusion
           </label>
@@ -8442,7 +8511,9 @@ specific language governing permissions and limitations under the License.
       </thead>
       <tbody>
           <tr class="doc-section-item">
-            <td><code>do_resize</code></td>
+            <td>
+                <code>do_resize</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Whether to downscale the image's (height, width) dimensions to multiples of <code>vae_scale_factor</code>. Can accept
@@ -8461,7 +8532,9 @@ specific language governing permissions and limitations under the License.
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>vae_scale_factor</code></td>
+            <td>
+                <code>vae_scale_factor</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>VAE scale factor. If <code>do_resize</code> is <code>True</code>, the image is automatically resized to multiples of this factor.</p>
@@ -8479,7 +8552,9 @@ specific language governing permissions and limitations under the License.
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>resample</code></td>
+            <td>
+                <code>resample</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Resampling filter to use when resizing the image.</p>
@@ -8497,7 +8572,9 @@ specific language governing permissions and limitations under the License.
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>do_normalize</code></td>
+            <td>
+                <code>do_normalize</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Whether to normalize the image to [-1,1].</p>
@@ -8515,7 +8592,9 @@ specific language governing permissions and limitations under the License.
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>do_binarize</code></td>
+            <td>
+                <code>do_binarize</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Whether to binarize the image to 0/1.</p>
@@ -8533,7 +8612,9 @@ specific language governing permissions and limitations under the License.
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>do_convert_rgb</code></td>
+            <td>
+                <code>do_convert_rgb</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Whether to convert the images to RGB format.</p>
@@ -8551,7 +8632,9 @@ specific language governing permissions and limitations under the License.
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>do_convert_grayscale</code></td>
+            <td>
+                <code>do_convert_grayscale</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Whether to convert the images to grayscale format.</p>
@@ -8570,6 +8653,12 @@ specific language governing permissions and limitations under the License.
           </tr>
       </tbody>
     </table>
+
+
+
+
+
+
 
               <details class="quote">
                 <summary>Source code in <code>mindone/diffusers/image_processor.py</code></summary>
@@ -10078,7 +10167,9 @@ specific language governing permissions and limitations under the License.
       </thead>
       <tbody>
           <tr class="doc-section-item">
-            <td><code>mask</code></td>
+            <td>
+                <code>mask</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The mask image that highlights regions to overlay.</p>
@@ -10092,7 +10183,9 @@ specific language governing permissions and limitations under the License.
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>init_image</code></td>
+            <td>
+                <code>init_image</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The original image to which the overlay is applied.</p>
@@ -10106,7 +10199,9 @@ specific language governing permissions and limitations under the License.
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>image</code></td>
+            <td>
+                <code>image</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The image to overlay onto the original.</p>
@@ -10120,7 +10215,9 @@ specific language governing permissions and limitations under the License.
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>crop_coords</code></td>
+            <td>
+                <code>crop_coords</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Coordinates to crop the image. If provided, the image will be cropped accordingly.</p>
@@ -10164,6 +10261,7 @@ The final image with the overlay applied.</p>
           </tr>
       </tbody>
     </table>
+
 
             <details class="quote">
               <summary>Source code in <code>mindone/diffusers/image_processor.py</code></summary>
@@ -10287,7 +10385,9 @@ The final image with the overlay applied.</p>
       </thead>
       <tbody>
           <tr class="doc-section-item">
-            <td><code>image</code></td>
+            <td>
+                <code>image</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The image input, should be a PIL image.</p>
@@ -10327,6 +10427,7 @@ The binarized image. Values less than 0.5 are set to 0, values greater than 0.5 
           </tr>
       </tbody>
     </table>
+
 
             <details class="quote">
               <summary>Source code in <code>mindone/diffusers/image_processor.py</code></summary>
@@ -10394,7 +10495,9 @@ The binarized image. Values less than 0.5 are set to 0, values greater than 0.5 
       </thead>
       <tbody>
           <tr class="doc-section-item">
-            <td><code>image</code></td>
+            <td>
+                <code>image</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The PIL image to convert to grayscale.</p>
@@ -10410,6 +10513,7 @@ The binarized image. Values less than 0.5 are set to 0, values greater than 0.5 
       </tbody>
     </table>
         
+
 
             <details class="quote">
               <summary>Source code in <code>mindone/diffusers/image_processor.py</code></summary>
@@ -10475,7 +10579,9 @@ The binarized image. Values less than 0.5 are set to 0, values greater than 0.5 
       </thead>
       <tbody>
           <tr class="doc-section-item">
-            <td><code>image</code></td>
+            <td>
+                <code>image</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The input image to convert.</p>
@@ -10491,6 +10597,7 @@ The binarized image. Values less than 0.5 are set to 0, values greater than 0.5 
       </tbody>
     </table>
         
+
 
             <details class="quote">
               <summary>Source code in <code>mindone/diffusers/image_processor.py</code></summary>
@@ -10556,7 +10663,9 @@ The binarized image. Values less than 0.5 are set to 0, values greater than 0.5 
       </thead>
       <tbody>
           <tr class="doc-section-item">
-            <td><code>image</code></td>
+            <td>
+                <code>image</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The PIL image to convert to RGB.</p>
@@ -10572,6 +10681,7 @@ The binarized image. Values less than 0.5 are set to 0, values greater than 0.5 
       </tbody>
     </table>
         
+
 
             <details class="quote">
               <summary>Source code in <code>mindone/diffusers/image_processor.py</code></summary>
@@ -10637,7 +10747,9 @@ The binarized image. Values less than 0.5 are set to 0, values greater than 0.5 
       </thead>
       <tbody>
           <tr class="doc-section-item">
-            <td><code>images</code></td>
+            <td>
+                <code>images</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The image array to denormalize.</p>
@@ -10653,6 +10765,7 @@ The binarized image. Values less than 0.5 are set to 0, values greater than 0.5 
       </tbody>
     </table>
         
+
 
             <details class="quote">
               <summary>Source code in <code>mindone/diffusers/image_processor.py</code></summary>
@@ -10716,7 +10829,9 @@ processing are 512x512, the region will be expanded to 128x128.</p>
       </thead>
       <tbody>
           <tr class="doc-section-item">
-            <td><code>mask_image</code></td>
+            <td>
+                <code>mask_image</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Mask image.</p>
@@ -10730,7 +10845,9 @@ processing are 512x512, the region will be expanded to 128x128.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>width</code></td>
+            <td>
+                <code>width</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Width of the image to be processed.</p>
@@ -10738,13 +10855,15 @@ processing are 512x512, the region will be expanded to 128x128.</p>
               <p>
                   <span class="doc-param-annotation">
                     <b>TYPE:</b>
-                      <code>int</code>
+                      <code><span title="int">int</span></code>
                   </span>
               </p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>height</code></td>
+            <td>
+                <code>height</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Height of the image to be processed.</p>
@@ -10752,13 +10871,15 @@ processing are 512x512, the region will be expanded to 128x128.</p>
               <p>
                   <span class="doc-param-annotation">
                     <b>TYPE:</b>
-                      <code>int</code>
+                      <code><span title="int">int</span></code>
                   </span>
               </p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>pad</code></td>
+            <td>
+                <code>pad</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Padding to be added to the crop region. Defaults to 0.</p>
@@ -10766,7 +10887,7 @@ processing are 512x512, the region will be expanded to 128x128.</p>
               <p>
                   <span class="doc-param-annotation">
                     <b>TYPE:</b>
-                      <code>int</code>
+                      <code><span title="int">int</span></code>
                   </span>
                   <span class="doc-param-default">
                     <b>DEFAULT:</b>
@@ -10808,6 +10929,7 @@ processing are 512x512, the region will be expanded to 128x128.</p>
           </tr>
       </tbody>
     </table>
+
 
             <details class="quote">
               <summary>Source code in <code>mindone/diffusers/image_processor.py</code></summary>
@@ -11017,7 +11139,9 @@ processing are 512x512, the region will be expanded to 128x128.</p>
       </thead>
       <tbody>
           <tr class="doc-section-item">
-            <td><code>image</code></td>
+            <td>
+                <code>image</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The image input, which can be a PIL image, NumPy array, or MindSpore tensor. If it is a NumPy array, it
@@ -11033,7 +11157,9 @@ tensor, it should have shape <code>[batch, channels, height, width]</code>.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>height</code></td>
+            <td>
+                <code>height</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The height of the preprocessed image. If <code>None</code>, the height of the <code>image</code> input will be used.</p>
@@ -11051,7 +11177,9 @@ tensor, it should have shape <code>[batch, channels, height, width]</code>.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>width</code></td>
+            <td>
+                <code>width</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The width of the preprocessed image. If <code>None</code>, the width of the <code>image</code> input will be used.</p>
@@ -11083,7 +11211,7 @@ tensor, it should have shape <code>[batch, channels, height, width]</code>.</p>
           <tr class="doc-section-item">
             <td>
                 <span class="doc-returns-annotation">
-                    <code><span title="typing.Tuple">Tuple</span>[int, int]</code>
+                    <code><span title="typing.Tuple">Tuple</span>[<span title="int">int</span>, <span title="int">int</span>]</code>
                 </span>
             </td>
             <td class="doc-returns-details">
@@ -11096,6 +11224,7 @@ A tuple containing the height and width, both resized to the nearest integer mul
           </tr>
       </tbody>
     </table>
+
 
             <details class="quote">
               <summary>Source code in <code>mindone/diffusers/image_processor.py</code></summary>
@@ -11223,7 +11352,9 @@ A tuple containing the height and width, both resized to the nearest integer mul
       </thead>
       <tbody>
           <tr class="doc-section-item">
-            <td><code>images</code></td>
+            <td>
+                <code>images</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The MindSpore tensor to convert to NumPy format.</p>
@@ -11239,6 +11370,7 @@ A tuple containing the height and width, both resized to the nearest integer mul
       </tbody>
     </table>
         
+
 
             <details class="quote">
               <summary>Source code in <code>mindone/diffusers/image_processor.py</code></summary>
@@ -11302,7 +11434,9 @@ A tuple containing the height and width, both resized to the nearest integer mul
       </thead>
       <tbody>
           <tr class="doc-section-item">
-            <td><code>images</code></td>
+            <td>
+                <code>images</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The image array to normalize.</p>
@@ -11318,6 +11452,7 @@ A tuple containing the height and width, both resized to the nearest integer mul
       </tbody>
     </table>
         
+
 
             <details class="quote">
               <summary>Source code in <code>mindone/diffusers/image_processor.py</code></summary>
@@ -11379,7 +11514,9 @@ A tuple containing the height and width, both resized to the nearest integer mul
       </thead>
       <tbody>
           <tr class="doc-section-item">
-            <td><code>images</code></td>
+            <td>
+                <code>images</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The NumPy image array to convert to MindSpore format.</p>
@@ -11395,6 +11532,7 @@ A tuple containing the height and width, both resized to the nearest integer mul
       </tbody>
     </table>
         
+
 
             <details class="quote">
               <summary>Source code in <code>mindone/diffusers/image_processor.py</code></summary>
@@ -11464,7 +11602,9 @@ A tuple containing the height and width, both resized to the nearest integer mul
       </thead>
       <tbody>
           <tr class="doc-section-item">
-            <td><code>images</code></td>
+            <td>
+                <code>images</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The image array to convert to PIL format.</p>
@@ -11480,6 +11620,7 @@ A tuple containing the height and width, both resized to the nearest integer mul
       </tbody>
     </table>
         
+
 
             <details class="quote">
               <summary>Source code in <code>mindone/diffusers/image_processor.py</code></summary>
@@ -11555,6 +11696,7 @@ Returns:
     <code>np.ndarray</code>:
         A NumPy array representation of the images.</p>
 
+
             <details class="quote">
               <summary>Source code in <code>mindone/diffusers/image_processor.py</code></summary>
               <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">148</span>
@@ -11619,7 +11761,9 @@ Returns:
       </thead>
       <tbody>
           <tr class="doc-section-item">
-            <td><code>image</code></td>
+            <td>
+                <code>image</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The image input, should be a mindspore tensor with shape <code>B x C x H x W</code>.</p>
@@ -11633,7 +11777,9 @@ Returns:
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>output_type</code></td>
+            <td>
+                <code>output_type</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The output type of the image, can be one of <code>pil</code>, <code>np</code>, <code>pt</code>, <code>latent</code>.</p>
@@ -11651,7 +11797,9 @@ Returns:
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>do_denormalize</code></td>
+            <td>
+                <code>do_denormalize</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Whether to denormalize the image to [0,1]. If <code>None</code>, will use the value of <code>do_normalize</code> in the
@@ -11696,6 +11844,7 @@ The postprocessed image.</p>
           </tr>
       </tbody>
     </table>
+
 
             <details class="quote">
               <summary>Source code in <code>mindone/diffusers/image_processor.py</code></summary>
@@ -11825,7 +11974,9 @@ The postprocessed image.</p>
       </thead>
       <tbody>
           <tr class="doc-section-item">
-            <td><code>image</code></td>
+            <td>
+                <code>image</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The image input, accepted formats are PIL images, NumPy arrays, MindSpore tensors; Also accept list of
@@ -11840,7 +11991,9 @@ supported formats.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>height</code></td>
+            <td>
+                <code>height</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The height in preprocessed image. If <code>None</code>, will use the <code>get_default_height_width()</code> to get default
@@ -11859,7 +12012,9 @@ height.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>width</code></td>
+            <td>
+                <code>width</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The width in preprocessed. If <code>None</code>, will use get_default_height_width()` to get the default width.</p>
@@ -11877,7 +12032,9 @@ height.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>resize_mode</code></td>
+            <td>
+                <code>resize_mode</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The resize mode, can be one of <code>default</code> or <code>fill</code>. If <code>default</code>, will resize the image to fit within
@@ -11901,7 +12058,9 @@ supported for PIL image input.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>crops_coords</code></td>
+            <td>
+                <code>crops_coords</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The crop coordinates for each image in the batch. If <code>None</code>, will not crop the image.</p>
@@ -11945,6 +12104,7 @@ The preprocessed image.</p>
           </tr>
       </tbody>
     </table>
+
 
             <details class="quote">
               <summary>Source code in <code>mindone/diffusers/image_processor.py</code></summary>
@@ -12236,7 +12396,9 @@ The preprocessed image.</p>
       </thead>
       <tbody>
           <tr class="doc-section-item">
-            <td><code>image</code></td>
+            <td>
+                <code>image</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The image input, can be a PIL image, numpy array or mindspore tensor.</p>
@@ -12250,7 +12412,9 @@ The preprocessed image.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>height</code></td>
+            <td>
+                <code>height</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The height to resize to.</p>
@@ -12264,7 +12428,9 @@ The preprocessed image.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>width</code></td>
+            <td>
+                <code>width</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The width to resize to.</p>
@@ -12278,7 +12444,9 @@ The preprocessed image.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>resize_mode</code></td>
+            <td>
+                <code>resize_mode</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The resize mode to use, can be one of <code>default</code> or <code>fill</code>. If <code>default</code>, will resize the image to fit
@@ -12328,6 +12496,7 @@ The resized image.</p>
           </tr>
       </tbody>
     </table>
+
 
             <details class="quote">
               <summary>Source code in <code>mindone/diffusers/image_processor.py</code></summary>
@@ -12482,7 +12651,9 @@ The resized image.</p>
       </thead>
       <tbody>
           <tr class="doc-section-item">
-            <td><code>do_resize</code></td>
+            <td>
+                <code>do_resize</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Whether to downscale the image's (height, width) dimensions to multiples of <code>vae_scale_factor</code>. Can accept
@@ -12501,7 +12672,9 @@ The resized image.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>vae_scale_factor</code></td>
+            <td>
+                <code>vae_scale_factor</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>VAE scale factor. If <code>do_resize</code> is <code>True</code>, the image is automatically resized to multiples of this factor.</p>
@@ -12519,7 +12692,9 @@ The resized image.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>resample</code></td>
+            <td>
+                <code>resample</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Resampling filter to use when resizing the image.</p>
@@ -12537,7 +12712,9 @@ The resized image.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>do_normalize</code></td>
+            <td>
+                <code>do_normalize</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Whether to normalize the image to [-1,1].</p>
@@ -12555,7 +12732,9 @@ The resized image.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>do_binarize</code></td>
+            <td>
+                <code>do_binarize</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Whether to binarize the image to 0/1.</p>
@@ -12573,7 +12752,9 @@ The resized image.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>do_convert_rgb</code></td>
+            <td>
+                <code>do_convert_rgb</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Whether to convert the images to RGB format.</p>
@@ -12587,7 +12768,9 @@ The resized image.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>do_convert_grayscale</code></td>
+            <td>
+                <code>do_convert_grayscale</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Whether to convert the images to grayscale format.</p>
@@ -12606,6 +12789,12 @@ The resized image.</p>
           </tr>
       </tbody>
     </table>
+
+
+
+
+
+
 
               <details class="quote">
                 <summary>Source code in <code>mindone/diffusers/image_processor.py</code></summary>
@@ -12850,7 +13039,9 @@ The resized image.</p>
       </thead>
       <tbody>
           <tr class="doc-section-item">
-            <td><code>height</code></td>
+            <td>
+                <code>height</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The height of the image.</p>
@@ -12864,7 +13055,9 @@ The resized image.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>width</code></td>
+            <td>
+                <code>width</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The width of the image.</p>
@@ -12878,7 +13071,9 @@ The resized image.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>ratios</code></td>
+            <td>
+                <code>ratios</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>A dictionary where keys are aspect ratios and values are tuples of (height, width).</p>
@@ -12906,7 +13101,7 @@ The resized image.</p>
           <tr class="doc-section-item">
             <td>
                 <span class="doc-returns-annotation">
-                    <code><span title="typing.Tuple">Tuple</span>[int, int]</code>
+                    <code><span title="typing.Tuple">Tuple</span>[<span title="int">int</span>, <span title="int">int</span>]</code>
                 </span>
             </td>
             <td class="doc-returns-details">
@@ -12917,6 +13112,7 @@ The resized image.</p>
           </tr>
       </tbody>
     </table>
+
 
             <details class="quote">
               <summary>Source code in <code>mindone/diffusers/image_processor.py</code></summary>
@@ -12983,6 +13179,7 @@ Args:
     new_height (<code>int</code>): The desired height of the output images.
 Returns:
     <code>ms.Tensor</code>: A tensor containing the resized and cropped images.</p>
+
 
             <details class="quote">
               <summary>Source code in <code>mindone/diffusers/image_processor.py</code></summary>
@@ -13109,7 +13306,9 @@ Returns:
       </thead>
       <tbody>
           <tr class="doc-section-item">
-            <td><code>do_resize</code></td>
+            <td>
+                <code>do_resize</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Whether to downscale the image's (height, width) dimensions to multiples of <code>vae_scale_factor</code>.</p>
@@ -13127,7 +13326,9 @@ Returns:
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>vae_scale_factor</code></td>
+            <td>
+                <code>vae_scale_factor</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>VAE scale factor. If <code>do_resize</code> is <code>True</code>, the image is automatically resized to multiples of this factor.</p>
@@ -13145,7 +13346,9 @@ Returns:
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>resample</code></td>
+            <td>
+                <code>resample</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Resampling filter to use when resizing the image.</p>
@@ -13163,7 +13366,9 @@ Returns:
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>do_normalize</code></td>
+            <td>
+                <code>do_normalize</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Whether to normalize the image to [-1,1].</p>
@@ -13181,7 +13386,9 @@ Returns:
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>do_binarize</code></td>
+            <td>
+                <code>do_binarize</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Whether to binarize the image to 0/1.</p>
@@ -13199,7 +13406,9 @@ Returns:
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>do_convert_grayscale</code></td>
+            <td>
+                <code>do_convert_grayscale</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Whether to convert the images to grayscale format.</p>
@@ -13218,6 +13427,12 @@ Returns:
           </tr>
       </tbody>
     </table>
+
+
+
+
+
+
 
               <details class="quote">
                 <summary>Source code in <code>mindone/diffusers/image_processor.py</code></summary>
@@ -13455,7 +13670,9 @@ aspect ratio of the mask does not match the aspect ratio of the output image, a 
       </thead>
       <tbody>
           <tr class="doc-section-item">
-            <td><code>mask</code></td>
+            <td>
+                <code>mask</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The input mask tensor generated with <code>IPAdapterMaskProcessor.preprocess()</code>.</p>
@@ -13469,7 +13686,9 @@ aspect ratio of the mask does not match the aspect ratio of the output image, a 
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>batch_size</code></td>
+            <td>
+                <code>batch_size</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The batch size.</p>
@@ -13483,7 +13702,9 @@ aspect ratio of the mask does not match the aspect ratio of the output image, a 
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>num_queries</code></td>
+            <td>
+                <code>num_queries</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The number of queries.</p>
@@ -13497,7 +13718,9 @@ aspect ratio of the mask does not match the aspect ratio of the output image, a 
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>value_embed_dim</code></td>
+            <td>
+                <code>value_embed_dim</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The dimensionality of the value embeddings.</p>
@@ -13534,6 +13757,7 @@ The downsampled mask tensor.</p>
           </tr>
       </tbody>
     </table>
+
 
             <details class="quote">
               <summary>Source code in <code>mindone/diffusers/image_processor.py</code></summary>

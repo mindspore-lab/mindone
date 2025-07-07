@@ -1477,6 +1477,29 @@
   
   
     <li class="md-nav__item">
+      <a href="../../../using-diffusers/consisid/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    ConsisID
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../../../using-diffusers/sdxl/" class="md-nav__link">
         
   
@@ -3277,6 +3300,29 @@
   
   
     <li class="md-nav__item">
+      <a href="../consisid_transformer3d/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    ConsisIDTransformer3DModel
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../cogview3plus_transformer2d/" class="md-nav__link">
         
   
@@ -4703,6 +4749,29 @@
   
   
     <li class="md-nav__item">
+      <a href="../../pipelines/consisid/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    ConsisID
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../../pipelines/consistency_models/" class="md-nav__link">
         
   
@@ -5866,10 +5935,10 @@
       
         
         
-        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2_11_4_64" >
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2_11_4_65" >
         
           
-          <label class="md-nav__link" for="__nav_2_11_4_64" id="__nav_2_11_4_64_label" tabindex="0">
+          <label class="md-nav__link" for="__nav_2_11_4_65" id="__nav_2_11_4_65_label" tabindex="0">
             
   
   
@@ -5882,8 +5951,8 @@
             <span class="md-nav__icon md-icon"></span>
           </label>
         
-        <nav class="md-nav" data-md-level="4" aria-labelledby="__nav_2_11_4_64_label" aria-expanded="false">
-          <label class="md-nav__title" for="__nav_2_11_4_64">
+        <nav class="md-nav" data-md-level="4" aria-labelledby="__nav_2_11_4_65_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_2_11_4_65">
             <span class="md-nav__icon md-icon"></span>
             Stable Diffusion
           </label>
@@ -8050,6 +8119,12 @@ specific language governing permissions and limitations under the License.
               Bases: <code><a class="autorefs autorefs-internal" title="mindone.diffusers.configuration_utils.ConfigMixin" href="../../configuration/#mindone.diffusers.configuration_utils.ConfigMixin">ConfigMixin</a></code></p>
 
 
+
+
+
+
+
+
               <details class="quote">
                 <summary>Source code in <code>mindone/diffusers/models/auto_model.py</code></summary>
                 <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal"> 24</span>
@@ -8361,7 +8436,9 @@ train the model, set it back in training mode with <code>model.train()</code>.</
       </thead>
       <tbody>
           <tr class="doc-section-item">
-            <td><code>pretrained_model_name_or_path</code></td>
+            <td>
+                <code>pretrained_model_name_or_path</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Can be either:</p>
@@ -8380,7 +8457,9 @@ train the model, set it back in training mode with <code>model.train()</code>.</
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>cache_dir</code></td>
+            <td>
+                <code>cache_dir</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Path to a directory where a downloaded pretrained model configuration is cached if the standard cache
@@ -8395,7 +8474,9 @@ is not used.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>mindspore_dtype</code></td>
+            <td>
+                <code>mindspore_dtype</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Override the default <code>mindspore.Type</code> and load the model with another dtype. If <code>"auto"</code> is passed, the
@@ -8410,7 +8491,9 @@ dtype is automatically derived from the model's weights.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>force_download</code></td>
+            <td>
+                <code>force_download</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Whether or not to force the (re-)download of the model weights and configuration files, overriding the
@@ -8425,7 +8508,9 @@ cached versions if they exist.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>proxies</code></td>
+            <td>
+                <code>proxies</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>A dictionary of proxy servers to use by protocol or endpoint, for example, <code>{'http': 'foo.bar:3128',
@@ -8440,7 +8525,9 @@ cached versions if they exist.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>output_loading_info</code></td>
+            <td>
+                <code>output_loading_info</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Whether or not to also return a dictionary containing missing keys, unexpected keys and error messages.</p>
@@ -8454,7 +8541,9 @@ cached versions if they exist.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>local_files_only(`bool`,</code></td>
+            <td>
+                <code>local_files_only(`bool`,</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Whether to only load local model weights and configuration files or not. If set to <code>True</code>, the model
@@ -8469,7 +8558,9 @@ won't be downloaded from the Hub.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>token</code></td>
+            <td>
+                <code>token</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The token to use as HTTP bearer authorization for remote files. If <code>True</code>, the token generated from
@@ -8484,7 +8575,9 @@ won't be downloaded from the Hub.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>revision</code></td>
+            <td>
+                <code>revision</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The specific model version to use. It can be a branch name, a tag name, a commit id, or any identifier
@@ -8499,7 +8592,9 @@ allowed by Git.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>from_flax</code></td>
+            <td>
+                <code>from_flax</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Load the model weights from a Flax checkpoint save file.</p>
@@ -8513,7 +8608,9 @@ allowed by Git.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>subfolder</code></td>
+            <td>
+                <code>subfolder</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The subfolder location of a model file within a larger model repository on the Hub or locally.</p>
@@ -8527,7 +8624,9 @@ allowed by Git.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>mirror</code></td>
+            <td>
+                <code>mirror</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Mirror source to resolve accessibility issues if you're downloading a model in China. We do not
@@ -8543,7 +8642,9 @@ information.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>max_memory</code></td>
+            <td>
+                <code>max_memory</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>A dictionary device identifier for the maximum memory. Will default to the maximum memory available for
@@ -8558,7 +8659,9 @@ each GPU and the available CPU RAM if unset.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>offload_folder</code></td>
+            <td>
+                <code>offload_folder</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The path to offload weights if <code>device_map</code> contains the value <code>"disk"</code>.</p>
@@ -8572,7 +8675,9 @@ each GPU and the available CPU RAM if unset.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>offload_state_dict</code></td>
+            <td>
+                <code>offload_state_dict</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>If <code>True</code>, temporarily offloads the CPU state dict to the hard drive to avoid running out of CPU RAM if
@@ -8588,7 +8693,9 @@ when there is some disk offload.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>variant</code></td>
+            <td>
+                <code>variant</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Load weights from a specified <code>variant</code> filename such as <code>"fp16"</code> or <code>"ema"</code>. This is ignored when
@@ -8603,7 +8710,9 @@ loading <code>from_flax</code>.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>use_safetensors</code></td>
+            <td>
+                <code>use_safetensors</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>If set to <code>None</code>, the <code>safetensors</code> weights are downloaded if they're available <strong>and</strong> if the
@@ -8619,7 +8728,9 @@ weights. If set to <code>False</code>, <code>safetensors</code> weights are not 
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>disable_mmap</code></td>
+            <td>
+                <code>disable_mmap</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Whether to disable mmap when loading a Safetensors model. This option can perform better when the model
@@ -8651,6 +8762,7 @@ firewalled environment.</p>
 -<span class="w"> </span>conv_in.weight:<span class="w"> </span>found<span class="w"> </span>shape<span class="w"> </span>mindspore.Size<span class="o">([</span><span class="m">320</span>,<span class="w"> </span><span class="m">4</span>,<span class="w"> </span><span class="m">3</span>,<span class="w"> </span><span class="m">3</span><span class="o">])</span><span class="w"> </span><span class="k">in</span><span class="w"> </span>the<span class="w"> </span>checkpoint<span class="w"> </span>and<span class="w"> </span>mindspore.Size<span class="o">([</span><span class="m">320</span>,<span class="w"> </span><span class="m">9</span>,<span class="w"> </span><span class="m">3</span>,<span class="w"> </span><span class="m">3</span><span class="o">])</span><span class="w"> </span><span class="k">in</span><span class="w"> </span>the<span class="w"> </span>model<span class="w"> </span>instantiated
 You<span class="w"> </span>should<span class="w"> </span>probably<span class="w"> </span>TRAIN<span class="w"> </span>this<span class="w"> </span>model<span class="w"> </span>on<span class="w"> </span>a<span class="w"> </span>down-stream<span class="w"> </span>task<span class="w"> </span>to<span class="w"> </span>be<span class="w"> </span>able<span class="w"> </span>to<span class="w"> </span>use<span class="w"> </span>it<span class="w"> </span><span class="k">for</span><span class="w"> </span>predictions<span class="w"> </span>and<span class="w"> </span>inference.
 </code></pre></div>
+
 
             <details class="quote">
               <summary>Source code in <code>mindone/diffusers/models/auto_model.py</code></summary>

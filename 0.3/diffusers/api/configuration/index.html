@@ -1477,6 +1477,29 @@
   
   
     <li class="md-nav__item">
+      <a href="../../using-diffusers/consisid/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    ConsisID
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../../using-diffusers/sdxl/" class="md-nav__link">
         
   
@@ -3313,6 +3336,29 @@
   
   
     <li class="md-nav__item">
+      <a href="../models/consisid_transformer3d/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    ConsisIDTransformer3DModel
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../models/cogview3plus_transformer2d/" class="md-nav__link">
         
   
@@ -4739,6 +4785,29 @@
   
   
     <li class="md-nav__item">
+      <a href="../pipelines/consisid/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    ConsisID
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../pipelines/consistency_models/" class="md-nav__link">
         
   
@@ -5902,10 +5971,10 @@
       
         
         
-        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2_11_4_64" >
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2_11_4_65" >
         
           
-          <label class="md-nav__link" for="__nav_2_11_4_64" id="__nav_2_11_4_64_label" tabindex="0">
+          <label class="md-nav__link" for="__nav_2_11_4_65" id="__nav_2_11_4_65_label" tabindex="0">
             
   
   
@@ -5918,8 +5987,8 @@
             <span class="md-nav__icon md-icon"></span>
           </label>
         
-        <nav class="md-nav" data-md-level="4" aria-labelledby="__nav_2_11_4_64_label" aria-expanded="false">
-          <label class="md-nav__title" for="__nav_2_11_4_64">
+        <nav class="md-nav" data-md-level="4" aria-labelledby="__nav_2_11_4_65_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_2_11_4_65">
             <span class="md-nav__icon md-icon"></span>
             Stable Diffusion
           </label>
@@ -8137,6 +8206,12 @@ saving classes that inherit from [<code>ConfigMixin</code>].</p>
   subclass).</li>
 </ul>
 </details>
+
+
+
+
+
+
               <details class="quote">
                 <summary>Source code in <code>mindone/diffusers/configuration_utils.py</code></summary>
                 <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal"> 83</span>
@@ -9218,7 +9293,9 @@ saving classes that inherit from [<code>ConfigMixin</code>].</p>
       </thead>
       <tbody>
           <tr class="doc-section-item">
-            <td><code>pretrained_model_name_or_path</code></td>
+            <td>
+                <code>pretrained_model_name_or_path</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Can be either:</p>
@@ -9237,7 +9314,9 @@ saving classes that inherit from [<code>ConfigMixin</code>].</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>cache_dir</code></td>
+            <td>
+                <code>cache_dir</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Path to a directory where a downloaded pretrained model configuration is cached if the standard cache
@@ -9252,7 +9331,9 @@ is not used.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>force_download</code></td>
+            <td>
+                <code>force_download</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Whether or not to force the (re-)download of the model weights and configuration files, overriding the
@@ -9267,7 +9348,9 @@ cached versions if they exist.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>proxies</code></td>
+            <td>
+                <code>proxies</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>A dictionary of proxy servers to use by protocol or endpoint, for example, <code>{'http': 'foo.bar:3128',
@@ -9282,7 +9365,9 @@ cached versions if they exist.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>output_loading_info(`bool`,</code></td>
+            <td>
+                <code>output_loading_info(`bool`,</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Whether or not to also return a dictionary containing missing keys, unexpected keys and error messages.</p>
@@ -9296,7 +9381,9 @@ cached versions if they exist.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>local_files_only</code></td>
+            <td>
+                <code>local_files_only</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Whether to only load local model weights and configuration files or not. If set to <code>True</code>, the model
@@ -9311,7 +9398,9 @@ won't be downloaded from the Hub.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>token</code></td>
+            <td>
+                <code>token</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The token to use as HTTP bearer authorization for remote files. If <code>True</code>, the token generated from
@@ -9326,7 +9415,9 @@ won't be downloaded from the Hub.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>revision</code></td>
+            <td>
+                <code>revision</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The specific model version to use. It can be a branch name, a tag name, a commit id, or any identifier
@@ -9341,7 +9432,9 @@ allowed by Git.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>subfolder</code></td>
+            <td>
+                <code>subfolder</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The subfolder location of a model file within a larger model repository on the Hub or locally.</p>
@@ -9355,7 +9448,9 @@ allowed by Git.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>return_unused_kwargs</code></td>
+            <td>
+                <code>return_unused_kwargs</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Whether unused keyword arguments of the config are returned.</p>
@@ -9373,7 +9468,9 @@ allowed by Git.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>return_commit_hash</code></td>
+            <td>
+                <code>return_commit_hash</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Whether the <code>commit_hash</code> of the loaded configuration are returned.</p>
@@ -9405,7 +9502,7 @@ allowed by Git.</p>
           <tr class="doc-section-item">
             <td>
                 <span class="doc-returns-annotation">
-                    <code><span title="typing.Tuple">Tuple</span>[<span title="typing.Dict">Dict</span>[str, <span title="typing.Any">Any</span>], <span title="typing.Dict">Dict</span>[str, <span title="typing.Any">Any</span>]]</code>
+                    <code><span title="typing.Tuple">Tuple</span>[<span title="typing.Dict">Dict</span>[<span title="str">str</span>, <span title="typing.Any">Any</span>], <span title="typing.Dict">Dict</span>[<span title="str">str</span>, <span title="typing.Any">Any</span>]]</code>
                 </span>
             </td>
             <td class="doc-returns-details">
@@ -9417,6 +9514,7 @@ A dictionary of all the parameters stored in a JSON configuration file.</p>
           </tr>
       </tbody>
     </table>
+
 
             <details class="quote">
               <summary>Source code in <code>mindone/diffusers/configuration_utils.py</code></summary>
@@ -9780,7 +9878,9 @@ A dictionary of all the parameters stored in a JSON configuration file.</p>
       </thead>
       <tbody>
           <tr class="doc-section-item">
-            <td><code>config</code></td>
+            <td>
+                <code>config</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>A config dictionary from which the Python class is instantiated. Make sure to only load configuration
@@ -9799,7 +9899,9 @@ files of compatible classes.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>return_unused_kwargs</code></td>
+            <td>
+                <code>return_unused_kwargs</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Whether kwargs that are not consumed by the Python class should be returned or not.</p>
@@ -9817,7 +9919,9 @@ files of compatible classes.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>kwargs</code></td>
+            <td>
+                <code>kwargs</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Can be used to update the configuration object (after it is loaded) and initiate the Python class.
@@ -9871,6 +9975,7 @@ A model or scheduler object instantiated from a config dictionary.</p>
 <span class="o">&gt;&gt;&gt;</span> <span class="c1"># Instantiate PNDM scheduler class with same config as DDPM</span>
 <span class="o">&gt;&gt;&gt;</span> <span class="n">scheduler</span> <span class="o">=</span> <span class="n">PNDMScheduler</span><span class="o">.</span><span class="n">from_config</span><span class="p">(</span><span class="n">scheduler</span><span class="o">.</span><span class="n">config</span><span class="p">)</span>
 </code></pre></div>
+
 
             <details class="quote">
               <summary>Source code in <code>mindone/diffusers/configuration_utils.py</code></summary>
@@ -10081,7 +10186,9 @@ A model or scheduler object instantiated from a config dictionary.</p>
       </thead>
       <tbody>
           <tr class="doc-section-item">
-            <td><code>save_directory</code></td>
+            <td>
+                <code>save_directory</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Directory where the configuration JSON file is saved (will be created if it does not exist).</p>
@@ -10095,7 +10202,9 @@ A model or scheduler object instantiated from a config dictionary.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>push_to_hub</code></td>
+            <td>
+                <code>push_to_hub</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Whether or not to push your model to the Hugging Face Hub after saving it. You can specify the
@@ -10115,7 +10224,9 @@ namespace).</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>kwargs</code></td>
+            <td>
+                <code>kwargs</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Additional keyword arguments passed along to the [<code>~utils.PushToHubMixin.push_to_hub</code>] method.</p>
@@ -10134,6 +10245,7 @@ namespace).</p>
           </tr>
       </tbody>
     </table>
+
 
             <details class="quote">
               <summary>Source code in <code>mindone/diffusers/configuration_utils.py</code></summary>
@@ -10247,7 +10359,9 @@ namespace).</p>
       </thead>
       <tbody>
           <tr class="doc-section-item">
-            <td><code>json_file_path</code></td>
+            <td>
+                <code>json_file_path</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Path to the JSON file to save a configuration instance's parameters.</p>
@@ -10262,6 +10376,7 @@ namespace).</p>
           </tr>
       </tbody>
     </table>
+
 
             <details class="quote">
               <summary>Source code in <code>mindone/diffusers/configuration_utils.py</code></summary>
@@ -10315,7 +10430,7 @@ namespace).</p>
           <tr class="doc-section-item">
             <td>
                 <span class="doc-returns-annotation">
-                    <code>str</code>
+                    <code><span title="str">str</span></code>
                 </span>
             </td>
             <td class="doc-returns-details">
@@ -10327,6 +10442,7 @@ String containing all the attributes that make up the configuration instance in 
           </tr>
       </tbody>
     </table>
+
 
             <details class="quote">
               <summary>Source code in <code>mindone/diffusers/configuration_utils.py</code></summary>

@@ -1477,6 +1477,29 @@
   
   
     <li class="md-nav__item">
+      <a href="../../../using-diffusers/consisid/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    ConsisID
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../../../using-diffusers/sdxl/" class="md-nav__link">
         
   
@@ -3211,6 +3234,29 @@
   
   
     <li class="md-nav__item">
+      <a href="../consisid_transformer3d/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    ConsisIDTransformer3DModel
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../cogview3plus_transformer2d/" class="md-nav__link">
         
   
@@ -4759,6 +4805,29 @@
   
   
     <li class="md-nav__item">
+      <a href="../../pipelines/consisid/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    ConsisID
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../../pipelines/consistency_models/" class="md-nav__link">
         
   
@@ -5922,10 +5991,10 @@
       
         
         
-        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2_11_4_64" >
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2_11_4_65" >
         
           
-          <label class="md-nav__link" for="__nav_2_11_4_64" id="__nav_2_11_4_64_label" tabindex="0">
+          <label class="md-nav__link" for="__nav_2_11_4_65" id="__nav_2_11_4_65_label" tabindex="0">
             
   
   
@@ -5938,8 +6007,8 @@
             <span class="md-nav__icon md-icon"></span>
           </label>
         
-        <nav class="md-nav" data-md-level="4" aria-labelledby="__nav_2_11_4_64_label" aria-expanded="false">
-          <label class="md-nav__title" for="__nav_2_11_4_64">
+        <nav class="md-nav" data-md-level="4" aria-labelledby="__nav_2_11_4_65_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_2_11_4_65">
             <span class="md-nav__icon md-icon"></span>
             Stable Diffusion
           </label>
@@ -8154,7 +8223,7 @@ specific language governing permissions and limitations under the License.
 
     <div class="doc doc-contents first">
             <p class="doc doc-class-bases">
-              Bases: <code><a class="autorefs autorefs-internal" title="mindone.diffusers.models.modeling_utils.ModelMixin" href="../overview/#mindone.diffusers.ModelMixin">ModelMixin</a></code>, <code><a class="autorefs autorefs-internal" title="mindone.diffusers.configuration_utils.ConfigMixin" href="../../configuration/#mindone.diffusers.configuration_utils.ConfigMixin">ConfigMixin</a></code></p>
+              Bases: <code><a class="autorefs autorefs-internal" title="mindone.diffusers.ModelMixin (mindone.diffusers.models.modeling_utils.ModelMixin)" href="../overview/#mindone.diffusers.ModelMixin">ModelMixin</a></code>, <code><a class="autorefs autorefs-internal" title="mindone.diffusers.configuration_utils.ConfigMixin" href="../../configuration/#mindone.diffusers.configuration_utils.ConfigMixin">ConfigMixin</a></code></p>
 
 
         <p>An autoencoder for encoding waveforms into latents and decoding latent representations into waveforms. First
@@ -8172,7 +8241,9 @@ for all models (such as downloading or saving).</p>
       </thead>
       <tbody>
           <tr class="doc-section-item">
-            <td><code>encoder_hidden_size</code></td>
+            <td>
+                <code>encoder_hidden_size</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Intermediate representation dimension for the encoder.</p>
@@ -8190,7 +8261,9 @@ for all models (such as downloading or saving).</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>downsampling_ratios</code></td>
+            <td>
+                <code>downsampling_ratios</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Ratios for downsampling in the encoder. These are used in reverse order for upsampling in the decoder.</p>
@@ -8208,7 +8281,9 @@ for all models (such as downloading or saving).</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>channel_multiples</code></td>
+            <td>
+                <code>channel_multiples</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Multiples used to determine the hidden sizes of the hidden layers.</p>
@@ -8226,7 +8301,9 @@ for all models (such as downloading or saving).</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>decoder_channels</code></td>
+            <td>
+                <code>decoder_channels</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Intermediate representation dimension for the decoder.</p>
@@ -8244,7 +8321,9 @@ for all models (such as downloading or saving).</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>decoder_input_channels</code></td>
+            <td>
+                <code>decoder_input_channels</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Input dimension for the decoder. Corresponds to the latent dimension.</p>
@@ -8262,7 +8341,9 @@ for all models (such as downloading or saving).</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>audio_channels</code></td>
+            <td>
+                <code>audio_channels</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Number of channels in the audio data. Either 1 for mono or 2 for stereo.</p>
@@ -8280,7 +8361,9 @@ for all models (such as downloading or saving).</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>sampling_rate</code></td>
+            <td>
+                <code>sampling_rate</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The sampling rate at which the audio waveform should be digitalized expressed in hertz (Hz).</p>
@@ -8299,6 +8382,12 @@ for all models (such as downloading or saving).</p>
           </tr>
       </tbody>
     </table>
+
+
+
+
+
+
 
               <details class="quote">
                 <summary>Source code in <code>mindone/diffusers/models/autoencoders/autoencoder_oobleck.py</code></summary>
@@ -8674,7 +8763,9 @@ for all models (such as downloading or saving).</p>
       </thead>
       <tbody>
           <tr class="doc-section-item">
-            <td><code>sample</code></td>
+            <td>
+                <code>sample</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Input sample.</p>
@@ -8688,7 +8779,9 @@ for all models (such as downloading or saving).</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>sample_posterior</code></td>
+            <td>
+                <code>sample_posterior</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Whether to sample from the posterior.</p>
@@ -8706,7 +8799,9 @@ for all models (such as downloading or saving).</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>return_dict</code></td>
+            <td>
+                <code>return_dict</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Whether or not to return a [<code>OobleckDecoderOutput</code>] instead of a plain tuple.</p>
@@ -8725,6 +8820,7 @@ for all models (such as downloading or saving).</p>
           </tr>
       </tbody>
     </table>
+
 
             <details class="quote">
               <summary>Source code in <code>mindone/diffusers/models/autoencoders/autoencoder_oobleck.py</code></summary>
@@ -8810,7 +8906,9 @@ for all models (such as downloading or saving).</p>
       </thead>
       <tbody>
           <tr class="doc-section-item">
-            <td><code>z</code></td>
+            <td>
+                <code>z</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Input batch of latent vectors.</p>
@@ -8824,7 +8922,9 @@ for all models (such as downloading or saving).</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>return_dict</code></td>
+            <td>
+                <code>return_dict</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Whether to return a [<code>~models.vae.OobleckDecoderOutput</code>] instead of a plain tuple.</p>
@@ -8856,7 +8956,12 @@ for all models (such as downloading or saving).</p>
           <tr class="doc-section-item">
             <td>
                 <span class="doc-returns-annotation">
-                    <code><span title="typing.Union">Union</span>[<a class="autorefs autorefs-internal" title="mindone.diffusers.models.autoencoders.autoencoder_oobleck.OobleckDecoderOutput" href="#mindone.diffusers.models.autoencoders.autoencoder_oobleck.OobleckDecoderOutput">OobleckDecoderOutput</a>, <span title="mindspore.Tensor">Tensor</span>]</code>
+                    <code><span title="typing.Union">Union</span>[<a class="autorefs autorefs-internal" title="mindone.diffusers.models.autoencoders.autoencoder_oobleck.OobleckDecoderOutput
+
+
+  
+      dataclass
+  " href="#mindone.diffusers.models.autoencoders.autoencoder_oobleck.OobleckDecoderOutput">OobleckDecoderOutput</a>, <span title="mindspore.Tensor">Tensor</span>]</code>
                 </span>
             </td>
             <td class="doc-returns-details">
@@ -8869,6 +8974,7 @@ is returned.</p>
           </tr>
       </tbody>
     </table>
+
 
             <details class="quote">
               <summary>Source code in <code>mindone/diffusers/models/autoencoders/autoencoder_oobleck.py</code></summary>
@@ -8941,6 +9047,7 @@ is returned.</p>
         <p>Disable sliced VAE decoding. If <code>enable_slicing</code> was previously enabled, this method will go back to computing
 decoding in one step.</p>
 
+
             <details class="quote">
               <summary>Source code in <code>mindone/diffusers/models/autoencoders/autoencoder_oobleck.py</code></summary>
               <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">398</span>
@@ -8973,6 +9080,7 @@ decoding in one step.</p>
 
         <p>Enable sliced VAE decoding. When this option is enabled, the VAE will split the input tensor in slices to
 compute decoding in several steps. This is useful to save some memory and allow larger batch sizes.</p>
+
 
             <details class="quote">
               <summary>Source code in <code>mindone/diffusers/models/autoencoders/autoencoder_oobleck.py</code></summary>
@@ -9016,7 +9124,9 @@ compute decoding in several steps. This is useful to save some memory and allow 
       </thead>
       <tbody>
           <tr class="doc-section-item">
-            <td><code>x</code></td>
+            <td>
+                <code>x</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Input batch of images.</p>
@@ -9030,7 +9140,9 @@ compute decoding in several steps. This is useful to save some memory and allow 
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>return_dict</code></td>
+            <td>
+                <code>return_dict</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Whether to return a [<code>~models.autoencoder_kl.AutoencoderKLOutput</code>] instead of a plain tuple.</p>
@@ -9062,7 +9174,12 @@ compute decoding in several steps. This is useful to save some memory and allow 
           <tr class="doc-section-item">
             <td>
                 <span class="doc-returns-annotation">
-                    <code><span title="typing.Union">Union</span>[<a class="autorefs autorefs-internal" title="mindone.diffusers.models.autoencoders.autoencoder_oobleck.AutoencoderOobleckOutput" href="#mindone.diffusers.models.autoencoders.autoencoder_oobleck.AutoencoderOobleckOutput">AutoencoderOobleckOutput</a>, <span title="typing.Tuple">Tuple</span>[<span title="mindone.diffusers.models.autoencoders.autoencoder_oobleck.OobleckDiagonalGaussianDistribution">OobleckDiagonalGaussianDistribution</span>]]</code>
+                    <code><span title="typing.Union">Union</span>[<a class="autorefs autorefs-internal" title="mindone.diffusers.models.autoencoders.autoencoder_oobleck.AutoencoderOobleckOutput
+
+
+  
+      dataclass
+  " href="#mindone.diffusers.models.autoencoders.autoencoder_oobleck.AutoencoderOobleckOutput">AutoencoderOobleckOutput</a>, <span title="typing.Tuple">Tuple</span>[<span title="mindone.diffusers.models.autoencoders.autoencoder_oobleck.OobleckDiagonalGaussianDistribution">OobleckDiagonalGaussianDistribution</span>]]</code>
                 </span>
             </td>
             <td class="doc-returns-details">
@@ -9074,7 +9191,12 @@ compute decoding in several steps. This is useful to save some memory and allow 
           <tr class="doc-section-item">
             <td>
                 <span class="doc-returns-annotation">
-                    <code><span title="typing.Union">Union</span>[<a class="autorefs autorefs-internal" title="mindone.diffusers.models.autoencoders.autoencoder_oobleck.AutoencoderOobleckOutput" href="#mindone.diffusers.models.autoencoders.autoencoder_oobleck.AutoencoderOobleckOutput">AutoencoderOobleckOutput</a>, <span title="typing.Tuple">Tuple</span>[<span title="mindone.diffusers.models.autoencoders.autoencoder_oobleck.OobleckDiagonalGaussianDistribution">OobleckDiagonalGaussianDistribution</span>]]</code>
+                    <code><span title="typing.Union">Union</span>[<a class="autorefs autorefs-internal" title="mindone.diffusers.models.autoencoders.autoencoder_oobleck.AutoencoderOobleckOutput
+
+
+  
+      dataclass
+  " href="#mindone.diffusers.models.autoencoders.autoencoder_oobleck.AutoencoderOobleckOutput">AutoencoderOobleckOutput</a>, <span title="typing.Tuple">Tuple</span>[<span title="mindone.diffusers.models.autoencoders.autoencoder_oobleck.OobleckDiagonalGaussianDistribution">OobleckDiagonalGaussianDistribution</span>]]</code>
                 </span>
             </td>
             <td class="doc-returns-details">
@@ -9085,6 +9207,7 @@ compute decoding in several steps. This is useful to save some memory and allow 
           </tr>
       </tbody>
     </table>
+
 
             <details class="quote">
               <summary>Source code in <code>mindone/diffusers/models/autoencoders/autoencoder_oobleck.py</code></summary>
@@ -9187,7 +9310,9 @@ compute decoding in several steps. This is useful to save some memory and allow 
       </thead>
       <tbody>
           <tr class="doc-section-item">
-            <td><code>sample</code></td>
+            <td>
+                <code>sample</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The decoded output sample from the last layer of the model.</p>
@@ -9202,6 +9327,12 @@ compute decoding in several steps. This is useful to save some memory and allow 
           </tr>
       </tbody>
     </table>
+
+
+
+
+
+
 
               <details class="quote">
                 <summary>Source code in <code>mindone/diffusers/models/autoencoders/autoencoder_oobleck.py</code></summary>
@@ -9281,7 +9412,9 @@ compute decoding in several steps. This is useful to save some memory and allow 
       </thead>
       <tbody>
           <tr class="doc-section-item">
-            <td><code>latent_dist</code></td>
+            <td>
+                <code>latent_dist</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Encoded outputs of <code>Encoder</code> represented as the mean and standard deviation of
@@ -9298,6 +9431,12 @@ from the distribution.</p>
           </tr>
       </tbody>
     </table>
+
+
+
+
+
+
 
               <details class="quote">
                 <summary>Source code in <code>mindone/diffusers/models/autoencoders/autoencoder_oobleck.py</code></summary>

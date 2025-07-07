@@ -14,7 +14,7 @@
         <link rel="prev" href="../cogview3/">
       
       
-        <link rel="next" href="../consistency_models/">
+        <link rel="next" href="../consisid/">
       
       
       <link rel="icon" href="../../../../assets/images/favicon.png">
@@ -1460,6 +1460,29 @@
   
   <span class="md-ellipsis">
     CogVideoX
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../using-diffusers/consisid/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    ConsisID
     
   </span>
   
@@ -3209,6 +3232,29 @@
   
   
     <li class="md-nav__item">
+      <a href="../../models/consisid_transformer3d/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    ConsisIDTransformer3DModel
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../../models/cogview3plus_transformer2d/" class="md-nav__link">
         
   
@@ -4721,6 +4767,29 @@
   
   
     <li class="md-nav__item">
+      <a href="../consisid/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    ConsisID
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../consistency_models/" class="md-nav__link">
         
   
@@ -5884,10 +5953,10 @@
       
         
         
-        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2_11_4_64" >
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2_11_4_65" >
         
           
-          <label class="md-nav__link" for="__nav_2_11_4_64" id="__nav_2_11_4_64_label" tabindex="0">
+          <label class="md-nav__link" for="__nav_2_11_4_65" id="__nav_2_11_4_65_label" tabindex="0">
             
   
   
@@ -5900,8 +5969,8 @@
             <span class="md-nav__icon md-icon"></span>
           </label>
         
-        <nav class="md-nav" data-md-level="4" aria-labelledby="__nav_2_11_4_64_label" aria-expanded="false">
-          <label class="md-nav__title" for="__nav_2_11_4_64">
+        <nav class="md-nav" data-md-level="4" aria-labelledby="__nav_2_11_4_65_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_2_11_4_65">
             <span class="md-nav__icon md-icon"></span>
             Stable Diffusion
           </label>
@@ -8088,7 +8157,7 @@
 
     <div class="doc doc-contents first">
             <p class="doc doc-class-bases">
-              Bases: <code><a class="autorefs autorefs-internal" title="mindone.diffusers.pipelines.pipeline_utils.DiffusionPipeline" href="../overview/#mindone.diffusers.DiffusionPipeline">DiffusionPipeline</a></code>, <code><span title="mindone.diffusers.loaders.CogView4LoraLoaderMixin">CogView4LoraLoaderMixin</span></code></p>
+              Bases: <code><a class="autorefs autorefs-internal" title="mindone.diffusers.DiffusionPipeline (mindone.diffusers.pipelines.pipeline_utils.DiffusionPipeline)" href="../overview/#mindone.diffusers.DiffusionPipeline">DiffusionPipeline</a></code>, <code><span title="mindone.diffusers.loaders.CogView4LoraLoaderMixin">CogView4LoraLoaderMixin</span></code></p>
 
 
         <p>Pipeline for text-to-image generation using CogView4.</p>
@@ -8105,7 +8174,9 @@ library implements for all the pipelines (such as downloading or saving, running
       </thead>
       <tbody>
           <tr class="doc-section-item">
-            <td><code>vae</code></td>
+            <td>
+                <code>vae</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Variational Auto-Encoder (VAE) Model to encode and decode images to and from latent representations.</p>
@@ -8119,7 +8190,9 @@ library implements for all the pipelines (such as downloading or saving, running
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>text_encoder</code></td>
+            <td>
+                <code>text_encoder</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Frozen text-encoder. CogView4 uses <a href="https://huggingface.co/THUDM/glm-4-9b-hf">glm-4-9b-hf</a>.</p>
@@ -8133,7 +8206,9 @@ library implements for all the pipelines (such as downloading or saving, running
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>tokenizer</code></td>
+            <td>
+                <code>tokenizer</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Tokenizer of class
@@ -8148,7 +8223,9 @@ library implements for all the pipelines (such as downloading or saving, running
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>transformer</code></td>
+            <td>
+                <code>transformer</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>A text conditioned <code>CogView4Transformer2DModel</code> to denoise the encoded image latents.</p>
@@ -8162,7 +8239,9 @@ library implements for all the pipelines (such as downloading or saving, running
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>scheduler</code></td>
+            <td>
+                <code>scheduler</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>A scheduler to be used in combination with <code>transformer</code> to denoise the encoded image latents.</p>
@@ -8177,6 +8256,12 @@ library implements for all the pipelines (such as downloading or saving, running
           </tr>
       </tbody>
     </table>
+
+
+
+
+
+
 
               <details class="quote">
                 <summary>Source code in <code>mindone/diffusers/pipelines/cogview4/pipeline_cogview4.py</code></summary>
@@ -9279,7 +9364,9 @@ library implements for all the pipelines (such as downloading or saving, running
       </thead>
       <tbody>
           <tr class="doc-section-item">
-            <td><code>prompt</code></td>
+            <td>
+                <code>prompt</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The prompt or prompts to guide the image generation. If not defined, one has to pass <code>prompt_embeds</code>.</p>
@@ -9297,7 +9384,9 @@ library implements for all the pipelines (such as downloading or saving, running
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>negative_prompt</code></td>
+            <td>
+                <code>negative_prompt</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The prompt or prompts not to guide the image generation. If not defined, one has to pass
@@ -9317,7 +9406,9 @@ less than <code>1</code>).</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>height</code></td>
+            <td>
+                <code>height</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The height in pixels of the generated image. If not provided, it is set to 1024.</p>
@@ -9335,7 +9426,9 @@ less than <code>1</code>).</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>width</code></td>
+            <td>
+                <code>width</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The width in pixels of the generated image. If not provided it is set to 1024.</p>
@@ -9353,7 +9446,9 @@ less than <code>1</code>).</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>num_inference_steps</code></td>
+            <td>
+                <code>num_inference_steps</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The number of denoising steps. More denoising steps usually lead to a higher quality image at the
@@ -9372,7 +9467,9 @@ expense of slower inference.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>timesteps</code></td>
+            <td>
+                <code>timesteps</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Custom timesteps to use for the denoising process with schedulers which support a <code>timesteps</code> argument
@@ -9392,7 +9489,9 @@ passed will be used. Must be in descending order.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>sigmas</code></td>
+            <td>
+                <code>sigmas</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Custom sigmas to use for the denoising process with schedulers which support a <code>sigmas</code> argument in
@@ -9412,7 +9511,9 @@ will be used.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>guidance_scale</code></td>
+            <td>
+                <code>guidance_scale</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Guidance scale as defined in <a href="https://arxiv.org/abs/2207.12598">Classifier-Free Diffusion Guidance</a>.
@@ -9434,7 +9535,9 @@ usually at the expense of lower image quality.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>num_images_per_prompt</code></td>
+            <td>
+                <code>num_images_per_prompt</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The number of images to generate per prompt.</p>
@@ -9452,7 +9555,9 @@ usually at the expense of lower image quality.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>generator</code></td>
+            <td>
+                <code>generator</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>One or a list of <a href="https://numpy.org/doc/stable/reference/random/generator.html">np.random.Generator(s)</a>
@@ -9471,7 +9576,9 @@ to make generation deterministic.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>latents</code></td>
+            <td>
+                <code>latents</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Pre-generated noisy latents, sampled from a Gaussian distribution, to be used as inputs for image
@@ -9491,7 +9598,9 @@ tensor will ge generated by sampling using the supplied random <code>generator</
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>prompt_embeds</code></td>
+            <td>
+                <code>prompt_embeds</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Pre-generated text embeddings. Can be used to easily tweak text inputs, <em>e.g.</em> prompt weighting. If not
@@ -9510,7 +9619,9 @@ provided, text embeddings will be generated from <code>prompt</code> input argum
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>negative_prompt_embeds</code></td>
+            <td>
+                <code>negative_prompt_embeds</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Pre-generated negative text embeddings. Can be used to easily tweak text inputs, <em>e.g.</em> prompt
@@ -9530,7 +9641,9 @@ argument.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>original_size</code></td>
+            <td>
+                <code>original_size</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>If <code>original_size</code> is not the same as <code>target_size</code> the image will appear to be down- or upsampled.
@@ -9551,7 +9664,9 @@ explained in section 2.2 of
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>crops_coords_top_left</code></td>
+            <td>
+                <code>crops_coords_top_left</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p><code>crops_coords_top_left</code> can be used to generate an image that appears to be "cropped" from the position
@@ -9572,7 +9687,9 @@ explained in section 2.2 of
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>output_type</code></td>
+            <td>
+                <code>output_type</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The output format of the generate image. Choose between
@@ -9591,7 +9708,9 @@ explained in section 2.2 of
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>return_dict</code></td>
+            <td>
+                <code>return_dict</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Whether or not to return a [<code>~pipelines.stable_diffusion_xl.StableDiffusionXLPipelineOutput</code>] instead
@@ -9610,7 +9729,9 @@ of a plain tuple.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>attention_kwargs</code></td>
+            <td>
+                <code>attention_kwargs</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>A kwargs dictionary that if specified is passed along to the <code>AttentionProcessor</code> as defined under
@@ -9630,7 +9751,9 @@ of a plain tuple.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>callback_on_step_end</code></td>
+            <td>
+                <code>callback_on_step_end</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>A function that calls at the end of each denoising steps during the inference. The function is called
@@ -9651,7 +9774,9 @@ callback_kwargs: Dict)</code>. <code>callback_kwargs</code> will include a list 
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>callback_on_step_end_tensor_inputs</code></td>
+            <td>
+                <code>callback_on_step_end_tensor_inputs</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The list of tensor inputs for the <code>callback_on_step_end</code> function. The tensors specified in the list
@@ -9671,7 +9796,9 @@ will be passed as <code>callback_kwargs</code> argument. You will only be able t
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>max_sequence_length</code></td>
+            <td>
+                <code>max_sequence_length</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Maximum sequence length in encoded prompt. Can be set to other values but may lead to poorer results.</p>
@@ -9704,7 +9831,12 @@ will be passed as <code>callback_kwargs</code> argument. You will only be able t
           <tr class="doc-section-item">
             <td>
                 <span class="doc-returns-annotation">
-                    <code><span title="typing.Union">Union</span>[<a class="autorefs autorefs-internal" title="mindone.diffusers.pipelines.cogview4.pipeline_output.CogView4PipelineOutput" href="#mindone.diffusers.pipelines.cogview4.pipeline_output.CogView4PipelineOutput">CogView4PipelineOutput</a>, <span title="typing.Tuple">Tuple</span>]</code>
+                    <code><span title="typing.Union">Union</span>[<a class="autorefs autorefs-internal" title="mindone.diffusers.pipelines.cogview4.pipeline_output.CogView4PipelineOutput
+
+
+  
+      dataclass
+  " href="#mindone.diffusers.pipelines.cogview4.pipeline_output.CogView4PipelineOutput">CogView4PipelineOutput</a>, <span title="typing.Tuple">Tuple</span>]</code>
                 </span>
             </td>
             <td class="doc-returns-details">
@@ -9716,7 +9848,12 @@ will be passed as <code>callback_kwargs</code> argument. You will only be able t
           <tr class="doc-section-item">
             <td>
                 <span class="doc-returns-annotation">
-                    <code><span title="typing.Union">Union</span>[<a class="autorefs autorefs-internal" title="mindone.diffusers.pipelines.cogview4.pipeline_output.CogView4PipelineOutput" href="#mindone.diffusers.pipelines.cogview4.pipeline_output.CogView4PipelineOutput">CogView4PipelineOutput</a>, <span title="typing.Tuple">Tuple</span>]</code>
+                    <code><span title="typing.Union">Union</span>[<a class="autorefs autorefs-internal" title="mindone.diffusers.pipelines.cogview4.pipeline_output.CogView4PipelineOutput
+
+
+  
+      dataclass
+  " href="#mindone.diffusers.pipelines.cogview4.pipeline_output.CogView4PipelineOutput">CogView4PipelineOutput</a>, <span title="typing.Tuple">Tuple</span>]</code>
                 </span>
             </td>
             <td class="doc-returns-details">
@@ -9728,7 +9865,12 @@ will be passed as <code>callback_kwargs</code> argument. You will only be able t
           <tr class="doc-section-item">
             <td>
                 <span class="doc-returns-annotation">
-                    <code><span title="typing.Union">Union</span>[<a class="autorefs autorefs-internal" title="mindone.diffusers.pipelines.cogview4.pipeline_output.CogView4PipelineOutput" href="#mindone.diffusers.pipelines.cogview4.pipeline_output.CogView4PipelineOutput">CogView4PipelineOutput</a>, <span title="typing.Tuple">Tuple</span>]</code>
+                    <code><span title="typing.Union">Union</span>[<a class="autorefs autorefs-internal" title="mindone.diffusers.pipelines.cogview4.pipeline_output.CogView4PipelineOutput
+
+
+  
+      dataclass
+  " href="#mindone.diffusers.pipelines.cogview4.pipeline_output.CogView4PipelineOutput">CogView4PipelineOutput</a>, <span title="typing.Tuple">Tuple</span>]</code>
                 </span>
             </td>
             <td class="doc-returns-details">
@@ -9739,6 +9881,7 @@ will be passed as <code>callback_kwargs</code> argument. You will only be able t
           </tr>
       </tbody>
     </table>
+
 
             <details class="quote">
               <summary>Source code in <code>mindone/diffusers/pipelines/cogview4/pipeline_cogview4.py</code></summary>
@@ -10310,7 +10453,9 @@ will be passed as <code>callback_kwargs</code> argument. You will only be able t
       </thead>
       <tbody>
           <tr class="doc-section-item">
-            <td><code>prompt</code></td>
+            <td>
+                <code>prompt</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>prompt to be encoded</p>
@@ -10324,7 +10469,9 @@ will be passed as <code>callback_kwargs</code> argument. You will only be able t
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>negative_prompt</code></td>
+            <td>
+                <code>negative_prompt</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The prompt or prompts not to guide the image generation. If not defined, one has to pass
@@ -10344,7 +10491,9 @@ less than <code>1</code>).</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>do_classifier_free_guidance</code></td>
+            <td>
+                <code>do_classifier_free_guidance</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Whether to use classifier free guidance or not.</p>
@@ -10362,7 +10511,9 @@ less than <code>1</code>).</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>num_images_per_prompt</code></td>
+            <td>
+                <code>num_images_per_prompt</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Number of images that should be generated per prompt.</p>
@@ -10380,7 +10531,9 @@ less than <code>1</code>).</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>prompt_embeds</code></td>
+            <td>
+                <code>prompt_embeds</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Pre-generated text embeddings. Can be used to easily tweak text inputs, <em>e.g.</em> prompt weighting. If not
@@ -10399,7 +10552,9 @@ provided, text embeddings will be generated from <code>prompt</code> input argum
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>negative_prompt_embeds</code></td>
+            <td>
+                <code>negative_prompt_embeds</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Pre-generated negative text embeddings. Can be used to easily tweak text inputs, <em>e.g.</em> prompt
@@ -10419,7 +10574,9 @@ argument.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>dtype</code></td>
+            <td>
+                <code>dtype</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>(<code>ms.Type</code>, <em>optional</em>):
@@ -10438,7 +10595,9 @@ mindspore dtype</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>max_sequence_length</code></td>
+            <td>
+                <code>max_sequence_length</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Maximum sequence length in encoded prompt. Can be set to other values but may lead to poorer results.</p>
@@ -10457,6 +10616,7 @@ mindspore dtype</p>
           </tr>
       </tbody>
     </table>
+
 
             <details class="quote">
               <summary>Source code in <code>mindone/diffusers/pipelines/cogview4/pipeline_cogview4.py</code></summary>
@@ -10641,6 +10801,12 @@ mindspore dtype</p>
 
         <p>Output class for CogView3 pipelines.</p>
 
+
+
+
+
+
+
               <details class="quote">
                 <summary>Source code in <code>mindone/diffusers/pipelines/cogview4/pipeline_output.py</code></summary>
                 <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">10</span>
@@ -10789,13 +10955,13 @@ mindspore dtype</p>
         
         
           
-          <a href="../consistency_models/" class="md-footer__link md-footer__link--next" aria-label="Next: Consistency Models">
+          <a href="../consisid/" class="md-footer__link md-footer__link--next" aria-label="Next: ConsisID">
             <div class="md-footer__title">
               <span class="md-footer__direction">
                 Next
               </span>
               <div class="md-ellipsis">
-                Consistency Models
+                ConsisID
               </div>
             </div>
             <div class="md-footer__button md-icon">

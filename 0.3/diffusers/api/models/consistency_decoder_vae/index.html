@@ -1477,6 +1477,29 @@
   
   
     <li class="md-nav__item">
+      <a href="../../../using-diffusers/consisid/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    ConsisID
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../../../using-diffusers/sdxl/" class="md-nav__link">
         
   
@@ -3211,6 +3234,29 @@
   
   
     <li class="md-nav__item">
+      <a href="../consisid_transformer3d/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    ConsisIDTransformer3DModel
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../cogview3plus_transformer2d/" class="md-nav__link">
         
   
@@ -4795,6 +4841,29 @@
   
   
     <li class="md-nav__item">
+      <a href="../../pipelines/consisid/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    ConsisID
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../../pipelines/consistency_models/" class="md-nav__link">
         
   
@@ -5958,10 +6027,10 @@
       
         
         
-        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2_11_4_64" >
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2_11_4_65" >
         
           
-          <label class="md-nav__link" for="__nav_2_11_4_64" id="__nav_2_11_4_64_label" tabindex="0">
+          <label class="md-nav__link" for="__nav_2_11_4_65" id="__nav_2_11_4_65_label" tabindex="0">
             
   
   
@@ -5974,8 +6043,8 @@
             <span class="md-nav__icon md-icon"></span>
           </label>
         
-        <nav class="md-nav" data-md-level="4" aria-labelledby="__nav_2_11_4_64_label" aria-expanded="false">
-          <label class="md-nav__title" for="__nav_2_11_4_64">
+        <nav class="md-nav" data-md-level="4" aria-labelledby="__nav_2_11_4_65_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_2_11_4_65">
             <span class="md-nav__icon md-icon"></span>
             Stable Diffusion
           </label>
@@ -8230,7 +8299,7 @@ specific language governing permissions and limitations under the License.
 
     <div class="doc doc-contents first">
             <p class="doc doc-class-bases">
-              Bases: <code><a class="autorefs autorefs-internal" title="mindone.diffusers.models.modeling_utils.ModelMixin" href="../overview/#mindone.diffusers.ModelMixin">ModelMixin</a></code>, <code><a class="autorefs autorefs-internal" title="mindone.diffusers.configuration_utils.ConfigMixin" href="../../configuration/#mindone.diffusers.configuration_utils.ConfigMixin">ConfigMixin</a></code></p>
+              Bases: <code><a class="autorefs autorefs-internal" title="mindone.diffusers.ModelMixin (mindone.diffusers.models.modeling_utils.ModelMixin)" href="../overview/#mindone.diffusers.ModelMixin">ModelMixin</a></code>, <code><a class="autorefs autorefs-internal" title="mindone.diffusers.configuration_utils.ConfigMixin" href="../../configuration/#mindone.diffusers.configuration_utils.ConfigMixin">ConfigMixin</a></code></p>
 
 
         <p>The consistency decoder used with DALL-E 3.</p>
@@ -8248,6 +8317,12 @@ specific language governing permissions and limitations under the License.
 <span class="o">&gt;&gt;&gt;</span> <span class="n">image</span> <span class="o">=</span> <span class="n">pipe</span><span class="p">(</span><span class="s2">&quot;horse&quot;</span><span class="p">)[</span><span class="mi">0</span><span class="p">][</span><span class="mi">0</span><span class="p">]</span>
 <span class="o">&gt;&gt;&gt;</span> <span class="n">image</span>
 </code></pre></div>
+
+
+
+
+
+
 
               <details class="quote">
                 <summary>Source code in <code>mindone/diffusers/models/autoencoders/consistency_decoder_vae.py</code></summary>
@@ -9070,7 +9145,7 @@ specific language governing permissions and limitations under the License.
 
 
 <h3 id="mindone.diffusers.ConsistencyDecoderVAE.attn_processors" class="doc doc-heading">
-            <code class="highlight language-python"><span class="n">mindone</span><span class="o">.</span><span class="n">diffusers</span><span class="o">.</span><span class="n">ConsistencyDecoderVAE</span><span class="o">.</span><span class="n">attn_processors</span><span class="p">:</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">AttentionProcessor</span><span class="p">]</span></code>
+            <code class="highlight language-python"><span class="n">mindone</span><span class="o">.</span><span class="n">diffusers</span><span class="o">.</span><span class="n">ConsistencyDecoderVAE</span><span class="o">.</span><span class="n">attn_processors</span></code>
 
   <span class="doc doc-labels">
       <small class="doc doc-label doc-label-property"><code>property</code></small>
@@ -9094,7 +9169,7 @@ specific language governing permissions and limitations under the License.
           <tr class="doc-section-item">
             <td>
                 <span class="doc-returns-annotation">
-                    <code><span title="typing.Dict">Dict</span>[str, <span title="mindone.diffusers.models.attention_processor.AttentionProcessor">AttentionProcessor</span>]</code>
+                    <code><span title="typing.Dict">Dict</span>[<span title="str">str</span>, <span title="mindone.diffusers.models.attention_processor.AttentionProcessor">AttentionProcessor</span>]</code>
                 </span>
             </td>
             <td class="doc-returns-details">
@@ -9106,7 +9181,7 @@ specific language governing permissions and limitations under the License.
           <tr class="doc-section-item">
             <td>
                 <span class="doc-returns-annotation">
-                    <code><span title="typing.Dict">Dict</span>[str, <span title="mindone.diffusers.models.attention_processor.AttentionProcessor">AttentionProcessor</span>]</code>
+                    <code><span title="typing.Dict">Dict</span>[<span title="str">str</span>, <span title="mindone.diffusers.models.attention_processor.AttentionProcessor">AttentionProcessor</span>]</code>
                 </span>
             </td>
             <td class="doc-returns-details">
@@ -9117,6 +9192,7 @@ specific language governing permissions and limitations under the License.
           </tr>
       </tbody>
     </table>
+
     </div>
 
 </div>
@@ -9145,7 +9221,9 @@ specific language governing permissions and limitations under the License.
       </thead>
       <tbody>
           <tr class="doc-section-item">
-            <td><code>sample</code></td>
+            <td>
+                <code>sample</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Input sample.</p>
@@ -9159,7 +9237,9 @@ specific language governing permissions and limitations under the License.
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>sample_posterior</code></td>
+            <td>
+                <code>sample_posterior</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Whether to sample from the posterior.</p>
@@ -9177,7 +9257,9 @@ specific language governing permissions and limitations under the License.
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>return_dict</code></td>
+            <td>
+                <code>return_dict</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Whether or not to return a [<code>DecoderOutput</code>] instead of a plain tuple.</p>
@@ -9195,7 +9277,9 @@ specific language governing permissions and limitations under the License.
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>generator</code></td>
+            <td>
+                <code>generator</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Generator to use for sampling.</p>
@@ -9227,7 +9311,12 @@ specific language governing permissions and limitations under the License.
           <tr class="doc-section-item">
             <td>
                 <span class="doc-returns-annotation">
-                    <code><span title="typing.Union">Union</span>[<a class="autorefs autorefs-internal" title="mindone.diffusers.models.autoencoders.vae.DecoderOutput" href="../asymmetricautoencoderkl/#mindone.diffusers.models.autoencoders.vae.DecoderOutput">DecoderOutput</a>, <span title="typing.Tuple">Tuple</span>[<span title="mindspore.Tensor">Tensor</span>]]</code>
+                    <code><span title="typing.Union">Union</span>[<a class="autorefs autorefs-internal" title="mindone.diffusers.models.autoencoders.vae.DecoderOutput
+
+
+  
+      dataclass
+  " href="../asymmetricautoencoderkl/#mindone.diffusers.models.autoencoders.vae.DecoderOutput">DecoderOutput</a>, <span title="typing.Tuple">Tuple</span>[<span title="mindspore.Tensor">Tensor</span>]]</code>
                 </span>
             </td>
             <td class="doc-returns-details">
@@ -9239,6 +9328,7 @@ If return_dict is True, a [<code>DecoderOutput</code>] is returned, otherwise a 
           </tr>
       </tbody>
     </table>
+
 
             <details class="quote">
               <summary>Source code in <code>mindone/diffusers/models/autoencoders/consistency_decoder_vae.py</code></summary>
@@ -9336,7 +9426,9 @@ If return_dict is True, a [<code>DecoderOutput</code>] is returned, otherwise a 
       </thead>
       <tbody>
           <tr class="doc-section-item">
-            <td><code>z</code></td>
+            <td>
+                <code>z</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The input latent vector.</p>
@@ -9350,7 +9442,9 @@ If return_dict is True, a [<code>DecoderOutput</code>] is returned, otherwise a 
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>generator</code></td>
+            <td>
+                <code>generator</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The random number generator. Default is None.</p>
@@ -9368,7 +9462,9 @@ If return_dict is True, a [<code>DecoderOutput</code>] is returned, otherwise a 
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>return_dict</code></td>
+            <td>
+                <code>return_dict</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Whether to return the output as a dictionary. Default is True.</p>
@@ -9376,7 +9472,7 @@ If return_dict is True, a [<code>DecoderOutput</code>] is returned, otherwise a 
               <p>
                   <span class="doc-param-annotation">
                     <b>TYPE:</b>
-                      <code>bool</code>
+                      <code><span title="bool">bool</span></code>
                   </span>
                   <span class="doc-param-default">
                     <b>DEFAULT:</b>
@@ -9386,7 +9482,9 @@ If return_dict is True, a [<code>DecoderOutput</code>] is returned, otherwise a 
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>num_inference_steps</code></td>
+            <td>
+                <code>num_inference_steps</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The number of inference steps. Default is 2.</p>
@@ -9394,7 +9492,7 @@ If return_dict is True, a [<code>DecoderOutput</code>] is returned, otherwise a 
               <p>
                   <span class="doc-param-annotation">
                     <b>TYPE:</b>
-                      <code>int</code>
+                      <code><span title="int">int</span></code>
                   </span>
                   <span class="doc-param-default">
                     <b>DEFAULT:</b>
@@ -9418,7 +9516,12 @@ If return_dict is True, a [<code>DecoderOutput</code>] is returned, otherwise a 
           <tr class="doc-section-item">
             <td>
                 <span class="doc-returns-annotation">
-                    <code><span title="typing.Union">Union</span>[<a class="autorefs autorefs-internal" title="mindone.diffusers.models.autoencoders.vae.DecoderOutput" href="../asymmetricautoencoderkl/#mindone.diffusers.models.autoencoders.vae.DecoderOutput">DecoderOutput</a>, <span title="typing.Tuple">Tuple</span>[<span title="mindspore.Tensor">Tensor</span>]]</code>
+                    <code><span title="typing.Union">Union</span>[<a class="autorefs autorefs-internal" title="mindone.diffusers.models.autoencoders.vae.DecoderOutput
+
+
+  
+      dataclass
+  " href="../asymmetricautoencoderkl/#mindone.diffusers.models.autoencoders.vae.DecoderOutput">DecoderOutput</a>, <span title="typing.Tuple">Tuple</span>[<span title="mindspore.Tensor">Tensor</span>]]</code>
                 </span>
             </td>
             <td class="doc-returns-details">
@@ -9429,6 +9532,7 @@ If return_dict is True, a [<code>DecoderOutput</code>] is returned, otherwise a 
           </tr>
       </tbody>
     </table>
+
 
             <details class="quote">
               <summary>Source code in <code>mindone/diffusers/models/autoencoders/consistency_decoder_vae.py</code></summary>
@@ -9549,6 +9653,7 @@ If return_dict is True, a [<code>DecoderOutput</code>] is returned, otherwise a 
         <p>Disable sliced VAE decoding. If <code>enable_slicing</code> was previously enabled, this method will go back to computing
 decoding in one step.</p>
 
+
             <details class="quote">
               <summary>Source code in <code>mindone/diffusers/models/autoencoders/consistency_decoder_vae.py</code></summary>
               <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">185</span>
@@ -9581,6 +9686,7 @@ decoding in one step.</p>
 
         <p>Disable tiled VAE decoding. If <code>enable_tiling</code> was previously enabled, this method will go back to computing
 decoding in one step.</p>
+
 
             <details class="quote">
               <summary>Source code in <code>mindone/diffusers/models/autoencoders/consistency_decoder_vae.py</code></summary>
@@ -9615,6 +9721,7 @@ decoding in one step.</p>
         <p>Enable sliced VAE decoding. When this option is enabled, the VAE will split the input tensor in slices to
 compute decoding in several steps. This is useful to save some memory and allow larger batch sizes.</p>
 
+
             <details class="quote">
               <summary>Source code in <code>mindone/diffusers/models/autoencoders/consistency_decoder_vae.py</code></summary>
               <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">177</span>
@@ -9648,6 +9755,7 @@ compute decoding in several steps. This is useful to save some memory and allow 
         <p>Enable tiled VAE decoding. When this option is enabled, the VAE will split the input tensor into tiles to
 compute decoding and encoding in several steps. This is useful for saving a large amount of memory and to allow
 processing larger images.</p>
+
 
             <details class="quote">
               <summary>Source code in <code>mindone/diffusers/models/autoencoders/consistency_decoder_vae.py</code></summary>
@@ -9693,7 +9801,9 @@ processing larger images.</p>
       </thead>
       <tbody>
           <tr class="doc-section-item">
-            <td><code>x</code></td>
+            <td>
+                <code>x</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Input batch of images.</p>
@@ -9707,7 +9817,9 @@ processing larger images.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>return_dict</code></td>
+            <td>
+                <code>return_dict</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Whether to return a [<code>~models.autoencoders.consistency_decoder_vae.ConsistencyDecoderVAEOutput</code>]
@@ -9775,6 +9887,7 @@ instead of a plain tuple.</p>
           </tr>
       </tbody>
     </table>
+
 
             <details class="quote">
               <summary>Source code in <code>mindone/diffusers/models/autoencoders/consistency_decoder_vae.py</code></summary>
@@ -9866,6 +9979,7 @@ Parameters:
         If <code>processor</code> is a dict, the key needs to define the path to the corresponding cross attention
         processor. This is strongly recommended when setting trainable attention processors.</p>
 
+
             <details class="quote">
               <summary>Source code in <code>mindone/diffusers/models/autoencoders/consistency_decoder_vae.py</code></summary>
               <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">218</span>
@@ -9946,6 +10060,7 @@ Parameters:
 
         <p>Disables custom attention processors and sets the default attention implementation.</p>
 
+
             <details class="quote">
               <summary>Source code in <code>mindone/diffusers/models/autoencoders/consistency_decoder_vae.py</code></summary>
               <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">250</span>
@@ -10005,7 +10120,9 @@ output, but they should be much less noticeable.</p>
       </thead>
       <tbody>
           <tr class="doc-section-item">
-            <td><code>x</code></td>
+            <td>
+                <code>x</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Input batch of images.</p>
@@ -10019,7 +10136,9 @@ output, but they should be much less noticeable.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>return_dict</code></td>
+            <td>
+                <code>return_dict</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Whether or not to return a [<code>~models.autoencoders.consistency_decoder_vae.ConsistencyDecoderVAEOutput</code>]
@@ -10065,6 +10184,7 @@ is returned, otherwise a plain <code>tuple</code> is returned.</p>
           </tr>
       </tbody>
     </table>
+
 
             <details class="quote">
               <summary>Source code in <code>mindone/diffusers/models/autoencoders/consistency_decoder_vae.py</code></summary>

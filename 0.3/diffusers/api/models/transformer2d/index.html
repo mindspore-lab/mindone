@@ -1477,6 +1477,29 @@
   
   
     <li class="md-nav__item">
+      <a href="../../../using-diffusers/consisid/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    ConsisID
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../../../using-diffusers/sdxl/" class="md-nav__link">
         
   
@@ -3213,6 +3236,29 @@
   
   
     <li class="md-nav__item">
+      <a href="../consisid_transformer3d/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    ConsisIDTransformer3DModel
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../cogview3plus_transformer2d/" class="md-nav__link">
         
   
@@ -4729,6 +4775,29 @@
   
   
     <li class="md-nav__item">
+      <a href="../../pipelines/consisid/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    ConsisID
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../../pipelines/consistency_models/" class="md-nav__link">
         
   
@@ -5892,10 +5961,10 @@
       
         
         
-        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2_11_4_64" >
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2_11_4_65" >
         
           
-          <label class="md-nav__link" for="__nav_2_11_4_64" id="__nav_2_11_4_64_label" tabindex="0">
+          <label class="md-nav__link" for="__nav_2_11_4_65" id="__nav_2_11_4_65_label" tabindex="0">
             
   
   
@@ -5908,8 +5977,8 @@
             <span class="md-nav__icon md-icon"></span>
           </label>
         
-        <nav class="md-nav" data-md-level="4" aria-labelledby="__nav_2_11_4_64_label" aria-expanded="false">
-          <label class="md-nav__title" for="__nav_2_11_4_64">
+        <nav class="md-nav" data-md-level="4" aria-labelledby="__nav_2_11_4_65_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_2_11_4_65">
             <span class="md-nav__icon md-icon"></span>
             Stable Diffusion
           </label>
@@ -8123,7 +8192,9 @@ specific language governing permissions and limitations under the License.
       </thead>
       <tbody>
           <tr class="doc-section-item">
-            <td><code>num_attention_heads</code></td>
+            <td>
+                <code>num_attention_heads</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The number of heads to use for multi-head attention.</p>
@@ -8141,7 +8212,9 @@ specific language governing permissions and limitations under the License.
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>attention_head_dim</code></td>
+            <td>
+                <code>attention_head_dim</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The number of channels in each head.</p>
@@ -8159,7 +8232,9 @@ specific language governing permissions and limitations under the License.
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>in_channels</code></td>
+            <td>
+                <code>in_channels</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The number of channels in the input and output (specify if the input is <strong>continuous</strong>).</p>
@@ -8177,7 +8252,9 @@ specific language governing permissions and limitations under the License.
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>num_layers</code></td>
+            <td>
+                <code>num_layers</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The number of layers of Transformer blocks to use.</p>
@@ -8195,7 +8272,9 @@ specific language governing permissions and limitations under the License.
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>dropout</code></td>
+            <td>
+                <code>dropout</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The dropout probability to use.</p>
@@ -8213,7 +8292,9 @@ specific language governing permissions and limitations under the License.
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>cross_attention_dim</code></td>
+            <td>
+                <code>cross_attention_dim</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The number of <code>encoder_hidden_states</code> dimensions to use.</p>
@@ -8231,7 +8312,9 @@ specific language governing permissions and limitations under the License.
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>sample_size</code></td>
+            <td>
+                <code>sample_size</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The width of the latent images (specify if the input is <strong>discrete</strong>).
@@ -8250,7 +8333,9 @@ This is fixed during training since it is used to learn a number of position emb
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>num_vector_embeds</code></td>
+            <td>
+                <code>num_vector_embeds</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The number of classes of the vector embeddings of the latent pixels (specify if the input is <strong>discrete</strong>).
@@ -8269,7 +8354,9 @@ Includes the class for the masked latent pixel.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>activation_fn</code></td>
+            <td>
+                <code>activation_fn</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Activation function to use in feed-forward.</p>
@@ -8287,7 +8374,9 @@ Includes the class for the masked latent pixel.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>num_embeds_ada_norm</code></td>
+            <td>
+                <code>num_embeds_ada_norm</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The number of diffusion steps used during training. Pass if at least one of the norm_layers is
@@ -8308,7 +8397,9 @@ added to the hidden states.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>attention_bias</code></td>
+            <td>
+                <code>attention_bias</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Configure if the <code>TransformerBlocks</code> attention should contain a bias parameter.</p>
@@ -8327,6 +8418,12 @@ added to the hidden states.</p>
           </tr>
       </tbody>
     </table>
+
+
+
+
+
+
 
               <details class="quote">
                 <summary>Source code in <code>mindone/diffusers/models/transformers/transformer_2d.py</code></summary>
@@ -9363,7 +9460,9 @@ added to the hidden states.</p>
       </thead>
       <tbody>
           <tr class="doc-section-item">
-            <td><code>hidden_states</code></td>
+            <td>
+                <code>hidden_states</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <h4 id="mindone.diffusers.Transformer2DModel.construct--noqa-e501">noqa: E501<a class="headerlink" href="#mindone.diffusers.Transformer2DModel.construct--noqa-e501" title="Permanent link">&para;</a></h4>
@@ -9378,7 +9477,9 @@ added to the hidden states.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>encoder_hidden_states</code></td>
+            <td>
+                <code>encoder_hidden_states</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Conditional embeddings for cross attention layer. If not given, cross-attention defaults to
@@ -9397,7 +9498,9 @@ self-attention.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>timestep</code></td>
+            <td>
+                <code>timestep</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Used to indicate denoising step. Optional timestep to be applied as an embedding in <code>AdaLayerNorm</code>.</p>
@@ -9415,7 +9518,9 @@ self-attention.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>class_labels</code></td>
+            <td>
+                <code>class_labels</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Used to indicate class labels conditioning. Optional class labels to be applied as an embedding in
@@ -9434,7 +9539,9 @@ self-attention.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>cross_attention_kwargs</code></td>
+            <td>
+                <code>cross_attention_kwargs</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>A kwargs dictionary that if specified is passed along to the <code>AttentionProcessor</code> as defined under
@@ -9454,7 +9561,9 @@ self-attention.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>attention_mask</code></td>
+            <td>
+                <code>attention_mask</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>An attention mask of shape <code>(batch, key_tokens)</code> is applied to <code>encoder_hidden_states</code>. If <code>1</code> the mask
@@ -9474,7 +9583,9 @@ negative values to the attention scores corresponding to "discard" tokens.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>encoder_attention_mask</code></td>
+            <td>
+                <code>encoder_attention_mask</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Cross-attention mask applied to <code>encoder_hidden_states</code>. Two formats supported:</p>
@@ -9497,7 +9608,9 @@ above. This bias will be added to the cross-attention scores.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>return_dict</code></td>
+            <td>
+                <code>return_dict</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Whether or not to return a [<code>~models.unets.unet_2d_condition.UNet2DConditionOutput</code>] instead of a plain
@@ -9547,6 +9660,7 @@ tuple.</p>
           </tr>
       </tbody>
     </table>
+
 
             <details class="quote">
               <summary>Source code in <code>mindone/diffusers/models/transformers/transformer_2d.py</code></summary>
@@ -9833,6 +9947,12 @@ tuple.</p>
     <div class="doc doc-contents first">
             <p class="doc doc-class-bases">
               Bases: <code><a class="autorefs autorefs-internal" title="mindone.diffusers.models.transformers.transformer_2d.Transformer2DModelOutput" href="#mindone.diffusers.models.transformers.transformer_2d.Transformer2DModelOutput">Transformer2DModelOutput</a></code></p>
+
+
+
+
+
+
 
 
               <details class="quote">

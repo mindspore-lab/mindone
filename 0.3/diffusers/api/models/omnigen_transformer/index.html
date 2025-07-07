@@ -1477,6 +1477,29 @@
   
   
     <li class="md-nav__item">
+      <a href="../../../using-diffusers/consisid/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    ConsisID
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../../../using-diffusers/sdxl/" class="md-nav__link">
         
   
@@ -3213,6 +3236,29 @@
   
   
     <li class="md-nav__item">
+      <a href="../consisid_transformer3d/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    ConsisIDTransformer3DModel
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../cogview3plus_transformer2d/" class="md-nav__link">
         
   
@@ -4690,6 +4736,29 @@
   
   
     <li class="md-nav__item">
+      <a href="../../pipelines/consisid/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    ConsisID
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../../pipelines/consistency_models/" class="md-nav__link">
         
   
@@ -5853,10 +5922,10 @@
       
         
         
-        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2_11_4_64" >
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2_11_4_65" >
         
           
-          <label class="md-nav__link" for="__nav_2_11_4_64" id="__nav_2_11_4_64_label" tabindex="0">
+          <label class="md-nav__link" for="__nav_2_11_4_65" id="__nav_2_11_4_65_label" tabindex="0">
             
   
   
@@ -5869,8 +5938,8 @@
             <span class="md-nav__icon md-icon"></span>
           </label>
         
-        <nav class="md-nav" data-md-level="4" aria-labelledby="__nav_2_11_4_64_label" aria-expanded="false">
-          <label class="md-nav__title" for="__nav_2_11_4_64">
+        <nav class="md-nav" data-md-level="4" aria-labelledby="__nav_2_11_4_65_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_2_11_4_65">
             <span class="md-nav__icon md-icon"></span>
             Stable Diffusion
           </label>
@@ -8021,7 +8090,7 @@ specific language governing permissions and limitations under the License.
 
     <div class="doc doc-contents first">
             <p class="doc doc-class-bases">
-              Bases: <code><a class="autorefs autorefs-internal" title="mindone.diffusers.models.modeling_utils.ModelMixin" href="../overview/#mindone.diffusers.ModelMixin">ModelMixin</a></code>, <code><a class="autorefs autorefs-internal" title="mindone.diffusers.configuration_utils.ConfigMixin" href="../../configuration/#mindone.diffusers.configuration_utils.ConfigMixin">ConfigMixin</a></code></p>
+              Bases: <code><a class="autorefs autorefs-internal" title="mindone.diffusers.ModelMixin (mindone.diffusers.models.modeling_utils.ModelMixin)" href="../overview/#mindone.diffusers.ModelMixin">ModelMixin</a></code>, <code><a class="autorefs autorefs-internal" title="mindone.diffusers.configuration_utils.ConfigMixin" href="../../configuration/#mindone.diffusers.configuration_utils.ConfigMixin">ConfigMixin</a></code></p>
 
 
         <p>The Transformer model introduced in OmniGen (https://arxiv.org/pdf/2409.11340).</p>
@@ -8036,7 +8105,9 @@ specific language governing permissions and limitations under the License.
       </thead>
       <tbody>
           <tr class="doc-section-item">
-            <td><code>in_channels</code></td>
+            <td>
+                <code>in_channels</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The number of channels in the input.</p>
@@ -8054,7 +8125,9 @@ specific language governing permissions and limitations under the License.
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>patch_size</code></td>
+            <td>
+                <code>patch_size</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The size of the spatial patches to use in the patch embedding layer.</p>
@@ -8072,7 +8145,9 @@ specific language governing permissions and limitations under the License.
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>hidden_size</code></td>
+            <td>
+                <code>hidden_size</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The dimensionality of the hidden layers in the model.</p>
@@ -8090,7 +8165,9 @@ specific language governing permissions and limitations under the License.
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>rms_norm_eps</code></td>
+            <td>
+                <code>rms_norm_eps</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Eps for RMSNorm layer.</p>
@@ -8108,7 +8185,9 @@ specific language governing permissions and limitations under the License.
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>num_attention_heads</code></td>
+            <td>
+                <code>num_attention_heads</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The number of heads to use for multi-head attention.</p>
@@ -8126,7 +8205,9 @@ specific language governing permissions and limitations under the License.
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>num_key_value_heads</code></td>
+            <td>
+                <code>num_key_value_heads</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The number of heads to use for keys and values in multi-head attention.</p>
@@ -8144,7 +8225,9 @@ specific language governing permissions and limitations under the License.
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>intermediate_size</code></td>
+            <td>
+                <code>intermediate_size</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Dimension of the hidden layer in FeedForward layers.</p>
@@ -8162,7 +8245,9 @@ specific language governing permissions and limitations under the License.
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>num_layers</code></td>
+            <td>
+                <code>num_layers</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The number of layers of transformer blocks to use.</p>
@@ -8180,7 +8265,9 @@ specific language governing permissions and limitations under the License.
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>pad_token_id</code></td>
+            <td>
+                <code>pad_token_id</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The id of the padding token.</p>
@@ -8198,7 +8285,9 @@ specific language governing permissions and limitations under the License.
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>vocab_size</code></td>
+            <td>
+                <code>vocab_size</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The size of the vocabulary of the embedding vocabulary.</p>
@@ -8216,7 +8305,9 @@ specific language governing permissions and limitations under the License.
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>rope_base</code></td>
+            <td>
+                <code>rope_base</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The default theta value to use when creating RoPE.</p>
@@ -8234,7 +8325,9 @@ specific language governing permissions and limitations under the License.
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>rope_scaling</code></td>
+            <td>
+                <code>rope_scaling</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The scaling factors for the RoPE. Must contain <code>short_factor</code> and <code>long_factor</code>.</p>
@@ -8252,7 +8345,9 @@ specific language governing permissions and limitations under the License.
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>pos_embed_max_size</code></td>
+            <td>
+                <code>pos_embed_max_size</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The maximum size of the positional embeddings.</p>
@@ -8270,7 +8365,9 @@ specific language governing permissions and limitations under the License.
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>time_step_dim</code></td>
+            <td>
+                <code>time_step_dim</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Output dimension of timestep embeddings.</p>
@@ -8288,7 +8385,9 @@ specific language governing permissions and limitations under the License.
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>flip_sin_to_cos</code></td>
+            <td>
+                <code>flip_sin_to_cos</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Whether to flip the sin and cos in the positional embeddings when preparing timestep embeddings.</p>
@@ -8306,7 +8405,9 @@ specific language governing permissions and limitations under the License.
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>downscale_freq_shift</code></td>
+            <td>
+                <code>downscale_freq_shift</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The frequency shift to use when downscaling the timestep embeddings.</p>
@@ -8324,7 +8425,9 @@ specific language governing permissions and limitations under the License.
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>timestep_activation_fn</code></td>
+            <td>
+                <code>timestep_activation_fn</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The activation function to use for the timestep embeddings.</p>
@@ -8343,6 +8446,12 @@ specific language governing permissions and limitations under the License.
           </tr>
       </tbody>
     </table>
+
+
+
+
+
+
 
               <details class="quote">
                 <summary>Source code in <code>mindone/diffusers/models/transformers/transformer_omnigen.py</code></summary>

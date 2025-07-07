@@ -1477,6 +1477,29 @@
   
   
     <li class="md-nav__item">
+      <a href="../../../using-diffusers/consisid/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    ConsisID
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../../../using-diffusers/sdxl/" class="md-nav__link">
         
   
@@ -3209,6 +3232,29 @@
   
   
     <li class="md-nav__item">
+      <a href="../../models/consisid_transformer3d/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    ConsisIDTransformer3DModel
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../../models/cogview3plus_transformer2d/" class="md-nav__link">
         
   
@@ -4635,6 +4681,29 @@
   
   
     <li class="md-nav__item">
+      <a href="../../pipelines/consisid/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    ConsisID
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../../pipelines/consistency_models/" class="md-nav__link">
         
   
@@ -5798,10 +5867,10 @@
       
         
         
-        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2_11_4_64" >
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2_11_4_65" >
         
           
-          <label class="md-nav__link" for="__nav_2_11_4_64" id="__nav_2_11_4_64_label" tabindex="0">
+          <label class="md-nav__link" for="__nav_2_11_4_65" id="__nav_2_11_4_65_label" tabindex="0">
             
   
   
@@ -5814,8 +5883,8 @@
             <span class="md-nav__icon md-icon"></span>
           </label>
         
-        <nav class="md-nav" data-md-level="4" aria-labelledby="__nav_2_11_4_64_label" aria-expanded="false">
-          <label class="md-nav__title" for="__nav_2_11_4_64">
+        <nav class="md-nav" data-md-level="4" aria-labelledby="__nav_2_11_4_65_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_2_11_4_65">
             <span class="md-nav__icon md-icon"></span>
             Stable Diffusion
           </label>
@@ -8132,7 +8201,7 @@ specific language governing permissions and limitations under the License.
 
     <div class="doc doc-contents first">
             <p class="doc doc-class-bases">
-              Bases: <code><a class="autorefs autorefs-internal" title="mindone.diffusers.schedulers.scheduling_utils.SchedulerMixin" href="../overview/#mindone.diffusers.SchedulerMixin">SchedulerMixin</a></code>, <code><a class="autorefs autorefs-internal" title="mindone.diffusers.configuration_utils.ConfigMixin" href="../../configuration/#mindone.diffusers.configuration_utils.ConfigMixin">ConfigMixin</a></code></p>
+              Bases: <code><a class="autorefs autorefs-internal" title="mindone.diffusers.SchedulerMixin (mindone.diffusers.schedulers.scheduling_utils.SchedulerMixin)" href="../overview/#mindone.diffusers.SchedulerMixin">SchedulerMixin</a></code>, <code><a class="autorefs autorefs-internal" title="mindone.diffusers.configuration_utils.ConfigMixin" href="../../configuration/#mindone.diffusers.configuration_utils.ConfigMixin">ConfigMixin</a></code></p>
 
 
         <p>A fourth-order Improved Pseudo Linear Multistep scheduler.</p>
@@ -8149,7 +8218,9 @@ methods the library implements for all schedulers such as loading and saving.</p
       </thead>
       <tbody>
           <tr class="doc-section-item">
-            <td><code>num_train_timesteps</code></td>
+            <td>
+                <code>num_train_timesteps</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The number of diffusion steps to train the model.</p>
@@ -8167,7 +8238,9 @@ methods the library implements for all schedulers such as loading and saving.</p
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>trained_betas</code></td>
+            <td>
+                <code>trained_betas</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Pass an array of betas directly to the constructor to bypass <code>beta_start</code> and <code>beta_end</code>.</p>
@@ -8186,6 +8259,12 @@ methods the library implements for all schedulers such as loading and saving.</p
           </tr>
       </tbody>
     </table>
+
+
+
+
+
+
 
               <details class="quote">
                 <summary>Source code in <code>mindone/diffusers/schedulers/scheduling_ipndm.py</code></summary>
@@ -8612,6 +8691,7 @@ methods the library implements for all schedulers such as loading and saving.</p
     <div class="doc doc-contents ">
 
         <p>The index for the first timestep. It should be set from pipeline with <code>set_begin_index</code> method.</p>
+
     </div>
 
 </div>
@@ -8633,6 +8713,7 @@ methods the library implements for all schedulers such as loading and saving.</p
     <div class="doc doc-contents ">
 
         <p>The index counter for current timestep. It will increase 1 after each scheduler step.</p>
+
     </div>
 
 </div>
@@ -8663,7 +8744,9 @@ current timestep.</p>
       </thead>
       <tbody>
           <tr class="doc-section-item">
-            <td><code>sample</code></td>
+            <td>
+                <code>sample</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The input sample.</p>
@@ -8703,6 +8786,7 @@ A scaled input sample.</p>
           </tr>
       </tbody>
     </table>
+
 
             <details class="quote">
               <summary>Source code in <code>mindone/diffusers/schedulers/scheduling_ipndm.py</code></summary>
@@ -8762,7 +8846,9 @@ A scaled input sample.</p>
       </thead>
       <tbody>
           <tr class="doc-section-item">
-            <td><code>begin_index</code></td>
+            <td>
+                <code>begin_index</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The begin index for the scheduler.</p>
@@ -8781,6 +8867,7 @@ A scaled input sample.</p>
           </tr>
       </tbody>
     </table>
+
 
             <details class="quote">
               <summary>Source code in <code>mindone/diffusers/schedulers/scheduling_ipndm.py</code></summary>
@@ -8830,7 +8917,9 @@ A scaled input sample.</p>
       </thead>
       <tbody>
           <tr class="doc-section-item">
-            <td><code>num_inference_steps</code></td>
+            <td>
+                <code>num_inference_steps</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The number of diffusion steps used when generating samples with a pre-trained model.</p>
@@ -8845,6 +8934,7 @@ A scaled input sample.</p>
           </tr>
       </tbody>
     </table>
+
 
             <details class="quote">
               <summary>Source code in <code>mindone/diffusers/schedulers/scheduling_ipndm.py</code></summary>
@@ -8927,7 +9017,9 @@ the linear multistep method. It performs one forward pass multiple times to appr
       </thead>
       <tbody>
           <tr class="doc-section-item">
-            <td><code>model_output</code></td>
+            <td>
+                <code>model_output</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The direct output from learned diffusion model.</p>
@@ -8941,7 +9033,9 @@ the linear multistep method. It performs one forward pass multiple times to appr
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>timestep</code></td>
+            <td>
+                <code>timestep</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The current discrete timestep in the diffusion chain.</p>
@@ -8955,7 +9049,9 @@ the linear multistep method. It performs one forward pass multiple times to appr
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>sample</code></td>
+            <td>
+                <code>sample</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>A current instance of a sample created by the diffusion process.</p>
@@ -8969,7 +9065,9 @@ the linear multistep method. It performs one forward pass multiple times to appr
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>return_dict</code></td>
+            <td>
+                <code>return_dict</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Whether or not to return a [<code>~schedulers.scheduling_utils.SchedulerOutput</code>] or tuple.</p>
@@ -9001,7 +9099,12 @@ the linear multistep method. It performs one forward pass multiple times to appr
           <tr class="doc-section-item">
             <td>
                 <span class="doc-returns-annotation">
-                    <code><span title="typing.Union">Union</span>[<a class="autorefs autorefs-internal" title="mindone.diffusers.schedulers.scheduling_utils.SchedulerOutput" href="../cosine_dpm/#mindone.diffusers.schedulers.scheduling_utils.SchedulerOutput">SchedulerOutput</a>, <span title="typing.Tuple">Tuple</span>]</code>
+                    <code><span title="typing.Union">Union</span>[<a class="autorefs autorefs-internal" title="mindone.diffusers.schedulers.scheduling_utils.SchedulerOutput
+
+
+  
+      dataclass
+  " href="../cosine_dpm/#mindone.diffusers.schedulers.scheduling_utils.SchedulerOutput">SchedulerOutput</a>, <span title="typing.Tuple">Tuple</span>]</code>
                 </span>
             </td>
             <td class="doc-returns-details">
@@ -9014,6 +9117,7 @@ tuple is returned where the first element is the sample tensor.</p>
           </tr>
       </tbody>
     </table>
+
 
             <details class="quote">
               <summary>Source code in <code>mindone/diffusers/schedulers/scheduling_ipndm.py</code></summary>

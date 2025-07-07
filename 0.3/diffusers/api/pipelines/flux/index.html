@@ -1477,6 +1477,29 @@
   
   
     <li class="md-nav__item">
+      <a href="../../../using-diffusers/consisid/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    ConsisID
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../../../using-diffusers/sdxl/" class="md-nav__link">
         
   
@@ -3209,6 +3232,29 @@
   
   
     <li class="md-nav__item">
+      <a href="../../models/consisid_transformer3d/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    ConsisIDTransformer3DModel
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../../models/cogview3plus_transformer2d/" class="md-nav__link">
         
   
@@ -4620,6 +4666,29 @@
   
   <span class="md-ellipsis">
     CogView4
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../consisid/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    ConsisID
     
   </span>
   
@@ -6328,10 +6397,10 @@
       
         
         
-        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2_11_4_64" >
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2_11_4_65" >
         
           
-          <label class="md-nav__link" for="__nav_2_11_4_64" id="__nav_2_11_4_64_label" tabindex="0">
+          <label class="md-nav__link" for="__nav_2_11_4_65" id="__nav_2_11_4_65_label" tabindex="0">
             
   
   
@@ -6344,8 +6413,8 @@
             <span class="md-nav__icon md-icon"></span>
           </label>
         
-        <nav class="md-nav" data-md-level="4" aria-labelledby="__nav_2_11_4_64_label" aria-expanded="false">
-          <label class="md-nav__title" for="__nav_2_11_4_64">
+        <nav class="md-nav" data-md-level="4" aria-labelledby="__nav_2_11_4_65_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_2_11_4_65">
             <span class="md-nav__icon md-icon"></span>
             Stable Diffusion
           </label>
@@ -9229,7 +9298,7 @@ specific language governing permissions and limitations under the License.
 
     <div class="doc doc-contents first">
             <p class="doc doc-class-bases">
-              Bases: <code><a class="autorefs autorefs-internal" title="mindone.diffusers.pipelines.pipeline_utils.DiffusionPipeline" href="../overview/#mindone.diffusers.DiffusionPipeline">DiffusionPipeline</a></code>, <code><a class="autorefs autorefs-internal" title="mindone.diffusers.loaders.FluxLoraLoaderMixin" href="../../loaders/lora/#mindone.diffusers.loaders.lora_pipeline.FluxLoraLoaderMixin">FluxLoraLoaderMixin</a></code>, <code><a class="autorefs autorefs-internal" title="mindone.diffusers.loaders.FromSingleFileMixin" href="../../loaders/single_file/#mindone.diffusers.loaders.single_file.FromSingleFileMixin">FromSingleFileMixin</a></code>, <code><a class="autorefs autorefs-internal" title="mindone.diffusers.loaders.TextualInversionLoaderMixin" href="../../loaders/textual_inversion/#mindone.diffusers.loaders.textual_inversion.TextualInversionLoaderMixin">TextualInversionLoaderMixin</a></code>, <code><span title="mindone.diffusers.loaders.FluxIPAdapterMixin">FluxIPAdapterMixin</span></code></p>
+              Bases: <code><a class="autorefs autorefs-internal" title="mindone.diffusers.DiffusionPipeline (mindone.diffusers.pipelines.pipeline_utils.DiffusionPipeline)" href="../overview/#mindone.diffusers.DiffusionPipeline">DiffusionPipeline</a></code>, <code><a class="autorefs autorefs-internal" title="mindone.diffusers.loaders.lora_pipeline.FluxLoraLoaderMixin (mindone.diffusers.loaders.FluxLoraLoaderMixin)" href="../../loaders/lora/#mindone.diffusers.loaders.lora_pipeline.FluxLoraLoaderMixin">FluxLoraLoaderMixin</a></code>, <code><a class="autorefs autorefs-internal" title="mindone.diffusers.loaders.single_file.FromSingleFileMixin (mindone.diffusers.loaders.FromSingleFileMixin)" href="../../loaders/single_file/#mindone.diffusers.loaders.single_file.FromSingleFileMixin">FromSingleFileMixin</a></code>, <code><a class="autorefs autorefs-internal" title="mindone.diffusers.loaders.textual_inversion.TextualInversionLoaderMixin (mindone.diffusers.loaders.TextualInversionLoaderMixin)" href="../../loaders/textual_inversion/#mindone.diffusers.loaders.textual_inversion.TextualInversionLoaderMixin">TextualInversionLoaderMixin</a></code>, <code><span title="mindone.diffusers.loaders.FluxIPAdapterMixin">FluxIPAdapterMixin</span></code></p>
 
 
         <p>The Flux pipeline for text-to-image generation.</p>
@@ -9245,7 +9314,9 @@ specific language governing permissions and limitations under the License.
       </thead>
       <tbody>
           <tr class="doc-section-item">
-            <td><code>transformer</code></td>
+            <td>
+                <code>transformer</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Conditional Transformer (MMDiT) architecture to denoise the encoded image latents.</p>
@@ -9259,7 +9330,9 @@ specific language governing permissions and limitations under the License.
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>scheduler</code></td>
+            <td>
+                <code>scheduler</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>A scheduler to be used in combination with <code>transformer</code> to denoise the encoded image latents.</p>
@@ -9273,7 +9346,9 @@ specific language governing permissions and limitations under the License.
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>vae</code></td>
+            <td>
+                <code>vae</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Variational Auto-Encoder (VAE) Model to encode and decode images to and from latent representations.</p>
@@ -9287,7 +9362,9 @@ specific language governing permissions and limitations under the License.
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>text_encoder</code></td>
+            <td>
+                <code>text_encoder</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p><a href="https://huggingface.co/docs/transformers/model_doc/clip#transformers.CLIPTextModel">CLIP</a>, specifically
@@ -9302,7 +9379,9 @@ the <a href="https://huggingface.co/openai/clip-vit-large-patch14">clip-vit-larg
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>text_encoder_2</code></td>
+            <td>
+                <code>text_encoder_2</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p><a href="https://huggingface.co/docs/transformers/en/model_doc/t5#transformers.T5EncoderModel">T5</a>, specifically
@@ -9317,7 +9396,9 @@ the <a href="https://huggingface.co/google/t5-v1_1-xxl">google/t5-v1_1-xxl</a> v
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>tokenizer</code></td>
+            <td>
+                <code>tokenizer</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Tokenizer of class
@@ -9332,7 +9413,9 @@ the <a href="https://huggingface.co/google/t5-v1_1-xxl">google/t5-v1_1-xxl</a> v
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>tokenizer_2</code></td>
+            <td>
+                <code>tokenizer_2</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Second Tokenizer of class
@@ -9348,6 +9431,12 @@ the <a href="https://huggingface.co/google/t5-v1_1-xxl">google/t5-v1_1-xxl</a> v
           </tr>
       </tbody>
     </table>
+
+
+
+
+
+
 
               <details class="quote">
                 <summary>Source code in <code>mindone/diffusers/pipelines/flux/pipeline_flux.py</code></summary>
@@ -11024,7 +11113,9 @@ the <a href="https://huggingface.co/google/t5-v1_1-xxl">google/t5-v1_1-xxl</a> v
       </thead>
       <tbody>
           <tr class="doc-section-item">
-            <td><code>prompt</code></td>
+            <td>
+                <code>prompt</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The prompt or prompts to guide the image generation. If not defined, one has to pass <code>prompt_embeds</code>.
@@ -11043,7 +11134,9 @@ instead.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>prompt_2</code></td>
+            <td>
+                <code>prompt_2</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The prompt or prompts to be sent to <code>tokenizer_2</code> and <code>text_encoder_2</code>. If not defined, <code>prompt</code> is
@@ -11062,7 +11155,9 @@ will be used instead.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>negative_prompt</code></td>
+            <td>
+                <code>negative_prompt</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The prompt or prompts not to guide the image generation. If not defined, one has to pass
@@ -11082,7 +11177,9 @@ not greater than <code>1</code>).</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>negative_prompt_2</code></td>
+            <td>
+                <code>negative_prompt_2</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The prompt or prompts not to guide the image generation to be sent to <code>tokenizer_2</code> and
@@ -11101,7 +11198,9 @@ not greater than <code>1</code>).</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>true_cfg_scale</code></td>
+            <td>
+                <code>true_cfg_scale</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>When &gt; 1.0 and a provided <code>negative_prompt</code>, enables true classifier-free guidance.</p>
@@ -11119,7 +11218,9 @@ not greater than <code>1</code>).</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>height</code></td>
+            <td>
+                <code>height</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The height in pixels of the generated image. This is set to 1024 by default for the best results.</p>
@@ -11137,7 +11238,9 @@ not greater than <code>1</code>).</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>width</code></td>
+            <td>
+                <code>width</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The width in pixels of the generated image. This is set to 1024 by default for the best results.</p>
@@ -11155,7 +11258,9 @@ not greater than <code>1</code>).</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>num_inference_steps</code></td>
+            <td>
+                <code>num_inference_steps</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The number of denoising steps. More denoising steps usually lead to a higher quality image at the
@@ -11174,7 +11279,9 @@ expense of slower inference.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>sigmas</code></td>
+            <td>
+                <code>sigmas</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Custom sigmas to use for the denoising process with schedulers which support a <code>sigmas</code> argument in
@@ -11194,7 +11301,9 @@ will be used.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>guidance_scale</code></td>
+            <td>
+                <code>guidance_scale</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Guidance scale as defined in <a href="https://arxiv.org/abs/2207.12598">Classifier-Free Diffusion Guidance</a>.
@@ -11216,7 +11325,9 @@ usually at the expense of lower image quality.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>num_images_per_prompt</code></td>
+            <td>
+                <code>num_images_per_prompt</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The number of images to generate per prompt.</p>
@@ -11234,7 +11345,9 @@ usually at the expense of lower image quality.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>generator</code></td>
+            <td>
+                <code>generator</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>One or a list of <a href="https://numpy.org/doc/stable/reference/random/generator.html">np.random.Generator(s)</a>
@@ -11253,7 +11366,9 @@ to make generation deterministic.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>latents</code></td>
+            <td>
+                <code>latents</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Pre-generated noisy latents, sampled from a Gaussian distribution, to be used as inputs for image
@@ -11273,7 +11388,9 @@ tensor will ge generated by sampling using the supplied random <code>generator</
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>prompt_embeds</code></td>
+            <td>
+                <code>prompt_embeds</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Pre-generated text embeddings. Can be used to easily tweak text inputs, <em>e.g.</em> prompt weighting. If not
@@ -11292,7 +11409,9 @@ provided, text embeddings will be generated from <code>prompt</code> input argum
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>pooled_prompt_embeds</code></td>
+            <td>
+                <code>pooled_prompt_embeds</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Pre-generated pooled text embeddings. Can be used to easily tweak text inputs, <em>e.g.</em> prompt weighting.
@@ -11311,7 +11430,9 @@ If not provided, pooled text embeddings will be generated from <code>prompt</cod
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>ip_adapter_image</code></td>
+            <td>
+                <code>ip_adapter_image</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>(<code>PipelineImageInput</code>, <em>optional</em>): Optional image input to work with IP Adapters.</p>
@@ -11329,7 +11450,9 @@ If not provided, pooled text embeddings will be generated from <code>prompt</cod
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>ip_adapter_image_embeds</code></td>
+            <td>
+                <code>ip_adapter_image_embeds</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Pre-generated image embeddings for IP-Adapter. It should be a list of length same as number of
@@ -11349,7 +11472,9 @@ provided, embeddings are computed from the <code>ip_adapter_image</code> input a
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>negative_ip_adapter_image</code></td>
+            <td>
+                <code>negative_ip_adapter_image</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>(<code>PipelineImageInput</code>, <em>optional</em>): Optional image input to work with IP Adapters.</p>
@@ -11367,7 +11492,9 @@ provided, embeddings are computed from the <code>ip_adapter_image</code> input a
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>negative_ip_adapter_image_embeds</code></td>
+            <td>
+                <code>negative_ip_adapter_image_embeds</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Pre-generated image embeddings for IP-Adapter. It should be a list of length same as number of
@@ -11387,7 +11514,9 @@ provided, embeddings are computed from the <code>ip_adapter_image</code> input a
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>negative_prompt_embeds</code></td>
+            <td>
+                <code>negative_prompt_embeds</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Pre-generated negative text embeddings. Can be used to easily tweak text inputs, <em>e.g.</em> prompt
@@ -11407,7 +11536,9 @@ argument.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>negative_pooled_prompt_embeds</code></td>
+            <td>
+                <code>negative_pooled_prompt_embeds</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Pre-generated negative pooled text embeddings. Can be used to easily tweak text inputs, <em>e.g.</em> prompt
@@ -11427,7 +11558,9 @@ input argument.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>output_type</code></td>
+            <td>
+                <code>output_type</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The output format of the generate image. Choose between
@@ -11446,7 +11579,9 @@ input argument.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>return_dict</code></td>
+            <td>
+                <code>return_dict</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Whether or not to return a [<code>~pipelines.flux.FluxPipelineOutput</code>] instead of a plain tuple.</p>
@@ -11464,7 +11599,9 @@ input argument.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>joint_attention_kwargs</code></td>
+            <td>
+                <code>joint_attention_kwargs</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>A kwargs dictionary that if specified is passed along to the <code>AttentionProcessor</code> as defined under
@@ -11484,7 +11621,9 @@ input argument.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>callback_on_step_end</code></td>
+            <td>
+                <code>callback_on_step_end</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>A function that calls at the end of each denoising steps during the inference. The function is called
@@ -11505,7 +11644,9 @@ callback_kwargs: Dict)</code>. <code>callback_kwargs</code> will include a list 
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>callback_on_step_end_tensor_inputs</code></td>
+            <td>
+                <code>callback_on_step_end_tensor_inputs</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The list of tensor inputs for the <code>callback_on_step_end</code> function. The tensors specified in the list
@@ -11525,7 +11666,9 @@ will be passed as <code>callback_kwargs</code> argument. You will only be able t
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>max_sequence_length</code></td>
+            <td>
+                <code>max_sequence_length</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Maximum sequence length to use with the <code>prompt</code>.</p>
@@ -11584,6 +11727,7 @@ will be passed as <code>callback_kwargs</code> argument. You will only be able t
           </tr>
       </tbody>
     </table>
+
 
             <details class="quote">
               <summary>Source code in <code>mindone/diffusers/pipelines/flux/pipeline_flux.py</code></summary>
@@ -12284,6 +12428,7 @@ will be passed as <code>callback_kwargs</code> argument. You will only be able t
         <p>Disable sliced VAE decoding. If <code>enable_vae_slicing</code> was previously enabled, this method will go back to
 computing decoding in one step.</p>
 
+
             <details class="quote">
               <summary>Source code in <code>mindone/diffusers/pipelines/flux/pipeline_flux.py</code></summary>
               <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">526</span>
@@ -12316,6 +12461,7 @@ computing decoding in one step.</p>
 
         <p>Disable tiled VAE decoding. If <code>enable_vae_tiling</code> was previously enabled, this method will go back to
 computing decoding in one step.</p>
+
 
             <details class="quote">
               <summary>Source code in <code>mindone/diffusers/pipelines/flux/pipeline_flux.py</code></summary>
@@ -12350,6 +12496,7 @@ computing decoding in one step.</p>
         <p>Enable sliced VAE decoding. When this option is enabled, the VAE will split the input tensor in slices to
 compute decoding in several steps. This is useful to save some memory and allow larger batch sizes.</p>
 
+
             <details class="quote">
               <summary>Source code in <code>mindone/diffusers/pipelines/flux/pipeline_flux.py</code></summary>
               <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">519</span>
@@ -12383,6 +12530,7 @@ compute decoding in several steps. This is useful to save some memory and allow 
         <p>Enable tiled VAE decoding. When this option is enabled, the VAE will split the input tensor into tiles to
 compute decoding and encoding in several steps. This is useful for saving a large amount of memory and to allow
 processing larger images.</p>
+
 
             <details class="quote">
               <summary>Source code in <code>mindone/diffusers/pipelines/flux/pipeline_flux.py</code></summary>
@@ -12427,7 +12575,9 @@ processing larger images.</p>
       </thead>
       <tbody>
           <tr class="doc-section-item">
-            <td><code>prompt</code></td>
+            <td>
+                <code>prompt</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>prompt to be encoded</p>
@@ -12441,7 +12591,9 @@ processing larger images.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>prompt_2</code></td>
+            <td>
+                <code>prompt_2</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The prompt or prompts to be sent to the <code>tokenizer_2</code> and <code>text_encoder_2</code>. If not defined, <code>prompt</code> is
@@ -12456,7 +12608,9 @@ used in all text-encoders</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>num_images_per_prompt</code></td>
+            <td>
+                <code>num_images_per_prompt</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>number of images that should be generated per prompt</p>
@@ -12474,7 +12628,9 @@ used in all text-encoders</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>prompt_embeds</code></td>
+            <td>
+                <code>prompt_embeds</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Pre-generated text embeddings. Can be used to easily tweak text inputs, <em>e.g.</em> prompt weighting. If not
@@ -12493,7 +12649,9 @@ provided, text embeddings will be generated from <code>prompt</code> input argum
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>pooled_prompt_embeds</code></td>
+            <td>
+                <code>pooled_prompt_embeds</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Pre-generated pooled text embeddings. Can be used to easily tweak text inputs, <em>e.g.</em> prompt weighting.
@@ -12512,7 +12670,9 @@ If not provided, pooled text embeddings will be generated from <code>prompt</cod
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>lora_scale</code></td>
+            <td>
+                <code>lora_scale</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>A lora scale that will be applied to all LoRA layers of the text encoder if LoRA layers are loaded.</p>
@@ -12531,6 +12691,7 @@ If not provided, pooled text embeddings will be generated from <code>prompt</cod
           </tr>
       </tbody>
     </table>
+
 
             <details class="quote">
               <summary>Source code in <code>mindone/diffusers/pipelines/flux/pipeline_flux.py</code></summary>
@@ -12702,7 +12863,7 @@ If not provided, pooled text embeddings will be generated from <code>prompt</cod
 
     <div class="doc doc-contents first">
             <p class="doc doc-class-bases">
-              Bases: <code><a class="autorefs autorefs-internal" title="mindone.diffusers.pipelines.pipeline_utils.DiffusionPipeline" href="../overview/#mindone.diffusers.DiffusionPipeline">DiffusionPipeline</a></code>, <code><a class="autorefs autorefs-internal" title="mindone.diffusers.loaders.FluxLoraLoaderMixin" href="../../loaders/lora/#mindone.diffusers.loaders.lora_pipeline.FluxLoraLoaderMixin">FluxLoraLoaderMixin</a></code>, <code><a class="autorefs autorefs-internal" title="mindone.diffusers.loaders.FromSingleFileMixin" href="../../loaders/single_file/#mindone.diffusers.loaders.single_file.FromSingleFileMixin">FromSingleFileMixin</a></code>, <code><span title="mindone.diffusers.loaders.FluxIPAdapterMixin">FluxIPAdapterMixin</span></code></p>
+              Bases: <code><a class="autorefs autorefs-internal" title="mindone.diffusers.DiffusionPipeline (mindone.diffusers.pipelines.pipeline_utils.DiffusionPipeline)" href="../overview/#mindone.diffusers.DiffusionPipeline">DiffusionPipeline</a></code>, <code><a class="autorefs autorefs-internal" title="mindone.diffusers.loaders.lora_pipeline.FluxLoraLoaderMixin (mindone.diffusers.loaders.FluxLoraLoaderMixin)" href="../../loaders/lora/#mindone.diffusers.loaders.lora_pipeline.FluxLoraLoaderMixin">FluxLoraLoaderMixin</a></code>, <code><a class="autorefs autorefs-internal" title="mindone.diffusers.loaders.single_file.FromSingleFileMixin (mindone.diffusers.loaders.FromSingleFileMixin)" href="../../loaders/single_file/#mindone.diffusers.loaders.single_file.FromSingleFileMixin">FromSingleFileMixin</a></code>, <code><span title="mindone.diffusers.loaders.FluxIPAdapterMixin">FluxIPAdapterMixin</span></code></p>
 
 
         <p>The Flux pipeline for image inpainting.</p>
@@ -12718,7 +12879,9 @@ If not provided, pooled text embeddings will be generated from <code>prompt</cod
       </thead>
       <tbody>
           <tr class="doc-section-item">
-            <td><code>transformer</code></td>
+            <td>
+                <code>transformer</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Conditional Transformer (MMDiT) architecture to denoise the encoded image latents.</p>
@@ -12732,7 +12895,9 @@ If not provided, pooled text embeddings will be generated from <code>prompt</cod
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>scheduler</code></td>
+            <td>
+                <code>scheduler</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>A scheduler to be used in combination with <code>transformer</code> to denoise the encoded image latents.</p>
@@ -12746,7 +12911,9 @@ If not provided, pooled text embeddings will be generated from <code>prompt</cod
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>vae</code></td>
+            <td>
+                <code>vae</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Variational Auto-Encoder (VAE) Model to encode and decode images to and from latent representations.</p>
@@ -12760,7 +12927,9 @@ If not provided, pooled text embeddings will be generated from <code>prompt</cod
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>text_encoder</code></td>
+            <td>
+                <code>text_encoder</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p><a href="https://huggingface.co/docs/transformers/model_doc/clip#transformers.CLIPTextModel">CLIP</a>, specifically
@@ -12775,7 +12944,9 @@ the <a href="https://huggingface.co/openai/clip-vit-large-patch14">clip-vit-larg
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>text_encoder_2</code></td>
+            <td>
+                <code>text_encoder_2</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p><a href="https://huggingface.co/docs/transformers/en/model_doc/t5#transformers.T5EncoderModel">T5</a>, specifically
@@ -12790,7 +12961,9 @@ the <a href="https://huggingface.co/google/t5-v1_1-xxl">google/t5-v1_1-xxl</a> v
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>tokenizer</code></td>
+            <td>
+                <code>tokenizer</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Tokenizer of class
@@ -12805,7 +12978,9 @@ the <a href="https://huggingface.co/google/t5-v1_1-xxl">google/t5-v1_1-xxl</a> v
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>tokenizer_2</code></td>
+            <td>
+                <code>tokenizer_2</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Second Tokenizer of class
@@ -12821,6 +12996,12 @@ the <a href="https://huggingface.co/google/t5-v1_1-xxl">google/t5-v1_1-xxl</a> v
           </tr>
       </tbody>
     </table>
+
+
+
+
+
+
 
               <details class="quote">
                 <summary>Source code in <code>mindone/diffusers/pipelines/flux/pipeline_flux_img2img.py</code></summary>
@@ -14523,7 +14704,9 @@ the <a href="https://huggingface.co/google/t5-v1_1-xxl">google/t5-v1_1-xxl</a> v
       </thead>
       <tbody>
           <tr class="doc-section-item">
-            <td><code>prompt</code></td>
+            <td>
+                <code>prompt</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The prompt or prompts to guide the image generation. If not defined, one has to pass <code>prompt_embeds</code>.
@@ -14542,7 +14725,9 @@ instead.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>prompt_2</code></td>
+            <td>
+                <code>prompt_2</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The prompt or prompts to be sent to <code>tokenizer_2</code> and <code>text_encoder_2</code>. If not defined, <code>prompt</code> is
@@ -14561,7 +14746,9 @@ will be used instead</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>image</code></td>
+            <td>
+                <code>image</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p><code>Image</code>, numpy array or tensor representing an image batch to be used as the starting point. For both
@@ -14583,7 +14770,9 @@ latents as <code>image</code>, but if passing latents directly it is not encoded
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>height</code></td>
+            <td>
+                <code>height</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The height in pixels of the generated image. This is set to 1024 by default for the best results.</p>
@@ -14601,7 +14790,9 @@ latents as <code>image</code>, but if passing latents directly it is not encoded
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>width</code></td>
+            <td>
+                <code>width</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The width in pixels of the generated image. This is set to 1024 by default for the best results.</p>
@@ -14619,7 +14810,9 @@ latents as <code>image</code>, but if passing latents directly it is not encoded
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>strength</code></td>
+            <td>
+                <code>strength</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Indicates extent to transform the reference <code>image</code>. Must be between 0 and 1. <code>image</code> is used as a
@@ -14641,7 +14834,9 @@ essentially ignores <code>image</code>.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>num_inference_steps</code></td>
+            <td>
+                <code>num_inference_steps</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The number of denoising steps. More denoising steps usually lead to a higher quality image at the
@@ -14660,7 +14855,9 @@ expense of slower inference.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>sigmas</code></td>
+            <td>
+                <code>sigmas</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Custom sigmas to use for the denoising process with schedulers which support a <code>sigmas</code> argument in
@@ -14680,7 +14877,9 @@ will be used.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>guidance_scale</code></td>
+            <td>
+                <code>guidance_scale</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Guidance scale as defined in <a href="https://arxiv.org/abs/2207.12598">Classifier-Free Diffusion Guidance</a>.
@@ -14702,7 +14901,9 @@ usually at the expense of lower image quality.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>num_images_per_prompt</code></td>
+            <td>
+                <code>num_images_per_prompt</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The number of images to generate per prompt.</p>
@@ -14720,7 +14921,9 @@ usually at the expense of lower image quality.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>generator</code></td>
+            <td>
+                <code>generator</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>One or a list of <a href="https://numpy.org/doc/stable/reference/random/generator.html">np.random.Generator(s)</a>
@@ -14739,7 +14942,9 @@ to make generation deterministic.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>latents</code></td>
+            <td>
+                <code>latents</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Pre-generated noisy latents, sampled from a Gaussian distribution, to be used as inputs for image
@@ -14759,7 +14964,9 @@ tensor will ge generated by sampling using the supplied random <code>generator</
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>prompt_embeds</code></td>
+            <td>
+                <code>prompt_embeds</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Pre-generated text embeddings. Can be used to easily tweak text inputs, <em>e.g.</em> prompt weighting. If not
@@ -14778,7 +14985,9 @@ provided, text embeddings will be generated from <code>prompt</code> input argum
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>pooled_prompt_embeds</code></td>
+            <td>
+                <code>pooled_prompt_embeds</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Pre-generated pooled text embeddings. Can be used to easily tweak text inputs, <em>e.g.</em> prompt weighting.
@@ -14797,7 +15006,9 @@ If not provided, pooled text embeddings will be generated from <code>prompt</cod
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>ip_adapter_image</code></td>
+            <td>
+                <code>ip_adapter_image</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>(<code>PipelineImageInput</code>, <em>optional</em>): Optional image input to work with IP Adapters.</p>
@@ -14815,7 +15026,9 @@ If not provided, pooled text embeddings will be generated from <code>prompt</cod
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>ip_adapter_image_embeds</code></td>
+            <td>
+                <code>ip_adapter_image_embeds</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Pre-generated image embeddings for IP-Adapter. It should be a list of length same as number of
@@ -14835,7 +15048,9 @@ provided, embeddings are computed from the <code>ip_adapter_image</code> input a
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>negative_ip_adapter_image</code></td>
+            <td>
+                <code>negative_ip_adapter_image</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>(<code>PipelineImageInput</code>, <em>optional</em>): Optional image input to work with IP Adapters.</p>
@@ -14853,7 +15068,9 @@ provided, embeddings are computed from the <code>ip_adapter_image</code> input a
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>negative_ip_adapter_image_embeds</code></td>
+            <td>
+                <code>negative_ip_adapter_image_embeds</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Pre-generated image embeddings for IP-Adapter. It should be a list of length same as number of
@@ -14873,7 +15090,9 @@ provided, embeddings are computed from the <code>ip_adapter_image</code> input a
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>output_type</code></td>
+            <td>
+                <code>output_type</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The output format of the generate image. Choose between
@@ -14892,7 +15111,9 @@ provided, embeddings are computed from the <code>ip_adapter_image</code> input a
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>return_dict</code></td>
+            <td>
+                <code>return_dict</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Whether or not to return a [<code>~pipelines.flux.FluxPipelineOutput</code>] instead of a plain tuple.</p>
@@ -14910,7 +15131,9 @@ provided, embeddings are computed from the <code>ip_adapter_image</code> input a
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>joint_attention_kwargs</code></td>
+            <td>
+                <code>joint_attention_kwargs</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>A kwargs dictionary that if specified is passed along to the <code>AttentionProcessor</code> as defined under
@@ -14930,7 +15153,9 @@ provided, embeddings are computed from the <code>ip_adapter_image</code> input a
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>callback_on_step_end</code></td>
+            <td>
+                <code>callback_on_step_end</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>A function that calls at the end of each denoising steps during the inference. The function is called
@@ -14951,7 +15176,9 @@ callback_kwargs: Dict)</code>. <code>callback_kwargs</code> will include a list 
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>callback_on_step_end_tensor_inputs</code></td>
+            <td>
+                <code>callback_on_step_end_tensor_inputs</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The list of tensor inputs for the <code>callback_on_step_end</code> function. The tensors specified in the list
@@ -14971,7 +15198,9 @@ will be passed as <code>callback_kwargs</code> argument. You will only be able t
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>max_sequence_length</code></td>
+            <td>
+                <code>max_sequence_length</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Maximum sequence length to use with the <code>prompt</code>.</p>
@@ -15030,6 +15259,7 @@ will be passed as <code>callback_kwargs</code> argument. You will only be able t
           </tr>
       </tbody>
     </table>
+
 
             <details class="quote">
               <summary>Source code in <code>mindone/diffusers/pipelines/flux/pipeline_flux_img2img.py</code></summary>
@@ -15730,7 +15960,9 @@ will be passed as <code>callback_kwargs</code> argument. You will only be able t
       </thead>
       <tbody>
           <tr class="doc-section-item">
-            <td><code>prompt</code></td>
+            <td>
+                <code>prompt</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>prompt to be encoded</p>
@@ -15744,7 +15976,9 @@ will be passed as <code>callback_kwargs</code> argument. You will only be able t
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>prompt_2</code></td>
+            <td>
+                <code>prompt_2</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The prompt or prompts to be sent to the <code>tokenizer_2</code> and <code>text_encoder_2</code>. If not defined, <code>prompt</code> is
@@ -15759,7 +15993,9 @@ used in all text-encoders</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>num_images_per_prompt</code></td>
+            <td>
+                <code>num_images_per_prompt</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>number of images that should be generated per prompt</p>
@@ -15777,7 +16013,9 @@ used in all text-encoders</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>prompt_embeds</code></td>
+            <td>
+                <code>prompt_embeds</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Pre-generated text embeddings. Can be used to easily tweak text inputs, <em>e.g.</em> prompt weighting. If not
@@ -15796,7 +16034,9 @@ provided, text embeddings will be generated from <code>prompt</code> input argum
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>pooled_prompt_embeds</code></td>
+            <td>
+                <code>pooled_prompt_embeds</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Pre-generated pooled text embeddings. Can be used to easily tweak text inputs, <em>e.g.</em> prompt weighting.
@@ -15815,7 +16055,9 @@ If not provided, pooled text embeddings will be generated from <code>prompt</cod
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>lora_scale</code></td>
+            <td>
+                <code>lora_scale</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>A lora scale that will be applied to all LoRA layers of the text encoder if LoRA layers are loaded.</p>
@@ -15834,6 +16076,7 @@ If not provided, pooled text embeddings will be generated from <code>prompt</cod
           </tr>
       </tbody>
     </table>
+
 
             <details class="quote">
               <summary>Source code in <code>mindone/diffusers/pipelines/flux/pipeline_flux_img2img.py</code></summary>
@@ -16005,7 +16248,7 @@ If not provided, pooled text embeddings will be generated from <code>prompt</cod
 
     <div class="doc doc-contents first">
             <p class="doc doc-class-bases">
-              Bases: <code><a class="autorefs autorefs-internal" title="mindone.diffusers.pipelines.pipeline_utils.DiffusionPipeline" href="../overview/#mindone.diffusers.DiffusionPipeline">DiffusionPipeline</a></code>, <code><a class="autorefs autorefs-internal" title="mindone.diffusers.loaders.FluxLoraLoaderMixin" href="../../loaders/lora/#mindone.diffusers.loaders.lora_pipeline.FluxLoraLoaderMixin">FluxLoraLoaderMixin</a></code>, <code><span title="mindone.diffusers.loaders.FluxIPAdapterMixin">FluxIPAdapterMixin</span></code></p>
+              Bases: <code><a class="autorefs autorefs-internal" title="mindone.diffusers.DiffusionPipeline (mindone.diffusers.pipelines.pipeline_utils.DiffusionPipeline)" href="../overview/#mindone.diffusers.DiffusionPipeline">DiffusionPipeline</a></code>, <code><a class="autorefs autorefs-internal" title="mindone.diffusers.loaders.lora_pipeline.FluxLoraLoaderMixin (mindone.diffusers.loaders.FluxLoraLoaderMixin)" href="../../loaders/lora/#mindone.diffusers.loaders.lora_pipeline.FluxLoraLoaderMixin">FluxLoraLoaderMixin</a></code>, <code><span title="mindone.diffusers.loaders.FluxIPAdapterMixin">FluxIPAdapterMixin</span></code></p>
 
 
         <p>The Flux pipeline for image inpainting.</p>
@@ -16021,7 +16264,9 @@ If not provided, pooled text embeddings will be generated from <code>prompt</cod
       </thead>
       <tbody>
           <tr class="doc-section-item">
-            <td><code>transformer</code></td>
+            <td>
+                <code>transformer</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Conditional Transformer (MMDiT) architecture to denoise the encoded image latents.</p>
@@ -16035,7 +16280,9 @@ If not provided, pooled text embeddings will be generated from <code>prompt</cod
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>scheduler</code></td>
+            <td>
+                <code>scheduler</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>A scheduler to be used in combination with <code>transformer</code> to denoise the encoded image latents.</p>
@@ -16049,7 +16296,9 @@ If not provided, pooled text embeddings will be generated from <code>prompt</cod
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>vae</code></td>
+            <td>
+                <code>vae</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Variational Auto-Encoder (VAE) Model to encode and decode images to and from latent representations.</p>
@@ -16063,7 +16312,9 @@ If not provided, pooled text embeddings will be generated from <code>prompt</cod
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>text_encoder</code></td>
+            <td>
+                <code>text_encoder</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p><a href="https://huggingface.co/docs/transformers/model_doc/clip#transformers.CLIPTextModel">CLIP</a>, specifically
@@ -16078,7 +16329,9 @@ the <a href="https://huggingface.co/openai/clip-vit-large-patch14">clip-vit-larg
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>text_encoder_2</code></td>
+            <td>
+                <code>text_encoder_2</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p><a href="https://huggingface.co/docs/transformers/en/model_doc/t5#transformers.T5EncoderModel">T5</a>, specifically
@@ -16093,7 +16346,9 @@ the <a href="https://huggingface.co/google/t5-v1_1-xxl">google/t5-v1_1-xxl</a> v
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>tokenizer</code></td>
+            <td>
+                <code>tokenizer</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Tokenizer of class
@@ -16108,7 +16363,9 @@ the <a href="https://huggingface.co/google/t5-v1_1-xxl">google/t5-v1_1-xxl</a> v
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>tokenizer_2</code></td>
+            <td>
+                <code>tokenizer_2</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Second Tokenizer of class
@@ -16124,6 +16381,12 @@ the <a href="https://huggingface.co/google/t5-v1_1-xxl">google/t5-v1_1-xxl</a> v
           </tr>
       </tbody>
     </table>
+
+
+
+
+
+
 
               <details class="quote">
                 <summary>Source code in <code>mindone/diffusers/pipelines/flux/pipeline_flux_inpaint.py</code></summary>
@@ -18164,7 +18427,9 @@ the <a href="https://huggingface.co/google/t5-v1_1-xxl">google/t5-v1_1-xxl</a> v
       </thead>
       <tbody>
           <tr class="doc-section-item">
-            <td><code>prompt</code></td>
+            <td>
+                <code>prompt</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The prompt or prompts to guide the image generation. If not defined, one has to pass <code>prompt_embeds</code>.
@@ -18183,7 +18448,9 @@ instead.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>prompt_2</code></td>
+            <td>
+                <code>prompt_2</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The prompt or prompts to be sent to <code>tokenizer_2</code> and <code>text_encoder_2</code>. If not defined, <code>prompt</code> is
@@ -18202,7 +18469,9 @@ will be used instead</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>image</code></td>
+            <td>
+                <code>image</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p><code>Image</code>, numpy array or tensor representing an image batch to be used as the starting point. For both
@@ -18224,7 +18493,9 @@ latents as <code>image</code>, but if passing latents directly it is not encoded
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>mask_image</code></td>
+            <td>
+                <code>mask_image</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p><code>Image</code>, numpy array or tensor representing an image batch to mask <code>image</code>. White pixels in the mask
@@ -18247,7 +18518,9 @@ H, W)</code>, <code>(1, H, W)</code>, <code>(H, W)</code>. And for numpy array w
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>mask_image_latent</code></td>
+            <td>
+                <code>mask_image_latent</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p><code>Tensor</code> representing an image batch to mask <code>image</code> generated by VAE. If not provided, the mask
@@ -18262,7 +18535,9 @@ latents tensor will ge generated by <code>mask_image</code>.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>height</code></td>
+            <td>
+                <code>height</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The height in pixels of the generated image. This is set to 1024 by default for the best results.</p>
@@ -18280,7 +18555,9 @@ latents tensor will ge generated by <code>mask_image</code>.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>width</code></td>
+            <td>
+                <code>width</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The width in pixels of the generated image. This is set to 1024 by default for the best results.</p>
@@ -18298,7 +18575,9 @@ latents tensor will ge generated by <code>mask_image</code>.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>padding_mask_crop</code></td>
+            <td>
+                <code>padding_mask_crop</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The size of margin in the crop to be applied to the image and masking. If <code>None</code>, no crop is applied to
@@ -18321,7 +18600,9 @@ the image is large and contain information irrelevant for inpainting, such as ba
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>strength</code></td>
+            <td>
+                <code>strength</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Indicates extent to transform the reference <code>image</code>. Must be between 0 and 1. <code>image</code> is used as a
@@ -18343,7 +18624,9 @@ essentially ignores <code>image</code>.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>num_inference_steps</code></td>
+            <td>
+                <code>num_inference_steps</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The number of denoising steps. More denoising steps usually lead to a higher quality image at the
@@ -18362,7 +18645,9 @@ expense of slower inference.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>sigmas</code></td>
+            <td>
+                <code>sigmas</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Custom sigmas to use for the denoising process with schedulers which support a <code>sigmas</code> argument in
@@ -18382,7 +18667,9 @@ will be used.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>guidance_scale</code></td>
+            <td>
+                <code>guidance_scale</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Guidance scale as defined in <a href="https://arxiv.org/abs/2207.12598">Classifier-Free Diffusion Guidance</a>.
@@ -18404,7 +18691,9 @@ usually at the expense of lower image quality.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>num_images_per_prompt</code></td>
+            <td>
+                <code>num_images_per_prompt</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The number of images to generate per prompt.</p>
@@ -18422,7 +18711,9 @@ usually at the expense of lower image quality.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>generator</code></td>
+            <td>
+                <code>generator</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>One or a list of <a href="https://numpy.org/doc/stable/reference/random/generator.html">np.random.Generator(s)</a>
@@ -18441,7 +18732,9 @@ to make generation deterministic.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>latents</code></td>
+            <td>
+                <code>latents</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Pre-generated noisy latents, sampled from a Gaussian distribution, to be used as inputs for image
@@ -18461,7 +18754,9 @@ tensor will ge generated by sampling using the supplied random <code>generator</
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>prompt_embeds</code></td>
+            <td>
+                <code>prompt_embeds</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Pre-generated text embeddings. Can be used to easily tweak text inputs, <em>e.g.</em> prompt weighting. If not
@@ -18480,7 +18775,9 @@ provided, text embeddings will be generated from <code>prompt</code> input argum
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>pooled_prompt_embeds</code></td>
+            <td>
+                <code>pooled_prompt_embeds</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Pre-generated pooled text embeddings. Can be used to easily tweak text inputs, <em>e.g.</em> prompt weighting.
@@ -18499,7 +18796,9 @@ If not provided, pooled text embeddings will be generated from <code>prompt</cod
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>ip_adapter_image</code></td>
+            <td>
+                <code>ip_adapter_image</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>(<code>PipelineImageInput</code>, <em>optional</em>): Optional image input to work with IP Adapters.</p>
@@ -18517,7 +18816,9 @@ If not provided, pooled text embeddings will be generated from <code>prompt</cod
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>ip_adapter_image_embeds</code></td>
+            <td>
+                <code>ip_adapter_image_embeds</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Pre-generated image embeddings for IP-Adapter. It should be a list of length same as number of
@@ -18537,7 +18838,9 @@ provided, embeddings are computed from the <code>ip_adapter_image</code> input a
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>negative_ip_adapter_image</code></td>
+            <td>
+                <code>negative_ip_adapter_image</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>(<code>PipelineImageInput</code>, <em>optional</em>): Optional image input to work with IP Adapters.</p>
@@ -18555,7 +18858,9 @@ provided, embeddings are computed from the <code>ip_adapter_image</code> input a
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>negative_ip_adapter_image_embeds</code></td>
+            <td>
+                <code>negative_ip_adapter_image_embeds</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Pre-generated image embeddings for IP-Adapter. It should be a list of length same as number of
@@ -18575,7 +18880,9 @@ provided, embeddings are computed from the <code>ip_adapter_image</code> input a
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>output_type</code></td>
+            <td>
+                <code>output_type</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The output format of the generate image. Choose between
@@ -18594,7 +18901,9 @@ provided, embeddings are computed from the <code>ip_adapter_image</code> input a
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>return_dict</code></td>
+            <td>
+                <code>return_dict</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Whether or not to return a [<code>~pipelines.flux.FluxPipelineOutput</code>] instead of a plain tuple.</p>
@@ -18612,7 +18921,9 @@ provided, embeddings are computed from the <code>ip_adapter_image</code> input a
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>joint_attention_kwargs</code></td>
+            <td>
+                <code>joint_attention_kwargs</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>A kwargs dictionary that if specified is passed along to the <code>AttentionProcessor</code> as defined under
@@ -18632,7 +18943,9 @@ provided, embeddings are computed from the <code>ip_adapter_image</code> input a
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>callback_on_step_end</code></td>
+            <td>
+                <code>callback_on_step_end</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>A function that calls at the end of each denoising steps during the inference. The function is called
@@ -18653,7 +18966,9 @@ callback_kwargs: Dict)</code>. <code>callback_kwargs</code> will include a list 
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>callback_on_step_end_tensor_inputs</code></td>
+            <td>
+                <code>callback_on_step_end_tensor_inputs</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The list of tensor inputs for the <code>callback_on_step_end</code> function. The tensors specified in the list
@@ -18673,7 +18988,9 @@ will be passed as <code>callback_kwargs</code> argument. You will only be able t
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>max_sequence_length</code></td>
+            <td>
+                <code>max_sequence_length</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Maximum sequence length to use with the <code>prompt</code>.</p>
@@ -18732,6 +19049,7 @@ will be passed as <code>callback_kwargs</code> argument. You will only be able t
           </tr>
       </tbody>
     </table>
+
 
             <details class="quote">
               <summary>Source code in <code>mindone/diffusers/pipelines/flux/pipeline_flux_inpaint.py</code></summary>
@@ -19568,7 +19886,9 @@ will be passed as <code>callback_kwargs</code> argument. You will only be able t
       </thead>
       <tbody>
           <tr class="doc-section-item">
-            <td><code>prompt</code></td>
+            <td>
+                <code>prompt</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>prompt to be encoded</p>
@@ -19582,7 +19902,9 @@ will be passed as <code>callback_kwargs</code> argument. You will only be able t
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>prompt_2</code></td>
+            <td>
+                <code>prompt_2</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The prompt or prompts to be sent to the <code>tokenizer_2</code> and <code>text_encoder_2</code>. If not defined, <code>prompt</code> is
@@ -19597,7 +19919,9 @@ used in all text-encoders</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>num_images_per_prompt</code></td>
+            <td>
+                <code>num_images_per_prompt</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>number of images that should be generated per prompt</p>
@@ -19615,7 +19939,9 @@ used in all text-encoders</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>prompt_embeds</code></td>
+            <td>
+                <code>prompt_embeds</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Pre-generated text embeddings. Can be used to easily tweak text inputs, <em>e.g.</em> prompt weighting. If not
@@ -19634,7 +19960,9 @@ provided, text embeddings will be generated from <code>prompt</code> input argum
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>pooled_prompt_embeds</code></td>
+            <td>
+                <code>pooled_prompt_embeds</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Pre-generated pooled text embeddings. Can be used to easily tweak text inputs, <em>e.g.</em> prompt weighting.
@@ -19653,7 +19981,9 @@ If not provided, pooled text embeddings will be generated from <code>prompt</cod
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>lora_scale</code></td>
+            <td>
+                <code>lora_scale</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>A lora scale that will be applied to all LoRA layers of the text encoder if LoRA layers are loaded.</p>
@@ -19672,6 +20002,7 @@ If not provided, pooled text embeddings will be generated from <code>prompt</cod
           </tr>
       </tbody>
     </table>
+
 
             <details class="quote">
               <summary>Source code in <code>mindone/diffusers/pipelines/flux/pipeline_flux_inpaint.py</code></summary>
@@ -19843,7 +20174,7 @@ If not provided, pooled text embeddings will be generated from <code>prompt</cod
 
     <div class="doc doc-contents first">
             <p class="doc doc-class-bases">
-              Bases: <code><a class="autorefs autorefs-internal" title="mindone.diffusers.pipelines.pipeline_utils.DiffusionPipeline" href="../overview/#mindone.diffusers.DiffusionPipeline">DiffusionPipeline</a></code>, <code><a class="autorefs autorefs-internal" title="mindone.diffusers.loaders.FluxLoraLoaderMixin" href="../../loaders/lora/#mindone.diffusers.loaders.lora_pipeline.FluxLoraLoaderMixin">FluxLoraLoaderMixin</a></code>, <code><a class="autorefs autorefs-internal" title="mindone.diffusers.loaders.FromSingleFileMixin" href="../../loaders/single_file/#mindone.diffusers.loaders.single_file.FromSingleFileMixin">FromSingleFileMixin</a></code></p>
+              Bases: <code><a class="autorefs autorefs-internal" title="mindone.diffusers.DiffusionPipeline (mindone.diffusers.pipelines.pipeline_utils.DiffusionPipeline)" href="../overview/#mindone.diffusers.DiffusionPipeline">DiffusionPipeline</a></code>, <code><a class="autorefs autorefs-internal" title="mindone.diffusers.loaders.lora_pipeline.FluxLoraLoaderMixin (mindone.diffusers.loaders.FluxLoraLoaderMixin)" href="../../loaders/lora/#mindone.diffusers.loaders.lora_pipeline.FluxLoraLoaderMixin">FluxLoraLoaderMixin</a></code>, <code><a class="autorefs autorefs-internal" title="mindone.diffusers.loaders.single_file.FromSingleFileMixin (mindone.diffusers.loaders.FromSingleFileMixin)" href="../../loaders/single_file/#mindone.diffusers.loaders.single_file.FromSingleFileMixin">FromSingleFileMixin</a></code></p>
 
 
         <p>The Flux controlnet pipeline for inpainting.</p>
@@ -19859,7 +20190,9 @@ If not provided, pooled text embeddings will be generated from <code>prompt</cod
       </thead>
       <tbody>
           <tr class="doc-section-item">
-            <td><code>transformer</code></td>
+            <td>
+                <code>transformer</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Conditional Transformer (MMDiT) architecture to denoise the encoded image latents.</p>
@@ -19873,7 +20206,9 @@ If not provided, pooled text embeddings will be generated from <code>prompt</cod
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>scheduler</code></td>
+            <td>
+                <code>scheduler</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>A scheduler to be used in combination with <code>transformer</code> to denoise the encoded image latents.</p>
@@ -19887,7 +20222,9 @@ If not provided, pooled text embeddings will be generated from <code>prompt</cod
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>vae</code></td>
+            <td>
+                <code>vae</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Variational Auto-Encoder (VAE) Model to encode and decode images to and from latent representations.</p>
@@ -19901,7 +20238,9 @@ If not provided, pooled text embeddings will be generated from <code>prompt</cod
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>text_encoder</code></td>
+            <td>
+                <code>text_encoder</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p><a href="https://huggingface.co/docs/transformers/model_doc/clip#transformers.CLIPTextModel">CLIP</a>, specifically
@@ -19916,7 +20255,9 @@ the <a href="https://huggingface.co/openai/clip-vit-large-patch14">clip-vit-larg
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>text_encoder_2</code></td>
+            <td>
+                <code>text_encoder_2</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p><a href="https://huggingface.co/docs/transformers/en/model_doc/t5#transformers.T5EncoderModel">T5</a>, specifically
@@ -19931,7 +20272,9 @@ the <a href="https://huggingface.co/google/t5-v1_1-xxl">google/t5-v1_1-xxl</a> v
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>tokenizer</code></td>
+            <td>
+                <code>tokenizer</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Tokenizer of class
@@ -19946,7 +20289,9 @@ the <a href="https://huggingface.co/google/t5-v1_1-xxl">google/t5-v1_1-xxl</a> v
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>tokenizer_2</code></td>
+            <td>
+                <code>tokenizer_2</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Second Tokenizer of class
@@ -19962,6 +20307,12 @@ the <a href="https://huggingface.co/google/t5-v1_1-xxl">google/t5-v1_1-xxl</a> v
           </tr>
       </tbody>
     </table>
+
+
+
+
+
+
 
               <details class="quote">
                 <summary>Source code in <code>mindone/diffusers/pipelines/flux/pipeline_flux_controlnet_inpainting.py</code></summary>
@@ -21996,7 +22347,9 @@ the <a href="https://huggingface.co/google/t5-v1_1-xxl">google/t5-v1_1-xxl</a> v
       </thead>
       <tbody>
           <tr class="doc-section-item">
-            <td><code>prompt</code></td>
+            <td>
+                <code>prompt</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The prompt or prompts to guide the image generation.</p>
@@ -22014,7 +22367,9 @@ the <a href="https://huggingface.co/google/t5-v1_1-xxl">google/t5-v1_1-xxl</a> v
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>prompt_2</code></td>
+            <td>
+                <code>prompt_2</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The prompt or prompts to be sent to the <code>tokenizer_2</code> and <code>text_encoder_2</code>.</p>
@@ -22032,7 +22387,9 @@ the <a href="https://huggingface.co/google/t5-v1_1-xxl">google/t5-v1_1-xxl</a> v
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>image</code></td>
+            <td>
+                <code>image</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The image(s) to inpaint.</p>
@@ -22050,7 +22407,9 @@ the <a href="https://huggingface.co/google/t5-v1_1-xxl">google/t5-v1_1-xxl</a> v
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>mask_image</code></td>
+            <td>
+                <code>mask_image</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The mask image(s) to use for inpainting. White pixels in the mask will be repainted, while black pixels
@@ -22069,7 +22428,9 @@ will be preserved.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>masked_image_latents</code></td>
+            <td>
+                <code>masked_image_latents</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Pre-generated masked image latents.</p>
@@ -22087,7 +22448,9 @@ will be preserved.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>control_image</code></td>
+            <td>
+                <code>control_image</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The ControlNet input condition. Image to control the generation.</p>
@@ -22105,7 +22468,9 @@ will be preserved.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>height</code></td>
+            <td>
+                <code>height</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The height in pixels of the generated image.</p>
@@ -22123,7 +22488,9 @@ will be preserved.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>width</code></td>
+            <td>
+                <code>width</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The width in pixels of the generated image.</p>
@@ -22141,7 +22508,9 @@ will be preserved.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>strength</code></td>
+            <td>
+                <code>strength</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Conceptually, indicates how much to inpaint the masked area. Must be between 0 and 1.</p>
@@ -22159,7 +22528,9 @@ will be preserved.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>padding_mask_crop</code></td>
+            <td>
+                <code>padding_mask_crop</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The size of the padding to use when cropping the mask.</p>
@@ -22177,7 +22548,9 @@ will be preserved.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>num_inference_steps</code></td>
+            <td>
+                <code>num_inference_steps</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The number of denoising steps. More denoising steps usually lead to a higher quality image at the
@@ -22196,7 +22569,9 @@ expense of slower inference.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>sigmas</code></td>
+            <td>
+                <code>sigmas</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Custom sigmas to use for the denoising process with schedulers which support a <code>sigmas</code> argument in
@@ -22216,7 +22591,9 @@ will be used.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>guidance_scale</code></td>
+            <td>
+                <code>guidance_scale</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Guidance scale as defined in <a href="https://arxiv.org/abs/2207.12598">Classifier-Free Diffusion Guidance</a>.</p>
@@ -22234,7 +22611,9 @@ will be used.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>control_guidance_start</code></td>
+            <td>
+                <code>control_guidance_start</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The percentage of total steps at which the ControlNet starts applying.</p>
@@ -22252,7 +22631,9 @@ will be used.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>control_guidance_end</code></td>
+            <td>
+                <code>control_guidance_end</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The percentage of total steps at which the ControlNet stops applying.</p>
@@ -22270,7 +22651,9 @@ will be used.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>control_mode</code></td>
+            <td>
+                <code>control_mode</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The mode for the ControlNet. If multiple ControlNets are used, this should be a list.</p>
@@ -22288,7 +22671,9 @@ will be used.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>controlnet_conditioning_scale</code></td>
+            <td>
+                <code>controlnet_conditioning_scale</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The outputs of the ControlNet are multiplied by <code>controlnet_conditioning_scale</code> before they are added
@@ -22307,7 +22692,9 @@ to the residual in the original transformer.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>num_images_per_prompt</code></td>
+            <td>
+                <code>num_images_per_prompt</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The number of images to generate per prompt.</p>
@@ -22325,7 +22712,9 @@ to the residual in the original transformer.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>generator</code></td>
+            <td>
+                <code>generator</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>One or more <a href="https://numpy.org/doc/stable/reference/random/generator.html">np.random.Generator(s)</a> to
@@ -22344,7 +22733,9 @@ make generation deterministic.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>latents</code></td>
+            <td>
+                <code>latents</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Pre-generated noisy latents, sampled from a Gaussian distribution, to be used as inputs for image
@@ -22363,7 +22754,9 @@ generation. Can be used to tweak the same generation with different prompts.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>prompt_embeds</code></td>
+            <td>
+                <code>prompt_embeds</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Pre-generated text embeddings. Can be used to easily tweak text inputs, <em>e.g.</em> prompt weighting.</p>
@@ -22381,7 +22774,9 @@ generation. Can be used to tweak the same generation with different prompts.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>pooled_prompt_embeds</code></td>
+            <td>
+                <code>pooled_prompt_embeds</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Pre-generated pooled text embeddings.</p>
@@ -22399,7 +22794,9 @@ generation. Can be used to tweak the same generation with different prompts.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>output_type</code></td>
+            <td>
+                <code>output_type</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The output format of the generate image. Choose between <code>PIL.Image</code> or <code>np.array</code>.</p>
@@ -22417,7 +22814,9 @@ generation. Can be used to tweak the same generation with different prompts.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>return_dict</code></td>
+            <td>
+                <code>return_dict</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Whether or not to return a [<code>~pipelines.flux.FluxPipelineOutput</code>] instead of a plain tuple.</p>
@@ -22435,7 +22834,9 @@ generation. Can be used to tweak the same generation with different prompts.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>joint_attention_kwargs</code></td>
+            <td>
+                <code>joint_attention_kwargs</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Additional keyword arguments to be passed to the joint attention mechanism.</p>
@@ -22453,7 +22854,9 @@ generation. Can be used to tweak the same generation with different prompts.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>callback_on_step_end</code></td>
+            <td>
+                <code>callback_on_step_end</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>A function that calls at the end of each denoising step during the inference.</p>
@@ -22471,7 +22874,9 @@ generation. Can be used to tweak the same generation with different prompts.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>callback_on_step_end_tensor_inputs</code></td>
+            <td>
+                <code>callback_on_step_end_tensor_inputs</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The list of tensor inputs for the <code>callback_on_step_end</code> function.</p>
@@ -22489,7 +22894,9 @@ generation. Can be used to tweak the same generation with different prompts.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>max_sequence_length</code></td>
+            <td>
+                <code>max_sequence_length</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The maximum length of the sequence to be generated.</p>
@@ -22548,6 +22955,7 @@ generation. Can be used to tweak the same generation with different prompts.</p>
           </tr>
       </tbody>
     </table>
+
 
             <details class="quote">
               <summary>Source code in <code>mindone/diffusers/pipelines/flux/pipeline_flux_controlnet_inpainting.py</code></summary>
@@ -23466,7 +23874,9 @@ generation. Can be used to tweak the same generation with different prompts.</p>
       </thead>
       <tbody>
           <tr class="doc-section-item">
-            <td><code>prompt</code></td>
+            <td>
+                <code>prompt</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>prompt to be encoded</p>
@@ -23480,7 +23890,9 @@ generation. Can be used to tweak the same generation with different prompts.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>prompt_2</code></td>
+            <td>
+                <code>prompt_2</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The prompt or prompts to be sent to the <code>tokenizer_2</code> and <code>text_encoder_2</code>. If not defined, <code>prompt</code> is
@@ -23495,7 +23907,9 @@ used in all text-encoders</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>num_images_per_prompt</code></td>
+            <td>
+                <code>num_images_per_prompt</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>number of images that should be generated per prompt</p>
@@ -23513,7 +23927,9 @@ used in all text-encoders</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>prompt_embeds</code></td>
+            <td>
+                <code>prompt_embeds</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Pre-generated text embeddings. Can be used to easily tweak text inputs, <em>e.g.</em> prompt weighting. If not
@@ -23532,7 +23948,9 @@ provided, text embeddings will be generated from <code>prompt</code> input argum
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>pooled_prompt_embeds</code></td>
+            <td>
+                <code>pooled_prompt_embeds</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Pre-generated pooled text embeddings. Can be used to easily tweak text inputs, <em>e.g.</em> prompt weighting.
@@ -23551,7 +23969,9 @@ If not provided, pooled text embeddings will be generated from <code>prompt</cod
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>lora_scale</code></td>
+            <td>
+                <code>lora_scale</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>A lora scale that will be applied to all LoRA layers of the text encoder if LoRA layers are loaded.</p>
@@ -23570,6 +23990,7 @@ If not provided, pooled text embeddings will be generated from <code>prompt</cod
           </tr>
       </tbody>
     </table>
+
 
             <details class="quote">
               <summary>Source code in <code>mindone/diffusers/pipelines/flux/pipeline_flux_controlnet_inpainting.py</code></summary>
@@ -23741,7 +24162,7 @@ If not provided, pooled text embeddings will be generated from <code>prompt</cod
 
     <div class="doc doc-contents first">
             <p class="doc doc-class-bases">
-              Bases: <code><a class="autorefs autorefs-internal" title="mindone.diffusers.pipelines.pipeline_utils.DiffusionPipeline" href="../overview/#mindone.diffusers.DiffusionPipeline">DiffusionPipeline</a></code>, <code><a class="autorefs autorefs-internal" title="mindone.diffusers.loaders.FluxLoraLoaderMixin" href="../../loaders/lora/#mindone.diffusers.loaders.lora_pipeline.FluxLoraLoaderMixin">FluxLoraLoaderMixin</a></code>, <code><a class="autorefs autorefs-internal" title="mindone.diffusers.loaders.FromSingleFileMixin" href="../../loaders/single_file/#mindone.diffusers.loaders.single_file.FromSingleFileMixin">FromSingleFileMixin</a></code></p>
+              Bases: <code><a class="autorefs autorefs-internal" title="mindone.diffusers.DiffusionPipeline (mindone.diffusers.pipelines.pipeline_utils.DiffusionPipeline)" href="../overview/#mindone.diffusers.DiffusionPipeline">DiffusionPipeline</a></code>, <code><a class="autorefs autorefs-internal" title="mindone.diffusers.loaders.lora_pipeline.FluxLoraLoaderMixin (mindone.diffusers.loaders.FluxLoraLoaderMixin)" href="../../loaders/lora/#mindone.diffusers.loaders.lora_pipeline.FluxLoraLoaderMixin">FluxLoraLoaderMixin</a></code>, <code><a class="autorefs autorefs-internal" title="mindone.diffusers.loaders.single_file.FromSingleFileMixin (mindone.diffusers.loaders.FromSingleFileMixin)" href="../../loaders/single_file/#mindone.diffusers.loaders.single_file.FromSingleFileMixin">FromSingleFileMixin</a></code></p>
 
 
         <p>The Flux controlnet pipeline for image-to-image generation.</p>
@@ -23757,7 +24178,9 @@ If not provided, pooled text embeddings will be generated from <code>prompt</cod
       </thead>
       <tbody>
           <tr class="doc-section-item">
-            <td><code>transformer</code></td>
+            <td>
+                <code>transformer</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Conditional Transformer (MMDiT) architecture to denoise the encoded image latents.</p>
@@ -23771,7 +24194,9 @@ If not provided, pooled text embeddings will be generated from <code>prompt</cod
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>scheduler</code></td>
+            <td>
+                <code>scheduler</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>A scheduler to be used in combination with <code>transformer</code> to denoise the encoded image latents.</p>
@@ -23785,7 +24210,9 @@ If not provided, pooled text embeddings will be generated from <code>prompt</cod
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>vae</code></td>
+            <td>
+                <code>vae</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Variational Auto-Encoder (VAE) Model to encode and decode images to and from latent representations.</p>
@@ -23799,7 +24226,9 @@ If not provided, pooled text embeddings will be generated from <code>prompt</cod
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>text_encoder</code></td>
+            <td>
+                <code>text_encoder</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p><a href="https://huggingface.co/docs/transformers/model_doc/clip#transformers.CLIPTextModel">CLIP</a>, specifically
@@ -23814,7 +24243,9 @@ the <a href="https://huggingface.co/openai/clip-vit-large-patch14">clip-vit-larg
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>text_encoder_2</code></td>
+            <td>
+                <code>text_encoder_2</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p><a href="https://huggingface.co/docs/transformers/en/model_doc/t5#transformers.T5EncoderModel">T5</a>, specifically
@@ -23829,7 +24260,9 @@ the <a href="https://huggingface.co/google/t5-v1_1-xxl">google/t5-v1_1-xxl</a> v
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>tokenizer</code></td>
+            <td>
+                <code>tokenizer</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Tokenizer of class
@@ -23844,7 +24277,9 @@ the <a href="https://huggingface.co/google/t5-v1_1-xxl">google/t5-v1_1-xxl</a> v
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>tokenizer_2</code></td>
+            <td>
+                <code>tokenizer_2</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Second Tokenizer of class
@@ -23860,6 +24295,12 @@ the <a href="https://huggingface.co/google/t5-v1_1-xxl">google/t5-v1_1-xxl</a> v
           </tr>
       </tbody>
     </table>
+
+
+
+
+
+
 
               <details class="quote">
                 <summary>Source code in <code>mindone/diffusers/pipelines/flux/pipeline_flux_controlnet_image_to_image.py</code></summary>
@@ -25486,7 +25927,9 @@ the <a href="https://huggingface.co/google/t5-v1_1-xxl">google/t5-v1_1-xxl</a> v
       </thead>
       <tbody>
           <tr class="doc-section-item">
-            <td><code>prompt</code></td>
+            <td>
+                <code>prompt</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The prompt or prompts to guide the image generation.</p>
@@ -25504,7 +25947,9 @@ the <a href="https://huggingface.co/google/t5-v1_1-xxl">google/t5-v1_1-xxl</a> v
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>prompt_2</code></td>
+            <td>
+                <code>prompt_2</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The prompt or prompts to be sent to the <code>tokenizer_2</code> and <code>text_encoder_2</code>.</p>
@@ -25522,7 +25967,9 @@ the <a href="https://huggingface.co/google/t5-v1_1-xxl">google/t5-v1_1-xxl</a> v
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>image</code></td>
+            <td>
+                <code>image</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The image(s) to modify with the pipeline.</p>
@@ -25540,7 +25987,9 @@ the <a href="https://huggingface.co/google/t5-v1_1-xxl">google/t5-v1_1-xxl</a> v
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>control_image</code></td>
+            <td>
+                <code>control_image</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The ControlNet input condition. Image to control the generation.</p>
@@ -25558,7 +26007,9 @@ the <a href="https://huggingface.co/google/t5-v1_1-xxl">google/t5-v1_1-xxl</a> v
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>height</code></td>
+            <td>
+                <code>height</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The height in pixels of the generated image.</p>
@@ -25576,7 +26027,9 @@ the <a href="https://huggingface.co/google/t5-v1_1-xxl">google/t5-v1_1-xxl</a> v
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>width</code></td>
+            <td>
+                <code>width</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The width in pixels of the generated image.</p>
@@ -25594,7 +26047,9 @@ the <a href="https://huggingface.co/google/t5-v1_1-xxl">google/t5-v1_1-xxl</a> v
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>strength</code></td>
+            <td>
+                <code>strength</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Conceptually, indicates how much to transform the reference <code>image</code>. Must be between 0 and 1.</p>
@@ -25612,7 +26067,9 @@ the <a href="https://huggingface.co/google/t5-v1_1-xxl">google/t5-v1_1-xxl</a> v
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>num_inference_steps</code></td>
+            <td>
+                <code>num_inference_steps</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The number of denoising steps. More denoising steps usually lead to a higher quality image at the
@@ -25631,7 +26088,9 @@ expense of slower inference.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>sigmas</code></td>
+            <td>
+                <code>sigmas</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Custom sigmas to use for the denoising process with schedulers which support a <code>sigmas</code> argument in
@@ -25651,7 +26110,9 @@ will be used.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>guidance_scale</code></td>
+            <td>
+                <code>guidance_scale</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Guidance scale as defined in <a href="https://arxiv.org/abs/2207.12598">Classifier-Free Diffusion Guidance</a>.</p>
@@ -25669,7 +26130,9 @@ will be used.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>control_mode</code></td>
+            <td>
+                <code>control_mode</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The mode for the ControlNet. If multiple ControlNets are used, this should be a list.</p>
@@ -25687,7 +26150,9 @@ will be used.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>controlnet_conditioning_scale</code></td>
+            <td>
+                <code>controlnet_conditioning_scale</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The outputs of the ControlNet are multiplied by <code>controlnet_conditioning_scale</code> before they are added
@@ -25706,7 +26171,9 @@ to the residual in the original transformer.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>num_images_per_prompt</code></td>
+            <td>
+                <code>num_images_per_prompt</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The number of images to generate per prompt.</p>
@@ -25724,7 +26191,9 @@ to the residual in the original transformer.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>generator</code></td>
+            <td>
+                <code>generator</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>One or more <a href="https://numpy.org/doc/stable/reference/random/generator.html">np.random.Generator(s)</a> to
@@ -25743,7 +26212,9 @@ make generation deterministic.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>latents</code></td>
+            <td>
+                <code>latents</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Pre-generated noisy latents, sampled from a Gaussian distribution, to be used as inputs for image
@@ -25762,7 +26233,9 @@ generation. Can be used to tweak the same generation with different prompts.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>prompt_embeds</code></td>
+            <td>
+                <code>prompt_embeds</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Pre-generated text embeddings. Can be used to easily tweak text inputs, <em>e.g.</em> prompt weighting.</p>
@@ -25780,7 +26253,9 @@ generation. Can be used to tweak the same generation with different prompts.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>pooled_prompt_embeds</code></td>
+            <td>
+                <code>pooled_prompt_embeds</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Pre-generated pooled text embeddings.</p>
@@ -25798,7 +26273,9 @@ generation. Can be used to tweak the same generation with different prompts.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>output_type</code></td>
+            <td>
+                <code>output_type</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The output format of the generate image. Choose between <code>PIL.Image</code> or <code>np.array</code>.</p>
@@ -25816,7 +26293,9 @@ generation. Can be used to tweak the same generation with different prompts.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>return_dict</code></td>
+            <td>
+                <code>return_dict</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Whether or not to return a [<code>~pipelines.flux.FluxPipelineOutput</code>] instead of a plain tuple.</p>
@@ -25834,7 +26313,9 @@ generation. Can be used to tweak the same generation with different prompts.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>joint_attention_kwargs</code></td>
+            <td>
+                <code>joint_attention_kwargs</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Additional keyword arguments to be passed to the joint attention mechanism.</p>
@@ -25852,7 +26333,9 @@ generation. Can be used to tweak the same generation with different prompts.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>callback_on_step_end</code></td>
+            <td>
+                <code>callback_on_step_end</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>A function that calls at the end of each denoising step during the inference.</p>
@@ -25870,7 +26353,9 @@ generation. Can be used to tweak the same generation with different prompts.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>callback_on_step_end_tensor_inputs</code></td>
+            <td>
+                <code>callback_on_step_end_tensor_inputs</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The list of tensor inputs for the <code>callback_on_step_end</code> function.</p>
@@ -25888,7 +26373,9 @@ generation. Can be used to tweak the same generation with different prompts.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>max_sequence_length</code></td>
+            <td>
+                <code>max_sequence_length</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The maximum length of the sequence to be generated.</p>
@@ -25947,6 +26434,7 @@ generation. Can be used to tweak the same generation with different prompts.</p>
           </tr>
       </tbody>
     </table>
+
 
             <details class="quote">
               <summary>Source code in <code>mindone/diffusers/pipelines/flux/pipeline_flux_controlnet_image_to_image.py</code></summary>
@@ -26659,7 +27147,9 @@ generation. Can be used to tweak the same generation with different prompts.</p>
       </thead>
       <tbody>
           <tr class="doc-section-item">
-            <td><code>prompt</code></td>
+            <td>
+                <code>prompt</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>prompt to be encoded</p>
@@ -26673,7 +27163,9 @@ generation. Can be used to tweak the same generation with different prompts.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>prompt_2</code></td>
+            <td>
+                <code>prompt_2</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The prompt or prompts to be sent to the <code>tokenizer_2</code> and <code>text_encoder_2</code>. If not defined, <code>prompt</code> is
@@ -26688,7 +27180,9 @@ used in all text-encoders</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>num_images_per_prompt</code></td>
+            <td>
+                <code>num_images_per_prompt</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>number of images that should be generated per prompt</p>
@@ -26706,7 +27200,9 @@ used in all text-encoders</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>prompt_embeds</code></td>
+            <td>
+                <code>prompt_embeds</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Pre-generated text embeddings. Can be used to easily tweak text inputs, <em>e.g.</em> prompt weighting. If not
@@ -26725,7 +27221,9 @@ provided, text embeddings will be generated from <code>prompt</code> input argum
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>pooled_prompt_embeds</code></td>
+            <td>
+                <code>pooled_prompt_embeds</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Pre-generated pooled text embeddings. Can be used to easily tweak text inputs, <em>e.g.</em> prompt weighting.
@@ -26744,7 +27242,9 @@ If not provided, pooled text embeddings will be generated from <code>prompt</cod
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>lora_scale</code></td>
+            <td>
+                <code>lora_scale</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>A lora scale that will be applied to all LoRA layers of the text encoder if LoRA layers are loaded.</p>
@@ -26763,6 +27263,7 @@ If not provided, pooled text embeddings will be generated from <code>prompt</cod
           </tr>
       </tbody>
     </table>
+
 
             <details class="quote">
               <summary>Source code in <code>mindone/diffusers/pipelines/flux/pipeline_flux_controlnet_image_to_image.py</code></summary>
@@ -26934,7 +27435,7 @@ If not provided, pooled text embeddings will be generated from <code>prompt</cod
 
     <div class="doc doc-contents first">
             <p class="doc doc-class-bases">
-              Bases: <code><a class="autorefs autorefs-internal" title="mindone.diffusers.pipelines.pipeline_utils.DiffusionPipeline" href="../overview/#mindone.diffusers.DiffusionPipeline">DiffusionPipeline</a></code>, <code><a class="autorefs autorefs-internal" title="mindone.diffusers.loaders.FluxLoraLoaderMixin" href="../../loaders/lora/#mindone.diffusers.loaders.lora_pipeline.FluxLoraLoaderMixin">FluxLoraLoaderMixin</a></code>, <code><a class="autorefs autorefs-internal" title="mindone.diffusers.loaders.FromSingleFileMixin" href="../../loaders/single_file/#mindone.diffusers.loaders.single_file.FromSingleFileMixin">FromSingleFileMixin</a></code>, <code><a class="autorefs autorefs-internal" title="mindone.diffusers.loaders.TextualInversionLoaderMixin" href="../../loaders/textual_inversion/#mindone.diffusers.loaders.textual_inversion.TextualInversionLoaderMixin">TextualInversionLoaderMixin</a></code></p>
+              Bases: <code><a class="autorefs autorefs-internal" title="mindone.diffusers.DiffusionPipeline (mindone.diffusers.pipelines.pipeline_utils.DiffusionPipeline)" href="../overview/#mindone.diffusers.DiffusionPipeline">DiffusionPipeline</a></code>, <code><a class="autorefs autorefs-internal" title="mindone.diffusers.loaders.lora_pipeline.FluxLoraLoaderMixin (mindone.diffusers.loaders.FluxLoraLoaderMixin)" href="../../loaders/lora/#mindone.diffusers.loaders.lora_pipeline.FluxLoraLoaderMixin">FluxLoraLoaderMixin</a></code>, <code><a class="autorefs autorefs-internal" title="mindone.diffusers.loaders.single_file.FromSingleFileMixin (mindone.diffusers.loaders.FromSingleFileMixin)" href="../../loaders/single_file/#mindone.diffusers.loaders.single_file.FromSingleFileMixin">FromSingleFileMixin</a></code>, <code><a class="autorefs autorefs-internal" title="mindone.diffusers.loaders.textual_inversion.TextualInversionLoaderMixin (mindone.diffusers.loaders.TextualInversionLoaderMixin)" href="../../loaders/textual_inversion/#mindone.diffusers.loaders.textual_inversion.TextualInversionLoaderMixin">TextualInversionLoaderMixin</a></code></p>
 
 
         <p>The Flux pipeline for controllable text-to-image generation.</p>
@@ -26950,7 +27451,9 @@ If not provided, pooled text embeddings will be generated from <code>prompt</cod
       </thead>
       <tbody>
           <tr class="doc-section-item">
-            <td><code>transformer</code></td>
+            <td>
+                <code>transformer</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Conditional Transformer (MMDiT) architecture to denoise the encoded image latents.</p>
@@ -26964,7 +27467,9 @@ If not provided, pooled text embeddings will be generated from <code>prompt</cod
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>scheduler</code></td>
+            <td>
+                <code>scheduler</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>A scheduler to be used in combination with <code>transformer</code> to denoise the encoded image latents.</p>
@@ -26978,7 +27483,9 @@ If not provided, pooled text embeddings will be generated from <code>prompt</cod
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>vae</code></td>
+            <td>
+                <code>vae</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Variational Auto-Encoder (VAE) Model to encode and decode images to and from latent representations.</p>
@@ -26992,7 +27499,9 @@ If not provided, pooled text embeddings will be generated from <code>prompt</cod
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>text_encoder</code></td>
+            <td>
+                <code>text_encoder</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p><a href="https://huggingface.co/docs/transformers/model_doc/clip#transformers.CLIPTextModel">CLIP</a>, specifically
@@ -27007,7 +27516,9 @@ the <a href="https://huggingface.co/openai/clip-vit-large-patch14">clip-vit-larg
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>text_encoder_2</code></td>
+            <td>
+                <code>text_encoder_2</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p><a href="https://huggingface.co/docs/transformers/en/model_doc/t5#transformers.T5EncoderModel">T5</a>, specifically
@@ -27022,7 +27533,9 @@ the <a href="https://huggingface.co/google/t5-v1_1-xxl">google/t5-v1_1-xxl</a> v
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>tokenizer</code></td>
+            <td>
+                <code>tokenizer</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Tokenizer of class
@@ -27037,7 +27550,9 @@ the <a href="https://huggingface.co/google/t5-v1_1-xxl">google/t5-v1_1-xxl</a> v
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>tokenizer_2</code></td>
+            <td>
+                <code>tokenizer_2</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Second Tokenizer of class
@@ -27053,6 +27568,12 @@ the <a href="https://huggingface.co/google/t5-v1_1-xxl">google/t5-v1_1-xxl</a> v
           </tr>
       </tbody>
     </table>
+
+
+
+
+
+
 
               <details class="quote">
                 <summary>Source code in <code>mindone/diffusers/pipelines/flux/pipeline_flux_control.py</code></summary>
@@ -28499,7 +29020,9 @@ the <a href="https://huggingface.co/google/t5-v1_1-xxl">google/t5-v1_1-xxl</a> v
       </thead>
       <tbody>
           <tr class="doc-section-item">
-            <td><code>prompt</code></td>
+            <td>
+                <code>prompt</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The prompt or prompts to guide the image generation. If not defined, one has to pass <code>prompt_embeds</code>.
@@ -28518,7 +29041,9 @@ instead.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>prompt_2</code></td>
+            <td>
+                <code>prompt_2</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The prompt or prompts to be sent to <code>tokenizer_2</code> and <code>text_encoder_2</code>. If not defined, <code>prompt</code> is
@@ -28537,7 +29062,9 @@ will be used instead</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>control_image</code></td>
+            <td>
+                <code>control_image</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <div class="highlight"><pre><span></span><code>`List[List[ms.Tensor]]`, `List[List[np.ndarray]]` or `List[List[PIL.Image.Image]]`):
@@ -28562,7 +29089,9 @@ to a single ControlNet.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>height</code></td>
+            <td>
+                <code>height</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The height in pixels of the generated image. This is set to 1024 by default for the best results.</p>
@@ -28580,7 +29109,9 @@ to a single ControlNet.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>width</code></td>
+            <td>
+                <code>width</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The width in pixels of the generated image. This is set to 1024 by default for the best results.</p>
@@ -28598,7 +29129,9 @@ to a single ControlNet.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>num_inference_steps</code></td>
+            <td>
+                <code>num_inference_steps</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The number of denoising steps. More denoising steps usually lead to a higher quality image at the
@@ -28617,7 +29150,9 @@ expense of slower inference.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>sigmas</code></td>
+            <td>
+                <code>sigmas</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Custom sigmas to use for the denoising process with schedulers which support a <code>sigmas</code> argument in
@@ -28637,7 +29172,9 @@ will be used.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>guidance_scale</code></td>
+            <td>
+                <code>guidance_scale</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Guidance scale as defined in <a href="https://arxiv.org/abs/2207.12598">Classifier-Free Diffusion Guidance</a>.
@@ -28659,7 +29196,9 @@ usually at the expense of lower image quality.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>num_images_per_prompt</code></td>
+            <td>
+                <code>num_images_per_prompt</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The number of images to generate per prompt.</p>
@@ -28677,7 +29216,9 @@ usually at the expense of lower image quality.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>generator</code></td>
+            <td>
+                <code>generator</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>One or a list of <a href="https://numpy.org/doc/stable/reference/random/generator.html">np.random.Generator(s)</a>
@@ -28696,7 +29237,9 @@ to make generation deterministic.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>latents</code></td>
+            <td>
+                <code>latents</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Pre-generated noisy latents, sampled from a Gaussian distribution, to be used as inputs for image
@@ -28716,7 +29259,9 @@ tensor will ge generated by sampling using the supplied random <code>generator</
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>prompt_embeds</code></td>
+            <td>
+                <code>prompt_embeds</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Pre-generated text embeddings. Can be used to easily tweak text inputs, <em>e.g.</em> prompt weighting. If not
@@ -28735,7 +29280,9 @@ provided, text embeddings will be generated from <code>prompt</code> input argum
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>pooled_prompt_embeds</code></td>
+            <td>
+                <code>pooled_prompt_embeds</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Pre-generated pooled text embeddings. Can be used to easily tweak text inputs, <em>e.g.</em> prompt weighting.
@@ -28754,7 +29301,9 @@ If not provided, pooled text embeddings will be generated from <code>prompt</cod
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>output_type</code></td>
+            <td>
+                <code>output_type</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The output format of the generate image. Choose between
@@ -28773,7 +29322,9 @@ If not provided, pooled text embeddings will be generated from <code>prompt</cod
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>return_dict</code></td>
+            <td>
+                <code>return_dict</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Whether or not to return a [<code>~pipelines.flux.FluxPipelineOutput</code>] instead of a plain tuple.</p>
@@ -28791,7 +29342,9 @@ If not provided, pooled text embeddings will be generated from <code>prompt</cod
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>joint_attention_kwargs</code></td>
+            <td>
+                <code>joint_attention_kwargs</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>A kwargs dictionary that if specified is passed along to the <code>AttentionProcessor</code> as defined under
@@ -28811,7 +29364,9 @@ If not provided, pooled text embeddings will be generated from <code>prompt</cod
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>callback_on_step_end</code></td>
+            <td>
+                <code>callback_on_step_end</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>A function that calls at the end of each denoising steps during the inference. The function is called
@@ -28832,7 +29387,9 @@ callback_kwargs: Dict)</code>. <code>callback_kwargs</code> will include a list 
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>callback_on_step_end_tensor_inputs</code></td>
+            <td>
+                <code>callback_on_step_end_tensor_inputs</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The list of tensor inputs for the <code>callback_on_step_end</code> function. The tensors specified in the list
@@ -28852,7 +29409,9 @@ will be passed as <code>callback_kwargs</code> argument. You will only be able t
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>max_sequence_length</code></td>
+            <td>
+                <code>max_sequence_length</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Maximum sequence length to use with the <code>prompt</code>.</p>
@@ -28911,6 +29470,7 @@ will be passed as <code>callback_kwargs</code> argument. You will only be able t
           </tr>
       </tbody>
     </table>
+
 
             <details class="quote">
               <summary>Source code in <code>mindone/diffusers/pipelines/flux/pipeline_flux_control.py</code></summary>
@@ -29457,6 +30017,7 @@ will be passed as <code>callback_kwargs</code> argument. You will only be able t
         <p>Disable sliced VAE decoding. If <code>enable_vae_slicing</code> was previously enabled, this method will go back to
 computing decoding in one step.</p>
 
+
             <details class="quote">
               <summary>Source code in <code>mindone/diffusers/pipelines/flux/pipeline_flux_control.py</code></summary>
               <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">481</span>
@@ -29489,6 +30050,7 @@ computing decoding in one step.</p>
 
         <p>Disable tiled VAE decoding. If <code>enable_vae_tiling</code> was previously enabled, this method will go back to
 computing decoding in one step.</p>
+
 
             <details class="quote">
               <summary>Source code in <code>mindone/diffusers/pipelines/flux/pipeline_flux_control.py</code></summary>
@@ -29523,6 +30085,7 @@ computing decoding in one step.</p>
         <p>Enable sliced VAE decoding. When this option is enabled, the VAE will split the input tensor in slices to
 compute decoding in several steps. This is useful to save some memory and allow larger batch sizes.</p>
 
+
             <details class="quote">
               <summary>Source code in <code>mindone/diffusers/pipelines/flux/pipeline_flux_control.py</code></summary>
               <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">474</span>
@@ -29556,6 +30119,7 @@ compute decoding in several steps. This is useful to save some memory and allow 
         <p>Enable tiled VAE decoding. When this option is enabled, the VAE will split the input tensor into tiles to
 compute decoding and encoding in several steps. This is useful for saving a large amount of memory and to allow
 processing larger images.</p>
+
 
             <details class="quote">
               <summary>Source code in <code>mindone/diffusers/pipelines/flux/pipeline_flux_control.py</code></summary>
@@ -29600,7 +30164,9 @@ processing larger images.</p>
       </thead>
       <tbody>
           <tr class="doc-section-item">
-            <td><code>prompt</code></td>
+            <td>
+                <code>prompt</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>prompt to be encoded</p>
@@ -29614,7 +30180,9 @@ processing larger images.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>prompt_2</code></td>
+            <td>
+                <code>prompt_2</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The prompt or prompts to be sent to the <code>tokenizer_2</code> and <code>text_encoder_2</code>. If not defined, <code>prompt</code> is
@@ -29629,7 +30197,9 @@ used in all text-encoders</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>num_images_per_prompt</code></td>
+            <td>
+                <code>num_images_per_prompt</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>number of images that should be generated per prompt</p>
@@ -29647,7 +30217,9 @@ used in all text-encoders</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>prompt_embeds</code></td>
+            <td>
+                <code>prompt_embeds</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Pre-generated text embeddings. Can be used to easily tweak text inputs, <em>e.g.</em> prompt weighting. If not
@@ -29666,7 +30238,9 @@ provided, text embeddings will be generated from <code>prompt</code> input argum
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>pooled_prompt_embeds</code></td>
+            <td>
+                <code>pooled_prompt_embeds</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Pre-generated pooled text embeddings. Can be used to easily tweak text inputs, <em>e.g.</em> prompt weighting.
@@ -29685,7 +30259,9 @@ If not provided, pooled text embeddings will be generated from <code>prompt</cod
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>lora_scale</code></td>
+            <td>
+                <code>lora_scale</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>A lora scale that will be applied to all LoRA layers of the text encoder if LoRA layers are loaded.</p>
@@ -29704,6 +30280,7 @@ If not provided, pooled text embeddings will be generated from <code>prompt</cod
           </tr>
       </tbody>
     </table>
+
 
             <details class="quote">
               <summary>Source code in <code>mindone/diffusers/pipelines/flux/pipeline_flux_control.py</code></summary>
@@ -29875,7 +30452,7 @@ If not provided, pooled text embeddings will be generated from <code>prompt</cod
 
     <div class="doc doc-contents first">
             <p class="doc doc-class-bases">
-              Bases: <code><a class="autorefs autorefs-internal" title="mindone.diffusers.pipelines.pipeline_utils.DiffusionPipeline" href="../overview/#mindone.diffusers.DiffusionPipeline">DiffusionPipeline</a></code>, <code><a class="autorefs autorefs-internal" title="mindone.diffusers.loaders.FluxLoraLoaderMixin" href="../../loaders/lora/#mindone.diffusers.loaders.lora_pipeline.FluxLoraLoaderMixin">FluxLoraLoaderMixin</a></code>, <code><a class="autorefs autorefs-internal" title="mindone.diffusers.loaders.FromSingleFileMixin" href="../../loaders/single_file/#mindone.diffusers.loaders.single_file.FromSingleFileMixin">FromSingleFileMixin</a></code></p>
+              Bases: <code><a class="autorefs autorefs-internal" title="mindone.diffusers.DiffusionPipeline (mindone.diffusers.pipelines.pipeline_utils.DiffusionPipeline)" href="../overview/#mindone.diffusers.DiffusionPipeline">DiffusionPipeline</a></code>, <code><a class="autorefs autorefs-internal" title="mindone.diffusers.loaders.lora_pipeline.FluxLoraLoaderMixin (mindone.diffusers.loaders.FluxLoraLoaderMixin)" href="../../loaders/lora/#mindone.diffusers.loaders.lora_pipeline.FluxLoraLoaderMixin">FluxLoraLoaderMixin</a></code>, <code><a class="autorefs autorefs-internal" title="mindone.diffusers.loaders.single_file.FromSingleFileMixin (mindone.diffusers.loaders.FromSingleFileMixin)" href="../../loaders/single_file/#mindone.diffusers.loaders.single_file.FromSingleFileMixin">FromSingleFileMixin</a></code></p>
 
 
         <p>The Flux pipeline for image inpainting.</p>
@@ -29891,7 +30468,9 @@ If not provided, pooled text embeddings will be generated from <code>prompt</cod
       </thead>
       <tbody>
           <tr class="doc-section-item">
-            <td><code>transformer</code></td>
+            <td>
+                <code>transformer</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Conditional Transformer (MMDiT) architecture to denoise the encoded image latents.</p>
@@ -29905,7 +30484,9 @@ If not provided, pooled text embeddings will be generated from <code>prompt</cod
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>scheduler</code></td>
+            <td>
+                <code>scheduler</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>A scheduler to be used in combination with <code>transformer</code> to denoise the encoded image latents.</p>
@@ -29919,7 +30500,9 @@ If not provided, pooled text embeddings will be generated from <code>prompt</cod
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>vae</code></td>
+            <td>
+                <code>vae</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Variational Auto-Encoder (VAE) Model to encode and decode images to and from latent representations.</p>
@@ -29933,7 +30516,9 @@ If not provided, pooled text embeddings will be generated from <code>prompt</cod
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>text_encoder</code></td>
+            <td>
+                <code>text_encoder</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p><a href="https://huggingface.co/docs/transformers/model_doc/clip#transformers.CLIPTextModel">CLIP</a>, specifically
@@ -29948,7 +30533,9 @@ the <a href="https://huggingface.co/openai/clip-vit-large-patch14">clip-vit-larg
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>text_encoder_2</code></td>
+            <td>
+                <code>text_encoder_2</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p><a href="https://huggingface.co/docs/transformers/en/model_doc/t5#transformers.T5EncoderModel">T5</a>, specifically
@@ -29963,7 +30550,9 @@ the <a href="https://huggingface.co/google/t5-v1_1-xxl">google/t5-v1_1-xxl</a> v
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>tokenizer</code></td>
+            <td>
+                <code>tokenizer</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Tokenizer of class
@@ -29978,7 +30567,9 @@ the <a href="https://huggingface.co/google/t5-v1_1-xxl">google/t5-v1_1-xxl</a> v
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>tokenizer_2</code></td>
+            <td>
+                <code>tokenizer_2</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Second Tokenizer of class
@@ -29994,6 +30585,12 @@ the <a href="https://huggingface.co/google/t5-v1_1-xxl">google/t5-v1_1-xxl</a> v
           </tr>
       </tbody>
     </table>
+
+
+
+
+
+
 
               <details class="quote">
                 <summary>Source code in <code>mindone/diffusers/pipelines/flux/pipeline_flux_control_img2img.py</code></summary>
@@ -31506,7 +32103,9 @@ the <a href="https://huggingface.co/google/t5-v1_1-xxl">google/t5-v1_1-xxl</a> v
       </thead>
       <tbody>
           <tr class="doc-section-item">
-            <td><code>prompt</code></td>
+            <td>
+                <code>prompt</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The prompt or prompts to guide the image generation. If not defined, one has to pass <code>prompt_embeds</code>.
@@ -31525,7 +32124,9 @@ instead.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>prompt_2</code></td>
+            <td>
+                <code>prompt_2</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The prompt or prompts to be sent to <code>tokenizer_2</code> and <code>text_encoder_2</code>. If not defined, <code>prompt</code> is
@@ -31544,7 +32145,9 @@ will be used instead</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>image</code></td>
+            <td>
+                <code>image</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p><code>Image</code>, numpy array or tensor representing an image batch to be used as the starting point. For both
@@ -31566,7 +32169,9 @@ latents as <code>image</code>, but if passing latents directly it is not encoded
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>control_image</code></td>
+            <td>
+                <code>control_image</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <div class="highlight"><pre><span></span><code>`List[List[torch.Tensor]]`, `List[List[np.ndarray]]` or `List[List[PIL.Image.Image]]`):
@@ -31591,7 +32196,9 @@ to a single ControlNet.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>height</code></td>
+            <td>
+                <code>height</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The height in pixels of the generated image. This is set to 1024 by default for the best results.</p>
@@ -31609,7 +32216,9 @@ to a single ControlNet.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>width</code></td>
+            <td>
+                <code>width</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The width in pixels of the generated image. This is set to 1024 by default for the best results.</p>
@@ -31627,7 +32236,9 @@ to a single ControlNet.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>strength</code></td>
+            <td>
+                <code>strength</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Indicates extent to transform the reference <code>image</code>. Must be between 0 and 1. <code>image</code> is used as a
@@ -31649,7 +32260,9 @@ essentially ignores <code>image</code>.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>num_inference_steps</code></td>
+            <td>
+                <code>num_inference_steps</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The number of denoising steps. More denoising steps usually lead to a higher quality image at the
@@ -31668,7 +32281,9 @@ expense of slower inference.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>sigmas</code></td>
+            <td>
+                <code>sigmas</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Custom sigmas to use for the denoising process with schedulers which support a <code>sigmas</code> argument in
@@ -31688,7 +32303,9 @@ will be used.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>guidance_scale</code></td>
+            <td>
+                <code>guidance_scale</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Guidance scale as defined in <a href="https://arxiv.org/abs/2207.12598">Classifier-Free Diffusion Guidance</a>.
@@ -31710,7 +32327,9 @@ usually at the expense of lower image quality.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>num_images_per_prompt</code></td>
+            <td>
+                <code>num_images_per_prompt</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The number of images to generate per prompt.</p>
@@ -31728,7 +32347,9 @@ usually at the expense of lower image quality.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>generator</code></td>
+            <td>
+                <code>generator</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>One or more <a href="https://numpy.org/doc/stable/reference/random/generator.html">np.random.Generator(s)</a> to
@@ -31747,7 +32368,9 @@ make generation deterministic.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>latents</code></td>
+            <td>
+                <code>latents</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Pre-generated noisy latents, sampled from a Gaussian distribution, to be used as inputs for image
@@ -31766,7 +32389,9 @@ generation. Can be used to tweak the same generation with different prompts.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>prompt_embeds</code></td>
+            <td>
+                <code>prompt_embeds</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Pre-generated text embeddings. Can be used to easily tweak text inputs, <em>e.g.</em> prompt weighting.</p>
@@ -31784,7 +32409,9 @@ generation. Can be used to tweak the same generation with different prompts.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>pooled_prompt_embeds</code></td>
+            <td>
+                <code>pooled_prompt_embeds</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Pre-generated pooled text embeddings. Can be used to easily tweak text inputs, <em>e.g.</em> prompt weighting.
@@ -31803,7 +32430,9 @@ If not provided, pooled text embeddings will be generated from <code>prompt</cod
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>output_type</code></td>
+            <td>
+                <code>output_type</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The output format of the generate image. Choose between
@@ -31822,7 +32451,9 @@ If not provided, pooled text embeddings will be generated from <code>prompt</cod
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>return_dict</code></td>
+            <td>
+                <code>return_dict</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Whether or not to return a [<code>~pipelines.flux.FluxPipelineOutput</code>] instead of a plain tuple.</p>
@@ -31840,7 +32471,9 @@ If not provided, pooled text embeddings will be generated from <code>prompt</cod
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>joint_attention_kwargs</code></td>
+            <td>
+                <code>joint_attention_kwargs</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>A kwargs dictionary that if specified is passed along to the <code>AttentionProcessor</code> as defined under
@@ -31860,7 +32493,9 @@ If not provided, pooled text embeddings will be generated from <code>prompt</cod
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>callback_on_step_end</code></td>
+            <td>
+                <code>callback_on_step_end</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>A function that calls at the end of each denoising steps during the inference. The function is called
@@ -31881,7 +32516,9 @@ callback_kwargs: Dict)</code>. <code>callback_kwargs</code> will include a list 
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>callback_on_step_end_tensor_inputs</code></td>
+            <td>
+                <code>callback_on_step_end_tensor_inputs</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The list of tensor inputs for the <code>callback_on_step_end</code> function. The tensors specified in the list
@@ -31901,7 +32538,9 @@ will be passed as <code>callback_kwargs</code> argument. You will only be able t
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>max_sequence_length</code></td>
+            <td>
+                <code>max_sequence_length</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Maximum sequence length to use with the <code>prompt</code>.</p>
@@ -31960,6 +32599,7 @@ will be passed as <code>callback_kwargs</code> argument. You will only be able t
           </tr>
       </tbody>
     </table>
+
 
             <details class="quote">
               <summary>Source code in <code>mindone/diffusers/pipelines/flux/pipeline_flux_control_img2img.py</code></summary>
@@ -32566,7 +33206,9 @@ will be passed as <code>callback_kwargs</code> argument. You will only be able t
       </thead>
       <tbody>
           <tr class="doc-section-item">
-            <td><code>prompt</code></td>
+            <td>
+                <code>prompt</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>prompt to be encoded</p>
@@ -32580,7 +33222,9 @@ will be passed as <code>callback_kwargs</code> argument. You will only be able t
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>prompt_2</code></td>
+            <td>
+                <code>prompt_2</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The prompt or prompts to be sent to the <code>tokenizer_2</code> and <code>text_encoder_2</code>. If not defined, <code>prompt</code> is
@@ -32595,7 +33239,9 @@ used in all text-encoders</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>num_images_per_prompt</code></td>
+            <td>
+                <code>num_images_per_prompt</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>number of images that should be generated per prompt</p>
@@ -32613,7 +33259,9 @@ used in all text-encoders</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>prompt_embeds</code></td>
+            <td>
+                <code>prompt_embeds</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Pre-generated text embeddings. Can be used to easily tweak text inputs, <em>e.g.</em> prompt weighting. If not
@@ -32632,7 +33280,9 @@ provided, text embeddings will be generated from <code>prompt</code> input argum
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>pooled_prompt_embeds</code></td>
+            <td>
+                <code>pooled_prompt_embeds</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Pre-generated pooled text embeddings. Can be used to easily tweak text inputs, <em>e.g.</em> prompt weighting.
@@ -32651,7 +33301,9 @@ If not provided, pooled text embeddings will be generated from <code>prompt</cod
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>lora_scale</code></td>
+            <td>
+                <code>lora_scale</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>A lora scale that will be applied to all LoRA layers of the text encoder if LoRA layers are loaded.</p>
@@ -32670,6 +33322,7 @@ If not provided, pooled text embeddings will be generated from <code>prompt</cod
           </tr>
       </tbody>
     </table>
+
 
             <details class="quote">
               <summary>Source code in <code>mindone/diffusers/pipelines/flux/pipeline_flux_control_img2img.py</code></summary>
@@ -32841,7 +33494,7 @@ If not provided, pooled text embeddings will be generated from <code>prompt</cod
 
     <div class="doc doc-contents first">
             <p class="doc doc-class-bases">
-              Bases: <code><a class="autorefs autorefs-internal" title="mindone.diffusers.pipelines.pipeline_utils.DiffusionPipeline" href="../overview/#mindone.diffusers.DiffusionPipeline">DiffusionPipeline</a></code></p>
+              Bases: <code><a class="autorefs autorefs-internal" title="mindone.diffusers.DiffusionPipeline (mindone.diffusers.pipelines.pipeline_utils.DiffusionPipeline)" href="../overview/#mindone.diffusers.DiffusionPipeline">DiffusionPipeline</a></code></p>
 
 
         <p>The Flux Redux pipeline for image-to-image generation.</p>
@@ -32857,7 +33510,9 @@ If not provided, pooled text embeddings will be generated from <code>prompt</cod
       </thead>
       <tbody>
           <tr class="doc-section-item">
-            <td><code>image_encoder</code></td>
+            <td>
+                <code>image_encoder</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>SIGLIP vision model to encode the input image.</p>
@@ -32871,7 +33526,9 @@ If not provided, pooled text embeddings will be generated from <code>prompt</cod
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>feature_extractor</code></td>
+            <td>
+                <code>feature_extractor</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Image processor for preprocessing images for the SIGLIP model.</p>
@@ -32885,7 +33542,9 @@ If not provided, pooled text embeddings will be generated from <code>prompt</cod
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>image_embedder</code></td>
+            <td>
+                <code>image_embedder</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Redux image encoder to process the SIGLIP embeddings.</p>
@@ -32899,7 +33558,9 @@ If not provided, pooled text embeddings will be generated from <code>prompt</cod
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>text_encoder</code></td>
+            <td>
+                <code>text_encoder</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p><a href="https://huggingface.co/docs/transformers/model_doc/clip#transformers.CLIPTextModel">CLIP</a>, specifically
@@ -32918,7 +33579,9 @@ the <a href="https://huggingface.co/openai/clip-vit-large-patch14">clip-vit-larg
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>text_encoder_2</code></td>
+            <td>
+                <code>text_encoder_2</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p><a href="https://huggingface.co/docs/transformers/en/model_doc/t5#transformers.T5EncoderModel">T5</a>, specifically
@@ -32937,7 +33600,9 @@ the <a href="https://huggingface.co/google/t5-v1_1-xxl">google/t5-v1_1-xxl</a> v
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>tokenizer</code></td>
+            <td>
+                <code>tokenizer</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Tokenizer of class
@@ -32956,7 +33621,9 @@ the <a href="https://huggingface.co/google/t5-v1_1-xxl">google/t5-v1_1-xxl</a> v
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>tokenizer_2</code></td>
+            <td>
+                <code>tokenizer_2</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Second Tokenizer of class
@@ -32976,6 +33643,12 @@ the <a href="https://huggingface.co/google/t5-v1_1-xxl">google/t5-v1_1-xxl</a> v
           </tr>
       </tbody>
     </table>
+
+
+
+
+
+
 
               <details class="quote">
                 <summary>Source code in <code>mindone/diffusers/pipelines/flux/pipeline_flux_prior_redux.py</code></summary>
@@ -33812,7 +34485,9 @@ the <a href="https://huggingface.co/google/t5-v1_1-xxl">google/t5-v1_1-xxl</a> v
       </thead>
       <tbody>
           <tr class="doc-section-item">
-            <td><code>image</code></td>
+            <td>
+                <code>image</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p><code>Image</code>, numpy array or tensor representing an image batch to be used as the starting point. For both
@@ -33829,7 +34504,9 @@ list of arrays, the expected shape should be <code>(B, H, W, C)</code> or <code>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>prompt</code></td>
+            <td>
+                <code>prompt</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The prompt or prompts to guide the image generation. <strong>experimental feature</strong>: to use this feature,
@@ -33849,7 +34526,9 @@ are not loaded.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>prompt_2</code></td>
+            <td>
+                <code>prompt_2</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The prompt or prompts to be sent to the <code>tokenizer_2</code> and <code>text_encoder_2</code>.</p>
@@ -33867,7 +34546,9 @@ are not loaded.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>prompt_embeds</code></td>
+            <td>
+                <code>prompt_embeds</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Pre-generated text embeddings. Can be used to easily tweak text inputs, <em>e.g.</em> prompt weighting.</p>
@@ -33885,7 +34566,9 @@ are not loaded.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>pooled_prompt_embeds</code></td>
+            <td>
+                <code>pooled_prompt_embeds</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Pre-generated pooled text embeddings.</p>
@@ -33903,7 +34586,9 @@ are not loaded.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>return_dict</code></td>
+            <td>
+                <code>return_dict</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Whether or not to return a [<code>~pipelines.flux.FluxPriorReduxPipelineOutput</code>] instead of a plain tuple.</p>
@@ -33962,6 +34647,7 @@ are not loaded.</p>
           </tr>
       </tbody>
     </table>
+
 
             <details class="quote">
               <summary>Source code in <code>mindone/diffusers/pipelines/flux/pipeline_flux_prior_redux.py</code></summary>
@@ -34214,7 +34900,9 @@ are not loaded.</p>
       </thead>
       <tbody>
           <tr class="doc-section-item">
-            <td><code>prompt</code></td>
+            <td>
+                <code>prompt</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>prompt to be encoded</p>
@@ -34228,7 +34916,9 @@ are not loaded.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>prompt_2</code></td>
+            <td>
+                <code>prompt_2</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The prompt or prompts to be sent to the <code>tokenizer_2</code> and <code>text_encoder_2</code>. If not defined, <code>prompt</code> is
@@ -34243,7 +34933,9 @@ used in all text-encoders</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>num_images_per_prompt</code></td>
+            <td>
+                <code>num_images_per_prompt</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>number of images that should be generated per prompt</p>
@@ -34261,7 +34953,9 @@ used in all text-encoders</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>prompt_embeds</code></td>
+            <td>
+                <code>prompt_embeds</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Pre-generated text embeddings. Can be used to easily tweak text inputs, <em>e.g.</em> prompt weighting. If not
@@ -34280,7 +34974,9 @@ provided, text embeddings will be generated from <code>prompt</code> input argum
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>pooled_prompt_embeds</code></td>
+            <td>
+                <code>pooled_prompt_embeds</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Pre-generated pooled text embeddings. Can be used to easily tweak text inputs, <em>e.g.</em> prompt weighting.
@@ -34299,7 +34995,9 @@ If not provided, pooled text embeddings will be generated from <code>prompt</cod
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>lora_scale</code></td>
+            <td>
+                <code>lora_scale</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>A lora scale that will be applied to all LoRA layers of the text encoder if LoRA layers are loaded.</p>
@@ -34318,6 +35016,7 @@ If not provided, pooled text embeddings will be generated from <code>prompt</cod
           </tr>
       </tbody>
     </table>
+
 
             <details class="quote">
               <summary>Source code in <code>mindone/diffusers/pipelines/flux/pipeline_flux_prior_redux.py</code></summary>
@@ -34489,7 +35188,7 @@ If not provided, pooled text embeddings will be generated from <code>prompt</cod
 
     <div class="doc doc-contents first">
             <p class="doc doc-class-bases">
-              Bases: <code><a class="autorefs autorefs-internal" title="mindone.diffusers.pipelines.pipeline_utils.DiffusionPipeline" href="../overview/#mindone.diffusers.DiffusionPipeline">DiffusionPipeline</a></code>, <code><a class="autorefs autorefs-internal" title="mindone.diffusers.loaders.FluxLoraLoaderMixin" href="../../loaders/lora/#mindone.diffusers.loaders.lora_pipeline.FluxLoraLoaderMixin">FluxLoraLoaderMixin</a></code>, <code><a class="autorefs autorefs-internal" title="mindone.diffusers.loaders.FromSingleFileMixin" href="../../loaders/single_file/#mindone.diffusers.loaders.single_file.FromSingleFileMixin">FromSingleFileMixin</a></code>, <code><a class="autorefs autorefs-internal" title="mindone.diffusers.loaders.TextualInversionLoaderMixin" href="../../loaders/textual_inversion/#mindone.diffusers.loaders.textual_inversion.TextualInversionLoaderMixin">TextualInversionLoaderMixin</a></code></p>
+              Bases: <code><a class="autorefs autorefs-internal" title="mindone.diffusers.DiffusionPipeline (mindone.diffusers.pipelines.pipeline_utils.DiffusionPipeline)" href="../overview/#mindone.diffusers.DiffusionPipeline">DiffusionPipeline</a></code>, <code><a class="autorefs autorefs-internal" title="mindone.diffusers.loaders.lora_pipeline.FluxLoraLoaderMixin (mindone.diffusers.loaders.FluxLoraLoaderMixin)" href="../../loaders/lora/#mindone.diffusers.loaders.lora_pipeline.FluxLoraLoaderMixin">FluxLoraLoaderMixin</a></code>, <code><a class="autorefs autorefs-internal" title="mindone.diffusers.loaders.single_file.FromSingleFileMixin (mindone.diffusers.loaders.FromSingleFileMixin)" href="../../loaders/single_file/#mindone.diffusers.loaders.single_file.FromSingleFileMixin">FromSingleFileMixin</a></code>, <code><a class="autorefs autorefs-internal" title="mindone.diffusers.loaders.textual_inversion.TextualInversionLoaderMixin (mindone.diffusers.loaders.TextualInversionLoaderMixin)" href="../../loaders/textual_inversion/#mindone.diffusers.loaders.textual_inversion.TextualInversionLoaderMixin">TextualInversionLoaderMixin</a></code></p>
 
 
         <p>The Flux Fill pipeline for image inpainting/outpainting.</p>
@@ -34505,7 +35204,9 @@ If not provided, pooled text embeddings will be generated from <code>prompt</cod
       </thead>
       <tbody>
           <tr class="doc-section-item">
-            <td><code>transformer</code></td>
+            <td>
+                <code>transformer</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Conditional Transformer (MMDiT) architecture to denoise the encoded image latents.</p>
@@ -34519,7 +35220,9 @@ If not provided, pooled text embeddings will be generated from <code>prompt</cod
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>scheduler</code></td>
+            <td>
+                <code>scheduler</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>A scheduler to be used in combination with <code>transformer</code> to denoise the encoded image latents.</p>
@@ -34533,7 +35236,9 @@ If not provided, pooled text embeddings will be generated from <code>prompt</cod
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>vae</code></td>
+            <td>
+                <code>vae</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Variational Auto-Encoder (VAE) Model to encode and decode images to and from latent representations.</p>
@@ -34547,7 +35252,9 @@ If not provided, pooled text embeddings will be generated from <code>prompt</cod
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>text_encoder</code></td>
+            <td>
+                <code>text_encoder</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p><a href="https://huggingface.co/docs/transformers/model_doc/clip#transformers.CLIPTextModel">CLIP</a>, specifically
@@ -34562,7 +35269,9 @@ the <a href="https://huggingface.co/openai/clip-vit-large-patch14">clip-vit-larg
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>text_encoder_2</code></td>
+            <td>
+                <code>text_encoder_2</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p><a href="https://huggingface.co/docs/transformers/en/model_doc/t5#transformers.T5EncoderModel">T5</a>, specifically
@@ -34577,7 +35286,9 @@ the <a href="https://huggingface.co/google/t5-v1_1-xxl">google/t5-v1_1-xxl</a> v
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>tokenizer</code></td>
+            <td>
+                <code>tokenizer</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Tokenizer of class
@@ -34592,7 +35303,9 @@ the <a href="https://huggingface.co/google/t5-v1_1-xxl">google/t5-v1_1-xxl</a> v
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>tokenizer_2</code></td>
+            <td>
+                <code>tokenizer_2</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Second Tokenizer of class
@@ -34608,6 +35321,12 @@ the <a href="https://huggingface.co/google/t5-v1_1-xxl">google/t5-v1_1-xxl</a> v
           </tr>
       </tbody>
     </table>
+
+
+
+
+
+
 
               <details class="quote">
                 <summary>Source code in <code>mindone/diffusers/pipelines/flux/pipeline_flux_fill.py</code></summary>
@@ -36338,7 +37057,9 @@ the <a href="https://huggingface.co/google/t5-v1_1-xxl">google/t5-v1_1-xxl</a> v
       </thead>
       <tbody>
           <tr class="doc-section-item">
-            <td><code>prompt</code></td>
+            <td>
+                <code>prompt</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The prompt or prompts to guide the image generation. If not defined, one has to pass <code>prompt_embeds</code>.
@@ -36357,7 +37078,9 @@ instead.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>prompt_2</code></td>
+            <td>
+                <code>prompt_2</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The prompt or prompts to be sent to <code>tokenizer_2</code> and <code>text_encoder_2</code>. If not defined, <code>prompt</code> is
@@ -36376,7 +37099,9 @@ will be used instead</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>image</code></td>
+            <td>
+                <code>image</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p><code>Image</code>, numpy array or tensor representing an image batch to be used as the starting point. For both
@@ -36397,7 +37122,9 @@ list of arrays, the expected shape should be <code>(B, H, W, C)</code> or <code>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>mask_image</code></td>
+            <td>
+                <code>mask_image</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p><code>Image</code>, numpy array or tensor representing an image batch to mask <code>image</code>. White pixels in the mask
@@ -36420,7 +37147,9 @@ H, W)</code>, <code>(1, H, W)</code>, <code>(H, W)</code>. And for numpy array w
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>mask_image_latent</code></td>
+            <td>
+                <code>mask_image_latent</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p><code>Tensor</code> representing an image batch to mask <code>image</code> generated by VAE. If not provided, the mask
@@ -36435,7 +37164,9 @@ latents tensor will ge generated by <code>mask_image</code>.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>height</code></td>
+            <td>
+                <code>height</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The height in pixels of the generated image. This is set to 1024 by default for the best results.</p>
@@ -36453,7 +37184,9 @@ latents tensor will ge generated by <code>mask_image</code>.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>width</code></td>
+            <td>
+                <code>width</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The width in pixels of the generated image. This is set to 1024 by default for the best results.</p>
@@ -36471,7 +37204,9 @@ latents tensor will ge generated by <code>mask_image</code>.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>strength</code></td>
+            <td>
+                <code>strength</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Indicates extent to transform the reference <code>image</code>. Must be between 0 and 1. <code>image</code> is used as a
@@ -36493,7 +37228,9 @@ essentially ignores <code>image</code>.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>num_inference_steps</code></td>
+            <td>
+                <code>num_inference_steps</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The number of denoising steps. More denoising steps usually lead to a higher quality image at the
@@ -36512,7 +37249,9 @@ expense of slower inference.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>sigmas</code></td>
+            <td>
+                <code>sigmas</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Custom sigmas to use for the denoising process with schedulers which support a <code>sigmas</code> argument in
@@ -36532,7 +37271,9 @@ will be used.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>guidance_scale</code></td>
+            <td>
+                <code>guidance_scale</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Guidance scale as defined in <a href="https://arxiv.org/abs/2207.12598">Classifier-Free Diffusion Guidance</a>.
@@ -36554,7 +37295,9 @@ usually at the expense of lower image quality.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>num_images_per_prompt</code></td>
+            <td>
+                <code>num_images_per_prompt</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The number of images to generate per prompt.</p>
@@ -36572,7 +37315,9 @@ usually at the expense of lower image quality.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>generator</code></td>
+            <td>
+                <code>generator</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>One or a list of <a href="https://numpy.org/doc/stable/reference/random/generator.html">np.random.Generator(s)</a>
@@ -36591,7 +37336,9 @@ to make generation deterministic.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>latents</code></td>
+            <td>
+                <code>latents</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Pre-generated noisy latents, sampled from a Gaussian distribution, to be used as inputs for image
@@ -36611,7 +37358,9 @@ tensor will ge generated by sampling using the supplied random <code>generator</
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>prompt_embeds</code></td>
+            <td>
+                <code>prompt_embeds</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Pre-generated text embeddings. Can be used to easily tweak text inputs, <em>e.g.</em> prompt weighting. If not
@@ -36630,7 +37379,9 @@ provided, text embeddings will be generated from <code>prompt</code> input argum
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>pooled_prompt_embeds</code></td>
+            <td>
+                <code>pooled_prompt_embeds</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Pre-generated pooled text embeddings. Can be used to easily tweak text inputs, <em>e.g.</em> prompt weighting.
@@ -36649,7 +37400,9 @@ If not provided, pooled text embeddings will be generated from <code>prompt</cod
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>output_type</code></td>
+            <td>
+                <code>output_type</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The output format of the generate image. Choose between
@@ -36668,7 +37421,9 @@ If not provided, pooled text embeddings will be generated from <code>prompt</cod
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>return_dict</code></td>
+            <td>
+                <code>return_dict</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Whether or not to return a [<code>~pipelines.flux.FluxPipelineOutput</code>] instead of a plain tuple.</p>
@@ -36686,7 +37441,9 @@ If not provided, pooled text embeddings will be generated from <code>prompt</cod
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>joint_attention_kwargs</code></td>
+            <td>
+                <code>joint_attention_kwargs</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>A kwargs dictionary that if specified is passed along to the <code>AttentionProcessor</code> as defined under
@@ -36706,7 +37463,9 @@ If not provided, pooled text embeddings will be generated from <code>prompt</cod
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>callback_on_step_end</code></td>
+            <td>
+                <code>callback_on_step_end</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>A function that calls at the end of each denoising steps during the inference. The function is called
@@ -36727,7 +37486,9 @@ callback_kwargs: Dict)</code>. <code>callback_kwargs</code> will include a list 
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>callback_on_step_end_tensor_inputs</code></td>
+            <td>
+                <code>callback_on_step_end_tensor_inputs</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The list of tensor inputs for the <code>callback_on_step_end</code> function. The tensors specified in the list
@@ -36747,7 +37508,9 @@ will be passed as <code>callback_kwargs</code> argument. You will only be able t
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>max_sequence_length</code></td>
+            <td>
+                <code>max_sequence_length</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Maximum sequence length to use with the <code>prompt</code>.</p>
@@ -36806,6 +37569,7 @@ will be passed as <code>callback_kwargs</code> argument. You will only be able t
           </tr>
       </tbody>
     </table>
+
 
             <details class="quote">
               <summary>Source code in <code>mindone/diffusers/pipelines/flux/pipeline_flux_fill.py</code></summary>
@@ -37418,6 +38182,7 @@ will be passed as <code>callback_kwargs</code> argument. You will only be able t
         <p>Disable sliced VAE decoding. If <code>enable_vae_slicing</code> was previously enabled, this method will go back to
 computing decoding in one step.</p>
 
+
             <details class="quote">
               <summary>Source code in <code>mindone/diffusers/pipelines/flux/pipeline_flux_fill.py</code></summary>
               <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">613</span>
@@ -37450,6 +38215,7 @@ computing decoding in one step.</p>
 
         <p>Disable tiled VAE decoding. If <code>enable_vae_tiling</code> was previously enabled, this method will go back to
 computing decoding in one step.</p>
+
 
             <details class="quote">
               <summary>Source code in <code>mindone/diffusers/pipelines/flux/pipeline_flux_fill.py</code></summary>
@@ -37484,6 +38250,7 @@ computing decoding in one step.</p>
         <p>Enable sliced VAE decoding. When this option is enabled, the VAE will split the input tensor in slices to
 compute decoding in several steps. This is useful to save some memory and allow larger batch sizes.</p>
 
+
             <details class="quote">
               <summary>Source code in <code>mindone/diffusers/pipelines/flux/pipeline_flux_fill.py</code></summary>
               <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">606</span>
@@ -37517,6 +38284,7 @@ compute decoding in several steps. This is useful to save some memory and allow 
         <p>Enable tiled VAE decoding. When this option is enabled, the VAE will split the input tensor into tiles to
 compute decoding and encoding in several steps. This is useful for saving a large amount of memory and to allow
 processing larger images.</p>
+
 
             <details class="quote">
               <summary>Source code in <code>mindone/diffusers/pipelines/flux/pipeline_flux_fill.py</code></summary>
@@ -37561,7 +38329,9 @@ processing larger images.</p>
       </thead>
       <tbody>
           <tr class="doc-section-item">
-            <td><code>prompt</code></td>
+            <td>
+                <code>prompt</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>prompt to be encoded</p>
@@ -37575,7 +38345,9 @@ processing larger images.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>prompt_2</code></td>
+            <td>
+                <code>prompt_2</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The prompt or prompts to be sent to the <code>tokenizer_2</code> and <code>text_encoder_2</code>. If not defined, <code>prompt</code> is
@@ -37590,7 +38362,9 @@ used in all text-encoders</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>num_images_per_prompt</code></td>
+            <td>
+                <code>num_images_per_prompt</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>number of images that should be generated per prompt</p>
@@ -37608,7 +38382,9 @@ used in all text-encoders</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>prompt_embeds</code></td>
+            <td>
+                <code>prompt_embeds</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Pre-generated text embeddings. Can be used to easily tweak text inputs, <em>e.g.</em> prompt weighting. If not
@@ -37627,7 +38403,9 @@ provided, text embeddings will be generated from <code>prompt</code> input argum
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>pooled_prompt_embeds</code></td>
+            <td>
+                <code>pooled_prompt_embeds</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Pre-generated pooled text embeddings. Can be used to easily tweak text inputs, <em>e.g.</em> prompt weighting.
@@ -37646,7 +38424,9 @@ If not provided, pooled text embeddings will be generated from <code>prompt</cod
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>lora_scale</code></td>
+            <td>
+                <code>lora_scale</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>A lora scale that will be applied to all LoRA layers of the text encoder if LoRA layers are loaded.</p>
@@ -37665,6 +38445,7 @@ If not provided, pooled text embeddings will be generated from <code>prompt</cod
           </tr>
       </tbody>
     </table>
+
 
             <details class="quote">
               <summary>Source code in <code>mindone/diffusers/pipelines/flux/pipeline_flux_fill.py</code></summary>

@@ -1477,6 +1477,29 @@
   
   
     <li class="md-nav__item">
+      <a href="../../using-diffusers/consisid/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    ConsisID
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../../using-diffusers/sdxl/" class="md-nav__link">
         
   
@@ -3209,6 +3232,29 @@
   
   
     <li class="md-nav__item">
+      <a href="../models/consisid_transformer3d/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    ConsisIDTransformer3DModel
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../models/cogview3plus_transformer2d/" class="md-nav__link">
         
   
@@ -4635,6 +4681,29 @@
   
   
     <li class="md-nav__item">
+      <a href="../pipelines/consisid/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    ConsisID
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../pipelines/consistency_models/" class="md-nav__link">
         
   
@@ -5798,10 +5867,10 @@
       
         
         
-        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2_11_4_64" >
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2_11_4_65" >
         
           
-          <label class="md-nav__link" for="__nav_2_11_4_64" id="__nav_2_11_4_64_label" tabindex="0">
+          <label class="md-nav__link" for="__nav_2_11_4_65" id="__nav_2_11_4_65_label" tabindex="0">
             
   
   
@@ -5814,8 +5883,8 @@
             <span class="md-nav__icon md-icon"></span>
           </label>
         
-        <nav class="md-nav" data-md-level="4" aria-labelledby="__nav_2_11_4_64_label" aria-expanded="false">
-          <label class="md-nav__title" for="__nav_2_11_4_64">
+        <nav class="md-nav" data-md-level="4" aria-labelledby="__nav_2_11_4_65_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_2_11_4_65">
             <span class="md-nav__icon md-icon"></span>
             Stable Diffusion
           </label>
@@ -8724,6 +8793,12 @@ specific language governing permissions and limitations under the License.
 
         <p>Default processor for performing attention-related computations.</p>
 
+
+
+
+
+
+
               <details class="quote">
                 <summary>Source code in <code>mindone/diffusers/models/attention_processor.py</code></summary>
                 <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">1127</span>
@@ -8897,6 +8972,12 @@ specific language governing permissions and limitations under the License.
 
 
         <p>Processor for implementing scaled dot-product attention (enabled by default if you're using PyTorch 2.0).</p>
+
+
+
+
+
+
 
               <details class="quote">
                 <summary>Source code in <code>mindone/diffusers/models/attention_processor.py</code></summary>
@@ -9107,6 +9188,12 @@ specific language governing permissions and limitations under the License.
         <p>Processor for performing attention-related computations with extra learnable key and value matrices for the text
 encoder.</p>
 
+
+
+
+
+
+
               <details class="quote">
                 <summary>Source code in <code>mindone/diffusers/models/attention_processor.py</code></summary>
                 <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">1301</span>
@@ -9271,6 +9358,12 @@ For cross-attention modules, key and value projection matrices are fused.</p>
 <p><Tip warning={true}></p>
 <p>This API is currently 🧪 experimental in nature and can change in future.</p>
 <p></Tip></p>
+
+
+
+
+
+
 
               <details class="quote">
                 <summary>Source code in <code>mindone/diffusers/models/attention_processor.py</code></summary>
@@ -9503,6 +9596,12 @@ For cross-attention modules, key and value projection matrices are fused.</p>
         <p>Processor for implementing scaled dot-product attention (enabled by default if you're using PyTorch 2.0). This is
 used in the Allegro model. It applies a normalization layer and rotary embedding on the query and key vector.</p>
 
+
+
+
+
+
+
               <details class="quote">
                 <summary>Source code in <code>mindone/diffusers/models/attention_processor.py</code></summary>
                 <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">1833</span>
@@ -9727,6 +9826,12 @@ used in the Allegro model. It applies a normalization layer and rotary embedding
 
         <p>Attention processor used typically in processing Aura Flow.</p>
 
+
+
+
+
+
+
               <details class="quote">
                 <summary>Source code in <code>mindone/diffusers/models/attention_processor.py</code></summary>
                 <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">1927</span>
@@ -9945,6 +10050,12 @@ used in the Allegro model. It applies a normalization layer and rotary embedding
 
         <p>Attention processor used typically in processing Aura Flow with fused projections.</p>
 
+
+
+
+
+
+
               <details class="quote">
                 <summary>Source code in <code>mindone/diffusers/models/attention_processor.py</code></summary>
                 <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">2018</span>
@@ -10162,6 +10273,12 @@ used in the Allegro model. It applies a normalization layer and rotary embedding
         <p>Processor for implementing scaled dot-product attention for the CogVideoX model. It applies a rotary embedding on
 query and key vectors, but does not include spatial normalization.</p>
 
+
+
+
+
+
+
               <details class="quote">
                 <summary>Source code in <code>mindone/diffusers/models/attention_processor.py</code></summary>
                 <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">2432</span>
@@ -10371,6 +10488,7 @@ query and key vectors, but does not include spatial normalization.</p>
     <code>hidden_state[:, :, start_index:] = self.apply_rotary_emb(hidden_state[:, :, start_index:], image_rotary_emb)</code></p>
 <p>Rewrite it since implement above might call ops.ScatterNdUpdate which is super slow!</p>
 
+
             <details class="quote">
               <summary>Source code in <code>mindone/diffusers/models/attention_processor.py</code></summary>
               <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">2445</span>
@@ -10440,6 +10558,12 @@ query and key vectors, but does not include spatial normalization.</p>
 
         <p>Processor for implementing scaled dot-product attention for the CogVideoX model. It applies a rotary embedding on
 query and key vectors, but does not include spatial normalization.</p>
+
+
+
+
+
+
 
               <details class="quote">
                 <summary>Source code in <code>mindone/diffusers/models/attention_processor.py</code></summary>
@@ -10631,7 +10755,9 @@ query and key vectors, but does not include spatial normalization.</p>
       </thead>
       <tbody>
           <tr class="doc-section-item">
-            <td><code>batch_size</code></td>
+            <td>
+                <code>batch_size</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The number that represents actual batch size, other than the frames.
@@ -10648,6 +10774,12 @@ For example, calling unet with a single prompt and num_images_per_prompt=1, batc
           </tr>
       </tbody>
     </table>
+
+
+
+
+
+
 
               <details class="quote">
                 <summary>Source code in <code>mindone/diffusers/pipelines/text_to_video_synthesis/pipeline_text_to_video_zero.py</code></summary>
@@ -10815,7 +10947,9 @@ For example, calling unet with a single prompt and num_images_per_prompt=1, batc
       </thead>
       <tbody>
           <tr class="doc-section-item">
-            <td><code>train_kv</code></td>
+            <td>
+                <code>train_kv</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Whether to newly train the key and value matrices corresponding to the text features.</p>
@@ -10833,7 +10967,9 @@ For example, calling unet with a single prompt and num_images_per_prompt=1, batc
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>train_q_out</code></td>
+            <td>
+                <code>train_q_out</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Whether to newly train query matrices corresponding to the latent image features.</p>
@@ -10851,7 +10987,9 @@ For example, calling unet with a single prompt and num_images_per_prompt=1, batc
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>hidden_size</code></td>
+            <td>
+                <code>hidden_size</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The hidden size of the attention layer.</p>
@@ -10869,7 +11007,9 @@ For example, calling unet with a single prompt and num_images_per_prompt=1, batc
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>cross_attention_dim</code></td>
+            <td>
+                <code>cross_attention_dim</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The number of channels in the <code>encoder_hidden_states</code>.</p>
@@ -10887,7 +11027,9 @@ For example, calling unet with a single prompt and num_images_per_prompt=1, batc
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>out_bias</code></td>
+            <td>
+                <code>out_bias</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Whether to include the bias parameter in <code>train_q_out</code>.</p>
@@ -10905,7 +11047,9 @@ For example, calling unet with a single prompt and num_images_per_prompt=1, batc
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>dropout</code></td>
+            <td>
+                <code>dropout</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The dropout probability to use.</p>
@@ -10924,6 +11068,12 @@ For example, calling unet with a single prompt and num_images_per_prompt=1, batc
           </tr>
       </tbody>
     </table>
+
+
+
+
+
+
 
               <details class="quote">
                 <summary>Source code in <code>mindone/diffusers/models/attention_processor.py</code></summary>
@@ -11171,6 +11321,12 @@ For example, calling unet with a single prompt and num_images_per_prompt=1, batc
 
         <p>Attention processor used typically in processing the SD3-like self-attention projections.</p>
 
+
+
+
+
+
+
               <details class="quote">
                 <summary>Source code in <code>mindone/diffusers/models/attention_processor.py</code></summary>
                 <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">2108</span>
@@ -11405,6 +11561,12 @@ For example, calling unet with a single prompt and num_images_per_prompt=1, batc
 
         <p>Attention processor used typically in processing the SD3-like self-attention projections.</p>
 
+
+
+
+
+
+
               <details class="quote">
                 <summary>Source code in <code>mindone/diffusers/models/attention_processor.py</code></summary>
                 <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">2207</span>
@@ -11629,6 +11791,12 @@ For example, calling unet with a single prompt and num_images_per_prompt=1, batc
 
         <p>Processor for implementing scaled dot-product attention (enabled by default if you're using PyTorch 2.0).</p>
 
+
+
+
+
+
+
               <details class="quote">
                 <summary>Source code in <code>mindone/diffusers/models/attention_processor.py</code></summary>
                 <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">4441</span>
@@ -11689,6 +11857,12 @@ For example, calling unet with a single prompt and num_images_per_prompt=1, batc
 
         <p>Processor for implementing scaled dot-product attention (enabled by default if you're using PyTorch 2.0). This is
 used in the HunyuanDiT model. It applies a s normalization layer and rotary embedding on query and key vector.</p>
+
+
+
+
+
+
 
               <details class="quote">
                 <summary>Source code in <code>mindone/diffusers/models/attention_processor.py</code></summary>
@@ -11927,6 +12101,12 @@ used in the HunyuanDiT model. It applies a s normalization layer and rotary embe
         <p>Processor for implementing scaled dot-product attention (enabled by default if you're using PyTorch 2.0). This is
 used in the HunyuanDiT model. It applies a normalization layer and rotary embedding on query and key vector. This
 variant of the processor employs <a href="https://arxiv.org/abs/2403.17377">Pertubed Attention Guidance</a>.</p>
+
+
+
+
+
+
 
               <details class="quote">
                 <summary>Source code in <code>mindone/diffusers/models/attention_processor.py</code></summary>
@@ -12213,6 +12393,12 @@ variant of the processor employs <a href="https://arxiv.org/abs/2403.17377">Pert
         <p>Processor for implementing scaled dot-product attention (enabled by default if you're using PyTorch 2.0). This is
 used in the HunyuanDiT model. It applies a normalization layer and rotary embedding on query and key vector. This
 variant of the processor employs <a href="https://arxiv.org/abs/2403.17377">Pertubed Attention Guidance</a>.</p>
+
+
+
+
+
+
 
               <details class="quote">
                 <summary>Source code in <code>mindone/diffusers/models/attention_processor.py</code></summary>
@@ -12501,6 +12687,12 @@ variant of the processor employs <a href="https://arxiv.org/abs/2403.17377">Pert
         <p>Processor for implementing PAG using scaled dot-product attention (enabled by default if you're using PyTorch 2.0).
 PAG reference: https://arxiv.org/abs/2403.17377</p>
 
+
+
+
+
+
+
               <details class="quote">
                 <summary>Source code in <code>mindone/diffusers/models/attention_processor.py</code></summary>
                 <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">4185</span>
@@ -12729,6 +12921,12 @@ PAG reference: https://arxiv.org/abs/2403.17377</p>
 
         <p>Processor for implementing PAG using scaled dot-product attention (enabled by default if you're using PyTorch 2.0).
 PAG reference: https://arxiv.org/abs/2403.17377</p>
+
+
+
+
+
+
 
               <details class="quote">
                 <summary>Source code in <code>mindone/diffusers/models/attention_processor.py</code></summary>
@@ -12976,7 +13174,9 @@ PAG reference: https://arxiv.org/abs/2403.17377</p>
       </thead>
       <tbody>
           <tr class="doc-section-item">
-            <td><code>hidden_size</code></td>
+            <td>
+                <code>hidden_size</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The hidden size of the attention layer.</p>
@@ -12990,7 +13190,9 @@ PAG reference: https://arxiv.org/abs/2403.17377</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>cross_attention_dim</code></td>
+            <td>
+                <code>cross_attention_dim</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The number of channels in the <code>encoder_hidden_states</code>.</p>
@@ -13008,7 +13210,9 @@ PAG reference: https://arxiv.org/abs/2403.17377</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>num_tokens</code></td>
+            <td>
+                <code>num_tokens</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The context length of the image features.</p>
@@ -13020,13 +13224,15 @@ PAG reference: https://arxiv.org/abs/2403.17377</p>
                   </span>
                   <span class="doc-param-default">
                     <b>DEFAULT:</b>
-                      <code>(4)</code>
+                      <code>(4,)</code>
                   </span>
               </p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>scale</code></td>
+            <td>
+                <code>scale</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>the weight scale of image prompt.</p>
@@ -13045,6 +13251,12 @@ PAG reference: https://arxiv.org/abs/2403.17377</p>
           </tr>
       </tbody>
     </table>
+
+
+
+
+
+
 
               <details class="quote">
                 <summary>Source code in <code>mindone/diffusers/models/attention_processor.py</code></summary>
@@ -13492,7 +13704,9 @@ PAG reference: https://arxiv.org/abs/2403.17377</p>
       </thead>
       <tbody>
           <tr class="doc-section-item">
-            <td><code>hidden_size</code></td>
+            <td>
+                <code>hidden_size</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The hidden size of the attention layer.</p>
@@ -13506,7 +13720,9 @@ PAG reference: https://arxiv.org/abs/2403.17377</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>cross_attention_dim</code></td>
+            <td>
+                <code>cross_attention_dim</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The number of channels in the <code>encoder_hidden_states</code>.</p>
@@ -13524,7 +13740,9 @@ PAG reference: https://arxiv.org/abs/2403.17377</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>num_tokens</code></td>
+            <td>
+                <code>num_tokens</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The context length of the image features.</p>
@@ -13536,13 +13754,15 @@ PAG reference: https://arxiv.org/abs/2403.17377</p>
                   </span>
                   <span class="doc-param-default">
                     <b>DEFAULT:</b>
-                      <code>(4)</code>
+                      <code>(4,)</code>
                   </span>
               </p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>scale</code></td>
+            <td>
+                <code>scale</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>the weight scale of image prompt.</p>
@@ -13561,6 +13781,12 @@ PAG reference: https://arxiv.org/abs/2403.17377</p>
           </tr>
       </tbody>
     </table>
+
+
+
+
+
+
 
               <details class="quote">
                 <summary>Source code in <code>mindone/diffusers/models/attention_processor.py</code></summary>
@@ -14063,7 +14289,9 @@ additional image-based information and timestep embeddings.</p>
       </thead>
       <tbody>
           <tr class="doc-section-item">
-            <td><code>hidden_size</code></td>
+            <td>
+                <code>hidden_size</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The number of hidden channels.</p>
@@ -14077,7 +14305,9 @@ additional image-based information and timestep embeddings.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>ip_hidden_states_dim</code></td>
+            <td>
+                <code>ip_hidden_states_dim</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The image feature dimension.</p>
@@ -14091,7 +14321,9 @@ additional image-based information and timestep embeddings.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>head_dim</code></td>
+            <td>
+                <code>head_dim</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The number of head channels.</p>
@@ -14105,7 +14337,9 @@ additional image-based information and timestep embeddings.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>timesteps_emb_dim</code></td>
+            <td>
+                <code>timesteps_emb_dim</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The number of input channels for timestep embedding.</p>
@@ -14123,7 +14357,9 @@ additional image-based information and timestep embeddings.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>scale</code></td>
+            <td>
+                <code>scale</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>IP-Adapter scale.</p>
@@ -14142,6 +14378,12 @@ additional image-based information and timestep embeddings.</p>
           </tr>
       </tbody>
     </table>
+
+
+
+
+
+
 
               <details class="quote">
                 <summary>Source code in <code>mindone/diffusers/models/attention_processor.py</code></summary>
@@ -14521,7 +14763,9 @@ additional image-based information and timestep embeddings.</p>
       </thead>
       <tbody>
           <tr class="doc-section-item">
-            <td><code>attn</code></td>
+            <td>
+                <code>attn</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Attention instance.</p>
@@ -14535,7 +14779,9 @@ additional image-based information and timestep embeddings.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>hidden_states</code></td>
+            <td>
+                <code>hidden_states</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Input <code>hidden_states</code>.</p>
@@ -14549,7 +14795,9 @@ additional image-based information and timestep embeddings.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>encoder_hidden_states</code></td>
+            <td>
+                <code>encoder_hidden_states</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The encoder hidden states.</p>
@@ -14567,7 +14815,9 @@ additional image-based information and timestep embeddings.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>attention_mask</code></td>
+            <td>
+                <code>attention_mask</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Attention mask.</p>
@@ -14585,7 +14835,9 @@ additional image-based information and timestep embeddings.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>ip_hidden_states</code></td>
+            <td>
+                <code>ip_hidden_states</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Image embeddings.</p>
@@ -14603,7 +14855,9 @@ additional image-based information and timestep embeddings.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>temb</code></td>
+            <td>
+                <code>temb</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Timestep embeddings.</p>
@@ -14646,6 +14900,7 @@ additional image-based information and timestep embeddings.</p>
           </tr>
       </tbody>
     </table>
+
 
             <details class="quote">
               <summary>Source code in <code>mindone/diffusers/models/attention_processor.py</code></summary>
@@ -14938,6 +15193,12 @@ additional image-based information and timestep embeddings.</p>
 
         <p>Attention processor used typically in processing the SD3-like self-attention projections.</p>
 
+
+
+
+
+
+
               <details class="quote">
                 <summary>Source code in <code>mindone/diffusers/models/attention_processor.py</code></summary>
                 <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">1363</span>
@@ -15135,6 +15396,12 @@ additional image-based information and timestep embeddings.</p>
 
 
         <p>Attention processor used typically in processing the SD3-like self-attention projections.</p>
+
+
+
+
+
+
 
               <details class="quote">
                 <summary>Source code in <code>mindone/diffusers/models/attention_processor.py</code></summary>
@@ -15477,6 +15744,12 @@ additional image-based information and timestep embeddings.</p>
 
 
         <p>Attention processor used typically in processing the SD3-like self-attention projections.</p>
+
+
+
+
+
+
 
               <details class="quote">
                 <summary>Source code in <code>mindone/diffusers/models/attention_processor.py</code></summary>
@@ -15836,6 +16109,12 @@ additional image-based information and timestep embeddings.</p>
 
         <p>Attention processor used typically in processing the SD3-like self-attention projections.</p>
 
+
+
+
+
+
+
               <details class="quote">
                 <summary>Source code in <code>mindone/diffusers/models/attention_processor.py</code></summary>
                 <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">1758</span>
@@ -16022,6 +16301,12 @@ additional image-based information and timestep embeddings.</p>
 
         <p>Processor for implementing scaled dot-product attention (enabled by default if you're using PyTorch 2.0). This is
 used in the LuminaNextDiT model. It applies a s normalization layer and rotary embedding on query and key vector.</p>
+
+
+
+
+
+
 
               <details class="quote">
                 <summary>Source code in <code>mindone/diffusers/models/attention_processor.py</code></summary>
@@ -16256,6 +16541,12 @@ used in the LuminaNextDiT model. It applies a s normalization layer and rotary e
 
 
         <p>Attention processor used in Mochi.</p>
+
+
+
+
+
+
 
               <details class="quote">
                 <summary>Source code in <code>mindone/diffusers/models/attention_processor.py</code></summary>
@@ -16509,6 +16800,12 @@ used in the LuminaNextDiT model. It applies a s normalization layer and rotary e
 
         <p>Attention processor used in Mochi VAE.</p>
 
+
+
+
+
+
+
               <details class="quote">
                 <summary>Source code in <code>mindone/diffusers/models/attention_processor.py</code></summary>
                 <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">2797</span>
@@ -16715,6 +17012,12 @@ used in the LuminaNextDiT model. It applies a s normalization layer and rotary e
 
         <p>Processor for implementing scaled dot-product linear attention.</p>
 
+
+
+
+
+
+
               <details class="quote">
                 <summary>Source code in <code>mindone/diffusers/models/attention_processor.py</code></summary>
                 <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">4453</span>
@@ -16868,6 +17171,12 @@ used in the LuminaNextDiT model. It applies a s normalization layer and rotary e
 
 
         <p>Processor for implementing multiscale quadratic attention.</p>
+
+
+
+
+
+
 
               <details class="quote">
                 <summary>Source code in <code>mindone/diffusers/models/attention_processor.py</code></summary>
@@ -17027,6 +17336,12 @@ used in the LuminaNextDiT model. It applies a s normalization layer and rotary e
 
         <p>Processor for implementing scaled dot-product linear attention.</p>
 
+
+
+
+
+
+
               <details class="quote">
                 <summary>Source code in <code>mindone/diffusers/models/attention_processor.py</code></summary>
                 <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">4512</span>
@@ -17180,6 +17495,12 @@ used in the LuminaNextDiT model. It applies a s normalization layer and rotary e
 
 
         <p>Processor for implementing scaled dot-product linear attention.</p>
+
+
+
+
+
+
 
               <details class="quote">
                 <summary>Source code in <code>mindone/diffusers/models/attention_processor.py</code></summary>
@@ -17339,6 +17660,12 @@ used in the LuminaNextDiT model. It applies a s normalization layer and rotary e
 
         <p>Processor for implementing scaled dot-product attention (enabled by default if you're using PyTorch 2.0). This is
 used in the Stable Audio model. It applies rotary embedding on query and key vector, and allows MHA, GQA or MQA.</p>
+
+
+
+
+
+
 
               <details class="quote">
                 <summary>Source code in <code>mindone/diffusers/models/attention_processor.py</code></summary>
@@ -17652,7 +17979,9 @@ used in the Stable Audio model. It applies rotary embedding on query and key vec
       </thead>
       <tbody>
           <tr class="doc-section-item">
-            <td><code>attention_op</code></td>
+            <td>
+                <code>attention_op</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The base
@@ -17674,6 +18003,12 @@ operator.</p>
           </tr>
       </tbody>
     </table>
+
+
+
+
+
+
 
               <details class="quote">
                 <summary>Source code in <code>mindone/diffusers/models/attention_processor.py</code></summary>
@@ -17944,6 +18279,12 @@ operator.</p>
 
 
         <p>Flux Attention processor for IP-Adapter.</p>
+
+
+
+
+
+
 
               <details class="quote">
                 <summary>Source code in <code>mindone/diffusers/models/attention_processor.py</code></summary>

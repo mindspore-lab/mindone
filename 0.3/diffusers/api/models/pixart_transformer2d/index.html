@@ -1477,6 +1477,29 @@
   
   
     <li class="md-nav__item">
+      <a href="../../../using-diffusers/consisid/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    ConsisID
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../../../using-diffusers/sdxl/" class="md-nav__link">
         
   
@@ -3213,6 +3236,29 @@
   
   
     <li class="md-nav__item">
+      <a href="../consisid_transformer3d/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    ConsisIDTransformer3DModel
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../cogview3plus_transformer2d/" class="md-nav__link">
         
   
@@ -4732,6 +4778,29 @@
   
   
     <li class="md-nav__item">
+      <a href="../../pipelines/consisid/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    ConsisID
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../../pipelines/consistency_models/" class="md-nav__link">
         
   
@@ -5895,10 +5964,10 @@
       
         
         
-        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2_11_4_64" >
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2_11_4_65" >
         
           
-          <label class="md-nav__link" for="__nav_2_11_4_64" id="__nav_2_11_4_64_label" tabindex="0">
+          <label class="md-nav__link" for="__nav_2_11_4_65" id="__nav_2_11_4_65_label" tabindex="0">
             
   
   
@@ -5911,8 +5980,8 @@
             <span class="md-nav__icon md-icon"></span>
           </label>
         
-        <nav class="md-nav" data-md-level="4" aria-labelledby="__nav_2_11_4_64_label" aria-expanded="false">
-          <label class="md-nav__title" for="__nav_2_11_4_64">
+        <nav class="md-nav" data-md-level="4" aria-labelledby="__nav_2_11_4_65_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_2_11_4_65">
             <span class="md-nav__icon md-icon"></span>
             Stable Diffusion
           </label>
@@ -8098,7 +8167,7 @@ specific language governing permissions and limitations under the License.
 
     <div class="doc doc-contents first">
             <p class="doc doc-class-bases">
-              Bases: <code><a class="autorefs autorefs-internal" title="mindone.diffusers.models.modeling_utils.ModelMixin" href="../overview/#mindone.diffusers.ModelMixin">ModelMixin</a></code>, <code><a class="autorefs autorefs-internal" title="mindone.diffusers.configuration_utils.ConfigMixin" href="../../configuration/#mindone.diffusers.configuration_utils.ConfigMixin">ConfigMixin</a></code></p>
+              Bases: <code><a class="autorefs autorefs-internal" title="mindone.diffusers.ModelMixin (mindone.diffusers.models.modeling_utils.ModelMixin)" href="../overview/#mindone.diffusers.ModelMixin">ModelMixin</a></code>, <code><a class="autorefs autorefs-internal" title="mindone.diffusers.configuration_utils.ConfigMixin" href="../../configuration/#mindone.diffusers.configuration_utils.ConfigMixin">ConfigMixin</a></code></p>
 
 
         <p>A 2D Transformer model as introduced in PixArt family of models (https://arxiv.org/abs/2310.00426,
@@ -8114,7 +8183,9 @@ https://arxiv.org/abs/2403.04692).</p>
       </thead>
       <tbody>
           <tr class="doc-section-item">
-            <td><code>num_attention_heads</code></td>
+            <td>
+                <code>num_attention_heads</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The number of heads to use for multi-head attention.</p>
@@ -8132,7 +8203,9 @@ https://arxiv.org/abs/2403.04692).</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>attention_head_dim</code></td>
+            <td>
+                <code>attention_head_dim</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The number of channels in each head.</p>
@@ -8150,7 +8223,9 @@ https://arxiv.org/abs/2403.04692).</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>in_channels</code></td>
+            <td>
+                <code>in_channels</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The number of channels in the input.</p>
@@ -8168,7 +8243,9 @@ https://arxiv.org/abs/2403.04692).</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>out_channels</code></td>
+            <td>
+                <code>out_channels</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The number of channels in the output. Specify this parameter if the output channel number differs from the
@@ -8177,7 +8254,7 @@ input.</p>
               <p>
                   <span class="doc-param-annotation">
                     <b>TYPE:</b>
-                      <code>int</code>
+                      <code><span title="int">int</span></code>
                   </span>
                   <span class="doc-param-default">
                     <b>DEFAULT:</b>
@@ -8187,7 +8264,9 @@ input.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>num_layers</code></td>
+            <td>
+                <code>num_layers</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The number of layers of Transformer blocks to use.</p>
@@ -8205,7 +8284,9 @@ input.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>dropout</code></td>
+            <td>
+                <code>dropout</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The dropout probability to use within the Transformer blocks.</p>
@@ -8223,7 +8304,9 @@ input.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>norm_num_groups</code></td>
+            <td>
+                <code>norm_num_groups</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Number of groups for group normalization within Transformer blocks.</p>
@@ -8241,7 +8324,9 @@ input.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>cross_attention_dim</code></td>
+            <td>
+                <code>cross_attention_dim</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The dimensionality for cross-attention layers, typically matching the encoder's hidden dimension.</p>
@@ -8249,7 +8334,7 @@ input.</p>
               <p>
                   <span class="doc-param-annotation">
                     <b>TYPE:</b>
-                      <code>int</code>
+                      <code><span title="int">int</span></code>
                   </span>
                   <span class="doc-param-default">
                     <b>DEFAULT:</b>
@@ -8259,7 +8344,9 @@ input.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>attention_bias</code></td>
+            <td>
+                <code>attention_bias</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Configure if the Transformer blocks' attention should contain a bias parameter.</p>
@@ -8277,7 +8364,9 @@ input.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>sample_size</code></td>
+            <td>
+                <code>sample_size</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The width of the latent images. This parameter is fixed during training.</p>
@@ -8295,7 +8384,9 @@ input.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>patch_size</code></td>
+            <td>
+                <code>patch_size</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Size of the patches the model processes, relevant for architectures working on non-sequential data.</p>
@@ -8313,7 +8404,9 @@ input.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>activation_fn</code></td>
+            <td>
+                <code>activation_fn</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Activation function to use in feed-forward networks within Transformer blocks.</p>
@@ -8331,7 +8424,9 @@ input.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>num_embeds_ada_norm</code></td>
+            <td>
+                <code>num_embeds_ada_norm</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Number of embeddings for AdaLayerNorm, fixed during training and affects the maximum denoising steps during
@@ -8350,7 +8445,9 @@ inference.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>upcast_attention</code></td>
+            <td>
+                <code>upcast_attention</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>If true, upcasts the attention mechanism dimensions for potentially improved performance.</p>
@@ -8368,7 +8465,9 @@ inference.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>norm_type</code></td>
+            <td>
+                <code>norm_type</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Specifies the type of normalization used, can be 'ada_norm_zero'.</p>
@@ -8386,7 +8485,9 @@ inference.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>norm_elementwise_affine</code></td>
+            <td>
+                <code>norm_elementwise_affine</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>If true, enables element-wise affine parameters in the normalization layers.</p>
@@ -8404,7 +8505,9 @@ inference.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>norm_eps</code></td>
+            <td>
+                <code>norm_eps</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>A small constant added to the denominator in normalization layers to prevent division by zero.</p>
@@ -8422,7 +8525,9 @@ inference.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>interpolation_scale</code></td>
+            <td>
+                <code>interpolation_scale</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Scale factor to use during interpolating the position embeddings.</p>
@@ -8430,7 +8535,7 @@ inference.</p>
               <p>
                   <span class="doc-param-annotation">
                     <b>TYPE:</b>
-                      <code>int</code>
+                      <code><span title="int">int</span></code>
                   </span>
                   <span class="doc-param-default">
                     <b>DEFAULT:</b>
@@ -8440,7 +8545,9 @@ inference.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>use_additional_conditions</code></td>
+            <td>
+                <code>use_additional_conditions</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>If we're using additional conditions as inputs.</p>
@@ -8448,7 +8555,7 @@ inference.</p>
               <p>
                   <span class="doc-param-annotation">
                     <b>TYPE:</b>
-                      <code>bool</code>
+                      <code><span title="bool">bool</span></code>
                   </span>
                   <span class="doc-param-default">
                     <b>DEFAULT:</b>
@@ -8458,7 +8565,9 @@ inference.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>attention_type</code></td>
+            <td>
+                <code>attention_type</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Kind of attention mechanism to be used.</p>
@@ -8476,7 +8585,9 @@ inference.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>caption_channels</code></td>
+            <td>
+                <code>caption_channels</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Number of channels to use for projecting the caption embeddings.</p>
@@ -8494,7 +8605,9 @@ inference.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>use_linear_projection</code></td>
+            <td>
+                <code>use_linear_projection</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Deprecated argument. Will be removed in a future version.</p>
@@ -8508,7 +8621,9 @@ inference.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>num_vector_embeds</code></td>
+            <td>
+                <code>num_vector_embeds</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Deprecated argument. Will be removed in a future version.</p>
@@ -8523,6 +8638,12 @@ inference.</p>
           </tr>
       </tbody>
     </table>
+
+
+
+
+
+
 
               <details class="quote">
                 <summary>Source code in <code>mindone/diffusers/models/transformers/pixart_transformer_2d.py</code></summary>
@@ -9235,7 +9356,7 @@ inference.</p>
 
 
 <h3 id="mindone.diffusers.PixArtTransformer2DModel.attn_processors" class="doc doc-heading">
-            <code class="highlight language-python"><span class="n">mindone</span><span class="o">.</span><span class="n">diffusers</span><span class="o">.</span><span class="n">PixArtTransformer2DModel</span><span class="o">.</span><span class="n">attn_processors</span><span class="p">:</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">AttentionProcessor</span><span class="p">]</span></code>
+            <code class="highlight language-python"><span class="n">mindone</span><span class="o">.</span><span class="n">diffusers</span><span class="o">.</span><span class="n">PixArtTransformer2DModel</span><span class="o">.</span><span class="n">attn_processors</span></code>
 
   <span class="doc doc-labels">
       <small class="doc doc-label doc-label-property"><code>property</code></small>
@@ -9259,7 +9380,7 @@ inference.</p>
           <tr class="doc-section-item">
             <td>
                 <span class="doc-returns-annotation">
-                    <code><span title="typing.Dict">Dict</span>[str, <span title="mindone.diffusers.models.attention_processor.AttentionProcessor">AttentionProcessor</span>]</code>
+                    <code><span title="typing.Dict">Dict</span>[<span title="str">str</span>, <span title="mindone.diffusers.models.attention_processor.AttentionProcessor">AttentionProcessor</span>]</code>
                 </span>
             </td>
             <td class="doc-returns-details">
@@ -9271,7 +9392,7 @@ inference.</p>
           <tr class="doc-section-item">
             <td>
                 <span class="doc-returns-annotation">
-                    <code><span title="typing.Dict">Dict</span>[str, <span title="mindone.diffusers.models.attention_processor.AttentionProcessor">AttentionProcessor</span>]</code>
+                    <code><span title="typing.Dict">Dict</span>[<span title="str">str</span>, <span title="mindone.diffusers.models.attention_processor.AttentionProcessor">AttentionProcessor</span>]</code>
                 </span>
             </td>
             <td class="doc-returns-details">
@@ -9282,6 +9403,7 @@ inference.</p>
           </tr>
       </tbody>
     </table>
+
     </div>
 
 </div>
@@ -9311,7 +9433,9 @@ inference.</p>
       </thead>
       <tbody>
           <tr class="doc-section-item">
-            <td><code>hidden_states</code></td>
+            <td>
+                <code>hidden_states</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Input <code>hidden_states</code>.</p>
@@ -9325,7 +9449,9 @@ inference.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>encoder_hidden_states</code></td>
+            <td>
+                <code>encoder_hidden_states</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Conditional embeddings for cross attention layer. If not given, cross-attention defaults to
@@ -9344,7 +9470,9 @@ self-attention.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>timestep</code></td>
+            <td>
+                <code>timestep</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Used to indicate denoising step. Optional timestep to be applied as an embedding in <code>AdaLayerNorm</code>.</p>
@@ -9362,7 +9490,9 @@ self-attention.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>added_cond_kwargs</code></td>
+            <td>
+                <code>added_cond_kwargs</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>(<code>Dict[str, Any]</code>, <em>optional</em>): Additional conditions to be used as inputs.</p>
@@ -9370,7 +9500,7 @@ self-attention.</p>
               <p>
                   <span class="doc-param-annotation">
                     <b>TYPE:</b>
-                      <code><span title="typing.Dict">Dict</span>[str, <span title="mindspore.Tensor">Tensor</span>]</code>
+                      <code><span title="typing.Dict">Dict</span>[<span title="str">str</span>, <span title="mindspore.Tensor">Tensor</span>]</code>
                   </span>
                   <span class="doc-param-default">
                     <b>DEFAULT:</b>
@@ -9380,7 +9510,9 @@ self-attention.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>cross_attention_kwargs</code></td>
+            <td>
+                <code>cross_attention_kwargs</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>A kwargs dictionary that if specified is passed along to the <code>AttentionProcessor</code> as defined under
@@ -9400,7 +9532,9 @@ self-attention.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>attention_mask</code></td>
+            <td>
+                <code>attention_mask</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>An attention mask of shape <code>(batch, key_tokens)</code> is applied to <code>encoder_hidden_states</code>. If <code>1</code> the mask
@@ -9420,7 +9554,9 @@ negative values to the attention scores corresponding to "discard" tokens.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>encoder_attention_mask</code></td>
+            <td>
+                <code>encoder_attention_mask</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Cross-attention mask applied to <code>encoder_hidden_states</code>. Two formats supported:</p>
@@ -9443,7 +9579,9 @@ above. This bias will be added to the cross-attention scores.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>return_dict</code></td>
+            <td>
+                <code>return_dict</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Whether or not to return a [<code>~models.unets.unet_2d_condition.UNet2DConditionOutput</code>] instead of a plain
@@ -9493,6 +9631,7 @@ tuple.</p>
           </tr>
       </tbody>
     </table>
+
 
             <details class="quote">
               <summary>Source code in <code>mindone/diffusers/models/transformers/pixart_transformer_2d.py</code></summary>
@@ -9770,7 +9909,9 @@ tuple.</p>
       </thead>
       <tbody>
           <tr class="doc-section-item">
-            <td><code>processor</code></td>
+            <td>
+                <code>processor</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The instantiated processor class or a dictionary of processor classes that will be set as the processor
@@ -9788,6 +9929,7 @@ processor. This is strongly recommended when setting trainable attention process
           </tr>
       </tbody>
     </table>
+
 
             <details class="quote">
               <summary>Source code in <code>mindone/diffusers/models/transformers/pixart_transformer_2d.py</code></summary>
@@ -9875,6 +10017,7 @@ processor. This is strongly recommended when setting trainable attention process
 
         <p>Disables custom attention processors and sets the default attention implementation.</p>
 <p>Safe to just use <code>AttnProcessor()</code> as PixArt doesn't have any exotic attention processors in default model.</p>
+
 
             <details class="quote">
               <summary>Source code in <code>mindone/diffusers/models/transformers/pixart_transformer_2d.py</code></summary>

@@ -1477,6 +1477,29 @@
   
   
     <li class="md-nav__item">
+      <a href="../../../using-diffusers/consisid/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    ConsisID
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../../../using-diffusers/sdxl/" class="md-nav__link">
         
   
@@ -3209,6 +3232,29 @@
   
   
     <li class="md-nav__item">
+      <a href="../../models/consisid_transformer3d/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    ConsisIDTransformer3DModel
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../../models/cogview3plus_transformer2d/" class="md-nav__link">
         
   
@@ -4635,6 +4681,29 @@
   
   
     <li class="md-nav__item">
+      <a href="../../pipelines/consisid/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    ConsisID
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../../pipelines/consistency_models/" class="md-nav__link">
         
   
@@ -5798,10 +5867,10 @@
       
         
         
-        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2_11_4_64" >
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2_11_4_65" >
         
           
-          <label class="md-nav__link" for="__nav_2_11_4_64" id="__nav_2_11_4_64_label" tabindex="0">
+          <label class="md-nav__link" for="__nav_2_11_4_65" id="__nav_2_11_4_65_label" tabindex="0">
             
   
   
@@ -5814,8 +5883,8 @@
             <span class="md-nav__icon md-icon"></span>
           </label>
         
-        <nav class="md-nav" data-md-level="4" aria-labelledby="__nav_2_11_4_64_label" aria-expanded="false">
-          <label class="md-nav__title" for="__nav_2_11_4_64">
+        <nav class="md-nav" data-md-level="4" aria-labelledby="__nav_2_11_4_65_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_2_11_4_65">
             <span class="md-nav__icon md-icon"></span>
             Stable Diffusion
           </label>
@@ -8135,7 +8204,7 @@ specific language governing permissions and limitations under the License.
 
     <div class="doc doc-contents first">
             <p class="doc doc-class-bases">
-              Bases: <code><a class="autorefs autorefs-internal" title="mindone.diffusers.schedulers.scheduling_utils.SchedulerMixin" href="../overview/#mindone.diffusers.SchedulerMixin">SchedulerMixin</a></code>, <code><a class="autorefs autorefs-internal" title="mindone.diffusers.configuration_utils.ConfigMixin" href="../../configuration/#mindone.diffusers.configuration_utils.ConfigMixin">ConfigMixin</a></code></p>
+              Bases: <code><a class="autorefs autorefs-internal" title="mindone.diffusers.SchedulerMixin (mindone.diffusers.schedulers.scheduling_utils.SchedulerMixin)" href="../overview/#mindone.diffusers.SchedulerMixin">SchedulerMixin</a></code>, <code><a class="autorefs autorefs-internal" title="mindone.diffusers.configuration_utils.ConfigMixin" href="../../configuration/#mindone.diffusers.configuration_utils.ConfigMixin">ConfigMixin</a></code></p>
 
 
         <p><code>TCDScheduler</code> incorporates the <code>Strategic Stochastic Sampling</code> introduced by the paper <code>Trajectory Consistency
@@ -8156,7 +8225,9 @@ functionality via the [<code>SchedulerMixin.save_pretrained</code>] and [<code>~
       </thead>
       <tbody>
           <tr class="doc-section-item">
-            <td><code>num_train_timesteps</code></td>
+            <td>
+                <code>num_train_timesteps</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The number of diffusion steps to train the model.</p>
@@ -8174,7 +8245,9 @@ functionality via the [<code>SchedulerMixin.save_pretrained</code>] and [<code>~
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>beta_start</code></td>
+            <td>
+                <code>beta_start</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The starting <code>beta</code> value of inference.</p>
@@ -8192,7 +8265,9 @@ functionality via the [<code>SchedulerMixin.save_pretrained</code>] and [<code>~
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>beta_end</code></td>
+            <td>
+                <code>beta_end</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The final <code>beta</code> value.</p>
@@ -8210,7 +8285,9 @@ functionality via the [<code>SchedulerMixin.save_pretrained</code>] and [<code>~
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>beta_schedule</code></td>
+            <td>
+                <code>beta_schedule</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The beta schedule, a mapping from a beta range to a sequence of betas for stepping the model. Choose from
@@ -8229,7 +8306,9 @@ functionality via the [<code>SchedulerMixin.save_pretrained</code>] and [<code>~
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>trained_betas</code></td>
+            <td>
+                <code>trained_betas</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Pass an array of betas directly to the constructor to bypass <code>beta_start</code> and <code>beta_end</code>.</p>
@@ -8247,7 +8326,9 @@ functionality via the [<code>SchedulerMixin.save_pretrained</code>] and [<code>~
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>original_inference_steps</code></td>
+            <td>
+                <code>original_inference_steps</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The default number of inference steps used to generate a linearly-spaced timestep schedule, from which we
@@ -8266,7 +8347,9 @@ will ultimately take <code>num_inference_steps</code> evenly spaced timesteps to
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>clip_sample</code></td>
+            <td>
+                <code>clip_sample</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Clip the predicted sample for numerical stability.</p>
@@ -8284,7 +8367,9 @@ will ultimately take <code>num_inference_steps</code> evenly spaced timesteps to
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>clip_sample_range</code></td>
+            <td>
+                <code>clip_sample_range</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The maximum magnitude for sample clipping. Valid only when <code>clip_sample=True</code>.</p>
@@ -8302,7 +8387,9 @@ will ultimately take <code>num_inference_steps</code> evenly spaced timesteps to
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>set_alpha_to_one</code></td>
+            <td>
+                <code>set_alpha_to_one</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Each diffusion step uses the alphas product value at that step and at the previous one. For the final step
@@ -8322,7 +8409,9 @@ otherwise it uses the alpha value at step 0.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>steps_offset</code></td>
+            <td>
+                <code>steps_offset</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>An offset added to the inference steps, as required by some model families.</p>
@@ -8340,7 +8429,9 @@ otherwise it uses the alpha value at step 0.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>prediction_type</code></td>
+            <td>
+                <code>prediction_type</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Prediction type of the scheduler function; can be <code>epsilon</code> (predicts the noise of the diffusion process),
@@ -8360,7 +8451,9 @@ Video</a> paper).</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>thresholding</code></td>
+            <td>
+                <code>thresholding</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Whether to use the "dynamic thresholding" method. This is unsuitable for latent-space diffusion models such
@@ -8379,7 +8472,9 @@ as Stable Diffusion.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>dynamic_thresholding_ratio</code></td>
+            <td>
+                <code>dynamic_thresholding_ratio</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The ratio for the dynamic thresholding method. Valid only when <code>thresholding=True</code>.</p>
@@ -8397,7 +8492,9 @@ as Stable Diffusion.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>sample_max_value</code></td>
+            <td>
+                <code>sample_max_value</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The threshold value for dynamic thresholding. Valid only when <code>thresholding=True</code>.</p>
@@ -8415,7 +8512,9 @@ as Stable Diffusion.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>timestep_spacing</code></td>
+            <td>
+                <code>timestep_spacing</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The way the timesteps should be scaled. Refer to Table 2 of the <a href="https://huggingface.co/papers/2305.08891">Common Diffusion Noise Schedules and
@@ -8434,7 +8533,9 @@ Sample Steps are Flawed</a> for more information.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>timestep_scaling</code></td>
+            <td>
+                <code>timestep_scaling</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The factor the timesteps will be multiplied by when calculating the consistency model boundary conditions
@@ -8454,7 +8555,9 @@ error at the default of <code>10.0</code> is already pretty small).</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>rescale_betas_zero_snr</code></td>
+            <td>
+                <code>rescale_betas_zero_snr</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Whether to rescale the betas to have zero terminal SNR. This enables the model to generate very bright and
@@ -8475,6 +8578,12 @@ dark samples instead of limiting it to samples with medium brightness. Loosely r
           </tr>
       </tbody>
     </table>
+
+
+
+
+
+
 
               <details class="quote">
                 <summary>Source code in <code>mindone/diffusers/schedulers/scheduling_tcd.py</code></summary>
@@ -9665,6 +9774,7 @@ dark samples instead of limiting it to samples with medium brightness. Loosely r
     <div class="doc doc-contents ">
 
         <p>The index for the first timestep. It should be set from pipeline with <code>set_begin_index</code> method.</p>
+
     </div>
 
 </div>
@@ -9695,7 +9805,9 @@ current timestep.</p>
       </thead>
       <tbody>
           <tr class="doc-section-item">
-            <td><code>sample</code></td>
+            <td>
+                <code>sample</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The input sample.</p>
@@ -9709,7 +9821,9 @@ current timestep.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>timestep</code></td>
+            <td>
+                <code>timestep</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The current timestep in the diffusion chain.</p>
@@ -9753,6 +9867,7 @@ A scaled input sample.</p>
           </tr>
       </tbody>
     </table>
+
 
             <details class="quote">
               <summary>Source code in <code>mindone/diffusers/schedulers/scheduling_tcd.py</code></summary>
@@ -9816,7 +9931,9 @@ A scaled input sample.</p>
       </thead>
       <tbody>
           <tr class="doc-section-item">
-            <td><code>begin_index</code></td>
+            <td>
+                <code>begin_index</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The begin index for the scheduler.</p>
@@ -9835,6 +9952,7 @@ A scaled input sample.</p>
           </tr>
       </tbody>
     </table>
+
 
             <details class="quote">
               <summary>Source code in <code>mindone/diffusers/schedulers/scheduling_tcd.py</code></summary>
@@ -9884,7 +10002,9 @@ A scaled input sample.</p>
       </thead>
       <tbody>
           <tr class="doc-section-item">
-            <td><code>num_inference_steps</code></td>
+            <td>
+                <code>num_inference_steps</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The number of diffusion steps used when generating samples with a pre-trained model. If used,
@@ -9903,7 +10023,9 @@ A scaled input sample.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>original_inference_steps</code></td>
+            <td>
+                <code>original_inference_steps</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The original number of inference steps, which will be used to generate a linearly-spaced timestep
@@ -9924,7 +10046,9 @@ our final timestep schedule. If not set, this will default to the <code>original
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>timesteps</code></td>
+            <td>
+                <code>timesteps</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Custom timesteps used to support arbitrary spacing between timesteps. If <code>None</code>, then the default
@@ -9944,7 +10068,9 @@ schedule is used. If <code>timesteps</code> is passed, <code>num_inference_steps
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>strength</code></td>
+            <td>
+                <code>strength</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Used to determine the number of timesteps used for inference when using img2img, inpaint, etc.</p>
@@ -9963,6 +10089,7 @@ schedule is used. If <code>timesteps</code> is passed, <code>num_inference_steps
           </tr>
       </tbody>
     </table>
+
 
             <details class="quote">
               <summary>Source code in <code>mindone/diffusers/schedulers/scheduling_tcd.py</code></summary>
@@ -10317,7 +10444,9 @@ process from the learned model outputs (most often the predicted noise).</p>
       </thead>
       <tbody>
           <tr class="doc-section-item">
-            <td><code>model_output</code></td>
+            <td>
+                <code>model_output</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The direct output from learned diffusion model.</p>
@@ -10331,7 +10460,9 @@ process from the learned model outputs (most often the predicted noise).</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>timestep</code></td>
+            <td>
+                <code>timestep</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The current discrete timestep in the diffusion chain.</p>
@@ -10345,7 +10476,9 @@ process from the learned model outputs (most often the predicted noise).</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>sample</code></td>
+            <td>
+                <code>sample</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>A current instance of a sample created by the diffusion process.</p>
@@ -10359,7 +10492,9 @@ process from the learned model outputs (most often the predicted noise).</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>eta</code></td>
+            <td>
+                <code>eta</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>A stochastic parameter (referred to as <code>gamma</code> in the paper) used to control the stochasticity in every
@@ -10379,7 +10514,9 @@ sampling.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>generator</code></td>
+            <td>
+                <code>generator</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>A random number generator.</p>
@@ -10397,7 +10534,9 @@ sampling.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>return_dict</code></td>
+            <td>
+                <code>return_dict</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Whether or not to return a [<code>~schedulers.scheduling_tcd.TCDSchedulerOutput</code>] or <code>tuple</code>.</p>
@@ -10417,6 +10556,7 @@ sampling.</p>
       </tbody>
     </table>
         
+
 
             <details class="quote">
               <summary>Source code in <code>mindone/diffusers/schedulers/scheduling_tcd.py</code></summary>
@@ -10699,7 +10839,9 @@ sampling.</p>
       </thead>
       <tbody>
           <tr class="doc-section-item">
-            <td><code>prev_sample</code></td>
+            <td>
+                <code>prev_sample</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Computed sample <code>(x_{t-1})</code> of previous timestep. <code>prev_sample</code> should be used as next model input in the
@@ -10714,7 +10856,9 @@ denoising loop.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>pred_noised_sample</code></td>
+            <td>
+                <code>pred_noised_sample</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The predicted noised sample <code>(x_{s})</code> based on the model output from the current timestep.</p>
@@ -10733,6 +10877,12 @@ denoising loop.</p>
           </tr>
       </tbody>
     </table>
+
+
+
+
+
+
 
               <details class="quote">
                 <summary>Source code in <code>mindone/diffusers/schedulers/scheduling_tcd.py</code></summary>

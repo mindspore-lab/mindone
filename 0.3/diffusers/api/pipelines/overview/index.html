@@ -1477,6 +1477,29 @@
   
   
     <li class="md-nav__item">
+      <a href="../../../using-diffusers/consisid/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    ConsisID
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../../../using-diffusers/sdxl/" class="md-nav__link">
         
   
@@ -3209,6 +3232,29 @@
   
   
     <li class="md-nav__item">
+      <a href="../../models/consisid_transformer3d/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    ConsisIDTransformer3DModel
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../../models/cogview3plus_transformer2d/" class="md-nav__link">
         
   
@@ -4871,6 +4917,29 @@
   
   
     <li class="md-nav__item">
+      <a href="../consisid/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    ConsisID
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../consistency_models/" class="md-nav__link">
         
   
@@ -6034,10 +6103,10 @@
       
         
         
-        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2_11_4_64" >
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2_11_4_65" >
         
           
-          <label class="md-nav__link" for="__nav_2_11_4_64" id="__nav_2_11_4_64_label" tabindex="0">
+          <label class="md-nav__link" for="__nav_2_11_4_65" id="__nav_2_11_4_65_label" tabindex="0">
             
   
   
@@ -6050,8 +6119,8 @@
             <span class="md-nav__icon md-icon"></span>
           </label>
         
-        <nav class="md-nav" data-md-level="4" aria-labelledby="__nav_2_11_4_64_label" aria-expanded="false">
-          <label class="md-nav__title" for="__nav_2_11_4_64">
+        <nav class="md-nav" data-md-level="4" aria-labelledby="__nav_2_11_4_65_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_2_11_4_65">
             <span class="md-nav__icon md-icon"></span>
             Stable Diffusion
           </label>
@@ -8577,6 +8646,12 @@ provides methods for loading, downloading and saving models. It also includes me
 - **_optional_components** (`List[str]`) -- List of all optional components that don&#39;t have to be passed to the
   pipeline to function (should be overridden by subclasses).
 </code></pre></div>
+
+
+
+
+
+
 
               <details class="quote">
                 <summary>Source code in <code>mindone/diffusers/pipelines/pipeline_utils.py</code></summary>
@@ -11273,7 +11348,7 @@ provides methods for loading, downloading and saving models. It also includes me
 
 
 <h3 id="mindone.diffusers.DiffusionPipeline.components" class="doc doc-heading">
-            <code class="highlight language-python"><span class="n">mindone</span><span class="o">.</span><span class="n">diffusers</span><span class="o">.</span><span class="n">DiffusionPipeline</span><span class="o">.</span><span class="n">components</span><span class="p">:</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">]</span></code>
+            <code class="highlight language-python"><span class="n">mindone</span><span class="o">.</span><span class="n">diffusers</span><span class="o">.</span><span class="n">DiffusionPipeline</span><span class="o">.</span><span class="n">components</span></code>
 
   <span class="doc doc-labels">
       <small class="doc doc-label doc-label-property"><code>property</code></small>
@@ -11299,6 +11374,7 @@ configurations without reallocating additional memory.</p>
 <span class="o">&gt;&gt;&gt;</span> <span class="n">img2img</span> <span class="o">=</span> <span class="n">StableDiffusionImg2ImgPipeline</span><span class="p">(</span><span class="o">**</span><span class="n">text2img</span><span class="o">.</span><span class="n">components</span><span class="p">)</span>
 <span class="o">&gt;&gt;&gt;</span> <span class="n">inpaint</span> <span class="o">=</span> <span class="n">StableDiffusionInpaintPipeline</span><span class="p">(</span><span class="o">**</span><span class="n">text2img</span><span class="o">.</span><span class="n">components</span><span class="p">)</span>
 </code></pre></div>
+
     </div>
 
 </div>
@@ -11308,7 +11384,7 @@ configurations without reallocating additional memory.</p>
 
 
 <h3 id="mindone.diffusers.DiffusionPipeline.dtype" class="doc doc-heading">
-            <code class="highlight language-python"><span class="n">mindone</span><span class="o">.</span><span class="n">diffusers</span><span class="o">.</span><span class="n">DiffusionPipeline</span><span class="o">.</span><span class="n">dtype</span><span class="p">:</span> <span class="n">ms</span><span class="o">.</span><span class="n">dtype</span></code>
+            <code class="highlight language-python"><span class="n">mindone</span><span class="o">.</span><span class="n">diffusers</span><span class="o">.</span><span class="n">DiffusionPipeline</span><span class="o">.</span><span class="n">dtype</span></code>
 
   <span class="doc doc-labels">
       <small class="doc doc-label doc-label-property"><code>property</code></small>
@@ -11343,6 +11419,7 @@ configurations without reallocating additional memory.</p>
           </tr>
       </tbody>
     </table>
+
     </div>
 
 </div>
@@ -11361,6 +11438,7 @@ configurations without reallocating additional memory.</p>
     <div class="doc doc-contents ">
 
         <p>Disable memory efficient attention from <a href="https://facebookresearch.github.io/xformers/">xFormers</a>.</p>
+
 
             <details class="quote">
               <summary>Source code in <code>mindone/diffusers/pipelines/pipeline_utils.py</code></summary>
@@ -11406,7 +11484,9 @@ configurations without reallocating additional memory.</p>
       </thead>
       <tbody>
           <tr class="doc-section-item">
-            <td><code>pretrained_model_name</code></td>
+            <td>
+                <code>pretrained_model_name</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>A string, the <em>repository id</em> (for example <code>CompVis/ldm-text2im-large-256</code>) of a pretrained pipeline
@@ -11421,7 +11501,9 @@ hosted on the Hub.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>custom_pipeline</code></td>
+            <td>
+                <code>custom_pipeline</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Can be either:</p>
@@ -11453,7 +11535,9 @@ community pipeline</a>.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>force_download</code></td>
+            <td>
+                <code>force_download</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Whether or not to force the (re-)download of the model weights and configuration files, overriding the
@@ -11468,7 +11552,9 @@ cached versions if they exist.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>proxies</code></td>
+            <td>
+                <code>proxies</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>A dictionary of proxy servers to use by protocol or endpoint, for example, <code>{'http': 'foo.bar:3128',
@@ -11483,7 +11569,9 @@ cached versions if they exist.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>output_loading_info(`bool`,</code></td>
+            <td>
+                <code>output_loading_info(`bool`,</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Whether or not to also return a dictionary containing missing keys, unexpected keys and error messages.</p>
@@ -11497,7 +11585,9 @@ cached versions if they exist.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>local_files_only</code></td>
+            <td>
+                <code>local_files_only</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Whether to only load local model weights and configuration files or not. If set to <code>True</code>, the model
@@ -11512,7 +11602,9 @@ won't be downloaded from the Hub.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>token</code></td>
+            <td>
+                <code>token</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The token to use as HTTP bearer authorization for remote files. If <code>True</code>, the token generated from
@@ -11527,7 +11619,9 @@ won't be downloaded from the Hub.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>revision</code></td>
+            <td>
+                <code>revision</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The specific model version to use. It can be a branch name, a tag name, a commit id, or any identifier
@@ -11542,7 +11636,9 @@ allowed by Git.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>custom_revision</code></td>
+            <td>
+                <code>custom_revision</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The specific model version to use. It can be a branch name, a tag name, or a commit id similar to
@@ -11558,7 +11654,9 @@ custom pipeline from GitHub, otherwise it defaults to <code>"main"</code> when l
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>mirror</code></td>
+            <td>
+                <code>mirror</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Mirror source to resolve accessibility issues if you're downloading a model in China. We do not
@@ -11574,7 +11672,9 @@ information.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>variant</code></td>
+            <td>
+                <code>variant</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Load weights from a specified variant filename such as <code>"fp16"</code> or <code>"ema"</code>. This is ignored when
@@ -11589,7 +11689,9 @@ loading <code>from_flax</code>.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>dduf_file(`str`,</code></td>
+            <td>
+                <code>dduf_file(`str`,</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Load weights from the specified DDUF file.</p>
@@ -11603,7 +11705,9 @@ loading <code>from_flax</code>.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>use_safetensors</code></td>
+            <td>
+                <code>use_safetensors</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>If set to <code>None</code>, the safetensors weights are downloaded if they're available <strong>and</strong> if the
@@ -11619,7 +11723,9 @@ weights. If set to <code>False</code>, safetensors weights are not loaded.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>use_onnx</code></td>
+            <td>
+                <code>use_onnx</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>If set to <code>True</code>, ONNX weights will always be downloaded if present. If set to <code>False</code>, ONNX weights
@@ -11636,7 +11742,9 @@ with <code>.onnx</code> and <code>.pb</code>.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>trust_remote_code</code></td>
+            <td>
+                <code>trust_remote_code</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Whether or not to allow for custom pipelines and components defined on the Hub in their own files. This
@@ -11666,7 +11774,7 @@ it will execute code present on the Hub on your local machine.</p>
           <tr class="doc-section-item">
             <td>
                 <span class="doc-returns-annotation">
-                    <code><span title="typing.Union">Union</span>[str, <span title="os.PathLike">PathLike</span>]</code>
+                    <code><span title="typing.Union">Union</span>[<span title="str">str</span>, <span title="os.PathLike">PathLike</span>]</code>
                 </span>
             </td>
             <td class="doc-returns-details">
@@ -11682,6 +11790,7 @@ A path to the downloaded pipeline.</p>
 <p>To use private or <a href="https://huggingface.co/docs/hub/models-gated#gated-models">gated models</a>, log-in with
 <code>huggingface-cli login</code>.</p>
 <p></Tip></p>
+
 
             <details class="quote">
               <summary>Source code in <code>mindone/diffusers/pipelines/pipeline_utils.py</code></summary>
@@ -12370,6 +12479,7 @@ A path to the downloaded pipeline.</p>
         <p>.. warning:: This flag is beta and subject to change.</p>
 <p>Enables or disables flash scaled dot product attention.</p>
 
+
             <details class="quote">
               <summary>Source code in <code>mindone/diffusers/pipelines/pipeline_utils.py</code></summary>
               <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">1273</span>
@@ -12449,7 +12559,9 @@ method is called, and the model remains in GPU until the next model runs. Memory
       </thead>
       <tbody>
           <tr class="doc-section-item">
-            <td><code>gpu_id</code></td>
+            <td>
+                <code>gpu_id</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The ID of the accelerator that shall be used in inference. If not specified, it will default to 0.</p>
@@ -12467,7 +12579,9 @@ method is called, and the model remains in GPU until the next model runs. Memory
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>device</code></td>
+            <td>
+                <code>device</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The PyTorch device type of the accelerator that shall be used in inference. If not specified, it will
@@ -12487,6 +12601,7 @@ default to "cuda".</p>
           </tr>
       </tbody>
     </table>
+
 
             <details class="quote">
               <summary>Source code in <code>mindone/diffusers/pipelines/pipeline_utils.py</code></summary>
@@ -12556,7 +12671,9 @@ method called. Offloading happens on a submodule basis. Memory savings are highe
       </thead>
       <tbody>
           <tr class="doc-section-item">
-            <td><code>gpu_id</code></td>
+            <td>
+                <code>gpu_id</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The ID of the accelerator that shall be used in inference. If not specified, it will default to 0.</p>
@@ -12574,7 +12691,9 @@ method called. Offloading happens on a submodule basis. Memory savings are highe
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>device</code></td>
+            <td>
+                <code>device</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The PyTorch device type of the accelerator that shall be used in inference. If not specified, it will
@@ -12594,6 +12713,7 @@ default to "cuda".</p>
           </tr>
       </tbody>
     </table>
+
 
             <details class="quote">
               <summary>Source code in <code>mindone/diffusers/pipelines/pipeline_utils.py</code></summary>
@@ -12667,7 +12787,9 @@ precedent.</p>
       </thead>
       <tbody>
           <tr class="doc-section-item">
-            <td><code>attention_op</code></td>
+            <td>
+                <code>attention_op</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Not supported for now.</p>
@@ -12694,6 +12816,7 @@ precedent.</p>
 <span class="o">&gt;&gt;&gt;</span> <span class="c1"># Workaround for not accepting attention shape using VAE for Flash Attention</span>
 <span class="o">&gt;&gt;&gt;</span> <span class="n">pipe</span><span class="o">.</span><span class="n">vae</span><span class="o">.</span><span class="n">enable_xformers_memory_efficient_attention</span><span class="p">(</span><span class="n">attention_op</span><span class="o">=</span><span class="kc">None</span><span class="p">)</span>
 </code></pre></div>
+
 
             <details class="quote">
               <summary>Source code in <code>mindone/diffusers/pipelines/pipeline_utils.py</code></summary>
@@ -12790,7 +12913,9 @@ pipeline components without reallocating additional memory.</p>
       </thead>
       <tbody>
           <tr class="doc-section-item">
-            <td><code>pipeline</code></td>
+            <td>
+                <code>pipeline</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The pipeline from which to create a new pipeline.</p>
@@ -12832,6 +12957,7 @@ A new pipeline with the same weights and configurations as <code>pipeline</code>
 <span class="o">&gt;&gt;&gt;</span> <span class="n">pipe</span> <span class="o">=</span> <span class="n">StableDiffusionPipeline</span><span class="o">.</span><span class="n">from_pretrained</span><span class="p">(</span><span class="s2">&quot;stable-diffusion-v1-5/stable-diffusion-v1-5&quot;</span><span class="p">)</span>
 <span class="o">&gt;&gt;&gt;</span> <span class="n">new_pipe</span> <span class="o">=</span> <span class="n">StableDiffusionSAGPipeline</span><span class="o">.</span><span class="n">from_pipe</span><span class="p">(</span><span class="n">pipe</span><span class="p">)</span>
 </code></pre></div>
+
 
             <details class="quote">
               <summary>Source code in <code>mindone/diffusers/pipelines/pipeline_utils.py</code></summary>
@@ -13118,7 +13244,9 @@ You should probably TRAIN this model on a down-stream task to be able to use it 
       </thead>
       <tbody>
           <tr class="doc-section-item">
-            <td><code>pretrained_model_name_or_path</code></td>
+            <td>
+                <code>pretrained_model_name_or_path</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Can be either:</p>
@@ -13139,7 +13267,9 @@ You should probably TRAIN this model on a down-stream task to be able to use it 
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>mindspore_dtype</code></td>
+            <td>
+                <code>mindspore_dtype</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Override the default <code>mindspore.dtype</code> and load the model with another dtype. If "auto" is passed, the
@@ -13157,7 +13287,9 @@ mindspore.float16}</code>). If a component is not specified and no default is se
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>custom_pipeline</code></td>
+            <td>
+                <code>custom_pipeline</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p><Tip warning={true}></p>
@@ -13188,7 +13320,9 @@ Pipelines</a></p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>force_download</code></td>
+            <td>
+                <code>force_download</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Whether or not to force the (re-)download of the model weights and configuration files, overriding the
@@ -13203,7 +13337,9 @@ cached versions if they exist.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>cache_dir</code></td>
+            <td>
+                <code>cache_dir</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Path to a directory where a downloaded pretrained model configuration is cached if the standard cache
@@ -13218,7 +13354,9 @@ is not used.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>proxies</code></td>
+            <td>
+                <code>proxies</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>A dictionary of proxy servers to use by protocol or endpoint, for example, <code>{'http': 'foo.bar:3128',
@@ -13233,7 +13371,9 @@ is not used.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>output_loading_info(`bool`,</code></td>
+            <td>
+                <code>output_loading_info(`bool`,</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Whether or not to also return a dictionary containing missing keys, unexpected keys and error messages.</p>
@@ -13247,7 +13387,9 @@ is not used.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>local_files_only</code></td>
+            <td>
+                <code>local_files_only</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Whether to only load local model weights and configuration files or not. If set to <code>True</code>, the model
@@ -13262,7 +13404,9 @@ won't be downloaded from the Hub.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>token</code></td>
+            <td>
+                <code>token</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The token to use as HTTP bearer authorization for remote files. If <code>True</code>, the token generated from
@@ -13277,7 +13421,9 @@ won't be downloaded from the Hub.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>revision</code></td>
+            <td>
+                <code>revision</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The specific model version to use. It can be a branch name, a tag name, a commit id, or any identifier
@@ -13292,7 +13438,9 @@ allowed by Git.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>custom_revision</code></td>
+            <td>
+                <code>custom_revision</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The specific model version to use. It can be a branch name, a tag name, or a commit id similar to
@@ -13308,7 +13456,9 @@ version.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>mirror</code></td>
+            <td>
+                <code>mirror</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Mirror source to resolve accessibility issues if you’re downloading a model in China. We do not
@@ -13324,7 +13474,9 @@ information.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>use_safetensors</code></td>
+            <td>
+                <code>use_safetensors</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>If set to <code>None</code>, the safetensors weights are downloaded if they're available <strong>and</strong> if the
@@ -13340,7 +13492,9 @@ weights. If set to <code>False</code>, safetensors weights are not loaded.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>use_onnx</code></td>
+            <td>
+                <code>use_onnx</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>If set to <code>True</code>, ONNX weights will always be downloaded if present. If set to <code>False</code>, ONNX weights
@@ -13357,7 +13511,9 @@ with <code>.onnx</code> and <code>.pb</code>.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>kwargs</code></td>
+            <td>
+                <code>kwargs</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Can be used to overwrite load and saveable variables (the pipeline components of the specific pipeline
@@ -13377,7 +13533,9 @@ below for more information.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>variant</code></td>
+            <td>
+                <code>variant</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Load weights from a specified variant filename such as <code>"fp16"</code> or <code>"ema"</code>. This is ignored when
@@ -13392,7 +13550,9 @@ loading <code>from_flax</code>.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>dduf_file(`str`,</code></td>
+            <td>
+                <code>dduf_file(`str`,</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Load weights from the specified dduf file.</p>
@@ -13428,6 +13588,7 @@ loading <code>from_flax</code>.</p>
 <span class="o">&gt;&gt;&gt;</span> <span class="n">scheduler</span> <span class="o">=</span> <span class="n">LMSDiscreteScheduler</span><span class="o">.</span><span class="n">from_config</span><span class="p">(</span><span class="n">pipeline</span><span class="o">.</span><span class="n">scheduler</span><span class="o">.</span><span class="n">config</span><span class="p">)</span>
 <span class="o">&gt;&gt;&gt;</span> <span class="n">pipeline</span><span class="o">.</span><span class="n">scheduler</span> <span class="o">=</span> <span class="n">scheduler</span>
 </code></pre></div>
+
 
             <details class="quote">
               <summary>Source code in <code>mindone/diffusers/pipelines/pipeline_utils.py</code></summary>
@@ -14228,6 +14389,7 @@ loading <code>from_flax</code>.</p>
 <p>Make sure to add this function to the end of the <code>__call__</code> function of your pipeline so that it functions
 correctly when applying <code>enable_model_cpu_offload</code>.</p>
 
+
             <details class="quote">
               <summary>Source code in <code>mindone/diffusers/pipelines/pipeline_utils.py</code></summary>
               <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">753</span>
@@ -14278,6 +14440,7 @@ correctly when applying <code>enable_model_cpu_offload</code>.</p>
 
         <p>Convert a NumPy image or a batch of images to a PIL image.</p>
 
+
             <details class="quote">
               <summary>Source code in <code>mindone/diffusers/pipelines/pipeline_utils.py</code></summary>
               <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">1193</span>
@@ -14310,6 +14473,7 @@ correctly when applying <code>enable_model_cpu_offload</code>.</p>
 
         <p>Removes all hooks that were added when using <code>enable_sequential_cpu_offload</code> or <code>enable_model_cpu_offload</code>.</p>
 
+
             <details class="quote">
               <summary>Source code in <code>mindone/diffusers/pipelines/pipeline_utils.py</code></summary>
               <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">729</span>
@@ -14339,6 +14503,7 @@ correctly when applying <code>enable_model_cpu_offload</code>.</p>
     <div class="doc doc-contents ">
 
         <p>Resets the device maps (if any) to None.</p>
+
 
             <details class="quote">
               <summary>Source code in <code>mindone/diffusers/pipelines/pipeline_utils.py</code></summary>
@@ -14382,7 +14547,9 @@ class implements both a save and loading method. The pipeline is easily reloaded
       </thead>
       <tbody>
           <tr class="doc-section-item">
-            <td><code>save_directory</code></td>
+            <td>
+                <code>save_directory</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Directory to save a pipeline to. Will be created if it doesn't exist.</p>
@@ -14396,7 +14563,9 @@ class implements both a save and loading method. The pipeline is easily reloaded
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>safe_serialization</code></td>
+            <td>
+                <code>safe_serialization</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Whether to save the model using <code>safetensors</code> or the traditional PyTorch way with <code>pickle</code>.</p>
@@ -14414,7 +14583,9 @@ class implements both a save and loading method. The pipeline is easily reloaded
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>variant</code></td>
+            <td>
+                <code>variant</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>If specified, weights are saved in the format <code>pytorch_model.&lt;variant&gt;.bin</code>.</p>
@@ -14432,7 +14603,9 @@ class implements both a save and loading method. The pipeline is easily reloaded
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>max_shard_size</code></td>
+            <td>
+                <code>max_shard_size</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The maximum size for a checkpoint before being sharded. Checkpoints shard will then be each of size
@@ -14455,7 +14628,9 @@ Face ecosystem (<code>transformers</code>, and <code>accelerate</code>, for exam
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>push_to_hub</code></td>
+            <td>
+                <code>push_to_hub</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Whether or not to push your model to the Hugging Face model hub after saving it. You can specify the
@@ -14475,7 +14650,9 @@ namespace).</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>kwargs</code></td>
+            <td>
+                <code>kwargs</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Additional keyword arguments passed along to the [<code>~utils.PushToHubMixin.push_to_hub</code>] method.</p>
@@ -14494,6 +14671,7 @@ namespace).</p>
           </tr>
       </tbody>
     </table>
+
 
             <details class="quote">
               <summary>Source code in <code>mindone/diffusers/pipelines/pipeline_utils.py</code></summary>
@@ -14778,7 +14956,9 @@ original attention calculation using mathematical formulas.</p>
       </thead>
       <tbody>
           <tr class="doc-section-item">
-            <td><code>force_cast_dtype</code></td>
+            <td>
+                <code>force_cast_dtype</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The data type to which the input data should be forcibly converted. If None, no forced</p>
@@ -14793,6 +14973,7 @@ original attention calculation using mathematical formulas.</p>
           </tr>
       </tbody>
     </table>
+
 
             <details class="quote">
               <summary>Source code in <code>mindone/diffusers/pipelines/pipeline_utils.py</code></summary>
@@ -14895,7 +15076,9 @@ the returned pipeline is a copy of self with the desired ms.dtype.
       </thead>
       <tbody>
           <tr class="doc-section-item">
-            <td><code>dtype</code></td>
+            <td>
+                <code>dtype</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Returns a pipeline with the specified <code>dtype</code></p>
@@ -14934,6 +15117,7 @@ the returned pipeline is a copy of self with the desired ms.dtype.
           </tr>
       </tbody>
     </table>
+
 
             <details class="quote">
               <summary>Source code in <code>mindone/diffusers/pipelines/pipeline_utils.py</code></summary>
@@ -15023,6 +15207,12 @@ the returned pipeline is a copy of self with the desired ms.dtype.
 
 
         <p>A Mixin to push a model, scheduler, or pipeline to the Hugging Face Hub.</p>
+
+
+
+
+
+
 
               <details class="quote">
                 <summary>Source code in <code>mindone/diffusers/utils/hub_utils.py</code></summary>
@@ -15263,7 +15453,9 @@ the returned pipeline is a copy of self with the desired ms.dtype.
       </thead>
       <tbody>
           <tr class="doc-section-item">
-            <td><code>repo_id</code></td>
+            <td>
+                <code>repo_id</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The name of the repository you want to push your model, scheduler, or pipeline files to. It should
@@ -15279,7 +15471,9 @@ directory.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>commit_message</code></td>
+            <td>
+                <code>commit_message</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Message to commit while pushing. Default to <code>"Upload {object}"</code>.</p>
@@ -15297,7 +15491,9 @@ directory.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>private</code></td>
+            <td>
+                <code>private</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Whether to make the repo private. If <code>None</code> (default), the repo will be public unless the
@@ -15316,7 +15512,9 @@ organization's default is private. This value is ignored if the repo already exi
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>token</code></td>
+            <td>
+                <code>token</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The token to use as HTTP bearer authorization for remote files. The token generated when running
@@ -15335,7 +15533,9 @@ organization's default is private. This value is ignored if the repo already exi
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>create_pr</code></td>
+            <td>
+                <code>create_pr</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Whether or not to create a PR with the uploaded files or directly commit.</p>
@@ -15353,7 +15553,9 @@ organization's default is private. This value is ignored if the repo already exi
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>safe_serialization</code></td>
+            <td>
+                <code>safe_serialization</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Whether or not to convert the model weights to the <code>safetensors</code> format.</p>
@@ -15371,7 +15573,9 @@ organization's default is private. This value is ignored if the repo already exi
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>variant</code></td>
+            <td>
+                <code>variant</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>If specified, weights are saved in the format <code>pytorch_model.&lt;variant&gt;.bin</code>.</p>
@@ -15400,6 +15604,7 @@ organization's default is private. This value is ignored if the repo already exi
 <span class="c1"># Push the `unet` to an organization with the name &quot;my-finetuned-unet&quot;.</span>
 <span class="n">unet</span><span class="o">.</span><span class="n">push_to_hub</span><span class="p">(</span><span class="s2">&quot;your-org/my-finetuned-unet&quot;</span><span class="p">)</span>
 </code></pre></div>
+
 
             <details class="quote">
               <summary>Source code in <code>mindone/diffusers/utils/hub_utils.py</code></summary>

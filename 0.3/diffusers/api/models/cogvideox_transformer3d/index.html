@@ -14,7 +14,7 @@
         <link rel="prev" href="../aura_flow_transformer2d/">
       
       
-        <link rel="next" href="../cogview3plus_transformer2d/">
+        <link rel="next" href="../consisid_transformer3d/">
       
       
       <link rel="icon" href="../../../../assets/images/favicon.png">
@@ -1460,6 +1460,29 @@
   
   <span class="md-ellipsis">
     CogVideoX
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../using-diffusers/consisid/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    ConsisID
     
   </span>
   
@@ -3315,6 +3338,29 @@
   
   
     <li class="md-nav__item">
+      <a href="../consisid_transformer3d/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    ConsisIDTransformer3DModel
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../cogview3plus_transformer2d/" class="md-nav__link">
         
   
@@ -4741,6 +4787,29 @@
   
   
     <li class="md-nav__item">
+      <a href="../../pipelines/consisid/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    ConsisID
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../../pipelines/consistency_models/" class="md-nav__link">
         
   
@@ -5904,10 +5973,10 @@
       
         
         
-        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2_11_4_64" >
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2_11_4_65" >
         
           
-          <label class="md-nav__link" for="__nav_2_11_4_64" id="__nav_2_11_4_64_label" tabindex="0">
+          <label class="md-nav__link" for="__nav_2_11_4_65" id="__nav_2_11_4_65_label" tabindex="0">
             
   
   
@@ -5920,8 +5989,8 @@
             <span class="md-nav__icon md-icon"></span>
           </label>
         
-        <nav class="md-nav" data-md-level="4" aria-labelledby="__nav_2_11_4_64_label" aria-expanded="false">
-          <label class="md-nav__title" for="__nav_2_11_4_64">
+        <nav class="md-nav" data-md-level="4" aria-labelledby="__nav_2_11_4_65_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_2_11_4_65">
             <span class="md-nav__icon md-icon"></span>
             Stable Diffusion
           </label>
@@ -8120,7 +8189,7 @@ specific language governing permissions and limitations under the License. -->
 
     <div class="doc doc-contents first">
             <p class="doc doc-class-bases">
-              Bases: <code><a class="autorefs autorefs-internal" title="mindone.diffusers.models.modeling_utils.ModelMixin" href="../overview/#mindone.diffusers.ModelMixin">ModelMixin</a></code>, <code><a class="autorefs autorefs-internal" title="mindone.diffusers.configuration_utils.ConfigMixin" href="../../configuration/#mindone.diffusers.configuration_utils.ConfigMixin">ConfigMixin</a></code>, <code><a class="autorefs autorefs-internal" title="mindone.diffusers.loaders.PeftAdapterMixin" href="../../loaders/peft/#mindone.diffusers.loaders.peft.PeftAdapterMixin">PeftAdapterMixin</a></code></p>
+              Bases: <code><a class="autorefs autorefs-internal" title="mindone.diffusers.ModelMixin (mindone.diffusers.models.modeling_utils.ModelMixin)" href="../overview/#mindone.diffusers.ModelMixin">ModelMixin</a></code>, <code><a class="autorefs autorefs-internal" title="mindone.diffusers.configuration_utils.ConfigMixin" href="../../configuration/#mindone.diffusers.configuration_utils.ConfigMixin">ConfigMixin</a></code>, <code><a class="autorefs autorefs-internal" title="mindone.diffusers.loaders.peft.PeftAdapterMixin (mindone.diffusers.loaders.PeftAdapterMixin)" href="../../loaders/peft/#mindone.diffusers.loaders.peft.PeftAdapterMixin">PeftAdapterMixin</a></code></p>
 
 
         <p>A Transformer model for video-like data in <a href="https://github.com/THUDM/CogVideo">CogVideoX</a>.</p>
@@ -8135,7 +8204,9 @@ specific language governing permissions and limitations under the License. -->
       </thead>
       <tbody>
           <tr class="doc-section-item">
-            <td><code>num_attention_heads</code></td>
+            <td>
+                <code>num_attention_heads</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The number of heads to use for multi-head attention.</p>
@@ -8153,7 +8224,9 @@ specific language governing permissions and limitations under the License. -->
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>attention_head_dim</code></td>
+            <td>
+                <code>attention_head_dim</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The number of channels in each head.</p>
@@ -8171,7 +8244,9 @@ specific language governing permissions and limitations under the License. -->
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>in_channels</code></td>
+            <td>
+                <code>in_channels</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The number of channels in the input.</p>
@@ -8189,7 +8264,9 @@ specific language governing permissions and limitations under the License. -->
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>out_channels</code></td>
+            <td>
+                <code>out_channels</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The number of channels in the output.</p>
@@ -8207,7 +8284,9 @@ specific language governing permissions and limitations under the License. -->
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>flip_sin_to_cos</code></td>
+            <td>
+                <code>flip_sin_to_cos</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Whether to flip the sin to cos in the time embedding.</p>
@@ -8225,7 +8304,9 @@ specific language governing permissions and limitations under the License. -->
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>time_embed_dim</code></td>
+            <td>
+                <code>time_embed_dim</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Output dimension of timestep embeddings.</p>
@@ -8243,7 +8324,9 @@ specific language governing permissions and limitations under the License. -->
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>ofs_embed_dim</code></td>
+            <td>
+                <code>ofs_embed_dim</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Output dimension of "ofs" embeddings used in CogVideoX-5b-I2B in version 1.5</p>
@@ -8261,7 +8344,9 @@ specific language governing permissions and limitations under the License. -->
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>text_embed_dim</code></td>
+            <td>
+                <code>text_embed_dim</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Input dimension of text embeddings from the text encoder.</p>
@@ -8279,7 +8364,9 @@ specific language governing permissions and limitations under the License. -->
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>num_layers</code></td>
+            <td>
+                <code>num_layers</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The number of layers of Transformer blocks to use.</p>
@@ -8297,7 +8384,9 @@ specific language governing permissions and limitations under the License. -->
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>dropout</code></td>
+            <td>
+                <code>dropout</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The dropout probability to use.</p>
@@ -8315,7 +8404,9 @@ specific language governing permissions and limitations under the License. -->
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>attention_bias</code></td>
+            <td>
+                <code>attention_bias</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Whether to use bias in the attention projection layers.</p>
@@ -8333,7 +8424,9 @@ specific language governing permissions and limitations under the License. -->
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>sample_width</code></td>
+            <td>
+                <code>sample_width</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The width of the input latents.</p>
@@ -8351,7 +8444,9 @@ specific language governing permissions and limitations under the License. -->
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>sample_height</code></td>
+            <td>
+                <code>sample_height</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The height of the input latents.</p>
@@ -8369,7 +8464,9 @@ specific language governing permissions and limitations under the License. -->
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>sample_frames</code></td>
+            <td>
+                <code>sample_frames</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The number of frames in the input latents. Note that this parameter was incorrectly initialized to 49
@@ -8390,7 +8487,9 @@ K latent frames, the correct value to pass here would be: ((K - 1) * temporal_co
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>patch_size</code></td>
+            <td>
+                <code>patch_size</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The size of the patches to use in the patch embedding layer.</p>
@@ -8408,7 +8507,9 @@ K latent frames, the correct value to pass here would be: ((K - 1) * temporal_co
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>temporal_compression_ratio</code></td>
+            <td>
+                <code>temporal_compression_ratio</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The compression ratio across the temporal dimension. See documentation for <code>sample_frames</code>.</p>
@@ -8426,7 +8527,9 @@ K latent frames, the correct value to pass here would be: ((K - 1) * temporal_co
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>max_text_seq_length</code></td>
+            <td>
+                <code>max_text_seq_length</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The maximum sequence length of the input text embeddings.</p>
@@ -8444,7 +8547,9 @@ K latent frames, the correct value to pass here would be: ((K - 1) * temporal_co
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>activation_fn</code></td>
+            <td>
+                <code>activation_fn</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Activation function to use in feed-forward.</p>
@@ -8462,7 +8567,9 @@ K latent frames, the correct value to pass here would be: ((K - 1) * temporal_co
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>timestep_activation_fn</code></td>
+            <td>
+                <code>timestep_activation_fn</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Activation function to use when generating the timestep embeddings.</p>
@@ -8480,7 +8587,9 @@ K latent frames, the correct value to pass here would be: ((K - 1) * temporal_co
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>norm_elementwise_affine</code></td>
+            <td>
+                <code>norm_elementwise_affine</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Whether to use elementwise affine in normalization layers.</p>
@@ -8498,7 +8607,9 @@ K latent frames, the correct value to pass here would be: ((K - 1) * temporal_co
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>norm_eps</code></td>
+            <td>
+                <code>norm_eps</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The epsilon value to use in normalization layers.</p>
@@ -8516,7 +8627,9 @@ K latent frames, the correct value to pass here would be: ((K - 1) * temporal_co
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>spatial_interpolation_scale</code></td>
+            <td>
+                <code>spatial_interpolation_scale</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Scaling factor to apply in 3D positional embeddings across spatial dimensions.</p>
@@ -8534,7 +8647,9 @@ K latent frames, the correct value to pass here would be: ((K - 1) * temporal_co
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>temporal_interpolation_scale</code></td>
+            <td>
+                <code>temporal_interpolation_scale</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Scaling factor to apply in 3D positional embeddings across temporal dimensions.</p>
@@ -8553,6 +8668,12 @@ K latent frames, the correct value to pass here would be: ((K - 1) * temporal_co
           </tr>
       </tbody>
     </table>
+
+
+
+
+
+
 
               <details class="quote">
                 <summary>Source code in <code>mindone/diffusers/models/transformers/cogvideox_transformer_3d.py</code></summary>
@@ -9283,7 +9404,7 @@ K latent frames, the correct value to pass here would be: ((K - 1) * temporal_co
 
 
 <h3 id="mindone.diffusers.models.transformers.cogvideox_transformer_3d.CogVideoXTransformer3DModel.attn_processors" class="doc doc-heading">
-            <code class="highlight language-python"><span class="n">mindone</span><span class="o">.</span><span class="n">diffusers</span><span class="o">.</span><span class="n">models</span><span class="o">.</span><span class="n">transformers</span><span class="o">.</span><span class="n">cogvideox_transformer_3d</span><span class="o">.</span><span class="n">CogVideoXTransformer3DModel</span><span class="o">.</span><span class="n">attn_processors</span><span class="p">:</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">AttentionProcessor</span><span class="p">]</span></code>
+            <code class="highlight language-python"><span class="n">mindone</span><span class="o">.</span><span class="n">diffusers</span><span class="o">.</span><span class="n">models</span><span class="o">.</span><span class="n">transformers</span><span class="o">.</span><span class="n">cogvideox_transformer_3d</span><span class="o">.</span><span class="n">CogVideoXTransformer3DModel</span><span class="o">.</span><span class="n">attn_processors</span></code>
 
   <span class="doc doc-labels">
       <small class="doc doc-label doc-label-property"><code>property</code></small>
@@ -9307,7 +9428,7 @@ K latent frames, the correct value to pass here would be: ((K - 1) * temporal_co
           <tr class="doc-section-item">
             <td>
                 <span class="doc-returns-annotation">
-                    <code><span title="typing.Dict">Dict</span>[str, <span title="mindone.diffusers.models.attention_processor.AttentionProcessor">AttentionProcessor</span>]</code>
+                    <code><span title="typing.Dict">Dict</span>[<span title="str">str</span>, <span title="mindone.diffusers.models.attention_processor.AttentionProcessor">AttentionProcessor</span>]</code>
                 </span>
             </td>
             <td class="doc-returns-details">
@@ -9319,7 +9440,7 @@ K latent frames, the correct value to pass here would be: ((K - 1) * temporal_co
           <tr class="doc-section-item">
             <td>
                 <span class="doc-returns-annotation">
-                    <code><span title="typing.Dict">Dict</span>[str, <span title="mindone.diffusers.models.attention_processor.AttentionProcessor">AttentionProcessor</span>]</code>
+                    <code><span title="typing.Dict">Dict</span>[<span title="str">str</span>, <span title="mindone.diffusers.models.attention_processor.AttentionProcessor">AttentionProcessor</span>]</code>
                 </span>
             </td>
             <td class="doc-returns-details">
@@ -9330,6 +9451,7 @@ K latent frames, the correct value to pass here would be: ((K - 1) * temporal_co
           </tr>
       </tbody>
     </table>
+
     </div>
 
 </div>
@@ -9352,6 +9474,7 @@ are fused. For cross-attention modules, key and value projection matrices are fu
 <p><Tip warning={true}></p>
 <p>This API is 🧪 experimental.</p>
 <p></Tip></p>
+
 
             <details class="quote">
               <summary>Source code in <code>mindone/diffusers/models/transformers/cogvideox_transformer_3d.py</code></summary>
@@ -9431,7 +9554,9 @@ are fused. For cross-attention modules, key and value projection matrices are fu
       </thead>
       <tbody>
           <tr class="doc-section-item">
-            <td><code>processor</code></td>
+            <td>
+                <code>processor</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The instantiated processor class or a dictionary of processor classes that will be set as the processor
@@ -9449,6 +9574,7 @@ processor. This is strongly recommended when setting trainable attention process
           </tr>
       </tbody>
     </table>
+
 
             <details class="quote">
               <summary>Source code in <code>mindone/diffusers/models/transformers/cogvideox_transformer_3d.py</code></summary>
@@ -9539,6 +9665,7 @@ processor. This is strongly recommended when setting trainable attention process
 <p>This API is 🧪 experimental.</p>
 <p></Tip></p>
 
+
             <details class="quote">
               <summary>Source code in <code>mindone/diffusers/models/transformers/cogvideox_transformer_3d.py</code></summary>
               <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">418</span>
@@ -9610,7 +9737,9 @@ processor. This is strongly recommended when setting trainable attention process
       </thead>
       <tbody>
           <tr class="doc-section-item">
-            <td><code>`(batch</code></td>
+            <td>
+                <code>`(batch</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The hidden states output conditioned on the <code>encoder_hidden_states</code> input. If discrete, returns probability
@@ -9626,6 +9755,12 @@ distributions for the unnoised latent pixels.</p>
           </tr>
       </tbody>
     </table>
+
+
+
+
+
+
 
               <details class="quote">
                 <summary>Source code in <code>mindone/diffusers/models/modeling_outputs.py</code></summary>
@@ -9778,13 +9913,13 @@ distributions for the unnoised latent pixels.</p>
         
         
           
-          <a href="../cogview3plus_transformer2d/" class="md-footer__link md-footer__link--next" aria-label="Next: CogView3PlusTransformer2DModel">
+          <a href="../consisid_transformer3d/" class="md-footer__link md-footer__link--next" aria-label="Next: ConsisIDTransformer3DModel">
             <div class="md-footer__title">
               <span class="md-footer__direction">
                 Next
               </span>
               <div class="md-ellipsis">
-                CogView3PlusTransformer2DModel
+                ConsisIDTransformer3DModel
               </div>
             </div>
             <div class="md-footer__button md-icon">

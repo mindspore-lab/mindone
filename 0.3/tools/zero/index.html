@@ -1443,6 +1443,29 @@
   
   
     <li class="md-nav__item">
+      <a href="../../diffusers/using-diffusers/consisid/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    ConsisID
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../../diffusers/using-diffusers/sdxl/" class="md-nav__link">
         
   
@@ -3161,6 +3184,29 @@
   
   
     <li class="md-nav__item">
+      <a href="../../diffusers/api/models/consisid_transformer3d/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    ConsisIDTransformer3DModel
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../../diffusers/api/models/cogview3plus_transformer2d/" class="md-nav__link">
         
   
@@ -4587,6 +4633,29 @@
   
   
     <li class="md-nav__item">
+      <a href="../../diffusers/api/pipelines/consisid/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    ConsisID
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../../diffusers/api/pipelines/consistency_models/" class="md-nav__link">
         
   
@@ -5750,10 +5819,10 @@
       
         
         
-        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2_11_4_64" >
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2_11_4_65" >
         
           
-          <label class="md-nav__link" for="__nav_2_11_4_64" id="__nav_2_11_4_64_label" tabindex="0">
+          <label class="md-nav__link" for="__nav_2_11_4_65" id="__nav_2_11_4_65_label" tabindex="0">
             
   
   
@@ -5766,8 +5835,8 @@
             <span class="md-nav__icon md-icon"></span>
           </label>
         
-        <nav class="md-nav" data-md-level="4" aria-labelledby="__nav_2_11_4_64_label" aria-expanded="false">
-          <label class="md-nav__title" for="__nav_2_11_4_64">
+        <nav class="md-nav" data-md-level="4" aria-labelledby="__nav_2_11_4_65_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_2_11_4_65">
             <span class="md-nav__icon md-icon"></span>
             Stable Diffusion
           </label>
@@ -8029,7 +8098,9 @@ granularity, allowing us to scale the model size proportional to the number of d
       </thead>
       <tbody>
           <tr class="doc-section-item">
-            <td><code>network</code></td>
+            <td>
+                <code>network</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>train network, not include grad function,
@@ -8044,7 +8115,9 @@ grad function must be built after rewrite train network.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>optimizer</code></td>
+            <td>
+                <code>optimizer</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Must be the subclass of MindSpore Optimizer.</p>
@@ -8058,7 +8131,9 @@ grad function must be built after rewrite train network.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>scale_sense</code></td>
+            <td>
+                <code>scale_sense</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>If this value is a Cell, it will be called
@@ -8068,7 +8143,7 @@ the shape should be :math:<code>()</code> or :math:<code>(1,)</code>.</p>
               <p>
                   <span class="doc-param-annotation">
                     <b>TYPE:</b>
-                      <code>Union[Tensor, Cell]</code>
+                      <code><span title="Union">Union</span>[<span title="Tensor">Tensor</span>, <span title="Cell">Cell</span>]</code>
                   </span>
                   <span class="doc-param-default">
                     <b>DEFAULT:</b>
@@ -8078,7 +8153,9 @@ the shape should be :math:<code>()</code> or :math:<code>(1,)</code>.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>zero_stage</code></td>
+            <td>
+                <code>zero_stage</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Stage setting of ZeRO, default is 0.</p>
@@ -8096,7 +8173,9 @@ the shape should be :math:<code>()</code> or :math:<code>(1,)</code>.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>optimizer_offload</code></td>
+            <td>
+                <code>optimizer_offload</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Only take effect when optimizer is AdamWeightDecay, default is False.</p>
@@ -8114,7 +8193,9 @@ the shape should be :math:<code>()</code> or :math:<code>(1,)</code>.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>optimizer_parallel_group</code></td>
+            <td>
+                <code>optimizer_parallel_group</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The name of the optimizer parallel communication group, default is None.</p>
@@ -8132,7 +8213,9 @@ the shape should be :math:<code>()</code> or :math:<code>(1,)</code>.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>dp_group</code></td>
+            <td>
+                <code>dp_group</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The name of the data parallel communication group, default is None.</p>
@@ -8150,7 +8233,9 @@ the shape should be :math:<code>()</code> or :math:<code>(1,)</code>.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>comm_fusion</code></td>
+            <td>
+                <code>comm_fusion</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>A dict contains the types and configurations
@@ -8173,7 +8258,9 @@ Examples: {"allreduce": {"openstate": True, "bucket_size": 5e8},
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>parallel_modules</code></td>
+            <td>
+                <code>parallel_modules</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>A dict of Cells could split parameters in zero3, default is None.
@@ -8193,6 +8280,7 @@ If None, use <code>PARALLEL_MODULES</code> from <code>mindone.models.modules.par
           </tr>
       </tbody>
     </table>
+
 
             <details class="quote">
               <summary>Source code in <code>mindone/trainers/zero.py</code></summary>

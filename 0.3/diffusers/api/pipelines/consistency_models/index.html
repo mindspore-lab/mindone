@@ -11,7 +11,7 @@
         <link rel="canonical" href="https://mindspore-lab.github.io/mindone/0.3/diffusers/api/pipelines/consistency_models/">
       
       
-        <link rel="prev" href="../cogview4/">
+        <link rel="prev" href="../consisid/">
       
       
         <link rel="next" href="../controlnet/">
@@ -1460,6 +1460,29 @@
   
   <span class="md-ellipsis">
     CogVideoX
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../using-diffusers/consisid/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    ConsisID
     
   </span>
   
@@ -3209,6 +3232,29 @@
   
   
     <li class="md-nav__item">
+      <a href="../../models/consisid_transformer3d/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    ConsisIDTransformer3DModel
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../../models/cogview3plus_transformer2d/" class="md-nav__link">
         
   
@@ -4634,6 +4680,29 @@
                 
   
   
+  
+  
+    <li class="md-nav__item">
+      <a href="../consisid/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    ConsisID
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
     
   
   
@@ -5884,10 +5953,10 @@
       
         
         
-        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2_11_4_64" >
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2_11_4_65" >
         
           
-          <label class="md-nav__link" for="__nav_2_11_4_64" id="__nav_2_11_4_64_label" tabindex="0">
+          <label class="md-nav__link" for="__nav_2_11_4_65" id="__nav_2_11_4_65_label" tabindex="0">
             
   
   
@@ -5900,8 +5969,8 @@
             <span class="md-nav__icon md-icon"></span>
           </label>
         
-        <nav class="md-nav" data-md-level="4" aria-labelledby="__nav_2_11_4_64_label" aria-expanded="false">
-          <label class="md-nav__title" for="__nav_2_11_4_64">
+        <nav class="md-nav" data-md-level="4" aria-labelledby="__nav_2_11_4_65_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_2_11_4_65">
             <span class="md-nav__icon md-icon"></span>
             Stable Diffusion
           </label>
@@ -8108,7 +8177,7 @@ specific language governing permissions and limitations under the License.
 
     <div class="doc doc-contents first">
             <p class="doc doc-class-bases">
-              Bases: <code><a class="autorefs autorefs-internal" title="mindone.diffusers.pipelines.pipeline_utils.DiffusionPipeline" href="../overview/#mindone.diffusers.DiffusionPipeline">DiffusionPipeline</a></code></p>
+              Bases: <code><a class="autorefs autorefs-internal" title="mindone.diffusers.DiffusionPipeline (mindone.diffusers.pipelines.pipeline_utils.DiffusionPipeline)" href="../overview/#mindone.diffusers.DiffusionPipeline">DiffusionPipeline</a></code></p>
 
 
         <p>Pipeline for unconditional or class-conditional image generation.</p>
@@ -8125,7 +8194,9 @@ implemented for all pipelines (downloading, saving, running on a particular devi
       </thead>
       <tbody>
           <tr class="doc-section-item">
-            <td><code>unet</code></td>
+            <td>
+                <code>unet</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>A <code>UNet2DModel</code> to denoise the encoded image latents.</p>
@@ -8139,7 +8210,9 @@ implemented for all pipelines (downloading, saving, running on a particular devi
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>scheduler</code></td>
+            <td>
+                <code>scheduler</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>A scheduler to be used in combination with <code>unet</code> to denoise the encoded image latents. Currently only
@@ -8155,6 +8228,12 @@ compatible with [<code>CMStochasticIterativeScheduler</code>].</p>
           </tr>
       </tbody>
     </table>
+
+
+
+
+
+
 
               <details class="quote">
                 <summary>Source code in <code>mindone/diffusers/pipelines/consistency_models/pipeline_consistency_models.py</code></summary>
@@ -8600,7 +8679,9 @@ compatible with [<code>CMStochasticIterativeScheduler</code>].</p>
       </thead>
       <tbody>
           <tr class="doc-section-item">
-            <td><code>batch_size</code></td>
+            <td>
+                <code>batch_size</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The number of images to generate.</p>
@@ -8618,7 +8699,9 @@ compatible with [<code>CMStochasticIterativeScheduler</code>].</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>class_labels</code></td>
+            <td>
+                <code>class_labels</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Optional class labels for conditioning class-conditional consistency models. Not used if the model is
@@ -8637,7 +8720,9 @@ not class-conditional.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>num_inference_steps</code></td>
+            <td>
+                <code>num_inference_steps</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The number of denoising steps. More denoising steps usually lead to a higher quality image at the
@@ -8656,7 +8741,9 @@ expense of slower inference.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>timesteps</code></td>
+            <td>
+                <code>timesteps</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Custom timesteps to use for the denoising process. If not defined, equal spaced <code>num_inference_steps</code>
@@ -8675,7 +8762,9 @@ timesteps are used. Must be in descending order.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>generator</code></td>
+            <td>
+                <code>generator</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>A <a href="https://numpy.org/doc/stable/reference/random/generator.html"><code>np.random.Generator</code></a> to make
@@ -8694,7 +8783,9 @@ generation deterministic.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>latents</code></td>
+            <td>
+                <code>latents</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Pre-generated noisy latents sampled from a Gaussian distribution, to be used as inputs for image
@@ -8714,7 +8805,9 @@ tensor is generated by sampling using the supplied random <code>generator</code>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>output_type</code></td>
+            <td>
+                <code>output_type</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The output format of the generated image. Choose between <code>PIL.Image</code> or <code>np.array</code>.</p>
@@ -8732,7 +8825,9 @@ tensor is generated by sampling using the supplied random <code>generator</code>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>return_dict</code></td>
+            <td>
+                <code>return_dict</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Whether or not to return a [<code>~pipelines.ImagePipelineOutput</code>] instead of a plain tuple.</p>
@@ -8750,7 +8845,9 @@ tensor is generated by sampling using the supplied random <code>generator</code>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>callback</code></td>
+            <td>
+                <code>callback</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>A function that calls every <code>callback_steps</code> steps during inference. The function is called with the
@@ -8769,7 +8866,9 @@ following arguments: <code>callback(step: int, timestep: int, latents: ms.Tensor
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>callback_steps</code></td>
+            <td>
+                <code>callback_steps</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The frequency at which the <code>callback</code> function is called. If not specified, the callback is called at
@@ -8813,6 +8912,7 @@ returned where the first element is a list with the generated images.</p>
           </tr>
       </tbody>
     </table>
+
 
             <details class="quote">
               <summary>Source code in <code>mindone/diffusers/pipelines/consistency_models/pipeline_consistency_models.py</code></summary>
@@ -9055,6 +9155,12 @@ returned where the first element is a list with the generated images.</p>
 
         <p>Output class for image pipelines.</p>
 
+
+
+
+
+
+
               <details class="quote">
                 <summary>Source code in <code>mindone/diffusers/pipelines/pipeline_utils.py</code></summary>
                 <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">86</span>
@@ -9186,7 +9292,7 @@ returned where the first element is a list with the generated images.</p>
       <nav class="md-footer__inner md-grid" aria-label="Footer" >
         
           
-          <a href="../cogview4/" class="md-footer__link md-footer__link--prev" aria-label="Previous: CogView4">
+          <a href="../consisid/" class="md-footer__link md-footer__link--prev" aria-label="Previous: ConsisID">
             <div class="md-footer__button md-icon">
               
               <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
@@ -9196,7 +9302,7 @@ returned where the first element is a list with the generated images.</p>
                 Previous
               </span>
               <div class="md-ellipsis">
-                CogView4
+                ConsisID
               </div>
             </div>
           </a>

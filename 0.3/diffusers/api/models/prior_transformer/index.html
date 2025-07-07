@@ -1477,6 +1477,29 @@
   
   
     <li class="md-nav__item">
+      <a href="../../../using-diffusers/consisid/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    ConsisID
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../../../using-diffusers/sdxl/" class="md-nav__link">
         
   
@@ -3213,6 +3236,29 @@
   
   
     <li class="md-nav__item">
+      <a href="../consisid_transformer3d/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    ConsisIDTransformer3DModel
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../cogview3plus_transformer2d/" class="md-nav__link">
         
   
@@ -4741,6 +4787,29 @@
   
   
     <li class="md-nav__item">
+      <a href="../../pipelines/consisid/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    ConsisID
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../../pipelines/consistency_models/" class="md-nav__link">
         
   
@@ -5904,10 +5973,10 @@
       
         
         
-        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2_11_4_64" >
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2_11_4_65" >
         
           
-          <label class="md-nav__link" for="__nav_2_11_4_64" id="__nav_2_11_4_64_label" tabindex="0">
+          <label class="md-nav__link" for="__nav_2_11_4_65" id="__nav_2_11_4_65_label" tabindex="0">
             
   
   
@@ -5920,8 +5989,8 @@
             <span class="md-nav__icon md-icon"></span>
           </label>
         
-        <nav class="md-nav" data-md-level="4" aria-labelledby="__nav_2_11_4_64_label" aria-expanded="false">
-          <label class="md-nav__title" for="__nav_2_11_4_64">
+        <nav class="md-nav" data-md-level="4" aria-labelledby="__nav_2_11_4_65_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_2_11_4_65">
             <span class="md-nav__icon md-icon"></span>
             Stable Diffusion
           </label>
@@ -8118,7 +8187,7 @@ specific language governing permissions and limitations under the License.
 
     <div class="doc doc-contents first">
             <p class="doc doc-class-bases">
-              Bases: <code><a class="autorefs autorefs-internal" title="mindone.diffusers.models.modeling_utils.ModelMixin" href="../overview/#mindone.diffusers.ModelMixin">ModelMixin</a></code>, <code><a class="autorefs autorefs-internal" title="mindone.diffusers.configuration_utils.ConfigMixin" href="../../configuration/#mindone.diffusers.configuration_utils.ConfigMixin">ConfigMixin</a></code>, <code><a class="autorefs autorefs-internal" title="mindone.diffusers.loaders.UNet2DConditionLoadersMixin" href="../../loaders/unet/#mindone.diffusers.loaders.unet.UNet2DConditionLoadersMixin">UNet2DConditionLoadersMixin</a></code>, <code><a class="autorefs autorefs-internal" title="mindone.diffusers.loaders.PeftAdapterMixin" href="../../loaders/peft/#mindone.diffusers.loaders.peft.PeftAdapterMixin">PeftAdapterMixin</a></code></p>
+              Bases: <code><a class="autorefs autorefs-internal" title="mindone.diffusers.ModelMixin (mindone.diffusers.models.modeling_utils.ModelMixin)" href="../overview/#mindone.diffusers.ModelMixin">ModelMixin</a></code>, <code><a class="autorefs autorefs-internal" title="mindone.diffusers.configuration_utils.ConfigMixin" href="../../configuration/#mindone.diffusers.configuration_utils.ConfigMixin">ConfigMixin</a></code>, <code><a class="autorefs autorefs-internal" title="mindone.diffusers.loaders.unet.UNet2DConditionLoadersMixin (mindone.diffusers.loaders.UNet2DConditionLoadersMixin)" href="../../loaders/unet/#mindone.diffusers.loaders.unet.UNet2DConditionLoadersMixin">UNet2DConditionLoadersMixin</a></code>, <code><a class="autorefs autorefs-internal" title="mindone.diffusers.loaders.peft.PeftAdapterMixin (mindone.diffusers.loaders.PeftAdapterMixin)" href="../../loaders/peft/#mindone.diffusers.loaders.peft.PeftAdapterMixin">PeftAdapterMixin</a></code></p>
 
 
         <p>A Prior Transformer model.</p>
@@ -8133,7 +8202,9 @@ specific language governing permissions and limitations under the License.
       </thead>
       <tbody>
           <tr class="doc-section-item">
-            <td><code>num_attention_heads</code></td>
+            <td>
+                <code>num_attention_heads</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The number of heads to use for multi-head attention.</p>
@@ -8151,7 +8222,9 @@ specific language governing permissions and limitations under the License.
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>attention_head_dim</code></td>
+            <td>
+                <code>attention_head_dim</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The number of channels in each head.</p>
@@ -8169,7 +8242,9 @@ specific language governing permissions and limitations under the License.
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>num_layers</code></td>
+            <td>
+                <code>num_layers</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The number of layers of Transformer blocks to use.</p>
@@ -8187,7 +8262,9 @@ specific language governing permissions and limitations under the License.
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>embedding_dim</code></td>
+            <td>
+                <code>embedding_dim</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The dimension of the model input <code>hidden_states</code></p>
@@ -8205,7 +8282,9 @@ specific language governing permissions and limitations under the License.
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>num_embeddings</code></td>
+            <td>
+                <code>num_embeddings</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The number of embeddings of the model input <code>hidden_states</code></p>
@@ -8223,7 +8302,9 @@ specific language governing permissions and limitations under the License.
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>additional_embeddings</code></td>
+            <td>
+                <code>additional_embeddings</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The number of additional tokens appended to the
@@ -8243,7 +8324,9 @@ additional_embeddings</code>.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>dropout</code></td>
+            <td>
+                <code>dropout</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The dropout probability to use.</p>
@@ -8261,7 +8344,9 @@ additional_embeddings</code>.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>time_embed_act_fn</code></td>
+            <td>
+                <code>time_embed_act_fn</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The activation function to use to create timestep embeddings.</p>
@@ -8279,7 +8364,9 @@ additional_embeddings</code>.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>norm_in_type</code></td>
+            <td>
+                <code>norm_in_type</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The normalization layer to apply on hidden states before
@@ -8298,7 +8385,9 @@ passing to Transformer blocks. Set it to <code>None</code> if normalization is n
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>embedding_proj_norm_type</code></td>
+            <td>
+                <code>embedding_proj_norm_type</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The normalization layer to apply on the input <code>proj_embedding</code>. Set it to <code>None</code> if normalization is not
@@ -8317,7 +8406,9 @@ needed.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>encoder_hid_proj_type</code></td>
+            <td>
+                <code>encoder_hid_proj_type</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The projection layer to apply on the input <code>encoder_hidden_states</code>. Set it to <code>None</code> if
@@ -8336,7 +8427,9 @@ needed.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>added_emb_type</code></td>
+            <td>
+                <code>added_emb_type</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Additional embeddings to condition the model.
@@ -8357,7 +8450,9 @@ https://arxiv.org/abs/2204.06125 If it is <code>None</code>, no additional embed
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>time_embed_dim</code></td>
+            <td>
+                <code>time_embed_dim</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The dimension of timestep embeddings.
@@ -8376,7 +8471,9 @@ If None, will be set to <code>num_attention_heads * attention_head_dim</code></p
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>embedding_proj_dim</code></td>
+            <td>
+                <code>embedding_proj_dim</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The dimension of <code>proj_embedding</code>. If None, will be set to <code>embedding_dim</code>.</p>
@@ -8394,7 +8491,9 @@ If None, will be set to <code>num_attention_heads * attention_head_dim</code></p
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>clip_embed_dim</code></td>
+            <td>
+                <code>clip_embed_dim</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The dimension of the output. If None, will be set to <code>embedding_dim</code>.</p>
@@ -8413,6 +8512,12 @@ If None, will be set to <code>num_attention_heads * attention_head_dim</code></p
           </tr>
       </tbody>
     </table>
+
+
+
+
+
+
 
               <details class="quote">
                 <summary>Source code in <code>mindone/diffusers/models/transformers/prior_transformer.py</code></summary>
@@ -9129,7 +9234,7 @@ If None, will be set to <code>num_attention_heads * attention_head_dim</code></p
 
 
 <h3 id="mindone.diffusers.PriorTransformer.attn_processors" class="doc doc-heading">
-            <code class="highlight language-python"><span class="n">mindone</span><span class="o">.</span><span class="n">diffusers</span><span class="o">.</span><span class="n">PriorTransformer</span><span class="o">.</span><span class="n">attn_processors</span><span class="p">:</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">AttentionProcessor</span><span class="p">]</span></code>
+            <code class="highlight language-python"><span class="n">mindone</span><span class="o">.</span><span class="n">diffusers</span><span class="o">.</span><span class="n">PriorTransformer</span><span class="o">.</span><span class="n">attn_processors</span></code>
 
   <span class="doc doc-labels">
       <small class="doc doc-label doc-label-property"><code>property</code></small>
@@ -9153,7 +9258,7 @@ If None, will be set to <code>num_attention_heads * attention_head_dim</code></p
           <tr class="doc-section-item">
             <td>
                 <span class="doc-returns-annotation">
-                    <code><span title="typing.Dict">Dict</span>[str, <span title="mindone.diffusers.models.attention_processor.AttentionProcessor">AttentionProcessor</span>]</code>
+                    <code><span title="typing.Dict">Dict</span>[<span title="str">str</span>, <span title="mindone.diffusers.models.attention_processor.AttentionProcessor">AttentionProcessor</span>]</code>
                 </span>
             </td>
             <td class="doc-returns-details">
@@ -9165,7 +9270,7 @@ If None, will be set to <code>num_attention_heads * attention_head_dim</code></p
           <tr class="doc-section-item">
             <td>
                 <span class="doc-returns-annotation">
-                    <code><span title="typing.Dict">Dict</span>[str, <span title="mindone.diffusers.models.attention_processor.AttentionProcessor">AttentionProcessor</span>]</code>
+                    <code><span title="typing.Dict">Dict</span>[<span title="str">str</span>, <span title="mindone.diffusers.models.attention_processor.AttentionProcessor">AttentionProcessor</span>]</code>
                 </span>
             </td>
             <td class="doc-returns-details">
@@ -9176,6 +9281,7 @@ If None, will be set to <code>num_attention_heads * attention_head_dim</code></p
           </tr>
       </tbody>
     </table>
+
     </div>
 
 </div>
@@ -9205,7 +9311,9 @@ If None, will be set to <code>num_attention_heads * attention_head_dim</code></p
       </thead>
       <tbody>
           <tr class="doc-section-item">
-            <td><code>hidden_states</code></td>
+            <td>
+                <code>hidden_states</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The currently predicted image embeddings.</p>
@@ -9219,7 +9327,9 @@ If None, will be set to <code>num_attention_heads * attention_head_dim</code></p
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>timestep</code></td>
+            <td>
+                <code>timestep</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Current denoising step.</p>
@@ -9233,7 +9343,9 @@ If None, will be set to <code>num_attention_heads * attention_head_dim</code></p
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>proj_embedding</code></td>
+            <td>
+                <code>proj_embedding</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Projected embedding vector the denoising process is conditioned on.</p>
@@ -9247,7 +9359,9 @@ If None, will be set to <code>num_attention_heads * attention_head_dim</code></p
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>encoder_hidden_states</code></td>
+            <td>
+                <code>encoder_hidden_states</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Hidden states of the text embeddings the denoising process is conditioned on.</p>
@@ -9265,7 +9379,9 @@ If None, will be set to <code>num_attention_heads * attention_head_dim</code></p
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>attention_mask</code></td>
+            <td>
+                <code>attention_mask</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Text mask for the text embeddings.</p>
@@ -9283,7 +9399,9 @@ If None, will be set to <code>num_attention_heads * attention_head_dim</code></p
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>return_dict</code></td>
+            <td>
+                <code>return_dict</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Whether or not to return a [<code>~models.transformers.prior_transformer.PriorTransformerOutput</code>] instead of
@@ -9326,6 +9444,7 @@ returned, otherwise a tuple is returned where the first element is the sample te
           </tr>
       </tbody>
     </table>
+
 
             <details class="quote">
               <summary>Source code in <code>mindone/diffusers/models/transformers/prior_transformer.py</code></summary>
@@ -9629,6 +9748,7 @@ Parameters:
         If <code>processor</code> is a dict, the key needs to define the path to the corresponding cross attention
         processor. This is strongly recommended when setting trainable attention processors.</p>
 
+
             <details class="quote">
               <summary>Source code in <code>mindone/diffusers/models/transformers/prior_transformer.py</code></summary>
               <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">190</span>
@@ -9709,6 +9829,7 @@ Parameters:
 
         <p>Disables custom attention processors and sets the default attention implementation.</p>
 
+
             <details class="quote">
               <summary>Source code in <code>mindone/diffusers/models/transformers/prior_transformer.py</code></summary>
               <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">222</span>
@@ -9780,7 +9901,9 @@ Parameters:
       </thead>
       <tbody>
           <tr class="doc-section-item">
-            <td><code>predicted_image_embedding</code></td>
+            <td>
+                <code>predicted_image_embedding</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The predicted CLIP image embedding conditioned on the CLIP text embedding input.</p>
@@ -9795,6 +9918,12 @@ Parameters:
           </tr>
       </tbody>
     </table>
+
+
+
+
+
+
 
               <details class="quote">
                 <summary>Source code in <code>mindone/diffusers/models/transformers/prior_transformer.py</code></summary>

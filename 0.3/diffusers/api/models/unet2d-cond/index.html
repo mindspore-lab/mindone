@@ -1477,6 +1477,29 @@
   
   
     <li class="md-nav__item">
+      <a href="../../../using-diffusers/consisid/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    ConsisID
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../../../using-diffusers/sdxl/" class="md-nav__link">
         
   
@@ -3211,6 +3234,29 @@
   
   
     <li class="md-nav__item">
+      <a href="../consisid_transformer3d/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    ConsisIDTransformer3DModel
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../cogview3plus_transformer2d/" class="md-nav__link">
         
   
@@ -4741,6 +4787,29 @@
   
   
     <li class="md-nav__item">
+      <a href="../../pipelines/consisid/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    ConsisID
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../../pipelines/consistency_models/" class="md-nav__link">
         
   
@@ -5904,10 +5973,10 @@
       
         
         
-        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2_11_4_64" >
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2_11_4_65" >
         
           
-          <label class="md-nav__link" for="__nav_2_11_4_64" id="__nav_2_11_4_64_label" tabindex="0">
+          <label class="md-nav__link" for="__nav_2_11_4_65" id="__nav_2_11_4_65_label" tabindex="0">
             
   
   
@@ -5920,8 +5989,8 @@
             <span class="md-nav__icon md-icon"></span>
           </label>
         
-        <nav class="md-nav" data-md-level="4" aria-labelledby="__nav_2_11_4_64_label" aria-expanded="false">
-          <label class="md-nav__title" for="__nav_2_11_4_64">
+        <nav class="md-nav" data-md-level="4" aria-labelledby="__nav_2_11_4_65_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_2_11_4_65">
             <span class="md-nav__icon md-icon"></span>
             Stable Diffusion
           </label>
@@ -8118,7 +8187,7 @@ specific language governing permissions and limitations under the License.
 
     <div class="doc doc-contents first">
             <p class="doc doc-class-bases">
-              Bases: <code><a class="autorefs autorefs-internal" title="mindone.diffusers.models.modeling_utils.ModelMixin" href="../overview/#mindone.diffusers.ModelMixin">ModelMixin</a></code>, <code><a class="autorefs autorefs-internal" title="mindone.diffusers.configuration_utils.ConfigMixin" href="../../configuration/#mindone.diffusers.configuration_utils.ConfigMixin">ConfigMixin</a></code>, <code><span title="mindone.diffusers.loaders.single_file_model.FromOriginalModelMixin">FromOriginalModelMixin</span></code>, <code><a class="autorefs autorefs-internal" title="mindone.diffusers.loaders.UNet2DConditionLoadersMixin" href="../../loaders/unet/#mindone.diffusers.loaders.unet.UNet2DConditionLoadersMixin">UNet2DConditionLoadersMixin</a></code>, <code><a class="autorefs autorefs-internal" title="mindone.diffusers.loaders.PeftAdapterMixin" href="../../loaders/peft/#mindone.diffusers.loaders.peft.PeftAdapterMixin">PeftAdapterMixin</a></code></p>
+              Bases: <code><a class="autorefs autorefs-internal" title="mindone.diffusers.ModelMixin (mindone.diffusers.models.modeling_utils.ModelMixin)" href="../overview/#mindone.diffusers.ModelMixin">ModelMixin</a></code>, <code><a class="autorefs autorefs-internal" title="mindone.diffusers.configuration_utils.ConfigMixin" href="../../configuration/#mindone.diffusers.configuration_utils.ConfigMixin">ConfigMixin</a></code>, <code><span title="mindone.diffusers.loaders.single_file_model.FromOriginalModelMixin">FromOriginalModelMixin</span></code>, <code><a class="autorefs autorefs-internal" title="mindone.diffusers.loaders.unet.UNet2DConditionLoadersMixin (mindone.diffusers.loaders.UNet2DConditionLoadersMixin)" href="../../loaders/unet/#mindone.diffusers.loaders.unet.UNet2DConditionLoadersMixin">UNet2DConditionLoadersMixin</a></code>, <code><a class="autorefs autorefs-internal" title="mindone.diffusers.loaders.peft.PeftAdapterMixin (mindone.diffusers.loaders.PeftAdapterMixin)" href="../../loaders/peft/#mindone.diffusers.loaders.peft.PeftAdapterMixin">PeftAdapterMixin</a></code></p>
 
 
         <p>A conditional 2D UNet model that takes a noisy sample, conditional state, and a timestep and returns a sample
@@ -8136,7 +8205,9 @@ for all models (such as downloading or saving).</p>
       </thead>
       <tbody>
           <tr class="doc-section-item">
-            <td><code>sample_size</code></td>
+            <td>
+                <code>sample_size</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Height and width of input/output sample.</p>
@@ -8154,7 +8225,9 @@ for all models (such as downloading or saving).</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>in_channels</code></td>
+            <td>
+                <code>in_channels</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Number of channels in the input sample.</p>
@@ -8172,7 +8245,9 @@ for all models (such as downloading or saving).</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>out_channels</code></td>
+            <td>
+                <code>out_channels</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Number of channels in the output.</p>
@@ -8190,7 +8265,9 @@ for all models (such as downloading or saving).</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>center_input_sample</code></td>
+            <td>
+                <code>center_input_sample</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Whether to center the input sample.</p>
@@ -8208,7 +8285,9 @@ for all models (such as downloading or saving).</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>flip_sin_to_cos</code></td>
+            <td>
+                <code>flip_sin_to_cos</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Whether to flip the sin to cos in the time embedding.</p>
@@ -8226,7 +8305,9 @@ for all models (such as downloading or saving).</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>freq_shift</code></td>
+            <td>
+                <code>freq_shift</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The frequency shift to apply to the time embedding.</p>
@@ -8244,7 +8325,9 @@ for all models (such as downloading or saving).</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>down_block_types</code></td>
+            <td>
+                <code>down_block_types</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The tuple of downsample blocks to use.</p>
@@ -8262,7 +8345,9 @@ for all models (such as downloading or saving).</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>mid_block_type</code></td>
+            <td>
+                <code>mid_block_type</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Block type for middle of UNet, it can be one of <code>UNetMidBlock2DCrossAttn</code>, <code>UNetMidBlock2D</code>, or
@@ -8281,7 +8366,9 @@ for all models (such as downloading or saving).</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>up_block_types</code></td>
+            <td>
+                <code>up_block_types</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The tuple of upsample blocks to use.</p>
@@ -8299,7 +8386,9 @@ for all models (such as downloading or saving).</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>only_cross_attention(`bool`</code></td>
+            <td>
+                <code>only_cross_attention(`bool`</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Whether to include self-attention in the basic transformer blocks, see
@@ -8314,7 +8403,9 @@ for all models (such as downloading or saving).</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>block_out_channels</code></td>
+            <td>
+                <code>block_out_channels</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The tuple of output channels for each block.</p>
@@ -8332,7 +8423,9 @@ for all models (such as downloading or saving).</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>layers_per_block</code></td>
+            <td>
+                <code>layers_per_block</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The number of layers per block.</p>
@@ -8350,7 +8443,9 @@ for all models (such as downloading or saving).</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>downsample_padding</code></td>
+            <td>
+                <code>downsample_padding</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The padding to use for the downsampling convolution.</p>
@@ -8368,7 +8463,9 @@ for all models (such as downloading or saving).</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>mid_block_scale_factor</code></td>
+            <td>
+                <code>mid_block_scale_factor</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The scale factor to use for the mid block.</p>
@@ -8386,7 +8483,9 @@ for all models (such as downloading or saving).</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>dropout</code></td>
+            <td>
+                <code>dropout</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The dropout probability to use.</p>
@@ -8404,7 +8503,9 @@ for all models (such as downloading or saving).</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>act_fn</code></td>
+            <td>
+                <code>act_fn</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The activation function to use.</p>
@@ -8422,7 +8523,9 @@ for all models (such as downloading or saving).</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>norm_num_groups</code></td>
+            <td>
+                <code>norm_num_groups</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The number of groups to use for the normalization.
@@ -8441,7 +8544,9 @@ If <code>None</code>, normalization and activation layers is skipped in post-pro
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>norm_eps</code></td>
+            <td>
+                <code>norm_eps</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The epsilon to use for the normalization.</p>
@@ -8459,7 +8564,9 @@ If <code>None</code>, normalization and activation layers is skipped in post-pro
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>cross_attention_dim</code></td>
+            <td>
+                <code>cross_attention_dim</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The dimension of the cross attention features.</p>
@@ -8477,7 +8584,9 @@ If <code>None</code>, normalization and activation layers is skipped in post-pro
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>transformer_layers_per_block</code></td>
+            <td>
+                <code>transformer_layers_per_block</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The number of transformer blocks of type [<code>~models.attention.BasicTransformerBlock</code>]. Only relevant for
@@ -8497,7 +8606,9 @@ If <code>None</code>, normalization and activation layers is skipped in post-pro
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>reverse_transformer_layers_per_block</code></td>
+            <td>
+                <code>reverse_transformer_layers_per_block</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>(<code>Tuple[Tuple]</code>, <em>optional</em>, defaults to None):
@@ -8515,7 +8626,9 @@ blocks of the U-Net. Only relevant if <code>transformer_layers_per_block</code> 
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>encoder_hid_dim</code></td>
+            <td>
+                <code>encoder_hid_dim</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>If <code>encoder_hid_dim_type</code> is defined, <code>encoder_hidden_states</code> will be projected from <code>encoder_hid_dim</code>
@@ -8534,7 +8647,9 @@ dimension to <code>cross_attention_dim</code>.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>encoder_hid_dim_type</code></td>
+            <td>
+                <code>encoder_hid_dim_type</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>If given, the <code>encoder_hidden_states</code> and potentially other embeddings are down-projected to text
@@ -8553,7 +8668,9 @@ embeddings of dimension <code>cross_attention</code> according to <code>encoder_
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>attention_head_dim</code></td>
+            <td>
+                <code>attention_head_dim</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The dimension of the attention heads.</p>
@@ -8571,7 +8688,9 @@ embeddings of dimension <code>cross_attention</code> according to <code>encoder_
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>num_attention_heads</code></td>
+            <td>
+                <code>num_attention_heads</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The number of attention heads. If not defined, defaults to <code>attention_head_dim</code></p>
@@ -8589,7 +8708,9 @@ embeddings of dimension <code>cross_attention</code> according to <code>encoder_
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>resnet_time_scale_shift</code></td>
+            <td>
+                <code>resnet_time_scale_shift</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Time scale shift config
@@ -8608,7 +8729,9 @@ for ResNet blocks (see [<code>~models.resnet.ResnetBlock2D</code>]). Choose from
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>class_embed_type</code></td>
+            <td>
+                <code>class_embed_type</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The type of class embedding to use which is ultimately summed with the time embeddings. Choose from <code>None</code>,
@@ -8627,7 +8750,9 @@ for ResNet blocks (see [<code>~models.resnet.ResnetBlock2D</code>]). Choose from
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>addition_embed_type</code></td>
+            <td>
+                <code>addition_embed_type</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Configures an optional embedding which will be summed with the time embeddings. Choose from <code>None</code> or
@@ -8646,7 +8771,9 @@ for ResNet blocks (see [<code>~models.resnet.ResnetBlock2D</code>]). Choose from
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>addition_time_embed_dim</code></td>
+            <td>
+                <code>addition_time_embed_dim</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>(<code>int</code>, <em>optional</em>, defaults to <code>None</code>):
@@ -8655,7 +8782,7 @@ Dimension for the timestep embeddings.</p>
               <p>
                   <span class="doc-param-annotation">
                     <b>TYPE:</b>
-                      <code><span title="typing.Optional">Optional</span>[int]</code>
+                      <code><span title="typing.Optional">Optional</span>[<span title="int">int</span>]</code>
                   </span>
                   <span class="doc-param-default">
                     <b>DEFAULT:</b>
@@ -8665,7 +8792,9 @@ Dimension for the timestep embeddings.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>num_class_embeds</code></td>
+            <td>
+                <code>num_class_embeds</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Input dimension of the learnable embedding matrix to be projected to <code>time_embed_dim</code>, when performing
@@ -8684,7 +8813,9 @@ class conditioning with <code>class_embed_type</code> equal to <code>None</code>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>time_embedding_type</code></td>
+            <td>
+                <code>time_embedding_type</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The type of position embedding to use for timesteps. Choose from <code>positional</code> or <code>fourier</code>.</p>
@@ -8702,7 +8833,9 @@ class conditioning with <code>class_embed_type</code> equal to <code>None</code>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>time_embedding_dim</code></td>
+            <td>
+                <code>time_embedding_dim</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>An optional override for the dimension of the projected time embedding.</p>
@@ -8720,7 +8853,9 @@ class conditioning with <code>class_embed_type</code> equal to <code>None</code>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>time_embedding_act_fn</code></td>
+            <td>
+                <code>time_embedding_act_fn</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Optional activation function to use only once on the time embeddings before they are passed to the rest of
@@ -8739,7 +8874,9 @@ the UNet. Choose from <code>silu</code>, <code>mish</code>, <code>gelu</code>, a
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>timestep_post_act</code></td>
+            <td>
+                <code>timestep_post_act</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The second activation function to use in timestep embedding. Choose from <code>silu</code>, <code>mish</code> and <code>gelu</code>.</p>
@@ -8757,7 +8894,9 @@ the UNet. Choose from <code>silu</code>, <code>mish</code>, <code>gelu</code>, a
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>time_cond_proj_dim</code></td>
+            <td>
+                <code>time_cond_proj_dim</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The dimension of <code>cond_proj</code> layer in the timestep embedding.</p>
@@ -8775,7 +8914,9 @@ the UNet. Choose from <code>silu</code>, <code>mish</code>, <code>gelu</code>, a
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>conv_in_kernel</code></td>
+            <td>
+                <code>conv_in_kernel</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The kernel size of <code>conv_in</code> layer.</p>
@@ -8793,7 +8934,9 @@ the UNet. Choose from <code>silu</code>, <code>mish</code>, <code>gelu</code>, a
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>conv_out_kernel</code></td>
+            <td>
+                <code>conv_out_kernel</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The kernel size of <code>conv_out</code> layer.</p>
@@ -8811,7 +8954,9 @@ the UNet. Choose from <code>silu</code>, <code>mish</code>, <code>gelu</code>, a
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>projection_class_embeddings_input_dim</code></td>
+            <td>
+                <code>projection_class_embeddings_input_dim</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The dimension of the <code>class_labels</code> input when
@@ -8830,7 +8975,9 @@ the UNet. Choose from <code>silu</code>, <code>mish</code>, <code>gelu</code>, a
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>class_embeddings_concat</code></td>
+            <td>
+                <code>class_embeddings_concat</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Whether to concatenate the time
@@ -8849,7 +8996,9 @@ embeddings with the class embeddings.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>mid_block_only_cross_attention</code></td>
+            <td>
+                <code>mid_block_only_cross_attention</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Whether to use cross attention with the mid block when using the <code>UNetMidBlock2DSimpleCrossAttn</code>. If
@@ -8871,6 +9020,12 @@ otherwise.</p>
           </tr>
       </tbody>
     </table>
+
+
+
+
+
+
 
               <details class="quote">
                 <summary>Source code in <code>mindone/diffusers/models/unets/unet_2d_condition.py</code></summary>
@@ -11179,7 +11334,7 @@ otherwise.</p>
 
 
 <h3 id="mindone.diffusers.UNet2DConditionModel.attn_processors" class="doc doc-heading">
-            <code class="highlight language-python"><span class="n">mindone</span><span class="o">.</span><span class="n">diffusers</span><span class="o">.</span><span class="n">UNet2DConditionModel</span><span class="o">.</span><span class="n">attn_processors</span><span class="p">:</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">AttentionProcessor</span><span class="p">]</span></code>
+            <code class="highlight language-python"><span class="n">mindone</span><span class="o">.</span><span class="n">diffusers</span><span class="o">.</span><span class="n">UNet2DConditionModel</span><span class="o">.</span><span class="n">attn_processors</span></code>
 
   <span class="doc doc-labels">
       <small class="doc doc-label doc-label-property"><code>property</code></small>
@@ -11203,7 +11358,7 @@ otherwise.</p>
           <tr class="doc-section-item">
             <td>
                 <span class="doc-returns-annotation">
-                    <code><span title="typing.Dict">Dict</span>[str, <span title="mindone.diffusers.models.attention_processor.AttentionProcessor">AttentionProcessor</span>]</code>
+                    <code><span title="typing.Dict">Dict</span>[<span title="str">str</span>, <span title="mindone.diffusers.models.attention_processor.AttentionProcessor">AttentionProcessor</span>]</code>
                 </span>
             </td>
             <td class="doc-returns-details">
@@ -11215,7 +11370,7 @@ otherwise.</p>
           <tr class="doc-section-item">
             <td>
                 <span class="doc-returns-annotation">
-                    <code><span title="typing.Dict">Dict</span>[str, <span title="mindone.diffusers.models.attention_processor.AttentionProcessor">AttentionProcessor</span>]</code>
+                    <code><span title="typing.Dict">Dict</span>[<span title="str">str</span>, <span title="mindone.diffusers.models.attention_processor.AttentionProcessor">AttentionProcessor</span>]</code>
                 </span>
             </td>
             <td class="doc-returns-details">
@@ -11226,6 +11381,7 @@ otherwise.</p>
           </tr>
       </tbody>
     </table>
+
     </div>
 
 </div>
@@ -11255,7 +11411,9 @@ otherwise.</p>
       </thead>
       <tbody>
           <tr class="doc-section-item">
-            <td><code>sample</code></td>
+            <td>
+                <code>sample</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The noisy input tensor with the following shape <code>(batch, channel, height, width)</code>.</p>
@@ -11269,7 +11427,9 @@ otherwise.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>timestep</code></td>
+            <td>
+                <code>timestep</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The number of timesteps to denoise an input.</p>
@@ -11283,7 +11443,9 @@ otherwise.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>encoder_hidden_states</code></td>
+            <td>
+                <code>encoder_hidden_states</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The encoder hidden states with shape <code>(batch, sequence_length, feature_dim)</code>.</p>
@@ -11297,7 +11459,9 @@ otherwise.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>class_labels</code></td>
+            <td>
+                <code>class_labels</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Optional class labels for conditioning. Their embeddings will be summed with the timestep embeddings.</p>
@@ -11315,7 +11479,9 @@ otherwise.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>timestep_cond</code></td>
+            <td>
+                <code>timestep_cond</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>(<code>ms.Tensor</code>, <em>optional</em>, defaults to <code>None</code>):
@@ -11335,7 +11501,9 @@ through the <code>self.time_embedding</code> layer to obtain the timestep embedd
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>attention_mask</code></td>
+            <td>
+                <code>attention_mask</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>An attention mask of shape <code>(batch, key_tokens)</code> is applied to <code>encoder_hidden_states</code>. If <code>1</code> the mask
@@ -11355,7 +11523,9 @@ negative values to the attention scores corresponding to "discard" tokens.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>cross_attention_kwargs</code></td>
+            <td>
+                <code>cross_attention_kwargs</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>A kwargs dictionary that if specified is passed along to the <code>AttentionProcessor</code> as defined under
@@ -11375,7 +11545,9 @@ negative values to the attention scores corresponding to "discard" tokens.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>added_cond_kwargs</code></td>
+            <td>
+                <code>added_cond_kwargs</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>(<code>dict</code>, <em>optional</em>):
@@ -11385,7 +11557,7 @@ are passed along to the UNet blocks.</p>
               <p>
                   <span class="doc-param-annotation">
                     <b>TYPE:</b>
-                      <code><span title="typing.Optional">Optional</span>[<span title="typing.Dict">Dict</span>[str, <span title="mindspore.Tensor">Tensor</span>]]</code>
+                      <code><span title="typing.Optional">Optional</span>[<span title="typing.Dict">Dict</span>[<span title="str">str</span>, <span title="mindspore.Tensor">Tensor</span>]]</code>
                   </span>
                   <span class="doc-param-default">
                     <b>DEFAULT:</b>
@@ -11395,7 +11567,9 @@ are passed along to the UNet blocks.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>down_block_additional_residuals</code></td>
+            <td>
+                <code>down_block_additional_residuals</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>(<code>tuple</code> of <code>ms.Tensor</code>, <em>optional</em>):
@@ -11414,7 +11588,9 @@ A tuple of tensors that if specified are added to the residuals of down unet blo
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>mid_block_additional_residual</code></td>
+            <td>
+                <code>mid_block_additional_residual</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>(<code>ms.Tensor</code>, <em>optional</em>):
@@ -11433,7 +11609,9 @@ A tensor that if specified is added to the residual of the middle unet block.</p
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>down_intrablock_additional_residuals</code></td>
+            <td>
+                <code>down_intrablock_additional_residuals</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>additional residuals to be added within UNet down blocks, for example from T2I-Adapter side model(s)</p>
@@ -11451,7 +11629,9 @@ A tensor that if specified is added to the residual of the middle unet block.</p
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>encoder_attention_mask</code></td>
+            <td>
+                <code>encoder_attention_mask</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>A cross-attention mask of shape <code>(batch, sequence_length)</code> is applied to <code>encoder_hidden_states</code>. If
@@ -11471,7 +11651,9 @@ which adds large negative values to the attention scores corresponding to "disca
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>return_dict</code></td>
+            <td>
+                <code>return_dict</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Whether or not to return a [<code>~models.unets.unet_2d_condition.UNet2DConditionOutput</code>] instead of a plain
@@ -11504,7 +11686,12 @@ tuple.</p>
           <tr class="doc-section-item">
             <td>
                 <span class="doc-returns-annotation">
-                    <code><span title="typing.Union">Union</span>[<a class="autorefs autorefs-internal" title="mindone.diffusers.models.unets.unet_2d_condition.UNet2DConditionOutput" href="#mindone.diffusers.models.unets.unet_2d_condition.UNet2DConditionOutput">UNet2DConditionOutput</a>, <span title="typing.Tuple">Tuple</span>]</code>
+                    <code><span title="typing.Union">Union</span>[<a class="autorefs autorefs-internal" title="mindone.diffusers.models.unets.unet_2d_condition.UNet2DConditionOutput
+
+
+  
+      dataclass
+  " href="#mindone.diffusers.models.unets.unet_2d_condition.UNet2DConditionOutput">UNet2DConditionOutput</a>, <span title="typing.Tuple">Tuple</span>]</code>
                 </span>
             </td>
             <td class="doc-returns-details">
@@ -11517,6 +11704,7 @@ otherwise a <code>tuple</code> is returned where the first element is the sample
           </tr>
       </tbody>
     </table>
+
 
             <details class="quote">
               <summary>Source code in <code>mindone/diffusers/models/unets/unet_2d_condition.py</code></summary>
@@ -12124,7 +12312,9 @@ otherwise a <code>tuple</code> is returned where the first element is the sample
       </thead>
       <tbody>
           <tr class="doc-section-item">
-            <td><code>processor</code></td>
+            <td>
+                <code>processor</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The instantiated processor class or a dictionary of processor classes that will be set as the processor
@@ -12142,6 +12332,7 @@ processor. This is strongly recommended when setting trainable attention process
           </tr>
       </tbody>
     </table>
+
 
             <details class="quote">
               <summary>Source code in <code>mindone/diffusers/models/unets/unet_2d_condition.py</code></summary>
@@ -12229,6 +12420,7 @@ processor. This is strongly recommended when setting trainable attention process
 
         <p>Disables custom attention processors and sets the default attention implementation.</p>
 
+
             <details class="quote">
               <summary>Source code in <code>mindone/diffusers/models/unets/unet_2d_condition.py</code></summary>
               <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">770</span>
@@ -12304,7 +12496,9 @@ processor. This is strongly recommended when setting trainable attention process
       </thead>
       <tbody>
           <tr class="doc-section-item">
-            <td><code>sample</code></td>
+            <td>
+                <code>sample</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The hidden states output conditioned on <code>encoder_hidden_states</code> input. Output of last layer of model.</p>
@@ -12323,6 +12517,12 @@ processor. This is strongly recommended when setting trainable attention process
           </tr>
       </tbody>
     </table>
+
+
+
+
+
+
 
               <details class="quote">
                 <summary>Source code in <code>mindone/diffusers/models/unets/unet_2d_condition.py</code></summary>

@@ -1477,6 +1477,29 @@
   
   
     <li class="md-nav__item">
+      <a href="../../using-diffusers/consisid/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    ConsisID
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../../using-diffusers/sdxl/" class="md-nav__link">
         
   
@@ -3209,6 +3232,29 @@
   
   
     <li class="md-nav__item">
+      <a href="../models/consisid_transformer3d/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    ConsisIDTransformer3DModel
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../models/cogview3plus_transformer2d/" class="md-nav__link">
         
   
@@ -4635,6 +4681,29 @@
   
   
     <li class="md-nav__item">
+      <a href="../pipelines/consisid/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    ConsisID
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../pipelines/consistency_models/" class="md-nav__link">
         
   
@@ -5798,10 +5867,10 @@
       
         
         
-        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2_11_4_64" >
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2_11_4_65" >
         
           
-          <label class="md-nav__link" for="__nav_2_11_4_64" id="__nav_2_11_4_64_label" tabindex="0">
+          <label class="md-nav__link" for="__nav_2_11_4_65" id="__nav_2_11_4_65_label" tabindex="0">
             
   
   
@@ -5814,8 +5883,8 @@
             <span class="md-nav__icon md-icon"></span>
           </label>
         
-        <nav class="md-nav" data-md-level="4" aria-labelledby="__nav_2_11_4_64_label" aria-expanded="false">
-          <label class="md-nav__title" for="__nav_2_11_4_64">
+        <nav class="md-nav" data-md-level="4" aria-labelledby="__nav_2_11_4_65_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_2_11_4_65">
             <span class="md-nav__icon md-icon"></span>
             Stable Diffusion
           </label>
@@ -8120,6 +8189,7 @@ specific language governing permissions and limitations under the License.
 
         <p>Convert a numpy image or a batch of images to a PIL image.</p>
 
+
             <details class="quote">
               <summary>Source code in <code>mindone/diffusers/utils/pil_utils.py</code></summary>
               <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">36</span>
@@ -8168,6 +8238,7 @@ specific language governing permissions and limitations under the License.
 
         <p>Convert a mindspore image to a PIL image.</p>
 
+
             <details class="quote">
               <summary>Source code in <code>mindone/diffusers/utils/pil_utils.py</code></summary>
               <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">26</span>
@@ -8214,7 +8285,9 @@ specific language governing permissions and limitations under the License.
       </thead>
       <tbody>
           <tr class="doc-section-item">
-            <td><code>image</code></td>
+            <td>
+                <code>image</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The image to convert to the PIL Image format.</p>
@@ -8228,7 +8301,9 @@ specific language governing permissions and limitations under the License.
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>convert_method</code></td>
+            <td>
+                <code>convert_method</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>A conversion method to apply to the image after loading it. When set to <code>None</code> the image will be converted
@@ -8273,6 +8348,7 @@ A PIL Image.</p>
           </tr>
       </tbody>
     </table>
+
 
             <details class="quote">
               <summary>Source code in <code>mindone/diffusers/utils/loading_utils.py</code></summary>
@@ -8374,6 +8450,7 @@ A PIL Image.</p>
 
     <div class="doc doc-contents first">
 
+
             <details class="quote">
               <summary>Source code in <code>mindone/diffusers/utils/export_utils.py</code></summary>
               <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">27</span>
@@ -8442,6 +8519,7 @@ are compatible with a macroblock size of 16 (default), some can go smaller (4, 8
 feature set it to None or 1, however be warned many players can't decode videos that are odd in size and some
 codecs will produce poor results or fail. See https://en.wikipedia.org/wiki/Macroblock.</p>
 </details>
+
             <details class="quote">
               <summary>Source code in <code>mindone/diffusers/utils/export_utils.py</code></summary>
               <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">140</span>
@@ -8600,6 +8678,7 @@ codecs will produce poor results or fail. See https://en.wikipedia.org/wiki/Macr
 
         <p>Prepares a single grid of images. Useful for visualization purposes.</p>
 
+
             <details class="quote">
               <summary>Source code in <code>mindone/diffusers/utils/pil_utils.py</code></summary>
               <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">52</span>
@@ -8650,6 +8729,7 @@ codecs will produce poor results or fail. See https://en.wikipedia.org/wiki/Macr
 
         <p>A helper function to create random tensors with the desired <code>dtype</code>. When
 passing a list of generators, you can seed each batch size individually.</p>
+
 
             <details class="quote">
               <summary>Source code in <code>mindone/diffusers/utils/mindspore_utils.py</code></summary>

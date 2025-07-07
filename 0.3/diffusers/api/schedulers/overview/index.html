@@ -1477,6 +1477,29 @@
   
   
     <li class="md-nav__item">
+      <a href="../../../using-diffusers/consisid/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    ConsisID
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../../../using-diffusers/sdxl/" class="md-nav__link">
         
   
@@ -3209,6 +3232,29 @@
   
   
     <li class="md-nav__item">
+      <a href="../../models/consisid_transformer3d/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    ConsisIDTransformer3DModel
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../../models/cogview3plus_transformer2d/" class="md-nav__link">
         
   
@@ -4635,6 +4681,29 @@
   
   
     <li class="md-nav__item">
+      <a href="../../pipelines/consisid/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    ConsisID
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../../pipelines/consistency_models/" class="md-nav__link">
         
   
@@ -5798,10 +5867,10 @@
       
         
         
-        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2_11_4_64" >
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2_11_4_65" >
         
           
-          <label class="md-nav__link" for="__nav_2_11_4_64" id="__nav_2_11_4_64_label" tabindex="0">
+          <label class="md-nav__link" for="__nav_2_11_4_65" id="__nav_2_11_4_65_label" tabindex="0">
             
   
   
@@ -5814,8 +5883,8 @@
             <span class="md-nav__icon md-icon"></span>
           </label>
         
-        <nav class="md-nav" data-md-level="4" aria-labelledby="__nav_2_11_4_64_label" aria-expanded="false">
-          <label class="md-nav__title" for="__nav_2_11_4_64">
+        <nav class="md-nav" data-md-level="4" aria-labelledby="__nav_2_11_4_65_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_2_11_4_65">
             <span class="md-nav__icon md-icon"></span>
             Stable Diffusion
           </label>
@@ -8325,6 +8394,12 @@ the scheduler's <code>__init__</code> function, and the attributes can be access
   by parent class).</li>
 </ul>
 </details>
+
+
+
+
+
+
               <details class="quote">
                 <summary>Source code in <code>mindone/diffusers/schedulers/scheduling_utils.py</code></summary>
                 <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal"> 74</span>
@@ -8610,7 +8685,9 @@ the scheduler's <code>__init__</code> function, and the attributes can be access
       </thead>
       <tbody>
           <tr class="doc-section-item">
-            <td><code>pretrained_model_name_or_path</code></td>
+            <td>
+                <code>pretrained_model_name_or_path</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Can be either:</p>
@@ -8633,7 +8710,9 @@ the scheduler's <code>__init__</code> function, and the attributes can be access
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>subfolder</code></td>
+            <td>
+                <code>subfolder</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The subfolder location of a model file within a larger model repository on the Hub or locally.</p>
@@ -8651,7 +8730,9 @@ the scheduler's <code>__init__</code> function, and the attributes can be access
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>return_unused_kwargs</code></td>
+            <td>
+                <code>return_unused_kwargs</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Whether kwargs that are not consumed by the Python class should be returned or not.</p>
@@ -8669,7 +8750,9 @@ the scheduler's <code>__init__</code> function, and the attributes can be access
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>cache_dir</code></td>
+            <td>
+                <code>cache_dir</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Path to a directory where a downloaded pretrained model configuration is cached if the standard cache
@@ -8684,7 +8767,9 @@ is not used.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>force_download</code></td>
+            <td>
+                <code>force_download</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Whether or not to force the (re-)download of the model weights and configuration files, overriding the
@@ -8699,7 +8784,9 @@ cached versions if they exist.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>proxies</code></td>
+            <td>
+                <code>proxies</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>A dictionary of proxy servers to use by protocol or endpoint, for example, <code>{'http': 'foo.bar:3128',
@@ -8714,7 +8801,9 @@ cached versions if they exist.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>output_loading_info(`bool`,</code></td>
+            <td>
+                <code>output_loading_info(`bool`,</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Whether or not to also return a dictionary containing missing keys, unexpected keys and error messages.</p>
@@ -8728,7 +8817,9 @@ cached versions if they exist.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>local_files_only(`bool`,</code></td>
+            <td>
+                <code>local_files_only(`bool`,</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Whether to only load local model weights and configuration files or not. If set to <code>True</code>, the model
@@ -8743,7 +8834,9 @@ won't be downloaded from the Hub.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>token</code></td>
+            <td>
+                <code>token</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The token to use as HTTP bearer authorization for remote files. If <code>True</code>, the token generated from
@@ -8758,7 +8851,9 @@ won't be downloaded from the Hub.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>revision</code></td>
+            <td>
+                <code>revision</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The specific model version to use. It can be a branch name, a tag name, a commit id, or any identifier
@@ -8780,6 +8875,7 @@ allowed by Git.</p>
 <a href="https://huggingface.co/diffusers/installation.html#offline-mode">"offline-mode"</a> to use this method in a
 firewalled environment.</p>
 <p></Tip></p>
+
 
             <details class="quote">
               <summary>Source code in <code>mindone/diffusers/schedulers/scheduling_utils.py</code></summary>
@@ -8940,7 +9036,9 @@ firewalled environment.</p>
       </thead>
       <tbody>
           <tr class="doc-section-item">
-            <td><code>save_directory</code></td>
+            <td>
+                <code>save_directory</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Directory where the configuration JSON file will be saved (will be created if it does not exist).</p>
@@ -8954,7 +9052,9 @@ firewalled environment.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>push_to_hub</code></td>
+            <td>
+                <code>push_to_hub</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Whether or not to push your model to the Hugging Face Hub after saving it. You can specify the
@@ -8974,7 +9074,9 @@ namespace).</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>kwargs</code></td>
+            <td>
+                <code>kwargs</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Additional keyword arguments passed along to the [<code>~utils.PushToHubMixin.push_to_hub</code>] method.</p>
@@ -8993,6 +9095,7 @@ namespace).</p>
           </tr>
       </tbody>
     </table>
+
 
             <details class="quote">
               <summary>Source code in <code>mindone/diffusers/schedulers/scheduling_utils.py</code></summary>
@@ -9073,7 +9176,9 @@ namespace).</p>
       </thead>
       <tbody>
           <tr class="doc-section-item">
-            <td><code>prev_sample</code></td>
+            <td>
+                <code>prev_sample</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Computed sample <code>(x_{t-1})</code> of previous timestep. <code>prev_sample</code> should be used as next model input in the
@@ -9089,6 +9194,12 @@ denoising loop.</p>
           </tr>
       </tbody>
     </table>
+
+
+
+
+
+
 
               <details class="quote">
                 <summary>Source code in <code>mindone/diffusers/schedulers/scheduling_utils.py</code></summary>
@@ -9156,6 +9267,12 @@ denoising loop.</p>
 
 
         <p>A Mixin to push a model, scheduler, or pipeline to the Hugging Face Hub.</p>
+
+
+
+
+
+
 
               <details class="quote">
                 <summary>Source code in <code>mindone/diffusers/utils/hub_utils.py</code></summary>
@@ -9396,7 +9513,9 @@ denoising loop.</p>
       </thead>
       <tbody>
           <tr class="doc-section-item">
-            <td><code>repo_id</code></td>
+            <td>
+                <code>repo_id</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The name of the repository you want to push your model, scheduler, or pipeline files to. It should
@@ -9412,7 +9531,9 @@ directory.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>commit_message</code></td>
+            <td>
+                <code>commit_message</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Message to commit while pushing. Default to <code>"Upload {object}"</code>.</p>
@@ -9430,7 +9551,9 @@ directory.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>private</code></td>
+            <td>
+                <code>private</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Whether to make the repo private. If <code>None</code> (default), the repo will be public unless the
@@ -9449,7 +9572,9 @@ organization's default is private. This value is ignored if the repo already exi
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>token</code></td>
+            <td>
+                <code>token</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The token to use as HTTP bearer authorization for remote files. The token generated when running
@@ -9468,7 +9593,9 @@ organization's default is private. This value is ignored if the repo already exi
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>create_pr</code></td>
+            <td>
+                <code>create_pr</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Whether or not to create a PR with the uploaded files or directly commit.</p>
@@ -9486,7 +9613,9 @@ organization's default is private. This value is ignored if the repo already exi
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>safe_serialization</code></td>
+            <td>
+                <code>safe_serialization</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Whether or not to convert the model weights to the <code>safetensors</code> format.</p>
@@ -9504,7 +9633,9 @@ organization's default is private. This value is ignored if the repo already exi
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>variant</code></td>
+            <td>
+                <code>variant</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>If specified, weights are saved in the format <code>pytorch_model.&lt;variant&gt;.bin</code>.</p>
@@ -9533,6 +9664,7 @@ organization's default is private. This value is ignored if the repo already exi
 <span class="c1"># Push the `unet` to an organization with the name &quot;my-finetuned-unet&quot;.</span>
 <span class="n">unet</span><span class="o">.</span><span class="n">push_to_hub</span><span class="p">(</span><span class="s2">&quot;your-org/my-finetuned-unet&quot;</span><span class="p">)</span>
 </code></pre></div>
+
 
             <details class="quote">
               <summary>Source code in <code>mindone/diffusers/utils/hub_utils.py</code></summary>

@@ -1477,6 +1477,29 @@
   
   
     <li class="md-nav__item">
+      <a href="../../../using-diffusers/consisid/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    ConsisID
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../../../using-diffusers/sdxl/" class="md-nav__link">
         
   
@@ -3211,6 +3234,29 @@
   
   
     <li class="md-nav__item">
+      <a href="../consisid_transformer3d/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    ConsisIDTransformer3DModel
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../cogview3plus_transformer2d/" class="md-nav__link">
         
   
@@ -4768,6 +4814,29 @@
   
   
     <li class="md-nav__item">
+      <a href="../../pipelines/consisid/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    ConsisID
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../../pipelines/consistency_models/" class="md-nav__link">
         
   
@@ -5931,10 +6000,10 @@
       
         
         
-        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2_11_4_64" >
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2_11_4_65" >
         
           
-          <label class="md-nav__link" for="__nav_2_11_4_64" id="__nav_2_11_4_64_label" tabindex="0">
+          <label class="md-nav__link" for="__nav_2_11_4_65" id="__nav_2_11_4_65_label" tabindex="0">
             
   
   
@@ -5947,8 +6016,8 @@
             <span class="md-nav__icon md-icon"></span>
           </label>
         
-        <nav class="md-nav" data-md-level="4" aria-labelledby="__nav_2_11_4_64_label" aria-expanded="false">
-          <label class="md-nav__title" for="__nav_2_11_4_64">
+        <nav class="md-nav" data-md-level="4" aria-labelledby="__nav_2_11_4_65_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_2_11_4_65">
             <span class="md-nav__icon md-icon"></span>
             Stable Diffusion
           </label>
@@ -8196,7 +8265,7 @@ specific language governing permissions and limitations under the License.
 
     <div class="doc doc-contents first">
             <p class="doc doc-class-bases">
-              Bases: <code><a class="autorefs autorefs-internal" title="mindone.diffusers.models.modeling_utils.ModelMixin" href="../overview/#mindone.diffusers.ModelMixin">ModelMixin</a></code>, <code><a class="autorefs autorefs-internal" title="mindone.diffusers.configuration_utils.ConfigMixin" href="../../configuration/#mindone.diffusers.configuration_utils.ConfigMixin">ConfigMixin</a></code></p>
+              Bases: <code><a class="autorefs autorefs-internal" title="mindone.diffusers.ModelMixin (mindone.diffusers.models.modeling_utils.ModelMixin)" href="../overview/#mindone.diffusers.ModelMixin">ModelMixin</a></code>, <code><a class="autorefs autorefs-internal" title="mindone.diffusers.configuration_utils.ConfigMixin" href="../../configuration/#mindone.diffusers.configuration_utils.ConfigMixin">ConfigMixin</a></code></p>
 
 
         <p>A tiny distilled VAE model for encoding images into latents and decoding latent representations into images.</p>
@@ -8214,7 +8283,9 @@ all models (such as downloading or saving).</p>
       </thead>
       <tbody>
           <tr class="doc-section-item">
-            <td><code>in_channels</code></td>
+            <td>
+                <code>in_channels</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Number of channels in the input image.</p>
@@ -8232,7 +8303,9 @@ all models (such as downloading or saving).</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>out_channels</code></td>
+            <td>
+                <code>out_channels</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Number of channels in the output.</p>
@@ -8250,7 +8323,9 @@ all models (such as downloading or saving).</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>encoder_block_out_channels</code></td>
+            <td>
+                <code>encoder_block_out_channels</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Tuple of integers representing the number of output channels for each encoder block. The length of the
@@ -8269,7 +8344,9 @@ tuple should be equal to the number of encoder blocks.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>decoder_block_out_channels</code></td>
+            <td>
+                <code>decoder_block_out_channels</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Tuple of integers representing the number of output channels for each decoder block. The length of the
@@ -8288,7 +8365,9 @@ tuple should be equal to the number of decoder blocks.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>act_fn</code></td>
+            <td>
+                <code>act_fn</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Activation function to be used throughout the model.</p>
@@ -8306,7 +8385,9 @@ tuple should be equal to the number of decoder blocks.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>latent_channels</code></td>
+            <td>
+                <code>latent_channels</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Number of channels in the latent representation. The latent space acts as a compressed representation of
@@ -8325,7 +8406,9 @@ the input image.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>upsampling_scaling_factor</code></td>
+            <td>
+                <code>upsampling_scaling_factor</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Scaling factor for upsampling in the decoder. It determines the size of the output image during the
@@ -8344,7 +8427,9 @@ upsampling process.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>num_encoder_blocks</code></td>
+            <td>
+                <code>num_encoder_blocks</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Tuple of integers representing the number of encoder blocks at each stage of the encoding process. The
@@ -8364,7 +8449,9 @@ number of encoder blocks.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>num_decoder_blocks</code></td>
+            <td>
+                <code>num_decoder_blocks</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Tuple of integers representing the number of decoder blocks at each stage of the decoding process. The
@@ -8384,7 +8471,9 @@ number of decoder blocks.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>latent_magnitude</code></td>
+            <td>
+                <code>latent_magnitude</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Magnitude of the latent representation. This parameter scales the latent representation values to control
@@ -8403,7 +8492,9 @@ the extent of information preservation.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>latent_shift</code></td>
+            <td>
+                <code>latent_shift</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Shift applied to the latent representation. This parameter controls the center of the latent space.</p>
@@ -8421,7 +8512,9 @@ the extent of information preservation.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>scaling_factor</code></td>
+            <td>
+                <code>scaling_factor</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The component-wise standard deviation of the trained latent space computed using the first batch of the
@@ -8445,7 +8538,9 @@ however, no such scaling factor was used, hence the value of 1.0 as the default.
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>force_upcast</code></td>
+            <td>
+                <code>force_upcast</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>If enabled it will force the VAE to run in float32 for high image resolution pipelines, such as SD-XL. VAE
@@ -8467,6 +8562,12 @@ can be fine-tuned / trained to a lower range without losing too much precision, 
           </tr>
       </tbody>
     </table>
+
+
+
+
+
+
 
               <details class="quote">
                 <summary>Source code in <code>mindone/diffusers/models/autoencoders/autoencoder_tiny.py</code></summary>
@@ -9114,7 +9215,9 @@ can be fine-tuned / trained to a lower range without losing too much precision, 
       </thead>
       <tbody>
           <tr class="doc-section-item">
-            <td><code>sample</code></td>
+            <td>
+                <code>sample</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Input sample.</p>
@@ -9128,7 +9231,9 @@ can be fine-tuned / trained to a lower range without losing too much precision, 
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>return_dict</code></td>
+            <td>
+                <code>return_dict</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Whether or not to return a [<code>DecoderOutput</code>] instead of a plain tuple.</p>
@@ -9147,6 +9252,7 @@ can be fine-tuned / trained to a lower range without losing too much precision, 
           </tr>
       </tbody>
     </table>
+
 
             <details class="quote">
               <summary>Source code in <code>mindone/diffusers/models/autoencoders/autoencoder_tiny.py</code></summary>
@@ -9225,6 +9331,7 @@ can be fine-tuned / trained to a lower range without losing too much precision, 
         <p>Disable sliced VAE decoding. If <code>enable_slicing</code> was previously enabled, this method will go back to computing
 decoding in one step.</p>
 
+
             <details class="quote">
               <summary>Source code in <code>mindone/diffusers/models/autoencoders/autoencoder_tiny.py</code></summary>
               <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">174</span>
@@ -9258,6 +9365,7 @@ decoding in one step.</p>
         <p>Disable tiled VAE decoding. If <code>enable_tiling</code> was previously enabled, this method will go back to computing
 decoding in one step.</p>
 
+
             <details class="quote">
               <summary>Source code in <code>mindone/diffusers/models/autoencoders/autoencoder_tiny.py</code></summary>
               <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">189</span>
@@ -9290,6 +9398,7 @@ decoding in one step.</p>
 
         <p>Enable sliced VAE decoding. When this option is enabled, the VAE will split the input tensor in slices to
 compute decoding in several steps. This is useful to save some memory and allow larger batch sizes.</p>
+
 
             <details class="quote">
               <summary>Source code in <code>mindone/diffusers/models/autoencoders/autoencoder_tiny.py</code></summary>
@@ -9325,6 +9434,7 @@ compute decoding in several steps. This is useful to save some memory and allow 
 compute decoding and encoding in several steps. This is useful for saving a large amount of memory and to allow
 processing larger images.</p>
 
+
             <details class="quote">
               <summary>Source code in <code>mindone/diffusers/models/autoencoders/autoencoder_tiny.py</code></summary>
               <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">181</span>
@@ -9359,6 +9469,7 @@ processing larger images.</p>
 
         <p>raw latents -&gt; [0, 1]</p>
 
+
             <details class="quote">
               <summary>Source code in <code>mindone/diffusers/models/autoencoders/autoencoder_tiny.py</code></summary>
               <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">159</span>
@@ -9384,6 +9495,7 @@ processing larger images.</p>
     <div class="doc doc-contents ">
 
         <p>[0, 1] -&gt; raw latents</p>
+
 
             <details class="quote">
               <summary>Source code in <code>mindone/diffusers/models/autoencoders/autoencoder_tiny.py</code></summary>
@@ -9438,7 +9550,9 @@ processing larger images.</p>
       </thead>
       <tbody>
           <tr class="doc-section-item">
-            <td><code>latents</code></td>
+            <td>
+                <code>latents</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Encoded outputs of the <code>Encoder</code>.</p>
@@ -9453,6 +9567,12 @@ processing larger images.</p>
           </tr>
       </tbody>
     </table>
+
+
+
+
+
+
 
               <details class="quote">
                 <summary>Source code in <code>mindone/diffusers/models/autoencoders/autoencoder_tiny.py</code></summary>

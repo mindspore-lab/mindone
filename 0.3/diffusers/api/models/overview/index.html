@@ -1477,6 +1477,29 @@
   
   
     <li class="md-nav__item">
+      <a href="../../../using-diffusers/consisid/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    ConsisID
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../../../using-diffusers/sdxl/" class="md-nav__link">
         
   
@@ -3427,6 +3450,29 @@
   
   
     <li class="md-nav__item">
+      <a href="../consisid_transformer3d/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    ConsisIDTransformer3DModel
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../cogview3plus_transformer2d/" class="md-nav__link">
         
   
@@ -4853,6 +4899,29 @@
   
   
     <li class="md-nav__item">
+      <a href="../../pipelines/consisid/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    ConsisID
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../../pipelines/consistency_models/" class="md-nav__link">
         
   
@@ -6016,10 +6085,10 @@
       
         
         
-        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2_11_4_64" >
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2_11_4_65" >
         
           
-          <label class="md-nav__link" for="__nav_2_11_4_64" id="__nav_2_11_4_64_label" tabindex="0">
+          <label class="md-nav__link" for="__nav_2_11_4_65" id="__nav_2_11_4_65_label" tabindex="0">
             
   
   
@@ -6032,8 +6101,8 @@
             <span class="md-nav__icon md-icon"></span>
           </label>
         
-        <nav class="md-nav" data-md-level="4" aria-labelledby="__nav_2_11_4_64_label" aria-expanded="false">
-          <label class="md-nav__title" for="__nav_2_11_4_64">
+        <nav class="md-nav" data-md-level="4" aria-labelledby="__nav_2_11_4_65_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_2_11_4_65">
             <span class="md-nav__icon md-icon"></span>
             Stable Diffusion
           </label>
@@ -8343,7 +8412,7 @@ specific language governing permissions and limitations under the License.
 
     <div class="doc doc-contents first">
             <p class="doc doc-class-bases">
-              Bases: <code><span title="mindspore.nn.Cell">Cell</span></code>, <code><a class="autorefs autorefs-internal" title="mindone.diffusers.utils.hub_utils.PushToHubMixin" href="#mindone.diffusers.utils.PushToHubMixin">PushToHubMixin</a></code></p>
+              Bases: <code><span title="mindspore.nn.Cell">Cell</span></code>, <code><a class="autorefs autorefs-internal" title="mindone.diffusers.utils.PushToHubMixin (mindone.diffusers.utils.hub_utils.PushToHubMixin)" href="#mindone.diffusers.utils.PushToHubMixin">PushToHubMixin</a></code></p>
 
 
         <p>Base class for all models.</p>
@@ -8351,6 +8420,12 @@ specific language governing permissions and limitations under the License.
 saving models.</p>
 <div class="highlight"><pre><span></span><code>- **config_name** ([`str`]) -- Filename to save a model to when calling [`~models.ModelMixin.save_pretrained`].
 </code></pre></div>
+
+
+
+
+
+
 
               <details class="quote">
                 <summary>Source code in <code>mindone/diffusers/models/modeling_utils.py</code></summary>
@@ -10585,7 +10660,7 @@ saving models.</p>
 
 
 <h3 id="mindone.diffusers.ModelMixin.dtype" class="doc doc-heading">
-            <code class="highlight language-python"><span class="n">mindone</span><span class="o">.</span><span class="n">diffusers</span><span class="o">.</span><span class="n">ModelMixin</span><span class="o">.</span><span class="n">dtype</span><span class="p">:</span> <span class="n">ms</span><span class="o">.</span><span class="n">Type</span></code>
+            <code class="highlight language-python"><span class="n">mindone</span><span class="o">.</span><span class="n">diffusers</span><span class="o">.</span><span class="n">ModelMixin</span><span class="o">.</span><span class="n">dtype</span></code>
 
   <span class="doc doc-labels">
       <small class="doc doc-label doc-label-property"><code>property</code></small>
@@ -10597,6 +10672,7 @@ saving models.</p>
     <div class="doc doc-contents ">
 
         <p><code>mindspore.Type</code>: The dtype of the module (assuming that all the module parameters have the same dtype).</p>
+
     </div>
 
 </div>
@@ -10606,7 +10682,7 @@ saving models.</p>
 
 
 <h3 id="mindone.diffusers.ModelMixin.is_gradient_checkpointing" class="doc doc-heading">
-            <code class="highlight language-python"><span class="n">mindone</span><span class="o">.</span><span class="n">diffusers</span><span class="o">.</span><span class="n">ModelMixin</span><span class="o">.</span><span class="n">is_gradient_checkpointing</span><span class="p">:</span> <span class="nb">bool</span></code>
+            <code class="highlight language-python"><span class="n">mindone</span><span class="o">.</span><span class="n">diffusers</span><span class="o">.</span><span class="n">ModelMixin</span><span class="o">.</span><span class="n">is_gradient_checkpointing</span></code>
 
   <span class="doc doc-labels">
       <small class="doc doc-label doc-label-property"><code>property</code></small>
@@ -10618,6 +10694,7 @@ saving models.</p>
     <div class="doc doc-contents ">
 
         <p>Whether gradient checkpointing is activated for this model or not.</p>
+
     </div>
 
 </div>
@@ -10639,6 +10716,7 @@ saving models.</p>
 config attributes directly. See https://github.com/huggingface/diffusers/pull/3129 We need to overwrite
 <strong>getattr</strong> here in addition so that we don't trigger <code>nn.Cell</code>'s <strong>getattr</strong>':
 https://pytorch.org/docs/stable/_modules/torch/nn/modules/module.html#Module</p>
+
 
             <details class="quote">
               <summary>Source code in <code>mindone/diffusers/models/modeling_utils.py</code></summary>
@@ -10695,6 +10773,7 @@ https://pytorch.org/docs/stable/_modules/torch/nn/modules/module.html#Module</p>
         <p>Deactivates gradient checkpointing for the current model (may be referred to as <em>activation checkpointing</em> or
 <em>checkpoint activations</em> in other frameworks).</p>
 
+
             <details class="quote">
               <summary>Source code in <code>mindone/diffusers/models/modeling_utils.py</code></summary>
               <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">221</span>
@@ -10729,6 +10808,7 @@ https://pytorch.org/docs/stable/_modules/torch/nn/modules/module.html#Module</p>
 
         <p>Disable memory efficient attention from <a href="https://facebookresearch.github.io/xformers/">xFormers</a>.</p>
 
+
             <details class="quote">
               <summary>Source code in <code>mindone/diffusers/models/modeling_utils.py</code></summary>
               <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">326</span>
@@ -10759,6 +10839,7 @@ https://pytorch.org/docs/stable/_modules/torch/nn/modules/module.html#Module</p>
 
         <p>.. warning:: This flag is beta and subject to change.</p>
 <p>Enables or disables flash scaled dot product attention.</p>
+
 
             <details class="quote">
               <summary>Source code in <code>mindone/diffusers/models/modeling_utils.py</code></summary>
@@ -10831,7 +10912,9 @@ https://pytorch.org/docs/stable/_modules/torch/nn/modules/module.html#Module</p>
       </thead>
       <tbody>
           <tr class="doc-section-item">
-            <td><code>gradient_checkpointing_func</code></td>
+            <td>
+                <code>gradient_checkpointing_func</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The function to use for gradient checkpointing. If <code>None</code>, the default MindSpore checkpointing function
@@ -10851,6 +10934,7 @@ is used (<code>mindspore.nn.Cell.recompute_</code>).</p>
           </tr>
       </tbody>
     </table>
+
 
             <details class="quote">
               <summary>Source code in <code>mindone/diffusers/models/modeling_utils.py</code></summary>
@@ -10938,6 +11022,7 @@ is used (<code>mindspore.nn.Cell.recompute_</code>).</p>
 ... )
 ```
 </code></pre></div>
+
 
             <details class="quote">
               <summary>Source code in <code>mindone/diffusers/models/modeling_utils.py</code></summary>
@@ -11060,7 +11145,9 @@ precision-critical for quality. If you wish to change this behavior, you can set
       </thead>
       <tbody>
           <tr class="doc-section-item">
-            <td><code>storage_dtype</code></td>
+            <td>
+                <code>storage_dtype</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The dtype to which the model should be cast for storage.</p>
@@ -11074,7 +11161,9 @@ precision-critical for quality. If you wish to change this behavior, you can set
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>compute_dtype</code></td>
+            <td>
+                <code>compute_dtype</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The dtype to which the model weights should be cast during the forward pass.</p>
@@ -11092,7 +11181,9 @@ precision-critical for quality. If you wish to change this behavior, you can set
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>skip_modules_pattern</code></td>
+            <td>
+                <code>skip_modules_pattern</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>A list of patterns to match the names of the modules to skip during the layerwise casting process. If
@@ -11112,7 +11203,9 @@ layers.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>skip_modules_classes</code></td>
+            <td>
+                <code>skip_modules_classes</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>A list of module classes to skip during the layerwise casting process.</p>
@@ -11130,7 +11223,9 @@ layers.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>non_blocking</code></td>
+            <td>
+                <code>non_blocking</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>If <code>True</code>, the weight casting operations are non-blocking.</p>
@@ -11149,6 +11244,7 @@ layers.</p>
           </tr>
       </tbody>
     </table>
+
 
             <details class="quote">
               <summary>Source code in <code>mindone/diffusers/models/modeling_utils.py</code></summary>
@@ -11288,7 +11384,9 @@ precedent.</p>
       </thead>
       <tbody>
           <tr class="doc-section-item">
-            <td><code>attention_op</code></td>
+            <td>
+                <code>attention_op</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Not supported for now.</p>
@@ -11315,6 +11413,7 @@ precedent.</p>
 <span class="o">...</span> <span class="p">)</span>
 <span class="o">&gt;&gt;&gt;</span> <span class="n">model</span><span class="o">.</span><span class="n">enable_xformers_memory_efficient_attention</span><span class="p">()</span>
 </code></pre></div>
+
 
             <details class="quote">
               <summary>Source code in <code>mindone/diffusers/models/modeling_utils.py</code></summary>
@@ -11414,7 +11513,9 @@ train the model, set it back in training mode with <code>model.train()</code>.</
       </thead>
       <tbody>
           <tr class="doc-section-item">
-            <td><code>pretrained_model_name_or_path</code></td>
+            <td>
+                <code>pretrained_model_name_or_path</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Can be either:</p>
@@ -11433,7 +11534,9 @@ train the model, set it back in training mode with <code>model.train()</code>.</
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>cache_dir</code></td>
+            <td>
+                <code>cache_dir</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Path to a directory where a downloaded pretrained model configuration is cached if the standard cache
@@ -11448,7 +11551,9 @@ is not used.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>mindspore_dtype</code></td>
+            <td>
+                <code>mindspore_dtype</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Override the default <code>mindspore.Type</code> and load the model with another dtype. If <code>"auto"</code> is passed, the
@@ -11463,7 +11568,9 @@ dtype is automatically derived from the model's weights.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>force_download</code></td>
+            <td>
+                <code>force_download</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Whether or not to force the (re-)download of the model weights and configuration files, overriding the
@@ -11478,7 +11585,9 @@ cached versions if they exist.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>proxies</code></td>
+            <td>
+                <code>proxies</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>A dictionary of proxy servers to use by protocol or endpoint, for example, <code>{'http': 'foo.bar:3128',
@@ -11493,7 +11602,9 @@ cached versions if they exist.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>output_loading_info</code></td>
+            <td>
+                <code>output_loading_info</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Whether or not to also return a dictionary containing missing keys, unexpected keys and error messages.</p>
@@ -11507,7 +11618,9 @@ cached versions if they exist.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>local_files_only(`bool`,</code></td>
+            <td>
+                <code>local_files_only(`bool`,</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Whether to only load local model weights and configuration files or not. If set to <code>True</code>, the model
@@ -11522,7 +11635,9 @@ won't be downloaded from the Hub.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>token</code></td>
+            <td>
+                <code>token</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The token to use as HTTP bearer authorization for remote files. If <code>True</code>, the token generated from
@@ -11537,7 +11652,9 @@ won't be downloaded from the Hub.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>revision</code></td>
+            <td>
+                <code>revision</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The specific model version to use. It can be a branch name, a tag name, a commit id, or any identifier
@@ -11552,7 +11669,9 @@ allowed by Git.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>from_flax</code></td>
+            <td>
+                <code>from_flax</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Load the model weights from a Flax checkpoint save file.</p>
@@ -11566,7 +11685,9 @@ allowed by Git.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>subfolder</code></td>
+            <td>
+                <code>subfolder</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The subfolder location of a model file within a larger model repository on the Hub or locally.</p>
@@ -11580,7 +11701,9 @@ allowed by Git.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>mirror</code></td>
+            <td>
+                <code>mirror</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Mirror source to resolve accessibility issues if you're downloading a model in China. We do not
@@ -11596,7 +11719,9 @@ information.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>variant</code></td>
+            <td>
+                <code>variant</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Load weights from a specified <code>variant</code> filename such as <code>"fp16"</code> or <code>"ema"</code>. This is ignored when
@@ -11611,7 +11736,9 @@ loading <code>from_flax</code>.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>use_safetensors</code></td>
+            <td>
+                <code>use_safetensors</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>If set to <code>None</code>, the <code>safetensors</code> weights are downloaded if they're available <strong>and</strong> if the
@@ -11627,7 +11754,9 @@ weights. If set to <code>False</code>, <code>safetensors</code> weights are not 
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>disable_mmap</code></td>
+            <td>
+                <code>disable_mmap</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Whether to disable mmap when loading a Safetensors model. This option can perform better when the model
@@ -11660,6 +11789,7 @@ runwayml/stable-diffusion-v1-5<span class="w"> </span>and<span class="w"> </span
 -<span class="w"> </span>conv_in.weight:<span class="w"> </span>found<span class="w"> </span>shape<span class="w"> </span>torch.Size<span class="o">([</span><span class="m">320</span>,<span class="w"> </span><span class="m">4</span>,<span class="w"> </span><span class="m">3</span>,<span class="w"> </span><span class="m">3</span><span class="o">])</span><span class="w"> </span><span class="k">in</span><span class="w"> </span>the<span class="w"> </span>checkpoint<span class="w"> </span>and<span class="w"> </span>torch.Size<span class="o">([</span><span class="m">320</span>,<span class="w"> </span><span class="m">9</span>,<span class="w"> </span><span class="m">3</span>,<span class="w"> </span><span class="m">3</span><span class="o">])</span><span class="w"> </span><span class="k">in</span><span class="w"> </span>the<span class="w"> </span>model<span class="w"> </span>instantiated
 You<span class="w"> </span>should<span class="w"> </span>probably<span class="w"> </span>TRAIN<span class="w"> </span>this<span class="w"> </span>model<span class="w"> </span>on<span class="w"> </span>a<span class="w"> </span>down-stream<span class="w"> </span>task<span class="w"> </span>to<span class="w"> </span>be<span class="w"> </span>able<span class="w"> </span>to<span class="w"> </span>use<span class="w"> </span>it<span class="w"> </span><span class="k">for</span><span class="w"> </span>predictions<span class="w"> </span>and<span class="w"> </span>inference.
 </code></pre></div>
+
 
             <details class="quote">
               <summary>Source code in <code>mindone/diffusers/models/modeling_utils.py</code></summary>
@@ -12338,7 +12468,9 @@ used.</p>
       </thead>
       <tbody>
           <tr class="doc-section-item">
-            <td><code>target</code></td>
+            <td>
+                <code>target</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The fully-qualified string name of the submodule
@@ -12348,7 +12480,7 @@ fully-qualified string.)</p>
               <p>
                   <span class="doc-param-annotation">
                     <b>TYPE:</b>
-                      <code>str</code>
+                      <code><span title="str">str</span></code>
                   </span>
               </p>
             </td>
@@ -12392,7 +12524,7 @@ fully-qualified string.)</p>
           <tr class="doc-section-item">
             <td>
               <span class="doc-raises-annotation">
-                  <code>AttributeError</code>
+                  <code><span title="AttributeError">AttributeError</span></code>
               </span>
             </td>
             <td class="doc-raises-details">
@@ -12405,6 +12537,7 @@ path or resolves to something that is not an
           </tr>
       </tbody>
     </table>
+
 
             <details class="quote">
               <summary>Source code in <code>mindone/diffusers/models/modeling_utils.py</code></summary>
@@ -12560,7 +12693,9 @@ path or resolves to something that is not an
       </thead>
       <tbody>
           <tr class="doc-section-item">
-            <td><code>only_trainable</code></td>
+            <td>
+                <code>only_trainable</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Whether or not to return only the number of trainable parameters.</p>
@@ -12578,7 +12713,9 @@ path or resolves to something that is not an
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>exclude_embeddings</code></td>
+            <td>
+                <code>exclude_embeddings</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Whether or not to return only the number of non-embedding parameters.</p>
@@ -12610,7 +12747,7 @@ path or resolves to something that is not an
           <tr class="doc-section-item">
             <td>
                 <span class="doc-returns-annotation">
-                    <code>int</code>
+                    <code><span title="int">int</span></code>
                 </span>
             </td>
             <td class="doc-returns-details">
@@ -12628,6 +12765,7 @@ path or resolves to something that is not an
 <span class="n">unet</span><span class="o">.</span><span class="n">num_parameters</span><span class="p">(</span><span class="n">only_trainable</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
 <span class="mi">859520964</span>
 </code></pre></div>
+
 
             <details class="quote">
               <summary>Source code in <code>mindone/diffusers/models/modeling_utils.py</code></summary>
@@ -12752,7 +12890,9 @@ path or resolves to something that is not an
       </thead>
       <tbody>
           <tr class="doc-section-item">
-            <td><code>save_directory</code></td>
+            <td>
+                <code>save_directory</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Directory to save a model and its configuration file to. Will be created if it doesn't exist.</p>
@@ -12766,7 +12906,9 @@ path or resolves to something that is not an
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>is_main_process</code></td>
+            <td>
+                <code>is_main_process</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Whether the process calling this is the main process or not. Useful during distributed training and you
@@ -12786,7 +12928,9 @@ process to avoid race conditions.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>save_function</code></td>
+            <td>
+                <code>save_function</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The function to use to save the state dictionary. Useful during distributed training when you need to
@@ -12806,7 +12950,9 @@ replace <code>mindspore.save_checkpoint</code> with another method. Can be confi
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>safe_serialization</code></td>
+            <td>
+                <code>safe_serialization</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Whether to save the model using <code>safetensors</code> or the traditional PyTorch way with <code>pickle</code>.</p>
@@ -12824,7 +12970,9 @@ replace <code>mindspore.save_checkpoint</code> with another method. Can be confi
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>variant</code></td>
+            <td>
+                <code>variant</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>If specified, weights are saved in the format <code>pytorch_model.&lt;variant&gt;.bin</code>.</p>
@@ -12842,7 +12990,9 @@ replace <code>mindspore.save_checkpoint</code> with another method. Can be confi
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>max_shard_size</code></td>
+            <td>
+                <code>max_shard_size</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The maximum size for a checkpoint before being sharded. Checkpoints shard will then be each of size
@@ -12865,7 +13015,9 @@ Face ecosystem (<code>transformers</code>, and <code>accelerate</code>, for exam
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>push_to_hub</code></td>
+            <td>
+                <code>push_to_hub</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Whether or not to push your model to the Hugging Face Hub after saving it. You can specify the
@@ -12885,7 +13037,9 @@ namespace).</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>kwargs</code></td>
+            <td>
+                <code>kwargs</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Additional keyword arguments passed along to the [<code>~utils.PushToHubMixin.push_to_hub</code>] method.</p>
@@ -12904,6 +13058,7 @@ namespace).</p>
           </tr>
       </tbody>
     </table>
+
 
             <details class="quote">
               <summary>Source code in <code>mindone/diffusers/models/modeling_utils.py</code></summary>
@@ -13222,7 +13377,9 @@ original attention calculation using mathematical formulas.</p>
       </thead>
       <tbody>
           <tr class="doc-section-item">
-            <td><code>force_cast_dtype</code></td>
+            <td>
+                <code>force_cast_dtype</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The data type to which the input data should be forcibly converted. If None, no forced</p>
@@ -13237,6 +13394,7 @@ original attention calculation using mathematical formulas.</p>
           </tr>
       </tbody>
     </table>
+
 
             <details class="quote">
               <summary>Source code in <code>mindone/diffusers/models/modeling_utils.py</code></summary>
@@ -13324,6 +13482,12 @@ original attention calculation using mathematical formulas.</p>
 
 
         <p>A Mixin to push a model, scheduler, or pipeline to the Hugging Face Hub.</p>
+
+
+
+
+
+
 
               <details class="quote">
                 <summary>Source code in <code>mindone/diffusers/utils/hub_utils.py</code></summary>
@@ -13564,7 +13728,9 @@ original attention calculation using mathematical formulas.</p>
       </thead>
       <tbody>
           <tr class="doc-section-item">
-            <td><code>repo_id</code></td>
+            <td>
+                <code>repo_id</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The name of the repository you want to push your model, scheduler, or pipeline files to. It should
@@ -13580,7 +13746,9 @@ directory.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>commit_message</code></td>
+            <td>
+                <code>commit_message</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Message to commit while pushing. Default to <code>"Upload {object}"</code>.</p>
@@ -13598,7 +13766,9 @@ directory.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>private</code></td>
+            <td>
+                <code>private</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Whether to make the repo private. If <code>None</code> (default), the repo will be public unless the
@@ -13617,7 +13787,9 @@ organization's default is private. This value is ignored if the repo already exi
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>token</code></td>
+            <td>
+                <code>token</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The token to use as HTTP bearer authorization for remote files. The token generated when running
@@ -13636,7 +13808,9 @@ organization's default is private. This value is ignored if the repo already exi
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>create_pr</code></td>
+            <td>
+                <code>create_pr</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Whether or not to create a PR with the uploaded files or directly commit.</p>
@@ -13654,7 +13828,9 @@ organization's default is private. This value is ignored if the repo already exi
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>safe_serialization</code></td>
+            <td>
+                <code>safe_serialization</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Whether or not to convert the model weights to the <code>safetensors</code> format.</p>
@@ -13672,7 +13848,9 @@ organization's default is private. This value is ignored if the repo already exi
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>variant</code></td>
+            <td>
+                <code>variant</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>If specified, weights are saved in the format <code>pytorch_model.&lt;variant&gt;.bin</code>.</p>
@@ -13701,6 +13879,7 @@ organization's default is private. This value is ignored if the repo already exi
 <span class="c1"># Push the `unet` to an organization with the name &quot;my-finetuned-unet&quot;.</span>
 <span class="n">unet</span><span class="o">.</span><span class="n">push_to_hub</span><span class="p">(</span><span class="s2">&quot;your-org/my-finetuned-unet&quot;</span><span class="p">)</span>
 </code></pre></div>
+
 
             <details class="quote">
               <summary>Source code in <code>mindone/diffusers/utils/hub_utils.py</code></summary>

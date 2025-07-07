@@ -1477,6 +1477,29 @@
   
   
     <li class="md-nav__item">
+      <a href="../../../using-diffusers/consisid/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    ConsisID
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../../../using-diffusers/sdxl/" class="md-nav__link">
         
   
@@ -3213,6 +3236,29 @@
   
   
     <li class="md-nav__item">
+      <a href="../consisid_transformer3d/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    ConsisIDTransformer3DModel
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../cogview3plus_transformer2d/" class="md-nav__link">
         
   
@@ -4741,6 +4787,29 @@
   
   
     <li class="md-nav__item">
+      <a href="../../pipelines/consisid/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    ConsisID
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../../pipelines/consistency_models/" class="md-nav__link">
         
   
@@ -5904,10 +5973,10 @@
       
         
         
-        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2_11_4_64" >
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2_11_4_65" >
         
           
-          <label class="md-nav__link" for="__nav_2_11_4_64" id="__nav_2_11_4_64_label" tabindex="0">
+          <label class="md-nav__link" for="__nav_2_11_4_65" id="__nav_2_11_4_65_label" tabindex="0">
             
   
   
@@ -5920,8 +5989,8 @@
             <span class="md-nav__icon md-icon"></span>
           </label>
         
-        <nav class="md-nav" data-md-level="4" aria-labelledby="__nav_2_11_4_64_label" aria-expanded="false">
-          <label class="md-nav__title" for="__nav_2_11_4_64">
+        <nav class="md-nav" data-md-level="4" aria-labelledby="__nav_2_11_4_65_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_2_11_4_65">
             <span class="md-nav__icon md-icon"></span>
             Stable Diffusion
           </label>
@@ -8116,7 +8185,7 @@ specific language governing permissions and limitations under the License.
 
     <div class="doc doc-contents first">
             <p class="doc doc-class-bases">
-              Bases: <code><a class="autorefs autorefs-internal" title="mindone.diffusers.models.modeling_utils.ModelMixin" href="../overview/#mindone.diffusers.ModelMixin">ModelMixin</a></code>, <code><a class="autorefs autorefs-internal" title="mindone.diffusers.configuration_utils.ConfigMixin" href="../../configuration/#mindone.diffusers.configuration_utils.ConfigMixin">ConfigMixin</a></code>, <code><a class="autorefs autorefs-internal" title="mindone.diffusers.loaders.PeftAdapterMixin" href="../../loaders/peft/#mindone.diffusers.loaders.peft.PeftAdapterMixin">PeftAdapterMixin</a></code>, <code><span title="mindone.diffusers.loaders.FromOriginalModelMixin">FromOriginalModelMixin</span></code>, <code><span title="mindone.diffusers.loaders.FluxTransformer2DLoadersMixin">FluxTransformer2DLoadersMixin</span></code></p>
+              Bases: <code><a class="autorefs autorefs-internal" title="mindone.diffusers.ModelMixin (mindone.diffusers.models.modeling_utils.ModelMixin)" href="../overview/#mindone.diffusers.ModelMixin">ModelMixin</a></code>, <code><a class="autorefs autorefs-internal" title="mindone.diffusers.configuration_utils.ConfigMixin" href="../../configuration/#mindone.diffusers.configuration_utils.ConfigMixin">ConfigMixin</a></code>, <code><a class="autorefs autorefs-internal" title="mindone.diffusers.loaders.peft.PeftAdapterMixin (mindone.diffusers.loaders.PeftAdapterMixin)" href="../../loaders/peft/#mindone.diffusers.loaders.peft.PeftAdapterMixin">PeftAdapterMixin</a></code>, <code><span title="mindone.diffusers.loaders.FromOriginalModelMixin">FromOriginalModelMixin</span></code>, <code><span title="mindone.diffusers.loaders.FluxTransformer2DLoadersMixin">FluxTransformer2DLoadersMixin</span></code></p>
 
 
         <p>The Transformer model introduced in Flux.</p>
@@ -8132,7 +8201,9 @@ specific language governing permissions and limitations under the License.
       </thead>
       <tbody>
           <tr class="doc-section-item">
-            <td><code>patch_size</code></td>
+            <td>
+                <code>patch_size</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Patch size to turn the input data into small patches.</p>
@@ -8150,7 +8221,9 @@ specific language governing permissions and limitations under the License.
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>in_channels</code></td>
+            <td>
+                <code>in_channels</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The number of channels in the input.</p>
@@ -8168,7 +8241,9 @@ specific language governing permissions and limitations under the License.
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>out_channels</code></td>
+            <td>
+                <code>out_channels</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The number of channels in the output. If not specified, it defaults to <code>in_channels</code>.</p>
@@ -8186,7 +8261,9 @@ specific language governing permissions and limitations under the License.
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>num_layers</code></td>
+            <td>
+                <code>num_layers</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The number of layers of dual stream DiT blocks to use.</p>
@@ -8204,7 +8281,9 @@ specific language governing permissions and limitations under the License.
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>num_single_layers</code></td>
+            <td>
+                <code>num_single_layers</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The number of layers of single stream DiT blocks to use.</p>
@@ -8222,7 +8301,9 @@ specific language governing permissions and limitations under the License.
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>attention_head_dim</code></td>
+            <td>
+                <code>attention_head_dim</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The number of dimensions to use for each attention head.</p>
@@ -8240,7 +8321,9 @@ specific language governing permissions and limitations under the License.
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>num_attention_heads</code></td>
+            <td>
+                <code>num_attention_heads</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The number of attention heads to use.</p>
@@ -8258,7 +8341,9 @@ specific language governing permissions and limitations under the License.
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>joint_attention_dim</code></td>
+            <td>
+                <code>joint_attention_dim</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The number of dimensions to use for the joint attention (embedding/channel dimension of
@@ -8277,7 +8362,9 @@ specific language governing permissions and limitations under the License.
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>pooled_projection_dim</code></td>
+            <td>
+                <code>pooled_projection_dim</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The number of dimensions to use for the pooled projection.</p>
@@ -8295,7 +8382,9 @@ specific language governing permissions and limitations under the License.
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>guidance_embeds</code></td>
+            <td>
+                <code>guidance_embeds</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Whether to use guidance embeddings for guidance-distilled variant of the model.</p>
@@ -8313,7 +8402,9 @@ specific language governing permissions and limitations under the License.
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>axes_dims_rope</code></td>
+            <td>
+                <code>axes_dims_rope</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The dimensions to use for the rotary positional embeddings.</p>
@@ -8332,6 +8423,12 @@ specific language governing permissions and limitations under the License.
           </tr>
       </tbody>
     </table>
+
+
+
+
+
+
 
               <details class="quote">
                 <summary>Source code in <code>mindone/diffusers/models/transformers/transformer_flux.py</code></summary>
@@ -9022,7 +9119,7 @@ specific language governing permissions and limitations under the License.
 
 
 <h3 id="mindone.diffusers.models.transformers.transformer_flux.FluxTransformer2DModel.attn_processors" class="doc doc-heading">
-            <code class="highlight language-python"><span class="n">mindone</span><span class="o">.</span><span class="n">diffusers</span><span class="o">.</span><span class="n">models</span><span class="o">.</span><span class="n">transformers</span><span class="o">.</span><span class="n">transformer_flux</span><span class="o">.</span><span class="n">FluxTransformer2DModel</span><span class="o">.</span><span class="n">attn_processors</span><span class="p">:</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">AttentionProcessor</span><span class="p">]</span></code>
+            <code class="highlight language-python"><span class="n">mindone</span><span class="o">.</span><span class="n">diffusers</span><span class="o">.</span><span class="n">models</span><span class="o">.</span><span class="n">transformers</span><span class="o">.</span><span class="n">transformer_flux</span><span class="o">.</span><span class="n">FluxTransformer2DModel</span><span class="o">.</span><span class="n">attn_processors</span></code>
 
   <span class="doc doc-labels">
       <small class="doc doc-label doc-label-property"><code>property</code></small>
@@ -9046,7 +9143,7 @@ specific language governing permissions and limitations under the License.
           <tr class="doc-section-item">
             <td>
                 <span class="doc-returns-annotation">
-                    <code><span title="typing.Dict">Dict</span>[str, <span title="mindone.diffusers.models.attention_processor.AttentionProcessor">AttentionProcessor</span>]</code>
+                    <code><span title="typing.Dict">Dict</span>[<span title="str">str</span>, <span title="mindone.diffusers.models.attention_processor.AttentionProcessor">AttentionProcessor</span>]</code>
                 </span>
             </td>
             <td class="doc-returns-details">
@@ -9058,7 +9155,7 @@ specific language governing permissions and limitations under the License.
           <tr class="doc-section-item">
             <td>
                 <span class="doc-returns-annotation">
-                    <code><span title="typing.Dict">Dict</span>[str, <span title="mindone.diffusers.models.attention_processor.AttentionProcessor">AttentionProcessor</span>]</code>
+                    <code><span title="typing.Dict">Dict</span>[<span title="str">str</span>, <span title="mindone.diffusers.models.attention_processor.AttentionProcessor">AttentionProcessor</span>]</code>
                 </span>
             </td>
             <td class="doc-returns-details">
@@ -9069,6 +9166,7 @@ specific language governing permissions and limitations under the License.
           </tr>
       </tbody>
     </table>
+
     </div>
 
 </div>
@@ -9098,7 +9196,9 @@ specific language governing permissions and limitations under the License.
       </thead>
       <tbody>
           <tr class="doc-section-item">
-            <td><code>hidden_states</code></td>
+            <td>
+                <code>hidden_states</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Input <code>hidden_states</code>.</p>
@@ -9112,7 +9212,9 @@ specific language governing permissions and limitations under the License.
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>encoder_hidden_states</code></td>
+            <td>
+                <code>encoder_hidden_states</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Conditional embeddings (embeddings computed from the input conditions such as prompts) to use.</p>
@@ -9130,7 +9232,9 @@ specific language governing permissions and limitations under the License.
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>pooled_projections</code></td>
+            <td>
+                <code>pooled_projections</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Embeddings projected
@@ -9149,7 +9253,9 @@ from the embeddings of input conditions.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>timestep</code></td>
+            <td>
+                <code>timestep</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Used to indicate denoising step.</p>
@@ -9167,7 +9273,9 @@ from the embeddings of input conditions.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>block_controlnet_hidden_states</code></td>
+            <td>
+                <code>block_controlnet_hidden_states</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>(<code>list</code> of <code>ms.Tensor</code>):
@@ -9178,7 +9286,9 @@ A list of tensors that if specified are added to the residuals of transformer bl
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>joint_attention_kwargs</code></td>
+            <td>
+                <code>joint_attention_kwargs</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>A kwargs dictionary that if specified is passed along to the <code>AttentionProcessor</code> as defined under
@@ -9198,7 +9308,9 @@ A list of tensors that if specified are added to the residuals of transformer bl
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>return_dict</code></td>
+            <td>
+                <code>return_dict</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Whether or not to return a [<code>~models.transformer_2d.Transformer2DModelOutput</code>] instead of a plain
@@ -9231,7 +9343,12 @@ tuple.</p>
           <tr class="doc-section-item">
             <td>
                 <span class="doc-returns-annotation">
-                    <code><span title="typing.Union">Union</span>[<span title="mindspore.Tensor">Tensor</span>, <a class="autorefs autorefs-internal" title="mindone.diffusers.models.modeling_outputs.Transformer2DModelOutput" href="../allegro_transformer3d/#mindone.diffusers.models.modeling_outputs.Transformer2DModelOutput">Transformer2DModelOutput</a>]</code>
+                    <code><span title="typing.Union">Union</span>[<span title="mindspore.Tensor">Tensor</span>, <a class="autorefs autorefs-internal" title="mindone.diffusers.models.modeling_outputs.Transformer2DModelOutput
+
+
+  
+      dataclass
+  " href="../allegro_transformer3d/#mindone.diffusers.models.modeling_outputs.Transformer2DModelOutput">Transformer2DModelOutput</a>]</code>
                 </span>
             </td>
             <td class="doc-returns-details">
@@ -9243,7 +9360,12 @@ tuple.</p>
           <tr class="doc-section-item">
             <td>
                 <span class="doc-returns-annotation">
-                    <code><span title="typing.Union">Union</span>[<span title="mindspore.Tensor">Tensor</span>, <a class="autorefs autorefs-internal" title="mindone.diffusers.models.modeling_outputs.Transformer2DModelOutput" href="../allegro_transformer3d/#mindone.diffusers.models.modeling_outputs.Transformer2DModelOutput">Transformer2DModelOutput</a>]</code>
+                    <code><span title="typing.Union">Union</span>[<span title="mindspore.Tensor">Tensor</span>, <a class="autorefs autorefs-internal" title="mindone.diffusers.models.modeling_outputs.Transformer2DModelOutput
+
+
+  
+      dataclass
+  " href="../allegro_transformer3d/#mindone.diffusers.models.modeling_outputs.Transformer2DModelOutput">Transformer2DModelOutput</a>]</code>
                 </span>
             </td>
             <td class="doc-returns-details">
@@ -9254,6 +9376,7 @@ tuple.</p>
           </tr>
       </tbody>
     </table>
+
 
             <details class="quote">
               <summary>Source code in <code>mindone/diffusers/models/transformers/transformer_flux.py</code></summary>
@@ -9557,6 +9680,7 @@ are fused. For cross-attention modules, key and value projection matrices are fu
 <p>This API is 🧪 experimental.</p>
 <p></Tip></p>
 
+
             <details class="quote">
               <summary>Source code in <code>mindone/diffusers/models/transformers/transformer_flux.py</code></summary>
               <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">336</span>
@@ -9635,7 +9759,9 @@ are fused. For cross-attention modules, key and value projection matrices are fu
       </thead>
       <tbody>
           <tr class="doc-section-item">
-            <td><code>processor</code></td>
+            <td>
+                <code>processor</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The instantiated processor class or a dictionary of processor classes that will be set as the processor
@@ -9653,6 +9779,7 @@ processor. This is strongly recommended when setting trainable attention process
           </tr>
       </tbody>
     </table>
+
 
             <details class="quote">
               <summary>Source code in <code>mindone/diffusers/models/transformers/transformer_flux.py</code></summary>
@@ -9742,6 +9869,7 @@ processor. This is strongly recommended when setting trainable attention process
 <p><Tip warning={true}></p>
 <p>This API is 🧪 experimental.</p>
 <p></Tip></p>
+
 
             <details class="quote">
               <summary>Source code in <code>mindone/diffusers/models/transformers/transformer_flux.py</code></summary>

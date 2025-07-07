@@ -1477,6 +1477,29 @@
   
   
     <li class="md-nav__item">
+      <a href="../../../using-diffusers/consisid/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    ConsisID
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../../../using-diffusers/sdxl/" class="md-nav__link">
         
   
@@ -3213,6 +3236,29 @@
   
   
     <li class="md-nav__item">
+      <a href="../consisid_transformer3d/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    ConsisIDTransformer3DModel
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../cogview3plus_transformer2d/" class="md-nav__link">
         
   
@@ -4720,6 +4766,29 @@
   
   
     <li class="md-nav__item">
+      <a href="../../pipelines/consisid/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    ConsisID
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../../pipelines/consistency_models/" class="md-nav__link">
         
   
@@ -5883,10 +5952,10 @@
       
         
         
-        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2_11_4_64" >
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2_11_4_65" >
         
           
-          <label class="md-nav__link" for="__nav_2_11_4_64" id="__nav_2_11_4_64_label" tabindex="0">
+          <label class="md-nav__link" for="__nav_2_11_4_65" id="__nav_2_11_4_65_label" tabindex="0">
             
   
   
@@ -5899,8 +5968,8 @@
             <span class="md-nav__icon md-icon"></span>
           </label>
         
-        <nav class="md-nav" data-md-level="4" aria-labelledby="__nav_2_11_4_64_label" aria-expanded="false">
-          <label class="md-nav__title" for="__nav_2_11_4_64">
+        <nav class="md-nav" data-md-level="4" aria-labelledby="__nav_2_11_4_65_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_2_11_4_65">
             <span class="md-nav__icon md-icon"></span>
             Stable Diffusion
           </label>
@@ -8074,7 +8143,7 @@ specific language governing permissions and limitations under the License.
 
     <div class="doc doc-contents first">
             <p class="doc doc-class-bases">
-              Bases: <code><a class="autorefs autorefs-internal" title="mindone.diffusers.models.modeling_utils.ModelMixin" href="../overview/#mindone.diffusers.ModelMixin">ModelMixin</a></code>, <code><a class="autorefs autorefs-internal" title="mindone.diffusers.configuration_utils.ConfigMixin" href="../../configuration/#mindone.diffusers.configuration_utils.ConfigMixin">ConfigMixin</a></code></p>
+              Bases: <code><a class="autorefs autorefs-internal" title="mindone.diffusers.ModelMixin (mindone.diffusers.models.modeling_utils.ModelMixin)" href="../overview/#mindone.diffusers.ModelMixin">ModelMixin</a></code>, <code><a class="autorefs autorefs-internal" title="mindone.diffusers.configuration_utils.ConfigMixin" href="../../configuration/#mindone.diffusers.configuration_utils.ConfigMixin">ConfigMixin</a></code></p>
 
 
         <p>A 2D Transformer model as introduced in DiT (https://arxiv.org/abs/2212.09748).</p>
@@ -8089,7 +8158,9 @@ specific language governing permissions and limitations under the License.
       </thead>
       <tbody>
           <tr class="doc-section-item">
-            <td><code>num_attention_heads</code></td>
+            <td>
+                <code>num_attention_heads</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The number of heads to use for multi-head attention.</p>
@@ -8107,7 +8178,9 @@ specific language governing permissions and limitations under the License.
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>attention_head_dim</code></td>
+            <td>
+                <code>attention_head_dim</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The number of channels in each head.</p>
@@ -8125,7 +8198,9 @@ specific language governing permissions and limitations under the License.
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>in_channels</code></td>
+            <td>
+                <code>in_channels</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The number of channels in the input.</p>
@@ -8143,7 +8218,9 @@ specific language governing permissions and limitations under the License.
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>out_channels</code></td>
+            <td>
+                <code>out_channels</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The number of channels in the output. Specify this parameter if the output channel number differs from the
@@ -8152,7 +8229,7 @@ input.</p>
               <p>
                   <span class="doc-param-annotation">
                     <b>TYPE:</b>
-                      <code>int</code>
+                      <code><span title="int">int</span></code>
                   </span>
                   <span class="doc-param-default">
                     <b>DEFAULT:</b>
@@ -8162,7 +8239,9 @@ input.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>num_layers</code></td>
+            <td>
+                <code>num_layers</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The number of layers of Transformer blocks to use.</p>
@@ -8180,7 +8259,9 @@ input.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>dropout</code></td>
+            <td>
+                <code>dropout</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The dropout probability to use within the Transformer blocks.</p>
@@ -8198,7 +8279,9 @@ input.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>norm_num_groups</code></td>
+            <td>
+                <code>norm_num_groups</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Number of groups for group normalization within Transformer blocks.</p>
@@ -8216,7 +8299,9 @@ input.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>attention_bias</code></td>
+            <td>
+                <code>attention_bias</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Configure if the Transformer blocks' attention should contain a bias parameter.</p>
@@ -8234,7 +8319,9 @@ input.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>sample_size</code></td>
+            <td>
+                <code>sample_size</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The width of the latent images. This parameter is fixed during training.</p>
@@ -8252,7 +8339,9 @@ input.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>patch_size</code></td>
+            <td>
+                <code>patch_size</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Size of the patches the model processes, relevant for architectures working on non-sequential data.</p>
@@ -8270,7 +8359,9 @@ input.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>activation_fn</code></td>
+            <td>
+                <code>activation_fn</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Activation function to use in feed-forward networks within Transformer blocks.</p>
@@ -8288,7 +8379,9 @@ input.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>num_embeds_ada_norm</code></td>
+            <td>
+                <code>num_embeds_ada_norm</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Number of embeddings for AdaLayerNorm, fixed during training and affects the maximum denoising steps during
@@ -8307,7 +8400,9 @@ inference.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>upcast_attention</code></td>
+            <td>
+                <code>upcast_attention</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>If true, upcasts the attention mechanism dimensions for potentially improved performance.</p>
@@ -8325,7 +8420,9 @@ inference.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>norm_type</code></td>
+            <td>
+                <code>norm_type</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Specifies the type of normalization used, can be 'ada_norm_zero'.</p>
@@ -8343,7 +8440,9 @@ inference.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>norm_elementwise_affine</code></td>
+            <td>
+                <code>norm_elementwise_affine</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>If true, enables element-wise affine parameters in the normalization layers.</p>
@@ -8361,7 +8460,9 @@ inference.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>norm_eps</code></td>
+            <td>
+                <code>norm_eps</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>A small constant added to the denominator in normalization layers to prevent division by zero.</p>
@@ -8380,6 +8481,12 @@ inference.</p>
           </tr>
       </tbody>
     </table>
+
+
+
+
+
+
 
               <details class="quote">
                 <summary>Source code in <code>mindone/diffusers/models/transformers/dit_transformer_2d.py</code></summary>
@@ -8780,7 +8887,9 @@ inference.</p>
       </thead>
       <tbody>
           <tr class="doc-section-item">
-            <td><code>hidden_states</code></td>
+            <td>
+                <code>hidden_states</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <h4 id="mindone.diffusers.DiTTransformer2DModel.construct--noqa-e501">noqa: E501<a class="headerlink" href="#mindone.diffusers.DiTTransformer2DModel.construct--noqa-e501" title="Permanent link">&para;</a></h4>
@@ -8795,7 +8904,9 @@ inference.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>timestep</code></td>
+            <td>
+                <code>timestep</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Used to indicate denoising step. Optional timestep to be applied as an embedding in <code>AdaLayerNorm</code>.</p>
@@ -8813,7 +8924,9 @@ inference.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>class_labels</code></td>
+            <td>
+                <code>class_labels</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Used to indicate class labels conditioning. Optional class labels to be applied as an embedding in
@@ -8832,7 +8945,9 @@ inference.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>cross_attention_kwargs</code></td>
+            <td>
+                <code>cross_attention_kwargs</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>A kwargs dictionary that if specified is passed along to the <code>AttentionProcessor</code> as defined under
@@ -8852,7 +8967,9 @@ inference.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>return_dict</code></td>
+            <td>
+                <code>return_dict</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Whether or not to return a [<code>~models.unets.unet_2d_condition.UNet2DConditionOutput</code>] instead of a plain
@@ -8902,6 +9019,7 @@ tuple.</p>
           </tr>
       </tbody>
     </table>
+
 
             <details class="quote">
               <summary>Source code in <code>mindone/diffusers/models/transformers/dit_transformer_2d.py</code></summary>

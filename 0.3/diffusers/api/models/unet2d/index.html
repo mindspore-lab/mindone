@@ -1477,6 +1477,29 @@
   
   
     <li class="md-nav__item">
+      <a href="../../../using-diffusers/consisid/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    ConsisID
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../../../using-diffusers/sdxl/" class="md-nav__link">
         
   
@@ -3211,6 +3234,29 @@
   
   
     <li class="md-nav__item">
+      <a href="../consisid_transformer3d/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    ConsisIDTransformer3DModel
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../cogview3plus_transformer2d/" class="md-nav__link">
         
   
@@ -4714,6 +4760,29 @@
   
   
     <li class="md-nav__item">
+      <a href="../../pipelines/consisid/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    ConsisID
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../../pipelines/consistency_models/" class="md-nav__link">
         
   
@@ -5877,10 +5946,10 @@
       
         
         
-        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2_11_4_64" >
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2_11_4_65" >
         
           
-          <label class="md-nav__link" for="__nav_2_11_4_64" id="__nav_2_11_4_64_label" tabindex="0">
+          <label class="md-nav__link" for="__nav_2_11_4_65" id="__nav_2_11_4_65_label" tabindex="0">
             
   
   
@@ -5893,8 +5962,8 @@
             <span class="md-nav__icon md-icon"></span>
           </label>
         
-        <nav class="md-nav" data-md-level="4" aria-labelledby="__nav_2_11_4_64_label" aria-expanded="false">
-          <label class="md-nav__title" for="__nav_2_11_4_64">
+        <nav class="md-nav" data-md-level="4" aria-labelledby="__nav_2_11_4_65_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_2_11_4_65">
             <span class="md-nav__icon md-icon"></span>
             Stable Diffusion
           </label>
@@ -8064,7 +8133,7 @@ specific language governing permissions and limitations under the License.
 
     <div class="doc doc-contents first">
             <p class="doc doc-class-bases">
-              Bases: <code><a class="autorefs autorefs-internal" title="mindone.diffusers.models.modeling_utils.ModelMixin" href="../overview/#mindone.diffusers.ModelMixin">ModelMixin</a></code>, <code><a class="autorefs autorefs-internal" title="mindone.diffusers.configuration_utils.ConfigMixin" href="../../configuration/#mindone.diffusers.configuration_utils.ConfigMixin">ConfigMixin</a></code></p>
+              Bases: <code><a class="autorefs autorefs-internal" title="mindone.diffusers.ModelMixin (mindone.diffusers.models.modeling_utils.ModelMixin)" href="../overview/#mindone.diffusers.ModelMixin">ModelMixin</a></code>, <code><a class="autorefs autorefs-internal" title="mindone.diffusers.configuration_utils.ConfigMixin" href="../../configuration/#mindone.diffusers.configuration_utils.ConfigMixin">ConfigMixin</a></code></p>
 
 
         <p>A 2D UNet model that takes a noisy sample and a timestep and returns a sample shaped output.</p>
@@ -8081,7 +8150,9 @@ for all models (such as downloading or saving).</p>
       </thead>
       <tbody>
           <tr class="doc-section-item">
-            <td><code>sample_size</code></td>
+            <td>
+                <code>sample_size</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Height and width of input/output sample. Dimensions must be a multiple of <code>2 ** (len(block_out_channels) -
@@ -8100,7 +8171,9 @@ for all models (such as downloading or saving).</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>in_channels</code></td>
+            <td>
+                <code>in_channels</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Number of channels in the input sample.</p>
@@ -8118,7 +8191,9 @@ for all models (such as downloading or saving).</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>out_channels</code></td>
+            <td>
+                <code>out_channels</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Number of channels in the output.</p>
@@ -8136,7 +8211,9 @@ for all models (such as downloading or saving).</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>center_input_sample</code></td>
+            <td>
+                <code>center_input_sample</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Whether to center the input sample.</p>
@@ -8154,7 +8231,9 @@ for all models (such as downloading or saving).</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>time_embedding_type</code></td>
+            <td>
+                <code>time_embedding_type</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Type of time embedding to use.</p>
@@ -8172,7 +8251,9 @@ for all models (such as downloading or saving).</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>freq_shift</code></td>
+            <td>
+                <code>freq_shift</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Frequency shift for Fourier time embedding.</p>
@@ -8190,7 +8271,9 @@ for all models (such as downloading or saving).</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>flip_sin_to_cos</code></td>
+            <td>
+                <code>flip_sin_to_cos</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Whether to flip sin to cos for Fourier time embedding.</p>
@@ -8208,7 +8291,9 @@ for all models (such as downloading or saving).</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>down_block_types</code></td>
+            <td>
+                <code>down_block_types</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Tuple of downsample block types.</p>
@@ -8226,7 +8311,9 @@ for all models (such as downloading or saving).</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>mid_block_type</code></td>
+            <td>
+                <code>mid_block_type</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Block type for middle of UNet, it can be either <code>UNetMidBlock2D</code> or <code>None</code>.</p>
@@ -8244,7 +8331,9 @@ for all models (such as downloading or saving).</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>up_block_types</code></td>
+            <td>
+                <code>up_block_types</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Tuple of upsample block types.</p>
@@ -8262,7 +8351,9 @@ for all models (such as downloading or saving).</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>block_out_channels</code></td>
+            <td>
+                <code>block_out_channels</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Tuple of block output channels.</p>
@@ -8280,7 +8371,9 @@ for all models (such as downloading or saving).</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>layers_per_block</code></td>
+            <td>
+                <code>layers_per_block</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The number of layers per block.</p>
@@ -8298,7 +8391,9 @@ for all models (such as downloading or saving).</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>mid_block_scale_factor</code></td>
+            <td>
+                <code>mid_block_scale_factor</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The scale factor for the mid block.</p>
@@ -8316,7 +8411,9 @@ for all models (such as downloading or saving).</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>downsample_padding</code></td>
+            <td>
+                <code>downsample_padding</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The padding for the downsample convolution.</p>
@@ -8334,7 +8431,9 @@ for all models (such as downloading or saving).</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>downsample_type</code></td>
+            <td>
+                <code>downsample_type</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The downsample type for downsampling layers. Choose between "conv" and "resnet"</p>
@@ -8352,7 +8451,9 @@ for all models (such as downloading or saving).</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>upsample_type</code></td>
+            <td>
+                <code>upsample_type</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The upsample type for upsampling layers. Choose between "conv" and "resnet"</p>
@@ -8370,7 +8471,9 @@ for all models (such as downloading or saving).</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>dropout</code></td>
+            <td>
+                <code>dropout</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The dropout probability to use.</p>
@@ -8388,7 +8491,9 @@ for all models (such as downloading or saving).</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>act_fn</code></td>
+            <td>
+                <code>act_fn</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The activation function to use.</p>
@@ -8406,7 +8511,9 @@ for all models (such as downloading or saving).</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>attention_head_dim</code></td>
+            <td>
+                <code>attention_head_dim</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The attention head dimension.</p>
@@ -8424,7 +8531,9 @@ for all models (such as downloading or saving).</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>norm_num_groups</code></td>
+            <td>
+                <code>norm_num_groups</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The number of groups for normalization.</p>
@@ -8442,7 +8551,9 @@ for all models (such as downloading or saving).</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>attn_norm_num_groups</code></td>
+            <td>
+                <code>attn_norm_num_groups</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>If set to an integer, a group norm layer will be created in the mid block's [<code>Attention</code>] layer with the
@@ -8462,7 +8573,9 @@ given number of groups. If left as <code>None</code>, the group norm layer will 
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>norm_eps</code></td>
+            <td>
+                <code>norm_eps</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The epsilon for normalization.</p>
@@ -8480,7 +8593,9 @@ given number of groups. If left as <code>None</code>, the group norm layer will 
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>resnet_time_scale_shift</code></td>
+            <td>
+                <code>resnet_time_scale_shift</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Time scale shift config
@@ -8499,7 +8614,9 @@ for ResNet blocks (see [<code>~models.resnet.ResnetBlock2D</code>]). Choose from
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>class_embed_type</code></td>
+            <td>
+                <code>class_embed_type</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The type of class embedding to use which is ultimately summed with the time embeddings. Choose from <code>None</code>,
@@ -8518,7 +8635,9 @@ for ResNet blocks (see [<code>~models.resnet.ResnetBlock2D</code>]). Choose from
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>num_class_embeds</code></td>
+            <td>
+                <code>num_class_embeds</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Input dimension of the learnable embedding matrix to be projected to <code>time_embed_dim</code> when performing class
@@ -8538,6 +8657,12 @@ conditioning with <code>class_embed_type</code> equal to <code>None</code>.</p>
           </tr>
       </tbody>
     </table>
+
+
+
+
+
+
 
               <details class="quote">
                 <summary>Source code in <code>mindone/diffusers/models/unets/unet_2d.py</code></summary>
@@ -9242,7 +9367,9 @@ conditioning with <code>class_embed_type</code> equal to <code>None</code>.</p>
       </thead>
       <tbody>
           <tr class="doc-section-item">
-            <td><code>sample</code></td>
+            <td>
+                <code>sample</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The noisy input tensor with the following shape <code>(batch, channel, height, width)</code>.</p>
@@ -9256,7 +9383,9 @@ conditioning with <code>class_embed_type</code> equal to <code>None</code>.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>timestep</code></td>
+            <td>
+                <code>timestep</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The number of timesteps to denoise an input.</p>
@@ -9270,7 +9399,9 @@ conditioning with <code>class_embed_type</code> equal to <code>None</code>.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>class_labels</code></td>
+            <td>
+                <code>class_labels</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Optional class labels for conditioning. Their embeddings will be summed with the timestep embeddings.</p>
@@ -9288,7 +9419,9 @@ conditioning with <code>class_embed_type</code> equal to <code>None</code>.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>return_dict</code></td>
+            <td>
+                <code>return_dict</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Whether or not to return a [<code>~models.unets.unet_2d.UNet2DOutput</code>] instead of a plain tuple.</p>
@@ -9320,7 +9453,12 @@ conditioning with <code>class_embed_type</code> equal to <code>None</code>.</p>
           <tr class="doc-section-item">
             <td>
                 <span class="doc-returns-annotation">
-                    <code><span title="typing.Union">Union</span>[<a class="autorefs autorefs-internal" title="mindone.diffusers.models.unets.unet_2d.UNet2DOutput" href="#mindone.diffusers.models.unets.unet_2d.UNet2DOutput">UNet2DOutput</a>, <span title="typing.Tuple">Tuple</span>]</code>
+                    <code><span title="typing.Union">Union</span>[<a class="autorefs autorefs-internal" title="mindone.diffusers.models.unets.unet_2d.UNet2DOutput
+
+
+  
+      dataclass
+  " href="#mindone.diffusers.models.unets.unet_2d.UNet2DOutput">UNet2DOutput</a>, <span title="typing.Tuple">Tuple</span>]</code>
                 </span>
             </td>
             <td class="doc-returns-details">
@@ -9333,6 +9471,7 @@ returned where the first element is the sample tensor.</p>
           </tr>
       </tbody>
     </table>
+
 
             <details class="quote">
               <summary>Source code in <code>mindone/diffusers/models/unets/unet_2d.py</code></summary>
@@ -9605,7 +9744,9 @@ returned where the first element is the sample tensor.</p>
       </thead>
       <tbody>
           <tr class="doc-section-item">
-            <td><code>sample</code></td>
+            <td>
+                <code>sample</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The hidden states output from the last layer of the model.</p>
@@ -9620,6 +9761,12 @@ returned where the first element is the sample tensor.</p>
           </tr>
       </tbody>
     </table>
+
+
+
+
+
+
 
               <details class="quote">
                 <summary>Source code in <code>mindone/diffusers/models/unets/unet_2d.py</code></summary>

@@ -1477,6 +1477,29 @@
   
   
     <li class="md-nav__item">
+      <a href="../../../using-diffusers/consisid/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    ConsisID
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../../../using-diffusers/sdxl/" class="md-nav__link">
         
   
@@ -3209,6 +3232,29 @@
   
   
     <li class="md-nav__item">
+      <a href="../../models/consisid_transformer3d/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    ConsisIDTransformer3DModel
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../../models/cogview3plus_transformer2d/" class="md-nav__link">
         
   
@@ -4635,6 +4681,29 @@
   
   
     <li class="md-nav__item">
+      <a href="../../pipelines/consisid/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    ConsisID
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../../pipelines/consistency_models/" class="md-nav__link">
         
   
@@ -5798,10 +5867,10 @@
       
         
         
-        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2_11_4_64" >
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2_11_4_65" >
         
           
-          <label class="md-nav__link" for="__nav_2_11_4_64" id="__nav_2_11_4_64_label" tabindex="0">
+          <label class="md-nav__link" for="__nav_2_11_4_65" id="__nav_2_11_4_65_label" tabindex="0">
             
   
   
@@ -5814,8 +5883,8 @@
             <span class="md-nav__icon md-icon"></span>
           </label>
         
-        <nav class="md-nav" data-md-level="4" aria-labelledby="__nav_2_11_4_64_label" aria-expanded="false">
-          <label class="md-nav__title" for="__nav_2_11_4_64">
+        <nav class="md-nav" data-md-level="4" aria-labelledby="__nav_2_11_4_65_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_2_11_4_65">
             <span class="md-nav__icon md-icon"></span>
             Stable Diffusion
           </label>
@@ -8150,7 +8219,7 @@ specific language governing permissions and limitations under the License.
 
     <div class="doc doc-contents first">
             <p class="doc doc-class-bases">
-              Bases: <code><a class="autorefs autorefs-internal" title="mindone.diffusers.schedulers.scheduling_utils.SchedulerMixin" href="../overview/#mindone.diffusers.SchedulerMixin">SchedulerMixin</a></code>, <code><a class="autorefs autorefs-internal" title="mindone.diffusers.configuration_utils.ConfigMixin" href="../../configuration/#mindone.diffusers.configuration_utils.ConfigMixin">ConfigMixin</a></code></p>
+              Bases: <code><a class="autorefs autorefs-internal" title="mindone.diffusers.SchedulerMixin (mindone.diffusers.schedulers.scheduling_utils.SchedulerMixin)" href="../overview/#mindone.diffusers.SchedulerMixin">SchedulerMixin</a></code>, <code><a class="autorefs autorefs-internal" title="mindone.diffusers.configuration_utils.ConfigMixin" href="../../configuration/#mindone.diffusers.configuration_utils.ConfigMixin">ConfigMixin</a></code></p>
 
 
         <p>Implements the Euler scheduler in EDM formulation as presented in Karras et al. 2022 [1].</p>
@@ -8169,7 +8238,9 @@ methods the library implements for all schedulers such as loading and saving.</p
       </thead>
       <tbody>
           <tr class="doc-section-item">
-            <td><code>sigma_min</code></td>
+            <td>
+                <code>sigma_min</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Minimum noise magnitude in the sigma schedule. This was set to 0.002 in the EDM paper [1]; a reasonable
@@ -8188,7 +8259,9 @@ range is [0, 10].</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>sigma_max</code></td>
+            <td>
+                <code>sigma_max</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Maximum noise magnitude in the sigma schedule. This was set to 80.0 in the EDM paper [1]; a reasonable
@@ -8207,7 +8280,9 @@ range is [0.2, 80.0].</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>sigma_data</code></td>
+            <td>
+                <code>sigma_data</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The standard deviation of the data distribution. This is set to 0.5 in the EDM paper [1].</p>
@@ -8225,7 +8300,9 @@ range is [0.2, 80.0].</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>sigma_schedule</code></td>
+            <td>
+                <code>sigma_schedule</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Sigma schedule to compute the <code>sigmas</code>. By default, we the schedule introduced in the EDM paper
@@ -8245,7 +8322,9 @@ incorporated in this model: https://huggingface.co/stabilityai/cosxl.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>num_train_timesteps</code></td>
+            <td>
+                <code>num_train_timesteps</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The number of diffusion steps to train the model.</p>
@@ -8263,7 +8342,9 @@ incorporated in this model: https://huggingface.co/stabilityai/cosxl.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>prediction_type</code></td>
+            <td>
+                <code>prediction_type</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Prediction type of the scheduler function; can be <code>epsilon</code> (predicts the noise of the diffusion process),
@@ -8283,7 +8364,9 @@ Video</a> paper).</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>rho</code></td>
+            <td>
+                <code>rho</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The rho parameter used for calculating the Karras sigma schedule, which is set to 7.0 in the EDM paper [1].</p>
@@ -8301,7 +8384,9 @@ Video</a> paper).</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>final_sigmas_type</code></td>
+            <td>
+                <code>final_sigmas_type</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The final <code>sigma</code> value for the noise schedule during the sampling process. If <code>"sigma_min"</code>, the final
@@ -8321,6 +8406,12 @@ sigma is the same as the last sigma in the training schedule. If <code>zero</cod
           </tr>
       </tbody>
     </table>
+
+
+
+
+
+
 
               <details class="quote">
                 <summary>Source code in <code>mindone/diffusers/schedulers/scheduling_edm_euler.py</code></summary>
@@ -9117,6 +9208,7 @@ sigma is the same as the last sigma in the training schedule. If <code>zero</cod
     <div class="doc doc-contents ">
 
         <p>The index for the first timestep. It should be set from pipeline with <code>set_begin_index</code> method.</p>
+
     </div>
 
 </div>
@@ -9138,6 +9230,7 @@ sigma is the same as the last sigma in the training schedule. If <code>zero</cod
     <div class="doc doc-contents ">
 
         <p>The index counter for current timestep. It will increase 1 after each scheduler step.</p>
+
     </div>
 
 </div>
@@ -9168,7 +9261,9 @@ current timestep. Scales the denoising model input by <code>(sigma**2 + 1) ** 0.
       </thead>
       <tbody>
           <tr class="doc-section-item">
-            <td><code>sample</code></td>
+            <td>
+                <code>sample</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The input sample.</p>
@@ -9182,7 +9277,9 @@ current timestep. Scales the denoising model input by <code>(sigma**2 + 1) ** 0.
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>timestep</code></td>
+            <td>
+                <code>timestep</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The current timestep in the diffusion chain.</p>
@@ -9222,6 +9319,7 @@ A scaled input sample.</p>
           </tr>
       </tbody>
     </table>
+
 
             <details class="quote">
               <summary>Source code in <code>mindone/diffusers/schedulers/scheduling_edm_euler.py</code></summary>
@@ -9299,7 +9397,9 @@ A scaled input sample.</p>
       </thead>
       <tbody>
           <tr class="doc-section-item">
-            <td><code>begin_index</code></td>
+            <td>
+                <code>begin_index</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The begin index for the scheduler.</p>
@@ -9318,6 +9418,7 @@ A scaled input sample.</p>
           </tr>
       </tbody>
     </table>
+
 
             <details class="quote">
               <summary>Source code in <code>mindone/diffusers/schedulers/scheduling_edm_euler.py</code></summary>
@@ -9367,7 +9468,9 @@ A scaled input sample.</p>
       </thead>
       <tbody>
           <tr class="doc-section-item">
-            <td><code>num_inference_steps</code></td>
+            <td>
+                <code>num_inference_steps</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The number of diffusion steps used when generating samples with a pre-trained model.</p>
@@ -9385,7 +9488,9 @@ A scaled input sample.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>sigmas</code></td>
+            <td>
+                <code>sigmas</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Custom sigmas to use for the denoising process. If not defined, the default behavior when
@@ -9405,6 +9510,7 @@ A scaled input sample.</p>
           </tr>
       </tbody>
     </table>
+
 
             <details class="quote">
               <summary>Source code in <code>mindone/diffusers/schedulers/scheduling_edm_euler.py</code></summary>
@@ -9523,7 +9629,9 @@ process from the learned model outputs (most often the predicted noise).</p>
       </thead>
       <tbody>
           <tr class="doc-section-item">
-            <td><code>model_output</code></td>
+            <td>
+                <code>model_output</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The direct output from learned diffusion model.</p>
@@ -9537,7 +9645,9 @@ process from the learned model outputs (most often the predicted noise).</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>timestep</code></td>
+            <td>
+                <code>timestep</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The current discrete timestep in the diffusion chain.</p>
@@ -9551,7 +9661,9 @@ process from the learned model outputs (most often the predicted noise).</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>sample</code></td>
+            <td>
+                <code>sample</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>A current instance of a sample created by the diffusion process.</p>
@@ -9565,7 +9677,9 @@ process from the learned model outputs (most often the predicted noise).</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>s_churn</code></td>
+            <td>
+                <code>s_churn</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 
@@ -9583,7 +9697,9 @@ process from the learned model outputs (most often the predicted noise).</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>s_tmin</code></td>
+            <td>
+                <code>s_tmin</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 
@@ -9601,7 +9717,9 @@ process from the learned model outputs (most often the predicted noise).</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>s_tmax</code></td>
+            <td>
+                <code>s_tmax</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 
@@ -9613,13 +9731,15 @@ process from the learned model outputs (most often the predicted noise).</p>
                   </span>
                   <span class="doc-param-default">
                     <b>DEFAULT:</b>
-                      <code>float(&#39;inf&#39;)</code>
+                      <code><span title="float">float</span>(&#39;inf&#39;)</code>
                   </span>
               </p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>s_noise</code></td>
+            <td>
+                <code>s_noise</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Scaling factor for noise added to the sample.</p>
@@ -9637,7 +9757,9 @@ process from the learned model outputs (most often the predicted noise).</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>generator</code></td>
+            <td>
+                <code>generator</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>A random number generator.</p>
@@ -9655,7 +9777,9 @@ process from the learned model outputs (most often the predicted noise).</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>return_dict</code></td>
+            <td>
+                <code>return_dict</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Whether or not to return a [<code>~schedulers.scheduling_euler_discrete.EDMEulerSchedulerOutput</code>] or tuple.</p>
@@ -9687,7 +9811,12 @@ process from the learned model outputs (most often the predicted noise).</p>
           <tr class="doc-section-item">
             <td>
                 <span class="doc-returns-annotation">
-                    <code><span title="typing.Union">Union</span>[<a class="autorefs autorefs-internal" title="mindone.diffusers.schedulers.scheduling_edm_euler.EDMEulerSchedulerOutput" href="#mindone.diffusers.schedulers.scheduling_edm_euler.EDMEulerSchedulerOutput">EDMEulerSchedulerOutput</a>, <span title="typing.Tuple">Tuple</span>]</code>
+                    <code><span title="typing.Union">Union</span>[<a class="autorefs autorefs-internal" title="mindone.diffusers.schedulers.scheduling_edm_euler.EDMEulerSchedulerOutput
+
+
+  
+      dataclass
+  " href="#mindone.diffusers.schedulers.scheduling_edm_euler.EDMEulerSchedulerOutput">EDMEulerSchedulerOutput</a>, <span title="typing.Tuple">Tuple</span>]</code>
                 </span>
             </td>
             <td class="doc-returns-details">
@@ -9700,6 +9829,7 @@ returned, otherwise a tuple is returned where the first element is the sample te
           </tr>
       </tbody>
     </table>
+
 
             <details class="quote">
               <summary>Source code in <code>mindone/diffusers/schedulers/scheduling_edm_euler.py</code></summary>
@@ -9936,7 +10066,9 @@ returned, otherwise a tuple is returned where the first element is the sample te
       </thead>
       <tbody>
           <tr class="doc-section-item">
-            <td><code>prev_sample</code></td>
+            <td>
+                <code>prev_sample</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Computed sample <code>(x_{t-1})</code> of previous timestep. <code>prev_sample</code> should be used as next model input in the
@@ -9951,7 +10083,9 @@ denoising loop.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>pred_original_sample</code></td>
+            <td>
+                <code>pred_original_sample</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The predicted denoised sample <code>(x_{0})</code> based on the model output from the current timestep.
@@ -9971,6 +10105,12 @@ denoising loop.</p>
           </tr>
       </tbody>
     </table>
+
+
+
+
+
+
 
               <details class="quote">
                 <summary>Source code in <code>mindone/diffusers/schedulers/scheduling_edm_euler.py</code></summary>

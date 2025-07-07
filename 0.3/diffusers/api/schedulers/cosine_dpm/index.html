@@ -1477,6 +1477,29 @@
   
   
     <li class="md-nav__item">
+      <a href="../../../using-diffusers/consisid/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    ConsisID
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../../../using-diffusers/sdxl/" class="md-nav__link">
         
   
@@ -3209,6 +3232,29 @@
   
   
     <li class="md-nav__item">
+      <a href="../../models/consisid_transformer3d/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    ConsisIDTransformer3DModel
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../../models/cogview3plus_transformer2d/" class="md-nav__link">
         
   
@@ -4635,6 +4681,29 @@
   
   
     <li class="md-nav__item">
+      <a href="../../pipelines/consisid/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    ConsisID
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../../pipelines/consistency_models/" class="md-nav__link">
         
   
@@ -5798,10 +5867,10 @@
       
         
         
-        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2_11_4_64" >
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2_11_4_65" >
         
           
-          <label class="md-nav__link" for="__nav_2_11_4_64" id="__nav_2_11_4_64_label" tabindex="0">
+          <label class="md-nav__link" for="__nav_2_11_4_65" id="__nav_2_11_4_65_label" tabindex="0">
             
   
   
@@ -5814,8 +5883,8 @@
             <span class="md-nav__icon md-icon"></span>
           </label>
         
-        <nav class="md-nav" data-md-level="4" aria-labelledby="__nav_2_11_4_64_label" aria-expanded="false">
-          <label class="md-nav__title" for="__nav_2_11_4_64">
+        <nav class="md-nav" data-md-level="4" aria-labelledby="__nav_2_11_4_65_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_2_11_4_65">
             <span class="md-nav__icon md-icon"></span>
             Stable Diffusion
           </label>
@@ -8206,7 +8275,7 @@ It is being used in the <a href="https://arxiv.org/abs/2407.14358">Stable Audio 
 
     <div class="doc doc-contents first">
             <p class="doc doc-class-bases">
-              Bases: <code><a class="autorefs autorefs-internal" title="mindone.diffusers.schedulers.scheduling_utils.SchedulerMixin" href="../overview/#mindone.diffusers.SchedulerMixin">SchedulerMixin</a></code>, <code><a class="autorefs autorefs-internal" title="mindone.diffusers.configuration_utils.ConfigMixin" href="../../configuration/#mindone.diffusers.configuration_utils.ConfigMixin">ConfigMixin</a></code></p>
+              Bases: <code><a class="autorefs autorefs-internal" title="mindone.diffusers.SchedulerMixin (mindone.diffusers.schedulers.scheduling_utils.SchedulerMixin)" href="../overview/#mindone.diffusers.SchedulerMixin">SchedulerMixin</a></code>, <code><a class="autorefs autorefs-internal" title="mindone.diffusers.configuration_utils.ConfigMixin" href="../../configuration/#mindone.diffusers.configuration_utils.ConfigMixin">ConfigMixin</a></code></p>
 
 
         <p>Implements a variant of <code>DPMSolverMultistepScheduler</code> with cosine schedule, proposed by Nichol and Dhariwal (2021).
@@ -8225,7 +8294,9 @@ methods the library implements for all schedulers such as loading and saving.</p
       </thead>
       <tbody>
           <tr class="doc-section-item">
-            <td><code>sigma_min</code></td>
+            <td>
+                <code>sigma_min</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Minimum noise magnitude in the sigma schedule. This was set to 0.3 in Stable Audio Open [1].</p>
@@ -8243,7 +8314,9 @@ methods the library implements for all schedulers such as loading and saving.</p
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>sigma_max</code></td>
+            <td>
+                <code>sigma_max</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Maximum noise magnitude in the sigma schedule. This was set to 500 in Stable Audio Open [1].</p>
@@ -8261,7 +8334,9 @@ methods the library implements for all schedulers such as loading and saving.</p
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>sigma_data</code></td>
+            <td>
+                <code>sigma_data</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The standard deviation of the data distribution. This is set to 1.0 in Stable Audio Open [1].</p>
@@ -8279,7 +8354,9 @@ methods the library implements for all schedulers such as loading and saving.</p
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>sigma_schedule</code></td>
+            <td>
+                <code>sigma_schedule</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Sigma schedule to compute the <code>sigmas</code>. By default, we the schedule introduced in the EDM paper
@@ -8299,7 +8376,9 @@ incorporated in this model: https://huggingface.co/stabilityai/cosxl.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>num_train_timesteps</code></td>
+            <td>
+                <code>num_train_timesteps</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The number of diffusion steps to train the model.</p>
@@ -8317,7 +8396,9 @@ incorporated in this model: https://huggingface.co/stabilityai/cosxl.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>solver_order</code></td>
+            <td>
+                <code>solver_order</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The DPMSolver order which can be <code>1</code> or <code>2</code>. It is recommended to use <code>solver_order=2</code>.</p>
@@ -8335,7 +8416,9 @@ incorporated in this model: https://huggingface.co/stabilityai/cosxl.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>prediction_type</code></td>
+            <td>
+                <code>prediction_type</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Prediction type of the scheduler function; can be <code>epsilon</code> (predicts the noise of the diffusion process),
@@ -8355,7 +8438,9 @@ Video</a> paper).</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>solver_type</code></td>
+            <td>
+                <code>solver_type</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Solver type for the second-order solver; can be <code>midpoint</code> or <code>heun</code>. The solver type slightly affects the
@@ -8374,7 +8459,9 @@ sample quality, especially for a small number of steps. It is recommended to use
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>lower_order_final</code></td>
+            <td>
+                <code>lower_order_final</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Whether to use lower-order solvers in the final steps. Only valid for &lt; 15 inference steps. This can
@@ -8393,7 +8480,9 @@ stabilize the sampling of DPMSolver for steps &lt; 15, especially for steps &lt;
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>euler_at_final</code></td>
+            <td>
+                <code>euler_at_final</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Whether to use Euler's method in the final step. It is a trade-off between numerical stability and detail
@@ -8413,7 +8502,9 @@ steps, but sometimes may result in blurring.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>final_sigmas_type</code></td>
+            <td>
+                <code>final_sigmas_type</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The final <code>sigma</code> value for the noise schedule during the sampling process. If <code>"sigma_min"</code>, the final
@@ -8433,6 +8524,12 @@ sigma is the same as the last sigma in the training schedule. If <code>zero</cod
           </tr>
       </tbody>
     </table>
+
+
+
+
+
+
 
               <details class="quote">
                 <summary>Source code in <code>mindone/diffusers/schedulers/scheduling_cosine_dpmsolver_multistep.py</code></summary>
@@ -9537,6 +9634,7 @@ sigma is the same as the last sigma in the training schedule. If <code>zero</cod
     <div class="doc doc-contents ">
 
         <p>The index for the first timestep. It should be set from pipeline with <code>set_begin_index</code> method.</p>
+
     </div>
 
 </div>
@@ -9558,6 +9656,7 @@ sigma is the same as the last sigma in the training schedule. If <code>zero</cod
     <div class="doc doc-contents ">
 
         <p>The index counter for current timestep. It will increase 1 after each scheduler step.</p>
+
     </div>
 
 </div>
@@ -9593,7 +9692,9 @@ prediction and data prediction models.</p>
       </thead>
       <tbody>
           <tr class="doc-section-item">
-            <td><code>model_output</code></td>
+            <td>
+                <code>model_output</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The direct output from the learned diffusion model.</p>
@@ -9607,7 +9708,9 @@ prediction and data prediction models.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>sample</code></td>
+            <td>
+                <code>sample</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>A current instance of a sample created by the diffusion process.</p>
@@ -9651,6 +9754,7 @@ The converted model output.</p>
           </tr>
       </tbody>
     </table>
+
 
             <details class="quote">
               <summary>Source code in <code>mindone/diffusers/schedulers/scheduling_cosine_dpmsolver_multistep.py</code></summary>
@@ -9744,7 +9848,9 @@ The converted model output.</p>
       </thead>
       <tbody>
           <tr class="doc-section-item">
-            <td><code>model_output</code></td>
+            <td>
+                <code>model_output</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The direct output from the learned diffusion model.</p>
@@ -9758,7 +9864,9 @@ The converted model output.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>sample</code></td>
+            <td>
+                <code>sample</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>A current instance of a sample created by the diffusion process.</p>
@@ -9802,6 +9910,7 @@ The sample tensor at the previous timestep.</p>
           </tr>
       </tbody>
     </table>
+
 
             <details class="quote">
               <summary>Source code in <code>mindone/diffusers/schedulers/scheduling_cosine_dpmsolver_multistep.py</code></summary>
@@ -9901,7 +10010,9 @@ The sample tensor at the previous timestep.</p>
       </thead>
       <tbody>
           <tr class="doc-section-item">
-            <td><code>model_output_list</code></td>
+            <td>
+                <code>model_output_list</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The direct outputs from learned diffusion model at current and latter timesteps.</p>
@@ -9915,7 +10026,9 @@ The sample tensor at the previous timestep.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>sample</code></td>
+            <td>
+                <code>sample</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>A current instance of a sample created by the diffusion process.</p>
@@ -9959,6 +10072,7 @@ The sample tensor at the previous timestep.</p>
           </tr>
       </tbody>
     </table>
+
 
             <details class="quote">
               <summary>Source code in <code>mindone/diffusers/schedulers/scheduling_cosine_dpmsolver_multistep.py</code></summary>
@@ -10105,7 +10219,9 @@ current timestep. Scales the denoising model input by <code>(sigma**2 + 1) ** 0.
       </thead>
       <tbody>
           <tr class="doc-section-item">
-            <td><code>sample</code></td>
+            <td>
+                <code>sample</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The input sample.</p>
@@ -10119,7 +10235,9 @@ current timestep. Scales the denoising model input by <code>(sigma**2 + 1) ** 0.
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>timestep</code></td>
+            <td>
+                <code>timestep</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The current timestep in the diffusion chain.</p>
@@ -10159,6 +10277,7 @@ A scaled input sample.</p>
           </tr>
       </tbody>
     </table>
+
 
             <details class="quote">
               <summary>Source code in <code>mindone/diffusers/schedulers/scheduling_cosine_dpmsolver_multistep.py</code></summary>
@@ -10236,7 +10355,9 @@ A scaled input sample.</p>
       </thead>
       <tbody>
           <tr class="doc-section-item">
-            <td><code>begin_index</code></td>
+            <td>
+                <code>begin_index</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The begin index for the scheduler.</p>
@@ -10255,6 +10376,7 @@ A scaled input sample.</p>
           </tr>
       </tbody>
     </table>
+
 
             <details class="quote">
               <summary>Source code in <code>mindone/diffusers/schedulers/scheduling_cosine_dpmsolver_multistep.py</code></summary>
@@ -10304,7 +10426,9 @@ A scaled input sample.</p>
       </thead>
       <tbody>
           <tr class="doc-section-item">
-            <td><code>num_inference_steps</code></td>
+            <td>
+                <code>num_inference_steps</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The number of diffusion steps used when generating samples with a pre-trained model.</p>
@@ -10323,6 +10447,7 @@ A scaled input sample.</p>
           </tr>
       </tbody>
     </table>
+
 
             <details class="quote">
               <summary>Source code in <code>mindone/diffusers/schedulers/scheduling_cosine_dpmsolver_multistep.py</code></summary>
@@ -10441,7 +10566,9 @@ the multistep DPMSolver.</p>
       </thead>
       <tbody>
           <tr class="doc-section-item">
-            <td><code>model_output</code></td>
+            <td>
+                <code>model_output</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The direct output from learned diffusion model.</p>
@@ -10455,7 +10582,9 @@ the multistep DPMSolver.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>timestep</code></td>
+            <td>
+                <code>timestep</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The current discrete timestep in the diffusion chain.</p>
@@ -10469,7 +10598,9 @@ the multistep DPMSolver.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>sample</code></td>
+            <td>
+                <code>sample</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>A current instance of a sample created by the diffusion process.</p>
@@ -10483,7 +10614,9 @@ the multistep DPMSolver.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>generator</code></td>
+            <td>
+                <code>generator</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>A random number generator.</p>
@@ -10501,7 +10634,9 @@ the multistep DPMSolver.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>return_dict</code></td>
+            <td>
+                <code>return_dict</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Whether or not to return a [<code>~schedulers.scheduling_utils.SchedulerOutput</code>] or <code>tuple</code>.</p>
@@ -10533,7 +10668,12 @@ the multistep DPMSolver.</p>
           <tr class="doc-section-item">
             <td>
                 <span class="doc-returns-annotation">
-                    <code><span title="typing.Union">Union</span>[<a class="autorefs autorefs-internal" title="mindone.diffusers.schedulers.scheduling_utils.SchedulerOutput" href="#mindone.diffusers.schedulers.scheduling_utils.SchedulerOutput">SchedulerOutput</a>, <span title="typing.Tuple">Tuple</span>]</code>
+                    <code><span title="typing.Union">Union</span>[<a class="autorefs autorefs-internal" title="mindone.diffusers.schedulers.scheduling_utils.SchedulerOutput
+
+
+  
+      dataclass
+  " href="#mindone.diffusers.schedulers.scheduling_utils.SchedulerOutput">SchedulerOutput</a>, <span title="typing.Tuple">Tuple</span>]</code>
                 </span>
             </td>
             <td class="doc-returns-details">
@@ -10546,6 +10686,7 @@ tuple is returned where the first element is the sample tensor.</p>
           </tr>
       </tbody>
     </table>
+
 
             <details class="quote">
               <summary>Source code in <code>mindone/diffusers/schedulers/scheduling_cosine_dpmsolver_multistep.py</code></summary>
@@ -10752,7 +10893,9 @@ tuple is returned where the first element is the sample tensor.</p>
       </thead>
       <tbody>
           <tr class="doc-section-item">
-            <td><code>prev_sample</code></td>
+            <td>
+                <code>prev_sample</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Computed sample <code>(x_{t-1})</code> of previous timestep. <code>prev_sample</code> should be used as next model input in the
@@ -10768,6 +10911,12 @@ denoising loop.</p>
           </tr>
       </tbody>
     </table>
+
+
+
+
+
+
 
               <details class="quote">
                 <summary>Source code in <code>mindone/diffusers/schedulers/scheduling_utils.py</code></summary>

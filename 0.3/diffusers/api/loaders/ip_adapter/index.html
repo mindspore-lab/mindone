@@ -1477,6 +1477,29 @@
   
   
     <li class="md-nav__item">
+      <a href="../../../using-diffusers/consisid/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    ConsisID
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../../../using-diffusers/sdxl/" class="md-nav__link">
         
   
@@ -3319,6 +3342,29 @@
   
   
     <li class="md-nav__item">
+      <a href="../../models/consisid_transformer3d/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    ConsisIDTransformer3DModel
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../../models/cogview3plus_transformer2d/" class="md-nav__link">
         
   
@@ -4745,6 +4791,29 @@
   
   
     <li class="md-nav__item">
+      <a href="../../pipelines/consisid/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    ConsisID
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../../pipelines/consistency_models/" class="md-nav__link">
         
   
@@ -5908,10 +5977,10 @@
       
         
         
-        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2_11_4_64" >
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2_11_4_65" >
         
           
-          <label class="md-nav__link" for="__nav_2_11_4_64" id="__nav_2_11_4_64_label" tabindex="0">
+          <label class="md-nav__link" for="__nav_2_11_4_65" id="__nav_2_11_4_65_label" tabindex="0">
             
   
   
@@ -5924,8 +5993,8 @@
             <span class="md-nav__icon md-icon"></span>
           </label>
         
-        <nav class="md-nav" data-md-level="4" aria-labelledby="__nav_2_11_4_64_label" aria-expanded="false">
-          <label class="md-nav__title" for="__nav_2_11_4_64">
+        <nav class="md-nav" data-md-level="4" aria-labelledby="__nav_2_11_4_65_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_2_11_4_65">
             <span class="md-nav__icon md-icon"></span>
             Stable Diffusion
           </label>
@@ -8133,6 +8202,12 @@ specific language governing permissions and limitations under the License.
 
         <p>Mixin for handling IP Adapters.</p>
 
+
+
+
+
+
+
               <details class="quote">
                 <summary>Source code in <code>mindone/diffusers/loaders/ip_adapter.py</code></summary>
                 <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal"> 41</span>
@@ -8705,7 +8780,9 @@ specific language governing permissions and limitations under the License.
       </thead>
       <tbody>
           <tr class="doc-section-item">
-            <td><code>pretrained_model_name_or_path_or_dict</code></td>
+            <td>
+                <code>pretrained_model_name_or_path_or_dict</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Can be either:</p>
@@ -8725,7 +8802,9 @@ specific language governing permissions and limitations under the License.
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>subfolder</code></td>
+            <td>
+                <code>subfolder</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The subfolder location of a model file within a larger model repository on the Hub or locally. If a
@@ -8740,7 +8819,9 @@ list is passed, it should have the same length as <code>weight_name</code>.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>weight_name</code></td>
+            <td>
+                <code>weight_name</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The name of the weight file to load. If a list is passed, it should have the same length as
@@ -8755,7 +8836,9 @@ list is passed, it should have the same length as <code>weight_name</code>.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>image_encoder_folder</code></td>
+            <td>
+                <code>image_encoder_folder</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The subfolder location of the image encoder within a larger model repository on the Hub or locally.
@@ -8778,7 +8861,9 @@ Pass <code>None</code> to not load the image encoder. If the image encoder is lo
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>cache_dir</code></td>
+            <td>
+                <code>cache_dir</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Path to a directory where a downloaded pretrained model configuration is cached if the standard cache
@@ -8793,7 +8878,9 @@ is not used.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>force_download</code></td>
+            <td>
+                <code>force_download</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Whether or not to force the (re-)download of the model weights and configuration files, overriding the
@@ -8808,7 +8895,9 @@ cached versions if they exist.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>proxies</code></td>
+            <td>
+                <code>proxies</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>A dictionary of proxy servers to use by protocol or endpoint, for example, <code>{'http': 'foo.bar:3128',
@@ -8823,7 +8912,9 @@ cached versions if they exist.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>local_files_only</code></td>
+            <td>
+                <code>local_files_only</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Whether to only load local model weights and configuration files or not. If set to <code>True</code>, the model
@@ -8838,7 +8929,9 @@ won't be downloaded from the Hub.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>token</code></td>
+            <td>
+                <code>token</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The token to use as HTTP bearer authorization for remote files. If <code>True</code>, the token generated from
@@ -8853,7 +8946,9 @@ won't be downloaded from the Hub.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>revision</code></td>
+            <td>
+                <code>revision</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The specific model version to use. It can be a branch name, a tag name, a commit id, or any identifier
@@ -8869,6 +8964,7 @@ allowed by Git.</p>
           </tr>
       </tbody>
     </table>
+
 
             <details class="quote">
               <summary>Source code in <code>mindone/diffusers/loaders/ip_adapter.py</code></summary>
@@ -9249,6 +9345,7 @@ granular control over each IP-Adapter behavior. A config can be a float or a dic
 <span class="n">pipeline</span><span class="o">.</span><span class="n">set_ip_adapter_scale</span><span class="p">(</span><span class="n">scales</span><span class="p">)</span>
 </code></pre></div>
 
+
             <details class="quote">
               <summary>Source code in <code>mindone/diffusers/loaders/ip_adapter.py</code></summary>
               <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">213</span>
@@ -9373,6 +9470,7 @@ granular control over each IP-Adapter behavior. A config can be a float or a dic
 <span class="o">&gt;&gt;&gt;</span> <span class="n">pipeline</span><span class="o">.</span><span class="n">unload_ip_adapter</span><span class="p">()</span>
 <span class="o">&gt;&gt;&gt;</span> <span class="o">...</span>
 </code></pre></div>
+
 
             <details class="quote">
               <summary>Source code in <code>mindone/diffusers/loaders/ip_adapter.py</code></summary>
@@ -9505,7 +9603,9 @@ granular control over each IP-Adapter behavior. A config can be a float or a dic
       </thead>
       <tbody>
           <tr class="doc-section-item">
-            <td><code>do_resize</code></td>
+            <td>
+                <code>do_resize</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Whether to downscale the image's (height, width) dimensions to multiples of <code>vae_scale_factor</code>.</p>
@@ -9523,7 +9623,9 @@ granular control over each IP-Adapter behavior. A config can be a float or a dic
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>vae_scale_factor</code></td>
+            <td>
+                <code>vae_scale_factor</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>VAE scale factor. If <code>do_resize</code> is <code>True</code>, the image is automatically resized to multiples of this factor.</p>
@@ -9541,7 +9643,9 @@ granular control over each IP-Adapter behavior. A config can be a float or a dic
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>resample</code></td>
+            <td>
+                <code>resample</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Resampling filter to use when resizing the image.</p>
@@ -9559,7 +9663,9 @@ granular control over each IP-Adapter behavior. A config can be a float or a dic
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>do_normalize</code></td>
+            <td>
+                <code>do_normalize</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Whether to normalize the image to [-1,1].</p>
@@ -9577,7 +9683,9 @@ granular control over each IP-Adapter behavior. A config can be a float or a dic
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>do_binarize</code></td>
+            <td>
+                <code>do_binarize</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Whether to binarize the image to 0/1.</p>
@@ -9595,7 +9703,9 @@ granular control over each IP-Adapter behavior. A config can be a float or a dic
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>do_convert_grayscale</code></td>
+            <td>
+                <code>do_convert_grayscale</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Whether to convert the images to grayscale format.</p>
@@ -9614,6 +9724,12 @@ granular control over each IP-Adapter behavior. A config can be a float or a dic
           </tr>
       </tbody>
     </table>
+
+
+
+
+
+
 
               <details class="quote">
                 <summary>Source code in <code>mindone/diffusers/image_processor.py</code></summary>
@@ -9851,7 +9967,9 @@ aspect ratio of the mask does not match the aspect ratio of the output image, a 
       </thead>
       <tbody>
           <tr class="doc-section-item">
-            <td><code>mask</code></td>
+            <td>
+                <code>mask</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The input mask tensor generated with <code>IPAdapterMaskProcessor.preprocess()</code>.</p>
@@ -9865,7 +9983,9 @@ aspect ratio of the mask does not match the aspect ratio of the output image, a 
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>batch_size</code></td>
+            <td>
+                <code>batch_size</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The batch size.</p>
@@ -9879,7 +9999,9 @@ aspect ratio of the mask does not match the aspect ratio of the output image, a 
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>num_queries</code></td>
+            <td>
+                <code>num_queries</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The number of queries.</p>
@@ -9893,7 +10015,9 @@ aspect ratio of the mask does not match the aspect ratio of the output image, a 
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>value_embed_dim</code></td>
+            <td>
+                <code>value_embed_dim</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The dimensionality of the value embeddings.</p>
@@ -9930,6 +10054,7 @@ The downsampled mask tensor.</p>
           </tr>
       </tbody>
     </table>
+
 
             <details class="quote">
               <summary>Source code in <code>mindone/diffusers/image_processor.py</code></summary>

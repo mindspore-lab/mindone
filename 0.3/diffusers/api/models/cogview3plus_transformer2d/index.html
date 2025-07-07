@@ -11,7 +11,7 @@
         <link rel="canonical" href="https://mindspore-lab.github.io/mindone/0.3/diffusers/api/models/cogview3plus_transformer2d/">
       
       
-        <link rel="prev" href="../cogvideox_transformer3d/">
+        <link rel="prev" href="../consisid_transformer3d/">
       
       
         <link rel="next" href="../cogview4_transformer2d/">
@@ -1460,6 +1460,29 @@
   
   <span class="md-ellipsis">
     CogVideoX
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../using-diffusers/consisid/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    ConsisID
     
   </span>
   
@@ -3210,6 +3233,29 @@
                 
   
   
+  
+  
+    <li class="md-nav__item">
+      <a href="../consisid_transformer3d/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    ConsisIDTransformer3DModel
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
     
   
   
@@ -4732,6 +4778,29 @@
   
   
     <li class="md-nav__item">
+      <a href="../../pipelines/consisid/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    ConsisID
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../../pipelines/consistency_models/" class="md-nav__link">
         
   
@@ -5895,10 +5964,10 @@
       
         
         
-        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2_11_4_64" >
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2_11_4_65" >
         
           
-          <label class="md-nav__link" for="__nav_2_11_4_64" id="__nav_2_11_4_64_label" tabindex="0">
+          <label class="md-nav__link" for="__nav_2_11_4_65" id="__nav_2_11_4_65_label" tabindex="0">
             
   
   
@@ -5911,8 +5980,8 @@
             <span class="md-nav__icon md-icon"></span>
           </label>
         
-        <nav class="md-nav" data-md-level="4" aria-labelledby="__nav_2_11_4_64_label" aria-expanded="false">
-          <label class="md-nav__title" for="__nav_2_11_4_64">
+        <nav class="md-nav" data-md-level="4" aria-labelledby="__nav_2_11_4_65_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_2_11_4_65">
             <span class="md-nav__icon md-icon"></span>
             Stable Diffusion
           </label>
@@ -8102,7 +8171,7 @@ specific language governing permissions and limitations under the License. -->
 
     <div class="doc doc-contents first">
             <p class="doc doc-class-bases">
-              Bases: <code><a class="autorefs autorefs-internal" title="mindone.diffusers.models.modeling_utils.ModelMixin" href="../overview/#mindone.diffusers.ModelMixin">ModelMixin</a></code>, <code><a class="autorefs autorefs-internal" title="mindone.diffusers.configuration_utils.ConfigMixin" href="../../configuration/#mindone.diffusers.configuration_utils.ConfigMixin">ConfigMixin</a></code></p>
+              Bases: <code><a class="autorefs autorefs-internal" title="mindone.diffusers.ModelMixin (mindone.diffusers.models.modeling_utils.ModelMixin)" href="../overview/#mindone.diffusers.ModelMixin">ModelMixin</a></code>, <code><a class="autorefs autorefs-internal" title="mindone.diffusers.configuration_utils.ConfigMixin" href="../../configuration/#mindone.diffusers.configuration_utils.ConfigMixin">ConfigMixin</a></code></p>
 
 
         <p>The Transformer model introduced in <a href="https://huggingface.co/papers/2403.05121">CogView3: Finer and Faster Text-to-Image Generation via Relay
@@ -8118,7 +8187,9 @@ Diffusion</a>.</p>
       </thead>
       <tbody>
           <tr class="doc-section-item">
-            <td><code>patch_size</code></td>
+            <td>
+                <code>patch_size</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The size of the patches to use in the patch embedding layer.</p>
@@ -8136,7 +8207,9 @@ Diffusion</a>.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>in_channels</code></td>
+            <td>
+                <code>in_channels</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The number of channels in the input.</p>
@@ -8154,7 +8227,9 @@ Diffusion</a>.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>num_layers</code></td>
+            <td>
+                <code>num_layers</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The number of layers of Transformer blocks to use.</p>
@@ -8172,7 +8247,9 @@ Diffusion</a>.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>attention_head_dim</code></td>
+            <td>
+                <code>attention_head_dim</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The number of channels in each head.</p>
@@ -8190,7 +8267,9 @@ Diffusion</a>.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>num_attention_heads</code></td>
+            <td>
+                <code>num_attention_heads</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The number of heads to use for multi-head attention.</p>
@@ -8208,7 +8287,9 @@ Diffusion</a>.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>out_channels</code></td>
+            <td>
+                <code>out_channels</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The number of channels in the output.</p>
@@ -8226,7 +8307,9 @@ Diffusion</a>.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>text_embed_dim</code></td>
+            <td>
+                <code>text_embed_dim</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Input dimension of text embeddings from the text encoder.</p>
@@ -8244,7 +8327,9 @@ Diffusion</a>.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>time_embed_dim</code></td>
+            <td>
+                <code>time_embed_dim</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Output dimension of timestep embeddings.</p>
@@ -8262,7 +8347,9 @@ Diffusion</a>.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>condition_dim</code></td>
+            <td>
+                <code>condition_dim</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The embedding dimension of the input SDXL-style resolution conditions (original_size, target_size,
@@ -8281,7 +8368,9 @@ crop_coords).</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>pos_embed_max_size</code></td>
+            <td>
+                <code>pos_embed_max_size</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The maximum resolution of the positional embeddings, from which slices of shape <code>H x W</code> are taken and added
@@ -8302,7 +8391,9 @@ patch_size =&gt; 128 * 8 * 2 =&gt; 2048</code>.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>sample_size</code></td>
+            <td>
+                <code>sample_size</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The base resolution of input latents. If height/width is not provided during generation, this value is used
@@ -8322,6 +8413,12 @@ to determine the resolution as <code>sample_size * vae_scale_factor =&gt; 128 * 
           </tr>
       </tbody>
     </table>
+
+
+
+
+
+
 
               <details class="quote">
                 <summary>Source code in <code>mindone/diffusers/models/transformers/transformer_cogview3plus.py</code></summary>
@@ -8814,7 +8911,7 @@ to determine the resolution as <code>sample_size * vae_scale_factor =&gt; 128 * 
 
 
 <h3 id="mindone.diffusers.models.transformers.transformer_cogview3plus.CogView3PlusTransformer2DModel.attn_processors" class="doc doc-heading">
-            <code class="highlight language-python"><span class="n">mindone</span><span class="o">.</span><span class="n">diffusers</span><span class="o">.</span><span class="n">models</span><span class="o">.</span><span class="n">transformers</span><span class="o">.</span><span class="n">transformer_cogview3plus</span><span class="o">.</span><span class="n">CogView3PlusTransformer2DModel</span><span class="o">.</span><span class="n">attn_processors</span><span class="p">:</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">AttentionProcessor</span><span class="p">]</span></code>
+            <code class="highlight language-python"><span class="n">mindone</span><span class="o">.</span><span class="n">diffusers</span><span class="o">.</span><span class="n">models</span><span class="o">.</span><span class="n">transformers</span><span class="o">.</span><span class="n">transformer_cogview3plus</span><span class="o">.</span><span class="n">CogView3PlusTransformer2DModel</span><span class="o">.</span><span class="n">attn_processors</span></code>
 
   <span class="doc doc-labels">
       <small class="doc doc-label doc-label-property"><code>property</code></small>
@@ -8838,7 +8935,7 @@ to determine the resolution as <code>sample_size * vae_scale_factor =&gt; 128 * 
           <tr class="doc-section-item">
             <td>
                 <span class="doc-returns-annotation">
-                    <code><span title="typing.Dict">Dict</span>[str, <span title="mindone.diffusers.models.attention_processor.AttentionProcessor">AttentionProcessor</span>]</code>
+                    <code><span title="typing.Dict">Dict</span>[<span title="str">str</span>, <span title="mindone.diffusers.models.attention_processor.AttentionProcessor">AttentionProcessor</span>]</code>
                 </span>
             </td>
             <td class="doc-returns-details">
@@ -8850,7 +8947,7 @@ to determine the resolution as <code>sample_size * vae_scale_factor =&gt; 128 * 
           <tr class="doc-section-item">
             <td>
                 <span class="doc-returns-annotation">
-                    <code><span title="typing.Dict">Dict</span>[str, <span title="mindone.diffusers.models.attention_processor.AttentionProcessor">AttentionProcessor</span>]</code>
+                    <code><span title="typing.Dict">Dict</span>[<span title="str">str</span>, <span title="mindone.diffusers.models.attention_processor.AttentionProcessor">AttentionProcessor</span>]</code>
                 </span>
             </td>
             <td class="doc-returns-details">
@@ -8861,6 +8958,7 @@ to determine the resolution as <code>sample_size * vae_scale_factor =&gt; 128 * 
           </tr>
       </tbody>
     </table>
+
     </div>
 
 </div>
@@ -8890,7 +8988,9 @@ to determine the resolution as <code>sample_size * vae_scale_factor =&gt; 128 * 
       </thead>
       <tbody>
           <tr class="doc-section-item">
-            <td><code>hidden_states</code></td>
+            <td>
+                <code>hidden_states</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Input <code>hidden_states</code> of shape <code>(batch size, channel, height, width)</code>.</p>
@@ -8904,7 +9004,9 @@ to determine the resolution as <code>sample_size * vae_scale_factor =&gt; 128 * 
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>encoder_hidden_states</code></td>
+            <td>
+                <code>encoder_hidden_states</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Conditional embeddings (embeddings computed from the input conditions such as prompts) of shape
@@ -8919,7 +9021,9 @@ to determine the resolution as <code>sample_size * vae_scale_factor =&gt; 128 * 
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>timestep</code></td>
+            <td>
+                <code>timestep</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Used to indicate denoising step.</p>
@@ -8933,7 +9037,9 @@ to determine the resolution as <code>sample_size * vae_scale_factor =&gt; 128 * 
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>original_size</code></td>
+            <td>
+                <code>original_size</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>CogView3 uses SDXL-like micro-conditioning for original image size as explained in section 2.2 of
@@ -8948,7 +9054,9 @@ to determine the resolution as <code>sample_size * vae_scale_factor =&gt; 128 * 
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>target_size</code></td>
+            <td>
+                <code>target_size</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>CogView3 uses SDXL-like micro-conditioning for target image size as explained in section 2.2 of
@@ -8963,7 +9071,9 @@ to determine the resolution as <code>sample_size * vae_scale_factor =&gt; 128 * 
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>crop_coords</code></td>
+            <td>
+                <code>crop_coords</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>CogView3 uses SDXL-like micro-conditioning for crop coordinates as explained in section 2.2 of
@@ -8978,7 +9088,9 @@ to determine the resolution as <code>sample_size * vae_scale_factor =&gt; 128 * 
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>return_dict</code></td>
+            <td>
+                <code>return_dict</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Whether or not to return a [<code>~models.transformer_2d.Transformer2DModelOutput</code>] instead of a plain
@@ -9011,7 +9123,12 @@ tuple.</p>
           <tr class="doc-section-item">
             <td>
                 <span class="doc-returns-annotation">
-                    <code><span title="typing.Union">Union</span>[<span title="mindspore.Tensor">Tensor</span>, <a class="autorefs autorefs-internal" title="mindone.diffusers.models.modeling_outputs.Transformer2DModelOutput" href="../allegro_transformer3d/#mindone.diffusers.models.modeling_outputs.Transformer2DModelOutput">Transformer2DModelOutput</a>]</code>
+                    <code><span title="typing.Union">Union</span>[<span title="mindspore.Tensor">Tensor</span>, <a class="autorefs autorefs-internal" title="mindone.diffusers.models.modeling_outputs.Transformer2DModelOutput
+
+
+  
+      dataclass
+  " href="../allegro_transformer3d/#mindone.diffusers.models.modeling_outputs.Transformer2DModelOutput">Transformer2DModelOutput</a>]</code>
                 </span>
             </td>
             <td class="doc-returns-details">
@@ -9023,6 +9140,7 @@ The denoised latents using provided inputs as conditioning.</p>
           </tr>
       </tbody>
     </table>
+
 
             <details class="quote">
               <summary>Source code in <code>mindone/diffusers/models/transformers/transformer_cogview3plus.py</code></summary>
@@ -9206,7 +9324,9 @@ The denoised latents using provided inputs as conditioning.</p>
       </thead>
       <tbody>
           <tr class="doc-section-item">
-            <td><code>processor</code></td>
+            <td>
+                <code>processor</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The instantiated processor class or a dictionary of processor classes that will be set as the processor
@@ -9224,6 +9344,7 @@ processor. This is strongly recommended when setting trainable attention process
           </tr>
       </tbody>
     </table>
+
 
             <details class="quote">
               <summary>Source code in <code>mindone/diffusers/models/transformers/transformer_cogview3plus.py</code></summary>
@@ -9338,7 +9459,9 @@ processor. This is strongly recommended when setting trainable attention process
       </thead>
       <tbody>
           <tr class="doc-section-item">
-            <td><code>`(batch</code></td>
+            <td>
+                <code>`(batch</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The hidden states output conditioned on the <code>encoder_hidden_states</code> input. If discrete, returns probability
@@ -9354,6 +9477,12 @@ distributions for the unnoised latent pixels.</p>
           </tr>
       </tbody>
     </table>
+
+
+
+
+
+
 
               <details class="quote">
                 <summary>Source code in <code>mindone/diffusers/models/modeling_outputs.py</code></summary>
@@ -9488,7 +9617,7 @@ distributions for the unnoised latent pixels.</p>
       <nav class="md-footer__inner md-grid" aria-label="Footer" >
         
           
-          <a href="../cogvideox_transformer3d/" class="md-footer__link md-footer__link--prev" aria-label="Previous: CogVideoXTransformer3DModel">
+          <a href="../consisid_transformer3d/" class="md-footer__link md-footer__link--prev" aria-label="Previous: ConsisIDTransformer3DModel">
             <div class="md-footer__button md-icon">
               
               <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
@@ -9498,7 +9627,7 @@ distributions for the unnoised latent pixels.</p>
                 Previous
               </span>
               <div class="md-ellipsis">
-                CogVideoXTransformer3DModel
+                ConsisIDTransformer3DModel
               </div>
             </div>
           </a>

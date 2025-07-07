@@ -1477,6 +1477,29 @@
   
   
     <li class="md-nav__item">
+      <a href="../../../using-diffusers/consisid/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    ConsisID
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../../../using-diffusers/sdxl/" class="md-nav__link">
         
   
@@ -3211,6 +3234,29 @@
   
   
     <li class="md-nav__item">
+      <a href="../consisid_transformer3d/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    ConsisIDTransformer3DModel
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../cogview3plus_transformer2d/" class="md-nav__link">
         
   
@@ -4786,6 +4832,29 @@
   
   
     <li class="md-nav__item">
+      <a href="../../pipelines/consisid/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    ConsisID
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../../pipelines/consistency_models/" class="md-nav__link">
         
   
@@ -5949,10 +6018,10 @@
       
         
         
-        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2_11_4_64" >
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2_11_4_65" >
         
           
-          <label class="md-nav__link" for="__nav_2_11_4_64" id="__nav_2_11_4_64_label" tabindex="0">
+          <label class="md-nav__link" for="__nav_2_11_4_65" id="__nav_2_11_4_65_label" tabindex="0">
             
   
   
@@ -5965,8 +6034,8 @@
             <span class="md-nav__icon md-icon"></span>
           </label>
         
-        <nav class="md-nav" data-md-level="4" aria-labelledby="__nav_2_11_4_64_label" aria-expanded="false">
-          <label class="md-nav__title" for="__nav_2_11_4_64">
+        <nav class="md-nav" data-md-level="4" aria-labelledby="__nav_2_11_4_65_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_2_11_4_65">
             <span class="md-nav__icon md-icon"></span>
             Stable Diffusion
           </label>
@@ -8211,13 +8280,19 @@ specific language governing permissions and limitations under the License. -->
 
     <div class="doc doc-contents first">
             <p class="doc doc-class-bases">
-              Bases: <code><a class="autorefs autorefs-internal" title="mindone.diffusers.models.modeling_utils.ModelMixin" href="../overview/#mindone.diffusers.ModelMixin">ModelMixin</a></code>, <code><a class="autorefs autorefs-internal" title="mindone.diffusers.configuration_utils.ConfigMixin" href="../../configuration/#mindone.diffusers.configuration_utils.ConfigMixin">ConfigMixin</a></code></p>
+              Bases: <code><a class="autorefs autorefs-internal" title="mindone.diffusers.ModelMixin (mindone.diffusers.models.modeling_utils.ModelMixin)" href="../overview/#mindone.diffusers.ModelMixin">ModelMixin</a></code>, <code><a class="autorefs autorefs-internal" title="mindone.diffusers.configuration_utils.ConfigMixin" href="../../configuration/#mindone.diffusers.configuration_utils.ConfigMixin">ConfigMixin</a></code></p>
 
 
         <p>A VAE model with KL loss for encoding videos into latents and decoding latent representations into videos.
 Introduced in <a href="https://huggingface.co/papers/2412.03603">HunyuanVideo</a>.</p>
 <p>This model inherits from [<code>ModelMixin</code>]. Check the superclass documentation for it's generic methods implemented
 for all models (such as downloading or saving).</p>
+
+
+
+
+
+
 
               <details class="quote">
                 <summary>Source code in <code>mindone/diffusers/models/autoencoders/autoencoder_kl_hunyuan_video.py</code></summary>
@@ -9197,7 +9272,9 @@ for all models (such as downloading or saving).</p>
       </thead>
       <tbody>
           <tr class="doc-section-item">
-            <td><code>sample</code></td>
+            <td>
+                <code>sample</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Input sample.</p>
@@ -9211,7 +9288,9 @@ for all models (such as downloading or saving).</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>sample_posterior</code></td>
+            <td>
+                <code>sample_posterior</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Whether to sample from the posterior.</p>
@@ -9229,7 +9308,9 @@ for all models (such as downloading or saving).</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>return_dict</code></td>
+            <td>
+                <code>return_dict</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Whether or not to return a [<code>DecoderOutput</code>] instead of a plain tuple.</p>
@@ -9248,6 +9329,7 @@ for all models (such as downloading or saving).</p>
           </tr>
       </tbody>
     </table>
+
 
             <details class="quote">
               <summary>Source code in <code>mindone/diffusers/models/autoencoders/autoencoder_kl_hunyuan_video.py</code></summary>
@@ -9325,7 +9407,9 @@ for all models (such as downloading or saving).</p>
       </thead>
       <tbody>
           <tr class="doc-section-item">
-            <td><code>z</code></td>
+            <td>
+                <code>z</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Input batch of latent vectors.</p>
@@ -9339,7 +9423,9 @@ for all models (such as downloading or saving).</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>return_dict</code></td>
+            <td>
+                <code>return_dict</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Whether to return a [<code>~models.vae.DecoderOutput</code>] instead of a plain tuple.</p>
@@ -9371,7 +9457,12 @@ for all models (such as downloading or saving).</p>
           <tr class="doc-section-item">
             <td>
                 <span class="doc-returns-annotation">
-                    <code><span title="typing.Union">Union</span>[<a class="autorefs autorefs-internal" title="mindone.diffusers.models.autoencoders.vae.DecoderOutput" href="../asymmetricautoencoderkl/#mindone.diffusers.models.autoencoders.vae.DecoderOutput">DecoderOutput</a>, <span title="mindspore.Tensor">Tensor</span>]</code>
+                    <code><span title="typing.Union">Union</span>[<a class="autorefs autorefs-internal" title="mindone.diffusers.models.autoencoders.vae.DecoderOutput
+
+
+  
+      dataclass
+  " href="../asymmetricautoencoderkl/#mindone.diffusers.models.autoencoders.vae.DecoderOutput">DecoderOutput</a>, <span title="mindspore.Tensor">Tensor</span>]</code>
                 </span>
             </td>
             <td class="doc-returns-details">
@@ -9384,6 +9475,7 @@ returned.</p>
           </tr>
       </tbody>
     </table>
+
 
             <details class="quote">
               <summary>Source code in <code>mindone/diffusers/models/autoencoders/autoencoder_kl_hunyuan_video.py</code></summary>
@@ -9454,6 +9546,7 @@ returned.</p>
         <p>Disable sliced VAE decoding. If <code>enable_slicing</code> was previously enabled, this method will go back to computing
 decoding in one step.</p>
 
+
             <details class="quote">
               <summary>Source code in <code>mindone/diffusers/models/autoencoders/autoencoder_kl_hunyuan_video.py</code></summary>
               <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">747</span>
@@ -9487,6 +9580,7 @@ decoding in one step.</p>
         <p>Disable tiled VAE decoding. If <code>enable_tiling</code> was previously enabled, this method will go back to computing
 decoding in one step.</p>
 
+
             <details class="quote">
               <summary>Source code in <code>mindone/diffusers/models/autoencoders/autoencoder_kl_hunyuan_video.py</code></summary>
               <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">733</span>
@@ -9519,6 +9613,7 @@ decoding in one step.</p>
 
         <p>Enable sliced VAE decoding. When this option is enabled, the VAE will split the input tensor in slices to
 compute decoding in several steps. This is useful to save some memory and allow larger batch sizes.</p>
+
 
             <details class="quote">
               <summary>Source code in <code>mindone/diffusers/models/autoencoders/autoencoder_kl_hunyuan_video.py</code></summary>
@@ -9564,7 +9659,9 @@ processing larger images.</p>
       </thead>
       <tbody>
           <tr class="doc-section-item">
-            <td><code>tile_sample_min_height</code></td>
+            <td>
+                <code>tile_sample_min_height</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The minimum height required for a sample to be separated into tiles across the height dimension.</p>
@@ -9582,7 +9679,9 @@ processing larger images.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>tile_sample_min_width</code></td>
+            <td>
+                <code>tile_sample_min_width</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The minimum width required for a sample to be separated into tiles across the width dimension.</p>
@@ -9600,7 +9699,9 @@ processing larger images.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>tile_sample_min_num_frames</code></td>
+            <td>
+                <code>tile_sample_min_num_frames</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The minimum number of frames required for a sample to be separated into tiles across the frame
@@ -9619,7 +9720,9 @@ dimension.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>tile_sample_stride_height</code></td>
+            <td>
+                <code>tile_sample_stride_height</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The minimum amount of overlap between two consecutive vertical tiles. This is to ensure that there are
@@ -9638,7 +9741,9 @@ no tiling artifacts produced across the height dimension.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>tile_sample_stride_width</code></td>
+            <td>
+                <code>tile_sample_stride_width</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The stride between two consecutive horizontal tiles. This is to ensure that there are no tiling
@@ -9657,7 +9762,9 @@ artifacts produced across the width dimension.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>tile_sample_stride_num_frames</code></td>
+            <td>
+                <code>tile_sample_stride_num_frames</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The stride between two consecutive frame tiles. This is to ensure that there are no tiling artifacts
@@ -9677,6 +9784,7 @@ produced across the frame dimension.</p>
           </tr>
       </tbody>
     </table>
+
 
             <details class="quote">
               <summary>Source code in <code>mindone/diffusers/models/autoencoders/autoencoder_kl_hunyuan_video.py</code></summary>
@@ -9786,7 +9894,9 @@ produced across the frame dimension.</p>
       </thead>
       <tbody>
           <tr class="doc-section-item">
-            <td><code>x</code></td>
+            <td>
+                <code>x</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Input batch of images.</p>
@@ -9800,7 +9910,9 @@ produced across the frame dimension.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>return_dict</code></td>
+            <td>
+                <code>return_dict</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Whether to return a [<code>~models.autoencoder_kl.AutoencoderKLOutput</code>] instead of a plain tuple.</p>
@@ -9832,7 +9944,12 @@ produced across the frame dimension.</p>
           <tr class="doc-section-item">
             <td>
                 <span class="doc-returns-annotation">
-                    <code><span title="typing.Union">Union</span>[<a class="autorefs autorefs-internal" title="mindone.diffusers.models.modeling_outputs.AutoencoderKLOutput" href="../asymmetricautoencoderkl/#mindone.diffusers.models.autoencoders.autoencoder_kl.AutoencoderKLOutput">AutoencoderKLOutput</a>, <span title="typing.Tuple">Tuple</span>[<span title="mindone.diffusers.models.autoencoders.vae.DiagonalGaussianDistribution">DiagonalGaussianDistribution</span>]]</code>
+                    <code><span title="typing.Union">Union</span>[<a class="autorefs autorefs-internal" title="mindone.diffusers.models.autoencoders.autoencoder_kl.AutoencoderKLOutput
+
+
+  
+      dataclass
+   (mindone.diffusers.models.modeling_outputs.AutoencoderKLOutput)" href="../asymmetricautoencoderkl/#mindone.diffusers.models.autoencoders.autoencoder_kl.AutoencoderKLOutput">AutoencoderKLOutput</a>, <span title="typing.Tuple">Tuple</span>[<span title="mindone.diffusers.models.autoencoders.vae.DiagonalGaussianDistribution">DiagonalGaussianDistribution</span>]]</code>
                 </span>
             </td>
             <td class="doc-returns-details">
@@ -9844,7 +9961,12 @@ produced across the frame dimension.</p>
           <tr class="doc-section-item">
             <td>
                 <span class="doc-returns-annotation">
-                    <code><span title="typing.Union">Union</span>[<a class="autorefs autorefs-internal" title="mindone.diffusers.models.modeling_outputs.AutoencoderKLOutput" href="../asymmetricautoencoderkl/#mindone.diffusers.models.autoencoders.autoencoder_kl.AutoencoderKLOutput">AutoencoderKLOutput</a>, <span title="typing.Tuple">Tuple</span>[<span title="mindone.diffusers.models.autoencoders.vae.DiagonalGaussianDistribution">DiagonalGaussianDistribution</span>]]</code>
+                    <code><span title="typing.Union">Union</span>[<a class="autorefs autorefs-internal" title="mindone.diffusers.models.autoencoders.autoencoder_kl.AutoencoderKLOutput
+
+
+  
+      dataclass
+   (mindone.diffusers.models.modeling_outputs.AutoencoderKLOutput)" href="../asymmetricautoencoderkl/#mindone.diffusers.models.autoencoders.autoencoder_kl.AutoencoderKLOutput">AutoencoderKLOutput</a>, <span title="typing.Tuple">Tuple</span>[<span title="mindone.diffusers.models.autoencoders.vae.DiagonalGaussianDistribution">DiagonalGaussianDistribution</span>]]</code>
                 </span>
             </td>
             <td class="doc-returns-details">
@@ -9855,6 +9977,7 @@ produced across the frame dimension.</p>
           </tr>
       </tbody>
     </table>
+
 
             <details class="quote">
               <summary>Source code in <code>mindone/diffusers/models/autoencoders/autoencoder_kl_hunyuan_video.py</code></summary>
@@ -9940,7 +10063,9 @@ produced across the frame dimension.</p>
       </thead>
       <tbody>
           <tr class="doc-section-item">
-            <td><code>z</code></td>
+            <td>
+                <code>z</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Input batch of latent vectors.</p>
@@ -9954,7 +10079,9 @@ produced across the frame dimension.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>return_dict</code></td>
+            <td>
+                <code>return_dict</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Whether or not to return a [<code>~models.vae.DecoderOutput</code>] instead of a plain tuple.</p>
@@ -9986,7 +10113,12 @@ produced across the frame dimension.</p>
           <tr class="doc-section-item">
             <td>
                 <span class="doc-returns-annotation">
-                    <code><span title="typing.Union">Union</span>[<a class="autorefs autorefs-internal" title="mindone.diffusers.models.autoencoders.vae.DecoderOutput" href="../asymmetricautoencoderkl/#mindone.diffusers.models.autoencoders.vae.DecoderOutput">DecoderOutput</a>, <span title="mindspore.Tensor">Tensor</span>]</code>
+                    <code><span title="typing.Union">Union</span>[<a class="autorefs autorefs-internal" title="mindone.diffusers.models.autoencoders.vae.DecoderOutput
+
+
+  
+      dataclass
+  " href="../asymmetricautoencoderkl/#mindone.diffusers.models.autoencoders.vae.DecoderOutput">DecoderOutput</a>, <span title="mindspore.Tensor">Tensor</span>]</code>
                 </span>
             </td>
             <td class="doc-returns-details">
@@ -9999,6 +10131,7 @@ returned.</p>
           </tr>
       </tbody>
     </table>
+
 
             <details class="quote">
               <summary>Source code in <code>mindone/diffusers/models/autoencoders/autoencoder_kl_hunyuan_video.py</code></summary>
@@ -10144,7 +10277,9 @@ returned.</p>
       </thead>
       <tbody>
           <tr class="doc-section-item">
-            <td><code>x</code></td>
+            <td>
+                <code>x</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Input batch of videos.</p>
@@ -10172,7 +10307,12 @@ returned.</p>
           <tr class="doc-section-item">
             <td>
                 <span class="doc-returns-annotation">
-                    <code><a class="autorefs autorefs-internal" title="mindone.diffusers.models.modeling_outputs.AutoencoderKLOutput" href="../asymmetricautoencoderkl/#mindone.diffusers.models.autoencoders.autoencoder_kl.AutoencoderKLOutput">AutoencoderKLOutput</a></code>
+                    <code><a class="autorefs autorefs-internal" title="mindone.diffusers.models.autoencoders.autoencoder_kl.AutoencoderKLOutput
+
+
+  
+      dataclass
+   (mindone.diffusers.models.modeling_outputs.AutoencoderKLOutput)" href="../asymmetricautoencoderkl/#mindone.diffusers.models.autoencoders.autoencoder_kl.AutoencoderKLOutput">AutoencoderKLOutput</a></code>
                 </span>
             </td>
             <td class="doc-returns-details">
@@ -10184,6 +10324,7 @@ The latent representation of the encoded videos.</p>
           </tr>
       </tbody>
     </table>
+
 
             <details class="quote">
               <summary>Source code in <code>mindone/diffusers/models/autoencoders/autoencoder_kl_hunyuan_video.py</code></summary>
@@ -10330,7 +10471,9 @@ The latent representation of the encoded videos.</p>
       </thead>
       <tbody>
           <tr class="doc-section-item">
-            <td><code>sample</code></td>
+            <td>
+                <code>sample</code>
+            </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The decoded output sample from the last layer of the model.</p>
@@ -10345,6 +10488,12 @@ The latent representation of the encoded videos.</p>
           </tr>
       </tbody>
     </table>
+
+
+
+
+
+
 
               <details class="quote">
                 <summary>Source code in <code>mindone/diffusers/models/autoencoders/vae.py</code></summary>
