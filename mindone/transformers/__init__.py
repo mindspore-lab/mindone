@@ -96,6 +96,9 @@ from .models.instructblip import (
     InstructBlipForConditionalGeneration,
     InstructBlipVisionModel,
 )
+from .models.kosmos2 import (
+    Kosmos2ForConditionalGeneration, Kosmos2Model, Kosmos2PreTrainedModel
+)
 from .models.instructblipvideo import (
     InstructBlipVideoForConditionalGeneration,
     InstructBlipVideoPreTrainedModel,

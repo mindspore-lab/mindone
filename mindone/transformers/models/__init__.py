@@ -53,4 +53,5 @@ from . import (  # qwen3,
     xlm_roberta,
     instructblip,
     instructblipvideo,
+    kosmos2,
 )
