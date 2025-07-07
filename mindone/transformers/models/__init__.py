@@ -54,4 +54,5 @@ from . import (  # qwen3,
     instructblip,
     instructblipvideo,
     kosmos2,
+    pix2struct,
 )

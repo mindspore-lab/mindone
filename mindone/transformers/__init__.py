@@ -1,4 +1,4 @@
-__version__ = "4.46.3"
+__version__ =   4.46.3"
 # Feature Extractor
 from .feature_extraction_utils import BatchFeature, FeatureExtractionMixin
 from .image_processing_base import ImageProcessingMixin
@@ -95,6 +95,12 @@ from .models.instructblip import (
     InstructBlipPreTrainedModel,
     InstructBlipForConditionalGeneration,
     InstructBlipVisionModel,
+)
+from .models.pix2struct import (
+    Pix2StructPreTrainedModel,
+    Pix2StructForConditionalGeneration,
+    Pix2StructVisionModel,
+    Pix2StructTextModel,
 )
 from .models.kosmos2 import (
     Kosmos2ForConditionalGeneration, Kosmos2Model, Kosmos2PreTrainedModel
