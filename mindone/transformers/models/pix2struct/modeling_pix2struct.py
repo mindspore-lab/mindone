@@ -1431,7 +1431,7 @@ class Pix2StructTextModel(Pix2StructPreTrainedModel):
             mask_seq_length = (
                 past_key_values.get_seq_length() + seq_length if past_key_values is not None else seq_length
             )
-            attention_mask = mindspore.mint.ones(batch_size, mask_seq_length, )
+            attention_mask = mindspore.mint.ones((batch_size, mask_seq_length), )
 
         if self.config.is_decoder:
             causal_mask = self._update_causal_mask(
