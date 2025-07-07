@@ -32,7 +32,7 @@ from ...models import AutoencoderKLWan
 from mindone.diffusers.models.transformers.transformer_wan_vace import WanVACETransformer3DModel
 from ...schedulers import FlowMatchEulerDiscreteScheduler
 from ...utils import is_ftfy_available, logging
-from ...utils.mindspore_utils import randn_tensor
+from ...utils.mindspore_utils import pynative_context, randn_tensor
 from ...video_processor import VideoProcessor
 
 logger = logging.get_logger(__name__)  # pylint: disable=invalid-name
@@ -45,9 +45,9 @@ EXAMPLE_DOC_STRING = """
         ```python
         >>> import mindspore as ms
         >>> import PIL.Image
-        >>> from diffusers import AutoencoderKLWan, WanVACEPipeline
-        >>> from diffusers.schedulers.scheduling_unipc_multistep import UniPCMultistepScheduler
-        >>> from diffusers.utils import export_to_video, load_image
+        >>> from mindone.diffusers import AutoencoderKLWan, WanVACEPipeline
+        >>> from mindone.diffusers.schedulers.scheduling_unipc_multistep import UniPCMultistepScheduler
+        >>> from mindone.diffusers.utils import export_to_video, load_image
         def prepare_video_and_mask(first_img: PIL.Image.Image, last_img: PIL.Image.Image, height: int, width: int, num_frames: int):
             first_img = first_img.resize((width, height))
             last_img = last_img.resize((width, height))
@@ -65,11 +65,10 @@ EXAMPLE_DOC_STRING = """
 
         >>> # Available checkpoints: Wan-AI/Wan2.1-VACE-1.3B-diffusers, Wan-AI/Wan2.1-VACE-14B-diffusers
         >>> model_id = "Wan-AI/Wan2.1-VACE-1.3B-diffusers"
-        >>> vae = AutoencoderKLWan.from_pretrained(model_id, subfolder="vae", ms_dtype=ms.float32)
-        >>> pipe = WanVACEPipeline.from_pretrained(model_id, vae=vae, ms_dtype=ms.bfloat16)
+        >>> vae = AutoencoderKLWan.from_pretrained(model_id, subfolder="vae", mindspore_dtype=ms.float32)
+        >>> pipe = WanVACEPipeline.from_pretrained(model_id, vae=vae, mindspore_dtype=ms.bfloat16)
         >>> flow_shift = 3.0  # 5.0 for 720P, 3.0 for 480P
         >>> pipe.scheduler = UniPCMultistepScheduler.from_config(pipe.scheduler.config, flow_shift=flow_shift)
-        >>> pipe.to("cuda")
 
         >>> prompt = "CG animation style, a small blue bird takes off from the ground, flapping its wings. The bird's feathers are delicate, with a unique pattern on its chest. The background shows a blue sky with white clouds under bright sunshine. The camera follows the bird upward, capturing its flight and the vastness of the sky from a close-up, low-angle perspective."
         >>> negative_prompt = "Bright tones, overexposed, static, blurred details, subtitles, style, works, paintings, images, static, overall gray, worst quality, low quality, JPEG compression residue, ugly, incomplete, extra fingers, poorly drawn hands, poorly drawn faces, deformed, disfigured, misshapen limbs, fused fingers, still picture, messy background, three legs, many people in the background, walking backwards"
@@ -95,7 +94,6 @@ EXAMPLE_DOC_STRING = """
         ...     num_frames=num_frames,
         ...     num_inference_steps=30,
         ...     guidance_scale=5.0,
-        ...     generator=ms.Generator().manual_seed(42),
         ... ).frames[0]
         >>> export_to_video(output, "output.mp4", fps=16)
         ```
@@ -121,12 +119,15 @@ def prompt_clean(text):
 
 # Copied from diffusers.pipelines.stable_diffusion.pipeline_stable_diffusion_img2img.retrieve_latents
 def retrieve_latents(
-        vae, encoder_output: ms.Tensor, generator: Optional[np.random.Generator] = None, sample_mode: str = "sample"
+    vae, encoder_output: ms.Tensor, generator: Optional[np.random.Generator] = None, sample_mode: str = "sample"
 ):
     if sample_mode == "sample":
         return vae.diag_gauss_dist.sample(encoder_output, generator=generator)
     elif sample_mode == "argmax":
         return vae.diag_gauss_dist.mode(encoder_output)
+    # This branch is not needed because the encoder_output type is ms.Tensor as per AutoencoderKLOutput change
+    # elif hasattr(encoder_output, "latents"):
+    #     return encoder_output.latents
     else:
         return encoder_output
 
@@ -185,14 +186,15 @@ class WanVACEPipeline(DiffusionPipeline, WanLoraLoaderMixin):
             return_attention_mask=True,
             return_tensors="np",
         )
-        text_input_ids, mask = ms.Tensor(text_inputs.input_ids), ms.Tensor(text_inputs.attention_mask)
+        text_input_ids, mask = ms.tensor(text_inputs.input_ids), ms.tensor(text_inputs.attention_mask)
         seq_lens = mask.gt(0).sum(dim=1).long()
 
-        prompt_embeds = self.text_encoder(text_input_ids, mask)[0]
+        with pynative_context():
+            prompt_embeds = self.text_encoder(text_input_ids, mask)[0]
         prompt_embeds = prompt_embeds.to(dtype=dtype)
         prompt_embeds = [u[:v] for u, v in zip(prompt_embeds, seq_lens)]
         prompt_embeds = mint.stack(
-            [mint.cat([u, u.new_zeros(max_sequence_length - u.size(0), u.size(1))]) for u in prompt_embeds], dim=0
+            [mint.cat([u, u.new_zeros((max_sequence_length - u.shape[0], u.shape[1]))]) for u in prompt_embeds], dim=0
         )
 
         # duplicate text embeddings for each generation per prompt, using mps friendly method
@@ -353,7 +355,7 @@ class WanVACEPipeline(DiffusionPipeline, WanLoraLoaderMixin):
             video = self.video_processor.preprocess_video(video, video_height, video_width)
             image_size = (video_height, video_width)  # Use the height/width of video (with possible rescaling)
         else:
-            video = mint.zeros(batch_size, 3, num_frames, height, width, dtype=dtype)
+            video = mint.zeros((batch_size, 3, num_frames, height, width), dtype=dtype)
             image_size = (height, width)  # Use the height/width provider by user
 
         if mask is not None:
@@ -404,7 +406,7 @@ class WanVACEPipeline(DiffusionPipeline, WanLoraLoaderMixin):
                                                                align_corners=False).squeeze(0)  # [C, H, W]
                 top = (image_size[0] - new_height) // 2
                 left = (image_size[1] - new_width) // 2
-                canvas = mint.ones(3, *image_size, dtype=dtype)
+                canvas = mint.ones((3, *image_size), dtype=dtype)
                 canvas[:, top: top + new_height, left: left + new_width] = resized_image
                 preprocessed_images.append(canvas)
             reference_images_preprocessed.append(preprocessed_images)
@@ -447,8 +449,9 @@ class WanVACEPipeline(DiffusionPipeline, WanLoraLoaderMixin):
             mask = mint.where(mask > 0.5, 1.0, 0.0)
             inactive = video * (1 - mask)
             reactive = video * mask
-            inactive = retrieve_latents(self.vae, self.vae.encode(inactive)[0], sample_mode="argmax")
-            reactive = retrieve_latents(self.vae, self.vae.encode(inactive)[0], sample_mode="argmax")
+            with pynative_context():
+                inactive = retrieve_latents(self.vae, self.vae.encode(inactive)[0], sample_mode="argmax")
+                reactive = retrieve_latents(self.vae, self.vae.encode(reactive)[0], sample_mode="argmax")
             inactive = ((inactive.float() - latents_mean) * latents_std).to(vae_dtype)
             reactive = ((reactive.float() - latents_mean) * latents_std).to(vae_dtype)
             latents = mint.cat([inactive, reactive], dim=1)
@@ -508,7 +511,7 @@ class WanVACEPipeline(DiffusionPipeline, WanLoraLoaderMixin):
         return mint.stack(mask_list)
 
     def prepare_latents(self, batch_size: int, num_channels_latents: int = 16, height: int = 480, width: int = 832,
-                        num_frames: int = 81, dtype: Optional[mint.Type] = None,
+                        num_frames: int = 81, dtype: Optional[ms.Type] = None,
                         generator: Optional[Union[ms.Generator, List[ms.Generator]]] = None,
                         latents: Optional[ms.Tensor] = None, ) -> ms.Tensor:
         if latents is not None:
@@ -555,7 +558,7 @@ class WanVACEPipeline(DiffusionPipeline, WanLoraLoaderMixin):
                  conditioning_scale: Union[float, List[float], ms.Tensor] = 1.0, height: int = 480, width: int = 832,
                  num_frames: int = 81, num_inference_steps: int = 50, guidance_scale: float = 5.0,
                  num_videos_per_prompt: Optional[int] = 1,
-                 generator: Optional[Union[ms.Generator, List[ms.Generator]]] = None,
+                 generator: np.random.Generator = None,
                  latents: Optional[ms.Tensor] = None, prompt_embeds: Optional[ms.Tensor] = None,
                  negative_prompt_embeds: Optional[ms.Tensor] = None, output_type: Optional[str] = "np",
                  return_dict: bool = True, attention_kwargs: Optional[Dict[str, Any]] = None,
@@ -611,8 +614,8 @@ class WanVACEPipeline(DiffusionPipeline, WanLoraLoaderMixin):
                 usually at the expense of lower image quality.
             num_videos_per_prompt (`int`, *optional*, defaults to 1):
                 The number of images to generate per prompt.
-            generator (`ms.Generator` or `List[ms.Generator]`, *optional*):
-                A [`ms.Generator`] to make
+            generator (`np.random.Generator`):
+                A [`np.random.Generator`] to make
                 generation deterministic.
             latents (`ms.Tensor`, *optional*):
                 Pre-generated noisy latents sampled from a Gaussian distribution, to be used as inputs for image
@@ -789,7 +792,8 @@ class WanVACEPipeline(DiffusionPipeline, WanLoraLoaderMixin):
             latents_std = 1.0 / ms.tensor(self.vae.config.latents_std).view(1, self.vae.config.z_dim, 1, 1, 1).to(
                 latents.dtype)
             latents = latents / latents_std + latents_mean
-            video = self.vae.decode(latents, return_dict=False)[0]
+            with pynative_context():
+                video = self.vae.decode(latents, return_dict=False)[0]
             video = self.video_processor.postprocess_video(video, output_type=output_type)
         else:
             video = latents

@@ -190,6 +190,8 @@ pipe = WanPipeline.from_pretrained("Wan-AI/Wan2.1-T2V-1.3B-Diffusers", transform
 
 ::: mindone.diffusers.WanImageToVideoPipeline
 
+::: mindone.diffusers.WanVACEPipeline
+
 ::: mindone.diffusers.WanVideoToVideoPipeline
 
 ::: mindone.diffusers.pipelines.wan.pipeline_output.WanPipelineOutput
