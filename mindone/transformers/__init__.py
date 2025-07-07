@@ -472,6 +472,7 @@ from .models.mistral import (
     MistralModel,
     MistralPreTrainedModel,
 )
+from .models.mistral3 import Mistral3ForConditionalGeneration, Mistral3PreTrainedModel
 from .models.mixtral import (
     MixtralForCausalLM,
     MixtralForQuestionAnswering,
@@ -570,6 +571,7 @@ from .models.phi3 import (
     Phi3Model,
     Phi3PreTrainedModel,
 )
+from .models.pixtral import PixtralPreTrainedModel, PixtralVisionModel
 from .models.qwen2 import Qwen2ForCausalLM, Qwen2ForSequenceClassification, Qwen2ForTokenClassification, Qwen2Model
 from .models.qwen2_5_omni import (
     Qwen2_5OmniForConditionalGeneration,
@@ -608,6 +610,7 @@ from .models.rembert import (
     RemBertModel,
     RemBertPreTrainedModel,
 )
+from .models.resnet import ResNetBackbone, ResNetForImageClassification, ResNetModel, ResNetPreTrainedModel
 from .models.roberta import (
     RobertaForCausalLM,
     RobertaForMaskedLM,
