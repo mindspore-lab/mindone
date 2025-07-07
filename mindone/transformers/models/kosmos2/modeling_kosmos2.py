@@ -860,7 +860,7 @@ class Kosmos2TextSinusoidalPositionalEmbedding(mindspore.nn.Cell):
         if max_pos > self.weights.shape[0]:
             self.make_weights(max_pos + self.offset, self.embedding_dim, self.padding_idx)
 
-        return self.weights.index_select(0, position_ids.view(-1)).view(bsz, seq_len, self.weights.shape[-1])
+        return mindspore.ops.stop_gradient(self.weights.index_select(0, position_ids.view(-1)).view(bsz, seq_len, self.weights.shape[-1]))
 
     # Copied from transformers.models.m2m_100.modeling_m2m_100.M2M100SinusoidalPositionalEmbedding.create_position_ids_from_inputs_embeds
     def create_position_ids_from_inputs_embeds(self, inputs_embeds, past_key_values_length):
