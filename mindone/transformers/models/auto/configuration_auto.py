@@ -63,6 +63,8 @@ CONFIG_MAPPING_NAMES = OrderedDict(
         ("persimmon", "PersimmonConfig"),
         ("fuyu", "FuyuConfig"),
         ("llava", "LlavaConfig"),
+        ("instructblip", "InstructBlipConfig"),
+        ("instructblipvideo", "InstructBlipVideoConfig"),
         ("mobilebert", "MobileBertConfig"),
         ("mt5", "MT5Config"),
         ("megatron-bert", "MegatronBertConfig"),
@@ -89,6 +91,8 @@ CONFIG_MAPPING_NAMES = OrderedDict(
         ("whisper", "WhisperConfig"),
         ("xlm-roberta", "XLMRobertaConfig"),
         ("xlm-roberta-xl", "XLMRobertaXLConfig"),
+        ("pix2struct", "Pix2StructConfig"),
+        ("kosmos-2", "Kosmos2Config"),
     ]
 )
 
@@ -97,10 +101,12 @@ MODEL_NAMES_MAPPING = OrderedDict(
     [
         # Add full (and cased) model names here
         ("albert", "ALBERT"),
+        ("pix2struct", "Pix2Struct"),
         ("bert", "BERT"),
         ("bart", "BART"),
         ("bit", "BiT"),
         ("blip-2", "BLIP-2"),
+        ("kosmos-2", "KOSMOS-2"),
         ("llama", "LLaMA"),
         ("chameleon", "Chameleon"),
         ("clap", "CLAP"),
@@ -158,6 +164,8 @@ MODEL_NAMES_MAPPING = OrderedDict(
         ("speecht5", "SpeechT5"),
         ("t5", "T5"),
         ("t5v1.1", "T5v1.1"),
+        ("instructblip", "InstructBLIP"),
+        ("instructblipvideo", "InstructBlipVideo"),
         ("umt5", "UMT5"),
         ("wav2vec2", "Wav2Vec2"),
         ("whisper", "Whisper"),
