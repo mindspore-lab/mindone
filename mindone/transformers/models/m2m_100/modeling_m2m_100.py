@@ -771,7 +771,7 @@ M2M_100_START_DOCSTRING = r"""
     library implements for all its model (such as downloading or saving, resizing the input embeddings, pruning heads
     etc.)
 
-    This model is also a MindSpore [nn.Cell](https://pytorch.org/docs/stable/torch.nn.html#nn.Cell) subclass.
+    This model is also a MindSpore [mindspore.nn.Cell](https://www.mindspore.cn/docs/zh-CN/master/api_python/nn/mindspore.nn.Cell.html) subclass.
     Use it as a regular MindSpore Module and refer to the MindSpore documentation for all matter related to general usage
     and behavior.
 
@@ -786,13 +786,17 @@ M2M_100_GENERATION_EXAMPLE = r"""
     Translation example:
 
     ```python
-    >>> from transformers import AutoTokenizer, M2M100ForConditionalGeneration
+    >>> from transformers import AutoTokenizer
+    >>> from mindone.transformers import M2M100ForConditionalGeneration
+    >>> import mindspore as ms
 
     >>> model = M2M100ForConditionalGeneration.from_pretrained("facebook/m2m100_418M")
     >>> tokenizer = AutoTokenizer.from_pretrained("facebook/m2m100_418M")
 
     >>> text_to_translate = "Life is like a box of chocolates"
-    >>> model_inputs = tokenizer(text_to_translate, return_tensors="pt")
+    >>> model_inputs = tokenizer(text_to_translate, return_tensors="np")
+    >>> for k, v in model_inputs.items():
+    ...     model_inputs[k] = ms.tensor(v)
 
     >>> # translate to French
     >>> gen_tokens = model.generate(**model_inputs, forced_bos_token_id=tokenizer.get_lang_id("fr"))
@@ -1041,13 +1045,7 @@ class M2M100Encoder(M2M100PreTrainedModel):
                 # under fsdp or deepspeed zero3 all gpus must run in sync
 
                 if self.gradient_checkpointing and self.training:
-                    layer_outputs = self._gradient_checkpointing_func(
-                        encoder_layer.__call__,
-                        hidden_states,
-                        attention_mask,
-                        (head_mask[idx] if head_mask is not None else None),
-                        output_attentions,
-                    )
+                    raise NotImplementedError("Gradient checkpoint is not yet supported.")
                 else:
                     layer_outputs = encoder_layer(
                         hidden_states,
