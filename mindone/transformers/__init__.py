@@ -309,6 +309,13 @@ from .models.speecht5 import (
     SpeechT5Model,
     SpeechT5PreTrainedModel,
 )
+from .models.stablelm import (
+    StableLmForCausalLM,
+    StableLmForSequenceClassification,
+    StableLmForTokenClassification,
+    StableLmModel,
+    StableLmPreTrainedModel,
+)
 from .models.switch_transformers import (
     SwitchTransformersEncoderModel,
     SwitchTransformersForConditionalGeneration,
