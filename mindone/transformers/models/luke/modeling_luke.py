@@ -12,7 +12,7 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-"""PyTorch LUKE model."""
+"""MindSpore LUKE model."""
 
 import math
 from dataclasses import dataclass
@@ -49,23 +49,23 @@ class BaseLukeModelOutputWithPooling(BaseModelOutputWithPooling):
     Base class for outputs of the LUKE model.
 
     Args:
-        last_hidden_state (`torch.FloatTensor` of shape `(batch_size, sequence_length, hidden_size)`):
+        last_hidden_state (`ms.Tensor` of shape `(batch_size, sequence_length, hidden_size)`):
             Sequence of hidden-states at the output of the last layer of the model.
-        entity_last_hidden_state (`torch.FloatTensor` of shape `(batch_size, entity_length, hidden_size)`):
+        entity_last_hidden_state (`ms.Tensor` of shape `(batch_size, entity_length, hidden_size)`):
             Sequence of entity hidden-states at the output of the last layer of the model.
-        pooler_output (`torch.FloatTensor` of shape `(batch_size, hidden_size)`):
+        pooler_output (`ms.Tensor` of shape `(batch_size, hidden_size)`):
             Last layer hidden-state of the first token of the sequence (classification token) further processed by a
             Linear layer and a Tanh activation function.
-        hidden_states (`tuple(torch.FloatTensor)`, *optional*, returned when `output_hidden_states=True` is passed or when `config.output_hidden_states=True`):
-            Tuple of `torch.FloatTensor` (one for the output of the embeddings + one for the output of each layer) of
+        hidden_states (`tuple(ms.Tensor)`, *optional*, returned when `output_hidden_states=True` is passed or when `config.output_hidden_states=True`):
+            Tuple of `ms.Tensor` (one for the output of the embeddings + one for the output of each layer) of
             shape `(batch_size, sequence_length, hidden_size)`. Hidden-states of the model at the output of each layer
             plus the initial embedding outputs.
-        entity_hidden_states (`tuple(torch.FloatTensor)`, *optional*, returned when `output_hidden_states=True` is passed or when
-            `config.output_hidden_states=True`): Tuple of `torch.FloatTensor` (one for the output of the embeddings + one for the output of each layer) of
+        entity_hidden_states (`tuple(ms.Tensor)`, *optional*, returned when `output_hidden_states=True` is passed or when
+            `config.output_hidden_states=True`): Tuple of `ms.Tensor` (one for the output of the embeddings + one for the output of each layer) of
             shape `(batch_size, entity_length, hidden_size)`. Entity hidden-states of the model at the output of each
             layer plus the initial entity embedding outputs.
-        attentions (`tuple(torch.FloatTensor)`, *optional*, returned when `output_attentions=True` is passed or when `config.output_attentions=True`):
-            Tuple of `torch.FloatTensor` (one for each layer) of shape `(batch_size, num_heads, sequence_length +
+        attentions (`tuple(ms.Tensor)`, *optional*, returned when `output_attentions=True` is passed or when `config.output_attentions=True`):
+            Tuple of `ms.Tensor` (one for each layer) of shape `(batch_size, num_heads, sequence_length +
             entity_length, sequence_length + entity_length)`. Attentions weights after the attention softmax, used to
             compute the weighted average in the self-attention heads.
     """
@@ -80,21 +80,21 @@ class BaseLukeModelOutput(BaseModelOutput):
     Base class for model's outputs, with potential hidden states and attentions.
 
     Args:
-        last_hidden_state (`torch.FloatTensor` of shape `(batch_size, sequence_length, hidden_size)`):
+        last_hidden_state (`ms.Tensor` of shape `(batch_size, sequence_length, hidden_size)`):
             Sequence of hidden-states at the output of the last layer of the model.
-        entity_last_hidden_state (`torch.FloatTensor` of shape `(batch_size, entity_length, hidden_size)`):
+        entity_last_hidden_state (`ms.Tensor` of shape `(batch_size, entity_length, hidden_size)`):
             Sequence of entity hidden-states at the output of the last layer of the model.
-        hidden_states (`tuple(torch.FloatTensor)`, *optional*, returned when `output_hidden_states=True` is passed or when `config.output_hidden_states=True`):
-            Tuple of `torch.FloatTensor` (one for the output of the embeddings + one for the output of each layer) of
+        hidden_states (`tuple(ms.Tensor)`, *optional*, returned when `output_hidden_states=True` is passed or when `config.output_hidden_states=True`):
+            Tuple of `ms.Tensor` (one for the output of the embeddings + one for the output of each layer) of
             shape `(batch_size, sequence_length, hidden_size)`.
 
             Hidden-states of the model at the output of each layer plus the initial embedding outputs.
-        entity_hidden_states (`tuple(torch.FloatTensor)`, *optional*, returned when `output_hidden_states=True` is passed or
-            when `config.output_hidden_states=True`): Tuple of `torch.FloatTensor` (one for the output of the embeddings + one for the output of each layer) of
+        entity_hidden_states (`tuple(ms.Tensor)`, *optional*, returned when `output_hidden_states=True` is passed or
+            when `config.output_hidden_states=True`): Tuple of `ms.Tensor` (one for the output of the embeddings + one for the output of each layer) of
             shape `(batch_size, entity_length, hidden_size)`. Entity hidden-states of the model at the output of each
             layer plus the initial entity embedding outputs.
-        attentions (`tuple(torch.FloatTensor)`, *optional*, returned when `output_attentions=True` is passed or when `config.output_attentions=True`):
-            Tuple of `torch.FloatTensor` (one for each layer) of shape `(batch_size, num_heads, sequence_length,
+        attentions (`tuple(ms.Tensor)`, *optional*, returned when `output_attentions=True` is passed or when `config.output_attentions=True`):
+            Tuple of `ms.Tensor` (one for each layer) of shape `(batch_size, num_heads, sequence_length,
             sequence_length)`.
 
             Attentions weights after the attention softmax, used to compute the weighted average in the self-attention
@@ -111,27 +111,27 @@ class LukeMaskedLMOutput(ModelOutput):
     Base class for model's outputs, with potential hidden states and attentions.
 
     Args:
-        loss (`torch.FloatTensor` of shape `(1,)`, *optional*, returned when `labels` is provided):
+        loss (`ms.Tensor` of shape `(1,)`, *optional*, returned when `labels` is provided):
             The sum of masked language modeling (MLM) loss and entity prediction loss.
-        mlm_loss (`torch.FloatTensor` of shape `(1,)`, *optional*, returned when `labels` is provided):
+        mlm_loss (`ms.Tensor` of shape `(1,)`, *optional*, returned when `labels` is provided):
             Masked language modeling (MLM) loss.
-        mep_loss (`torch.FloatTensor` of shape `(1,)`, *optional*, returned when `labels` is provided):
+        mep_loss (`ms.Tensor` of shape `(1,)`, *optional*, returned when `labels` is provided):
             Masked entity prediction (MEP) loss.
-        logits (`torch.FloatTensor` of shape `(batch_size, sequence_length, config.vocab_size)`):
+        logits (`ms.Tensor` of shape `(batch_size, sequence_length, config.vocab_size)`):
             Prediction scores of the language modeling head (scores for each vocabulary token before SoftMax).
-        entity_logits (`torch.FloatTensor` of shape `(batch_size, sequence_length, config.vocab_size)`):
+        entity_logits (`ms.Tensor` of shape `(batch_size, sequence_length, config.vocab_size)`):
             Prediction scores of the entity prediction head (scores for each entity vocabulary token before SoftMax).
-        hidden_states (`tuple(torch.FloatTensor)`, *optional*, returned when `output_hidden_states=True` is passed or when `config.output_hidden_states=True`):
-            Tuple of `torch.FloatTensor` (one for the output of the embeddings + one for the output of each layer) of
+        hidden_states (`tuple(ms.Tensor)`, *optional*, returned when `output_hidden_states=True` is passed or when `config.output_hidden_states=True`):
+            Tuple of `ms.Tensor` (one for the output of the embeddings + one for the output of each layer) of
             shape `(batch_size, sequence_length, hidden_size)`.
 
             Hidden-states of the model at the output of each layer plus the initial embedding outputs.
-        entity_hidden_states (`tuple(torch.FloatTensor)`, *optional*, returned when `output_hidden_states=True` is passed or
-            when `config.output_hidden_states=True`): Tuple of `torch.FloatTensor` (one for the output of the embeddings + one for the output of each layer) of
+        entity_hidden_states (`tuple(ms.Tensor)`, *optional*, returned when `output_hidden_states=True` is passed or
+            when `config.output_hidden_states=True`): Tuple of `ms.Tensor` (one for the output of the embeddings + one for the output of each layer) of
             shape `(batch_size, entity_length, hidden_size)`. Entity hidden-states of the model at the output of each
             layer plus the initial entity embedding outputs.
-        attentions (`tuple(torch.FloatTensor)`, *optional*, returned when `output_attentions=True` is passed or when `config.output_attentions=True`):
-            Tuple of `torch.FloatTensor` (one for each layer) of shape `(batch_size, num_heads, sequence_length,
+        attentions (`tuple(ms.Tensor)`, *optional*, returned when `output_attentions=True` is passed or when `config.output_attentions=True`):
+            Tuple of `ms.Tensor` (one for each layer) of shape `(batch_size, num_heads, sequence_length,
             sequence_length)`.
 
             Attentions weights after the attention softmax, used to compute the weighted average in the self-attention
@@ -154,20 +154,20 @@ class EntityClassificationOutput(ModelOutput):
     Outputs of entity classification models.
 
     Args:
-        loss (`torch.FloatTensor` of shape `(1,)`, *optional*, returned when `labels` is provided):
+        loss (`ms.Tensor` of shape `(1,)`, *optional*, returned when `labels` is provided):
             Classification loss.
-        logits (`torch.FloatTensor` of shape `(batch_size, config.num_labels)`):
+        logits (`ms.Tensor` of shape `(batch_size, config.num_labels)`):
             Classification scores (before SoftMax).
-        hidden_states (`tuple(torch.FloatTensor)`, *optional*, returned when `output_hidden_states=True` is passed or when `config.output_hidden_states=True`):
-            Tuple of `torch.FloatTensor` (one for the output of the embeddings + one for the output of each layer) of
+        hidden_states (`tuple(ms.Tensor)`, *optional*, returned when `output_hidden_states=True` is passed or when `config.output_hidden_states=True`):
+            Tuple of `ms.Tensor` (one for the output of the embeddings + one for the output of each layer) of
             shape `(batch_size, sequence_length, hidden_size)`. Hidden-states of the model at the output of each layer
             plus the initial embedding outputs.
-        entity_hidden_states (`tuple(torch.FloatTensor)`, *optional*, returned when `output_hidden_states=True` is passed or
-            when `config.output_hidden_states=True`): Tuple of `torch.FloatTensor` (one for the output of the embeddings + one for the output of each layer) of
+        entity_hidden_states (`tuple(ms.Tensor)`, *optional*, returned when `output_hidden_states=True` is passed or
+            when `config.output_hidden_states=True`): Tuple of `ms.Tensor` (one for the output of the embeddings + one for the output of each layer) of
             shape `(batch_size, entity_length, hidden_size)`. Entity hidden-states of the model at the output of each
             layer plus the initial entity embedding outputs.
-        attentions (`tuple(torch.FloatTensor)`, *optional*, returned when `output_attentions=True` is passed or when `config.output_attentions=True`):
-            Tuple of `torch.FloatTensor` (one for each layer) of shape `(batch_size, num_heads, sequence_length,
+        attentions (`tuple(ms.Tensor)`, *optional*, returned when `output_attentions=True` is passed or when `config.output_attentions=True`):
+            Tuple of `ms.Tensor` (one for each layer) of shape `(batch_size, num_heads, sequence_length,
             sequence_length)`. Attentions weights after the attention softmax, used to compute the weighted average in
             the self-attention heads.
     """
@@ -185,20 +185,20 @@ class EntityPairClassificationOutput(ModelOutput):
     Outputs of entity pair classification models.
 
     Args:
-        loss (`torch.FloatTensor` of shape `(1,)`, *optional*, returned when `labels` is provided):
+        loss (`ms.Tensor` of shape `(1,)`, *optional*, returned when `labels` is provided):
             Classification loss.
-        logits (`torch.FloatTensor` of shape `(batch_size, config.num_labels)`):
+        logits (`ms.Tensor` of shape `(batch_size, config.num_labels)`):
             Classification scores (before SoftMax).
-        hidden_states (`tuple(torch.FloatTensor)`, *optional*, returned when `output_hidden_states=True` is passed or when `config.output_hidden_states=True`):
-            Tuple of `torch.FloatTensor` (one for the output of the embeddings + one for the output of each layer) of
+        hidden_states (`tuple(ms.Tensor)`, *optional*, returned when `output_hidden_states=True` is passed or when `config.output_hidden_states=True`):
+            Tuple of `ms.Tensor` (one for the output of the embeddings + one for the output of each layer) of
             shape `(batch_size, sequence_length, hidden_size)`. Hidden-states of the model at the output of each layer
             plus the initial embedding outputs.
-        entity_hidden_states (`tuple(torch.FloatTensor)`, *optional*, returned when `output_hidden_states=True` is passed or
-            when `config.output_hidden_states=True`): Tuple of `torch.FloatTensor` (one for the output of the embeddings + one for the output of each layer) of
+        entity_hidden_states (`tuple(ms.Tensor)`, *optional*, returned when `output_hidden_states=True` is passed or
+            when `config.output_hidden_states=True`): Tuple of `ms.Tensor` (one for the output of the embeddings + one for the output of each layer) of
             shape `(batch_size, entity_length, hidden_size)`. Entity hidden-states of the model at the output of each
             layer plus the initial entity embedding outputs.
-        attentions (`tuple(torch.FloatTensor)`, *optional*, returned when `output_attentions=True` is passed or when `config.output_attentions=True`):
-            Tuple of `torch.FloatTensor` (one for each layer) of shape `(batch_size, num_heads, sequence_length,
+        attentions (`tuple(ms.Tensor)`, *optional*, returned when `output_attentions=True` is passed or when `config.output_attentions=True`):
+            Tuple of `ms.Tensor` (one for each layer) of shape `(batch_size, num_heads, sequence_length,
             sequence_length)`. Attentions weights after the attention softmax, used to compute the weighted average in
             the self-attention heads.
     """
@@ -216,20 +216,20 @@ class EntitySpanClassificationOutput(ModelOutput):
     Outputs of entity span classification models.
 
     Args:
-        loss (`torch.FloatTensor` of shape `(1,)`, *optional*, returned when `labels` is provided):
+        loss (`ms.Tensor` of shape `(1,)`, *optional*, returned when `labels` is provided):
             Classification loss.
-        logits (`torch.FloatTensor` of shape `(batch_size, entity_length, config.num_labels)`):
+        logits (`ms.Tensor` of shape `(batch_size, entity_length, config.num_labels)`):
             Classification scores (before SoftMax).
-        hidden_states (`tuple(torch.FloatTensor)`, *optional*, returned when `output_hidden_states=True` is passed or when `config.output_hidden_states=True`):
-            Tuple of `torch.FloatTensor` (one for the output of the embeddings + one for the output of each layer) of
+        hidden_states (`tuple(ms.Tensor)`, *optional*, returned when `output_hidden_states=True` is passed or when `config.output_hidden_states=True`):
+            Tuple of `ms.Tensor` (one for the output of the embeddings + one for the output of each layer) of
             shape `(batch_size, sequence_length, hidden_size)`. Hidden-states of the model at the output of each layer
             plus the initial embedding outputs.
-        entity_hidden_states (`tuple(torch.FloatTensor)`, *optional*, returned when `output_hidden_states=True` is passed or
-            when `config.output_hidden_states=True`): Tuple of `torch.FloatTensor` (one for the output of the embeddings + one for the output of each layer) of
+        entity_hidden_states (`tuple(ms.Tensor)`, *optional*, returned when `output_hidden_states=True` is passed or
+            when `config.output_hidden_states=True`): Tuple of `ms.Tensor` (one for the output of the embeddings + one for the output of each layer) of
             shape `(batch_size, entity_length, hidden_size)`. Entity hidden-states of the model at the output of each
             layer plus the initial entity embedding outputs.
-        attentions (`tuple(torch.FloatTensor)`, *optional*, returned when `output_attentions=True` is passed or when `config.output_attentions=True`):
-            Tuple of `torch.FloatTensor` (one for each layer) of shape `(batch_size, num_heads, sequence_length,
+        attentions (`tuple(ms.Tensor)`, *optional*, returned when `output_attentions=True` is passed or when `config.output_attentions=True`):
+            Tuple of `ms.Tensor` (one for each layer) of shape `(batch_size, num_heads, sequence_length,
             sequence_length)`. Attentions weights after the attention softmax, used to compute the weighted average in
             the self-attention heads.
     """
@@ -247,21 +247,21 @@ class LukeSequenceClassifierOutput(ModelOutput):
     Outputs of sentence classification models.
 
     Args:
-        loss (`torch.FloatTensor` of shape `(1,)`, *optional*, returned when `labels` is provided):
+        loss (`ms.Tensor` of shape `(1,)`, *optional*, returned when `labels` is provided):
             Classification (or regression if config.num_labels==1) loss.
-        logits (`torch.FloatTensor` of shape `(batch_size, config.num_labels)`):
+        logits (`ms.Tensor` of shape `(batch_size, config.num_labels)`):
             Classification (or regression if config.num_labels==1) scores (before SoftMax).
-        hidden_states (`tuple(torch.FloatTensor)`, *optional*, returned when `output_hidden_states=True` is passed or when `config.output_hidden_states=True`):
-            Tuple of `torch.FloatTensor` (one for the output of the embeddings, if the model has an embedding layer, +
+        hidden_states (`tuple(ms.Tensor)`, *optional*, returned when `output_hidden_states=True` is passed or when `config.output_hidden_states=True`):
+            Tuple of `ms.Tensor` (one for the output of the embeddings, if the model has an embedding layer, +
             one for the output of each layer) of shape `(batch_size, sequence_length, hidden_size)`.
 
             Hidden-states of the model at the output of each layer plus the optional initial embedding outputs.
-        entity_hidden_states (`tuple(torch.FloatTensor)`, *optional*, returned when `output_hidden_states=True` is passed or
-            when `config.output_hidden_states=True`): Tuple of `torch.FloatTensor` (one for the output of the embeddings + one for the output of each layer) of
+        entity_hidden_states (`tuple(ms.Tensor)`, *optional*, returned when `output_hidden_states=True` is passed or
+            when `config.output_hidden_states=True`): Tuple of `ms.Tensor` (one for the output of the embeddings + one for the output of each layer) of
             shape `(batch_size, entity_length, hidden_size)`. Entity hidden-states of the model at the output of each
             layer plus the initial entity embedding outputs.
-        attentions (`tuple(torch.FloatTensor)`, *optional*, returned when `output_attentions=True` is passed or when `config.output_attentions=True`):
-            Tuple of `torch.FloatTensor` (one for each layer) of shape `(batch_size, num_heads, sequence_length,
+        attentions (`tuple(ms.Tensor)`, *optional*, returned when `output_attentions=True` is passed or when `config.output_attentions=True`):
+            Tuple of `ms.Tensor` (one for each layer) of shape `(batch_size, num_heads, sequence_length,
             sequence_length)`.
 
             Attentions weights after the attention softmax, used to compute the weighted average in the self-attention
@@ -281,21 +281,21 @@ class LukeTokenClassifierOutput(ModelOutput):
     Base class for outputs of token classification models.
 
     Args:
-        loss (`torch.FloatTensor` of shape `(1,)`, *optional*, returned when `labels` is provided) :
+        loss (`ms.Tensor` of shape `(1,)`, *optional*, returned when `labels` is provided) :
             Classification loss.
-        logits (`torch.FloatTensor` of shape `(batch_size, sequence_length, config.num_labels)`):
+        logits (`ms.Tensor` of shape `(batch_size, sequence_length, config.num_labels)`):
             Classification scores (before SoftMax).
-        hidden_states (`tuple(torch.FloatTensor)`, *optional*, returned when `output_hidden_states=True` is passed or when `config.output_hidden_states=True`):
-            Tuple of `torch.FloatTensor` (one for the output of the embeddings, if the model has an embedding layer, +
+        hidden_states (`tuple(ms.Tensor)`, *optional*, returned when `output_hidden_states=True` is passed or when `config.output_hidden_states=True`):
+            Tuple of `ms.Tensor` (one for the output of the embeddings, if the model has an embedding layer, +
             one for the output of each layer) of shape `(batch_size, sequence_length, hidden_size)`.
 
             Hidden-states of the model at the output of each layer plus the optional initial embedding outputs.
-        entity_hidden_states (`tuple(torch.FloatTensor)`, *optional*, returned when `output_hidden_states=True` is passed or
-            when `config.output_hidden_states=True`): Tuple of `torch.FloatTensor` (one for the output of the embeddings + one for the output of each layer) of
+        entity_hidden_states (`tuple(ms.Tensor)`, *optional*, returned when `output_hidden_states=True` is passed or
+            when `config.output_hidden_states=True`): Tuple of `ms.Tensor` (one for the output of the embeddings + one for the output of each layer) of
             shape `(batch_size, entity_length, hidden_size)`. Entity hidden-states of the model at the output of each
             layer plus the initial entity embedding outputs.
-        attentions (`tuple(torch.FloatTensor)`, *optional*, returned when `output_attentions=True` is passed or when `config.output_attentions=True`):
-            Tuple of `torch.FloatTensor` (one for each layer) of shape `(batch_size, num_heads, sequence_length,
+        attentions (`tuple(ms.Tensor)`, *optional*, returned when `output_attentions=True` is passed or when `config.output_attentions=True`):
+            Tuple of `ms.Tensor` (one for each layer) of shape `(batch_size, num_heads, sequence_length,
             sequence_length)`.
 
             Attentions weights after the attention softmax, used to compute the weighted average in the self-attention
@@ -315,23 +315,23 @@ class LukeQuestionAnsweringModelOutput(ModelOutput):
     Outputs of question answering models.
 
     Args:
-        loss (`torch.FloatTensor` of shape `(1,)`, *optional*, returned when `labels` is provided):
+        loss (`ms.Tensor` of shape `(1,)`, *optional*, returned when `labels` is provided):
             Total span extraction loss is the sum of a Cross-Entropy for the start and end positions.
-        start_logits (`torch.FloatTensor` of shape `(batch_size, sequence_length)`):
+        start_logits (`ms.Tensor` of shape `(batch_size, sequence_length)`):
             Span-start scores (before SoftMax).
-        end_logits (`torch.FloatTensor` of shape `(batch_size, sequence_length)`):
+        end_logits (`ms.Tensor` of shape `(batch_size, sequence_length)`):
             Span-end scores (before SoftMax).
-        hidden_states (`tuple(torch.FloatTensor)`, *optional*, returned when `output_hidden_states=True` is passed or when `config.output_hidden_states=True`):
-            Tuple of `torch.FloatTensor` (one for the output of the embeddings, if the model has an embedding layer, +
+        hidden_states (`tuple(ms.Tensor)`, *optional*, returned when `output_hidden_states=True` is passed or when `config.output_hidden_states=True`):
+            Tuple of `ms.Tensor` (one for the output of the embeddings, if the model has an embedding layer, +
             one for the output of each layer) of shape `(batch_size, sequence_length, hidden_size)`.
 
             Hidden-states of the model at the output of each layer plus the optional initial embedding outputs.
-        entity_hidden_states (`tuple(torch.FloatTensor)`, *optional*, returned when `output_hidden_states=True` is passed or
-            when `config.output_hidden_states=True`): Tuple of `torch.FloatTensor` (one for the output of the embeddings + one for the output of each layer) of
+        entity_hidden_states (`tuple(ms.Tensor)`, *optional*, returned when `output_hidden_states=True` is passed or
+            when `config.output_hidden_states=True`): Tuple of `ms.Tensor` (one for the output of the embeddings + one for the output of each layer) of
             shape `(batch_size, entity_length, hidden_size)`. Entity hidden-states of the model at the output of each
             layer plus the initial entity embedding outputs.
-        attentions (`tuple(torch.FloatTensor)`, *optional*, returned when `output_attentions=True` is passed or when `config.output_attentions=True`):
-            Tuple of `torch.FloatTensor` (one for each layer) of shape `(batch_size, num_heads, sequence_length,
+        attentions (`tuple(ms.Tensor)`, *optional*, returned when `output_attentions=True` is passed or when `config.output_attentions=True`):
+            Tuple of `ms.Tensor` (one for each layer) of shape `(batch_size, num_heads, sequence_length,
             sequence_length)`.
 
             Attentions weights after the attention softmax, used to compute the weighted average in the self-attention
@@ -352,23 +352,23 @@ class LukeMultipleChoiceModelOutput(ModelOutput):
     Outputs of multiple choice models.
 
     Args:
-        loss (`torch.FloatTensor` of shape *(1,)*, *optional*, returned when `labels` is provided):
+        loss (`ms.Tensor` of shape *(1,)*, *optional*, returned when `labels` is provided):
             Classification loss.
-        logits (`torch.FloatTensor` of shape `(batch_size, num_choices)`):
+        logits (`ms.Tensor` of shape `(batch_size, num_choices)`):
             *num_choices* is the second dimension of the input tensors. (see *input_ids* above).
 
             Classification scores (before SoftMax).
-        hidden_states (`tuple(torch.FloatTensor)`, *optional*, returned when `output_hidden_states=True` is passed or when `config.output_hidden_states=True`):
-            Tuple of `torch.FloatTensor` (one for the output of the embeddings, if the model has an embedding layer, +
+        hidden_states (`tuple(ms.Tensor)`, *optional*, returned when `output_hidden_states=True` is passed or when `config.output_hidden_states=True`):
+            Tuple of `ms.Tensor` (one for the output of the embeddings, if the model has an embedding layer, +
             one for the output of each layer) of shape `(batch_size, sequence_length, hidden_size)`.
 
             Hidden-states of the model at the output of each layer plus the optional initial embedding outputs.
-        entity_hidden_states (`tuple(torch.FloatTensor)`, *optional*, returned when `output_hidden_states=True` is passed or
-            when `config.output_hidden_states=True`): Tuple of `torch.FloatTensor` (one for the output of the embeddings + one for the output of each layer) of
+        entity_hidden_states (`tuple(ms.Tensor)`, *optional*, returned when `output_hidden_states=True` is passed or
+            when `config.output_hidden_states=True`): Tuple of `ms.Tensor` (one for the output of the embeddings + one for the output of each layer) of
             shape `(batch_size, entity_length, hidden_size)`. Entity hidden-states of the model at the output of each
             layer plus the initial entity embedding outputs.
-        attentions (`tuple(torch.FloatTensor)`, *optional*, returned when `output_attentions=True` is passed or when `config.output_attentions=True`):
-            Tuple of `torch.FloatTensor` (one for each layer) of shape `(batch_size, num_heads, sequence_length,
+        attentions (`tuple(ms.Tensor)`, *optional*, returned when `output_attentions=True` is passed or when `config.output_attentions=True`):
+            Tuple of `ms.Tensor` (one for each layer) of shape `(batch_size, num_heads, sequence_length,
             sequence_length)`.
 
             Attentions weights after the attention softmax, used to compute the weighted average in the self-attention
@@ -447,9 +447,9 @@ class LukeEmbeddings(mindspore.nn.Cell):
         We are provided embeddings directly. We cannot infer which are padded so just generate sequential position ids.
 
         Args:
-            inputs_embeds: torch.Tensor
+            inputs_embeds: ms.Tensor
 
-        Returns: torch.Tensor
+        Returns: ms.Tensor
         """
         input_shape = inputs_embeds.shape[:-1]
         sequence_length = input_shape[1]
@@ -792,14 +792,7 @@ class LukeEncoder(mindspore.nn.Cell):
 
             layer_head_mask = head_mask[i] if head_mask is not None else None
             if self.gradient_checkpointing and self.training:
-                layer_outputs = self._gradient_checkpointing_func(
-                    layer_module.__call__,
-                    word_hidden_states,
-                    entity_hidden_states,
-                    attention_mask,
-                    layer_head_mask,
-                    output_attentions,
-                )
+                raise NotImplementedError("Gradient checkpoint is not yet supported.")
             else:
                 layer_outputs = layer_module(
                     word_hidden_states,
@@ -925,8 +918,8 @@ LUKE_START_DOCSTRING = r"""
     library implements for all its model (such as downloading or saving, resizing the input embeddings, pruning heads
     etc.)
 
-    This model is also a PyTorch [torch.nn.Module](https://pytorch.org/docs/stable/nn.html#torch.nn.Module) subclass.
-    Use it as a regular PyTorch Module and refer to the PyTorch documentation for all matter related to general usage
+    This model is also a MindSpore [mindspore.nn.Cell](https://www.mindspore.cn/docs/zh-CN/master/api_python/nn/mindspore.nn.Cell.html) subclass.
+    Use it as a regular MindSpore Module and refer to the MindSpore documentation for all matter related to general usage
     and behavior.
 
     Parameters:
@@ -937,21 +930,21 @@ LUKE_START_DOCSTRING = r"""
 
 LUKE_INPUTS_DOCSTRING = r"""
     Args:
-        input_ids (`torch.LongTensor` of shape `({0})`):
+        input_ids (`ms.Tensor` of shape `({0})`):
             Indices of input sequence tokens in the vocabulary.
 
             Indices can be obtained using [`AutoTokenizer`]. See [`PreTrainedTokenizer.encode`] and
             [`PreTrainedTokenizer.__call__`] for details.
 
             [What are input IDs?](../glossary#input-ids)
-        attention_mask (`torch.FloatTensor` of shape `({0})`, *optional*):
+        attention_mask (`ms.Tensor` of shape `({0})`, *optional*):
             Mask to avoid performing attention on padding token indices. Mask values selected in `[0, 1]`:
 
             - 1 for tokens that are **not masked**,
             - 0 for tokens that are **masked**.
 
             [What are attention masks?](../glossary#attention-mask)
-        token_type_ids (`torch.LongTensor` of shape `({0})`, *optional*):
+        token_type_ids (`ms.Tensor` of shape `({0})`, *optional*):
             Segment token indices to indicate first and second portions of the inputs. Indices are selected in `[0,
             1]`:
 
@@ -959,41 +952,41 @@ LUKE_INPUTS_DOCSTRING = r"""
             - 1 corresponds to a *sentence B* token.
 
             [What are token type IDs?](../glossary#token-type-ids)
-        position_ids (`torch.LongTensor` of shape `({0})`, *optional*):
+        position_ids (`ms.Tensor` of shape `({0})`, *optional*):
             Indices of positions of each input sequence tokens in the position embeddings. Selected in the range `[0,
             config.max_position_embeddings - 1]`.
 
             [What are position IDs?](../glossary#position-ids)
 
-        entity_ids (`torch.LongTensor` of shape `(batch_size, entity_length)`):
+        entity_ids (`ms.Tensor` of shape `(batch_size, entity_length)`):
             Indices of entity tokens in the entity vocabulary.
 
             Indices can be obtained using [`AutoTokenizer`]. See [`PreTrainedTokenizer.encode`] and
             [`PreTrainedTokenizer.__call__`] for details.
 
-        entity_attention_mask (`torch.FloatTensor` of shape `(batch_size, entity_length)`, *optional*):
+        entity_attention_mask (`ms.Tensor` of shape `(batch_size, entity_length)`, *optional*):
             Mask to avoid performing attention on padding entity token indices. Mask values selected in `[0, 1]`:
 
             - 1 for entity tokens that are **not masked**,
             - 0 for entity tokens that are **masked**.
 
-        entity_token_type_ids (`torch.LongTensor` of shape `(batch_size, entity_length)`, *optional*):
+        entity_token_type_ids (`ms.Tensor` of shape `(batch_size, entity_length)`, *optional*):
             Segment token indices to indicate first and second portions of the entity token inputs. Indices are
             selected in `[0, 1]`:
 
             - 0 corresponds to a *portion A* entity token,
             - 1 corresponds to a *portion B* entity token.
 
-        entity_position_ids (`torch.LongTensor` of shape `(batch_size, entity_length, max_mention_length)`, *optional*):
+        entity_position_ids (`ms.Tensor` of shape `(batch_size, entity_length, max_mention_length)`, *optional*):
             Indices of positions of each input entity in the position embeddings. Selected in the range `[0,
             config.max_position_embeddings - 1]`.
 
-        inputs_embeds (`torch.FloatTensor` of shape `({0}, hidden_size)`, *optional*):
+        inputs_embeds (`ms.Tensor` of shape `({0}, hidden_size)`, *optional*):
             Optionally, instead of passing `input_ids` you can choose to directly pass an embedded representation. This
             is useful if you want more control over how to convert `input_ids` indices into associated vectors than the
             model's internal embedding lookup matrix.
 
-        head_mask (`torch.FloatTensor` of shape `(num_heads,)` or `(num_layers, num_heads)`, *optional*):
+        head_mask (`ms.Tensor` of shape `(num_heads,)` or `(num_layers, num_heads)`, *optional*):
             Mask to nullify selected heads of the self-attention modules. Mask values selected in `[0, 1]`:
 
             - 1 indicates the head is **not masked**,
@@ -1069,7 +1062,9 @@ class LukeModel(LukePreTrainedModel):
         Examples:
 
         ```python
-        >>> from transformers import AutoTokenizer, LukeModel
+        >>> from transformers import AutoTokenizer
+        >>> from mindone.transformers import LukeModel
+        >>> import mindspore as ms
 
         >>> tokenizer = AutoTokenizer.from_pretrained("studio-ousia/luke-base")
         >>> model = LukeModel.from_pretrained("studio-ousia/luke-base")
@@ -1078,7 +1073,9 @@ class LukeModel(LukePreTrainedModel):
         >>> text = "Beyoncé lives in Los Angeles."
         >>> entity_spans = [(0, 7)]  # character-based entity span corresponding to "Beyoncé"
 
-        >>> encoding = tokenizer(text, entity_spans=entity_spans, add_prefix_space=True, return_tensors="pt")
+        >>> encoding = tokenizer(text, entity_spans=entity_spans, add_prefix_space=True, return_tensors="np")
+        >>> for k,v in encoding.items():
+        >>>    encoding[k] = ms.tensor(v)
         >>> outputs = model(**encoding)
         >>> word_last_hidden_state = outputs.last_hidden_state
         >>> entity_last_hidden_state = outputs.entity_last_hidden_state
@@ -1095,8 +1092,10 @@ class LukeModel(LukePreTrainedModel):
         ... ]  # character-based entity spans corresponding to "Beyoncé" and "Los Angeles"
 
         >>> encoding = tokenizer(
-        ...     text, entities=entities, entity_spans=entity_spans, add_prefix_space=True, return_tensors="pt"
+        ...     text, entities=entities, entity_spans=entity_spans, add_prefix_space=True, return_tensors="np"
         ... )
+        >>> for k,v in encoding.items():
+        >>>    encoding[k] = ms.tensor(v)
         >>> outputs = model(**encoding)
         >>> word_last_hidden_state = outputs.last_hidden_state
         >>> entity_last_hidden_state = outputs.entity_last_hidden_state
@@ -1200,13 +1199,13 @@ class LukeModel(LukePreTrainedModel):
         Makes broadcastable attention and causal masks so that future and masked tokens are ignored.
 
         Arguments:
-            word_attention_mask (`torch.LongTensor`):
+            word_attention_mask (`ms.Tensor`):
                 Attention mask for word tokens with ones indicating tokens to attend to, zeros for tokens to ignore.
-            entity_attention_mask (`torch.LongTensor`, *optional*):
+            entity_attention_mask (`ms.Tensor`, *optional*):
                 Attention mask for entity tokens with ones indicating tokens to attend to, zeros for tokens to ignore.
 
         Returns:
-            `torch.Tensor` The extended attention mask, with a the same dtype as `attention_mask.dtype`.
+            `ms.Tensor` The extended attention mask, with a the same dtype as `attention_mask.dtype`.
         """
         attention_mask = word_attention_mask
         if entity_attention_mask is not None:
@@ -1230,9 +1229,9 @@ def create_position_ids_from_input_ids(input_ids, padding_idx):
     are ignored. This is modified from fairseq's `utils.make_positions`.
 
     Args:
-        x: torch.Tensor x:
+        x: ms.Tensor x:
 
-    Returns: torch.Tensor
+    Returns: ms.Tensor
     """
     # The series of casts and type-conversions here are carefully balanced to both work with ONNX export and XLA.
     mask = input_ids.ne(padding_idx).int()
@@ -1324,11 +1323,11 @@ class LukeForMaskedLM(LukePreTrainedModel):
         return_dict: Optional[bool] = None,
     ) -> Union[Tuple, LukeMaskedLMOutput]:
         r"""
-        labels (`torch.LongTensor` of shape `(batch_size, sequence_length)`, *optional*):
+        labels (`ms.Tensor` of shape `(batch_size, sequence_length)`, *optional*):
             Labels for computing the masked language modeling loss. Indices should be in `[-100, 0, ...,
             config.vocab_size]` (see `input_ids` docstring) Tokens with indices set to `-100` are ignored (masked), the
             loss is only computed for the tokens with labels in `[0, ..., config.vocab_size]`
-        entity_labels (`torch.LongTensor` of shape `(batch_size, entity_length)`, *optional*):
+        entity_labels (`ms.Tensor` of shape `(batch_size, entity_length)`, *optional*):
             Labels for computing the masked language modeling loss. Indices should be in `[-100, 0, ...,
             config.vocab_size]` (see `input_ids` docstring) Tokens with indices set to `-100` are ignored (masked), the
             loss is only computed for the tokens with labels in `[0, ..., config.vocab_size]`
@@ -1444,7 +1443,7 @@ class LukeForEntityClassification(LukePreTrainedModel):
         return_dict: Optional[bool] = None,
     ) -> Union[Tuple, EntityClassificationOutput]:
         r"""
-        labels (`torch.LongTensor` of shape `(batch_size,)` or `(batch_size, num_labels)`, *optional*):
+        labels (`ms.Tensor` of shape `(batch_size,)` or `(batch_size, num_labels)`, *optional*):
             Labels for computing the classification loss. If the shape is `(batch_size,)`, the cross entropy loss is
             used for the single-label classification. In this case, labels should contain the indices that should be in
             `[0, ..., config.num_labels - 1]`. If the shape is `(batch_size, num_labels)`, the binary cross entropy
@@ -1456,14 +1455,18 @@ class LukeForEntityClassification(LukePreTrainedModel):
         Examples:
 
         ```python
-        >>> from transformers import AutoTokenizer, LukeForEntityClassification
+        >>> from transformers import AutoTokenizer
+        >>> from mindone.transformers import LukeForEntityClassification
+        >>> import mindspore as ms
 
         >>> tokenizer = AutoTokenizer.from_pretrained("studio-ousia/luke-large-finetuned-open-entity")
         >>> model = LukeForEntityClassification.from_pretrained("studio-ousia/luke-large-finetuned-open-entity")
 
         >>> text = "Beyoncé lives in Los Angeles."
         >>> entity_spans = [(0, 7)]  # character-based entity span corresponding to "Beyoncé"
-        >>> inputs = tokenizer(text, entity_spans=entity_spans, return_tensors="pt")
+        >>> inputs = tokenizer(text, entity_spans=entity_spans, return_tensors="np")
+        >>> for k,v in inputs.items():
+        >>>    inputs[k] = ms.tensor(v)
         >>> outputs = model(**inputs)
         >>> logits = outputs.logits
         >>> predicted_class_idx = logits.argmax(-1).item()
@@ -1560,7 +1563,7 @@ class LukeForEntityPairClassification(LukePreTrainedModel):
         return_dict: Optional[bool] = None,
     ) -> Union[Tuple, EntityPairClassificationOutput]:
         r"""
-        labels (`torch.LongTensor` of shape `(batch_size,)` or `(batch_size, num_labels)`, *optional*):
+        labels (`ms.Tensor` of shape `(batch_size,)` or `(batch_size, num_labels)`, *optional*):
             Labels for computing the classification loss. If the shape is `(batch_size,)`, the cross entropy loss is
             used for the single-label classification. In this case, labels should contain the indices that should be in
             `[0, ..., config.num_labels - 1]`. If the shape is `(batch_size, num_labels)`, the binary cross entropy
@@ -1572,7 +1575,9 @@ class LukeForEntityPairClassification(LukePreTrainedModel):
         Examples:
 
         ```python
-        >>> from transformers import AutoTokenizer, LukeForEntityPairClassification
+        >>> from transformers import AutoTokenizer
+        >>> from mindone.transformers import LukeForEntityPairClassification
+        >>> import mindspore as ms
 
         >>> tokenizer = AutoTokenizer.from_pretrained("studio-ousia/luke-large-finetuned-tacred")
         >>> model = LukeForEntityPairClassification.from_pretrained("studio-ousia/luke-large-finetuned-tacred")
@@ -1582,7 +1587,9 @@ class LukeForEntityPairClassification(LukePreTrainedModel):
         ...     (0, 7),
         ...     (17, 28),
         ... ]  # character-based entity spans corresponding to "Beyoncé" and "Los Angeles"
-        >>> inputs = tokenizer(text, entity_spans=entity_spans, return_tensors="pt")
+        >>> inputs = tokenizer(text, entity_spans=entity_spans, return_tensors="np")
+        >>> for k,v in inputs.items():
+        >>>    inputs[k] = ms.tensor(v)
         >>> outputs = model(**inputs)
         >>> logits = outputs.logits
         >>> predicted_class_idx = logits.argmax(-1).item()
@@ -1683,13 +1690,13 @@ class LukeForEntitySpanClassification(LukePreTrainedModel):
         return_dict: Optional[bool] = None,
     ) -> Union[Tuple, EntitySpanClassificationOutput]:
         r"""
-        entity_start_positions (`torch.LongTensor`):
+        entity_start_positions (`ms.Tensor`):
             The start positions of entities in the word token sequence.
 
-        entity_end_positions (`torch.LongTensor`):
+        entity_end_positions (`ms.Tensor`):
             The end positions of entities in the word token sequence.
 
-        labels (`torch.LongTensor` of shape `(batch_size, entity_length)` or `(batch_size, entity_length, num_labels)`, *optional*):
+        labels (`ms.Tensor` of shape `(batch_size, entity_length)` or `(batch_size, entity_length, num_labels)`, *optional*):
             Labels for computing the classification loss. If the shape is `(batch_size, entity_length)`, the cross
             entropy loss is used for the single-label classification. In this case, labels should contain the indices
             that should be in `[0, ..., config.num_labels - 1]`. If the shape is `(batch_size, entity_length,
@@ -1701,7 +1708,9 @@ class LukeForEntitySpanClassification(LukePreTrainedModel):
         Examples:
 
         ```python
-        >>> from transformers import AutoTokenizer, LukeForEntitySpanClassification
+        >>> from transformers import AutoTokenizer
+        >>> from mindone.transformers import LukeForEntitySpanClassification
+        >>> import mindspore as ms
 
         >>> tokenizer = AutoTokenizer.from_pretrained("studio-ousia/luke-large-finetuned-conll-2003")
         >>> model = LukeForEntitySpanClassification.from_pretrained("studio-ousia/luke-large-finetuned-conll-2003")
@@ -1716,7 +1725,9 @@ class LukeForEntitySpanClassification(LukePreTrainedModel):
         ...     for end_pos in word_end_positions[i:]:
         ...         entity_spans.append((start_pos, end_pos))
 
-        >>> inputs = tokenizer(text, entity_spans=entity_spans, return_tensors="pt")
+        >>> inputs = tokenizer(text, entity_spans=entity_spans, return_tensors="np")
+        >>> for k,v in inputs.items():
+        >>>    inputs[k] = ms.tensor(v)
         >>> outputs = model(**inputs)
         >>> logits = outputs.logits
         >>> predicted_class_indices = logits.argmax(-1).squeeze().tolist()
@@ -1828,7 +1839,7 @@ class LukeForSequenceClassification(LukePreTrainedModel):
         return_dict: Optional[bool] = None,
     ) -> Union[Tuple, LukeSequenceClassifierOutput]:
         r"""
-        labels (`torch.LongTensor` of shape `(batch_size,)`, *optional*):
+        labels (`ms.Tensor` of shape `(batch_size,)`, *optional*):
             Labels for computing the sequence classification/regression loss. Indices should be in `[0, ...,
             config.num_labels - 1]`. If `config.num_labels == 1` a regression loss is computed (Mean-Square loss), If
             `config.num_labels > 1` a classification loss is computed (Cross-Entropy).
@@ -1942,7 +1953,7 @@ class LukeForTokenClassification(LukePreTrainedModel):
         return_dict: Optional[bool] = None,
     ) -> Union[Tuple, LukeTokenClassifierOutput]:
         r"""
-        labels (`torch.LongTensor` of shape `(batch_size,)`, *optional*):
+        labels (`ms.Tensor` of shape `(batch_size,)`, *optional*):
             Labels for computing the multiple choice classification loss. Indices should be in `[0, ...,
             num_choices-1]` where `num_choices` is the size of the second dimension of the input tensors. (See
             `input_ids` above)
@@ -2036,11 +2047,11 @@ class LukeForQuestionAnswering(LukePreTrainedModel):
         return_dict: Optional[bool] = None,
     ) -> Union[Tuple, LukeQuestionAnsweringModelOutput]:
         r"""
-        start_positions (`torch.LongTensor` of shape `(batch_size,)`, *optional*):
+        start_positions (`ms.Tensor` of shape `(batch_size,)`, *optional*):
             Labels for position (index) of the start of the labelled span for computing the token classification loss.
             Positions are clamped to the length of the sequence (`sequence_length`). Position outside of the sequence
             are not taken into account for computing the loss.
-        end_positions (`torch.LongTensor` of shape `(batch_size,)`, *optional*):
+        end_positions (`ms.Tensor` of shape `(batch_size,)`, *optional*):
             Labels for position (index) of the end of the labelled span for computing the token classification loss.
             Positions are clamped to the length of the sequence (`sequence_length`). Position outside of the sequence
             are not taken into account for computing the loss.
@@ -2155,7 +2166,7 @@ class LukeForMultipleChoice(LukePreTrainedModel):
         return_dict: Optional[bool] = None,
     ) -> Union[Tuple, LukeMultipleChoiceModelOutput]:
         r"""
-        labels (`torch.LongTensor` of shape `(batch_size,)`, *optional*):
+        labels (`ms.Tensor` of shape `(batch_size,)`, *optional*):
             Labels for computing the multiple choice classification loss. Indices should be in `[0, ...,
             num_choices-1]` where `num_choices` is the size of the second dimension of the input tensors. (See
             `input_ids` above)
