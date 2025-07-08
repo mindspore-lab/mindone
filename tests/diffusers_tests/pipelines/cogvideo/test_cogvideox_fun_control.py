@@ -22,11 +22,7 @@ from PIL import Image
 import mindspore as ms
 
 from mindone.diffusers import CogVideoXFunControlPipeline, DDIMScheduler
-from mindone.diffusers.utils.testing_utils import (
-    load_downloaded_numpy_from_hf_hub,
-    load_downloaded_video_from_hf_hub,
-    slow,
-)
+from mindone.diffusers.utils.testing_utils import load_downloaded_video_from_hf_hub, load_numpy_from_local_file, slow
 
 from ..pipeline_test_utils import (
     THRESHOLD_FP16,
@@ -219,8 +215,8 @@ class CogVideoXFunControlPipelineIntegrationTests(PipelineTesterMixin, unittest.
         torch.manual_seed(0)
         video = pipe(prompt=prompt, control_video=control_video)[0][0]
 
-        expected_video = load_downloaded_numpy_from_hf_hub(
-            "The-truth/mindone-testing-arrays",
+        expected_video = load_numpy_from_local_file(
+            "mindone-testing-arrays",
             f"fun_control_{dtype}.npy",
             subfolder="cogvideox",
         )

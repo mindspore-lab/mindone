@@ -40,7 +40,8 @@ Todo:
 from packaging.version import parse
 
 import mindspore as ms
-from mindspore import mint, ops
+from mindspore import mint, nn, ops
+from mindspore._c_expression.amp import AmpLevel, create_amp_strategy
 from mindspore.common.api import _function_forbid_reuse
 from mindspore.ops.function.nn_func import _interploate_ext_make_tuple, _interpolate_ext_scale_factor_convert_size
 
@@ -258,6 +259,24 @@ if MINDSPORE_VERSION >= parse("2.3.0"):
     group_norm = ms.mint.nn.functional.group_norm
 else:
     group_norm = _group_norm
+
+
+# ================================================================================
+# nn.GELU
+# ================================================================================
+class _GELU(nn.Cell):
+    def __init__(self, approximate: str = "none") -> None:
+        super().__init__()
+        self.approximate = approximate
+
+    def construct(self, input: ms.Tensor) -> ms.Tensor:
+        return mint.nn.functional.gelu(input, approximate=self.approximate)
+
+
+if MINDSPORE_VERSION >= parse("2.6.0"):
+    GELU = mint.nn.GELU
+else:
+    GELU = _GELU
 
 
 # ================================================================================
@@ -619,3 +638,25 @@ def _unflatten(input, dim, sizes):
 
 
 unflatten = _unflatten
+
+
+# ================================================================================
+# set_amp_strategy
+# ================================================================================
+def set_amp_strategy(net, weight_dtype=None, level=AmpLevel.AmpO3, white_list=None, black_list=None):
+    """
+    Apply AMP (Automatic Mixed Precision) strategy to a MindSpore network.
+
+    Args:
+        net (Cell): The neural network to configure.
+        weight_dtype (ms.dtype): The target data type for weights (e.g., ms.float16).
+        level (AmpLevel): The AMP level to use (e.g., AmpLevel.AmpO3).
+        white_list (list): List of layer names or modules to skip casting.
+        black_list (list): List of layer names or modules to explicitly cast.
+    """
+    if white_list is None:
+        white_list = []
+    if black_list is None:
+        black_list = []
+
+    net.amp_strategy = create_amp_strategy(level, weight_dtype, white_list, black_list)

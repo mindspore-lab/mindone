@@ -292,19 +292,19 @@ class KDPM2DiscreteScheduler(SchedulerMixin, ConfigMixin):
             sigmas = self._convert_to_beta(in_sigmas=sigmas, num_inference_steps=num_inference_steps)
             timesteps = np.array([self._sigma_to_t(sigma, log_sigmas) for sigma in sigmas])
 
-        self.log_sigmas = ms.Tensor(log_sigmas)
+        self.log_sigmas = ms.tensor(log_sigmas)
         sigmas = np.concatenate([sigmas, [0.0]]).astype(np.float32)
-        sigmas = ms.Tensor(sigmas)
+        sigmas = ms.tensor(sigmas)
 
         # interpolate sigmas
-        sigmas_interpol = sigmas.log().lerp(ms.Tensor(np.roll(sigmas.asnumpy(), 1)).log(), 0.5).exp()
+        sigmas_interpol = sigmas.log().lerp(ms.tensor(np.roll(sigmas.asnumpy(), 1)).log(), 0.5).exp()
 
         self.sigmas = mint.cat([sigmas[:1], sigmas[1:].repeat_interleave(2), sigmas[-1:]])
         self.sigmas_interpol = mint.cat(
             [sigmas_interpol[:1], sigmas_interpol[1:].repeat_interleave(2), sigmas_interpol[-1:]]
         )
 
-        timesteps = ms.Tensor(timesteps)
+        timesteps = ms.tensor(timesteps)
 
         # interpolate timesteps
         log_sigmas = self.log_sigmas

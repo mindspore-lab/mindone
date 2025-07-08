@@ -22,7 +22,7 @@ from transformers import Gemma2Config
 import mindspore as ms
 
 from mindone.diffusers import SanaSprintPipeline
-from mindone.diffusers.utils.testing_utils import load_downloaded_numpy_from_hf_hub, slow
+from mindone.diffusers.utils.testing_utils import load_numpy_from_local_file, slow
 
 from ..pipeline_test_utils import (
     THRESHOLD_FP16,
@@ -205,8 +205,8 @@ class SanaSprintPipelineIntegrationTests(PipelineTesterMixin, unittest.TestCase)
         torch.manual_seed(42)
         image = pipe(prompt="a tiny astronaut hatching from an egg on the moon")[0][0]
 
-        expected_image = load_downloaded_numpy_from_hf_hub(
-            "The-truth/mindone-testing-arrays",
+        expected_image = load_numpy_from_local_file(
+            "mindone-testing-arrays",
             f"sprint_{dtype}.npy",
             subfolder="sana",
         )
