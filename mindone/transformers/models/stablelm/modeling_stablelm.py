@@ -832,17 +832,7 @@ class StableLmModel(StableLmPreTrainedModel):
                 all_hidden_states += (hidden_states,)
 
             if self.gradient_checkpointing and self.training:
-                layer_outputs = self._gradient_checkpointing_func(
-                    decoder_layer.__call__,
-                    hidden_states,
-                    causal_mask,
-                    position_ids,
-                    past_key_values,
-                    output_attentions,
-                    use_cache,
-                    cache_position,
-                    position_embeddings,
-                )
+                raise NotImplementedError("Gradient checkpoint is not yet supported.")
             else:
                 layer_outputs = decoder_layer(
                     hidden_states,
@@ -1053,13 +1043,17 @@ class StableLmForCausalLM(StableLmPreTrainedModel, GenerationMixin):
         Example:
 
         ```python
-        >>> from transformers import AutoTokenizer, StableLmForCausalLM
+        >>> from transformers import AutoTokenizer
+        >>> from mindone.transformers import StableLmForCausalLM
+        >>> import mindspore as ms
 
         >>> model = StableLmForCausalLM.from_pretrained("stabilityai/stablelm-3b-4e1t")
         >>> tokenizer = AutoTokenizer.from_pretrained("stabilityai/stablelm-3b-4e1t")
 
         >>> prompt = "The weather is always wonderful in"
-        >>> inputs = tokenizer(prompt, return_tensors="pt")
+        >>> inputs = tokenizer(prompt, return_tensors="np")
+        >>> for k,v in inputs.items():
+        ...     inputs[k] = ms.tensor(v)
 
         >>> # Generate
         >>> generate_ids = model.generate(inputs.input_ids, max_length=30)
