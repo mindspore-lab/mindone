@@ -236,11 +236,11 @@ def invert_mask(attention_mask):
 
 
 def triu_onnx(x, diagonal=0):
-    l = x.shape[0]
+    len_x = x.shape[0]
     arange = mint.arange(
-        l,
+        len_x,
     )
-    mask = arange.expand((l, l))
+    mask = arange.expand((len_x, len_x))
     arange = arange.unsqueeze(-1)
     if diagonal:
         arange = arange + diagonal
