@@ -323,6 +323,9 @@ from .models.t5 import (
     T5ForConditionalGeneration,
     T5Model,
     T5PreTrainedModel,
+    T5ForTokenClassification,
+    T5ForSequenceClassification,
+    T5ForQuestionAnswering,
 )
 from .models.umt5 import (
     UMT5EncoderModel,

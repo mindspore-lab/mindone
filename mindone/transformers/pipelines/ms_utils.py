@@ -24,7 +24,7 @@ class PipelineDataset(Dataset):
 
 # It is like dataloader --> batch --> create_dict_iterator
 class PipelineIterator:
-    def __init__(self, loader, infer, params, loader_batch_size=None):
+    def __init__(self, loader, infer, params, loader_batch_size=None, collate_fn=None):
         """
         Roughly equivalent to
 
@@ -63,13 +63,15 @@ class PipelineIterator:
         self._loader_batch_index = None
         self._loader_batch_data = None
 
+        self.collate_fn = collate_fn
+
     def __len__(self):
         return len(self.loader)
 
     def __iter__(self):
         # modification
         # self.iterator = iter(self.loader)
-        self.iterator = iter(self.loader.batch(batch_size=1).create_dict_iterator())
+        self.iterator = iter(self.loader)
         return self
 
     def loader_batch_item(self):
@@ -157,7 +159,7 @@ class PipelineIterator:
 
 
 class PipelineChunkIterator(PipelineIterator):
-    def __init__(self, loader, infer, params, loader_batch_size=None):
+    def __init__(self, loader, infer, params, loader_batch_size=None, collate_fn=None):
         """
         Roughly equivalent to
 
@@ -178,7 +180,7 @@ class PipelineChunkIterator(PipelineIterator):
         super().__init__(loader, infer, params)
 
     def __iter__(self):
-        self.iterator = iter(self.loader.batch(batch_size=1).create_dict_iterator())
+        self.iterator = iter(self.loader)
         self.subiterator = None
         return self
 

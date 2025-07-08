@@ -4,4 +4,7 @@ from .modeling_t5 import (
     T5ForConditionalGeneration,
     T5Model,
     T5PreTrainedModel,
+    T5ForQuestionAnswering,
+    T5ForTokenClassification,
+    T5ForSequenceClassification,
 )
