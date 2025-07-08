@@ -114,7 +114,7 @@ FSMT_START_DOCSTRING = r"""
     library implements for all its model (such as downloading or saving, resizing the input embeddings, pruning heads
     etc.)
 
-    This model is also a MindSpore [nn.Cell](https://pytorch.org/docs/stable/torch.nn.html#nn.Cell) subclass.
+    This model is also a MindSpore [mindspore.nn.Cell](https://www.mindspore.cn/docs/zh-CN/master/api_python/nn/mindspore.nn.Cell.html) subclass.
     Use it as a regular MindSpore Module and refer to the MindSpore documentation for all matter related to general usage
     and behavior.
 
@@ -128,15 +128,17 @@ FSMT_GENERATION_EXAMPLE = r"""
     Translation example::
 
     ```python
-    >>> from transformers import AutoTokenizer, FSMTForConditionalGeneration
+    >>> from transformers import AutoTokenizer
+    >>> from mindone.transformers import FSMTForConditionalGeneration
+    >>> import mindspore as ms
 
     >>> mname = "facebook/wmt19-ru-en"
     >>> model = FSMTForConditionalGeneration.from_pretrained(mname)
     >>> tokenizer = AutoTokenizer.from_pretrained(mname)
 
     >>> src_text = "Машинное обучение - это здорово, не так ли?"
-    >>> input_ids = tokenizer(src_text, return_tensors="pt").input_ids
-    >>> outputs = model.generate(input_ids, num_beams=5, num_return_sequences=3)
+    >>> input_ids = tokenizer(src_text, return_tensors="np").input_ids
+    >>> outputs = model.generate(ms.tensor(input_ids), num_beams=5, num_return_sequences=3)
     >>> tokenizer.decode(outputs[0], skip_special_tokens=True)
     "Machine learning is great, isn't it?"
     ```
