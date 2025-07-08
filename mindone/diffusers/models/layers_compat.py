@@ -47,6 +47,7 @@ from mindspore.ops.function.nn_func import _interploate_ext_make_tuple, _interpo
 __all__ = [
     "conv_transpose1d",
     "conv_transpose2d",
+    "conv_transpose3d",
     "group_norm",
     "interpolate",
     "fp32_interpolate",
@@ -170,6 +171,66 @@ if MINDSPORE_VERSION >= parse("2.3.0"):
     conv_transpose2d = ms.mint.nn.functional.conv_transpose2d
 else:
     conv_transpose2d = _conv_transpose2d
+
+
+# ================================================================================
+# conv_transpose3d
+# ================================================================================
+def _conv_transpose3d(input, weight, bias=None, stride=1, padding=0, output_padding=0, groups=1, dilation=1):
+    # Equivalence of torch.nn.functional.conv_transpose3d
+    # from https://docs.pytorch.org/docs/stable/generated/torch.nn.ConvTranspose3d.html#torch.nn.ConvTranspose3d
+
+    assert output_padding == 0, "only support output_padding == 0 so far."
+    assert padding == 0, "do not support padding so far, fixme at mindspore 2.7"  # FIXME
+
+    _, in_channels, _, _, _ = input.shape
+    _, out_channels_divide_groups, kD, kH, kW = weight.shape
+
+    assert in_channels % groups == 0, "`in_channels` should be divisible by `groups`"
+    out_channels = out_channels_divide_groups * groups  # noqa F841
+    in_channels_divide_groups = in_channels // groups
+
+    if bias is not None:
+        assert isinstance(bias, ms.Tensor) and bias.ndim == 1
+
+    if isinstance(stride, int):
+        stride = (stride, stride, stride)
+    if isinstance(dilation, int):
+        dilation = (dilation, dilation, dilation)
+
+    # FIXME ops.Conv3DTranspose currently supports group=1 and bias=None on ascend,
+    # here we manually implement groupping and bias
+    op_conv_transpose3d = ops.Conv3DTranspose(
+        in_channel=in_channels_divide_groups,
+        out_channel=out_channels_divide_groups,
+        kernel_size=(kD, kH, kW),
+        stride=stride,
+        dilation=dilation,
+        group=1,
+    )
+
+    input_groups = mint.chunk(input, groups, dim=1)
+    weight_groups = mint.chunk(weight, groups, dim=0)
+    output_groups = []
+    for i in range(groups):
+        # only support ms.float16 on ascend
+        original_dtype = input.dtype
+        output = op_conv_transpose3d(
+            input_groups[i].to(ms.float16),
+            weight_groups[i].to(ms.float16),
+        ).to(original_dtype)
+
+        if bias is not None:
+            output += bias[i * out_channels_divide_groups : (i + 1) * out_channels_divide_groups].reshape(
+                1, -1, 1, 1, 1
+            )
+
+        output_groups.append(output)
+
+    return mint.cat(output_groups, dim=1)
+
+
+conv_transpose3d = _conv_transpose3d
 
 
 # ================================================================================

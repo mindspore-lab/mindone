@@ -739,6 +739,17 @@ class DiagonalGaussianDistribution(object):
         return mean
 
 
+class IdentityDistribution(object):
+    def __init__(self):
+        pass
+
+    def sample(self, parameters: ms.Tensor, generator: Optional[np.random.Generator] = None) -> ms.Tensor:
+        return parameters
+
+    def mode(self, parameters: ms.Tensor) -> ms.Tensor:
+        return parameters
+
+
 class EncoderTiny(nn.Cell):
     r"""
     The `EncoderTiny` layer is a simpler version of the `Encoder` layer.
