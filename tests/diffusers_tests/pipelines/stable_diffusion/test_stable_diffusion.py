@@ -22,7 +22,7 @@ from transformers import CLIPTextConfig
 
 import mindspore as ms
 
-from mindone.diffusers.utils.testing_utils import load_downloaded_numpy_from_hf_hub, slow
+from mindone.diffusers.utils.testing_utils import load_numpy_from_local_file, slow
 
 from ..pipeline_test_utils import (
     THRESHOLD_FP16,
@@ -205,8 +205,8 @@ class StableDiffusionPipelineNightlyTests(PipelineTesterMixin, unittest.TestCase
         torch.manual_seed(0)
         image = sd_pipe(**inputs)[0][0]
 
-        expected_image = load_downloaded_numpy_from_hf_hub(
-            "The-truth/mindone-testing-arrays",
+        expected_image = load_numpy_from_local_file(
+            "mindone-testing-arrays",
             f"t2i_1_5_pndm_{dtype}.npy",
             subfolder="stable_diffusion",
         )

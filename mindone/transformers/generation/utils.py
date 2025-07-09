@@ -1158,11 +1158,13 @@ class GenerationMixin:
                     begin_index,
                 )
             )
-        if generation_config.forced_decoder_ids is not None:
-            raise ValueError(
-                "You have explicitly specified `forced_decoder_ids`. Please remove the `forced_decoder_ids` argument "
-                "in favour of `input_ids` or `decoder_input_ids` respectively.",
-            )
+
+        # Fixme
+        # if generation_config.forced_decoder_ids is not None:
+        #     raise ValueError(
+        #         "You have explicitly specified `forced_decoder_ids`. Please remove the `forced_decoder_ids` argument "
+        #         "in favour of `input_ids` or `decoder_input_ids` respectively.",
+        #     )
 
         processors = self._merge_criteria_processor_list(processors, logits_processor)
 

@@ -24,7 +24,7 @@ from transformers import ClapAudioConfig, ClapConfig, ClapTextConfig, GPT2Config
 import mindspore as ms
 
 from mindone.diffusers import AudioLDM2Pipeline
-from mindone.diffusers.utils.testing_utils import load_downloaded_numpy_from_hf_hub, slow
+from mindone.diffusers.utils.testing_utils import load_numpy_from_local_file, slow
 
 from ..pipeline_test_utils import (
     AUDIO_THRESHOLD_FP16,
@@ -282,8 +282,8 @@ class AudioLDM2PipelineNightlyTests(PipelineTesterMixin, unittest.TestCase):
         torch.manual_seed(0)
         audio = audioldm_pipe(prompt, num_inference_steps=10, audio_length_in_s=5.0)[0][0]
 
-        expected_audio = load_downloaded_numpy_from_hf_hub(
-            "The-truth/mindone-testing-arrays",
+        expected_audio = load_numpy_from_local_file(
+            "mindone-testing-arrays",
             f"t2a_{dtype}.npy",
             subfolder="audioldm2",
         )

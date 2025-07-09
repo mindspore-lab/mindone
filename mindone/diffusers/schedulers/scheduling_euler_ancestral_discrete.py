@@ -208,12 +208,12 @@ class EulerAncestralDiscreteScheduler(SchedulerMixin, ConfigMixin):
 
         sigmas = (((1 - self.alphas_cumprod) / self.alphas_cumprod) ** 0.5).asnumpy()
         sigmas = np.concatenate([sigmas[::-1], [0.0]]).astype(np.float32)
-        self.sigmas = ms.Tensor(sigmas)
+        self.sigmas = ms.tensor(sigmas)
 
         # setable values
         self.num_inference_steps = None
         timesteps = np.linspace(0, num_train_timesteps - 1, num_train_timesteps, dtype=float)[::-1].copy()
-        self.timesteps = ms.Tensor(timesteps)
+        self.timesteps = ms.tensor(timesteps)
         self.is_scale_input_called = False
 
         self._step_index = None
@@ -311,9 +311,9 @@ class EulerAncestralDiscreteScheduler(SchedulerMixin, ConfigMixin):
         sigmas = (((1 - self.alphas_cumprod) / self.alphas_cumprod) ** 0.5).asnumpy()
         sigmas = np.interp(timesteps, np.arange(0, len(sigmas)), sigmas)
         sigmas = np.concatenate([sigmas, [0.0]]).astype(np.float32)
-        self.sigmas = ms.Tensor(sigmas)
+        self.sigmas = ms.tensor(sigmas)
 
-        self.timesteps = ms.Tensor(timesteps)
+        self.timesteps = ms.tensor(timesteps)
         self._step_index = None
         self._begin_index = None
 
