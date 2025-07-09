@@ -1097,6 +1097,9 @@ class SmolVLMForConditionalGeneration(SmolVLMPreTrainedModel, GenerationMixin):
         logits_to_keep=None,
         **kwargs,
     ):
+        if logits_to_keep is None:  # MindSpore-specific
+            logits_to_keep = 1
+
         # Overwritten -- there are mutually exclusive inputs (if the logic to make `image_hidden_states` take
         # precedence is moved to the model, we can remove this fn)
 
