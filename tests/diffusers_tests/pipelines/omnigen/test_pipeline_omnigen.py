@@ -1,3 +1,5 @@
+"""Adapted from https://github.com/huggingface/diffusers/tree/main/tests//pipelines/omnigen/test_pipeline_omnigen.py."""
+
 import unittest
 
 import numpy as np

@@ -1,3 +1,5 @@
+"""Adapted from https://github.com/huggingface/transformers/tree/main/tests//models/levit/test_modeling_levit.py."""
+
 import logging
 
 import numpy as np

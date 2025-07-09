@@ -1,3 +1,8 @@
+"""
+Adapted from https://github.com/huggingface/diffusers/tree/main/src/diffusers/
+pipelines/stable_diffusion_safe/pipeline_stable_diffusion_safe.py.
+"""
+
 import inspect
 import warnings
 from typing import Callable, List, Optional, Union
