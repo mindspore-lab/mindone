@@ -1,5 +1,8 @@
 # Copyright 2024 PixArt-Sigma Authors and The HuggingFace Team. All rights reserved.
 #
+# This code is adapted from https://github.com/huggingface/diffusers
+# with modifications to run diffusers on mindspore.
+#
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -27,7 +30,7 @@ from mindspore import mint
 from mindone.transformers import Gemma2PreTrainedModel
 
 from ...callbacks import MultiPipelineCallbacks, PipelineCallback
-from ...image_processor import PixArtImageProcessor
+from ...image_processor import PipelineImageInput, PixArtImageProcessor
 from ...loaders import SanaLoraLoaderMixin
 from ...models import AutoencoderDC, SanaTransformer2DModel
 from ...schedulers import DPMSolverMultistepScheduler
@@ -44,8 +47,6 @@ from ..pipeline_utils import DiffusionPipeline
 from ..pixart_alpha.pipeline_pixart_alpha import ASPECT_RATIO_1024_BIN
 from .pipeline_output import SanaPipelineOutput
 
-XLA_AVAILABLE = False
-
 logger = logging.get_logger(__name__)  # pylint: disable=invalid-name
 
 if is_bs4_available():
@@ -54,19 +55,24 @@ if is_bs4_available():
 if is_ftfy_available():
     import ftfy
 
-
 EXAMPLE_DOC_STRING = """
     Examples:
         ```py
         >>> import mindspore as ms
-        >>> from mindone.diffusers import SanaSprintPipeline
+        >>> from mindone.diffusers import SanaSprintImg2ImgPipeline
+        >>> from mindone.diffusers.utils.loading_utils import load_image
 
-        >>> pipe = SanaSprintPipeline.from_pretrained(
+        >>> pipe = SanaSprintImg2ImgPipeline.from_pretrained(
         ...     "Efficient-Large-Model/Sana_Sprint_1.6B_1024px_diffusers", mindspore_dtype=ms.bfloat16
         ... )
 
-        >>> image = pipe(prompt="a tiny astronaut hatching from an egg on the moon")[0]
-        >>> image[0].save("output.png")
+        >>> image = load_image(
+        ...     "https://huggingface.co/datasets/huggingface/documentation-images/resolve/main/diffusers/penguin.png"
+        ... )
+
+
+        >>> image = pipe(prompt="a cute pink bear", image=image, strength=0.5, height=832, width=480)[0][0]
+        >>> image.save("output.png")
         ```
 """
 
@@ -97,8 +103,8 @@ def retrieve_timesteps(
             `num_inference_steps` and `timesteps` must be `None`.
 
     Returns:
-        `Tuple[ms.Tensor, int]`: A tuple where the first element is the timestep schedule from the scheduler and the
-        second element is the number of inference steps.
+        `Tuple[ms.Tensor, int]`: A tuple where the first element is the timestep schedule from the scheduler and
+        the second element is the number of inference steps.
     """
     if timesteps is not None and sigmas is not None:
         raise ValueError("Only one of `timesteps` or `sigmas` can be passed. Please choose one to set custom values")
@@ -128,13 +134,14 @@ def retrieve_timesteps(
     return timesteps, num_inference_steps
 
 
-class SanaSprintPipeline(DiffusionPipeline, SanaLoraLoaderMixin):
+class SanaSprintImg2ImgPipeline(DiffusionPipeline, SanaLoraLoaderMixin):
     r"""
     Pipeline for text-to-image generation using [SANA-Sprint](https://huggingface.co/papers/2503.09641).
     """
 
     # fmt: off
-    bad_punct_regex = re.compile(r"[" + "#®•©™&@·º½¾¿¡§~" + r"\)" + r"\(" + r"\]" + r"\[" + r"\}" + r"\{" + r"\|" + "\\" + r"\/" + r"\*" + r"]{1,}")
+    bad_punct_regex = re.compile(
+        r"[" + "#®•©™&@·º½¾¿¡§~" + r"\)" + r"\(" + r"\]" + r"\[" + r"\}" + r"\{" + r"\|" + "\\" + r"\/" + r"\*" + r"]{1,}")
     # fmt: on
 
     model_cpu_offload_seq = "text_encoder->transformer->vae"
@@ -161,6 +168,7 @@ class SanaSprintPipeline(DiffusionPipeline, SanaLoraLoaderMixin):
         )
         self.image_processor = PixArtImageProcessor(vae_scale_factor=self.vae_scale_factor)
 
+    # Copied from diffusers.pipelines.sana.pipeline_sana.SanaPipeline.enable_vae_slicing
     def enable_vae_slicing(self):
         r"""
         Enable sliced VAE decoding. When this option is enabled, the VAE will split the input tensor in slices to
@@ -168,6 +176,7 @@ class SanaSprintPipeline(DiffusionPipeline, SanaLoraLoaderMixin):
         """
         self.vae.enable_slicing()
 
+    # Copied from diffusers.pipelines.sana.pipeline_sana.SanaPipeline.disable_vae_slicing
     def disable_vae_slicing(self):
         r"""
         Disable sliced VAE decoding. If `enable_vae_slicing` was previously enabled, this method will go back to
@@ -175,6 +184,7 @@ class SanaSprintPipeline(DiffusionPipeline, SanaLoraLoaderMixin):
         """
         self.vae.disable_slicing()
 
+    # Copied from diffusers.pipelines.sana.pipeline_sana.SanaPipeline.enable_vae_tiling
     def enable_vae_tiling(self):
         r"""
         Enable tiled VAE decoding. When this option is enabled, the VAE will split the input tensor into tiles to
@@ -245,6 +255,7 @@ class SanaSprintPipeline(DiffusionPipeline, SanaLoraLoaderMixin):
 
         return prompt_embeds, prompt_attention_mask
 
+    # Copied from diffusers.pipelines.sana.pipeline_sana_sprint.SanaSprintPipeline.encode_prompt
     def encode_prompt(
         self,
         prompt: Union[str, List[str]],
@@ -276,7 +287,9 @@ class SanaSprintPipeline(DiffusionPipeline, SanaLoraLoaderMixin):
                 the prompt.
         """
 
-        if self.text_encoder is not None:
+        if self.transformer is not None:
+            dtype = self.transformer.dtype
+        elif self.text_encoder is not None:
             dtype = self.text_encoder.dtype
         else:
             dtype = None
@@ -341,9 +354,22 @@ class SanaSprintPipeline(DiffusionPipeline, SanaLoraLoaderMixin):
             extra_step_kwargs["generator"] = generator
         return extra_step_kwargs
 
+    # Copied from diffusers.pipelines.stable_diffusion_3.pipeline_stable_diffusion_3_img2img.StableDiffusion3Img2ImgPipeline.get_timesteps
+    def get_timesteps(self, num_inference_steps, strength):
+        # get the original timestep using init_timestep
+        init_timestep = min(num_inference_steps * strength, num_inference_steps)
+
+        t_start = int(max(num_inference_steps - init_timestep, 0))
+        timesteps = self.scheduler.timesteps[t_start * self.scheduler.order :]
+        if hasattr(self.scheduler, "set_begin_index"):
+            self.scheduler.set_begin_index(t_start * self.scheduler.order)
+
+        return timesteps, num_inference_steps - t_start
+
     def check_inputs(
         self,
         prompt,
+        strength,
         height,
         width,
         num_inference_steps,
@@ -354,6 +380,9 @@ class SanaSprintPipeline(DiffusionPipeline, SanaLoraLoaderMixin):
         prompt_embeds=None,
         prompt_attention_mask=None,
     ):
+        if strength < 0 or strength > 1:
+            raise ValueError(f"The value of strength should in [0.0, 1.0] but is {strength}")
+
         if height % 32 != 0 or width % 32 != 0:
             raise ValueError(f"`height` and `width` have to be divisible by 32 but are {height} and {width}.")
 
@@ -361,7 +390,7 @@ class SanaSprintPipeline(DiffusionPipeline, SanaLoraLoaderMixin):
             k in self._callback_tensor_inputs for k in callback_on_step_end_tensor_inputs
         ):
             raise ValueError(
-                f"`callback_on_step_end_tensor_inputs` has to be in {self._callback_tensor_inputs}, but found {[k for k in callback_on_step_end_tensor_inputs if k not in self._callback_tensor_inputs]}"  # noqa
+                f"`callback_on_step_end_tensor_inputs` has to be in {self._callback_tensor_inputs}, but found {[k for k in callback_on_step_end_tensor_inputs if k not in self._callback_tensor_inputs]}"  # noqa: E501
             )
 
         if prompt is not None and prompt_embeds is not None:
@@ -471,7 +500,7 @@ class SanaSprintPipeline(DiffusionPipeline, SanaLoraLoaderMixin):
         # &amp
         caption = re.sub(r"&amp", "", caption)
 
-        # ip adresses:
+        # ip addresses:
         caption = re.sub(r"\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}", " ", caption)
 
         # article ids:
@@ -531,8 +560,34 @@ class SanaSprintPipeline(DiffusionPipeline, SanaLoraLoaderMixin):
 
         return caption.strip()
 
-    # Copied from diffusers.pipelines.sana.pipeline_sana.SanaPipeline.prepare_latents
-    def prepare_latents(self, batch_size, num_channels_latents, height, width, dtype, generator, latents=None):
+    def prepare_image(
+        self,
+        image: PipelineImageInput,
+        width: int,
+        height: int,
+        dtype: ms.Type,
+    ):
+        if isinstance(image, ms.Tensor):
+            if image.ndim == 3:
+                image = image.unsqueeze(0)
+            # Resize if current dimensions do not match target dimensions.
+            if image.shape[2] != height or image.shape[3] != width:
+                image = mint.nn.functional.interpolate(
+                    image, size=(height, width), mode="bilinear", align_corners=False
+                )
+
+            image = self.image_processor.preprocess(image, height=height, width=width)
+
+        else:
+            image = self.image_processor.preprocess(image, height=height, width=width)
+
+        image = image.to(dtype=dtype)
+
+        return image
+
+    def prepare_latents(
+        self, image, timestep, batch_size, num_channels_latents, height, width, dtype, generator, latents=None
+    ):
         if latents is not None:
             return latents.to(dtype=dtype)
 
@@ -542,13 +597,32 @@ class SanaSprintPipeline(DiffusionPipeline, SanaLoraLoaderMixin):
             int(height) // self.vae_scale_factor,
             int(width) // self.vae_scale_factor,
         )
+
+        if image.shape[1] != num_channels_latents:
+            image = self.vae.encode(image)[0]
+            image_latents = image * self.vae.config.scaling_factor * self.scheduler.config.sigma_data
+        else:
+            image_latents = image
+        if batch_size > image_latents.shape[0] and batch_size % image_latents.shape[0] == 0:
+            # expand init_latents for batch_size
+            additional_image_per_prompt = batch_size // image_latents.shape[0]
+            image_latents = mint.cat([image_latents] * additional_image_per_prompt, dim=0)
+        elif batch_size > image_latents.shape[0] and batch_size % image_latents.shape[0] != 0:
+            raise ValueError(
+                f"Cannot duplicate `image` of batch size {image_latents.shape[0]} to {batch_size} text prompts."
+            )
+        else:
+            image_latents = mint.cat([image_latents], dim=0)
+
         if isinstance(generator, list) and len(generator) != batch_size:
             raise ValueError(
                 f"You have passed a list of generators of length {len(generator)}, but requested an effective batch"
                 f" size of {batch_size}. Make sure the batch size matches the length of the generators."
             )
 
-        latents = randn_tensor(shape, generator=generator, dtype=dtype)
+        # adapt from https://github.com/huggingface/diffusers/blob/c36f8487df35895421c15f351c7d360bd680[…]/examples/research_projects/sana/train_sana_sprint_diffusers.py  # noqa: E501
+        noise = randn_tensor(shape, generator=generator, dtype=dtype) * self.scheduler.config.sigma_data
+        latents = mint.cos(timestep) * image_latents + mint.sin(timestep) * noise
         return latents
 
     @property
@@ -575,6 +649,8 @@ class SanaSprintPipeline(DiffusionPipeline, SanaLoraLoaderMixin):
         max_timesteps: float = 1.57080,
         intermediate_timesteps: float = 1.3,
         guidance_scale: float = 4.5,
+        image: PipelineImageInput = None,
+        strength: float = 0.6,
         num_images_per_prompt: Optional[int] = 1,
         height: int = 1024,
         width: int = 1024,
@@ -592,13 +668,13 @@ class SanaSprintPipeline(DiffusionPipeline, SanaLoraLoaderMixin):
         callback_on_step_end_tensor_inputs: List[str] = ["latents"],
         max_sequence_length: int = 300,
         complex_human_instruction: List[str] = [
-            "Given a user prompt, generate an 'Enhanced prompt' that provides detailed visual descriptions suitable for image generation. Evaluate the level of detail in the user prompt:",  # noqa
-            "- If the prompt is simple, focus on adding specifics about colors, shapes, sizes, textures, and spatial relationships to create vivid and concrete scenes.",  # noqa
-            "- If the prompt is already detailed, refine and enhance the existing details slightly without overcomplicating.",
+            "Given a user prompt, generate an 'Enhanced prompt' that provides detailed visual descriptions suitable for image generation. Evaluate the level of detail in the user prompt:",  # noqa: E501
+            "- If the prompt is simple, focus on adding specifics about colors, shapes, sizes, textures, and spatial relationships to create vivid and concrete scenes.",  # noqa: E501
+            "- If the prompt is already detailed, refine and enhance the existing details slightly without overcomplicating.",  # noqa: E501
             "Here are examples of how to transform or refine prompts:",
-            "- User Prompt: A cat sleeping -> Enhanced: A small, fluffy white cat curled up in a round shape, sleeping peacefully on a warm sunny windowsill, surrounded by pots of blooming red flowers.",  # noqa
-            "- User Prompt: A busy city street -> Enhanced: A bustling city street scene at dusk, featuring glowing street lamps, a diverse crowd of people in colorful clothing, and a double-decker bus passing by towering glass skyscrapers.",  # noqa
-            "Please generate only the enhanced description for the prompt below and avoid including any additional commentary or evaluations:",
+            "- User Prompt: A cat sleeping -> Enhanced: A small, fluffy white cat curled up in a round shape, sleeping peacefully on a warm sunny windowsill, surrounded by pots of blooming red flowers.",  # noqa: E501
+            "- User Prompt: A busy city street -> Enhanced: A bustling city street scene at dusk, featuring glowing street lamps, a diverse crowd of people in colorful clothing, and a double-decker bus passing by towering glass skyscrapers.",  # noqa: E501
+            "Please generate only the enhanced description for the prompt below and avoid including any additional commentary or evaluations:",  # noqa: E501
             "User Prompt: ",
         ],
     ) -> Union[SanaPipelineOutput, Tuple]:
@@ -636,7 +712,7 @@ class SanaSprintPipeline(DiffusionPipeline, SanaLoraLoaderMixin):
                 Corresponds to parameter eta (η) in the DDIM paper: https://arxiv.org/abs/2010.02502. Only applies to
                 [`schedulers.DDIMScheduler`], will be ignored for others.
             generator (`np.random.Generator` or `List[np.random.Generator]`, *optional*):
-                One or a list of [np.random.Generator(s)](https://numpy.org/doc/stable/reference/random/generator.html)
+                One or a list of [numpy generator(s)](https://numpy.org/doc/stable/reference/random/generator.html)
                 to make generation deterministic.
             latents (`ms.Tensor`, *optional*):
                 Pre-generated noisy latents, sampled from a Gaussian distribution, to be used as inputs for image
@@ -700,6 +776,7 @@ class SanaSprintPipeline(DiffusionPipeline, SanaLoraLoaderMixin):
 
         self.check_inputs(
             prompt=prompt,
+            strength=strength,
             height=height,
             width=width,
             num_inference_steps=num_inference_steps,
@@ -725,6 +802,9 @@ class SanaSprintPipeline(DiffusionPipeline, SanaLoraLoaderMixin):
 
         lora_scale = self.attention_kwargs.get("scale", None) if self.attention_kwargs is not None else None
 
+        # 2. Preprocess image
+        init_image = self.prepare_image(image, width, height, self.vae.dtype)
+
         # 3. Encode input prompt
         (
             prompt_embeds,
@@ -740,7 +820,7 @@ class SanaSprintPipeline(DiffusionPipeline, SanaLoraLoaderMixin):
             lora_scale=lora_scale,
         )
 
-        # 4. Prepare timesteps
+        # 5. Prepare timesteps
         timesteps, num_inference_steps = retrieve_timesteps(
             self.scheduler,
             num_inference_steps,
@@ -752,9 +832,19 @@ class SanaSprintPipeline(DiffusionPipeline, SanaLoraLoaderMixin):
         if hasattr(self.scheduler, "set_begin_index"):
             self.scheduler.set_begin_index(0)
 
+        timesteps, num_inference_steps = self.get_timesteps(num_inference_steps, strength)
+        if num_inference_steps < 1:
+            raise ValueError(
+                f"After adjusting the num_inference_steps by strength parameter: {strength}, the number of pipeline"
+                f"steps is {num_inference_steps} which is < 1 and not appropriate for this pipeline."
+            )
+        latent_timestep = timesteps[:1]
+
         # 5. Prepare latents.
         latent_channels = self.transformer.config.in_channels
         latents = self.prepare_latents(
+            init_image,
+            latent_timestep,
             batch_size * num_images_per_prompt,
             latent_channels,
             height,
@@ -764,10 +854,11 @@ class SanaSprintPipeline(DiffusionPipeline, SanaLoraLoaderMixin):
             latents,
         )
 
-        latents = latents * self.scheduler.config.sigma_data
+        # I think this is redundant given the scaling in prepare_latents
+        # latents = latents * self.scheduler.config.sigma_data
 
         guidance = mint.full([1], guidance_scale, dtype=ms.float32)
-        guidance = guidance.expand((latents.shape[0],)).to(prompt_embeds.dtype)
+        guidance = guidance.broadcast_to((latents.shape[0],)).to(prompt_embeds.dtype)
         guidance = guidance * self.transformer.config.guidance_embeds_scale
 
         # 6. Prepare extra step kwargs. TODO: Logic should ideally just be moved out of the pipeline
@@ -785,7 +876,7 @@ class SanaSprintPipeline(DiffusionPipeline, SanaLoraLoaderMixin):
                     continue
 
                 # broadcast to batch dimension in a way that's compatible with ONNX/Core ML
-                timestep = t.expand((latents.shape[0],))
+                timestep = t.broadcast_to((latents.shape[0],))
                 latents_model_input = latents / self.scheduler.config.sigma_data
 
                 scm_timestep = mint.sin(timestep) / (mint.cos(timestep) + mint.sin(timestep))

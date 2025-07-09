@@ -331,9 +331,7 @@ class SanaPipeline(DiffusionPipeline, SanaLoraLoaderMixin):
                 If `complex_human_instruction` is not empty, the function will use the complex Human instruction for
                 the prompt.
         """
-        if self.transformer is not None:
-            dtype = self.transformer.dtype
-        elif self.text_encoder is not None:
+        if self.text_encoder is not None:
             dtype = self.text_encoder.dtype
         else:
             dtype = None
@@ -900,6 +898,7 @@ class SanaPipeline(DiffusionPipeline, SanaLoraLoaderMixin):
         num_warmup_steps = max(len(timesteps) - num_inference_steps * self.scheduler.order, 0)
         self._num_timesteps = len(timesteps)
 
+        transformer_dtype = self.transformer.dtype
         with self.progress_bar(total=num_inference_steps) as progress_bar:
             for i, t in enumerate(timesteps):
                 if self.interrupt:
@@ -909,13 +908,13 @@ class SanaPipeline(DiffusionPipeline, SanaLoraLoaderMixin):
                 latent_model_input = latent_model_input.to(prompt_embeds.dtype)
 
                 # broadcast to batch dimension in a way that's compatible with ONNX/Core ML
-                timestep = t.broadcast_to((latent_model_input.shape[0],)).to(latents.dtype)
+                timestep = t.broadcast_to((latent_model_input.shape[0],))
                 timestep = timestep * self.transformer.config.timestep_scale
 
                 # predict noise model_output
                 noise_pred = self.transformer(
-                    latent_model_input,
-                    encoder_hidden_states=prompt_embeds,
+                    latent_model_input.to(dtype=transformer_dtype),
+                    encoder_hidden_states=prompt_embeds.to(dtype=transformer_dtype),
                     encoder_attention_mask=prompt_attention_mask,
                     timestep=timestep,
                     return_dict=False,
@@ -931,8 +930,6 @@ class SanaPipeline(DiffusionPipeline, SanaLoraLoaderMixin):
                 # learned sigma
                 if self.transformer.config.out_channels // 2 == latent_channels:
                     noise_pred = noise_pred.chunk(2, dim=1)[0]
-                else:
-                    noise_pred = noise_pred
 
                 # compute previous image: x_t -> x_t-1
                 latents = self.scheduler.step(noise_pred, t, latents, **extra_step_kwargs, return_dict=False)[0]

@@ -74,7 +74,10 @@ class HunyuanVideoCausalConv3d(nn.Cell):
         self.conv = mint.nn.Conv3d(in_channels, out_channels, kernel_size, stride, padding, dilation, bias=bias)
 
     def construct(self, hidden_states: ms.Tensor) -> ms.Tensor:
-        hidden_states = F.pad(hidden_states, self.time_causal_padding, mode=self.pad_mode)
+        # TODO: bfloat16 is not supported in mint.nn.functional.pad
+        hidden_states = F.pad(hidden_states.float(), self.time_causal_padding, mode=self.pad_mode).to(
+            hidden_states.dtype
+        )
         return self.conv(hidden_states)
 
 
