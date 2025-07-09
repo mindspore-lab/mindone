@@ -1,25 +1,16 @@
-import inspect
 import types
 import warnings
 from collections.abc import Iterable
 from typing import TYPE_CHECKING, Dict, List, Optional, Tuple, Union
 
 import numpy as np
+from transformers.tokenization_utils import PreTrainedTokenizer
+from transformers.utils import add_end_docstrings, is_tokenizers_available
 
 from ..data import SquadExample, SquadFeatures, squad_convert_examples_to_features
 from ..modelcard import ModelCard
-from transformers.tokenization_utils import PreTrainedTokenizer
-from ..utils import (
-    PaddingStrategy,
-    is_mindspore_available,
-    logging,
-)
-from transformers.utils import (
-    add_end_docstrings,
-    is_tokenizers_available,
-)
+from ..utils import PaddingStrategy, is_mindspore_available, logging
 from .base import ArgumentHandler, ChunkPipeline, build_pipeline_init_args
-
 
 logger = logging.get_logger(__name__)
 
@@ -177,13 +168,15 @@ class QuestionAnsweringArgumentHandler(ArgumentHandler):
         # Batched data
         elif "X" in kwargs:
             warnings.warn(
-                "Passing the `X` argument to the pipeline is deprecated and will be removed in v5. Inputs should be passed using the `question` and `context` keyword arguments instead.",
+                "Passing the `X` argument to the pipeline is deprecated and will be removed in v5. "
+                "Inputs should be passed using the `question` and `context` keyword arguments instead.",
                 FutureWarning,
             )
             inputs = kwargs["X"]
         elif "data" in kwargs:
             warnings.warn(
-                "Passing the `data` argument to the pipeline is deprecated and will be removed in v5. Inputs should be passed using the `question` and `context` keyword arguments instead.",
+                "Passing the `data` argument to the pipeline is deprecated and will be removed in v5. "
+                "Inputs should be passed using the `question` and `context` keyword arguments instead.",
                 FutureWarning,
             )
             inputs = kwargs["data"]
@@ -253,7 +246,7 @@ class QuestionAnsweringPipeline(ChunkPipeline):
 
     def __init__(
         self,
-        model: Union["PreTrainedModel", "TFPreTrainedModel"],
+        model: Union["PreTrainedModel"],
         tokenizer: PreTrainedTokenizer,
         modelcard: Optional[ModelCard] = None,
         framework: Optional[str] = None,
@@ -377,7 +370,8 @@ class QuestionAnsweringPipeline(ChunkPipeline):
         # Convert inputs to features
         if args:
             warnings.warn(
-                "Passing a list of SQuAD examples to the pipeline is deprecated and will be removed in v5. Inputs should be passed using the `question` and `context` keyword arguments instead.",
+                "Passing a list of SQuAD examples to the pipeline is deprecated and will be removed in v5. "
+                "Inputs should be passed using the `question` and `context` keyword arguments instead.",
                 FutureWarning,
             )
 

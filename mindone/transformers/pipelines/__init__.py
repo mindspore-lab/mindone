@@ -38,14 +38,19 @@ from .base import (
     get_default_model_and_revision,
     infer_framework_load_model,
 )
+from .question_answering import QuestionAnsweringArgumentHandler, QuestionAnsweringPipeline
 from .text2text_generation import Text2TextGenerationPipeline
 from .text_generation import TextGenerationPipeline
-from .question_answering import QuestionAnsweringArgumentHandler, QuestionAnsweringPipeline
 
 if is_mindspore_available():
     import mindspore as ms
 
-    from ..models.auto.modeling_auto import AutoModelForCausalLM, AutoModelForTokenClassification, AutoModelForSeq2SeqLM, AutoModelForQuestionAnswering
+    from ..models.auto.modeling_auto import (
+        AutoModelForCausalLM,
+        AutoModelForQuestionAnswering,
+        AutoModelForSeq2SeqLM,
+        AutoModelForTokenClassification,
+    )
 
 
 if TYPE_CHECKING:
