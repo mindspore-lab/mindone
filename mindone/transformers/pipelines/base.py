@@ -1344,9 +1344,8 @@ class ChunkPipeline(Pipeline):
         dataset = PipelineChunkIterator(inputs, self.preprocess, preprocess_params)
 
         # TODO hack by collating feature_extractor and image_processor
-        feature_extractor = self.feature_extractor if self.feature_extractor is not None else self.image_processor
-        collate_fn = no_collate_fn if batch_size == 1 else pad_collate_fn(self.tokenizer, feature_extractor)
-        dataloader = GeneratorDataset(dataset, column_names = ["example"], num_workers=num_workers)
+        # fixme add collate_fn/feature_extractor to align with transformers
+        dataloader = GeneratorDataset(dataset, column_names=["example"], num_workers=num_workers)
         model_iterator = PipelinePackIterator(dataloader, self._construct, forward_params, loader_batch_size=batch_size)
         final_iterator = PipelineIterator(model_iterator, self.postprocess, postprocess_params)
         return final_iterator
