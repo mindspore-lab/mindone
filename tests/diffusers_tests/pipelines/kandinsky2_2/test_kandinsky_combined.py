@@ -21,11 +21,7 @@ from ddt import data, ddt, unpack
 
 import mindspore as ms
 
-from mindone.diffusers.utils.testing_utils import (
-    load_downloaded_image_from_hf_hub,
-    load_downloaded_numpy_from_hf_hub,
-    slow,
-)
+from mindone.diffusers.utils.testing_utils import load_downloaded_image_from_hf_hub, load_numpy_from_local_file, slow
 
 from ..pipeline_test_utils import THRESHOLD_FP16, THRESHOLD_FP32, THRESHOLD_PIXEL, PipelineTesterMixin, get_module
 from .test_kandinsky import Dummies
@@ -238,8 +234,8 @@ class KandinskyV22PipelineCombinedIntegrationTests(PipelineTesterMixin, unittest
         torch.manual_seed(0)
         image = pipe(prompt=prompt, num_inference_steps=25)[0][0]
 
-        expected_image = load_downloaded_numpy_from_hf_hub(
-            "The-truth/mindone-testing-arrays",
+        expected_image = load_numpy_from_local_file(
+            "mindone-testing-arrays",
             f"combined_t2i_{dtype}.npy",
             subfolder="kandinsky2_2",
         )
@@ -274,8 +270,8 @@ class KandinskyV22PipelineCombinedIntegrationTests(PipelineTesterMixin, unittest
             0
         ][0]
 
-        expected_image = load_downloaded_numpy_from_hf_hub(
-            "The-truth/mindone-testing-arrays",
+        expected_image = load_numpy_from_local_file(
+            "mindone-testing-arrays",
             f"combined_i2i_{dtype}.npy",
             subfolder="kandinsky2_2",
         )
@@ -304,8 +300,8 @@ class KandinskyV22PipelineCombinedIntegrationTests(PipelineTesterMixin, unittest
         torch.manual_seed(0)
         image = pipe(prompt=prompt, image=original_image, mask_image=mask, num_inference_steps=25)[0][0]
 
-        expected_image = load_downloaded_numpy_from_hf_hub(
-            "The-truth/mindone-testing-arrays",
+        expected_image = load_numpy_from_local_file(
+            "mindone-testing-arrays",
             f"combined_inpaint_{dtype}.npy",
             subfolder="kandinsky2_2",
         )

@@ -1,5 +1,5 @@
 # coding=utf-8
-# Copyright 2024 The HuggingFace Inc. team.
+# Copyright 2025 The HuggingFace Inc. team.
 # Copyright (c) 2022, NVIDIA CORPORATION.  All rights reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -13,21 +13,24 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+
 import copy
 import inspect
 import json
 import os
 import re
 from collections import OrderedDict
-from functools import partial
+from contextlib import ExitStack
 from pathlib import Path
-from typing import Any, Callable, List, Optional, Union
+from typing import Any, Callable, ContextManager, Dict, List, Optional, Tuple, Type, Union
 
-from huggingface_hub import create_repo
+from huggingface_hub import DDUFEntry, create_repo
 from huggingface_hub.utils import validate_hf_hub_args
+from typing_extensions import Self
 
 import mindspore as ms
 from mindspore import mint, nn
+from mindspore.nn.utils import no_init_parameters
 
 from mindone.safetensors.mindspore import save_file as safe_save_file
 
@@ -49,10 +52,28 @@ from .model_loading_utils import (
     _fetch_index_file,
     _fetch_index_file_legacy,
     _load_state_dict_into_model,
-    load_checkpoint_and_dispatch,
     load_state_dict,
     split_torch_state_dict_into_shards,
 )
+
+
+class ContextManagers:
+    """
+    Wrapper for `contextlib.ExitStack` which enters a collection of context managers. Adaptation of `ContextManagers`
+    in the `fastcore` library.
+    """
+
+    def __init__(self, context_managers: List[ContextManager]):
+        self.context_managers = context_managers
+        self.stack = ExitStack()
+
+    def __enter__(self):
+        for context_manager in self.context_managers:
+            self.stack.enter_context(context_manager)
+
+    def __exit__(self, *args, **kwargs):
+        self.stack.__exit__(*args, **kwargs)
+
 
 logger = logging.get_logger(__name__)
 
@@ -138,9 +159,13 @@ class ModelMixin(nn.Cell, PushToHubMixin):
     _keys_to_ignore_on_load_unexpected = None
     _no_split_modules = None
     _keep_in_fp32_modules = None
+    _skip_layerwise_casting_patterns = None
+    _supports_group_offloading = True
 
     def __init__(self):
         super().__init__()
+
+        self._gradient_checkpointing_func = None
 
     def __getattr__(self, name: str) -> Any:
         """The only reason we overwrite `getattr` here is to gracefully deprecate accessing
@@ -167,14 +192,31 @@ class ModelMixin(nn.Cell, PushToHubMixin):
         """
         return any(hasattr(m, "gradient_checkpointing") and m.gradient_checkpointing for _, m in self.cells_and_names())
 
-    def enable_gradient_checkpointing(self) -> None:
+    def enable_gradient_checkpointing(self, gradient_checkpointing_func: Optional[Callable] = None) -> None:
         """
         Activates gradient checkpointing for the current model (may be referred to as *activation checkpointing* or
         *checkpoint activations* in other frameworks).
+
+        Args:
+            gradient_checkpointing_func (`Callable`, *optional*):
+                The function to use for gradient checkpointing. If `None`, the default MindSpore checkpointing function
+                is used (`mindspore.nn.Cell.recompute_`).
         """
         if not self._supports_gradient_checkpointing:
-            raise ValueError(f"{self.__class__.__name__} does not support gradient checkpointing.")
-        self.apply(partial(self._set_gradient_checkpointing, value=True))
+            raise ValueError(
+                f"{self.__class__.__name__} does not support gradient checkpointing. Please make sure to set the boolean attribute "
+                f"`_supports_gradient_checkpointing` to `True` in the class definition."
+            )
+
+        if gradient_checkpointing_func is None:
+
+            def _gradient_checkpointing_func(module, *args):
+                module.recompute_(mode=True)
+                return module
+
+            gradient_checkpointing_func = _gradient_checkpointing_func
+
+        self._set_gradient_checkpointing(enable=True)
 
     def disable_gradient_checkpointing(self) -> None:
         """
@@ -182,7 +224,7 @@ class ModelMixin(nn.Cell, PushToHubMixin):
         *checkpoint activations* in other frameworks).
         """
         if self._supports_gradient_checkpointing:
-            self.apply(partial(self._set_gradient_checkpointing, value=False))
+            self._set_gradient_checkpointing(enable=False)
 
     def enable_flash_sdp(self, enabled: bool):
         r"""
@@ -287,6 +329,93 @@ class ModelMixin(nn.Cell, PushToHubMixin):
         """
         self.set_use_memory_efficient_attention_xformers(False)
 
+    def enable_layerwise_casting(
+        self,
+        storage_dtype: ms.Type,
+        compute_dtype: Optional[ms.Type] = None,
+        skip_modules_pattern: Optional[Tuple[str, ...]] = None,
+        skip_modules_classes: Optional[Tuple[Type[nn.Cell], ...]] = None,
+        non_blocking: bool = False,
+    ) -> None:
+        r"""
+        Activates layerwise casting for the current model.
+
+        Layerwise casting is a technique that casts the model weights to a lower precision dtype for storage but
+        upcasts them on-the-fly to a higher precision dtype for computation. This process can significantly reduce the
+        memory footprint from model weights, but may lead to some quality degradation in the outputs. Most degradations
+        are negligible, mostly stemming from weight casting in normalization and modulation layers.
+
+        By default, most models in diffusers set the `_skip_layerwise_casting_patterns` attribute to ignore patch
+        embedding, positional embedding and normalization layers. This is because these layers are most likely
+        precision-critical for quality. If you wish to change this behavior, you can set the
+        `_skip_layerwise_casting_patterns` attribute to `None`, or call
+        [`~hooks.layerwise_casting.apply_layerwise_casting`] with custom arguments.
+
+        Example:
+            Using [`~models.ModelMixin.enable_layerwise_casting`]:
+
+            ```python
+            >>> from mindone.diffusers import CogVideoXTransformer3DModel
+
+            >>> transformer = CogVideoXTransformer3DModel.from_pretrained(
+            ...     "THUDM/CogVideoX-5b", subfolder="transformer", mindspore_dtype=ms.bfloat16
+            ... )
+
+            >>> # Enable layerwise casting via the model, which ignores certain modules by default
+            >>> transformer.enable_layerwise_casting(storage_dtype=ms.float8_e4m3fn, compute_dtype=ms.bfloat16)
+            ```
+
+        Args:
+            storage_dtype (`mindspore.Type`):
+                The dtype to which the model should be cast for storage.
+            compute_dtype (`mindspore.Type`):
+                The dtype to which the model weights should be cast during the forward pass.
+            skip_modules_pattern (`Tuple[str, ...]`, *optional*):
+                A list of patterns to match the names of the modules to skip during the layerwise casting process. If
+                set to `None`, default skip patterns are used to ignore certain internal layers of modules and PEFT
+                layers.
+            skip_modules_classes (`Tuple[Type[nn.Cell], ...]`, *optional*):
+                A list of module classes to skip during the layerwise casting process.
+            non_blocking (`bool`, *optional*, defaults to `False`):
+                If `True`, the weight casting operations are non-blocking.
+        """
+        raise NotImplementedError("`enable_layerwise_casting` is not yet supported.")
+
+    def enable_group_offload(
+        self,
+        onload_device: str = "Ascend",
+        offload_device: str = "CPU",
+        offload_type: str = "block_level",
+        num_blocks_per_group: Optional[int] = None,
+        non_blocking: bool = False,
+        use_stream: bool = False,
+        record_stream: bool = False,
+        low_cpu_mem_usage=False,
+    ) -> None:
+        r"""
+        Activates group offloading for the current model.
+
+        See [`~hooks.group_offloading.apply_group_offloading`] for more information.
+
+        Example:
+
+            ```python
+            >>> from mindone.diffusers import CogVideoXTransformer3DModel
+
+            >>> transformer = CogVideoXTransformer3DModel.from_pretrained(
+            ...     "THUDM/CogVideoX-5b", subfolder="transformer", mindspore_dtype=ms.bfloat16
+            ... )
+
+            >>> transformer.enable_group_offload(
+            ...     onload_device="Ascend",
+            ...     offload_device="CPU",
+            ...     offload_type="leaf_level",
+            ...     use_stream=True,
+            ... )
+            ```
+        """
+        raise NotImplementedError("`enable_group_offload` is not yet supported.")
+
     def save_pretrained(
         self,
         save_directory: Union[str, os.PathLike],
@@ -386,7 +515,7 @@ class ModelMixin(nn.Cell, PushToHubMixin):
                     os.remove(full_filename)
 
         for filename, tensors in state_dict_split.filename_to_tensors.items():
-            shard = {tensor: state_dict[tensor] for tensor in tensors}
+            shard = {tensor: state_dict[tensor].contiguous() for tensor in tensors}
             filepath = os.path.join(save_directory, filename)
             if safe_serialization:
                 # At some point we will need to deal better with save_function (used for TPU and other distributed
@@ -431,7 +560,7 @@ class ModelMixin(nn.Cell, PushToHubMixin):
 
     @classmethod
     @validate_hf_hub_args
-    def from_pretrained(cls, pretrained_model_name_or_path: Optional[Union[str, os.PathLike]], **kwargs):
+    def from_pretrained(cls, pretrained_model_name_or_path: Optional[Union[str, os.PathLike]], **kwargs) -> Self:
         r"""
         Instantiate a pretrained PyTorch model from a pretrained model configuration.
 
@@ -485,6 +614,9 @@ class ModelMixin(nn.Cell, PushToHubMixin):
                 If set to `None`, the `safetensors` weights are downloaded if they're available **and** if the
                 `safetensors` library is installed. If set to `True`, the model is forcibly loaded from `safetensors`
                 weights. If set to `False`, `safetensors` weights are not loaded.
+            disable_mmap ('bool', *optional*, defaults to 'False'):
+                Whether to disable mmap when loading a Safetensors model. This option can perform better when the model
+                is on a network mount or hard drive, which may not handle the seeky-ness of mmap very well.
 
         <Tip>
 
@@ -525,20 +657,29 @@ class ModelMixin(nn.Cell, PushToHubMixin):
         subfolder = kwargs.pop("subfolder", None)
         variant = kwargs.pop("variant", None)
         use_safetensors = kwargs.pop("use_safetensors", None)
+        dduf_entries: Optional[Dict[str, DDUFEntry]] = kwargs.pop("dduf_entries", None)
+        disable_mmap = kwargs.pop("disable_mmap", False)
+
+        if mindspore_dtype is not None and not isinstance(mindspore_dtype, ms.Type):
+            mindspore_dtype = ms.float32
+            logger.warning(
+                f"Passed `mindspore_dtype` {mindspore_dtype} is not a `ms.Type`. Defaulting to `ms.float32`."
+            )
 
         allow_pickle = False
         if use_safetensors is None:
             use_safetensors = True
             allow_pickle = True
 
-        # Load config if we don't provide a configuration
-        config_path = pretrained_model_name_or_path
-
         user_agent = {
             "diffusers": __version__,
             "file_type": "model",
             "framework": "pytorch",
         }
+        unused_kwargs = {}
+
+        # Load config if we don't provide a configuration
+        config_path = pretrained_model_name_or_path
 
         # load config
         config, unused_kwargs, commit_hash = cls.load_config(
@@ -553,12 +694,16 @@ class ModelMixin(nn.Cell, PushToHubMixin):
             revision=revision,
             subfolder=subfolder,
             user_agent=user_agent,
+            dduf_entries=dduf_entries,
             **kwargs,
         )
         # no in-place modification of the original config.
         config = copy.deepcopy(config)
 
         # Check if `_keep_in_fp32_modules` is not None
+        # use_keep_in_fp32_modules = cls._keep_in_fp32_modules is not None and (
+        #     hf_quantizer is None or getattr(hf_quantizer, "use_keep_in_fp32_modules", False)
+        # )
         use_keep_in_fp32_modules = (cls._keep_in_fp32_modules is not None) and (mindspore_dtype == ms.float16)
 
         if use_keep_in_fp32_modules:
@@ -567,10 +712,12 @@ class ModelMixin(nn.Cell, PushToHubMixin):
                 keep_in_fp32_modules = [keep_in_fp32_modules]
         else:
             keep_in_fp32_modules = []
-        #######################################
+
+        is_sharded = False
+        resolved_model_file = None
 
         # Determine if we're loading from a directory of sharded checkpoints.
-        is_sharded = False
+        sharded_metadata = None
         index_file = None
         is_local = os.path.isdir(pretrained_model_name_or_path)
         index_file_kwargs = {
@@ -587,22 +734,23 @@ class ModelMixin(nn.Cell, PushToHubMixin):
             "revision": revision,
             "user_agent": user_agent,
             "commit_hash": commit_hash,
+            "dduf_entries": dduf_entries,
         }
         index_file = _fetch_index_file(**index_file_kwargs)
         # In case the index file was not found we still have to consider the legacy format.
         # this becomes applicable when the variant is not None.
         if variant is not None and (index_file is None or not os.path.exists(index_file)):
             index_file = _fetch_index_file_legacy(**index_file_kwargs)
-        if index_file is not None and index_file.is_file():
+        if index_file is not None and (dduf_entries or index_file.is_file()):
             is_sharded = True
 
         # load model
-        model_file = None
         if from_flax:
             raise NotImplementedError("loading flax checkpoint in mindspore model is not yet supported.")
         else:
+            # in the case it is sharded, we have already the index
             if is_sharded:
-                sharded_ckpt_cached_folder, sharded_metadata = _get_checkpoint_shard_files(
+                resolved_model_file, sharded_metadata = _get_checkpoint_shard_files(
                     pretrained_model_name_or_path,
                     index_file,
                     cache_dir=cache_dir,
@@ -612,11 +760,11 @@ class ModelMixin(nn.Cell, PushToHubMixin):
                     user_agent=user_agent,
                     revision=revision,
                     subfolder=subfolder or "",
+                    dduf_entries=dduf_entries,
                 )
-
-            elif use_safetensors and not is_sharded:
+            elif use_safetensors:
                 try:
-                    model_file = _get_model_file(
+                    resolved_model_file = _get_model_file(
                         pretrained_model_name_or_path,
                         weights_name=_add_variant(SAFETENSORS_WEIGHTS_NAME, variant),
                         cache_dir=cache_dir,
@@ -628,7 +776,9 @@ class ModelMixin(nn.Cell, PushToHubMixin):
                         subfolder=subfolder,
                         user_agent=user_agent,
                         commit_hash=commit_hash,
+                        dduf_entries=dduf_entries,
                     )
+
                 except IOError as e:
                     logger.error(f"An error occurred while trying to fetch {pretrained_model_name_or_path}: {e}")
                     if not allow_pickle:
@@ -637,8 +787,8 @@ class ModelMixin(nn.Cell, PushToHubMixin):
                         "Defaulting to unsafe serialization. Pass `allow_pickle=False` to raise an error instead."
                     )
 
-            if model_file is None and not is_sharded:
-                model_file = _get_model_file(
+            if resolved_model_file is None and not is_sharded:
+                resolved_model_file = _get_model_file(
                     pretrained_model_name_or_path,
                     weights_name=_add_variant(WEIGHTS_NAME, variant),
                     cache_dir=cache_dir,
@@ -650,110 +800,165 @@ class ModelMixin(nn.Cell, PushToHubMixin):
                     subfolder=subfolder,
                     user_agent=user_agent,
                     commit_hash=commit_hash,
+                    dduf_entries=dduf_entries,
                 )
 
+        if not isinstance(resolved_model_file, list):
+            resolved_model_file = [resolved_model_file]
+
+        # set dtype to instantiate the model under:
+        # 1. If mindspore_dtype is not None, we use that dtype
+        # 2. If mindspore_dtype is float8, we don't use _set_default_mindspore_dtype and we downcast after loading the model
+        dtype_orig = None  # noqa
+        if mindspore_dtype is not None:
+            if not isinstance(mindspore_dtype, ms.Type):
+                raise ValueError(
+                    f"{mindspore_dtype} needs to be of type `mindspore.Type`, e.g. `mindspore.float16`, but is {type(mindspore_dtype)}."
+                )
+
+        with no_init_parameters():
             model = cls.from_config(config, **unused_kwargs)
 
-            # Move the model's data type conversion ahead of the weight loading process to avoid unnecessary
-            # data type conversions of weights that can increase computation time in certain situations.
-            if mindspore_dtype is not None and not isinstance(mindspore_dtype, ms.Type):
-                raise ValueError(
-                    f"{mindspore_dtype} needs to be of type `ms.Type`, e.g. `ms.float16`, but is {type(mindspore_dtype)}."
-                )
-            # When using `use_keep_in_fp32_modules` if we do a global `to()` here, then we will
-            # completely lose the effectivity of `use_keep_in_fp32_modules`.
-            elif mindspore_dtype is not None and not use_keep_in_fp32_modules:
-                model = model.to(mindspore_dtype)
+        state_dict = None
+        if not is_sharded:
+            # Time to load the checkpoint
+            state_dict = load_state_dict(resolved_model_file[0], disable_mmap=disable_mmap, dduf_entries=dduf_entries)
+            # We only fix it for non sharded checkpoints as we don't need it yet for sharded one.
+            model._fix_state_dict_keys_on_load(state_dict)
 
-            if is_sharded:
-                load_checkpoint_and_dispatch(
-                    model,
-                    index_file,  # TODO: check accelerate
-                    dtype=mindspore_dtype,
-                    strict=True,
-                )
-            else:
-                state_dict = load_state_dict(model_file, variant=variant)
-                model._convert_deprecated_attention_blocks(state_dict)
+        if is_sharded:
+            loaded_keys = sharded_metadata["all_checkpoint_keys"]
+        else:
+            state_dict = _convert_state_dict(model, state_dict)
+            loaded_keys = list(state_dict.keys())
 
-                model, missing_keys, unexpected_keys, mismatched_keys, error_msgs = cls._load_pretrained_model(
-                    model,
-                    state_dict,
-                    model_file,
-                    pretrained_model_name_or_path,
-                    ignore_mismatched_sizes=ignore_mismatched_sizes,
-                )
+        (
+            model,
+            missing_keys,
+            unexpected_keys,
+            mismatched_keys,
+            offload_index,
+            error_msgs,
+        ) = cls._load_pretrained_model(
+            model,
+            state_dict,
+            resolved_model_file,
+            pretrained_model_name_or_path,
+            loaded_keys,
+            ignore_mismatched_sizes=ignore_mismatched_sizes,
+            dtype=mindspore_dtype,
+            keep_in_fp32_modules=keep_in_fp32_modules,
+            dduf_entries=dduf_entries,
+        )
+        loading_info = {
+            "missing_keys": missing_keys,
+            "unexpected_keys": unexpected_keys,
+            "mismatched_keys": mismatched_keys,
+            "error_msgs": error_msgs,
+        }
 
-                loading_info = {
-                    "missing_keys": missing_keys,
-                    "unexpected_keys": unexpected_keys,
-                    "mismatched_keys": mismatched_keys,
-                    "error_msgs": error_msgs,
-                }
+        if mindspore_dtype is not None and not use_keep_in_fp32_modules:
+            model = model.to(mindspore_dtype)
 
         model.register_to_config(_name_or_path=pretrained_model_name_or_path)
 
         # Set model in evaluation mode to deactivate DropOut modules by default
         model.set_train(False)
-        if not is_sharded and output_loading_info:
+
+        if output_loading_info:
             return model, loading_info
 
         return model
+
+    def to(self, dtype: Optional[ms.Type] = None):
+        for p in self.get_parameters():
+            p.set_dtype(dtype)
+        return self
+
+    def half(self):
+        for p in self.get_parameters():
+            p.set_dtype(ms.float16)
+        return self
+
+    def float(self):
+        for p in self.get_parameters():
+            p.set_dtype(ms.float32)
+        return self
 
     @classmethod
     def _load_pretrained_model(
         cls,
         model,
         state_dict: OrderedDict,
-        resolved_archive_file,
+        resolved_model_file: List[str],
         pretrained_model_name_or_path: Union[str, os.PathLike],
+        loaded_keys: List[str],
         ignore_mismatched_sizes: bool = False,
+        dtype: Optional[Union[str, ms.Type]] = None,
+        keep_in_fp32_modules: Optional[List[str]] = None,
+        dduf_entries: Optional[Dict[str, DDUFEntry]] = None,
     ):
-        state_dict = _convert_state_dict(model, state_dict)
-        # Retrieve missing & unexpected_keys
         model_state_dict = {k: v for k, v in model.parameters_and_names()}
-        loaded_keys = list(state_dict.keys())
-
         expected_keys = list(model_state_dict.keys())
-
-        original_loaded_keys = loaded_keys
-
         missing_keys = list(set(expected_keys) - set(loaded_keys))
         unexpected_keys = list(set(loaded_keys) - set(expected_keys))
+        # Some models may have keys that are not in the state by design, removing them before needlessly warning
+        # the user.
+        if cls._keys_to_ignore_on_load_unexpected is not None:
+            for pat in cls._keys_to_ignore_on_load_unexpected:
+                unexpected_keys = [k for k in unexpected_keys if re.search(pat, k) is None]
 
-        # Make sure we are able to load base models as well as derived models (with heads)
-        model_to_load = model
+        mismatched_keys = []
 
-        def _find_mismatched_keys(
-            state_dict,
-            model_state_dict,
-            loaded_keys,
-            ignore_mismatched_sizes,
-        ):
-            mismatched_keys = []
-            if ignore_mismatched_sizes:
-                for checkpoint_key in loaded_keys:
-                    model_key = checkpoint_key
-
-                    if (
-                        model_key in model_state_dict
-                        and state_dict[checkpoint_key].shape != model_state_dict[model_key].shape
-                    ):
-                        mismatched_keys.append(
-                            (checkpoint_key, state_dict[checkpoint_key].shape, model_state_dict[model_key].shape)
-                        )
-                        del state_dict[checkpoint_key]
-            return mismatched_keys
+        error_msgs = []
 
         if state_dict is not None:
-            # Whole checkpoint
-            mismatched_keys = _find_mismatched_keys(
+            # load_state_dict will manage the case where we pass a dict instead of a file
+            # if state dict is not None, it means that we don't need to read the files from resolved_model_file also
+            resolved_model_file = [state_dict]
+
+        if len(resolved_model_file) > 1:
+            resolved_model_file = logging.tqdm(resolved_model_file, desc="Loading checkpoint shards")
+
+        for shard_file in resolved_model_file:
+            state_dict = load_state_dict(shard_file, dduf_entries=dduf_entries)
+
+            def _find_mismatched_keys(
                 state_dict,
                 model_state_dict,
-                original_loaded_keys,
+                loaded_keys,
+                ignore_mismatched_sizes,
+            ):
+                mismatched_keys = []
+                if ignore_mismatched_sizes:
+                    for checkpoint_key in loaded_keys:
+                        model_key = checkpoint_key
+                        # If the checkpoint is sharded, we may not have the key here.
+                        if checkpoint_key not in state_dict:
+                            continue
+
+                        if (
+                            model_key in model_state_dict
+                            and state_dict[checkpoint_key].shape != model_state_dict[model_key].shape
+                        ):
+                            mismatched_keys.append(
+                                (checkpoint_key, state_dict[checkpoint_key].shape, model_state_dict[model_key].shape)
+                            )
+                            del state_dict[checkpoint_key]
+                return mismatched_keys
+
+            mismatched_keys += _find_mismatched_keys(
+                state_dict,
+                model_state_dict,
+                loaded_keys,
                 ignore_mismatched_sizes,
             )
-            error_msgs = _load_state_dict_into_model(model_to_load, state_dict)
+            if len(resolved_model_file) > 1:
+                error_msgs += _load_state_dict_into_model(model, state_dict, is_sharded=True)
+            else:
+                error_msgs += _load_state_dict_into_model(model, state_dict, is_sharded=False)
+
+        offload_index = None
 
         if len(error_msgs) > 0:
             error_msg = "\n\t".join(error_msgs)
@@ -765,17 +970,11 @@ class ModelMixin(nn.Cell, PushToHubMixin):
 
         if len(unexpected_keys) > 0:
             logger.warning(
-                f"Some weights of the model checkpoint at {pretrained_model_name_or_path} were not used when"
-                f" initializing {model.__class__.__name__}: {unexpected_keys}\n- This IS expected if you are"
-                f" initializing {model.__class__.__name__} from the checkpoint of a model trained on another task"
-                " or with another architecture (e.g. initializing a BertForSequenceClassification model from a"
-                " BertForPreTraining model).\n- This IS NOT expected if you are initializing"
-                f" {model.__class__.__name__} from the checkpoint of a model that you expect to be exactly"
-                " identical (initializing a BertForSequenceClassification model from a"
-                " BertForSequenceClassification model)."
+                f"Some weights of the model checkpoint at {pretrained_model_name_or_path} were not used when initializing {cls.__name__}: \n {[', '.join(unexpected_keys)]}"  # noqa
             )
         else:
             logger.info(f"All model checkpoint weights were used when initializing {model.__class__.__name__}.\n")
+
         if len(missing_keys) > 0:
             logger.warning(
                 f"Some weights of {model.__class__.__name__} were not initialized from the model checkpoint at"
@@ -803,7 +1002,7 @@ class ModelMixin(nn.Cell, PushToHubMixin):
                 " able to use it for predictions and inference."
             )
 
-        return model, missing_keys, unexpected_keys, mismatched_keys, error_msgs
+        return model, missing_keys, unexpected_keys, mismatched_keys, offload_index, error_msgs
 
     @classmethod
     def _get_signature_keys(cls, obj):
@@ -814,20 +1013,54 @@ class ModelMixin(nn.Cell, PushToHubMixin):
 
         return expected_modules, optional_parameters
 
-    def to(self, dtype: Optional[ms.Type] = None):
-        for p in self.get_parameters():
-            p.set_dtype(dtype)
-        return self
+    # Adapted from `transformers` modeling_utils.py
+    def _get_no_split_modules(self, device_map: str):
+        """
+        Get the modules of the model that should not be split when using device_map. We iterate through the modules to
+        get the underlying `_no_split_modules`.
 
-    def float(self):
-        for p in self.get_parameters():
-            p.set_dtype(ms.float32)
-        return self
+        Args:
+            device_map (`str`):
+                The device map value. Options are ["auto", "balanced", "balanced_low_0", "sequential"]
 
-    def half(self):
-        for p in self.get_parameters():
-            p.set_dtype(ms.float16)
-        return self
+        Returns:
+            `List[str]`: List of modules that should not be split
+        """
+        _no_split_modules = set()
+        modules_to_check = [self]
+        while len(modules_to_check) > 0:
+            module = modules_to_check.pop(-1)
+            # if the module does not appear in _no_split_modules, we also check the children
+            if module.__class__.__name__ not in _no_split_modules:
+                if isinstance(module, ModelMixin):
+                    if module._no_split_modules is None:
+                        raise ValueError(
+                            f"{module.__class__.__name__} does not support `device_map='{device_map}'`. To implement support, the model "
+                            "class needs to implement the `_no_split_modules` attribute."
+                        )
+                    else:
+                        _no_split_modules = _no_split_modules | set(module._no_split_modules)
+                modules_to_check += list(module.cells())
+        return list(_no_split_modules)
+
+    @classmethod
+    def _set_default_mindspore_dtype(cls, dtype: ms.Type) -> ms.Type:
+        """
+        Change the default dtype and return the previous one. This is needed when wanting to instantiate the model
+        under specific dtype.
+
+        Args:
+            dtype (`mindspore.Type`):
+                a floating dtype to set to.
+
+        Returns:
+            `mindspore.Type`: the original `dtype` that can be used to restore `torch.set_default_dtype(dtype)` if it was
+            modified. If it wasn't, returns `None`.
+
+        Note `set_default_dtype` currently only works with floating-point types and asserts if for example,
+        `ms.int64` is passed. So if a non-float `dtype` is passed this functions will throw an exception.
+        """
+        raise NotImplementedError("`_set_default_mindspore_dtype` is not yet supported.")
 
     @property
     def dtype(self) -> ms.Type:
@@ -883,7 +1116,28 @@ class ModelMixin(nn.Cell, PushToHubMixin):
 
         return sum(total_numel)
 
-    def _convert_deprecated_attention_blocks(self, state_dict: OrderedDict) -> None:
+    def _set_gradient_checkpointing(self, enable: bool = True) -> None:
+        is_gradient_checkpointing_set = False
+
+        for name, module in self.cells_and_names():
+            if hasattr(module, "recompute_"):
+                logger.debug(f"Setting `gradient_checkpointing={enable}` for '{name}'")
+                module.recompute_(enable)
+                is_gradient_checkpointing_set = True
+
+        if not is_gradient_checkpointing_set:
+            raise ValueError(
+                f"The module {self.__class__.__name__} does not support gradient checkpointing. Please make sure to "
+                f"use a module that supports gradient checkpointing by creating a boolean attribute `gradient_checkpointing`."
+            )
+
+    def _fix_state_dict_keys_on_load(self, state_dict: OrderedDict) -> None:
+        """
+        This function fix the state dict of the model to take into account some changes that were made in the model
+        architecture:
+        - deprecated attention blocks (happened before we introduced sharded checkpoint,
+        so this is why we apply this method only when loading non sharded checkpoints for now)
+        """
         deprecated_attention_block_paths = []
 
         def recursive_find_attn_block(name, module):
@@ -926,6 +1180,13 @@ class ModelMixin(nn.Cell, PushToHubMixin):
                 state_dict[f"{path}.to_out.0.weight"] = state_dict.pop(f"{path}.proj_attn.weight")
             if f"{path}.proj_attn.bias" in state_dict:
                 state_dict[f"{path}.to_out.0.bias"] = state_dict.pop(f"{path}.proj_attn.bias")
+
+        # TODO : MindSpore 2.6 share weight bug. Unable to load WTE and LM-Head layer weights properly. It will be
+        #  deleted until fixed load_state_dict_into_model and parameters_and_names。
+        if hasattr(self, "wte_lm_share") and self.wte_lm_share:
+            state_dict["transformer.transformer.wte.embedding_table"] = state_dict["transformer.lm_head.weight"]
+
+        return state_dict
 
     def get_submodule(self, target: str) -> nn.Cell:
         """Return the submodule given by ``target`` if it exists, otherwise throw an error.

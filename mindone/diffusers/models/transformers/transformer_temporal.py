@@ -22,7 +22,6 @@ from ...utils import BaseOutput
 from ..attention import BasicTransformerBlock, TemporalBasicTransformerBlock
 from ..embeddings import TimestepEmbedding, Timesteps
 from ..modeling_utils import ModelMixin
-from ..normalization import GroupNorm
 from ..resnet import AlphaBlender
 
 
@@ -68,6 +67,8 @@ class TransformerTemporalModel(ModelMixin, ConfigMixin):
             The maximum length of the sequence over which to apply positional embeddings.
     """
 
+    _skip_layerwise_casting_patterns = ["norm"]
+
     @register_to_config
     def __init__(
         self,
@@ -94,7 +95,7 @@ class TransformerTemporalModel(ModelMixin, ConfigMixin):
 
         self.in_channels = in_channels
 
-        self.norm = GroupNorm(num_groups=norm_num_groups, num_channels=in_channels, eps=1e-6, affine=True)
+        self.norm = mint.nn.GroupNorm(num_groups=norm_num_groups, num_channels=in_channels, eps=1e-6, affine=True)
         self.proj_in = mint.nn.Linear(in_channels, inner_dim)
 
         # 3. Define transformers blocks
@@ -187,7 +188,10 @@ class TransformerTemporalModel(ModelMixin, ConfigMixin):
         # 3. Output
         hidden_states = self.proj_out(hidden_states)
         hidden_states = (
-            hidden_states[None, None, :].reshape(batch_size, height, width, num_frames, channel).permute(0, 3, 4, 1, 2)
+            hidden_states[None, None, :]
+            .reshape(batch_size, height, width, num_frames, channel)
+            .permute(0, 3, 4, 1, 2)
+            .contiguous()
         )
         hidden_states = hidden_states.reshape(batch_frames, channel, height, width)
 
@@ -232,7 +236,7 @@ class TransformerSpatioTemporalModel(nn.Cell):
 
         # 2. Define input layers
         self.in_channels = in_channels
-        self.norm = GroupNorm(num_groups=32, num_channels=in_channels, eps=1e-6)
+        self.norm = mint.nn.GroupNorm(num_groups=32, num_channels=in_channels, eps=1e-6)
         self.proj_in = mint.nn.Linear(in_channels, inner_dim)
 
         # 3. Define transformers blocks
@@ -341,10 +345,7 @@ class TransformerSpatioTemporalModel(nn.Cell):
 
         # 2. Blocks
         for block, temporal_block in zip(self.transformer_blocks, self.temporal_transformer_blocks):
-            hidden_states = block(
-                hidden_states,
-                encoder_hidden_states=encoder_hidden_states,
-            )
+            hidden_states = block(hidden_states, encoder_hidden_states=encoder_hidden_states)
 
             hidden_states_mix = hidden_states
             hidden_states_mix = hidden_states_mix + emb
@@ -362,7 +363,7 @@ class TransformerSpatioTemporalModel(nn.Cell):
 
         # 3. Output
         hidden_states = self.proj_out(hidden_states)
-        hidden_states = hidden_states.reshape(batch_frames, height, width, inner_dim).permute(0, 3, 1, 2)
+        hidden_states = hidden_states.reshape(batch_frames, height, width, inner_dim).permute(0, 3, 1, 2).contiguous()
 
         output = hidden_states + residual
 

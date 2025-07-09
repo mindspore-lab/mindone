@@ -17,6 +17,9 @@ import re
 from typing import Optional
 
 from huggingface_hub.utils import validate_hf_hub_args
+from typing_extensions import Self
+
+import mindspore as ms
 
 from ..models.modeling_utils import _convert_state_dict
 from ..utils import deprecate, logging
@@ -24,6 +27,7 @@ from .single_file_utils import (
     SingleFileComponentError,
     _load_param_into_net,
     convert_animatediff_checkpoint_to_diffusers,
+    convert_auraflow_transformer_checkpoint_to_diffusers,
     convert_autoencoder_dc_checkpoint_to_diffusers,
     convert_controlnet_checkpoint,
     convert_flux_transformer_checkpoint_to_diffusers,
@@ -32,7 +36,9 @@ from .single_file_utils import (
     convert_ldm_vae_checkpoint,
     convert_ltx_transformer_checkpoint_to_diffusers,
     convert_ltx_vae_checkpoint_to_diffusers,
+    convert_lumina2_to_diffusers,
     convert_mochi_transformer_checkpoint_to_diffusers,
+    convert_sana_transformer_to_diffusers,
     convert_sd3_transformer_checkpoint_to_diffusers,
     convert_stable_cascade_unet_single_file_to_diffusers,
     convert_wan_transformer_to_diffusers,
@@ -100,6 +106,18 @@ SINGLE_FILE_LOADABLE_CLASSES = {
         "checkpoint_mapping_fn": convert_hunyuan_video_transformer_to_diffusers,
         "default_subfolder": "transformer",
     },
+    "AuraFlowTransformer2DModel": {
+        "checkpoint_mapping_fn": convert_auraflow_transformer_checkpoint_to_diffusers,
+        "default_subfolder": "transformer",
+    },
+    "Lumina2Transformer2DModel": {
+        "checkpoint_mapping_fn": convert_lumina2_to_diffusers,
+        "default_subfolder": "transformer",
+    },
+    "SanaTransformer2DModel": {
+        "checkpoint_mapping_fn": convert_sana_transformer_to_diffusers,
+        "default_subfolder": "transformer",
+    },
     "WanTransformer3DModel": {
         "checkpoint_mapping_fn": convert_wan_transformer_to_diffusers,
         "default_subfolder": "transformer",
@@ -140,7 +158,7 @@ class FromOriginalModelMixin:
 
     @classmethod
     @validate_hf_hub_args
-    def from_single_file(cls, pretrained_model_link_or_path_or_dict: Optional[str] = None, **kwargs):
+    def from_single_file(cls, pretrained_model_link_or_path_or_dict: Optional[str] = None, **kwargs) -> Self:
         r"""
         Instantiate a model from pretrained weights saved in the original `.ckpt` or `.safetensors` format. The model
         is set in evaluation mode (`model.eval()`) by default.
@@ -162,8 +180,8 @@ class FromOriginalModelMixin:
             original_config (`str`, *optional*):
                 Dict or path to a yaml file containing the configuration for the model in its original format.
                     If a dict is provided, it will be used to initialize the model configuration.
-            torch_dtype (`str` or `torch.dtype`, *optional*):
-                Override the default `torch.dtype` and load the model with another dtype. If `"auto"` is passed, the
+            mindspore_dtype (`str` or `mindspore.Type`, *optional*):
+                Override the default `mindspore.Type` and load the model with another dtype. If `"auto"` is passed, the
                 dtype is automatically derived from the model's weights.
             force_download (`bool`, *optional*, defaults to `False`):
                 Whether or not to force the (re-)download of the model weights and configuration files, overriding the
@@ -184,6 +202,9 @@ class FromOriginalModelMixin:
             revision (`str`, *optional*, defaults to `"main"`):
                 The specific model version to use. It can be a branch name, a tag name, a commit id, or any identifier
                 allowed by Git.
+            disable_mmap ('bool', *optional*, defaults to 'False'):
+                Whether to disable mmap when loading a Safetensors model. This option can perform better when the model
+                is on a network mount or hard drive, which may not handle the seeky-ness of mmap very well.
             kwargs (remaining dictionary of keyword arguments, *optional*):
                 Can be used to overwrite load and saveable variables (for example the pipeline components of the
                 specific pipeline class). The overwritten components are directly passed to the pipelines `__init__`
@@ -229,6 +250,13 @@ class FromOriginalModelMixin:
         revision = kwargs.pop("revision", None)
         config_revision = kwargs.pop("config_revision", None)
         mindspore_dtype = kwargs.pop("mindspore_dtype", None)
+        disable_mmap = kwargs.pop("disable_mmap", False)
+
+        if mindspore_dtype is not None and not isinstance(mindspore_dtype, ms.Type):
+            mindspore_dtype = ms.float32
+            logger.warning(
+                f"Passed `mindspore_dtype` {mindspore_dtype} is not a `ms.Type`. Defaulting to `ms.float32`."
+            )
 
         if isinstance(pretrained_model_link_or_path_or_dict, dict):
             checkpoint = pretrained_model_link_or_path_or_dict
@@ -241,6 +269,7 @@ class FromOriginalModelMixin:
                 cache_dir=cache_dir,
                 local_files_only=local_files_only,
                 revision=revision,
+                disable_mmap=disable_mmap,
             )
 
         mapping_functions = SINGLE_FILE_LOADABLE_CLASSES[mapping_class_name]
