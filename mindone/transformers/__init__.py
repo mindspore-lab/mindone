@@ -271,6 +271,14 @@ from .models.qwen2_5_omni import (
 )
 from .models.qwen2_5_vl import Qwen2_5_VLForConditionalGeneration, Qwen2_5_VLModel, Qwen2_5_VLPreTrainedModel
 from .models.qwen2_audio import Qwen2AudioEncoder, Qwen2AudioForConditionalGeneration, Qwen2AudioPreTrainedModel
+from .models.qwen2_moe import (
+    Qwen2MoeForCausalLM,
+    Qwen2MoeForQuestionAnswering,
+    Qwen2MoeForSequenceClassification,
+    Qwen2MoeForTokenClassification,
+    Qwen2MoeModel,
+    Qwen2MoePreTrainedModel,
+)
 from .models.qwen2_vl import Qwen2VLForConditionalGeneration, Qwen2VLModel, Qwen2VLPreTrainedModel
 from .models.recurrent_gemma import RecurrentGemmaForCausalLM, RecurrentGemmaModel, RecurrentGemmaPreTrainedModel
 from .models.rembert import (
@@ -293,6 +301,16 @@ from .models.roberta import (
     RobertaForTokenClassification,
     RobertaModel,
     RobertaPreTrainedModel,
+)
+from .models.roberta_prelayernorm import (
+    RobertaPreLayerNormForCausalLM,
+    RobertaPreLayerNormForMaskedLM,
+    RobertaPreLayerNormForMultipleChoice,
+    RobertaPreLayerNormForQuestionAnswering,
+    RobertaPreLayerNormForSequenceClassification,
+    RobertaPreLayerNormForTokenClassification,
+    RobertaPreLayerNormModel,
+    RobertaPreLayerNormPreTrainedModel,
 )
 from .models.siglip import (
     SiglipForImageClassification,
@@ -369,7 +387,14 @@ from .processing_utils import ProcessorMixin
 
 if version.parse(transformers.__version__) >= version.parse("4.51.0"):
     from .models.qwen3 import Qwen3ForCausalLM, Qwen3Model, Qwen3PreTrainedModel
-
+    from .models.qwen3_moe import (
+        Qwen3MoeForCausalLM,
+        Qwen3MoeForQuestionAnswering,
+        Qwen3MoeForSequenceClassification,
+        Qwen3MoeForTokenClassification,
+        Qwen3MoeModel,
+        Qwen3MoePreTrainedModel,
+    )
 if version.parse(transformers.__version__) >= version.parse("4.53.0"):
     from .models.glm4v import (
         Glm4vForConditionalGeneration,
