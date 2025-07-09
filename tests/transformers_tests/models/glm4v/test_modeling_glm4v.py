@@ -11,10 +11,10 @@
 import numpy as np
 import pytest
 import torch
-from transformers.models.glm4v.configuration_glm4v import Glm4vConfig
 
 import mindspore as ms
 
+from mindone.transformers.models.glm4v.configuration_glm4v import Glm4vConfig
 from tests.modeling_test_utils import compute_diffs, generalized_parse_args, get_modules
 from tests.transformers_tests.models.modeling_common import floats_numpy, ids_numpy
 
