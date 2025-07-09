@@ -1,4 +1,4 @@
-# Copyright 2024 Black Forest Labs, The HuggingFace Team. All rights reserved.
+# Copyright 2025 Black Forest Labs, The HuggingFace Team and The InstantX Team. All rights reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -20,14 +20,14 @@ from mindspore import mint, nn
 
 from ...configuration_utils import ConfigMixin, register_to_config
 from ...loaders import FluxTransformer2DLoadersMixin, FromOriginalModelMixin, PeftAdapterMixin
-from ...models.attention import FeedForward
-from ...models.attention_processor import Attention, AttentionProcessor, FluxAttnProcessor2_0, FusedFluxAttnProcessor2_0
-from ...models.modeling_utils import ModelMixin
-from ...models.normalization import AdaLayerNormContinuous, AdaLayerNormZero, AdaLayerNormZeroSingle
 from ...utils import logging
+from ..attention import FeedForward
+from ..attention_processor import Attention, AttentionProcessor, FluxAttnProcessor2_0, FusedFluxAttnProcessor2_0
 from ..embeddings import CombinedTimestepGuidanceTextProjEmbeddings, CombinedTimestepTextProjEmbeddings, FluxPosEmbed
 from ..layers_compat import GELU
 from ..modeling_outputs import Transformer2DModelOutput
+from ..modeling_utils import ModelMixin
+from ..normalization import AdaLayerNormContinuous, AdaLayerNormZero, AdaLayerNormZeroSingle
 
 logger = logging.get_logger(__name__)  # pylint: disable=invalid-name
 
@@ -227,7 +227,7 @@ class FluxTransformer2DModel(
         joint_attention_dim: int = 4096,
         pooled_projection_dim: int = 768,
         guidance_embeds: bool = False,
-        axes_dims_rope: Tuple[int] = (16, 56, 56),
+        axes_dims_rope: Tuple[int, int, int] = (16, 56, 56),
     ):
         super().__init__()
         self.out_channels = out_channels or in_channels
@@ -424,8 +424,6 @@ class FluxTransformer2DModel(
         timestep = timestep.to(hidden_states.dtype) * 1000
         if guidance is not None:
             guidance = guidance.to(hidden_states.dtype) * 1000
-        else:
-            guidance = None
 
         temb = (
             self.time_text_embed(timestep, pooled_projections)

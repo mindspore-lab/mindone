@@ -579,9 +579,8 @@ class ModelMixin(nn.Cell, PushToHubMixin):
             cache_dir (`Union[str, os.PathLike]`, *optional*):
                 Path to a directory where a downloaded pretrained model configuration is cached if the standard cache
                 is not used.
-            mindspore_dtype (`str` or `mindspore.Type`, *optional*):
-                Override the default `mindspore.Type` and load the model with another dtype. If `"auto"` is passed, the
-                dtype is automatically derived from the model's weights.
+            mindspore_dtype (`mindspore.Type`, *optional*):
+                Override the default `mindspore.Type` and load the model with another dtype.
             force_download (`bool`, *optional*, defaults to `False`):
                 Whether or not to force the (re-)download of the model weights and configuration files, overriding the
                 cached versions if they exist.

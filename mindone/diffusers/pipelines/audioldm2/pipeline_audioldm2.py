@@ -1,4 +1,4 @@
-# Copyright 2024 CVSSP, ByteDance and The HuggingFace Team. All rights reserved.
+# Copyright 2025 CVSSP, ByteDance and The HuggingFace Team. All rights reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -300,7 +300,7 @@ class AudioLDM2Pipeline(DiffusionPipeline):
                 *e.g.* prompt weighting. If not provided, negative_prompt_embeds will be computed from
                 `negative_prompt` input argument.
             generated_prompt_embeds (`mindspore.tensor`, *optional*):
-                Pre-generated text embeddings from the GPT2 langauge model. Can be used to easily tweak text inputs,
+                Pre-generated text embeddings from the GPT2 language model. Can be used to easily tweak text inputs,
                  *e.g.* prompt weighting. If not provided, text embeddings will be generated from `prompt` input
                  argument.
             negative_generated_prompt_embeds (`mindspore.tensor`, *optional*):
@@ -321,7 +321,7 @@ class AudioLDM2Pipeline(DiffusionPipeline):
             attention_mask (`mindspore.tensor`):
                 Attention mask to be applied to the `prompt_embeds`.
             generated_prompt_embeds (`mindspore.tensor`):
-                Text embeddings generated from the GPT2 langauge model.
+                Text embeddings generated from the GPT2 language model.
 
         Example:
 
@@ -617,7 +617,7 @@ class AudioLDM2Pipeline(DiffusionPipeline):
     def prepare_extra_step_kwargs(self, generator, eta):
         # prepare extra kwargs for the scheduler step, since not all schedulers have the same signature
         # eta (η) is only used with the DDIMScheduler, it will be ignored for other schedulers.
-        # eta corresponds to η in DDIM paper: https://arxiv.org/abs/2010.02502
+        # eta corresponds to η in DDIM paper: https://huggingface.co/papers/2010.02502
         # and should be between [0, 1]
 
         accepts_eta = "eta" in set(inspect.signature(self.scheduler.step).parameters.keys())
@@ -801,8 +801,8 @@ class AudioLDM2Pipeline(DiffusionPipeline):
                 generated waveforms based on their cosine similarity with the text input in the joint text-audio
                 embedding space.
             eta (`float`, *optional*, defaults to 0.0):
-                Corresponds to parameter eta (η) from the [DDIM](https://arxiv.org/abs/2010.02502) paper. Only applies
-                to the [`~schedulers.DDIMScheduler`], and is ignored in other schedulers.
+                Corresponds to parameter eta (η) from the [DDIM](https://huggingface.co/papers/2010.02502) paper. Only
+                applies to the [`~schedulers.DDIMScheduler`], and is ignored in other schedulers.
             generator (`np.random.Generator` or `List[np.random.Generator]`, *optional*):
                 A [`np.random.Generator`](https://pytorch.org/docs/stable/generated/np.random.Generator.html) to make
                 generation deterministic.
@@ -817,7 +817,7 @@ class AudioLDM2Pipeline(DiffusionPipeline):
                 Pre-generated negative text embeddings. Can be used to easily tweak text inputs (prompt weighting). If
                 not provided, `negative_prompt_embeds` are generated from the `negative_prompt` input argument.
             generated_prompt_embeds (`mindspore.tensor`, *optional*):
-                Pre-generated text embeddings from the GPT2 langauge model. Can be used to easily tweak text inputs,
+                Pre-generated text embeddings from the GPT2 language model. Can be used to easily tweak text inputs,
                  *e.g.* prompt weighting. If not provided, text embeddings will be generated from `prompt` input
                  argument.
             negative_generated_prompt_embeds (`mindspore.tensor`, *optional*):
@@ -899,7 +899,7 @@ class AudioLDM2Pipeline(DiffusionPipeline):
             batch_size = prompt_embeds.shape[0]
 
         # here `guidance_scale` is defined analog to the guidance weight `w` of equation (2)
-        # of the Imagen paper: https://arxiv.org/pdf/2205.11487.pdf . `guidance_scale = 1`
+        # of the Imagen paper: https://huggingface.co/papers/2205.11487 . `guidance_scale = 1`
         # corresponds to doing no classifier free guidance.
         do_classifier_free_guidance = guidance_scale > 1.0
 

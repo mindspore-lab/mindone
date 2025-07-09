@@ -1,4 +1,4 @@
-# Copyright 2024 Stanford University Team and The HuggingFace Team. All rights reserved.
+# Copyright 2025 Stanford University Team and The HuggingFace Team. All rights reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -14,6 +14,7 @@
 
 # DISCLAIMER: This code is strongly influenced by https://github.com/pesser/pytorch_diffusion
 # and https://github.com/hojonathanho/diffusion
+
 import math
 from dataclasses import dataclass
 from typing import List, Optional, Tuple, Union
@@ -95,7 +96,7 @@ def betas_for_alpha_bar(
 
 def rescale_zero_terminal_snr(betas):
     """
-    Rescales betas to have zero terminal SNR Based on https://arxiv.org/pdf/2305.08891.pdf (Algorithm 1)
+    Rescales betas to have zero terminal SNR Based on https://huggingface.co/papers/2305.08891 (Algorithm 1)
 
 
     Args:
@@ -272,7 +273,7 @@ class DDIMScheduler(SchedulerMixin, ConfigMixin):
         pixels from saturation at each step. We find that dynamic thresholding results in significantly better
         photorealism as well as better image-text alignment, especially when using very large guidance weights."
 
-        https://arxiv.org/abs/2205.11487
+        https://huggingface.co/papers/2205.11487
         """
         dtype = sample.dtype
         batch_size, channels, *remaining_dims = sample.shape
@@ -315,7 +316,7 @@ class DDIMScheduler(SchedulerMixin, ConfigMixin):
 
         self.num_inference_steps = num_inference_steps
 
-        # "linspace", "leading", "trailing" corresponds to annotation of Table 2. of https://arxiv.org/abs/2305.08891
+        # "linspace", "leading", "trailing" corresponds to annotation of Table 2. of https://huggingface.co/papers/2305.08891
         if self.config.timestep_spacing == "linspace":
             timesteps = (
                 np.linspace(0, self.config.num_train_timesteps - 1, num_inference_steps)
@@ -390,7 +391,7 @@ class DDIMScheduler(SchedulerMixin, ConfigMixin):
                 "Number of inference steps is 'None', you need to run 'set_timesteps' after creating the scheduler"
             )
 
-        # See formulas (12) and (16) of DDIM paper https://arxiv.org/pdf/2010.02502.pdf
+        # See formulas (12) and (16) of DDIM paper https://huggingface.co/papers/2010.02502
         # Ideally, read DDIM paper in-detail understanding
 
         # Notation (<variable name> -> <name in paper>
@@ -412,7 +413,7 @@ class DDIMScheduler(SchedulerMixin, ConfigMixin):
         beta_prod_t = 1 - alpha_prod_t
 
         # 3. compute predicted original sample from predicted noise also called
-        # "predicted x_0" of formula (12) from https://arxiv.org/pdf/2010.02502.pdf
+        # "predicted x_0" of formula (12) from https://huggingface.co/papers/2010.02502
         if self.config.prediction_type == "epsilon":
             pred_original_sample = (
                 (sample - (beta_prod_t ** (0.5)).to(dtype) * model_output) / alpha_prod_t ** (0.5)
@@ -453,10 +454,10 @@ class DDIMScheduler(SchedulerMixin, ConfigMixin):
                 (sample - (alpha_prod_t ** (0.5)).to(dtype) * pred_original_sample) / beta_prod_t ** (0.5)
             ).to(dtype)
 
-        # 6. compute "direction pointing to x_t" of formula (12) from https://arxiv.org/pdf/2010.02502.pdf
+        # 6. compute "direction pointing to x_t" of formula (12) from https://huggingface.co/papers/2010.02502
         pred_sample_direction = ((1 - alpha_prod_t_prev - std_dev_t**2) ** (0.5)).to(dtype) * pred_epsilon
 
-        # 7. compute x_t without "random noise" of formula (12) from https://arxiv.org/pdf/2010.02502.pdf
+        # 7. compute x_t without "random noise" of formula (12) from https://huggingface.co/papers/2010.02502
         prev_sample = (alpha_prod_t_prev ** (0.5)).to(dtype) * pred_original_sample + pred_sample_direction
 
         if eta > 0:

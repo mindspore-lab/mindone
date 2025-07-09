@@ -1,4 +1,4 @@
-# Copyright 2024 The GLIGEN Authors and HuggingFace Team. All rights reserved.
+# Copyright 2025 The GLIGEN Authors and HuggingFace Team. All rights reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -18,20 +18,20 @@ from typing import Any, Callable, Dict, List, Optional, Union
 
 import numpy as np
 import PIL.Image
-from transformers import CLIPFeatureExtractor, CLIPProcessor, CLIPTokenizer
+from transformers import CLIPImageProcessor, CLIPProcessor, CLIPTokenizer
 
 import mindspore as ms
 from mindspore import mint, ops
 
 from ....transformers import CLIPTextModel, CLIPVisionModelWithProjection
 from ...image_processor import VaeImageProcessor
-from ...loaders import LoraLoaderMixin, TextualInversionLoaderMixin  # noqa: F401
+from ...loaders import StableDiffusionLoraLoaderMixin, TextualInversionLoaderMixin  # noqa: F401
 from ...models import AutoencoderKL, UNet2DConditionModel
 from ...models.attention import GatedSelfAttentionDense
 from ...schedulers import KarrasDiffusionSchedulers
 from ...utils import logging, scale_lora_layers, unscale_lora_layers
 from ...utils.mindspore_utils import randn_tensor
-from ..pipeline_utils import DiffusionPipeline, StableDiffusionMixin
+from ..pipeline_utils import DeprecatedPipelineMixin, DiffusionPipeline, StableDiffusionMixin
 from ..stable_diffusion import StableDiffusionPipelineOutput
 from ..stable_diffusion.clip_image_project_model import CLIPImageProjection
 from ..stable_diffusion.safety_checker import StableDiffusionSafetyChecker
@@ -141,7 +141,7 @@ EXAMPLE_DOC_STRING = """
 """
 
 
-class StableDiffusionGLIGENTextImagePipeline(DiffusionPipeline, StableDiffusionMixin):
+class StableDiffusionGLIGENTextImagePipeline(DeprecatedPipelineMixin, DiffusionPipeline, StableDiffusionMixin):
     r"""
     Pipeline for text-to-image generation using Stable Diffusion with Grounded-Language-to-Image Generation (GLIGEN).
 
@@ -156,7 +156,7 @@ class StableDiffusionGLIGENTextImagePipeline(DiffusionPipeline, StableDiffusionM
         tokenizer ([`~transformers.CLIPTokenizer`]):
             A `CLIPTokenizer` to tokenize text.
         processor ([`~transformers.CLIPProcessor`]):
-            A `CLIPProcessor` to procces reference image.
+            A `CLIPProcessor` to process reference image.
         image_encoder ([`~transformers.CLIPVisionModelWithProjection`]):
             Frozen image-encoder ([clip-vit-large-patch14](https://huggingface.co/openai/clip-vit-large-patch14)).
         image_project ([`CLIPImageProjection`]):
@@ -174,6 +174,8 @@ class StableDiffusionGLIGENTextImagePipeline(DiffusionPipeline, StableDiffusionM
             A `CLIPImageProcessor` to extract features from generated images; used as inputs to the `safety_checker`.
     """
 
+    _last_supported_version = "0.33.1"
+
     model_cpu_offload_seq = "text_encoder->unet->vae"
     _optional_components = ["safety_checker", "feature_extractor"]
     _exclude_from_cpu_offload = ["safety_checker"]
@@ -189,7 +191,7 @@ class StableDiffusionGLIGENTextImagePipeline(DiffusionPipeline, StableDiffusionM
         unet: UNet2DConditionModel,
         scheduler: KarrasDiffusionSchedulers,
         safety_checker: StableDiffusionSafetyChecker,
-        feature_extractor: CLIPFeatureExtractor,
+        feature_extractor: CLIPImageProcessor,
         requires_safety_checker: bool = True,
     ):
         super().__init__()
@@ -267,7 +269,7 @@ class StableDiffusionGLIGENTextImagePipeline(DiffusionPipeline, StableDiffusionM
         """
         # set lora scale so that monkey patched LoRA
         # function of text encoder can correctly access it
-        if lora_scale is not None and isinstance(self, LoraLoaderMixin):
+        if lora_scale is not None and isinstance(self, StableDiffusionLoraLoaderMixin):
             self._lora_scale = lora_scale
 
             # dynamically adjust the LoRA scale
@@ -395,7 +397,7 @@ class StableDiffusionGLIGENTextImagePipeline(DiffusionPipeline, StableDiffusionM
             negative_prompt_embeds = negative_prompt_embeds.view(batch_size * num_images_per_prompt, seq_len, -1)
 
         if self.text_encoder is not None:
-            if isinstance(self, LoraLoaderMixin):
+            if isinstance(self, StableDiffusionLoraLoaderMixin):
                 # Retrieve the original scale by scaling back the LoRA layers
                 unscale_lora_layers(self.text_encoder, lora_scale)
 
@@ -427,7 +429,7 @@ class StableDiffusionGLIGENTextImagePipeline(DiffusionPipeline, StableDiffusionM
     def prepare_extra_step_kwargs(self, generator, eta):
         # prepare extra kwargs for the scheduler step, since not all schedulers have the same signature
         # eta (η) is only used with the DDIMScheduler, it will be ignored for other schedulers.
-        # eta corresponds to η in DDIM paper: https://arxiv.org/abs/2010.02502
+        # eta corresponds to η in DDIM paper: https://huggingface.co/papers/2010.02502
         # and should be between [0, 1]
 
         accepts_eta = "eta" in set(inspect.signature(self.scheduler.step).parameters.keys())
@@ -758,7 +760,7 @@ class StableDiffusionGLIGENTextImagePipeline(DiffusionPipeline, StableDiffusionM
                 `gligen_phrases`. Otherwise, it is treated as a generation task on a blank input image.
             gligen_scheduled_sampling_beta (`float`, defaults to 0.3):
                 Scheduled Sampling factor from [GLIGEN: Open-Set Grounded Text-to-Image
-                Generation](https://arxiv.org/pdf/2301.07093.pdf). Scheduled Sampling factor is only varied for
+                Generation](https://huggingface.co/papers/2301.07093). Scheduled Sampling factor is only varied for
                 scheduled sampling during inference for improved quality and controllability.
             negative_prompt (`str` or `List[str]`, *optional*):
                 The prompt or prompts to guide what to not include in image generation. If not defined, you need to
@@ -766,8 +768,8 @@ class StableDiffusionGLIGENTextImagePipeline(DiffusionPipeline, StableDiffusionM
             num_images_per_prompt (`int`, *optional*, defaults to 1):
                 The number of images to generate per prompt.
             eta (`float`, *optional*, defaults to 0.0):
-                Corresponds to parameter eta (η) from the [DDIM](https://arxiv.org/abs/2010.02502) paper. Only applies
-                to the [`~schedulers.DDIMScheduler`], and is ignored in other schedulers.
+                Corresponds to parameter eta (η) from the [DDIM](https://huggingface.co/papers/2010.02502) paper. Only
+                applies to the [`~schedulers.DDIMScheduler`], and is ignored in other schedulers.
             generator (`np.random.Generator` or `List[np.random.Generator]`, *optional*):
                 A [`np.random.Generator`](https://pytorch.org/docs/stable/generated/torch.Generator.html) to make
                 generation deterministic.
@@ -835,7 +837,7 @@ class StableDiffusionGLIGENTextImagePipeline(DiffusionPipeline, StableDiffusionM
         else:
             batch_size = prompt_embeds.shape[0]
         # here `guidance_scale` is defined analog to the guidance weight `w` of equation (2)
-        # of the Imagen paper: https://arxiv.org/pdf/2205.11487.pdf . `guidance_scale = 1`
+        # of the Imagen paper: https://huggingface.co/papers/2205.11487 . `guidance_scale = 1`
         # corresponds to doing no classifier free guidance.
         do_classifier_free_guidance = guidance_scale > 1.0
 

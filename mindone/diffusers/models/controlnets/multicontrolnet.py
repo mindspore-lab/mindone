@@ -4,9 +4,9 @@ from typing import Any, Callable, Dict, List, Optional, Tuple, Union
 import mindspore as ms
 from mindspore import nn
 
-from ...models.controlnets.controlnet import ControlNetModel, ControlNetOutput
-from ...models.modeling_utils import ModelMixin
 from ...utils import logging
+from ..controlnets.controlnet import ControlNetModel, ControlNetOutput
+from ..modeling_utils import ModelMixin
 
 logger = logging.get_logger(__name__)
 
@@ -129,9 +129,8 @@ class MultiControlNetModel(ModelMixin):
                 A path to a *directory* containing model weights saved using
                 [`~diffusers.pipelines.controlnet.MultiControlNetModel.save_pretrained`], e.g.,
                 `./my_model_directory/controlnet`.
-            mindspore_dtype (`str` or `mindspore.dtype`, *optional*):
-                Override the default `mindspore.dtype` and load the model under this dtype. If `"auto"` is passed the dtype
-                will be automatically derived from the model's weights.
+            mindspore_dtype (`mindspore.Type`, *optional*):
+                Override the default `mindspore.Type` and load the model under this dtype.
             output_loading_info(`bool`, *optional*, defaults to `False`):
                 Whether or not to also return a dictionary containing missing keys, unexpected keys and error messages.
             max_memory (`Dict`, *optional*):

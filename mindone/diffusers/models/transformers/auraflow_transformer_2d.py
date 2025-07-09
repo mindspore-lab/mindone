@@ -1,4 +1,4 @@
-# Copyright 2024 AuraFlow Authors, The HuggingFace Team. All rights reserved.
+# Copyright 2025 AuraFlow Authors, The HuggingFace Team. All rights reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -13,14 +13,14 @@
 # limitations under the License.
 
 
-from typing import Dict, Union
+from typing import Any, Dict, Optional, Union
 
 import mindspore as ms
 import mindspore.mint.nn.functional as F
 from mindspore import mint, nn
 
 from ...configuration_utils import ConfigMixin, register_to_config
-from ...loaders import FromOriginalModelMixin
+from ...loaders import FromOriginalModelMixin, PeftAdapterMixin
 from ...utils import logging
 from ..attention_processor import Attention, AttentionProcessor, AuraFlowAttnProcessor2_0, FusedAuraFlowAttnProcessor2_0
 from ..embeddings import TimestepEmbedding, Timesteps
@@ -67,15 +67,23 @@ class AuraFlowPatchEmbed(nn.Cell):
         # PE will be viewed as 2d-grid, and H/p x W/p of the PE will be selected
         # because original input are in flattened format, we have to flatten this 2d grid as well.
         h_p, w_p = h // self.patch_size, w // self.patch_size
-        original_pe_indexes = mint.arange(self.pos_embed.shape[1])
         h_max, w_max = int(self.pos_embed_max_size**0.5), int(self.pos_embed_max_size**0.5)
-        original_pe_indexes = original_pe_indexes.view(h_max, w_max)
+
+        # Calculate the top-left corner indices for the centered patch grid
         starth = h_max // 2 - h_p // 2
-        endh = starth + h_p
         startw = w_max // 2 - w_p // 2
-        endw = startw + w_p
-        original_pe_indexes = original_pe_indexes[starth:endh, startw:endw]
-        return original_pe_indexes.flatten()
+
+        # Generate the row and column indices for the desired patch grid
+        rows = mint.arange(starth, starth + h_p)
+        cols = mint.arange(startw, startw + w_p)
+
+        # Create a 2D grid of indices
+        row_indices, col_indices = mint.meshgrid(rows, cols, indexing="ij")
+
+        # Convert the 2D grid indices to flattened 1D indices
+        selected_indices = (row_indices * w_max + col_indices).flatten()
+
+        return selected_indices
 
     def construct(self, latent):
         batch_size, num_channels, height, width = latent.shape
@@ -152,14 +160,20 @@ class AuraFlowSingleTransformerBlock(nn.Cell):
         self.norm2 = FP32LayerNorm(dim, elementwise_affine=False, bias=False)
         self.ff = AuraFlowFeedForward(dim, dim * 4)
 
-    def construct(self, hidden_states: ms.Tensor, temb: ms.Tensor):
+    def construct(
+        self,
+        hidden_states: ms.Tensor,
+        temb: ms.Tensor,
+        attention_kwargs: Optional[Dict[str, Any]] = None,
+    ):
         residual = hidden_states
+        attention_kwargs = attention_kwargs or {}
 
         # Norm + Projection.
         norm_hidden_states, gate_msa, shift_mlp, scale_mlp, gate_mlp = self.norm1(hidden_states, emb=temb)
 
         # Attention.
-        attn_output = self.attn(hidden_states=norm_hidden_states)
+        attn_output = self.attn(hidden_states=norm_hidden_states, **attention_kwargs)
 
         # Process attention outputs for the `hidden_states`.
         hidden_states = self.norm2(residual + gate_msa.unsqueeze(1) * attn_output)
@@ -213,9 +227,16 @@ class AuraFlowJointTransformerBlock(nn.Cell):
         self.norm2_context = FP32LayerNorm(dim, elementwise_affine=False, bias=False)
         self.ff_context = AuraFlowFeedForward(dim, dim * 4)
 
-    def construct(self, hidden_states: ms.Tensor, encoder_hidden_states: ms.Tensor, temb: ms.Tensor):
+    def construct(
+        self,
+        hidden_states: ms.Tensor,
+        encoder_hidden_states: ms.Tensor,
+        temb: ms.Tensor,
+        attention_kwargs: Optional[Dict[str, Any]] = None,
+    ):
         residual = hidden_states
         residual_context = encoder_hidden_states
+        attention_kwargs = attention_kwargs or {}
 
         # Norm + Projection.
         norm_hidden_states, gate_msa, shift_mlp, scale_mlp, gate_mlp = self.norm1(hidden_states, emb=temb)
@@ -225,7 +246,9 @@ class AuraFlowJointTransformerBlock(nn.Cell):
 
         # Attention.
         attn_output, context_attn_output = self.attn(
-            hidden_states=norm_hidden_states, encoder_hidden_states=norm_encoder_hidden_states
+            hidden_states=norm_hidden_states,
+            encoder_hidden_states=norm_encoder_hidden_states,
+            **attention_kwargs,
         )
 
         # Process attention outputs for the `hidden_states`.
@@ -243,7 +266,7 @@ class AuraFlowJointTransformerBlock(nn.Cell):
         return encoder_hidden_states, hidden_states
 
 
-class AuraFlowTransformer2DModel(ModelMixin, ConfigMixin, FromOriginalModelMixin):
+class AuraFlowTransformer2DModel(ModelMixin, ConfigMixin, PeftAdapterMixin, FromOriginalModelMixin):
     r"""
     A 2D Transformer model as introduced in AuraFlow (https://blog.fal.ai/auraflow/).
 
@@ -251,17 +274,17 @@ class AuraFlowTransformer2DModel(ModelMixin, ConfigMixin, FromOriginalModelMixin
         sample_size (`int`): The width of the latent images. This is fixed during training since
             it is used to learn a number of position embeddings.
         patch_size (`int`): Patch size to turn the input data into small patches.
-        in_channels (`int`, *optional*, defaults to 16): The number of channels in the input.
+        in_channels (`int`, *optional*, defaults to 4): The number of channels in the input.
         num_mmdit_layers (`int`, *optional*, defaults to 4): The number of layers of MMDiT Transformer blocks to use.
-        num_single_dit_layers (`int`, *optional*, defaults to 4):
+        num_single_dit_layers (`int`, *optional*, defaults to 32):
             The number of layers of Transformer blocks to use. These blocks use concatenated image and text
             representations.
-        attention_head_dim (`int`, *optional*, defaults to 64): The number of channels in each head.
-        num_attention_heads (`int`, *optional*, defaults to 18): The number of heads to use for multi-head attention.
+        attention_head_dim (`int`, *optional*, defaults to 256): The number of channels in each head.
+        num_attention_heads (`int`, *optional*, defaults to 12): The number of heads to use for multi-head attention.
         joint_attention_dim (`int`, *optional*): The number of `encoder_hidden_states` dimensions to use.
         caption_projection_dim (`int`): Number of dimensions to use when projecting the `encoder_hidden_states`.
-        out_channels (`int`, defaults to 16): Number of output channels.
-        pos_embed_max_size (`int`, defaults to 4096): Maximum positions to embed from the image latents.
+        out_channels (`int`, defaults to 4): Number of output channels.
+        pos_embed_max_size (`int`, defaults to 1024): Maximum positions to embed from the image latents.
     """
 
     _no_split_modules = ["AuraFlowJointTransformerBlock", "AuraFlowSingleTransformerBlock", "AuraFlowPatchEmbed"]
@@ -327,7 +350,7 @@ class AuraFlowTransformer2DModel(ModelMixin, ConfigMixin, FromOriginalModelMixin
         self.norm_out = AuraFlowPreFinalBlock(self.inner_dim, self.inner_dim)
         self.proj_out = mint.nn.Linear(self.inner_dim, patch_size * patch_size * self.out_channels, bias=False)
 
-        # https://arxiv.org/abs/2309.16588
+        # https://huggingface.co/papers/2309.16588
         # prevents artifacts in the attention maps
         self.register_tokens = ms.Parameter(mint.randn(1, 8, self.inner_dim) * 0.02, name="register_tokens")
 
@@ -441,8 +464,21 @@ class AuraFlowTransformer2DModel(ModelMixin, ConfigMixin, FromOriginalModelMixin
         hidden_states: ms.Tensor,
         encoder_hidden_states: ms.Tensor = None,
         timestep: ms.Tensor = None,
+        attention_kwargs: Optional[Dict[str, Any]] = None,
         return_dict: bool = False,
     ) -> Union[ms.Tensor, Transformer2DModelOutput]:
+        if attention_kwargs is not None and "scale" in attention_kwargs:
+            # weight the lora layers by setting `lora_scale` for each PEFT layer here
+            # and remove `lora_scale` from each PEFT layer at the end.
+            # scale_lora_layers & unscale_lora_layers maybe contains some operation forbidden in graph mode
+            raise RuntimeError(
+                f"You are trying to set scaling of lora layer by passing {attention_kwargs['scale']=}. "
+                f"However it's not allowed in on-the-fly model forwarding. "
+                f"Please manually call `scale_lora_layers(model, lora_scale)` before model forwarding and "
+                f"`unscale_lora_layers(model, lora_scale)` after model forwarding. "
+                f"For example, it can be done in a pipeline call like `StableDiffusionPipeline.__call__`."
+            )
+
         height, width = hidden_states.shape[-2:]
 
         # Apply patch embedding, timestep embedding, and project the caption embeddings.
@@ -459,7 +495,10 @@ class AuraFlowTransformer2DModel(ModelMixin, ConfigMixin, FromOriginalModelMixin
         # MMDiT blocks.
         for index_block, block in enumerate(self.joint_transformer_blocks):
             encoder_hidden_states, hidden_states = block(
-                hidden_states=hidden_states, encoder_hidden_states=encoder_hidden_states, temb=temb
+                hidden_states=hidden_states,
+                encoder_hidden_states=encoder_hidden_states,
+                temb=temb,
+                attention_kwargs=attention_kwargs,
             )
 
         # Single DiT blocks that combine the `hidden_states` (image) and `encoder_hidden_states` (text)
@@ -468,7 +507,9 @@ class AuraFlowTransformer2DModel(ModelMixin, ConfigMixin, FromOriginalModelMixin
             combined_hidden_states = mint.cat([encoder_hidden_states, hidden_states], dim=1)
 
             for index_block, block in enumerate(self.single_transformer_blocks):
-                combined_hidden_states = block(hidden_states=combined_hidden_states, temb=temb)
+                combined_hidden_states = block(
+                    hidden_states=combined_hidden_states, temb=temb, attention_kwargs=attention_kwargs
+                )
 
             hidden_states = combined_hidden_states[:, encoder_seq_len:]
 

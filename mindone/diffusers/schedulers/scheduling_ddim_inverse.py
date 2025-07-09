@@ -1,4 +1,4 @@
-# Copyright 2024 The HuggingFace Team. All rights reserved.
+# Copyright 2025 The HuggingFace Team. All rights reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -95,7 +95,7 @@ def betas_for_alpha_bar(
 # Copied from diffusers.schedulers.scheduling_ddim.rescale_zero_terminal_snr
 def rescale_zero_terminal_snr(betas):
     """
-    Rescales betas to have zero terminal SNR Based on https://arxiv.org/pdf/2305.08891.pdf (Algorithm 1)
+    Rescales betas to have zero terminal SNR Based on https://huggingface.co/papers/2305.08891 (Algorithm 1)
 
 
     Args:
@@ -270,7 +270,7 @@ class DDIMInverseScheduler(SchedulerMixin, ConfigMixin):
 
         self.num_inference_steps = num_inference_steps
 
-        # "leading" and "trailing" corresponds to annotation of Table 2. of https://arxiv.org/abs/2305.08891
+        # "leading" and "trailing" corresponds to annotation of Table 2. of https://huggingface.co/papers/2305.08891
         if self.config.timestep_spacing == "leading":
             step_ratio = self.config.num_train_timesteps // self.num_inference_steps
             # creates integer timesteps by multiplying by ratio
@@ -342,7 +342,7 @@ class DDIMInverseScheduler(SchedulerMixin, ConfigMixin):
         beta_prod_t = 1 - alpha_prod_t
 
         # 3. compute predicted original sample from predicted noise also called
-        # "predicted x_0" of formula (12) from https://arxiv.org/pdf/2010.02502.pdf
+        # "predicted x_0" of formula (12) from https://huggingface.co/papers/2010.02502
         if self.config.prediction_type == "epsilon":
             pred_original_sample = ((sample - beta_prod_t ** (0.5) * model_output) / alpha_prod_t ** (0.5)).to(
                 sample.dtype
@@ -370,10 +370,10 @@ class DDIMInverseScheduler(SchedulerMixin, ConfigMixin):
                 -self.config.clip_sample_range, self.config.clip_sample_range
             )
 
-        # 5. compute "direction pointing to x_t" of formula (12) from https://arxiv.org/pdf/2010.02502.pdf
+        # 5. compute "direction pointing to x_t" of formula (12) from https://huggingface.co/papers/2010.02502
         pred_sample_direction = ((1 - alpha_prod_t_prev) ** (0.5)).to(pred_epsilon.dtype) * pred_epsilon
 
-        # 6. compute x_t without "random noise" of formula (12) from https://arxiv.org/pdf/2010.02502.pdf
+        # 6. compute x_t without "random noise" of formula (12) from https://huggingface.co/papers/2010.02502
         prev_sample = (alpha_prod_t_prev ** (0.5) * pred_original_sample).to(
             pred_original_sample.dtype
         ) + pred_sample_direction

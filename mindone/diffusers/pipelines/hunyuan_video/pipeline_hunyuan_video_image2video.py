@@ -1,4 +1,4 @@
-# Copyright 2024 The HunyuanVideo Team and The HuggingFace Team. All rights reserved.
+# Copyright 2025 The HunyuanVideo Team and The HuggingFace Team. All rights reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -87,6 +87,48 @@ DEFAULT_PROMPT_TEMPLATE = {
     "image_emb_len": 576,
     "double_return_token_id": 271,
 }
+
+
+def _expand_input_ids_with_image_tokens(
+    text_input_ids,
+    prompt_attention_mask,
+    max_sequence_length,
+    image_token_index,
+    image_emb_len,
+    image_emb_start,
+    image_emb_end,
+    pad_token_id,
+):
+    special_image_token_mask = text_input_ids == image_token_index
+    num_special_image_tokens = mint.sum(special_image_token_mask, dim=-1)
+    batch_indices, non_image_indices = mint.where(text_input_ids != image_token_index)
+
+    max_expanded_length = max_sequence_length + (num_special_image_tokens.max() * (image_emb_len - 1))
+    new_token_positions = mint.cumsum((special_image_token_mask * (image_emb_len - 1) + 1), -1) - 1
+    text_to_overwrite = new_token_positions[batch_indices, non_image_indices]
+
+    expanded_input_ids = mint.full(
+        (text_input_ids.shape[0], max_expanded_length),
+        pad_token_id,
+        dtype=text_input_ids.dtype,
+    )
+    expanded_input_ids[batch_indices, text_to_overwrite] = text_input_ids[batch_indices, non_image_indices]
+    expanded_input_ids[batch_indices, image_emb_start:image_emb_end] = image_token_index
+
+    expanded_attention_mask = mint.zeros(
+        (text_input_ids.shape[0], max_expanded_length),
+        dtype=prompt_attention_mask.dtype,
+    )
+    attn_batch_indices, attention_indices = mint.where(expanded_input_ids != pad_token_id)
+    expanded_attention_mask[attn_batch_indices, attention_indices] = 1.0
+    expanded_attention_mask = expanded_attention_mask.to(prompt_attention_mask.dtype)
+    position_ids = (expanded_attention_mask.cumsum(-1) - 1).masked_fill_((expanded_attention_mask == 0), 1)
+
+    return {
+        "input_ids": expanded_input_ids,
+        "attention_mask": expanded_attention_mask,
+        "position_ids": position_ids,
+    }
 
 
 # Copied from diffusers.pipelines.stable_diffusion.pipeline_stable_diffusion.retrieve_timesteps
@@ -235,6 +277,12 @@ class HunyuanVideoImageToVideoPipeline(DiffusionPipeline, HunyuanVideoLoraLoader
         prompt = [prompt_template["template"].format(p) for p in prompt]
 
         crop_start = prompt_template.get("crop_start", None)
+
+        image_emb_len = prompt_template.get("image_emb_len", 576)
+        image_emb_start = prompt_template.get("image_emb_start", 5)
+        image_emb_end = prompt_template.get("image_emb_end", 581)
+        double_return_token_id = prompt_template.get("double_return_token_id", 271)
+
         if crop_start is None:
             prompt_template_input = self.tokenizer(
                 prompt_template["template"],
@@ -259,24 +307,30 @@ class HunyuanVideoImageToVideoPipeline(DiffusionPipeline, HunyuanVideoLoraLoader
             return_overflowing_tokens=False,
             return_attention_mask=True,
         )
-        text_input_ids = ms.Tensor(text_inputs.input_ids)
-        prompt_attention_mask = ms.Tensor(text_inputs.attention_mask)
+        text_input_ids = ms.tensor(text_inputs.input_ids)
+        prompt_attention_mask = ms.tensor(text_inputs.attention_mask)
 
-        image_embeds = ms.Tensor(self.image_processor(image, return_tensors="np").pixel_values).to(dtype=dtype)
+        image_embeds = ms.tensor(self.image_processor(image, return_tensors="np").pixel_values).to(dtype=dtype)
 
+        image_token_index = self.text_encoder.config.image_token_index
+        pad_token_id = self.text_encoder.config.pad_token_id
+        expanded_inputs = _expand_input_ids_with_image_tokens(
+            text_input_ids,
+            prompt_attention_mask,
+            max_sequence_length,
+            image_token_index,
+            image_emb_len,
+            image_emb_start,
+            image_emb_end,
+            pad_token_id,
+        )
         prompt_embeds = self.text_encoder(
-            input_ids=text_input_ids,
-            attention_mask=prompt_attention_mask,
+            **expanded_inputs,
             pixel_values=image_embeds,
             output_hidden_states=True,
             return_dict=False,
         )[1][-(num_hidden_layers_to_skip + 1)]
         prompt_embeds = prompt_embeds.to(dtype=dtype)
-
-        image_emb_len = prompt_template.get("image_emb_len", 576)
-        image_emb_start = prompt_template.get("image_emb_start", 5)
-        image_emb_end = prompt_template.get("image_emb_end", 581)
-        double_return_token_id = prompt_template.get("double_return_token_id", 271)
 
         if crop_start is not None and crop_start > 0:
             text_crop_start = crop_start - 1 + image_emb_len
@@ -374,7 +428,7 @@ class HunyuanVideoImageToVideoPipeline(DiffusionPipeline, HunyuanVideoLoraLoader
                 f" {max_sequence_length} tokens: {removed_text}"
             )
 
-        prompt_embeds = self.text_encoder_2(ms.Tensor(text_input_ids), output_hidden_states=False)[1]
+        prompt_embeds = self.text_encoder_2(ms.tensor(text_input_ids), output_hidden_states=False)[1]
         return prompt_embeds
 
     def encode_prompt(
@@ -636,13 +690,13 @@ class HunyuanVideoImageToVideoPipeline(DiffusionPipeline, HunyuanVideoLoraLoader
             true_cfg_scale (`float`, *optional*, defaults to 1.0):
                 When > 1.0 and a provided `negative_prompt`, enables true classifier-free guidance.
             guidance_scale (`float`, defaults to `1.0`):
-                Guidance scale as defined in [Classifier-Free Diffusion Guidance](https://arxiv.org/abs/2207.12598).
-                `guidance_scale` is defined as `w` of equation 2. of [Imagen
-                Paper](https://arxiv.org/pdf/2205.11487.pdf). Guidance scale is enabled by setting `guidance_scale >
-                1`. Higher guidance scale encourages to generate images that are closely linked to the text `prompt`,
-                usually at the expense of lower image quality. Note that the only available HunyuanVideo model is
-                CFG-distilled, which means that traditional guidance between unconditional and conditional latent is
-                not applied.
+                Guidance scale as defined in [Classifier-Free Diffusion
+                Guidance](https://huggingface.co/papers/2207.12598). `guidance_scale` is defined as `w` of equation 2.
+                of [Imagen Paper](https://huggingface.co/papers/2205.11487). Guidance scale is enabled by setting
+                `guidance_scale > 1`. Higher guidance scale encourages to generate images that are closely linked to
+                the text `prompt`, usually at the expense of lower image quality. Note that the only available
+                HunyuanVideo model is CFG-distilled, which means that traditional guidance between unconditional and
+                conditional latent is not applied.
             num_videos_per_prompt (`int`, *optional*, defaults to 1):
                 The number of images to generate per prompt.
             generator (`numpy.random.Generator` or `List[numpy.random.Generator]`, *optional*):
@@ -654,14 +708,14 @@ class HunyuanVideoImageToVideoPipeline(DiffusionPipeline, HunyuanVideoLoraLoader
             prompt_embeds (`ms.Tensor`, *optional*):
                 Pre-generated text embeddings. Can be used to easily tweak text inputs (prompt weighting). If not
                 provided, text embeddings are generated from the `prompt` input argument.
-            pooled_prompt_embeds (`torch.FloatTensor`, *optional*):
+            pooled_prompt_embeds (`ms.Tensor`, *optional*):
                 Pre-generated pooled text embeddings. Can be used to easily tweak text inputs, *e.g.* prompt weighting.
                 If not provided, pooled text embeddings will be generated from `prompt` input argument.
-            negative_prompt_embeds (`torch.FloatTensor`, *optional*):
+            negative_prompt_embeds (`ms.Tensor`, *optional*):
                 Pre-generated negative text embeddings. Can be used to easily tweak text inputs, *e.g.* prompt
                 weighting. If not provided, negative_prompt_embeds will be generated from `negative_prompt` input
                 argument.
-            negative_pooled_prompt_embeds (`torch.FloatTensor`, *optional*):
+            negative_pooled_prompt_embeds (`ms.Tensor`, *optional*):
                 Pre-generated negative pooled text embeddings. Can be used to easily tweak text inputs, *e.g.* prompt
                 weighting. If not provided, pooled negative_prompt_embeds will be generated from `negative_prompt`
                 input argument.

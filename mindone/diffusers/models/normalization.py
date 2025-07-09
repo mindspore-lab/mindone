@@ -1,5 +1,5 @@
 # coding=utf-8
-# Copyright 2024 HuggingFace Inc.
+# Copyright 2025 HuggingFace Inc.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -244,7 +244,7 @@ class AdaLayerNormSingle(nn.Cell):
     r"""
     Norm layer adaptive layer norm single (adaLN-single).
 
-    As proposed in PixArt-Alpha (see: https://arxiv.org/abs/2310.00426; Section 2.3).
+    As proposed in PixArt-Alpha (see: https://huggingface.co/papers/2310.00426; Section 2.3).
 
     Parameters:
         embedding_dim (`int`): The size of each embedding vector.
@@ -519,7 +519,7 @@ if MINDSPORE_VERSION == parse("2.5.0"):
 
     class RMSNorm(nn.Cell):
         r"""
-        RMS Norm as introduced in https://arxiv.org/abs/1910.07467 by Zhang et al.
+        RMS Norm as introduced in https://huggingface.co/papers/1910.07467 by Zhang et al.
 
         Args:
             dim (`int`): Number of dimensions to use for `weights`. Only effective when `elementwise_affine` is True.
@@ -635,7 +635,7 @@ class MochiRMSNorm(nn.Cell):
 
 class GlobalResponseNorm(nn.Cell):
     r"""
-    Global response normalization as introduced in ConvNeXt-v2 (https://arxiv.org/abs/2301.00808).
+    Global response normalization as introduced in ConvNeXt-v2 (https://huggingface.co/papers/2301.00808).
 
     Args:
         dim (`int`): Number of dimensions to use for the `gamma` and `beta`.

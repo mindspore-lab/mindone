@@ -1,4 +1,4 @@
-# Copyright 2024 The HuggingFace Team. All rights reserved.
+# Copyright 2025 The HuggingFace Team. All rights reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -24,7 +24,7 @@ from mindone.transformers import CLIPTextModelWithProjection
 from ...image_processor import PipelineImageInput, VaeImageProcessor
 from ...models import UVit2DModel, VQModel
 from ...schedulers import AmusedScheduler
-from ..pipeline_utils import DiffusionPipeline, ImagePipelineOutput
+from ..pipeline_utils import DeprecatedPipelineMixin, DiffusionPipeline, ImagePipelineOutput
 
 XLA_AVAILABLE = False
 
@@ -53,7 +53,8 @@ EXAMPLE_DOC_STRING = """
 """
 
 
-class AmusedImg2ImgPipeline(DiffusionPipeline):
+class AmusedImg2ImgPipeline(DeprecatedPipelineMixin, DiffusionPipeline):
+    _last_supported_version = "0.33.1"
     image_processor: VaeImageProcessor
     vqvae: VQModel
     tokenizer: CLIPTokenizer
@@ -173,10 +174,10 @@ class AmusedImg2ImgPipeline(DiffusionPipeline):
             micro_conditioning_aesthetic_score (`int`, *optional*, defaults to 6):
                 The targeted aesthetic score according to the laion aesthetic classifier. See
                 https://laion.ai/blog/laion-aesthetics/ and the micro-conditioning section of
-                https://arxiv.org/abs/2307.01952.
+                https://huggingface.co/papers/2307.01952.
             micro_conditioning_crop_coord (`Tuple[int]`, *optional*, defaults to (0, 0)):
                 The targeted height, width crop coordinates. See the micro-conditioning section of
-                https://arxiv.org/abs/2307.01952.
+                https://huggingface.co/papers/2307.01952.
             temperature (`Union[int, Tuple[int, int], List[int]]`, *optional*, defaults to (2, 0)):
                 Configures the temperature scheduler on `self.scheduler` see `AmusedScheduler#set_timesteps`.
 
