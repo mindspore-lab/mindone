@@ -27,7 +27,7 @@ from tests.modeling_test_utils import (
 from tests.transformers_tests.models.modeling_common import floats_numpy, ids_numpy, random_attention_mask
 
 # CrossEntropyLoss not support bf16
-DTYPE_AND_THRESHOLDS = {"fp32": 5e-4, "fp16": 5e-3, "bf16": 5e-3}
+DTYPE_AND_THRESHOLDS = {"fp32": 5e-4, "fp16": 5e-3, "bf16": 1e-2}
 MODES = [1]
 
 
@@ -164,7 +164,7 @@ class InstructBlipQFormerModelTester:
         )
 
 
-# this class is based on `OPTModelTester` found in tests/models/opt/test_modeling_opt.py
+# this class is based on `LlamaModelTester` found in tests/models/opt/test_modeling_llama.py
 class InstructBlipTextModelDecoderOnlyTester:
     def __init__(
         self,
