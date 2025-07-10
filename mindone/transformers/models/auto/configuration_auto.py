@@ -13,7 +13,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 """Auto Config class."""
-
 import importlib
 import os
 import re
@@ -21,6 +20,8 @@ import warnings
 from collections import OrderedDict
 from typing import List, Union
 
+import transformers
+from packaging import version
 from transformers.configuration_utils import PretrainedConfig
 from transformers.dynamic_module_utils import get_class_from_dynamic_module, resolve_trust_remote_code
 from transformers.utils import CONFIG_NAME, logging
@@ -52,6 +53,10 @@ CONFIG_MAPPING_NAMES = OrderedDict(
         ("granitemoe", "GraniteMoeConfig"),
         ("granitemoeshared", "GraniteMoeSharedConfig"),
         ("hiera", "HieraConfig"),
+        ("idefics", "IdeficsConfig"),
+        ("idefics2", "Idefics2Config"),
+        ("idefics3", "Idefics3Config"),
+        ("idefics3_vision", "Idefics3VisionConfig"),
         ("ijepa", "IJepaConfig"),
         ("imagegpt", "ImageGPTConfig"),
         ("levit", "LevitConfig"),
@@ -64,6 +69,7 @@ CONFIG_MAPPING_NAMES = OrderedDict(
         ("megatron-bert", "MegatronBertConfig"),
         ("mixtral", "MixtralConfig"),
         ("markuplm", "MarkupLMConfig"),
+        ("paligemma", "PaliGemmaConfig"),
         ("phi", "PhiConfig"),
         ("phi3", "Phi3Config"),
         ("qwen2", "Qwen2Config"),
@@ -71,7 +77,6 @@ CONFIG_MAPPING_NAMES = OrderedDict(
         ("qwen2_audio", "Qwen2AudioConfig"),
         ("qwen2_audio_encoder", "Qwen2AudioEncoderConfig"),
         ("qwen2_vl", "Qwen2VLConfig"),
-        ("qwen3", "Qwen3Config"),
         ("roberta", "RobertaConfig"),
         ("recurrent_gemma", "RecurrentGemmaConfig"),
         ("rembert", "RemBertConfig"),
@@ -119,6 +124,10 @@ MODEL_NAMES_MAPPING = OrderedDict(
         ("qwen2_audio", "Qwen2Audio"),
         ("qwen2_audio_encoder", "Qwen2AudioEncoder"),
         ("hiera", "Hiera"),
+        ("idefics", "IDEFICS"),
+        ("idefics2", "Idefics2"),
+        ("idefics3", "Idefics3"),
+        ("idefics3_vision", "Idefics3VisionTransformer"),
         ("ijepa", "I-JEPA"),
         ("imagegpt", "ImageGPT"),
         ("levit", "LeViT"),
@@ -133,6 +142,7 @@ MODEL_NAMES_MAPPING = OrderedDict(
         ("megatron-bert", "Megatron-BERT"),
         ("mixtral", "Mixtral"),
         ("markuplm", "MarkupLM"),
+        ("paligemma", "PaliGemma"),
         ("phi", "Phi"),
         ("phi3", "Phi3"),
         ("qwen2", "Qwen2"),
@@ -140,7 +150,6 @@ MODEL_NAMES_MAPPING = OrderedDict(
         ("qwen2_audio", "Qwen2Audio"),
         ("qwen2_audio_encoder", "Qwen2AudioEncoder"),
         ("qwen2_vl", "Qwen2VL"),
-        ("qwen3", "Qwen3Model"),
         ("recurrent_gemma", "RecurrentGemma"),
         ("rembert", "RemBERT"),
         ("siglip", "SigLIP"),
@@ -198,12 +207,17 @@ SPECIAL_MODEL_TYPE_TO_MODULE_NAME = OrderedDict(
         ("clip_vision_model", "clip"),
         ("qwen2_audio_encoder", "qwen2_audio"),
         ("gemma3_text", "gemma3"),
+        ("idefics3_vision", "idefics3"),
         ("clip_text_model", "clip"),
         ("siglip_vision_model", "siglip"),
         ("chinese_clip_vision_model", "chinese_clip"),
         ("rt_detr_resnet", "rt_detr"),
     ]
 )
+
+if version.parse(transformers.__version__) >= version.parse("4.51.0"):
+    CONFIG_MAPPING_NAMES.update({"qwen3": "Qwen3Config"})
+    MODEL_NAMES_MAPPING.update({"qwen3": "Qwen3Model"})
 
 
 def model_type_to_module_name(key):

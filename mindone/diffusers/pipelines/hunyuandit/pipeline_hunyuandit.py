@@ -193,8 +193,8 @@ class HunyuanDiTPipeline(DiffusionPipeline):
         safety_checker: StableDiffusionSafetyChecker,
         feature_extractor: CLIPImageProcessor,
         requires_safety_checker: bool = True,
-        text_encoder_2=T5EncoderModel,
-        tokenizer_2=MT5Tokenizer,
+        text_encoder_2: Optional[T5EncoderModel] = None,
+        tokenizer_2: Optional[MT5Tokenizer] = None,
     ):
         super().__init__()
 
@@ -226,9 +226,7 @@ class HunyuanDiTPipeline(DiffusionPipeline):
                 " checker. If you do not want to use the safety checker, you can pass `'safety_checker=None'` instead."
             )
 
-        self.vae_scale_factor = (
-            2 ** (len(self.vae.config.block_out_channels) - 1) if hasattr(self, "vae") and self.vae is not None else 8
-        )
+        self.vae_scale_factor = 2 ** (len(self.vae.config.block_out_channels) - 1) if getattr(self, "vae", None) else 8
         self.image_processor = VaeImageProcessor(vae_scale_factor=self.vae_scale_factor)
         self.register_to_config(requires_safety_checker=requires_safety_checker)
         self.default_sample_size = (
@@ -408,7 +406,7 @@ class HunyuanDiTPipeline(DiffusionPipeline):
                 feature_extractor_input = self.image_processor.numpy_to_pil(image)
             safety_checker_input = self.feature_extractor(feature_extractor_input, return_tensors="np")
             image, has_nsfw_concept = self.safety_checker(
-                images=image, clip_input=ms.Tensor(safety_checker_input.pixel_values).to(dtype)
+                images=image, clip_input=ms.tensor(safety_checker_input.pixel_values).to(dtype)
             )
 
             # Warning for safety checker operations here as it couldn't been done in construct()
@@ -787,11 +785,11 @@ class HunyuanDiTPipeline(DiffusionPipeline):
             output_type="ms",
         )
 
-        style = ms.Tensor([0])
+        style = ms.tensor([0])
 
         target_size = target_size or (height, width)
         add_time_ids = list(original_size + target_size + crops_coords_top_left)
-        add_time_ids = ms.Tensor([add_time_ids], dtype=prompt_embeds.dtype)
+        add_time_ids = ms.tensor([add_time_ids], dtype=prompt_embeds.dtype)
 
         if self.do_classifier_free_guidance:
             prompt_embeds = mint.cat([negative_prompt_embeds, prompt_embeds])
@@ -822,7 +820,7 @@ class HunyuanDiTPipeline(DiffusionPipeline):
                 if ops.is_tensor(latent_model_input):
                     t_expand = t.broadcast_to((latent_model_input.shape[0],)).to(dtype=latent_model_input.dtype)
                 else:
-                    t_expand = ms.Tensor([t] * latent_model_input.shape[0]).to(dtype=latent_model_input.dtype)
+                    t_expand = ms.tensor([t] * latent_model_input.shape[0]).to(dtype=latent_model_input.dtype)
 
                 # predict the noise residual
                 noise_pred = self.transformer(

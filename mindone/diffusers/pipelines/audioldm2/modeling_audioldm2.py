@@ -522,11 +522,11 @@ class AudioLDM2UNet2DConditionModel(ModelMixin, ConfigMixin, UNet2DConditionLoad
 
         # out
         if norm_num_groups is not None:
-            self.conv_norm_out = nn.GroupNorm(
+            self.conv_norm_out = mint.nn.GroupNorm(
                 num_channels=block_out_channels[0], num_groups=norm_num_groups, eps=norm_eps
             )
 
-            self.conv_act = get_activation(act_fn)()
+            self.conv_act = get_activation(act_fn)
 
         else:
             self.conv_norm_out = None

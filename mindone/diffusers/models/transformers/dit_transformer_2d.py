@@ -22,7 +22,6 @@ from ..attention import BasicTransformerBlock
 from ..embeddings import PatchEmbed
 from ..modeling_outputs import Transformer2DModelOutput
 from ..modeling_utils import ModelMixin
-from ..normalization import LayerNorm
 
 logger = logging.get_logger(__name__)  # pylint: disable=invalid-name
 
@@ -63,7 +62,9 @@ class DiTTransformer2DModel(ModelMixin, ConfigMixin):
             A small constant added to the denominator in normalization layers to prevent division by zero.
     """
 
+    _skip_layerwise_casting_patterns = ["pos_embed", "norm"]
     _supports_gradient_checkpointing = True
+    _supports_group_offloading = False
 
     @register_to_config
     def __init__(
@@ -136,15 +137,11 @@ class DiTTransformer2DModel(ModelMixin, ConfigMixin):
         )
 
         # 3. Output blocks.
-        self.norm_out = LayerNorm(self.inner_dim, elementwise_affine=False, eps=1e-6)
+        self.norm_out = mint.nn.LayerNorm(self.inner_dim, elementwise_affine=False, eps=1e-6)
         self.proj_out_1 = mint.nn.Linear(self.inner_dim, 2 * self.inner_dim)
         self.proj_out_2 = mint.nn.Linear(
             self.inner_dim, self.config.patch_size * self.config.patch_size * self.out_channels
         )
-
-    def _set_gradient_checkpointing(self, module, value=False):
-        if hasattr(module, "gradient_checkpointing"):
-            module.gradient_checkpointing = value
 
     def construct(
         self,

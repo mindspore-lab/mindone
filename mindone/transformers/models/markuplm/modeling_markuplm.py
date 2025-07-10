@@ -1,6 +1,9 @@
 # coding=utf-8
 # Copyright 2022 Microsoft Research Asia and the HuggingFace Inc. team.
 #
+# This code is adapted from https://github.com/huggingface/transformers
+# with modifications to run transformers on mindspore.
+#
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -56,7 +59,7 @@ class XPathEmbeddings(nn.Cell):
 
         self.dropout = mint.nn.Dropout(p=config.hidden_dropout_prob)
 
-        self.activation = nn.ReLU()
+        self.activation = mint.nn.ReLU()
         self.xpath_unitseq2_inner = mint.nn.Linear(
             config.xpath_unit_hidden_size * self.max_depth, 4 * config.hidden_size
         )
@@ -256,7 +259,7 @@ class MarkupLMPooler(nn.Cell):
     def __init__(self, config):
         super().__init__()
         self.dense = mint.nn.Linear(config.hidden_size, config.hidden_size)
-        self.activation = nn.Tanh()
+        self.activation = mint.nn.Tanh()
 
     def construct(self, hidden_states: ms.Tensor) -> ms.Tensor:
         # We "pool" the model by simply taking the hidden state corresponding

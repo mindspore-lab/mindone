@@ -15,11 +15,7 @@ from mindone.diffusers import (
     LCMScheduler,
     MotionAdapter,
 )
-from mindone.diffusers.utils.testing_utils import (
-    load_downloaded_numpy_from_hf_hub,
-    load_downloaded_video_from_hf_hub,
-    slow,
-)
+from mindone.diffusers.utils.testing_utils import load_downloaded_video_from_hf_hub, load_numpy_from_local_file, slow
 
 from ..pipeline_test_utils import (
     THRESHOLD_FP16,
@@ -247,8 +243,8 @@ class AnimateDiffVideoToVideoControlNetPipelineIntegrationTests(PipelineTesterMi
         prompt = "astronaut in space, dancing"
         negative_prompt = "bad quality, worst quality, jpeg artifacts, ugly"
 
-        conditioning_videos = load_downloaded_numpy_from_hf_hub(
-            "The-truth/mindone-testing-arrays",
+        conditioning_videos = load_numpy_from_local_file(
+            "mindone-testing-arrays",
             "v2v_controlnet_conditioning_frames.npy",
             subfolder="animatediff",
         )
@@ -269,8 +265,8 @@ class AnimateDiffVideoToVideoControlNetPipelineIntegrationTests(PipelineTesterMi
             strength=strength,
         )[0][0]
 
-        expected_video = load_downloaded_numpy_from_hf_hub(
-            "The-truth/mindone-testing-arrays",
+        expected_video = load_numpy_from_local_file(
+            "mindone-testing-arrays",
             f"v2v_controlnet_{dtype}.npy",
             subfolder="animatediff",
         )

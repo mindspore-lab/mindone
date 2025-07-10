@@ -23,8 +23,8 @@ logger = logging.get_logger(__name__)  # pylint: disable=invalid-name
 
 class FluxControlNetOutput(FluxControlNetOutput):
     def __init__(self, *args, **kwargs):
-        deprecation_message = "Importing `FluxControlNetOutput` from `diffusers.models.controlnet_flux` is deprecated and this will be removed in a future version. Please use `from diffusers.models.controlnets.controlnet_flux import FluxControlNetOutput`, instead."  # noqa: E501
-        deprecate("diffusers.models.controlnet_flux.FluxControlNetOutput", "0.34", deprecation_message)
+        deprecation_message = "Importing `FluxControlNetOutput` from `mindone.diffusers.models.controlnet_flux` is deprecated and this will be removed in a future version. Please use `from mindone.diffusers.models.controlnets.controlnet_flux import FluxControlNetOutput`, instead."  # noqa: E501
+        deprecate("mindone.diffusers.models.controlnet_flux.FluxControlNetOutput", "0.34", deprecation_message)
         super().__init__(*args, **kwargs)
 
 
@@ -44,8 +44,8 @@ class FluxControlNetModel(FluxControlNetModel):
         num_mode: int = None,
         conditioning_embedding_channels: int = None,
     ):
-        deprecation_message = "Importing `FluxControlNetModel` from `diffusers.models.controlnet_flux` is deprecated and this will be removed in a future version. Please use `from diffusers.models.controlnets.controlnet_flux import FluxControlNetModel`, instead."  # noqa: E501
-        deprecate("diffusers.models.controlnet_flux.FluxControlNetModel", "0.34", deprecation_message)
+        deprecation_message = "Importing `FluxControlNetModel` from `mindone.diffusers.models.controlnet_flux` is deprecated and this will be removed in a future version. Please use `from mindone.diffusers.models.controlnets.controlnet_flux import FluxControlNetModel`, instead."  # noqa: E501
+        deprecate("mindone.diffusers.models.controlnet_flux.FluxControlNetModel", "0.34", deprecation_message)
         super().__init__(
             patch_size=patch_size,
             in_channels=in_channels,
@@ -64,6 +64,6 @@ class FluxControlNetModel(FluxControlNetModel):
 
 class FluxMultiControlNetModel(FluxMultiControlNetModel):
     def __init__(self, *args, **kwargs):
-        deprecation_message = "Importing `FluxMultiControlNetModel` from `diffusers.models.controlnet_flux` is deprecated and this will be removed in a future version. Please use `from diffusers.models.controlnets.controlnet_flux import FluxMultiControlNetModel`, instead."  # noqa: E501
-        deprecate("diffusers.models.controlnet_flux.FluxMultiControlNetModel", "0.34", deprecation_message)
+        deprecation_message = "Importing `FluxMultiControlNetModel` from `mindone.diffusers.models.controlnet_flux` is deprecated and this will be removed in a future version. Please use `from mindone.diffusers.models.controlnets.controlnet_flux import FluxMultiControlNetModel`, instead."  # noqa: E501
+        deprecate("mindone.diffusers.models.controlnet_flux.FluxMultiControlNetModel", "0.34", deprecation_message)
         super().__init__(*args, **kwargs)
