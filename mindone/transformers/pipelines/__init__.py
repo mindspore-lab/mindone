@@ -38,7 +38,6 @@ from .base import (
     get_default_model_and_revision,
     infer_framework_load_model,
 )
-from .text_classification import TextClassificationPipeline
 from .text_generation import TextGenerationPipeline
 
 if is_mindspore_available():
@@ -46,7 +45,6 @@ if is_mindspore_available():
 
     from ..models.auto.modeling_auto import (
         AutoModelForCausalLM,
-        AutoModelForSequenceClassification,
         AutoModelForTokenClassification,
     )
 
@@ -72,16 +70,6 @@ SUPPORTED_TASKS = {
         "impl": TextGenerationPipeline,
         "ms": (AutoModelForCausalLM,) if is_mindspore_available() else (),
         "default": {"model": {"ms": ("openai-community/gpt2", "607a30d"), "tf": ("openai-community/gpt2", "607a30d")}},
-        "type": "text",
-    },
-    "text-classification": {
-        "impl": TextClassificationPipeline,
-        "ms": (AutoModelForSequenceClassification,) if is_mindspore_available() else (),
-        "default": {
-            "model": {
-                "ms": ("distilbert/distilbert-base-uncased-finetuned-sst-2-english", "714eb0f"),
-            },
-        },
         "type": "text",
     },
 }
