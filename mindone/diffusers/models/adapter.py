@@ -84,9 +84,9 @@ class MultiAdapter(ModelMixin):
                 summing them together. If `None`, equal weights will be used for all adapters.
         """
         if adapter_weights is None:
-            adapter_weights = ms.Tensor([1 / self.num_adapter] * self.num_adapter)
+            adapter_weights = ms.tensor([1 / self.num_adapter] * self.num_adapter)
         else:
-            adapter_weights = ms.Tensor(adapter_weights)
+            adapter_weights = ms.tensor(adapter_weights)
 
         accume_state = None
         for x, w, adapter in zip(xs, adapter_weights, self.adapters):

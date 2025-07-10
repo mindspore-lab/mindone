@@ -21,7 +21,7 @@ from mindspore import mint, nn
 from ...utils import logging
 from ..activations import get_activation
 from ..attention_processor import Attention, AttnAddedKVProcessor
-from ..normalization import AdaGroupNorm, GroupNorm
+from ..normalization import AdaGroupNorm
 from ..resnet import (
     Downsample2D,
     FirDownsample2D,
@@ -565,7 +565,7 @@ class AutoencoderTinyBlock(nn.Cell):
 
     def __init__(self, in_channels: int, out_channels: int, act_fn: str):
         super().__init__()
-        act_fn = get_activation(act_fn)()
+        act_fn = get_activation(act_fn)
         self.conv = nn.SequentialCell(
             mint.nn.Conv2d(in_channels, out_channels, kernel_size=3, padding=1),
             act_fn,
@@ -850,18 +850,7 @@ class UNetMidBlock2DCrossAttn(nn.Cell):
         self.attentions = nn.CellList(attentions)
         self.resnets = nn.CellList(resnets)
 
-        self._gradient_checkpointing = False
-
-    @property
-    def gradient_checkpointing(self):
-        return self._gradient_checkpointing
-
-    @gradient_checkpointing.setter
-    def gradient_checkpointing(self, value):
-        self._gradient_checkpointing = value
-        # we exclude 0-th resnet following huggingface/diffusers. HF does this just for simplicity in forward?
-        for resnet in self.resnets[1:]:
-            resnet._recompute(value)
+        self.gradient_checkpointing = False
 
     def construct(
         self,
@@ -1222,17 +1211,7 @@ class CrossAttnDownBlock2D(nn.Cell):
         else:
             self.downsamplers = None
 
-        self._gradient_checkpointing = False
-
-    @property
-    def gradient_checkpointing(self):
-        return self._gradient_checkpointing
-
-    @gradient_checkpointing.setter
-    def gradient_checkpointing(self, value):
-        self._gradient_checkpointing = value
-        for resnet in self.resnets:
-            resnet._recompute(value)
+        self.gradient_checkpointing = False
 
     def construct(
         self,
@@ -1326,17 +1305,7 @@ class DownBlock2D(nn.Cell):
         else:
             self.downsamplers = None
 
-        self._gradient_checkpointing = False
-
-    @property
-    def gradient_checkpointing(self):
-        return self._gradient_checkpointing
-
-    @gradient_checkpointing.setter
-    def gradient_checkpointing(self, value):
-        self._gradient_checkpointing = value
-        for resnet in self.resnets:
-            resnet._recompute(value)
+        self.gradient_checkpointing = False
 
     def construct(
         self, hidden_states: ms.Tensor, temb: Optional[ms.Tensor] = None
@@ -2331,17 +2300,7 @@ class CrossAttnUpBlock2D(nn.Cell):
             self.upsamplers = None
 
         self.resolution_idx = resolution_idx
-        self._gradient_checkpointing = False
-
-    @property
-    def gradient_checkpointing(self):
-        return self._gradient_checkpointing
-
-    @gradient_checkpointing.setter
-    def gradient_checkpointing(self, value):
-        self._gradient_checkpointing = value
-        for resnet in self.resnets:
-            resnet._recompute(value)
+        self.gradient_checkpointing = False
 
     def construct(
         self,
@@ -2438,18 +2397,8 @@ class UpBlock2D(nn.Cell):
         else:
             self.upsamplers = None
 
+        self.gradient_checkpointing = False
         self.resolution_idx = resolution_idx
-        self._gradient_checkpointing = False
-
-    @property
-    def gradient_checkpointing(self):
-        return self._gradient_checkpointing
-
-    @gradient_checkpointing.setter
-    def gradient_checkpointing(self, value):
-        self._gradient_checkpointing = value
-        for resnet in self.resnets:
-            resnet._recompute(value)
 
     def construct(
         self,
@@ -2744,7 +2693,7 @@ class AttnSkipUpBlock2D(nn.Cell):
             self.skip_conv = mint.nn.Conv2d(
                 out_channels, 3, kernel_size=(3, 3), stride=(1, 1), padding=(1, 1), bias=False
             )
-            self.skip_norm = GroupNorm(
+            self.skip_norm = mint.nn.GroupNorm(
                 num_groups=min(out_channels // 4, 32), num_channels=out_channels, eps=resnet_eps, affine=True
             )
             self.act = mint.nn.SiLU()
@@ -2856,7 +2805,7 @@ class SkipUpBlock2D(nn.Cell):
             self.skip_conv = mint.nn.Conv2d(
                 out_channels, 3, kernel_size=(3, 3), stride=(1, 1), padding=(1, 1), bias=False
             )
-            self.skip_norm = GroupNorm(
+            self.skip_norm = mint.nn.GroupNorm(
                 num_groups=min(out_channels // 4, 32), num_channels=out_channels, eps=resnet_eps, affine=True
             )
             self.act = mint.nn.SiLU()

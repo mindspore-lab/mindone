@@ -17,9 +17,13 @@ from typing import List, Optional, Tuple, Union
 
 import numpy as np
 
+from ...models import UNet1DModel
+from ...schedulers import SchedulerMixin
 from ...utils import logging
 from ...utils.mindspore_utils import randn_tensor
 from ..pipeline_utils import AudioPipelineOutput, DiffusionPipeline
+
+XLA_AVAILABLE = False
 
 logger = logging.get_logger(__name__)  # pylint: disable=invalid-name
 
@@ -41,7 +45,7 @@ class DanceDiffusionPipeline(DiffusionPipeline):
 
     model_cpu_offload_seq = "unet"
 
-    def __init__(self, unet, scheduler):
+    def __init__(self, unet: UNet1DModel, scheduler: SchedulerMixin):
         super().__init__()
         self.register_modules(unet=unet, scheduler=scheduler)
 
