@@ -33,7 +33,6 @@ MODES = [1]
 class InstructBlipVideoVisionModelTester:
     def __init__(
         self,
-        parent,
         batch_size=12,
         image_size=30,
         frames=4,
@@ -50,7 +49,6 @@ class InstructBlipVideoVisionModelTester:
         initializer_range=1e-10,
         scope=None,
     ):
-        self.parent = parent
         self.batch_size = batch_size
         self.image_size = image_size
         self.frames = frames
