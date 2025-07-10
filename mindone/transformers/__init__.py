@@ -378,3 +378,4 @@ if version.parse(transformers.__version__) >= version.parse("4.53.0"):
         Glm4vTextModel,
         Glm4vVisionModel,
     )
+    from .models.vjepa2 import VJEPA2ForVideoClassification, VJEPA2Model, VJEPA2PreTrainedModel

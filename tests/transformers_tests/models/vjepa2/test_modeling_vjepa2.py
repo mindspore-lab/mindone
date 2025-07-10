@@ -8,7 +8,7 @@
 # In cases where models have unique initialization procedures or require testing with specialized output formats,
 # it is necessary to develop distinct, dedicated test cases.
 
-# NOTE: use latest transformers >=4.53.0.dev0
+# NOTE: use transformers >=4.53.0
 # pip install -U git+https://github.com/huggingface/transformers
 
 import inspect
@@ -137,12 +137,11 @@ model_tester = VJEPA2ModelTester()
     pixel_values,
 ) = model_tester.prepare_config_and_inputs()
 
-
 VJEPA2_CASES = [
     [
         "VJEPA2Model",
         "transformers.VJEPA2Model",
-        "mindone.transformers.models.vjepa2.VJEPA2Model",
+        "mindone.transformers.VJEPA2Model",
         (config,),
         {},
         (pixel_values,),
@@ -152,7 +151,7 @@ VJEPA2_CASES = [
     [
         "VJEPA2ForVideoClassification",
         "transformers.VJEPA2ForVideoClassification",
-        "mindone.transformers.models.vjepa2.VJEPA2ForVideoClassification",
+        "mindone.transformers.VJEPA2ForVideoClassification",
         (config,),
         {},
         (pixel_values,),

@@ -29,12 +29,10 @@ raw_ndarray = np.fromfile(video_file, np.uint8)
 video, audio = vision.DecodeVideo()(raw_ndarray)  # np array in [T, H, W, C] uint8, [C, L] fp32
 video = video.transpose(0, 3, 1, 2)
 video = video[frame_idx, :, :, :]  # [T, C, H, W] uint8
-video = processor(video, return_tensors="pt")
-video["pixel_values_videos"] = ms.Tensor(video["pixel_values_videos"].cpu().numpy())
 
 # Preprocess and run inference
 inputs = processor(video, return_tensors="pt")
-video["pixel_values_videos"] = ms.Tensor(video["pixel_values_videos"].cpu().numpy())
+inputs["pixel_values_videos"] = ms.Tensor(inputs["pixel_values_videos"].cpu().numpy())
 
 outputs = model(**inputs)
 logits = outputs.logits

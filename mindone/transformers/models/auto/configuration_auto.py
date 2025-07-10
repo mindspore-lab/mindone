@@ -217,6 +217,10 @@ if version.parse(transformers.__version__) >= version.parse("4.51.0"):
     CONFIG_MAPPING_NAMES.update({"qwen3": "Qwen3Config"})
     MODEL_NAMES_MAPPING.update({"qwen3": "Qwen3Model"})
 
+if version.parse(transformers.__version__) >= version.parse("4.53.0"):
+    CONFIG_MAPPING_NAMES.update({"vjepa2", "VJEPA2Model"})
+    MODEL_NAMES_MAPPING.update({"vjepa2", "VJEPA2Model"})
+
 
 def model_type_to_module_name(key):
     """Converts a config key to the corresponding module."""

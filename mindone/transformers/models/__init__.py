@@ -58,4 +58,4 @@ if version.parse(transformers.__version__) >= version.parse("4.51.0"):
     from . import qwen3
 
 if version.parse(transformers.__version__) >= version.parse("4.53.0"):
-    from . import glm4v
+    from . import glm4v, vjepa2
