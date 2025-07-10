@@ -21,7 +21,7 @@ from transformers import CLIPTokenizer
 import mindspore as ms
 from mindspore import mint
 
-from mindone.transformers import CLIPTextModel
+from mindone.transformers import CLIPTextModelWithProjection
 
 from ...models import StableCascadeUNet
 from ...schedulers import DDPMWuerstchenScheduler
@@ -30,7 +30,10 @@ from ...utils.mindspore_utils import randn_tensor
 from ..pipeline_utils import DiffusionPipeline, ImagePipelineOutput
 from ..wuerstchen.modeling_paella_vq_model import PaellaVQModel
 
+XLA_AVAILABLE = False
+
 logger = logging.get_logger(__name__)  # pylint: disable=invalid-name
+
 
 EXAMPLE_DOC_STRING = """
     Examples:
@@ -62,7 +65,7 @@ class StableCascadeDecoderPipeline(DiffusionPipeline):
     Args:
         tokenizer (`CLIPTokenizer`):
             The CLIP tokenizer.
-        text_encoder (`CLIPTextModel`):
+        text_encoder (`CLIPTextModelWithProjection`):
             The CLIP text encoder.
         decoder ([`StableCascadeUNet`]):
             The Stable Cascade decoder unet.
@@ -90,7 +93,7 @@ class StableCascadeDecoderPipeline(DiffusionPipeline):
         self,
         decoder: StableCascadeUNet,
         tokenizer: CLIPTokenizer,
-        text_encoder: CLIPTextModel,
+        text_encoder: CLIPTextModelWithProjection,
         scheduler: DDPMWuerstchenScheduler,
         vqgan: PaellaVQModel,
         latent_dim_scale: float = 10.67,
@@ -147,7 +150,7 @@ class StableCascadeDecoderPipeline(DiffusionPipeline):
                 return_tensors="np",
             )
             text_input_ids = text_inputs.input_ids
-            attention_mask = ms.Tensor(text_inputs.attention_mask)
+            attention_mask = ms.tensor(text_inputs.attention_mask)
 
             untruncated_ids = self.tokenizer(prompt, padding="longest", return_tensors="np").input_ids
 
@@ -202,8 +205,8 @@ class StableCascadeDecoderPipeline(DiffusionPipeline):
                 return_tensors="np",
             )
             negative_prompt_embeds_text_encoder_output = self.text_encoder(
-                ms.Tensor(uncond_input.input_ids),
-                attention_mask=ms.Tensor(uncond_input.attention_mask),
+                ms.tensor(uncond_input.input_ids),
+                attention_mask=ms.tensor(uncond_input.attention_mask),
                 output_hidden_states=True,
             )
 

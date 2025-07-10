@@ -42,7 +42,7 @@ class FP32SiLU(nn.Cell):
         return x
 
 
-ACTIVATION_FUNCTIONS = {
+ACT2CLS = {
     "swish": mint.nn.SiLU,
     "silu": mint.nn.SiLU,
     "mish": mint.nn.Mish,
@@ -62,10 +62,10 @@ def get_activation(act_fn: str) -> nn.Cell:
     """
 
     act_fn = act_fn.lower()
-    if act_fn in ACTIVATION_FUNCTIONS:
-        return ACTIVATION_FUNCTIONS[act_fn]
+    if act_fn in ACT2CLS:
+        return ACT2CLS[act_fn]()
     else:
-        raise ValueError(f"Unsupported activation function: {act_fn}")
+        raise ValueError(f"activation function {act_fn} not found in ACT2FN mapping {list(ACT2CLS.keys())}")
 
 
 class GELU(nn.Cell):
@@ -163,7 +163,7 @@ class LinearActivation(nn.Cell):
         super().__init__()
 
         self.proj = mint.nn.Linear(dim_in, dim_out, bias=bias)
-        self.activation = get_activation(activation)()
+        self.activation = get_activation(activation)
 
     def construct(self, hidden_states):
         hidden_states = self.proj(hidden_states)

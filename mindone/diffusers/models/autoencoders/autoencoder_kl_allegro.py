@@ -107,7 +107,7 @@ class AllegroTemporalConvLayer(nn.Cell):
         if self.down_sample:
             identity = hidden_states[:, :, ::2]
         elif self.up_sample:
-            identity = hidden_states.repeat_interleave(2, dim=2)
+            identity = hidden_states.repeat_interleave(2, dim=2, output_size=hidden_states.shape[2] * 2)
         else:
             identity = hidden_states
 
@@ -801,10 +801,6 @@ class AutoencoderKLAllegro(ModelMixin, ConfigMixin):
             sample_size - self.tile_overlap_h,
             sample_size - self.tile_overlap_w,
         )
-
-    def _set_gradient_checkpointing(self, module, value=False):
-        if isinstance(module, (AllegroEncoder3D, AllegroDecoder3D)):
-            module.gradient_checkpointing = value
 
     def enable_tiling(self) -> None:
         r"""

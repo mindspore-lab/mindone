@@ -27,10 +27,10 @@ class IFSafetyChecker(MSPreTrainedModel):
 
         nsfw_detected = self.p_head(image_embeds)
         nsfw_detected = mint.any(nsfw_detected > p_threshold, dim=1)
-        images[nsfw_detected] = 0.0
+        images[nsfw_detected.numpy()] = 0.0
 
         watermark_detected = self.w_head(image_embeds)
         watermark_detected = mint.any(watermark_detected > w_threshold, dim=1)
-        images[watermark_detected] = 0.0
+        images[watermark_detected.numpy()] = 0.0
 
         return images, nsfw_detected, watermark_detected

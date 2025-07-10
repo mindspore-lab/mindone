@@ -19,7 +19,7 @@ The original codebase can be found at [openai/shap-e](https://github.com/openai/
 
 !!! tip
 
-	See the [reuse components across pipelines](../../using-diffusers/loading.md) section to learn how to efficiently load the same components into multiple pipelines.
+	See the [reuse components across pipelines](../../using-diffusers/loading.md#reuse-a-pipeline) section to learn how to efficiently load the same components into multiple pipelines.
 
 ::: mindone.diffusers.ShapEPipeline
 

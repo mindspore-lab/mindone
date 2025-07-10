@@ -22,7 +22,7 @@ from ddt import data, ddt, unpack
 
 import mindspore as ms
 
-from mindone.diffusers.utils.testing_utils import load_downloaded_numpy_from_hf_hub, slow
+from mindone.diffusers.utils.testing_utils import load_numpy_from_local_file, slow
 
 from ..pipeline_test_utils import (
     THRESHOLD_FP16,
@@ -128,8 +128,8 @@ class IFInpaintingPipelineSlowTests(PipelineTesterMixin, unittest.TestCase):
         )
         image = output[0][0]
 
-        expected_image = load_downloaded_numpy_from_hf_hub(
-            "The-truth/mindone-testing-arrays",
+        expected_image = load_numpy_from_local_file(
+            "mindone-testing-arrays",
             f"inpainting_{dtype}.npy",
             subfolder="deepfloyd_if",
         )

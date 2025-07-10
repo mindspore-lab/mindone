@@ -132,10 +132,10 @@ class UniversalPrompting:
             temp_label_ids = mint.cat(
                 [
                     # should we predict text tokens when doing image reconstruction?
-                    ms.tensor(temp_ids),
-                    self.sptids_dict["<|soi|>"],
-                    labels[i],
-                    self.sptids_dict["<|eoi|>"],
+                    ms.tensor(temp_ids).to(ms.int32),
+                    self.sptids_dict["<|soi|>"].to(ms.int32),
+                    labels[i].to(ms.int32),
+                    self.sptids_dict["<|eoi|>"].to(ms.int32),
                 ],
                 dim=0,
             )
@@ -144,16 +144,16 @@ class UniversalPrompting:
 
             temp_ids = mint.cat(
                 [
-                    ms.tensor(temp_ids),
-                    self.sptids_dict["<|soi|>"],
-                    image_ids[i],
-                    self.sptids_dict["<|eoi|>"],
+                    ms.tensor(temp_ids).to(ms.int32),
+                    self.sptids_dict["<|soi|>"].to(ms.int32),
+                    image_ids[i].to(ms.int32),
+                    self.sptids_dict["<|eoi|>"].to(ms.int32),
                 ],
                 dim=0,
             )
 
             # sequence_ids: [pad]...[pad] <|t2i|> <bos> text_1 ... text_n <eos> <|soi|> image_1 ... image_m <|eoi|>
-            temp_masks = ms.tensor(temp_masks)
+            temp_masks = ms.tensor(temp_masks).to(ms.int32)
             sequence_ids.append(temp_ids.unsqueeze(0))
             attention_masks.append(temp_masks.unsqueeze(0))
             label_ids.append(temp_label_ids.unsqueeze(0))
@@ -182,10 +182,10 @@ class UniversalPrompting:
             # prompting -- [task token] [sot] [text tokens] [eot] [soi] [image tokens] [eoi]
             temp_ids = mint.cat(
                 [
-                    ms.tensor(temp_ids),
-                    self.sptids_dict["<|soi|>"],
-                    image_ids[i],
-                    self.sptids_dict["<|eoi|>"],
+                    ms.tensor(temp_ids).to(ms.int32),
+                    self.sptids_dict["<|soi|>"].to(ms.int32),
+                    image_ids[i].to(ms.int32),
+                    self.sptids_dict["<|eoi|>"].to(ms.int32),
                 ],
                 dim=0,
             )
@@ -267,9 +267,9 @@ class UniversalPrompting:
             temp_masks = [1] * prompt_length + [0] * (len(temp_ids) - prompt_length)
 
             # prompting -- [task token] [sot] [text tokens] [eot] [soi] [image tokens] [eoi]
-            temp_ids = ms.tensor(temp_ids)
-            temp_masks = ms.tensor(temp_masks)
-            temp_labels_ids = ms.tensor(temp_labels_ids)
+            temp_ids = ms.tensor(temp_ids).to(ms.int32)
+            temp_masks = ms.tensor(temp_masks).to(ms.int32)
+            temp_labels_ids = ms.tensor(temp_labels_ids).to(ms.int32)
             sequence_ids.append(temp_ids.unsqueeze(0))
             prompt_masks.append(temp_masks.unsqueeze(0))
             label_ids.append(temp_labels_ids.unsqueeze(0))
@@ -305,11 +305,11 @@ class UniversalPrompting:
             # prompting -- [task token] [sot] [text tokens] [eot] [soi] [image tokens] [eoi]
             temp_label_ids = mint.cat(
                 [
-                    ms.tensor([self.ignore_id]),
-                    ms.tensor([self.ignore_id]),
-                    mint.ones_like(image_ids[i]) * self.ignore_id,
-                    ms.tensor([self.ignore_id]),
-                    ms.tensor(temp_ids),
+                    ms.tensor([self.ignore_id]).to(ms.int32),
+                    ms.tensor([self.ignore_id]).to(ms.int32),
+                    (mint.ones_like(image_ids[i]) * self.ignore_id).to(ms.int32),
+                    ms.tensor([self.ignore_id]).to(ms.int32),
+                    ms.tensor(temp_ids).to(ms.int32),
                 ],
                 dim=0,
             )
@@ -318,11 +318,11 @@ class UniversalPrompting:
 
             return_temp_ids = mint.cat(
                 [
-                    self.sptids_dict["<|mmu|>"],  # task token
-                    self.sptids_dict["<|soi|>"],
-                    image_ids[i],
-                    self.sptids_dict["<|eoi|>"],
-                    ms.tensor(temp_ids),
+                    self.sptids_dict["<|mmu|>"].to(ms.int32),  # task token
+                    self.sptids_dict["<|soi|>"].to(ms.int32),
+                    image_ids[i].to(ms.int32),
+                    self.sptids_dict["<|eoi|>"].to(ms.int32),
+                    ms.tensor(temp_ids).to(ms.int32),
                 ],
                 dim=0,
             )
@@ -367,11 +367,11 @@ class UniversalPrompting:
             # print(f"mmu temp_ids: {temp_ids}")
             return_temp_ids = mint.cat(
                 [
-                    self.sptids_dict["<|mmu|>"],  # task token
-                    self.sptids_dict["<|soi|>"],
-                    image_ids[i],
-                    self.sptids_dict["<|eoi|>"],
-                    ms.tensor(temp_ids),
+                    self.sptids_dict["<|mmu|>"].to(ms.int32),  # task token
+                    self.sptids_dict["<|soi|>"].to(ms.int32),
+                    image_ids[i].to(ms.int32),
+                    self.sptids_dict["<|eoi|>"].to(ms.int32),
+                    ms.tensor(temp_ids).to(ms.int32),
                 ],
                 dim=0,
             )
@@ -424,11 +424,11 @@ class UniversalPrompting:
             sequence_ids.append(
                 mint.cat(
                     [
-                        ms.tensor([r2i_id]),  # task token
-                        ms.tensor(text_ids_full_len),
-                        ms.tensor([soi_id]),
-                        image_ids[i],
-                        ms.tensor([eoi_id]),
+                        ms.tensor([r2i_id]).to(ms.int32),  # task token
+                        ms.tensor(text_ids_full_len).to(ms.int32),
+                        ms.tensor([soi_id]).to(ms.int32),
+                        image_ids[i].to(ms.int32),
+                        ms.tensor([eoi_id]).to(ms.int32),
                     ],
                     dim=0,
                 ).unsqueeze(0)

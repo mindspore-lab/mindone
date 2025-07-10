@@ -1,4 +1,7 @@
-from . import (  # qwen3,
+import transformers
+from packaging import version
+
+from . import (
     albert,
     auto,
     bart,
@@ -21,6 +24,7 @@ from . import (  # qwen3,
     granitemoe,
     granitemoeshared,
     hiera,
+    idefics3,
     ijepa,
     imagegpt,
     layoutlm,
@@ -32,6 +36,7 @@ from . import (  # qwen3,
     minicpm4,
     mixtral,
     mobilebert,
+    paligemma,
     persimmon,
     phi,
     phi3,
@@ -40,8 +45,8 @@ from . import (  # qwen3,
     qwen2_5_vl,
     qwen2_audio,
     qwen2_vl,
-    qwen3,
     roberta,
+    siglip,
     speecht5,
     switch_transformers,
     t5,
@@ -50,3 +55,9 @@ from . import (  # qwen3,
     wav2vec2,
     xlm_roberta,
 )
+
+if version.parse(transformers.__version__) >= version.parse("4.51.0"):
+    from . import qwen3
+
+if version.parse(transformers.__version__) >= version.parse("4.53.0"):
+    from . import glm4v

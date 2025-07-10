@@ -436,7 +436,7 @@ class ModelMixin(nn.Cell, PushToHubMixin):
         r"""
         Instantiate a pretrained PyTorch model from a pretrained model configuration.
 
-        The model is set in evaluation mode - `model.eval()` - by default, and dropout modules are deactivated. To
+        The model is set in evaluation mode - `modelset_train(False)` - by default, and dropout modules are deactivated. To
         train the model, set it back in training mode with `model.train()`.
 
         Parameters:

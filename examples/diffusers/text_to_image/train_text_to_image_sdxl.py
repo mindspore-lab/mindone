@@ -38,7 +38,7 @@ from mindspore.amp import StaticLossScaler
 from mindspore.dataset import GeneratorDataset, transforms, vision
 
 from mindone.diffusers import AutoencoderKL, DDPMScheduler, StableDiffusionXLPipeline, UNet2DConditionModel
-from mindone.diffusers.models.layers_compat import multinomial
+from mindone.diffusers.models.layers_compat import multinomial, set_amp_strategy
 from mindone.diffusers.optimization import get_scheduler
 from mindone.diffusers.training_utils import (
     AttrJitWrapper,
@@ -853,7 +853,7 @@ def main():
     # todo: auto mixed precision here
     # TODO: We will update the training methods during mixed precision training to ensure the performance and strategies during the training process.
     if args.mixed_precision and args.mixed_precision != "no":
-        unet.to_float(weight_dtype)  # maybe using `to(weight_dtype)` gives faster performance?
+        set_amp_strategy(unet, weight_dtype)  # maybe using `to(weight_dtype)` gives faster performance?
 
     # We need to recalculate our total training steps as the size of the training dataloader may have changed.
     num_update_steps_per_epoch = math.ceil(len(train_dataloader) / args.gradient_accumulation_steps)

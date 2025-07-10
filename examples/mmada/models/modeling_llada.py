@@ -556,10 +556,11 @@ class LLaDABlock(nn.Cell):
         self.attn_out = mint.nn.Linear(config.d_model, config.d_model, bias=config.include_bias)
 
         # Feed-forward output projection.
-        self.ff_out = mint.nn.Linear(
+        # FIXME: use nn.Dense because mindone/transformers legacy code
+        self.ff_out = nn.Dense(
             int(self.act.output_multiplier * self.hidden_size),
             config.d_model,
-            bias=config.include_bias,
+            has_bias=config.include_bias,
         )
         self.ff_out._is_residual = True  # type: ignore
 
@@ -980,7 +981,7 @@ class Transformer(nn.Cell):
         super().__init__()
         self.config = config
         self.__cache = cache
-        self.wte = mint.nn.Embedding(config.embedding_size or config.vocab_size, config.d_model)
+        self.wte = ms.nn.Embedding(config.embedding_size or config.vocab_size, config.d_model)
         self.emb_drop = mint.nn.Dropout(p=config.embedding_dropout)
         self.ln_f = LayerNorm.build(config)
 
@@ -997,10 +998,11 @@ class Transformer(nn.Cell):
         if not (self.config.alibi or self.config.rope):
             self.wpe = mint.nn.Embedding(config.max_sequence_length, config.d_model)
         if not config.weight_tying:
-            self.ff_out = mint.nn.Linear(
+            # FIXME: use nn.Dense because mindone/transformers legacy code
+            self.ff_out = nn.Dense(
                 config.d_model,
                 config.embedding_size or config.vocab_size,
-                bias=config.include_bias,
+                has_bias=config.include_bias,
             )
 
 

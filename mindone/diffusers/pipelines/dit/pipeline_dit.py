@@ -30,6 +30,8 @@ from ...schedulers import KarrasDiffusionSchedulers
 from ...utils.mindspore_utils import randn_tensor
 from ..pipeline_utils import DiffusionPipeline, ImagePipelineOutput
 
+XLA_AVAILABLE = False
+
 
 class DiTPipeline(DiffusionPipeline):
     r"""
@@ -163,8 +165,8 @@ class DiTPipeline(DiffusionPipeline):
         )
         latent_model_input = mint.cat([latents] * 2) if guidance_scale > 1 else latents
 
-        class_labels = mint.reshape(ms.Tensor(class_labels), (-1,))
-        class_null = ms.Tensor([1000] * batch_size)
+        class_labels = mint.reshape(ms.tensor(class_labels), (-1,))
+        class_null = ms.tensor([1000] * batch_size)
         class_labels_input = mint.cat([class_labels, class_null], 0) if guidance_scale > 1 else class_labels
 
         # set step values
@@ -178,14 +180,11 @@ class DiTPipeline(DiffusionPipeline):
             timesteps = t
             # todo: unavailable mint interface
             if not ops.is_tensor(timesteps):
-                # TODO: this requires sync between CPU and GPU. So try to pass timesteps as tensors if you can
-                # This would be a good case for the `match` statement (Python 3.10+)
-                is_mps = False
                 if isinstance(timesteps, float):
-                    dtype = ms.float32 if is_mps else ms.float64
+                    dtype = ms.float32
                 else:
-                    dtype = ms.int32 if is_mps else ms.int64
-                timesteps = ms.Tensor([timesteps], dtype=dtype)
+                    dtype = ms.int32
+                timesteps = ms.tensor([timesteps], dtype=dtype)
             elif len(timesteps.shape) == 0:
                 timesteps = timesteps[None]
             # broadcast to batch dimension in a way that's compatible with ONNX/Core ML

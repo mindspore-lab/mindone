@@ -8,7 +8,7 @@ from transformers import Gemma2Config
 import mindspore as ms
 
 from mindone.diffusers import Lumina2Pipeline
-from mindone.diffusers.utils.testing_utils import load_downloaded_numpy_from_hf_hub, slow
+from mindone.diffusers.utils.testing_utils import load_numpy_from_local_file, slow
 
 from ..pipeline_test_utils import (
     THRESHOLD_FP16,
@@ -180,8 +180,8 @@ class Lumina2PipelineSlowTests(PipelineTesterMixin, unittest.TestCase):
         torch.manual_seed(0)
         image = pipe(prompt=prompt)[0][0]
 
-        expected_image = load_downloaded_numpy_from_hf_hub(
-            "The-truth/mindone-testing-arrays",
+        expected_image = load_numpy_from_local_file(
+            "mindone-testing-arrays",
             f"t2i_{dtype}.npy",
             subfolder="lumina2",
         )

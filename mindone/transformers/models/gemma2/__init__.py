@@ -12,4 +12,10 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from .modeling_gemma2 import Gemma2Model, Gemma2PreTrainedModel
+from .modeling_gemma2 import (
+    Gemma2ForCausalLM,
+    Gemma2ForSequenceClassification,
+    Gemma2ForTokenClassification,
+    Gemma2Model,
+    Gemma2PreTrainedModel,
+)
