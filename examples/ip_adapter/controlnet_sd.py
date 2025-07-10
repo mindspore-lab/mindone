@@ -1,5 +1,5 @@
-# Adapted from https://github.com/tencent-ailab/IP-Adapter to work with MindSpore.
 #!/usr/bin/env python
+# Adapted from https://github.com/tencent-ailab/IP-Adapter to work with MindSpore.
 """
 IPAdapter SD Image to image generation (ControlNet)
 """
