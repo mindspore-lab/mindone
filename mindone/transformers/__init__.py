@@ -22,6 +22,7 @@ from .models.auto import (
     AutoModel,
     AutoModelForCausalLM,
     AutoModelForMaskedLM,
+    AutoModelForVision2Seq,
     AutoProcessor,
 )
 from .models.bart import (

@@ -22,32 +22,31 @@
 from dataclasses import dataclass
 from typing import Any, Dict, List, Optional, Tuple, Union
 
+from transformers import IdeficsConfig
+from transformers.utils import (
+    add_start_docstrings,
+    add_start_docstrings_to_model_forward,
+    logging,
+    replace_return_docstrings,
+)
+
 import mindspore as ms
 import mindspore.mint as mint
 import mindspore.mint.nn.functional as F
 from mindspore import nn
 from mindspore.mint.nn import CrossEntropyLoss
 
+from mindone.models.utils import normal_, zeros_
+
 from ...activations import ACT2FN
 from ...cache_utils import Cache, DynamicCache, StaticCache
 from ...generation import GenerationMixin
-from ...modeling_outputs import ModelOutput
-from ...modeling_utils import PretrainedConfig, PreTrainedModel
+from ...mindspore_adapter import dtype_to_min, scaled_dot_product_attention
 from ...mindspore_utils import ALL_LAYERNORM_LAYERS
-from ...mindspore_adapter import dtype_to_min
-from transformers.utils import (
-    add_start_docstrings,
-    add_start_docstrings_to_model_construct,
-    logging,
-    replace_return_docstrings,
-)
-from transformers import IdeficsConfig
+from ...modeling_outputs import CausalLMOutputWithPast, ModelOutput
+from ...modeling_utils import PretrainedConfig, PreTrainedModel
 from .perceiver import IdeficsPerceiverResampler
 from .vision import IdeficsVisionTransformer
-
-from mindone.models.utils import normal_, zeros_
-from ...mindspore_adapter import scaled_dot_product_attention
-
 
 logger = logging.get_logger(__name__)
 
@@ -100,7 +99,7 @@ class IdeficsBaseModelOutputWithPast(ModelOutput):
 
 
 @dataclass
-class IdeficsCausalLMOutputWithPast(ModelOutput):
+class IdeficsCausalLMOutputWithPast(CausalLMOutputWithPast):
     """
     Base class for Idefics causal language model (or autoregressive) outputs.
 
@@ -149,9 +148,7 @@ def expand_inputs_for_generation(
     encoder_outputs=None,
     **model_kwargs,
 ):
-    expanded_return_idx = (
-        mint.arange(input_ids.shape[0]).view((-1, 1)).tile((1, expand_size)).view((-1,))
-    )
+    expanded_return_idx = mint.arange(input_ids.shape[0]).view((-1, 1)).tile((1, expand_size)).view((-1,))
     input_ids = input_ids.index_select(0, expanded_return_idx)
     model_kwargs["pixel_values"] = model_kwargs.get("pixel_values", None)
     model_kwargs["image_encoder_embeddings"] = model_kwargs.get("image_encoder_embeddings", None)
@@ -166,9 +163,7 @@ def expand_inputs_for_generation(
         model_kwargs["attention_mask"] = attention_mask.index_select(0, expanded_return_idx)
 
     if model_kwargs["image_attention_mask"] is not None:
-        model_kwargs["image_attention_mask"] = model_kwargs["image_attention_mask"].index_select(
-            0, expanded_return_idx
-        )
+        model_kwargs["image_attention_mask"] = model_kwargs["image_attention_mask"].index_select(0, expanded_return_idx)
 
     if model_kwargs["pixel_values"] is not None:
         model_kwargs["pixel_values"] = model_kwargs["pixel_values"].index_select(0, expanded_return_idx)
@@ -179,9 +174,7 @@ def expand_inputs_for_generation(
         )
 
     elif model_kwargs["perceiver_embeddings"] is not None:
-        model_kwargs["perceiver_embeddings"] = model_kwargs["perceiver_embeddings"].index_select(
-            0, expanded_return_idx
-        )
+        model_kwargs["perceiver_embeddings"] = model_kwargs["perceiver_embeddings"].index_select(0, expanded_return_idx)
 
     return input_ids, model_kwargs
 
@@ -251,7 +244,7 @@ class IdeficsDecoupledEmbedding(mint.nn.Embedding):
         self.partially_freeze = partially_freeze
 
         if partially_freeze:
-            self.weight.requires_grad_(False)
+            self.weight.requires_grad = False
 
         if self.num_additional_embeddings > 0:
             self.additional_embedding = mint.nn.Embedding(
@@ -405,11 +398,10 @@ class IdeficsEmbedding(nn.Cell):
         self.dim = dim
         self.max_position_embeddings = max_position_embeddings
         self.base = base
-        self.inv_freq = 1.0 / (self.base ** (mint.arange(0, self.dim, 2, dtype=ms.int64).float() / self.dim))
+        inv_freq = 1.0 / (self.base ** (mint.arange(0, self.dim, 2, dtype=ms.int64).float() / self.dim))
+        self.inv_freq = ms.Parameter(inv_freq, requires_grad=False, name="inv_freq")
 
-        self._set_cos_sin_cache(
-            seq_len=max_position_embeddings, dtype=ms.float32
-        )
+        self._set_cos_sin_cache(seq_len=max_position_embeddings, dtype=ms.float32)
 
     def _set_cos_sin_cache(self, seq_len, dtype):
         self.max_seq_len_cached = seq_len
@@ -522,9 +514,6 @@ class IdeficsAttention(nn.Cell):
 
         self.is_cross_attention = is_cross_attention
 
-        if not hasattr(nn.functional, "scaled_dot_product_attention"):
-            raise ValueError("this model requires mindspore 2.0 or higher")
-
         if self.is_cross_attention:
             kv_input_dim = (
                 self.hidden_size if not hasattr(config.vision_config, "embed_dim") else config.vision_config.embed_dim
@@ -623,7 +612,7 @@ class IdeficsAttention(nn.Cell):
         # We dispatch to SDPA's Flash Attention or Efficient kernels via this `is_causal` if statement instead of an inline conditional assignment
         # in SDPA to support both torch.compile's dynamic shapes and full graph options. An inline conditional prevents dynamic shapes from compiling.
         # The q_len > 1 is necessary to match with AttentionMaskConverter.to_causal_4d that does not create a causal mask in case q_len == 1.
-        is_causal = True if self.is_causal and causal_mask is None and q_len > 1 else False
+        # is_causal = True if self.is_causal and causal_mask is None and q_len > 1 else False
 
         attn_output = scaled_dot_product_attention(
             query_states,
@@ -919,7 +908,7 @@ class IdeficsPreTrainedModel(PreTrainedModel):
         elif isinstance(module, mint.nn.Embedding):
             normal_(module.weight, mean=0.0, std=std)
             if module.padding_idx is not None:
-                zeros_(module.weight.data[module.padding_idx])
+                module.weight.data[module.padding_idx] = 0
 
 
 LLAMA_INPUTS_DOCSTRING = r"""
@@ -1030,9 +1019,7 @@ class IdeficsModel(IdeficsPreTrainedModel):
                 perceiver_config.resampler_n_latents,
             )
 
-        self.layers = nn.CellList(
-            [IdeficsDecoderLayer(config, layer_idx=i) for i in range(config.num_hidden_layers)]
-        )
+        self.layers = nn.CellList([IdeficsDecoderLayer(config, layer_idx=i) for i in range(config.num_hidden_layers)])
 
         self.cross_layer_interval = config.cross_layer_interval
         num_cross_layers = config.num_hidden_layers // self.cross_layer_interval
@@ -1071,7 +1058,7 @@ class IdeficsModel(IdeficsPreTrainedModel):
     def set_input_embeddings(self, value):
         self.embed_tokens = value
 
-    @add_start_docstrings_to_model_construct(LLAMA_INPUTS_DOCSTRING)
+    @add_start_docstrings_to_model_forward(LLAMA_INPUTS_DOCSTRING)
     def construct(
         self,
         input_ids: ms.Tensor = None,
@@ -1090,7 +1077,6 @@ class IdeficsModel(IdeficsPreTrainedModel):
         return_dict: Optional[bool] = None,
         cache_position: Optional[ms.Tensor] = None,
     ) -> Union[Tuple, IdeficsBaseModelOutputWithPast]:
-
         output_attentions = output_attentions if output_attentions is not None else self.config.output_attentions
         output_hidden_states = (
             output_hidden_states if output_hidden_states is not None else self.config.output_hidden_states
@@ -1130,18 +1116,18 @@ class IdeficsModel(IdeficsPreTrainedModel):
         seq_length_with_past = seq_length + past_key_values_length
 
         if cache_position is None:
-            cache_position = mint.arange(
-                past_key_values_length, past_key_values_length + inputs_embeds.shape[1]
-            )
+            cache_position = mint.arange(past_key_values_length, past_key_values_length + inputs_embeds.shape[1])
 
         if attention_mask is not None and position_ids is None:
             # create position_ids on the fly for batch generation
-            position_ids = attention_mask.long().cumsum(-1) - 1
+            position_ids = attention_mask.int().cumsum(-1) - 1
             position_ids.masked_fill_(attention_mask == 0, 1)
             position_ids = position_ids[:, -seq_length:]
         elif position_ids is None:
             position_ids = cache_position.unsqueeze(0)
 
+        image_hidden_states = None
+        num_images = None
         if sum([x is None for x in [pixel_values, image_encoder_embeddings, perceiver_embeddings]]) != 2:
             raise ValueError(
                 "Exactly 1 of pixel_values, image_encoder_embeddings or perceiver_embeddings has to be not-None."
@@ -1174,7 +1160,8 @@ class IdeficsModel(IdeficsPreTrainedModel):
         else:
             raise ValueError("If `perceiver_embeddings` are passed, use_resampler should be True")
 
-        image_hidden_states = image_hidden_states.view((batch_size, num_images * image_seq_len, image_hidden_size))
+        if image_hidden_states is not None:
+            image_hidden_states = image_hidden_states.view((batch_size, num_images * image_seq_len, image_hidden_size))
         # # Hack to use the model in full language modeling mode
         # image_attention_mask = mint.zeros((batch_size, seq_length, 1), dtype=ms.int64)
         # Make image_attention_mask compatible with hidden states
@@ -1197,11 +1184,12 @@ class IdeficsModel(IdeficsPreTrainedModel):
         # `image_attention_mask` has shape [bsz, 1, num_images, hidden_size] with elements equal to either 0.0 or a very negative number.
         # If any of the elements are 0.0, then the token is attending to at least one image and the gate value is 1. Otherwise the gate value is 0.
         # `cross_attention_gate` has shape [bsz, seq_len] with elements equal to either 0.0 or 1.0.
-        cross_attention_gate = ((((image_attention_mask == 0.0).any(dim=-1)).to(dtype=self.dtype)).squeeze(dim=1))
+        cross_attention_gate = (((image_attention_mask == 0.0).any(dim=-1)).to(dtype=self.dtype)).squeeze(1)
         # embed positions
         if attention_mask is None:
             attention_mask = mint.ones(
-                (batch_size, seq_length_with_past), dtype=ms.bool_,
+                (batch_size, seq_length_with_past),
+                dtype=ms.bool_,
             )
 
         attention_mask = self._update_causal_mask(
@@ -1270,24 +1258,6 @@ class IdeficsModel(IdeficsPreTrainedModel):
                     )
                     use_cache = False
 
-            #     layer_outputs = self._gradient_checkpointing_func(
-            #         vblock,
-            #         decoder_layer,
-            #         hidden_states,
-            #         attention_mask,
-            #         position_ids,
-            #         past_key_values,
-            #         image_hidden_states,
-            #         image_attention_mask,
-            #         cross_attention_gate,
-            #         output_attentions,
-            #         use_cache,
-            #         idx,
-            #         self.cross_layer_interval,
-            #         self.gated_cross_attn_layers,
-            #         cache_position,
-            #     )
-            # else:
             layer_outputs = vblock(
                 decoder_layer,
                 hidden_states,
@@ -1412,14 +1382,12 @@ class IdeficsModel(IdeficsPreTrainedModel):
             # In this case we assume that the mask comes already in inverted form and requires no inversion or slicing.
             causal_mask = attention_mask
         else:
-            min_dtype = dtype_to_min(dtype)
-            causal_mask = mint.full(
-                (sequence_length, target_length), fill_value=min_dtype, dtype=dtype
-            )
+            min_dtype = dtype_to_min(dtype).item()
+            causal_mask = mint.full((sequence_length, target_length), fill_value=min_dtype, dtype=dtype)
             if sequence_length != 1:
                 causal_mask = mint.triu(causal_mask, diagonal=1)
             causal_mask *= mint.arange(target_length) > cache_position.reshape(-1, 1)
-            causal_mask = causal_mask[None, None, :, :].broadcast((batch_size, 1, -1, -1))
+            causal_mask = causal_mask[None, None, :, :].broadcast_to((batch_size, 1, -1, -1))
             if attention_mask is not None:
                 causal_mask = causal_mask.clone()  # copy to contiguous memory for in-place edit
                 mask_length = attention_mask.shape[-1]
@@ -1490,7 +1458,7 @@ class IdeficsForVisionText2Text(IdeficsPreTrainedModel, GenerationMixin):
             ):
                 output_embeddings.out_additional_features = input_embeddings.num_additional_embeddings
 
-    @add_start_docstrings_to_model_construct(LLAMA_INPUTS_DOCSTRING)
+    @add_start_docstrings_to_model_forward(LLAMA_INPUTS_DOCSTRING)
     @replace_return_docstrings(output_type=IdeficsCausalLMOutputWithPast, config_class=_CONFIG_FOR_DOC)
     def construct(
         self,
@@ -1525,12 +1493,16 @@ class IdeficsForVisionText2Text(IdeficsPreTrainedModel, GenerationMixin):
         >>> import mindspore as ms
         >>> from transformers import AutoProcessor
         >>> from mindone.transformers import IdeficsForVisionText2Text
+        >>> from transformers.image_utils import load_image
 
-        >>> model = IdeficsForVisionText2Text.from_pretrained("HuggingFaceM4/idefics-9b")
-        >>> processor = AutoProcessor.from_pretrained("HuggingFaceM4/idefics-9b")
+        >>> model = IdeficsForVisionText2Text.from_pretrained("HuggingFaceM4/idefics-9b-instruct")
+        >>> processor = AutoProcessor.from_pretrained("HuggingFaceM4/idefics-9b-instruct")
 
         >>> dogs_image_url_1 = "https://huggingface.co/datasets/hf-internal-testing/fixtures_nlvr2/raw/main/image1.jpeg"
         >>> dogs_image_url_2 = "https://huggingface.co/datasets/hf-internal-testing/fixtures_nlvr2/raw/main/image2.jpeg"
+        >>> # Optional: load local/url image first
+        >>> # dogs_image_url_1 = load_image(dogs_image_url_1)
+        >>> # dogs_image_url_2 = load_image(dogs_image_url_2)
 
         >>> prompts = [
         ...     [
@@ -1542,15 +1514,18 @@ class IdeficsForVisionText2Text(IdeficsPreTrainedModel, GenerationMixin):
         ...         "Describe this image.\nAssistant:",
         ...     ]
         ... ]
-        >>> inputs = processor(prompts, return_tensors="np")
-        >>> for k, v in inputs.items():
-        ...     inputs[k] = ms.tensor(v)
+        >>> inputs = processor(prompts, return_tensors="pt") # only support pt return
+        >>> for k, v in inputs.items(): # input_ids, attention_mask, pixel_values, image_attention_mask
+        ...     inputs[k] = ms.tensor(v.detach().numpy())
         ...     if inputs[k].dtype == ms.int64:
         ...         inputs[k] = inputs[k].to(ms.int32)
         ...     else:
         ...         inputs[k] = inputs[k].to(model.dtype)
-        >>> generate_ids = model.generate(**inputs, max_new_tokens=6)
-        >>> processor.batch_decode(generate_ids, skip_special_tokens=True)
+        >>> generate_ids = model.generate(**inputs, max_new_tokens=128)
+        >>> generated_texts = processor.batch_decode(generate_ids, skip_special_tokens=True)
+        >>> print(generated_texts)
+        >>> # ['User: Describe this image.\nAssistant: An image of two dogs.\n
+        >>> # User: Describe this image.\nAssistant: A brown and white dog standing in the grass.']
         ```"""
 
         output_attentions = output_attentions if output_attentions is not None else self.config.output_attentions

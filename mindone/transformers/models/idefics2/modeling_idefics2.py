@@ -18,18 +18,9 @@ import math
 from dataclasses import dataclass
 from typing import List, Optional, Tuple, Union
 
-import mindspore as ms
-from mindspore import mint, ops, nn
-import mindspore.mint.nn.functional as F
-from mindspore.mint.nn import CrossEntropyLoss
-
-from ...activations import ACT2FN
-from ...cache_utils import Cache, DynamicCache
-from ...generation import GenerationMixin
-from ...modeling_attn_mask_utils import _prepare_4d_attention_mask
-from ...modeling_outputs import BaseModelOutput, ModelOutput
-from ...modeling_utils import PreTrainedModel
-from ...utils import is_flash_attn_2_available
+import numpy as np
+from transformers import Idefics2Config
+from transformers.models.idefics2.configuration_idefics2 import Idefics2PerceiverConfig, Idefics2VisionConfig
 from transformers.utils import (
     add_start_docstrings,
     add_start_docstrings_to_model_forward,
@@ -37,11 +28,23 @@ from transformers.utils import (
     replace_return_docstrings,
 )
 from transformers.utils.deprecation import deprecate_kwarg
-from ..auto import AutoModel
-from transformers import Idefics2Config, Idefics2PerceiverConfig, Idefics2VisionConfig
-from mindone.models.utils import normal_, zeros_
-from mindspore_adapter.nn import MultiheadAttention
 
+import mindspore as ms
+import mindspore.mint.nn.functional as F
+from mindspore import mint, nn, ops
+from mindspore.mint.nn import CrossEntropyLoss
+
+from mindone.models.utils import normal_, zeros_
+
+from ...activations import ACT2FN
+from ...cache_utils import Cache, DynamicCache
+from ...generation import GenerationMixin
+from ...mindspore_adapter.nn import MultiheadAttention
+from ...modeling_attn_mask_utils import _prepare_4d_attention_mask
+from ...modeling_outputs import BaseModelOutput, CausalLMOutputWithPast, ModelOutput
+from ...modeling_utils import PreTrainedModel
+from ...utils import is_flash_attn_2_available
+from ..auto import AutoModel
 
 if is_flash_attn_2_available():
     from ...integrations.flash_attention import flash_attention_forward
@@ -305,7 +308,6 @@ class Idefics2VisionFlashAttention2(Idefics2VisionAttention):
         if past_key_value is not None:
             kv_seq_len += past_key_value.get_usable_length(kv_seq_len, self.layer_idx)
 
-
         dropout_rate = self.dropout if self.training else 0.0
 
         # In PEFT, usually we cast the layer norms in float32 for training stability reasons
@@ -342,7 +344,7 @@ class Idefics2VisionFlashAttention2(Idefics2VisionAttention):
             scaling=self.scale,
             # is_causal=self.is_causal,
             # use_top_left_mask=self._flash_attn_uses_top_left_mask,
-        ) # BNSD -> BSND
+        )  # BNSD -> BSND
 
         attn_output = attn_output.reshape(bsz, q_len, self.embed_dim).contiguous()
         attn_output = self.out_proj(attn_output)
@@ -557,9 +559,7 @@ class Idefics2Encoder(nn.Cell):
 
         if not return_dict:
             return tuple(v for v in [hidden_states, encoder_states, all_attentions] if v is not None)
-        return BaseModelOutput(
-            last_hidden_state=hidden_states, hidden_states=encoder_states, attentions=all_attentions
-        )
+        return BaseModelOutput(last_hidden_state=hidden_states, hidden_states=encoder_states, attentions=all_attentions)
 
 
 IDEFICS2_START_DOCSTRING = r"""
@@ -611,6 +611,7 @@ class Idefics2PreTrainedModel(PreTrainedModel):
             normal_(module.weight, mean=0.0, std=std)
             if module.padding_idx is not None:
                 zeros_(module.weight.data[module.padding_idx])
+
 
 IDEFICS2_INPUTS_DOCSTRING = r"""
     Args:
@@ -722,7 +723,7 @@ def repeat_kv(hidden_states: ms.Tensor, n_rep: int) -> ms.Tensor:
     batch, num_key_value_heads, slen, head_dim = hidden_states.shape
     if n_rep == 1:
         return hidden_states
-    hidden_states = hidden_states[:, :, None, :, :]. broadcast_to((batch, num_key_value_heads, n_rep, slen, head_dim))
+    hidden_states = hidden_states[:, :, None, :, :].broadcast_to((batch, num_key_value_heads, n_rep, slen, head_dim))
     return hidden_states.reshape(batch, num_key_value_heads * n_rep, slen, head_dim)
 
 
@@ -848,7 +849,8 @@ class Idefics2PerceiverAttention(nn.Cell):
         return attn_output, attn_weights, past_key_value
 
 
-# NO LONGER EXIST Copied from transformers.models.mistral.modeling_mistral.MistralFlashAttention2 with MistralAttention->Idefics2PerceiverAttention,MistralFlashAttention->Idefics2PerceiverFlashAttention,Mistral->Idefics2
+# NO LONGER EXIST Copied from transformers.models.mistral.modeling_mistral.MistralFlashAttention2 with
+# MistralAttention->Idefics2PerceiverAttention,MistralFlashAttention->Idefics2PerceiverFlashAttention,Mistral->Idefics2
 class Idefics2PerceiverFlashAttention2(Idefics2PerceiverAttention):
     """
     Idefics2 flash attention module. This module inherits from `Idefics2PerceiverAttention` as the weights of the module stays
@@ -952,7 +954,7 @@ class Idefics2PerceiverFlashAttention2(Idefics2PerceiverAttention):
             scaling=1 / math.sqrt(query_states.shape[-1]),
             sliding_window=None,
             # is_causal=self.is_causal,
-        ) # BNSD -> BSND
+        )  # BNSD -> BSND
 
         attn_output = attn_output.reshape(bsz, q_len, self.num_heads * self.head_dim).contiguous()
         attn_output = self.o_proj(attn_output)
@@ -1090,9 +1092,7 @@ class Idefics2PerceiverResampler(Idefics2PreTrainedModel):
         # seq embed -> bsz seq embed
         latents = self.latents.unsqueeze(0).broadcast_to((context.shape[0], *self.latents.shape))
 
-        latent_attention_mask = mint.ones(
-            (attention_mask.shape[0], latents.shape[1]), dtype=attention_mask.dtype
-        )
+        latent_attention_mask = mint.ones((attention_mask.shape[0], latents.shape[1]), dtype=attention_mask.dtype)
         attention_mask = mint.cat([attention_mask, latent_attention_mask], dim=-1)
         attention_mask = (
             _prepare_4d_attention_mask(attention_mask, latents.dtype, tgt_len=self.n_latents)
@@ -1222,7 +1222,7 @@ class Idefics2Model(Idefics2PreTrainedModel):
 
         self.vision_model = Idefics2VisionTransformer._from_config(config.vision_config)
         self.connector = Idefics2Connector(config)
-        self.text_model = AutoModel.from_config(config.text_config)
+        self.text_model = AutoModel.from_config(config.text_config)  # MistralModel
 
         self.image_seq_len = config.perceiver_config.resampler_n_latents
         self.image_token_id = self.config.image_token_id
@@ -1247,9 +1247,14 @@ class Idefics2Model(Idefics2PreTrainedModel):
         This method aims at merging the token embeddings with the image hidden states into one single sequence of vectors that are fed to the transformer LM.
         The merging happens as follows:
         - The text token sequence is: `tok_1 tok_2 tok_3 <fake_token_around_image> <image> <image> ... <image> <fake_token_around_image> tok_4`.
-        - We get the image hidden states for the image through the vision encoder (and potentially the perceiver), and that hidden state is then projected into the text embedding space.
-        We thus have a sequence of image hidden states of size (1, image_seq_len, hidden_dim), where 1 is for batch_size of 1 image and hidden_dim is the hidden_dim of the LM transformer.
-        - The merging happens so that we obtain the following sequence: `vector_tok_1 vector_tok_2 vector_tok_3 vector_fake_tok_around_image {sequence of image_seq_len image hidden states} vector_fake_toke_around_image vector_tok_4`. That sequence is fed to the LM.
+        - We get the image hidden states for the image through the vision encoder (and potentially the perceiver),
+          and that hidden state is then projected into the text embedding space.
+          We thus have a sequence of image hidden states of size (1, image_seq_len, hidden_dim),
+          where 1 is for batch_size of 1 image and hidden_dim is the hidden_dim of the LM transformer.
+        - The merging happens so that we obtain the following sequence:
+          `vector_tok_1 vector_tok_2 vector_tok_3 vector_fake_tok_around_image {sequence of image_seq_len image hidden states}
+           vector_fake_toke_around_image vector_tok_4`.
+          That sequence is fed to the LM.
         - To fit the format of that sequence, `input_ids`, `input_embeds`, `attention_mask` are all 3 adapted to insert the image hidden states.
         """
         num_images, _, vision_hidden_size = image_hidden_states.shape
@@ -1497,45 +1502,55 @@ class Idefics2ForConditionalGeneration(Idefics2PreTrainedModel, GenerationMixin)
         Example:
 
         ```python
-        >>> import requests
         >>> import mindspore as ms
 
-        >>> from PIL import Image
-        >>> from io import BytesIO
-
-        >>> from transformers import AutoProcessor, AutoModelForVision2Seq
+        >>> from mindone.transformers import AutoProcessor, AutoModelForVision2Seq
         >>> from transformers.image_utils import load_image
 
         >>> # Note that passing the image urls (instead of the actual pil images) to the processor is also possible
         >>> image1 = load_image("https://cdn.britannica.com/61/93061-050-99147DCE/Statue-of-Liberty-Island-New-York-Bay.jpg")
         >>> image2 = load_image("https://cdn.britannica.com/59/94459-050-DBA42467/Skyline-Chicago.jpg")
-        >>> image3 = load_image("https://cdn.britannica.com/68/170868-050-8DDE8263/Golden-Gate-Bridge-San-Francisco.jpg")
 
-        >>> processor = AutoProcessor.from_pretrained("HuggingFaceM4/idefics2-8b-base")
-        >>> model = AutoModelForVision2Seq.from_pretrained("HuggingFaceM4/idefics2-8b-base")
-
-        >>> BAD_WORDS_IDS = processor.tokenizer(["<image>", "<fake_token_around_image>"], add_special_tokens=False).input_ids
-        >>> EOS_WORDS_IDS = [processor.tokenizer.eos_token_id]
+        >>> processor = AutoProcessor.from_pretrained("HuggingFaceM4/idefics2-8b-base") # Idefics2Processor
+        >>> model = AutoModelForVision2Seq.from_pretrained("HuggingFaceM4/idefics2-8b-base") # Idefics2ForConditionalGeneration
 
         >>> # Create inputs
-        >>> prompts = [
-        ...   "<image>In this image, we can see the city of New York, and more specifically the Statue of Liberty.<image>In this image,",
-        ...   "In which city is that bridge located?<image>",
+        >>> messages = [
+        ...     {
+        ...         "role": "user",
+        ...         "content": [
+        ...             {"type": "image"},
+        ...             {"type": "text", "text": "What do we see in this image?"},
+        ...         ]
+        ...     },
+        ...     {
+        ...         "role": "assistant",
+        ...         "content": [
+        ...             {"type": "text", "text": "In this image, we can see the city of New York, and more specifically the Statue of Liberty."},
+        ...         ]
+        ...     },
+        ...     {
+        ...         "role": "user",
+        ...         "content": [
+        ...             {"type": "image"},
+        ...             {"type": "text", "text": "And how about this image?"},
+        ...         ]
+        ...     },
         ... ]
-        >>> images = [[image1, image2], [image3]]
-        >>> inputs = processor(images=images, text=prompts, padding=True, return_tensors="np")
+        >>> prompt = processor.apply_chat_template(messages, add_generation_prompt=True)
+        >>> inputs = processor(text=prompt, images=[image1, image2], return_tensors="np")
         >>> for k, v in inputs.items():
-        ...     inputs[k] = ms.tensor(v)
+        ...     inputs[k] = ms.Tensor(v)
         ...     if inputs[k].dtype == ms.int64:
         ...         inputs[k] = inputs[k].to(ms.int32)
         ...     else:
         ...         inputs[k] = inputs[k].to(model.dtype)
         >>> # Generate
-        >>> generated_ids = model.generate(**inputs, bad_words_ids=BAD_WORDS_IDS, max_new_tokens=20)
+        >>> generated_ids = model.generate(**inputs, max_new_tokens=500)
         >>> generated_texts = processor.batch_decode(generated_ids, skip_special_tokens=True)
-
         >>> print(generated_texts)
-        ['In this image, we can see the city of New York, and more specifically the Statue of Liberty. In this image, we can see the city of New York, and more specifically the Statue of Liberty.\n\n', 'In which city is that bridge located?\n\nThe bridge is located in the city of Pittsburgh, Pennsylvania.\n\n\nThe bridge is']
+        >>> # ['User: What do we see in this image? \nAssistant: In this image, we can see the city of New York, and more specifically the Statue of Liberty. \n
+        >>> # User: And how about this image? \nAssistant: In this image we can see buildings, trees, lights, water and sky.']
         ```"""
 
         output_attentions = output_attentions if output_attentions is not None else self.config.output_attentions
@@ -1655,9 +1670,7 @@ class Idefics2ForConditionalGeneration(Idefics2PreTrainedModel, GenerationMixin)
     def _reorder_cache(past_key_values, beam_idx):
         reordered_past = ()
         for layer_past in past_key_values:
-            reordered_past += (
-                tuple(past_state.index_select(0, beam_idx) for past_state in layer_past),
-            )
+            reordered_past += (tuple(past_state.index_select(0, beam_idx) for past_state in layer_past),)
         return reordered_past
 
 

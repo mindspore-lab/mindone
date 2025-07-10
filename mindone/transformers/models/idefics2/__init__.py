@@ -1,1 +1,1 @@
-from .modeling_idefics2 import Idefics2ForConditionalGeneration, Idefics2PreTrainedModel, Idefics2Model
+from .modeling_idefics2 import Idefics2ForConditionalGeneration, Idefics2Model, Idefics2PreTrainedModel

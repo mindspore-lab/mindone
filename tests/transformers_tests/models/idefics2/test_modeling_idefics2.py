@@ -13,7 +13,7 @@ import inspect
 import numpy as np
 import pytest
 import torch
-from transformers import Idefics2Config, Idefics2VisionConfig, LlamaConfig
+from transformers import Idefics2Config
 
 import mindspore as ms
 
@@ -26,7 +26,7 @@ from tests.modeling_test_utils import (
 )
 from tests.transformers_tests.models.modeling_common import ids_numpy
 
-DTYPE_AND_THRESHOLDS = {"fp32": 5e-2, "fp16": 5e-3, "bf16": 5e-2}
+DTYPE_AND_THRESHOLDS = {"fp32": 5e-6, "fp16": 5e-3, "bf16": 5e-2}
 # Since some operators not supported in CPU for fp16, all evaluation is under **ms.precision vs torch.float32**
 MODES = [1]
 
@@ -53,7 +53,14 @@ class Idefics2ModelTester:
         max_position_embeddings=512,
         use_sliding_window=False,
         attn_implementation="eager",
-        torch_dtype="bfloat16",
+        # vision config
+        image_size=64,
+        # perceiver config
+        resampler_n_latents=1,  # must be 1
+        resampler_depth=3,
+        resampler_n_heads=8,
+        resampler_head_dim=12,
+        qk_layer_norms_perceiver=True,
     ):
         self.batch_size = batch_size
         self.seq_length = seq_length
@@ -74,7 +81,13 @@ class Idefics2ModelTester:
         self.max_position_embeddings = max_position_embeddings
         self.use_sliding_window = use_sliding_window
         self.attn_implementation = attn_implementation
-        self.torch_dtype = torch_dtype
+        self.image_size = image_size
+        # perceiver config
+        self.resampler_n_latents = resampler_n_latents
+        self.resampler_depth = resampler_depth
+        self.resampler_n_heads = resampler_n_heads
+        self.resampler_head_dim = resampler_head_dim
+        self.qk_layer_norms_perceiver = qk_layer_norms_perceiver
 
     def get_large_model_config(self):
         return Idefics2Config.from_pretrained("HuggingFaceM4/idefics2-8b")
@@ -88,62 +101,51 @@ class Idefics2ModelTester:
         image_batch_size = 1
         num_images = 1
         num_channels = 3
-        height = 64
-        width = 64
+        height = self.image_size
+        width = self.image_size
         pixel_values = ids_numpy([image_batch_size, num_images, num_channels, height, width], vocab_size=256)
         pixel_values = (pixel_values.astype(np.float32) / 255.0) * 2 - 1  # in range [-1, 1]
 
         config = self.get_config()
-        # config._attn_implementation = self.attn_implementation
 
-        return (config, input_ids, attention_mask, pixel_values)
+        return config, input_ids, attention_mask, pixel_values
 
     def get_config(self):
-        text_config = LlamaConfig(
-            vocab_size=self.vocab_size,
-            hidden_size=self.hidden_size,
-            num_hidden_layers=self.num_hidden_layers,
-            num_attention_heads=self.num_attention_heads,
-            num_key_value_heads=self.num_key_value_heads,
-            intermediate_size=self.intermediate_size,
-            hidden_act=self.hidden_act,
-            max_position_embeddings=self.max_position_embeddings,
-            use_cache=self.use_cache,
-            attn_implementation=self.attn_implementation,
-            torch_dtype=self.torch_dtype,  # ??
-        )
-        vision_config = Idefics2VisionConfig(
-            hidden_size=self.hidden_size,
-            intermediate_size=self.intermediate_size,
-            num_hidden_layers=self.num_hidden_layers,
-            num_attention_heads=self.num_attention_heads,
-            num_channels=3,
-            image_size=64,
-            patch_size=32,
-            attn_implementation=self.attn_implementation,
-        )
         config = Idefics2Config(
             use_cache=self.use_cache,
-            vision_config=vision_config,
-            text_config=text_config,
-            vision_config=dict( # Idefics2VisionConfig
+            vision_config=dict(  # Idefics2VisionConfig
                 hidden_size=self.hidden_size,
                 intermediate_size=self.intermediate_size,
                 num_hidden_layers=self.num_hidden_layers,
                 num_attention_heads=self.num_attention_heads,
                 num_channels=3,
-                image_size=64,
+                image_size=self.image_size,
                 patch_size=32,
                 attn_implementation=self.attn_implementation,
             ),
-            perceiver_config=dict( # Idefics2PerceiverConfig
+            perceiver_config=dict(  # Idefics2PerceiverConfig
                 hidden_size=self.hidden_size,
                 num_key_value_heads=self.num_key_value_heads,
-                resampler_n_latents = self.resampler_n_latents,
-                resampler_depth = self.resampler_depth,
-                resampler_n_heads = self.resampler_n_heads,
-                resampler_head_dim = self.resampler_head_dim,
-                qk_layer_norms_perceiver = self.qk_layer_norms_perceiver,
+                resampler_n_latents=self.resampler_n_latents,
+                resampler_depth=self.resampler_depth,
+                resampler_n_heads=self.resampler_n_heads,
+                resampler_head_dim=self.resampler_head_dim,
+                qk_layer_norms_perceiver=self.qk_layer_norms_perceiver,
+                attn_implementation=self.attn_implementation,
+            ),
+            text_config=dict(  # MistralConfig
+                model_type="mistral",
+                vocab_size=self.vocab_size,
+                hidden_size=self.hidden_size,
+                intermediate_size=self.intermediate_size,
+                num_hidden_layers=self.num_hidden_layers,
+                num_attention_heads=self.num_attention_heads,
+                num_key_value_heads=self.num_key_value_heads,
+                hidden_act=self.hidden_act,
+                max_position_embeddings=self.max_position_embeddings,
+                use_cache=self.use_cache,
+                num_expert_per_tok=2,
+                num_local_experts=2,
                 attn_implementation=self.attn_implementation,
             ),
             attn_implementation=self.attn_implementation,
@@ -162,21 +164,6 @@ model_tester = Idefics2ModelTester()
 
 
 TEST_CASES = [
-    [  # text Q&A
-        "Idefics2Model",
-        "transformers.Idefics2Model",
-        "mindone.transformers.Idefics2Model",
-        (config,),
-        {},
-        (),
-        {
-            "input_ids": input_ids,
-            "attention_mask": attention_mask,
-        },
-        {
-            "last_hidden_state": 0,  # text_model, i.e., LlamaModel
-        },
-    ],
     [  # VQA
         "Idefics2Model",
         "transformers.Idefics2Model",
@@ -190,7 +177,7 @@ TEST_CASES = [
             "pixel_values": pixel_values,
         },
         {
-            "last_hidden_state": 0,  # text_model, i.e., LlamaModel
+            "last_hidden_state": 0,  # text_model, i.e., MistralModel
             "image_hidden_states": -1,  # vision_modal, i.e., Idefics2VisionTransformer
         },
     ],

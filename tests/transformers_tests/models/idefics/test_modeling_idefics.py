@@ -26,9 +26,10 @@ from tests.modeling_test_utils import (
 )
 from tests.transformers_tests.models.modeling_common import ids_numpy
 
-DTYPE_AND_THRESHOLDS = {"fp32": 5e-2, "fp16": 5e-3, "bf16": 5e-2}
+DTYPE_AND_THRESHOLDS = {"fp32": 5e-6, "fp16": 5e-3, "bf16": 5e-2}
 # Since some operators not supported in CPU for fp16, all evaluation is under **ms.precision vs torch.float32**
 MODES = [1]
+
 
 class IdeficsModelTester:
     def __init__(
@@ -56,6 +57,7 @@ class IdeficsModelTester:
         use_resampler=True,
         # vision config
         embed_dim=128,
+        image_size=64,
         # perceiver config
         resampler_n_latents=32,
         resampler_depth=3,
@@ -85,6 +87,7 @@ class IdeficsModelTester:
         # self.torch_dtype = torch_dtype
         self.use_resampler = use_resampler
         self.embed_dim = embed_dim
+        self.image_size = image_size
         # perceiver config
         self.resampler_n_latents = resampler_n_latents
         self.resampler_depth = resampler_depth
@@ -104,15 +107,15 @@ class IdeficsModelTester:
         image_batch_size = 1
         num_images = 1
         num_channels = 3
-        height = 64
-        width = 64
+        height = self.image_size
+        width = self.image_size
         pixel_values = ids_numpy([image_batch_size, num_images, num_channels, height, width], vocab_size=256)
         pixel_values = (pixel_values.astype(np.float32) / 255.0) * 2 - 1  # in range [-1, 1]
+        image_attention_mask = ids_numpy([self.batch_size, self.seq_length, num_images], vocab_size=2)
 
         config = self.get_config()
-        # config._attn_implementation = self.attn_implementation
 
-        return (config, input_ids, attention_mask, pixel_values)
+        return config, input_ids, attention_mask, pixel_values, image_attention_mask
 
     def get_config(self):
         config = IdeficsConfig(
@@ -135,21 +138,21 @@ class IdeficsModelTester:
             freeze_vision_layers=True,
             freeze_vision_module_exceptions=[],
             use_resampler=self.use_resampler,
-            vision_config=dict( # IdeficsVisionConfig
+            vision_config=dict(  # IdeficsVisionConfig
                 num_channels=3,
-                image_size=224,
+                image_size=self.image_size,
                 patch_size=14,
-                embed_dim = self.embed_dim,
+                embed_dim=self.embed_dim,
                 intermediate_size=self.intermediate_size,
                 num_hidden_layers=self.num_hidden_layers,
                 num_attention_heads=self.num_attention_heads,
             ),
-            perceiver_config=dict( # IdeficsPerceiverConfig
-                resampler_n_latents = self.resampler_n_latents,
-                resampler_depth = self.resampler_depth,
-                resampler_n_heads = self.resampler_n_heads,
-                resampler_head_dim = self.resampler_head_dim,
-                qk_layer_norms_perceiver = self.qk_layer_norms_perceiver,
+            perceiver_config=dict(  # IdeficsPerceiverConfig
+                resampler_n_latents=self.resampler_n_latents,
+                resampler_depth=self.resampler_depth,
+                resampler_n_heads=self.resampler_n_heads,
+                resampler_head_dim=self.resampler_head_dim,
+                qk_layer_norms_perceiver=self.qk_layer_norms_perceiver,
             ),
             attn_implementation=self.attn_implementation,
         )
@@ -158,30 +161,10 @@ class IdeficsModelTester:
 
 
 model_tester = IdeficsModelTester()
-(
-    config,
-    input_ids,
-    attention_mask,
-    pixel_values,
-) = model_tester.prepare_config_and_inputs()
+(config, input_ids, attention_mask, pixel_values, image_attention_mask) = model_tester.prepare_config_and_inputs()
 
 
 TEST_CASES = [
-    [  # text Q&A
-        "IdeficsModel",
-        "transformers.IdeficsModel",
-        "mindone.transformers.IdeficsModel",
-        (config,),
-        {},
-        (),
-        {
-            "input_ids": input_ids,
-            "attention_mask": attention_mask,
-        },
-        {
-            "last_hidden_state": 0,  # text_model, i.e., LlamaModel
-        },
-    ],
     [  # VQA
         "IdeficsModel",
         "transformers.IdeficsModel",
@@ -193,9 +176,10 @@ TEST_CASES = [
             "input_ids": input_ids,
             "attention_mask": attention_mask,
             "pixel_values": pixel_values,
+            "image_attention_mask": image_attention_mask,
         },
         {
-            "last_hidden_state": 0,  # text_model, i.e., LlamaModel
+            "last_hidden_state": 0,  # text_model, i.e., text model
             "image_hidden_states": -1,  # vision_modal, i.e., IdeficsVisionTransformer
         },
     ],

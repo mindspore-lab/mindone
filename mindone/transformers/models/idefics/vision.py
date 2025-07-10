@@ -18,15 +18,15 @@ import math
 from dataclasses import dataclass
 from typing import Optional, Tuple, Union
 
+from transformers.models.idefics.configuration_idefics import IdeficsVisionConfig
+from transformers.utils import ModelOutput, logging
+
 import mindspore as ms
 import mindspore.mint as mint
 from mindspore import nn
 
 from ...activations import ACT2FN
 from ...modeling_outputs import BaseModelOutput, BaseModelOutputWithPooling
-from ...utils import ModelOutput, logging
-from transformers import IdeficsVisionConfig
-
 
 logger = logging.get_logger(__name__)
 
@@ -399,15 +399,7 @@ class IdeficsVisionEncoder(nn.Cell):
         for idx, encoder_layer in enumerate(self.layers):
             if output_hidden_states:
                 encoder_states = encoder_states + (hidden_states,)
-            # if self.gradient_checkpointing and self.training:
-            #     layer_outputs = self._gradient_checkpointing_func(
-            #         encoder_layer.__call__,
-            #         hidden_states,
-            #         attention_mask,
-            #         causal_attention_mask,
-            #         output_attentions,
-            #     )
-            # else:
+
             layer_outputs = encoder_layer(
                 hidden_states,
                 attention_mask,
@@ -425,9 +417,7 @@ class IdeficsVisionEncoder(nn.Cell):
 
         if not return_dict:
             return tuple(v for v in [hidden_states, encoder_states, all_attentions] if v is not None)
-        return BaseModelOutput(
-            last_hidden_state=hidden_states, hidden_states=encoder_states, attentions=all_attentions
-        )
+        return BaseModelOutput(last_hidden_state=hidden_states, hidden_states=encoder_states, attentions=all_attentions)
 
 
 # Adapted from transformers.models.clip.modeling_clip.CLIPVisionTransformer
@@ -443,6 +433,7 @@ class IdeficsVisionTransformer(nn.Cell):
         self.post_layernorm = mint.nn.LayerNorm(embed_dim, eps=config.layer_norm_eps)
 
     # Adapted from transformers.models.clip.modeling_clip.CLIPVisionTransformer.construct
+    # @ms.jit
     def construct(
         self,
         pixel_values: Optional[ms.Tensor] = None,

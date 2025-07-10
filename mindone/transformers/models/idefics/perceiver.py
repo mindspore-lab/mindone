@@ -39,11 +39,10 @@ References:
 
 from typing import Optional, Tuple
 
-import mindspore as ms
-import mindspore.mint as mint
-import mindspore.mint.nn as nn
-
 from transformers import IdeficsConfig
+
+import mindspore as ms
+from mindspore import mint, nn
 
 
 class IdeficsPerceiverResampler(nn.Cell):
@@ -75,9 +74,7 @@ class IdeficsPerceiverResampler(nn.Cell):
         self.latents = ms.Parameter(mint.randn(self.n_latents, self.embed_dim), requires_grad=True)
 
         self.intermediate_dim = (
-            self.embed_dim * 4
-            if not hasattr(config.vision_config, "embed_dim")
-            else config.vision_config.embed_dim * 4
+            self.embed_dim * 4 if not hasattr(config.vision_config, "embed_dim") else config.vision_config.embed_dim * 4
         )
         # Create Transformer Blocks
         self.blocks = nn.CellList(
@@ -161,12 +158,14 @@ class IdeficsPerceiverAttention(nn.Cell):
             q = self.q_layer_norm(q)
             k = self.k_layer_norm(k)
 
-        scores = mint.einsum("... i d, ... j d -> ... i j", q * self.qk_scale, k)
+        # scores = mint.einsum("... i d, ... j d -> ... i j", q * self.qk_scale, k) # error in graph mode
+        scores = mint.matmul(q * self.qk_scale, k.swapaxes(2, 3))
         stabilized_scores = scores - (mint.amax(scores, dim=-1, keepdim=True))
         attn = mint.softmax(stabilized_scores, dim=-1)
 
         # Attend & project back to output...
-        resampled = mint.einsum("... i j, ... j d -> ... i d", attn, v)
+        # resampled = mint.einsum("... i j, ... j d -> ... i d", attn, v) # error in graph mode
+        resampled = mint.matmul(attn, v)
         # einsum.rearrange(resampled, "bsz heads seq embed -> bsz seq (heads embed)", heads=self.n_heads)
         return self.output_proj(resampled.swapaxes(1, 2).flatten(-2))
 
