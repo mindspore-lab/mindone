@@ -7,8 +7,8 @@ from transformers import VJEPA2VideoProcessor  # use master version=4.53.0.dev0
 import mindspore as ms
 import mindspore.dataset.vision as vision
 
+from mindone.transformers import VJEPA2ForVideoClassification
 from mindone.transformers.image_utils import load_image
-from mindone.transformers.models.vjepa2 import VJEPA2ForVideoClassification
 
 # Load model and video preprocessor
 start_time = time.time()

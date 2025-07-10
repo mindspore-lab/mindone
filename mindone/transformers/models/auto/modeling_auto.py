@@ -503,8 +503,8 @@ if version.parse(transformers.__version__) >= version.parse("4.51.0"):
     MODEL_FOR_TOKEN_CLASSIFICATION_MAPPING_NAMES.update({"qwen3": "Qwen3ForTokenClassification"})
 
 if version.parse(transformers.__version__) >= version.parse("4.53.0"):
-    MODEL_MAPPING_NAMES.update({"vjepa2", "VJEPA2Model"})
-    MODEL_FOR_VIDEO_CLASSIFICATION_MAPPING_NAMES.update({"vjepa2", "VJEPA2ForVideoClassification"})
+    MODEL_MAPPING_NAMES.update({"vjepa2": "VJEPA2Model"})
+    MODEL_FOR_VIDEO_CLASSIFICATION_MAPPING_NAMES.update({"vjepa2": "VJEPA2ForVideoClassification"})
 
 
 MODEL_MAPPING = _LazyAutoMapping(CONFIG_MAPPING_NAMES, MODEL_MAPPING_NAMES)
