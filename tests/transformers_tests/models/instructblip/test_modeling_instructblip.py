@@ -89,12 +89,6 @@ class InstructBlipVisionModelTester:
             initializer_range=self.initializer_range,
         )
 
-model_tester = InstructBlipVisionModelTester()
-(
-    config, pixel_values
-) = model_tester.prepare_config_and_inputs()
-
-
 class InstructBlipQFormerModelTester:
     def __init__(
         self,
@@ -291,10 +285,13 @@ class InstructBlipForConditionalGenerationDecoderOnlyModelTester:
             image_token_index=self.image_token_index,
         )
 
-instructblip_vision_tester = InstructBlipVisionModelTester()
-instructblip_vision_config, pixel_values = instructblip_vision_tester.prepare_config_and_inputs()
-instructblip_qformer_tester = InstructBlipQFormerModelTester()
-onfig, input_ids, input_mask, qformer_input_ids, qformer_attention_mask = instructblip_qformer_tester.prepare_config_and_inputs()
+# instructblip_vision_tester = InstructBlipVisionModelTester()
+# instructblip_vision_config, pixel_values = instructblip_vision_tester.prepare_config_and_inputs()
+# instructblip_qformer_tester = InstructBlipQFormerModelTester()
+# qformer_config, input_ids, input_mask, qformer_input_ids, qformer_attention_mask = instructblip_qformer_tester.prepare_config_and_inputs()
+
+generation_test = InstructBlipForConditionalGenerationDecoderOnlyModelTester()
+config, input_ids, attention_mask, qformer_input_ids, qformer_attention_mask, pixel_values = generation_test.prepare_config_and_inputs()
 
 BERT_CASES = [
     [
@@ -306,7 +303,7 @@ BERT_CASES = [
         (pixel_values,),
         {
             "input_ids": input_ids,
-            "attention_mask": input_mask,
+            "attention_mask": attention_mask,
             "qformer_input_ids": qformer_input_ids,
             "qformer_attention_mask": qformer_attention_mask,
         },
