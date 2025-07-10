@@ -28,7 +28,7 @@ from transformers import InstructBlipVideoVisionConfig, InstructBlipVideoQFormer
 from tests.transformers_tests.models.modeling_common import floats_numpy, ids_numpy, random_attention_mask
 
 # CrossEntropyLoss not support bf16
-DTYPE_AND_THRESHOLDS = {"fp32": 5e-4, "bf16": 5e-3}
+DTYPE_AND_THRESHOLDS = {"fp32": 5e-4, "fp16": 5e-3, "bf16": 1e-2}
 MODES = [1]
 
 class InstructBlipVideoVisionModelTester:
