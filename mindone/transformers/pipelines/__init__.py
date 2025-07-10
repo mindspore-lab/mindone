@@ -8,6 +8,7 @@ from transformers.configuration_utils import PretrainedConfig
 from transformers.dynamic_module_utils import get_class_from_dynamic_module
 from transformers.models.auto.feature_extraction_auto import FEATURE_EXTRACTOR_MAPPING, AutoFeatureExtractor
 from transformers.models.auto.image_processing_auto import IMAGE_PROCESSOR_MAPPING, AutoImageProcessor
+from transformers.models.auto.processing_auto import PROCESSOR_MAPPING, AutoProcessor
 from transformers.models.auto.tokenization_auto import TOKENIZER_MAPPING, AutoTokenizer
 from transformers.tokenization_utils import PreTrainedTokenizer
 from transformers.utils import (
@@ -19,8 +20,6 @@ from transformers.utils import (
     is_offline_mode,
     logging,
 )
-
-from mindone.transformers.models.auto.processing_auto import PROCESSOR_MAPPING, AutoProcessor
 
 from ..feature_extraction_utils import PreTrainedFeatureExtractor
 from ..image_processing_utils import BaseImageProcessor
@@ -39,17 +38,13 @@ from .base import (
     get_default_model_and_revision,
     infer_framework_load_model,
 )
-from .image_text_to_text import ImageTextToTextPipeline
+from .text2text_generation import Text2TextGenerationPipeline
 from .text_generation import TextGenerationPipeline
 
 if is_mindspore_available():
     import mindspore as ms
 
-    from ..models.auto.modeling_auto import (
-        AutoModelForCausalLM,
-        AutoModelForImageTextToText,
-        AutoModelForTokenClassification,
-    )
+    from ..models.auto.modeling_auto import AutoModelForCausalLM, AutoModelForSeq2SeqLM, AutoModelForTokenClassification
 
 
 if TYPE_CHECKING:
@@ -75,15 +70,11 @@ SUPPORTED_TASKS = {
         "default": {"model": {"ms": ("openai-community/gpt2", "607a30d"), "tf": ("openai-community/gpt2", "607a30d")}},
         "type": "text",
     },
-    "image-text-to-text": {
-        "impl": ImageTextToTextPipeline,
-        "ms": (AutoModelForImageTextToText,) if is_mindspore_available() else (),
-        "default": {
-            "model": {
-                "ms": ("llava-hf/llava-onevision-qwen2-0.5b-ov-hf", "2c9ba3b"),
-            }
-        },
-        "type": "multimodal",
+    "text2text-generation": {
+        "impl": Text2TextGenerationPipeline,
+        "ms": (AutoModelForSeq2SeqLM,) if is_mindspore_available() else (),
+        "default": {"model": {"ms": ("google-t5/t5-base", "a9723ea")}},
+        "type": "text",
     },
 }
 
