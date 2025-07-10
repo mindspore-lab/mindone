@@ -18,7 +18,7 @@ import mindspore as ms
 from mindspore import mint, nn
 
 from ...configuration_utils import ConfigMixin, register_to_config
-from ...loaders import PeftAdapterMixin
+from ...loaders import FromOriginalModelMixin, PeftAdapterMixin
 from ...utils import logging
 from ..attention_processor import Attention, AttentionProcessor, SanaLinearAttnProcessor2_0
 from ..embeddings import PatchEmbed, PixArtAlphaTextProjection, TimestepEmbedding, Timesteps
@@ -45,17 +45,9 @@ class GLUMBConv(nn.Cell):
         self.residual_connection = residual_connection
 
         self.nonlinearity = mint.nn.SiLU()
-        self.conv_inverted = mint.nn.Conv2d(in_channels, hidden_channels * 2, 1, 1, padding=0, bias=True)
-        self.conv_depth = mint.nn.Conv2d(
-            hidden_channels * 2,
-            hidden_channels * 2,
-            3,
-            1,
-            padding=1,
-            groups=hidden_channels * 2,
-            bias=True,
-        )
-        self.conv_point = mint.nn.Conv2d(hidden_channels, out_channels, 1, 1, padding=0, bias=False)
+        self.conv_inverted = mint.nn.Conv2d(in_channels, hidden_channels * 2, 1, 1, 0)
+        self.conv_depth = mint.nn.Conv2d(hidden_channels * 2, hidden_channels * 2, 3, 1, 1, groups=hidden_channels * 2)
+        self.conv_point = mint.nn.Conv2d(hidden_channels, out_channels, 1, 1, 0, bias=False)
 
         self.norm = None
         if norm_type == "rms_norm":
@@ -252,9 +244,9 @@ class SanaTransformerBlock(nn.Cell):
         batch_size = hidden_states.shape[0]
 
         # 1. Modulation
-        shift_msa, scale_msa, gate_msa, shift_mlp, scale_mlp, gate_mlp = mint.chunk(
-            self.scale_shift_table[None] + mint.reshape(timestep, (batch_size, 6, -1)), 6, dim=1
-        )
+        shift_msa, scale_msa, gate_msa, shift_mlp, scale_mlp, gate_mlp = (
+            self.scale_shift_table[None] + timestep.reshape(batch_size, 6, -1)
+        ).chunk(6, dim=1)
 
         # 2. Self Attention
         norm_hidden_states = self.norm1(hidden_states)
@@ -282,13 +274,13 @@ class SanaTransformerBlock(nn.Cell):
             norm_hidden_states.shape[0], height, width, norm_hidden_states.shape[-1]
         ).permute(0, 3, 1, 2)
         ff_output = self.ff(norm_hidden_states)
-        ff_output = ff_output.flatten(start_dim=2, end_dim=3).permute(0, 2, 1)
+        ff_output = ff_output.flatten(2, 3).permute(0, 2, 1)
         hidden_states = hidden_states + gate_mlp * ff_output
 
         return hidden_states
 
 
-class SanaTransformer2DModel(ModelMixin, ConfigMixin, PeftAdapterMixin):
+class SanaTransformer2DModel(ModelMixin, ConfigMixin, PeftAdapterMixin, FromOriginalModelMixin):
     r"""
     A 2D Transformer model introduced in [Sana](https://huggingface.co/papers/2410.10629) family of models.
 
@@ -411,22 +403,7 @@ class SanaTransformer2DModel(ModelMixin, ConfigMixin, PeftAdapterMixin):
         self.norm_out = SanaModulatedNorm(inner_dim, elementwise_affine=False, eps=1e-6)
         self.proj_out = mint.nn.Linear(inner_dim, patch_size * patch_size * out_channels)
 
-        self._gradient_checkpointing = False
-
-    def _set_gradient_checkpointing(self, module, value=False):
-        if hasattr(module, "gradient_checkpointing"):
-            module.gradient_checkpointing = value
-
-    @property
-    def gradient_checkpointing(self):
-        return self._gradient_checkpointing
-
-    @gradient_checkpointing.setter
-    def gradient_checkpointing(self, value):
-        assert value, "Can only set recompute value to `True`"
-        self._gradient_checkpointing = value
-        for block in self.transformer_blocks:
-            block.recompute()
+        self.gradient_checkpointing = False
 
     @property
     # Copied from diffusers.models.unets.unet_2d_condition.UNet2DConditionModel.attn_processors

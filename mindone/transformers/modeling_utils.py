@@ -1020,7 +1020,7 @@ class PreTrainedModel(nn.Cell, ModuleUtilsMixin, GenerationMixin, PushToHubMixin
         If the `torchscript` flag is set in the configuration, can't handle parameter sharing so we are cloning the
         weights instead.
         """
-        if getattr(self.config, "tie_word_embeddings", True):
+        if getattr(self.config.get_text_config(decoder=True), "tie_word_embeddings", True):
             output_embeddings = self.get_output_embeddings()
             if output_embeddings is not None:
                 self._tie_or_clone_weights(output_embeddings, self.get_input_embeddings())
@@ -1291,7 +1291,7 @@ class PreTrainedModel(nn.Cell, ModuleUtilsMixin, GenerationMixin, PushToHubMixin
         # Replace weights in old_embeddings and return to maintain the same embedding type.
         # This ensures correct functionality when a Custom Embedding class is passed as input.
         # The input and output embedding types remain consistent. (c.f. https://github.com/huggingface/transformers/pull/31979)
-        old_embeddings.weight.data = new_embeddings.embedding_table.data
+        old_embeddings.embedding_table.set_data(new_embeddings.embedding_table.data)
         old_embeddings.num_embeddings = new_embeddings.embedding_table.data.shape[0]
         if old_embeddings.padding_idx is not None and (new_num_tokens - 1) < old_embeddings.padding_idx:
             old_embeddings.padding_idx = None
@@ -1344,7 +1344,7 @@ class PreTrainedModel(nn.Cell, ModuleUtilsMixin, GenerationMixin, PushToHubMixin
 
         new_lm_head = nn.Dense(
             *new_lm_head_shape,
-            bias=has_new_lm_head_bias,
+            has_bias=has_new_lm_head_bias,
             dtype=old_lm_head.weight.dtype,
         )
 

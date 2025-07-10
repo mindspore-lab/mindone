@@ -96,7 +96,7 @@ if __name__ == "__main__":
     )
 
     vq_model = get_vq_model_class(config.model.vq_model.type)
-    vq_model = vq_model.from_pretrained(config.model.vq_model.vq_model_name)
+    vq_model = vq_model.from_pretrained(config.model.vq_model.vq_model_name, use_safetensors=True)
     vq_model.set_train(False)
     for param in vq_model.get_parameters():
         param.requires_grad = False

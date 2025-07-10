@@ -19,12 +19,12 @@ import numpy as np
 from transformers import PretrainedConfig
 
 import mindspore as ms
+import mindspore.mint.nn.functional as F
 from mindspore import mint, nn, ops
 
 from mindone.transformers import MSPreTrainedModel
 from mindone.transformers.modeling_outputs import BaseModelOutputWithPast
 
-from ...models.normalization import LayerNorm, RMSNorm
 from ...utils import logging
 
 logger = logging.get_logger(__name__)
@@ -91,6 +91,20 @@ class ChatGLMConfig(PretrainedConfig):
         super().__init__(**kwargs)
 
 
+class RMSNorm(nn.Cell):
+    def __init__(self, normalized_shape, eps=1e-5, dtype=None, **kwargs):
+        super().__init__()
+        self.weight = ms.Parameter(mint.zeros(normalized_shape, dtype=dtype))
+        self.eps = eps
+
+    def construct(self, hidden_states: ms.Tensor):
+        input_dtype = hidden_states.dtype
+        variance = hidden_states.to(ms.float32).pow(2).mean(-1, keepdim=True)
+        hidden_states = hidden_states * mint.rsqrt(variance + self.eps)
+
+        return (self.weight * hidden_states).to(input_dtype)
+
+
 class CoreAttention(nn.Cell):
     def __init__(self, config: ChatGLMConfig, layer_number):
         super(CoreAttention, self).__init__()
@@ -115,7 +129,7 @@ class CoreAttention(nn.Cell):
             self.norm_factor *= coeff
         self.coeff = coeff
 
-        self.attention_dropout = nn.Dropout(p=config.attention_dropout)
+        self.attention_dropout = mint.nn.Dropout(p=config.attention_dropout)
         self.min_fp16 = ms.tensor(np.finfo(np.float16).min, dtype=ms.float16)
         self.min_fp32 = ms.tensor(np.finfo(np.float32).min, dtype=ms.float32)
         self.min_fp64 = ms.tensor(np.finfo(np.float64).min, dtype=ms.float64)
@@ -180,7 +194,7 @@ class CoreAttention(nn.Cell):
             attention_scores = ops.masked_fill(
                 attention_scores, attention_mask, self.dtype_to_min(attention_scores.dtype)
             )
-        attention_probs = mint.nn.functional.softmax(attention_scores, dim=-1)
+        attention_probs = F.softmax(attention_scores, dim=-1)
         attention_probs = attention_probs.type_as(value_layer)
 
         # This is actually dropping out entire tokens to attend to, which might
@@ -200,11 +214,11 @@ class CoreAttention(nn.Cell):
         # change view [b * np, sq, sk]
         attention_probs = attention_probs.view(output_size[0] * output_size[1], output_size[2], -1)
         # matmul: [b * np, sq, hn]
-        context_layer = mint.bmm(attention_probs, mint.swapaxes(value_layer, 0, 1))
+        context_layer = mint.bmm(attention_probs, value_layer.swapaxes(0, 1))
         # change view [b, np, sq, hn]
         context_layer = context_layer.view(output_size)
         # [b, np, sq, hn] --> [sq, b, np, hn]
-        context_layer = context_layer.permute(2, 0, 1, 3)
+        context_layer = context_layer.permute(2, 0, 1, 3).contiguous()
         # [sq, b, np, hn] --> [sq, b, hp]
         new_context_layer_shape = context_layer.shape[:-2] + (self.hidden_size_per_partition,)
         context_layer = context_layer.view(new_context_layer_shape)
@@ -255,7 +269,7 @@ def apply_rotary_pos_emb(x: ms.Tensor, rope_cache: ms.Tensor) -> ms.Tensor:
         ],
         -1,
     )
-    x_out2 = x_out2.flatten(start_dim=3)
+    x_out2 = x_out2.flatten(3)
     return mint.cat((x_out2, x_pass), dim=-1)
 
 
@@ -282,19 +296,19 @@ class SelfAttention(nn.Cell):
             self.qkv_hidden_size = (
                 self.projection_size + 2 * self.hidden_size_per_attention_head * config.multi_query_group_num
             )
-        self.query_key_value = nn.Dense(
+        self.query_key_value = mint.nn.Linear(
             config.hidden_size,
             self.qkv_hidden_size,
-            has_bias=config.add_bias_linear or config.add_qkv_bias,
+            bias=config.add_bias_linear or config.add_qkv_bias,
         )
 
         self.core_attention = CoreAttention(config, self.layer_number)
 
         # Output.
-        self.dense = nn.Dense(
+        self.dense = mint.nn.Linear(
             self.projection_size,
             config.hidden_size,
-            has_bias=config.add_bias_linear,
+            bias=config.add_bias_linear,
         )
 
     def _allocate_memory(self, inference_max_sequence_len, batch_size, dtype=None):
@@ -369,14 +383,14 @@ class SelfAttention(nn.Cell):
             key_layer = key_layer.broadcast_to(
                 (-1, -1, -1, self.num_attention_heads_per_partition // self.num_multi_query_groups_per_partition, -1)
             )
-            key_layer = key_layer.view(
+            key_layer = key_layer.contiguous().view(
                 key_layer.shape[:2] + (self.num_attention_heads_per_partition, self.hidden_size_per_attention_head)
             )
             value_layer = value_layer.unsqueeze(-2)
             value_layer = value_layer.broadcast_to(
                 (-1, -1, -1, self.num_attention_heads_per_partition // self.num_multi_query_groups_per_partition, -1)
             )
-            value_layer = value_layer.view(
+            value_layer = value_layer.contiguous().view(
                 value_layer.shape[:2] + (self.num_attention_heads_per_partition, self.hidden_size_per_attention_head)
             )
 
@@ -408,24 +422,20 @@ class MLP(nn.Cell):
         self.add_bias = config.add_bias_linear
 
         # Project to 4h. If using swiglu double the output width, see https://arxiv.org/pdf/2002.05202.pdf
-        self.dense_h_to_4h = nn.Dense(
+        self.dense_h_to_4h = mint.nn.Linear(
             config.hidden_size,
             config.ffn_hidden_size * 2,
-            has_bias=self.add_bias,
+            bias=self.add_bias,
         )
 
         def swiglu(x):
             x = mint.chunk(x, 2, dim=-1)
-            return mint.nn.functional.silu(x[0]) * x[1]
+            return F.silu(x[0]) * x[1]
 
         self.activation_func = swiglu
 
         # Project back to h.
-        self.dense_4h_to_h = nn.Dense(
-            config.ffn_hidden_size,
-            config.hidden_size,
-            has_bias=self.add_bias,
-        )
+        self.dense_4h_to_h = mint.nn.Linear(config.ffn_hidden_size, config.hidden_size, bias=self.add_bias)
 
     def construct(self, hidden_states):
         # [s, b, 4hp]
@@ -450,7 +460,7 @@ class GLMBlock(nn.Cell):
 
         self.fp32_residual_connection = config.fp32_residual_connection
 
-        LayerNormFunc = RMSNorm if config.rmsnorm else LayerNorm
+        LayerNormFunc = RMSNorm if config.rmsnorm else mint.nn.LayerNorm
         # Layernorm on the input data.
         self.input_layernorm = LayerNormFunc(config.hidden_size, eps=config.layernorm_epsilon)
 
@@ -527,7 +537,7 @@ class GLMTransformer(nn.Cell):
         self.layers = nn.CellList([build_layer(i + 1) for i in range(self.num_layers)])
 
         if self.post_layer_norm:
-            LayerNormFunc = RMSNorm if config.rmsnorm else LayerNorm
+            LayerNormFunc = RMSNorm if config.rmsnorm else mint.nn.LayerNorm
             # Final layer norm before output.
             self.final_layernorm = LayerNormFunc(config.hidden_size, eps=config.layernorm_epsilon)
 
@@ -619,12 +629,8 @@ class ChatGLMPreTrainedModel(MSPreTrainedModel):
 
     def get_position_ids(self, input_ids):
         batch_size, seq_length = input_ids.shape
-        position_ids = mint.tile(mint.unsqueeze(mint.arange(seq_length, dtype=ms.int32), 0), (batch_size, 1))
+        position_ids = mint.arange(seq_length, dtype=ms.int32).unsqueeze(0).tile((batch_size, 1))
         return position_ids
-
-    def _set_gradient_checkpointing(self, module, value=False):
-        if isinstance(module, GLMTransformer):
-            module.gradient_checkpointing = value
 
 
 def default_init(cls, *args, **kwargs):
@@ -639,7 +645,7 @@ class Embedding(nn.Cell):
 
         self.hidden_size = config.hidden_size
         # Word embeddings (parallel).
-        self.word_embeddings = nn.Embedding(
+        self.word_embeddings = mint.nn.Embedding(
             config.padded_vocab_size,
             self.hidden_size,
         )
@@ -650,7 +656,7 @@ class Embedding(nn.Cell):
         words_embeddings = self.word_embeddings(input_ids)
         embeddings = words_embeddings
         # Data format change to avoid explicit tranposes : [b s h] --> [s b h].
-        embeddings = embeddings.swapaxes(0, 1)
+        embeddings = embeddings.swapaxes(0, 1).contiguous()
         # If the input flag for fp32 residual connection is set, convert for float.
         if self.fp32_residual_connection:
             embeddings = embeddings.float()
@@ -705,14 +711,14 @@ class PrefixEncoder(nn.Cell):
         if self.prefix_projection:
             # Use a two-layer MLP to encode the prefix
             kv_size = config.num_layers * config.kv_channels * config.multi_query_group_num * 2
-            self.embedding = nn.Embedding(config.pre_seq_len, kv_size)
+            self.embedding = mint.nn.Embedding(config.pre_seq_len, kv_size)
             self.trans = nn.SequentialCell(
-                nn.Dense(kv_size, config.hidden_size),
-                nn.Tanh(),
-                nn.Dense(config.hidden_size, kv_size),
+                mint.nn.Linear(kv_size, config.hidden_size),
+                mint.nn.Tanh(),
+                mint.nn.Linear(config.hidden_size, kv_size),
             )
         else:
-            self.embedding = nn.Embedding(
+            self.embedding = mint.nn.Embedding(
                 config.pre_seq_len, config.num_layers * config.kv_channels * config.multi_query_group_num * 2
             )
 
@@ -750,10 +756,10 @@ class ChatGLMModel(ChatGLMPreTrainedModel):
         )
         self.encoder = init_method(GLMTransformer, config, **init_kwargs)
         self.output_layer = init_method(
-            nn.Dense,
+            mint.nn.Linear,
             config.hidden_size,
             config.padded_vocab_size,
-            has_bias=False,
+            bias=False,
             **init_kwargs,
         )
         self.pre_seq_len = config.pre_seq_len
@@ -763,8 +769,7 @@ class ChatGLMModel(ChatGLMPreTrainedModel):
                 param.requires_grad = False
             self.prefix_tokens = mint.arange(self.pre_seq_len).long()
             self.prefix_encoder = PrefixEncoder(config)
-            self.dropout = nn.Dropout(p=0.1)
-        self.post_init()
+            self.dropout = mint.nn.Dropout(0.1)
 
     def get_input_embeddings(self):
         return self.embedding.word_embeddings
@@ -820,7 +825,7 @@ class ChatGLMModel(ChatGLMPreTrainedModel):
             rotary_pos_emb = rotary_pos_emb[position_ids]
         else:
             rotary_pos_emb = rotary_pos_emb[None, :seq_length]
-        rotary_pos_emb = rotary_pos_emb.swapaxes(0, 1)
+        rotary_pos_emb = rotary_pos_emb.swapaxes(0, 1).contiguous()
 
         # Run encoder.
         hidden_states, presents, all_hidden_states, all_self_attentions = self.encoder(

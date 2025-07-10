@@ -158,13 +158,13 @@ class SCMScheduler(SchedulerMixin, ConfigMixin):
 
         if timesteps is not None:
             if isinstance(timesteps, list):
-                self.timesteps = ms.Tensor(timesteps).float()
+                self.timesteps = ms.tensor(timesteps).float()
             elif isinstance(timesteps, ms.Tensor):
                 self.timesteps = timesteps.float()
             else:
                 raise ValueError(f"Unsupported timesteps type: {type(timesteps)}")
         elif intermediate_timesteps is not None:
-            self.timesteps = ms.Tensor([max_timesteps, intermediate_timesteps, 0]).float()
+            self.timesteps = ms.tensor([max_timesteps, intermediate_timesteps, 0]).float()
         else:
             # max_timesteps=arctan(80/0.5)=1.56454 is the default from sCM paper, we choose a different value here
             self.timesteps = mint.linspace(max_timesteps, 0, num_inference_steps + 1).float()
