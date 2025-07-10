@@ -1,5 +1,9 @@
+# This code is adapted from https://github.com/HVision-NKU/StoryDiffusion
+# with modifications to run on MindSpore.
+
 # Merge image encoder and fuse module to create an ID Encoder
 # send multiple ID images, we can directly obtain the updated text encoder containing a stacked ID embedding
+
 from transformers.models.clip.configuration_clip import CLIPVisionConfig
 from transformers.models.clip.modeling_clip import CLIPVisionModelWithProjection
 

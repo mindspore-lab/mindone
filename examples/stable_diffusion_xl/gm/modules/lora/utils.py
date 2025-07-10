@@ -1,4 +1,9 @@
-# reference to https://github.com/microsoft/LoRA
+# This code is adapted from https://github.com/microsoft/LoRA
+# with modifications to run on MindSpore.
+#  ------------------------------------------------------------------------------------------
+#  Copyright (c) Microsoft Corporation. All rights reserved.
+#  Licensed under the MIT License (MIT). See LICENSE in the repo root for license information.
+#  ------------------------------------------------------------------------------------------
 
 from typing import Dict
 
