@@ -439,13 +439,31 @@ class JambaFlashAttention2(JambaAttention):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
+        dropout_rate = 0.0 if not self.training else self.attention_dropout
 
-        # TODO: Should be removed once Flash Attention for RoCm is bumped to 2.1.
-        # flash_attn<2.1 generates top-left aligned causal mask, while what is needed here is bottom-right alignment,
-        # that was made default for flash_attn>=2.1. This attribute is used to handle this difference.
-        # Reference: https://github.com/Dao-AILab/flash-attention/releases/tag/v2.1.0.
-        # Beware that with flash_attn<2.1, using q_seqlen != k_seqlen (except for the case q_seqlen == 1) produces a wrong mask (top-left).
-        self._flash_attn_uses_top_left_mask = not is_flash_attn_greater_or_equal_2_10
+        self.flash_attention = MSFlashAttention(
+            head_num=self.num_heads,
+            keep_prob=1 - dropout_rate,
+            scale_value=1.0 / math.sqrt(self.head_dim),
+            input_layout="BSND",
+        )
+
+    def convert_mask_to_fa_format(self, attention_mask):
+        if attention_mask is not None:
+            if attention_mask.dtype == ms.bool_:
+                # flip mask, since ms FA treats 1 as discard, 0 as retain.
+                attention_mask = 1 - attention_mask
+                attention_mask = attention_mask.to(ms.uint8)
+            else:
+                # attention_mask has beed inverted before in _prepare_4d_causal_mask: 0: retain, -inf: discard
+                min_dtype = _DTYPE_2_MIN[attention_mask.dtype]
+                attention_mask = mint.where(
+                    attention_mask == min_dtype,
+                    mint.ones((), dtype=ms.uint8),
+                    mint.zeros((), dtype=ms.uint8),
+                )
+
+        return attention_mask
 
     def construct(
         self,
@@ -477,7 +495,6 @@ class JambaFlashAttention2(JambaAttention):
         # repeat k/v heads if n_kv_heads < n_heads
         key_states = repeat_kv(key_states, self.num_key_value_groups)
         value_states = repeat_kv(value_states, self.num_key_value_groups)
-        dropout_rate = 0.0 if not self.training else self.attention_dropout
 
         # In PEFT, usually we cast the layer norms in float32 for training stability reasons
         # therefore the input hidden states gets silently casted in float32. Hence, we need
@@ -491,8 +508,8 @@ class JambaFlashAttention2(JambaAttention):
                 target_dtype = self.q_proj.weight.dtype
 
             logger.warning_once(
-                f"The input hidden states seems to be silently casted in float32, this might be related to"
-                f" the fact you have upcasted embedding or layer norm layers in float32. We will cast back the input in"
+                "The input hidden states seems to be silently casted in float32, this might be related to"
+                " the fact you have upcasted embedding or layer norm layers in float32. We will cast back the input in"
                 f" {target_dtype}."
             )
 
@@ -504,17 +521,24 @@ class JambaFlashAttention2(JambaAttention):
         key_states = key_states.transpose(1, 2)
         value_states = value_states.transpose(1, 2)
 
-        attn_output = _flash_attention_forward(
+        if attention_mask is not None:
+            attention_mask = self.convert_mask_to_fa_format(attention_mask)
+        sliding_window = getattr(self.config, "sliding_window", None)
+        if self.is_causal:
+            logger.warning_once("`JambaFlashAttention2` does not support `is_causal = True`")
+        if sliding_window is not None:
+            logger.warning_once("`JambaFlashAttention2` does not support `sliding_window`")
+        attn_output = self.flash_attention(
             query_states,
             key_states,
             value_states,
+            None,
+            None,
+            None,
             attention_mask,
-            q_len,
-            dropout=dropout_rate,
-            sliding_window=getattr(self.config, "sliding_window", None),
-            is_causal=self.is_causal,
-            use_top_left_mask=self._flash_attn_uses_top_left_mask,
-        )
+        )[
+            -1
+        ].to(input_dtype)
 
         attn_output = attn_output.reshape(bsz, q_len, self.hidden_size).contiguous()
         attn_output = self.o_proj(attn_output)
