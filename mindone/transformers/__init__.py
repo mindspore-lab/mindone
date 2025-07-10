@@ -613,6 +613,7 @@ from .models.jetmoe import (
     JetMoePreTrainedModel,
 )
 from .models.kosmos2 import Kosmos2ForConditionalGeneration, Kosmos2Model, Kosmos2PreTrainedModel
+from .models.jamba import JambaForCausalLM, JambaForSequenceClassification, JambaModel, JambaPreTrainedModel
 from .models.led import (
     LEDForConditionalGeneration,
     LEDForQuestionAnswering,
