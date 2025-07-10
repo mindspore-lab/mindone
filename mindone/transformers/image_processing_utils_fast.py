@@ -17,6 +17,7 @@ from functools import lru_cache, partial
 from typing import Any, Optional, TypedDict, Union
 
 import numpy as np
+from PIL import Image
 from transformers.utils import add_start_docstrings, logging
 
 from mindspore import mint
@@ -95,9 +96,6 @@ def validate_fast_preprocess_arguments(
         size=size,
         resample=resample,
     )
-    # Extra checks for ImageProcessorFast
-    if return_tensors is not None and return_tensors != "ms":
-        raise ValueError("Only returning MindSpore tensors is currently supported.")
 
     if data_format != ChannelDimension.FIRST:
         raise ValueError("Only channel first data format is currently supported.")
@@ -360,7 +358,11 @@ class BaseImageProcessorFast(BaseImageProcessor):
             )
         # Fixme different with torchvision resize, which has inout `antialias`
         resize = vision.Resize(new_size, interpolation=interpolation)
-        return resize(image)
+        # image ms.tensor-->numpy-->PIL
+        image = image.permute(1, 2, 0).asnumpy()
+        image = (image * 255).clip(0, 255).astype(np.uint8)
+        image = Image.fromarray(image)
+        return ms.tensor(np.array(resize(image))).permute(2, 0, 1)
 
     def rescale(
         self,
@@ -403,11 +405,14 @@ class BaseImageProcessorFast(BaseImageProcessor):
         Returns:
             `torch.Tensor`: The normalized image.
         """
+        mean = [float(mean[0]), float(mean[1]), float(mean[2])]
+        std = [float(std[0]), float(std[1]), float(std[2])]
+        image = image.squeeze(0).permute(1, 2, 0).asnumpy()
         normalize = vision.Normalize(
             mean=mean,
             std=std,
         )
-        return normalize(image)
+        return ms.tensor(normalize(image)).permute(2, 0, 1).unsqueeze(0)
 
     @lru_cache(maxsize=10)
     def _fuse_mean_std_and_rescale_factor(
@@ -700,8 +705,12 @@ class BaseImageProcessorFast(BaseImageProcessor):
         resized_images_grouped = {}
         for shape, stacked_images in grouped_images.items():
             if do_resize:
-                stacked_images = self.resize(image=stacked_images, size=size, interpolation=interpolation)
-            resized_images_grouped[shape] = stacked_images
+                stacked_images_updated = []
+                for i in range(len(stacked_images)):
+                    stacked_images_updated.append(
+                        self.resize(image=stacked_images[i], size=size, interpolation=interpolation)
+                    )
+            resized_images_grouped[shape] = stacked_images_updated
         resized_images = reorder_images(resized_images_grouped, grouped_images_index)
 
         # Group images by size for further processing

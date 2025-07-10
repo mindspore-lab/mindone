@@ -17,16 +17,13 @@ import enum
 from collections.abc import Iterable  # pylint: disable=g-importing-member
 from typing import Dict, List, Optional, Union
 
-from ..processing_utils import ProcessingKwargs, Unpack
-from ..utils import (
-    is_mindspore_available,
-    is_vision_available,
-    logging,
-    requires_backends,
-)
 from transformers.utils import add_end_docstrings
-from .base import Pipeline, build_pipeline_init_args
 
+import mindspore as ms
+
+from ..processing_utils import ProcessingKwargs, Unpack
+from ..utils import is_mindspore_available, is_vision_available, logging, requires_backends
+from .base import Pipeline, build_pipeline_init_args
 
 if is_vision_available():
     from PIL import Image
@@ -361,9 +358,13 @@ class ImageTextToTextPipeline(Pipeline):
         # if batched text inputs, we set padding to True unless specified otherwise
         if isinstance(text, (list, tuple)) and len(text) > 1:
             processing_kwargs.setdefault("padding", True)
-        model_inputs = self.processor(images=images, text=text, return_tensors=self.framework, **processing_kwargs).to(
-            dtype=self.torch_dtype
-        )
+        # modified self.framework to adapt to mindspore
+        model_inputs = self.processor(images=images, text=text, return_tensors="np", **processing_kwargs)
+        for k, v in model_inputs.items():
+            if k == "input_ids":
+                model_inputs[k] = ms.tensor(model_inputs[k])
+            else:
+                model_inputs[k] = ms.tensor(model_inputs[k]).to(self.torch_dtype)
 
         model_inputs["text"] = inputs_text
 
@@ -433,9 +434,7 @@ class ImageTextToTextPipeline(Pipeline):
                         ]
                     else:
                         # When we're not starting from a prefill, the output is a new assistant message
-                        generated_text = list(prompt_text.messages) + [
-                            {"role": "assistant", "content": generated_text}
-                        ]
+                        generated_text = list(prompt_text.messages) + [{"role": "assistant", "content": generated_text}]
                 full_texts.append(generated_text)
             generated_texts = full_texts
 
