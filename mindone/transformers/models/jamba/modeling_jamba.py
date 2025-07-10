@@ -33,7 +33,8 @@ from transformers.utils.deprecation import deprecate_kwarg
 
 import mindspore
 import mindspore as ms
-from mindspore import mint, nn, ops
+from mindspore import Parameter, mint, nn, ops
+from mindspore.common.initializer import Constant, Normal, initializer
 
 from mindone.transformers.mindspore_adapter.utils import _DTYPE_2_MIN
 
@@ -71,6 +72,14 @@ is_fast_path_available = all(
 logger = logging.get_logger(__name__)
 
 _CONFIG_FOR_DOC = "JambaConfig"
+
+
+def constant_(tensor: Parameter, val: float) -> None:
+    tensor.set_data(initializer(Constant(val), tensor.shape, tensor.dtype))
+
+
+def normal_(tensor: Parameter, mean: float = 0.0, std: float = 1.0) -> None:
+    tensor.set_data(initializer(Normal(std, mean), tensor.shape, tensor.dtype))
 
 
 def scaled_dot_product_attention(
@@ -149,10 +158,7 @@ def load_balancing_loss_func(
         return 0
 
     if isinstance(router_logits, tuple):
-        compute_device = router_logits[0].device
-        concatenated_router_logits = mindspore.mint.cat(
-            [layer_router.to(compute_device) for layer_router in router_logits], dim=0
-        )
+        concatenated_router_logits = mindspore.mint.cat([layer_router for layer_router in router_logits], dim=0)
 
     routing_weights = mindspore.mint.nn.functional.softmax(concatenated_router_logits, dim=-1)
 
@@ -162,7 +168,7 @@ def load_balancing_loss_func(
 
     if attention_mask is None:
         # Compute the percentage of tokens routed to each experts
-        tokens_per_expert = mindspore.mint.mean(expert_mask.float(), dim=0)
+        tokens_per_expert = mindspore.mint.mean(expert_mask.to(ms.float32), dim=0)
 
         # Compute the average probability of routing to these experts
         router_prob_per_expert = mindspore.mint.mean(routing_weights, dim=0)
@@ -171,25 +177,21 @@ def load_balancing_loss_func(
         num_hidden_layers = concatenated_router_logits.shape[0] // (batch_size * sequence_length)
 
         # Compute the mask that masks all padding tokens as 0 with the same shape of expert_mask
-        expert_attention_mask = (
-            attention_mask[None, :, :, None, None]
-            .expand((num_hidden_layers, batch_size, sequence_length, top_k, num_experts))
-            .reshape(-1, top_k, num_experts)
-            .to(compute_device)
-        )
+        expert_attention_mask = mindspore.mint.broadcast_to(
+            attention_mask[None, :, :, None, None],
+            (num_hidden_layers, batch_size, sequence_length, top_k, num_experts),
+        ).reshape(-1, top_k, num_experts)
 
         # Compute the percentage of tokens routed to each experts
-        tokens_per_expert = mindspore.mint.sum(expert_mask.float() * expert_attention_mask, dim=0) / mindspore.mint.sum(
-            expert_attention_mask, dim=0
-        )
+        tokens_per_expert = mindspore.mint.sum(
+            expert_mask.to(ms.float32) * expert_attention_mask, dim=0
+        ) / mindspore.mint.sum(expert_attention_mask, dim=0)
 
         # Compute the mask that masks all padding tokens as 0 with the same shape of tokens_per_expert
-        router_per_expert_attention_mask = (
-            attention_mask[None, :, :, None]
-            .expand((num_hidden_layers, batch_size, sequence_length, num_experts))
-            .reshape(-1, num_experts)
-            .to(compute_device)
-        )
+        router_per_expert_attention_mask = mindspore.mint.broadcast_to(
+            attention_mask[None, :, :, None],
+            (num_hidden_layers, batch_size, sequence_length, num_experts),
+        ).reshape(-1, num_experts)
 
         # Compute the average probability of routing to these experts
         router_prob_per_expert = mindspore.mint.sum(
@@ -230,7 +232,9 @@ def repeat_kv(hidden_states: mindspore.Tensor, n_rep: int) -> mindspore.Tensor:
     batch, num_key_value_heads, slen, head_dim = hidden_states.shape
     if n_rep == 1:
         return hidden_states
-    hidden_states = hidden_states[:, :, None, :, :].expand(batch, num_key_value_heads, n_rep, slen, head_dim)
+    hidden_states = mindspore.mint.broadcast_to(
+        hidden_states[:, :, None, :, :], (batch, num_key_value_heads, n_rep, slen, head_dim)
+    )
     return hidden_states.reshape(batch, num_key_value_heads * n_rep, slen, head_dim)
 
 
@@ -248,7 +252,7 @@ class HybridMambaAttentionDynamicCache(DynamicCache):
     and `ssm_states` represents the ssm state and has a shape of `(batch_size, d_inner, d_state)`.
     """
 
-    def __init__(self, config, batch_size, dtype=mindspore.float16, device=None):
+    def __init__(self, config, batch_size, dtype=mindspore.float16):
         super().__init__()
         self.dtype = dtype
         self.layers_block_type = config.layers_block_type
@@ -309,15 +313,10 @@ class HybridMambaAttentionDynamicCache(DynamicCache):
     def reorder_cache(self, beam_idx: mindspore.Tensor):
         """Reorders the cache for beam search, given the selected beam indices."""
         for layer_idx in range(len(self.key_cache)):
-            device = self.key_cache[layer_idx].device
-            self.key_cache[layer_idx] = self.key_cache[layer_idx].index_select(0, beam_idx.to(device))
-            device = self.value_cache[layer_idx].device
-            self.value_cache[layer_idx] = self.value_cache[layer_idx].index_select(0, beam_idx.to(device))
-
-            device = self.conv_states[layer_idx].device
-            self.conv_states[layer_idx] = self.conv_states[layer_idx].index_select(0, beam_idx.to(device))
-            device = self.ssm_states[layer_idx].device
-            self.ssm_states[layer_idx] = self.ssm_states[layer_idx].index_select(0, beam_idx.to(device))
+            self.key_cache[layer_idx] = ops.index_select(self.key_cache[layer_idx], 0, beam_idx)
+            self.value_cache[layer_idx] = ops.index_select(self.value_cache[layer_idx], 0, beam_idx)
+            self.conv_states[layer_idx] = ops.index_select(self.conv_states[layer_idx], 0, beam_idx)
+            self.ssm_states[layer_idx] = ops.index_select(self.ssm_states[layer_idx], 0, beam_idx)
 
     def get_seq_length(self, layer_idx: Optional[int] = 0) -> int:
         """Returns the sequence length of the cached states. A layer index can be optionally passed."""
@@ -584,10 +583,10 @@ class JambaSdpaAttention(JambaAttention):
 
         # SDPA with memory-efficient backend is currently (torch==2.1.2) bugged with non-contiguous inputs with custom attn_mask,
         # Reference: https://github.com/pytorch/pytorch/issues/112577.
-        if query_states.device.type == "cuda" and attention_mask is not None:
-            query_states = query_states.contiguous()
-            key_states = key_states.contiguous()
-            value_states = value_states.contiguous()
+        # if query_states.device.type == "cuda" and attention_mask is not None:
+        #     query_states = query_states.contiguous()
+        #     key_states = key_states.contiguous()
+        #     value_states = value_states.contiguous()
 
         # We dispatch to SDPA's Flash Attention or Efficient kernels via this `is_causal` if statement instead of an inline conditional assignment
         # in SDPA to support both torch.compile's dynamic shapes and full graph options. An inline conditional prevents dynamic shapes from compiling.
@@ -664,7 +663,7 @@ class JambaMambaMixer(mindspore.nn.Cell):
         # S4D real initialization. These are not discretized!
         # The core is to load them, compute the discrete states, then write the updated state. Keeps the memory bounded
         A = mindspore.mint.arange(1, self.ssm_state_size + 1)[None, :]
-        A = A.expand(self.intermediate_size, -1).contiguous()
+        A = mindspore.mint.broadcast_to(A, (self.intermediate_size, -1))
 
         self.A_log = mindspore.Parameter(mindspore.mint.log(A))
         self.D = mindspore.Parameter(mindspore.mint.ones(self.intermediate_size))
@@ -882,7 +881,7 @@ class JambaMambaMixer(mindspore.nn.Cell):
         attention_mask: Optional[mindspore.Tensor] = None,
     ):
         if self.use_fast_kernels:
-            if not is_fast_path_available or "cuda" not in self.x_proj.weight.device.type:
+            if not is_fast_path_available:
                 raise ValueError(
                     "Fast Mamba kernels are not available. Make sure to they are installed and that the mamba module is on a CUDA device"
                 )
@@ -998,8 +997,8 @@ class JambaAttentionDecoderLayer(mindspore.nn.Cell):
     ) -> Tuple[mindspore.Tensor, Optional[Tuple[mindspore.Tensor, mindspore.Tensor]]]:
         """
         Args:
-            hidden_states (`torch.FloatTensor`): input to the layer of shape `(batch, seq_len, embed_dim)`
-            attention_mask (`torch.FloatTensor`, *optional*): attention mask of size
+            hidden_states (`mindspore.Tensor`): input to the layer of shape `(batch, seq_len, embed_dim)`
+            attention_mask (`mindspore.Tensor`, *optional*): attention mask of size
                 `(batch, sequence_length)` where padding elements are indicated by 0.
             past_key_value (`HybridMambaAttentionDynamicCache`, *optional*): cached past key and value projection states
             output_attentions (`bool`, *optional*):
@@ -1011,7 +1010,7 @@ class JambaAttentionDecoderLayer(mindspore.nn.Cell):
             use_cache (`bool`, *optional*):
                 If set to `True`, `past_key_values` key value states are returned and can be used to speed up decoding
                 (see `past_key_values`).
-            cache_position (`torch.LongTensor` of shape `(sequence_length)`, *optional*):
+            cache_position (`mindspore.Tensor` of shape `(sequence_length)`, *optional*):
                 Indices depicting the position of the input sequence tokens in the sequence.
         """
 
@@ -1080,8 +1079,8 @@ class JambaMambaDecoderLayer(mindspore.nn.Cell):
     ) -> Tuple[mindspore.Tensor, Optional[Tuple[mindspore.Tensor, mindspore.Tensor]]]:
         """
         Args:
-            hidden_states (`torch.FloatTensor`): input to the layer of shape `(batch, seq_len, embed_dim)`
-            attention_mask (`torch.FloatTensor`, *optional*): attention mask of size
+            hidden_states (`mindspore.Tensor`): input to the layer of shape `(batch, seq_len, embed_dim)`
+            attention_mask (`mindspore.Tensor`, *optional*): attention mask of size
                 `(batch, sequence_length)` where padding elements are indicated by 0.
             past_key_value (`HybridMambaAttentionDynamicCache`, *optional*): cached past key and value projection states
             output_attentions (`bool`, *optional*):
@@ -1093,7 +1092,7 @@ class JambaMambaDecoderLayer(mindspore.nn.Cell):
             use_cache (`bool`, *optional*):
                 If set to `True`, `past_key_values` key value states are returned and can be used to speed up decoding
                 (see `past_key_values`).
-            cache_position (`torch.LongTensor` of shape `(sequence_length)`, *optional*):
+            cache_position (`mindspore.Tensor` of shape `(sequence_length)`, *optional*):
                 Indices depicting the position of the input sequence tokens in the sequence.
         """
 
@@ -1140,8 +1139,8 @@ JAMBA_START_DOCSTRING = r"""
     library implements for all its model (such as downloading or saving, resizing the input embeddings, pruning heads
     etc.)
 
-    This model is also a PyTorch [torch.nn.Module](https://pytorch.org/docs/stable/nn.html#torch.nn.Module) subclass.
-    Use it as a regular PyTorch Module and refer to the PyTorch documentation for all matter related to general usage
+    This model is also a MindSpore [mindspore.nn.Cell](https://www.mindspore.cn/docs/en/master/api_python/nn/mindspore.nn.Cell.html) subclass.
+    Use it as a regular MindSpore Module and refer to the MindSpore documentation for all matter related to general usage
     and behavior.
 
     Parameters:
@@ -1159,7 +1158,7 @@ JAMBA_START_DOCSTRING = r"""
 class JambaPreTrainedModel(PreTrainedModel):
     config_class = JambaConfig
     base_model_prefix = "model"
-    supports_gradient_checkpointing = True
+    supports_gradient_checkpointing = False
     _no_split_modules = ["JambaAttentionDecoderLayer", "JambaMambaDecoderLayer"]
     _skip_keys_device_placement = "past_key_values"
     _supports_flash_attn_2 = True
@@ -1170,18 +1169,18 @@ class JambaPreTrainedModel(PreTrainedModel):
     def _init_weights(self, module):
         std = self.config.initializer_range
         if isinstance(module, (mindspore.mint.nn.Linear, nn.Conv1d)):
-            module.weight.data.normal_(mean=0.0, std=std)
+            normal_(module.weight, mean=0.0, std=std)
             if module.bias is not None:
-                module.bias.data.zero_()
+                constant_(module.bias, 0.0)
         elif isinstance(module, mindspore.mint.nn.Embedding):
-            module.weight.data.normal_(mean=0.0, std=std)
+            normal_(module.weight, mean=0.0, std=std)
             if module.padding_idx is not None:
-                module.weight.data[module.padding_idx].zero_()
+                module.weight[module.padding_idx] = 0.0
 
 
 JAMBA_INPUTS_DOCSTRING = r"""
     Args:
-        input_ids (`torch.LongTensor` of shape `(batch_size, sequence_length)`):
+        input_ids (`mindspore.Tensor` of shape `(batch_size, sequence_length)`):
             Indices of input sequence tokens in the vocabulary. Padding will be ignored by default should you provide
             it.
 
@@ -1189,7 +1188,7 @@ JAMBA_INPUTS_DOCSTRING = r"""
             [`PreTrainedTokenizer.__call__`] for details.
 
             [What are input IDs?](../glossary#input-ids)
-        attention_mask (`torch.Tensor` of shape `(batch_size, sequence_length)`, *optional*):
+        attention_mask (`mindspore.Tensor` of shape `(batch_size, sequence_length)`, *optional*):
             Mask to avoid performing attention on padding token indices. Mask values selected in `[0, 1]`:
 
             - 1 for tokens that are **not masked**,
@@ -1209,7 +1208,7 @@ JAMBA_INPUTS_DOCSTRING = r"""
 
             - 1 indicates the head is **not masked**,
             - 0 indicates the head is **masked**.
-        position_ids (`torch.LongTensor` of shape `(batch_size, sequence_length)`, *optional*):
+        position_ids (`mindspore.Tensor` of shape `(batch_size, sequence_length)`, *optional*):
             Indices of positions of each input sequence tokens in the position embeddings. Selected in the range `[0,
             config.n_positions - 1]`.
 
@@ -1226,7 +1225,7 @@ JAMBA_INPUTS_DOCSTRING = r"""
             If `past_key_values` are used, the user can optionally input only the last `input_ids` (those that
             don't have their past key value states given to this model) of shape `(batch_size, 1)` instead of all
             `input_ids` of shape `(batch_size, sequence_length)`.
-        inputs_embeds (`torch.FloatTensor` of shape `(batch_size, sequence_length, hidden_size)`, *optional*):
+        inputs_embeds (`mindspore.Tensor` of shape `(batch_size, sequence_length, hidden_size)`, *optional*):
             Optionally, instead of passing `input_ids` you can choose to directly pass an embedded representation. This
             is useful if you want more control over how to convert `input_ids` indices into associated vectors than the
             model's internal embedding lookup matrix.
@@ -1244,7 +1243,7 @@ JAMBA_INPUTS_DOCSTRING = r"""
             should not be returned during inference.
         return_dict (`bool`, *optional*):
             Whether or not to return a [`~utils.ModelOutput`] instead of a plain tuple.
-        cache_position (`torch.LongTensor` of shape `(sequence_length)`, *optional*):
+        cache_position (`mindspore.Tensor` of shape `(sequence_length)`, *optional*):
             Indices depicting the position of the input sequence tokens in the sequence. Contrarily to `position_ids`,
             this tensor is not affected by padding. It is used to update the cache in the correct position and to infer
             the complete sequence length.
@@ -1426,10 +1425,9 @@ class JambaModel(JambaPreTrainedModel):
         causal_mask *= mindspore.mint.arange(
             target_length,
         ) > cache_position.reshape(-1, 1)
-        causal_mask = causal_mask[None, None, :, :].expand(input_tensor.shape[0], 1, -1, -1)
+        causal_mask = mindspore.mint.broadcast_to(causal_mask[None, None, :, :], (input_tensor.shape[0], 1, -1, -1))
         if attention_mask is not None:
-            causal_mask = causal_mask.clone()  # copy to contiguous memory for in-place edit
-            if attention_mask.dim() == 2:
+            if attention_mask.ndim == 2:
                 mask_length = attention_mask.shape[-1]
                 padding_mask = causal_mask[..., :mask_length].eq(0.0) * attention_mask[:, None, None, :].eq(0.0)
                 causal_mask[..., :mask_length] = causal_mask[..., :mask_length].masked_fill(padding_mask, min_dtype)
@@ -1508,16 +1506,16 @@ class JambaForCausalLM(JambaPreTrainedModel, GenerationMixin):
         **loss_kwargs,
     ) -> Union[Tuple, MoeCausalLMOutputWithPast]:
         r"""
-            labels (`torch.LongTensor` of shape `(batch_size, sequence_length)`, *optional*):
+            labels (`mindspore.Tensor` of shape `(batch_size, sequence_length)`, *optional*):
                 Labels for computing the masked language modeling loss. Indices should either be in `[0, ...,
                 config.vocab_size]` or -100 (see `input_ids` docstring). Tokens with indices set to `-100` are ignored
                 (masked), the loss is only computed for the tokens with labels in `[0, ..., config.vocab_size]`.
 
-            logits_to_keep (`int` or `torch.Tensor`, *optional*):
+            logits_to_keep (`int` or `mindspore.Tensor`, *optional*):
                 If an `int`, compute logits for the last `logits_to_keep` tokens. If `0`, calculate logits for all
                 `input_ids` (special case). Only last token logits are needed for generation, and calculating them only for that
                 token can save memory, which becomes pretty significant for long sequences or large vocabulary size.
-                If a `torch.Tensor`, must be 1D corresponding to the indices to keep in the sequence length dimension.
+                If a `mindspore.Tensor`, must be 1D corresponding to the indices to keep in the sequence length dimension.
                 This is useful when using packed tensor format (single dimension for batch and sequence length).
 
         Returns:
@@ -1531,10 +1529,10 @@ class JambaForCausalLM(JambaPreTrainedModel, GenerationMixin):
         >>> tokenizer = AutoTokenizer.from_pretrained("ai21labs/Jamba-v0.1")
 
         >>> prompt = "Hey, are you conscious? Can you talk to me?"
-        >>> inputs = tokenizer(prompt, return_tensors="pt")
+        >>> inputs = tokenizer(prompt, return_tensors="np")
 
         >>> # Generate
-        >>> generate_ids = model.generate(inputs.input_ids, max_length=30)
+        >>> generate_ids = model.generate(mindspore.Tensor(inputs.input_ids), max_length=30)
         >>> tokenizer.batch_decode(generate_ids, skip_special_tokens=True, clean_up_tokenization_spaces=False)[0]
         "Hey, are you conscious? Can you talk to me?\nI'm not conscious, but I can talk to you."
         ```"""
@@ -1706,7 +1704,7 @@ class JambaForSequenceClassification(JambaPreTrainedModel):
         return_dict: Optional[bool] = None,
     ) -> Union[Tuple, SequenceClassifierOutputWithPast]:
         r"""
-        labels (`torch.LongTensor` of shape `(batch_size,)`, *optional*):
+        labels (`mindspore.Tensor` of shape `(batch_size,)`, *optional*):
             Labels for computing the sequence classification/regression loss. Indices should be in `[0, ...,
             config.num_labels - 1]`. If `config.num_labels == 1` a regression loss is computed (Mean-Square loss), If
             `config.num_labels > 1` a classification loss is computed (Cross-Entropy).
