@@ -138,16 +138,6 @@ class WuerstchenPrior(ModelMixin, ConfigMixin, UNet2DConditionLoadersMixin, Peft
 
         self.set_attn_processor(processor)
 
-    @property
-    def _set_gradient_checkpointing(self):
-        return self._gradient_checkpointing
-
-    @_set_gradient_checkpointing.setter
-    def _set_gradient_checkpointing(self, module, value=False):
-        self._gradient_checkpointing = value
-        for block in self.blocks:
-            block._recompute(value)
-
     def gen_r_embedding(self, r, max_positions=10000):
         r = r * max_positions
         half_dim = self.c_r // 2

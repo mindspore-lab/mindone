@@ -1,5 +1,5 @@
 # coding=utf-8
-# Copyright 2024 The HuggingFace Inc. team.
+# Copyright 2025 The HuggingFace Inc. team.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -144,9 +144,6 @@ class UVit2DModel(ModelMixin, ConfigMixin, PeftAdapterMixin):
         )
 
         self.gradient_checkpointing = False
-
-    def _set_gradient_checkpointing(self, module, value: bool = False) -> None:
-        pass
 
     def construct(self, input_ids, encoder_hidden_states, pooled_text_emb, micro_conds, cross_attention_kwargs=None):
         encoder_hidden_states = self.encoder_proj(encoder_hidden_states)

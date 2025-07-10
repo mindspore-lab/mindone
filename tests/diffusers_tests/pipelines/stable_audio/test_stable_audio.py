@@ -7,7 +7,7 @@ from ddt import data, ddt, unpack
 import mindspore as ms
 
 from mindone.diffusers import StableAudioPipeline
-from mindone.diffusers.utils.testing_utils import load_downloaded_numpy_from_hf_hub, slow
+from mindone.diffusers.utils.testing_utils import load_numpy_from_local_file, slow
 
 from ..pipeline_test_utils import THRESHOLD_PIXEL, PipelineTesterMixin
 
@@ -48,8 +48,8 @@ class StableAudioPipelineIntegrationTests(PipelineTesterMixin, unittest.TestCase
         torch.manual_seed(0)
         audio = stable_audio_pipe(**inputs).audios[0]
 
-        expected_audio = load_downloaded_numpy_from_hf_hub(
-            "The-truth/mindone-testing-arrays",
+        expected_audio = load_numpy_from_local_file(
+            "mindone-testing-arrays",
             f"stable_audio_{dtype}.npy",
             subfolder="stable_audio",
         )

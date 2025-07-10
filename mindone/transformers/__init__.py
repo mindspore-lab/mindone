@@ -1,4 +1,7 @@
-__version__ = "4.46.3"
+__version__ = "4.50.0"
+import transformers
+from packaging import version
+
 # Feature Extractor
 from .feature_extraction_utils import BatchFeature, FeatureExtractionMixin
 from .image_processing_base import ImageProcessingMixin
@@ -126,7 +129,13 @@ from .models.gemma import (
     GemmaModel,
     GemmaPreTrainedModel,
 )
-from .models.gemma2 import Gemma2Model, Gemma2PreTrainedModel
+from .models.gemma2 import (
+    Gemma2ForCausalLM,
+    Gemma2ForSequenceClassification,
+    Gemma2ForTokenClassification,
+    Gemma2Model,
+    Gemma2PreTrainedModel,
+)
 from .models.gemma3 import Gemma3ForCausalLM, Gemma3ForConditionalGeneration, Gemma3PreTrainedModel, Gemma3TextModel
 from .models.glm import (
     GlmForCausalLM,
@@ -161,6 +170,12 @@ from .models.hiera import (
     HieraModel,
     HieraPreTrainedModel,
 )
+from .models.idefics3 import (
+    Idefics3ForConditionalGeneration,
+    Idefics3Model,
+    Idefics3PreTrainedModel,
+    Idefics3VisionTransformer,
+)
 from .models.ijepa import IJepaForImageClassification, IJepaModel, IJepaPreTrainedModel
 from .models.imagegpt import (
     ImageGPTFeatureExtractor,
@@ -182,8 +197,10 @@ from .models.layoutlmv3 import (
     LayoutLMv3ForQuestionAnswering,
     LayoutLMv3ForSequenceClassification,
     LayoutLMv3ForTokenClassification,
+    LayoutLMv3ImageProcessor,
     LayoutLMv3Model,
     LayoutLMv3PreTrainedModel,
+    LayoutLMv3Processor,
 )
 from .models.levit import (
     LevitFeatureExtractor,
@@ -234,6 +251,7 @@ from .models.mt5 import (
     MT5Model,
     MT5PreTrainedModel,
 )
+from .models.paligemma import PaliGemmaForConditionalGeneration, PaliGemmaPreTrainedModel
 from .models.persimmon import (
     PersimmonForCausalLM,
     PersimmonForSequenceClassification,
@@ -271,9 +289,6 @@ from .models.qwen2_5_omni import (
 from .models.qwen2_5_vl import Qwen2_5_VLForConditionalGeneration, Qwen2_5_VLModel, Qwen2_5_VLPreTrainedModel
 from .models.qwen2_audio import Qwen2AudioEncoder, Qwen2AudioForConditionalGeneration, Qwen2AudioPreTrainedModel
 from .models.qwen2_vl import Qwen2VLForConditionalGeneration, Qwen2VLModel, Qwen2VLPreTrainedModel
-from .models.qwen3 import Qwen3ForCausalLM, Qwen3Model, Qwen3PreTrainedModel
-
-# from .models.qwen3 import Qwen3ForCausalLM, Qwen3Model, Qwen3PreTrainedModel
 from .models.recurrent_gemma import RecurrentGemmaForCausalLM, RecurrentGemmaModel, RecurrentGemmaPreTrainedModel
 from .models.rembert import (
     RemBertForCausalLM,
@@ -296,7 +311,13 @@ from .models.roberta import (
     RobertaModel,
     RobertaPreTrainedModel,
 )
-from .models.siglip import SiglipModel, SiglipPreTrainedModel, SiglipTextModel, SiglipVisionModel
+from .models.siglip import (
+    SiglipForImageClassification,
+    SiglipModel,
+    SiglipPreTrainedModel,
+    SiglipTextModel,
+    SiglipVisionModel,
+)
 from .models.speecht5 import (
     SpeechT5ForSpeechToSpeech,
     SpeechT5ForSpeechToText,
@@ -362,3 +383,15 @@ from .models.xlm_roberta_xl import (
 )
 from .pipelines import TextGenerationPipeline, pipeline
 from .processing_utils import ProcessorMixin
+
+if version.parse(transformers.__version__) >= version.parse("4.51.0"):
+    from .models.qwen3 import Qwen3ForCausalLM, Qwen3Model, Qwen3PreTrainedModel
+
+if version.parse(transformers.__version__) >= version.parse("4.53.0"):
+    from .models.glm4v import (
+        Glm4vForConditionalGeneration,
+        Glm4vModel,
+        Glm4vPreTrainedModel,
+        Glm4vTextModel,
+        Glm4vVisionModel,
+    )

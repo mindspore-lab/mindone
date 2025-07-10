@@ -1,6 +1,9 @@
 # coding=utf-8
 # Copyright 2022 Microsoft Research and The HuggingFace Inc. team.
 #
+# This code is adapted from https://github.com/huggingface/transformers
+# with modifications to run transformers on mindspore.
+#
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -504,15 +507,7 @@ class LayoutLMv3Encoder(nn.Cell):
             layer_head_mask = head_mask[i] if head_mask is not None else None
 
             if self.gradient_checkpointing and self.training:
-                layer_outputs = self._gradient_checkpointing_func(
-                    layer_module.__call__,
-                    hidden_states,
-                    attention_mask,
-                    layer_head_mask,
-                    output_attentions,
-                    rel_pos,
-                    rel_2d_pos,
-                )
+                raise NotImplementedError("Gradient checkpoint is not yet supported.")
             else:
                 layer_outputs = layer_module(
                     hidden_states,
@@ -727,8 +722,7 @@ class LayoutLMv3Model(LayoutLMv3PreTrainedModel):
         Examples:
 
         ```python
-        >>> from transformers import AutoProcessor
-        >>> from mindone.transformers import AutoModel
+        >>> from mindone.transformers import AutoProcessor, AutoModel
         >>> from datasets import load_dataset
         >>> import numpy as np
 
@@ -933,8 +927,7 @@ class LayoutLMv3ForTokenClassification(LayoutLMv3PreTrainedModel):
         Examples:
 
         ```python
-        >>> from transformers import AutoProcessor
-        >>> from mindone.transformers import AutoModelForTokenClassification
+        >>> from mindone.transformers import AutoProcessor, AutoModelForTokenClassification
         >>> from datasets import load_dataset
         >>> import numpy as np
 
@@ -1038,8 +1031,7 @@ class LayoutLMv3ForQuestionAnswering(LayoutLMv3PreTrainedModel):
         Examples:
 
         ```python
-        >>> from transformers import AutoProcessor
-        >>> from mindone.transformers import AutoModelForQuestionAnswering
+        >>> from mindone.transformers import AutoProcessor, AutoModelForQuestionAnswering
         >>> from datasets import load_dataset
         >>> import mindspore as ms
         >>> import numpy as np
@@ -1156,8 +1148,7 @@ class LayoutLMv3ForSequenceClassification(LayoutLMv3PreTrainedModel):
         Examples:
 
         ```python
-        >>> from transformers import AutoProcessor
-        >>> from mindone.transformers import AutoModelForSequenceClassification
+        >>> from mindone.transformers import AutoProcessor, AutoModelForSequenceClassification
         >>> from datasets import load_dataset
         >>> import mindspore as ms
         >>> import numpy as np
