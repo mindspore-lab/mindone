@@ -150,14 +150,14 @@ class Kosmos2TextModelTester:
         )
 
 class Kosmos2ModelTester:
-    def __init__(self, parent, text_kwargs=None, vision_kwargs=None, latent_query_num=3, is_training=True):
+    def __init__(self, text_kwargs=None, vision_kwargs=None, latent_query_num=3, is_training=True):
         if text_kwargs is None:
             text_kwargs = {}
         if vision_kwargs is None:
             vision_kwargs = {}
 
-        self.text_model_tester = Kosmos2TextModelTester(parent, **text_kwargs)
-        self.vision_model_tester = Kosmos2VisionModelTester(parent, **vision_kwargs)
+        self.text_model_tester = Kosmos2TextModelTester(**text_kwargs)
+        self.vision_model_tester = Kosmos2VisionModelTester(**vision_kwargs)
         self.batch_size = self.text_model_tester.batch_size  # need bs for batching_equivalence test
         self.seq_length = self.text_model_tester.seq_length
         self.latent_query_num = latent_query_num
