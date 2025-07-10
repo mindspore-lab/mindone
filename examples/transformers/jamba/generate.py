@@ -11,7 +11,7 @@ def main():
         "ai21labs/AI21-Jamba-Large-1.6",
     )
     model = AutoModelForCausalLM.from_pretrained(
-        "ai21labs/AI21-Jamba-Large-1.6", mindspore_dtype=ms.float16, device_map="auto", attn_implementation="sdpa"
+        "ai21labs/AI21-Jamba-Large-1.6", mindspore_dtype=ms.float16, attn_implementation="sdpa"
     )
     input_ids = tokenizer("Plants create energy through a process known as", return_tensors="np")
     input_ids = (
