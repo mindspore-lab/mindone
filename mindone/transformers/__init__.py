@@ -718,6 +718,7 @@ from .models.layoutlmv3 import (
     LayoutLMv3PreTrainedModel,
     LayoutLMv3Processor,
 )
+from .models.jamba import JambaForCausalLM, JambaForSequenceClassification, JambaModel, JambaPreTrainedModel
 from .models.led import (
     LEDForConditionalGeneration,
     LEDForQuestionAnswering,
