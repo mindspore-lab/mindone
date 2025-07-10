@@ -1,3 +1,5 @@
+# Adapted from https://github.com/Gen-Verse/MMaDA/blob/main/training/utils.py
+
 import math
 import random
 from typing import Any, List, Tuple
