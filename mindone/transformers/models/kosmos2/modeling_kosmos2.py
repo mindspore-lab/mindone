@@ -12,14 +12,14 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-"""PyTorch KOSMOS-2 model."""
+"""MindSpore KOSMOS-2 model."""
 
 import math
 from dataclasses import dataclass
 from typing import Any, List, Optional, Tuple, Union
 
-import mindspore
-from mindspore import nn
+import mindspore as ms
+from mindspore import mint, nn
 from mindspore.mint.nn import CrossEntropyLoss
 
 from ...activations import ACT2FN
@@ -49,7 +49,7 @@ logger = logging.get_logger(__name__)
 _CONFIG_FOR_DOC = Kosmos2Config
 
 
-def _expand_mask(mask: mindspore.Tensor, dtype: mindspore.dtype, tgt_len: Optional[int] = None):
+def _expand_mask(mask: ms.Tensor, dtype: ms.dtype, tgt_len: Optional[int] = None):
     """
     Expands attention_mask from `[bsz, seq_len]` to `[bsz, 1, tgt_seq_len, src_seq_len]`.
     """
@@ -60,23 +60,23 @@ def _expand_mask(mask: mindspore.Tensor, dtype: mindspore.dtype, tgt_len: Option
 
     inverted_mask = 1.0 - expanded_mask
 
-    return inverted_mask.masked_fill(inverted_mask.to(mindspore.bool_), dtype_to_min(dtype))
+    return inverted_mask.masked_fill(inverted_mask.to(ms.bool_), dtype_to_min(dtype))
 
 
 def _make_causal_mask(
-    input_ids_shape, dtype: mindspore.dtype, past_key_values_length: int = 0
+    input_ids_shape, dtype: ms.dtype, past_key_values_length: int = 0
 ):
     """
     Make causal mask used for bi-directional self-attention.
     """
     bsz, tgt_len = input_ids_shape
-    mask = mindspore.ops.full((tgt_len, tgt_len), dtype_to_min(dtype), )
-    mask_cond = mindspore.mint.arange(mask.shape[-1], )
+    mask = ms.ops.full((tgt_len, tgt_len), dtype_to_min(dtype), )
+    mask_cond = mint.arange(mask.shape[-1], )
     mask.masked_fill_(mask_cond < (mask_cond + 1).view(mask.shape[-1], 1), 0)
     mask = mask.to(dtype)
 
     if past_key_values_length > 0:
-        mask = mindspore.mint.cat([mindspore.mint.zeros((tgt_len, past_key_values_length), dtype=dtype, ), mask], dim=-1)
+        mask = mint.cat([mint.zeros((tgt_len, past_key_values_length), dtype=dtype, ), mask], dim=-1)
     return mask[None, None, :, :].expand((bsz, 1, tgt_len, tgt_len + past_key_values_length))
 
 
@@ -87,13 +87,13 @@ def create_position_ids_from_input_ids(input_ids, padding_idx, past_key_values_l
     are ignored. This is modified from fairseq's `utils.make_positions`.
 
     Args:
-        x: torch.Tensor x:
+        x: ms.Tensor x:
 
-    Returns: torch.Tensor
+    Returns: ms.Tensor
     """
     # The series of casts and type-conversions here are carefully balanced to both work with ONNX export and XLA.
     mask = input_ids.ne(padding_idx).int()
-    incremental_indices = (mindspore.mint.cumsum(mask, dim=1).type_as(mask) + past_key_values_length) * mask
+    incremental_indices = (mint.cumsum(mask, dim=1).type_as(mask) + past_key_values_length) * mask
     return incremental_indices.long() + padding_idx
 
 
@@ -102,8 +102,8 @@ KOSMOS2_START_DOCSTRING = r"""
     library implements for all its model (such as downloading or saving, resizing the input embeddings, pruning heads
     etc.)
 
-    This model is also a PyTorch [torch.nn.Module](https://pytorch.org/docs/stable/nn.html#torch.nn.Module) subclass.
-    Use it as a regular PyTorch Module and refer to the PyTorch documentation for all matter related to general usage
+    This model is also a MindSpore [nn.Cell](https://www.ms.cn/docs/zh-CN/master/api_python/nn/nn.Cell.html) subclass.
+    Use it as a regular MindSpore Module and refer to the MindSpore documentation for all matter related to general usage
     and behavior.
 
     Parameters:
@@ -114,7 +114,7 @@ KOSMOS2_START_DOCSTRING = r"""
 
 KOSMOS2_VISION_INPUTS_DOCSTRING = r"""
     Args:
-        pixel_values (`torch.FloatTensor` of shape `(batch_size, num_channels, height, width)`):
+        pixel_values (`ms.Tensor` of shape `(batch_size, num_channels, height, width)`):
             Pixel values. Pixel values can be obtained using [`AutoImageProcessor`]. See
             [`CLIPImageProcessor.__call__`] for details.
         output_attentions (`bool`, *optional*):
@@ -131,7 +131,7 @@ KOSMOS2_VISION_INPUTS_DOCSTRING = r"""
 
 KOSMOS2_TEXT_INPUTS_DOCSTRING = r"""
     Args:
-        input_ids (`torch.LongTensor` of shape `(batch_size, sequence_length)`):
+        input_ids (`ms.Tensor` of shape `(batch_size, sequence_length)`):
             Indices of input sequence tokens in the vocabulary. Padding will be ignored by default should you provide
             it.
 
@@ -139,55 +139,55 @@ KOSMOS2_TEXT_INPUTS_DOCSTRING = r"""
             [`PreTrainedTokenizer.__call__`] for details.
 
             [What are input IDs?](../glossary#input-ids)
-        attention_mask (`torch.Tensor` of shape `(batch_size, sequence_length)`, *optional*):
+        attention_mask (`ms.Tensor` of shape `(batch_size, sequence_length)`, *optional*):
             Mask to avoid performing attention on padding token indices. Mask values selected in `[0, 1]`:
 
             - 1 for tokens that are **not masked**,
             - 0 for tokens that are **masked**.
 
             [What are attention masks?](../glossary#attention-mask)
-        image_embeds: (`torch.FloatTensor` of shape `(batch_size, latent_query_num, hidden_size)`, *optional*):
+        image_embeds: (`ms.Tensor` of shape `(batch_size, latent_query_num, hidden_size)`, *optional*):
             Sequence of hidden-states at the output of `Kosmos2ImageToTextProjection`.
-        image_embeds_position_mask (`torch.Tensor` of shape `(batch_size, sequence_length)`, *optional*):
+        image_embeds_position_mask (`ms.Tensor` of shape `(batch_size, sequence_length)`, *optional*):
             Mask to indicate the location in a sequence to insert the image features . Mask values selected in `[0,
             1]`:
 
             - 1 for places where to put the image features,
             - 0 for places that are not for image features (i.e. for text tokens).
 
-        encoder_hidden_states  (`torch.FloatTensor` of shape `(batch_size, sequence_length, hidden_size)`, *optional*):
+        encoder_hidden_states  (`ms.Tensor` of shape `(batch_size, sequence_length, hidden_size)`, *optional*):
             Sequence of hidden-states at the output of the last layer of the encoder. Used in the cross-attention if
             the model is configured as a decoder.
-        encoder_attention_mask (`torch.FloatTensor` of shape `(batch_size, sequence_length)`, *optional*):
+        encoder_attention_mask (`ms.Tensor` of shape `(batch_size, sequence_length)`, *optional*):
             Mask to avoid performing attention on the padding token indices of the encoder input. This mask is used in
             the cross-attention if the model is configured as a decoder. Mask values selected in `[0, 1]`:
 
             - 1 for tokens that are **not masked**,
             - 0 for tokens that are **masked**.
 
-        head_mask (`torch.FloatTensor` of shape `(num_heads,)` or `(num_layers, num_heads)`, *optional*):
+        head_mask (`ms.Tensor` of shape `(num_heads,)` or `(num_layers, num_heads)`, *optional*):
             Mask to nullify selected heads of the self-attention modules. Mask values selected in `[0, 1]`:
 
             - 1 indicates the head is **not masked**,
             - 0 indicates the head is **masked**.
 
-        cross_attn_head_mask (`torch.Tensor` of shape `(decoder_layers, decoder_attention_heads)`, *optional*):
+        cross_attn_head_mask (`ms.Tensor` of shape `(decoder_layers, decoder_attention_heads)`, *optional*):
             Mask to nullify selected heads of the cross-attention modules. Mask values selected in `[0, 1]`:
 
             - 1 indicates the head is **not masked**,
             - 0 indicates the head is **masked**.
 
-        past_key_values (`tuple(tuple(torch.FloatTensor))` of length `config.n_layers` with each tuple having 4 tensors of shape `(batch_size, num_heads, sequence_length - 1, embed_size_per_head)`):
+        past_key_values (`tuple(tuple(ms.Tensor))` of length `config.n_layers` with each tuple having 4 tensors of shape `(batch_size, num_heads, sequence_length - 1, embed_size_per_head)`):
             Contains precomputed key and value hidden states of the attention blocks. Can be used to speed up decoding.
 
             If `past_key_values` are used, the user can optionally input only the last `decoder_input_ids` (those that
             don't have their past key value states given to this model) of shape `(batch_size, 1)` instead of all
             `decoder_input_ids` of shape `(batch_size, sequence_length)`.
-        inputs_embeds (`torch.FloatTensor` of shape `(batch_size, sequence_length, hidden_size)`, *optional*):
+        inputs_embeds (`ms.Tensor` of shape `(batch_size, sequence_length, hidden_size)`, *optional*):
             Optionally, instead of passing `input_ids` you can choose to directly pass an embedded representation. This
             is useful if you want more control over how to convert `input_ids` indices into associated vectors than the
             model's internal embedding lookup matrix.
-        position_ids (`torch.LongTensor` of shape `(batch_size, sequence_length)`, *optional*):
+        position_ids (`ms.Tensor` of shape `(batch_size, sequence_length)`, *optional*):
             Indices of positions of each input sequence tokens in the position embeddings. Selected in the range `[0,
             config.max_position_embeddings - 1]`.
 
@@ -207,10 +207,10 @@ KOSMOS2_TEXT_INPUTS_DOCSTRING = r"""
 
 KOSMOS2_INPUTS_DOCSTRING = r"""
     Args:
-        pixel_values (`torch.FloatTensor` of shape `(batch_size, num_channels, height, width)`):
+        pixel_values (`ms.Tensor` of shape `(batch_size, num_channels, height, width)`):
             Pixel values. Pixel values can be obtained using [`AutoImageProcessor`]. See
             [`CLIPImageProcessor.__call__`] for details.
-        input_ids (`torch.LongTensor` of shape `(batch_size, sequence_length)`):
+        input_ids (`ms.Tensor` of shape `(batch_size, sequence_length)`):
             Indices of input sequence tokens in the vocabulary. Padding will be ignored by default should you provide
             it.
 
@@ -218,38 +218,38 @@ KOSMOS2_INPUTS_DOCSTRING = r"""
             [`PreTrainedTokenizer.__call__`] for details.
 
             [What are input IDs?](../glossary#input-ids)
-        image_embeds_position_mask (`torch.Tensor` of shape `(batch_size, sequence_length)`, *optional*):
+        image_embeds_position_mask (`ms.Tensor` of shape `(batch_size, sequence_length)`, *optional*):
             Mask to indicate the location in a sequence to insert the image features . Mask values selected in `[0,
             1]`:
 
             - 1 for places where to put the image features,
             - 0 for places that are not for image features (i.e. for text tokens).
 
-        attention_mask (`torch.Tensor` of shape `(batch_size, sequence_length)`, *optional*):
+        attention_mask (`ms.Tensor` of shape `(batch_size, sequence_length)`, *optional*):
             Mask to avoid performing attention on padding token indices. Mask values selected in `[0, 1]`:
 
             - 1 for tokens that are **not masked**,
             - 0 for tokens that are **masked**.
 
             [What are attention masks?](../glossary#attention-mask)
-        head_mask (`torch.FloatTensor` of shape `(num_heads,)` or `(num_layers, num_heads)`, *optional*):
+        head_mask (`ms.Tensor` of shape `(num_heads,)` or `(num_layers, num_heads)`, *optional*):
             Mask to nullify selected heads of the self-attention modules. Mask values selected in `[0, 1]`:
 
             - 1 indicates the head is **not masked**,
             - 0 indicates the head is **masked**.
-        past_key_values (`tuple(tuple(torch.FloatTensor))` of length `config.n_layers` with each tuple having 4 tensors of shape `(batch_size, num_heads, sequence_length - 1, embed_size_per_head)`):
+        past_key_values (`tuple(tuple(ms.Tensor))` of length `config.n_layers` with each tuple having 4 tensors of shape `(batch_size, num_heads, sequence_length - 1, embed_size_per_head)`):
             Contains precomputed key and value hidden states of the attention blocks. Can be used to speed up decoding.
 
             If `past_key_values` are used, the user can optionally input only the last `decoder_input_ids` (those that
             don't have their past key value states given to this model) of shape `(batch_size, 1)` instead of all
             `decoder_input_ids` of shape `(batch_size, sequence_length)`.
-        image_embeds: (`torch.FloatTensor` of shape `(batch_size, latent_query_num, hidden_size)`, *optional*):
+        image_embeds: (`ms.Tensor` of shape `(batch_size, latent_query_num, hidden_size)`, *optional*):
             Sequence of hidden-states at the output of `Kosmos2ImageToTextProjection`.
-        inputs_embeds (`torch.FloatTensor` of shape `(batch_size, sequence_length, hidden_size)`, *optional*):
+        inputs_embeds (`ms.Tensor` of shape `(batch_size, sequence_length, hidden_size)`, *optional*):
             Optionally, instead of passing `input_ids` you can choose to directly pass an embedded representation. This
             is useful if you want more control over how to convert `input_ids` indices into associated vectors than the
             model's internal embedding lookup matrix.
-        position_ids (`torch.LongTensor` of shape `(batch_size, sequence_length)`, *optional*):
+        position_ids (`ms.Tensor` of shape `(batch_size, sequence_length)`, *optional*):
             Indices of positions of each input sequence tokens in the position embeddings. Selected in the range `[0,
             config.max_position_embeddings - 1]`.
 
@@ -276,31 +276,31 @@ class Kosmos2ModelOutput(ModelOutput):
     Base class for text model's outputs that also contains a pooling of the last hidden states.
 
     Args:
-        last_hidden_state (`torch.FloatTensor` of shape `(batch_size, sequence_length, hidden_size)`):
+        last_hidden_state (`ms.Tensor` of shape `(batch_size, sequence_length, hidden_size)`):
             Sequence of hidden-states at the output of the last layer of the model.
-        hidden_states (`tuple(torch.FloatTensor)`, *optional*, returned when `output_hidden_states=True` is passed or when `config.output_hidden_states=True`):
-            Tuple of `torch.FloatTensor` (one for the output of the embeddings, if the model has an embedding layer, +
+        hidden_states (`tuple(ms.Tensor)`, *optional*, returned when `output_hidden_states=True` is passed or when `config.output_hidden_states=True`):
+            Tuple of `ms.Tensor` (one for the output of the embeddings, if the model has an embedding layer, +
             one for the output of each layer) of shape `(batch_size, sequence_length, hidden_size)`.
 
             Hidden-states of the model at the output of each layer plus the optional initial embedding outputs.
-        attentions (`tuple(torch.FloatTensor)`, *optional*, returned when `output_attentions=True` is passed or when `config.output_attentions=True`):
-            Tuple of `torch.FloatTensor` (one for each layer) of shape `(batch_size, num_heads, sequence_length,
+        attentions (`tuple(ms.Tensor)`, *optional*, returned when `output_attentions=True` is passed or when `config.output_attentions=True`):
+            Tuple of `ms.Tensor` (one for each layer) of shape `(batch_size, num_heads, sequence_length,
             sequence_length)`.
 
             Attentions weights after the attention softmax, used to compute the weighted average in the self-attention
             heads.
-        image_embeds (`torch.FloatTensor` of shape `(batch_size, latent_query_num, hidden_size)`, *optional*):
+        image_embeds (`ms.Tensor` of shape `(batch_size, latent_query_num, hidden_size)`, *optional*):
             Sequence of hidden-states at the output of `Kosmos2ImageToTextProjection`.
-        projection_attentions (`tuple(torch.FloatTensor)`, *optional*):
-            Tuple of `torch.FloatTensor` (one for each layer) of shape `(batch_size, num_heads, sequence_length,
+        projection_attentions (`tuple(ms.Tensor)`, *optional*):
+            Tuple of `ms.Tensor` (one for each layer) of shape `(batch_size, num_heads, sequence_length,
             sequence_length)`.
 
             Attentions weights given by `Kosmos2ImageToTextProjection`, after the attention softmax, used to compute
             the weighted average in the self-attention heads.
         vision_model_output(`BaseModelOutputWithPooling`, *optional*):
             The output of the [`Kosmos2VisionModel`].
-        past_key_values (`tuple(tuple(torch.FloatTensor))`, *optional*, returned when `use_cache=True` is passed or when `config.use_cache=True`):
-            Tuple of `tuple(torch.FloatTensor)` of length `config.n_layers`, with each tuple having 2 tensors of shape
+        past_key_values (`tuple(tuple(ms.Tensor))`, *optional*, returned when `use_cache=True` is passed or when `config.use_cache=True`):
+            Tuple of `tuple(ms.Tensor)` of length `config.n_layers`, with each tuple having 2 tensors of shape
             `(batch_size, num_heads, sequence_length, embed_size_per_head)`) and optionally if
             `config.is_encoder_decoder=True` 2 additional tensors of shape `(batch_size, num_heads,
             encoder_sequence_length, embed_size_per_head)`.
@@ -310,12 +310,12 @@ class Kosmos2ModelOutput(ModelOutput):
             input) to speed up sequential decoding.
     """
 
-    last_hidden_state: mindspore.Tensor = None
-    past_key_values: Optional[Tuple[Tuple[mindspore.Tensor]]] = None
-    hidden_states: Optional[Tuple[mindspore.Tensor]] = None
-    attentions: Optional[Tuple[mindspore.Tensor]] = None
-    image_embeds: Optional[mindspore.Tensor] = None
-    projection_attentions: Optional[Tuple[mindspore.Tensor]] = None
+    last_hidden_state: ms.Tensor = None
+    past_key_values: Optional[Tuple[Tuple[ms.Tensor]]] = None
+    hidden_states: Optional[Tuple[ms.Tensor]] = None
+    attentions: Optional[Tuple[ms.Tensor]] = None
+    image_embeds: Optional[ms.Tensor] = None
+    projection_attentions: Optional[Tuple[ms.Tensor]] = None
     vision_model_output: BaseModelOutputWithPooling = None
 
     def to_tuple(self) -> Tuple[Any]:
@@ -331,33 +331,33 @@ class Kosmos2ForConditionalGenerationModelOutput(ModelOutput):
     Model output class for `Kosmos2ForConditionalGeneration`.
 
     Args:
-        loss (`torch.FloatTensor` of shape `(1,)`, *optional*, returned when `labels` is provided):
+        loss (`ms.Tensor` of shape `(1,)`, *optional*, returned when `labels` is provided):
             Language modeling loss (for next-token prediction).
-        logits (`torch.FloatTensor` of shape `(batch_size, sequence_length, config.vocab_size)`):
+        logits (`ms.Tensor` of shape `(batch_size, sequence_length, config.vocab_size)`):
             Prediction scores of the language modeling head (scores for each vocabulary token before SoftMax).
-        hidden_states (`tuple(torch.FloatTensor)`, *optional*, returned when `output_hidden_states=True` is passed or when `config.output_hidden_states=True`):
-            Tuple of `torch.FloatTensor` (one for the output of the embeddings, if the model has an embedding layer, +
+        hidden_states (`tuple(ms.Tensor)`, *optional*, returned when `output_hidden_states=True` is passed or when `config.output_hidden_states=True`):
+            Tuple of `ms.Tensor` (one for the output of the embeddings, if the model has an embedding layer, +
             one for the output of each layer) of shape `(batch_size, sequence_length, hidden_size)`.
 
             Hidden-states of the model at the output of each layer plus the optional initial embedding outputs.
-        attentions (`tuple(torch.FloatTensor)`, *optional*, returned when `output_attentions=True` is passed or when `config.output_attentions=True`):
-            Tuple of `torch.FloatTensor` (one for each layer) of shape `(batch_size, num_heads, sequence_length,
+        attentions (`tuple(ms.Tensor)`, *optional*, returned when `output_attentions=True` is passed or when `config.output_attentions=True`):
+            Tuple of `ms.Tensor` (one for each layer) of shape `(batch_size, num_heads, sequence_length,
             sequence_length)`.
 
             Attentions weights after the attention softmax, used to compute the weighted average in the self-attention
             heads.
-        image_embeds (`torch.FloatTensor` of shape `(batch_size, latent_query_num, hidden_size)`, *optional*):
+        image_embeds (`ms.Tensor` of shape `(batch_size, latent_query_num, hidden_size)`, *optional*):
             Sequence of hidden-states at the output of `Kosmos2ImageToTextProjection`.
-        projection_attentions (`tuple(torch.FloatTensor)`, *optional*):
-            Tuple of `torch.FloatTensor` (one for each layer) of shape `(batch_size, num_heads, sequence_length,
+        projection_attentions (`tuple(ms.Tensor)`, *optional*):
+            Tuple of `ms.Tensor` (one for each layer) of shape `(batch_size, num_heads, sequence_length,
             sequence_length)`.
 
             Attentions weights given by `Kosmos2ImageToTextProjection`, after the attention softmax, used to compute
             the weighted average in the self-attention heads.
         vision_model_output(`BaseModelOutputWithPooling`, *optional*):
             The output of the [`Kosmos2VisionModel`].
-        past_key_values (`tuple(tuple(torch.FloatTensor))`, *optional*, returned when `use_cache=True` is passed or when `config.use_cache=True`):
-            Tuple of `tuple(torch.FloatTensor)` of length `config.n_layers`, with each tuple having 2 tensors of shape
+        past_key_values (`tuple(tuple(ms.Tensor))`, *optional*, returned when `use_cache=True` is passed or when `config.use_cache=True`):
+            Tuple of `tuple(ms.Tensor)` of length `config.n_layers`, with each tuple having 2 tensors of shape
             `(batch_size, num_heads, sequence_length, embed_size_per_head)`) and optionally if
             `config.is_encoder_decoder=True` 2 additional tensors of shape `(batch_size, num_heads,
             encoder_sequence_length, embed_size_per_head)`.
@@ -367,13 +367,13 @@ class Kosmos2ForConditionalGenerationModelOutput(ModelOutput):
             input) to speed up sequential decoding.
     """
 
-    loss: Optional[mindspore.Tensor] = None
-    logits: mindspore.Tensor = None
-    past_key_values: Optional[Tuple[Tuple[mindspore.Tensor]]] = None
-    hidden_states: Optional[Tuple[mindspore.Tensor]] = None
-    attentions: Optional[Tuple[mindspore.Tensor]] = None
-    image_embeds: Optional[mindspore.Tensor] = None
-    projection_attentions: Optional[Tuple[mindspore.Tensor]] = None
+    loss: Optional[ms.Tensor] = None
+    logits: ms.Tensor = None
+    past_key_values: Optional[Tuple[Tuple[ms.Tensor]]] = None
+    hidden_states: Optional[Tuple[ms.Tensor]] = None
+    attentions: Optional[Tuple[ms.Tensor]] = None
+    image_embeds: Optional[ms.Tensor] = None
+    projection_attentions: Optional[Tuple[ms.Tensor]] = None
     vision_model_output: BaseModelOutputWithPooling = None
 
     def to_tuple(self) -> Tuple[Any]:
@@ -384,7 +384,7 @@ class Kosmos2ForConditionalGenerationModelOutput(ModelOutput):
 
 
 # Copied from transformers.models.clip.modeling_clip.CLIPVisionEmbeddings with CLIP->Kosmos2
-class Kosmos2VisionEmbeddings(mindspore.nn.Cell):
+class Kosmos2VisionEmbeddings(nn.Cell):
     def __init__(self, config: Kosmos2VisionConfig):
         super().__init__()
         self.config = config
@@ -392,9 +392,9 @@ class Kosmos2VisionEmbeddings(mindspore.nn.Cell):
         self.image_size = config.image_size
         self.patch_size = config.patch_size
 
-        self.class_embedding = mindspore.Parameter(mindspore.mint.randn(self.embed_dim))
+        self.class_embedding = ms.Parameter(mint.randn(self.embed_dim))
 
-        self.patch_embedding = mindspore.mint.nn.Conv2d(
+        self.patch_embedding = mint.nn.Conv2d(
             in_channels=config.num_channels,
             out_channels=self.embed_dim,
             kernel_size=self.patch_size,
@@ -404,10 +404,10 @@ class Kosmos2VisionEmbeddings(mindspore.nn.Cell):
 
         self.num_patches = (self.image_size // self.patch_size) ** 2
         self.num_positions = self.num_patches + 1
-        self.position_embedding = mindspore.mint.nn.Embedding(self.num_positions, self.embed_dim)
-        self.register_buffer("position_ids", mindspore.mint.arange(self.num_positions).expand((1, -1)), persistent=False)
+        self.position_embedding = mint.nn.Embedding(self.num_positions, self.embed_dim)
+        self.register_buffer("position_ids", mint.arange(self.num_positions).expand((1, -1)), persistent=False)
 
-    def interpolate_pos_encoding(self, embeddings: mindspore.Tensor, height: int, width: int) -> mindspore.Tensor:
+    def interpolate_pos_encoding(self, embeddings: ms.Tensor, height: int, width: int) -> ms.Tensor:
         """
         This method allows to interpolate the pre-trained position encodings, to be able to use the model on higher resolution
         images. This method is also adapted to support torch.jit tracing.
@@ -437,7 +437,7 @@ class Kosmos2VisionEmbeddings(mindspore.nn.Cell):
         patch_pos_embed = patch_pos_embed.reshape(1, sqrt_num_positions, sqrt_num_positions, dim)
         patch_pos_embed = patch_pos_embed.permute(0, 3, 1, 2)
 
-        patch_pos_embed = mindspore.mint.nn.functional.interpolate(
+        patch_pos_embed = mint.nn.functional.interpolate(
             patch_pos_embed,
             size=(new_height, new_width),
             mode="bicubic",
@@ -446,9 +446,9 @@ class Kosmos2VisionEmbeddings(mindspore.nn.Cell):
 
         patch_pos_embed = patch_pos_embed.permute(0, 2, 3, 1).view(1, -1, dim)
 
-        return mindspore.mint.cat((class_pos_embed, patch_pos_embed), dim=1)
+        return mint.cat((class_pos_embed, patch_pos_embed), dim=1)
 
-    def construct(self, pixel_values: mindspore.Tensor, interpolate_pos_encoding=False) -> mindspore.Tensor:
+    def construct(self, pixel_values: ms.Tensor, interpolate_pos_encoding=False) -> ms.Tensor:
         batch_size, _, height, width = pixel_values.shape
         if not interpolate_pos_encoding and (height != self.image_size or width != self.image_size):
             raise ValueError(
@@ -459,7 +459,7 @@ class Kosmos2VisionEmbeddings(mindspore.nn.Cell):
         patch_embeds = patch_embeds.flatten(2).transpose(1, 2)
 
         class_embeds = self.class_embedding.expand((batch_size, 1, -1))
-        embeddings = mindspore.mint.cat([class_embeds, patch_embeds], dim=1)
+        embeddings = mint.cat([class_embeds, patch_embeds], dim=1)
         if interpolate_pos_encoding:
             embeddings = embeddings + self.interpolate_pos_encoding(embeddings, height, width)
         else:
@@ -468,7 +468,7 @@ class Kosmos2VisionEmbeddings(mindspore.nn.Cell):
 
 
 # Copied from transformers.models.clip.modeling_clip.CLIPAttention with CLIP->Kosmos2Vision
-class Kosmos2VisionAttention(mindspore.nn.Cell):
+class Kosmos2VisionAttention(nn.Cell):
     """Multi-headed attention from 'Attention Is All You Need' paper"""
 
     def __init__(self, config):
@@ -485,21 +485,21 @@ class Kosmos2VisionAttention(mindspore.nn.Cell):
         self.scale = self.head_dim**-0.5
         self.dropout = config.attention_dropout
 
-        self.k_proj = mindspore.mint.nn.Linear(self.embed_dim, self.embed_dim)
-        self.v_proj = mindspore.mint.nn.Linear(self.embed_dim, self.embed_dim)
-        self.q_proj = mindspore.mint.nn.Linear(self.embed_dim, self.embed_dim)
-        self.out_proj = mindspore.mint.nn.Linear(self.embed_dim, self.embed_dim)
+        self.k_proj = mint.nn.Linear(self.embed_dim, self.embed_dim)
+        self.v_proj = mint.nn.Linear(self.embed_dim, self.embed_dim)
+        self.q_proj = mint.nn.Linear(self.embed_dim, self.embed_dim)
+        self.out_proj = mint.nn.Linear(self.embed_dim, self.embed_dim)
 
-    def _shape(self, tensor: mindspore.Tensor, seq_len: int, bsz: int):
+    def _shape(self, tensor: ms.Tensor, seq_len: int, bsz: int):
         return tensor.view(bsz, seq_len, self.num_heads, self.head_dim).transpose(1, 2).contiguous()
 
     def construct(
         self,
-        hidden_states: mindspore.Tensor,
-        attention_mask: Optional[mindspore.Tensor] = None,
-        causal_attention_mask: Optional[mindspore.Tensor] = None,
+        hidden_states: ms.Tensor,
+        attention_mask: Optional[ms.Tensor] = None,
+        causal_attention_mask: Optional[ms.Tensor] = None,
         output_attentions: Optional[bool] = False,
-    ) -> Tuple[mindspore.Tensor, Optional[mindspore.Tensor]]:
+    ) -> Tuple[ms.Tensor, Optional[ms.Tensor]]:
         """Input shape: Batch x Time x Channel"""
 
         bsz, tgt_len, embed_dim = hidden_states.shape
@@ -515,7 +515,7 @@ class Kosmos2VisionAttention(mindspore.nn.Cell):
         value_states = value_states.view(*proj_shape)
 
         src_len = key_states.shape[1]
-        attn_weights = mindspore.mint.bmm(query_states, key_states.transpose(1, 2))
+        attn_weights = mint.bmm(query_states, key_states.transpose(1, 2))
 
         if attn_weights.shape != (bsz * self.num_heads, tgt_len, src_len):
             raise ValueError(
@@ -541,7 +541,7 @@ class Kosmos2VisionAttention(mindspore.nn.Cell):
             attn_weights = attn_weights.view(bsz, self.num_heads, tgt_len, src_len) + attention_mask
             attn_weights = attn_weights.view(bsz * self.num_heads, tgt_len, src_len)
 
-        attn_weights = mindspore.mint.nn.functional.softmax(attn_weights, dim=-1)
+        attn_weights = mint.nn.functional.softmax(attn_weights, dim=-1)
 
         if output_attentions:
             # this operation is a bit akward, but it's required to
@@ -553,9 +553,9 @@ class Kosmos2VisionAttention(mindspore.nn.Cell):
         else:
             attn_weights_reshaped = None
 
-        attn_probs = mindspore.mint.nn.functional.dropout(attn_weights, p=self.dropout, training=self.training)
+        attn_probs = mint.nn.functional.dropout(attn_weights, p=self.dropout, training=self.training)
 
-        attn_output = mindspore.mint.bmm(attn_probs, value_states)
+        attn_output = mint.bmm(attn_probs, value_states)
 
         if attn_output.shape != (bsz * self.num_heads, tgt_len, self.head_dim):
             raise ValueError(
@@ -573,15 +573,15 @@ class Kosmos2VisionAttention(mindspore.nn.Cell):
 
 
 # Copied from transformers.models.clip.modeling_clip.CLIPMLP with CLIP->Kosmos2Vision
-class Kosmos2VisionMLP(mindspore.nn.Cell):
+class Kosmos2VisionMLP(nn.Cell):
     def __init__(self, config):
         super().__init__()
         self.config = config
         self.activation_fn = ACT2FN[config.hidden_act]
-        self.fc1 = mindspore.mint.nn.Linear(config.hidden_size, config.intermediate_size)
-        self.fc2 = mindspore.mint.nn.Linear(config.intermediate_size, config.hidden_size)
+        self.fc1 = mint.nn.Linear(config.hidden_size, config.intermediate_size)
+        self.fc2 = mint.nn.Linear(config.intermediate_size, config.hidden_size)
 
-    def construct(self, hidden_states: mindspore.Tensor) -> mindspore.Tensor:
+    def construct(self, hidden_states: ms.Tensor) -> ms.Tensor:
         hidden_states = self.fc1(hidden_states)
         hidden_states = self.activation_fn(hidden_states)
         hidden_states = self.fc2(hidden_states)
@@ -589,26 +589,26 @@ class Kosmos2VisionMLP(mindspore.nn.Cell):
 
 
 # Copied from transformers.models.altclip.modeling_altclip.AltCLIPEncoderLayer with AltCLIP->Kosmos2Vision
-class Kosmos2VisionEncoderLayer(mindspore.nn.Cell):
+class Kosmos2VisionEncoderLayer(nn.Cell):
     def __init__(self, config: Kosmos2VisionConfig):
         super().__init__()
         self.embed_dim = config.hidden_size
         self.self_attn = Kosmos2VisionAttention(config)
-        self.layer_norm1 = mindspore.mint.nn.LayerNorm(self.embed_dim, eps=config.layer_norm_eps)
+        self.layer_norm1 = mint.nn.LayerNorm(self.embed_dim, eps=config.layer_norm_eps)
         self.mlp = Kosmos2VisionMLP(config)
-        self.layer_norm2 = mindspore.mint.nn.LayerNorm(self.embed_dim, eps=config.layer_norm_eps)
+        self.layer_norm2 = mint.nn.LayerNorm(self.embed_dim, eps=config.layer_norm_eps)
 
     def construct(
         self,
-        hidden_states: mindspore.Tensor,
-        attention_mask: mindspore.Tensor,
-        causal_attention_mask: mindspore.Tensor,
+        hidden_states: ms.Tensor,
+        attention_mask: ms.Tensor,
+        causal_attention_mask: ms.Tensor,
         output_attentions: Optional[bool] = False,
-    ) -> Tuple[mindspore.Tensor]:
+    ) -> Tuple[ms.Tensor]:
         """
         Args:
-            hidden_states (`torch.FloatTensor`): input to the layer of shape `(batch, seq_len, embed_dim)`
-            attention_mask (`torch.FloatTensor`): attention mask of size
+            hidden_states (`ms.Tensor`): input to the layer of shape `(batch, seq_len, embed_dim)`
+            attention_mask (`ms.Tensor`): attention mask of size
                 `(batch, 1, tgt_len, src_len)` where padding elements are indicated by very large negative values.
                 `(config.encoder_attention_heads,)`.
             output_attentions (`bool`, *optional*):
@@ -640,7 +640,7 @@ class Kosmos2VisionEncoderLayer(mindspore.nn.Cell):
 
 
 # Copied from transformers.models.altclip.modeling_altclip.AltCLIPEncoder with AltCLIP->Kosmos2Vision
-class Kosmos2VisionEncoder(mindspore.nn.Cell):
+class Kosmos2VisionEncoder(nn.Cell):
     """
     Transformer encoder consisting of `config.num_hidden_layers` self attention layers. Each layer is a
     [`Kosmos2VisionEncoderLayer`].
@@ -652,32 +652,32 @@ class Kosmos2VisionEncoder(mindspore.nn.Cell):
     def __init__(self, config: Kosmos2VisionConfig):
         super().__init__()
         self.config = config
-        self.layers = mindspore.nn.CellList([Kosmos2VisionEncoderLayer(config) for _ in range(config.num_hidden_layers)])
+        self.layers = nn.CellList([Kosmos2VisionEncoderLayer(config) for _ in range(config.num_hidden_layers)])
         self.gradient_checkpointing = False
 
     def construct(
         self,
         inputs_embeds,
-        attention_mask: Optional[mindspore.Tensor] = None,
-        causal_attention_mask: Optional[mindspore.Tensor] = None,
+        attention_mask: Optional[ms.Tensor] = None,
+        causal_attention_mask: Optional[ms.Tensor] = None,
         output_attentions: Optional[bool] = None,
         output_hidden_states: Optional[bool] = None,
         return_dict: Optional[bool] = None,
     ) -> Union[Tuple, BaseModelOutput]:
         r"""
         Args:
-            inputs_embeds (`torch.FloatTensor` of shape `(batch_size, sequence_length, hidden_size)`):
+            inputs_embeds (`ms.Tensor` of shape `(batch_size, sequence_length, hidden_size)`):
                 Optionally, instead of passing `input_ids` you can choose to directly pass an embedded representation.
                 This is useful if you want more control over how to convert `input_ids` indices into associated vectors
                 than the model's internal embedding lookup matrix.
-            attention_mask (`torch.Tensor` of shape `(batch_size, sequence_length)`, *optional*):
+            attention_mask (`ms.Tensor` of shape `(batch_size, sequence_length)`, *optional*):
                 Mask to avoid performing attention on padding token indices. Mask values selected in `[0, 1]`:
 
                 - 1 for tokens that are **not masked**,
                 - 0 for tokens that are **masked**.
 
                 [What are attention masks?](../glossary#attention-mask)
-            causal_attention_mask (`torch.Tensor` of shape `(batch_size, sequence_length)`, *optional*):
+            causal_attention_mask (`ms.Tensor` of shape `(batch_size, sequence_length)`, *optional*):
                 Causal mask for the text model. Mask values selected in `[0, 1]`:
 
                 - 1 for tokens that are **not masked**,
@@ -738,7 +738,7 @@ class Kosmos2VisionEncoder(mindspore.nn.Cell):
 
 
 # Similar to `transformers.models.clip.modeling_clip.CLIPVisionTransformer` but without docstring for `forward`
-class Kosmos2VisionTransformer(mindspore.nn.Cell):
+class Kosmos2VisionTransformer(nn.Cell):
     # Copied from transformers.models.altclip.modeling_altclip.AltCLIPVisionTransformer.__init__ with AltCLIPVision->Kosmos2Vision,ALTCLIP_VISION->KOSMOS2_VISION,AltCLIP->Kosmos2Vision
     def __init__(self, config: Kosmos2VisionConfig):
         super().__init__()
@@ -746,13 +746,13 @@ class Kosmos2VisionTransformer(mindspore.nn.Cell):
         embed_dim = config.hidden_size
 
         self.embeddings = Kosmos2VisionEmbeddings(config)
-        self.pre_layrnorm = mindspore.mint.nn.LayerNorm(embed_dim, eps=config.layer_norm_eps)
+        self.pre_layrnorm = mint.nn.LayerNorm(embed_dim, eps=config.layer_norm_eps)
         self.encoder = Kosmos2VisionEncoder(config)
-        self.post_layernorm = mindspore.mint.nn.LayerNorm(embed_dim, eps=config.layer_norm_eps)
+        self.post_layernorm = mint.nn.LayerNorm(embed_dim, eps=config.layer_norm_eps)
 
     def construct(
         self,
-        pixel_values: Optional[mindspore.Tensor] = None,
+        pixel_values: Optional[ms.Tensor] = None,
         output_attentions: Optional[bool] = None,
         output_hidden_states: Optional[bool] = None,
         interpolate_pos_encoding: bool = False,
@@ -793,7 +793,7 @@ class Kosmos2VisionTransformer(mindspore.nn.Cell):
 
 
 # Similar to `transformers.models.m2m_100.modeling_m2m_100.M2M100SinusoidalPositionalEmbedding` but allowing to pass `position_ids`
-class Kosmos2TextSinusoidalPositionalEmbedding(mindspore.nn.Cell):
+class Kosmos2TextSinusoidalPositionalEmbedding(nn.Cell):
     """This module produces sinusoidal positional embeddings of any length."""
 
     # Copied from transformers.models.m2m_100.modeling_m2m_100.M2M100SinusoidalPositionalEmbedding.__init__
@@ -824,24 +824,24 @@ class Kosmos2TextSinusoidalPositionalEmbedding(mindspore.nn.Cell):
         """
         half_dim = embedding_dim // 2
         emb = math.log(10000) / (half_dim - 1)
-        emb = mindspore.mint.exp(mindspore.mint.arange(half_dim, dtype=mindspore.int64).float() * -emb)
-        emb = mindspore.mint.arange(num_embeddings, dtype=mindspore.int64).float().unsqueeze(1) * emb.unsqueeze(0)
-        emb = mindspore.mint.cat([mindspore.mint.sin(emb), mindspore.mint.cos(emb)], dim=1).view(num_embeddings, -1)
+        emb = mint.exp(mint.arange(half_dim, dtype=ms.int64).float() * -emb)
+        emb = mint.arange(num_embeddings, dtype=ms.int64).float().unsqueeze(1) * emb.unsqueeze(0)
+        emb = mint.cat([mint.sin(emb), mint.cos(emb)], dim=1).view(num_embeddings, -1)
         if embedding_dim % 2 == 1:
             # zero pad
-            emb = mindspore.mint.cat([emb, mindspore.mint.zeros((num_embeddings, 1))], dim=1)
+            emb = mint.cat([emb, mint.zeros((num_embeddings, 1))], dim=1)
         if padding_idx is not None:
             emb[padding_idx, :] = 0
 
         return emb
 
-    @mindspore._no_grad()
+    @ms._no_grad()
     def construct(
         self,
-        input_ids: mindspore.Tensor = None,
-        inputs_embeds: mindspore.Tensor = None,
+        input_ids: ms.Tensor = None,
+        inputs_embeds: ms.Tensor = None,
         past_key_values_length: int = 0,
-        position_ids: mindspore.Tensor = None,
+        position_ids: ms.Tensor = None,
     ):
         if input_ids is not None:
             bsz, seq_len = input_ids.shape
@@ -860,7 +860,7 @@ class Kosmos2TextSinusoidalPositionalEmbedding(mindspore.nn.Cell):
         if max_pos > self.weights.shape[0]:
             self.make_weights(max_pos + self.offset, self.embedding_dim, self.padding_idx)
 
-        return mindspore.ops.stop_gradient(self.weights.index_select(0, position_ids.view(-1)).view(bsz, seq_len, self.weights.shape[-1]))
+        return ms.ops.stop_gradient(self.weights.index_select(0, position_ids.view(-1)).view(bsz, seq_len, self.weights.shape[-1]))
 
     # Copied from transformers.models.m2m_100.modeling_m2m_100.M2M100SinusoidalPositionalEmbedding.create_position_ids_from_inputs_embeds
     def create_position_ids_from_inputs_embeds(self, inputs_embeds, past_key_values_length):
@@ -868,19 +868,19 @@ class Kosmos2TextSinusoidalPositionalEmbedding(mindspore.nn.Cell):
         We are provided embeddings directly. We cannot infer which are padded so just generate sequential position ids.
 
         Args:
-            inputs_embeds: torch.Tensor
+            inputs_embeds: ms.Tensor
 
-        Returns: torch.Tensor
+        Returns: ms.Tensor
         """
         input_shape = inputs_embeds.shape[:-1]
         sequence_length = input_shape[1]
 
-        position_ids = mindspore.mint.arange(
-            self.padding_idx + 1, sequence_length + self.padding_idx + 1, dtype=mindspore.int64, )
+        position_ids = mint.arange(
+            self.padding_idx + 1, sequence_length + self.padding_idx + 1, dtype=ms.int64, )
         return position_ids.unsqueeze(0).expand(input_shape).contiguous() + past_key_values_length
 
 
-class KosmosTextAttention(mindspore.nn.Cell):
+class KosmosTextAttention(nn.Cell):
     """Multi-headed attention from 'Attention Is All You Need' paper"""
 
     # Similar to transformers.models.bart.modeling_bart.BartAttention.__init__ except an additional `inner_attn_ln`.
@@ -908,17 +908,17 @@ class KosmosTextAttention(mindspore.nn.Cell):
         self.scaling = self.head_dim**-0.5
         self.is_decoder = is_decoder
 
-        self.k_proj = mindspore.mint.nn.Linear(embed_dim, embed_dim, bias=bias)
-        self.v_proj = mindspore.mint.nn.Linear(embed_dim, embed_dim, bias=bias)
-        self.q_proj = mindspore.mint.nn.Linear(embed_dim, embed_dim, bias=bias)
-        self.out_proj = mindspore.mint.nn.Linear(embed_dim, embed_dim, bias=bias)
+        self.k_proj = mint.nn.Linear(embed_dim, embed_dim, bias=bias)
+        self.v_proj = mint.nn.Linear(embed_dim, embed_dim, bias=bias)
+        self.q_proj = mint.nn.Linear(embed_dim, embed_dim, bias=bias)
+        self.out_proj = mint.nn.Linear(embed_dim, embed_dim, bias=bias)
 
         # End opy
         self.inner_attn_ln = None
         if add_inner_attn_layernorm:
-            self.inner_attn_ln = mindspore.mint.nn.LayerNorm(embed_dim, eps=config.layer_norm_eps)
+            self.inner_attn_ln = mint.nn.LayerNorm(embed_dim, eps=config.layer_norm_eps)
 
-    def _shape(self, projection: mindspore.Tensor) -> mindspore.Tensor:
+    def _shape(self, projection: ms.Tensor) -> ms.Tensor:
         new_projection_shape = projection.shape[:-1] + (self.num_heads, self.head_dim)
         # move heads to 2nd position (B, T, H * D) -> (B, T, H, D) -> (B, H, T, D)
         new_projection = projection.view(new_projection_shape).permute(0, 2, 1, 3)
@@ -926,13 +926,13 @@ class KosmosTextAttention(mindspore.nn.Cell):
 
     def construct(
         self,
-        hidden_states: mindspore.Tensor,
-        encoder_hidden_states: Optional[mindspore.Tensor] = None,
-        past_key_value: Optional[Tuple[mindspore.Tensor]] = None,
-        attention_mask: Optional[mindspore.Tensor] = None,
-        layer_head_mask: Optional[mindspore.Tensor] = None,
+        hidden_states: ms.Tensor,
+        encoder_hidden_states: Optional[ms.Tensor] = None,
+        past_key_value: Optional[Tuple[ms.Tensor]] = None,
+        attention_mask: Optional[ms.Tensor] = None,
+        layer_head_mask: Optional[ms.Tensor] = None,
         output_attentions: bool = False,
-    ) -> Tuple[mindspore.Tensor, Optional[mindspore.Tensor], Optional[Tuple[mindspore.Tensor]]]:
+    ) -> Tuple[ms.Tensor, Optional[ms.Tensor], Optional[Tuple[ms.Tensor]]]:
         """Input shape: Batch x Time x Channel"""
 
         # if key_value_states are provided this layer is used as a cross-attention layer
@@ -953,17 +953,17 @@ class KosmosTextAttention(mindspore.nn.Cell):
             value_states = self._shape(self.v_proj(current_states))
             if past_key_value is not None and not is_cross_attention:
                 # reuse k, v, self_attention
-                key_states = mindspore.mint.cat([past_key_value[0], key_states], dim=2)
-                value_states = mindspore.mint.cat([past_key_value[1], value_states], dim=2)
+                key_states = mint.cat([past_key_value[0], key_states], dim=2)
+                value_states = mint.cat([past_key_value[1], value_states], dim=2)
 
         query_states = self._shape(self.q_proj(hidden_states) * self.scaling)
-        attn_weights = mindspore.mint.matmul(query_states, key_states.transpose(-1, -2))
+        attn_weights = mint.matmul(query_states, key_states.transpose(-1, -2))
 
         if self.is_decoder:
-            # if cross_attention save Tuple(torch.Tensor, torch.Tensor) of all cross attention key/value_states.
+            # if cross_attention save Tuple(ms.Tensor, ms.Tensor) of all cross attention key/value_states.
             # Further calls to cross_attention layer can then reuse all cross-attention
             # key/value_states (first "if" case)
-            # if uni-directional self-attention (decoder) save Tuple(torch.Tensor, torch.Tensor) of
+            # if uni-directional self-attention (decoder) save Tuple(ms.Tensor, ms.Tensor) of
             # all previous decoder key/value_states. Further calls to uni-directional self-attention
             # can concat previous decoder key/value_states to current projected key/value_states (third "elif" case)
             # if encoder bi-directional self-attention `past_key_value` is always `None`
@@ -978,16 +978,16 @@ class KosmosTextAttention(mindspore.nn.Cell):
                 )
             attn_weights = attn_weights + attention_mask
 
-        attn_weights = mindspore.mint.nn.functional.softmax(attn_weights, dim=-1)
+        attn_weights = mint.nn.functional.softmax(attn_weights, dim=-1)
 
         # Mask heads if we want to
         if layer_head_mask is not None:
             attn_weights = attn_weights * layer_head_mask
 
-        attn_weights = mindspore.mint.nn.functional.dropout(attn_weights, p=self.dropout, training=self.training)
+        attn_weights = mint.nn.functional.dropout(attn_weights, p=self.dropout, training=self.training)
 
-        #  attn_output = torch.bmm(attn_probs, value_states) ?
-        context_states = mindspore.mint.matmul(attn_weights, value_states)
+        #  attn_output = mint.bmm(attn_probs, value_states) ?
+        context_states = mint.matmul(attn_weights.to(value_states.dtype), value_states)  # TODO: to remove cast
         # attn_output = attn_output.view(bsz, self.num_heads, tgt_len, self.head_dim) ?
         context_states = context_states.permute(0, 2, 1, 3).contiguous().view(batch_size, seq_length, -1)
 
@@ -999,7 +999,7 @@ class KosmosTextAttention(mindspore.nn.Cell):
         return attn_output, attn_weights, past_key_value
 
 
-class Kosmos2TextFFN(mindspore.nn.Cell):
+class Kosmos2TextFFN(nn.Cell):
     def __init__(self, config: Kosmos2TextConfig):
         super().__init__()
 
@@ -1007,22 +1007,22 @@ class Kosmos2TextFFN(mindspore.nn.Cell):
         self.activation_fn = ACT2FN[config.activation_function]
         self.activation_dropout = config.activation_dropout
 
-        self.fc1 = mindspore.mint.nn.Linear(config.embed_dim, config.ffn_dim)
-        self.fc2 = mindspore.mint.nn.Linear(config.ffn_dim, config.embed_dim)
+        self.fc1 = mint.nn.Linear(config.embed_dim, config.ffn_dim)
+        self.fc2 = mint.nn.Linear(config.ffn_dim, config.embed_dim)
 
-        self.ffn_layernorm = mindspore.mint.nn.LayerNorm(config.ffn_dim, eps=config.layer_norm_eps)
+        self.ffn_layernorm = mint.nn.LayerNorm(config.ffn_dim, eps=config.layer_norm_eps)
 
     def construct(self, hidden_states):
         hidden_states = self.activation_fn(self.fc1(hidden_states))
-        hidden_states = mindspore.mint.nn.functional.dropout(hidden_states, p=self.activation_dropout, training=self.training)
+        hidden_states = mint.nn.functional.dropout(hidden_states, p=self.activation_dropout, training=self.training)
         hidden_states = self.ffn_layernorm(hidden_states)
         hidden_states = self.fc2(hidden_states)
-        hidden_states = mindspore.mint.nn.functional.dropout(hidden_states, p=self.dropout, training=self.training)
+        hidden_states = mint.nn.functional.dropout(hidden_states, p=self.dropout, training=self.training)
 
         return hidden_states
 
 
-class Kosmos2TextBlock(mindspore.nn.Cell):
+class Kosmos2TextBlock(nn.Cell):
     def __init__(self, config: Kosmos2TextConfig):
         super().__init__()
         self.embed_dim = config.embed_dim
@@ -1036,7 +1036,7 @@ class Kosmos2TextBlock(mindspore.nn.Cell):
             add_inner_attn_layernorm=True,
         )
         self.dropout = config.dropout
-        self.self_attn_layer_norm = mindspore.mint.nn.LayerNorm(self.embed_dim, eps=config.layer_norm_eps)
+        self.self_attn_layer_norm = mint.nn.LayerNorm(self.embed_dim, eps=config.layer_norm_eps)
 
         if config.add_cross_attention:
             self.encoder_attn = KosmosTextAttention(
@@ -1047,23 +1047,23 @@ class Kosmos2TextBlock(mindspore.nn.Cell):
                 is_decoder=True,
                 add_inner_attn_layernorm=False,
             )
-            self.encoder_attn_layer_norm = mindspore.mint.nn.LayerNorm(self.embed_dim, eps=config.layer_norm_eps)
+            self.encoder_attn_layer_norm = mint.nn.LayerNorm(self.embed_dim, eps=config.layer_norm_eps)
 
         self.ffn = Kosmos2TextFFN(config)
-        self.final_layer_norm = mindspore.mint.nn.LayerNorm(self.embed_dim, eps=config.layer_norm_eps)
+        self.final_layer_norm = mint.nn.LayerNorm(self.embed_dim, eps=config.layer_norm_eps)
 
     def construct(
         self,
-        hidden_states: mindspore.Tensor,
-        attention_mask: Optional[mindspore.Tensor] = None,
-        encoder_hidden_states: Optional[mindspore.Tensor] = None,
-        encoder_attention_mask: Optional[mindspore.Tensor] = None,
-        layer_head_mask: Optional[mindspore.Tensor] = None,
-        cross_attn_layer_head_mask: Optional[mindspore.Tensor] = None,
-        past_key_value: Optional[Tuple[mindspore.Tensor]] = None,
+        hidden_states: ms.Tensor,
+        attention_mask: Optional[ms.Tensor] = None,
+        encoder_hidden_states: Optional[ms.Tensor] = None,
+        encoder_attention_mask: Optional[ms.Tensor] = None,
+        layer_head_mask: Optional[ms.Tensor] = None,
+        cross_attn_layer_head_mask: Optional[ms.Tensor] = None,
+        past_key_value: Optional[Tuple[ms.Tensor]] = None,
         output_attentions: Optional[bool] = False,
         use_cache: Optional[bool] = True,
-    ) -> Tuple[mindspore.Tensor, Optional[Tuple[mindspore.Tensor, mindspore.Tensor]]]:
+    ) -> Tuple[ms.Tensor, Optional[Tuple[ms.Tensor, ms.Tensor]]]:
 
         hidden_states = hidden_states.to(self.self_attn_layer_norm.weight.dtype)  # Todo: remove cast
         residual = hidden_states
@@ -1082,7 +1082,7 @@ class Kosmos2TextBlock(mindspore.nn.Cell):
             layer_head_mask=layer_head_mask,
             output_attentions=output_attentions,
         )
-        hidden_states = mindspore.mint.nn.functional.dropout(hidden_states, p=self.dropout, training=self.training)
+        hidden_states = mint.nn.functional.dropout(hidden_states, p=self.dropout, training=self.training)
         hidden_states = residual + hidden_states
 
         # Cross-Attention Block
@@ -1109,7 +1109,7 @@ class Kosmos2TextBlock(mindspore.nn.Cell):
                 past_key_value=cross_attn_past_key_value,
                 output_attentions=output_attentions,
             )
-            hidden_states = mindspore.mint.nn.functional.dropout(hidden_states, p=self.dropout, training=self.training)
+            hidden_states = mint.nn.functional.dropout(hidden_states, p=self.dropout, training=self.training)
             hidden_states = residual + hidden_states
 
             # add cross-attn to positions 3,4 of present_key_value tuple
@@ -1135,7 +1135,7 @@ class Kosmos2TextBlock(mindspore.nn.Cell):
         return outputs
 
 
-class Kosmos2TextTransformer(mindspore.nn.Cell):
+class Kosmos2TextTransformer(nn.Cell):
     """
     Transformer decoder consisting of `config.layers` layers. Each layer is a [`Kosmos2TextBlock`].
 
@@ -1150,7 +1150,7 @@ class Kosmos2TextTransformer(mindspore.nn.Cell):
         self.layerdrop = config.layerdrop
 
         self.embed_scale = math.sqrt(config.embed_dim) if config.scale_embedding else 1.0
-        self.embed_tokens = mindspore.mint.nn.Embedding(config.vocab_size, config.embed_dim, padding_idx=config.pad_token_id)
+        self.embed_tokens = mint.nn.Embedding(config.vocab_size, config.embed_dim, padding_idx=config.pad_token_id)
 
         self.embed_positions = Kosmos2TextSinusoidalPositionalEmbedding(
             num_positions=config.max_position_embeddings,
@@ -1158,8 +1158,8 @@ class Kosmos2TextTransformer(mindspore.nn.Cell):
             padding_idx=config.pad_token_id,
         )
 
-        self.layers = mindspore.nn.CellList([Kosmos2TextBlock(config) for _ in range(config.layers)])
-        self.layer_norm = mindspore.mint.nn.LayerNorm(config.embed_dim, config.layer_norm_eps)
+        self.layers = nn.CellList([Kosmos2TextBlock(config) for _ in range(config.layers)])
+        self.layer_norm = mint.nn.LayerNorm(config.embed_dim, config.layer_norm_eps)
 
         self.gradient_checkpointing = False
 
@@ -1186,18 +1186,18 @@ class Kosmos2TextTransformer(mindspore.nn.Cell):
     def forward_embedding(
         self,
         input_ids,
-        inputs_embeds: mindspore.Tensor = None,
-        image_embeds: mindspore.Tensor = None,
-        img_input_mask: mindspore.Tensor = None,
+        inputs_embeds: ms.Tensor = None,
+        image_embeds: ms.Tensor = None,
+        img_input_mask: ms.Tensor = None,
         past_key_values_length: int = 0,
-        position_ids: mindspore.Tensor = None,
+        position_ids: ms.Tensor = None,
     ):
         # The argument `inputs_embeds` should be the one without being multiplied by `self.embed_scale`.
         if inputs_embeds is None:
             inputs_embeds = self.embed_tokens(input_ids)
 
         if image_embeds is not None:
-            inputs_embeds[img_input_mask.to(dtype=mindspore.bool_)] = image_embeds.view(
+            inputs_embeds[img_input_mask.to(dtype=ms.bool_)] = image_embeds.view(
                 -1, image_embeds.shape[-1]
             )
 
@@ -1213,23 +1213,23 @@ class Kosmos2TextTransformer(mindspore.nn.Cell):
 
         hidden_states = inputs_embeds + positions
 
-        hidden_states = mindspore.mint.nn.functional.dropout(hidden_states, p=self.dropout, training=self.training)
+        hidden_states = mint.nn.functional.dropout(hidden_states, p=self.dropout, training=self.training)
 
         return hidden_states
 
     def construct(
         self,
-        input_ids: Optional[mindspore.Tensor] = None,
-        attention_mask: Optional[mindspore.Tensor] = None,
-        image_embeds: Optional[mindspore.Tensor] = None,
-        image_embeds_position_mask: Optional[mindspore.Tensor] = None,
-        encoder_hidden_states: Optional[mindspore.Tensor] = None,
-        encoder_attention_mask: Optional[mindspore.Tensor] = None,
-        head_mask: Optional[mindspore.Tensor] = None,
-        cross_attn_head_mask: Optional[mindspore.Tensor] = None,
-        past_key_values: Optional[List[mindspore.Tensor]] = None,
-        inputs_embeds: Optional[mindspore.Tensor] = None,
-        position_ids: Optional[mindspore.Tensor] = None,
+        input_ids: Optional[ms.Tensor] = None,
+        attention_mask: Optional[ms.Tensor] = None,
+        image_embeds: Optional[ms.Tensor] = None,
+        image_embeds_position_mask: Optional[ms.Tensor] = None,
+        encoder_hidden_states: Optional[ms.Tensor] = None,
+        encoder_attention_mask: Optional[ms.Tensor] = None,
+        head_mask: Optional[ms.Tensor] = None,
+        cross_attn_head_mask: Optional[ms.Tensor] = None,
+        past_key_values: Optional[List[ms.Tensor]] = None,
+        inputs_embeds: Optional[ms.Tensor] = None,
+        position_ids: Optional[ms.Tensor] = None,
         use_cache: Optional[bool] = None,
         output_attentions: Optional[bool] = None,
         output_hidden_states: Optional[bool] = None,
@@ -1278,7 +1278,7 @@ class Kosmos2TextTransformer(mindspore.nn.Cell):
             # [bsz, seq_len] -> [bsz, 1, tgt_seq_len, src_seq_len]
             encoder_attention_mask = _expand_mask(encoder_attention_mask, inputs_embeds.dtype, tgt_len=input_shape[-1])
 
-        hidden_states = mindspore.mint.nn.functional.dropout(hidden_states, p=self.dropout, training=self.training)
+        hidden_states = mint.nn.functional.dropout(hidden_states, p=self.dropout, training=self.training)
 
         if self.gradient_checkpointing and self.training:
             if use_cache:
@@ -1307,7 +1307,7 @@ class Kosmos2TextTransformer(mindspore.nn.Cell):
             if output_hidden_states:
                 all_hidden_states += (hidden_states,)
             if self.training:
-                dropout_probability = mindspore.mint.rand([])
+                dropout_probability = mint.rand([])
                 if dropout_probability < self.layerdrop:
                     continue
 
@@ -1554,14 +1554,14 @@ class Kosmos2VisionModel(Kosmos2PreTrainedModel):
         self.post_init()
 
     # Copied from transformers.models.clip.modeling_clip.CLIPVisionModel.get_input_embeddings with CLIP_VISION->KOSMOS2_VISION,CLIP->Kosmos2,self.vision_model->self.model
-    def get_input_embeddings(self) -> mindspore.nn.Cell:
+    def get_input_embeddings(self) -> nn.Cell:
         return self.model.embeddings.patch_embedding
 
     @add_start_docstrings_to_model_forward(KOSMOS2_VISION_INPUTS_DOCSTRING)
     @replace_return_docstrings(output_type=BaseModelOutputWithPooling, config_class=Kosmos2VisionConfig)
     def construct(
         self,
-        pixel_values: Optional[mindspore.Tensor] = None,
+        pixel_values: Optional[ms.Tensor] = None,
         output_attentions: Optional[bool] = None,
         output_hidden_states: Optional[bool] = None,
         interpolate_pos_encoding: bool = False,
@@ -1589,7 +1589,7 @@ class Kosmos2TextModel(Kosmos2PreTrainedModel):
         # Initialize weights and apply final processing
         self.post_init()
 
-    def get_input_embeddings(self) -> mindspore.nn.Cell:
+    def get_input_embeddings(self) -> nn.Cell:
         return self.model.embed_tokens
 
     def set_input_embeddings(self, value):
@@ -1599,17 +1599,17 @@ class Kosmos2TextModel(Kosmos2PreTrainedModel):
     @replace_return_docstrings(output_type=BaseModelOutputWithPastAndCrossAttentions, config_class=Kosmos2TextConfig)
     def construct(
         self,
-        input_ids: Optional[mindspore.Tensor] = None,
-        attention_mask: Optional[mindspore.Tensor] = None,
-        image_embeds: Optional[mindspore.Tensor] = None,
-        image_embeds_position_mask: Optional[mindspore.Tensor] = None,
-        encoder_hidden_states: Optional[mindspore.Tensor] = None,
-        encoder_attention_mask: Optional[mindspore.Tensor] = None,
-        head_mask: Optional[mindspore.Tensor] = None,
-        cross_attn_head_mask: Optional[mindspore.Tensor] = None,
-        past_key_values: Optional[List[mindspore.Tensor]] = None,
-        inputs_embeds: Optional[mindspore.Tensor] = None,
-        position_ids: Optional[mindspore.Tensor] = None,
+        input_ids: Optional[ms.Tensor] = None,
+        attention_mask: Optional[ms.Tensor] = None,
+        image_embeds: Optional[ms.Tensor] = None,
+        image_embeds_position_mask: Optional[ms.Tensor] = None,
+        encoder_hidden_states: Optional[ms.Tensor] = None,
+        encoder_attention_mask: Optional[ms.Tensor] = None,
+        head_mask: Optional[ms.Tensor] = None,
+        cross_attn_head_mask: Optional[ms.Tensor] = None,
+        past_key_values: Optional[List[ms.Tensor]] = None,
+        inputs_embeds: Optional[ms.Tensor] = None,
+        position_ids: Optional[ms.Tensor] = None,
         use_cache: Optional[bool] = None,
         output_attentions: Optional[bool] = None,
         output_hidden_states: Optional[bool] = None,
@@ -1653,18 +1653,18 @@ class Kosmos2TextForCausalLM(Kosmos2PreTrainedModel, GenerationMixin):
         super().__init__(config)
 
         self.model = Kosmos2TextTransformer(config)
-        self.lm_head = mindspore.mint.nn.Linear(in_features=config.embed_dim, out_features=config.vocab_size, bias=False)
+        self.lm_head = mint.nn.Linear(in_features=config.embed_dim, out_features=config.vocab_size, bias=False)
 
         # Initialize weights and apply final processing
         self.post_init()
 
-    def get_input_embeddings(self) -> mindspore.nn.Cell:
+    def get_input_embeddings(self) -> nn.Cell:
         return self.model.embed_tokens
 
     def set_input_embeddings(self, value):
         self.model.embed_tokens = value
 
-    def get_output_embeddings(self) -> mindspore.nn.Cell:
+    def get_output_embeddings(self) -> nn.Cell:
         return self.lm_head
 
     def set_output_embeddings(self, new_embeddings):
@@ -1674,26 +1674,26 @@ class Kosmos2TextForCausalLM(Kosmos2PreTrainedModel, GenerationMixin):
     @replace_return_docstrings(output_type=CausalLMOutputWithCrossAttentions, config_class=Kosmos2TextConfig)
     def construct(
         self,
-        input_ids: Optional[mindspore.Tensor] = None,
-        attention_mask: Optional[mindspore.Tensor] = None,
-        image_embeds: Optional[mindspore.Tensor] = None,
-        image_embeds_position_mask: Optional[mindspore.Tensor] = None,
-        encoder_hidden_states: Optional[mindspore.Tensor] = None,
-        encoder_attention_mask: Optional[mindspore.Tensor] = None,
-        head_mask: Optional[mindspore.Tensor] = None,
-        cross_attn_head_mask: Optional[mindspore.Tensor] = None,
-        past_key_values: Optional[List[mindspore.Tensor]] = None,
-        inputs_embeds: Optional[mindspore.Tensor] = None,
-        position_ids: Optional[mindspore.Tensor] = None,
-        labels: Optional[mindspore.Tensor] = None,
+        input_ids: Optional[ms.Tensor] = None,
+        attention_mask: Optional[ms.Tensor] = None,
+        image_embeds: Optional[ms.Tensor] = None,
+        image_embeds_position_mask: Optional[ms.Tensor] = None,
+        encoder_hidden_states: Optional[ms.Tensor] = None,
+        encoder_attention_mask: Optional[ms.Tensor] = None,
+        head_mask: Optional[ms.Tensor] = None,
+        cross_attn_head_mask: Optional[ms.Tensor] = None,
+        past_key_values: Optional[List[ms.Tensor]] = None,
+        inputs_embeds: Optional[ms.Tensor] = None,
+        position_ids: Optional[ms.Tensor] = None,
+        labels: Optional[ms.Tensor] = None,
         use_cache: Optional[bool] = None,
         output_attentions: Optional[bool] = None,
         output_hidden_states: Optional[bool] = None,
         return_dict: Optional[bool] = None,
-        cache_position: Optional[mindspore.Tensor] = None,
+        cache_position: Optional[ms.Tensor] = None,
     ) -> Union[Tuple, CausalLMOutputWithCrossAttentions]:
         r"""
-        labels (`torch.LongTensor` of shape `(batch_size, sequence_length)`, *optional*):
+        labels (`ms.TensorLongTensor` of shape `(batch_size, sequence_length)`, *optional*):
             Labels for computing the left-to-right language modeling loss (next word prediction). Indices should be in
             `[-100, 0, ..., config.vocab_size]` (see `input_ids` docstring) Tokens with indices set to `-100` are
             ignored (masked), the loss is only computed for the tokens with labels in `[0, ..., config.vocab_size]`
@@ -1779,10 +1779,10 @@ class Kosmos2TextForCausalLM(Kosmos2PreTrainedModel, GenerationMixin):
         elif image_embeds_position_mask is not None:
             batch_size, seq_len = input_ids.shape
             mask_len = image_embeds_position_mask.shape[-1]
-            image_embeds_position_mask = mindspore.mint.cat(
+            image_embeds_position_mask = mint.cat(
                 (
                     image_embeds_position_mask,
-                    mindspore.mint.zeros(size=(batch_size, seq_len - mask_len), dtype=image_embeds_position_mask.dtype, ),
+                    mint.zeros(size=(batch_size, seq_len - mask_len), dtype=image_embeds_position_mask.dtype, ),
                 ),
                 dim=1,
             )
@@ -1812,13 +1812,13 @@ class Kosmos2TextForCausalLM(Kosmos2PreTrainedModel, GenerationMixin):
         return reordered_past
 
 
-class Kosmos2ImageToTextProjection(mindspore.nn.Cell):
+class Kosmos2ImageToTextProjection(nn.Cell):
     """The layer that transforms the image model's output to part of the text model's input (namely, image features)"""
 
     def __init__(self, config: Kosmos2Config):
         super().__init__()
-        self.dense = mindspore.mint.nn.Linear(config.vision_config.hidden_size, config.text_config.embed_dim)
-        self.latent_query = mindspore.Parameter(mindspore.mint.randn(config.latent_query_num, config.text_config.embed_dim))
+        self.dense = mint.nn.Linear(config.vision_config.hidden_size, config.text_config.embed_dim)
+        self.latent_query = ms.Parameter(mint.randn(config.latent_query_num, config.text_config.embed_dim))
 
         self.x_attn = KosmosTextAttention(
             config.text_config,
@@ -1834,7 +1834,7 @@ class Kosmos2ImageToTextProjection(mindspore.nn.Cell):
 
         # shape = [batch, latent_query_num, h_dim]
         latent_query = self.latent_query.unsqueeze(0).expand((hidden_states.shape[0], -1, -1))
-        key_value_states = mindspore.mint.cat([hidden_states, latent_query], dim=1)
+        key_value_states = mint.cat([hidden_states, latent_query], dim=1)
 
         hidden_states, attn_weights, _ = self.x_attn(
             hidden_states=latent_query,
@@ -1867,7 +1867,7 @@ class Kosmos2Model(Kosmos2PreTrainedModel):
         # Initialize weights and apply final processing
         self.post_init()
 
-    def get_input_embeddings(self) -> mindspore.nn.Cell:
+    def get_input_embeddings(self) -> nn.Cell:
         return self.text_model.model.embed_tokens
 
     def set_input_embeddings(self, value):
@@ -1877,15 +1877,15 @@ class Kosmos2Model(Kosmos2PreTrainedModel):
     @replace_return_docstrings(output_type=Kosmos2ModelOutput, config_class=_CONFIG_FOR_DOC)
     def construct(
         self,
-        pixel_values: Optional[mindspore.Tensor] = None,
-        input_ids: Optional[mindspore.Tensor] = None,
-        image_embeds_position_mask: Optional[mindspore.Tensor] = None,
-        attention_mask: Optional[mindspore.Tensor] = None,
-        head_mask: Optional[mindspore.Tensor] = None,
-        past_key_values: Optional[List[mindspore.Tensor]] = None,
-        image_embeds: Optional[mindspore.Tensor] = None,
-        inputs_embeds: Optional[mindspore.Tensor] = None,
-        position_ids: Optional[mindspore.Tensor] = None,
+        pixel_values: Optional[ms.Tensor] = None,
+        input_ids: Optional[ms.Tensor] = None,
+        image_embeds_position_mask: Optional[ms.Tensor] = None,
+        attention_mask: Optional[ms.Tensor] = None,
+        head_mask: Optional[ms.Tensor] = None,
+        past_key_values: Optional[List[ms.Tensor]] = None,
+        image_embeds: Optional[ms.Tensor] = None,
+        inputs_embeds: Optional[ms.Tensor] = None,
+        position_ids: Optional[ms.Tensor] = None,
         use_cache: Optional[bool] = None,
         output_attentions: Optional[bool] = None,
         output_hidden_states: Optional[bool] = None,
@@ -1900,7 +1900,9 @@ class Kosmos2Model(Kosmos2PreTrainedModel):
         ```python
         >>> from PIL import Image
         >>> import requests
-        >>> from transformers import AutoProcessor, Kosmos2Model
+        >>> from transformers import AutoProcessor
+        >>> import mindspore as ms
+        >>> from mindone.transformers import Kosmos2Model
 
         >>> model = Kosmos2Model.from_pretrained("microsoft/kosmos-2-patch14-224")
         >>> processor = AutoProcessor.from_pretrained("microsoft/kosmos-2-patch14-224")
@@ -1914,8 +1916,9 @@ class Kosmos2Model(Kosmos2PreTrainedModel):
         ...     "</object>"
         ... )
 
-        >>> inputs = processor(text=text, images=image, return_tensors="pt", add_eos_token=True)
-
+        >>> inputs = processor(text=text, images=image, return_tensors="np", add_eos_token=True)
+        >>> for k,v in inputs.items():
+        ...     inputs[k] = ms.tensor(v)
         >>> last_hidden_state = model(
         ...     pixel_values=inputs["pixel_values"],
         ...     input_ids=inputs["input_ids"],
@@ -1947,7 +1950,7 @@ class Kosmos2Model(Kosmos2PreTrainedModel):
             # The whole `last_hidden_state` through `post_layernorm` instead of just `pooled_output`.
             image_embeds = self.vision_model.model.post_layernorm(vision_model_output[0])
             # normalized features
-            image_embeds = mindspore.mint.nn.functional.normalize(image_embeds, dim=-1)
+            image_embeds = mint.nn.functional.normalize(image_embeds, dim=-1)
             image_embeds, projection_attentions = self.image_to_text_projection(image_embeds)
 
         outputs = self.text_model(
@@ -2003,13 +2006,13 @@ class Kosmos2ForConditionalGeneration(Kosmos2PreTrainedModel, GenerationMixin):
         # Initialize weights and apply final processing
         self.post_init()
 
-    def get_input_embeddings(self) -> mindspore.nn.Cell:
+    def get_input_embeddings(self) -> nn.Cell:
         return self.text_model.model.embed_tokens
 
     def set_input_embeddings(self, value):
         self.text_model.model.embed_tokens = value
 
-    def get_output_embeddings(self) -> mindspore.nn.Cell:
+    def get_output_embeddings(self) -> nn.Cell:
         return self.text_model.get_output_embeddings()
 
     def set_output_embeddings(self, new_embeddings):
@@ -2019,23 +2022,23 @@ class Kosmos2ForConditionalGeneration(Kosmos2PreTrainedModel, GenerationMixin):
     @replace_return_docstrings(output_type=Kosmos2ForConditionalGenerationModelOutput, config_class=_CONFIG_FOR_DOC)
     def construct(
         self,
-        pixel_values: Optional[mindspore.Tensor] = None,
-        input_ids: Optional[mindspore.Tensor] = None,
-        image_embeds_position_mask: Optional[mindspore.Tensor] = None,
-        attention_mask: Optional[mindspore.Tensor] = None,
-        head_mask: Optional[mindspore.Tensor] = None,
-        past_key_values: Optional[List[mindspore.Tensor]] = None,
-        image_embeds: Optional[mindspore.Tensor] = None,
-        inputs_embeds: Optional[mindspore.Tensor] = None,
-        position_ids: Optional[mindspore.Tensor] = None,
-        labels: Optional[mindspore.Tensor] = None,
+        pixel_values: Optional[ms.Tensor] = None,
+        input_ids: Optional[ms.Tensor] = None,
+        image_embeds_position_mask: Optional[ms.Tensor] = None,
+        attention_mask: Optional[ms.Tensor] = None,
+        head_mask: Optional[ms.Tensor] = None,
+        past_key_values: Optional[List[ms.Tensor]] = None,
+        image_embeds: Optional[ms.Tensor] = None,
+        inputs_embeds: Optional[ms.Tensor] = None,
+        position_ids: Optional[ms.Tensor] = None,
+        labels: Optional[ms.Tensor] = None,
         use_cache: Optional[bool] = None,
         output_attentions: Optional[bool] = None,
         output_hidden_states: Optional[bool] = None,
         return_dict: Optional[bool] = None,
     ) -> Union[Tuple, Kosmos2ForConditionalGenerationModelOutput]:
         r"""
-        labels (`torch.LongTensor` of shape `(batch_size, sequence_length)`, *optional*):
+        labels (`ms.Tensor` of shape `(batch_size, sequence_length)`, *optional*):
             Labels for computing the left-to-right language modeling loss (next word prediction). Indices should be in
             `[-100, 0, ..., config.vocab_size]` (see `input_ids` docstring) Tokens with indices set to `-100` are
             ignored (masked), the loss is only computed for the tokens with labels in `[0, ..., config.vocab_size]`
@@ -2047,7 +2050,9 @@ class Kosmos2ForConditionalGeneration(Kosmos2PreTrainedModel, GenerationMixin):
         ```python
         >>> from PIL import Image
         >>> import requests
-        >>> from transformers import AutoProcessor, Kosmos2ForConditionalGeneration
+        >>> from transformers import AutoProcessor
+        >>> from mindone.transformers import Kosmos2ForConditionalGeneration
+        >>> import mindspore as ms
 
         >>> model = Kosmos2ForConditionalGeneration.from_pretrained("microsoft/kosmos-2-patch14-224")
         >>> processor = AutoProcessor.from_pretrained("microsoft/kosmos-2-patch14-224")
@@ -2057,7 +2062,9 @@ class Kosmos2ForConditionalGeneration(Kosmos2PreTrainedModel, GenerationMixin):
 
         >>> prompt = "<grounding> An image of"
 
-        >>> inputs = processor(text=prompt, images=image, return_tensors="pt")
+        >>> inputs = processor(text=prompt, images=image, return_tensors="np")
+        >>> for k,v in inputs.items():
+        ...     inputs[k] = ms.tensor(v)
 
         >>> generated_ids = model.generate(
         ...     pixel_values=inputs["pixel_values"],
@@ -2101,7 +2108,7 @@ class Kosmos2ForConditionalGeneration(Kosmos2PreTrainedModel, GenerationMixin):
             # The whole `last_hidden_state` through `post_layernorm` instead of just `pooled_output`.
             image_embeds = self.vision_model.model.post_layernorm(vision_model_output[0])
             # normalized features
-            image_embeds = mindspore.mint.nn.functional.normalize(image_embeds, dim=-1)
+            image_embeds = mint.nn.functional.normalize(image_embeds, dim=-1)
             image_embeds, projection_attentions = self.image_to_text_projection(image_embeds)
 
         lm_outputs = self.text_model(
@@ -2137,12 +2144,12 @@ class Kosmos2ForConditionalGeneration(Kosmos2PreTrainedModel, GenerationMixin):
 
     def generate(
         self,
-        pixel_values: Optional[mindspore.Tensor] = None,
-        image_embeds_position_mask: Optional[mindspore.Tensor] = None,
-        input_ids: Optional[mindspore.Tensor] = None,
-        attention_mask: Optional[mindspore.Tensor] = None,
-        image_embeds: Optional[mindspore.Tensor] = None,
-        cache_position: Optional[mindspore.Tensor] = None,
+        pixel_values: Optional[ms.Tensor] = None,
+        image_embeds_position_mask: Optional[ms.Tensor] = None,
+        input_ids: Optional[ms.Tensor] = None,
+        attention_mask: Optional[ms.Tensor] = None,
+        image_embeds: Optional[ms.Tensor] = None,
+        cache_position: Optional[ms.Tensor] = None,
         **kwargs,
     ):
         # in order to allow `inputs` argument (as in `GenerationMixin`)
@@ -2160,7 +2167,7 @@ class Kosmos2ForConditionalGeneration(Kosmos2PreTrainedModel, GenerationMixin):
             # The whole `last_hidden_state` through `post_layernorm` instead of just `pooled_output`.
             image_embeds = self.vision_model.model.post_layernorm(vision_model_output[0])
             # normalized features
-            image_embeds = mindspore.mint.nn.functional.normalize(image_embeds, dim=-1)
+            image_embeds = mint.nn.functional.normalize(image_embeds, dim=-1)
             image_embeds, projection_attentions = self.image_to_text_projection(image_embeds)
 
         output = self.text_model.generate(

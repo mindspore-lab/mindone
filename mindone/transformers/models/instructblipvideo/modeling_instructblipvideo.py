@@ -23,8 +23,8 @@ import math
 from dataclasses import dataclass
 from typing import Any, Optional, Tuple, Union
 
-import mindspore
-from mindspore import nn
+import mindspore as ms
+from mindspore import mint, nn
 from mindspore.mint.nn import CrossEntropyLoss
 from mindspore.common.initializer import TruncatedNormal, initializer
 from ...activations import ACT2FN
@@ -62,9 +62,9 @@ class InstructBlipVideoForConditionalGenerationModelOutput(ModelOutput):
     Class defining the outputs of [`InstructBlipVideoForConditionalGeneration`].
 
     Args:
-        loss (`torch.FloatTensor`, *optional*, returned when `labels` is provided, `torch.FloatTensor` of shape `(1,)`):
+        loss (`ms.Tensor`, *optional*, returned when `labels` is provided, `ms.Tensor` of shape `(1,)`):
             Language modeling loss from the language model.
-        logits (`torch.FloatTensor` of shape `(batch_size, sequence_length, config.vocab_size)`):
+        logits (`ms.Tensor` of shape `(batch_size, sequence_length, config.vocab_size)`):
             Prediction scores of the language modeling head of the language model.
         vision_outputs (`BaseModelOutputWithPooling`):
             Outputs of the vision encoder.
@@ -74,11 +74,11 @@ class InstructBlipVideoForConditionalGenerationModelOutput(ModelOutput):
             Outputs of the language model.
     """
 
-    loss: Optional[Tuple[mindspore.Tensor]] = None
-    logits: Optional[Tuple[mindspore.Tensor]] = None
-    vision_outputs: Optional[mindspore.Tensor] = None
-    qformer_outputs: Optional[Tuple[mindspore.Tensor]] = None
-    language_model_outputs: Optional[Tuple[mindspore.Tensor]] = None
+    loss: Optional[Tuple[ms.Tensor]] = None
+    logits: Optional[Tuple[ms.Tensor]] = None
+    vision_outputs: Optional[ms.Tensor] = None
+    qformer_outputs: Optional[Tuple[ms.Tensor]] = None
+    language_model_outputs: Optional[Tuple[ms.Tensor]] = None
 
     def to_tuple(self) -> Tuple[Any]:
         return tuple(
@@ -89,7 +89,7 @@ class InstructBlipVideoForConditionalGenerationModelOutput(ModelOutput):
         )
 
 
-class InstructBlipVideoVisionEmbeddings(mindspore.nn.Cell):
+class InstructBlipVideoVisionEmbeddings(nn.Cell):
     def __init__(self, config: InstructBlipVideoVisionConfig):
         super().__init__()
         self.config = config
@@ -97,18 +97,18 @@ class InstructBlipVideoVisionEmbeddings(mindspore.nn.Cell):
         self.image_size = config.image_size
         self.patch_size = config.patch_size
 
-        self.class_embedding = mindspore.Parameter(mindspore.mint.randn(1, 1, self.embed_dim))
+        self.class_embedding = ms.Parameter(mint.randn(1, 1, self.embed_dim))
 
-        self.patch_embedding = mindspore.mint.nn.Conv2d(
+        self.patch_embedding = mint.nn.Conv2d(
             in_channels=3, out_channels=self.embed_dim, kernel_size=self.patch_size, stride=self.patch_size
         )
 
         self.num_patches = (self.image_size // self.patch_size) ** 2
         self.num_positions = self.num_patches + 1
 
-        self.position_embedding = mindspore.Parameter(mindspore.mint.randn(1, self.num_positions, self.embed_dim))
+        self.position_embedding = ms.Parameter(mint.randn(1, self.num_positions, self.embed_dim))
 
-    def interpolate_pos_encoding(self, embeddings: mindspore.Tensor, height: int, width: int) -> mindspore.Tensor:
+    def interpolate_pos_encoding(self, embeddings: ms.Tensor, height: int, width: int) -> ms.Tensor:
         """
         This method allows to interpolate the pre-trained position encodings, to be able to use the model on higher resolution
         images. This method is also adapted to support torch.jit tracing.
@@ -137,7 +137,7 @@ class InstructBlipVideoVisionEmbeddings(mindspore.nn.Cell):
         patch_pos_embed = patch_pos_embed.reshape(1, sqrt_num_positions, sqrt_num_positions, dim)
         patch_pos_embed = patch_pos_embed.permute(0, 3, 1, 2)
 
-        patch_pos_embed = mindspore.mint.nn.functional.interpolate(
+        patch_pos_embed = mint.nn.functional.interpolate(
             patch_pos_embed,
             size=(new_height, new_width),
             mode="bicubic",
@@ -146,15 +146,15 @@ class InstructBlipVideoVisionEmbeddings(mindspore.nn.Cell):
 
         patch_pos_embed = patch_pos_embed.permute(0, 2, 3, 1).view(1, -1, dim)
 
-        return mindspore.mint.cat((class_pos_embed, patch_pos_embed), dim=1)
+        return mint.cat((class_pos_embed, patch_pos_embed), dim=1)
 
-    def construct(self, pixel_values: mindspore.Tensor, interpolate_pos_encoding: bool = False) -> mindspore.Tensor:
+    def construct(self, pixel_values: ms.Tensor, interpolate_pos_encoding: bool = False) -> ms.Tensor:
         batch_size, _, height, width = pixel_values.shape
         target_dtype = self.patch_embedding.weight.dtype
         patch_embeds = self.patch_embedding(pixel_values.to(dtype=target_dtype))  # shape = [*, width, grid, grid]
         patch_embeds = patch_embeds.flatten(2).transpose(1, 2)
         class_embeds = self.class_embedding.expand((batch_size, 1, -1)).to(target_dtype)
-        embeddings = mindspore.mint.cat([class_embeds, patch_embeds], dim=1)
+        embeddings = mint.cat([class_embeds, patch_embeds], dim=1)
         if interpolate_pos_encoding:
             position_embedding = self.interpolate_pos_encoding(embeddings, height, width)
         else:
@@ -163,7 +163,7 @@ class InstructBlipVideoVisionEmbeddings(mindspore.nn.Cell):
         return embeddings
 
 
-class InstructBlipVideoAttention(mindspore.nn.Cell):
+class InstructBlipVideoAttention(nn.Cell):
     """Multi-headed attention from 'Attention Is All You Need' paper"""
 
     def __init__(self, config):
@@ -178,33 +178,33 @@ class InstructBlipVideoAttention(mindspore.nn.Cell):
                 f" {self.num_heads})."
             )
         self.scale = self.head_dim**-0.5
-        self.dropout = mindspore.mint.nn.Dropout(config.attention_dropout)
+        self.dropout = mint.nn.Dropout(config.attention_dropout)
 
         # small tweak here compared to CLIP, no bias here
-        self.qkv = mindspore.mint.nn.Linear(self.embed_dim, 3 * self.embed_dim, bias=False)
+        self.qkv = mint.nn.Linear(self.embed_dim, 3 * self.embed_dim, bias=False)
 
         if config.qkv_bias:
-            q_bias = mindspore.Parameter(mindspore.mint.zeros(self.embed_dim))
-            v_bias = mindspore.Parameter(mindspore.mint.zeros(self.embed_dim))
+            q_bias = ms.Parameter(mint.zeros(self.embed_dim))
+            v_bias = ms.Parameter(mint.zeros(self.embed_dim))
         else:
             q_bias = None
             v_bias = None
 
         if q_bias is not None:
-            qkv_bias = mindspore.mint.cat((q_bias, mindspore.mint.zeros_like(v_bias), v_bias))
-            self.qkv.bias = mindspore.Parameter(qkv_bias)
+            qkv_bias = mint.cat((q_bias, mint.zeros_like(v_bias), v_bias))
+            self.qkv.bias = ms.Parameter(qkv_bias)
 
-        self.projection = mindspore.mint.nn.Linear(self.embed_dim, self.embed_dim)
+        self.projection = mint.nn.Linear(self.embed_dim, self.embed_dim)
 
-    def _shape(self, tensor: mindspore.Tensor, seq_len: int, bsz: int):
+    def _shape(self, tensor: ms.Tensor, seq_len: int, bsz: int):
         return tensor.view(bsz, seq_len, self.num_heads, self.head_dim).transpose(1, 2).contiguous()
 
     def construct(
         self,
-        hidden_states: mindspore.Tensor,
-        head_mask: Optional[mindspore.Tensor] = None,
+        hidden_states: ms.Tensor,
+        head_mask: Optional[ms.Tensor] = None,
         output_attentions: Optional[bool] = False,
-    ) -> Tuple[mindspore.Tensor, Optional[mindspore.Tensor], Optional[Tuple[mindspore.Tensor]]]:
+    ) -> Tuple[ms.Tensor, Optional[ms.Tensor], Optional[Tuple[ms.Tensor]]]:
         """Input shape: Batch x Time x Channel"""
 
         bsz, tgt_len, embed_dim = hidden_states.shape
@@ -217,12 +217,12 @@ class InstructBlipVideoAttention(mindspore.nn.Cell):
         query_states, key_states, value_states = mixed_qkv[0], mixed_qkv[1], mixed_qkv[2]
 
         # Take the dot product between "query" and "key" to get the raw attention scores.
-        attention_scores = mindspore.mint.matmul(query_states, key_states.transpose(-1, -2))
+        attention_scores = mint.matmul(query_states, key_states.transpose(-1, -2))
 
         attention_scores = attention_scores * self.scale
 
         # Normalize the attention scores to probabilities.
-        attention_probs = mindspore.mint.nn.functional.softmax(attention_scores, dim=-1)
+        attention_probs = mint.nn.functional.softmax(attention_scores, dim=-1)
 
         # This is actually dropping out entire tokens to attend to, which might
         # seem a bit unusual, but is taken from the original Transformer paper.
@@ -232,7 +232,7 @@ class InstructBlipVideoAttention(mindspore.nn.Cell):
         if head_mask is not None:
             attention_probs = attention_probs * head_mask
 
-        context_layer = mindspore.mint.matmul(attention_probs, value_states).permute(0, 2, 1, 3)
+        context_layer = mint.matmul(attention_probs, value_states).permute(0, 2, 1, 3)
 
         new_context_layer_shape = context_layer.shape[:-2] + (self.embed_dim,)
         context_layer = context_layer.reshape(new_context_layer_shape)
@@ -244,40 +244,40 @@ class InstructBlipVideoAttention(mindspore.nn.Cell):
         return outputs
 
 
-class InstructBlipVideoMLP(mindspore.nn.Cell):
+class InstructBlipVideoMLP(nn.Cell):
     def __init__(self, config):
         super().__init__()
         self.config = config
         self.activation_fn = ACT2FN[config.hidden_act]
-        self.fc1 = mindspore.mint.nn.Linear(config.hidden_size, config.intermediate_size)
-        self.fc2 = mindspore.mint.nn.Linear(config.intermediate_size, config.hidden_size)
+        self.fc1 = mint.nn.Linear(config.hidden_size, config.intermediate_size)
+        self.fc2 = mint.nn.Linear(config.intermediate_size, config.hidden_size)
 
-    def construct(self, hidden_states: mindspore.Tensor) -> mindspore.Tensor:
+    def construct(self, hidden_states: ms.Tensor) -> ms.Tensor:
         hidden_states = self.fc1(hidden_states)
         hidden_states = self.activation_fn(hidden_states)
         hidden_states = self.fc2(hidden_states)
         return hidden_states
 
 
-class InstructBlipVideoEncoderLayer(mindspore.nn.Cell):
+class InstructBlipVideoEncoderLayer(nn.Cell):
     def __init__(self, config: InstructBlipVideoConfig):
         super().__init__()
         self.embed_dim = config.hidden_size
         self.self_attn = InstructBlipVideoAttention(config)
-        self.layer_norm1 = mindspore.mint.nn.LayerNorm(self.embed_dim, eps=config.layer_norm_eps)
+        self.layer_norm1 = mint.nn.LayerNorm(self.embed_dim, eps=config.layer_norm_eps)
         self.mlp = InstructBlipVideoMLP(config)
-        self.layer_norm2 = mindspore.mint.nn.LayerNorm(self.embed_dim, eps=config.layer_norm_eps)
+        self.layer_norm2 = mint.nn.LayerNorm(self.embed_dim, eps=config.layer_norm_eps)
 
     def construct(
         self,
-        hidden_states: mindspore.Tensor,
-        attention_mask: mindspore.Tensor,
+        hidden_states: ms.Tensor,
+        attention_mask: ms.Tensor,
         output_attentions: Optional[bool] = False,
-    ) -> Tuple[mindspore.Tensor]:
+    ) -> Tuple[ms.Tensor]:
         """
         Args:
-            hidden_states (`torch.FloatTensor`): input to the layer of shape `(batch, seq_len, embed_dim)`
-            attention_mask (`torch.FloatTensor`): attention mask of size
+            hidden_states (`ms.Tensor`): input to the layer of shape `(batch, seq_len, embed_dim)`
+            attention_mask (`ms.Tensor`): attention mask of size
                 `(batch, 1, tgt_len, src_len)` where padding elements are indicated by very large negative values.
                 `(config.encoder_attention_heads,)`.
             output_attentions (`bool`, *optional*):
@@ -327,7 +327,7 @@ class InstructBlipVideoPreTrainedModel(PreTrainedModel):
     def _init_weights(self, module):
         """Initialize the weights"""
         factor = self.config.initializer_range
-        if isinstance(module, mindspore.mint.nn.Conv2d) or isinstance(module, mindspore.mint.nn.Embedding) or isinstance(module, mindspore.mint.nn.Linear):
+        if isinstance(module, mint.nn.Conv2d) or isinstance(module, mint.nn.Embedding) or isinstance(module, mint.nn.Linear):
             module.weight.data.normal_(mean=0.0, std=factor)
             if hasattr(module, "bias") and module.bias is not None:
                 module.bias.data.zero_()
@@ -350,14 +350,14 @@ class InstructBlipVideoPreTrainedModel(PreTrainedModel):
                 )
             )
 
-        elif isinstance(module, mindspore.mint.nn.LayerNorm):
+        elif isinstance(module, mint.nn.LayerNorm):
             module.bias.data.zero_()
             module.weight.data.fill_(1.0)
-        elif isinstance(module, mindspore.mint.nn.Linear) and module.bias is not None:
+        elif isinstance(module, mint.nn.Linear) and module.bias is not None:
             module.bias.data.zero_()
 
 
-class InstructBlipVideoEncoder(mindspore.nn.Cell):
+class InstructBlipVideoEncoder(nn.Cell):
     """
     Transformer encoder consisting of `config.num_hidden_layers` self attention layers. Each layer is a
     [`InstructBlipVideoEncoderLayer`].
@@ -370,22 +370,22 @@ class InstructBlipVideoEncoder(mindspore.nn.Cell):
     def __init__(self, config: InstructBlipVideoConfig):
         super().__init__()
         self.config = config
-        self.layers = mindspore.nn.CellList([InstructBlipVideoEncoderLayer(config) for _ in range(config.num_hidden_layers)])
+        self.layers = nn.CellList([InstructBlipVideoEncoderLayer(config) for _ in range(config.num_hidden_layers)])
         self.gradient_checkpointing = False
 
     def construct(
         self,
         inputs_embeds,
-        attention_mask: Optional[mindspore.Tensor] = None,
+        attention_mask: Optional[ms.Tensor] = None,
         output_attentions: Optional[bool] = None,
         output_hidden_states: Optional[bool] = None,
         return_dict: Optional[bool] = None,
     ) -> Union[Tuple, BaseModelOutput]:
         r"""
         Args:
-            inputs_embeds (`torch.FloatTensor` of shape `(batch_size, sequence_length, hidden_size)`):
+            inputs_embeds (`ms.Tensor` of shape `(batch_size, sequence_length, hidden_size)`):
                 Embedded representation of the inputs. Should be float, not int tokens.
-            attention_mask (`torch.Tensor` of shape `(batch_size, sequence_length)`, *optional*):
+            attention_mask (`ms.Tensor` of shape `(batch_size, sequence_length)`, *optional*):
                 Mask to avoid performing attention on padding token indices. Mask values selected in `[0, 1]`:
 
                 - 1 for tokens that are **not masked**,
@@ -445,7 +445,7 @@ class InstructBlipVideoEncoder(mindspore.nn.Cell):
 
 INSTRUCTBLIPVIDEO_VISION_INPUTS_DOCSTRING = r"""
     Args:
-        pixel_values (`torch.FloatTensor` of shape `(batch_size, num_channels, height, width)`):
+        pixel_values (`ms.Tensor` of shape `(batch_size, num_channels, height, width)`):
             Pixel values. Pixel values can be obtained using [`InstructBlipVideoProcessor`]. See
             [`InstructBlipVideoProcessor.__call__`] for details.
         output_attentions (`bool`, *optional*):
@@ -472,7 +472,7 @@ class InstructBlipVideoVisionModel(InstructBlipVideoPreTrainedModel):
 
         self.embeddings = InstructBlipVideoVisionEmbeddings(config)
         self.encoder = InstructBlipVideoEncoder(config)
-        self.post_layernorm = mindspore.mint.nn.LayerNorm(embed_dim, eps=config.layer_norm_eps)
+        self.post_layernorm = mint.nn.LayerNorm(embed_dim, eps=config.layer_norm_eps)
 
         self.post_init()
 
@@ -480,7 +480,7 @@ class InstructBlipVideoVisionModel(InstructBlipVideoPreTrainedModel):
     @replace_return_docstrings(output_type=BaseModelOutputWithPooling, config_class=InstructBlipVideoVisionConfig)
     def construct(
         self,
-        pixel_values: Optional[mindspore.Tensor] = None,
+        pixel_values: Optional[ms.Tensor] = None,
         output_attentions: Optional[bool] = None,
         output_hidden_states: Optional[bool] = None,
         return_dict: Optional[bool] = None,
@@ -528,7 +528,7 @@ class InstructBlipVideoVisionModel(InstructBlipVideoPreTrainedModel):
         return self.embeddings
 
 
-class InstructBlipVideoQFormerMultiHeadAttention(mindspore.nn.Cell):
+class InstructBlipVideoQFormerMultiHeadAttention(nn.Cell):
     def __init__(self, config, is_cross_attention=False):
         super().__init__()
         self.config = config
@@ -542,19 +542,19 @@ class InstructBlipVideoQFormerMultiHeadAttention(mindspore.nn.Cell):
         self.attention_head_size = int(config.hidden_size / config.num_attention_heads)
         self.all_head_size = self.num_attention_heads * self.attention_head_size
 
-        self.query = mindspore.mint.nn.Linear(config.hidden_size, self.all_head_size)
+        self.query = mint.nn.Linear(config.hidden_size, self.all_head_size)
         if is_cross_attention:
-            self.key = mindspore.mint.nn.Linear(config.encoder_hidden_size, self.all_head_size)
-            self.value = mindspore.mint.nn.Linear(config.encoder_hidden_size, self.all_head_size)
+            self.key = mint.nn.Linear(config.encoder_hidden_size, self.all_head_size)
+            self.value = mint.nn.Linear(config.encoder_hidden_size, self.all_head_size)
         else:
-            self.key = mindspore.mint.nn.Linear(config.hidden_size, self.all_head_size)
-            self.value = mindspore.mint.nn.Linear(config.hidden_size, self.all_head_size)
+            self.key = mint.nn.Linear(config.hidden_size, self.all_head_size)
+            self.value = mint.nn.Linear(config.hidden_size, self.all_head_size)
 
-        self.dropout = mindspore.mint.nn.Dropout(config.attention_probs_dropout_prob)
+        self.dropout = mint.nn.Dropout(config.attention_probs_dropout_prob)
         self.position_embedding_type = getattr(config, "position_embedding_type", "absolute")
         if self.position_embedding_type == "relative_key" or self.position_embedding_type == "relative_key_query":
             self.max_position_embeddings = config.max_position_embeddings
-            self.distance_embedding = mindspore.mint.nn.Embedding(2 * config.max_position_embeddings - 1, self.attention_head_size)
+            self.distance_embedding = mint.nn.Embedding(2 * config.max_position_embeddings - 1, self.attention_head_size)
         self.save_attention = False
 
     def save_attn_gradients(self, attn_gradients):
@@ -596,8 +596,8 @@ class InstructBlipVideoQFormerMultiHeadAttention(mindspore.nn.Cell):
         elif past_key_value is not None:
             key_layer = self.transpose_for_scores(self.key(hidden_states))
             value_layer = self.transpose_for_scores(self.value(hidden_states))
-            key_layer = mindspore.mint.cat([past_key_value[0], key_layer], dim=2)
-            value_layer = mindspore.mint.cat([past_key_value[1], value_layer], dim=2)
+            key_layer = mint.cat([past_key_value[0], key_layer], dim=2)
+            value_layer = mint.cat([past_key_value[1], value_layer], dim=2)
         else:
             key_layer = self.transpose_for_scores(self.key(hidden_states))
             value_layer = self.transpose_for_scores(self.value(hidden_states))
@@ -609,22 +609,22 @@ class InstructBlipVideoQFormerMultiHeadAttention(mindspore.nn.Cell):
         past_key_value = (key_layer, value_layer)
 
         # Take the dot product between "query" and "key" to get the raw attention scores.
-        attention_scores = mindspore.mint.matmul(query_layer, key_layer.transpose(-1, -2))
+        attention_scores = mint.matmul(query_layer, key_layer.transpose(-1, -2))
 
         if self.position_embedding_type == "relative_key" or self.position_embedding_type == "relative_key_query":
             seq_length = hidden_states.shape[1]
-            position_ids_l = mindspore.mint.arange(seq_length, dtype=mindspore.int64, ).view(-1, 1)
-            position_ids_r = mindspore.mint.arange(seq_length, dtype=mindspore.int64, ).view(1, -1)
+            position_ids_l = mint.arange(seq_length, dtype=ms.int64, ).view(-1, 1)
+            position_ids_r = mint.arange(seq_length, dtype=ms.int64, ).view(1, -1)
             distance = position_ids_l - position_ids_r
             positional_embedding = self.distance_embedding(distance + self.max_position_embeddings - 1)
             positional_embedding = positional_embedding.to(dtype=query_layer.dtype)  # fp16 compatibility
 
             if self.position_embedding_type == "relative_key":
-                relative_position_scores = mindspore.mint.einsum("bhld,lrd->bhlr", query_layer, positional_embedding)
+                relative_position_scores = mint.einsum("bhld,lrd->bhlr", query_layer, positional_embedding)
                 attention_scores = attention_scores + relative_position_scores
             elif self.position_embedding_type == "relative_key_query":
-                relative_position_scores_query = mindspore.mint.einsum("bhld,lrd->bhlr", query_layer, positional_embedding)
-                relative_position_scores_key = mindspore.mint.einsum("bhrd,lrd->bhlr", key_layer, positional_embedding)
+                relative_position_scores_query = mint.einsum("bhld,lrd->bhlr", query_layer, positional_embedding)
+                relative_position_scores_key = mint.einsum("bhrd,lrd->bhlr", key_layer, positional_embedding)
                 attention_scores = attention_scores + relative_position_scores_query + relative_position_scores_key
 
         attention_scores = attention_scores / math.sqrt(self.attention_head_size)
@@ -635,7 +635,7 @@ class InstructBlipVideoQFormerMultiHeadAttention(mindspore.nn.Cell):
             attention_scores = attention_scores + attention_mask
 
         # Normalize the attention scores to probabilities.
-        attention_probs = mindspore.mint.nn.Softmax(dim=-1)(attention_scores).to(attention_scores_dtype)
+        attention_probs = mint.nn.Softmax(dim=-1)(attention_scores).to(attention_scores_dtype)
 
         if is_cross_attention and self.save_attention:
             self.save_attention_map(attention_probs)
@@ -649,7 +649,7 @@ class InstructBlipVideoQFormerMultiHeadAttention(mindspore.nn.Cell):
         if head_mask is not None:
             attention_probs_dropped = attention_probs_dropped * head_mask
 
-        context_layer = mindspore.mint.matmul(attention_probs_dropped, value_layer)
+        context_layer = mint.matmul(attention_probs_dropped, value_layer)
 
         context_layer = context_layer.permute(0, 2, 1, 3).contiguous()
         new_context_layer_shape = context_layer.shape[:-2] + (self.all_head_size,)
@@ -661,21 +661,21 @@ class InstructBlipVideoQFormerMultiHeadAttention(mindspore.nn.Cell):
         return outputs
 
 
-class InstructBlipVideoQFormerSelfOutput(mindspore.nn.Cell):
+class InstructBlipVideoQFormerSelfOutput(nn.Cell):
     def __init__(self, config):
         super().__init__()
-        self.dense = mindspore.mint.nn.Linear(config.hidden_size, config.hidden_size)
-        self.LayerNorm = mindspore.mint.nn.LayerNorm(config.hidden_size, eps=config.layer_norm_eps)
-        self.dropout = mindspore.mint.nn.Dropout(config.hidden_dropout_prob)
+        self.dense = mint.nn.Linear(config.hidden_size, config.hidden_size)
+        self.LayerNorm = mint.nn.LayerNorm(config.hidden_size, eps=config.layer_norm_eps)
+        self.dropout = mint.nn.Dropout(config.hidden_dropout_prob)
 
-    def construct(self, hidden_states: mindspore.Tensor, input_tensor: mindspore.Tensor) -> mindspore.Tensor:
+    def construct(self, hidden_states: ms.Tensor, input_tensor: ms.Tensor) -> ms.Tensor:
         hidden_states = self.dense(hidden_states)
         hidden_states = self.dropout(hidden_states)
         hidden_states = self.LayerNorm(hidden_states + input_tensor)
         return hidden_states
 
 
-class InstructBlipVideoQFormerAttention(mindspore.nn.Cell):
+class InstructBlipVideoQFormerAttention(nn.Cell):
     def __init__(self, config, is_cross_attention=False):
         super().__init__()
         self.attention = InstructBlipVideoQFormerMultiHeadAttention(config, is_cross_attention)
@@ -702,14 +702,14 @@ class InstructBlipVideoQFormerAttention(mindspore.nn.Cell):
 
     def construct(
         self,
-        hidden_states: mindspore.Tensor,
-        attention_mask: Optional[mindspore.Tensor] = None,
-        head_mask: Optional[mindspore.Tensor] = None,
-        encoder_hidden_states: Optional[mindspore.Tensor] = None,
-        encoder_attention_mask: Optional[mindspore.Tensor] = None,
-        past_key_value: Optional[Tuple[Tuple[mindspore.Tensor]]] = None,
+        hidden_states: ms.Tensor,
+        attention_mask: Optional[ms.Tensor] = None,
+        head_mask: Optional[ms.Tensor] = None,
+        encoder_hidden_states: Optional[ms.Tensor] = None,
+        encoder_attention_mask: Optional[ms.Tensor] = None,
+        past_key_value: Optional[Tuple[Tuple[ms.Tensor]]] = None,
         output_attentions: Optional[bool] = False,
-    ) -> Tuple[mindspore.Tensor]:
+    ) -> Tuple[ms.Tensor]:
         self_outputs = self.attention(
             hidden_states,
             attention_mask,
@@ -724,36 +724,36 @@ class InstructBlipVideoQFormerAttention(mindspore.nn.Cell):
         return outputs
 
 
-class InstructBlipVideoQFormerIntermediate(mindspore.nn.Cell):
+class InstructBlipVideoQFormerIntermediate(nn.Cell):
     def __init__(self, config):
         super().__init__()
-        self.dense = mindspore.mint.nn.Linear(config.hidden_size, config.intermediate_size)
+        self.dense = mint.nn.Linear(config.hidden_size, config.intermediate_size)
         if isinstance(config.hidden_act, str):
             self.intermediate_act_fn = ACT2FN[config.hidden_act]
         else:
             self.intermediate_act_fn = config.hidden_act
 
-    def construct(self, hidden_states: mindspore.Tensor) -> mindspore.Tensor:
+    def construct(self, hidden_states: ms.Tensor) -> ms.Tensor:
         hidden_states = self.dense(hidden_states)
         hidden_states = self.intermediate_act_fn(hidden_states)
         return hidden_states
 
 
-class InstructBlipVideoQFormerOutput(mindspore.nn.Cell):
+class InstructBlipVideoQFormerOutput(nn.Cell):
     def __init__(self, config):
         super().__init__()
-        self.dense = mindspore.mint.nn.Linear(config.intermediate_size, config.hidden_size)
-        self.LayerNorm = mindspore.mint.nn.LayerNorm(config.hidden_size, eps=config.layer_norm_eps)
-        self.dropout = mindspore.mint.nn.Dropout(config.hidden_dropout_prob)
+        self.dense = mint.nn.Linear(config.intermediate_size, config.hidden_size)
+        self.LayerNorm = mint.nn.LayerNorm(config.hidden_size, eps=config.layer_norm_eps)
+        self.dropout = mint.nn.Dropout(config.hidden_dropout_prob)
 
-    def construct(self, hidden_states: mindspore.Tensor, input_tensor: mindspore.Tensor) -> mindspore.Tensor:
+    def construct(self, hidden_states: ms.Tensor, input_tensor: ms.Tensor) -> ms.Tensor:
         hidden_states = self.dense(hidden_states)
         hidden_states = self.dropout(hidden_states)
         hidden_states = self.LayerNorm(hidden_states + input_tensor)
         return hidden_states
 
 
-class InstructBlipVideoQFormerLayer(mindspore.nn.Cell):
+class InstructBlipVideoQFormerLayer(nn.Cell):
     def __init__(self, config, layer_idx):
         super().__init__()
         self.chunk_size_feed_forward = config.chunk_size_feed_forward
@@ -831,7 +831,7 @@ class InstructBlipVideoQFormerLayer(mindspore.nn.Cell):
                     self.seq_len_dim,
                     attention_output[:, query_length:, :],
                 )
-                layer_output = mindspore.mint.cat([layer_output, layer_output_text], dim=1)
+                layer_output = mint.cat([layer_output, layer_output_text], dim=1)
         else:
             layer_output = apply_chunking_to_forward(
                 self.feed_forward_chunk,
@@ -856,11 +856,11 @@ class InstructBlipVideoQFormerLayer(mindspore.nn.Cell):
         return layer_output
 
 
-class InstructBlipVideoQFormerEncoder(mindspore.nn.Cell):
+class InstructBlipVideoQFormerEncoder(nn.Cell):
     def __init__(self, config):
         super().__init__()
         self.config = config
-        self.layer = mindspore.nn.CellList(
+        self.layer = nn.CellList(
             [InstructBlipVideoQFormerLayer(config, layer_idx) for layer_idx in range(config.num_hidden_layers)]
         )
         self.gradient_checkpointing = False
@@ -951,20 +951,20 @@ class InstructBlipVideoQFormerEncoder(mindspore.nn.Cell):
         )
 
 
-class InstructBlipVideoQFormerEmbeddings(mindspore.nn.Cell):
+class InstructBlipVideoQFormerEmbeddings(nn.Cell):
     """Construct the embeddings from word and position embeddings."""
 
     def __init__(self, config):
         super().__init__()
-        self.word_embeddings = mindspore.mint.nn.Embedding(config.vocab_size, config.hidden_size, padding_idx=config.pad_token_id)
-        self.position_embeddings = mindspore.mint.nn.Embedding(config.max_position_embeddings, config.hidden_size)
+        self.word_embeddings = mint.nn.Embedding(config.vocab_size, config.hidden_size, padding_idx=config.pad_token_id)
+        self.position_embeddings = mint.nn.Embedding(config.max_position_embeddings, config.hidden_size)
 
-        self.layernorm = mindspore.mint.nn.LayerNorm(config.hidden_size, eps=config.layer_norm_eps)
-        self.dropout = mindspore.mint.nn.Dropout(config.hidden_dropout_prob)
+        self.layernorm = mint.nn.LayerNorm(config.hidden_size, eps=config.layer_norm_eps)
+        self.dropout = mint.nn.Dropout(config.hidden_dropout_prob)
 
         # position_ids (1, len position emb) is contiguous in memory and exported when serialized
         self.register_buffer(
-            "position_ids", mindspore.mint.arange(config.max_position_embeddings).expand((1, -1)), persistent=False
+            "position_ids", mint.arange(config.max_position_embeddings).expand((1, -1)), persistent=False
         )
         self.position_embedding_type = getattr(config, "position_embedding_type", "absolute")
 
@@ -992,7 +992,7 @@ class InstructBlipVideoQFormerEmbeddings(mindspore.nn.Cell):
                 embeddings = embeddings + position_embeddings
 
             if query_embeds is not None:
-                embeddings = mindspore.mint.cat((query_embeds, embeddings), dim=1)
+                embeddings = mint.cat((query_embeds, embeddings), dim=1)
         else:
             embeddings = query_embeds
 
@@ -1034,21 +1034,21 @@ class InstructBlipVideoQFormerModel(InstructBlipVideoPreTrainedModel):
 
     def get_extended_attention_mask(
         self,
-        attention_mask: mindspore.Tensor,
+        attention_mask: ms.Tensor,
         input_shape: Tuple[int],
         has_query: bool = False,
-    ) -> mindspore.Tensor:
+    ) -> ms.Tensor:
         """
         Makes broadcastable attention and causal masks so that future and masked tokens are ignored.
 
         Arguments:
-            attention_mask (`torch.Tensor`):
+            attention_mask (`ms.Tensor`):
                 Mask with ones indicating tokens to attend to, zeros for tokens to ignore.
             input_shape (`Tuple[int]`):
                 The shape of the input to the model.
 
         Returns:
-            `torch.Tensor` The extended attention mask, with a the same dtype as `attention_mask.dtype`.
+            `ms.Tensor` The extended attention mask, with a the same dtype as `attention_mask.dtype`.
         """
         # We can provide a self-attention mask of dimensions [batch_size, from_seq_length, to_seq_length]
         # ourselves in which case we just need to make it broadcastable to all heads.
@@ -1074,29 +1074,29 @@ class InstructBlipVideoQFormerModel(InstructBlipVideoPreTrainedModel):
 
     def construct(
         self,
-        input_ids: mindspore.Tensor,
-        attention_mask: Optional[mindspore.Tensor] = None,
-        position_ids: Optional[mindspore.Tensor] = None,
-        query_embeds: Optional[mindspore.Tensor] = None,
-        head_mask: Optional[mindspore.Tensor] = None,
-        encoder_hidden_states: Optional[mindspore.Tensor] = None,
-        encoder_attention_mask: Optional[mindspore.Tensor] = None,
-        past_key_values: Optional[Tuple[Tuple[mindspore.Tensor]]] = None,
+        input_ids: ms.Tensor,
+        attention_mask: Optional[ms.Tensor] = None,
+        position_ids: Optional[ms.Tensor] = None,
+        query_embeds: Optional[ms.Tensor] = None,
+        head_mask: Optional[ms.Tensor] = None,
+        encoder_hidden_states: Optional[ms.Tensor] = None,
+        encoder_attention_mask: Optional[ms.Tensor] = None,
+        past_key_values: Optional[Tuple[Tuple[ms.Tensor]]] = None,
         use_cache: Optional[bool] = None,
         output_attentions: Optional[bool] = None,
         output_hidden_states: Optional[bool] = None,
         return_dict: Optional[bool] = None,
-    ) -> Union[Tuple[mindspore.Tensor], BaseModelOutputWithPoolingAndCrossAttentions]:
+    ) -> Union[Tuple[ms.Tensor], BaseModelOutputWithPoolingAndCrossAttentions]:
         r"""
-        encoder_hidden_states  (`torch.FloatTensor` of shape `(batch_size, sequence_length, hidden_size)`, *optional*):
+        encoder_hidden_states  (`ms.Tensor` of shape `(batch_size, sequence_length, hidden_size)`, *optional*):
             Sequence of hidden-states at the output of the last layer of the encoder. Used in the cross-attention if
             the model is configured as a decoder.
-        encoder_attention_mask (`torch.FloatTensor` of shape `(batch_size, sequence_length)`, *optional*):
+        encoder_attention_mask (`ms.Tensor` of shape `(batch_size, sequence_length)`, *optional*):
             Mask to avoid performing attention on the padding token indices of the encoder input. This mask is used in
             the cross-attention if the model is configured as a decoder. Mask values selected in `[0, 1]`:
             - 1 for tokens that are **not masked**,
             - 0 for tokens that are **masked**.
-        past_key_values (`tuple(tuple(torch.FloatTensor))` of length `config.n_layers` with each tuple having 4 tensors of:
+        past_key_values (`tuple(tuple(ms.Tensor))` of length `config.n_layers` with each tuple having 4 tensors of:
             shape `(batch_size, num_heads, sequence_length - 1, embed_size_per_head)`): Contains precomputed key and
             value hidden states of the attention blocks. Can be used to speed up decoding. If `past_key_values` are
             used, the user can optionally input only the last `decoder_input_ids` (those that don't have their past key
@@ -1134,7 +1134,7 @@ class InstructBlipVideoQFormerModel(InstructBlipVideoPreTrainedModel):
         device = embedding_output.device
 
         if attention_mask is None:
-            attention_mask = mindspore.mint.ones(((batch_size, seq_length + past_key_values_length)), )
+            attention_mask = mint.ones(((batch_size, seq_length + past_key_values_length)), )
 
         # We can provide a self-attention mask of dimensions [batch_size, from_seq_length, to_seq_length]
         # ourselves in which case we just need to make it broadcastable to all heads.
@@ -1152,7 +1152,7 @@ class InstructBlipVideoQFormerModel(InstructBlipVideoPreTrainedModel):
             if isinstance(encoder_attention_mask, list):
                 encoder_extended_attention_mask = [self.invert_attention_mask(mask) for mask in encoder_attention_mask]
             elif encoder_attention_mask is None:
-                encoder_attention_mask = mindspore.mint.ones(encoder_hidden_shape, )
+                encoder_attention_mask = mint.ones(encoder_hidden_shape, )
                 encoder_extended_attention_mask = self.invert_attention_mask(encoder_attention_mask)
             else:
                 encoder_extended_attention_mask = self.invert_attention_mask(encoder_attention_mask)
@@ -1200,8 +1200,8 @@ INSTRUCTBLIPVIDEO_START_DOCSTRING = r"""
     library implements for all its model (such as downloading or saving, resizing the input embeddings, pruning heads
     etc.)
 
-    This model is also a PyTorch [torch.nn.Module](https://pytorch.org/docs/stable/nn.html#torch.nn.Module) subclass.
-    Use it as a regular PyTorch Module and refer to the PyTorch documentation for all matter related to general usage
+    This model is also a MindSpore [mindspore.nn.Cell](https://www.mindspore.cn/docs/zh-CN/master/api_python/nn/mindspore.nn.Cell.html) subclass.
+    Use it as a regular MindSpore Module and refer to the MindSpore documentation for all matter related to general usage
     and behavior.
 
     Parameters:
@@ -1212,11 +1212,11 @@ INSTRUCTBLIPVIDEO_START_DOCSTRING = r"""
 
 INSTRUCTBLIPVIDEO_INPUTS_DOCSTRING = r"""
     Args:
-        pixel_values (`torch.FloatTensor` of shape `(batch_size, num_channels, height, width)`):
+        pixel_values (`ms.Tensor` of shape `(batch_size, num_channels, height, width)`):
             Pixel values. Pixel values can be obtained using [`InstructBlipVideoProcessor`]. See
             [`InstructBlipVideoProcessor.__call__`] for details.
 
-        qformer_input_ids (`torch.LongTensor` of shape `(batch_size, sequence_length)`, *optional*):
+        qformer_input_ids (`ms.Tensor` of shape `(batch_size, sequence_length)`, *optional*):
             Indices of input sequence tokens in the vocabulary of the Q-Former. Input tokens can optionally be provided
             to serve as text prompt, which the Q-Former model will encode.
 
@@ -1225,7 +1225,7 @@ INSTRUCTBLIPVIDEO_INPUTS_DOCSTRING = r"""
 
             [What are input IDs?](../glossary#input-ids)
 
-        qformer_attention_mask (`torch.Tensor` of shape `(batch_size, sequence_length)`, *optional*):
+        qformer_attention_mask (`ms.Tensor` of shape `(batch_size, sequence_length)`, *optional*):
             Mask to avoid performing attention on padding token indices. Mask values selected in `[0, 1]`:
 
             - 1 for tokens that are **not masked**,
@@ -1233,7 +1233,7 @@ INSTRUCTBLIPVIDEO_INPUTS_DOCSTRING = r"""
 
             [What are attention masks?](../glossary#attention-mask)
 
-        input_ids (`torch.LongTensor` of shape `(batch_size, sequence_length)`, *optional*):
+        input_ids (`ms.Tensor` of shape `(batch_size, sequence_length)`, *optional*):
             Indices of input sequence tokens in the vocabulary of the language model. Input tokens can optionally be
             provided to serve as text prompt, which the language model can continue.
 
@@ -1242,7 +1242,7 @@ INSTRUCTBLIPVIDEO_INPUTS_DOCSTRING = r"""
 
             [What are input IDs?](../glossary#input-ids)
 
-        attention_mask (`torch.Tensor` of shape `(batch_size, sequence_length)`, *optional*):
+        attention_mask (`ms.Tensor` of shape `(batch_size, sequence_length)`, *optional*):
             Mask to avoid performing attention on padding token indices. Mask values selected in `[0, 1]`:
 
             - 1 for tokens that are **not masked**,
@@ -1250,14 +1250,14 @@ INSTRUCTBLIPVIDEO_INPUTS_DOCSTRING = r"""
 
             [What are attention masks?](../glossary#attention-mask)
 
-        decoder_input_ids (`torch.LongTensor` of shape `(batch_size, target_sequence_length)`, *optional*):
+        decoder_input_ids (`ms.Tensor` of shape `(batch_size, target_sequence_length)`, *optional*):
             Indices of decoder input sequence tokens in the vocabulary of the language model. Only relevant in case an
             encoder-decoder language model (like T5) is used.
 
             Indices can be obtained using [`AutoTokenizer`]. See [`PreTrainedTokenizer.encode`] and
             [`PreTrainedTokenizer.__call__`] for details. [What are decoder input IDs?](../glossary#decoder-input-ids)
 
-        decoder_attention_mask (`torch.BoolTensor` of shape `(batch_size, target_sequence_length)`, *optional*):
+        decoder_attention_mask (`ms.Tensor` of shape `(batch_size, target_sequence_length)`, *optional*):
             Default behavior: generate a tensor that ignores pad tokens in `decoder_input_ids`. Causal mask will also
             be used by default.
 
@@ -1302,10 +1302,10 @@ class InstructBlipVideoForConditionalGeneration(InstructBlipVideoPreTrainedModel
 
         self.vision_model = InstructBlipVideoVisionModel(config.vision_config)
 
-        self.query_tokens = mindspore.Parameter(mindspore.mint.zeros((1, config.num_query_tokens, config.qformer_config.hidden_size)))
+        self.query_tokens = ms.Parameter(mint.zeros((1, config.num_query_tokens, config.qformer_config.hidden_size)))
         self.qformer = InstructBlipVideoQFormerModel(config.qformer_config)
 
-        self.language_projection = mindspore.mint.nn.Linear(config.qformer_config.hidden_size, config.text_config.hidden_size)
+        self.language_projection = mint.nn.Linear(config.qformer_config.hidden_size, config.text_config.hidden_size)
 
         if config.use_decoder_only_language_model:
             language_model = AutoModelForCausalLM.from_config(config.text_config)
@@ -1332,7 +1332,7 @@ class InstructBlipVideoForConditionalGeneration(InstructBlipVideoPreTrainedModel
     def set_output_embeddings(self, new_embeddings):
         self.language_model.set_output_embeddings(new_embeddings)
 
-    def get_output_embeddings(self) -> mindspore.nn.Cell:
+    def get_output_embeddings(self) -> nn.Cell:
         return self.language_model.get_output_embeddings()
 
     def get_encoder(self):
@@ -1353,7 +1353,7 @@ class InstructBlipVideoForConditionalGeneration(InstructBlipVideoPreTrainedModel
         """
         hf_device_map = self.hf_device_map
 
-        if len(hf_device_map) > 1 and "language_model" not in hf_device_map and mindspore.device_context.ascend.device_count() > 1:
+        if len(hf_device_map) > 1 and "language_model" not in hf_device_map and ms.device_context.ascend.device_count() > 1:
             # warn users about unexpected behavior when using multi-GPU + InstructBlipVideo + `accelerate`.
             logger.warning(
                 "The `language_model` is not in the `hf_device_map` dictionary and you are running your script"
@@ -1372,22 +1372,22 @@ class InstructBlipVideoForConditionalGeneration(InstructBlipVideoPreTrainedModel
     )
     def construct(
         self,
-        pixel_values: mindspore.Tensor,
-        qformer_input_ids: mindspore.Tensor,
-        qformer_attention_mask: Optional[mindspore.Tensor] = None,
-        input_ids: Optional[mindspore.Tensor] = None,
-        attention_mask: Optional[mindspore.Tensor] = None,
-        decoder_input_ids: Optional[mindspore.Tensor] = None,
-        decoder_attention_mask: Optional[mindspore.Tensor] = None,
+        pixel_values: ms.Tensor,
+        qformer_input_ids: ms.Tensor,
+        qformer_attention_mask: Optional[ms.Tensor] = None,
+        input_ids: Optional[ms.Tensor] = None,
+        attention_mask: Optional[ms.Tensor] = None,
+        decoder_input_ids: Optional[ms.Tensor] = None,
+        decoder_attention_mask: Optional[ms.Tensor] = None,
         output_attentions: Optional[bool] = None,
         output_hidden_states: Optional[bool] = None,
-        labels: Optional[mindspore.Tensor] = None,
+        labels: Optional[ms.Tensor] = None,
         return_dict: Optional[bool] = None,
         interpolate_pos_encoding: bool = False,
         use_cache: Optional[bool] = None,
     ) -> Union[Tuple, InstructBlipVideoForConditionalGenerationModelOutput]:
         r"""
-        labels (`torch.LongTensor` of shape `(batch_size,)`, *optional*):
+        labels (`ms.Tensor` of shape `(batch_size,)`, *optional*):
             Labels for computing the language modeling loss. Indices should be in `[-100, 0, ..., config.vocab_size -
             1]`. All labels set to `-100` are ignored (masked), the loss is only computed for labels in `[0, ...,
             config.vocab_size]`
@@ -1397,8 +1397,9 @@ class InstructBlipVideoForConditionalGeneration(InstructBlipVideoPreTrainedModel
         Examples:
 
         ```python
-        >>> from transformers import InstructBlipVideoProcessor, InstructBlipVideoForConditionalGeneration
-        >>> import torch
+        >>> from transformers import InstructBlipVideoProcessor
+        >>> from mindone.transformers import InstructBlipVideoForConditionalGeneration
+        >>> import mindspore as ms
         >>> from huggingface_hub import hf_hub_download
         >>> import av
         >>> import numpy as np
@@ -1423,7 +1424,7 @@ class InstructBlipVideoForConditionalGeneration(InstructBlipVideoPreTrainedModel
         ...             frames.append(frame)
         ...     return np.stack([x.to_ndarray(format="rgb24") for x in frames])
 
-        >>> model = InstructBlipVideoForConditionalGeneration.from_pretrained("Salesforce/instructblip-vicuna-7b", device_map="auto")
+        >>> model = InstructBlipVideoForConditionalGeneration.from_pretrained("Salesforce/instructblip-vicuna-7b")
         >>> processor = InstructBlipVideoProcessor.from_pretrained("Salesforce/instructblip-vicuna-7b")
 
         >>> file_path = hf_hub_download(
@@ -1437,7 +1438,9 @@ class InstructBlipVideoForConditionalGeneration(InstructBlipVideoPreTrainedModel
         >>> clip = read_video_pyav(container, indices)
 
         >>> prompt = "What is happening in the video?"
-        >>> inputs = processor(text=prompt, images=clip, return_tensors="pt").to(model.device)
+        >>> inputs = processor(text=prompt, images=clip, return_tensors="np")
+        >>> for k, v in inputs.items():
+        ...     inputs[k] = ms.tensor(v)
 
         >>> outputs = model.generate(
         ...     **inputs,
@@ -1468,18 +1471,18 @@ class InstructBlipVideoForConditionalGeneration(InstructBlipVideoPreTrainedModel
         image_embeds = vision_outputs[0]
 
         # step 2: forward the query tokens through the QFormer, using the image embeddings for cross-attention
-        image_attention_mask = mindspore.mint.ones(image_embeds.shape[:-1], dtype=mindspore.int64, )
+        image_attention_mask = mint.ones(image_embeds.shape[:-1], dtype=ms.int64, )
 
         # difference with BLIP-2 here: we also feed the instruction prompt to the Q-Former
         query_tokens = self.query_tokens.expand((image_embeds.shape[0], -1, -1))
-        query_attention_mask = mindspore.mint.ones(query_tokens.shape[:-1], dtype=mindspore.int64, )
+        query_attention_mask = mint.ones(query_tokens.shape[:-1], dtype=ms.int64, )
 
         if qformer_attention_mask is None:
-            qformer_attention_mask = mindspore.mint.ones_like(qformer_input_ids)
+            qformer_attention_mask = mint.ones_like(qformer_input_ids)
 
         qformer_input_ids = qformer_input_ids.repeat_interleave(frames, dim=0)
         qformer_attention_mask = qformer_attention_mask.repeat_interleave(frames, dim=0)
-        qformer_attention_mask = mindspore.mint.cat([query_attention_mask, qformer_attention_mask], dim=1)
+        qformer_attention_mask = mint.cat([query_attention_mask, qformer_attention_mask], dim=1)
         query_outputs = self.qformer(
             input_ids=qformer_input_ids,
             attention_mask=qformer_attention_mask,
@@ -1497,12 +1500,12 @@ class InstructBlipVideoForConditionalGeneration(InstructBlipVideoPreTrainedModel
 
         # unbatch inputs back, each video-frame gets `num_query_tokens` seq length
         language_model_inputs = language_model_inputs.reshape(batch_size, self.config.num_query_tokens * frames, -1)
-        language_model_attention_mask = mindspore.mint.ones(
-            language_model_inputs.shape[:-1], dtype=mindspore.int64, )
+        language_model_attention_mask = mint.ones(
+            language_model_inputs.shape[:-1], dtype=ms.int64, )
 
         inputs_embeds = self.language_model.get_input_embeddings()(input_ids)
         if attention_mask is None:
-            attention_mask = mindspore.mint.ones_like(input_ids)
+            attention_mask = mint.ones_like(input_ids)
 
         # if the model already has "video_token_index" then the input is expanded to account for image embeds
         # otherwise we expand manually by concatenating
@@ -1515,8 +1518,8 @@ class InstructBlipVideoForConditionalGeneration(InstructBlipVideoPreTrainedModel
                 "Please follow instruction here (https://gist.github.com/zucchini-nlp/65f22892b054dc0d68228af56fbeaac2) to update your InstructBLIPVideo model. "
                 "Using processors without these attributes in the config is deprecated and will throw an error in v4.47."
             )
-            inputs_embeds = mindspore.mint.cat([language_model_inputs, inputs_embeds], dim=1)
-            attention_mask = mindspore.mint.cat(
+            inputs_embeds = mint.cat([language_model_inputs, inputs_embeds], dim=1)
+            attention_mask = mint.cat(
                 [language_model_attention_mask, attention_mask], dim=1
             )
 
@@ -1569,30 +1572,30 @@ class InstructBlipVideoForConditionalGeneration(InstructBlipVideoPreTrainedModel
             language_model_outputs=outputs,
         )
 
-    @mindspore._no_grad()
+    @ms._no_grad()
     def generate(
         self,
-        pixel_values: mindspore.Tensor,
-        qformer_input_ids: Optional[mindspore.Tensor] = None,
-        qformer_attention_mask: Optional[mindspore.Tensor] = None,
-        input_ids: Optional[mindspore.Tensor] = None,
-        attention_mask: Optional[mindspore.Tensor] = None,
+        pixel_values: ms.Tensor,
+        qformer_input_ids: Optional[ms.Tensor] = None,
+        qformer_attention_mask: Optional[ms.Tensor] = None,
+        input_ids: Optional[ms.Tensor] = None,
+        attention_mask: Optional[ms.Tensor] = None,
         interpolate_pos_encoding: bool = False,
         **generate_kwargs,
-    ) -> mindspore.Tensor:
+    ) -> ms.Tensor:
         r"""
         Overrides `generate` function to be able to use the model as a conditional generator.
 
         Args:
-            pixel_values (`torch.FloatTensor` of shape (batch_size, num_channels, height, width) or
+            pixel_values (`ms.Tensor` of shape (batch_size, num_channels, height, width) or
                 (batch_size, num_frames, num_channels, height, width)): Input images or videos to be processed.
-            qformer_input_ids (`torch.LongTensor` of shape (batch_size, sequence_length), *optional*):
+            qformer_input_ids (`ms.Tensor` of shape (batch_size, sequence_length), *optional*):
                 The sequence used as a prompt to be fed to the Q-Former module.
-            qformer_attention_mask (`torch.LongTensor` of shape (batch_size, sequence_length), *optional*):
+            qformer_attention_mask (`ms.Tensor` of shape (batch_size, sequence_length), *optional*):
                 Mask to avoid performing attention on padding token indices.
-            input_ids (`torch.LongTensor` of shape (batch_size, sequence_length), *optional*):
+            input_ids (`ms.Tensor` of shape (batch_size, sequence_length), *optional*):
                 The sequence used as a prompt for the generation.
-            attention_mask (`torch.LongTensor` of shape (batch_size, sequence_length), *optional*):
+            attention_mask (`ms.Tensor` of shape (batch_size, sequence_length), *optional*):
                 Mask to avoid performing attention on padding token indices.
             interpolate_pos_encoding (`bool`, *optional*, defaults to `False`):
                 Whether to interpolate the positional encoding of the image embeddings.
@@ -1613,16 +1616,16 @@ class InstructBlipVideoForConditionalGeneration(InstructBlipVideoPreTrainedModel
             return_dict=True,
             interpolate_pos_encoding=interpolate_pos_encoding,
         ).last_hidden_state
-        image_attention_mask = mindspore.mint.ones(image_embeds.shape[:-1], dtype=mindspore.int64, )
+        image_attention_mask = mint.ones(image_embeds.shape[:-1], dtype=ms.int64, )
 
         query_tokens = self.query_tokens.expand((image_embeds.shape[0], -1, -1))
-        query_attention_mask = mindspore.mint.ones(query_tokens.shape[:-1], dtype=mindspore.int64, )
+        query_attention_mask = mint.ones(query_tokens.shape[:-1], dtype=ms.int64, )
         if qformer_attention_mask is None:
-            qformer_attention_mask = mindspore.mint.ones_like(qformer_input_ids)
+            qformer_attention_mask = mint.ones_like(qformer_input_ids)
 
         qformer_input_ids = qformer_input_ids.repeat_interleave(frames, dim=0)
         qformer_attention_mask = qformer_attention_mask.repeat_interleave(frames, dim=0)
-        qformer_attention_mask = mindspore.mint.cat([query_attention_mask, qformer_attention_mask], dim=1)
+        qformer_attention_mask = mint.cat([query_attention_mask, qformer_attention_mask], dim=1)
         query_outputs = self.qformer(
             input_ids=qformer_input_ids,
             attention_mask=qformer_attention_mask,
@@ -1637,18 +1640,18 @@ class InstructBlipVideoForConditionalGeneration(InstructBlipVideoPreTrainedModel
 
         # unbatch the embeddings back by moving frames to seq-len
         language_model_inputs = language_model_inputs.reshape(batch_size, self.config.num_query_tokens * frames, -1)
-        language_attention_mask = mindspore.mint.ones(
-            language_model_inputs.shape[:-1], dtype=mindspore.int64, )
+        language_attention_mask = mint.ones(
+            language_model_inputs.shape[:-1], dtype=ms.int64, )
 
         if input_ids is None:
             start_tokens = [self.config.text_config.bos_token_id]
             if getattr(self.config, "video_token_index", None) is not None:
                 start_tokens = [self.config.video_token_index] * self.config.num_query_tokens * 4 + start_tokens
-            input_ids = mindspore.Tensor([start_tokens], dtype=mindspore.int64, )
+            input_ids = ms.Tensor([start_tokens], dtype=ms.int64, )
             input_ids = input_ids.repeat(batch_size, 1)
 
         if attention_mask is None:
-            attention_mask = mindspore.mint.ones_like(input_ids)
+            attention_mask = mint.ones_like(input_ids)
 
         inputs_embeds = self.get_input_embeddings()(input_ids)
 
@@ -1663,8 +1666,8 @@ class InstructBlipVideoForConditionalGeneration(InstructBlipVideoPreTrainedModel
                 "Please follow instruction here (https://gist.github.com/zucchini-nlp/65f22892b054dc0d68228af56fbeaac2) to update your InstructBLIPVideo model. "
                 "Using processors without these attributes in the config is deprecated and will throw an error in v4.47."
             )
-            inputs_embeds = mindspore.mint.cat([language_model_inputs, inputs_embeds], dim=1)
-            attention_mask = mindspore.mint.cat(
+            inputs_embeds = mint.cat([language_model_inputs, inputs_embeds], dim=1)
+            attention_mask = mint.cat(
                 [language_attention_mask, attention_mask], dim=1
             )
 

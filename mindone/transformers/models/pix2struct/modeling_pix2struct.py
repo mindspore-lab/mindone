@@ -18,8 +18,8 @@ import math
 from typing import Dict, List, Optional, Tuple, Union
 from mindspore.common.initializer import initializer, TruncatedNormal
 
-import mindspore
-from mindspore import nn
+import mindspore as ms
+from mindspore import mint, nn
 
 from ...activations import ACT2FN
 from ...cache_utils import Cache, DynamicCache, EncoderDecoderCache, StaticCache
@@ -40,7 +40,6 @@ from transformers.utils import (
     DUMMY_MASK,
     add_start_docstrings,
     add_start_docstrings_to_model_forward,
-    is_torchdynamo_compiling,
     logging,
     replace_return_docstrings,
 )
@@ -54,13 +53,13 @@ _CONFIG_FOR_DOC = "Pix2StructConfig"
 
 
 # Adapted from transformers.models.t5.modeling_t5.T5LayerNorm with T5->Pix2Struct
-class Pix2StructLayerNorm(mindspore.nn.Cell):
+class Pix2StructLayerNorm(nn.Cell):
     def __init__(self, hidden_size, eps=1e-6):
         """
         Construct a layernorm module in the T5 style. No bias and no subtraction of mean.
         """
         super().__init__()
-        self.weight = mindspore.Parameter(mindspore.mint.ones(hidden_size))
+        self.weight = ms.Parameter(mint.ones(hidden_size))
         self.variance_epsilon = eps
 
     def construct(self, hidden_states):
@@ -69,11 +68,11 @@ class Pix2StructLayerNorm(mindspore.nn.Cell):
         # w/o mean and there is no bias. Additionally we want to make sure that the accumulation for
         # half-precision inputs is done in fp32
 
-        variance = hidden_states.to(mindspore.float32).pow(2).mean(-1, keepdim=True)
-        hidden_states = hidden_states * mindspore.mint.rsqrt(variance + self.variance_epsilon)
+        variance = hidden_states.to(ms.float32).pow(2).mean(-1, keepdim=True)
+        hidden_states = hidden_states * mint.rsqrt(variance + self.variance_epsilon)
 
         # convert into half-precision if necessary
-        if self.weight.dtype in [mindspore.float16, mindspore.bfloat16]:
+        if self.weight.dtype in [ms.float16, ms.bfloat16]:
             hidden_states = hidden_states.to(self.weight.dtype)
 
         return self.weight * hidden_states
@@ -95,7 +94,7 @@ except Exception:
 ALL_LAYERNORM_LAYERS.append(Pix2StructLayerNorm)
 
 
-class Pix2StructVisionEmbeddings(mindspore.nn.Cell):
+class Pix2StructVisionEmbeddings(nn.Cell):
     r"""
     Construct the embeddings from patch. In `Pix2Struct` the input is different from classic Vision-transformer models.
     Here the input is a sequence of `seq_len` flattened patches that also combines padding patches (tokens). Each patch
@@ -104,14 +103,14 @@ class Pix2StructVisionEmbeddings(mindspore.nn.Cell):
 
     def __init__(self, config: Pix2StructConfig) -> None:
         super().__init__()
-        self.patch_projection = mindspore.mint.nn.Linear(config.patch_embed_hidden_size, config.hidden_size)
+        self.patch_projection = mint.nn.Linear(config.patch_embed_hidden_size, config.hidden_size)
 
-        self.row_embedder = mindspore.mint.nn.Embedding(config.seq_len, config.hidden_size)
-        self.column_embedder = mindspore.mint.nn.Embedding(config.seq_len, config.hidden_size)
+        self.row_embedder = mint.nn.Embedding(config.seq_len, config.hidden_size)
+        self.column_embedder = mint.nn.Embedding(config.seq_len, config.hidden_size)
 
-        self.dropout = mindspore.mint.nn.Dropout(config.dropout_rate)
+        self.dropout = mint.nn.Dropout(config.dropout_rate)
 
-    def construct(self, flattened_patches: mindspore.Tensor) -> mindspore.Tensor:
+    def construct(self, flattened_patches: ms.Tensor) -> ms.Tensor:
         # the row and column indices are stored in the first and second position of the flattened_patches
         # flattened_patches: `batch_size`, `seq_len`, `hidden_size` + 2
         row_indices = flattened_patches[:, :, 0].long()
@@ -131,7 +130,7 @@ class Pix2StructVisionEmbeddings(mindspore.nn.Cell):
         return embeddings
 
 
-class Pix2StructVisionAttention(mindspore.nn.Cell):
+class Pix2StructVisionAttention(nn.Cell):
     def __init__(self, config):
         super().__init__()
         self.hidden_size = config.hidden_size
@@ -141,10 +140,10 @@ class Pix2StructVisionAttention(mindspore.nn.Cell):
         self.inner_dim = self.n_heads * self.key_value_proj_dim
 
         # Mesh TensorFlow initialization to avoid scaling before softmax
-        self.query = mindspore.mint.nn.Linear(self.hidden_size, self.inner_dim, bias=False)
-        self.key = mindspore.mint.nn.Linear(self.hidden_size, self.inner_dim, bias=False)
-        self.value = mindspore.mint.nn.Linear(self.hidden_size, self.inner_dim, bias=False)
-        self.output = mindspore.mint.nn.Linear(self.inner_dim, self.hidden_size, bias=False)
+        self.query = mint.nn.Linear(self.hidden_size, self.inner_dim, bias=False)
+        self.key = mint.nn.Linear(self.hidden_size, self.inner_dim, bias=False)
+        self.value = mint.nn.Linear(self.hidden_size, self.inner_dim, bias=False)
+        self.output = mint.nn.Linear(self.inner_dim, self.hidden_size, bias=False)
 
         self.gradient_checkpointing = False
 
@@ -177,11 +176,11 @@ class Pix2StructVisionAttention(mindspore.nn.Cell):
         value_states = to_projection_shape(self.value(hidden_states))
 
         # compute scores
-        # equivalent of torch.einsum("bnqd,bnkd->bnqk", query_states, key_states), compatible with onnx op>9
-        scores = mindspore.mint.matmul(query_states, key_states.transpose(3, 2))
+        # equivalent of mint.einsum("bnqd,bnkd->bnqk", query_states, key_states), compatible with onnx op>9
+        scores = mint.matmul(query_states, key_states.transpose(3, 2))
 
         if position_bias is None:
-            position_bias = mindspore.mint.zeros(
+            position_bias = mint.zeros(
                 (1, self.n_heads, seq_length, seq_length), dtype=scores.dtype
             )
             if self.gradient_checkpointing and self.training:
@@ -193,7 +192,7 @@ class Pix2StructVisionAttention(mindspore.nn.Cell):
                 # (batch_size, n_heads, seq_length, key_length)
                 position_bias = position_bias + attention_mask
             else:
-                attention_mask = mindspore.mint.ones(
+                attention_mask = mint.ones(
                     (batch_size, seq_length), dtype=position_bias.dtype
                 )
                 position_bias = position_bias + attention_mask
@@ -202,19 +201,19 @@ class Pix2StructVisionAttention(mindspore.nn.Cell):
 
         position_bias_masked = position_bias.masked_fill(position_bias == 1, dtype_to_min(scores.dtype))
         scores += position_bias_masked
-        scores = mindspore.mint.max(scores, mindspore.Tensor(dtype_to_min(scores.dtype)))
+        scores = mint.max(scores, ms.Tensor(dtype_to_min(scores.dtype)))
 
         # (batch_size, n_heads, seq_length, key_length)
-        attn_weights = mindspore.mint.nn.functional.softmax(scores, dim=-1, dtype=mindspore.float32).type_as(scores)
+        attn_weights = mint.nn.functional.softmax(scores, dim=-1, dtype=ms.float32).type_as(scores)
 
         # (batch_size, n_heads, seq_length, key_length)
-        attn_weights = mindspore.mint.nn.functional.dropout(attn_weights, p=self.dropout, training=self.training)
+        attn_weights = mint.nn.functional.dropout(attn_weights, p=self.dropout, training=self.training)
 
         # Mask heads if we want to
         if layer_head_mask is not None:
             attn_weights = attn_weights * layer_head_mask
 
-        attn_output = mindspore.mint.matmul(attn_weights, value_states)
+        attn_output = mint.matmul(attn_weights, value_states)
 
         # (batch_size, seq_length, dim)
         attn_output = attn_output.transpose(1, 2).contiguous().view(batch_size, -1, self.inner_dim)
@@ -229,13 +228,13 @@ class Pix2StructVisionAttention(mindspore.nn.Cell):
 
 
 # Copied from transformers.models.t5.modeling_t5.T5DenseGatedActDense with T5DenseGatedActDense->Pix2StructVisionMlp,T5Config->Pix2StructVisionConfig,config.d_model->config.hidden_size,dropout_rate->dropout_rate
-class Pix2StructVisionMlp(mindspore.nn.Cell):
+class Pix2StructVisionMlp(nn.Cell):
     def __init__(self, config: Pix2StructVisionConfig):
         super().__init__()
-        self.wi_0 = mindspore.mint.nn.Linear(config.hidden_size, config.d_ff, bias=False)
-        self.wi_1 = mindspore.mint.nn.Linear(config.hidden_size, config.d_ff, bias=False)
-        self.wo = mindspore.mint.nn.Linear(config.d_ff, config.hidden_size, bias=False)
-        self.dropout = mindspore.mint.nn.Dropout(config.dropout_rate)
+        self.wi_0 = mint.nn.Linear(config.hidden_size, config.d_ff, bias=False)
+        self.wi_1 = mint.nn.Linear(config.hidden_size, config.d_ff, bias=False)
+        self.wo = mint.nn.Linear(config.d_ff, config.hidden_size, bias=False)
+        self.dropout = mint.nn.Dropout(config.dropout_rate)
         self.act = ACT2FN[config.dense_act_fn]
 
     def construct(self, hidden_states):
@@ -248,9 +247,9 @@ class Pix2StructVisionMlp(mindspore.nn.Cell):
         # See https://github.com/huggingface/transformers/issues/20287
         # we also make sure the weights are not in `int8` in case users will force `_keep_in_fp32_modules` to be `None``
         if (
-            isinstance(self.wo.weight, mindspore.Tensor)
+            isinstance(self.wo.weight, ms.Tensor)
             and hidden_states.dtype != self.wo.weight.dtype
-            and self.wo.weight.dtype != mindspore.int8
+            and self.wo.weight.dtype != ms.int8
         ):
             hidden_states = hidden_states.to(self.wo.weight.dtype)
 
@@ -258,7 +257,7 @@ class Pix2StructVisionMlp(mindspore.nn.Cell):
         return hidden_states
 
 
-class Pix2StructVisionLayer(mindspore.nn.Cell):
+class Pix2StructVisionLayer(nn.Cell):
     def __init__(self, config: Pix2StructConfig) -> None:
         super().__init__()
         self.chunk_size_feed_forward = config.chunk_size_feed_forward
@@ -270,11 +269,11 @@ class Pix2StructVisionLayer(mindspore.nn.Cell):
 
     def construct(
         self,
-        hidden_states: mindspore.Tensor,
-        attention_mask: Optional[mindspore.Tensor] = None,
-        head_mask: Optional[mindspore.Tensor] = None,
+        hidden_states: ms.Tensor,
+        attention_mask: Optional[ms.Tensor] = None,
+        head_mask: Optional[ms.Tensor] = None,
         output_attentions: bool = False,
-    ) -> Union[Tuple[mindspore.Tensor, mindspore.Tensor], Tuple[mindspore.Tensor]]:
+    ) -> Union[Tuple[ms.Tensor, ms.Tensor], Tuple[ms.Tensor]]:
         residual = hidden_states
 
         # in Pix2StructVision, layernorm is applied before self-attention
@@ -301,18 +300,18 @@ class Pix2StructVisionLayer(mindspore.nn.Cell):
         return outputs
 
 
-class Pix2StructVisionEncoder(mindspore.nn.Cell):
+class Pix2StructVisionEncoder(nn.Cell):
     def __init__(self, config: Pix2StructConfig) -> None:
         super().__init__()
         self.config = config
-        self.layer = mindspore.nn.CellList([Pix2StructVisionLayer(config) for _ in range(config.num_hidden_layers)])
+        self.layer = nn.CellList([Pix2StructVisionLayer(config) for _ in range(config.num_hidden_layers)])
         self.gradient_checkpointing = False
 
     def construct(
         self,
-        hidden_states: mindspore.Tensor,
-        attention_mask: Optional[mindspore.Tensor] = None,
-        head_mask: Optional[mindspore.Tensor] = None,
+        hidden_states: ms.Tensor,
+        attention_mask: Optional[ms.Tensor] = None,
+        head_mask: Optional[ms.Tensor] = None,
         output_attentions: bool = False,
         output_hidden_states: bool = False,
         return_dict: bool = True,
@@ -366,8 +365,8 @@ class Pix2StructPreTrainedModel(PreTrainedModel):
 
     @property
     def dummy_inputs(self):
-        input_ids = mindspore.Tensor(DUMMY_INPUTS)
-        input_mask = mindspore.Tensor(DUMMY_MASK)
+        input_ids = ms.Tensor(DUMMY_INPUTS)
+        input_mask = ms.Tensor(DUMMY_MASK)
         dummy_inputs = {
             "decoder_input_ids": input_ids,
             "input_ids": input_ids,
@@ -420,7 +419,7 @@ class Pix2StructPreTrainedModel(PreTrainedModel):
             module.output.weight.data.normal_(mean=0.0, std=factor * ((n_heads * key_value_proj_dim) ** -0.5))
             if module.has_relative_attention_bias:
                 module.relative_attention_bias.weight.data.normal_(mean=0.0, std=factor * ((hidden_size) ** -0.5))
-        elif isinstance(module, mindspore.mint.nn.Embedding):
+        elif isinstance(module, mint.nn.Embedding):
             hidden_size = (
                 self.config.text_config.hidden_size
                 if isinstance(self.config, Pix2StructConfig)
@@ -438,7 +437,7 @@ class Pix2StructPreTrainedModel(PreTrainedModel):
             )
 
             module.lm_head.weight.data.normal_(mean=0.0, std=factor * ((hidden_size) ** -0.5))
-        elif isinstance(module, (mindspore.mint.nn.Linear, mindspore.mint.nn.Conv2d)):
+        elif isinstance(module, (mint.nn.Linear, mint.nn.Conv2d)):
             # Upcast the input in `fp32` and cast it back to desired `dtype` to avoid
             # `trunc_normal_cpu` not implemented in `half` issues
             module.weight.data.set_data(
@@ -453,7 +452,7 @@ class Pix2StructPreTrainedModel(PreTrainedModel):
         elif isinstance(module, Pix2StructLayerNorm):
             if module.weight is not None:
                 module.weight.data.fill_(1.0)
-        elif isinstance(module, mindspore.mint.nn.Embedding):
+        elif isinstance(module, mint.nn.Embedding):
             module.weight.data.normal_(mean=0.0, std=self.config.initializer_range)
             if module.padding_idx is not None:
                 module.weight.data[module.padding_idx].zero_()
@@ -483,8 +482,8 @@ class Pix2StructPreTrainedModel(PreTrainedModel):
 
 
 PIX2STRUCT_VISION_START_DOCSTRING = r"""
-    This model is a PyTorch [torch.nn.Module](https://pytorch.org/docs/stable/nn.html#torch.nn.Module) subclass. Use it
-    as a regular PyTorch Module and refer to the PyTorch documentation for all matter related to general usage and
+    This model is a MindSpore [nn.Cell](https://www.ms.cn/docs/zh-CN/master/api_python/nn/nn.Cell.html) subclass. Use it
+    as a regular MindSpore Module and refer to the MindSpore documentation for all matter related to general usage and
     behavior.
 
     Parameters:
@@ -495,15 +494,15 @@ PIX2STRUCT_VISION_START_DOCSTRING = r"""
 
 PIX2STRUCT_VISION_INPUTS_DOCSTRING = r"""
     Args:
-        flattened_patches (`torch.FloatTensor` of shape `(batch_size, sequence_length, num_channels x patch_height x patch_width)`):
+        flattened_patches (`ms.Tensor` of shape `(batch_size, sequence_length, num_channels x patch_height x patch_width)`):
             Flattened and padded pixel values. These values can be obtained using [`AutoImageProcessor`]. See
             [`Pix2StructVisionImageProcessor.__call__`] for details. Check the [original
             paper](https://arxiv.org/abs/2210.03347) (figure 5) for more details.
 
-        attention_mask (`torch.FloatTensor` of shape `(batch_size, sequence_length)`, *optional*):
+        attention_mask (`ms.Tensor` of shape `(batch_size, sequence_length)`, *optional*):
             Mask to avoid performing attention on padding pixel values. Mask values selected in `[0, 1]`:
 
-        head_mask (`torch.FloatTensor` of shape `(num_heads,)` or `(num_layers, num_heads)`, *optional*):
+        head_mask (`ms.Tensor` of shape `(num_heads,)` or `(num_layers, num_heads)`, *optional*):
             Mask to nullify selected heads of the self-attention modules. Mask values selected in `[0, 1]`:
 
             - 1 indicates the head is **not masked**,
@@ -557,9 +556,9 @@ class Pix2StructVisionModel(Pix2StructPreTrainedModel):
     @replace_return_docstrings(output_type=BaseModelOutputWithPooling, config_class=_CONFIG_FOR_DOC)
     def construct(
         self,
-        flattened_patches: Optional[mindspore.Tensor] = None,
-        attention_mask: Optional[mindspore.Tensor] = None,
-        head_mask: Optional[mindspore.Tensor] = None,
+        flattened_patches: Optional[ms.Tensor] = None,
+        attention_mask: Optional[ms.Tensor] = None,
+        head_mask: Optional[ms.Tensor] = None,
         output_attentions: Optional[bool] = None,
         output_hidden_states: Optional[bool] = None,
         return_dict: Optional[bool] = None,
@@ -572,7 +571,9 @@ class Pix2StructVisionModel(Pix2StructPreTrainedModel):
         ```python
         >>> import requests
         >>> from PIL import Image
-        >>> from transformers import AutoProcessor, Pix2StructVisionModel
+        >>> from transformers import AutoProcessor
+        >>> from mindone.transformers import Pix2StructVisionModel
+        >>> import mindspore as ms
 
         >>> image_processor = AutoProcessor.from_pretrained("google/pix2struct-textcaps-base")
         >>> model = Pix2StructVisionModel.from_pretrained("google/pix2struct-textcaps-base")
@@ -580,8 +581,10 @@ class Pix2StructVisionModel(Pix2StructPreTrainedModel):
         >>> url = "https://www.ilankelman.org/stopsigns/australia.jpg"
         >>> image = Image.open(requests.get(url, stream=True).raw)
 
-        >>> inputs = image_processor(images=image, return_tensors="pt")
-        >>> with torch.no_grad():
+        >>> inputs = image_processor(images=image, return_tensors="np")
+        >>> for k,v in inputs.items():
+        ...     inputs[k] = ms.tensor(v)
+        >>> with ms._no_grad():
         ...     outputs = model(**inputs)
 
         >>> last_hidden_states = outputs.last_hidden_state
@@ -634,13 +637,13 @@ class Pix2StructVisionModel(Pix2StructPreTrainedModel):
 
 
 # Copied from transformers.models.t5.modeling_t5.T5DenseGatedActDense with T5->Pix2StructText,d_model->hidden_size
-class Pix2StructTextDenseGatedActDense(mindspore.nn.Cell):
+class Pix2StructTextDenseGatedActDense(nn.Cell):
     def __init__(self, config: Pix2StructTextConfig):
         super().__init__()
-        self.wi_0 = mindspore.mint.nn.Linear(config.hidden_size, config.d_ff, bias=False)
-        self.wi_1 = mindspore.mint.nn.Linear(config.hidden_size, config.d_ff, bias=False)
-        self.wo = mindspore.mint.nn.Linear(config.d_ff, config.hidden_size, bias=False)
-        self.dropout = mindspore.mint.nn.Dropout(config.dropout_rate)
+        self.wi_0 = mint.nn.Linear(config.hidden_size, config.d_ff, bias=False)
+        self.wi_1 = mint.nn.Linear(config.hidden_size, config.d_ff, bias=False)
+        self.wo = mint.nn.Linear(config.d_ff, config.hidden_size, bias=False)
+        self.dropout = mint.nn.Dropout(config.dropout_rate)
         self.act = ACT2FN[config.dense_act_fn]
 
     def construct(self, hidden_states):
@@ -653,9 +656,9 @@ class Pix2StructTextDenseGatedActDense(mindspore.nn.Cell):
         # See https://github.com/huggingface/transformers/issues/20287
         # we also make sure the weights are not in `int8` in case users will force `_keep_in_fp32_modules` to be `None``
         if (
-            isinstance(self.wo.weight, mindspore.Tensor)
+            isinstance(self.wo.weight, ms.Tensor)
             and hidden_states.dtype != self.wo.weight.dtype
-            and self.wo.weight.dtype != mindspore.int8
+            and self.wo.weight.dtype != ms.int8
         ):
             hidden_states = hidden_states.to(self.wo.weight.dtype)
 
@@ -663,13 +666,13 @@ class Pix2StructTextDenseGatedActDense(mindspore.nn.Cell):
         return hidden_states
 
 
-class Pix2StructTextLayerFF(mindspore.nn.Cell):
+class Pix2StructTextLayerFF(nn.Cell):
     def __init__(self, config: Pix2StructTextConfig):
         super().__init__()
         self.DenseReluDense = Pix2StructTextDenseGatedActDense(config)
 
         self.layer_norm = Pix2StructLayerNorm(config.hidden_size, eps=config.layer_norm_epsilon)
-        self.dropout = mindspore.mint.nn.Dropout(config.dropout_rate)
+        self.dropout = mint.nn.Dropout(config.dropout_rate)
 
     # Copied from transformers.models.t5.modeling_t5.T5LayerFF.forward
     def construct(self, hidden_states):
@@ -679,7 +682,7 @@ class Pix2StructTextLayerFF(mindspore.nn.Cell):
         return hidden_states
 
 
-class Pix2StructTextAttention(mindspore.nn.Cell):
+class Pix2StructTextAttention(nn.Cell):
     def __init__(
         self, config: Pix2StructTextConfig, has_relative_attention_bias=False, layer_idx: Optional[int] = None
     ):
@@ -701,13 +704,13 @@ class Pix2StructTextAttention(mindspore.nn.Cell):
             )
 
         # Mesh TensorFlow initialization to avoid scaling before softmax
-        self.query = mindspore.mint.nn.Linear(self.hidden_size, self.hidden_size, bias=False)
-        self.key = mindspore.mint.nn.Linear(self.hidden_size, self.hidden_size, bias=False)
-        self.value = mindspore.mint.nn.Linear(self.hidden_size, self.hidden_size, bias=False)
-        self.output = mindspore.mint.nn.Linear(self.hidden_size, self.hidden_size, bias=False)
+        self.query = mint.nn.Linear(self.hidden_size, self.hidden_size, bias=False)
+        self.key = mint.nn.Linear(self.hidden_size, self.hidden_size, bias=False)
+        self.value = mint.nn.Linear(self.hidden_size, self.hidden_size, bias=False)
+        self.output = mint.nn.Linear(self.hidden_size, self.hidden_size, bias=False)
 
         if self.has_relative_attention_bias:
-            self.relative_attention_bias = mindspore.mint.nn.Embedding(self.relative_attention_num_buckets, self.n_heads)
+            self.relative_attention_bias = mint.nn.Embedding(self.relative_attention_num_buckets, self.n_heads)
         self.pruned_heads = set()
         self.gradient_checkpointing = False
 
@@ -737,10 +740,10 @@ class Pix2StructTextAttention(mindspore.nn.Cell):
         relative_buckets = 0
         if bidirectional:
             num_buckets //= 2
-            relative_buckets += (relative_position > 0).to(mindspore.int64) * num_buckets
-            relative_position = mindspore.mint.abs(relative_position)
+            relative_buckets += (relative_position > 0).to(ms.int64) * num_buckets
+            relative_position = mint.abs(relative_position)
         else:
-            relative_position = -mindspore.mint.min(relative_position, mindspore.mint.zeros_like(relative_position))
+            relative_position = -mint.min(relative_position, mint.zeros_like(relative_position))
         # now relative_position is in the range [0, inf)
 
         # half of the buckets are for exact increments in positions
@@ -749,15 +752,15 @@ class Pix2StructTextAttention(mindspore.nn.Cell):
 
         # The other half of the buckets are for logarithmically bigger bins in positions up to max_distance
         relative_position_if_large = max_exact + (
-            mindspore.mint.log(relative_position.float() / max_exact)
+            mint.log(relative_position.float() / max_exact)
             / math.log(max_distance / max_exact)
             * (num_buckets - max_exact)
-        ).to(mindspore.int64)
-        relative_position_if_large = mindspore.mint.min(
-            relative_position_if_large, mindspore.mint.full_like(relative_position_if_large, num_buckets - 1)
+        ).to(ms.int64)
+        relative_position_if_large = mint.min(
+            relative_position_if_large, mint.full_like(relative_position_if_large, num_buckets - 1)
         )
 
-        relative_buckets += mindspore.mint.where(is_small, relative_position, relative_position_if_large)
+        relative_buckets += mint.where(is_small, relative_position, relative_position_if_large)
         return relative_buckets
 
     # Adapted from transformers.models.t5.modeling_t5.T5Attention.compute_bias
@@ -766,10 +769,10 @@ class Pix2StructTextAttention(mindspore.nn.Cell):
         if device is None:
             device = self.relative_attention_bias.weight.device
         if cache_position is None:
-            context_position = mindspore.mint.arange(query_length, dtype=mindspore.int64, )[:, None]
+            context_position = mint.arange(query_length, dtype=ms.int64, )[:, None]
         else:
             context_position = cache_position[:, None]
-        memory_position = mindspore.mint.arange(key_length, dtype=mindspore.int64, )[None, :]
+        memory_position = mint.arange(key_length, dtype=ms.int64, )[None, :]
         relative_position = memory_position - context_position  # shape (query_length, key_length)
         relative_position_bucket = self._relative_position_bucket(
             relative_position,  # shape (query_length, key_length)
@@ -837,15 +840,15 @@ class Pix2StructTextAttention(mindspore.nn.Cell):
                 if is_cross_attention:
                     past_key_value.is_updated[self.layer_idx] = True
 
-        # compute scores, equivalent of torch.einsum("bnqd,bnkd->bnqk", query_states, key_states), compatible with onnx op>9
-        scores = mindspore.mint.matmul(query_states, key_states.transpose(3, 2))
+        # compute scores, equivalent of mint.einsum("bnqd,bnkd->bnqk", query_states, key_states), compatible with onnx op>9
+        scores = mint.matmul(query_states, key_states.transpose(3, 2))
 
         if position_bias is None:
             key_length = key_states.shape[-2]
             # cache position is 0-indexed so we add 1 to get the real length of queries (aka with past)
             real_seq_length = query_length if query_length is not None else cache_position[-1] + 1
             if not self.has_relative_attention_bias:
-                position_bias = mindspore.mint.zeros(
+                position_bias = mint.zeros(
                     (1, self.n_heads, seq_length, key_length), dtype=scores.dtype
                 )
                 if self.gradient_checkpointing and self.training:
@@ -861,7 +864,7 @@ class Pix2StructTextAttention(mindspore.nn.Cell):
                 position_bias = position_bias + causal_mask
 
         if self.pruned_heads:
-            mask = mindspore.mint.ones(position_bias.shape[1])
+            mask = mint.ones(position_bias.shape[1])
             mask[list(self.pruned_heads)] = 0
             position_bias_masked = position_bias[:, mask.bool()]
         else:
@@ -870,14 +873,14 @@ class Pix2StructTextAttention(mindspore.nn.Cell):
         scores += position_bias_masked
 
         # (batch_size, n_heads, seq_length, key_length)
-        attn_weights = mindspore.mint.nn.functional.softmax(scores.float(), dim=-1).type_as(scores)
-        attn_weights = mindspore.mint.nn.functional.dropout(attn_weights, p=self.dropout, training=self.training)
+        attn_weights = mint.nn.functional.softmax(scores.float(), dim=-1).type_as(scores)
+        attn_weights = mint.nn.functional.dropout(attn_weights, p=self.dropout, training=self.training)
 
         # Mask heads if we want to
         if layer_head_mask is not None:
             attn_weights = attn_weights * layer_head_mask
 
-        attn_output = mindspore.mint.matmul(attn_weights, value_states)
+        attn_output = mint.matmul(attn_weights, value_states)
 
         attn_output = attn_output.transpose(1, 2).contiguous()
         attn_output = attn_output.view(batch_size, -1, self.inner_dim)
@@ -891,14 +894,14 @@ class Pix2StructTextAttention(mindspore.nn.Cell):
 
 
 # Copied from transformers.models.t5.modeling_t5.T5LayerSelfAttention with T5LayerNorm->Pix2StructLayerNorm,T5Attention->Pix2StructTextAttention,T5LayerSelfAttention->Pix2StructTextLayerSelfAttention,self.SelfAttention->self.attention,config.d_model->config.hidden_size
-class Pix2StructTextLayerSelfAttention(mindspore.nn.Cell):
+class Pix2StructTextLayerSelfAttention(nn.Cell):
     def __init__(self, config, has_relative_attention_bias=False, layer_idx: Optional[int] = None):
         super().__init__()
         self.attention = Pix2StructTextAttention(
             config, has_relative_attention_bias=has_relative_attention_bias, layer_idx=layer_idx
         )
         self.layer_norm = Pix2StructLayerNorm(config.hidden_size, eps=config.layer_norm_epsilon)
-        self.dropout = mindspore.mint.nn.Dropout(config.dropout_rate)
+        self.dropout = mint.nn.Dropout(config.dropout_rate)
 
     def construct(
         self,
@@ -928,12 +931,12 @@ class Pix2StructTextLayerSelfAttention(mindspore.nn.Cell):
 
 
 # Copied from transformers.models.t5.modeling_t5.T5LayerCrossAttention with T5LayerNorm->Pix2StructLayerNorm,T5Attention->Pix2StructTextAttention,T5LayerCrossAttention->Pix2StructTextLayerCrossAttention,self.EncDecAttention->self.attention,config.d_model->config.hidden_size
-class Pix2StructTextLayerCrossAttention(mindspore.nn.Cell):
+class Pix2StructTextLayerCrossAttention(nn.Cell):
     def __init__(self, config, layer_idx: Optional[int] = None):
         super().__init__()
         self.attention = Pix2StructTextAttention(config, has_relative_attention_bias=False, layer_idx=layer_idx)
         self.layer_norm = Pix2StructLayerNorm(config.hidden_size, eps=config.layer_norm_epsilon)
-        self.dropout = mindspore.mint.nn.Dropout(config.dropout_rate)
+        self.dropout = mint.nn.Dropout(config.dropout_rate)
 
     def construct(
         self,
@@ -966,7 +969,7 @@ class Pix2StructTextLayerCrossAttention(mindspore.nn.Cell):
         return outputs
 
 
-class Pix2StructTextBlock(mindspore.nn.Cell):
+class Pix2StructTextBlock(nn.Cell):
     def __init__(self, config, has_relative_attention_bias=False, layer_idx: Optional[int] = None):
         super().__init__()
 
@@ -1013,9 +1016,9 @@ class Pix2StructTextBlock(mindspore.nn.Cell):
         attention_outputs = self_attention_outputs[2:]  # Keep self-attention outputs and relative position weights
 
         # clamp inf values to enable fp16 training
-        if hidden_states.dtype == mindspore.float16 and mindspore.mint.isinf(hidden_states).any():
+        if hidden_states.dtype == ms.float16 and mint.isinf(hidden_states).any():
             clamp_value = dtype_to_max(hidden_states.dtype) - 1000
-            hidden_states = mindspore.mint.clamp(hidden_states, min=-clamp_value, max=clamp_value)
+            hidden_states = mint.clamp(hidden_states, min=-clamp_value, max=clamp_value)
 
         do_cross_attention = encoder_hidden_states is not None
         if do_cross_attention:
@@ -1033,9 +1036,9 @@ class Pix2StructTextBlock(mindspore.nn.Cell):
             hidden_states, past_key_value = cross_attention_outputs[:2]
 
             # clamp inf values to enable fp16 training
-            if hidden_states.dtype == mindspore.float16 and mindspore.mint.isinf(hidden_states).any():
+            if hidden_states.dtype == ms.float16 and mint.isinf(hidden_states).any():
                 clamp_value = dtype_to_max(hidden_states.dtype) - 1000
-                hidden_states = mindspore.mint.clamp(hidden_states, min=-clamp_value, max=clamp_value)
+                hidden_states = mint.clamp(hidden_states, min=-clamp_value, max=clamp_value)
 
             # Keep cross-attention outputs and relative position weights
             attention_outputs = attention_outputs + cross_attention_outputs[2:]
@@ -1044,9 +1047,9 @@ class Pix2StructTextBlock(mindspore.nn.Cell):
         hidden_states = self.mlp(hidden_states)
 
         # clamp inf values to enable fp16 training
-        if hidden_states.dtype == mindspore.float16 and mindspore.mint.isinf(hidden_states).any():
+        if hidden_states.dtype == ms.float16 and mint.isinf(hidden_states).any():
             clamp_value = dtype_to_max(hidden_states.dtype) - 1000
-            hidden_states = mindspore.mint.clamp(hidden_states, min=-clamp_value, max=clamp_value)
+            hidden_states = mint.clamp(hidden_states, min=-clamp_value, max=clamp_value)
 
         outputs = (hidden_states,)
 
@@ -1069,8 +1072,8 @@ PIX2STRUCT_START_DOCSTRING = r"""
     library implements for all its model (such as downloading or saving, resizing the input embeddings, pruning heads
     etc.)
 
-    This model is also a PyTorch [torch.nn.Module](https://pytorch.org/docs/stable/nn.html#torch.nn.Module) subclass.
-    Use it as a regular PyTorch Module and refer to the PyTorch documentation for all matter related to general usage
+    This model is also a MindSpore [nn.Cell](https://www.ms.cn/docs/zh-CN/master/api_python/nn/nn.Cell.html) subclass.
+    Use it as a regular MindSpore Module and refer to the MindSpore documentation for all matter related to general usage
     and behavior.
 
     Parameters:
@@ -1082,7 +1085,7 @@ PIX2STRUCT_START_DOCSTRING = r"""
 
 PIX2STRUCT_TEXT_INPUTS_DOCSTRING = r"""
     Args:
-        input_ids (`torch.LongTensor` of shape `(batch_size, sequence_length)`):
+        input_ids (`ms.Tensor` of shape `(batch_size, sequence_length)`):
             Indices of input sequence tokens in the vocabulary. Pix2StructText is a model with relative position
             embeddings so you should be able to pad the inputs on both the right and the left.
 
@@ -1093,14 +1096,14 @@ PIX2STRUCT_TEXT_INPUTS_DOCSTRING = r"""
 
             To know more on how to prepare `input_ids` for pretraining take a look a [Pix2StructText
             Training](./t5#training).
-        attention_mask (`torch.FloatTensor` of shape `(batch_size, sequence_length)`, *optional*):
+        attention_mask (`ms.Tensor` of shape `(batch_size, sequence_length)`, *optional*):
             Mask to avoid performing attention on padding token indices. Mask values selected in `[0, 1]`:
 
             - 1 for tokens that are **not masked**,
             - 0 for tokens that are **masked**.
 
             [What are attention masks?](../glossary#attention-mask)
-        decoder_input_ids (`torch.LongTensor` of shape `(batch_size, target_sequence_length)`, *optional*):
+        decoder_input_ids (`ms.Tensor` of shape `(batch_size, target_sequence_length)`, *optional*):
             Indices of decoder input sequence tokens in the vocabulary.
 
             Indices can be obtained using [`AutoTokenizer`]. See [`PreTrainedTokenizer.encode`] and
@@ -1114,45 +1117,45 @@ PIX2STRUCT_TEXT_INPUTS_DOCSTRING = r"""
 
             To know more on how to prepare `decoder_input_ids` for pretraining take a look at [Pix2StructText
             Training](./t5#training).
-        decoder_attention_mask (`torch.BoolTensor` of shape `(batch_size, target_sequence_length)`, *optional*):
+        decoder_attention_mask (`ms.Tensor` of shape `(batch_size, target_sequence_length)`, *optional*):
             Default behavior: generate a tensor that ignores pad tokens in `decoder_input_ids`. Causal mask will also
             be used by default.
-        head_mask (`torch.FloatTensor` of shape `(num_heads,)` or `(num_layers, num_heads)`, *optional*):
+        head_mask (`ms.Tensor` of shape `(num_heads,)` or `(num_layers, num_heads)`, *optional*):
             Mask to nullify selected heads of the self-attention modules in the encoder. Mask values selected in `[0,
             1]`:
 
             - 1 indicates the head is **not masked**,
             - 0 indicates the head is **masked**.
 
-        decoder_head_mask (`torch.FloatTensor` of shape `(num_heads,)` or `(num_layers, num_heads)`, *optional*):
+        decoder_head_mask (`ms.Tensor` of shape `(num_heads,)` or `(num_layers, num_heads)`, *optional*):
             Mask to nullify selected heads of the self-attention modules in the decoder. Mask values selected in `[0,
             1]`:
 
             - 1 indicates the head is **not masked**,
             - 0 indicates the head is **masked**.
 
-        cross_attn_head_mask (`torch.Tensor` of shape `(num_heads,)` or `(num_layers, num_heads)`, *optional*):
+        cross_attn_head_mask (`ms.Tensor` of shape `(num_heads,)` or `(num_layers, num_heads)`, *optional*):
                 Mask to nullify selected heads of the cross-attention modules in the decoder. Mask values selected in
                 `[0, 1]`:
 
                 - 1 indicates the head is **not masked**,
                 - 0 indicates the head is **masked**.
 
-        encoder_outputs (`tuple(tuple(torch.FloatTensor)`, *optional*):
+        encoder_outputs (`tuple(tuple(ms.Tensor)`, *optional*):
             Tuple consists of (`last_hidden_state`, `optional`: *hidden_states*, `optional`: *attentions*)
             `last_hidden_state` of shape `(batch_size, sequence_length, hidden_size)` is a sequence of hidden states at
             the output of the last layer of the encoder. Used in the cross-attention of the decoder.
-        past_key_values (`tuple(tuple(torch.FloatTensor))` of length `config.n_layers` with each tuple having 4 tensors of shape `(batch_size, num_heads, sequence_length - 1, embed_size_per_head)`):
+        past_key_values (`tuple(tuple(ms.Tensor))` of length `config.n_layers` with each tuple having 4 tensors of shape `(batch_size, num_heads, sequence_length - 1, embed_size_per_head)`):
             Contains precomputed key and value hidden states of the attention layers. Can be used to speed up decoding.
 
             If `past_key_values` are used, the user can optionally input only the last `decoder_input_ids` (those that
             don't have their past key value states given to this model) of shape `(batch_size, 1)` instead of all
             `decoder_input_ids` of shape `(batch_size, sequence_length)`.
-        inputs_embeds (`torch.FloatTensor` of shape `(batch_size, sequence_length, hidden_size)`, *optional*):
+        inputs_embeds (`ms.Tensor` of shape `(batch_size, sequence_length, hidden_size)`, *optional*):
             Optionally, instead of passing `input_ids` you can choose to directly pass an embedded representation. This
             is useful if you want more control over how to convert `input_ids` indices into associated vectors than the
             model's internal embedding lookup matrix.
-        decoder_inputs_embeds (`torch.FloatTensor` of shape `(batch_size, target_sequence_length, hidden_size)`, *optional*):
+        decoder_inputs_embeds (`ms.Tensor` of shape `(batch_size, target_sequence_length, hidden_size)`, *optional*):
             Optionally, instead of passing `decoder_input_ids` you can choose to directly pass an embedded
             representation. If `past_key_values` is used, optionally only the last `decoder_inputs_embeds` have to be
             input (see `past_key_values`). This is useful if you want more control over how to convert
@@ -1173,27 +1176,27 @@ PIX2STRUCT_TEXT_INPUTS_DOCSTRING = r"""
             more detail.
         return_dict (`bool`, *optional*):
             Whether or not to return a [`~utils.ModelOutput`] instead of a plain tuple.
-        cache_position (`torch.LongTensor` of shape `(sequence_length)`, *optional*):
+        cache_position (`ms.Tensor` of shape `(sequence_length)`, *optional*):
             Indices depicting the position of the input sequence tokens in the sequence. It is used to update the
             cache in the correct position and to infer the complete sequence length.
 """
 
 PIX2STRUCT_INPUTS_DOCSTRING = r"""
     Args:
-        flattened_patches (`torch.FloatTensor` of shape `(batch_size, seq_length, hidden_size)`):
+        flattened_patches (`ms.Tensor` of shape `(batch_size, seq_length, hidden_size)`):
             Flattened pixel patches. the `hidden_size` is obtained by the following formula: `hidden_size` =
             `num_channels` * `patch_size` * `patch_size`
 
             The process of flattening the pixel patches is done by `Pix2StructProcessor`.
 
-        attention_mask (`torch.FloatTensor` of shape `(batch_size, sequence_length)`, *optional*):
+        attention_mask (`ms.Tensor` of shape `(batch_size, sequence_length)`, *optional*):
             Mask to avoid performing attention on padding token indices. Mask values selected in `[0, 1]`:
 
             - 1 for tokens that are **not masked**,
             - 0 for tokens that are **masked**.
 
             [What are attention masks?](../glossary#attention-mask)
-        decoder_input_ids (`torch.LongTensor` of shape `(batch_size, target_sequence_length)`, *optional*):
+        decoder_input_ids (`ms.Tensor` of shape `(batch_size, target_sequence_length)`, *optional*):
             Indices of decoder input sequence tokens in the vocabulary.
 
             Indices can be obtained using [`AutoTokenizer`]. See [`PreTrainedTokenizer.encode`] and
@@ -1207,41 +1210,41 @@ PIX2STRUCT_INPUTS_DOCSTRING = r"""
 
             To know more on how to prepare `decoder_input_ids` for pretraining take a look at [Pix2StructText
             Training](./t5#training).
-        decoder_attention_mask (`torch.BoolTensor` of shape `(batch_size, target_sequence_length)`, *optional*):
+        decoder_attention_mask (`ms.Tensor` of shape `(batch_size, target_sequence_length)`, *optional*):
             Default behavior: generate a tensor that ignores pad tokens in `decoder_input_ids`. Causal mask will also
             be used by default.
-        head_mask (`torch.FloatTensor` of shape `(num_heads,)` or `(num_layers, num_heads)`, *optional*):
+        head_mask (`ms.Tensor` of shape `(num_heads,)` or `(num_layers, num_heads)`, *optional*):
             Mask to nullify selected heads of the self-attention modules in the encoder. Mask values selected in `[0,
             1]`:
 
             - 1 indicates the head is **not masked**,
             - 0 indicates the head is **masked**.
 
-        decoder_head_mask (`torch.FloatTensor` of shape `(num_heads,)` or `(num_layers, num_heads)`, *optional*):
+        decoder_head_mask (`ms.Tensor` of shape `(num_heads,)` or `(num_layers, num_heads)`, *optional*):
             Mask to nullify selected heads of the self-attention modules in the decoder. Mask values selected in `[0,
             1]`:
 
             - 1 indicates the head is **not masked**,
             - 0 indicates the head is **masked**.
 
-        cross_attn_head_mask (`torch.Tensor` of shape `(num_heads,)` or `(num_layers, num_heads)`, *optional*):
+        cross_attn_head_mask (`ms.Tensor` of shape `(num_heads,)` or `(num_layers, num_heads)`, *optional*):
                 Mask to nullify selected heads of the cross-attention modules in the decoder. Mask values selected in
                 `[0, 1]`:
 
                 - 1 indicates the head is **not masked**,
                 - 0 indicates the head is **masked**.
 
-        encoder_outputs (`tuple(tuple(torch.FloatTensor)`, *optional*):
+        encoder_outputs (`tuple(tuple(ms.Tensor)`, *optional*):
             Tuple consists of (`last_hidden_state`, `optional`: *hidden_states*, `optional`: *attentions*)
             `last_hidden_state` of shape `(batch_size, sequence_length, hidden_size)` is a sequence of hidden states at
             the output of the last layer of the encoder. Used in the cross-attention of the decoder.
-        past_key_values (`tuple(tuple(torch.FloatTensor))` of length `config.n_layers` with each tuple having 4 tensors of shape `(batch_size, num_heads, sequence_length - 1, embed_size_per_head)`):
+        past_key_values (`tuple(tuple(ms.Tensor))` of length `config.n_layers` with each tuple having 4 tensors of shape `(batch_size, num_heads, sequence_length - 1, embed_size_per_head)`):
             Contains precomputed key and value hidden states of the attention layers. Can be used to speed up decoding.
 
             If `past_key_values` are used, the user can optionally input only the last `decoder_input_ids` (those that
             don't have their past key value states given to this model) of shape `(batch_size, 1)` instead of all
             `decoder_input_ids` of shape `(batch_size, sequence_length)`.
-        decoder_inputs_embeds (`torch.FloatTensor` of shape `(batch_size, target_sequence_length, hidden_size)`, *optional*):
+        decoder_inputs_embeds (`ms.Tensor` of shape `(batch_size, target_sequence_length, hidden_size)`, *optional*):
             Optionally, instead of passing `decoder_input_ids` you can choose to directly pass an embedded
             representation. If `past_key_values` is used, optionally only the last `decoder_inputs_embeds` have to be
             input (see `past_key_values`). This is useful if you want more control over how to convert
@@ -1249,7 +1252,7 @@ PIX2STRUCT_INPUTS_DOCSTRING = r"""
 
             If `decoder_input_ids` and `decoder_inputs_embeds` are both unset, `decoder_inputs_embeds` takes the value
             of `inputs_embeds`.
-        labels (`torch.LongTensor` of shape `(batch_size, sequence_length)`, *optional*):
+        labels (`ms.Tensor` of shape `(batch_size, sequence_length)`, *optional*):
             Labels for computing the masked language modeling loss for the decoder.
 
         use_cache (`bool`, *optional*):
@@ -1279,18 +1282,18 @@ class Pix2StructTextModel(Pix2StructPreTrainedModel):
 
     def __init__(self, config):
         super().__init__(config)
-        self.embed_tokens = mindspore.mint.nn.Embedding(config.vocab_size, config.hidden_size)
+        self.embed_tokens = mint.nn.Embedding(config.vocab_size, config.hidden_size)
 
-        self.layer = mindspore.nn.CellList(
+        self.layer = nn.CellList(
             [
                 Pix2StructTextBlock(config, has_relative_attention_bias=bool(i == 0), layer_idx=i)
                 for i in range(config.num_layers)
             ]
         )
         self.final_layer_norm = Pix2StructLayerNorm(config.hidden_size, eps=config.layer_norm_epsilon)
-        self.dropout = mindspore.mint.nn.Dropout(config.dropout_rate)
+        self.dropout = mint.nn.Dropout(config.dropout_rate)
 
-        self.lm_head = mindspore.mint.nn.Linear(config.hidden_size, config.vocab_size, bias=False)
+        self.lm_head = mint.nn.Linear(config.hidden_size, config.vocab_size, bias=False)
 
         # Initialize weights and apply final processing
         self.post_init()
@@ -1343,34 +1346,38 @@ class Pix2StructTextModel(Pix2StructPreTrainedModel):
     @replace_return_docstrings(output_type=CausalLMOutputWithCrossAttentions, config_class=_CONFIG_FOR_DOC)
     def construct(
         self,
-        input_ids: Optional[mindspore.Tensor] = None,
-        attention_mask: Optional[mindspore.Tensor] = None,
-        encoder_hidden_states: Optional[mindspore.Tensor] = None,
-        encoder_attention_mask: Optional[mindspore.Tensor] = None,
-        inputs_embeds: Optional[mindspore.Tensor] = None,
-        head_mask: Optional[mindspore.Tensor] = None,
-        cross_attn_head_mask: Optional[mindspore.Tensor] = None,
-        past_key_values: Optional[Tuple[Tuple[mindspore.Tensor]]] = None,
+        input_ids: Optional[ms.Tensor] = None,
+        attention_mask: Optional[ms.Tensor] = None,
+        encoder_hidden_states: Optional[ms.Tensor] = None,
+        encoder_attention_mask: Optional[ms.Tensor] = None,
+        inputs_embeds: Optional[ms.Tensor] = None,
+        head_mask: Optional[ms.Tensor] = None,
+        cross_attn_head_mask: Optional[ms.Tensor] = None,
+        past_key_values: Optional[Tuple[Tuple[ms.Tensor]]] = None,
         use_cache: Optional[bool] = None,
         output_attentions: Optional[bool] = None,
         output_hidden_states: Optional[bool] = None,
-        labels: Optional[mindspore.Tensor] = None,
+        labels: Optional[ms.Tensor] = None,
         return_dict: Optional[bool] = None,
-        cache_position: Optional[mindspore.Tensor] = None,
+        cache_position: Optional[ms.Tensor] = None,
         **kwargs,
-    ) -> Union[Tuple[mindspore.Tensor, ...], CausalLMOutputWithCrossAttentions]:
+    ) -> Union[Tuple[ms.Tensor, ...], CausalLMOutputWithCrossAttentions]:
         r"""
         Returns:
 
         Example:
 
         ```python
-        >>> from transformers import AutoProcessor, Pix2StructTextModel
+        >>> from transformers import AutoProcessor
+        >>> from mindone.transformers import Pix2StructTextModel
+        >>> import mindspore as ms
 
         >>> processor = AutoProcessor.from_pretrained("google/pix2struct-textcaps-base")
         >>> model = Pix2StructTextModel.from_pretrained("google/pix2struct-textcaps-base")
 
-        >>> inputs = processor(text="Hello, my dog is cute", return_tensors="pt")
+        >>> inputs = processor(text="Hello, my dog is cute", return_tensors="np")
+        >>> for k,v in inputs.items():
+        ...     inputs[k] = ms.tensor(v)
         >>> outputs = model(**inputs)
         >>> loss = outputs.loss
         ```
@@ -1423,7 +1430,7 @@ class Pix2StructTextModel(Pix2StructPreTrainedModel):
             past_key_values_length = past_key_values.get_seq_length()
 
         if cache_position is None:
-            cache_position = mindspore.mint.arange(
+            cache_position = mint.arange(
                 past_key_values_length, past_key_values_length + seq_length, )
 
         if attention_mask is None:
@@ -1431,7 +1438,7 @@ class Pix2StructTextModel(Pix2StructPreTrainedModel):
             mask_seq_length = (
                 past_key_values.get_seq_length() + seq_length if past_key_values is not None else seq_length
             )
-            attention_mask = mindspore.mint.ones((batch_size, mask_seq_length), )
+            attention_mask = mint.ones((batch_size, mask_seq_length), )
 
         if self.config.is_decoder:
             causal_mask = self._update_causal_mask(
@@ -1452,7 +1459,7 @@ class Pix2StructTextModel(Pix2StructPreTrainedModel):
             encoder_batch_size, encoder_sequence_length, _ = encoder_hidden_states.shape
             encoder_hidden_shape = (encoder_batch_size, encoder_sequence_length)
             if encoder_attention_mask is None:
-                encoder_attention_mask = mindspore.mint.ones(encoder_hidden_shape, )
+                encoder_attention_mask = mint.ones(encoder_hidden_shape, )
             encoder_extended_attention_mask = self.invert_attention_mask(encoder_attention_mask)
         else:
             encoder_extended_attention_mask = None
@@ -1541,7 +1548,7 @@ class Pix2StructTextModel(Pix2StructPreTrainedModel):
 
         loss = None
         if labels is not None:
-            loss_fct = mindspore.mint.nn.CrossEntropyLoss(ignore_index=-100, reduction="mean")
+            loss_fct = mint.nn.CrossEntropyLoss(ignore_index=-100, reduction="mean")
 
             loss = loss_fct(logits.contiguous().view(-1, logits.shape[-1]), labels.contiguous().view(-1))
 
@@ -1576,9 +1583,9 @@ class Pix2StructTextModel(Pix2StructPreTrainedModel):
     # Copied from transformers.models.llama.modeling_llama.LlamaModel._update_causal_mask
     def _update_causal_mask(
         self,
-        attention_mask: mindspore.Tensor,
-        input_tensor: mindspore.Tensor,
-        cache_position: mindspore.Tensor,
+        attention_mask: ms.Tensor,
+        input_tensor: ms.Tensor,
+        cache_position: ms.Tensor,
         past_key_values: Cache,
         output_attentions: bool = False,
     ):
@@ -1587,7 +1594,7 @@ class Pix2StructTextModel(Pix2StructPreTrainedModel):
                 return attention_mask
             return None
         if self.config._attn_implementation == "flex_attention":
-            if isinstance(attention_mask, mindspore.Tensor):
+            if isinstance(attention_mask, ms.Tensor):
                 attention_mask = make_flex_block_causal_mask(attention_mask)
             if isinstance(attention_mask, BlockMask):
                 return attention_mask
@@ -1615,7 +1622,7 @@ class Pix2StructTextModel(Pix2StructPreTrainedModel):
         else:
             target_length = (
                 attention_mask.shape[-1]
-                if isinstance(attention_mask, mindspore.Tensor)
+                if isinstance(attention_mask, ms.Tensor)
                 else past_seen_tokens + sequence_length + 1
             )
 
@@ -1637,7 +1644,7 @@ class Pix2StructTextModel(Pix2StructPreTrainedModel):
         ):
             # Attend to all tokens in fully masked rows in the causal_mask, for example the relevant first rows when
             # using left padding. This is required by F.scaled_dot_product_attention memory-efficient attention path.
-            # Details: https://github.com/pytorch/pytorch/issues/110213
+            # Details: https://github.com/MindSpore/MindSpore/issues/110213
             min_dtype = dtype_to_min(dtype)
             causal_mask = AttentionMaskConverter._unmask_unattended(causal_mask, min_dtype)
 
@@ -1646,11 +1653,11 @@ class Pix2StructTextModel(Pix2StructPreTrainedModel):
     @staticmethod
     # Copied from transformers.models.llama.modeling_llama.LlamaPreTrainedModel._prepare_4d_causal_attention_mask_with_cache_position
     def _prepare_4d_causal_attention_mask_with_cache_position(
-        attention_mask: mindspore.Tensor,
+        attention_mask: ms.Tensor,
         sequence_length: int,
         target_length: int,
-        dtype: mindspore.dtype,
-        cache_position: mindspore.Tensor,
+        dtype: ms.dtype,
+        cache_position: ms.Tensor,
         batch_size: int,
         **kwargs,
     ):
@@ -1659,7 +1666,7 @@ class Pix2StructTextModel(Pix2StructPreTrainedModel):
         `(batch_size, key_value_length)`, or if the input `attention_mask` is already 4D, do nothing.
 
         Args:
-            attention_mask (`torch.Tensor`):
+            attention_mask (`ms.Tensor`):
                 A 2D attention mask of shape `(batch_size, key_value_length)` or a 4D attention mask of shape
                 `(batch_size, 1, query_length, key_value_length)`.
             sequence_length (`int`):
@@ -1667,11 +1674,11 @@ class Pix2StructTextModel(Pix2StructPreTrainedModel):
             target_length (`int`):
                 The target length: when generating with static cache, the mask should be as long as the static cache,
                 to account for the 0 padding, the part of the cache that is not filled yet.
-            dtype (`torch.dtype`):
+            dtype (`ms.dtype`):
                 The dtype to use for the 4D attention mask.
-            cache_position (`torch.Tensor`):
+            cache_position (`ms.Tensor`):
                 Indices depicting the position of the input sequence tokens in the sequence.
-            batch_size (`torch.Tensor`):
+            batch_size (`ms.Tensor`):
                 Batch size.
         """
         if attention_mask is not None and attention_mask.dim() == 4:
@@ -1679,11 +1686,11 @@ class Pix2StructTextModel(Pix2StructPreTrainedModel):
             causal_mask = attention_mask
         else:
             min_dtype = dtype_to_min(dtype)
-            causal_mask = mindspore.ops.full(
+            causal_mask = ms.ops.full(
                 (sequence_length, target_length), fill_value=min_dtype, dtype=dtype, )
             if sequence_length != 1:
-                causal_mask = mindspore.mint.triu(causal_mask, diagonal=1)
-            causal_mask *= mindspore.mint.arange(target_length, ) > cache_position.reshape(-1, 1)
+                causal_mask = mint.triu(causal_mask, diagonal=1)
+            causal_mask *= mint.arange(target_length, ) > cache_position.reshape(-1, 1)
             causal_mask = causal_mask[None, None, :, :].expand((batch_size, 1, -1, -1))
             if attention_mask is not None:
                 causal_mask = causal_mask.clone()  # copy to contiguous memory for in-place edit
@@ -1723,7 +1730,7 @@ class Pix2StructForConditionalGeneration(Pix2StructPreTrainedModel, GenerationMi
     def set_input_embeddings(self, new_embeddings):
         self.decoder.set_input_embeddings(new_embeddings)
 
-    def get_output_embeddings(self) -> mindspore.nn.Cell:
+    def get_output_embeddings(self) -> nn.Cell:
         return self.decoder.get_output_embeddings()
 
     def set_output_embeddings(self, new_embeddings):
@@ -1739,23 +1746,23 @@ class Pix2StructForConditionalGeneration(Pix2StructPreTrainedModel, GenerationMi
     @replace_return_docstrings(output_type=Seq2SeqModelOutput, config_class=_CONFIG_FOR_DOC)
     def construct(
         self,
-        flattened_patches: Optional[mindspore.Tensor] = None,
-        attention_mask: Optional[mindspore.Tensor] = None,
-        decoder_input_ids: Optional[mindspore.Tensor] = None,
-        decoder_attention_mask: Optional[mindspore.Tensor] = None,
-        head_mask: Optional[mindspore.Tensor] = None,
-        decoder_head_mask: Optional[mindspore.Tensor] = None,
-        cross_attn_head_mask: Optional[mindspore.Tensor] = None,
-        encoder_outputs: Optional[Tuple[Tuple[mindspore.Tensor]]] = None,
-        past_key_values: Optional[Tuple[Tuple[mindspore.Tensor]]] = None,
-        labels: Optional[mindspore.Tensor] = None,
-        decoder_inputs_embeds: Optional[mindspore.Tensor] = None,
+        flattened_patches: Optional[ms.Tensor] = None,
+        attention_mask: Optional[ms.Tensor] = None,
+        decoder_input_ids: Optional[ms.Tensor] = None,
+        decoder_attention_mask: Optional[ms.Tensor] = None,
+        head_mask: Optional[ms.Tensor] = None,
+        decoder_head_mask: Optional[ms.Tensor] = None,
+        cross_attn_head_mask: Optional[ms.Tensor] = None,
+        encoder_outputs: Optional[Tuple[Tuple[ms.Tensor]]] = None,
+        past_key_values: Optional[Tuple[Tuple[ms.Tensor]]] = None,
+        labels: Optional[ms.Tensor] = None,
+        decoder_inputs_embeds: Optional[ms.Tensor] = None,
         use_cache: Optional[bool] = None,
         output_attentions: Optional[bool] = None,
         output_hidden_states: Optional[bool] = None,
         return_dict: Optional[bool] = None,
-        cache_position: Optional[mindspore.Tensor] = None,
-    ) -> Union[Tuple[mindspore.Tensor], Seq2SeqModelOutput]:
+        cache_position: Optional[ms.Tensor] = None,
+    ) -> Union[Tuple[ms.Tensor], Seq2SeqModelOutput]:
         r"""
         Returns:
 
@@ -1766,7 +1773,9 @@ class Pix2StructForConditionalGeneration(Pix2StructPreTrainedModel, GenerationMi
         ```python
         >>> from PIL import Image
         >>> import requests
-        >>> from transformers import AutoProcessor, Pix2StructForConditionalGeneration
+        >>> from transformers import AutoProcessor
+        >>> from mindone.transformers import Pix2StructForConditionalGeneration
+        >>> import mindspore as ms
 
         >>> processor = AutoProcessor.from_pretrained("google/pix2struct-textcaps-base")
         >>> model = Pix2StructForConditionalGeneration.from_pretrained("google/pix2struct-textcaps-base")
@@ -1774,7 +1783,9 @@ class Pix2StructForConditionalGeneration(Pix2StructPreTrainedModel, GenerationMi
         >>> url = "https://www.ilankelman.org/stopsigns/australia.jpg"
         >>> image = Image.open(requests.get(url, stream=True).raw)
 
-        >>> inputs = processor(images=image, return_tensors="pt")
+        >>> inputs = processor(images=image, return_tensors="np")
+        >>> for k,v in inputs.items():
+        ...     inputs[k] = ms.tensor(v)
 
         >>> # autoregressive generation
         >>> generated_ids = model.generate(**inputs, max_new_tokens=50)
@@ -1784,7 +1795,9 @@ class Pix2StructForConditionalGeneration(Pix2StructPreTrainedModel, GenerationMi
 
         >>> # conditional generation
         >>> text = "A picture of"
-        >>> inputs = processor(text=text, images=image, return_tensors="pt", add_special_tokens=False)
+        >>> inputs = processor(text=text, images=image, return_tensors="np", add_special_tokens=False)
+        >>> for k,v in inputs.items():
+        ...     inputs[k] = ms.tensor(v)
 
         >>> generated_ids = model.generate(**inputs, max_new_tokens=50)
         >>> generated_text = processor.batch_decode(generated_ids, skip_special_tokens=True)[0]
@@ -1798,6 +1811,7 @@ class Pix2StructForConditionalGeneration(Pix2StructPreTrainedModel, GenerationMi
         >>> from PIL import Image
         >>> import requests
         >>> from transformers import AutoProcessor, Pix2StructForConditionalGeneration
+        >>> import mindspore as ms
 
         >>> processor = AutoProcessor.from_pretrained("google/pix2struct-base")
         >>> model = Pix2StructForConditionalGeneration.from_pretrained("google/pix2struct-base")
@@ -1806,11 +1820,13 @@ class Pix2StructForConditionalGeneration(Pix2StructPreTrainedModel, GenerationMi
         >>> image = Image.open(requests.get(url, stream=True).raw)
         >>> text = "A stop sign is on the street corner."
 
-        >>> inputs = processor(images=image, return_tensors="pt")
-        >>> labels = processor(text=text, return_tensors="pt").input_ids
+        >>> inputs = processor(images=image, return_tensors="np")
+        >>> for k,v in inputs.items():
+        ...     inputs[k] = ms.tensor(v)
+        >>> labels = processor(text=text, return_tensors="np").input_ids
 
         >>> # forward pass
-        >>> outputs = model(**inputs, labels=labels)
+        >>> outputs = model(**inputs, labels=ms.tensor(labels))
         >>> loss = outputs.loss
         >>> print(f"{loss.item():.5f}")
         5.94282
