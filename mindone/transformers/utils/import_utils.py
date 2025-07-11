@@ -66,6 +66,7 @@ def _is_package_available(pkg_name: str, return_version: bool = False) -> Union[
 
 
 _scipy_available = _is_package_available("scipy")
+_pytesseract_available = _is_package_available("pytesseract")
 
 
 def is_mindspore_available():
@@ -96,6 +97,9 @@ def is_vision_available():
         logger.debug(f"Detected PIL version {package_version}")
     return _pil_available
 
+def is_pytesseract_available():
+    return _pytesseract_available
+
 
 MINDSPORE_IMPORT_ERROR_WITH_TF = """
 {0} requires the MindSpore library but it was not found in your environment.
@@ -103,6 +107,12 @@ However, we were able to find a TensorFlow installation. TensorFlow classes begi
 with "TF", but are otherwise identically named to our MindSpore classes. This
 means that the TF equivalent of the class you tried to import would be "TF{0}".
 If you want to use TensorFlow, please use TF classes instead!
+"""
+
+# docstyle-ignore
+PYTESSERACT_IMPORT_ERROR = """
+{0} requires the PyTesseract library but it was not found in your environment. You can install it with pip:
+`pip install pytesseract`. Please note that you may need to restart your runtime after installation.
 """
 
 # docstyle-ignore
@@ -115,6 +125,7 @@ BACKENDS_MAPPING = OrderedDict(
     [
         ("mindspore", (is_mindspore_available, MINDSPORE_IMPORT_ERROR_WITH_TF)),
         ("vision", (is_vision_available, VISION_IMPORT_ERROR)),
+        ("pytesseract", (is_pytesseract_available, PYTESSERACT_IMPORT_ERROR)),
     ]
 )
 
