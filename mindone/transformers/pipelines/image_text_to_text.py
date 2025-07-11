@@ -364,7 +364,7 @@ class ImageTextToTextPipeline(Pipeline):
             if k == "input_ids":
                 model_inputs[k] = ms.tensor(model_inputs[k])
             else:
-                model_inputs[k] = ms.tensor(model_inputs[k]).to(self.torch_dtype)
+                model_inputs[k] = ms.tensor(model_inputs[k]).to(self.mindspore_dtype)
 
         model_inputs["text"] = inputs_text
 

@@ -777,7 +777,7 @@ def build_pipeline_init_args(
         device (`int`, *optional*, defaults to -1):
             Device ordinal for CPU/GPU supports. Setting this to -1 will leverage CPU, a positive will run the model on
             the associated CUDA device id. You can pass native `torch.device` or a `str` too
-        torch_dtype (`str` or `torch.dtype`, *optional*):
+        mindspore_dtype (`str` or `torch.dtype`, *optional*):
             Sent directly as `model_kwargs` (just a simpler shortcut) to use the available precision for this model
             (`torch.float16`, `torch.bfloat16`, ... or `"auto"`)"""
     if supports_binary_output:
@@ -1059,7 +1059,7 @@ class Pipeline(_ScikitCompat, PushToHubMixin):
         return self(X)
 
     @property
-    def torch_dtype(self) -> Optional["ms.dtype"]:
+    def mindspore_dtype(self) -> Optional["ms.dtype"]:
         """
         Torch dtype of the model (if it's Pytorch model), `None` otherwise.
         """
