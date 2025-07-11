@@ -163,6 +163,13 @@ from .models.gpt2 import (
 from .models.granite import GraniteForCausalLM, GraniteModel, GranitePreTrainedModel
 from .models.granitemoe import GraniteMoeForCausalLM, GraniteMoeModel, GraniteMoePreTrainedModel
 from .models.granitemoeshared import GraniteMoeSharedForCausalLM, GraniteMoeSharedModel, GraniteMoeSharedPreTrainedModel
+from .models.grounding_dino import (
+    GroundingDinoForObjectDetection,
+    GroundingDinoImageProcessor,
+    GroundingDinoModel,
+    GroundingDinoPreTrainedModel,
+    GroundingDinoProcessor,
+)
 from .models.hiera import (
     HieraBackbone,
     HieraForImageClassification,
@@ -308,6 +315,13 @@ from .models.speecht5 import (
     SpeechT5HifiGan,
     SpeechT5Model,
     SpeechT5PreTrainedModel,
+)
+from .models.swin import (
+    SwinBackbone,
+    SwinForImageClassification,
+    SwinForMaskedImageModeling,
+    SwinModel,
+    SwinPreTrainedModel,
 )
 from .models.switch_transformers import (
     SwitchTransformersEncoderModel,
