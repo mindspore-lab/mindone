@@ -34,6 +34,7 @@ MODEL_MAPPING_NAMES = OrderedDict(
         ("bart", "BartModel"),
         ("bit", "BitModel"),
         ("blip-2", "Blip2Model"),
+        ("bloom", "BloomModel"),
         ("chameleon", "ChameleonModel"),
         ("clap", "ClapModel"),
         ("clip", "CLIPModel"),
@@ -96,6 +97,7 @@ MODEL_FOR_PRETRAINING_MAPPING_NAMES = OrderedDict(
         ("albert", "AlbertForPreTraining"),
         ("bart", "BartForConditionalGeneration"),
         ("bert", "BertForPreTraining"),
+        ("bloom", "BloomForCausalLM"),
         ("gpt2", "GPT2LMHeadModel"),
         ("gemma3", "Gemma3ForConditionalGeneration"),
         ("hiera", "HieraForPreTraining"),
@@ -120,6 +122,7 @@ MODEL_WITH_LM_HEAD_MAPPING_NAMES = OrderedDict(
         # Model with LM heads mapping
         ("albert", "AlbertForMaskedLM"),
         ("bart", "BartForConditionalGeneration"),
+        ("bloom", "BloomForCausalLM"),
         ("bert", "BertForMaskedLM"),
         ("deberta", "DebertaForMaskedLM"),
         ("deberta-v2", "DebertaV2ForMaskedLM"),
@@ -142,6 +145,7 @@ MODEL_FOR_CAUSAL_LM_MAPPING_NAMES = OrderedDict(
         ("bart", "BartForCausalLM"),
         ("bert", "BertLMHeadModel"),
         ("bert-generation", "BertGenerationDecoder"),
+        ("bloom", "BloomForCausalLM"),
         ("gemma", "GemmaForCausalLM"),
         ("gemma2", "Gemma2ForCausalLM"),
         ("gemma3", "Gemma3ForCausalLM"),
@@ -320,6 +324,7 @@ MODEL_FOR_SEQUENCE_CLASSIFICATION_MAPPING_NAMES = OrderedDict(
         # Model for Sequence Classification mapping
         ("albert", "AlbertForSequenceClassification"),
         ("bart", "BartForSequenceClassification"),
+        ("bloom", "BloomForSequenceClassification"),
         ("bert", "BertForSequenceClassification"),
         ("roberta", "RobertaForSequenceClassification"),
         ("deberta", "DebertaForSequenceClassification"),
@@ -348,6 +353,7 @@ MODEL_FOR_QUESTION_ANSWERING_MAPPING_NAMES = OrderedDict(
         # Model for Question Answering mapping
         ("albert", "AlbertForQuestionAnswering"),
         ("bart", "BartForQuestionAnswering"),
+        ("bloom", "BloomForQuestionAnswering"),
         ("bert", "BertForQuestionAnswering"),
         ("roberta", "RobertaForQuestionAnswering"),
         ("deberta", "DebertaForQuestionAnswering"),
@@ -375,6 +381,7 @@ MODEL_FOR_TOKEN_CLASSIFICATION_MAPPING_NAMES = OrderedDict(
     [
         # Model for Token Classification mapping
         ("albert", "AlbertForTokenClassification"),
+        ("bloom", "BloomForTokenClassification"),
         ("bert", "BertForTokenClassification"),
         ("deberta", "DebertaForTokenClassification"),
         ("deberta-v2", "DebertaV2ForTokenClassification"),

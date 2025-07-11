@@ -10,6 +10,7 @@ from . import (
     bigbird_pegasus,
     bit,
     blip_2,
+    bloom,
     clap,
     clip,
     dpt,
