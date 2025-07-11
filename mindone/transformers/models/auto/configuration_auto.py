@@ -13,7 +13,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 """Auto Config class."""
-
 import importlib
 import os
 import re
@@ -21,6 +20,8 @@ import warnings
 from collections import OrderedDict
 from typing import List, Union
 
+import transformers
+from packaging import version
 from transformers.configuration_utils import PretrainedConfig
 from transformers.dynamic_module_utils import get_class_from_dynamic_module, resolve_trust_remote_code
 from transformers.utils import CONFIG_NAME, logging
@@ -215,6 +216,10 @@ SPECIAL_MODEL_TYPE_TO_MODULE_NAME = OrderedDict(
         ("rt_detr_resnet", "rt_detr"),
     ]
 )
+
+if version.parse(transformers.__version__) >= version.parse("4.51.0"):
+    CONFIG_MAPPING_NAMES.update({"qwen3": "Qwen3Config"})
+    MODEL_NAMES_MAPPING.update({"qwen3": "Qwen3Model"})
 
 
 def model_type_to_module_name(key):

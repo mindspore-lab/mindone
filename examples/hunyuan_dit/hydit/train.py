@@ -1,3 +1,4 @@
+# Adapted from https://github.com/Tencent-Hunyuan/HunyuanDiT to work with MindSpore.
 import gc
 import importlib
 import json

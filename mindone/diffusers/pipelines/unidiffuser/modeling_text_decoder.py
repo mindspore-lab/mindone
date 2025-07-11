@@ -91,7 +91,7 @@ class UniDiffuserTextDecoder(ModelMixin, ConfigMixin, ModuleUtilsMixin):
     ):
         super().__init__()
 
-        self.wte_lm_share = False
+        self.wte_lm_share = True
         self.prefix_length = prefix_length
 
         if prefix_inner_dim != n_embd and prefix_hidden_dim is None:
@@ -196,9 +196,6 @@ class UniDiffuserTextDecoder(ModelMixin, ConfigMixin, ModuleUtilsMixin):
         generated_tokens = mint.stack(generated_tokens)
         generated_seq_lengths = mint.stack(generated_seq_lengths)
         return generated_tokens, generated_seq_lengths
-
-    def set_share_weight(self, flag):
-        self.wte_lm_share = flag
 
     def generate_beam(
         self,
