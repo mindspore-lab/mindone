@@ -18,7 +18,6 @@ from mindspore import mint, nn, ops
 
 from ..activations import get_activation
 from ..layers_compat import conv_transpose1d, pad
-from ..normalization import GroupNorm
 from ..resnet import Downsample1D, ResidualTemporalBlock1D, Upsample1D, rearrange_dims
 
 
@@ -221,7 +220,7 @@ class OutConv1DBlock(nn.Cell):
         super().__init__()
         # todo: unavailable mint interface
         self.final_conv1d_1 = nn.Conv1d(embed_dim, embed_dim, 5, padding=2, has_bias=True, pad_mode="pad")
-        self.final_conv1d_gn = GroupNorm(num_groups_out, embed_dim)
+        self.final_conv1d_gn = mint.nn.GroupNorm(num_groups_out, embed_dim)
         self.final_conv1d_act = get_activation(act_fn)
         # todo: unavailable mint interface
         self.final_conv1d_2 = nn.Conv1d(embed_dim, out_channels, 1, has_bias=True, pad_mode="valid")
@@ -320,7 +319,7 @@ class SelfAttention1d(nn.Cell):
     def __init__(self, in_channels: int, n_head: int = 1, dropout_rate: float = 0.0):
         super().__init__()
         self.channels = in_channels
-        self.group_norm = GroupNorm(1, num_channels=in_channels)
+        self.group_norm = mint.nn.GroupNorm(1, num_channels=in_channels)
         self.num_heads = n_head
 
         self.query = mint.nn.Linear(self.channels, self.channels)
@@ -386,13 +385,13 @@ class ResConvBlock(nn.Cell):
 
         # todo: unavailable mint interface
         self.conv_1 = nn.Conv1d(in_channels, mid_channels, 5, padding=2, has_bias=True, pad_mode="pad")
-        self.group_norm_1 = GroupNorm(1, mid_channels)
+        self.group_norm_1 = mint.nn.GroupNorm(1, mid_channels)
         self.gelu_1 = mint.nn.GELU()
         # todo: unavailable mint interface
         self.conv_2 = nn.Conv1d(mid_channels, out_channels, 5, padding=2, has_bias=True, pad_mode="pad")
 
         if not self.is_last:
-            self.group_norm_2 = GroupNorm(1, out_channels)
+            self.group_norm_2 = mint.nn.GroupNorm(1, out_channels)
             self.gelu_2 = mint.nn.GELU()
 
     def construct(self, hidden_states: ms.Tensor) -> ms.Tensor:
