@@ -1,4 +1,7 @@
-__version__ = "4.46.3"
+__version__ = "4.50.0"
+import transformers
+from packaging import version
+
 # Feature Extractor
 from .feature_extraction_utils import BatchFeature, FeatureExtractionMixin
 from .image_processing_base import ImageProcessingMixin
@@ -140,13 +143,6 @@ from .models.glm import (
     GlmForTokenClassification,
     GlmModel,
     GlmPreTrainedModel,
-)
-from .models.glm4v import (
-    Glm4vForConditionalGeneration,
-    Glm4vModel,
-    Glm4vPreTrainedModel,
-    Glm4vTextModel,
-    Glm4vVisionModel,
 )
 from .models.glpn import (
     GLPNFeatureExtractor,
@@ -384,3 +380,15 @@ from .models.xlm_roberta_xl import (
 )
 from .pipelines import TextGenerationPipeline, pipeline
 from .processing_utils import ProcessorMixin
+
+if version.parse(transformers.__version__) >= version.parse("4.51.0"):
+    from .models.qwen3 import Qwen3ForCausalLM, Qwen3Model, Qwen3PreTrainedModel
+
+if version.parse(transformers.__version__) >= version.parse("4.53.0"):
+    from .models.glm4v import (
+        Glm4vForConditionalGeneration,
+        Glm4vModel,
+        Glm4vPreTrainedModel,
+        Glm4vTextModel,
+        Glm4vVisionModel,
+    )

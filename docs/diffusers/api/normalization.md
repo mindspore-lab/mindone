@@ -26,8 +26,6 @@ Customized normalization layers for supporting various models in 🤗 Diffusers.
 
 ::: mindone.diffusers.models.normalization.LayerNorm
 
-::: mindone.diffusers.models.normalization.GroupNorm
-
 ::: mindone.diffusers.models.normalization.RMSNorm
 
 ::: mindone.diffusers.models.normalization.GlobalResponseNorm

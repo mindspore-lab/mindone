@@ -1,3 +1,4 @@
+# Adapted from https://github.com/baaivision/Emu3 to work with MindSpore.
 import time
 
 from emu3.mllm import Emu3ForCausalLM, Emu3Tokenizer

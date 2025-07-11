@@ -1,4 +1,7 @@
-from . import (  # qwen3,
+import transformers
+from packaging import version
+
+from . import (
     albert,
     auto,
     bart,
@@ -15,7 +18,6 @@ from . import (  # qwen3,
     gemma2,
     gemma3,
     glm,
-    glm4v,
     glpn,
     gpt2,
     granite,
@@ -41,7 +43,6 @@ from . import (  # qwen3,
     qwen2_5_vl,
     qwen2_audio,
     qwen2_vl,
-    qwen3,
     roberta,
     roc_bert,
     siglip,
@@ -53,3 +54,9 @@ from . import (  # qwen3,
     wav2vec2,
     xlm_roberta,
 )
+
+if version.parse(transformers.__version__) >= version.parse("4.51.0"):
+    from . import qwen3
+
+if version.parse(transformers.__version__) >= version.parse("4.53.0"):
+    from . import glm4v
