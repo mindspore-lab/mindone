@@ -27,6 +27,15 @@ from ..tuners_utils import BaseTunerLayer, check_adapters_to_merge
 from .config import LoraConfig
 
 
+def copy_parameters(source_cell, target_cell):
+    src_params = dict(source_cell.parameters_and_names())
+    tgt_params = dict(target_cell.parameters_and_names())
+
+    for name, param in tgt_params.items():
+        if name in src_params:
+            param.set_data(ms.Tensor(src_params[name].data.asnumpy()))
+
+
 def normal_(tensor: Tensor, mean: float = 0.0, std: float = 1.0) -> None:
     tensor.set_data(initializer(Normal(std, mean), tensor.shape, tensor.dtype))
 
@@ -37,6 +46,9 @@ def zeros_(tensor: Tensor) -> None:
 
 def kaiming_uniform_(tensor: Tensor, a=0.0, mode="fan_in", nonlinearity="leaky_relu") -> None:
     tensor.set_data(initializer(HeUniform(a, mode, nonlinearity), tensor.shape, tensor.dtype))
+
+
+DEFAULT_LORA = "DEFAULT"
 
 
 class LoraLayer(BaseTunerLayer):
@@ -75,6 +87,18 @@ class LoraLayer(BaseTunerLayer):
 
         self.in_features = in_features
         self.out_features = out_features
+        self.mode = ms.get_context("mode")
+
+    def set_adapter(self, adapter_names: str | list[str]) -> None:
+        if ms.GRAPH_MODE != self.mode or DEFAULT_LORA not in self.lora_A:
+            super().set_adapter(adapter_names)
+            return
+        src_adapter_name = adapter_names if isinstance(adapter_names, str) else adapter_names[0]
+        super().set_adapter(DEFAULT_LORA)
+        # 只支持单lora
+        copy_parameters(self.lora_A[src_adapter_name], self.lora_A[DEFAULT_LORA])
+        copy_parameters(self.lora_B[src_adapter_name], self.lora_B[DEFAULT_LORA])
+        copy_parameters(self.lora_dropout[src_adapter_name], self.lora_dropout[DEFAULT_LORA])
 
     def update_layer(self, adapter_name, r, lora_alpha, lora_dropout, init_lora_weights, use_rslora):
         # This code works for linear layers, override for other layer types
@@ -191,6 +215,8 @@ class Linear(nn.Cell, LoraLayer):
 
         self._active_adapter = adapter_name
         self.update_layer(adapter_name, r, lora_alpha, lora_dropout, init_lora_weights, use_rslora)
+        if DEFAULT_LORA not in self.lora_A:
+            self.update_layer(DEFAULT_LORA, r, lora_alpha, lora_dropout, init_lora_weights, use_rslora)
         self.is_target_conv_1d_layer = is_target_conv_1d_layer
 
     def merge(self, safe_merge: bool = False, adapter_names: Optional[List[str]] = None) -> None:
@@ -269,7 +295,11 @@ class Linear(nn.Cell, LoraLayer):
             result = self.base_layer(x, *args, **kwargs)
         else:
             result = self.base_layer(x, *args, **kwargs)
-            for active_adapter in self.active_adapters:
+            if ms.GRAPH_MODE == self.mode:
+                active_adapters = [DEFAULT_LORA]
+            else:
+                active_adapters = self.active_adapters
+            for active_adapter in active_adapters:
                 if active_adapter not in self.lora_A.keys():
                     continue
                 lora_A = self.lora_A[active_adapter]
