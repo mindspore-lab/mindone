@@ -1,3 +1,5 @@
+"""Adapted from https://github.com/huggingface/diffusers/tree/main/tests//pipelines/lumina/test_lumina_nextdit.py."""
+
 import unittest
 
 import numpy as np
