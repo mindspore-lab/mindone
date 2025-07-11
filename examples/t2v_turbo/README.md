@@ -129,7 +129,7 @@ The model weights will automatically downloaded and converted in mindspore forma
 ├─model_cache
 │  ├─t2v-vc2
 │  │  ├─VideoCrafter2_model_ms.ckpt
-│  │  ├─unet_lora.ckpt
+│  │  ├─unet_lora.npz
 │  ├─open_clip_vit_h_14-9bb07a10.ckpt
 ```
 
@@ -145,14 +145,14 @@ The model weights will automatically downloaded and converted in mindspore forma
 python tools/convert_weights.py --source PATH-TO-VideoCrafter2-model.ckpt --target PATH-TO-VideoCrafter2-MODEL.ckpt --type vc2
 
 # convert unet_lora.pt
-python tools/convert_weights.py --source PATH-TO-unet_lora.pt --target PATH_TO_UNET_LORA.ckpt --type lora
+python tools/convert_weights.py --source PATH-TO-unet_lora.pt --target PATH_TO_UNET_LORA.npz --type lora
 ```
 
 5. Generate text-to-video via following command:
 ```bash
 python predict_t2v.py \
   --teacher vc2 \
-  --unet_dir PATH_TO_UNET_LORA.ckpt \
+  --unet_dir PATH_TO_UNET_LORA.npz \
   --base_model_dir PATH-TO-VideoCrafter2-MODEL.ckpt \
   --prompt "input prompt for video generation" \
   --num_inference_steps 4
@@ -166,14 +166,14 @@ python predict_t2v.py \
 
 ```bash
 # convert unet_lora.pt
-python tools/convert_weights.py --source PATH-TO-unet_lora.pt --target PATH-TO-unet_lora.ckpt --type lora
+python tools/convert_weights.py --source PATH-TO-unet_lora.pt --target PATH-TO-unet_lora.npz --type lora
 ```
 
 4. Generate text-to-video via following command:
 ```bash
 python predict_t2v.py \
   --teacher ms \
-  --unet_dir PATH_TO_UNET_LORA.ckpt \
+  --unet_dir PATH_TO_UNET_LORA.npz \
   --base_model_dir PATH_TO_ModelScope_MODEL_FOLDER \
   --prompt "input prompt for video generation"\
   --num_inference_steps 4
