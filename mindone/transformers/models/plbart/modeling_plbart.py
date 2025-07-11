@@ -7,6 +7,9 @@
 # coding=utf-8
 # Copyright 2022, UCLA NLP, The Facebook AI Research Team and The HuggingFace Inc. team. All rights reserved.
 #
+# This code is adapted from https://github.com/huggingface/transformers
+# with modifications to run transformers on mindspore.
+#
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -24,7 +27,7 @@ import math
 from typing import Callable, Optional, Union
 
 from transformers.models.plbart.configuration_plbart import PLBartConfig
-from transformers.utils import is_torchdynamo_compiling, logging
+from transformers.utils import logging
 
 import mindspore as ms
 from mindspore import mint, nn, ops
@@ -921,7 +924,7 @@ class PLBartDecoder(PLBartPreTrainedModel):
                 use_cache = False
 
         # retrieve input_ids and inputs_embeds
-        if (input_ids is None) ^ (inputs_embeds is not None):
+        if (input_ids is None) and (inputs_embeds is None):
             raise ValueError("You cannot specify both decoder_input_ids and decoder_inputs_embeds at the same time")
         elif input_ids is not None:
             input = input_ids
@@ -952,7 +955,7 @@ class PLBartDecoder(PLBartPreTrainedModel):
         if cache_position is None:
             cache_position = mint.arange(past_key_values_length, past_key_values_length + seq_length)
 
-        if attention_mask is None and not is_torchdynamo_compiling():
+        if attention_mask is None:
             # required mask seq length can be calculated via length of past cache
             mask_seq_length = past_key_values_length + seq_length
             attention_mask = mint.ones((batch_size, mask_seq_length))

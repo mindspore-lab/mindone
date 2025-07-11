@@ -1,4 +1,6 @@
 # -*- coding: utf-8 -*-
+# Adapted from https://github.com/Tencent-Hunyuan/HunyuanDiT to work with MindSpore.
+
 import datetime
 import gc
 import hashlib

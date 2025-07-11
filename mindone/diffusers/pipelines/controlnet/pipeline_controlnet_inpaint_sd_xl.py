@@ -42,6 +42,8 @@ if is_invisible_watermark_available():
     from diffusers.pipelines.stable_diffusion_xl.watermark import StableDiffusionXLWatermarker
 
 
+XLA_AVAILABLE = False
+
 logger = logging.get_logger(__name__)  # pylint: disable=invalid-name
 
 
@@ -210,6 +212,7 @@ class StableDiffusionXLControlNetInpaintPipeline(
         "add_neg_time_ids",
         "mask",
         "masked_image_latents",
+        "control_image",
     ]
 
     def __init__(
@@ -247,7 +250,7 @@ class StableDiffusionXLControlNetInpaintPipeline(
         )
         self.register_to_config(force_zeros_for_empty_prompt=force_zeros_for_empty_prompt)
         self.register_to_config(requires_aesthetics_score=requires_aesthetics_score)
-        self.vae_scale_factor = 2 ** (len(self.vae.config.block_out_channels) - 1)
+        self.vae_scale_factor = 2 ** (len(self.vae.config.block_out_channels) - 1) if getattr(self, "vae", None) else 8
         self.image_processor = VaeImageProcessor(vae_scale_factor=self.vae_scale_factor)
         self.mask_processor = VaeImageProcessor(
             vae_scale_factor=self.vae_scale_factor, do_normalize=False, do_binarize=True, do_convert_grayscale=True
@@ -375,10 +378,12 @@ class StableDiffusionXLControlNetInpaintPipeline(
                         f" {tokenizer.model_max_length} tokens: {removed_text}"
                     )
 
-                prompt_embeds = text_encoder(ms.Tensor(text_input_ids), output_hidden_states=True)
+                prompt_embeds = text_encoder(ms.tensor(text_input_ids), output_hidden_states=True)
 
                 # We are only ALWAYS interested in the pooled output of the final text encoder
-                pooled_prompt_embeds = prompt_embeds[0]
+                if pooled_prompt_embeds is None and prompt_embeds[0].ndim == 2:
+                    pooled_prompt_embeds = prompt_embeds[0]
+
                 if clip_skip is None:
                     prompt_embeds = prompt_embeds[-1][-2]
                 else:
@@ -434,11 +439,13 @@ class StableDiffusionXLControlNetInpaintPipeline(
                 )
 
                 negative_prompt_embeds = text_encoder(
-                    ms.Tensor(uncond_input.input_ids),
+                    ms.tensor(uncond_input.input_ids),
                     output_hidden_states=True,
                 )
+
                 # We are only ALWAYS interested in the pooled output of the final text encoder
-                negative_pooled_prompt_embeds = negative_prompt_embeds[0]
+                if negative_pooled_prompt_embeds is None and negative_prompt_embeds[0].ndim == 2:
+                    negative_pooled_prompt_embeds = negative_prompt_embeds[0]
                 negative_prompt_embeds = negative_prompt_embeds[-1][-2]
 
                 negative_prompt_embeds_list.append(negative_prompt_embeds)
@@ -493,7 +500,7 @@ class StableDiffusionXLControlNetInpaintPipeline(
 
         if not isinstance(image, ms.Tensor):
             image = self.feature_extractor(image, return_tensors="np").pixel_values
-            image = ms.Tensor(image)
+            image = ms.tensor(image)
 
         image = image.to(dtype=dtype)
         if output_hidden_states:
@@ -701,7 +708,7 @@ class StableDiffusionXLControlNetInpaintPipeline(
         if padding_mask_crop is not None:
             if not isinstance(image, PIL.Image.Image):
                 raise ValueError(
-                    f"The image should be a PIL image when inpainting mask crop, but is of type" f" {type(image)}."
+                    f"The image should be a PIL image when inpainting mask crop, but is of type {type(image)}."
                 )
             if not isinstance(mask_image, PIL.Image.Image):
                 raise ValueError(
@@ -709,7 +716,7 @@ class StableDiffusionXLControlNetInpaintPipeline(
                     f" {type(mask_image)}."
                 )
             if output_type != "pil":
-                raise ValueError(f"The output type should be PIL when inpainting mask crop, but is" f" {output_type}.")
+                raise ValueError(f"The output type should be PIL when inpainting mask crop, but is {output_type}.")
 
         if prompt_embeds is not None and pooled_prompt_embeds is None:
             raise ValueError(
@@ -1058,8 +1065,8 @@ class StableDiffusionXLControlNetInpaintPipeline(
                 f"Model expects an added time embedding vector of length {expected_add_embed_dim}, but a vector of {passed_add_embed_dim} was created. The model has an incorrect config. Please check `unet.config.time_embedding_type` and `text_encoder_2.config.projection_dim`."  # noqa: E501
             )
 
-        add_time_ids = ms.Tensor([add_time_ids], dtype=dtype)
-        add_neg_time_ids = ms.Tensor([add_neg_time_ids], dtype=dtype)
+        add_time_ids = ms.tensor([add_time_ids], dtype=dtype)
+        add_neg_time_ids = ms.tensor([add_neg_time_ids], dtype=dtype)
 
         return add_time_ids, add_neg_time_ids
 
@@ -1545,7 +1552,7 @@ class StableDiffusionXLControlNetInpaintPipeline(
 
         # 8. Check that sizes of mask, masked image and latents match
         if num_channels_unet == 9:
-            # default case for runwayml/stable-diffusion-inpainting
+            # default case for stable-diffusion-v1-5/stable-diffusion-inpainting
             num_channels_mask = mask.shape[1]
             num_channels_masked_image = masked_image_latents.shape[1]
             if num_channels_latents + num_channels_mask + num_channels_masked_image != self.unet.config.in_channels:
@@ -1553,7 +1560,7 @@ class StableDiffusionXLControlNetInpaintPipeline(
                     f"Incorrect configuration settings! The config of `pipeline.unet`: {self.unet.config} expects"
                     f" {self.unet.config.in_channels} but received `num_channels_latents`: {num_channels_latents} +"
                     f" `num_channels_mask`: {num_channels_mask} + `num_channels_masked_image`: {num_channels_masked_image}"
-                    f" = {num_channels_latents+num_channels_masked_image+num_channels_mask}. Please verify the config of"
+                    f" = {num_channels_latents + num_channels_masked_image + num_channels_mask}. Please verify the config of"
                     " `pipeline.unet` or your `mask_image` or `image` input."
                 )
         elif num_channels_unet != 4:
@@ -1753,6 +1760,7 @@ class StableDiffusionXLControlNetInpaintPipeline(
                     latents = callback_outputs.pop("latents", latents)
                     prompt_embeds = callback_outputs.pop("prompt_embeds", prompt_embeds)
                     negative_prompt_embeds = callback_outputs.pop("negative_prompt_embeds", negative_prompt_embeds)
+                    control_image = callback_outputs.pop("control_image", control_image)
 
                 # call the callback, if provided
                 if i == len(timesteps) - 1 or ((i + 1) > num_warmup_steps and (i + 1) % self.scheduler.order == 0):

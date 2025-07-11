@@ -1,3 +1,4 @@
+# Adapted from https://github.com/Tencent-Hunyuan/HunyuanDiT to work with MindSpore.
 from transformers import AutoTokenizer
 
 import mindspore as ms

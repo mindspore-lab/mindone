@@ -24,7 +24,7 @@ from transformers import CLIPTextConfig
 import mindspore as ms
 
 from mindone.diffusers import StableDiffusionSAGPipeline
-from mindone.diffusers.utils.testing_utils import load_downloaded_numpy_from_hf_hub, slow
+from mindone.diffusers.utils.testing_utils import load_numpy_from_local_file, slow
 
 from ..pipeline_test_utils import (
     THRESHOLD_FP16,
@@ -208,8 +208,8 @@ class StableDiffusionPipelineIntegrationTests(PipelineTesterMixin, unittest.Test
         torch.manual_seed(0)
         image = sag_pipe([prompt], guidance_scale=7.5, sag_scale=1.0, num_inference_steps=20)[0][0]
 
-        expected_image = load_downloaded_numpy_from_hf_hub(
-            "The-truth/mindone-testing-arrays",
+        expected_image = load_numpy_from_local_file(
+            "mindone-testing-arrays",
             f"sag_t2i_{dtype}.npy",
             subfolder="stable_diffusion_sag",
         )

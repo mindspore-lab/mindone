@@ -149,7 +149,7 @@ def _set_state_dict_into_text_encoder(lora_state_dict: Dict[str, ms.Tensor], pre
     """
 
     text_encoder_state_dict = {
-        f'{k.replace(prefix, "")}': v for k, v in lora_state_dict.items() if k.startswith(prefix)
+        f"{k.replace(prefix, '')}": v for k, v in lora_state_dict.items() if k.startswith(prefix)
     }
     text_encoder_state_dict = convert_state_dict_to_peft(convert_state_dict_to_diffusers(text_encoder_state_dict))
     set_peft_model_state_dict(text_encoder, text_encoder_state_dict, adapter_name="default")
@@ -585,8 +585,8 @@ class GradAccumulator:
             raise ValueError(f"'gradient_accumulation_steps' must be positive, but got {gradient_accumulation_steps}")
 
         self.gradient_accumulation_steps = gradient_accumulation_steps
-        self.batch_idx = ms.Parameter(ms.Tensor(0, ms.int64), name="batch_idx", requires_grad=False)
-        self.sync_gradients = ms.Parameter(ms.Tensor(True), name="sync_gradients", requires_grad=False)
+        self.batch_idx = ms.Parameter(ms.tensor(0, ms.int64), name="batch_idx", requires_grad=False)
+        self.sync_gradients = ms.Parameter(ms.tensor(True), name="sync_gradients", requires_grad=False)
         self.hyper_map = ops.HyperMap()
 
         if self.sync_with_dataloader and self.length_of_dataloader <= 0:
@@ -660,7 +660,7 @@ class GradScaler:
             self.step = self._maybe_opt_step
         else:
             raise NotImplementedError(f"Unsupported loss scaler: {type(loss_scaler)}")
-        self.all_finite = ms.Parameter(ms.Tensor(True), name="all_finite", requires_grad=False)
+        self.all_finite = ms.Parameter(ms.tensor(True), name="all_finite", requires_grad=False)
 
     def scale(self, inputs):
         return self.loss_scaler.scale(inputs)
@@ -931,7 +931,7 @@ def prepare_train_network(
         )
 
     if isinstance(scale_sense, float):
-        scale_sense = ms.Tensor(scale_sense, ms.float32)
+        scale_sense = ms.tensor(scale_sense, ms.float32)
     train_network = DiffusersTrainOneStepWrapper(
         network,
         optimizer,
@@ -1012,7 +1012,7 @@ class DiffusersTrainOneStepWrapper(TrainOneStepWrapper):
         loss_scaler_file = os.path.join(input_dir, "loss_scaler.ckpt")
         loss_scaler_state_dict = ms.load_checkpoint(loss_scaler_file)
 
-        scale_sense = loss_scaler_state_dict.get("scale_sense", ms.Tensor(1.0, dtype=mstype.float32))
+        scale_sense = loss_scaler_state_dict.get("scale_sense", ms.tensor(1.0, dtype=mstype.float32))
         cur_iter = loss_scaler_state_dict.get("cur_iter", None)
         last_overflow_iter = loss_scaler_state_dict.get("last_overflow_iter", None)
 
