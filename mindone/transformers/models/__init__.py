@@ -34,6 +34,7 @@ from . import (
     minicpm4,
     mixtral,
     mobilebert,
+    nemotron,
     paligemma,
     persimmon,
     phi,
