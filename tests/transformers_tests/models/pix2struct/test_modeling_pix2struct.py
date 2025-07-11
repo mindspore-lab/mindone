@@ -219,9 +219,9 @@ BERT_CASES = [
         "transformers.Pix2StructForConditionalGeneration",
         "mindone.transformers.Pix2StructForConditionalGeneration",
         (config,),
-        {**inputs_dict},
-        (),
         {},
+        (),
+        {**inputs_dict},
         {
             "logits": 0,
         },
