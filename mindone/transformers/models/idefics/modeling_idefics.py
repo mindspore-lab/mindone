@@ -1,6 +1,9 @@
 # coding=utf-8
 # Copyright 2022 EleutherAI and the HuggingFace Inc. team. All rights reserved.
 #
+# This code is adapted from https://github.com/huggingface/transformers
+# with modifications to run transformers on mindspore.
+#
 # This code is based on EleutherAI's GPT-NeoX library and the GPT-NeoX
 # and OPT implementations in this library. It has been modified from its
 # original forms to accommodate minor architectural differences compared
@@ -1491,8 +1494,7 @@ class IdeficsForVisionText2Text(IdeficsPreTrainedModel, GenerationMixin):
 
         ```python
         >>> import mindspore as ms
-        >>> from transformers import AutoProcessor
-        >>> from mindone.transformers import IdeficsForVisionText2Text
+        >>> from mindone.transformers import IdeficsForVisionText2Text, AutoProcessor
         >>> from transformers.image_utils import load_image
 
         >>> model = IdeficsForVisionText2Text.from_pretrained("HuggingFaceM4/idefics-9b-instruct")
