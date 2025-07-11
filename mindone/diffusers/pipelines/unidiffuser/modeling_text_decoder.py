@@ -91,6 +91,7 @@ class UniDiffuserTextDecoder(ModelMixin, ConfigMixin, ModuleUtilsMixin):
     ):
         super().__init__()
 
+        self.wte_lm_share = True
         self.prefix_length = prefix_length
 
         if prefix_inner_dim != n_embd and prefix_hidden_dim is None:

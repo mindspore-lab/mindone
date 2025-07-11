@@ -1,3 +1,4 @@
+# Copied from https://github.com/Tencent-Hunyuan/HunyuanDiT
 # -*- coding: utf-8 -*-
 
 

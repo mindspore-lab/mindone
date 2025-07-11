@@ -25,11 +25,7 @@ from transformers import CLIPTextConfig
 import mindspore as ms
 from mindspore import ops
 
-from mindone.diffusers.utils.testing_utils import (
-    load_downloaded_image_from_hf_hub,
-    load_downloaded_numpy_from_hf_hub,
-    slow,
-)
+from mindone.diffusers.utils.testing_utils import load_downloaded_image_from_hf_hub, load_numpy_from_local_file, slow
 
 from ..pipeline_test_utils import (
     THRESHOLD_FP16,
@@ -340,8 +336,8 @@ class ControlNetPipelineSDXLImg2ImgIntegrationTests(PipelineTesterMixin, unittes
             controlnet_conditioning_scale=controlnet_conditioning_scale,
         )[0][0]
 
-        expected_image = load_downloaded_numpy_from_hf_hub(
-            "The-truth/mindone-testing-arrays",
+        expected_image = load_numpy_from_local_file(
+            "mindone-testing-arrays",
             f"img2img_sdxl_{dtype}.npy",
             subfolder="controlnet",
         )

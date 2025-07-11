@@ -17,6 +17,7 @@ from enum import Enum
 from typing import Optional, Union
 
 from huggingface_hub.utils import validate_hf_hub_args
+from typing_extensions import Self
 
 import mindspore as ms
 
@@ -99,7 +100,7 @@ class SchedulerMixin(PushToHubMixin):
         subfolder: Optional[str] = None,
         return_unused_kwargs=False,
         **kwargs,
-    ):
+    ) -> Self:
         r"""
         Instantiate a scheduler from a pre-defined JSON configuration file in a local directory or Hub repository.
 

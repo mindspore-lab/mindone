@@ -1,3 +1,5 @@
+# Copied from https://github.com/Tencent-Hunyuan/HunyuanDiT to work with MindSpore.
+
 import math
 
 import cv2

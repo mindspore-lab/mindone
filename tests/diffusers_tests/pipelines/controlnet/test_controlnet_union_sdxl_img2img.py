@@ -7,11 +7,7 @@ from ddt import data, ddt, unpack
 import mindspore as ms
 
 from mindone.diffusers import AutoencoderKL, ControlNetUnionModel, StableDiffusionXLControlNetUnionImg2ImgPipeline
-from mindone.diffusers.utils.testing_utils import (
-    load_downloaded_image_from_hf_hub,
-    load_downloaded_numpy_from_hf_hub,
-    slow,
-)
+from mindone.diffusers.utils.testing_utils import load_downloaded_image_from_hf_hub, load_numpy_from_local_file, slow
 
 from ..pipeline_test_utils import THRESHOLD_PIXEL, PipelineTesterMixin
 
@@ -66,8 +62,8 @@ class ControlNetUnionPipelineSDXLImg2ImgIntegrationTests(PipelineTesterMixin, un
             0
         ][0]
 
-        expected_image = load_downloaded_numpy_from_hf_hub(
-            "The-truth/mindone-testing-arrays",
+        expected_image = load_numpy_from_local_file(
+            "mindone-testing-arrays",
             f"controlnet_union_sdxl_img2img_{dtype}.npy",
             subfolder="controlnet",
         )

@@ -55,7 +55,7 @@ image
 
 With the `adapter_name` parameter, it is really easy to use another adapter for inference! Load the [nerijs/pixel-art-xl](https://huggingface.co/nerijs/pixel-art-xl) adapter that has been fine-tuned to generate pixel art images and call it `"pixel"`.
 
-The pipeline automatically sets the first loaded adapter (`"toy"`) as the active adapter, but you can activate the `"pixel"` adapter with the [`set_adapters`](https://mindspore-lab.github.io/mindone/latest/diffusers/api/loaders/unet/#mindone.diffusers.loaders.unet.UNet2DConditionLoadersMixin.set_adapters) method:
+The pipeline automatically sets the first loaded adapter (`"toy"`) as the active adapter, but you can activate the `"pixel"` adapter with the [`set_adapters`](https://mindspore-lab.github.io/mindone/latest/diffusers/api/loaders/peft/#mindone.diffusers.loaders.peft.PeftAdapterMixin.set_adapter) method:
 
 ```python
 pipe.load_lora_weights("nerijs/pixel-art-xl", weight_name="pixel-art-xl.safetensors", adapter_name="pixel")
@@ -78,7 +78,7 @@ image
 
 You can also merge different adapter checkpoints for inference to blend their styles together.
 
-Once again, use the [`set_adapters`](https://mindspore-lab.github.io/mindone/latest/diffusers/api/loaders/unet/#mindone.diffusers.loaders.unet.UNet2DConditionLoadersMixin.set_adapters) method to activate the `pixel` and `toy` adapters and specify the weights for how they should be merged.
+Once again, use the [`set_adapters`](https://mindspore-lab.github.io/mindone/latest/diffusers/api/loaders/peft/#mindone.diffusers.loaders.peft.PeftAdapterMixin.set_adapter) method to activate the `pixel` and `toy` adapters and specify the weights for how they should be merged.
 
 ```python
 pipe.set_adapters(["pixel", "toy"], adapter_weights=[0.5, 1.0])
@@ -106,7 +106,7 @@ Impressive! As you can see, the model generated an image that mixed the characte
 
     Through its PEFT integration, Diffusers also offers more efficient merging methods which you can learn about in the [Merge LoRAs](../using-diffusers/merge_loras.md) guide!
 
-To return to only using one adapter, use the [`set_adapters`](https://mindspore-lab.github.io/mindone/latest/diffusers/api/loaders/unet/#mindone.diffusers.loaders.unet.UNet2DConditionLoadersMixin.set_adapters) method to activate the `"toy"` adapter:
+To return to only using one adapter, use the [`set_adapters`](https://mindspore-lab.github.io/mindone/latest/diffusers/api/loaders/peft/#mindone.diffusers.loaders.peft.PeftAdapterMixin.set_adapter) method to activate the `"toy"` adapter:
 
 ```python
 pipe.set_adapters("toy")
@@ -119,7 +119,7 @@ image = pipe(
 image
 ```
 
-Or to disable all adapters entirely, use the [`disable_lora`](https://mindspore-lab.github.io/mindone/latest/diffusers/api/loaders/unet/#mindone.diffusers.loaders.unet.UNet2DConditionLoadersMixin.disable_lora) method to return the base model.
+Or to disable all adapters entirely, use the [`disable_lora`](https://mindspore-lab.github.io/mindone/latest/diffusers/api/loaders/peft/#mindone.diffusers.loaders.peft.PeftAdapterMixin.disable_lora) method to return the base model.
 
 ```python
 pipe.disable_lora()
@@ -132,7 +132,7 @@ image
 ![no-lora](https://github.com/user-attachments/assets/c17dc29e-4a5f-4243-b5f6-18b3dc05e570)
 
 ### Customize adapters strength
-For even more customization, you can control how strongly the adapter affects each part of the pipeline. For this, pass a dictionary with the control strengths (called "scales") to [`set_adapters`](https://mindspore-lab.github.io/mindone/latest/diffusers/api/loaders/unet/#mindone.diffusers.loaders.unet.UNet2DConditionLoadersMixin.set_adapters).
+For even more customization, you can control how strongly the adapter affects each part of the pipeline. For this, pass a dictionary with the control strengths (called "scales") to [`set_adapters`](https://mindspore-lab.github.io/mindone/latest/diffusers/api/loaders/peft/#mindone.diffusers.loaders.peft.PeftAdapterMixin.set_adapter).
 
 For example, here's how you can turn on the adapter for the `down` parts, but turn it off for the `mid` and `up` parts:
 ```python
