@@ -1,3 +1,5 @@
+"""Adapted from https://github.com/huggingface/diffusers/tree/main/src/diffusers/models/transformers/prior_transformer.py."""
+
 from dataclasses import dataclass
 from typing import Dict, Optional, Union
 

@@ -1,3 +1,4 @@
+# Adapted from https://github.com/whlzy/Fit to work with MindSpore.
 import logging
 import os
 import random

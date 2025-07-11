@@ -1,3 +1,8 @@
+"""
+Adapted from https://github.com/huggingface/diffusers/tree/main/src/diffusers/
+pipelines/semantic_stable_diffusion/pipeline_semantic_stable_diffusion.py.
+"""
+
 import inspect
 from itertools import repeat
 from typing import Callable, List, Optional, Union

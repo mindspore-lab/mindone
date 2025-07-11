@@ -128,6 +128,7 @@ def transform_to_rgb(x, rescale_to_uint8=True):
     return x
 
 
+# Copied from https://github.com/Tencent-Hunyuan/HunyuanVideo/blob/main/hyvideo/utils/data_utils.py
 def align_to(value, alignment):
     """align hight, width according to alignment
 

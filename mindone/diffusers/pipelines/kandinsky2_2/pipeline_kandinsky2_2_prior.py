@@ -1,3 +1,8 @@
+"""
+Adapted from https://github.com/huggingface/diffusers/tree/main/src/diffusers/
+pipelines/kandinsky2_2/pipeline_kandinsky2_2_prior.py.
+"""
+
 from typing import Callable, Dict, List, Optional, Union
 
 import numpy as np

@@ -2,6 +2,9 @@
 # Copyright 2023-present the HuggingFace Inc. team.
 # Hacked together by / Copyright 2024 Genius Patrick @ MindSpore Team.
 #
+# This code is adapted from https://github.com/huggingface/peft
+# with modifications to run peft on mindspore.
+#
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at

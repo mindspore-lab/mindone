@@ -1,3 +1,8 @@
+"""
+Adapted from https://github.com/huggingface/diffusers/tree/main/src/diffusers/
+pipelines/latent_diffusion/pipeline_latent_diffusion_superresolution.py.
+"""
+
 import inspect
 from typing import List, Optional, Tuple, Union
 

@@ -1,3 +1,5 @@
+# Adapted from https://github.com/THUDM/CogView4 to work with MindSpore.
+
 """
 Running the Script:
 

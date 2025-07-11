@@ -1,3 +1,5 @@
+"""Adapted from https://github.com/huggingface/diffusers/tree/main/tests//pipelines/unidiffuser/test_unidiffuser.py."""
+
 import random
 import unittest
 

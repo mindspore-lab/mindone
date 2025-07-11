@@ -1,3 +1,5 @@
+"""Adapted from https://github.com/huggingface/diffusers/tree/main/tests//pipelines/latent_consistency_models/test_latent_consistency_models_img2img.py."""
+
 import random
 import unittest
 

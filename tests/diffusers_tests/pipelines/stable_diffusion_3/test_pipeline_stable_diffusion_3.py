@@ -1,3 +1,5 @@
+"""Adapted from https://github.com/huggingface/diffusers/tree/main/tests//pipelines/stable_diffusion_3/test_pipeline_stable_diffusion_3.py."""
+
 import unittest
 
 import numpy as np

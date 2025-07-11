@@ -1,3 +1,5 @@
+"""Adapted from https://github.com/huggingface/diffusers/tree/main/tests//pipelines/mochi/test_mochi.py."""
+
 import unittest
 
 import numpy as np
