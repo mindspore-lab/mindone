@@ -922,6 +922,14 @@ class PreTrainedModel(nn.Cell, ModuleUtilsMixin, GenerationMixin, PushToHubMixin
         mindspore_dtype = kwargs.pop("torch_dtype", config.torch_dtype)
         if isinstance(mindspore_dtype, str):
             mindspore_dtype = getattr(ms, mindspore_dtype)
+        else:
+            TORCH_TO_MINDSPORE_DTYPE_MAP = {
+                "torch.float32": ms.float32,
+                "torch.bfloat16": ms.bfloat16,
+                "torch.float16": ms.float16,
+            }
+            mindspore_dtype = str(mindspore_dtype)
+            mindspore_dtype = TORCH_TO_MINDSPORE_DTYPE_MAP[mindspore_dtype]
 
         use_flash_attention_2 = kwargs.pop("use_flash_attention_2", False)
 
