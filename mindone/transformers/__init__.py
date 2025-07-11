@@ -295,6 +295,7 @@ from .models.qwen2_5_omni import (
 from .models.qwen2_5_vl import Qwen2_5_VLForConditionalGeneration, Qwen2_5_VLModel, Qwen2_5_VLPreTrainedModel
 from .models.qwen2_audio import Qwen2AudioEncoder, Qwen2AudioForConditionalGeneration, Qwen2AudioPreTrainedModel
 from .models.qwen2_vl import Qwen2VLForConditionalGeneration, Qwen2VLModel, Qwen2VLPreTrainedModel
+from .models.qwen3 import Qwen3ForCausalLM, Qwen3Model, Qwen3PreTrainedModel
 from .models.recurrent_gemma import RecurrentGemmaForCausalLM, RecurrentGemmaModel, RecurrentGemmaPreTrainedModel
 from .models.rembert import (
     RemBertForCausalLM,
@@ -316,6 +317,19 @@ from .models.roberta import (
     RobertaForTokenClassification,
     RobertaModel,
     RobertaPreTrainedModel,
+)
+
+# from .models.qwen3 import Qwen3ForCausalLM, Qwen3Model, Qwen3PreTrainedModel
+from .models.roc_bert import (
+    RoCBertForCausalLM,
+    RoCBertForMaskedLM,
+    RoCBertForMultipleChoice,
+    RoCBertForPreTraining,
+    RoCBertForQuestionAnswering,
+    RoCBertForSequenceClassification,
+    RoCBertForTokenClassification,
+    RoCBertModel,
+    RoCBertPreTrainedModel,
 )
 from .models.siglip import (
     SiglipForImageClassification,
