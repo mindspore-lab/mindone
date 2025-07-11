@@ -25,6 +25,7 @@ from . import (
     big_bird,
     bigbird_pegasus,
     bit,
+    blip,
     blip_2,
     clap,
     clip,
