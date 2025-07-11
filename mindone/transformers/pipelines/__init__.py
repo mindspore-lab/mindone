@@ -1,3 +1,20 @@
+# coding=utf-8
+# Copyright 2018 The HuggingFace Inc. team.
+#
+# This code is adapted from https://github.com/huggingface/transformers
+# with modifications to run transformers on mindspore.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
 import os
 import warnings
 from pathlib import Path
@@ -38,12 +55,13 @@ from .base import (
     get_default_model_and_revision,
     infer_framework_load_model,
 )
+from .text2text_generation import Text2TextGenerationPipeline
 from .text_generation import TextGenerationPipeline
 
 if is_mindspore_available():
     import mindspore as ms
 
-    from ..models.auto.modeling_auto import AutoModelForCausalLM, AutoModelForTokenClassification
+    from ..models.auto.modeling_auto import AutoModelForCausalLM, AutoModelForSeq2SeqLM, AutoModelForTokenClassification
 
 
 if TYPE_CHECKING:
@@ -67,6 +85,12 @@ SUPPORTED_TASKS = {
         "impl": TextGenerationPipeline,
         "ms": (AutoModelForCausalLM,) if is_mindspore_available() else (),
         "default": {"model": {"ms": ("openai-community/gpt2", "607a30d"), "tf": ("openai-community/gpt2", "607a30d")}},
+        "type": "text",
+    },
+    "text2text-generation": {
+        "impl": Text2TextGenerationPipeline,
+        "ms": (AutoModelForSeq2SeqLM,) if is_mindspore_available() else (),
+        "default": {"model": {"ms": ("google-t5/t5-base", "a9723ea")}},
         "type": "text",
     },
 }

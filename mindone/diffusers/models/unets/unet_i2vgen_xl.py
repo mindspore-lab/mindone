@@ -1,5 +1,8 @@
 # Copyright 2024 Alibaba DAMO-VILAB and The HuggingFace Team. All rights reserved.
 #
+# This code is adapted from https://github.com/huggingface/diffusers
+# with modifications to run diffusers on mindspore.
+#
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -25,17 +28,8 @@ from ..attention import Attention, FeedForward
 from ..attention_processor import CROSS_ATTENTION_PROCESSORS, AttentionProcessor, AttnProcessor
 from ..embeddings import TimestepEmbedding, Timesteps
 from ..modeling_utils import ModelMixin
-from ..normalization import GroupNorm, LayerNorm
 from ..transformers.transformer_temporal import TransformerTemporalModel
-from .unet_3d_blocks import (
-    CrossAttnDownBlock3D,
-    CrossAttnUpBlock3D,
-    DownBlock3D,
-    UNetMidBlock3DCrossAttn,
-    UpBlock3D,
-    get_down_block,
-    get_up_block,
-)
+from .unet_3d_blocks import UNetMidBlock3DCrossAttn, get_down_block, get_up_block
 from .unet_3d_condition import UNet3DConditionOutput
 
 logger = logging.get_logger(__name__)  # pylint: disable=invalid-name
@@ -53,7 +47,7 @@ class I2VGenXLTransformerTemporalEncoder(nn.Cell):
         dropout: int = 0.0,
     ):
         super().__init__()
-        self.norm1 = LayerNorm(dim, elementwise_affine=True, eps=1e-5)
+        self.norm1 = mint.nn.LayerNorm(dim, elementwise_affine=True, eps=1e-5)
         self.attn1 = Attention(
             query_dim=dim,
             heads=num_attention_heads,
@@ -316,8 +310,10 @@ class I2VGenXLUNet(ModelMixin, ConfigMixin, UNet2DConditionLoadersMixin):
         self.layers_per_resnet_in_up_blocks = layers_per_resnet_in_up_blocks
 
         # out
-        self.conv_norm_out = GroupNorm(num_channels=block_out_channels[0], num_groups=norm_num_groups, eps=1e-05)
-        self.conv_act = get_activation("silu")()
+        self.conv_norm_out = mint.nn.GroupNorm(
+            num_channels=block_out_channels[0], num_groups=norm_num_groups, eps=1e-05
+        )
+        self.conv_act = get_activation("silu")
         self.conv_out = mint.nn.Conv2d(block_out_channels[0], out_channels, kernel_size=3, padding=1)
 
     @property
@@ -349,12 +345,15 @@ class I2VGenXLUNet(ModelMixin, ConfigMixin, UNet2DConditionLoadersMixin):
     def set_attn_processor(self, processor: Union[AttentionProcessor, Dict[str, AttentionProcessor]]):  # type: ignore
         r"""
         Sets the attention processor to use to compute attention.
+
         Parameters:
             processor (`dict` of `AttentionProcessor` or only `AttentionProcessor`):
                 The instantiated processor class or a dictionary of processor classes that will be set as the processor
                 for **all** `Attention` layers.
+
                 If `processor` is a dict, the key needs to define the path to the corresponding cross attention
                 processor. This is strongly recommended when setting trainable attention processors.
+
         """
         count = len(self.attn_processors.keys())
 
@@ -433,11 +432,6 @@ class I2VGenXLUNet(ModelMixin, ConfigMixin, UNet2DConditionLoadersMixin):
 
         self.set_attn_processor(processor)
 
-    # Copied from diffusers.models.unets.unet_3d_condition.UNet3DConditionModel._set_gradient_checkpointing
-    def _set_gradient_checkpointing(self, module, value: bool = False) -> None:
-        if isinstance(module, (CrossAttnDownBlock3D, DownBlock3D, CrossAttnUpBlock3D, UpBlock3D)):
-            module.gradient_checkpointing = value
-
     def construct(
         self,
         sample: ms.Tensor,
@@ -496,10 +490,10 @@ class I2VGenXLUNet(ModelMixin, ConfigMixin, UNet2DConditionLoadersMixin):
         if not ops.is_tensor(timesteps):
             # TODO: this requires sync between CPU and GPU. So try to pass `timesteps` as tensors if you can
             if isinstance(timesteps, float):
-                dtype = ms.float64
+                dtype = ms.float32
             else:
-                dtype = ms.int64
-            timesteps = ms.Tensor([timesteps], dtype=dtype)
+                dtype = ms.int32
+            timesteps = ms.tensor([timesteps], dtype=dtype)
         elif len(timesteps.shape) == 0:
             timesteps = timesteps[None]
 
@@ -520,7 +514,7 @@ class I2VGenXLUNet(ModelMixin, ConfigMixin, UNet2DConditionLoadersMixin):
 
         # 3. time + FPS embeddings.
         emb = t_emb + fps_emb
-        emb = emb.repeat_interleave(repeats=num_frames, dim=0)
+        emb = emb.repeat_interleave(num_frames, dim=0, output_size=emb.shape[0] * num_frames)
 
         # 4. context embeddings.
         # The context embeddings consist of both text embeddings from the input prompt
@@ -549,7 +543,7 @@ class I2VGenXLUNet(ModelMixin, ConfigMixin, UNet2DConditionLoadersMixin):
         image_emb = self.context_embedding(image_embeddings)
         image_emb = image_emb.view(-1, self.config["in_channels"], self.config["cross_attention_dim"])
         context_emb = mint.cat([context_emb, image_emb], dim=1)
-        context_emb = context_emb.repeat_interleave(repeats=num_frames, dim=0)
+        context_emb = context_emb.repeat_interleave(num_frames, dim=0, output_size=context_emb.shape[0] * num_frames)
 
         image_latents = image_latents.permute(0, 2, 1, 3, 4).reshape(
             image_latents.shape[0] * image_latents.shape[2],

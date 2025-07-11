@@ -1,5 +1,8 @@
 # Copyright 2024 The HuggingFace Team. All rights reserved.
 #
+# This code is adapted from https://github.com/huggingface/diffusers
+# with modifications to run diffusers on mindspore.
+#
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -21,7 +24,6 @@ from mindspore import mint, nn, ops
 from ...configuration_utils import ConfigMixin, register_to_config
 from ...utils import BaseOutput, logging
 from ...utils.mindspore_utils import get_state_dict
-from ..activations import SiLU
 from ..attention_processor import (
     ADDED_KV_ATTENTION_PROCESSORS,
     CROSS_ATTENTION_PROCESSORS,
@@ -31,7 +33,6 @@ from ..attention_processor import (
 )
 from ..embeddings import TimestepEmbedding, Timesteps
 from ..modeling_utils import ModelMixin
-from ..normalization import GroupNorm
 from ..unets.unet_2d_blocks import (
     CrossAttnDownBlock2D,
     CrossAttnUpBlock2D,
@@ -715,8 +716,8 @@ class UNetControlNetXSModel(ModelMixin, ConfigMixin):
         self.up_blocks = nn.CellList(up_blocks)
         self.up_blocks_resnets_lens = up_blocks_resnets_lens
 
-        self.base_conv_norm_out = GroupNorm(num_channels=block_out_channels[0], num_groups=norm_num_groups)
-        self.base_conv_act = SiLU()
+        self.base_conv_norm_out = mint.nn.GroupNorm(num_channels=block_out_channels[0], num_groups=norm_num_groups)
+        self.base_conv_act = mint.nn.SiLU()
         self.base_conv_out = mint.nn.Conv2d(block_out_channels[0], 4, kernel_size=3, padding=1)
 
     @classmethod
@@ -879,10 +880,6 @@ class UNetControlNetXSModel(ModelMixin, ConfigMixin):
         for u in self.up_blocks:
             u.freeze_base_params()
 
-    def _set_gradient_checkpointing(self, module, value=False):
-        if hasattr(module, "gradient_checkpointing"):
-            module.gradient_checkpointing = value
-
     @property
     # Copied from diffusers.models.unets.unet_2d_condition.UNet2DConditionModel.attn_processors
     def attn_processors(self) -> Dict[str, AttentionProcessor]:
@@ -1029,10 +1026,10 @@ class UNetControlNetXSModel(ModelMixin, ConfigMixin):
         # todo: unavailable mint interface
         if not ops.is_tensor(timesteps):
             if isinstance(timestep, float):
-                dtype = ms.float64
+                dtype = ms.float32
             else:
-                dtype = ms.int64
-            timesteps = ms.Tensor([timesteps], dtype=dtype)
+                dtype = ms.int32
+            timesteps = ms.tensor([timesteps], dtype=dtype)
         elif len(timesteps.shape) == 0:
             timesteps = timesteps[None]
 
