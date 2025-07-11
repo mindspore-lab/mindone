@@ -2,6 +2,8 @@
 # https://github.com/PKU-YuanGroup/Open-Sora-Plan/blob/main/opensora/models/causalvideovae/eval/fvd/styleganv/fvd.py
 import math
 import os
+import shlex
+import subprocess
 
 from mindspore import context, export, load, mint, nn, ops
 
@@ -23,7 +25,7 @@ def load_i3d_pretrained(bs=1):
     if not os.path.exists(mindir_filepath):
         if not os.path.exists(filepath):
             print(f"preparing for download {i3D_WEIGHTS_URL}, you can download it by yourself.")
-            os.system(f"wget {i3D_WEIGHTS_URL} -O {filepath}")
+            subprocess.run(shlex.split(f"wget {i3D_WEIGHTS_URL} -O {filepath}"), shell=False)
         if not os.path.exists(onnx_filepath):
             # convert torch jit model to onnx model
             model = torch.jit.load(filepath).eval()
