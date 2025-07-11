@@ -126,6 +126,14 @@ from .models.clip import (
     CLIPVisionModelWithProjection,
 )
 from .models.cohere2 import Cohere2ForCausalLM, Cohere2Model, Cohere2PreTrainedModel
+from .models.diffllama import (
+    DiffLlamaForCausalLM,
+    DiffLlamaForQuestionAnswering,
+    DiffLlamaForSequenceClassification,
+    DiffLlamaForTokenClassification,
+    DiffLlamaModel,
+    DiffLlamaPreTrainedModel,
+)
 from .models.deberta import (
     DebertaForMaskedLM,
     DebertaForQuestionAnswering,
@@ -144,6 +152,19 @@ from .models.deberta_v2 import (
     DebertaV2PreTrainedModel,
 )
 from .models.dpt import DPTForDepthEstimation
+from .models.encoder_decoder import EncoderDecoderModel
+from .models.ernie import (
+    ErnieForCausalLM,
+    ErnieForMaskedLM,
+    ErnieForMultipleChoice,
+    ErnieForNextSentencePrediction,
+    ErnieForPreTraining,
+    ErnieForQuestionAnswering,
+    ErnieForSequenceClassification,
+    ErnieForTokenClassification,
+    ErnieModel,
+    ErniePreTrainedModel,
+)
 from .models.fuyu import FuyuForCausalLM, FuyuPreTrainedModel
 from .models.gemma import (
     GemmaForCausalLM,
@@ -256,6 +277,11 @@ from .models.mt5 import (
     MT5ForConditionalGeneration,
     MT5Model,
     MT5PreTrainedModel,
+)
+from .models.olmoe import (
+    OlmoeForCausalLM,
+    OlmoeModel,
+    OlmoePreTrainedModel,
 )
 from .models.paligemma import PaliGemmaForConditionalGeneration, PaliGemmaPreTrainedModel
 from .models.persimmon import (
