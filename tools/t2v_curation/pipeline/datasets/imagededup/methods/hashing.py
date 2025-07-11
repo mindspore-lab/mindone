@@ -1,3 +1,5 @@
+# Copied from https://github.com/idealo/imagededup/blob/master/imagededup/methods/hashing.py
+
 import sys
 import warnings
 from multiprocessing import cpu_count

@@ -1,3 +1,5 @@
+# Adapted from https://github.com/Gen-Verse/MMaDA/blob/main/generate.py
+
 from time import time
 
 import numpy as np

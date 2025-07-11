@@ -34,6 +34,8 @@ DTYPE_AND_THRESHOLDS = {"fp32": 5e-4, "fp16": 5e-3}
 MODES = [1]
 
 
+# Adapted from
+# https://github.com/huggingface/transformers/blob/main/tests/models/mobilebert/test_modeling_mobilebert.py
 class DebertaModelTester:
     def __init__(
         self,

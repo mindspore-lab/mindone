@@ -1,3 +1,5 @@
+# Adapted from https://github.com/kohya-ss/sd-scripts/blob/main/library/config_util.py
+
 import argparse
 import functools
 import json
