@@ -1,4 +1,6 @@
 """
+Adapted from https://github.com/huggingface/transformers/tree/main/src/transformers/cache_utils.py.
+
 Cache utils.
 """
 import copy

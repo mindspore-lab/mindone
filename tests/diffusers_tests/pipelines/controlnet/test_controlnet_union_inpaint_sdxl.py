@@ -1,3 +1,5 @@
+"""Adapted from https://github.com/huggingface/diffusers/tree/main/tests//pipelines/controlnet/test_controlnet_union_inpaint_sdxl.py."""
+
 import unittest
 
 import numpy as np

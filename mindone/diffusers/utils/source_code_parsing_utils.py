@@ -1,3 +1,5 @@
+"""Adapted from https://github.com/huggingface/diffusers/tree/main/src/diffusers/utils/source_code_parsing_utils.py."""
+
 import ast
 import importlib
 import inspect

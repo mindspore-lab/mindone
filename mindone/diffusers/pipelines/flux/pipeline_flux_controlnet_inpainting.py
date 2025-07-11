@@ -1,3 +1,8 @@
+"""
+Adapted from https://github.com/huggingface/diffusers/tree/main/src/diffusers/
+pipelines/flux/pipeline_flux_controlnet_inpainting.py.
+"""
+
 import inspect
 from typing import Any, Callable, Dict, List, Optional, Tuple, Union
 
