@@ -194,22 +194,36 @@ class Pix2StructModelTester:
         return Pix2StructConfig.from_text_vision_configs(text_config, vision_config, projection_dim=64)
 
 
+    def prepare_config_and_inputs_for_common(self):
+        config_and_inputs = self.prepare_config_and_inputs()
+        config, input_ids, decoder_attention_mask, flattened_patches = config_and_inputs
+
+        attention_mask = (flattened_patches.sum(dim=-1) != 0).float()
+
+        inputs_dict = {
+            "decoder_input_ids": input_ids,
+            "labels": input_ids,
+            "decoder_attention_mask": decoder_attention_mask,
+            "flattened_patches": flattened_patches,
+            "attention_mask": attention_mask,
+        }
+        return config, inputs_dict
+
 
 model_tester = Pix2StructModelTester()
-config, input_ids, attention_mask, image_embeds_position_mask, pixel_values = model_tester.prepare_config_and_inputs()
+config, inputs_dict = model_tester.prepare_config_and_inputs_for_common()
 
 BERT_CASES = [
     [
-        "Pix2StructModel",
-        "transformers.Pix2StructModel",
-        "mindone.transformers.Pix2StructModel",
+        "Pix2StructForConditionalGeneration",
+        "transformers.Pix2StructForConditionalGeneration",
+        "mindone.transformers.Pix2StructForConditionalGeneration",
         (config,),
-        {},
-        (pixel_values, input_ids, image_embeds_position_mask, attention_mask),
+        {**inputs_dict},
+        (),
         {},
         {
-            "last_hidden_state": 0,
-            "image_embeds": 1,
+            "logits": 0,
         },
     ],
 ]
