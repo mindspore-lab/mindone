@@ -1064,6 +1064,8 @@ class Kosmos2TextBlock(mindspore.nn.Cell):
         output_attentions: Optional[bool] = False,
         use_cache: Optional[bool] = True,
     ) -> Tuple[mindspore.Tensor, Optional[Tuple[mindspore.Tensor, mindspore.Tensor]]]:
+
+        hidden_states = hidden_states.to(self.self_attn_layer_norm.weight.dtype)  # Todo: remove cast
         residual = hidden_states
 
         # Self Attention
