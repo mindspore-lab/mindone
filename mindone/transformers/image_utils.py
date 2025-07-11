@@ -344,7 +344,7 @@ def pil_to_tensor(image, is_normalize=True):
     if is_normalize:
         img_array = img_array / 255.0
 
-    tensor = ms.tensor(img_array, dtype=mindspore.float32)
+    tensor = ms.tensor(img_array, dtype=ms.float32)
 
     return tensor
 
