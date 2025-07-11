@@ -28,6 +28,7 @@ from . import (
     blip_2,
     clap,
     clip,
+    deprecated,
     dpt,
     fuyu,
     gemma,
@@ -67,6 +68,7 @@ from . import (
     umt5,
     vits,
     wav2vec2,
+    xlm,
     xlm_roberta,
 )
 
