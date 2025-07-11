@@ -182,21 +182,31 @@ class Kosmos2ModelTester:
             latent_query_num=self.latent_query_num,
         )
 
+    def prepare_config_and_inputs_for_common(self):
+        config_and_inputs = self.prepare_config_and_inputs()
+        config, input_ids, attention_mask, image_embeds_position_mask, pixel_values = config_and_inputs
+        inputs_dict = {
+            "input_ids": input_ids,
+            "attention_mask": attention_mask,
+            "image_embeds_position_mask": image_embeds_position_mask,
+            "pixel_values": pixel_values,
+        }
+        return config, inputs_dict
+
 model_tester = Kosmos2ModelTester()
-config, input_ids, attention_mask, image_embeds_position_mask, pixel_values = model_tester.prepare_config_and_inputs()
+config, inputs_dict = model_tester.prepare_config_and_inputs_for_common()
 
 BERT_CASES = [
     [
-        "Kosmos2Model",
-        "transformers.Kosmos2Model",
-        "mindone.transformers.Kosmos2Model",
+        "Kosmos2ForConditionalGeneration",
+        "transformers.Kosmos2ForConditionalGeneration",
+        "mindone.transformers.Kosmos2ForConditionalGeneration",
         (config,),
         {},
-        (pixel_values, input_ids, image_embeds_position_mask, attention_mask),
-        {},
+        (),
+        {**inputs_dict},
         {
-            "last_hidden_state": 0,
-            "image_embeds": 1,
+            "logits": 0,
         },
     ],
 ]
