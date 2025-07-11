@@ -28,6 +28,7 @@ from . import (
     blip_2,
     clap,
     clip,
+    ctrl,
     dpt,
     fuyu,
     gemma,
