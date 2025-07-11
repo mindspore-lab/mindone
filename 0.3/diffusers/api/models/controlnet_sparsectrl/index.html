@@ -8146,10 +8146,7 @@ specific language governing permissions and limitations under the License. -->
 
               <details class="quote">
                 <summary>Source code in <code>mindone/diffusers/models/controlnet_sparsectrl.py</code></summary>
-                <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal"> 47</span>
-<span class="normal"> 48</span>
-<span class="normal"> 49</span>
-<span class="normal"> 50</span>
+                <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal"> 50</span>
 <span class="normal"> 51</span>
 <span class="normal"> 52</span>
 <span class="normal"> 53</span>
@@ -8216,7 +8213,10 @@ specific language governing permissions and limitations under the License. -->
 <span class="normal">114</span>
 <span class="normal">115</span>
 <span class="normal">116</span>
-<span class="normal">117</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">class</span><span class="w"> </span><span class="nc">SparseControlNetModel</span><span class="p">(</span><span class="n">SparseControlNetModel</span><span class="p">):</span>
+<span class="normal">117</span>
+<span class="normal">118</span>
+<span class="normal">119</span>
+<span class="normal">120</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">class</span><span class="w"> </span><span class="nc">SparseControlNetModel</span><span class="p">(</span><span class="n">SparseControlNetModel</span><span class="p">):</span>
     <span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span>
         <span class="bp">self</span><span class="p">,</span>
         <span class="n">in_channels</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">4</span><span class="p">,</span>
@@ -8334,11 +8334,11 @@ specific language governing permissions and limitations under the License. -->
 
               <details class="quote">
                 <summary>Source code in <code>mindone/diffusers/models/controlnet_sparsectrl.py</code></summary>
-                <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">29</span>
-<span class="normal">30</span>
-<span class="normal">31</span>
-<span class="normal">32</span>
-<span class="normal">33</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">class</span><span class="w"> </span><span class="nc">SparseControlNetOutput</span><span class="p">(</span><span class="n">SparseControlNetOutput</span><span class="p">):</span>
+                <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">32</span>
+<span class="normal">33</span>
+<span class="normal">34</span>
+<span class="normal">35</span>
+<span class="normal">36</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">class</span><span class="w"> </span><span class="nc">SparseControlNetOutput</span><span class="p">(</span><span class="n">SparseControlNetOutput</span><span class="p">):</span>
     <span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
         <span class="n">deprecation_message</span> <span class="o">=</span> <span class="s2">&quot;Importing `SparseControlNetOutput` from `mindone.diffusers.models.controlnet_sparsectrl` is deprecated and this will be removed in a future version. Please use `from mindone.diffusers.models.controlnets.controlnet_sparsectrl import SparseControlNetOutput`, instead.&quot;</span>  <span class="c1"># noqa: E501</span>
         <span class="n">deprecate</span><span class="p">(</span><span class="s2">&quot;mindone.diffusers.models.controlnet_sparsectrl.SparseControlNetOutput&quot;</span><span class="p">,</span> <span class="s2">&quot;0.34&quot;</span><span class="p">,</span> <span class="n">deprecation_message</span><span class="p">)</span>

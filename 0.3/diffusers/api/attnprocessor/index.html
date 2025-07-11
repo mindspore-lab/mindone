@@ -8801,10 +8801,7 @@ specific language governing permissions and limitations under the License.
 
               <details class="quote">
                 <summary>Source code in <code>mindone/diffusers/models/attention_processor.py</code></summary>
-                <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">1127</span>
-<span class="normal">1128</span>
-<span class="normal">1129</span>
-<span class="normal">1130</span>
+                <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">1130</span>
 <span class="normal">1131</span>
 <span class="normal">1132</span>
 <span class="normal">1133</span>
@@ -8867,7 +8864,10 @@ specific language governing permissions and limitations under the License.
 <span class="normal">1190</span>
 <span class="normal">1191</span>
 <span class="normal">1192</span>
-<span class="normal">1193</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@ms</span><span class="o">.</span><span class="n">jit_class</span>
+<span class="normal">1193</span>
+<span class="normal">1194</span>
+<span class="normal">1195</span>
+<span class="normal">1196</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@ms</span><span class="o">.</span><span class="n">jit_class</span>
 <span class="k">class</span><span class="w"> </span><span class="nc">AttnProcessor</span><span class="p">:</span>
 <span class="w">    </span><span class="sa">r</span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    Default processor for performing attention-related computations.</span>
@@ -8981,10 +8981,7 @@ specific language governing permissions and limitations under the License.
 
               <details class="quote">
                 <summary>Source code in <code>mindone/diffusers/models/attention_processor.py</code></summary>
-                <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">2711</span>
-<span class="normal">2712</span>
-<span class="normal">2713</span>
-<span class="normal">2714</span>
+                <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">2714</span>
 <span class="normal">2715</span>
 <span class="normal">2716</span>
 <span class="normal">2717</span>
@@ -9064,7 +9061,10 @@ specific language governing permissions and limitations under the License.
 <span class="normal">2791</span>
 <span class="normal">2792</span>
 <span class="normal">2793</span>
-<span class="normal">2794</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@ms</span><span class="o">.</span><span class="n">jit_class</span>
+<span class="normal">2794</span>
+<span class="normal">2795</span>
+<span class="normal">2796</span>
+<span class="normal">2797</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@ms</span><span class="o">.</span><span class="n">jit_class</span>
 <span class="k">class</span><span class="w"> </span><span class="nc">AttnProcessor2_0</span><span class="p">:</span>
 <span class="w">    </span><span class="sa">r</span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    Processor for implementing scaled dot-product attention (enabled by default if you&#39;re using PyTorch 2.0).</span>
@@ -9196,10 +9196,7 @@ encoder.</p>
 
               <details class="quote">
                 <summary>Source code in <code>mindone/diffusers/models/attention_processor.py</code></summary>
-                <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">1301</span>
-<span class="normal">1302</span>
-<span class="normal">1303</span>
-<span class="normal">1304</span>
+                <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">1304</span>
 <span class="normal">1305</span>
 <span class="normal">1306</span>
 <span class="normal">1307</span>
@@ -9255,7 +9252,10 @@ encoder.</p>
 <span class="normal">1357</span>
 <span class="normal">1358</span>
 <span class="normal">1359</span>
-<span class="normal">1360</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@ms</span><span class="o">.</span><span class="n">jit_class</span>
+<span class="normal">1360</span>
+<span class="normal">1361</span>
+<span class="normal">1362</span>
+<span class="normal">1363</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@ms</span><span class="o">.</span><span class="n">jit_class</span>
 <span class="k">class</span><span class="w"> </span><span class="nc">AttnAddedKVProcessor</span><span class="p">:</span>
 <span class="w">    </span><span class="sa">r</span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    Processor for performing attention-related computations with extra learnable key and value matrices for the text</span>
@@ -9367,10 +9367,7 @@ For cross-attention modules, key and value projection matrices are fused.</p>
 
               <details class="quote">
                 <summary>Source code in <code>mindone/diffusers/models/attention_processor.py</code></summary>
-                <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">4088</span>
-<span class="normal">4089</span>
-<span class="normal">4090</span>
-<span class="normal">4091</span>
+                <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">4091</span>
 <span class="normal">4092</span>
 <span class="normal">4093</span>
 <span class="normal">4094</span>
@@ -9461,7 +9458,10 @@ For cross-attention modules, key and value projection matrices are fused.</p>
 <span class="normal">4179</span>
 <span class="normal">4180</span>
 <span class="normal">4181</span>
-<span class="normal">4182</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@ms</span><span class="o">.</span><span class="n">jit_class</span>
+<span class="normal">4182</span>
+<span class="normal">4183</span>
+<span class="normal">4184</span>
+<span class="normal">4185</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@ms</span><span class="o">.</span><span class="n">jit_class</span>
 <span class="k">class</span><span class="w"> </span><span class="nc">FusedAttnProcessor2_0</span><span class="p">:</span>
 <span class="w">    </span><span class="sa">r</span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    Processor for implementing scaled dot-product attention (enabled by default if you&#39;re using PyTorch 2.0). It uses</span>
@@ -9604,10 +9604,7 @@ used in the Allegro model. It applies a normalization layer and rotary embedding
 
               <details class="quote">
                 <summary>Source code in <code>mindone/diffusers/models/attention_processor.py</code></summary>
-                <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">1833</span>
-<span class="normal">1834</span>
-<span class="normal">1835</span>
-<span class="normal">1836</span>
+                <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">1836</span>
 <span class="normal">1837</span>
 <span class="normal">1838</span>
 <span class="normal">1839</span>
@@ -9695,7 +9692,10 @@ used in the Allegro model. It applies a normalization layer and rotary embedding
 <span class="normal">1921</span>
 <span class="normal">1922</span>
 <span class="normal">1923</span>
-<span class="normal">1924</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@ms</span><span class="o">.</span><span class="n">jit_class</span>
+<span class="normal">1924</span>
+<span class="normal">1925</span>
+<span class="normal">1926</span>
+<span class="normal">1927</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@ms</span><span class="o">.</span><span class="n">jit_class</span>
 <span class="k">class</span><span class="w"> </span><span class="nc">AllegroAttnProcessor2_0</span><span class="p">:</span>
 <span class="w">    </span><span class="sa">r</span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    Processor for implementing scaled dot-product attention (enabled by default if you&#39;re using PyTorch 2.0). This is</span>
@@ -9834,10 +9834,7 @@ used in the Allegro model. It applies a normalization layer and rotary embedding
 
               <details class="quote">
                 <summary>Source code in <code>mindone/diffusers/models/attention_processor.py</code></summary>
-                <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">1927</span>
-<span class="normal">1928</span>
-<span class="normal">1929</span>
-<span class="normal">1930</span>
+                <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">1930</span>
 <span class="normal">1931</span>
 <span class="normal">1932</span>
 <span class="normal">1933</span>
@@ -9922,7 +9919,10 @@ used in the Allegro model. It applies a normalization layer and rotary embedding
 <span class="normal">2012</span>
 <span class="normal">2013</span>
 <span class="normal">2014</span>
-<span class="normal">2015</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@ms</span><span class="o">.</span><span class="n">jit_class</span>
+<span class="normal">2015</span>
+<span class="normal">2016</span>
+<span class="normal">2017</span>
+<span class="normal">2018</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@ms</span><span class="o">.</span><span class="n">jit_class</span>
 <span class="k">class</span><span class="w"> </span><span class="nc">AuraFlowAttnProcessor2_0</span><span class="p">:</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;Attention processor used typically in processing Aura Flow.&quot;&quot;&quot;</span>
 
@@ -10058,10 +10058,7 @@ used in the Allegro model. It applies a normalization layer and rotary embedding
 
               <details class="quote">
                 <summary>Source code in <code>mindone/diffusers/models/attention_processor.py</code></summary>
-                <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">2018</span>
-<span class="normal">2019</span>
-<span class="normal">2020</span>
-<span class="normal">2021</span>
+                <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">2021</span>
 <span class="normal">2022</span>
 <span class="normal">2023</span>
 <span class="normal">2024</span>
@@ -10145,7 +10142,10 @@ used in the Allegro model. It applies a normalization layer and rotary embedding
 <span class="normal">2102</span>
 <span class="normal">2103</span>
 <span class="normal">2104</span>
-<span class="normal">2105</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@ms</span><span class="o">.</span><span class="n">jit_class</span>
+<span class="normal">2105</span>
+<span class="normal">2106</span>
+<span class="normal">2107</span>
+<span class="normal">2108</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@ms</span><span class="o">.</span><span class="n">jit_class</span>
 <span class="k">class</span><span class="w"> </span><span class="nc">FusedAuraFlowAttnProcessor2_0</span><span class="p">:</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;Attention processor used typically in processing Aura Flow with fused projections.&quot;&quot;&quot;</span>
 
@@ -10281,10 +10281,7 @@ query and key vectors, but does not include spatial normalization.</p>
 
               <details class="quote">
                 <summary>Source code in <code>mindone/diffusers/models/attention_processor.py</code></summary>
-                <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">2432</span>
-<span class="normal">2433</span>
-<span class="normal">2434</span>
-<span class="normal">2435</span>
+                <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">2435</span>
 <span class="normal">2436</span>
 <span class="normal">2437</span>
 <span class="normal">2438</span>
@@ -10369,7 +10366,10 @@ query and key vectors, but does not include spatial normalization.</p>
 <span class="normal">2517</span>
 <span class="normal">2518</span>
 <span class="normal">2519</span>
-<span class="normal">2520</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@ms</span><span class="o">.</span><span class="n">jit_class</span>
+<span class="normal">2520</span>
+<span class="normal">2521</span>
+<span class="normal">2522</span>
+<span class="normal">2523</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@ms</span><span class="o">.</span><span class="n">jit_class</span>
 <span class="k">class</span><span class="w"> </span><span class="nc">CogVideoXAttnProcessor2_0</span><span class="p">:</span>
 <span class="w">    </span><span class="sa">r</span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    Processor for implementing scaled dot-product attention for the CogVideoX model. It applies a rotary embedding on</span>
@@ -10491,10 +10491,7 @@ query and key vectors, but does not include spatial normalization.</p>
 
             <details class="quote">
               <summary>Source code in <code>mindone/diffusers/models/attention_processor.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">2445</span>
-<span class="normal">2446</span>
-<span class="normal">2447</span>
-<span class="normal">2448</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">2448</span>
 <span class="normal">2449</span>
 <span class="normal">2450</span>
 <span class="normal">2451</span>
@@ -10509,7 +10506,10 @@ query and key vectors, but does not include spatial normalization.</p>
 <span class="normal">2460</span>
 <span class="normal">2461</span>
 <span class="normal">2462</span>
-<span class="normal">2463</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">apply_rotary_emb_for_image_part</span><span class="p">(</span>
+<span class="normal">2463</span>
+<span class="normal">2464</span>
+<span class="normal">2465</span>
+<span class="normal">2466</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">apply_rotary_emb_for_image_part</span><span class="p">(</span>
     <span class="bp">self</span><span class="p">,</span>
     <span class="n">hidden_state</span><span class="p">:</span> <span class="n">ms</span><span class="o">.</span><span class="n">Tensor</span><span class="p">,</span>
     <span class="n">image_rotary_emb</span><span class="p">:</span> <span class="n">ms</span><span class="o">.</span><span class="n">Tensor</span><span class="p">,</span>
@@ -10567,10 +10567,7 @@ query and key vectors, but does not include spatial normalization.</p>
 
               <details class="quote">
                 <summary>Source code in <code>mindone/diffusers/models/attention_processor.py</code></summary>
-                <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">2523</span>
-<span class="normal">2524</span>
-<span class="normal">2525</span>
-<span class="normal">2526</span>
+                <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">2526</span>
 <span class="normal">2527</span>
 <span class="normal">2528</span>
 <span class="normal">2529</span>
@@ -10636,7 +10633,10 @@ query and key vectors, but does not include spatial normalization.</p>
 <span class="normal">2589</span>
 <span class="normal">2590</span>
 <span class="normal">2591</span>
-<span class="normal">2592</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@ms</span><span class="o">.</span><span class="n">jit_class</span>
+<span class="normal">2592</span>
+<span class="normal">2593</span>
+<span class="normal">2594</span>
+<span class="normal">2595</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@ms</span><span class="o">.</span><span class="n">jit_class</span>
 <span class="k">class</span><span class="w"> </span><span class="nc">FusedCogVideoXAttnProcessor2_0</span><span class="p">:</span>
 <span class="w">    </span><span class="sa">r</span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    Processor for implementing scaled dot-product attention for the CogVideoX model. It applies a rotary embedding on</span>
@@ -10783,12 +10783,7 @@ For example, calling unet with a single prompt and num_images_per_prompt=1, batc
 
               <details class="quote">
                 <summary>Source code in <code>mindone/diffusers/pipelines/text_to_video_synthesis/pipeline_text_to_video_zero.py</code></summary>
-                <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal"> 48</span>
-<span class="normal"> 49</span>
-<span class="normal"> 50</span>
-<span class="normal"> 51</span>
-<span class="normal"> 52</span>
-<span class="normal"> 53</span>
+                <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal"> 53</span>
 <span class="normal"> 54</span>
 <span class="normal"> 55</span>
 <span class="normal"> 56</span>
@@ -10839,7 +10834,12 @@ For example, calling unet with a single prompt and num_images_per_prompt=1, batc
 <span class="normal">101</span>
 <span class="normal">102</span>
 <span class="normal">103</span>
-<span class="normal">104</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">class</span><span class="w"> </span><span class="nc">CrossFrameAttnProcessor</span><span class="p">:</span>
+<span class="normal">104</span>
+<span class="normal">105</span>
+<span class="normal">106</span>
+<span class="normal">107</span>
+<span class="normal">108</span>
+<span class="normal">109</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">class</span><span class="w"> </span><span class="nc">CrossFrameAttnProcessor</span><span class="p">:</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    Cross frame attention processor. Each frame attends the first frame.</span>
 
@@ -11077,10 +11077,7 @@ For example, calling unet with a single prompt and num_images_per_prompt=1, batc
 
               <details class="quote">
                 <summary>Source code in <code>mindone/diffusers/models/attention_processor.py</code></summary>
-                <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">1196</span>
-<span class="normal">1197</span>
-<span class="normal">1198</span>
-<span class="normal">1199</span>
+                <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">1199</span>
 <span class="normal">1200</span>
 <span class="normal">1201</span>
 <span class="normal">1202</span>
@@ -11179,7 +11176,10 @@ For example, calling unet with a single prompt and num_images_per_prompt=1, batc
 <span class="normal">1295</span>
 <span class="normal">1296</span>
 <span class="normal">1297</span>
-<span class="normal">1298</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">class</span><span class="w"> </span><span class="nc">CustomDiffusionAttnProcessor</span><span class="p">(</span><span class="n">nn</span><span class="o">.</span><span class="n">Cell</span><span class="p">):</span>
+<span class="normal">1298</span>
+<span class="normal">1299</span>
+<span class="normal">1300</span>
+<span class="normal">1301</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">class</span><span class="w"> </span><span class="nc">CustomDiffusionAttnProcessor</span><span class="p">(</span><span class="n">nn</span><span class="o">.</span><span class="n">Cell</span><span class="p">):</span>
 <span class="w">    </span><span class="sa">r</span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    Processor for implementing attention for the Custom Diffusion method.</span>
 
@@ -11329,10 +11329,7 @@ For example, calling unet with a single prompt and num_images_per_prompt=1, batc
 
               <details class="quote">
                 <summary>Source code in <code>mindone/diffusers/models/attention_processor.py</code></summary>
-                <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">2108</span>
-<span class="normal">2109</span>
-<span class="normal">2110</span>
-<span class="normal">2111</span>
+                <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">2111</span>
 <span class="normal">2112</span>
 <span class="normal">2113</span>
 <span class="normal">2114</span>
@@ -11425,7 +11422,10 @@ For example, calling unet with a single prompt and num_images_per_prompt=1, batc
 <span class="normal">2201</span>
 <span class="normal">2202</span>
 <span class="normal">2203</span>
-<span class="normal">2204</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@ms</span><span class="o">.</span><span class="n">jit_class</span>
+<span class="normal">2204</span>
+<span class="normal">2205</span>
+<span class="normal">2206</span>
+<span class="normal">2207</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@ms</span><span class="o">.</span><span class="n">jit_class</span>
 <span class="k">class</span><span class="w"> </span><span class="nc">FluxAttnProcessor2_0</span><span class="p">:</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;Attention processor used typically in processing the SD3-like self-attention projections.&quot;&quot;&quot;</span>
 
@@ -11569,10 +11569,7 @@ For example, calling unet with a single prompt and num_images_per_prompt=1, batc
 
               <details class="quote">
                 <summary>Source code in <code>mindone/diffusers/models/attention_processor.py</code></summary>
-                <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">2207</span>
-<span class="normal">2208</span>
-<span class="normal">2209</span>
-<span class="normal">2210</span>
+                <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">2210</span>
 <span class="normal">2211</span>
 <span class="normal">2212</span>
 <span class="normal">2213</span>
@@ -11659,7 +11656,10 @@ For example, calling unet with a single prompt and num_images_per_prompt=1, batc
 <span class="normal">2294</span>
 <span class="normal">2295</span>
 <span class="normal">2296</span>
-<span class="normal">2297</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@ms</span><span class="o">.</span><span class="n">jit_class</span>
+<span class="normal">2297</span>
+<span class="normal">2298</span>
+<span class="normal">2299</span>
+<span class="normal">2300</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@ms</span><span class="o">.</span><span class="n">jit_class</span>
 <span class="k">class</span><span class="w"> </span><span class="nc">FusedFluxAttnProcessor2_0</span><span class="p">:</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;Attention processor used typically in processing the SD3-like self-attention projections.&quot;&quot;&quot;</span>
 
@@ -11799,16 +11799,16 @@ For example, calling unet with a single prompt and num_images_per_prompt=1, batc
 
               <details class="quote">
                 <summary>Source code in <code>mindone/diffusers/models/attention_processor.py</code></summary>
-                <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">4441</span>
-<span class="normal">4442</span>
-<span class="normal">4443</span>
-<span class="normal">4444</span>
+                <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">4444</span>
 <span class="normal">4445</span>
 <span class="normal">4446</span>
 <span class="normal">4447</span>
 <span class="normal">4448</span>
 <span class="normal">4449</span>
-<span class="normal">4450</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@ms</span><span class="o">.</span><span class="n">jit_class</span>
+<span class="normal">4450</span>
+<span class="normal">4451</span>
+<span class="normal">4452</span>
+<span class="normal">4453</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@ms</span><span class="o">.</span><span class="n">jit_class</span>
 <span class="k">class</span><span class="w"> </span><span class="nc">FluxSingleAttnProcessor2_0</span><span class="p">(</span><span class="n">FluxAttnProcessor2_0</span><span class="p">):</span>
 <span class="w">    </span><span class="sa">r</span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    Processor for implementing scaled dot-product attention (enabled by default if you&#39;re using PyTorch 2.0).</span>
@@ -11866,10 +11866,7 @@ used in the HunyuanDiT model. It applies a s normalization layer and rotary embe
 
               <details class="quote">
                 <summary>Source code in <code>mindone/diffusers/models/attention_processor.py</code></summary>
-                <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">2882</span>
-<span class="normal">2883</span>
-<span class="normal">2884</span>
-<span class="normal">2885</span>
+                <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">2885</span>
 <span class="normal">2886</span>
 <span class="normal">2887</span>
 <span class="normal">2888</span>
@@ -11963,7 +11960,10 @@ used in the HunyuanDiT model. It applies a s normalization layer and rotary embe
 <span class="normal">2976</span>
 <span class="normal">2977</span>
 <span class="normal">2978</span>
-<span class="normal">2979</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@ms</span><span class="o">.</span><span class="n">jit_class</span>
+<span class="normal">2979</span>
+<span class="normal">2980</span>
+<span class="normal">2981</span>
+<span class="normal">2982</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@ms</span><span class="o">.</span><span class="n">jit_class</span>
 <span class="k">class</span><span class="w"> </span><span class="nc">HunyuanAttnProcessor2_0</span><span class="p">:</span>
 <span class="w">    </span><span class="sa">r</span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    Processor for implementing scaled dot-product attention (enabled by default if you&#39;re using PyTorch 2.0). This is</span>
@@ -12110,10 +12110,7 @@ variant of the processor employs <a href="https://arxiv.org/abs/2403.17377">Pert
 
               <details class="quote">
                 <summary>Source code in <code>mindone/diffusers/models/attention_processor.py</code></summary>
-                <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">3740</span>
-<span class="normal">3741</span>
-<span class="normal">3742</span>
-<span class="normal">3743</span>
+                <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">3743</span>
 <span class="normal">3744</span>
 <span class="normal">3745</span>
 <span class="normal">3746</span>
@@ -12231,7 +12228,10 @@ variant of the processor employs <a href="https://arxiv.org/abs/2403.17377">Pert
 <span class="normal">3858</span>
 <span class="normal">3859</span>
 <span class="normal">3860</span>
-<span class="normal">3861</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@ms</span><span class="o">.</span><span class="n">jit_class</span>
+<span class="normal">3861</span>
+<span class="normal">3862</span>
+<span class="normal">3863</span>
+<span class="normal">3864</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@ms</span><span class="o">.</span><span class="n">jit_class</span>
 <span class="k">class</span><span class="w"> </span><span class="nc">PAGHunyuanAttnProcessor2_0</span><span class="p">:</span>
 <span class="w">    </span><span class="sa">r</span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    Processor for implementing scaled dot-product attention (enabled by default if you&#39;re using PyTorch 2.0). This is</span>
@@ -12402,10 +12402,7 @@ variant of the processor employs <a href="https://arxiv.org/abs/2403.17377">Pert
 
               <details class="quote">
                 <summary>Source code in <code>mindone/diffusers/models/attention_processor.py</code></summary>
-                <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">3864</span>
-<span class="normal">3865</span>
-<span class="normal">3866</span>
-<span class="normal">3867</span>
+                <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">3867</span>
 <span class="normal">3868</span>
 <span class="normal">3869</span>
 <span class="normal">3870</span>
@@ -12524,7 +12521,10 @@ variant of the processor employs <a href="https://arxiv.org/abs/2403.17377">Pert
 <span class="normal">3983</span>
 <span class="normal">3984</span>
 <span class="normal">3985</span>
-<span class="normal">3986</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@ms</span><span class="o">.</span><span class="n">jit_class</span>
+<span class="normal">3986</span>
+<span class="normal">3987</span>
+<span class="normal">3988</span>
+<span class="normal">3989</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@ms</span><span class="o">.</span><span class="n">jit_class</span>
 <span class="k">class</span><span class="w"> </span><span class="nc">PAGCFGHunyuanAttnProcessor2_0</span><span class="p">:</span>
 <span class="w">    </span><span class="sa">r</span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    Processor for implementing scaled dot-product attention (enabled by default if you&#39;re using PyTorch 2.0). This is</span>
@@ -12695,10 +12695,7 @@ PAG reference: https://arxiv.org/abs/2403.17377</p>
 
               <details class="quote">
                 <summary>Source code in <code>mindone/diffusers/models/attention_processor.py</code></summary>
-                <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">4185</span>
-<span class="normal">4186</span>
-<span class="normal">4187</span>
-<span class="normal">4188</span>
+                <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">4188</span>
 <span class="normal">4189</span>
 <span class="normal">4190</span>
 <span class="normal">4191</span>
@@ -12788,7 +12785,10 @@ PAG reference: https://arxiv.org/abs/2403.17377</p>
 <span class="normal">4275</span>
 <span class="normal">4276</span>
 <span class="normal">4277</span>
-<span class="normal">4278</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@ms</span><span class="o">.</span><span class="n">jit_class</span>
+<span class="normal">4278</span>
+<span class="normal">4279</span>
+<span class="normal">4280</span>
+<span class="normal">4281</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@ms</span><span class="o">.</span><span class="n">jit_class</span>
 <span class="k">class</span><span class="w"> </span><span class="nc">PAGIdentitySelfAttnProcessor2_0</span><span class="p">:</span>
 <span class="w">    </span><span class="sa">r</span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    Processor for implementing PAG using scaled dot-product attention (enabled by default if you&#39;re using PyTorch 2.0).</span>
@@ -12930,10 +12930,7 @@ PAG reference: https://arxiv.org/abs/2403.17377</p>
 
               <details class="quote">
                 <summary>Source code in <code>mindone/diffusers/models/attention_processor.py</code></summary>
-                <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">4281</span>
-<span class="normal">4282</span>
-<span class="normal">4283</span>
-<span class="normal">4284</span>
+                <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">4284</span>
 <span class="normal">4285</span>
 <span class="normal">4286</span>
 <span class="normal">4287</span>
@@ -13026,7 +13023,10 @@ PAG reference: https://arxiv.org/abs/2403.17377</p>
 <span class="normal">4374</span>
 <span class="normal">4375</span>
 <span class="normal">4376</span>
-<span class="normal">4377</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@ms</span><span class="o">.</span><span class="n">jit_class</span>
+<span class="normal">4377</span>
+<span class="normal">4378</span>
+<span class="normal">4379</span>
+<span class="normal">4380</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@ms</span><span class="o">.</span><span class="n">jit_class</span>
 <span class="k">class</span><span class="w"> </span><span class="nc">PAGCFGIdentitySelfAttnProcessor2_0</span><span class="p">:</span>
 <span class="w">    </span><span class="sa">r</span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    Processor for implementing PAG using scaled dot-product attention (enabled by default if you&#39;re using PyTorch 2.0).</span>
@@ -13260,10 +13260,7 @@ PAG reference: https://arxiv.org/abs/2403.17377</p>
 
               <details class="quote">
                 <summary>Source code in <code>mindone/diffusers/models/attention_processor.py</code></summary>
-                <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">3144</span>
-<span class="normal">3145</span>
-<span class="normal">3146</span>
-<span class="normal">3147</span>
+                <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">3147</span>
 <span class="normal">3148</span>
 <span class="normal">3149</span>
 <span class="normal">3150</span>
@@ -13456,7 +13453,10 @@ PAG reference: https://arxiv.org/abs/2403.17377</p>
 <span class="normal">3337</span>
 <span class="normal">3338</span>
 <span class="normal">3339</span>
-<span class="normal">3340</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">class</span><span class="w"> </span><span class="nc">IPAdapterAttnProcessor</span><span class="p">(</span><span class="n">nn</span><span class="o">.</span><span class="n">Cell</span><span class="p">):</span>
+<span class="normal">3340</span>
+<span class="normal">3341</span>
+<span class="normal">3342</span>
+<span class="normal">3343</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">class</span><span class="w"> </span><span class="nc">IPAdapterAttnProcessor</span><span class="p">(</span><span class="n">nn</span><span class="o">.</span><span class="n">Cell</span><span class="p">):</span>
 <span class="w">    </span><span class="sa">r</span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    Attention processor for Multiple IP-Adapters.</span>
 
@@ -13790,10 +13790,7 @@ PAG reference: https://arxiv.org/abs/2403.17377</p>
 
               <details class="quote">
                 <summary>Source code in <code>mindone/diffusers/models/attention_processor.py</code></summary>
-                <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">3343</span>
-<span class="normal">3344</span>
-<span class="normal">3345</span>
-<span class="normal">3346</span>
+                <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">3346</span>
 <span class="normal">3347</span>
 <span class="normal">3348</span>
 <span class="normal">3349</span>
@@ -14013,7 +14010,10 @@ PAG reference: https://arxiv.org/abs/2403.17377</p>
 <span class="normal">3563</span>
 <span class="normal">3564</span>
 <span class="normal">3565</span>
-<span class="normal">3566</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">class</span><span class="w"> </span><span class="nc">IPAdapterAttnProcessor2_0</span><span class="p">(</span><span class="n">nn</span><span class="o">.</span><span class="n">Cell</span><span class="p">):</span>
+<span class="normal">3566</span>
+<span class="normal">3567</span>
+<span class="normal">3568</span>
+<span class="normal">3569</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">class</span><span class="w"> </span><span class="nc">IPAdapterAttnProcessor2_0</span><span class="p">(</span><span class="n">nn</span><span class="o">.</span><span class="n">Cell</span><span class="p">):</span>
 <span class="w">    </span><span class="sa">r</span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    Attention processor for IP-Adapter for PyTorch 2.0.</span>
 
@@ -14387,10 +14387,7 @@ additional image-based information and timestep embeddings.</p>
 
               <details class="quote">
                 <summary>Source code in <code>mindone/diffusers/models/attention_processor.py</code></summary>
-                <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">3569</span>
-<span class="normal">3570</span>
-<span class="normal">3571</span>
-<span class="normal">3572</span>
+                <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">3572</span>
 <span class="normal">3573</span>
 <span class="normal">3574</span>
 <span class="normal">3575</span>
@@ -14555,7 +14552,10 @@ additional image-based information and timestep embeddings.</p>
 <span class="normal">3734</span>
 <span class="normal">3735</span>
 <span class="normal">3736</span>
-<span class="normal">3737</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">class</span><span class="w"> </span><span class="nc">SD3IPAdapterJointAttnProcessor2_0</span><span class="p">(</span><span class="n">nn</span><span class="o">.</span><span class="n">Cell</span><span class="p">):</span>
+<span class="normal">3737</span>
+<span class="normal">3738</span>
+<span class="normal">3739</span>
+<span class="normal">3740</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">class</span><span class="w"> </span><span class="nc">SD3IPAdapterJointAttnProcessor2_0</span><span class="p">(</span><span class="n">nn</span><span class="o">.</span><span class="n">Cell</span><span class="p">):</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    Attention processor for IP-Adapter used typically in processing the SD3-like self-attention projections, with</span>
 <span class="sd">    additional image-based information and timestep embeddings.</span>
@@ -14904,10 +14904,7 @@ additional image-based information and timestep embeddings.</p>
 
             <details class="quote">
               <summary>Source code in <code>mindone/diffusers/models/attention_processor.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">3608</span>
-<span class="normal">3609</span>
-<span class="normal">3610</span>
-<span class="normal">3611</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">3611</span>
 <span class="normal">3612</span>
 <span class="normal">3613</span>
 <span class="normal">3614</span>
@@ -15033,7 +15030,10 @@ additional image-based information and timestep embeddings.</p>
 <span class="normal">3734</span>
 <span class="normal">3735</span>
 <span class="normal">3736</span>
-<span class="normal">3737</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">construct</span><span class="p">(</span>
+<span class="normal">3737</span>
+<span class="normal">3738</span>
+<span class="normal">3739</span>
+<span class="normal">3740</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">construct</span><span class="p">(</span>
     <span class="bp">self</span><span class="p">,</span>
     <span class="n">attn</span><span class="p">:</span> <span class="n">Attention</span><span class="p">,</span>
     <span class="n">hidden_states</span><span class="p">:</span> <span class="n">ms</span><span class="o">.</span><span class="n">Tensor</span><span class="p">,</span>
@@ -15201,10 +15201,7 @@ additional image-based information and timestep embeddings.</p>
 
               <details class="quote">
                 <summary>Source code in <code>mindone/diffusers/models/attention_processor.py</code></summary>
-                <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">1363</span>
-<span class="normal">1364</span>
-<span class="normal">1365</span>
-<span class="normal">1366</span>
+                <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">1366</span>
 <span class="normal">1367</span>
 <span class="normal">1368</span>
 <span class="normal">1369</span>
@@ -15279,7 +15276,10 @@ additional image-based information and timestep embeddings.</p>
 <span class="normal">1438</span>
 <span class="normal">1439</span>
 <span class="normal">1440</span>
-<span class="normal">1441</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@ms</span><span class="o">.</span><span class="n">jit_class</span>
+<span class="normal">1441</span>
+<span class="normal">1442</span>
+<span class="normal">1443</span>
+<span class="normal">1444</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@ms</span><span class="o">.</span><span class="n">jit_class</span>
 <span class="k">class</span><span class="w"> </span><span class="nc">JointAttnProcessor2_0</span><span class="p">:</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;Attention processor used typically in processing the SD3-like self-attention projections.&quot;&quot;&quot;</span>
 
@@ -15405,10 +15405,7 @@ additional image-based information and timestep embeddings.</p>
 
               <details class="quote">
                 <summary>Source code in <code>mindone/diffusers/models/attention_processor.py</code></summary>
-                <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">1444</span>
-<span class="normal">1445</span>
-<span class="normal">1446</span>
-<span class="normal">1447</span>
+                <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">1447</span>
 <span class="normal">1448</span>
 <span class="normal">1449</span>
 <span class="normal">1450</span>
@@ -15555,7 +15552,10 @@ additional image-based information and timestep embeddings.</p>
 <span class="normal">1591</span>
 <span class="normal">1592</span>
 <span class="normal">1593</span>
-<span class="normal">1594</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@ms</span><span class="o">.</span><span class="n">jit_class</span>
+<span class="normal">1594</span>
+<span class="normal">1595</span>
+<span class="normal">1596</span>
+<span class="normal">1597</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@ms</span><span class="o">.</span><span class="n">jit_class</span>
 <span class="k">class</span><span class="w"> </span><span class="nc">PAGJointAttnProcessor2_0</span><span class="p">:</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;Attention processor used typically in processing the SD3-like self-attention projections.&quot;&quot;&quot;</span>
 
@@ -15753,10 +15753,7 @@ additional image-based information and timestep embeddings.</p>
 
               <details class="quote">
                 <summary>Source code in <code>mindone/diffusers/models/attention_processor.py</code></summary>
-                <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">1597</span>
-<span class="normal">1598</span>
-<span class="normal">1599</span>
-<span class="normal">1600</span>
+                <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">1600</span>
 <span class="normal">1601</span>
 <span class="normal">1602</span>
 <span class="normal">1603</span>
@@ -15911,7 +15908,10 @@ additional image-based information and timestep embeddings.</p>
 <span class="normal">1752</span>
 <span class="normal">1753</span>
 <span class="normal">1754</span>
-<span class="normal">1755</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@ms</span><span class="o">.</span><span class="n">jit_class</span>
+<span class="normal">1755</span>
+<span class="normal">1756</span>
+<span class="normal">1757</span>
+<span class="normal">1758</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@ms</span><span class="o">.</span><span class="n">jit_class</span>
 <span class="k">class</span><span class="w"> </span><span class="nc">PAGCFGJointAttnProcessor2_0</span><span class="p">:</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;Attention processor used typically in processing the SD3-like self-attention projections.&quot;&quot;&quot;</span>
 
@@ -16117,10 +16117,7 @@ additional image-based information and timestep embeddings.</p>
 
               <details class="quote">
                 <summary>Source code in <code>mindone/diffusers/models/attention_processor.py</code></summary>
-                <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">1758</span>
-<span class="normal">1759</span>
-<span class="normal">1760</span>
-<span class="normal">1761</span>
+                <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">1761</span>
 <span class="normal">1762</span>
 <span class="normal">1763</span>
 <span class="normal">1764</span>
@@ -16189,7 +16186,10 @@ additional image-based information and timestep embeddings.</p>
 <span class="normal">1827</span>
 <span class="normal">1828</span>
 <span class="normal">1829</span>
-<span class="normal">1830</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@ms</span><span class="o">.</span><span class="n">jit_class</span>
+<span class="normal">1830</span>
+<span class="normal">1831</span>
+<span class="normal">1832</span>
+<span class="normal">1833</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@ms</span><span class="o">.</span><span class="n">jit_class</span>
 <span class="k">class</span><span class="w"> </span><span class="nc">FusedJointAttnProcessor2_0</span><span class="p">:</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;Attention processor used typically in processing the SD3-like self-attention projections.&quot;&quot;&quot;</span>
 
@@ -16310,10 +16310,7 @@ used in the LuminaNextDiT model. It applies a s normalization layer and rotary e
 
               <details class="quote">
                 <summary>Source code in <code>mindone/diffusers/models/attention_processor.py</code></summary>
-                <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">3989</span>
-<span class="normal">3990</span>
-<span class="normal">3991</span>
-<span class="normal">3992</span>
+                <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">3992</span>
 <span class="normal">3993</span>
 <span class="normal">3994</span>
 <span class="normal">3995</span>
@@ -16406,7 +16403,10 @@ used in the LuminaNextDiT model. It applies a s normalization layer and rotary e
 <span class="normal">4082</span>
 <span class="normal">4083</span>
 <span class="normal">4084</span>
-<span class="normal">4085</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@ms</span><span class="o">.</span><span class="n">jit_class</span>
+<span class="normal">4085</span>
+<span class="normal">4086</span>
+<span class="normal">4087</span>
+<span class="normal">4088</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@ms</span><span class="o">.</span><span class="n">jit_class</span>
 <span class="k">class</span><span class="w"> </span><span class="nc">LuminaAttnProcessor2_0</span><span class="p">:</span>
 <span class="w">    </span><span class="sa">r</span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    Processor for implementing scaled dot-product attention (enabled by default if you&#39;re using PyTorch 2.0). This is</span>
@@ -16550,10 +16550,7 @@ used in the LuminaNextDiT model. It applies a s normalization layer and rotary e
 
               <details class="quote">
                 <summary>Source code in <code>mindone/diffusers/models/attention_processor.py</code></summary>
-                <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">1019</span>
-<span class="normal">1020</span>
-<span class="normal">1021</span>
-<span class="normal">1022</span>
+                <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">1022</span>
 <span class="normal">1023</span>
 <span class="normal">1024</span>
 <span class="normal">1025</span>
@@ -16655,7 +16652,10 @@ used in the LuminaNextDiT model. It applies a s normalization layer and rotary e
 <span class="normal">1121</span>
 <span class="normal">1122</span>
 <span class="normal">1123</span>
-<span class="normal">1124</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@ms</span><span class="o">.</span><span class="n">jit_class</span>
+<span class="normal">1124</span>
+<span class="normal">1125</span>
+<span class="normal">1126</span>
+<span class="normal">1127</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@ms</span><span class="o">.</span><span class="n">jit_class</span>
 <span class="k">class</span><span class="w"> </span><span class="nc">MochiAttnProcessor2_0</span><span class="p">:</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;Attention processor used in Mochi.&quot;&quot;&quot;</span>
 
@@ -16808,10 +16808,7 @@ used in the LuminaNextDiT model. It applies a s normalization layer and rotary e
 
               <details class="quote">
                 <summary>Source code in <code>mindone/diffusers/models/attention_processor.py</code></summary>
-                <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">2797</span>
-<span class="normal">2798</span>
-<span class="normal">2799</span>
-<span class="normal">2800</span>
+                <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">2800</span>
 <span class="normal">2801</span>
 <span class="normal">2802</span>
 <span class="normal">2803</span>
@@ -16890,7 +16887,10 @@ used in the LuminaNextDiT model. It applies a s normalization layer and rotary e
 <span class="normal">2876</span>
 <span class="normal">2877</span>
 <span class="normal">2878</span>
-<span class="normal">2879</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@ms</span><span class="o">.</span><span class="n">jit_class</span>
+<span class="normal">2879</span>
+<span class="normal">2880</span>
+<span class="normal">2881</span>
+<span class="normal">2882</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@ms</span><span class="o">.</span><span class="n">jit_class</span>
 <span class="k">class</span><span class="w"> </span><span class="nc">MochiVaeAttnProcessor2_0</span><span class="p">:</span>
 <span class="w">    </span><span class="sa">r</span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    Attention processor used in Mochi VAE.</span>
@@ -17020,10 +17020,7 @@ used in the LuminaNextDiT model. It applies a s normalization layer and rotary e
 
               <details class="quote">
                 <summary>Source code in <code>mindone/diffusers/models/attention_processor.py</code></summary>
-                <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">4453</span>
-<span class="normal">4454</span>
-<span class="normal">4455</span>
-<span class="normal">4456</span>
+                <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">4456</span>
 <span class="normal">4457</span>
 <span class="normal">4458</span>
 <span class="normal">4459</span>
@@ -17076,7 +17073,10 @@ used in the LuminaNextDiT model. It applies a s normalization layer and rotary e
 <span class="normal">4506</span>
 <span class="normal">4507</span>
 <span class="normal">4508</span>
-<span class="normal">4509</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@ms</span><span class="o">.</span><span class="n">jit_class</span>
+<span class="normal">4509</span>
+<span class="normal">4510</span>
+<span class="normal">4511</span>
+<span class="normal">4512</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@ms</span><span class="o">.</span><span class="n">jit_class</span>
 <span class="k">class</span><span class="w"> </span><span class="nc">SanaLinearAttnProcessor2_0</span><span class="p">:</span>
 <span class="w">    </span><span class="sa">r</span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    Processor for implementing scaled dot-product linear attention.</span>
@@ -17180,10 +17180,7 @@ used in the LuminaNextDiT model. It applies a s normalization layer and rotary e
 
               <details class="quote">
                 <summary>Source code in <code>mindone/diffusers/models/attention_processor.py</code></summary>
-                <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">4380</span>
-<span class="normal">4381</span>
-<span class="normal">4382</span>
-<span class="normal">4383</span>
+                <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">4383</span>
 <span class="normal">4384</span>
 <span class="normal">4385</span>
 <span class="normal">4386</span>
@@ -17238,7 +17235,10 @@ used in the LuminaNextDiT model. It applies a s normalization layer and rotary e
 <span class="normal">4435</span>
 <span class="normal">4436</span>
 <span class="normal">4437</span>
-<span class="normal">4438</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@ms</span><span class="o">.</span><span class="n">jit_class</span>
+<span class="normal">4438</span>
+<span class="normal">4439</span>
+<span class="normal">4440</span>
+<span class="normal">4441</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@ms</span><span class="o">.</span><span class="n">jit_class</span>
 <span class="k">class</span><span class="w"> </span><span class="nc">SanaMultiscaleAttnProcessor2_0</span><span class="p">:</span>
 <span class="w">    </span><span class="sa">r</span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    Processor for implementing multiscale quadratic attention.</span>
@@ -17344,10 +17344,7 @@ used in the LuminaNextDiT model. It applies a s normalization layer and rotary e
 
               <details class="quote">
                 <summary>Source code in <code>mindone/diffusers/models/attention_processor.py</code></summary>
-                <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">4512</span>
-<span class="normal">4513</span>
-<span class="normal">4514</span>
-<span class="normal">4515</span>
+                <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">4515</span>
 <span class="normal">4516</span>
 <span class="normal">4517</span>
 <span class="normal">4518</span>
@@ -17400,7 +17397,10 @@ used in the LuminaNextDiT model. It applies a s normalization layer and rotary e
 <span class="normal">4565</span>
 <span class="normal">4566</span>
 <span class="normal">4567</span>
-<span class="normal">4568</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@ms</span><span class="o">.</span><span class="n">jit_class</span>
+<span class="normal">4568</span>
+<span class="normal">4569</span>
+<span class="normal">4570</span>
+<span class="normal">4571</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@ms</span><span class="o">.</span><span class="n">jit_class</span>
 <span class="k">class</span><span class="w"> </span><span class="nc">PAGCFGSanaLinearAttnProcessor2_0</span><span class="p">:</span>
 <span class="w">    </span><span class="sa">r</span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    Processor for implementing scaled dot-product linear attention.</span>
@@ -17504,10 +17504,7 @@ used in the LuminaNextDiT model. It applies a s normalization layer and rotary e
 
               <details class="quote">
                 <summary>Source code in <code>mindone/diffusers/models/attention_processor.py</code></summary>
-                <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">4571</span>
-<span class="normal">4572</span>
-<span class="normal">4573</span>
-<span class="normal">4574</span>
+                <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">4574</span>
 <span class="normal">4575</span>
 <span class="normal">4576</span>
 <span class="normal">4577</span>
@@ -17562,7 +17559,10 @@ used in the LuminaNextDiT model. It applies a s normalization layer and rotary e
 <span class="normal">4626</span>
 <span class="normal">4627</span>
 <span class="normal">4628</span>
-<span class="normal">4629</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@ms</span><span class="o">.</span><span class="n">jit_class</span>
+<span class="normal">4629</span>
+<span class="normal">4630</span>
+<span class="normal">4631</span>
+<span class="normal">4632</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@ms</span><span class="o">.</span><span class="n">jit_class</span>
 <span class="k">class</span><span class="w"> </span><span class="nc">PAGIdentitySanaLinearAttnProcessor2_0</span><span class="p">:</span>
 <span class="w">    </span><span class="sa">r</span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    Processor for implementing scaled dot-product linear attention.</span>
@@ -17669,10 +17669,7 @@ used in the Stable Audio model. It applies rotary embedding on query and key vec
 
               <details class="quote">
                 <summary>Source code in <code>mindone/diffusers/models/attention_processor.py</code></summary>
-                <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">2982</span>
-<span class="normal">2983</span>
-<span class="normal">2984</span>
-<span class="normal">2985</span>
+                <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">2985</span>
 <span class="normal">2986</span>
 <span class="normal">2987</span>
 <span class="normal">2988</span>
@@ -17799,7 +17796,10 @@ used in the Stable Audio model. It applies rotary embedding on query and key vec
 <span class="normal">3109</span>
 <span class="normal">3110</span>
 <span class="normal">3111</span>
-<span class="normal">3112</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@ms</span><span class="o">.</span><span class="n">jit_class</span>
+<span class="normal">3112</span>
+<span class="normal">3113</span>
+<span class="normal">3114</span>
+<span class="normal">3115</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@ms</span><span class="o">.</span><span class="n">jit_class</span>
 <span class="k">class</span><span class="w"> </span><span class="nc">StableAudioAttnProcessor2_0</span><span class="p">:</span>
 <span class="w">    </span><span class="sa">r</span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    Processor for implementing scaled dot-product attention (enabled by default if you&#39;re using PyTorch 2.0). This is</span>
@@ -18012,10 +18012,7 @@ operator.</p>
 
               <details class="quote">
                 <summary>Source code in <code>mindone/diffusers/models/attention_processor.py</code></summary>
-                <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">2595</span>
-<span class="normal">2596</span>
-<span class="normal">2597</span>
-<span class="normal">2598</span>
+                <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">2598</span>
 <span class="normal">2599</span>
 <span class="normal">2600</span>
 <span class="normal">2601</span>
@@ -18125,7 +18122,10 @@ operator.</p>
 <span class="normal">2705</span>
 <span class="normal">2706</span>
 <span class="normal">2707</span>
-<span class="normal">2708</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@ms</span><span class="o">.</span><span class="n">jit_class</span>
+<span class="normal">2708</span>
+<span class="normal">2709</span>
+<span class="normal">2710</span>
+<span class="normal">2711</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@ms</span><span class="o">.</span><span class="n">jit_class</span>
 <span class="k">class</span><span class="w"> </span><span class="nc">XFormersAttnProcessor</span><span class="p">:</span>
 <span class="w">    </span><span class="sa">r</span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    Processor for implementing memory efficient attention using xFormers-like interface.</span>
@@ -18288,10 +18288,7 @@ operator.</p>
 
               <details class="quote">
                 <summary>Source code in <code>mindone/diffusers/models/attention_processor.py</code></summary>
-                <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">2300</span>
-<span class="normal">2301</span>
-<span class="normal">2302</span>
-<span class="normal">2303</span>
+                <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">2303</span>
 <span class="normal">2304</span>
 <span class="normal">2305</span>
 <span class="normal">2306</span>
@@ -18417,7 +18414,10 @@ operator.</p>
 <span class="normal">2426</span>
 <span class="normal">2427</span>
 <span class="normal">2428</span>
-<span class="normal">2429</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">class</span><span class="w"> </span><span class="nc">FluxIPAdapterJointAttnProcessor2_0</span><span class="p">(</span><span class="n">nn</span><span class="o">.</span><span class="n">Cell</span><span class="p">):</span>
+<span class="normal">2429</span>
+<span class="normal">2430</span>
+<span class="normal">2431</span>
+<span class="normal">2432</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">class</span><span class="w"> </span><span class="nc">FluxIPAdapterJointAttnProcessor2_0</span><span class="p">(</span><span class="n">nn</span><span class="o">.</span><span class="n">Cell</span><span class="p">):</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;Flux Attention processor for IP-Adapter.&quot;&quot;&quot;</span>
 
     <span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">hidden_size</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span> <span class="n">cross_attention_dim</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span> <span class="n">num_tokens</span><span class="o">=</span><span class="p">(</span><span class="mi">4</span><span class="p">,),</span> <span class="n">scale</span><span class="o">=</span><span class="mf">1.0</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
