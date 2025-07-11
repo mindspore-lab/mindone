@@ -28,7 +28,6 @@ from ..activations import get_activation
 from ..attention_processor import Attention, MochiVaeAttnProcessor2_0
 from ..modeling_outputs import AutoencoderKLOutput
 from ..modeling_utils import ModelMixin
-from ..normalization import GroupNorm
 from .autoencoder_kl_cogvideox import CogVideoXCausalConv3d
 from .vae import DecoderOutput, DiagonalGaussianDistribution
 
@@ -70,7 +69,7 @@ class MochiChunkedGroupNorm3D(nn.Cell):
         chunk_size: int = 8,
     ):
         super().__init__()
-        self.norm_layer = GroupNorm(num_channels=num_channels, num_groups=num_groups, affine=affine)
+        self.norm_layer = mint.nn.GroupNorm(num_channels=num_channels, num_groups=num_groups, affine=affine)
         self.chunk_size = chunk_size
 
     def construct(self, x: ms.Tensor = None) -> ms.Tensor:
