@@ -183,6 +183,36 @@ from .models.gpt2 import (
     GPT2Model,
     GPT2PreTrainedModel,
 )
+from .models.gpt_bigcode import (
+    GPTBigCodeForCausalLM,
+    GPTBigCodeForSequenceClassification,
+    GPTBigCodeForTokenClassification,
+    GPTBigCodeModel,
+    GPTBigCodePreTrainedModel,
+)
+from .models.gpt_neox import (
+    GPTNeoXForCausalLM,
+    GPTNeoXForQuestionAnswering,
+    GPTNeoXForSequenceClassification,
+    GPTNeoXForTokenClassification,
+    GPTNeoXLayer,
+    GPTNeoXModel,
+    GPTNeoXPreTrainedModel,
+)
+from .models.gpt_neox_japanese import (
+    GPTNeoXJapaneseForCausalLM,
+    GPTNeoXJapaneseLayer,
+    GPTNeoXJapaneseModel,
+    GPTNeoXJapanesePreTrainedModel,
+    GPTNeoXJapaneseTokenizer,
+)
+from .models.gptj import (
+    GPTJForCausalLM,
+    GPTJForQuestionAnswering,
+    GPTJForSequenceClassification,
+    GPTJModel,
+    GPTJPreTrainedModel,
+)
 from .models.granite import GraniteForCausalLM, GraniteModel, GranitePreTrainedModel
 from .models.granitemoe import GraniteMoeForCausalLM, GraniteMoeModel, GraniteMoePreTrainedModel
 from .models.granitemoeshared import GraniteMoeSharedForCausalLM, GraniteMoeSharedModel, GraniteMoeSharedPreTrainedModel
