@@ -1,6 +1,7 @@
 # modified from https://github.com/mlfoundations/open_flamingo/blob/main/open_flamingo/src/helpers.py
 # and https://github.com/lucidrains/imagen-pytorch/blob/main/imagen_pytorch/imagen_pytorch.py
 # and https://github.com/tencent-ailab/IP-Adapter/blob/main/ip_adapter/resampler.py
+# and https://github.com/Doubiiu/DynamiCrafter/blob/main/lvdm/modules/encoders/resampler.py
 import math
 
 from mindspore import Parameter, mint, nn, ops
