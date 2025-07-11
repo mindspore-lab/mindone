@@ -198,7 +198,7 @@ class Pix2StructModelTester:
         config_and_inputs = self.prepare_config_and_inputs()
         config, input_ids, decoder_attention_mask, flattened_patches = config_and_inputs
 
-        attention_mask = (flattened_patches.sum(axis=-1) != 0).float()
+        attention_mask = np.array(flattened_patches.sum(axis=-1) != 0, dtype=np.float32)
 
         inputs_dict = {
             "decoder_input_ids": input_ids,
