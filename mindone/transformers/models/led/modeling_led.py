@@ -2377,13 +2377,15 @@ class LEDForConditionalGeneration(LEDPreTrainedModel, GenerationMixin):
         Conditional generation example:
 
         ```python
-        >>> from transformers import AutoTokenizer, LEDForConditionalGeneration
+        >>> from transformers import AutoTokenizer
+        >>> from mindone.transformers import LEDForConditionalGeneration
+        >>> from mindspore import Tensor
 
         >>> tokenizer = AutoTokenizer.from_pretrained("allenai/led-base-16384")
         >>> TXT = "My friends are <mask> but they eat too many carbs."
 
         >>> model = LEDForConditionalGeneration.from_pretrained("allenai/led-base-16384")
-        >>> input_ids = tokenizer([TXT], return_tensors="pt")["input_ids"]
+        >>> input_ids = Tensor(tokenizer([TXT], return_tensors="np")["input_ids"])
 
         >>> prediction = model.generate(input_ids)[0]
         >>> print(tokenizer.decode(prediction, skip_special_tokens=True))

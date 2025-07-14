@@ -1,1 +1,7 @@
-from .modeling_led import LEDForConditionalGeneration, LEDModel, LEDPreTrainedModel
+from .modeling_led import (
+    LEDForConditionalGeneration,
+    LEDForQuestionAnswering,
+    LEDForSequenceClassification,
+    LEDModel,
+    LEDPreTrainedModel,
+)
