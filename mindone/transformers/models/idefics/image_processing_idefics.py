@@ -21,6 +21,8 @@ from typing import Callable, Optional, Union
 
 from PIL import Image
 
+from mindspore import mint
+
 from ...image_processing_utils import BaseImageProcessor, BatchFeature
 from ...image_transforms import resize, to_channel_dimension_format
 from ...image_utils import (
@@ -32,8 +34,6 @@ from ...image_utils import (
     valid_images,
 )
 from ...utils import TensorType
-
-from mindspore import mint
 
 IDEFICS_STANDARD_MEAN = [0.48145466, 0.4578275, 0.40821073]
 IDEFICS_STANDARD_STD = [0.26862954, 0.26130258, 0.27577711]
@@ -131,7 +131,7 @@ class IdeficsImageProcessor(BaseImageProcessor):
                 method. Can be overridden by the `image_std` parameter in the `preprocess` method.
             transform (`Callable`, *optional*, defaults to `None`):
                 A custom transform function that accepts a single image can be passed for training. For example,
-                `torchvision.Compose` can be used to compose multiple transforms. If `None` - an inference mode is
+                `transforms.Compose` can be used to compose multiple transforms. If `None` - an inference mode is
                 assumed - and then a preset of inference-specific transforms will be applied to the images
             do_rescale (`bool`, *optional*, defaults to `True`):
                 Whether to rescale the image by the specified scale `rescale_factor`. Can be overridden by `do_rescale` in

@@ -1516,13 +1516,7 @@ class IdeficsForVisionText2Text(IdeficsPreTrainedModel, GenerationMixin):
         ...         "Describe this image.\nAssistant:",
         ...     ]
         ... ]
-        >>> inputs = processor(prompts, return_tensors="pt") # only support pt return
-        >>> for k, v in inputs.items(): # input_ids, attention_mask, pixel_values, image_attention_mask
-        ...     inputs[k] = ms.tensor(v.detach().numpy())
-        ...     if inputs[k].dtype == ms.int64:
-        ...         inputs[k] = inputs[k].to(ms.int32)
-        ...     else:
-        ...         inputs[k] = inputs[k].to(model.dtype)
+        >>> inputs = processor(text=prompts, return_tensors="ms")
         >>> generate_ids = model.generate(**inputs, max_new_tokens=128)
         >>> generated_texts = processor.batch_decode(generate_ids, skip_special_tokens=True)
         >>> print(generated_texts)

@@ -298,21 +298,15 @@ class Idefics3VisionFlashAttention2(Idefics3VisionAttention):
         value_states = self.v_proj(hidden_states)
 
         # Flash attention requires the input to have the shape
-        # batch_size x seq_length x head_dim x hidden_dim
+        # batch_size x head_dim x seq_length x hidden_dim
         # therefore we just need to keep the original shape
-        query_states = query_states.view(bsz, q_len, self.num_heads, self.head_dim)
+        query_states = query_states.view(bsz, q_len, self.num_heads, self.head_dim).swapaxes(1, 2)
         key_states = key_states.view(bsz, q_len, self.num_heads, self.head_dim).swapaxes(1, 2)
         value_states = value_states.view(bsz, q_len, self.num_heads, self.head_dim).swapaxes(1, 2)
 
         kv_seq_len = key_states.shape[-2]
         if past_key_value is not None:
             kv_seq_len += past_key_value.get_usable_length(kv_seq_len, self.layer_idx)
-
-        # Flash Attention requires the layout [batch_size, sequence_length, num_heads, head_dim].
-        # We would need to refactor the KV cache
-        # to be able to avoid many of these transpose/reshape/view.
-        key_states = key_states.swapaxes(1, 2)
-        value_states = value_states.swapaxes(1, 2)
 
         dropout_rate = self.dropout if self.training else 0.0
 
@@ -336,18 +330,15 @@ class Idefics3VisionFlashAttention2(Idefics3VisionAttention):
             key_states = key_states.to(target_dtype)
             value_states = value_states.to(target_dtype)
 
-        attn_output = flash_attention_forward(
+        attn_output, attn_weights = flash_attention_forward(
             self,
             query_states,
             key_states,
             value_states,
             attention_mask,
-            # q_len,
             dropout=dropout_rate,
             scaling=self.scale,
-            # is_causal=self.is_causal,
-            # use_top_left_mask=self._flash_attn_uses_top_left_mask,
-        )
+        )  # BNSD -> BSND
 
         attn_output = attn_output.reshape(bsz, q_len, self.embed_dim).contiguous()
         attn_output = self.out_proj(attn_output)
@@ -707,8 +698,8 @@ class Idefics3VisionTransformer(Idefics3PreTrainedModel):
         # avoiding passing the attention_mask, which is equivalent to attending to the full sequence
         if not mint.any(~patch_attention_mask):
             patch_attention_mask = None
-        elif not self._use_flash_attention_2:
-            patch_attention_mask = _prepare_4d_attention_mask(patch_attention_mask, ms.float16)
+        else:
+            patch_attention_mask = _prepare_4d_attention_mask(patch_attention_mask, hidden_states.dtype)
 
         encoder_outputs = self.encoder(
             inputs_embeds=hidden_states,
@@ -814,6 +805,10 @@ class Idefics3Model(Idefics3PreTrainedModel):
         super().__init__(config)
         self.padding_idx = self.config.text_config.pad_token_id
         self.vocab_size = self.config.text_config.vocab_size
+
+        # enable FA
+        config.vision_config._attn_implementation = config._attn_implementation
+        config.text_config._attn_implementation = config._attn_implementation
 
         self.vision_model = Idefics3VisionTransformer._from_config(config.vision_config)
         self.connector = Idefics3Connector(config)
@@ -1175,7 +1170,7 @@ class Idefics3ForConditionalGeneration(Idefics3PreTrainedModel, GenerationMixin)
 
         hidden_states = outputs[0]
         if logits_to_keep is None:
-            logits_to_keep = 0
+            logits_to_keep = 1
         # Only compute necessary logits, and do not upcast them to float if we are not computing the loss
         slice_indices = slice(-logits_to_keep, None) if isinstance(logits_to_keep, int) else logits_to_keep
         logits = self.lm_head(hidden_states[:, slice_indices, :])

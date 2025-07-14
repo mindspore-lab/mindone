@@ -337,16 +337,13 @@ class Idefics2VisionFlashAttention2(Idefics2VisionAttention):
             key_states = key_states.to(target_dtype)
             value_states = value_states.to(target_dtype)
 
-        attn_output = flash_attention_forward(
+        attn_output, attn_weights = flash_attention_forward(
             query_states,
             key_states,
             value_states,
             attention_mask,
-            # q_len,
             dropout=dropout_rate,
             scaling=self.scale,
-            # is_causal=self.is_causal,
-            # use_top_left_mask=self._flash_attn_uses_top_left_mask,
         )  # BNSD -> BSND
 
         attn_output = attn_output.reshape(bsz, q_len, self.embed_dim).contiguous()
@@ -693,7 +690,7 @@ class Idefics2VisionTransformer(Idefics2PreTrainedModel):
         # avoiding passing the attention_mask, which is equivalent to attending to the full sequence
         if not mint.any(~patch_attention_mask):
             patch_attention_mask = None
-        elif not self._use_flash_attention_2:
+        else:
             patch_attention_mask = _prepare_4d_attention_mask(patch_attention_mask, hidden_states.dtype)
 
         encoder_outputs = self.encoder(
@@ -947,16 +944,14 @@ class Idefics2PerceiverFlashAttention2(Idefics2PerceiverAttention):
             key_states = key_states.to(target_dtype)
             value_states = value_states.to(target_dtype)
 
-        attn_output = flash_attention_forward(
+        attn_output, attn_weights = flash_attention_forward(
             query_states,
             key_states,
             value_states,
             attention_mask,
-            # q_len,
             dropout=dropout_rate,
             scaling=1 / math.sqrt(query_states.shape[-1]),
             sliding_window=None,
-            # is_causal=self.is_causal,
         )  # BNSD -> BSND
 
         attn_output = attn_output.reshape(bsz, q_len, self.num_heads * self.head_dim).contiguous()
@@ -1222,6 +1217,9 @@ class Idefics2Model(Idefics2PreTrainedModel):
         super().__init__(config)
         self.padding_idx = self.config.text_config.pad_token_id
         self.vocab_size = self.config.text_config.vocab_size
+
+        config.vision_config._attn_implementation = config._attn_implementation  # enable FA
+        # config.text_config._attn_implementation = config._attn_implementation # MistralModel not support FA
 
         self.vision_model = Idefics2VisionTransformer._from_config(config.vision_config)
         self.connector = Idefics2Connector(config)
@@ -1542,7 +1540,7 @@ class Idefics2ForConditionalGeneration(Idefics2PreTrainedModel, GenerationMixin)
         ... ]
         >>> prompt = processor.apply_chat_template(messages, add_generation_prompt=True)
         >>> inputs = processor(text=prompt, images=[image1, image2], return_tensors="np")
-        >>> for k, v in inputs.items():
+        >>> for k, v in inputs.items(): # input_ids, attention_mask, pixel_values, pixel_attention_mask
         ...     inputs[k] = ms.Tensor(v)
         ...     if inputs[k].dtype == ms.int64:
         ...         inputs[k] = inputs[k].to(ms.int32)
@@ -1581,7 +1579,7 @@ class Idefics2ForConditionalGeneration(Idefics2PreTrainedModel, GenerationMixin)
 
         hidden_states = outputs[0]
         if logits_to_keep is None:
-            logits_to_keep = 0
+            logits_to_keep = 1
         # Only compute necessary logits, and do not upcast them to float if we are not computing the loss
         slice_indices = slice(-logits_to_keep, None) if isinstance(logits_to_keep, int) else logits_to_keep
         logits = self.lm_head(hidden_states[:, slice_indices, :])

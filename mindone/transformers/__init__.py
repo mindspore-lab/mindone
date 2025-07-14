@@ -171,7 +171,13 @@ from .models.hiera import (
     HieraModel,
     HieraPreTrainedModel,
 )
-from .models.idefics import IdeficsForVisionText2Text, IdeficsModel, IdeficsPreTrainedModel
+from .models.idefics import (
+    IdeficsForVisionText2Text,
+    IdeficsImageProcessor,
+    IdeficsModel,
+    IdeficsPreTrainedModel,
+    IdeficsProcessor,
+)
 from .models.idefics2 import Idefics2ForConditionalGeneration, Idefics2Model, Idefics2PreTrainedModel
 from .models.idefics3 import (
     Idefics3ForConditionalGeneration,

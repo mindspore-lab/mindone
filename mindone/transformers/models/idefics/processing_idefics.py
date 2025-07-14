@@ -22,6 +22,12 @@ Processor class for IDEFICS.
 from typing import Callable, Optional, Union
 from urllib.parse import urlparse
 
+from transformers.tokenization_utils_base import PreTokenizedInput, TextInput
+from transformers.utils.deprecation import deprecate_kwarg
+
+import mindspore as ms
+from mindspore import mint
+
 from ...feature_extraction_utils import BatchFeature
 from ...image_utils import ImageInput
 from ...processing_utils import (
@@ -30,13 +36,8 @@ from ...processing_utils import (
     ProcessorMixin,
     TextKwargs,
     Unpack,
+    _validate_images_text_input_order,
 )
-from ...tokenization_utils_base import PreTokenizedInput, TextInput
-from transformers.utils.deprecation import deprecate_kwarg
-
-import numpy as np
-import mindspore as ms
-from mindspore import mint
 
 IMAGE_TOKEN = "<image>"
 
@@ -78,7 +79,7 @@ def incremental_to_binary_attention_mask(incremental_mask, return_tensors, num_c
     if return_tensors == "ms":
         negatives = incremental_mask == -1
         incremental_mask[negatives] = 0
-        attn_mask = mint.mint.nn.functional.one_hot(incremental_mask, num_classes=num_classes)
+        attn_mask = mint.nn.functional.one_hot(incremental_mask, num_classes=num_classes)
         attn_mask[negatives, :] = 0
 
     return attn_mask
@@ -296,6 +297,8 @@ class IdeficsProcessor(ProcessorMixin):
         """
         if images is None and text is None:
             raise ValueError("You need to specify either `text` or `images` and `text`.")
+        # check if images and text inputs are reversed for BC
+        images, text = _validate_images_text_input_order(images, text)
 
         if images is None:
             # assuming the user wants to use the old behavior with prompts as the only argument
@@ -311,7 +314,8 @@ class IdeficsProcessor(ProcessorMixin):
             if isinstance(text, (list, tuple)) and len(text) != len(images):
                 raise ValueError(
                     "When providing both images and text arguments, the number of text prompts should be the same as the number of images."
-                    "If you want to have several images per prompt, images should be nested as such: images=[[img1, img2], [img3, img4], ...] for text=[prompt1, prompt2, ...]."
+                    "If you want to have several images per prompt, images should be nested as such: "
+                    "images=[[img1, img2], [img3, img4], ...] for text=[prompt1, prompt2, ...]."
                 )
             # Check that only text is present in the prompts
             if not all(isinstance(i, str) for i in text):
@@ -413,11 +417,11 @@ class IdeficsProcessor(ProcessorMixin):
 
             if len(current_images) > 0:
                 if return_tensors == "ms":
-                    padded_image_tensor = mint.zeros(max_num_images, *current_images.shape[1:])
+                    padded_image_tensor = mint.zeros((max_num_images, *current_images.shape[1:]))
                     padded_image_tensor[: current_images.shape[0]] = current_images
             else:
                 if return_tensors == "ms":
-                    padded_image_tensor = mint.zeros(max_num_images, *self.default_image_dims)
+                    padded_image_tensor = mint.zeros((max_num_images, *self.default_image_dims))
 
             output_images.append(padded_image_tensor)
             if return_tensors == "ms":
@@ -438,9 +442,7 @@ class IdeficsProcessor(ProcessorMixin):
             )
         else:
             # in full language mode we set the image mask to all-0s
-            image_attention_mask = mint.zeros(
-                output_input_ids.shape[0], output_input_ids.shape[1], 1, dtype=ms.bool_
-            )
+            image_attention_mask = mint.zeros((output_input_ids.shape[0], output_input_ids.shape[1], 1), dtype=ms.bool_)
 
         if return_tensors == "np":
             output_input_ids = output_input_ids.numpy()
