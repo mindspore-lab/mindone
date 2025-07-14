@@ -919,7 +919,11 @@ class PreTrainedModel(nn.Cell, ModuleUtilsMixin, GenerationMixin, PushToHubMixin
         # when we init a model from within another model (e.g. VLMs) and dispatch on FA2
         # a warning is raised that dtype should be fp16. Since we never pass dtype from within
         # modeling code, we can try to infer it here same way as done in `from_pretrained`
-        mindspore_dtype = kwargs.pop("torch_dtype", config.torch_dtype)
+        if hasattr(config, "mindspore_dtype"):
+            mindspore_dtype = kwargs.pop("mindspore_dtype", config.mindspore_dtype)
+        else:
+            mindspore_dtype = kwargs.pop("torch_dtype", config.torch_dtype)
+
         if isinstance(mindspore_dtype, str):
             mindspore_dtype = getattr(ms, mindspore_dtype)
         else:
@@ -1148,7 +1152,7 @@ class PreTrainedModel(nn.Cell, ModuleUtilsMixin, GenerationMixin, PushToHubMixin
                 output_embeddings.weight = input_embeddings.weight
 
         if getattr(output_embeddings, "bias", None) is not None:
-            output_embeddings.bias = ops.pad(
+            output_embeddings.bias = mint.nn.functional.pad(
                 output_embeddings.bias,
                 (
                     0,
@@ -2278,6 +2282,9 @@ class PreTrainedModel(nn.Cell, ModuleUtilsMixin, GenerationMixin, PushToHubMixin
 
             if mindspore_dtype is not None:
                 config.mindspore_dtype = dtype_to_str(mindspore_dtype)
+                for sub_config_key in config.sub_configs.keys():
+                    sub_config = getattr(config, sub_config_key)
+                    sub_config.mindspore_dtype = mindspore_dtype
                 if isinstance(mindspore_dtype, str):
                     if mindspore_dtype == "auto":
                         if hasattr(config, "torch_dtype") and config.torch_dtype is not None:
