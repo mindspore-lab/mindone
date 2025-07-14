@@ -1,30 +1,30 @@
-# coding=utf-8
-# Copyright 2024 Mindspore Team. All rights reserved.
+# This module contains test cases that are defined in the `.test_cases.py` file, structured as lists or tuples like
+#     [name, pt_module, ms_module, init_args, init_kwargs, inputs_args, inputs_kwargs, outputs_map].
 #
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
-#
-#     http://www.apache.org/licenses/LICENSE-2.0
-#
-# Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
-# limitations under the License.
+# Each defined case corresponds to a pair consisting of PyTorch and MindSpore modules, including their respective
+# initialization parameters and inputs for the forward. The testing framework adopted here is designed to generically
+# parse these parameters to assess and compare the precision of forward outcomes between the two frameworks.
 
+import inspect
+
+import numpy as np
 import pytest
+import torch
+from transformers import LEDConfig
 
-import mindspore
-from mindspore import dtype as mstype
+import mindspore as ms
 
-from mindone.transformers import LEDConfig
-from mindone.transformers.models.led.modeling_led import (
-    LEDForConditionalGeneration,
-    LEDForQuestionAnswering,
-    LEDForSequenceClassification,
-    LEDModel,
+from tests.modeling_test_utils import (
+    MS_DTYPE_MAPPING,
+    PT_DTYPE_MAPPING,
+    compute_diffs,
+    generalized_parse_args,
+    get_modules,
 )
+from tests.transformers_tests.models.modeling_common import ids_numpy
+
+DTYPE_AND_THRESHOLDS = {"fp32": 5e-4, "fp16": 5e-3, "bf16": 5e-3}
+MODES = [0, 1]  # 0: graph mode, 1: pynative mode
 
 
 class LEDModelTester:
@@ -93,21 +93,20 @@ class LEDModelTester:
         self.num_choices = num_choices
 
     def prepare_config_and_inputs(self):
-        input_ids = mindspore.Tensor([[7, 6, 0, 0, 1], [1, 2, 3, 0, 0]], dtype=mindspore.int64)
+        input_ids = ids_numpy([self.batch_size, self.seq_length], self.vocab_size)
 
-        attention_mask = None
+        input_mask = None
         if self.use_input_mask:
-            attention_mask = mindspore.Tensor([[1, 1, 1, 0, 0], [1, 1, 1, 0, 0]], dtype=mindspore.int64)
-
-        decoder_input_ids = mindspore.Tensor([[0, 1, 2, 3, 4], [0, 1, 2, 3, 4]], dtype=mindspore.int64)
+            input_mask = np.tril(np.ones_like(input_ids))
 
         config = self.get_config()
+        # set _attn_implementation
+        config._attn_implementation = "eager"
 
         return (
             config,
             input_ids,
-            attention_mask,
-            decoder_input_ids,
+            input_mask,
         )
 
     def get_config(self):
@@ -137,75 +136,30 @@ class LEDModelTester:
         )
 
 
-# Define test cases for different LED model variants
+model_tester = LEDModelTester()
+
+(
+    config,
+    input_ids,
+    input_mask,
+) = model_tester.prepare_config_and_inputs()
+
 LED_CASES = [
-    (
-        "led_base",
-        LEDModel,
-        LEDModel,
-        [],
-        {"config": LEDModelTester().get_config()},
-        [],
+    [
+        "LEDModel",
+        "transformers.LEDModel",
+        "mindone.transformers.LEDModel",
+        (config,),
+        {},
+        (input_ids,),
         {
-            "input_ids": mindspore.Tensor([[1, 2, 3, 4]], dtype=mindspore.int64),
-            "attention_mask": mindspore.Tensor([[1, 1, 1, 1]], dtype=mindspore.int64),
-            "decoder_input_ids": mindspore.Tensor([[0, 1, 2, 3]], dtype=mindspore.int64),
-        },
-        {"last_hidden_state": (1, 4, 32)},
-    ),
-    (
-        "led_for_conditional_generation",
-        LEDForConditionalGeneration,
-        LEDForConditionalGeneration,
-        [],
-        {"config": LEDModelTester().get_config()},
-        [],
-        {
-            "input_ids": mindspore.Tensor([[1, 2, 3, 4]], dtype=mindspore.int64),
-            "attention_mask": mindspore.Tensor([[1, 1, 1, 1]], dtype=mindspore.int64),
-            "decoder_input_ids": mindspore.Tensor([[0, 1, 2, 3]], dtype=mindspore.int64),
-        },
-        {"logits": (1, 4, 99)},
-    ),
-    (
-        "led_for_sequence_classification",
-        LEDForSequenceClassification,
-        LEDForSequenceClassification,
-        [],
-        {"config": LEDModelTester().get_config()},
-        [],
-        {
-            "input_ids": mindspore.Tensor([[1, 2, 3, 4]], dtype=mindspore.int64),
-            "attention_mask": mindspore.Tensor([[1, 1, 1, 1]], dtype=mindspore.int64),
-            "decoder_input_ids": mindspore.Tensor([[0, 1, 2, 3]], dtype=mindspore.int64),
-        },
-        {"logits": (1, 3)},
-    ),
-    (
-        "led_for_question_answering",
-        LEDForQuestionAnswering,
-        LEDForQuestionAnswering,
-        [],
-        {"config": LEDModelTester().get_config()},
-        [],
-        {
-            "input_ids": mindspore.Tensor([[1, 2, 3, 4]], dtype=mindspore.int64),
-            "attention_mask": mindspore.Tensor([[1, 1, 1, 1]], dtype=mindspore.int64),
-            "decoder_input_ids": mindspore.Tensor([[0, 1, 2, 3]], dtype=mindspore.int64),
+            "attention_mask": input_mask,
         },
         {
-            "start_logits": (1, 4),
-            "end_logits": (1, 4),
+            "last_hidden_state": 0,
         },
-    ),
+    ],
 ]
-
-DTYPE_AND_THRESHOLDS = {
-    mstype.float32: 1e-4,
-    mstype.float16: 1e-2,
-}
-
-MODES = ["graph", "pynative"]
 
 
 @pytest.mark.parametrize(
@@ -235,18 +189,49 @@ def test_named_modules(
     dtype,
     mode,
 ):
-    """Test LED model variants."""
-    mindspore.set_context(mode=mode)
+    ms.set_context(mode=mode)
 
-    # Initialize model
-    model = ms_module(*init_args, **init_kwargs)
-    model.set_train(False)
+    (
+        pt_model,
+        ms_model,
+        pt_dtype,
+        ms_dtype,
+    ) = get_modules(pt_module, ms_module, dtype, *init_args, **init_kwargs)
+    pt_inputs_args, pt_inputs_kwargs, ms_inputs_args, ms_inputs_kwargs = generalized_parse_args(
+        pt_dtype, ms_dtype, *inputs_args, **inputs_kwargs
+    )
 
-    # Run forward pass
-    outputs = model(*inputs_args, **inputs_kwargs)
+    # set `hidden_dtype` if requiring, for some modules always compute in float
+    # precision and require specific `hidden_dtype` to cast before return
+    if "hidden_dtype" in inspect.signature(pt_model.forward).parameters:
+        pt_inputs_kwargs.update({"hidden_dtype": PT_DTYPE_MAPPING[pt_dtype]})
+        ms_inputs_kwargs.update({"hidden_dtype": MS_DTYPE_MAPPING[ms_dtype]})
+    if mode == 0:
+        ms_inputs_kwargs.update({"use_cache": False})
+    with torch.no_grad():
+        pt_outputs = pt_model(*pt_inputs_args, **pt_inputs_kwargs)
+    ms_outputs = ms_model(*ms_inputs_args, **ms_inputs_kwargs)
+    # print("ms:", ms_outputs)
+    # print("pt:", pt_outputs)
+    if outputs_map:
+        pt_outputs_n = []
+        ms_outputs_n = []
+        for pt_key, ms_idx in outputs_map.items():
+            # print("===map", pt_key, ms_idx)
+            pt_output = getattr(pt_outputs, pt_key)
+            ms_output = ms_outputs[ms_idx]
+            if isinstance(pt_output, (list, tuple)):
+                pt_outputs_n += list(pt_output)
+                ms_outputs_n += list(ms_output)
+            else:
+                pt_outputs_n.append(pt_output)
+                ms_outputs_n.append(ms_output)
+        diffs = compute_diffs(pt_outputs_n, ms_outputs_n)
+    else:
+        diffs = compute_diffs(pt_outputs, ms_outputs)
 
-    # Check output shapes
-    for key, expected_shape in outputs_map.items():
-        if hasattr(outputs, key):
-            output = getattr(outputs, key)
-            assert output.shape == expected_shape, f"Shape mismatch for {key}"
+    THRESHOLD = DTYPE_AND_THRESHOLDS[ms_dtype]
+    assert (np.array(diffs) < THRESHOLD).all(), (
+        f"ms_dtype: {ms_dtype}, pt_type:{pt_dtype}, "
+        f"Outputs({np.array(diffs).tolist()}) has diff bigger than {THRESHOLD}"
+    )
