@@ -85,6 +85,7 @@ from .models.big_bird import (
     BigBirdModel,
     BigBirdPreTrainedModel,
 )
+from .models.git import GitForCausalLM, GitModel, GitPreTrainedModel, GitVisionModel
 from .models.bigbird_pegasus import (
     BigBirdPegasusForCausalLM,
     BigBirdPegasusForConditionalGeneration,
