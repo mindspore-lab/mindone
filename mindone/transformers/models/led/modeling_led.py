@@ -292,7 +292,7 @@ class LEDEncoderSelfAttention(mindspore.nn.Cell):
             attn_scores = mindspore.mint.cat((global_key_attn_scores, attn_scores), dim=-1)
 
             # free memory
-            del global_key_attn_scores
+            # del global_key_attn_scores
 
         attn_probs = mindspore.mint.nn.functional.softmax(
             attn_scores, dim=-1, dtype=mindspore.float32
@@ -309,7 +309,7 @@ class LEDEncoderSelfAttention(mindspore.nn.Cell):
         attn_probs = attn_probs.type_as(attn_scores)
 
         # free memory
-        del attn_scores
+        # del attn_scores
 
         # apply dropout
         attn_probs = mindspore.mint.nn.functional.dropout(attn_probs, p=self.dropout, training=self.training)
@@ -1886,10 +1886,11 @@ class LEDEncoder(LEDPreTrainedModel):
         )
 
         # retrieve input_shape
+        assert input_ids is not None or inputs_embeds is not None, "input_ids or inputs_embeds must be provided"
         if input_ids is not None:
             input_shape = input_ids.shape
             input_ids = input_ids.view(-1, input_shape[-1])
-        elif inputs_embeds is not None:
+        else:
             input_shape = inputs_embeds.shape[:-1]
 
         # convert attention_mask to float
