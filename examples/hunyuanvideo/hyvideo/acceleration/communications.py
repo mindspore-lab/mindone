@@ -1,11 +1,9 @@
-from typing import Callable, Literal, Tuple
+from typing import Callable, Literal, Tuple, Union
 
-import mindspore.nn as nn
-import mindspore.ops as ops
-from mindspore import Tensor
+from mindspore import PYNATIVE_MODE, Tensor, get_context, mint, nn, ops
 from mindspore.communication import GlobalComm, get_group_size, get_rank
 
-__all__ = ["SplitFowardGatherBackward", "GatherFowardSplitBackward"]
+__all__ = ["SplitFowardGatherBackward", "GatherFowardSplitBackward", "init_alltoall"]
 
 
 def _split(x: Tensor, dim: int, rank: int, world_size: int) -> Tensor:
@@ -69,3 +67,37 @@ class GatherFowardSplitBackward(nn.Cell):
         dout = dout * self.scale
         dout = _split(dout, self.dim, self.rank, self.world_size)
         return (dout,)
+
+
+class AlltoAllPyNative(nn.Cell):
+    def __init__(self, split_dim: int, concat_dim: int, group: str = GlobalComm.WORLD_COMM_GROUP):
+        super().__init__()
+        assert split_dim >= 0 and concat_dim >= 0
+        self.split_dim = split_dim
+        self.concat_dim = concat_dim
+        self.group = group
+
+    @staticmethod
+    def _all_to_all(x: Tensor, split_dim: int, concat_dim: int, group: str = GlobalComm.WORLD_COMM_GROUP) -> Tensor:
+        world_size = get_group_size(group)
+        input_list = list(mint.chunk(x, world_size, dim=split_dim))
+        output_list = [mint.empty_like(input_list[0]) for _ in range(world_size)]
+        mint.distributed.all_to_all(output_list, input_list, group=group)
+        return mint.cat(output_list, dim=concat_dim)
+
+    def construct(self, x: Tensor) -> Tensor:
+        return self._all_to_all(x, self.split_dim, self.concat_dim, group=self.group)
+
+    def bprop(self, x: Tensor, out: Tensor, dout: Tensor) -> Tuple[Tensor]:
+        dout = self._all_to_all(dout, self.concat_dim, self.split_dim, group=self.group)
+        return (dout,)
+
+
+def init_alltoall(
+    split_dim: int, concat_dim: int, group: str, split_count: int
+) -> Union[AlltoAllPyNative, ops.AlltoAll]:
+    return (
+        AlltoAllPyNative(split_dim, concat_dim, group=group)
+        if get_context("mode") == PYNATIVE_MODE
+        else ops.AlltoAll(split_count, split_dim, concat_dim, group=group)
+    )
