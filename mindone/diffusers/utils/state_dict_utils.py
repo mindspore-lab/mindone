@@ -287,10 +287,11 @@ def state_dict_all_zero(state_dict, filter_str=None):
 
 
 def _load_sft_state_dict_metadata(model_file: str):
-    from ...safetensors.mindspore import load_file as safe_load_file
+    import safetensors.numpy
+
     from ..loaders.lora_base import LORA_ADAPTER_METADATA_KEY
 
-    with safe_load_file(model_file) as f:
+    with safetensors.numpy.safe_open(model_file, framework="np") as f:
         metadata = f.metadata() or {}
 
     metadata.pop("format", None)

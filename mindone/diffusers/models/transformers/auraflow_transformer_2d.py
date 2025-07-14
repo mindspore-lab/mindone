@@ -442,7 +442,7 @@ class AuraFlowTransformer2DModel(ModelMixin, ConfigMixin, PeftAdapterMixin, From
 
         self.original_attn_processors = self.attn_processors
 
-        for module in self.modules():
+        for _, module in self.cells_and_names():
             if isinstance(module, Attention):
                 module.fuse_projections(fuse=True)
 

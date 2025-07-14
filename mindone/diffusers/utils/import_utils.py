@@ -76,7 +76,7 @@ def _is_package_available(pkg_name: str, get_dist_name: bool = False) -> Tuple[b
                     _top_level_inferred = filter(lambda name: "." not in name, _infered_opt_names)
                     for pkg in _top_level_declared or _top_level_inferred:
                         _package_map[pkg].append(dist.metadata["Name"])
-            except Exception as _:
+            except Exception as _:  # noqa
                 pass
         try:
             if get_dist_name and pkg_name in _package_map and _package_map[pkg_name]:

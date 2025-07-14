@@ -355,7 +355,7 @@ class FluxTransformer2DModel(
 
         self.original_attn_processors = self.attn_processors
 
-        for module in self.cells():
+        for _, module in self.cells_and_names():
             if isinstance(module, Attention):
                 module.fuse_projections(fuse=True)
 

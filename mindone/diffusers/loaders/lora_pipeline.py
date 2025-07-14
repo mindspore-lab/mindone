@@ -1421,7 +1421,7 @@ class AuraFlowLoraLoaderMixin(LoraBaseMixin):
 
     @classmethod
     @validate_hf_hub_args
-    # Copied from mindone.diffusers.loaders.lora_pipeline.CogVideoXLoraLoaderMixin.lora_state_dict
+    # Copied from diffusers.loaders.lora_pipeline.CogVideoXLoraLoaderMixin.lora_state_dict
     def lora_state_dict(
         cls,
         pretrained_model_name_or_path_or_dict: Union[str, Dict[str, ms.Tensor]],
@@ -1510,14 +1510,14 @@ class AuraFlowLoraLoaderMixin(LoraBaseMixin):
 
         is_dora_scale_present = any("dora_scale" in k for k in state_dict)
         if is_dora_scale_present:
-            warn_msg = "It seems like you are using a DoRA checkpoint that is not compatible in Diffusers at the moment. So, we are going to filter out the keys associated to 'dora_scale` from the state dict. If you think this is a mistake please open an issue https://github.com/huggingface/diffusers/issues/new."
+            warn_msg = "It seems like you are using a DoRA checkpoint that is not compatible in Diffusers at the moment. So, we are going to filter out the keys associated to 'dora_scale` from the state dict. If you think this is a mistake please open an issue https://github.com/huggingface/diffusers/issues/new."  # noqa
             logger.warning(warn_msg)
             state_dict = {k: v for k, v in state_dict.items() if "dora_scale" not in k}
 
         out = (state_dict, metadata) if return_lora_metadata else state_dict
         return out
 
-    # Copied from mindone.diffusers.loaders.lora_pipeline.CogVideoXLoraLoaderMixin.load_lora_weights
+    # Copied from diffusers.loaders.lora_pipeline.CogVideoXLoraLoaderMixin.load_lora_weights
     def load_lora_weights(
         self,
         pretrained_model_name_or_path_or_dict: Union[str, Dict[str, ms.Tensor]],
@@ -1565,7 +1565,7 @@ class AuraFlowLoraLoaderMixin(LoraBaseMixin):
         )
 
     @classmethod
-    # Copied from mindone.diffusers.loaders.lora_pipeline.SD3LoraLoaderMixin.load_lora_into_transformer with SD3Transformer2DModel->AuraFlowTransformer2DModel
+    # Copied from diffusers.loaders.lora_pipeline.SD3LoraLoaderMixin.load_lora_into_transformer with SD3Transformer2DModel->AuraFlowTransformer2DModel
     def load_lora_into_transformer(
         cls,
         state_dict,
@@ -1606,7 +1606,7 @@ class AuraFlowLoraLoaderMixin(LoraBaseMixin):
         )
 
     @classmethod
-    # Copied from mindone.diffusers.loaders.lora_pipeline.CogVideoXLoraLoaderMixin.save_lora_weights
+    # Copied from diffusers.loaders.lora_pipeline.CogVideoXLoraLoaderMixin.save_lora_weights
     def save_lora_weights(
         cls,
         save_directory: Union[str, os.PathLike],
@@ -1662,7 +1662,7 @@ class AuraFlowLoraLoaderMixin(LoraBaseMixin):
             lora_adapter_metadata=lora_adapter_metadata,
         )
 
-    # Copied from mindone.diffusers.loaders.lora_pipeline.SanaLoraLoaderMixin.fuse_lora
+    # Copied from diffusers.loaders.lora_pipeline.SanaLoraLoaderMixin.fuse_lora
     def fuse_lora(
         self,
         components: List[str] = ["transformer"],
@@ -1710,7 +1710,7 @@ class AuraFlowLoraLoaderMixin(LoraBaseMixin):
             **kwargs,
         )
 
-    # Copied from mindone.diffusers.loaders.lora_pipeline.SanaLoraLoaderMixin.unfuse_lora
+    # Copied from diffusers.loaders.lora_pipeline.SanaLoraLoaderMixin.unfuse_lora
     def unfuse_lora(self, components: List[str] = ["transformer", "text_encoder"], **kwargs):
         r"""
         Reverses the effect of
@@ -5430,7 +5430,7 @@ class HiDreamImageLoraLoaderMixin(LoraBaseMixin):
 
         is_dora_scale_present = any("dora_scale" in k for k in state_dict)
         if is_dora_scale_present:
-            warn_msg = "It seems like you are using a DoRA checkpoint that is not compatible in Diffusers at the moment. So, we are going to filter out the keys associated to 'dora_scale` from the state dict. If you think this is a mistake please open an issue https://github.com/huggingface/diffusers/issues/new."
+            warn_msg = "It seems like you are using a DoRA checkpoint that is not compatible in Diffusers at the moment. So, we are going to filter out the keys associated to 'dora_scale` from the state dict. If you think this is a mistake please open an issue https://github.com/huggingface/diffusers/issues/new."  # noqa
             logger.warning(warn_msg)
             state_dict = {k: v for k, v in state_dict.items() if "dora_scale" not in k}
 
@@ -5441,7 +5441,7 @@ class HiDreamImageLoraLoaderMixin(LoraBaseMixin):
         out = (state_dict, metadata) if return_lora_metadata else state_dict
         return out
 
-    # Copied from mindone.diffusers.loaders.lora_pipeline.CogVideoXLoraLoaderMixin.load_lora_weights
+    # Copied from diffusers.loaders.lora_pipeline.CogVideoXLoraLoaderMixin.load_lora_weights
     def load_lora_weights(
         self,
         pretrained_model_name_or_path_or_dict: Union[str, Dict[str, ms.Tensor]],
@@ -5489,7 +5489,7 @@ class HiDreamImageLoraLoaderMixin(LoraBaseMixin):
         )
 
     @classmethod
-    # Copied from mindone.diffusers.loaders.lora_pipeline.SD3LoraLoaderMixin.load_lora_into_transformer with SD3Transformer2DModel->HiDreamImageTransformer2DModel
+    # Copied from diffusers.loaders.lora_pipeline.SD3LoraLoaderMixin.load_lora_into_transformer with SD3Transformer2DModel->HiDreamImageTransformer2DModel
     def load_lora_into_transformer(
         cls,
         state_dict,
@@ -5530,7 +5530,7 @@ class HiDreamImageLoraLoaderMixin(LoraBaseMixin):
         )
 
     @classmethod
-    # Copied from mindone.diffusers.loaders.lora_pipeline.CogVideoXLoraLoaderMixin.save_lora_weights
+    # Copied from diffusers.loaders.lora_pipeline.CogVideoXLoraLoaderMixin.save_lora_weights
     def save_lora_weights(
         cls,
         save_directory: Union[str, os.PathLike],
@@ -5586,7 +5586,7 @@ class HiDreamImageLoraLoaderMixin(LoraBaseMixin):
             lora_adapter_metadata=lora_adapter_metadata,
         )
 
-    # Copied from mindone.diffusers.loaders.lora_pipeline.SanaLoraLoaderMixin.fuse_lora
+    # Copied from diffusers.loaders.lora_pipeline.SanaLoraLoaderMixin.fuse_lora
     def fuse_lora(
         self,
         components: List[str] = ["transformer"],
@@ -5634,7 +5634,7 @@ class HiDreamImageLoraLoaderMixin(LoraBaseMixin):
             **kwargs,
         )
 
-    # Copied from mindone.diffusers.loaders.lora_pipeline.SanaLoraLoaderMixin.unfuse_lora
+    # Copied from diffusers.loaders.lora_pipeline.SanaLoraLoaderMixin.unfuse_lora
     def unfuse_lora(self, components: List[str] = ["transformer"], **kwargs):
         r"""
         Reverses the effect of
