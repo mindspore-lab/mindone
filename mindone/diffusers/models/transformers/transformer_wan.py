@@ -275,7 +275,7 @@ class WanTransformerBlock(nn.Cell):
         self.ffn = FeedForward(dim, inner_dim=ffn_dim, activation_fn="gelu-approximate")
         self.norm3 = FP32LayerNorm(dim, eps, elementwise_affine=False)
 
-        self.scale_shift_table = ms.Parameter(mint.randn(1, 6, dim) / dim**0.5)
+        self.scale_shift_table = ms.Parameter(mint.randn(1, 6, dim) / dim**0.5, name="scale_shift_table")
 
     def construct(
         self,
@@ -406,7 +406,7 @@ class WanTransformer3DModel(ModelMixin, ConfigMixin, PeftAdapterMixin, FromOrigi
         # 4. Output norm & projection
         self.norm_out = FP32LayerNorm(inner_dim, eps, elementwise_affine=False)
         self.proj_out = mint.nn.Linear(inner_dim, out_channels * math.prod(patch_size))
-        self.scale_shift_table = ms.Parameter(mint.randn(1, 2, inner_dim) / inner_dim**0.5)
+        self.scale_shift_table = ms.Parameter(mint.randn(1, 2, inner_dim) / inner_dim**0.5, name="scale_shift_table")
 
         self.gradient_checkpointing = False
 

@@ -828,7 +828,7 @@ class AutoencoderKLMochi(ModelMixin, ConfigMixin):
         framewise encoding, encode a video, and try to decode it, there will be noticeable jittering effect.
         """
         self.use_framewise_encoding = True
-        for name, module in self.named_modules():
+        for name, module in self.cells_and_names():
             if isinstance(module, CogVideoXCausalConv3d):
                 module.pad_mode = "constant"
 
@@ -838,7 +838,7 @@ class AutoencoderKLMochi(ModelMixin, ConfigMixin):
         oneshot decoding implementation without current latent replicate padding.
         """
         self.use_framewise_decoding = True
-        for name, module in self.named_modules():
+        for name, module in self.cells_and_names():
             if isinstance(module, CogVideoXCausalConv3d):
                 module.pad_mode = "constant"
 

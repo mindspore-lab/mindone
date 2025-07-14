@@ -19,10 +19,13 @@ PEFT utilities: Utilities related to peft library
 """
 
 import collections
+import importlib
 from typing import Optional
 
+from packaging import version
+
 from . import logging
-from .import_utils import is_peft_available, is_peft_version
+from .import_utils import is_peft_version
 
 logger = logging.get_logger(__name__)
 
@@ -220,9 +223,6 @@ def check_peft_version(min_version: str) -> None:
         version (`str`):
             The version of PEFT to check against.
     """
-    if not is_peft_available():
-        raise ValueError("PEFT is not installed. Please install it with `pip install peft`")
-
     is_peft_version_compatible = version.parse(importlib.metadata.version("mindone.diffusers._peft")) > version.parse(
         min_version
     )
@@ -262,6 +262,11 @@ def _create_lora_config(
             raise ValueError("lora_bias requires PEFT >= 0.14.0. Please upgrade.")
 
     try:
+        # TODO: Remove the following workaround after weixi upgrades mindone.peft to support these arguments properly
+        if not lora_config_kwargs.get("use_dora", True):
+            lora_config_kwargs.pop("use_dora", None)
+        if not lora_config_kwargs.get("lora_bias", True):
+            lora_config_kwargs.pop("lora_bias", None)
         return LoraConfig(**lora_config_kwargs)
     except TypeError as e:
         raise TypeError("`LoraConfig` class could not be instantiated.") from e
