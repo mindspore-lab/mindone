@@ -1,5 +1,8 @@
 # Copyright 2024 Stability AI, The HuggingFace Team and The AlimamaCreative Team. All rights reserved.
 #
+# This code is adapted from https://github.com/huggingface/diffusers
+# with modifications to run diffusers on mindspore.
+#
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -16,18 +19,17 @@ import inspect
 from typing import Any, Callable, Dict, List, Optional, Tuple, Union
 
 import numpy as np
-from transformers import CLIPTokenizer, T5TokenizerFast
+from transformers import CLIPTokenizer, SiglipImageProcessor, T5TokenizerFast
 
 import mindspore as ms
-from mindspore import ops
+from mindspore import mint
 
-from mindone.transformers import CLIPTextModelWithProjection, T5EncoderModel
+from mindone.transformers import CLIPTextModelWithProjection, SiglipModel, T5EncoderModel
 
 from ...image_processor import PipelineImageInput, VaeImageProcessor
-from ...loaders import FromSingleFileMixin, SD3LoraLoaderMixin
+from ...loaders import FromSingleFileMixin, SD3IPAdapterMixin, SD3LoraLoaderMixin
 from ...models.autoencoders import AutoencoderKL
 from ...models.controlnets.controlnet_sd3 import SD3ControlNetModel, SD3MultiControlNetModel
-from ...models.layers_compat import pad
 from ...models.transformers import SD3Transformer2DModel
 from ...schedulers import FlowMatchEulerDiscreteScheduler
 from ...utils import logging, scale_lora_layers, unscale_lora_layers
@@ -144,7 +146,9 @@ def retrieve_timesteps(
     return timesteps, num_inference_steps
 
 
-class StableDiffusion3ControlNetInpaintingPipeline(DiffusionPipeline, SD3LoraLoaderMixin, FromSingleFileMixin):
+class StableDiffusion3ControlNetInpaintingPipeline(
+    DiffusionPipeline, SD3LoraLoaderMixin, FromSingleFileMixin, SD3IPAdapterMixin
+):
     r"""
     Args:
         transformer ([`SD3Transformer2DModel`]):
@@ -177,13 +181,17 @@ class StableDiffusion3ControlNetInpaintingPipeline(DiffusionPipeline, SD3LoraLoa
             Tokenizer of class
             [T5Tokenizer](https://huggingface.co/docs/transformers/model_doc/t5#transformers.T5Tokenizer).
         controlnet ([`SD3ControlNetModel`] or `List[SD3ControlNetModel]` or [`SD3MultiControlNetModel`]):
-            Provides additional conditioning to the `unet` during the denoising process. If you set multiple
+            Provides additional conditioning to the `transformer` during the denoising process. If you set multiple
             ControlNets as a list, the outputs from each ControlNet are added together to create one combined
             additional conditioning.
+        image_encoder (`PreTrainedModel`, *optional*):
+            Pre-trained Vision Model for IP Adapter.
+        feature_extractor (`BaseImageProcessor`, *optional*):
+            Image processor for IP Adapter.
     """
 
-    model_cpu_offload_seq = "text_encoder->text_encoder_2->text_encoder_3->transformer->vae"
-    _optional_components = []
+    model_cpu_offload_seq = "text_encoder->text_encoder_2->text_encoder_3->image_encoder->transformer->vae"
+    _optional_components = ["image_encoder", "feature_extractor"]
     _callback_tensor_inputs = ["latents", "prompt_embeds", "negative_prompt_embeds", "negative_pooled_prompt_embeds"]
 
     def __init__(
@@ -200,6 +208,8 @@ class StableDiffusion3ControlNetInpaintingPipeline(DiffusionPipeline, SD3LoraLoa
         controlnet: Union[
             SD3ControlNetModel, List[SD3ControlNetModel], Tuple[SD3ControlNetModel], SD3MultiControlNetModel
         ],
+        image_encoder: SiglipModel = None,
+        feature_extractor: Optional[SiglipImageProcessor] = None,
     ):
         super().__init__()
 
@@ -214,10 +224,10 @@ class StableDiffusion3ControlNetInpaintingPipeline(DiffusionPipeline, SD3LoraLoa
             transformer=transformer,
             scheduler=scheduler,
             controlnet=controlnet,
+            image_encoder=image_encoder,
+            feature_extractor=feature_extractor,
         )
-        self.vae_scale_factor = (
-            2 ** (len(self.vae.config.block_out_channels) - 1) if hasattr(self, "vae") and self.vae is not None else 8
-        )
+        self.vae_scale_factor = 2 ** (len(self.vae.config.block_out_channels) - 1) if getattr(self, "vae", None) else 8
         self.image_processor = VaeImageProcessor(
             vae_scale_factor=self.vae_scale_factor, do_resize=True, do_convert_rgb=True, do_normalize=True
         )
@@ -254,7 +264,7 @@ class StableDiffusion3ControlNetInpaintingPipeline(DiffusionPipeline, SD3LoraLoa
         batch_size = len(prompt)
 
         if self.text_encoder_3 is None:
-            return ops.zeros(
+            return mint.zeros(
                 (
                     batch_size * num_images_per_prompt,
                     self.tokenizer_max_length,
@@ -392,9 +402,9 @@ class StableDiffusion3ControlNetInpaintingPipeline(DiffusionPipeline, SD3LoraLoa
             negative_prompt_2 (`str` or `List[str]`, *optional*):
                 The prompt or prompts not to guide the image generation to be sent to `tokenizer_2` and
                 `text_encoder_2`. If not defined, `negative_prompt` is used in all the text-encoders.
-            negative_prompt_2 (`str` or `List[str]`, *optional*):
+            negative_prompt_3 (`str` or `List[str]`, *optional*):
                 The prompt or prompts not to guide the image generation to be sent to `tokenizer_3` and
-                `text_encoder_3`. If not defined, `negative_prompt` is used in both text-encoders
+                `text_encoder_3`. If not defined, `negative_prompt` is used in all the text-encoders.
             prompt_embeds (`ms.Tensor`, *optional*):
                 Pre-generated text embeddings. Can be used to easily tweak text inputs, *e.g.* prompt weighting. If not
                 provided, text embeddings will be generated from `prompt` input argument.
@@ -451,7 +461,7 @@ class StableDiffusion3ControlNetInpaintingPipeline(DiffusionPipeline, SD3LoraLoa
                 clip_skip=clip_skip,
                 clip_model_index=1,
             )
-            clip_prompt_embeds = ops.cat([prompt_embed, prompt_2_embed], axis=-1)
+            clip_prompt_embeds = mint.cat([prompt_embed, prompt_2_embed], dim=-1)
 
             t5_prompt_embed = self._get_t5_prompt_embeds(
                 prompt=prompt_3,
@@ -459,10 +469,12 @@ class StableDiffusion3ControlNetInpaintingPipeline(DiffusionPipeline, SD3LoraLoa
                 max_sequence_length=max_sequence_length,
             )
 
-            clip_prompt_embeds = pad(clip_prompt_embeds, (0, t5_prompt_embed.shape[-1] - clip_prompt_embeds.shape[-1]))
+            clip_prompt_embeds = mint.nn.functional.pad(
+                clip_prompt_embeds, (0, t5_prompt_embed.shape[-1] - clip_prompt_embeds.shape[-1])
+            )
 
-            prompt_embeds = ops.cat([clip_prompt_embeds, t5_prompt_embed], axis=-2)
-            pooled_prompt_embeds = ops.cat([pooled_prompt_embed, pooled_prompt_2_embed], axis=-1)
+            prompt_embeds = mint.cat([clip_prompt_embeds, t5_prompt_embed], dim=-2)
+            pooled_prompt_embeds = mint.cat([pooled_prompt_embed, pooled_prompt_2_embed], dim=-1)
 
         if do_classifier_free_guidance and negative_prompt_embeds is None:
             negative_prompt = negative_prompt or ""
@@ -502,7 +514,7 @@ class StableDiffusion3ControlNetInpaintingPipeline(DiffusionPipeline, SD3LoraLoa
                 clip_skip=None,
                 clip_model_index=1,
             )
-            negative_clip_prompt_embeds = ops.cat([negative_prompt_embed, negative_prompt_2_embed], axis=-1)
+            negative_clip_prompt_embeds = mint.cat([negative_prompt_embed, negative_prompt_2_embed], dim=-1)
 
             t5_negative_prompt_embed = self._get_t5_prompt_embeds(
                 prompt=negative_prompt_3,
@@ -510,14 +522,14 @@ class StableDiffusion3ControlNetInpaintingPipeline(DiffusionPipeline, SD3LoraLoa
                 max_sequence_length=max_sequence_length,
             )
 
-            negative_clip_prompt_embeds = pad(
+            negative_clip_prompt_embeds = mint.nn.functional.pad(
                 negative_clip_prompt_embeds,
                 (0, t5_negative_prompt_embed.shape[-1] - negative_clip_prompt_embeds.shape[-1]),
             )
 
-            negative_prompt_embeds = ops.cat([negative_clip_prompt_embeds, t5_negative_prompt_embed], axis=-2)
-            negative_pooled_prompt_embeds = ops.cat(
-                [negative_pooled_prompt_embed, negative_pooled_prompt_2_embed], axis=-1
+            negative_prompt_embeds = mint.cat([negative_clip_prompt_embeds, t5_negative_prompt_embed], dim=-2)
+            negative_pooled_prompt_embeds = mint.cat(
+                [negative_pooled_prompt_embed, negative_pooled_prompt_2_embed], dim=-1
             )
 
         if self.text_encoder is not None:
@@ -707,12 +719,14 @@ class StableDiffusion3ControlNetInpaintingPipeline(DiffusionPipeline, SD3LoraLoa
         image_latents = (image_latents - self.vae.config.shift_factor) * self.vae.config.scaling_factor
         image_latents = image_latents.to(dtype)
 
-        mask = ops.interpolate(mask, size=(height // self.vae_scale_factor, width // self.vae_scale_factor))
+        mask = mint.nn.functional.interpolate(
+            mask, size=(height // self.vae_scale_factor, width // self.vae_scale_factor)
+        )
         mask = 1 - mask
-        control_image = ops.cat([image_latents, mask], axis=1)
+        control_image = mint.cat([image_latents, mask], dim=1)
 
         if do_classifier_free_guidance and not guess_mode:
-            control_image = ops.cat([control_image] * 2)
+            control_image = mint.cat([control_image] * 2)
 
         return control_image
 
@@ -743,6 +757,67 @@ class StableDiffusion3ControlNetInpaintingPipeline(DiffusionPipeline, SD3LoraLoa
     def interrupt(self):
         return self._interrupt
 
+    # Copied from diffusers.pipelines.stable_diffusion_3.pipeline_stable_diffusion_3.StableDiffusion3Pipeline.encode_image
+    def encode_image(self, image: PipelineImageInput) -> ms.Tensor:
+        """Encodes the given image into a feature representation using a pre-trained image encoder.
+
+        Args:
+            image (`PipelineImageInput`):
+                Input image to be encoded.
+
+        Returns:
+            `ms.Tensor`: The encoded image feature representation.
+        """
+        if not isinstance(image, ms.Tensor):
+            image = self.feature_extractor(image, return_tensors="np").pixel_values
+            image = ms.tensor(image)
+
+        image = image.to(dtype=self.dtype)
+
+        return self.image_encoder(image, output_hidden_states=True)[2][-2]
+
+    # Copied from diffusers.pipelines.stable_diffusion_3.pipeline_stable_diffusion_3.StableDiffusion3Pipeline.prepare_ip_adapter_image_embeds
+    def prepare_ip_adapter_image_embeds(
+        self,
+        ip_adapter_image: Optional[PipelineImageInput] = None,
+        ip_adapter_image_embeds: Optional[ms.Tensor] = None,
+        num_images_per_prompt: int = 1,
+        do_classifier_free_guidance: bool = True,
+    ) -> ms.Tensor:
+        """Prepares image embeddings for use in the IP-Adapter.
+
+        Either `ip_adapter_image` or `ip_adapter_image_embeds` must be passed.
+
+        Args:
+            ip_adapter_image (`PipelineImageInput`, *optional*):
+                The input image to extract features from for IP-Adapter.
+            ip_adapter_image_embeds (`ms.Tensor`, *optional*):
+                Precomputed image embeddings.
+            num_images_per_prompt (`int`, defaults to 1):
+                Number of images that should be generated per prompt.
+            do_classifier_free_guidance (`bool`, defaults to True):
+                Whether to use classifier free guidance or not.
+        """
+        if ip_adapter_image_embeds is not None:
+            if do_classifier_free_guidance:
+                single_negative_image_embeds, single_image_embeds = ip_adapter_image_embeds.chunk(2)
+            else:
+                single_image_embeds = ip_adapter_image_embeds
+        elif ip_adapter_image is not None:
+            single_image_embeds = self.encode_image(ip_adapter_image)
+            if do_classifier_free_guidance:
+                single_negative_image_embeds = mint.zeros_like(single_image_embeds)
+        else:
+            raise ValueError("Neither `ip_adapter_image_embeds` or `ip_adapter_image_embeds` were provided.")
+
+        image_embeds = mint.cat([single_image_embeds] * num_images_per_prompt, dim=0)
+
+        if do_classifier_free_guidance:
+            negative_image_embeds = mint.cat([single_negative_image_embeds] * num_images_per_prompt, dim=0)
+            image_embeds = mint.cat([negative_image_embeds, image_embeds], dim=0)
+
+        return image_embeds
+
     def __call__(
         self,
         prompt: Union[str, List[str]] = None,
@@ -770,6 +845,8 @@ class StableDiffusion3ControlNetInpaintingPipeline(DiffusionPipeline, SD3LoraLoa
         pooled_prompt_embeds: Optional[ms.Tensor] = None,
         negative_pooled_prompt_embeds: Optional[ms.Tensor] = None,
         output_type: Optional[str] = "pil",
+        ip_adapter_image: Optional[PipelineImageInput] = None,
+        ip_adapter_image_embeds: Optional[ms.Tensor] = None,
         return_dict: bool = False,
         joint_attention_kwargs: Optional[Dict[str, Any]] = None,
         clip_skip: Optional[int] = None,
@@ -862,6 +939,12 @@ class StableDiffusion3ControlNetInpaintingPipeline(DiffusionPipeline, SD3LoraLoa
                 Pre-generated negative pooled text embeddings. Can be used to easily tweak text inputs, *e.g.* prompt
                 weighting. If not provided, pooled negative_prompt_embeds will be generated from `negative_prompt`
                 input argument.
+            ip_adapter_image (`PipelineImageInput`, *optional*):
+                Optional image input to work with IP Adapters.
+            ip_adapter_image_embeds (`ms.Tensor`, *optional*):
+                Pre-generated image embeddings for IP-Adapter. Should be a tensor of shape `(batch_size, num_images,
+                emb_dim)`. It should contain the negative image embedding if `do_classifier_free_guidance` is set to
+                `True`. If not provided, embeddings are computed from the `ip_adapter_image` input argument.
             output_type (`str`, *optional*, defaults to `"pil"`):
                 The output format of the generate image. Choose between
                 [PIL](https://pillow.readthedocs.io/en/stable/): `PIL.Image.Image` or `np.array`.
@@ -962,8 +1045,8 @@ class StableDiffusion3ControlNetInpaintingPipeline(DiffusionPipeline, SD3LoraLoa
         )
 
         if self.do_classifier_free_guidance:
-            prompt_embeds = ops.cat([negative_prompt_embeds, prompt_embeds], axis=0)
-            pooled_prompt_embeds = ops.cat([negative_pooled_prompt_embeds, pooled_prompt_embeds], axis=0)
+            prompt_embeds = mint.cat([negative_prompt_embeds, prompt_embeds], dim=0)
+            pooled_prompt_embeds = mint.cat([negative_pooled_prompt_embeds, pooled_prompt_embeds], dim=0)
 
         # 3. Prepare control image
         if isinstance(self.controlnet, SD3ControlNetModel):
@@ -989,7 +1072,7 @@ class StableDiffusion3ControlNetInpaintingPipeline(DiffusionPipeline, SD3LoraLoa
             assert False
 
         if controlnet_pooled_projections is None:
-            controlnet_pooled_projections = ops.zeros_like(pooled_prompt_embeds)
+            controlnet_pooled_projections = mint.zeros_like(pooled_prompt_embeds)
         else:
             controlnet_pooled_projections = controlnet_pooled_projections or pooled_prompt_embeds
 
@@ -1019,14 +1102,28 @@ class StableDiffusion3ControlNetInpaintingPipeline(DiffusionPipeline, SD3LoraLoa
             ]
             controlnet_keep.append(keeps[0] if isinstance(self.controlnet, SD3ControlNetModel) else keeps)
 
-        # 7. Denoising loop
+        # 7. Prepare image embeddings
+        if (ip_adapter_image is not None and self.is_ip_adapter_active) or ip_adapter_image_embeds is not None:
+            ip_adapter_image_embeds = self.prepare_ip_adapter_image_embeds(
+                ip_adapter_image,
+                ip_adapter_image_embeds,
+                batch_size * num_images_per_prompt,
+                self.do_classifier_free_guidance,
+            )
+
+            if self.joint_attention_kwargs is None:
+                self._joint_attention_kwargs = {"ip_adapter_image_embeds": ip_adapter_image_embeds}
+            else:
+                self._joint_attention_kwargs.update(ip_adapter_image_embeds=ip_adapter_image_embeds)
+
+        # 8. Denoising loop
         with self.progress_bar(total=num_inference_steps) as progress_bar:
             for i, t in enumerate(timesteps):
                 if self.interrupt:
                     continue
 
                 # expand the latents if we are doing classifier free guidance
-                latent_model_input = ops.cat([latents] * 2) if self.do_classifier_free_guidance else latents
+                latent_model_input = mint.cat([latents] * 2) if self.do_classifier_free_guidance else latents
                 # broadcast to batch dimension in a way that's compatible with ONNX/Core ML
                 timestep = t.broadcast_to((latent_model_input.shape[0],))
 

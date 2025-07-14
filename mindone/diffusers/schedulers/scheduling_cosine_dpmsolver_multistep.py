@@ -1,5 +1,8 @@
 # Copyright 2024 TSAIL Team and The HuggingFace Team. All rights reserved.
 #
+# This code is adapted from https://github.com/huggingface/diffusers
+# with modifications to run diffusers on mindspore.
+#
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -20,7 +23,7 @@ from typing import List, Optional, Tuple, Union
 import numpy as np
 
 import mindspore as ms
-from mindspore import ops
+from mindspore import mint
 
 from ..configuration_utils import ConfigMixin, register_to_config
 from .scheduling_dpmsolver_sde import BrownianTreeNoiseSampler
@@ -96,7 +99,7 @@ class CosineDPMSolverMultistepScheduler(SchedulerMixin, ConfigMixin):
             else:
                 raise NotImplementedError(f"{solver_type} is not implemented for {self.__class__}")
 
-        ramp = ms.Tensor(np.linspace(0, 1, num_train_timesteps))
+        ramp = ms.tensor(np.linspace(0, 1, num_train_timesteps))
         if sigma_schedule == "karras":
             sigmas = self._compute_karras_sigmas(ramp)
         elif sigma_schedule == "exponential":
@@ -104,7 +107,7 @@ class CosineDPMSolverMultistepScheduler(SchedulerMixin, ConfigMixin):
 
         self.timesteps = self.precondition_noise(sigmas)
 
-        self.sigmas = ops.cat([sigmas, ops.zeros(1, sigmas.dtype)])
+        self.sigmas = mint.cat([sigmas, mint.zeros(1, dtype=sigmas.dtype)])
 
         # setable values
         self.num_inference_steps = None
@@ -153,7 +156,7 @@ class CosineDPMSolverMultistepScheduler(SchedulerMixin, ConfigMixin):
 
     def precondition_noise(self, sigma):
         if not isinstance(sigma, ms.Tensor):
-            sigma = ms.Tensor([sigma])
+            sigma = ms.tensor([sigma])
 
         return sigma.atan() / math.pi * 2
 
@@ -209,7 +212,7 @@ class CosineDPMSolverMultistepScheduler(SchedulerMixin, ConfigMixin):
 
         self.num_inference_steps = num_inference_steps
 
-        ramp = ms.Tensor(np.linspace(0, 1, self.num_inference_steps))
+        ramp = ms.tensor(np.linspace(0, 1, self.num_inference_steps))
         if self.config.sigma_schedule == "karras":
             sigmas = self._compute_karras_sigmas(ramp)
         elif self.config.sigma_schedule == "exponential":
@@ -227,7 +230,7 @@ class CosineDPMSolverMultistepScheduler(SchedulerMixin, ConfigMixin):
                 f"`final_sigmas_type` must be one of 'zero', or 'sigma_min', but got {self.config.final_sigmas_type}"
             )
 
-        self.sigmas = ops.cat([sigmas, ms.Tensor([sigma_last], dtype=ms.float32)])
+        self.sigmas = mint.cat([sigmas, ms.tensor([sigma_last], dtype=ms.float32)])
 
         self.model_outputs = [
             None,
@@ -262,7 +265,7 @@ class CosineDPMSolverMultistepScheduler(SchedulerMixin, ConfigMixin):
         """
         sigma_min = sigma_min or self.config.sigma_min
         sigma_max = sigma_max or self.config.sigma_max
-        sigmas = ops.flip(ops.linspace(math.log(sigma_min), math.log(sigma_max), len(ramp)).exp(), (0,))
+        sigmas = mint.flip(mint.linspace(math.log(sigma_min), math.log(sigma_max), len(ramp)).exp(), (0,))
         return sigmas
 
     # Copied from diffusers.schedulers.scheduling_euler_discrete.EulerDiscreteScheduler._sigma_to_t
@@ -290,7 +293,7 @@ class CosineDPMSolverMultistepScheduler(SchedulerMixin, ConfigMixin):
         return t
 
     def _sigma_to_alpha_sigma_t(self, sigma):
-        alpha_t = ms.Tensor(1)  # Inputs are pre-scaled before going into unet, so alpha_t = 1
+        alpha_t = ms.tensor(1)  # Inputs are pre-scaled before going into unet, so alpha_t = 1
         sigma_t = sigma
 
         return alpha_t, sigma_t
@@ -349,15 +352,15 @@ class CosineDPMSolverMultistepScheduler(SchedulerMixin, ConfigMixin):
         sigma_t, sigma_s = self.sigmas[self.step_index + 1], self.sigmas[self.step_index]
         alpha_t, sigma_t = self._sigma_to_alpha_sigma_t(sigma_t)
         alpha_s, sigma_s = self._sigma_to_alpha_sigma_t(sigma_s)
-        lambda_t = ops.log(alpha_t) - ops.log(sigma_t)
-        lambda_s = ops.log(alpha_s) - ops.log(sigma_s)
+        lambda_t = mint.log(alpha_t) - mint.log(sigma_t)
+        lambda_s = mint.log(alpha_s) - mint.log(sigma_s)
 
         h = lambda_t - lambda_s
         assert noise is not None
         x_t = (
-            (sigma_t / sigma_s * ops.exp(-h)) * sample
-            + (alpha_t * (1 - ops.exp(-2.0 * h))) * model_output
-            + sigma_t * ops.sqrt(1.0 - ops.exp(-2 * h)) * noise
+            (sigma_t / sigma_s * mint.exp(-h)) * sample
+            + (alpha_t * (1 - mint.exp(-2.0 * h))) * model_output
+            + sigma_t * mint.sqrt(1.0 - mint.exp(-2 * h)) * noise
         )
         x_t = x_t.to(sample.dtype)
         return x_t
@@ -391,9 +394,9 @@ class CosineDPMSolverMultistepScheduler(SchedulerMixin, ConfigMixin):
         alpha_s0, sigma_s0 = self._sigma_to_alpha_sigma_t(sigma_s0)
         alpha_s1, sigma_s1 = self._sigma_to_alpha_sigma_t(sigma_s1)
 
-        lambda_t = ops.log(alpha_t) - ops.log(sigma_t)
-        lambda_s0 = ops.log(alpha_s0) - ops.log(sigma_s0)
-        lambda_s1 = ops.log(alpha_s1) - ops.log(sigma_s1)
+        lambda_t = mint.log(alpha_t) - mint.log(sigma_t)
+        lambda_s0 = mint.log(alpha_s0) - mint.log(sigma_s0)
+        lambda_s1 = mint.log(alpha_s1) - mint.log(sigma_s1)
 
         m0, m1 = model_output_list[-1], model_output_list[-2]
 
@@ -405,17 +408,17 @@ class CosineDPMSolverMultistepScheduler(SchedulerMixin, ConfigMixin):
         assert noise is not None
         if self.config.solver_type == "midpoint":
             x_t = (
-                (sigma_t / sigma_s0 * ops.exp(-h)) * sample
-                + (alpha_t * (1 - ops.exp(-2.0 * h))) * D0
-                + 0.5 * (alpha_t * (1 - ops.exp(-2.0 * h))) * D1
-                + sigma_t * ops.sqrt(1.0 - ops.exp(-2 * h)) * noise
+                (sigma_t / sigma_s0 * mint.exp(-h)) * sample
+                + (alpha_t * (1 - mint.exp(-2.0 * h))) * D0
+                + 0.5 * (alpha_t * (1 - mint.exp(-2.0 * h))) * D1
+                + sigma_t * mint.sqrt(1.0 - mint.exp(-2 * h)) * noise
             )
         elif self.config.solver_type == "heun":
             x_t = (
-                (sigma_t / sigma_s0 * ops.exp(-h)) * sample
-                + (alpha_t * (1 - ops.exp(-2.0 * h))) * D0
-                + (alpha_t * ((1.0 - ops.exp(-2.0 * h)) / (-2.0 * h) + 1.0)) * D1
-                + sigma_t * ops.sqrt(1.0 - ops.exp(-2 * h)) * noise
+                (sigma_t / sigma_s0 * mint.exp(-h)) * sample
+                + (alpha_t * (1 - mint.exp(-2.0 * h))) * D0
+                + (alpha_t * ((1.0 - mint.exp(-2.0 * h)) / (-2.0 * h) + 1.0)) * D1
+                + sigma_t * mint.sqrt(1.0 - mint.exp(-2 * h)) * noise
             )
         x_t = x_t.to(sample.dtype)
         return x_t

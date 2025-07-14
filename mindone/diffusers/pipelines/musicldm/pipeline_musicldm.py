@@ -1,5 +1,8 @@
 # Copyright 2024 The HuggingFace Team. All rights reserved.
 #
+# This code is adapted from https://github.com/huggingface/diffusers
+# with modifications to run diffusers on mindspore.
+#
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -20,7 +23,7 @@ import numpy as np
 from transformers import RobertaTokenizer, RobertaTokenizerFast
 
 import mindspore as ms
-from mindspore import ops
+from mindspore import mint
 
 from ....transformers import ClapFeatureExtractor, ClapModel, ClapTextModelWithProjection, SpeechT5HifiGan
 from ...models import AutoencoderKL, UNet2DConditionModel
@@ -29,7 +32,10 @@ from ...utils import logging
 from ...utils.mindspore_utils import randn_tensor
 from ..pipeline_utils import AudioPipelineOutput, DiffusionPipeline, StableDiffusionMixin
 
+XLA_AVAILABLE = False
+
 logger = logging.get_logger(__name__)  # pylint: disable=invalid-name
+
 
 EXAMPLE_DOC_STRING = """
     Examples:
@@ -97,7 +103,7 @@ class MusicLDMPipeline(DiffusionPipeline, StableDiffusionMixin):
             scheduler=scheduler,
             vocoder=vocoder,
         )
-        self.vae_scale_factor = 2 ** (len(self.vae.config.block_out_channels) - 1)
+        self.vae_scale_factor = 2 ** (len(self.vae.config.block_out_channels) - 1) if getattr(self, "vae", None) else 8
 
     def _encode_prompt(
         self,
@@ -145,11 +151,13 @@ class MusicLDMPipeline(DiffusionPipeline, StableDiffusionMixin):
                 truncation=True,
                 return_tensors="np",
             )
-            text_input_ids = ms.Tensor(text_inputs.input_ids)
-            attention_mask = ms.Tensor(text_inputs.attention_mask)
-            untruncated_ids = ms.Tensor(self.tokenizer(prompt, padding="longest", return_tensors="np").input_ids)
+            text_input_ids = ms.tensor(text_inputs.input_ids)
+            attention_mask = ms.tensor(text_inputs.attention_mask)
+            untruncated_ids = ms.tensor(self.tokenizer(prompt, padding="longest", return_tensors="np").input_ids)
 
-            if untruncated_ids.shape[-1] >= text_input_ids.shape[-1] and not ops.equal(text_input_ids, untruncated_ids):
+            if untruncated_ids.shape[-1] >= text_input_ids.shape[-1] and not mint.equal(
+                text_input_ids, untruncated_ids
+            ):
                 removed_text = self.tokenizer.batch_decode(untruncated_ids[:, self.tokenizer.model_max_length - 1 : -1])
                 logger.warning(
                     "The following part of your input was truncated because CLAP can only handle sequences up to"
@@ -201,8 +209,8 @@ class MusicLDMPipeline(DiffusionPipeline, StableDiffusionMixin):
                 return_tensors="np",
             )
 
-            uncond_input_ids = ms.Tensor(uncond_input.input_ids)
-            attention_mask = ms.Tensor(uncond_input.attention_mask)
+            uncond_input_ids = ms.tensor(uncond_input.input_ids)
+            attention_mask = ms.tensor(uncond_input.attention_mask)
 
             negative_prompt_embeds = self.text_encoder.get_text_features(
                 uncond_input_ids,
@@ -221,14 +229,14 @@ class MusicLDMPipeline(DiffusionPipeline, StableDiffusionMixin):
             # For classifier free guidance, we need to do two forward passes.
             # Here we concatenate the unconditional and text embeddings into a single batch
             # to avoid doing two forward passes
-            prompt_embeds = ops.cat([negative_prompt_embeds, prompt_embeds])
+            prompt_embeds = mint.cat([negative_prompt_embeds, prompt_embeds])
 
         return prompt_embeds
 
     # Copied from diffusers.pipelines.audioldm.pipeline_audioldm.AudioLDMPipeline.mel_spectrogram_to_waveform
     def mel_spectrogram_to_waveform(self, mel_spectrogram):
         if mel_spectrogram.dim() == 4:
-            mel_spectrogram = mel_spectrogram.squeeze(1)
+            mel_spectrogram = mint.squeeze(mel_spectrogram, 1)
 
         waveform = self.vocoder(mel_spectrogram)
         # we always cast to float32 as this does not cause significant overhead and is compatible with bfloat16
@@ -244,11 +252,11 @@ class MusicLDMPipeline(DiffusionPipeline, StableDiffusionMixin):
         #         "generated. To enable automatic scoring, install `librosa` with: `pip install librosa`."
         #     )
         #     return audio
-        inputs = ms.Tensor(self.tokenizer(text, return_tensors="np", padding=True))
+        inputs = ms.tensor(self.tokenizer(text, return_tensors="np", padding=True))
         resampled_audio = librosa.resample(
             audio.numpy(), orig_sr=self.vocoder.config.sampling_rate, target_sr=self.feature_extractor.sampling_rate
         )
-        inputs["input_features"] = ms.Tensor(
+        inputs["input_features"] = ms.tensor(
             self.feature_extractor(
                 list(resampled_audio), return_tensors="np", sampling_rate=self.feature_extractor.sampling_rate
             ).input_features.type(dtype)
@@ -258,8 +266,8 @@ class MusicLDMPipeline(DiffusionPipeline, StableDiffusionMixin):
         # compute the audio-text similarity score using the CLAP model
         logits_per_text = self.text_encoder(**inputs).logits_per_text
         # sort by the highest matching generations per prompt
-        indices = ops.argsort(logits_per_text, dim=1, descending=True)[:, :num_waveforms_per_prompt]
-        audio = ops.index_select(audio, 0, indices.reshape(-1))
+        indices = mint.argsort(logits_per_text, dim=1, descending=True)[:, :num_waveforms_per_prompt]
+        audio = mint.index_select(audio, 0, mint.reshape(indices, -1))
         return audio
 
     # Copied from diffusers.pipelines.stable_diffusion.pipeline_stable_diffusion.StableDiffusionPipeline.prepare_extra_step_kwargs
@@ -517,7 +525,7 @@ class MusicLDMPipeline(DiffusionPipeline, StableDiffusionMixin):
         with self.progress_bar(total=num_inference_steps) as progress_bar:
             for i, t in enumerate(timesteps):
                 # expand the latents if we are doing classifier free guidance
-                latent_model_input = ops.cat([latents] * 2) if do_classifier_free_guidance else latents
+                latent_model_input = mint.cat([latents] * 2) if do_classifier_free_guidance else latents
                 latent_model_input = self.scheduler.scale_model_input(latent_model_input, t)
 
                 # predict the noise residual

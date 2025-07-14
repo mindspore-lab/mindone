@@ -1,5 +1,8 @@
 # Copyright 2024 The HuggingFace Team. All rights reserved.
 #
+# This code is adapted from https://github.com/huggingface/diffusers
+# with modifications to run diffusers on mindspore.
+#
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -15,7 +18,7 @@ from dataclasses import dataclass
 from typing import Optional, Tuple, Union
 
 import mindspore as ms
-from mindspore import nn, ops
+from mindspore import mint
 
 from ...configuration_utils import ConfigMixin, register_to_config
 from ...utils import BaseOutput
@@ -70,6 +73,9 @@ class VQModel(ModelMixin, ConfigMixin):
             Type of normalization layer to use. Can be one of `"group"` or `"spatial"`.
     """
 
+    _skip_layerwise_casting_patterns = ["quantize"]
+    _supports_group_offloading = False
+
     @register_to_config
     def __init__(
         self,
@@ -108,9 +114,9 @@ class VQModel(ModelMixin, ConfigMixin):
 
         vq_embed_dim = vq_embed_dim if vq_embed_dim is not None else latent_channels
 
-        self.quant_conv = nn.Conv2d(latent_channels, vq_embed_dim, 1, has_bias=True)
+        self.quant_conv = mint.nn.Conv2d(latent_channels, vq_embed_dim, 1)
         self.quantize = VectorQuantizer(num_vq_embeddings, vq_embed_dim, beta=0.25, remap=None, sane_index_shape=False)
-        self.post_quant_conv = nn.Conv2d(vq_embed_dim, latent_channels, 1, has_bias=True)
+        self.post_quant_conv = mint.nn.Conv2d(vq_embed_dim, latent_channels, 1)
 
         # pass init params to Decoder
         self.decoder = Decoder(
@@ -140,10 +146,10 @@ class VQModel(ModelMixin, ConfigMixin):
             quant, commit_loss, _ = self.quantize(h)
         elif self.config["lookup_from_codebook"]:
             quant = self.quantize.get_codebook_entry(h, shape)
-            commit_loss = ops.zeros((h.shape[0],), dtype=h.dtype)
+            commit_loss = mint.zeros((h.shape[0],), dtype=h.dtype)
         else:
             quant = h
-            commit_loss = ops.zeros((h.shape[0],), dtype=h.dtype)
+            commit_loss = mint.zeros((h.shape[0],), dtype=h.dtype)
         quant2 = self.post_quant_conv(quant)
         dec = self.decoder(quant2, quant if self.config["norm_type"] == "spatial" else None)
 

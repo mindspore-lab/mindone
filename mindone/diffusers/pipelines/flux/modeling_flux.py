@@ -1,5 +1,8 @@
 # Copyright 2024 Black Forest Labs and The HuggingFace Team. All rights reserved.
 #
+# This code is adapted from https://github.com/huggingface/diffusers
+# with modifications to run diffusers on mindspore.
+#
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -17,7 +20,7 @@ from dataclasses import dataclass
 from typing import Optional, Union
 
 import mindspore as ms
-from mindspore import mint, nn
+from mindspore import mint
 
 from ...configuration_utils import ConfigMixin, register_to_config
 from ...models.modeling_utils import ModelMixin
@@ -38,8 +41,8 @@ class ReduxImageEncoder(ModelMixin, ConfigMixin):
     ) -> None:
         super().__init__()
 
-        self.redux_up = nn.Dense(redux_dim, txt_in_features * 3)
-        self.redux_down = nn.Dense(txt_in_features * 3, txt_in_features)
+        self.redux_up = mint.nn.Linear(redux_dim, txt_in_features * 3)
+        self.redux_down = mint.nn.Linear(txt_in_features * 3, txt_in_features)
 
     def construct(self, x: ms.Tensor, return_dict: Optional[bool] = False) -> Union[tuple, ReduxImageEncoderOutput]:
         projected_x = self.redux_down(mint.nn.functional.silu(self.redux_up(x)))

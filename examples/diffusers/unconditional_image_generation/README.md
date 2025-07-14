@@ -33,8 +33,6 @@ python train_unconditional.py \
 ```
 An example trained model: https://huggingface.co/anton-l/ddpm-ema-flowers-64
 
-A full training run takes 2 hours on 4xV100 GPUs.
-
 <img src="https://user-images.githubusercontent.com/26864830/180248660-a0b143d0-b89a-42c5-8656-2ebf6ece7e52.png" width="700" />
 
 ### Unconditional Pokemon

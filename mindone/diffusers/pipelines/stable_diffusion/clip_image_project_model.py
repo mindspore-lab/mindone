@@ -1,5 +1,8 @@
 # Copyright 2024 The GLIGEN Authors and HuggingFace Team. All rights reserved.
 #
+# This code is adapted from https://github.com/huggingface/diffusers
+# with modifications to run diffusers on mindspore.
+#
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -12,7 +15,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from mindspore import nn
+from mindspore import mint
 
 from ...configuration_utils import ConfigMixin, register_to_config
 from ...models.modeling_utils import ModelMixin
@@ -23,7 +26,7 @@ class CLIPImageProjection(ModelMixin, ConfigMixin):
     def __init__(self, hidden_size: int = 768):
         super().__init__()
         self.hidden_size = hidden_size
-        self.project = nn.Dense(self.hidden_size, self.hidden_size, has_bias=False)
+        self.project = mint.nn.Linear(self.hidden_size, self.hidden_size, bias=False)
 
     def construct(self, x):
         return self.project(x)

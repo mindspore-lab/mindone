@@ -1,5 +1,8 @@
 # Copyright 2024 The HuggingFace Team. All rights reserved.
 #
+# This code is adapted from https://github.com/huggingface/diffusers
+# with modifications to run diffusers on mindspore.
+#
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -14,7 +17,7 @@
 from typing import Any, Dict, Optional
 
 import mindspore as ms
-from mindspore import nn, ops
+from mindspore import mint, nn
 
 from ...configuration_utils import ConfigMixin, register_to_config
 from ...utils import logging
@@ -22,7 +25,6 @@ from ..attention import BasicTransformerBlock
 from ..embeddings import PatchEmbed
 from ..modeling_outputs import Transformer2DModelOutput
 from ..modeling_utils import ModelMixin
-from ..normalization import LayerNorm
 
 logger = logging.get_logger(__name__)  # pylint: disable=invalid-name
 
@@ -63,7 +65,9 @@ class DiTTransformer2DModel(ModelMixin, ConfigMixin):
             A small constant added to the denominator in normalization layers to prevent division by zero.
     """
 
+    _skip_layerwise_casting_patterns = ["pos_embed", "norm"]
     _supports_gradient_checkpointing = True
+    _supports_group_offloading = False
 
     @register_to_config
     def __init__(
@@ -136,13 +140,11 @@ class DiTTransformer2DModel(ModelMixin, ConfigMixin):
         )
 
         # 3. Output blocks.
-        self.norm_out = LayerNorm(self.inner_dim, elementwise_affine=False, eps=1e-6)
-        self.proj_out_1 = nn.Dense(self.inner_dim, 2 * self.inner_dim)
-        self.proj_out_2 = nn.Dense(self.inner_dim, self.config.patch_size * self.config.patch_size * self.out_channels)
-
-    def _set_gradient_checkpointing(self, module, value=False):
-        if hasattr(module, "gradient_checkpointing"):
-            module.gradient_checkpointing = value
+        self.norm_out = mint.nn.LayerNorm(self.inner_dim, elementwise_affine=False, eps=1e-6)
+        self.proj_out_1 = mint.nn.Linear(self.inner_dim, 2 * self.inner_dim)
+        self.proj_out_2 = mint.nn.Linear(
+            self.inner_dim, self.config.patch_size * self.config.patch_size * self.out_channels
+        )
 
     def construct(
         self,
@@ -193,15 +195,14 @@ class DiTTransformer2DModel(ModelMixin, ConfigMixin):
 
         # 3. Output
         conditioning = self.transformer_blocks[0].norm1.emb(timestep, class_labels, hidden_dtype=hidden_states.dtype)
-        shift, scale = self.proj_out_1(ops.silu(conditioning)).chunk(2, axis=1)
+        shift, scale = self.proj_out_1(mint.nn.functional.silu(conditioning)).chunk(2, dim=1)
         hidden_states = self.norm_out(hidden_states) * (1 + scale[:, None]) + shift[:, None]
         hidden_states = self.proj_out_2(hidden_states)
 
         # unpatchify
         height = width = int(hidden_states.shape[1] ** 0.5)
         hidden_states = hidden_states.reshape(-1, height, width, self.patch_size, self.patch_size, self.out_channels)
-        # hidden_states = ops.einsum("nhwpqc->nchpwq", hidden_states)
-        hidden_states = hidden_states.transpose(0, 5, 1, 3, 2, 4)
+        hidden_states = mint.einsum("nhwpqc->nchpwq", hidden_states)
         output = hidden_states.reshape(-1, self.out_channels, height * self.patch_size, width * self.patch_size)
 
         if not return_dict:

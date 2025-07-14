@@ -2,6 +2,9 @@
 # Copyright 2018 The OpenAI Team Authors and HuggingFace Inc. team.
 # Copyright (c) 2018, NVIDIA CORPORATION.  All rights reserved.
 #
+# This code is adapted from https://github.com/huggingface/transformers
+# with modifications to run transformers on mindspore.
+#
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -30,7 +33,7 @@ from transformers.utils import (
 )
 
 import mindspore as ms
-from mindspore import mint, nn, ops
+from mindspore import Tensor, mint, nn, ops
 from mindspore.nn import BCEWithLogitsLoss, CrossEntropyLoss, MSELoss
 
 from ...activations import ACT2FN
@@ -1060,6 +1063,14 @@ class GPT2LMHeadModel(GPT2PreTrainedModel, GenerationMixin):
         if inputs_embeds is not None and cache_position[0] == 0:
             model_inputs = {"inputs_embeds": inputs_embeds}
         else:
+            if not isinstance(input_ids, Tensor):
+                input_ids = Tensor(input_ids, dtype=ms.int32)
+
+            # Padding to max_len when no cache
+            if past_key_values is None:
+                pad_len = max(0, attention_mask.shape[1] - input_ids.shape[1])
+                input_ids = ops.pad(input_ids, (0, pad_len), value=0)
+
             model_inputs = {"input_ids": input_ids}
 
         if isinstance(past_key_values, StaticCache) and attention_mask.ndim == 2:

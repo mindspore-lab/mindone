@@ -1,3 +1,4 @@
+# Adapted from https://github.com/baaivision/Emu3 to work with MindSpore.
 import logging
 import math
 import os
@@ -59,7 +60,7 @@ class TrainingArguments(MindSporeArguments, tf_TrainingArguments):
     enable_flash_attention: bool = field(default=True)  # enable flash_attention_2
     gradient_checkpointing: bool = field(default=True)  # activate gradient checkpointing
     is_distribute: bool = field(default=False)  # use data parallel
-    debug: bool = field(default=False)  # enable pynative synchronize for debugging
+    pynative_debug: bool = field(default=False)  # enable pynative synchronize for debugging
     seed: int = field(default=42)
     sequence_parallel_shards: int = field(default=1)  # number of sequential parallelism shards
     ms_zero_stage: int = field(default=0)
@@ -93,7 +94,7 @@ def main():
     device_id, rank_id, device_num = init_env(
         mode=training_args.mode,
         device_target=training_args.device_target,  # default: "Ascend"
-        debug=training_args.debug,
+        debug=training_args.pynative_debug,
         seed=training_args.seed,
         distributed=training_args.is_distribute,
         jit_level=training_args.jit_level,  # default: O0
@@ -154,7 +155,7 @@ def main():
 
     model_dtype = ms.bfloat16 if training_args.bf16 else (ms.float16 if training_args.fp16 else None)
 
-    if training_args.resume is not None:
+    if training_args.resume is None:
         model = Emu3ForCausalLM.from_pretrained(
             model_args.model_name_or_path,
             config=model_config,
@@ -297,7 +298,8 @@ def main():
                 ckpt_max_keep=training_args.save_total_limit,
                 ckpt_save_interval=training_args.save_steps,
                 step_mode=True if training_args.save_strategy == "steps" else False,  # epoch/steps, default: steps
-                ckpt_combine_online=False,  # Optional. If False, do offline ckpt combine
+                zero_stage=training_args.ms_zero_stage,
+                ckpt_combine_online=False,  # If False, do offline ckpt combine via `train/ckpt_combine`
             )
         )
     # if rank_id == 0:
@@ -315,7 +317,7 @@ def main():
         key_info += "\n".join(
             [
                 f"MindSpore mode[GRAPH(0)/PYNATIVE(1)]: {training_args.mode}",
-                f"Debug mode: {training_args.debug}",
+                f"Debug mode: {training_args.pynative_debug}",
                 f"JIT level: {training_args.jit_level}",
                 f"Distributed mode: {training_args.is_distribute}",
                 f"Train data path: {data_args.train_data_path}",

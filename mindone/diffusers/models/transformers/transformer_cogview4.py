@@ -1,5 +1,8 @@
 # Copyright 2024 The CogView team, Tsinghua University & ZhipuAI and The HuggingFace Team. All rights reserved.
 #
+# This code is adapted from https://github.com/huggingface/diffusers
+# with modifications to run diffusers on mindspore.
+#
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -12,20 +15,21 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import Optional, Tuple, Union
+from typing import Any, Dict, Optional, Tuple, Union
 
 import mindspore as ms
-from mindspore import nn, ops
+import mindspore.mint.nn.functional as F
+from mindspore import mint, nn
 
 from ...configuration_utils import ConfigMixin, register_to_config
-from ...models.attention import FeedForward
-from ...models.attention_processor import Attention
-from ...models.modeling_utils import ModelMixin
-from ...models.normalization import AdaLayerNormContinuous
+from ...loaders import PeftAdapterMixin
 from ...utils import logging
+from ..attention import FeedForward
+from ..attention_processor import Attention
 from ..embeddings import CogView3CombinedTimestepSizeEmbeddings
 from ..modeling_outputs import Transformer2DModelOutput
-from ..normalization import LayerNorm
+from ..modeling_utils import ModelMixin
+from ..normalization import AdaLayerNormContinuous
 
 logger = logging.get_logger(__name__)  # pylint: disable=invalid-name
 
@@ -41,8 +45,8 @@ class CogView4PatchEmbed(nn.Cell):
         super().__init__()
         self.patch_size = patch_size
 
-        self.proj = nn.Dense(in_channels * patch_size**2, hidden_size)
-        self.text_proj = nn.Dense(text_hidden_size, hidden_size)
+        self.proj = mint.nn.Linear(in_channels * patch_size**2, hidden_size)
+        self.text_proj = mint.nn.Linear(text_hidden_size, hidden_size)
 
     def construct(self, hidden_states: ms.Tensor, encoder_hidden_states: ms.Tensor) -> ms.Tensor:
         batch_size, channel, height, width = hidden_states.shape
@@ -52,9 +56,7 @@ class CogView4PatchEmbed(nn.Cell):
         hidden_states = hidden_states.reshape(
             batch_size, channel, post_patch_height, self.patch_size, post_patch_width, self.patch_size
         )
-        hidden_states = (
-            hidden_states.permute(0, 2, 4, 1, 3, 5).flatten(start_dim=3, end_dim=5).flatten(start_dim=1, end_dim=2)
-        )
+        hidden_states = hidden_states.permute(0, 2, 4, 1, 3, 5).flatten(3, 5).flatten(1, 2)
         hidden_states = self.proj(hidden_states)
         encoder_hidden_states = self.text_proj(encoder_hidden_states)
 
@@ -65,9 +67,9 @@ class CogView4AdaLayerNormZero(nn.Cell):
     def __init__(self, embedding_dim: int, dim: int) -> None:
         super().__init__()
 
-        self.norm = LayerNorm(dim, elementwise_affine=False, eps=1e-5)
-        self.norm_context = LayerNorm(dim, elementwise_affine=False, eps=1e-5)
-        self.linear = nn.Dense(embedding_dim, 12 * dim, has_bias=True)
+        self.norm = mint.nn.LayerNorm(dim, elementwise_affine=False, eps=1e-5)
+        self.norm_context = mint.nn.LayerNorm(dim, elementwise_affine=False, eps=1e-5)
+        self.linear = mint.nn.Linear(embedding_dim, 12 * dim, bias=True)
 
     def construct(
         self, hidden_states: ms.Tensor, encoder_hidden_states: ms.Tensor, temb: ms.Tensor
@@ -89,7 +91,7 @@ class CogView4AdaLayerNormZero(nn.Cell):
             c_scale_mlp,
             gate_mlp,
             c_gate_mlp,
-        ) = emb.chunk(12, axis=1)
+        ) = emb.chunk(12, dim=1)
 
         hidden_states = norm_hidden_states * (1 + scale_msa.unsqueeze(1)) + shift_msa.unsqueeze(1)
         encoder_hidden_states = norm_encoder_hidden_states * (1 + c_scale_msa.unsqueeze(1)) + c_shift_msa.unsqueeze(1)
@@ -133,13 +135,13 @@ class CogView4AttnProcessor:
             `hidden_state[:, :, start_index:, :] = self.apply_rotary_emb(hidden_state[:, :, start_index:, :], image_rotary_emb)`
         Rewrite it since implement above might call ops.ScatterNdUpdate which is super slow!
         """
-        hidden_state_text, hidden_state_image = ops.split(
-            hidden_state, (start_index, hidden_state.shape[axis] - start_index), axis=axis
+        hidden_state_text, hidden_state_image = mint.split(
+            hidden_state, (start_index, hidden_state.shape[axis] - start_index), dim=axis
         )
         hidden_state_image = self.apply_rotary_emb(
             hidden_state_image, image_rotary_emb, use_real_unbind_dim=use_real_unbind_dim
         )
-        hidden_state = ops.cat([hidden_state_text, hidden_state_image], axis=axis)
+        hidden_state = mint.cat([hidden_state_text, hidden_state_image], dim=axis)
         return hidden_state
 
     def __call__(
@@ -150,14 +152,18 @@ class CogView4AttnProcessor:
         attention_mask: Optional[ms.Tensor] = None,
         image_rotary_emb: Optional[ms.Tensor] = None,
     ) -> ms.Tensor:
-        text_seq_length = encoder_hidden_states.shape[1]
-        hidden_states = ops.cat([encoder_hidden_states, hidden_states], axis=1)
+        batch_size, text_seq_length, embed_dim = encoder_hidden_states.shape
+        batch_size, image_seq_length, embed_dim = hidden_states.shape
+        hidden_states = mint.cat([encoder_hidden_states, hidden_states], dim=1)
 
         # 1. QKV projections
         query = attn.to_q(hidden_states)
         key = attn.to_k(hidden_states)
         value = attn.to_v(hidden_states)
 
+        # query = query.unflatten(2, (attn.heads, -1)).transpose(1, 2)
+        # key = key.unflatten(2, (attn.heads, -1)).transpose(1, 2)
+        # value = value.unflatten(2, (attn.heads, -1)).transpose(1, 2)
         query = query.reshape(query.shape[:2] + (attn.heads, -1) + query.shape[3:]).swapaxes(1, 2)
         key = key.reshape(key.shape[:2] + (attn.heads, -1) + key.shape[3:]).swapaxes(1, 2)
         value = value.reshape(value.shape[:2] + (attn.heads, -1) + value.shape[3:]).swapaxes(1, 2)
@@ -182,10 +188,19 @@ class CogView4AttnProcessor:
             key = self.apply_rotary_emb_for_image_part(key, image_rotary_emb, text_seq_length, use_real_unbind_dim=-2)
 
         # 4. Attention
+        if attention_mask is not None:
+            text_attention_mask = attention_mask.float()
+            actual_text_seq_length = text_attention_mask.shape[1]
+            new_attention_mask = mint.zeros((batch_size, text_seq_length + image_seq_length))
+            new_attention_mask[:, :actual_text_seq_length] = text_attention_mask
+            new_attention_mask = new_attention_mask.unsqueeze(2)
+            attention_mask_matrix = new_attention_mask @ new_attention_mask.swapaxes(1, 2)
+            attention_mask = (attention_mask_matrix > 0).unsqueeze(1).to(query.dtype)
+
         hidden_states = attn.scaled_dot_product_attention(
             query, key, value, attn_mask=attention_mask, dropout_p=0.0, is_causal=False
         )
-        hidden_states = hidden_states.swapaxes(1, 2).flatten(start_dim=2, end_dim=3)
+        hidden_states = hidden_states.swapaxes(1, 2).flatten(2, 3)
         hidden_states = hidden_states.type_as(query)
 
         # 5. Output projection
@@ -193,7 +208,7 @@ class CogView4AttnProcessor:
         hidden_states = attn.to_out[1](hidden_states)
 
         encoder_hidden_states, hidden_states = hidden_states.split(
-            [text_seq_length, hidden_states.shape[1] - text_seq_length], axis=1
+            [text_seq_length, hidden_states.shape[1] - text_seq_length], dim=1
         )
         return hidden_states, encoder_hidden_states
 
@@ -219,8 +234,8 @@ class CogView4TransformerBlock(nn.Cell):
         )
 
         # 2. Feedforward
-        self.norm2 = LayerNorm(dim, elementwise_affine=False, eps=1e-5)
-        self.norm2_context = LayerNorm(dim, elementwise_affine=False, eps=1e-5)
+        self.norm2 = mint.nn.LayerNorm(dim, elementwise_affine=False, eps=1e-5)
+        self.norm2_context = mint.nn.LayerNorm(dim, elementwise_affine=False, eps=1e-5)
         self.ff = FeedForward(dim=dim, dim_out=dim, activation_fn="gelu-approximate")
 
     def construct(
@@ -229,6 +244,8 @@ class CogView4TransformerBlock(nn.Cell):
         encoder_hidden_states: ms.Tensor,
         temb: Optional[ms.Tensor] = None,
         image_rotary_emb: Optional[ms.Tensor] = None,
+        attention_mask: Optional[ms.Tensor] = None,
+        **kwargs,
     ) -> ms.Tensor:
         # 1. Timestep conditioning
         (
@@ -249,12 +266,15 @@ class CogView4TransformerBlock(nn.Cell):
             hidden_states=norm_hidden_states,
             encoder_hidden_states=norm_encoder_hidden_states,
             image_rotary_emb=image_rotary_emb,
+            attention_mask=attention_mask,
+            **kwargs,
         )
         hidden_states = hidden_states + attn_hidden_states * gate_msa.unsqueeze(1)
         encoder_hidden_states = encoder_hidden_states + attn_encoder_hidden_states * c_gate_msa.unsqueeze(1)
 
         # 3. Feedforward
         norm_hidden_states = self.norm2(hidden_states) * (1 + scale_mlp.unsqueeze(1)) + shift_mlp.unsqueeze(1)
+
         norm_encoder_hidden_states = self.norm2_context(encoder_hidden_states) * (
             1 + c_scale_mlp.unsqueeze(1)
         ) + c_shift_mlp.unsqueeze(1)
@@ -271,28 +291,30 @@ class CogView4RotaryPosEmbed(nn.Cell):
     def __init__(self, dim: int, patch_size: int, rope_axes_dim: Tuple[int, int], theta: float = 10000.0) -> None:
         super().__init__()
 
+        self.dim = dim
         self.patch_size = patch_size
         self.rope_axes_dim = rope_axes_dim
-
-        dim_h, dim_w = dim // 2, dim // 2
-        h_inv_freq = 1.0 / (theta ** (ops.arange(0, dim_h, 2, dtype=ms.float32)[: (dim_h // 2)].float() / dim_h))
-        w_inv_freq = 1.0 / (theta ** (ops.arange(0, dim_w, 2, dtype=ms.float32)[: (dim_w // 2)].float() / dim_w))
-        h_seq = ops.arange(self.rope_axes_dim[0])
-        w_seq = ops.arange(self.rope_axes_dim[1])
-        self.freqs_h = ops.outer(h_seq, h_inv_freq)
-        self.freqs_w = ops.outer(w_seq, w_inv_freq)
+        self.theta = theta
 
     def construct(self, hidden_states: ms.Tensor) -> Tuple[ms.Tensor, ms.Tensor]:
         batch_size, num_channels, height, width = hidden_states.shape
         height, width = height // self.patch_size, width // self.patch_size
 
-        h_idx = ops.arange(height)
-        w_idx = ops.arange(width)
+        dim_h, dim_w = self.dim // 2, self.dim // 2
+        h_inv_freq = 1.0 / (self.theta ** (mint.arange(0, dim_h, 2, dtype=ms.float32)[: (dim_h // 2)].float() / dim_h))
+        w_inv_freq = 1.0 / (self.theta ** (mint.arange(0, dim_w, 2, dtype=ms.float32)[: (dim_w // 2)].float() / dim_w))
+        h_seq = mint.arange(self.rope_axes_dim[0])
+        w_seq = mint.arange(self.rope_axes_dim[1])
+        freqs_h = mint.outer(h_seq, h_inv_freq)
+        freqs_w = mint.outer(w_seq, w_inv_freq)
+
+        h_idx = mint.arange(height)
+        w_idx = mint.arange(width)
         inner_h_idx = h_idx * self.rope_axes_dim[0] // height
         inner_w_idx = w_idx * self.rope_axes_dim[1] // width
 
-        freqs_h = self.freqs_h[inner_h_idx]
-        freqs_w = self.freqs_w[inner_w_idx]
+        freqs_h = freqs_h[inner_h_idx]
+        freqs_w = freqs_w[inner_w_idx]
 
         # Create position matrices for height and width
         # [height, 1, dim//4] and [1, width, dim//4]
@@ -303,13 +325,13 @@ class CogView4RotaryPosEmbed(nn.Cell):
         freqs_w = freqs_w.broadcast_to((height, width, -1))
 
         # Concatenate along last dimension to get [height, width, dim//2]
-        freqs = ops.cat([freqs_h, freqs_w], axis=-1)
-        freqs = ops.cat([freqs, freqs], axis=-1)  # [height, width, dim]
+        freqs = mint.cat([freqs_h, freqs_w], dim=-1)
+        freqs = mint.cat([freqs, freqs], dim=-1)  # [height, width, dim]
         freqs = freqs.reshape(height * width, -1)
         return (freqs.cos(), freqs.sin())
 
 
-class CogView4Transformer2DModel(ModelMixin, ConfigMixin):
+class CogView4Transformer2DModel(ModelMixin, ConfigMixin, PeftAdapterMixin):
     r"""
     Args:
         patch_size (`int`, defaults to `2`):
@@ -392,7 +414,7 @@ class CogView4Transformer2DModel(ModelMixin, ConfigMixin):
 
         # 4. Output projection
         self.norm_out = AdaLayerNormContinuous(inner_dim, time_embed_dim, elementwise_affine=False)
-        self.proj_out = nn.Dense(inner_dim, patch_size * patch_size * out_channels, has_bias=True)
+        self.proj_out = mint.nn.Linear(inner_dim, patch_size * patch_size * out_channels, bias=True)
 
         self.gradient_checkpointing = False
 
@@ -406,7 +428,10 @@ class CogView4Transformer2DModel(ModelMixin, ConfigMixin):
         original_size: ms.Tensor,
         target_size: ms.Tensor,
         crop_coords: ms.Tensor,
+        attention_kwargs: Optional[Dict[str, Any]] = None,
         return_dict: bool = True,
+        attention_mask: Optional[ms.Tensor] = None,
+        **kwargs,
     ) -> Union[ms.Tensor, Transformer2DModelOutput]:
         batch_size, num_channels, height, width = hidden_states.shape
 
@@ -421,11 +446,13 @@ class CogView4Transformer2DModel(ModelMixin, ConfigMixin):
         hidden_states, encoder_hidden_states = self.patch_embed(hidden_states, encoder_hidden_states)
 
         temb = self.time_condition_embed(timestep, original_size, target_size, crop_coords, hidden_states.dtype)
-        temb = ops.silu(temb)
+        temb = F.silu(temb)
 
         # 3. Transformer blocks
         for block in self.transformer_blocks:
-            hidden_states, encoder_hidden_states = block(hidden_states, encoder_hidden_states, temb, image_rotary_emb)
+            hidden_states, encoder_hidden_states = block(
+                hidden_states, encoder_hidden_states, temb, image_rotary_emb, attention_mask, **kwargs
+            )
 
         # 4. Output norm & projection
         hidden_states = self.norm_out(hidden_states, temb)
@@ -433,7 +460,7 @@ class CogView4Transformer2DModel(ModelMixin, ConfigMixin):
 
         # 5. Unpatchify
         hidden_states = hidden_states.reshape(batch_size, post_patch_height, post_patch_width, -1, p, p)
-        output = hidden_states.permute(0, 3, 1, 4, 2, 5).flatten(start_dim=4, end_dim=5).flatten(start_dim=2, end_dim=3)
+        output = hidden_states.permute(0, 3, 1, 4, 2, 5).flatten(4, 5).flatten(2, 3)
 
         if not return_dict:
             return (output,)

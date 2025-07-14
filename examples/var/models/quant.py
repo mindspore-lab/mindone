@@ -1,3 +1,6 @@
+# This code is adapted from https://github.com/FoundationVision/VAR
+# with modifications to run on MindSpore.
+
 from typing import List, Optional, Sequence, Tuple, Union
 
 import numpy as np
@@ -58,7 +61,7 @@ class VectorQuantizer2(nn.Cell):
         self.embedding = mint.nn.Embedding(self.vocab_size, self.Cvae)
 
         # only used for progressive training of VAR (not supported yet, will be tested and supported in the future)
-        self.prog_si = -1  # progressive training: not supported yet, prog_si always -1
+        self.prog_si = ms.Tensor(-1)  # progressive training: not supported yet, prog_si always -1
 
     def register_buffer(self, name, attr):
         setattr(self, name, Parameter(default_input=attr, requires_grad=False))
@@ -89,7 +92,7 @@ class VectorQuantizer2(nn.Cell):
                     else f_rest.permute(0, 2, 3, 1).reshape(-1, C)
                 )
                 rest_NC = F.normalize(rest_NC, dim=-1)
-                idx_N = mint.argmax(rest_NC @ F.normalize(self.embedding.weight.data.T, dim=0), dim=1)
+                idx_N = mint.argmax(rest_NC @ F.normalize(self.embedding.weight.T, dim=0), dim=1)
             else:
                 rest_NC = (
                     F.adaptive_avg_pool2d(f_rest, (pn, pn)).permute(0, 2, 3, 1).reshape(-1, C)
@@ -97,10 +100,10 @@ class VectorQuantizer2(nn.Cell):
                     else f_rest.permute(0, 2, 3, 1).reshape(-1, C)
                 )
                 d_no_grad = mint.sum(rest_NC.square(), dim=1, keepdim=True) + mint.sum(
-                    self.embedding.weight.data.square(), dim=1, keepdim=False
+                    self.embedding.weight.square(), dim=1, keepdim=False
                 )
                 d_no_grad = mint.addmm(
-                    d_no_grad, rest_NC, self.embedding.weight.data.T, alpha=-2, beta=1
+                    d_no_grad, rest_NC, self.embedding.weight.T, alpha=-2, beta=1
                 )  # (B*h*w, vocab_size)
                 idx_N = mint.argmin(d_no_grad, dim=1)
 
@@ -207,13 +210,13 @@ class VectorQuantizer2(nn.Cell):
             )
             if self.using_znorm:
                 z_NC = F.normalize(z_NC, dim=-1)
-                idx_N = mint.argmax(z_NC @ F.normalize(self.embedding.weight.data.T, dim=0), dim=1)
+                idx_N = mint.argmax(z_NC @ F.normalize(self.embedding.weight.T, dim=0), dim=1)
             else:
                 d_no_grad = mint.sum(z_NC.square(), dim=1, keepdim=True) + mint.sum(
-                    self.embedding.weight.data.square(), dim=1, keepdim=False
+                    self.embedding.weight.square(), dim=1, keepdim=False
                 )
                 d_no_grad = mint.addmm(
-                    d_no_grad, z_NC, self.embedding.weight.data.T, alpha=-2, beta=1
+                    d_no_grad, z_NC, self.embedding.weight.T, alpha=-2, beta=1
                 )  # (B*h*w, vocab_size)
                 idx_N = mint.argmin(d_no_grad, dim=1)
 
@@ -224,8 +227,8 @@ class VectorQuantizer2(nn.Cell):
                 else self.embedding(idx_Bhw).permute(0, 3, 1, 2).contiguous()
             )
             h_BChw = self.quant_resi[si / (SN - 1)](h_BChw)
-            f_hat.add_(h_BChw)
-            f_rest.sub_(h_BChw)
+            f_hat = f_hat.add(h_BChw)
+            f_rest = f_rest.sub(h_BChw)
             f_hat_or_idx_Bl.append(f_hat.clone() if to_fhat else idx_N.reshape(B, ph * pw))
 
         return f_hat_or_idx_Bl
@@ -244,13 +247,13 @@ class VectorQuantizer2(nn.Cell):
             if self.prog_si == 0 or (0 <= self.prog_si - 1 < si):
                 break  # progressive training: not supported yet, prog_si always -1
             h_BChw = F.interpolate(
-                self.embedding(gt_ms_idx_Bl[si]).transpose(1, 2).view((B, C, pn_next, pn_next)),
+                mint.transpose(self.embedding(gt_ms_idx_Bl[si]), 1, 2).view((B, C, pn_next, pn_next)),
                 size=(H, W),
                 mode="bicubic",
             )
             f_hat = mint.add(f_hat, self.quant_resi[si / (SN - 1)](h_BChw))
             pn_next = self.v_patch_nums[si + 1]
-            next_scales.append(F.adaptive_avg_pool2d(f_hat, (pn_next, pn_next)).view((B, C, -1)).transpose(1, 2))
+            next_scales.append(mint.transpose(F.adaptive_avg_pool2d(f_hat, (pn_next, pn_next)).view((B, C, -1)), 1, 2))
         return mint.cat(next_scales, dim=1) if len(next_scales) else None  # cat BlCs to BLC, this should be float32
 
     # ===================== get_next_autoregressive_input: only used in VAR inference, for getting next step's input =====================

@@ -1,6 +1,9 @@
 # coding=utf-8
 # Copyright 2023-present the HuggingFace Inc. team.
 #
+# This code is adapted from https://github.com/huggingface/peft
+# with modifications to run peft on mindspore.
+#
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -20,7 +23,7 @@ from huggingface_hub import file_exists, hf_hub_download
 from huggingface_hub.utils import EntryNotFoundError, HFValidationError
 
 import mindspore as ms
-from mindspore import nn
+from mindspore import mint
 
 from mindone.safetensors.mindspore import load_file as safe_load_file
 
@@ -30,7 +33,7 @@ from .peft_types import PeftType
 
 def has_valid_embedding_base_layer(layer):
     """Check if the layer has an embedding base layer"""
-    return hasattr(layer, "base_layer") and isinstance(layer.base_layer, (nn.Dense, nn.Embedding))
+    return hasattr(layer, "base_layer") and isinstance(layer.base_layer, (mint.nn.Linear, mint.nn.Embedding))
 
 
 def get_embedding_layer_name(model, layer, is_embedding_in_target_modules):

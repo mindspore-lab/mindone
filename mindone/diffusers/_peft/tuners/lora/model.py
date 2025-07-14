@@ -1,6 +1,9 @@
 # coding=utf-8
 # Copyright 2023-present the HuggingFace Inc. team.
 #
+# This code is adapted from https://github.com/huggingface/peft
+# with modifications to run peft on mindspore.
+#
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -26,7 +29,7 @@ from typing import List, Optional
 
 from tqdm import tqdm
 
-from mindspore import nn, ops
+from mindspore import mint, nn, ops
 
 from ...tuners.tuners_utils import BaseTuner, BaseTunerLayer, check_target_module_exists
 from ...utils import (
@@ -228,7 +231,7 @@ class LoraModel(BaseTuner):
             # no module could be matched
             raise ValueError(
                 f"Target module {target} is not supported. Currently, only the following modules are supported: "
-                "`mindspore.nn.Dense`, `mindspore.nn.Embedding`, `mindspore.nn.Conv2d`."
+                "`mindspore.mint.nn.Linear`, `mindspore.mint.nn.Embedding`, `mindspore.mint.nn.Conv2d`."
             )
 
         return new_module
@@ -472,8 +475,8 @@ class LoraModel(BaseTuner):
 
                     if len(loras_A) == 0:
                         raise ValueError("No matching LoRAs found. Please raise an issue on Github.")
-                    loras_A = ops.cat(loras_A, axis=0)
-                    loras_B = ops.cat(loras_B, axis=1)
+                    loras_A = mint.cat(loras_A, dim=0)
+                    loras_B = mint.cat(loras_B, dim=1)
                     target_lora_A.data[: loras_A.shape[0], :] = loras_A
                     target_lora_B.data[:, : loras_B.shape[1]] = loras_B
                 elif combination_type == "svd":
@@ -527,13 +530,16 @@ class LoraModel(BaseTuner):
 
         # based on https://github.com/kohya-ss/sd-scripts/blob/main/networks/svd_merge_lora.py#L114-L131
         assert driver is None, "For mindspore.ops.svd, 'driver' is not supported."
+        # todo: unavailable mint interface torch.linalg.svd
         U, S, Vh = ops.svd(delta_weight, full_matrices=full_matrices)
         U = U[:, :new_rank]
         S = S[:new_rank]
+        # todo: unavailable mint interface torch.diag
         U = U @ ops.diag(S)
         Vh = Vh[:new_rank, :]
         if clamp is not None:
-            dist = ops.cat([U.flatten(), Vh.flatten()])
+            dist = mint.cat([U.flatten(), Vh.flatten()])
+            # todo: unavailable mint interface torch.quantile
             hi_val = ops.quantile(dist, clamp)
             low_val = -hi_val
             U = U.clamp(low_val, hi_val)

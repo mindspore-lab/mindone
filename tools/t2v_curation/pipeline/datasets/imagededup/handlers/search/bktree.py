@@ -1,3 +1,5 @@
+# Copied from https://github.com/idealo/imagededup/blob/master/imagededup/handlers/search/bktree.py
+
 import copy
 from typing import Callable, Dict, Tuple
 

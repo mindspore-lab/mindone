@@ -1,6 +1,9 @@
 # coding=utf-8
 # Copyright 2018 The HuggingFace Inc. team.
 #
+# This code is adapted from https://github.com/huggingface/transformers
+# with modifications to run transformers on mindspore.
+#
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -13,7 +16,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 """Auto Config class."""
-
 import importlib
 import os
 import re
@@ -21,6 +23,8 @@ import warnings
 from collections import OrderedDict
 from typing import List, Union
 
+import transformers
+from packaging import version
 from transformers.configuration_utils import PretrainedConfig
 from transformers.dynamic_module_utils import get_class_from_dynamic_module, resolve_trust_remote_code
 from transformers.utils import CONFIG_NAME, logging
@@ -31,19 +35,62 @@ logger = logging.get_logger(__name__)
 CONFIG_MAPPING_NAMES = OrderedDict(
     [
         # Add configs here
+        ("albert", "AlbertConfig"),
         ("bert", "BertConfig"),
+        ("bart", "BartConfig"),
         ("bit", "BitConfig"),
         ("blip-2", "Blip2Config"),
         ("clip", "CLIPConfig"),
         ("clip_vision_model", "CLIPVisionConfig"),
+        ("deberta", "DebertaConfig"),
+        ("deberta-v2", "DebertaV2Config"),
         ("dpt", "DPTConfig"),
         ("gemma", "GemmaConfig"),
+        ("granite", "GraniteConfig"),
+        ("gemma2", "Gemma2Config"),
+        ("gemma3", "Gemma3Config"),
+        ("gemma3_text", "Gemma3TextConfig"),
+        ("glm", "GlmConfig"),
+        ("glpn", "GLPNConfig"),
         ("gpt2", "GPT2Config"),
+        ("granitemoe", "GraniteMoeConfig"),
+        ("granitemoeshared", "GraniteMoeSharedConfig"),
+        ("hiera", "HieraConfig"),
+        ("idefics", "IdeficsConfig"),
+        ("idefics2", "Idefics2Config"),
+        ("idefics3", "Idefics3Config"),
+        ("idefics3_vision", "Idefics3VisionConfig"),
+        ("ijepa", "IJepaConfig"),
+        ("imagegpt", "ImageGPTConfig"),
+        ("levit", "LevitConfig"),
         ("llama", "LlamaConfig"),
+        ("persimmon", "PersimmonConfig"),
+        ("fuyu", "FuyuConfig"),
         ("llava", "LlavaConfig"),
+        ("mobilebert", "MobileBertConfig"),
         ("mt5", "MT5Config"),
+        ("megatron-bert", "MegatronBertConfig"),
+        ("mixtral", "MixtralConfig"),
+        ("paligemma", "PaliGemmaConfig"),
+        ("phi", "PhiConfig"),
+        ("phi3", "Phi3Config"),
+        ("qwen2", "Qwen2Config"),
+        ("qwen2_5_vl", "Qwen2_5_VLConfig"),
+        ("qwen2_audio", "Qwen2AudioConfig"),
+        ("qwen2_audio_encoder", "Qwen2AudioEncoderConfig"),
+        ("qwen2_vl", "Qwen2VLConfig"),
+        ("roberta", "RobertaConfig"),
+        ("recurrent_gemma", "RecurrentGemmaConfig"),
+        ("rembert", "RemBertConfig"),
+        ("siglip", "SiglipConfig"),
+        ("siglip_vision_model", "SiglipVisionConfig"),
+        ("speecht5", "SpeechT5Config"),
         ("t5", "T5Config"),
+        ("umt5", "UMT5Config"),
+        ("wav2vec2", "Wav2Vec2Config"),
+        ("whisper", "WhisperConfig"),
         ("xlm-roberta", "XLMRobertaConfig"),
+        ("xlm-roberta-xl", "XLMRobertaXLConfig"),
     ]
 )
 
@@ -51,21 +98,69 @@ CONFIG_MAPPING_NAMES = OrderedDict(
 MODEL_NAMES_MAPPING = OrderedDict(
     [
         # Add full (and cased) model names here
+        ("albert", "ALBERT"),
         ("bert", "BERT"),
+        ("bart", "BART"),
         ("bit", "BiT"),
         ("blip-2", "BLIP-2"),
+        ("chameleon", "Chameleon"),
+        ("clap", "CLAP"),
         ("clip", "CLIP"),
         ("clip_vision_model", "CLIPVisionModel"),
+        ("deberta", "DeBERTa"),
+        ("deberta-v2", "DeBERTa-v2"),
         ("dpt", "DPT"),
         ("gemma", "Gemma"),
+        ("granite", "Granite"),
+        ("gemma2", "Gemma2"),
+        ("glm", "GLM"),
+        ("glpn", "GLPN"),
         ("gpt2", "OpenAI GPT-2"),
+        ("qwen2_audio", "Qwen2Audio"),
+        ("qwen2_audio_encoder", "Qwen2AudioEncoder"),
+        ("roberta", "RoBERTa"),
+        ("granitemoe", "GraniteMoeMoe"),
+        ("granitemoeshared", "GraniteMoeSharedMoe"),
+        ("gemma3", "Gemma3ForConditionalGeneration"),
+        ("gemma3_text", "Gemma3ForCausalLM"),
+        ("qwen2_audio", "Qwen2Audio"),
+        ("qwen2_audio_encoder", "Qwen2AudioEncoder"),
+        ("hiera", "Hiera"),
+        ("idefics", "IDEFICS"),
+        ("idefics2", "Idefics2"),
+        ("idefics3", "Idefics3"),
+        ("idefics3_vision", "Idefics3VisionTransformer"),
+        ("ijepa", "I-JEPA"),
+        ("imagegpt", "ImageGPT"),
+        ("levit", "LeViT"),
         ("llama", "LLaMA"),
         ("llama2", "Llama2"),
         ("llama3", "Llama3"),
         ("llava", "Llava"),
+        ("persimmon", "Persimmon"),
+        ("fuyu", "Fuyu"),
+        ("mobilebert", "MobileBERT"),
         ("mt5", "MT5"),
+        ("megatron-bert", "Megatron-BERT"),
+        ("mixtral", "Mixtral"),
+        ("paligemma", "PaliGemma"),
+        ("phi", "Phi"),
+        ("phi3", "Phi3"),
+        ("qwen2", "Qwen2"),
+        ("qwen2_5_vl", "Qwen2_5_VL"),
+        ("qwen2_audio", "Qwen2Audio"),
+        ("qwen2_audio_encoder", "Qwen2AudioEncoder"),
+        ("qwen2_vl", "Qwen2VL"),
+        ("recurrent_gemma", "RecurrentGemma"),
+        ("rembert", "RemBERT"),
+        ("siglip", "SigLIP"),
+        ("siglip_vision_model", "SiglipVisionModel"),
+        ("speecht5", "SpeechT5"),
         ("t5", "T5"),
         ("t5v1.1", "T5v1.1"),
+        ("umt5", "UMT5"),
+        ("wav2vec2", "Wav2Vec2"),
+        ("whisper", "Whisper"),
         ("xlm-roberta", "XLM-RoBERTa"),
         ("xlm-roberta-xl", "XLM-RoBERTa-XL"),
     ]
@@ -112,12 +207,18 @@ SPECIAL_MODEL_TYPE_TO_MODULE_NAME = OrderedDict(
         ("xclip", "x_clip"),
         ("clip_vision_model", "clip"),
         ("qwen2_audio_encoder", "qwen2_audio"),
+        ("gemma3_text", "gemma3"),
+        ("idefics3_vision", "idefics3"),
         ("clip_text_model", "clip"),
         ("siglip_vision_model", "siglip"),
         ("chinese_clip_vision_model", "chinese_clip"),
         ("rt_detr_resnet", "rt_detr"),
     ]
 )
+
+if version.parse(transformers.__version__) >= version.parse("4.51.0"):
+    CONFIG_MAPPING_NAMES.update({"qwen3": "Qwen3Config"})
+    MODEL_NAMES_MAPPING.update({"qwen3": "Qwen3Model"})
 
 
 def model_type_to_module_name(key):

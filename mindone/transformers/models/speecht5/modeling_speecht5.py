@@ -1,6 +1,9 @@
 # coding=utf-8
 # Copyright 2023 The Fairseq Authors, Microsoft Research, and the HuggingFace Inc. team. All rights reserved.
 #
+# This code is adapted from https://github.com/huggingface/transformers
+# with modifications to run transformers on mindspore.
+#
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -24,9 +27,9 @@ from transformers.utils import logging
 import mindspore as ms
 from mindspore import Parameter, nn, ops
 from mindspore.common.initializer import Constant, HeUniform, Normal, One, Uniform, Zero, initializer
+from mindspore.mint.nn import LayerNorm
 from mindspore.nn import BCEWithLogitsLoss, CrossEntropyLoss, L1Loss
 
-from ....diffusers.models.normalization import LayerNorm
 from ...activations import ACT2FN
 from ...modeling_attn_mask_utils import _prepare_4d_attention_mask, _prepare_4d_causal_attention_mask
 from ...modeling_outputs import (

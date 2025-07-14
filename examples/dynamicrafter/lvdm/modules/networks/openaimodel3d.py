@@ -1,3 +1,4 @@
+# Adapted from https://github.com/Doubiiu/DynamiCrafter to work with MindSpore.
 import logging
 from abc import abstractmethod
 

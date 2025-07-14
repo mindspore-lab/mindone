@@ -1,6 +1,9 @@
 # Copyright 2024 The HuggingFace Team. All rights reserved.
 # `TemporalConvLayer` Copyright 2024 Alibaba DAMO-VILAB, The ModelScope Team and The HuggingFace Team. All rights reserved.
 #
+# This code is adapted from https://github.com/huggingface/diffusers
+# with modifications to run diffusers on mindspore.
+#
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -16,12 +19,13 @@
 from typing import Optional, Tuple, Union
 
 import mindspore as ms
-from mindspore import nn, ops
+import mindspore.common.initializer as init
+from mindspore import mint, nn
 
 from .activations import get_activation
 from .attention_processor import SpatialNorm
 from .downsampling import Downsample1D, Downsample2D, FirDownsample2D, KDownsample2D, downsample_2d  # noqa
-from .normalization import AdaGroupNorm, GroupNorm
+from .normalization import AdaGroupNorm
 from .upsampling import FirUpsample2D, KUpsample2D, Upsample1D, Upsample2D, upfirdn2d_native, upsample_2d  # noqa
 
 
@@ -95,9 +99,7 @@ class ResnetBlockCondNorm2D(nn.Cell):
         else:
             raise ValueError(f" unsupported time_embedding_norm: {self.time_embedding_norm}")
 
-        self.conv1 = nn.Conv2d(
-            in_channels, out_channels, kernel_size=3, stride=1, pad_mode="pad", padding=1, has_bias=True
-        )
+        self.conv1 = mint.nn.Conv2d(in_channels, out_channels, kernel_size=3, stride=1, padding=1)
 
         if self.time_embedding_norm == "ada_group":  # ada_group
             self.norm2 = AdaGroupNorm(temb_channels, out_channels, groups_out, eps=eps)
@@ -106,14 +108,12 @@ class ResnetBlockCondNorm2D(nn.Cell):
         else:
             raise ValueError(f" unsupported time_embedding_norm: {self.time_embedding_norm}")
 
-        self.dropout = nn.Dropout(p=dropout)
+        self.dropout = mint.nn.Dropout(p=dropout)
 
         conv_2d_out_channels = conv_2d_out_channels or out_channels
-        self.conv2 = nn.Conv2d(
-            out_channels, conv_2d_out_channels, kernel_size=3, stride=1, pad_mode="pad", padding=1, has_bias=True
-        )
+        self.conv2 = mint.nn.Conv2d(out_channels, conv_2d_out_channels, kernel_size=3, stride=1, padding=1)
 
-        self.nonlinearity = get_activation(non_linearity)()
+        self.nonlinearity = get_activation(non_linearity)
 
         self.upsample = self.downsample = None
         if self.up:
@@ -125,13 +125,8 @@ class ResnetBlockCondNorm2D(nn.Cell):
 
         self.conv_shortcut = None
         if self.use_in_shortcut:
-            self.conv_shortcut = nn.Conv2d(
-                in_channels,
-                conv_2d_out_channels,
-                kernel_size=1,
-                stride=1,
-                padding=0,
-                has_bias=conv_shortcut_bias,
+            self.conv_shortcut = mint.nn.Conv2d(
+                in_channels, conv_2d_out_channels, kernel_size=1, stride=1, padding=0, bias=conv_shortcut_bias
             )
 
     def construct(self, input_tensor: ms.Tensor, temb: ms.Tensor) -> ms.Tensor:
@@ -168,7 +163,7 @@ class ResnetBlockCondNorm2D(nn.Cell):
 
 class SdeVpUpsample2D(nn.Cell):
     """
-    Equivalence of partial(F.interpolate, scale_factor=2.0, mode="nearest") used in ResnetBlock2D.__init__()
+    Equivalence of partial(mint.nn.functional.interpolate, scale_factor=2.0, mode="nearest") used in ResnetBlock2D.__init__()
     when self.up and kernel == "sde_vp". We wrap ops.interpolate in our implement because the `scale_factor`
     argument cannot be directly utilized in certain modes and partial is not fully supported in GRAPH MODE.
     """
@@ -180,7 +175,9 @@ class SdeVpUpsample2D(nn.Cell):
 
     def construct(self, x):
         _, _, h, w = x.shape
-        x = ops.interpolate(x, size=(int(self.scale_factor * h), int(self.scale_factor * w)), mode=self.mode)
+        x = mint.nn.functional.interpolate(
+            x, size=(int(self.scale_factor * h), int(self.scale_factor * w)), mode=self.mode
+        )
         return x
 
 
@@ -262,31 +259,27 @@ class ResnetBlock2D(nn.Cell):
         if groups_out is None:
             groups_out = groups
 
-        self.norm1 = GroupNorm(num_groups=groups, num_channels=in_channels, eps=eps, affine=True)
+        self.norm1 = mint.nn.GroupNorm(num_groups=groups, num_channels=in_channels, eps=eps, affine=True)
 
-        self.conv1 = nn.Conv2d(
-            in_channels, out_channels, kernel_size=3, stride=1, pad_mode="pad", padding=1, has_bias=True
-        )
+        self.conv1 = mint.nn.Conv2d(in_channels, out_channels, kernel_size=3, stride=1, padding=1)
 
         if temb_channels is not None:
             if self.time_embedding_norm == "default":
-                self.time_emb_proj = nn.Dense(temb_channels, out_channels)
+                self.time_emb_proj = mint.nn.Linear(temb_channels, out_channels)
             elif self.time_embedding_norm == "scale_shift":
-                self.time_emb_proj = nn.Dense(temb_channels, 2 * out_channels)
+                self.time_emb_proj = mint.nn.Linear(temb_channels, 2 * out_channels)
             else:
                 raise ValueError(f"unknown time_embedding_norm : {self.time_embedding_norm} ")
         else:
             self.time_emb_proj = None
 
-        self.norm2 = GroupNorm(num_groups=groups_out, num_channels=out_channels, eps=eps, affine=True)
+        self.norm2 = mint.nn.GroupNorm(num_groups=groups_out, num_channels=out_channels, eps=eps, affine=True)
 
-        self.dropout = nn.Dropout(p=dropout)
+        self.dropout = mint.nn.Dropout(p=dropout)
         conv_2d_out_channels = conv_2d_out_channels or out_channels
-        self.conv2 = nn.Conv2d(
-            out_channels, conv_2d_out_channels, kernel_size=3, stride=1, pad_mode="pad", padding=1, has_bias=True
-        )
+        self.conv2 = mint.nn.Conv2d(out_channels, conv_2d_out_channels, kernel_size=3, stride=1, padding=1)
 
-        self.nonlinearity = get_activation(non_linearity)()
+        self.nonlinearity = get_activation(non_linearity)
 
         self.upsample = self.downsample = None
         if self.up:
@@ -302,7 +295,7 @@ class ResnetBlock2D(nn.Cell):
                 fir_kernel = (1, 3, 3, 1)
                 self.downsample = lambda x: downsample_2d(x, kernel=fir_kernel)
             elif kernel == "sde_vp":
-                self.downsample = nn.AvgPool2d(kernel_size=2, stride=2)
+                self.downsample = mint.nn.AvgPool2d(kernel_size=2, stride=2)
             else:
                 self.downsample = Downsample2D(in_channels, use_conv=False, padding=1, name="op")
 
@@ -310,13 +303,13 @@ class ResnetBlock2D(nn.Cell):
 
         self.conv_shortcut = None
         if self.use_in_shortcut:
-            self.conv_shortcut = nn.Conv2d(
+            self.conv_shortcut = mint.nn.Conv2d(
                 in_channels,
                 conv_2d_out_channels,
                 kernel_size=1,
                 stride=1,
                 padding=0,
-                has_bias=conv_shortcut_bias,
+                bias=conv_shortcut_bias,
             )
 
     def construct(self, input_tensor: ms.Tensor, temb: ms.Tensor) -> ms.Tensor:
@@ -337,7 +330,8 @@ class ResnetBlock2D(nn.Cell):
         if self.time_emb_proj is not None:
             if not self.skip_time_act:
                 temb = self.nonlinearity(temb)
-            temb = self.time_emb_proj(temb)[:, :, None, None]
+            # temb = self.time_emb_proj(temb)[:, :, None, None]
+            temb = self.time_emb_proj(temb).unsqueeze(2).unsqueeze(3)
 
         if self.time_embedding_norm == "default":
             if temb is not None:
@@ -346,7 +340,7 @@ class ResnetBlock2D(nn.Cell):
         elif self.time_embedding_norm == "scale_shift":
             if temb is None:
                 raise ValueError(f" `temb` should not be None when `time_embedding_norm` is {self.time_embedding_norm}")
-            time_scale, time_shift = ops.chunk(temb, 2, axis=1)
+            time_scale, time_shift = mint.chunk(temb, 2, dim=1)
             hidden_states = self.norm2(hidden_states)
             hidden_states = hidden_states * (1 + time_scale) + time_shift
         else:
@@ -399,13 +393,12 @@ class Conv1dBlock(nn.Cell):
     ):
         super().__init__()
 
-        from .normalization import GroupNorm
-
+        # todo: unavailable mint interface
         self.conv1d = nn.Conv1d(
             inp_channels, out_channels, kernel_size, pad_mode="pad", padding=kernel_size // 2, has_bias=True
         )
-        self.group_norm = GroupNorm(n_groups, out_channels)
-        self.mish = get_activation(activation)()
+        self.group_norm = mint.nn.GroupNorm(n_groups, out_channels)
+        self.mish = get_activation(activation)
 
     def construct(self, inputs: ms.Tensor) -> ms.Tensor:
         intermediate_repr = self.conv1d(inputs)
@@ -441,11 +434,14 @@ class ResidualTemporalBlock1D(nn.Cell):
         self.conv_in = Conv1dBlock(inp_channels, out_channels, kernel_size)
         self.conv_out = Conv1dBlock(out_channels, out_channels, kernel_size)
 
-        self.time_emb_act = get_activation(activation)()
-        self.time_emb = nn.Dense(embed_dim, out_channels)
+        self.time_emb_act = get_activation(activation)
+        self.time_emb = mint.nn.Linear(embed_dim, out_channels)
 
         self.residual_conv = (
-            nn.Conv1d(inp_channels, out_channels, 1, has_bias=True) if inp_channels != out_channels else nn.Identity()
+            # todo: unavailable mint interface
+            nn.Conv1d(inp_channels, out_channels, 1, has_bias=True)
+            if inp_channels != out_channels
+            else mint.nn.Identity()
         )
 
     def construct(self, inputs: ms.Tensor, t: ms.Tensor) -> ms.Tensor:
@@ -483,45 +479,39 @@ class TemporalConvLayer(nn.Cell):
         norm_num_groups: int = 32,
     ):
         super().__init__()
-        from .normalization import GroupNorm
-
         out_dim = out_dim or in_dim
         self.in_dim = in_dim
         self.out_dim = out_dim
 
         # conv layers
         self.conv1 = nn.SequentialCell(
-            GroupNorm(norm_num_groups, in_dim),
-            nn.SiLU(),
-            nn.Conv3d(in_dim, out_dim, (3, 1, 1), padding=(1, 1, 0, 0, 0, 0), pad_mode="pad", has_bias=True),
+            mint.nn.GroupNorm(norm_num_groups, in_dim),
+            mint.nn.SiLU(),
+            mint.nn.Conv3d(in_dim, out_dim, (3, 1, 1), padding=(1, 0, 0)),
         )
         self.conv2 = nn.SequentialCell(
-            GroupNorm(norm_num_groups, out_dim),
-            nn.SiLU(),
-            nn.Dropout(p=dropout),
-            nn.Conv3d(out_dim, in_dim, (3, 1, 1), padding=(1, 1, 0, 0, 0, 0), pad_mode="pad", has_bias=True),
+            mint.nn.GroupNorm(norm_num_groups, out_dim),
+            mint.nn.SiLU(),
+            mint.nn.Dropout(p=dropout),
+            mint.nn.Conv3d(out_dim, in_dim, (3, 1, 1), padding=(1, 0, 0)),
         )
         self.conv3 = nn.SequentialCell(
-            GroupNorm(norm_num_groups, out_dim),
-            nn.SiLU(),
-            nn.Dropout(p=dropout),
-            nn.Conv3d(out_dim, in_dim, (3, 1, 1), padding=(1, 1, 0, 0, 0, 0), pad_mode="pad", has_bias=True),
+            mint.nn.GroupNorm(norm_num_groups, out_dim),
+            mint.nn.SiLU(),
+            mint.nn.Dropout(p=dropout),
+            mint.nn.Conv3d(out_dim, in_dim, (3, 1, 1), padding=(1, 0, 0)),
         )
         self.conv4 = nn.SequentialCell(
-            GroupNorm(norm_num_groups, out_dim),
-            nn.SiLU(),
-            nn.Dropout(p=dropout),
-            nn.Conv3d(
-                out_dim,
-                in_dim,
-                (3, 1, 1),
-                padding=(1, 1, 0, 0, 0, 0),
-                pad_mode="pad",
-                has_bias=True,
-                weight_init="zeros",
-                bias_init="zeros",
-            ),  # zero out the last layer params,so the conv block is identity
+            mint.nn.GroupNorm(norm_num_groups, out_dim),
+            mint.nn.SiLU(),
+            mint.nn.Dropout(p=dropout),
+            mint.nn.Conv3d(out_dim, in_dim, (3, 1, 1), padding=(1, 0, 0)),
         )
+
+        # zero out the last layer params,so the conv block is identity
+        for name, m in self.conv4[-1].cells_and_names():
+            m.weight.set_data(init.initializer("zeros", m.weight.shape, m.weight.dtype))
+            m.bias.set_data(init.initializer("zeros", m.bias.shape, m.bias.dtype))
 
     def construct(self, hidden_states: ms.Tensor, num_frames: int = 1) -> ms.Tensor:
         hidden_states = (
@@ -562,59 +552,50 @@ class TemporalResnetBlock(nn.Cell):
         eps: float = 1e-6,
     ):
         super().__init__()
-        from .normalization import GroupNorm
-
         self.in_channels = in_channels
         out_channels = in_channels if out_channels is None else out_channels
         self.out_channels = out_channels
 
         kernel_size = (3, 1, 1)
-        # padding = [k // 2 for k in kernel_size]
-        padding = (1, 1, 0, 0, 0, 0)
+        padding = (1, 0, 0)
 
-        self.norm1 = GroupNorm(num_groups=32, num_channels=in_channels, eps=eps, affine=True)
-        self.conv1 = nn.Conv3d(
+        self.norm1 = mint.nn.GroupNorm(num_groups=32, num_channels=in_channels, eps=eps, affine=True)
+        self.conv1 = mint.nn.Conv3d(
             in_channels,
             out_channels,
             kernel_size=kernel_size,
             stride=1,
-            pad_mode="pad",
             padding=padding,
-            has_bias=True,
         )
 
         if temb_channels is not None:
-            self.time_emb_proj = nn.Dense(temb_channels, out_channels)
+            self.time_emb_proj = mint.nn.Linear(temb_channels, out_channels)
         else:
             self.time_emb_proj = None
 
-        self.norm2 = GroupNorm(num_groups=32, num_channels=out_channels, eps=eps, affine=True)
+        self.norm2 = mint.nn.GroupNorm(num_groups=32, num_channels=out_channels, eps=eps, affine=True)
 
-        self.dropout = nn.Dropout(p=0.0)
-        self.conv2 = nn.Conv3d(
+        self.dropout = mint.nn.Dropout(p=0.0)
+        self.conv2 = mint.nn.Conv3d(
             out_channels,
             out_channels,
             kernel_size=kernel_size,
             stride=1,
-            pad_mode="pad",
             padding=padding,
-            has_bias=True,
         )
 
-        self.nonlinearity = get_activation("silu")()
+        self.nonlinearity = get_activation("silu")
 
         self.use_in_shortcut = self.in_channels != out_channels
 
         self.conv_shortcut = None
         if self.use_in_shortcut:
-            self.conv_shortcut = nn.Conv3d(
+            self.conv_shortcut = mint.nn.Conv3d(
                 in_channels,
                 out_channels,
                 kernel_size=1,
                 stride=1,
-                pad_mode="pad",
                 padding=0,
-                has_bias=True,
             )
 
     def construct(self, input_tensor: ms.Tensor, temb: ms.Tensor) -> ms.Tensor:
@@ -636,7 +617,7 @@ class TemporalResnetBlock(nn.Cell):
         hidden_states = self.conv2(hidden_states)
 
         if self.conv_shortcut is not None:
-            input_tensor = self.conv_shortcut(input_tensor)
+            input_tensor = self.conv_shortcut(input_tensor.contiguous())
 
         output_tensor = input_tensor + hidden_states
 
@@ -756,9 +737,9 @@ class AlphaBlender(nn.Cell):
             raise ValueError(f"merge_strategy needs to be in {self.strategies}")
 
         if self.merge_strategy == "fixed":
-            self.mix_factor = ms.Tensor([alpha])
+            self.mix_factor = ms.tensor([alpha])
         elif self.merge_strategy == "learned" or self.merge_strategy == "learned_with_images":
-            self.mix_factor = ms.Parameter(ms.Tensor([alpha]), name="mix_factor")
+            self.mix_factor = ms.Parameter(ms.tensor([alpha]), name="mix_factor")
         else:
             raise ValueError(f"Unknown merge strategy {self.merge_strategy}")
 
@@ -767,16 +748,16 @@ class AlphaBlender(nn.Cell):
             alpha = self.mix_factor
 
         elif self.merge_strategy == "learned":
-            alpha = ops.sigmoid(self.mix_factor)
+            alpha = mint.sigmoid(self.mix_factor)
 
         elif self.merge_strategy == "learned_with_images":
             if image_only_indicator is None:
                 raise ValueError("Please provide image_only_indicator to use learned_with_images merge strategy")
 
-            alpha = ops.where(
+            alpha = mint.where(
                 image_only_indicator.bool(),
-                ops.ones((1, 1)).to(self.mix_factor.dtype),
-                ops.sigmoid(self.mix_factor)[..., None],
+                mint.ones((1, 1)).to(self.mix_factor.dtype),
+                mint.sigmoid(self.mix_factor)[..., None],
             )
 
             # (batch, channel, frames, height, width)

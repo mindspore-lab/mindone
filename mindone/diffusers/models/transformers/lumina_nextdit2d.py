@@ -1,5 +1,8 @@
 # Copyright 2024 Alpha-VLLM Authors and The HuggingFace Team. All rights reserved.
 #
+# This code is adapted from https://github.com/huggingface/diffusers
+# with modifications to run diffusers on mindspore.
+#
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -15,7 +18,7 @@
 from typing import Any, Dict, Optional
 
 import mindspore as ms
-from mindspore import nn, ops
+from mindspore import mint, nn
 
 from ...configuration_utils import ConfigMixin, register_to_config
 from ...utils import logging
@@ -61,7 +64,7 @@ class LuminaNextDiTBlock(nn.Cell):
         super().__init__()
         self.head_dim = dim // num_attention_heads
 
-        self.gate = ms.Parameter(ops.zeros([num_attention_heads]))
+        self.gate = ms.Parameter(mint.zeros([num_attention_heads]))
 
         # Self-attention
         self.attn1 = Attention(
@@ -76,7 +79,7 @@ class LuminaNextDiTBlock(nn.Cell):
             out_bias=False,
             processor=LuminaAttnProcessor2_0(),
         )
-        self.attn1.to_out = nn.Identity()
+        self.attn1.to_out = mint.nn.Identity()
 
         # Cross-attention
         self.attn2 = Attention(
@@ -94,7 +97,7 @@ class LuminaNextDiTBlock(nn.Cell):
 
         self.feed_forward = LuminaFeedForward(
             dim=dim,
-            inner_dim=4 * dim,
+            inner_dim=int(4 * 2 * dim / 3),
             multiple_of=multiple_of,
             ffn_dim_multiplier=ffn_dim_multiplier,
         )
@@ -217,6 +220,8 @@ class LuminaNextDiT2DModel(ModelMixin, ConfigMixin):
             overall scale of the model's operations.
     """
 
+    _skip_layerwise_casting_patterns = ["patch_embedder", "norm", "ffn_norm"]
+
     @register_to_config
     def __init__(
         self,
@@ -249,7 +254,7 @@ class LuminaNextDiT2DModel(ModelMixin, ConfigMixin):
             patch_size=patch_size, in_channels=in_channels, embed_dim=hidden_size, bias=True
         )
 
-        self.pad_token = ms.Parameter(ops.zeros((hidden_size,)))
+        self.pad_token = ms.Parameter(mint.zeros((hidden_size,)))
 
         self.time_caption_embed = LuminaCombinedTimestepCaptionEmbedding(
             hidden_size=min(hidden_size, 1024), cross_attention_dim=cross_attention_dim

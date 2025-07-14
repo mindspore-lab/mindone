@@ -18,7 +18,10 @@ def run_llama3_generate(args):
     s_time = time.time()
 
     tokenizer = AutoTokenizer.from_pretrained(args.model_path)
-    model = LlamaForCausalLM.from_pretrained(args.model_path, use_flash_attention_2=args.use_fa)
+    model = LlamaForCausalLM.from_pretrained(
+        args.model_path,
+        attn_implementation="flash_attention_2" if args.use_fa else "eager",
+    )
 
     model = auto_mixed_precision(model, amp_level="O2", dtype=ms.float16)
 
@@ -43,7 +46,7 @@ def run_llama3_generate(args):
             input_kwargs["input_ids"] = input_ids
 
         output_ids = model.generate(**input_kwargs, use_cache=args.use_cache, max_new_tokens=30, do_sample=False)
-        output_ids = output_ids.asnumpy()
+        output_ids = [out_ids[len(in_ids) :] for in_ids, out_ids in zip(input_ids, output_ids)]
 
         outputs = tokenizer.batch_decode(output_ids, skip_special_tokens=True)[0].strip()
 

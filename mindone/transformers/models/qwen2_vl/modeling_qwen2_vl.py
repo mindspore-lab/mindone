@@ -6,6 +6,9 @@
 # original forms to accommodate minor architectural differences compared
 # to GPT-NeoX and OPT used by the Meta AI team that trained the model.
 #
+# This code is adapted from https://github.com/huggingface/transformers
+# with modifications to run transformers on mindspore.
+#
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -45,7 +48,8 @@ from mindone.transformers.cache_utils import (  # TODO: SlidingWindowCache
     get_seq_length,
     update,
 )
-from mindone.transformers.modeling_attn_mask_utils import _MIN_FP16, dtype_to_min
+from mindone.transformers.mindspore_adapter.utils import _MIN_FP16
+from mindone.transformers.modeling_attn_mask_utils import dtype_to_min
 from mindone.transformers.modeling_outputs import BaseModelOutputWithPast, ModelOutput
 from mindone.transformers.modeling_utils import MSPreTrainedModel
 
@@ -968,12 +972,12 @@ class Qwen2VLModel(Qwen2VLPreTrainedModel):
         if inputs_embeds is None:
             inputs_embeds = self.embed_tokens(input_ids)
 
-        if use_cache and (cache_position is None):
+        if cache_position is None:
             past_seen_tokens = 0
             if past_key_values is not None and (isinstance(past_key_values, tuple)):
                 past_seen_tokens = get_seq_length(past_key_values)
             else:
-                past_seen_tokens = past_key_values.get_seq_length()
+                past_seen_tokens = past_key_values.get_seq_length() if past_key_values is not None else 0
             cache_position = ops.arange(past_seen_tokens, past_seen_tokens + inputs_embeds.shape[1])
 
         # the hard coded `3` is for temporal, height and width.

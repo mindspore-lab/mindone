@@ -8,6 +8,9 @@
 # Copyright 2024 The GLM & ZhipuAI team and HuggingFace Inc. team. All rights reserved.
 #
 #
+# This code is adapted from https://github.com/huggingface/transformers
+# with modifications to run transformers on mindspore.
+#
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -27,14 +30,14 @@ from transformers import GlmConfig
 from transformers.utils import add_start_docstrings, add_start_docstrings_to_model_forward, logging
 
 import mindspore as ms
-from mindspore import nn, ops
+from mindspore import mint, nn, ops
 
 from ...activations import ACT2FN
 from ...cache_utils import get_max_length, get_seq_length, init_static_cache, update
 from ...generation import GenerationMixin
 from ...mindspore_adapter import recompute_except_output
 from ...mindspore_adapter.attention import FlashAttention2
-from ...modeling_attn_mask_utils import _MIN_FP16, dtype_to_min
+from ...modeling_attn_mask_utils import dtype_to_min
 from ...modeling_outputs import (
     BaseModelOutputWithPast,
     CausalLMOutputWithPast,
@@ -287,11 +290,11 @@ class GlmFlashAttention2(GlmAttention):
                 attention_mask = 1 - attention_mask
                 attention_mask = attention_mask.to(ms.uint8)
             else:
-                attention_mask = attention_mask.to(ms.float16)
-                attention_mask = ops.select(
-                    ops.equal(attention_mask, _MIN_FP16),
-                    ops.ones((), ms.uint8),
-                    ops.zeros((), ms.uint8),
+                min_dtype = dtype_to_min(attention_mask.dtype)
+                attention_mask = mint.where(
+                    attention_mask == min_dtype,
+                    mint.ones((), dtype=ms.uint8),
+                    mint.zeros((), dtype=ms.uint8),
                 )
 
         return attention_mask

@@ -1,5 +1,8 @@
 # Copyright 2022 The HuggingFace Team. All rights reserved.
 #
+# This code is adapted from https://github.com/huggingface/transformers
+# with modifications to run transformers on mindspore.
+#
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -236,3 +239,29 @@ def apply_chunking_to_forward(
         return ops.cat(output_chunks, dim=chunk_dim)
 
     return forward_fn(*input_tensors)
+
+
+def isin_mps_friendly(elements: ms.Tensor, test_elements: ms.Tensor) -> ms.Tensor:
+    """
+    Same as `torch.isin` without flags, but MPS-friendly. We can remove this function when we stop supporting
+    torch <= 2.3. See https://github.com/pytorch/pytorch/issues/77764#issuecomment-2067838075
+
+    Args:
+        elements (`ms.Tensor`): Input elements
+        test_elements (`ms.Tensor` or `int`): The elements to check against.
+
+    Returns:
+        `ms.Tensor`: A boolean tensor of the same shape as `elements` that is True for `elements` in `test_elements`
+        and False otherwise
+    """
+    import numpy as np
+
+    # Note: don't use named arguments in `torch.isin`, see https://github.com/pytorch/pytorch/issues/126045
+    return ms.tensor(np.isin(elements.numpy(), test_elements.numpy()))
+
+
+def meshgrid(*tensors: ms.Tensor, indexing) -> tuple[ms.Tensor, ...]:
+    """
+    Wrapper around torch.meshgrid to avoid warning messages about the introduced `indexing` argument.
+    """
+    return mint.meshgrid(*tensors, indexing=indexing)

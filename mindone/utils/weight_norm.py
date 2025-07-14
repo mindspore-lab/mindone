@@ -12,7 +12,7 @@ def norm_except_dim(v, pow, dim):
         output_size = (1,) * (v.ndim - 1) + (v.shape[v.ndim - 1])
         return ops.norm(v.view((-1, v.shape[v.ndim - 1])), pow, 0).view(output_size)
     else:
-        return norm_except_dim(v.swapaxes(0, dim), pow, dim).swapaxes(0, dim)
+        return norm_except_dim(v.transpose(0, v.ndim - 1), pow, 0).transpose(0, v.ndim - 1)
 
 
 def _weight_norm(v, g, dim):

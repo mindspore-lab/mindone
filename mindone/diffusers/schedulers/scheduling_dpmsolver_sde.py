@@ -1,5 +1,8 @@
 # Copyright 2024 Katherine Crowson, The HuggingFace Team and hlky. All rights reserved.
 #
+# This code is adapted from https://github.com/huggingface/diffusers
+# with modifications to run diffusers on mindspore.
+#
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -19,7 +22,7 @@ from typing import List, Optional, Tuple, Union
 import numpy as np
 
 import mindspore as ms
-from mindspore import ops
+from mindspore import mint, ops
 
 from ...utils._brownian import BrownianInterval
 from ..configuration_utils import ConfigMixin, register_to_config
@@ -54,7 +57,7 @@ class BatchedBrownianTree:
 
     def __init__(self, x, t0, t1, seed=None, **kwargs):
         t0, t1, self.sign = self.sort(t0, t1)
-        w0 = kwargs.get("w0", ops.zeros_like(x))
+        w0 = kwargs.get("w0", mint.zeros_like(x))
         if seed is None:
             seed = np.random.randint(0, 2**63 - 1, ()).item()
         self.batched = True
@@ -84,7 +87,7 @@ class BatchedBrownianTree:
 
     def __call__(self, t0, t1):
         t0, t1, sign = self.sort(t0, t1)
-        w = ops.stack([tree(t0, t1) for tree in self.trees]) * (self.sign * sign)
+        w = mint.stack([tree(t0, t1) for tree in self.trees]) * (self.sign * sign)
         return w if self.batched else w[0]
 
 
@@ -105,11 +108,11 @@ class BrownianTreeNoiseSampler:
 
     def __init__(self, x, sigma_min, sigma_max, seed=None, transform=lambda x: x):
         self.transform = transform
-        t0, t1 = self.transform(ms.Tensor(sigma_min)), self.transform(ms.Tensor(sigma_max))
+        t0, t1 = self.transform(ms.tensor(sigma_min)), self.transform(ms.tensor(sigma_max))
         self.tree = BatchedBrownianTree(x, t0, t1, seed)
 
     def __call__(self, sigma, sigma_next):
-        t0, t1 = self.transform(ms.Tensor(sigma)), self.transform(ms.Tensor(sigma_next))
+        t0, t1 = self.transform(ms.tensor(sigma)), self.transform(ms.tensor(sigma_next))
         return self.tree(t0, t1) / (t1 - t0).abs().sqrt()
 
 
@@ -155,7 +158,7 @@ def betas_for_alpha_bar(
         t1 = i / num_diffusion_timesteps
         t2 = (i + 1) / num_diffusion_timesteps
         betas.append(min(1 - alpha_bar_fn(t2) / alpha_bar_fn(t1), max_beta))
-    return ms.Tensor(betas, dtype=ms.float32)
+    return ms.tensor(betas, dtype=ms.float32)
 
 
 class DPMSolverSDEScheduler(SchedulerMixin, ConfigMixin):
@@ -225,12 +228,12 @@ class DPMSolverSDEScheduler(SchedulerMixin, ConfigMixin):
                 "Only one of `config.use_beta_sigmas`, `config.use_exponential_sigmas`, `config.use_karras_sigmas` can be used."
             )
         if trained_betas is not None:
-            self.betas = ms.Tensor(trained_betas, dtype=ms.float32)
+            self.betas = ms.tensor(trained_betas, dtype=ms.float32)
         elif beta_schedule == "linear":
-            self.betas = ops.linspace(beta_start, beta_end, num_train_timesteps)
+            self.betas = mint.linspace(beta_start, beta_end, num_train_timesteps)
         elif beta_schedule == "scaled_linear":
             # this schedule is very specific to the latent diffusion model.
-            self.betas = ops.linspace(beta_start**0.5, beta_end**0.5, num_train_timesteps) ** 2
+            self.betas = mint.linspace(beta_start**0.5, beta_end**0.5, num_train_timesteps) ** 2
         elif beta_schedule == "squaredcos_cap_v2":
             # Glide cosine schedule
             self.betas = betas_for_alpha_bar(num_train_timesteps)
@@ -238,7 +241,7 @@ class DPMSolverSDEScheduler(SchedulerMixin, ConfigMixin):
             raise NotImplementedError(f"{beta_schedule} is not implemented for {self.__class__}")
 
         self.alphas = 1.0 - self.betas
-        self.alphas_cumprod = ops.cumprod(self.alphas, dim=0)
+        self.alphas_cumprod = mint.cumprod(self.alphas, dim=0)
 
         #  set all values
         self.set_timesteps(num_train_timesteps, num_train_timesteps)
@@ -377,6 +380,7 @@ class DPMSolverSDEScheduler(SchedulerMixin, ConfigMixin):
                 f"{self.config.timestep_spacing} is not supported. Please make sure to choose one of 'linspace', 'leading' or 'trailing'."
             )
 
+        # todo: unavailable mint interface
         if ops.is_tensor(self.alphas_cumprod):
             self.alphas_cumprod = self.alphas_cumprod.asnumpy()
         sigmas = np.array(((1 - self.alphas_cumprod) / self.alphas_cumprod) ** 0.5)
@@ -396,12 +400,12 @@ class DPMSolverSDEScheduler(SchedulerMixin, ConfigMixin):
         second_order_timesteps = self._second_order_timesteps(sigmas, log_sigmas)
 
         sigmas = np.concatenate([sigmas, [0.0]]).astype(np.float32)
-        sigmas = ms.Tensor(sigmas)
-        self.sigmas = ops.cat([sigmas[:1], sigmas[1:-1].repeat_interleave(2), sigmas[-1:]])
+        sigmas = ms.tensor(sigmas)
+        self.sigmas = mint.cat([sigmas[:1], sigmas[1:-1].repeat_interleave(2), sigmas[-1:]])
 
-        timesteps = ms.Tensor(timesteps)
-        second_order_timesteps = ms.Tensor(second_order_timesteps)
-        timesteps = ops.cat([timesteps[:1], timesteps[1:].repeat_interleave(2)])
+        timesteps = ms.tensor(timesteps)
+        second_order_timesteps = ms.tensor(second_order_timesteps)
+        timesteps = mint.cat([timesteps[:1], timesteps[1:].repeat_interleave(2)])
         timesteps[1::2] = second_order_timesteps
 
         self.timesteps = timesteps
@@ -486,7 +490,7 @@ class DPMSolverSDEScheduler(SchedulerMixin, ConfigMixin):
         sigma_min = sigma_min if sigma_min is not None else in_sigmas[-1].item()
         sigma_max = sigma_max if sigma_max is not None else in_sigmas[0].item()
 
-        sigmas = ops.linspace(math.log(sigma_max), math.log(sigma_min), num_inference_steps).exp()
+        sigmas = mint.linspace(math.log(sigma_max), math.log(sigma_min), num_inference_steps).exp()
         return sigmas
 
     # Copied from diffusers.schedulers.scheduling_euler_discrete.EulerDiscreteScheduler._convert_to_beta
@@ -510,7 +514,7 @@ class DPMSolverSDEScheduler(SchedulerMixin, ConfigMixin):
         sigma_min = sigma_min if sigma_min is not None else in_sigmas[-1].item()
         sigma_max = sigma_max if sigma_max is not None else in_sigmas[0].item()
 
-        sigmas = ms.Tensor(
+        sigmas = ms.tensor(
             [
                 sigma_min + (ppf * (sigma_max - sigma_min))
                 for ppf in [
@@ -668,7 +672,7 @@ class DPMSolverSDEScheduler(SchedulerMixin, ConfigMixin):
         sigma = sigmas[step_indices].flatten()
         # while len(sigma.shape) < len(original_samples.shape):
         #     sigma = sigma.unsqueeze(-1)
-        sigma = ops.reshape(sigma, (timesteps.shape[0],) + (1,) * (len(broadcast_shape) - 1))
+        sigma = mint.reshape(sigma, (timesteps.shape[0],) + (1,) * (len(broadcast_shape) - 1))
 
         noisy_samples = original_samples + noise * sigma
         return noisy_samples

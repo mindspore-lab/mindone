@@ -1,5 +1,8 @@
 # Copyright 2024 The HuggingFace Team. All rights reserved.
 #
+# This code is adapted from https://github.com/huggingface/diffusers
+# with modifications to run diffusers on mindspore.
+#
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -16,7 +19,7 @@ from typing import Optional, Tuple, Union
 import numpy as np
 
 import mindspore as ms
-from mindspore import nn
+from mindspore import mint
 
 from ...configuration_utils import ConfigMixin, register_to_config
 from ..modeling_outputs import AutoencoderKLOutput
@@ -61,6 +64,8 @@ class AsymmetricAutoencoderKL(ModelMixin, ConfigMixin):
             Synthesis with Latent Diffusion Models](https://arxiv.org/abs/2112.10752) paper.
     """
 
+    _skip_layerwise_casting_patterns = ["decoder"]
+
     @register_to_config
     def __init__(
         self,
@@ -104,8 +109,8 @@ class AsymmetricAutoencoderKL(ModelMixin, ConfigMixin):
         )
         self.diag_gauss_dist = DiagonalGaussianDistribution()
 
-        self.quant_conv = nn.Conv2d(2 * latent_channels, 2 * latent_channels, 1, has_bias=True)
-        self.post_quant_conv = nn.Conv2d(latent_channels, latent_channels, 1, has_bias=True)
+        self.quant_conv = mint.nn.Conv2d(2 * latent_channels, 2 * latent_channels, 1)
+        self.post_quant_conv = mint.nn.Conv2d(latent_channels, latent_channels, 1)
 
         self.use_slicing = False
         self.use_tiling = False

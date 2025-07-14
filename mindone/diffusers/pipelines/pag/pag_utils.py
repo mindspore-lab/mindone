@@ -1,5 +1,8 @@
 # Copyright 2024 The HuggingFace Team. All rights reserved.
 #
+# This code is adapted from https://github.com/huggingface/diffusers
+# with modifications to run diffusers on mindspore.
+#
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -15,7 +18,7 @@
 import re
 from typing import Dict, List, Tuple, Union
 
-from mindspore import nn, ops
+from mindspore import mint, nn
 
 from ...models.attention_processor import (
     Attention,
@@ -142,10 +145,10 @@ class PAGMixin:
             ms.Tensor: The prepared perturbed attention guidance tensor.
         """
 
-        cond = ops.cat([cond] * 2, axis=0)
+        cond = mint.cat([cond] * 2, dim=0)
 
         if do_classifier_free_guidance:
-            cond = ops.cat([uncond, cond], axis=0)
+            cond = mint.cat([uncond, cond], dim=0)
         return cond
 
     def set_pag_applied_layers(
@@ -157,7 +160,7 @@ class PAGMixin:
         ),
     ):
         r"""
-        Set the the self-attention layers to apply PAG. Raise ValueError if the input is invalid.
+        Set the self-attention layers to apply PAG. Raise ValueError if the input is invalid.
 
         Args:
             pag_applied_layers (`str` or `List[str]`):

@@ -1,4 +1,7 @@
-# Copyright 2024 The HuggingFace Team.
+# Copyright 2025 The HuggingFace Team.
+#
+# This code is adapted from https://github.com/huggingface/diffusers
+# with modifications to run diffusers on mindspore.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -21,7 +24,7 @@ from PIL import Image
 
 import mindspore as ms
 
-from mindone.diffusers.utils.testing_utils import load_downloaded_numpy_from_hf_hub, slow
+from mindone.diffusers.utils.testing_utils import load_numpy_from_local_file, slow
 
 from ..pipeline_test_utils import (
     THRESHOLD_FP16,
@@ -205,8 +208,8 @@ class CogVideoXVideoToVideoPipelineIntegrationTests(PipelineTesterMixin, unittes
         scheduler_cls = get_module("mindone.diffusers.schedulers.scheduling_dpm_cogvideox.CogVideoXDPMScheduler")
         pipe.scheduler = scheduler_cls.from_config(pipe.scheduler.config)
 
-        input_video_np = load_downloaded_numpy_from_hf_hub(
-            "The-truth/mindone-testing-arrays",
+        input_video_np = load_numpy_from_local_file(
+            "mindone-testing-arrays",
             "hiker.npy",
             subfolder="cogvideo",
         )
@@ -229,8 +232,8 @@ class CogVideoXVideoToVideoPipelineIntegrationTests(PipelineTesterMixin, unittes
         videos = pipe(video=input_video, prompt=prompt, strength=0.8, guidance_scale=6, num_inference_steps=50)[0]
         video = videos[0]
 
-        expected_video = load_downloaded_numpy_from_hf_hub(
-            "The-truth/mindone-testing-arrays",
+        expected_video = load_numpy_from_local_file(
+            "mindone-testing-arrays",
             f"cogvideox_video2video_{dtype}.npy",
             subfolder="cogvideo",
         )

@@ -11,7 +11,7 @@ from utils.optim import create_optimizer
 from utils.utils import load_from_checkpoint
 
 import mindspore as ms
-from mindspore import nn
+from mindspore import nn, ops
 from mindspore.nn.wrap.loss_scale import DynamicLossScaleUpdateCell
 
 from mindone.trainers.checkpoint import CheckpointManager, resume_train_network
@@ -83,6 +83,7 @@ def main(args):
         init_adaln_gamma=args.alng,
         init_head=args.hd,
         init_std=args.ini,
+        use_recompute=True if args.ms_mode == 0 else False,
     )
     if args.vae_checkpoint:
         load_from_checkpoint(vae_local, args.vae_checkpoint)
@@ -203,6 +204,7 @@ def main(args):
         key_info += "\n".join(
             [
                 f"Mindspore mode[GRAPH(0)/PYNATIVE(1)]: {args.ms_mode}",
+                f"Jit level: {args.jit_level}",
                 f"Distributed mode: {args.use_parallel}",
                 f"Model depth: {args.depth}",
                 f"Total params: {tot_params}, Traninable params: {trainable_params}",
@@ -241,7 +243,19 @@ def main(args):
             else:
                 prog_si = -1
 
+            ops.assign(training_step_var.network.var.prog_si, ms.tensor(prog_si))
+            ops.assign(training_step_var.network.vae_local.quantize.prog_si, ms.tensor(prog_si))
+
+            if training_step_var.network.last_prog_si != prog_si:
+                if training_step_var.network.last_prog_si != -1:
+                    training_step_var.network.first_prog = False
+                training_step_var.network.last_prog_si = ms.Tensor(prog_si)
+                training_step_var.network.prog_it = ms.Tensor(0)
+
             loss, overflow, scaling_sens = training_step_var(inp, label, prog_si, prog_wp_it)
+
+            ops.assign(training_step_var.network.var.prog_si, ms.tensor(-1))
+            ops.assign(training_step_var.network.vae_local.quantize.prog_si, ms.tensor(-1))
             global_step = global_step + 1
 
             if overflow:
