@@ -1181,6 +1181,7 @@ class LEDPreTrainedModel(PreTrainedModel):
     config_class = LEDConfig
     base_model_prefix = "led"
     supports_gradient_checkpointing = True
+    _supports_dynamic_input = True
 
     def _init_weights(self, module):
         std = self.config.init_std

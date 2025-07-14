@@ -387,9 +387,6 @@ class GenerationMixin:
             )
             cache_position = ops.arange(past_length, input_ids.shape[1], dtype=ms.int32)
 
-        if kwargs["use_cache"]:
-            model_inputs["cache_position"] = cache_position
-
         # 2. Generic cache-dependent input preparation
         # If we have cache: let's slice `input_ids` through `cache_position`, to keep only the unprocessed tokens
         # Exception 1: when passing input_embeds, input_ids may be missing entries
