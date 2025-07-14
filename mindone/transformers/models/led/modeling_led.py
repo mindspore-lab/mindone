@@ -13,7 +13,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 """MindSpore LED model."""
-
 import math
 import warnings
 from dataclasses import dataclass
@@ -61,6 +60,57 @@ def constant_(tensor: Parameter, val: float) -> None:
 
 def normal_(tensor: Parameter, mean: float = 0.0, std: float = 1.0) -> None:
     tensor.set_data(initializer(Normal(sigma=std, mean=mean), tensor.shape, tensor.dtype))
+
+
+def as_strided(input_tensor, size, stride, storage_offset=0):
+    """
+    A MindSpore implementation similar to PyTorch's torch.as_strided function.
+    Creates a view of the input tensor with specified size and stride.
+
+    Args:
+        input_tensor: Input MindSpore tensor
+        size (tuple): The shape of the output tensor
+        stride (tuple): The stride of the output tensor (step size in each dimension)
+        storage_offset (int, optional): The offset in the underlying storage. Defaults to 0.
+
+    Returns:
+        MindSpore.Tensor: A tensor view with the specified size and stride
+
+    Example:
+        >>> x = ms.Tensor([[ 0.9039,  0.6291,  1.0795],
+                            [ 0.1586,  2.1939, -0.4900],
+                            [-0.1909, -0.7503,  1.9355]], dtype=ms.float32)
+        >>> result = as_strided(x, size=(2, 2), stride=(1, 2))
+        >>> print(result)
+        [[0.9039, 1.0795],
+        [0.6291, 0.1586]]
+        >>> result = as_strided(x, size=(2, 2), stride=(1, 2), storage_offset=1)
+        >>> print(result)
+        [[0.6291, 0.1586],
+        [1.0795, 2.1939]]
+    """
+    # Flatten input tensor to 1D array
+    flat_input = input_tensor.reshape(-1)
+
+    # Create index arrays for each dimension
+    indices = []
+    total_elements = 1
+    for s, t in zip(size, stride):
+        total_elements *= s
+        idx = (mindspore.mint.arange(s).reshape(-1, 1) * t).reshape(-1)
+        indices.append(idx)
+
+    # Generate combinations of indices for all dimensions
+    final_indices = storage_offset
+    for i, idx in enumerate(indices):
+        shape = [1] * len(size)
+        shape[i] = -1
+        idx_shaped = idx.reshape(shape)
+        final_indices = final_indices + mindspore.mint.broadcast_to(idx_shaped, size)
+
+    # Use advanced indexing to get the result
+    result = flat_input[final_indices]
+    return result
 
 
 def shift_tokens_right(input_ids: mindspore.Tensor, pad_token_id: int, decoder_start_token_id: int):
@@ -386,7 +436,7 @@ class LEDEncoderSelfAttention(mindspore.nn.Cell):
             # non-overlapping chunks of size = 2w
             hidden_states = hidden_states.view(
                 hidden_states.shape[0],
-                mindspore.mint.div(hidden_states.shape[1], (window_overlap * 2), rounding_mode="trunc"),
+                mindspore.mint.div(hidden_states.shape[1], (window_overlap * 2), rounding_mode="trunc").item(),
                 window_overlap * 2,
                 hidden_states.shape[2],
             )
@@ -396,7 +446,7 @@ class LEDEncoderSelfAttention(mindspore.nn.Cell):
 
             chunk_stride = list(hidden_states.stride())
             chunk_stride[1] = chunk_stride[1] // 2
-            return hidden_states.as_strided(size=chunk_size, stride=chunk_stride)
+            return as_strided(hidden_states, size=chunk_size, stride=chunk_stride)
 
         # When exporting to ONNX, use this separate logic
         # have to use slow implementation since as_strided, unfold and 2d-tensor indexing aren't supported (yet) in ONNX export
@@ -408,7 +458,7 @@ class LEDEncoderSelfAttention(mindspore.nn.Cell):
 
         chunk_size = [
             hidden_states.shape[0],
-            mindspore.mint.div(hidden_states.shape[1], window_overlap, rounding_mode="trunc") - 1,
+            mindspore.mint.div(hidden_states.shape[1], window_overlap, rounding_mode="trunc").item() - 1,
             window_overlap * 2,
             hidden_states.shape[2],
         ]
@@ -541,7 +591,7 @@ class LEDEncoderSelfAttention(mindspore.nn.Cell):
             chunked_value_stride[1],
             chunked_value_stride[2],
         )
-        chunked_value = padded_value.as_strided(size=chunked_value_size, stride=chunked_value_stride)
+        chunked_value = as_strided(padded_value, size=chunked_value_size, stride=chunked_value_stride)
 
         chunked_attn_probs = self._pad_and_diagonalize(chunked_attn_probs)
 
