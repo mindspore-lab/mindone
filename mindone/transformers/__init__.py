@@ -22,6 +22,7 @@
 # in the namespace without actually importing anything (and especially none of the backends).
 
 __version__ = "4.50.0"
+
 import transformers
 from packaging import version
 
@@ -84,6 +85,13 @@ from .models.big_bird import (
     BigBirdLayer,
     BigBirdModel,
     BigBirdPreTrainedModel,
+)
+from .models.owlvit import (
+    OwlViTModel, OwlViTPreTrainedModel, OwlViTTextModel, OwlViTVisionModel, OwlViTForObjectDetection, OwlViTProcessor, OwlViTImageProcessor,
+    OwlViTFeatureExtractor
+)
+from .models.owlv2 import (
+    Owlv2Model, Owlv2PreTrainedModel, Owlv2TextModel, Owlv2VisionModel, Owlv2ForObjectDetection, Owlv2Processor, Owlv2ImageProcessor
 )
 from .models.git import GitForCausalLM, GitModel, GitPreTrainedModel, GitVisionModel
 from .models.bigbird_pegasus import (

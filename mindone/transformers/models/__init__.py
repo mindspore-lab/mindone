@@ -40,6 +40,8 @@ from . import (
     granitemoe,
     granitemoeshared,
     hiera,
+    owlv2,
+    owlvit,
     idefics3,
     ijepa,
     imagegpt,
