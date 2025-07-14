@@ -513,7 +513,7 @@ class LEDEncoderSelfAttention(mindspore.nn.Cell):
         # bcxd: batch_size * num_heads x chunks x 2window_overlap x head_dim
         # bcyd: batch_size * num_heads x chunks x 2window_overlap x head_dim
         # bcxy: batch_size * num_heads x chunks x 2window_overlap x 2window_overlap
-        diagonal_chunked_attention_scores = mindspore.mint.einsum("bcxd,bcyd->bcxy", (query, key))  # multiply
+        diagonal_chunked_attention_scores = mindspore.mint.einsum("bcxd,bcyd->bcxy", query, key)  # multiply
 
         # convert diagonals into columns
         diagonal_chunked_attention_scores = self._pad_and_transpose_last_two_dims(
@@ -595,7 +595,7 @@ class LEDEncoderSelfAttention(mindspore.nn.Cell):
 
         chunked_attn_probs = self._pad_and_diagonalize(chunked_attn_probs)
 
-        context = mindspore.mint.einsum("bcwd,bcdh->bcwh", (chunked_attn_probs, chunked_value))
+        context = mindspore.mint.einsum("bcwd,bcdh->bcwh", chunked_attn_probs, chunked_value)
         return context.view(batch_size, num_heads, seq_len, head_dim).transpose(1, 2)
 
     @staticmethod
@@ -646,7 +646,7 @@ class LEDEncoderSelfAttention(mindspore.nn.Cell):
         key_vectors_only_global[is_local_index_global_attn_nonzero] = key_vectors[is_index_global_attn_nonzero]
 
         # (batch_size, seq_len, num_heads, max_num_global_attn_indices)
-        attn_probs_from_global_key = mindspore.mint.einsum("blhd,bshd->blhs", (query_vectors, key_vectors_only_global))
+        attn_probs_from_global_key = mindspore.mint.einsum("blhd,bshd->blhs", query_vectors, key_vectors_only_global)
 
         # need to transpose since ONNX export only supports consecutive indexing: https://pytorch.org/docs/stable/onnx.html#writes-sets
         attn_probs_from_global_key = attn_probs_from_global_key.transpose(1, 3)
@@ -676,7 +676,7 @@ class LEDEncoderSelfAttention(mindspore.nn.Cell):
         value_vectors_only_global[is_local_index_global_attn_nonzero] = value_vectors[is_index_global_attn_nonzero]
 
         # use `matmul` because `einsum` crashes sometimes with fp16
-        # attn = torch.einsum('blhs,bshd->blhd', (selected_attn_probs, selected_v))
+        # attn = mindspore.mint.einsum('blhs,bshd->blhd', selected_attn_probs, selected_v)
         # compute attn output only global
         attn_output_only_global = mindspore.mint.matmul(
             attn_probs_only_global.transpose(1, 2).clone(), value_vectors_only_global.transpose(1, 2).clone()
