@@ -1,1 +1,1 @@
-from .modeling_jetmoe import JetMoeForCausalLM, JetMoeModel, JetMoePreTrainedModel
+from .modeling_jetmoe import JetMoeForCausalLM, JetMoeForSequenceClassification, JetMoeModel, JetMoePreTrainedModel
