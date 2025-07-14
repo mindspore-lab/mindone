@@ -1,3 +1,5 @@
+"""Adapted from https://github.com/huggingface/diffusers/tree/main/src/diffusers/pipelines/deepfloyd_if/pipeline_if.py."""
+
 import html
 import inspect
 import re

@@ -1,3 +1,5 @@
+"""Adapted from https://github.com/huggingface/diffusers/tree/main/src/diffusers/pipelines/unidiffuser/pipeline_unidiffuser.py."""
+
 import inspect
 from dataclasses import dataclass
 from typing import Callable, List, Optional, Union

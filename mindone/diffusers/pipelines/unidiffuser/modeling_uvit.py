@@ -1,3 +1,5 @@
+"""Adapted from https://github.com/huggingface/diffusers/tree/main/src/diffusers/pipelines/unidiffuser/modeling_uvit.py."""
+
 import math
 from typing import Optional, Union
 

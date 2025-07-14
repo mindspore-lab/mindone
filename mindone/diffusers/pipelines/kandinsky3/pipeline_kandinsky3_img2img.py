@@ -1,3 +1,5 @@
+"""Adapted from https://github.com/huggingface/diffusers/tree/main/src/diffusers/pipelines/kandinsky3/pipeline_kandinsky3_img2img.py."""
+
 import inspect
 from typing import Callable, Dict, List, Optional, Union
 

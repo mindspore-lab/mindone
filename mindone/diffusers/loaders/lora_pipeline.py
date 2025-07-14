@@ -1,5 +1,8 @@
 # Copyright 2025 The HuggingFace Team. All rights reserved.
 #
+# This code is adapted from https://github.com/huggingface/diffusers
+# with modifications to run diffusers on mindspore.
+#
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -605,7 +608,7 @@ class StableDiffusionXLLoraLoaderMixin(LoraBaseMixin):
 
     @classmethod
     @validate_hf_hub_args
-    # Copied from mindone.diffusers.loaders.lora_pipeline.StableDiffusionLoraLoaderMixin.lora_state_dict
+    # Copied from diffusers.loaders.lora_pipeline.StableDiffusionLoraLoaderMixin.lora_state_dict
     def lora_state_dict(
         cls,
         pretrained_model_name_or_path_or_dict: Union[str, Dict[str, ms.Tensor]],
@@ -720,7 +723,7 @@ class StableDiffusionXLLoraLoaderMixin(LoraBaseMixin):
         return out
 
     @classmethod
-    # Copied from mindone.diffusers.loaders.lora_pipeline.StableDiffusionLoraLoaderMixin.load_lora_into_unet
+    # Copied from diffusers.loaders.lora_pipeline.StableDiffusionLoraLoaderMixin.load_lora_into_unet
     def load_lora_into_unet(
         cls,
         state_dict,
@@ -769,7 +772,7 @@ class StableDiffusionXLLoraLoaderMixin(LoraBaseMixin):
         )
 
     @classmethod
-    # Copied from mindone.diffusers.loaders.lora_pipeline.StableDiffusionLoraLoaderMixin.load_lora_into_text_encoder
+    # Copied from diffusers.loaders.lora_pipeline.StableDiffusionLoraLoaderMixin.load_lora_into_text_encoder
     def load_lora_into_text_encoder(
         cls,
         state_dict,
@@ -1198,7 +1201,7 @@ class SD3LoraLoaderMixin(LoraBaseMixin):
         )
 
     @classmethod
-    # Copied from mindone.diffusers.loaders.lora_pipeline.StableDiffusionLoraLoaderMixin.load_lora_into_text_encoder
+    # Copied from diffusers.loaders.lora_pipeline.StableDiffusionLoraLoaderMixin.load_lora_into_text_encoder
     def load_lora_into_text_encoder(
         cls,
         state_dict,
@@ -1252,7 +1255,7 @@ class SD3LoraLoaderMixin(LoraBaseMixin):
         )
 
     @classmethod
-    # Copied from mindone.diffusers.loaders.lora_pipeline.StableDiffusionXLLoraLoaderMixin.save_lora_weights with unet->transformer
+    # Copied from diffusers.loaders.lora_pipeline.StableDiffusionXLLoraLoaderMixin.save_lora_weights with unet->transformer
     def save_lora_weights(
         cls,
         save_directory: Union[str, os.PathLike],
@@ -1338,7 +1341,7 @@ class SD3LoraLoaderMixin(LoraBaseMixin):
             lora_adapter_metadata=lora_adapter_metadata,
         )
 
-    # Copied from mindone.diffusers.loaders.lora_pipeline.StableDiffusionXLLoraLoaderMixin.fuse_lora with unet->transformer
+    # Copied from diffusers.loaders.lora_pipeline.StableDiffusionXLLoraLoaderMixin.fuse_lora with unet->transformer
     def fuse_lora(
         self,
         components: List[str] = ["transformer", "text_encoder", "text_encoder_2"],
@@ -1386,7 +1389,7 @@ class SD3LoraLoaderMixin(LoraBaseMixin):
             **kwargs,
         )
 
-    # Copied from mindone.diffusers.loaders.lora_pipeline.StableDiffusionXLLoraLoaderMixin.unfuse_lora with unet->transformer
+    # Copied from diffusers.loaders.lora_pipeline.StableDiffusionXLLoraLoaderMixin.unfuse_lora with unet->transformer
     def unfuse_lora(self, components: List[str] = ["transformer", "text_encoder", "text_encoder_2"], **kwargs):
         r"""
         Reverses the effect of
@@ -2106,7 +2109,7 @@ class FluxLoraLoaderMixin(LoraBaseMixin):
         return overwritten_layers_state_dict
 
     @classmethod
-    # Copied from mindone.diffusers.loaders.lora_pipeline.StableDiffusionLoraLoaderMixin.load_lora_into_text_encoder
+    # Copied from diffusers.loaders.lora_pipeline.StableDiffusionLoraLoaderMixin.load_lora_into_text_encoder
     def load_lora_into_text_encoder(
         cls,
         state_dict,
@@ -2160,7 +2163,7 @@ class FluxLoraLoaderMixin(LoraBaseMixin):
         )
 
     @classmethod
-    # Copied from mindone.diffusers.loaders.lora_pipeline.StableDiffusionLoraLoaderMixin.save_lora_weights with unet->transformer
+    # Copied from diffusers.loaders.lora_pipeline.StableDiffusionLoraLoaderMixin.save_lora_weights with unet->transformer
     def save_lora_weights(
         cls,
         save_directory: Union[str, os.PathLike],
@@ -2577,7 +2580,7 @@ class AmusedLoraLoaderMixin(StableDiffusionLoraLoaderMixin):
     text_encoder_name = TEXT_ENCODER_NAME
 
     @classmethod
-    # Copied from mindone.diffusers.loaders.lora_pipeline.FluxLoraLoaderMixin.load_lora_into_transformer with FluxTransformer2DModel->UVit2DModel
+    # Copied from diffusers.loaders.lora_pipeline.FluxLoraLoaderMixin.load_lora_into_transformer with FluxTransformer2DModel->UVit2DModel
     def load_lora_into_transformer(
         cls,
         state_dict,
@@ -2623,7 +2626,7 @@ class AmusedLoraLoaderMixin(StableDiffusionLoraLoaderMixin):
         )
 
     @classmethod
-    # Copied from mindone.diffusers.loaders.lora_pipeline.StableDiffusionLoraLoaderMixin.load_lora_into_text_encoder
+    # Copied from diffusers.loaders.lora_pipeline.StableDiffusionLoraLoaderMixin.load_lora_into_text_encoder
     def load_lora_into_text_encoder(
         cls,
         state_dict,
@@ -2741,7 +2744,7 @@ class CogVideoXLoraLoaderMixin(LoraBaseMixin):
 
     @classmethod
     @validate_hf_hub_args
-    # Copied from mindone.diffusers.loaders.lora_pipeline.SD3LoraLoaderMixin.lora_state_dict
+    # Copied from diffusers.loaders.lora_pipeline.SD3LoraLoaderMixin.lora_state_dict
     def lora_state_dict(
         cls,
         pretrained_model_name_or_path_or_dict: Union[str, Dict[str, ms.Tensor]],
@@ -2884,7 +2887,7 @@ class CogVideoXLoraLoaderMixin(LoraBaseMixin):
         )
 
     @classmethod
-    # Copied from mindone.diffusers.loaders.lora_pipeline.SD3LoraLoaderMixin.load_lora_into_transformer with SD3Transformer2DModel->CogVideoXTransformer3DModel
+    # Copied from diffusers.loaders.lora_pipeline.SD3LoraLoaderMixin.load_lora_into_transformer with SD3Transformer2DModel->CogVideoXTransformer3DModel
     def load_lora_into_transformer(
         cls,
         state_dict,
@@ -3056,7 +3059,7 @@ class Mochi1LoraLoaderMixin(LoraBaseMixin):
 
     @classmethod
     @validate_hf_hub_args
-    # Copied from mindone.diffusers.loaders.lora_pipeline.SD3LoraLoaderMixin.lora_state_dict
+    # Copied from diffusers.loaders.lora_pipeline.SD3LoraLoaderMixin.lora_state_dict
     def lora_state_dict(
         cls,
         pretrained_model_name_or_path_or_dict: Union[str, Dict[str, ms.Tensor]],
@@ -3152,7 +3155,7 @@ class Mochi1LoraLoaderMixin(LoraBaseMixin):
         out = (state_dict, metadata) if return_lora_metadata else state_dict
         return out
 
-    # Copied from mindone.diffusers.loaders.lora_pipeline.CogVideoXLoraLoaderMixin.load_lora_weights
+    # Copied from diffusers.loaders.lora_pipeline.CogVideoXLoraLoaderMixin.load_lora_weights
     def load_lora_weights(
         self,
         pretrained_model_name_or_path_or_dict: Union[str, Dict[str, ms.Tensor]],
@@ -3200,7 +3203,7 @@ class Mochi1LoraLoaderMixin(LoraBaseMixin):
         )
 
     @classmethod
-    # Copied from mindone.diffusers.loaders.lora_pipeline.SD3LoraLoaderMixin.load_lora_into_transformer with SD3Transformer2DModel->MochiTransformer3DModel
+    # Copied from diffusers.loaders.lora_pipeline.SD3LoraLoaderMixin.load_lora_into_transformer with SD3Transformer2DModel->MochiTransformer3DModel
     def load_lora_into_transformer(
         cls,
         state_dict,
@@ -3241,7 +3244,7 @@ class Mochi1LoraLoaderMixin(LoraBaseMixin):
         )
 
     @classmethod
-    # Copied from mindone.diffusers.loaders.lora_pipeline.CogVideoXLoraLoaderMixin.save_lora_weights
+    # Copied from diffusers.loaders.lora_pipeline.CogVideoXLoraLoaderMixin.save_lora_weights
     def save_lora_weights(
         cls,
         save_directory: Union[str, os.PathLike],
@@ -3297,7 +3300,7 @@ class Mochi1LoraLoaderMixin(LoraBaseMixin):
             lora_adapter_metadata=lora_adapter_metadata,
         )
 
-    # Copied from mindone.diffusers.loaders.lora_pipeline.CogVideoXLoraLoaderMixin.fuse_lora
+    # Copied from diffusers.loaders.lora_pipeline.CogVideoXLoraLoaderMixin.fuse_lora
     def fuse_lora(
         self,
         components: List[str] = ["transformer"],
@@ -3345,7 +3348,7 @@ class Mochi1LoraLoaderMixin(LoraBaseMixin):
             **kwargs,
         )
 
-    # Copied from mindone.diffusers.loaders.lora_pipeline.CogVideoXLoraLoaderMixin.unfuse_lora
+    # Copied from diffusers.loaders.lora_pipeline.CogVideoXLoraLoaderMixin.unfuse_lora
     def unfuse_lora(self, components: List[str] = ["transformer"], **kwargs):
         r"""
         Reverses the effect of
@@ -3374,6 +3377,7 @@ class LTXVideoLoraLoaderMixin(LoraBaseMixin):
 
     @classmethod
     @validate_hf_hub_args
+    # Copied from diffusers.loaders.lora_pipeline.CogVideoXLoraLoaderMixin.lora_state_dict
     def lora_state_dict(
         cls,
         pretrained_model_name_or_path_or_dict: Union[str, Dict[str, ms.Tensor]],
@@ -3472,7 +3476,7 @@ class LTXVideoLoraLoaderMixin(LoraBaseMixin):
         out = (state_dict, metadata) if return_lora_metadata else state_dict
         return out
 
-    # Copied from mindone.diffusers.loaders.lora_pipeline.CogVideoXLoraLoaderMixin.load_lora_weights
+    # Copied from diffusers.loaders.lora_pipeline.CogVideoXLoraLoaderMixin.load_lora_weights
     def load_lora_weights(
         self,
         pretrained_model_name_or_path_or_dict: Union[str, Dict[str, ms.Tensor]],
@@ -3520,7 +3524,7 @@ class LTXVideoLoraLoaderMixin(LoraBaseMixin):
         )
 
     @classmethod
-    # Copied from mindone.diffusers.loaders.lora_pipeline.SD3LoraLoaderMixin.load_lora_into_transformer with SD3Transformer2DModel->LTXVideoTransformer3DModel
+    # Copied from diffusers.loaders.lora_pipeline.SD3LoraLoaderMixin.load_lora_into_transformer with SD3Transformer2DModel->LTXVideoTransformer3DModel
     def load_lora_into_transformer(
         cls,
         state_dict,
@@ -3561,7 +3565,7 @@ class LTXVideoLoraLoaderMixin(LoraBaseMixin):
         )
 
     @classmethod
-    # Copied from mindone.diffusers.loaders.lora_pipeline.CogVideoXLoraLoaderMixin.save_lora_weights
+    # Copied from diffusers.loaders.lora_pipeline.CogVideoXLoraLoaderMixin.save_lora_weights
     def save_lora_weights(
         cls,
         save_directory: Union[str, os.PathLike],
@@ -3617,7 +3621,7 @@ class LTXVideoLoraLoaderMixin(LoraBaseMixin):
             lora_adapter_metadata=lora_adapter_metadata,
         )
 
-    # Copied from mindone.diffusers.loaders.lora_pipeline.CogVideoXLoraLoaderMixin.fuse_lora
+    # Copied from diffusers.loaders.lora_pipeline.CogVideoXLoraLoaderMixin.fuse_lora
     def fuse_lora(
         self,
         components: List[str] = ["transformer"],
@@ -3665,7 +3669,7 @@ class LTXVideoLoraLoaderMixin(LoraBaseMixin):
             **kwargs,
         )
 
-    # Copied from mindone.diffusers.loaders.lora_pipeline.CogVideoXLoraLoaderMixin.unfuse_lora
+    # Copied from diffusers.loaders.lora_pipeline.CogVideoXLoraLoaderMixin.unfuse_lora
     def unfuse_lora(self, components: List[str] = ["transformer"], **kwargs):
         r"""
         Reverses the effect of
@@ -3694,7 +3698,7 @@ class SanaLoraLoaderMixin(LoraBaseMixin):
 
     @classmethod
     @validate_hf_hub_args
-    # Copied from mindone.diffusers.loaders.lora_pipeline.SD3LoraLoaderMixin.lora_state_dict
+    # Copied from diffusers.loaders.lora_pipeline.SD3LoraLoaderMixin.lora_state_dict
     def lora_state_dict(
         cls,
         pretrained_model_name_or_path_or_dict: Union[str, Dict[str, ms.Tensor]],
@@ -3790,7 +3794,7 @@ class SanaLoraLoaderMixin(LoraBaseMixin):
         out = (state_dict, metadata) if return_lora_metadata else state_dict
         return out
 
-    # Copied from mindone.diffusers.loaders.lora_pipeline.CogVideoXLoraLoaderMixin.load_lora_weights
+    # Copied from diffusers.loaders.lora_pipeline.CogVideoXLoraLoaderMixin.load_lora_weights
     def load_lora_weights(
         self,
         pretrained_model_name_or_path_or_dict: Union[str, Dict[str, ms.Tensor]],
@@ -3838,7 +3842,7 @@ class SanaLoraLoaderMixin(LoraBaseMixin):
         )
 
     @classmethod
-    # Copied from mindone.diffusers.loaders.lora_pipeline.SD3LoraLoaderMixin.load_lora_into_transformer with SD3Transformer2DModel->SanaTransformer2DModel
+    # Copied from diffusers.loaders.lora_pipeline.SD3LoraLoaderMixin.load_lora_into_transformer with SD3Transformer2DModel->SanaTransformer2DModel
     def load_lora_into_transformer(
         cls,
         state_dict,
@@ -3879,7 +3883,7 @@ class SanaLoraLoaderMixin(LoraBaseMixin):
         )
 
     @classmethod
-    # Copied from mindone.diffusers.loaders.lora_pipeline.CogVideoXLoraLoaderMixin.save_lora_weights
+    # Copied from diffusers.loaders.lora_pipeline.CogVideoXLoraLoaderMixin.save_lora_weights
     def save_lora_weights(
         cls,
         save_directory: Union[str, os.PathLike],
@@ -3935,7 +3939,7 @@ class SanaLoraLoaderMixin(LoraBaseMixin):
             lora_adapter_metadata=lora_adapter_metadata,
         )
 
-    # Copied from mindone.diffusers.loaders.lora_pipeline.CogVideoXLoraLoaderMixin.fuse_lora
+    # Copied from diffusers.loaders.lora_pipeline.CogVideoXLoraLoaderMixin.fuse_lora
     def fuse_lora(
         self,
         components: List[str] = ["transformer"],
@@ -3983,7 +3987,7 @@ class SanaLoraLoaderMixin(LoraBaseMixin):
             **kwargs,
         )
 
-    # Copied from mindone.diffusers.loaders.lora_pipeline.CogVideoXLoraLoaderMixin.unfuse_lora
+    # Copied from diffusers.loaders.lora_pipeline.CogVideoXLoraLoaderMixin.unfuse_lora
     def unfuse_lora(self, components: List[str] = ["transformer"], **kwargs):
         r"""
         Reverses the effect of
@@ -4110,7 +4114,7 @@ class HunyuanVideoLoraLoaderMixin(LoraBaseMixin):
         out = (state_dict, metadata) if return_lora_metadata else state_dict
         return out
 
-    # Copied from mindone.diffusers.loaders.lora_pipeline.CogVideoXLoraLoaderMixin.load_lora_weights
+    # Copied from diffusers.loaders.lora_pipeline.CogVideoXLoraLoaderMixin.load_lora_weights
     def load_lora_weights(
         self,
         pretrained_model_name_or_path_or_dict: Union[str, Dict[str, ms.Tensor]],
@@ -4158,7 +4162,7 @@ class HunyuanVideoLoraLoaderMixin(LoraBaseMixin):
         )
 
     @classmethod
-    # Copied from mindone.diffusers.loaders.lora_pipeline.SD3LoraLoaderMixin.load_lora_into_transformer with SD3Transformer2DModel->HunyuanVideoTransformer3DModel # noqa
+    # Copied from diffusers.loaders.lora_pipeline.SD3LoraLoaderMixin.load_lora_into_transformer with SD3Transformer2DModel->HunyuanVideoTransformer3DModel # noqa
     def load_lora_into_transformer(
         cls,
         state_dict,
@@ -4199,7 +4203,7 @@ class HunyuanVideoLoraLoaderMixin(LoraBaseMixin):
         )
 
     @classmethod
-    # Copied from mindone.diffusers.loaders.lora_pipeline.CogVideoXLoraLoaderMixin.save_lora_weights
+    # Copied from diffusers.loaders.lora_pipeline.CogVideoXLoraLoaderMixin.save_lora_weights
     def save_lora_weights(
         cls,
         save_directory: Union[str, os.PathLike],
@@ -4255,7 +4259,7 @@ class HunyuanVideoLoraLoaderMixin(LoraBaseMixin):
             lora_adapter_metadata=lora_adapter_metadata,
         )
 
-    # Copied from mindone.diffusers.loaders.lora_pipeline.CogVideoXLoraLoaderMixin.fuse_lora
+    # Copied from diffusers.loaders.lora_pipeline.CogVideoXLoraLoaderMixin.fuse_lora
     def fuse_lora(
         self,
         components: List[str] = ["transformer"],
@@ -4303,7 +4307,7 @@ class HunyuanVideoLoraLoaderMixin(LoraBaseMixin):
             **kwargs,
         )
 
-    # Copied from mindone.diffusers.loaders.lora_pipeline.CogVideoXLoraLoaderMixin.unfuse_lora
+    # Copied from diffusers.loaders.lora_pipeline.CogVideoXLoraLoaderMixin.unfuse_lora
     def unfuse_lora(self, components: List[str] = ["transformer"], **kwargs):
         r"""
         Reverses the effect of
@@ -4431,7 +4435,7 @@ class Lumina2LoraLoaderMixin(LoraBaseMixin):
         out = (state_dict, metadata) if return_lora_metadata else state_dict
         return out
 
-    # Copied from mindone.diffusers.loaders.lora_pipeline.CogVideoXLoraLoaderMixin.load_lora_weights
+    # Copied from diffusers.loaders.lora_pipeline.CogVideoXLoraLoaderMixin.load_lora_weights
     def load_lora_weights(
         self,
         pretrained_model_name_or_path_or_dict: Union[str, Dict[str, ms.Tensor]],
@@ -4479,7 +4483,7 @@ class Lumina2LoraLoaderMixin(LoraBaseMixin):
         )
 
     @classmethod
-    # Copied from mindone.diffusers.loaders.lora_pipeline.SD3LoraLoaderMixin.load_lora_into_transformer with SD3Transformer2DModel->Lumina2Transformer2DModel
+    # Copied from diffusers.loaders.lora_pipeline.SD3LoraLoaderMixin.load_lora_into_transformer with SD3Transformer2DModel->Lumina2Transformer2DModel
     def load_lora_into_transformer(
         cls,
         state_dict,
@@ -4520,7 +4524,7 @@ class Lumina2LoraLoaderMixin(LoraBaseMixin):
         )
 
     @classmethod
-    # Copied from mindone.diffusers.loaders.lora_pipeline.CogVideoXLoraLoaderMixin.save_lora_weights
+    # Copied from diffusers.loaders.lora_pipeline.CogVideoXLoraLoaderMixin.save_lora_weights
     def save_lora_weights(
         cls,
         save_directory: Union[str, os.PathLike],
@@ -4576,7 +4580,7 @@ class Lumina2LoraLoaderMixin(LoraBaseMixin):
             lora_adapter_metadata=lora_adapter_metadata,
         )
 
-    # Copied from mindone.diffusers.loaders.lora_pipeline.SanaLoraLoaderMixin.fuse_lora
+    # Copied from diffusers.loaders.lora_pipeline.SanaLoraLoaderMixin.fuse_lora
     def fuse_lora(
         self,
         components: List[str] = ["transformer"],
@@ -4624,7 +4628,7 @@ class Lumina2LoraLoaderMixin(LoraBaseMixin):
             **kwargs,
         )
 
-    # Copied from mindone.diffusers.loaders.lora_pipeline.SanaLoraLoaderMixin.unfuse_lora
+    # Copied from diffusers.loaders.lora_pipeline.SanaLoraLoaderMixin.unfuse_lora
     def unfuse_lora(self, components: List[str] = ["transformer"], **kwargs):
         r"""
         Reverses the effect of
@@ -4847,7 +4851,7 @@ class WanLoraLoaderMixin(LoraBaseMixin):
         )
 
     @classmethod
-    # Copied from mindone.diffusers.loaders.lora_pipeline.SD3LoraLoaderMixin.load_lora_into_transformer with SD3Transformer2DModel->WanTransformer3DModel
+    # Copied from diffusers.loaders.lora_pipeline.SD3LoraLoaderMixin.load_lora_into_transformer with SD3Transformer2DModel->WanTransformer3DModel
     def load_lora_into_transformer(
         cls,
         state_dict,
@@ -4888,7 +4892,7 @@ class WanLoraLoaderMixin(LoraBaseMixin):
         )
 
     @classmethod
-    # Copied from mindone.diffusers.loaders.lora_pipeline.CogVideoXLoraLoaderMixin.save_lora_weights
+    # Copied from diffusers.loaders.lora_pipeline.CogVideoXLoraLoaderMixin.save_lora_weights
     def save_lora_weights(
         cls,
         save_directory: Union[str, os.PathLike],
@@ -4944,7 +4948,7 @@ class WanLoraLoaderMixin(LoraBaseMixin):
             lora_adapter_metadata=lora_adapter_metadata,
         )
 
-    # Copied from mindone.diffusers.loaders.lora_pipeline.CogVideoXLoraLoaderMixin.fuse_lora
+    # Copied from diffusers.loaders.lora_pipeline.CogVideoXLoraLoaderMixin.fuse_lora
     def fuse_lora(
         self,
         components: List[str] = ["transformer"],
@@ -4992,7 +4996,7 @@ class WanLoraLoaderMixin(LoraBaseMixin):
             **kwargs,
         )
 
-    # Copied from mindone.diffusers.loaders.lora_pipeline.CogVideoXLoraLoaderMixin.unfuse_lora
+    # Copied from diffusers.loaders.lora_pipeline.CogVideoXLoraLoaderMixin.unfuse_lora
     def unfuse_lora(self, components: List[str] = ["transformer"], **kwargs):
         r"""
         Reverses the effect of
@@ -5021,7 +5025,7 @@ class CogView4LoraLoaderMixin(LoraBaseMixin):
 
     @classmethod
     @validate_hf_hub_args
-    # Copied from mindone.diffusers.loaders.lora_pipeline.CogVideoXLoraLoaderMixin.lora_state_dict
+    # Copied from diffusers.loaders.lora_pipeline.CogVideoXLoraLoaderMixin.lora_state_dict
     def lora_state_dict(
         cls,
         pretrained_model_name_or_path_or_dict: Union[str, Dict[str, ms.Tensor]],
@@ -5117,7 +5121,7 @@ class CogView4LoraLoaderMixin(LoraBaseMixin):
         out = (state_dict, metadata) if return_lora_metadata else state_dict
         return out
 
-    # Copied from mindone.diffusers.loaders.lora_pipeline.CogVideoXLoraLoaderMixin.load_lora_weights
+    # Copied from diffusers.loaders.lora_pipeline.CogVideoXLoraLoaderMixin.load_lora_weights
     def load_lora_weights(
         self,
         pretrained_model_name_or_path_or_dict: Union[str, Dict[str, ms.Tensor]],
@@ -5165,7 +5169,7 @@ class CogView4LoraLoaderMixin(LoraBaseMixin):
         )
 
     @classmethod
-    # Copied from mindone.diffusers.loaders.lora_pipeline.SD3LoraLoaderMixin.load_lora_into_transformer with SD3Transformer2DModel->CogView4Transformer2DModel
+    # Copied from diffusers.loaders.lora_pipeline.SD3LoraLoaderMixin.load_lora_into_transformer with SD3Transformer2DModel->CogView4Transformer2DModel
     def load_lora_into_transformer(
         cls,
         state_dict,
@@ -5206,7 +5210,7 @@ class CogView4LoraLoaderMixin(LoraBaseMixin):
         )
 
     @classmethod
-    # Copied from mindone.diffusers.loaders.lora_pipeline.CogVideoXLoraLoaderMixin.save_lora_weights
+    # Copied from diffusers.loaders.lora_pipeline.CogVideoXLoraLoaderMixin.save_lora_weights
     def save_lora_weights(
         cls,
         save_directory: Union[str, os.PathLike],
@@ -5262,7 +5266,7 @@ class CogView4LoraLoaderMixin(LoraBaseMixin):
             lora_adapter_metadata=lora_adapter_metadata,
         )
 
-    # Copied from mindone.diffusers.loaders.lora_pipeline.CogVideoXLoraLoaderMixin.fuse_lora
+    # Copied from diffusers.loaders.lora_pipeline.CogVideoXLoraLoaderMixin.fuse_lora
     def fuse_lora(
         self,
         components: List[str] = ["transformer"],
@@ -5310,7 +5314,7 @@ class CogView4LoraLoaderMixin(LoraBaseMixin):
             **kwargs,
         )
 
-    # Copied from mindone.diffusers.loaders.lora_pipeline.CogVideoXLoraLoaderMixin.unfuse_lora
+    # Copied from diffusers.loaders.lora_pipeline.CogVideoXLoraLoaderMixin.unfuse_lora
     def unfuse_lora(self, components: List[str] = ["transformer"], **kwargs):
         r"""
         Reverses the effect of

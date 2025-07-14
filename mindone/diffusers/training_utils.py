@@ -1,3 +1,5 @@
+"""Adapted from https://github.com/huggingface/diffusers/tree/main/src/diffusers/training_utils.py."""
+
 import contextlib
 import copy
 import logging

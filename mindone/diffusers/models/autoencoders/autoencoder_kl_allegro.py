@@ -1,6 +1,9 @@
 # Copyright 2025 The RhymesAI and The HuggingFace Team.
 # All rights reserved.
 #
+# This code is adapted from https://github.com/huggingface/diffusers
+# with modifications to run diffusers on mindspore.
+#
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -27,7 +30,6 @@ from ..autoencoders.vae import DecoderOutput, DiagonalGaussianDistribution
 from ..downsampling import Downsample2D
 from ..modeling_outputs import AutoencoderKLOutput
 from ..modeling_utils import ModelMixin
-from ..normalization import GroupNorm
 from ..resnet import ResnetBlock2D
 from ..upsampling import Upsample2D
 
@@ -59,36 +61,36 @@ class AllegroTemporalConvLayer(nn.Cell):
 
         if down_sample:
             self.conv1 = nn.SequentialCell(
-                GroupNorm(norm_num_groups, in_dim),
+                mint.nn.GroupNorm(norm_num_groups, in_dim),
                 mint.nn.SiLU(),
                 mint.nn.Conv3d(in_dim, out_dim, (2, stride, stride), stride=(2, 1, 1), padding=(0, pad_h, pad_w)),
             )
         elif up_sample:
             self.conv1 = nn.SequentialCell(
-                GroupNorm(norm_num_groups, in_dim),
+                mint.nn.GroupNorm(norm_num_groups, in_dim),
                 mint.nn.SiLU(),
                 mint.nn.Conv3d(in_dim, out_dim * 2, (1, stride, stride), padding=(0, pad_h, pad_w)),
             )
         else:
             self.conv1 = nn.SequentialCell(
-                GroupNorm(norm_num_groups, in_dim),
+                mint.nn.GroupNorm(norm_num_groups, in_dim),
                 mint.nn.SiLU(),
                 mint.nn.Conv3d(in_dim, out_dim, (3, stride, stride), padding=(pad_t, pad_h, pad_w)),
             )
         self.conv2 = nn.SequentialCell(
-            GroupNorm(norm_num_groups, out_dim),
+            mint.nn.GroupNorm(norm_num_groups, out_dim),
             mint.nn.SiLU(),
             mint.nn.Dropout(p=dropout),
             mint.nn.Conv3d(out_dim, in_dim, (3, stride, stride), padding=(pad_t, pad_h, pad_w)),
         )
         self.conv3 = nn.SequentialCell(
-            GroupNorm(norm_num_groups, out_dim),
+            mint.nn.GroupNorm(norm_num_groups, out_dim),
             mint.nn.SiLU(),
             mint.nn.Dropout(p=dropout),
             mint.nn.Conv3d(out_dim, in_dim, (3, stride, stride), padding=(pad_t, pad_h, pad_h)),
         )
         self.conv4 = nn.SequentialCell(
-            GroupNorm(norm_num_groups, out_dim),
+            mint.nn.GroupNorm(norm_num_groups, out_dim),
             mint.nn.SiLU(),
             mint.nn.Conv3d(out_dim, in_dim, (3, stride, stride), padding=(pad_t, pad_h, pad_h)),
         )
@@ -501,7 +503,9 @@ class AllegroEncoder3D(nn.Cell):
         )
 
         # out
-        self.conv_norm_out = GroupNorm(num_channels=block_out_channels[-1], num_groups=norm_num_groups, eps=1e-6)
+        self.conv_norm_out = mint.nn.GroupNorm(
+            num_channels=block_out_channels[-1], num_groups=norm_num_groups, eps=1e-6
+        )
         self.conv_act = mint.nn.SiLU()
 
         conv_out_channels = 2 * out_channels if double_z else out_channels
@@ -629,7 +633,9 @@ class AllegroDecoder3D(nn.Cell):
         if norm_type == "spatial":
             self.conv_norm_out = SpatialNorm(block_out_channels[0], temb_channels)
         else:
-            self.conv_norm_out = GroupNorm(num_channels=block_out_channels[0], num_groups=norm_num_groups, eps=1e-6)
+            self.conv_norm_out = mint.nn.GroupNorm(
+                num_channels=block_out_channels[0], num_groups=norm_num_groups, eps=1e-6
+            )
 
         self.conv_act = mint.nn.SiLU()
 

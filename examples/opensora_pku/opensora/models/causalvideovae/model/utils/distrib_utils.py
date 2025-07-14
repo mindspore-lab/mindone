@@ -1,3 +1,6 @@
+# Adapted from
+# https://github.com/PKU-YuanGroup/Open-Sora-Plan/blob/main/opensora/models/causalvideovae/model/utils/distrib_utils.py
+
 import mindspore as ms
 from mindspore import Tensor, mint
 
