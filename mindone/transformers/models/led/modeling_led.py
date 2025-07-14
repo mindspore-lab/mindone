@@ -86,7 +86,7 @@ def _prepare_4d_attention_mask_inverted(mask: mindspore.Tensor, dtype: mindspore
     bsz, src_len = mask.shape
     tgt_len = tgt_len if tgt_len is not None else src_len
 
-    expanded_mask = mask[:, None, None, :].expand(bsz, 1, tgt_len, src_len).to(dtype)
+    expanded_mask = mask[:, None, None, :].broadcast_to((bsz, 1, tgt_len, src_len)).to(dtype)
 
     inverted_mask = 1.0 - expanded_mask
     expanded_attention_mask = inverted_mask.masked_fill(inverted_mask.bool(), _DTYPE_2_MIN[dtype])
@@ -428,12 +428,12 @@ class LEDEncoderSelfAttention(mindspore.nn.Cell):
         beginning_mask = beginning_mask_2d[None, :, None, :]
         ending_mask = beginning_mask.flip(dims=(1, 3))
         beginning_input = input_tensor[:, :affected_seq_len, :, : affected_seq_len + 1]
-        beginning_mask = beginning_mask.expand(beginning_input.shape)
+        beginning_mask = beginning_mask.broadcast_to(beginning_input.shape)
         input_tensor[:, :affected_seq_len, :, : affected_seq_len + 1] = mindspore.mint.full_like(
             beginning_input, -float("inf")
         ).where(beginning_mask.bool(), beginning_input)
         ending_input = input_tensor[:, -affected_seq_len:, :, -(affected_seq_len + 1) :]
-        ending_mask = ending_mask.expand(ending_input.shape)
+        ending_mask = ending_mask.broadcast_to(ending_input.shape)
         input_tensor[:, -affected_seq_len:, :, -(affected_seq_len + 1) :] = mindspore.mint.full_like(
             ending_input, -float("inf")
         ).where(ending_mask.bool(), ending_input)
@@ -1734,7 +1734,7 @@ class LEDEncoder(LEDPreTrainedModel):
             if input_ids is not None:
                 input_ids = mindspore.mint.nn.functional.pad(input_ids, (0, padding_len), value=pad_token_id)
             if inputs_embeds is not None:
-                input_ids_padding = inputs_embeds.new_full(
+                input_ids_padding = mindspore.mint.full(
                     (batch_size, padding_len),
                     self.config.pad_token_id,
                     dtype=mindspore.int64,
