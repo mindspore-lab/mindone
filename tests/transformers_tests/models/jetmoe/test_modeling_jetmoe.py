@@ -107,25 +107,15 @@ class JetMoeModelTester:
         if self.use_input_mask:
             input_mask = np.tril(np.ones_like(input_ids))
 
-        token_type_ids = None
-        if self.use_token_type_ids:
-            token_type_ids = ids_numpy([self.batch_size, self.seq_length], self.type_vocab_size)
-
-        sequence_labels = None
-        token_labels = None
-        choice_labels = None
-        if self.use_labels:
-            sequence_labels = ids_numpy([self.batch_size], self.type_sequence_label_size)
-            token_labels = ids_numpy([self.batch_size, self.seq_length], self.num_labels)
-            choice_labels = ids_numpy([self.batch_size], self.num_choices)
-
         config = self.get_config()
-
-        # Set attention implementation
+        # set _attn_implementation
         config._attn_implementation = "eager"
 
-        return config, input_ids, token_type_ids, input_mask, sequence_labels, token_labels, choice_labels
-
+        return (
+            config,
+            input_ids,
+            input_mask,
+        )
     def get_config(self):
         return self.config_class(
             vocab_size=self.vocab_size,
@@ -155,12 +145,9 @@ model_tester = JetMoeModelTester()
 (
     config,
     input_ids,
-    token_type_ids,
     input_mask,
-    sequence_labels,
-    token_labels,
-    choice_labels,
 ) = model_tester.prepare_config_and_inputs()
+
 
 
 JETMOE_CASES = [
