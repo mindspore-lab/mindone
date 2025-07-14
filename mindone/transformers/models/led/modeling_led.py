@@ -1529,7 +1529,7 @@ LED_GENERATION_EXAMPLE = r"""
     ...     architectures to address such interactions. On the other hand, our proposed Longformer is able to build
     ...     contextual representations of the entire context using multiple layers of attention, reducing the need for
     ...     task-specific architectures.'''
-    >>> inputs = tokenizer.encode(ARTICLE_TO_SUMMARIZE, return_tensors="pt")
+    >>> inputs = mindspore.Tensor(tokenizer.encode(ARTICLE_TO_SUMMARIZE, return_tensors="np"))
 
     >>> # Global attention on the first token (cf. Beltagy et al. 2020)
     >>> global_attention_mask = mindspore.mint.zeros_like(inputs)

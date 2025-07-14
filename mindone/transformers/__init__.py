@@ -217,6 +217,13 @@ from .models.imagegpt import (
     ImageGPTModel,
     ImageGPTPreTrainedModel,
 )
+from .models.led import (
+    LEDForConditionalGeneration,
+    LEDForQuestionAnswering,
+    LEDForSequenceClassification,
+    LEDModel,
+    LEDPreTrainedModel,
+)
 from .models.levit import (
     LevitFeatureExtractor,
     LevitForImageClassification,
