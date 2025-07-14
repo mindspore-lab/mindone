@@ -55,13 +55,19 @@ from .base import (
     get_default_model_and_revision,
     infer_framework_load_model,
 )
+from .question_answering import QuestionAnsweringArgumentHandler, QuestionAnsweringPipeline
 from .text2text_generation import Text2TextGenerationPipeline
 from .text_generation import TextGenerationPipeline
 
 if is_mindspore_available():
     import mindspore as ms
 
-    from ..models.auto.modeling_auto import AutoModelForCausalLM, AutoModelForSeq2SeqLM, AutoModelForTokenClassification
+    from ..models.auto.modeling_auto import (
+        AutoModelForCausalLM,
+        AutoModelForQuestionAnswering,
+        AutoModelForSeq2SeqLM,
+        AutoModelForTokenClassification,
+    )
 
 
 if TYPE_CHECKING:
@@ -90,7 +96,17 @@ SUPPORTED_TASKS = {
     "text2text-generation": {
         "impl": Text2TextGenerationPipeline,
         "ms": (AutoModelForSeq2SeqLM,) if is_mindspore_available() else (),
-        "default": {"model": {"ms": ("google-t5/t5-base", "a9723ea")}},
+        "default": {"model": {"pt": ("google-t5/t5-base", "a9723ea"), "tf": ("google-t5/t5-base", "a9723ea")}},
+        "type": "text",
+    },
+    "question-answering": {
+        "impl": QuestionAnsweringPipeline,
+        "ms": (AutoModelForQuestionAnswering,) if is_mindspore_available() else (),
+        "default": {
+            "model": {
+                "ms": ("distilbert/distilbert-base-cased-distilled-squad", "564e9b5"),
+            },
+        },
         "type": "text",
     },
 }
