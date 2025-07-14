@@ -474,7 +474,7 @@ class LEDEncoderSelfAttention(mindspore.nn.Cell):
 
     @staticmethod
     def _mask_invalid_locations(input_tensor, affected_seq_len) -> mindspore.Tensor:
-        beginning_mask_2d = input_tensor.new_ones(affected_seq_len, affected_seq_len + 1).tril().flip(dims=[0])
+        beginning_mask_2d = input_tensor.new_ones((affected_seq_len, affected_seq_len + 1)).tril().flip(dims=[0])
         beginning_mask = beginning_mask_2d[None, :, None, :]
         ending_mask = beginning_mask.flip(dims=(1, 3))
         beginning_input = input_tensor[:, :affected_seq_len, :, : affected_seq_len + 1]
@@ -500,7 +500,7 @@ class LEDEncoderSelfAttention(mindspore.nn.Cell):
         ), f"Sequence length should be multiple of {window_overlap * 2}. Given {seq_len}"
         assert query.shape == key.shape
 
-        chunks_count = mindspore.mint.div(seq_len, window_overlap, rounding_mode="trunc") - 1
+        chunks_count = mindspore.mint.div(seq_len, window_overlap, rounding_mode="trunc").item() - 1
 
         # group batch_size and num_heads dimensions into one, then chunk seq_len into chunks of size window_overlap * 2
         query = query.transpose(1, 2).reshape(batch_size * num_heads, seq_len, head_dim)
@@ -566,12 +566,12 @@ class LEDEncoderSelfAttention(mindspore.nn.Cell):
         assert seq_len % (window_overlap * 2) == 0
         assert attn_probs.shape[:3] == value.shape[:3]
         assert attn_probs.shape[3] == 2 * window_overlap + 1
-        chunks_count = mindspore.mint.div(seq_len, window_overlap, rounding_mode="trunc") - 1
+        chunks_count = mindspore.mint.div(seq_len, window_overlap, rounding_mode="trunc").item() - 1
         # group batch_size and num_heads dimensions into one, then chunk seq_len into chunks of size 2 window overlap
 
         chunked_attn_probs = attn_probs.transpose(1, 2).reshape(
             batch_size * num_heads,
-            mindspore.mint.div(seq_len, window_overlap, rounding_mode="trunc"),
+            mindspore.mint.div(seq_len, window_overlap, rounding_mode="trunc").item(),
             window_overlap,
             2 * window_overlap + 1,
         )
