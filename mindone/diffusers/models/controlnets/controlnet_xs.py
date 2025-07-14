@@ -27,9 +27,11 @@ from ...utils.mindspore_utils import get_state_dict
 from ..attention_processor import (
     ADDED_KV_ATTENTION_PROCESSORS,
     CROSS_ATTENTION_PROCESSORS,
+    Attention,
     AttentionProcessor,
     AttnAddedKVProcessor,
     AttnProcessor,
+    FusedAttnProcessor2_0,
 )
 from ..embeddings import TimestepEmbedding, Timesteps
 from ..modeling_utils import ModelMixin
@@ -1010,7 +1012,7 @@ class UNetControlNetXSModel(ModelMixin, ConfigMixin):
 
         self.original_attn_processors = self.attn_processors
 
-        for module in self.cells():
+        for _, module in self.cells_and_names():
             if isinstance(module, Attention):
                 module.fuse_projections(fuse=True)
 

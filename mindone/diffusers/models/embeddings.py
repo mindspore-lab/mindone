@@ -1392,7 +1392,10 @@ class SinusoidalPositionalEmbedding(nn.Cell):
 
     def construct(self, x):
         _, seq_length, _ = x.shape
-        x = x + self.pe[:, :seq_length]
+        # In PyTorch, register_buffer allows automatic dtype alignment when using `.to()`.
+        # However, in MindSpore, the `.to()` method only applies to parameters.
+        # Therefore, we need to manually align the dtype of buffers here.
+        x = x + self.pe[:, :seq_length].to(x.dtype)
         return x
 
 

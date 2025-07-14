@@ -33,8 +33,7 @@ from mindone.safetensors.mindspore import load_file, save_file
 from mindone.transformers import MSPreTrainedModel
 
 from .._peft.tuners.tuners_utils import BaseTunerLayer
-from ..models.lora import text_encoder_attn_modules, text_encoder_mlp_modules
-from ..models.modeling_utils import ModelMixin
+from ..models.modeling_utils import ModelMixin, load_state_dict
 from ..utils import (
     _get_model_file,
     convert_state_dict_to_diffusers,
@@ -42,7 +41,6 @@ from ..utils import (
     delete_adapter_layers,
     deprecate,
     get_adapter_name,
-    is_peft_version,
     logging,
     recurse_remove_peft_layers,
     scale_lora_layers,
@@ -76,7 +74,7 @@ def fuse_text_encoder_lora(text_encoder, lora_scale=1.0, safe_fusing=False, adap
     """
     merge_kwargs = {"safe_merge": safe_fusing}
 
-    for module in text_encoder.cells():
+    for _, module in text_encoder.cells_and_names():
         if isinstance(module, BaseTunerLayer):
             if lora_scale != 1.0:
                 module.scale_layer(lora_scale)
@@ -104,7 +102,7 @@ def unfuse_text_encoder_lora(text_encoder):
             The text encoder module to set the adapter layers for. If `None`, it will try to get the `text_encoder`
             attribute.
     """
-    for module in text_encoder.cells():
+    for _, module in text_encoder.cells_and_names():
         if isinstance(module, BaseTunerLayer):
             module.unmerge()
 
@@ -303,7 +301,7 @@ def _best_guess_weight_name(
 
     if len(targeted_files) > 1:
         logger.warning(
-            f"Provided path contains more than one weights file in the {file_extension} format. `{targeted_files[0]}` is going to be loaded, for precise control, specify a `weight_name` in `load_lora_weights`."
+            f"Provided path contains more than one weights file in the {file_extension} format. `{targeted_files[0]}` is going to be loaded, for precise control, specify a `weight_name` in `load_lora_weights`."  # noqa
         )
     weight_name = targeted_files[0]
     return weight_name
@@ -352,7 +350,7 @@ def _load_lora_into_text_encoder(
         # convert state dict
         state_dict = convert_state_dict_to_peft(state_dict)
 
-        for name, _ in text_encoder.named_modules():
+        for name, _ in text_encoder.cells_and_names():
             if name.endswith((".q_proj", ".k_proj", ".v_proj", ".out_proj", ".fc1", ".fc2")):
                 rank_key = f"{name}.lora_B.weight"
                 if rank_key in state_dict:
@@ -523,7 +521,7 @@ class LoraBaseMixin:
                 # check if diffusers model
                 if issubclass(model.__class__, ModelMixin):
                     model.fuse_lora(lora_scale, safe_fusing=safe_fusing, adapter_names=adapter_names)
-                    for module in model.cells():
+                    for _, module in model.cells_and_names():
                         if isinstance(module, BaseTunerLayer):
                             merged_adapter_names.update(set(module.merged_adapters))
                 # handle transformers models.
@@ -531,7 +529,7 @@ class LoraBaseMixin:
                     fuse_text_encoder_lora(
                         model, lora_scale=lora_scale, safe_fusing=safe_fusing, adapter_names=adapter_names
                     )
-                    for module in model.cells():
+                    for _, module in model.cells_and_names():
                         if isinstance(module, BaseTunerLayer):
                             merged_adapter_names.update(set(module.merged_adapters))
 
@@ -587,7 +585,7 @@ class LoraBaseMixin:
             model = getattr(self, fuse_component, None)
             if model is not None:
                 if issubclass(model.__class__, (ModelMixin, MSPreTrainedModel)):
-                    for module in model.cells():
+                    for _, module in model.cells_and_names():
                         if isinstance(module, BaseTunerLayer):
                             for adapter in set(module.merged_adapters):
                                 if adapter and adapter in self._merged_adapters:
@@ -801,7 +799,7 @@ class LoraBaseMixin:
         for component in self._lora_loadable_modules:
             model = getattr(self, component, None)
             if model is not None and issubclass(model.__class__, ModelMixin):
-                for module in model.cells():
+                for _, module in model.cells_and_names():
                     if isinstance(module, BaseTunerLayer):
                         active_adapters = module.active_adapters
                         break
@@ -901,12 +899,12 @@ class LoraBaseMixin:
 
     @classmethod
     def _fetch_state_dict(cls, *args, **kwargs):
-        deprecation_message = f"Using the `_fetch_state_dict()` method from {cls} has been deprecated and will be removed in a future version. Please use `from diffusers.loaders.lora_base import _fetch_state_dict`."
+        deprecation_message = f"Using the `_fetch_state_dict()` method from {cls} has been deprecated and will be removed in a future version. Please use `from diffusers.loaders.lora_base import _fetch_state_dict`."  # noqa
         deprecate("_fetch_state_dict", "0.35.0", deprecation_message)
         return _fetch_state_dict(*args, **kwargs)
 
     @classmethod
     def _best_guess_weight_name(cls, *args, **kwargs):
-        deprecation_message = f"Using the `_best_guess_weight_name()` method from {cls} has been deprecated and will be removed in a future version. Please use `from diffusers.loaders.lora_base import _best_guess_weight_name`."
+        deprecation_message = f"Using the `_best_guess_weight_name()` method from {cls} has been deprecated and will be removed in a future version. Please use `from diffusers.loaders.lora_base import _best_guess_weight_name`."  # noqa
         deprecate("_best_guess_weight_name", "0.35.0", deprecation_message)
         return _best_guess_weight_name(*args, **kwargs)

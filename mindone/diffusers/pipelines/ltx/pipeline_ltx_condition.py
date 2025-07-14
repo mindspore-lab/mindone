@@ -827,6 +827,7 @@ class LTXConditionPipeline(DiffusionPipeline, FromSingleFileMixin, LTXVideoLoraL
         video: List[PipelineImageInput] = None,
         frame_index: Union[int, List[int]] = 0,
         strength: Union[float, List[float]] = 1.0,
+        denoise_strength: float = 1.0,
         prompt: Union[str, List[str]] = None,
         negative_prompt: Optional[Union[str, List[str]]] = None,
         height: int = 512,

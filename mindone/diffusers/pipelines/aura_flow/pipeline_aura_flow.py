@@ -424,6 +424,7 @@ class AuraFlowPipeline(DiffusionPipeline, AuraFlowLoraLoaderMixin):
         max_sequence_length: int = 256,
         output_type: Optional[str] = "pil",
         return_dict: bool = False,
+        attention_kwargs: Optional[Dict[str, Any]] = None,
         callback_on_step_end: Optional[
             Union[Callable[[int, int, Dict], None], PipelineCallback, MultiPipelineCallbacks]
         ] = None,
@@ -520,6 +521,7 @@ class AuraFlowPipeline(DiffusionPipeline, AuraFlowLoraLoaderMixin):
         )
 
         self._guidance_scale = guidance_scale
+        self._attention_kwargs = attention_kwargs
 
         # 2. Determine batch size.
         if prompt is not None and isinstance(prompt, str):

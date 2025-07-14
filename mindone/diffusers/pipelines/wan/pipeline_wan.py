@@ -500,6 +500,7 @@ class WanPipeline(DiffusionPipeline, WanLoraLoaderMixin):
             num_frames,
             ms.float32,
             generator,
+            latents,
         )
 
         # 6. Denoising loop

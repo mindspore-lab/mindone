@@ -361,7 +361,7 @@ class CogView4TrainingAttnProcessor:
             )
 
             # Create attention mask for packed batches
-            l = mixed_hidden_states_packed_padded.shape[1]
+            l = mixed_hidden_states_packed_padded.shape[1]  # noqa
             attn_mask_matrix = mint.zeros(
                 (packing_batch_size, l, l),
                 dtype=dtype,
