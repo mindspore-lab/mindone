@@ -1599,7 +1599,7 @@ class OwlViTForObjectDetection(OwlViTPreTrainedModel):
             selected_inds = (ious[0] >= iou_threshold).nonzero()
             if selected_inds.numel():
                 selected_embeddings = class_embeds[i][selected_inds.squeeze(1)]
-                mean_embeds = mint.mean(class_embeds[i], axis=0)
+                mean_embeds = mint.mean(class_embeds[i], dim=0)
                 mean_sim = mint.einsum("d,id->i", mean_embeds, selected_embeddings)
                 best_box_ind = selected_inds[mint.argmin(mean_sim)]
                 best_class_embeds.append(class_embeds[i][best_box_ind])
