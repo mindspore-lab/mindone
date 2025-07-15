@@ -3,6 +3,7 @@ import numpy as np
 
 from mindspore import ops
 
+
 # Adapted from https://github.com/xiaomi-automl/FALSR/blob/master/calculate.py
 def ssim(img1, img2):
     C1 = 0.01**2
