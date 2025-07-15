@@ -21,6 +21,7 @@ from dataclasses import dataclass
 from functools import lru_cache
 from typing import Any, Dict, Optional, Tuple, Union
 
+from mindspore.common.initializer import Normal, initializer
 import mindspore as ms
 from mindspore import Tensor, mint, nn
 
@@ -566,31 +567,70 @@ class OwlViTPreTrainedModel(PreTrainedModel):
             module.position_embedding.weight.data.normal_(mean=0.0, std=factor * 0.02)
         elif isinstance(module, OwlViTVisionEmbeddings):
             factor = self.config.initializer_factor
-            nn.init.normal_(module.class_embedding, mean=0.0, std=module.embed_dim**-0.5 * factor)
-            nn.init.normal_(module.patch_embedding.weight, std=module.config.initializer_range * factor)
-            nn.init.normal_(module.position_embedding.weight, std=module.config.initializer_range * factor)
+            module.class_embedding.set_data(
+                initializer(
+                    Normal(sigma=module.embed_dim ** -0.5 * factor, mean=0.0), module.class_embedding.shape, module.class_embedding.dtype
+                )
+            )
+            module.patch_embedding.weight.set_data(
+                initializer(
+                    Normal(sigma=module.config.initializer_range * factor), module.patch_embedding.weight.shape, module.patch_embedding.weight.dtype
+                )
+            )
+            module.position_embedding.weight.set_data(
+                initializer(
+                    Normal(sigma=module.config.initializer_range * factor), module.position_embedding.weight.shape, module.position_embedding.weight.dtype
+                )
+            )
         elif isinstance(module, OwlViTAttention):
             factor = self.config.initializer_factor
             in_proj_std = (module.embed_dim**-0.5) * ((2 * module.config.num_hidden_layers) ** -0.5) * factor
             out_proj_std = (module.embed_dim**-0.5) * factor
-            nn.init.normal_(module.q_proj.weight, std=in_proj_std)
-            nn.init.normal_(module.k_proj.weight, std=in_proj_std)
-            nn.init.normal_(module.v_proj.weight, std=in_proj_std)
-            nn.init.normal_(module.out_proj.weight, std=out_proj_std)
+            module.q_proj.weight.set_data(
+                initializer(
+                    Normal(sigma=in_proj_std), module.q_proj.weight.shape, module.q_proj.weight.dtype
+                )
+            )
+            module.k_proj.weight.set_data(
+                initializer(
+                    Normal(sigma=in_proj_std), module.k_proj.weight.shape, module.k_proj.weight.dtype
+                )
+            )
+            module.v_proj.weight.set_data(
+                initializer(
+                    Normal(sigma=in_proj_std), module.v_proj.weight.shape, module.v_proj.weight.dtype
+                )
+            )
+            module.out_proj.weight.set_data(
+                initializer(
+                    Normal(sigma=out_proj_std), module.out_proj.weight.shape, module.out_proj.weight.dtype
+                )
+            )
         elif isinstance(module, OwlViTMLP):
             factor = self.config.initializer_factor
             in_proj_std = (module.config.hidden_size**-0.5) * ((2 * module.config.num_hidden_layers) ** -0.5) * factor
             fc_std = (2 * module.config.hidden_size) ** -0.5 * factor
-            nn.init.normal_(module.fc1.weight, std=fc_std)
-            nn.init.normal_(module.fc2.weight, std=in_proj_std)
-        elif isinstance(module, OwlViTModel):
-            nn.init.normal_(
-                module.text_projection.weight,
-                std=module.text_embed_dim**-0.5 * self.config.initializer_factor,
+            module.fc1.weight.set_data(
+                initializer(
+                    Normal(sigma=fc_std), module.fc1.weight.shape, module.fc1.weight.dtype
+                )
             )
-            nn.init.normal_(
-                module.visual_projection.weight,
-                std=module.vision_embed_dim**-0.5 * self.config.initializer_factor,
+            module.fc2.weight.set_data(
+                initializer(
+                    Normal(sigma=in_proj_std), module.fc2.weight.shape, module.fc2.weight.dtype
+                )
+            )
+        elif isinstance(module, OwlViTModel):
+            module.text_projection.weight.set_data(
+                initializer(
+                    Normal(sigma=module.text_embed_dim**-0.5 * self.config.initializer_factor), module.text_projection.weight.shape,
+                    module.text_projection.weight.dtype
+                )
+            )
+            module.visual_projection.weight.set_data(
+                initializer(
+                    Normal(sigma=module.vision_embed_dim**-0.5 * self.config.initializer_factor), module.visual_projection.weight.shape, module.visual_projection.weight.dtype
+                )
             )
         if isinstance(module, mint.nn.LayerNorm):
             module.bias.data.zero_()
