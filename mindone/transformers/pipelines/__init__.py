@@ -56,12 +56,18 @@ from .base import (
     infer_framework_load_model,
 )
 from .text2text_generation import Text2TextGenerationPipeline
+from .text_classification import TextClassificationPipeline
 from .text_generation import TextGenerationPipeline
 
 if is_mindspore_available():
     import mindspore as ms
 
-    from ..models.auto.modeling_auto import AutoModelForCausalLM, AutoModelForSeq2SeqLM, AutoModelForTokenClassification
+    from ..models.auto.modeling_auto import (
+        AutoModelForCausalLM,
+        AutoModelForSeq2SeqLM,
+        AutoModelForSequenceClassification,
+        AutoModelForTokenClassification,
+    )
 
 
 if TYPE_CHECKING:
@@ -81,10 +87,20 @@ TASK_ALIASES = {
     "text-to-speech": "text-to-audio",
 }
 SUPPORTED_TASKS = {
+    "text-classification": {
+        "impl": TextClassificationPipeline,
+        "ms": (AutoModelForSequenceClassification,) if is_mindspore_available() else (),
+        "default": {
+            "model": {
+                "ms": ("distilbert/distilbert-base-uncased-finetuned-sst-2-english", "714eb0f"),
+            },
+        },
+        "type": "text",
+    },
     "text-generation": {
         "impl": TextGenerationPipeline,
         "ms": (AutoModelForCausalLM,) if is_mindspore_available() else (),
-        "default": {"model": {"ms": ("openai-community/gpt2", "607a30d"), "tf": ("openai-community/gpt2", "607a30d")}},
+        "default": {"model": {"ms": ("openai-community/gpt2", "607a30d")}},
         "type": "text",
     },
     "text2text-generation": {
