@@ -389,7 +389,7 @@ class ValidationDataset:
         alpha_list = []
 
         for idx in range(self.input_view_num):
-            image, alpha = self.load_im(os.path.join(input_image_path, f"{idx: 03d}.png"), bkg_color)
+            image, alpha = self.load_im(os.path.join(input_image_path, f"{idx:03d}.png"), bkg_color)
             image_list.append(image)
             alpha_list.append(alpha)
 
