@@ -755,7 +755,6 @@ class GlmForCausalLM(GlmPreTrainedModel, GenerationMixin):
         self.model = GlmModel(config)
         self.vocab_size = config.vocab_size
         self.lm_head = nn.Dense(config.hidden_size, config.vocab_size, has_bias=False)
-        self.loss_function = nn.CrossEntropyLoss()
         self.output_hidden_states = config.output_hidden_states
         self.use_return_dict = config.use_return_dict
 
@@ -796,7 +795,7 @@ class GlmForCausalLM(GlmPreTrainedModel, GenerationMixin):
         output_hidden_states: Optional[bool] = None,
         return_dict: Optional[bool] = False,
         cache_position: Optional[ms.Tensor] = None,
-        num_logits_to_keep: int = 0,
+        logits_to_keep: int = 0,
         **kwargs: Unpack[KwargsForCausalLM],
     ) -> Union[Tuple, CausalLMOutputWithPast]:
         r"""
@@ -851,19 +850,12 @@ class GlmForCausalLM(GlmPreTrainedModel, GenerationMixin):
 
         hidden_states = outputs[0]
         # Only compute necessary logits, and do not upcast them to float if we are not computing the loss
-        logits = self.lm_head(hidden_states[:, -num_logits_to_keep:, :])
+        slice_indices = slice(-logits_to_keep, None) if isinstance(logits_to_keep, int) else logits_to_keep
+        logits = self.lm_head(hidden_states[:, slice_indices, :])
 
         loss = None
         if labels is not None:
-            # Upcast to float if we need to compute the loss to avoid potential precision issues
-            logits = logits.float()
-            # Shift so that tokens < n predict n
-            shift_logits = logits[..., :-1, :]
-            shift_labels = labels[..., 1:]
-            # Flatten the tokens
-            shift_logits = shift_logits.view(-1, self.vocab_size)
-            shift_labels = shift_labels.view(-1)
-            loss = self.loss_function(shift_logits, shift_labels)
+            loss = self.loss_function(logits=logits, labels=labels, vocab_size=self.config.vocab_size, **kwargs)
 
         if not return_dict:
             output = (logits,) + outputs[1:]
@@ -901,10 +893,6 @@ class GlmForSequenceClassification(GlmPreTrainedModel):
         self.score = nn.Dense(config.hidden_size, self.num_labels, has_bias=False)
         self.problem_type = config.problem_type
         self.pad_token_id = config.pad_token_id
-
-        self.loss_fct_regression = nn.MSELoss()
-        self.loss_fct_single_label_classification = nn.CrossEntropyLoss()
-        self.loss_fct_multi_label_classification = nn.BCEWithLogitsLoss()
 
         self.use_return_dict = config.use_return_dict
 
@@ -974,26 +962,7 @@ class GlmForSequenceClassification(GlmPreTrainedModel):
 
         loss = None
         if labels is not None:
-            num_labels = self.num_labels
-            if self.problem_type is None:
-                if num_labels == 1:
-                    problem_type = "regression"
-                elif num_labels > 1 and (labels.dtype == ms.int64 or labels.dtype == ms.int32):
-                    problem_type = "single_label_classification"
-                else:
-                    problem_type = "multi_label_classification"
-            else:
-                problem_type = self.problem_type
-
-            if problem_type == "regression":
-                if num_labels == 1:
-                    loss = self.loss_fct_regression(pooled_logits.squeeze(), labels.squeeze())
-                else:
-                    loss = self.loss_fct_regression(pooled_logits, labels)
-            elif problem_type == "single_label_classification":
-                loss = self.loss_fct_single_label_classification(pooled_logits.view(-1, num_labels), labels.view(-1))
-            elif problem_type == "multi_label_classification":
-                loss = self.loss_fct_multi_label_classification(pooled_logits, labels)
+            loss = self.loss_function(logits=logits, labels=labels, pooled_logits=pooled_logits, config=self.config)
 
         if not return_dict:
             output = (pooled_logits,) + transformer_outputs[1:]
@@ -1028,7 +997,6 @@ class GlmForTokenClassification(GlmPreTrainedModel):
             classifier_dropout = 0.1
         self.dropout = nn.Dropout(classifier_dropout)
         self.score = nn.Dense(config.hidden_size, config.num_labels)
-        self.loss_function = nn.CrossEntropyLoss()
 
         self.use_return_dict = config.use_return_dict
 
@@ -1080,12 +1048,7 @@ class GlmForTokenClassification(GlmPreTrainedModel):
 
         loss = None
         if labels is not None:
-            # Upcast to float if we need to compute the loss to avoid potential precision issues
-            logits = logits.view(-1, self.num_labels)
-            labels = labels.view(-1)
-            logits = logits.float()
-            # Flatten the tokens
-            loss = self.loss_function(logits, labels)
+            loss = self.loss_function(logits, labels, self.config)
 
         if not return_dict:
             output = (logits,) + outputs[2:]
