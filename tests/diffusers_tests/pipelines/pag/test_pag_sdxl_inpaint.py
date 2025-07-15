@@ -1,3 +1,5 @@
+"""Adapted from https://github.com/huggingface/diffusers/tree/main/tests//pipelines/pag/test_pag_sdxl_inpaint.py."""
+
 import random
 import sys
 import unittest
