@@ -22,7 +22,7 @@ from functools import lru_cache
 from typing import Any, Dict, Optional, Tuple, Union
 
 import mindspore as ms
-from mindspore import Tensor, nn, mint
+from mindspore import Tensor, nn, mint, ops
 
 from ...activations import ACT2FN
 from ...mindspore_adapter import dtype_to_min
@@ -1425,7 +1425,7 @@ class Owlv2ForObjectDetection(Owlv2PreTrainedModel):
         Returns:
             Objectness scores.
         """
-        image_features = image_features.detach()
+        image_features = ops.stop_gradient(image_features)
         objectness_logits = self.objectness_head(image_features)
         objectness_logits = objectness_logits[..., 0]
         return objectness_logits
