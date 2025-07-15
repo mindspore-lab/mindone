@@ -33,7 +33,7 @@ from ...processing_utils import (
     Unpack,
     _validate_images_text_input_order,
 )
-from ...tokenization_utils_base import PreTokenizedInput, TextInput
+from transformers.tokenization_utils_base import PreTokenizedInput, TextInput
 from ...utils import TensorType, is_mindspore_available
 
 
