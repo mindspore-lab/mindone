@@ -2417,6 +2417,7 @@ class LEDForConditionalGeneration(LEDPreTrainedModel, GenerationMixin):
         output_attentions: Optional[bool] = None,
         output_hidden_states: Optional[bool] = None,
         return_dict: Optional[bool] = None,
+        **kwargs,
     ) -> Union[Tuple[mindspore.Tensor], LEDSeq2SeqLMOutput]:
         r"""
         labels (`mindspore.Tensor` of shape `(batch_size, sequence_length)`, *optional*):
@@ -2562,6 +2563,7 @@ class LEDForSequenceClassification(LEDPreTrainedModel):
         output_attentions: Optional[bool] = None,
         output_hidden_states: Optional[bool] = None,
         return_dict: Optional[bool] = None,
+        **kwargs,
     ) -> Union[Tuple[mindspore.Tensor], LEDSeq2SeqSequenceClassifierOutput]:
         r"""
         labels (`mindspore.Tensor` of shape `(batch_size,)`, *optional*):
@@ -2694,6 +2696,7 @@ class LEDForQuestionAnswering(LEDPreTrainedModel):
         output_attentions: Optional[bool] = None,
         output_hidden_states: Optional[bool] = None,
         return_dict: Optional[bool] = None,
+        **kwargs,
     ) -> Union[Tuple[mindspore.Tensor], LEDSeq2SeqQuestionAnsweringModelOutput]:
         r"""
         start_positions (`mindspore.Tensor` of shape `(batch_size,)`, *optional*):
