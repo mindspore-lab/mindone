@@ -244,7 +244,7 @@ class Owlv2ForObjectDetectionTester:
 
 
 owlv2_model = Owlv2ModelTester()
-model_config, inputs_dict = owlv2_model.prepare_config_and_inputs()
+model_config, _, _, _ = owlv2_model.prepare_config_and_inputs()
 detection_model = Owlv2ForObjectDetectionTester()
 detection_model_model_config, pixel_values, input_ids, attention_mask = detection_model.prepare_config_and_inputs()
 
@@ -256,7 +256,11 @@ BERT_CASES = [
         (model_config,),
         {},
         (),
-        {**inputs_dict},
+        {
+            "input_ids": input_ids,
+            "pixel_values": pixel_values,
+            "attention_mask": attention_mask,
+        },
         {
             "logits_per_image": 0,
             "logits_per_text": 1,
@@ -268,8 +272,12 @@ BERT_CASES = [
         "mindone.transformers.Owlv2ForObjectDetection",
         (detection_model_model_config,),
         {},
-        (pixel_values, input_ids, attention_mask),
-        {},
+        (),
+        {
+            "input_ids": input_ids,
+            "pixel_values": pixel_values,
+            "attention_mask": attention_mask,
+        },
         {
             "pred_boxes": 0,
             "logits": 1,
@@ -333,7 +341,7 @@ def test_named_modules(
         pt_outputs_n = []
         ms_outputs_n = []
         for pt_key, ms_idx in outputs_map.items():
-            # print("===map", pt_key, ms_idx)
+            # print(": ==map", pt_key, ms_idx)
             pt_output = getattr(pt_outputs, pt_key)
             ms_output = ms_outputs[pt_key]
             if isinstance(pt_output, (list, tuple)):
