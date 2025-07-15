@@ -46,6 +46,8 @@ from . import (
     levit,
     llama,
     llava,
+    mamba,
+    mamba2,
     megatron_bert,
     minicpm4,
     mixtral,
