@@ -43,7 +43,7 @@ from transformers.models.owlvit.configuration_owlvit import OwlViTConfig, OwlViT
 
 
 if is_vision_available():
-    from transformers.image_transforms import center_to_corners_format
+    from ...image_transforms import center_to_corners_format
 
 
 logger = logging.get_logger(__name__)
