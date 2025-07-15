@@ -48,7 +48,7 @@ from .image_processing_auto import AutoImageProcessor
 logger = logging.get_logger(__name__)
 
 PROCESSOR_MAPPING_NAMES = OrderedDict(
-    ("git", "GitProcessor"),
+    [("git", "GitProcessor"),]
 )
 
 PROCESSOR_MAPPING = _LazyAutoMapping(CONFIG_MAPPING_NAMES, PROCESSOR_MAPPING_NAMES)
