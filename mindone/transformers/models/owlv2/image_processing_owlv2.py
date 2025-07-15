@@ -531,9 +531,9 @@ class Owlv2ImageProcessor(BaseImageProcessor):
             raise ValueError("Make sure that you pass in as many target sizes as images")
 
         # batch_logits of shape (batch_size, num_queries, num_classes)
-        batch_class_logits = mindspore.mint.max(batch_logits, dim=-1)[0]
-        batch_scores = mindspore.mint.sigmoid(batch_class_logits)
-        batch_labels = batch_class_logits.indices
+        batch_class_logits = mindspore.mint.max(batch_logits, dim=-1)
+        batch_scores = mindspore.mint.sigmoid(batch_class_logits[0])
+        batch_labels = batch_class_logits[1]
 
         # Convert to [x0, y0, x1, y1] format
         batch_boxes = center_to_corners_format(batch_boxes)

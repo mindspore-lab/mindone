@@ -474,9 +474,9 @@ class OwlViTImageProcessor(BaseImageProcessor):
         if target_sizes.shape[1] != 2:
             raise ValueError("Each element of target_sizes must contain the size (h, w) of each image of the batch")
 
-        probs = mindspore.mint.max(logits, dim=-1)[0]
-        scores = mindspore.mint.sigmoid(probs)
-        labels = probs.indices
+        probs = mindspore.mint.max(logits, dim=-1)
+        scores = mindspore.mint.sigmoid(probs[0])
+        labels = probs[1]
 
         # Convert to [x0, y0, x1, y1] format
         boxes = center_to_corners_format(boxes)
@@ -522,9 +522,9 @@ class OwlViTImageProcessor(BaseImageProcessor):
             raise ValueError("Make sure that you pass in as many target sizes as images")
 
         # batch_logits of shape (batch_size, num_queries, num_classes)
-        batch_class_logits = mindspore.mint.max(batch_logits, dim=-1)[0]
-        batch_scores = mindspore.mint.sigmoid(batch_class_logits)
-        batch_labels = batch_class_logits.indices
+        batch_class_logits = mindspore.mint.max(batch_logits, dim=-1)
+        batch_scores = mindspore.mint.sigmoid(batch_class_logits[0])
+        batch_labels = batch_class_logits[1]
 
         # Convert to [x0, y0, x1, y1] format
         batch_boxes = center_to_corners_format(batch_boxes)
