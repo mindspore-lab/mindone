@@ -1,3 +1,6 @@
+# Adapted from
+# https://github.com/PKU-YuanGroup/Open-Sora-Plan/blob/main/opensora/models/causalvideovae/model/configuration_videobase.py
+
 from typing import Any, Dict, TypeVar
 
 import yaml

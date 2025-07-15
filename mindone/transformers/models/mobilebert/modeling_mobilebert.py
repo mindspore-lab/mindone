@@ -2,6 +2,9 @@
 #
 # Copyright (c) 2020  The Google AI Language Team Authors, The HuggingFace Inc. team and github/lonePatient
 #
+# This code is adapted from https://github.com/huggingface/transformers
+# with modifications to run transformers on mindspore.
+#
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to deal
 # in the Software without restriction, including without limitation the rights

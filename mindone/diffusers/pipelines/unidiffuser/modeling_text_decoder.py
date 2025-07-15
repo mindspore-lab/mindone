@@ -1,3 +1,5 @@
+"""Adapted from https://github.com/huggingface/diffusers/tree/main/src/diffusers/pipelines/unidiffuser/modeling_text_decoder.py."""
+
 from typing import Optional
 
 import numpy as np

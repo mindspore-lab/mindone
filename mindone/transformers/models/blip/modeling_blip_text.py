@@ -1,6 +1,9 @@
 # coding=utf-8
 # Copyright 2022 The Salesforce Team Authors and The HuggingFace Team. All rights reserved.
 #
+# This code is adapted from https://github.com/huggingface/transformers
+# with modifications to run transformers on mindspore.
+#
 # Licensed under the BSD-3-clause license (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -625,7 +628,6 @@ class BlipTextModel(BlipTextPreTrainedModel):
                 seq_ids = mint.arange(seq_length)
                 causal_mask = seq_ids[None, None, :].tile((batch_size, seq_length, 1)) <= seq_ids[None, :, None]
                 # in case past_key_values are used we need to add a prefix ones mask to the causal mask
-                # causal and attention masks must have same type with pytorch version < 1.3
                 causal_mask = causal_mask.to(attention_mask.dtype)
 
                 if causal_mask.shape[1] < attention_mask.shape[1]:

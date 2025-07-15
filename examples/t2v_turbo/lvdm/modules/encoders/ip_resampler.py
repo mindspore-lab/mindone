@@ -1,3 +1,6 @@
+# This code is adapted from https://github.com/Ji4chenLi/t2v-turbo
+# with modifications to run on MindSpore.
+
 # modified from https://github.com/mlfoundations/open_flamingo/blob/main/open_flamingo/src/helpers.py
 import math
 

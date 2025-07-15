@@ -1,3 +1,6 @@
+# Adapted from https://github.com/PKU-YuanGroup/Open-Sora-Plan/blob/main/opensora/dataset/t2v_datasets.py
+
+
 import glob
 import json
 import logging

@@ -1,6 +1,9 @@
 # coding=utf-8
 # Copyright 2022 The Salesforce Team Authors and The HuggingFace Team. All rights reserved.
 #
+# This code is adapted from https://github.com/huggingface/transformers
+# with modifications to run transformers on mindspore.
+#
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -747,8 +750,7 @@ class BlipModel(BlipPreTrainedModel):
         self.logit_scale = ms.Parameter(ms.tensor(self.config.logit_scale_init_value))
 
         logger.warning(
-            "`BlipModel` is going to be deprecated in future release, please use `BlipForConditionalGeneration`, "
-            "`BlipForQuestionAnswering` or `BlipForImageTextRetrieval` depending on your usecase."
+            "`BlipModel` is going to be deprecated in future release, please use `BlipForConditionalGeneration`, `BlipForQuestionAnswering` or `BlipForImageTextRetrieval` depending on your usecase."  # noqa: E501
         )
 
         # Initialize weights and apply final processing

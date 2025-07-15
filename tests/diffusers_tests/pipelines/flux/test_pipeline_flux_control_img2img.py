@@ -1,3 +1,5 @@
+"""Adapted from https://github.com/huggingface/diffusers/tree/main/tests//pipelines/flux/test_pipeline_flux_control_img2img.py."""
+
 import unittest
 
 import numpy as np
