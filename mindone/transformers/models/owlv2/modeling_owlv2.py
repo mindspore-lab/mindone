@@ -971,8 +971,10 @@ class Owlv2TextModel(Owlv2PreTrainedModel):
         >>> model = Owlv2TextModel.from_pretrained("google/owlv2-base-patch16")
         >>> processor = AutoProcessor.from_pretrained("google/owlv2-base-patch16")
         >>> inputs = processor(
-        ...     text=[["a photo of a cat", "a photo of a dog"], ["photo of a astranaut"]], return_tensors="pt"
+        ...     text=[["a photo of a cat", "a photo of a dog"], ["photo of a astranaut"]], return_tensors="np"
         ... )
+        >>> for k,v in inputs.items():
+        ...     inputs[k] = ms.tensor(v)
         >>> outputs = model(**inputs)
         >>> last_hidden_state = outputs.last_hidden_state
         >>> pooled_output = outputs.pooler_output  # pooled (EOS token) states
@@ -1079,15 +1081,17 @@ class Owlv2VisionModel(Owlv2PreTrainedModel):
         ```python
         >>> from PIL import Image
         >>> import requests
-        >>> from transformers import AutoProcessor, Owlv2VisionModel
+        >>> from mindone.transformers import AutoProcessor, Owlv2VisionModel
+        >>> import mindspore as ms
 
         >>> model = Owlv2VisionModel.from_pretrained("google/owlv2-base-patch16")
         >>> processor = AutoProcessor.from_pretrained("google/owlv2-base-patch16")
         >>> url = "http://images.cocodataset.org/val2017/000000039769.jpg"
         >>> image = Image.open(requests.get(url, stream=True).raw)
 
-        >>> inputs = processor(images=image, return_tensors="pt")
-
+        >>> inputs = processor(images=image, return_tensors="np")
+        >>> for k,v in inputs.items():
+        ...     inputs[k] = ms.tensor(v)
         >>> outputs = model(**inputs)
         >>> last_hidden_state = outputs.last_hidden_state
         >>> pooled_output = outputs.pooler_output  # pooled CLS states
@@ -1154,13 +1158,16 @@ class Owlv2Model(Owlv2PreTrainedModel):
 
         Examples:
         ```python
-        >>> from transformers import AutoProcessor, Owlv2Model
+        >>> from mindone.transformers import AutoProcessor, Owlv2Model
+        >>> import mindspore as ms
 
         >>> model = Owlv2Model.from_pretrained("google/owlv2-base-patch16-ensemble")
         >>> processor = AutoProcessor.from_pretrained("google/owlv2-base-patch16-ensemble")
         >>> inputs = processor(
-        ...     text=[["a photo of a cat", "a photo of a dog"], ["photo of a astranaut"]], return_tensors="pt"
+        ...     text=[["a photo of a cat", "a photo of a dog"], ["photo of a astranaut"]], return_tensors="np"
         ... )
+        >>> for k,v in inputs.items():
+        ...     inputs[k] = ms.tensor(v)
         >>> text_features = model.get_text_features(**inputs)
         ```"""
         # Use OWLv2 model's config for some fields (if specified) instead of those of vision & text components.
@@ -1191,13 +1198,16 @@ class Owlv2Model(Owlv2PreTrainedModel):
         ```python
         >>> from PIL import Image
         >>> import requests
-        >>> from transformers import AutoProcessor, Owlv2Model
+        >>> from mindone.transformers import AutoProcessor, Owlv2Model
+        >>> import mindspore as ms
 
         >>> model = Owlv2Model.from_pretrained("google/owlv2-base-patch16-ensemble")
         >>> processor = AutoProcessor.from_pretrained("google/owlv2-base-patch16-ensemble")
         >>> url = "http://images.cocodataset.org/val2017/000000039769.jpg"
         >>> image = Image.open(requests.get(url, stream=True).raw)
-        >>> inputs = processor(images=image, return_tensors="pt")
+        >>> inputs = processor(images=image, return_tensors="np")
+        >>> for k,v in inputs.items():
+        ...     inputs[k] = ms.tensor(v)
         >>> image_features = model.get_image_features(**inputs)
         ```"""
         # Use OWLv2 model's config for some fields (if specified) instead of those of vision & text components.
@@ -1241,13 +1251,16 @@ class Owlv2Model(Owlv2PreTrainedModel):
         ```python
         >>> from PIL import Image
         >>> import requests
-        >>> from transformers import AutoProcessor, Owlv2Model
+        >>> from mindone.transformers import AutoProcessor, Owlv2Model
+        >>> import mindspore as ms
 
         >>> model = Owlv2Model.from_pretrained("google/owlv2-base-patch16-ensemble")
         >>> processor = AutoProcessor.from_pretrained("google/owlv2-base-patch16-ensemble")
         >>> url = "http://images.cocodataset.org/val2017/000000039769.jpg"
         >>> image = Image.open(requests.get(url, stream=True).raw)
-        >>> inputs = processor(text=[["a photo of a cat", "a photo of a dog"]], images=image, return_tensors="pt")
+        >>> inputs = processor(text=[["a photo of a cat", "a photo of a dog"]], images=image, return_tensors="np")
+        >>> for k,v in inputs.items():
+        ...     inputs[k] = ms.tensor(v)
         >>> outputs = model(**inputs)
         >>> logits_per_image = outputs.logits_per_image  # this is the image-text similarity score
         >>> probs = logits_per_image.softmax(dim=1)  # we can take the softmax to get the label probabilities
