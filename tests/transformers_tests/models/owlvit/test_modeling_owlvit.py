@@ -220,8 +220,12 @@ BERT_CASES = [
         "mindone.transformers.OwlViTModel",
         (model_config,),
         {},
-        (input_ids, attention_mask, pixel_values),
-        {},
+        (),
+        {
+            "input_ids": input_ids,
+            "pixel_values": pixel_values,
+            "attention_mask": attention_mask,
+        },
         {
             "logits_per_image": 0,
             "logits_per_text": 1,
@@ -233,8 +237,12 @@ BERT_CASES = [
         "mindone.transformers.OwlViTForObjectDetection",
         (detection_model_model_config,),
         {},
-        (pixel_values, input_ids, attention_mask),
-        {},
+        (),
+        {
+            "input_ids": input_ids,
+            "pixel_values": pixel_values,
+            "attention_mask": attention_mask,
+        },
         {
             "pred_boxes": 0,
             "logits": 1,
