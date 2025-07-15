@@ -1,6 +1,8 @@
 import argparse
 import json
 import os
+import shlex
+import subprocess
 
 from tqdm import tqdm
 
@@ -37,7 +39,8 @@ def main():
     print(f"Checking the data completeness of {data_dir}. It takes some time...")
 
     # get metadata line num, i.e., video num
-    meta_video_num = int(os.popen(f"wc -l {metadata_path}").read().split()[0]) - 1
+    result = subprocess.run(["wc", "-l", metadata_path], capture_output=True, text=True, shell=False)
+    meta_video_num = int(result.stdout.strip().split()[0]) - 1
 
     data_filenames = os.listdir(data_dir)
     if "_tmp" in data_filenames:
@@ -59,9 +62,12 @@ def main():
                     )
             json_num += 1
         elif name.endswith(".tar"):
-            r = os.popen(
-                f"python -m tarfile -l {filepath} | wc -l"
-            ).read()  # If error message appears, the tar file is invalid. Please download again.
+            # If error message appears, the tar file is invalid. Please download again.
+            result = subprocess.run(
+                shlex.split(f"python -m tarfile -l {filepath} | wc -l"), capture_output=True, text=True, shell=False
+            )
+            r = result.stdout
+
             if int(r) % 3 != 0:
                 raise Exception(
                     f"Broken tar file: {filepath}. Please download the whole {args.set}/part{args.part} again."

@@ -4,6 +4,8 @@
 
 import logging
 import os
+import shlex
+import shutil
 import subprocess
 import tempfile
 
@@ -109,8 +111,10 @@ def save_video(video, save_dir, file_name, fps=16.0):
     tmp_path = os.path.join(save_dir, "tmp.mp4")
     cmd = f"ffmpeg -y -f image2 -framerate {fps} -i {temp_dir}/%06d.png \
       -crf 17 -pix_fmt yuv420p {tmp_path}"
-    status, output = subprocess.getstatusoutput(cmd)
+    result = subprocess.run(shlex.split(cmd), capture_output=True, text=True, shell=False)
+    status = result.returncode
+    output = result.stdout
     if status != 0:
         logger.error(f"Save Video Error with {output}")
-    os.system(f"rm -rf {temp_dir}")
+    shutil.rmtree(temp_dir)
     os.rename(tmp_path, output_path)
