@@ -52,6 +52,8 @@ else:
             ("blip-2", ("BlipImageProcessor",)),
             ("clip", ("CLIPImageProcessor",)),
             ("dpt", ("DPTImageProcessor",)),
+            ("owlv2", ("Owlv2ImageProcessor",)),
+            ("owlvit", ("OwlViTImageProcessor",)),
         ]
     )
 
