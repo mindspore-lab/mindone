@@ -8,7 +8,7 @@ from mindspore.dataset import Dataset
 
 
 # fixme
-# how to deal with different processing???
+# consider general methods for various processor
 class PipelineDataset(Dataset):
     def __init__(self, dataset, process, params):
         self.dataset = dataset

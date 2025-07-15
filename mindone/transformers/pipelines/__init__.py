@@ -25,7 +25,6 @@ from transformers.configuration_utils import PretrainedConfig
 from transformers.dynamic_module_utils import get_class_from_dynamic_module
 from transformers.models.auto.feature_extraction_auto import FEATURE_EXTRACTOR_MAPPING, AutoFeatureExtractor
 from transformers.models.auto.image_processing_auto import IMAGE_PROCESSOR_MAPPING, AutoImageProcessor
-from transformers.models.auto.processing_auto import PROCESSOR_MAPPING, AutoProcessor
 from transformers.models.auto.tokenization_auto import TOKENIZER_MAPPING, AutoTokenizer
 from transformers.tokenization_utils import PreTrainedTokenizer
 from transformers.utils import (
@@ -37,6 +36,8 @@ from transformers.utils import (
     is_offline_mode,
     logging,
 )
+
+from mindone.transformers.models.auto.processing_auto import PROCESSOR_MAPPING, AutoProcessor
 
 from ..feature_extraction_utils import PreTrainedFeatureExtractor
 from ..image_processing_utils import BaseImageProcessor
@@ -55,6 +56,7 @@ from .base import (
     get_default_model_and_revision,
     infer_framework_load_model,
 )
+from .image_text_to_text import ImageTextToTextPipeline
 from .text2text_generation import Text2TextGenerationPipeline
 from .text_classification import TextClassificationPipeline
 from .text_generation import TextGenerationPipeline
@@ -64,6 +66,7 @@ if is_mindspore_available():
 
     from ..models.auto.modeling_auto import (
         AutoModelForCausalLM,
+        AutoModelForImageTextToText,
         AutoModelForSeq2SeqLM,
         AutoModelForSequenceClassification,
         AutoModelForTokenClassification,
@@ -87,6 +90,16 @@ TASK_ALIASES = {
     "text-to-speech": "text-to-audio",
 }
 SUPPORTED_TASKS = {
+    "image-text-to-text": {
+        "impl": ImageTextToTextPipeline,
+        "pt": (AutoModelForImageTextToText,) if is_mindspore_available() else (),
+        "default": {
+            "model": {
+                "ms": ("llava-hf/llava-onevision-qwen2-0.5b-ov-hf", "2c9ba3b"),
+            }
+        },
+        "type": "multimodal",
+    },
     "text-classification": {
         "impl": TextClassificationPipeline,
         "ms": (AutoModelForSequenceClassification,) if is_mindspore_available() else (),
@@ -248,7 +261,7 @@ def pipeline(
     token: Optional[Union[str, bool]] = None,
     device: Optional[Union[int, str]] = None,
     device_map=None,
-    torch_dtype=None,
+    mindspore_dtype=None,
     trust_remote_code: Optional[bool] = None,
     model_kwargs: Dict[str, Any] = None,
     pipeline_class: Optional[Any] = None,
@@ -388,7 +401,7 @@ def pipeline(
 
             </Tip>
 
-        torch_dtype (`str` or `torch.dtype`, *optional*):
+        mindspore_dtype (`str` or `torch.dtype`, *optional*):
             Sent directly as `model_kwargs` (just a simpler shortcut) to use the available precision for this model
             (`torch.float16`, `torch.bfloat16`, ... or `"auto"`).
         trust_remote_code (`bool`, *optional*, defaults to `False`):
@@ -576,15 +589,15 @@ def pipeline(
                 " will most likely encounter unexpected behavior. Please remove `device` and keep `device_map`."
             )
         model_kwargs["device_map"] = device_map
-    if torch_dtype is not None:
-        if "torch_dtype" in model_kwargs:
+    if mindspore_dtype is not None:
+        if "mindspore_dtype" in model_kwargs:
             raise ValueError(
-                'You cannot use both `pipeline(... torch_dtype=..., model_kwargs={"torch_dtype":...})` as those'
+                'You cannot use both `pipeline(... mindspore_dtype=..., model_kwargs={"mindspore_dtype":...})` as those'
                 " arguments might conflict, use only one.)"
             )
-        if isinstance(torch_dtype, str) and hasattr(ms, torch_dtype):
-            torch_dtype = getattr(ms, torch_dtype)
-        model_kwargs["torch_dtype"] = torch_dtype
+        if isinstance(mindspore_dtype, str) and hasattr(ms, mindspore_dtype):
+            mindspore_dtype = getattr(ms, mindspore_dtype)
+        model_kwargs["mindspore_dtype"] = mindspore_dtype
 
     model_name = model if isinstance(model, str) else None
 
@@ -697,7 +710,7 @@ def pipeline(
             else:
                 tokenizer_identifier = tokenizer
                 tokenizer_kwargs = model_kwargs.copy()
-                tokenizer_kwargs.pop("torch_dtype", None)
+                tokenizer_kwargs.pop("mindspore_dtype", None)
 
             tokenizer = AutoTokenizer.from_pretrained(
                 tokenizer_identifier, use_fast=use_fast, _from_pipeline=task, **hub_kwargs, **tokenizer_kwargs
@@ -815,8 +828,8 @@ def pipeline(
     if feature_extractor is not None:
         kwargs["feature_extractor"] = feature_extractor
 
-    if torch_dtype is not None:
-        kwargs["torch_dtype"] = torch_dtype
+    if mindspore_dtype is not None:
+        kwargs["mindspore_dtype"] = mindspore_dtype
 
     if image_processor is not None:
         kwargs["image_processor"] = image_processor

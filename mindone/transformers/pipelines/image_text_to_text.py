@@ -1,6 +1,9 @@
 # coding=utf-8
 # Copyright 2024 The HuggingFace Inc. team. All rights reserved.
 #
+# This code is adapted from https://github.com/huggingface/transformers
+# with modifications to run transformers on mindspore.
+#
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -122,7 +125,7 @@ class ImageTextToTextPipeline(Pipeline):
     Example:
 
     ```python
-    >>> from transformers import pipeline
+    >>> from mindone.transformers import pipeline
 
     >>> pipe = pipeline(task="image-text-to-text", model="Salesforce/blip-image-captioning-base")
     >>> pipe("https://huggingface.co/datasets/Narsil/image_dummy/raw/main/parrots.png", text="A photo of")
@@ -130,7 +133,7 @@ class ImageTextToTextPipeline(Pipeline):
     ```
 
     ```python
-    >>> from transformers import pipeline
+    >>> from mindone.transformers import pipeline
 
     >>> pipe = pipeline("image-text-to-text", model="llava-hf/llava-interleave-qwen-0.5b-hf")
     >>> messages = [
