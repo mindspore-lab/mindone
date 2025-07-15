@@ -92,7 +92,7 @@ TASK_ALIASES = {
 SUPPORTED_TASKS = {
     "image-text-to-text": {
         "impl": ImageTextToTextPipeline,
-        "pt": (AutoModelForImageTextToText,) if is_mindspore_available() else (),
+        "ms": (AutoModelForImageTextToText,) if is_mindspore_available() else (),
         "default": {
             "model": {
                 "ms": ("llava-hf/llava-onevision-qwen2-0.5b-ov-hf", "2c9ba3b"),
