@@ -587,7 +587,7 @@ class Owlv2PreTrainedModel(PreTrainedModel):
             )
             module.patch_embedding.weight.set_data(
                 initializer(
-                    Normal(sigma=module.config.initializer_range * factor), module.patch_embedding.weight.shape, module.patch_embedding.weight
+                    Normal(sigma=module.config.initializer_range * factor), module.patch_embedding.weight.shape, module.patch_embedding.weight.dtype
                 )
             )
             module.position_embedding.weight.set_data(
