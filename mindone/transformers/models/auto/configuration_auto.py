@@ -146,7 +146,7 @@ MODEL_NAMES_MAPPING = OrderedDict(
         ("mobilebert", "MobileBERT"),
         ("mt5", "MT5"),
         ("megatron-bert", "Megatron-BERT"),
-        ("mixtral", "Mixtral")
+        ("mixtral", "Mixtral"),
         ("owlv2", "OWLv2"),
         ("owlvit", "OWL-ViT"),
         ("paligemma", "PaliGemma"),
