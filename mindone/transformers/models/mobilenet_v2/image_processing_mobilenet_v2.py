@@ -17,6 +17,7 @@
 from typing import Dict, List, Optional, Tuple, Union
 
 import numpy as np
+import mindspore
 
 from ...image_processing_utils import BaseImageProcessor, BatchFeature, get_size_dict
 from ...image_transforms import (
@@ -37,20 +38,12 @@ from ...image_utils import (
     valid_images,
     validate_preprocess_arguments,
 )
-from ...utils import TensorType, filter_out_non_signature_kwargs, is_torch_available, is_torch_tensor, logging
-
-
-if is_torch_available():
-    import mindspore
-
-
-from ...utils.import_utils import requires
+from ...utils import TensorType, filter_out_non_signature_kwargs, logging, is_mindspore_tensor
 
 
 logger = logging.get_logger(__name__)
 
 
-@requires(backends=("vision",))
 class MobileNetV2ImageProcessor(BaseImageProcessor):
     r"""
     Constructs a MobileNetV2 image processor.
@@ -335,8 +328,8 @@ class MobileNetV2ImageProcessor(BaseImageProcessor):
                     "Make sure that you pass in as many target sizes as the batch dimension of the logits"
                 )
 
-            if is_torch_tensor(target_sizes):
-                target_sizes = target_sizes.numpy()
+            if is_mindspore_tensor(target_sizes):
+                target_sizes = target_sizes.asnumpy()
 
             semantic_segmentation = []
 

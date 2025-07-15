@@ -19,8 +19,8 @@ from typing import Mapping
 
 from packaging import version
 
-from ...configuration_utils import PretrainedConfig
-from ...onnx import OnnxConfig
+from transformers import PretrainedConfig
+from transformers.onnx import OnnxConfig
 from ...utils import logging
 
 

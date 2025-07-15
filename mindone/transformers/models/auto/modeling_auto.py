@@ -90,6 +90,8 @@ MODEL_MAPPING_NAMES = OrderedDict(
         ("whisper", "WhisperModel"),
         ("xlm-roberta", "XLMRobertaModel"),
         ("xlm-roberta-xl", "XLMRobertaXLModel"),
+        ("mobilenet_v1", "MobileNetV1Model"),
+        ("mobilenet_v2", "MobileNetV2Model"),
     ]
 )
 
@@ -207,6 +209,8 @@ MODEL_FOR_IMAGE_CLASSIFICATION_MAPPING_NAMES = OrderedDict(
             ("LevitForImageClassification", "LevitForImageClassificationWithTeacher"),
         ),
         ("siglip", "SiglipForImageClassification"),
+        ("mobilenet_v1", "MobileNetV1ForImageClassification"),
+        ("mobilenet_v2", "MobileNetV2ForImageClassification"),
     ]
 )
 

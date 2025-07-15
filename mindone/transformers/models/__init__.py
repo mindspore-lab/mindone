@@ -50,6 +50,8 @@ from . import (
     minicpm4,
     mixtral,
     mobilebert,
+    mobilenet_v1,
+    mobilenet_v2,
     paligemma,
     persimmon,
     phi,

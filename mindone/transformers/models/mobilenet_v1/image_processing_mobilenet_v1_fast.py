@@ -20,10 +20,8 @@ from ...image_processing_utils_fast import (
     Unpack,
 )
 from ...image_utils import IMAGENET_STANDARD_MEAN, IMAGENET_STANDARD_STD, PILImageResampling
-from ...utils import auto_docstring
 
 
-@auto_docstring
 class MobileNetV1ImageProcessorFast(BaseImageProcessorFast):
     resample = PILImageResampling.BILINEAR
     image_mean = IMAGENET_STANDARD_MEAN

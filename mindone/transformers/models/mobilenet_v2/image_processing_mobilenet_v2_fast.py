@@ -16,16 +16,13 @@
 
 from typing import List, Optional, Tuple
 
+import mindspore
+
 from ...image_processing_utils_fast import BaseImageProcessorFast
 from ...image_utils import IMAGENET_STANDARD_MEAN, IMAGENET_STANDARD_STD, PILImageResampling
-from ...utils import auto_docstring, is_torch_available, is_torch_tensor
+from ...utils import is_mindspore_tensor
 
 
-if is_torch_available():
-    import mindspore
-
-
-@auto_docstring
 class MobileNetV2ImageProcessorFast(BaseImageProcessorFast):
     resample = PILImageResampling.BILINEAR
     image_mean = IMAGENET_STANDARD_MEAN
@@ -65,8 +62,8 @@ class MobileNetV2ImageProcessorFast(BaseImageProcessorFast):
                     "Make sure that you pass in as many target sizes as the batch dimension of the logits"
                 )
 
-            if is_torch_tensor(target_sizes):
-                target_sizes = target_sizes.numpy()
+            if is_mindspore_tensor(target_sizes):
+                target_sizes = target_sizes.asnumpy()
 
             semantic_segmentation = []
 

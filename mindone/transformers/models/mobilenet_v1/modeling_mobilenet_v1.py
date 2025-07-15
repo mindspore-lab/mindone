@@ -12,125 +12,21 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-"""PyTorch MobileNetV1 model."""
+"""Mindspore MobileNetV1 model."""
 
 from typing import Optional, Union
 
 import mindspore
-from mindspore import nn
 from mindspore.mint.nn import BCEWithLogitsLoss, CrossEntropyLoss, MSELoss
 
 from ...activations import ACT2FN
 from ...modeling_outputs import BaseModelOutputWithPoolingAndNoAttention, ImageClassifierOutputWithNoAttention
 from ...modeling_utils import PreTrainedModel
-from ...utils import auto_docstring, logging
+from ...utils import logging
 from .configuration_mobilenet_v1 import MobileNetV1Config
 
 
 logger = logging.get_logger(__name__)
-
-
-def _build_tf_to_pytorch_map(model, config, tf_weights=None):
-    """
-    A map of modules from TF to PyTorch.
-    """
-
-    tf_to_pt_map = {}
-
-    if isinstance(model, MobileNetV1ForImageClassification):
-        backbone = model.mobilenet_v1
-    else:
-        backbone = model
-
-    prefix = "MobilenetV1/Conv2d_0/"
-    tf_to_pt_map[prefix + "weights"] = backbone.conv_stem.convolution.weight
-    tf_to_pt_map[prefix + "BatchNorm/beta"] = backbone.conv_stem.normalization.bias
-    tf_to_pt_map[prefix + "BatchNorm/gamma"] = backbone.conv_stem.normalization.weight
-    tf_to_pt_map[prefix + "BatchNorm/moving_mean"] = backbone.conv_stem.normalization.running_mean
-    tf_to_pt_map[prefix + "BatchNorm/moving_variance"] = backbone.conv_stem.normalization.running_var
-
-    for i in range(13):
-        tf_index = i + 1
-        pt_index = i * 2
-
-        pointer = backbone.layer[pt_index]
-        prefix = f"MobilenetV1/Conv2d_{tf_index}_depthwise/"
-        tf_to_pt_map[prefix + "depthwise_weights"] = pointer.convolution.weight
-        tf_to_pt_map[prefix + "BatchNorm/beta"] = pointer.normalization.bias
-        tf_to_pt_map[prefix + "BatchNorm/gamma"] = pointer.normalization.weight
-        tf_to_pt_map[prefix + "BatchNorm/moving_mean"] = pointer.normalization.running_mean
-        tf_to_pt_map[prefix + "BatchNorm/moving_variance"] = pointer.normalization.running_var
-
-        pointer = backbone.layer[pt_index + 1]
-        prefix = f"MobilenetV1/Conv2d_{tf_index}_pointwise/"
-        tf_to_pt_map[prefix + "weights"] = pointer.convolution.weight
-        tf_to_pt_map[prefix + "BatchNorm/beta"] = pointer.normalization.bias
-        tf_to_pt_map[prefix + "BatchNorm/gamma"] = pointer.normalization.weight
-        tf_to_pt_map[prefix + "BatchNorm/moving_mean"] = pointer.normalization.running_mean
-        tf_to_pt_map[prefix + "BatchNorm/moving_variance"] = pointer.normalization.running_var
-
-    if isinstance(model, MobileNetV1ForImageClassification):
-        prefix = "MobilenetV1/Logits/Conv2d_1c_1x1/"
-        tf_to_pt_map[prefix + "weights"] = model.classifier.weight
-        tf_to_pt_map[prefix + "biases"] = model.classifier.bias
-
-    return tf_to_pt_map
-
-
-def load_tf_weights_in_mobilenet_v1(model, config, tf_checkpoint_path):
-    """Load TensorFlow checkpoints in a PyTorch model."""
-    try:
-        import numpy as np
-        import tensorflow as tf
-    except ImportError:
-        logger.error(
-            "Loading a TensorFlow models in PyTorch, requires TensorFlow to be installed. Please see "
-            "https://www.tensorflow.org/install/ for installation instructions."
-        )
-        raise
-
-    # Load weights from TF model
-    init_vars = tf.train.list_variables(tf_checkpoint_path)
-    tf_weights = {}
-    for name, shape in init_vars:
-        logger.info(f"Loading TF weight {name} with shape {shape}")
-        array = tf.train.load_variable(tf_checkpoint_path, name)
-        tf_weights[name] = array
-
-    # Build TF to PyTorch weights loading map
-    tf_to_pt_map = _build_tf_to_pytorch_map(model, config, tf_weights)
-
-    for name, pointer in tf_to_pt_map.items():
-        logger.info(f"Importing {name}")
-        if name not in tf_weights:
-            logger.info(f"{name} not in tf pre-trained weights, skipping")
-            continue
-
-        array = tf_weights[name]
-
-        if "depthwise_weights" in name:
-            logger.info("Transposing depthwise")
-            array = np.transpose(array, (2, 3, 0, 1))
-        elif "weights" in name:
-            logger.info("Transposing")
-            if len(pointer.shape) == 2:  # copying into linear layer
-                array = array.squeeze().transpose()
-            else:
-                array = np.transpose(array, (3, 2, 0, 1))
-
-        if pointer.shape != array.shape:
-            raise ValueError(f"Pointer shape {pointer.shape} and array shape {array.shape} mismatched")
-
-        logger.info(f"Initialize PyTorch weight {name} {array.shape}")
-        pointer.data = mindspore.Tensor.from_numpy(array)
-
-        tf_weights.pop(name, None)
-        tf_weights.pop(name + "/RMSProp", None)
-        tf_weights.pop(name + "/RMSProp_1", None)
-        tf_weights.pop(name + "/ExponentialMovingAverage", None)
-
-    logger.info(f"Weights not copied to PyTorch model: {', '.join(tf_weights.keys())}")
-    return model
 
 
 def apply_tf_padding(features: mindspore.Tensor, conv_layer: mindspore.mint.nn.Conv2d) -> mindspore.Tensor:
@@ -227,10 +123,8 @@ class MobileNetV1ConvLayer(mindspore.nn.Cell):
         return features
 
 
-@auto_docstring
 class MobileNetV1PreTrainedModel(PreTrainedModel):
     config_class = MobileNetV1Config
-    load_tf_weights = load_tf_weights_in_mobilenet_v1
     base_model_prefix = "mobilenet_v1"
     main_input_name = "pixel_values"
     supports_gradient_checkpointing = False
@@ -247,7 +141,6 @@ class MobileNetV1PreTrainedModel(PreTrainedModel):
             module.weight.data.fill_(1.0)
 
 
-@auto_docstring
 class MobileNetV1Model(MobileNetV1PreTrainedModel):
     def __init__(self, config: MobileNetV1Config, add_pooling_layer: bool = True):
         r"""
@@ -306,7 +199,6 @@ class MobileNetV1Model(MobileNetV1PreTrainedModel):
     def _prune_heads(self, heads_to_prune):
         raise NotImplementedError
 
-    @auto_docstring
     def construct(
         self,
         pixel_values: Optional[mindspore.Tensor] = None,
@@ -348,12 +240,6 @@ class MobileNetV1Model(MobileNetV1PreTrainedModel):
         )
 
 
-@auto_docstring(
-    custom_intro="""
-    MobileNetV1 model with an image classification head on top (a linear layer on top of the pooled features), e.g. for
-    ImageNet.
-    """
-)
 class MobileNetV1ForImageClassification(MobileNetV1PreTrainedModel):
     def __init__(self, config: MobileNetV1Config) -> None:
         super().__init__(config)
@@ -370,7 +256,6 @@ class MobileNetV1ForImageClassification(MobileNetV1PreTrainedModel):
         # Initialize weights and apply final processing
         self.post_init()
 
-    @auto_docstring
     def construct(
         self,
         pixel_values: Optional[mindspore.Tensor] = None,
@@ -430,5 +315,4 @@ __all__ = [
     "MobileNetV1ForImageClassification",
     "MobileNetV1Model",
     "MobileNetV1PreTrainedModel",
-    "load_tf_weights_in_mobilenet_v1",
 ]
