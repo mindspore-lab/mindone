@@ -68,6 +68,14 @@ from .integrations.flash_attention import flash_attention_forward
 from .integrations.sdpa_attention import sdpa_attention_forward
 from .loss.loss_utils import LOSS_MAPPING
 from .mindspore_adapter import dtype_to_str
+from .mindspore_utils import (  # noqa: F401
+    Conv1D,
+    apply_chunking_to_forward,
+    find_pruneable_heads_and_indices,
+    prune_conv1d_layer,
+    prune_layer,
+    prune_linear_layer,
+)
 from .modeling_attn_mask_utils import dtype_to_min
 from .utils.import_utils import is_flash_attn_2_available, is_sdpa_available
 

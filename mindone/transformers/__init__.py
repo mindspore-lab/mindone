@@ -94,6 +94,15 @@ from .models.bigbird_pegasus import (
     BigBirdPegasusPreTrainedModel,
 )
 from .models.bit import BitBackbone
+from .models.blip import (
+    BlipForConditionalGeneration,
+    BlipForImageTextRetrieval,
+    BlipForQuestionAnswering,
+    BlipModel,
+    BlipPreTrainedModel,
+    BlipTextModel,
+    BlipVisionModel,
+)
 from .models.blip_2 import (
     Blip2ForConditionalGeneration,
     Blip2Model,
@@ -230,6 +239,14 @@ from .models.megatron_bert import (
     MegatronBertPreTrainedModel,
 )
 from .models.minicpm4 import MiniCPMForCausalLM, MiniCPMForSequenceClassification, MiniCPMModel
+from .models.mistral import (
+    MistralForCausalLM,
+    MistralForQuestionAnswering,
+    MistralForSequenceClassification,
+    MistralForTokenClassification,
+    MistralModel,
+    MistralPreTrainedModel,
+)
 from .models.mixtral import (
     MixtralForCausalLM,
     MixtralForQuestionAnswering,
@@ -249,6 +266,14 @@ from .models.mobilebert import (
     MobileBertLayer,
     MobileBertModel,
     MobileBertPreTrainedModel,
+)
+from .models.mpt import (
+    MptForCausalLM,
+    MptForQuestionAnswering,
+    MptForSequenceClassification,
+    MptForTokenClassification,
+    MptModel,
+    MptPreTrainedModel,
 )
 from .models.mt5 import (
     MT5_PRETRAINED_MODEL_ARCHIVE_LIST,
@@ -402,6 +427,15 @@ from .processing_utils import ProcessorMixin
 
 if version.parse(transformers.__version__) >= version.parse("4.51.0"):
     from .models.qwen3 import Qwen3ForCausalLM, Qwen3Model, Qwen3PreTrainedModel
+
+if version.parse(transformers.__version__) >= version.parse("4.51.3"):
+    from .models.glm4 import (
+        Glm4ForCausalLM,
+        Glm4ForSequenceClassification,
+        Glm4ForTokenClassification,
+        Glm4Model,
+        Glm4PreTrainedModel,
+    )
 
 if version.parse(transformers.__version__) >= version.parse("4.53.0"):
     from .models.glm4v import (
