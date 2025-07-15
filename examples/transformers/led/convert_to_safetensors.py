@@ -26,5 +26,8 @@ if __name__ == "__main__":
     convert_file(
         args.model_path,
         args.output_path,
-        discard_names=[],
+        discard_names=[
+            "decoder.embed_tokens.weight",
+            "encoder.embed_tokens.weight",
+        ],  # remove the two embedding tables, because they are shared with `led.shared.weightns`
     )
