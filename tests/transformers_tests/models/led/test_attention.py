@@ -1,3 +1,4 @@
+import math
 import unittest
 
 import numpy as np
@@ -29,6 +30,12 @@ class TestLEDEncoderSelfAttention(unittest.TestCase):
         # Set both models to eval mode
         self.ms_attn.set_train(False)
         self.torch_attn.eval()
+        # Set random seed for reproducibility
+        np.random.seed(42)
+        torch.manual_seed(42)
+        mindspore.set_seed(42)
+
+        self.copy_weights()
 
     def load_inputs(self):
         # Create input tensors
@@ -37,6 +44,54 @@ class TestLEDEncoderSelfAttention(unittest.TestCase):
         is_index_masked = np.load("layer0_ms/is_index_masked.npy")
         is_index_global_attn = np.load("layer0_ms/is_index_global_attn.npy")
         return hidden_states, attention_mask, is_index_masked, is_index_global_attn
+
+    def get_qkv(self):
+        hidden_states = self.load_inputs()[0]
+        # Convert to respective framework tensors
+        ms_hidden_states = Tensor(hidden_states, dtype=mindspore.float32)
+        torch_hidden_states = torch.tensor(hidden_states, dtype=torch.float32)
+
+        ms_hidden_states = ms_hidden_states.transpose(0, 1)
+        torch_hidden_states = torch_hidden_states.transpose(0, 1)
+
+        # project hidden states
+        ms_query_vectors = self.ms_attn.query(ms_hidden_states)
+        ms_key_vectors = self.ms_attn.key(ms_hidden_states)
+        ms_value_vectors = self.ms_attn.value(ms_hidden_states)
+
+        torch_query_vectors = self.torch_attn.query(torch_hidden_states)
+        torch_key_vectors = self.torch_attn.key(torch_hidden_states)
+        torch_value_vectors = self.torch_attn.value(torch_hidden_states)
+
+        seq_len, batch_size, _ = ms_hidden_states.shape
+
+        # normalize query
+        ms_query_vectors /= math.sqrt(self.ms_attn.head_dim)
+
+        ms_query_vectors = ms_query_vectors.view(
+            seq_len, batch_size, self.ms_attn.num_heads, self.ms_attn.head_dim
+        ).transpose(0, 1)
+        ms_key_vectors = ms_key_vectors.view(
+            seq_len, batch_size, self.ms_attn.num_heads, self.ms_attn.head_dim
+        ).transpose(0, 1)
+
+        torch_query_vectors /= math.sqrt(self.torch_attn.head_dim)
+
+        torch_query_vectors = torch_query_vectors.view(
+            seq_len, batch_size, self.torch_attn.num_heads, self.torch_attn.head_dim
+        ).transpose(0, 1)
+        torch_key_vectors = torch_key_vectors.view(
+            seq_len, batch_size, self.torch_attn.num_heads, self.torch_attn.head_dim
+        ).transpose(0, 1)
+
+        return (
+            ms_query_vectors,
+            ms_key_vectors,
+            ms_value_vectors,
+            torch_query_vectors,
+            torch_key_vectors,
+            torch_value_vectors,
+        )
 
     def copy_weights(self):
         """Copy weights from PyTorch model to MindSpore model"""
@@ -66,11 +121,6 @@ class TestLEDEncoderSelfAttention(unittest.TestCase):
         self.ms_attn.value_global.bias.set_data(torch_to_ms_tensor(self.torch_attn.value_global.bias))
 
     def test_forward_pass(self):
-        # Set random seed for reproducibility
-        np.random.seed(42)
-        torch.manual_seed(42)
-        mindspore.set_seed(42)
-
         hidden_states, attention_mask, is_index_masked, is_index_global_attn = self.load_inputs()
         # Convert to respective framework tensors
         ms_hidden_states = Tensor(hidden_states, dtype=mindspore.float32)
@@ -84,9 +134,6 @@ class TestLEDEncoderSelfAttention(unittest.TestCase):
         ms_is_index_masked = Tensor(is_index_masked).bool()
         torch_is_index_global_attn = torch.tensor(is_index_global_attn).bool()
         ms_is_index_global_attn = Tensor(is_index_global_attn).bool()
-
-        # Copy weights to ensure both models have identical parameters
-        self.copy_weights()
 
         # Forward pass
         ms_output = self.ms_attn(
@@ -123,33 +170,15 @@ class TestLEDEncoderSelfAttention(unittest.TestCase):
         )
 
     def test_projection(self):
-        # Set random seed for reproducibility
-        np.random.seed(42)
-        torch.manual_seed(42)
-        mindspore.set_seed(42)
-
-        hidden_states = self.load_inputs()[0]
-        # Convert to respective framework tensors
-        ms_hidden_states = Tensor(hidden_states, dtype=mindspore.float32)
-        torch_hidden_states = torch.tensor(hidden_states, dtype=torch.float32)
-
+        (
+            ms_query_vectors,
+            ms_key_vectors,
+            ms_value_vectors,
+            torch_query_vectors,
+            torch_key_vectors,
+            torch_value_vectors,
+        ) = self.get_qkv()
         # Copy weights to ensure both models have identical parameters
-        self.copy_weights()
-
-        ms_hidden_states = ms_hidden_states.transpose(0, 1)
-        torch_hidden_states = torch_hidden_states.transpose(0, 1)
-        np.testing.assert_allclose(
-            ms_hidden_states.asnumpy(), torch_hidden_states.detach().numpy(), rtol=1e-4, atol=1e-4
-        )
-
-        # project hidden states
-        ms_query_vectors = self.ms_attn.query(ms_hidden_states)
-        ms_key_vectors = self.ms_attn.key(ms_hidden_states)
-        ms_value_vectors = self.ms_attn.value(ms_hidden_states)
-
-        torch_query_vectors = self.torch_attn.query(torch_hidden_states)
-        torch_key_vectors = self.torch_attn.key(torch_hidden_states)
-        torch_value_vectors = self.torch_attn.value(torch_hidden_states)
 
         # compare query, key, value
         np.testing.assert_allclose(
@@ -159,6 +188,25 @@ class TestLEDEncoderSelfAttention(unittest.TestCase):
         np.testing.assert_allclose(
             ms_value_vectors.asnumpy(), torch_value_vectors.detach().numpy(), rtol=1e-4, atol=1e-4
         )
+
+    def test_attention_scores(self):
+        (
+            ms_query_vectors,
+            ms_key_vectors,
+            _,
+            torch_query_vectors,
+            torch_key_vectors,
+            _,
+        ) = self.get_qkv()
+
+        ms_attn_scores = self.ms_attn._sliding_chunks_query_key_matmul(
+            ms_query_vectors, ms_key_vectors, self.ms_attn.one_sided_attn_window_size
+        )
+        torch_attn_scores = self.torch_attn._sliding_chunks_query_key_matmul(
+            torch_query_vectors, torch_key_vectors, self.torch_attn.one_sided_attn_window_size
+        )
+
+        np.testing.assert_allclose(ms_attn_scores.asnumpy(), torch_attn_scores.detach().numpy(), rtol=1e-4, atol=1e-4)
 
 
 if __name__ == "__main__":
