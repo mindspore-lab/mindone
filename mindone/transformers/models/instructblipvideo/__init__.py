@@ -17,3 +17,5 @@ from .modeling_instructblipvideo import (
     InstructBlipVideoQFormerModel,
     InstructBlipVideoVisionModel,
 )
+from .processing_instructblipvideo import *
+from .image_processing_instructblipvideo import *

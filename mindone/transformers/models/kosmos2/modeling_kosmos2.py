@@ -1900,9 +1900,8 @@ class Kosmos2Model(Kosmos2PreTrainedModel):
         ```python
         >>> from PIL import Image
         >>> import requests
-        >>> from transformers import AutoProcessor
         >>> import mindspore as ms
-        >>> from mindone.transformers import Kosmos2Model
+        >>> from mindone.transformers import AutoProcessor, Kosmos2Model
 
         >>> model = Kosmos2Model.from_pretrained("microsoft/kosmos-2-patch14-224")
         >>> processor = AutoProcessor.from_pretrained("microsoft/kosmos-2-patch14-224")
@@ -2050,8 +2049,7 @@ class Kosmos2ForConditionalGeneration(Kosmos2PreTrainedModel, GenerationMixin):
         ```python
         >>> from PIL import Image
         >>> import requests
-        >>> from transformers import AutoProcessor
-        >>> from mindone.transformers import Kosmos2ForConditionalGeneration
+        >>> from mindone.transformers import AutoProcessor, Kosmos2ForConditionalGeneration
         >>> import mindspore as ms
 
         >>> model = Kosmos2ForConditionalGeneration.from_pretrained("microsoft/kosmos-2-patch14-224")

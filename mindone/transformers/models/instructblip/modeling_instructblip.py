@@ -1403,8 +1403,7 @@ class InstructBlipForConditionalGeneration(InstructBlipPreTrainedModel, Generati
         Examples:
 
         ```python
-        >>> from transformers import InstructBlipProcessor
-        >>> from mindone.transformers import InstructBlipForConditionalGeneration
+        >>> from mindone.transformers import InstructBlipProcessor, InstructBlipForConditionalGeneration
         >>> import mindspore as ms
         >>> from PIL import Image
         >>> import requests

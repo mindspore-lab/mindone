@@ -1397,8 +1397,7 @@ class InstructBlipVideoForConditionalGeneration(InstructBlipVideoPreTrainedModel
         Examples:
 
         ```python
-        >>> from transformers import InstructBlipVideoProcessor
-        >>> from mindone.transformers import InstructBlipVideoForConditionalGeneration
+        >>> from mindone.transformers import InstructBlipVideoForConditionalGeneration, InstructBlipVideoProcessor
         >>> import mindspore as ms
         >>> from huggingface_hub import hf_hub_download
         >>> import av

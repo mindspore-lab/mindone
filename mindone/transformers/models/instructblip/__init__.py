@@ -12,3 +12,4 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 from .modeling_instructblip import *
+from .processing_instructblip import *

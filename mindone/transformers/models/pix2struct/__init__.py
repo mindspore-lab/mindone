@@ -12,3 +12,5 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 from .modeling_pix2struct import *
+from .processing_pix2struct import *
+from .image_processing_pix2struct import *

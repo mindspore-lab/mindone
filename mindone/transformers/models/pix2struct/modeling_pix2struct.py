@@ -571,8 +571,7 @@ class Pix2StructVisionModel(Pix2StructPreTrainedModel):
         ```python
         >>> import requests
         >>> from PIL import Image
-        >>> from transformers import AutoProcessor
-        >>> from mindone.transformers import Pix2StructVisionModel
+        >>> from mindone.transformers import Pix2StructVisionModel, AutoProcessor
         >>> import mindspore as ms
 
         >>> image_processor = AutoProcessor.from_pretrained("google/pix2struct-textcaps-base")
@@ -1368,8 +1367,7 @@ class Pix2StructTextModel(Pix2StructPreTrainedModel):
         Example:
 
         ```python
-        >>> from transformers import AutoProcessor
-        >>> from mindone.transformers import Pix2StructTextModel
+        >>> from mindone.transformers import Pix2StructTextModel, AutoProcessor
         >>> import mindspore as ms
 
         >>> processor = AutoProcessor.from_pretrained("google/pix2struct-textcaps-base")
@@ -1773,8 +1771,7 @@ class Pix2StructForConditionalGeneration(Pix2StructPreTrainedModel, GenerationMi
         ```python
         >>> from PIL import Image
         >>> import requests
-        >>> from transformers import AutoProcessor
-        >>> from mindone.transformers import Pix2StructForConditionalGeneration
+        >>> from mindone.transformers import Pix2StructForConditionalGeneration, AutoProcessor
         >>> import mindspore as ms
 
         >>> processor = AutoProcessor.from_pretrained("google/pix2struct-textcaps-base")
@@ -1810,7 +1807,7 @@ class Pix2StructForConditionalGeneration(Pix2StructPreTrainedModel, GenerationMi
         ```python
         >>> from PIL import Image
         >>> import requests
-        >>> from transformers import AutoProcessor, Pix2StructForConditionalGeneration
+        >>> from mindone.transformers import AutoProcessor, Pix2StructForConditionalGeneration
         >>> import mindspore as ms
 
         >>> processor = AutoProcessor.from_pretrained("google/pix2struct-base")
