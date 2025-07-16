@@ -1,5 +1,8 @@
 # Copyright 2024 Black Forest Labs and The HuggingFace Team. All rights reserved.
 #
+# This code is adapted from https://github.com/huggingface/diffusers
+# with modifications to run diffusers on mindspore.
+#
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -178,7 +181,7 @@ class FluxPriorReduxPipeline(DiffusionPipeline):
         image = self.feature_extractor.preprocess(
             images=image, do_resize=True, return_tensors="np", do_convert_rgb=True
         ).pixel_values
-        image = ms.Tensor(image).to(dtype=dtype)
+        image = ms.tensor(image).to(dtype=dtype)
 
         # image_enc_hidden_states = self.image_encoder(**image).last_hidden_state
         image_enc_hidden_states = self.image_encoder(pixel_values=image)[0]

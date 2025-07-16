@@ -1,3 +1,5 @@
+# Adapted from https://github.com/ShareGPT4Omni/ShareGPT4V/blob/master/share4v/eval/run_share4v.py
+
 import argparse
 import json
 import os

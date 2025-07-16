@@ -1,3 +1,5 @@
+"""Adapted from https://github.com/huggingface/diffusers/tree/main/src/diffusers/pipelines/controlnet/multicontrolnet.py."""
+
 from ...models.controlnets.multicontrolnet import MultiControlNetModel
 from ...utils import deprecate, logging
 

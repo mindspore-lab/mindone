@@ -1,6 +1,9 @@
 # Copyright 2024 Salesforce.com, inc.
 # Copyright 2024 The HuggingFace Team. All rights reserved.
 #
+# This code is adapted from https://github.com/huggingface/diffusers
+# with modifications to run diffusers on mindspore.
+#
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -30,7 +33,10 @@ from ..blip_diffusion.modeling_blip2 import Blip2QFormerModel
 from ..blip_diffusion.modeling_ctx_clip import ContextCLIPTextModel
 from ..pipeline_utils import DiffusionPipeline, ImagePipelineOutput
 
+XLA_AVAILABLE = False
+
 logger = logging.get_logger(__name__)  # pylint: disable=invalid-name
+
 
 EXAMPLE_DOC_STRING = """
     Examples:

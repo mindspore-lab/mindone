@@ -1,5 +1,8 @@
 # Copyright 2024 Katherine Crowson and The HuggingFace Team. All rights reserved.
 #
+# This code is adapted from https://github.com/huggingface/diffusers
+# with modifications to run diffusers on mindspore.
+#
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -14,7 +17,7 @@
 
 import math
 from dataclasses import dataclass
-from typing import Optional, Tuple, Union
+from typing import List, Optional, Tuple, Union
 
 import numpy as np
 
@@ -79,6 +82,9 @@ class EDMEulerScheduler(SchedulerMixin, ConfigMixin):
             Video](https://imagen.research.google/video/paper.pdf) paper).
         rho (`float`, *optional*, defaults to 7.0):
             The rho parameter used for calculating the Karras sigma schedule, which is set to 7.0 in the EDM paper [1].
+        final_sigmas_type (`str`, defaults to `"zero"`):
+            The final `sigma` value for the noise schedule during the sampling process. If `"sigma_min"`, the final
+            sigma is the same as the last sigma in the training schedule. If `zero`, the final sigma is set to 0.
     """
 
     _compatibles = []
@@ -94,6 +100,7 @@ class EDMEulerScheduler(SchedulerMixin, ConfigMixin):
         num_train_timesteps: int = 1000,
         prediction_type: str = "epsilon",
         rho: float = 7.0,
+        final_sigmas_type: str = "zero",  # can be "zero" or "sigma_min"
     ):
         if sigma_schedule not in ["karras", "exponential"]:
             raise ValueError(f"Wrong value for provided for `{sigma_schedule=}`.`")
@@ -101,15 +108,24 @@ class EDMEulerScheduler(SchedulerMixin, ConfigMixin):
         # setable values
         self.num_inference_steps = None
 
-        ramp = ms.tensor(np.linspace(0, 1, num_train_timesteps), ms.float32)
+        sigmas = mint.arange(num_train_timesteps + 1) / num_train_timesteps
         if sigma_schedule == "karras":
-            sigmas = self._compute_karras_sigmas(ramp)
+            sigmas = self._compute_karras_sigmas(sigmas)
         elif sigma_schedule == "exponential":
-            sigmas = self._compute_exponential_sigmas(ramp)
+            sigmas = self._compute_exponential_sigmas(sigmas)
 
         self.timesteps = self.precondition_noise(sigmas)
 
-        self.sigmas = mint.cat([sigmas, mint.zeros(1, dtype=sigmas.dtype)])
+        if self.config.final_sigmas_type == "sigma_min":
+            sigma_last = sigmas[-1]
+        elif self.config.final_sigmas_type == "zero":
+            sigma_last = 0
+        else:
+            raise ValueError(
+                f"`final_sigmas_type` must be one of 'zero', or 'sigma_min', but got {self.config.final_sigmas_type}"
+            )
+
+        self.sigmas = mint.cat([sigmas, mint.full((1,), fill_value=sigma_last, dtype=sigmas.dtype)])
 
         self.is_scale_input_called = False
 
@@ -199,26 +215,47 @@ class EDMEulerScheduler(SchedulerMixin, ConfigMixin):
         self.is_scale_input_called = True
         return sample
 
-    def set_timesteps(self, num_inference_steps: int):
+    def set_timesteps(
+        self,
+        num_inference_steps: int = None,
+        sigmas: Optional[Union[ms.Tensor, List[float]]] = None,
+    ):
         """
         Sets the discrete timesteps used for the diffusion chain (to be run before inference).
 
         Args:
             num_inference_steps (`int`):
                 The number of diffusion steps used when generating samples with a pre-trained model.
+            sigmas (`Union[ms.Tensor, List[float]]`, *optional*):
+                Custom sigmas to use for the denoising process. If not defined, the default behavior when
+                `num_inference_steps` is passed will be used.
         """
         self.num_inference_steps = num_inference_steps
 
-        ramp = ms.tensor(np.linspace(0, 1, self.num_inference_steps))
+        if sigmas is None:
+            sigmas = mint.linspace(0, 1, self.num_inference_steps)
+        elif isinstance(sigmas, float):
+            sigmas = ms.tensor(sigmas, dtype=ms.float32)
+        else:
+            sigmas = sigmas
         if self.config.sigma_schedule == "karras":
-            sigmas = self._compute_karras_sigmas(ramp)
+            sigmas = self._compute_karras_sigmas(sigmas)
         elif self.config.sigma_schedule == "exponential":
-            sigmas = self._compute_exponential_sigmas(ramp)
+            sigmas = self._compute_exponential_sigmas(sigmas)
 
         sigmas = sigmas.to(ms.float32)
         self.timesteps = self.precondition_noise(sigmas)
 
-        self.sigmas = mint.cat([sigmas, mint.zeros(1)])
+        if self.config.final_sigmas_type == "sigma_min":
+            sigma_last = sigmas[-1]
+        elif self.config.final_sigmas_type == "zero":
+            sigma_last = 0
+        else:
+            raise ValueError(
+                f"`final_sigmas_type` must be one of 'zero', or 'sigma_min', but got {self.config.final_sigmas_type}"
+            )
+
+        self.sigmas = mint.cat([sigmas, mint.full((1,), fill_value=sigma_last, dtype=sigmas.dtype)])
         self._step_index = None
         self._begin_index = None
 
@@ -232,7 +269,6 @@ class EDMEulerScheduler(SchedulerMixin, ConfigMixin):
         min_inv_rho = sigma_min ** (1 / rho)
         max_inv_rho = sigma_max ** (1 / rho)
         sigmas = (max_inv_rho + ramp * (min_inv_rho - max_inv_rho)) ** rho
-
         return sigmas
 
     def _compute_exponential_sigmas(self, ramp, sigma_min=None, sigma_max=None) -> ms.Tensor:

@@ -1,5 +1,8 @@
 # Copyright 2024 The HuggingFace Team. All rights reserved.
 #
+# This code is adapted from https://github.com/huggingface/diffusers
+# with modifications to run diffusers on mindspore.
+#
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -210,7 +213,7 @@ class DecoderLayer(nn.Cell):
 
         if encoder_hidden_states is not None:
             encoder_extended_attention_mask = mint.where(
-                encoder_attention_mask > 0, ms.Tensor(0.0), ms.Tensor(-1e10)
+                encoder_attention_mask > 0, ms.tensor(0.0), ms.tensor(-1e10)
             ).to(encoder_hidden_states.dtype)
 
             hidden_states = self.layer[1](

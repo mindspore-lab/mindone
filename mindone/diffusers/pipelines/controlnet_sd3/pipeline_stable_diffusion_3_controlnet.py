@@ -1,5 +1,8 @@
 # Copyright 2024 Stability AI, The HuggingFace Team and The InstantX Team. All rights reserved.
 #
+# This code is adapted from https://github.com/huggingface/diffusers
+# with modifications to run diffusers on mindspore.
+#
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -16,20 +19,20 @@ import inspect
 from typing import Any, Callable, Dict, List, Optional, Tuple, Union
 
 import numpy as np
-from transformers import CLIPTokenizer, T5TokenizerFast
+from transformers import CLIPTokenizer, SiglipImageProcessor, T5TokenizerFast
 
 import mindspore as ms
 from mindspore import mint
 
-from ....transformers import CLIPTextModelWithProjection, T5EncoderModel
+from mindone.transformers import CLIPTextModelWithProjection, SiglipVisionModel, T5EncoderModel
+
 from ...image_processor import PipelineImageInput, VaeImageProcessor
-from ...loaders import FromSingleFileMixin  # , SD3LoraLoaderMixin
+from ...loaders import FromSingleFileMixin, SD3IPAdapterMixin, SD3LoraLoaderMixin
 from ...models.autoencoders import AutoencoderKL
 from ...models.controlnets.controlnet_sd3 import SD3ControlNetModel, SD3MultiControlNetModel
-from ...models.layers_compat import pad
 from ...models.transformers import SD3Transformer2DModel
 from ...schedulers import FlowMatchEulerDiscreteScheduler
-from ...utils import logging
+from ...utils import logging, scale_lora_layers, unscale_lora_layers
 from ...utils.mindspore_utils import randn_tensor
 from ..pipeline_utils import DiffusionPipeline
 from ..stable_diffusion_3.pipeline_output import StableDiffusion3PipelineOutput
@@ -66,6 +69,7 @@ def retrieve_timesteps(
     scheduler,
     num_inference_steps: Optional[int] = None,
     timesteps: Optional[List[int]] = None,
+    sigmas: Optional[List[float]] = None,
     **kwargs,
 ):
     r"""
@@ -76,17 +80,21 @@ def retrieve_timesteps(
         scheduler (`SchedulerMixin`):
             The scheduler to get timesteps from.
         num_inference_steps (`int`):
-            The number of diffusion steps used when generating samples with a pre-trained model. If used,
-            `timesteps` must be `None`.
+            The number of diffusion steps used when generating samples with a pre-trained model. If used, `timesteps`
+            must be `None`.
         timesteps (`List[int]`, *optional*):
-                Custom timesteps used to support arbitrary spacing between timesteps. If `None`, then the default
-                timestep spacing strategy of the scheduler is used. If `timesteps` is passed, `num_inference_steps`
-                must be `None`.
+            Custom timesteps used to override the timestep spacing strategy of the scheduler. If `timesteps` is passed,
+            `num_inference_steps` and `sigmas` must be `None`.
+        sigmas (`List[float]`, *optional*):
+            Custom sigmas used to override the timestep spacing strategy of the scheduler. If `sigmas` is passed,
+            `num_inference_steps` and `timesteps` must be `None`.
 
     Returns:
-        `Tuple[ms.Tensor, int]`: A tuple where the first element is the timestep schedule from the scheduler and
-        the second element is the number of inference steps.
+        `Tuple[ms.Tensor, int]`: A tuple where the first element is the timestep schedule from the scheduler and the
+        second element is the number of inference steps.
     """
+    if timesteps is not None and sigmas is not None:
+        raise ValueError("Only one of `timesteps` or `sigmas` can be passed. Please choose one to set custom values")
     if timesteps is not None:
         accepts_timesteps = "timesteps" in set(inspect.signature(scheduler.set_timesteps).parameters.keys())
         if not accepts_timesteps:
@@ -97,13 +105,23 @@ def retrieve_timesteps(
         scheduler.set_timesteps(timesteps=timesteps, **kwargs)
         timesteps = scheduler.timesteps
         num_inference_steps = len(timesteps)
+    elif sigmas is not None:
+        accept_sigmas = "sigmas" in set(inspect.signature(scheduler.set_timesteps).parameters.keys())
+        if not accept_sigmas:
+            raise ValueError(
+                f"The current scheduler class {scheduler.__class__}'s `set_timesteps` does not support custom"
+                f" sigmas schedules. Please check whether you are using the correct scheduler."
+            )
+        scheduler.set_timesteps(sigmas=sigmas, **kwargs)
+        timesteps = scheduler.timesteps
+        num_inference_steps = len(timesteps)
     else:
         scheduler.set_timesteps(num_inference_steps, **kwargs)
         timesteps = scheduler.timesteps
     return timesteps, num_inference_steps
 
 
-class StableDiffusion3ControlNetPipeline(DiffusionPipeline, FromSingleFileMixin):
+class StableDiffusion3ControlNetPipeline(DiffusionPipeline, SD3LoraLoaderMixin, FromSingleFileMixin, SD3IPAdapterMixin):
     r"""
     Args:
         transformer ([`SD3Transformer2DModel`]):
@@ -139,10 +157,14 @@ class StableDiffusion3ControlNetPipeline(DiffusionPipeline, FromSingleFileMixin)
             Provides additional conditioning to the `unet` during the denoising process. If you set multiple
             ControlNets as a list, the outputs from each ControlNet are added together to create one combined
             additional conditioning.
+        image_encoder (`SiglipVisionModel`, *optional*):
+            Pre-trained Vision Model for IP Adapter.
+        feature_extractor (`SiglipImageProcessor`, *optional*):
+            Image processor for IP Adapter.
     """
 
-    model_cpu_offload_seq = "text_encoder->text_encoder_2->text_encoder_3->transformer->vae"
-    _optional_components = []
+    model_cpu_offload_seq = "text_encoder->text_encoder_2->text_encoder_3->image_encoder->transformer->vae"
+    _optional_components = ["image_encoder", "feature_extractor"]
     _callback_tensor_inputs = ["latents", "prompt_embeds", "negative_prompt_embeds", "negative_pooled_prompt_embeds"]
 
     def __init__(
@@ -159,6 +181,8 @@ class StableDiffusion3ControlNetPipeline(DiffusionPipeline, FromSingleFileMixin)
         controlnet: Union[
             SD3ControlNetModel, List[SD3ControlNetModel], Tuple[SD3ControlNetModel], SD3MultiControlNetModel
         ],
+        image_encoder: Optional[SiglipVisionModel] = None,
+        feature_extractor: Optional[SiglipImageProcessor] = None,
     ):
         super().__init__()
         if isinstance(controlnet, (list, tuple)):
@@ -185,10 +209,10 @@ class StableDiffusion3ControlNetPipeline(DiffusionPipeline, FromSingleFileMixin)
             transformer=transformer,
             scheduler=scheduler,
             controlnet=controlnet,
+            image_encoder=image_encoder,
+            feature_extractor=feature_extractor,
         )
-        self.vae_scale_factor = (
-            2 ** (len(self.vae.config.block_out_channels) - 1) if hasattr(self, "vae") and self.vae is not None else 8
-        )
+        self.vae_scale_factor = 2 ** (len(self.vae.config.block_out_channels) - 1) if getattr(self, "vae", None) else 8
         self.image_processor = VaeImageProcessor(vae_scale_factor=self.vae_scale_factor)
         self.tokenizer_max_length = (
             self.tokenizer.model_max_length if hasattr(self, "tokenizer") and self.tokenizer is not None else 77
@@ -204,7 +228,8 @@ class StableDiffusion3ControlNetPipeline(DiffusionPipeline, FromSingleFileMixin)
         self,
         prompt: Union[str, List[str]] = None,
         num_images_per_prompt: int = 1,
-        dtype=None,
+        max_sequence_length: int = 256,
+        dtype: Optional[ms.Type] = None,
     ):
         dtype = dtype or self.text_encoder.dtype
 
@@ -213,14 +238,18 @@ class StableDiffusion3ControlNetPipeline(DiffusionPipeline, FromSingleFileMixin)
 
         if self.text_encoder_3 is None:
             return mint.zeros(
-                (batch_size, self.tokenizer_max_length, self.transformer.config.joint_attention_dim),
+                (
+                    batch_size * num_images_per_prompt,
+                    self.tokenizer_max_length,
+                    self.transformer.config.joint_attention_dim,
+                ),
                 dtype=dtype,
             )
 
         text_inputs = self.tokenizer_3(
             prompt,
             padding="max_length",
-            max_length=self.tokenizer_max_length,
+            max_length=max_sequence_length,
             truncation=True,
             add_special_tokens=True,
             return_tensors="np",
@@ -233,8 +262,8 @@ class StableDiffusion3ControlNetPipeline(DiffusionPipeline, FromSingleFileMixin)
         ):
             removed_text = self.tokenizer_3.batch_decode(untruncated_ids[:, self.tokenizer_max_length - 1 : -1])
             logger.warning(
-                "The following part of your input was truncated because CLIP can only handle sequences up to"
-                f" {self.tokenizer_max_length} tokens: {removed_text}"
+                "The following part of your input was truncated because `max_sequence_length` is set to "
+                f" {max_sequence_length} tokens: {removed_text}"
             )
 
         prompt_embeds = self.text_encoder_3(ms.tensor(text_input_ids))[0]
@@ -321,6 +350,8 @@ class StableDiffusion3ControlNetPipeline(DiffusionPipeline, FromSingleFileMixin)
         pooled_prompt_embeds: Optional[ms.Tensor] = None,
         negative_pooled_prompt_embeds: Optional[ms.Tensor] = None,
         clip_skip: Optional[int] = None,
+        max_sequence_length: int = 256,
+        lora_scale: Optional[float] = None,
     ):
         r"""
 
@@ -344,9 +375,9 @@ class StableDiffusion3ControlNetPipeline(DiffusionPipeline, FromSingleFileMixin)
             negative_prompt_2 (`str` or `List[str]`, *optional*):
                 The prompt or prompts not to guide the image generation to be sent to `tokenizer_2` and
                 `text_encoder_2`. If not defined, `negative_prompt` is used in all the text-encoders.
-            negative_prompt_2 (`str` or `List[str]`, *optional*):
+            negative_prompt_3 (`str` or `List[str]`, *optional*):
                 The prompt or prompts not to guide the image generation to be sent to `tokenizer_3` and
-                `text_encoder_3`. If not defined, `negative_prompt` is used in both text-encoders
+                `text_encoder_3`. If not defined, `negative_prompt` is used in all the text-encoders.
             prompt_embeds (`ms.Tensor`, *optional*):
                 Pre-generated text embeddings. Can be used to easily tweak text inputs, *e.g.* prompt weighting. If not
                 provided, text embeddings will be generated from `prompt` input argument.
@@ -364,7 +395,20 @@ class StableDiffusion3ControlNetPipeline(DiffusionPipeline, FromSingleFileMixin)
             clip_skip (`int`, *optional*):
                 Number of layers to be skipped from CLIP while computing the prompt embeddings. A value of 1 means that
                 the output of the pre-final layer will be used for computing the prompt embeddings.
+            lora_scale (`float`, *optional*):
+                A lora scale that will be applied to all LoRA layers of the text encoder if LoRA layers are loaded.
         """
+        # set lora scale so that monkey patched LoRA
+        # function of text encoder can correctly access it
+        if lora_scale is not None and isinstance(self, SD3LoraLoaderMixin):
+            self._lora_scale = lora_scale
+
+            # dynamically adjust the LoRA scale
+            if self.text_encoder is not None:
+                scale_lora_layers(self.text_encoder, lora_scale)
+            if self.text_encoder_2 is not None:
+                scale_lora_layers(self.text_encoder_2, lora_scale)
+
         prompt = [prompt] if isinstance(prompt, str) else prompt
         if prompt is not None:
             batch_size = len(prompt)
@@ -395,9 +439,12 @@ class StableDiffusion3ControlNetPipeline(DiffusionPipeline, FromSingleFileMixin)
             t5_prompt_embed = self._get_t5_prompt_embeds(
                 prompt=prompt_3,
                 num_images_per_prompt=num_images_per_prompt,
+                max_sequence_length=max_sequence_length,
             )
 
-            clip_prompt_embeds = pad(clip_prompt_embeds, (0, t5_prompt_embed.shape[-1] - clip_prompt_embeds.shape[-1]))
+            clip_prompt_embeds = mint.nn.functional.pad(
+                clip_prompt_embeds, (0, t5_prompt_embed.shape[-1] - clip_prompt_embeds.shape[-1])
+            )
 
             prompt_embeds = mint.cat([clip_prompt_embeds, t5_prompt_embed], dim=-2)
             pooled_prompt_embeds = mint.cat([pooled_prompt_embed, pooled_prompt_2_embed], dim=-1)
@@ -445,9 +492,10 @@ class StableDiffusion3ControlNetPipeline(DiffusionPipeline, FromSingleFileMixin)
             t5_negative_prompt_embed = self._get_t5_prompt_embeds(
                 prompt=negative_prompt_3,
                 num_images_per_prompt=num_images_per_prompt,
+                max_sequence_length=max_sequence_length,
             )
 
-            negative_clip_prompt_embeds = pad(
+            negative_clip_prompt_embeds = mint.nn.functional.pad(
                 negative_clip_prompt_embeds,
                 (0, t5_negative_prompt_embed.shape[-1] - negative_clip_prompt_embeds.shape[-1]),
             )
@@ -456,6 +504,15 @@ class StableDiffusion3ControlNetPipeline(DiffusionPipeline, FromSingleFileMixin)
             negative_pooled_prompt_embeds = mint.cat(
                 [negative_pooled_prompt_embed, negative_pooled_prompt_2_embed], dim=-1
             )
+        if self.text_encoder is not None:
+            if isinstance(self, SD3LoraLoaderMixin):
+                # Retrieve the original scale by scaling back the LoRA layers
+                unscale_lora_layers(self.text_encoder, lora_scale)
+
+        if self.text_encoder_2 is not None:
+            if isinstance(self, SD3LoraLoaderMixin):
+                # Retrieve the original scale by scaling back the LoRA layers
+                unscale_lora_layers(self.text_encoder_2, lora_scale)
 
         return prompt_embeds, negative_prompt_embeds, pooled_prompt_embeds, negative_pooled_prompt_embeds
 
@@ -474,6 +531,7 @@ class StableDiffusion3ControlNetPipeline(DiffusionPipeline, FromSingleFileMixin)
         pooled_prompt_embeds=None,
         negative_pooled_prompt_embeds=None,
         callback_on_step_end_tensor_inputs=None,
+        max_sequence_length=None,
     ):
         if height % 8 != 0 or width % 8 != 0:
             raise ValueError(f"`height` and `width` have to be divisible by 8 but are {height} and {width}.")
@@ -544,6 +602,9 @@ class StableDiffusion3ControlNetPipeline(DiffusionPipeline, FromSingleFileMixin)
             raise ValueError(
                 "If `negative_prompt_embeds` are provided, `negative_pooled_prompt_embeds` also have to be passed. Make sure to generate `negative_pooled_prompt_embeds` from the same text encoder that was used to generate `negative_prompt_embeds`."  # noqa: E501
             )
+
+        if max_sequence_length is not None and max_sequence_length > 512:
+            raise ValueError(f"`max_sequence_length` cannot be greater than 512 but is {max_sequence_length}")
 
     # Copied from diffusers.pipelines.stable_diffusion_3.pipeline_stable_diffusion_3.StableDiffusion3Pipeline.prepare_latents
     def prepare_latents(
@@ -636,6 +697,67 @@ class StableDiffusion3ControlNetPipeline(DiffusionPipeline, FromSingleFileMixin)
     def interrupt(self):
         return self._interrupt
 
+    # Copied from diffusers.pipelines.stable_diffusion_3.pipeline_stable_diffusion_3.StableDiffusion3Pipeline.encode_image
+    def encode_image(self, image: PipelineImageInput) -> ms.Tensor:
+        """Encodes the given image into a feature representation using a pre-trained image encoder.
+
+        Args:
+            image (`PipelineImageInput`):
+                Input image to be encoded.
+
+        Returns:
+            `ms.Tensor`: The encoded image feature representation.
+        """
+        if not isinstance(image, ms.Tensor):
+            image = self.feature_extractor(image, return_tensors="np").pixel_values
+            image = ms.tensor(image)
+
+        image = image.to(dtype=self.dtype)
+
+        return self.image_encoder(image, output_hidden_states=True)[2][-2]
+
+    # Copied from diffusers.pipelines.stable_diffusion_3.pipeline_stable_diffusion_3.StableDiffusion3Pipeline.prepare_ip_adapter_image_embeds
+    def prepare_ip_adapter_image_embeds(
+        self,
+        ip_adapter_image: Optional[PipelineImageInput] = None,
+        ip_adapter_image_embeds: Optional[ms.Tensor] = None,
+        num_images_per_prompt: int = 1,
+        do_classifier_free_guidance: bool = True,
+    ) -> ms.Tensor:
+        """Prepares image embeddings for use in the IP-Adapter.
+
+        Either `ip_adapter_image` or `ip_adapter_image_embeds` must be passed.
+
+        Args:
+            ip_adapter_image (`PipelineImageInput`, *optional*):
+                The input image to extract features from for IP-Adapter.
+            ip_adapter_image_embeds (`ms.Tensor`, *optional*):
+                Precomputed image embeddings.
+            num_images_per_prompt (`int`, defaults to 1):
+                Number of images that should be generated per prompt.
+            do_classifier_free_guidance (`bool`, defaults to True):
+                Whether to use classifier free guidance or not.
+        """
+        if ip_adapter_image_embeds is not None:
+            if do_classifier_free_guidance:
+                single_negative_image_embeds, single_image_embeds = ip_adapter_image_embeds.chunk(2)
+            else:
+                single_image_embeds = ip_adapter_image_embeds
+        elif ip_adapter_image is not None:
+            single_image_embeds = self.encode_image(ip_adapter_image)
+            if do_classifier_free_guidance:
+                single_negative_image_embeds = mint.zeros_like(single_image_embeds)
+        else:
+            raise ValueError("Neither `ip_adapter_image_embeds` or `ip_adapter_image_embeds` were provided.")
+
+        image_embeds = mint.cat([single_image_embeds] * num_images_per_prompt, dim=0)
+
+        if do_classifier_free_guidance:
+            negative_image_embeds = mint.cat([single_negative_image_embeds] * num_images_per_prompt, dim=0)
+            image_embeds = mint.cat([negative_image_embeds, image_embeds], dim=0)
+
+        return image_embeds
+
     def __call__(
         self,
         prompt: Union[str, List[str]] = None,
@@ -661,12 +783,15 @@ class StableDiffusion3ControlNetPipeline(DiffusionPipeline, FromSingleFileMixin)
         negative_prompt_embeds: Optional[ms.Tensor] = None,
         pooled_prompt_embeds: Optional[ms.Tensor] = None,
         negative_pooled_prompt_embeds: Optional[ms.Tensor] = None,
+        ip_adapter_image: Optional[PipelineImageInput] = None,
+        ip_adapter_image_embeds: Optional[ms.Tensor] = None,
         output_type: Optional[str] = "pil",
         return_dict: bool = False,
         joint_attention_kwargs: Optional[Dict[str, Any]] = None,
         clip_skip: Optional[int] = None,
         callback_on_step_end: Optional[Callable[[int, int, Dict], None]] = None,
         callback_on_step_end_tensor_inputs: List[str] = ["latents"],
+        max_sequence_length: int = 256,
     ):
         r"""
         Function invoked when calling the pipeline for generation.
@@ -729,7 +854,7 @@ class StableDiffusion3ControlNetPipeline(DiffusionPipeline, FromSingleFileMixin)
             num_images_per_prompt (`int`, *optional*, defaults to 1):
                 The number of images to generate per prompt.
             generator (`np.random.Generator` or `List[np.random.Generator]`, *optional*):
-                One or a list of [numpy generator(s)](https://pytorch.org/docs/stable/generated/torch.Generator.html)
+                One or a list of [numpy generator(s)](https://numpy.org/doc/stable/reference/random/generator.html)
                 to make generation deterministic.
             latents (`ms.Tensor`, *optional*):
                 Pre-generated noisy latents, sampled from a Gaussian distribution, to be used as inputs for image
@@ -749,6 +874,12 @@ class StableDiffusion3ControlNetPipeline(DiffusionPipeline, FromSingleFileMixin)
                 Pre-generated negative pooled text embeddings. Can be used to easily tweak text inputs, *e.g.* prompt
                 weighting. If not provided, pooled negative_prompt_embeds will be generated from `negative_prompt`
                 input argument.
+            ip_adapter_image (`PipelineImageInput`, *optional*):
+                Optional image input to work with IP Adapters.
+            ip_adapter_image_embeds (`ms.Tensor`, *optional*):
+                Pre-generated image embeddings for IP-Adapter. Should be a tensor of shape `(batch_size, num_images,
+                emb_dim)`. It should contain the negative image embedding if `do_classifier_free_guidance` is set to
+                `True`. If not provided, embeddings are computed from the `ip_adapter_image` input argument.
             output_type (`str`, *optional*, defaults to `"pil"`):
                 The output format of the generate image. Choose between
                 [PIL](https://pillow.readthedocs.io/en/stable/): `PIL.Image.Image` or `np.array`.
@@ -768,6 +899,7 @@ class StableDiffusion3ControlNetPipeline(DiffusionPipeline, FromSingleFileMixin)
                 The list of tensor inputs for the `callback_on_step_end` function. The tensors specified in the list
                 will be passed as `callback_kwargs` argument. You will only be able to include variables listed in the
                 `._callback_tensor_inputs` attribute of your pipeline class.
+            max_sequence_length (`int` defaults to 256): Maximum sequence length to use with the `prompt`.
 
         Examples:
 
@@ -813,6 +945,7 @@ class StableDiffusion3ControlNetPipeline(DiffusionPipeline, FromSingleFileMixin)
             pooled_prompt_embeds=pooled_prompt_embeds,
             negative_pooled_prompt_embeds=negative_pooled_prompt_embeds,
             callback_on_step_end_tensor_inputs=callback_on_step_end_tensor_inputs,
+            max_sequence_length=max_sequence_length,
         )
 
         self._guidance_scale = guidance_scale
@@ -849,6 +982,7 @@ class StableDiffusion3ControlNetPipeline(DiffusionPipeline, FromSingleFileMixin)
             negative_pooled_prompt_embeds=negative_pooled_prompt_embeds,
             clip_skip=self.clip_skip,
             num_images_per_prompt=num_images_per_prompt,
+            max_sequence_length=max_sequence_length,
         )
 
         if self.do_classifier_free_guidance:
@@ -938,7 +1072,21 @@ class StableDiffusion3ControlNetPipeline(DiffusionPipeline, FromSingleFileMixin)
             # SD35 official 8b controlnet does not use encoder_hidden_states
             controlnet_encoder_hidden_states = None
 
-        # 7. Denoising loop
+        # 7. Prepare image embeddings
+        if (ip_adapter_image is not None and self.is_ip_adapter_active) or ip_adapter_image_embeds is not None:
+            ip_adapter_image_embeds = self.prepare_ip_adapter_image_embeds(
+                ip_adapter_image,
+                ip_adapter_image_embeds,
+                batch_size * num_images_per_prompt,
+                self.do_classifier_free_guidance,
+            )
+
+            if self.joint_attention_kwargs is None:
+                self._joint_attention_kwargs = {"ip_adapter_image_embeds": ip_adapter_image_embeds}
+            else:
+                self._joint_attention_kwargs.update(ip_adapter_image_embeds=ip_adapter_image_embeds)
+
+        # 8. Denoising loop
         with self.progress_bar(total=num_inference_steps) as progress_bar:
             for i, t in enumerate(timesteps):
                 if self.interrupt:

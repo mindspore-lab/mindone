@@ -9,6 +9,7 @@ from mindone.diffusers.configuration_utils import register_to_config
 from .vae import Encoder
 
 
+# Adapted from https://github.com/huggingface/diffusers/blob/main/src/diffusers/models/autoencoders/autoencoder_kl.py
 class AutoencoderKL(AutoencoderKL_):
     @register_to_config
     def __init__(

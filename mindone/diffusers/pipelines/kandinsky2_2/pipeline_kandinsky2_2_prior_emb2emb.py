@@ -1,3 +1,8 @@
+"""
+Adapted from https://github.com/huggingface/diffusers/tree/main/src/diffusers/
+pipelines/kandinsky2_2/pipeline_kandinsky2_2_prior_emb2emb.py.
+"""
+
 from typing import List, Optional, Union
 
 import numpy as np
@@ -13,6 +18,8 @@ from ...utils import logging
 from ...utils.mindspore_utils import randn_tensor
 from ..kandinsky import KandinskyPriorPipelineOutput
 from ..pipeline_utils import DiffusionPipeline
+
+XLA_AVAILABLE = False
 
 logger = logging.get_logger(__name__)  # pylint: disable=invalid-name
 

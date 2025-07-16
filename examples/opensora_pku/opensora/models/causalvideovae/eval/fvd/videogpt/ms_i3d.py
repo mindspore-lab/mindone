@@ -1,3 +1,5 @@
+# Adapted from
+# https://github.com/PKU-YuanGroup/Open-Sora-Plan/blob/main/opensora/models/causalvideovae/eval/fvd/videogpt/pytorch_i3d.py
 # Original code from https://github.com/piergiaj/pytorch-i3d
 from opensora.npu_config import npu_config
 

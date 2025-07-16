@@ -1,3 +1,6 @@
+# This code is adapted from https://github.com/FoundationVision/VAR
+# with modifications to run on MindSpore.
+
 import mindspore as ms
 import mindspore.mint.nn.functional as F
 from mindspore import Parameter, mint, nn, ops

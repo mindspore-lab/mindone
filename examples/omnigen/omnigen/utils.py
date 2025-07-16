@@ -1,3 +1,5 @@
+# Adapted from https://github.com/VectorSpaceLab/OmniGen/blob/main/OmniGen/utils.py
+
 import logging
 from typing import Dict, Union
 

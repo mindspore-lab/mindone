@@ -2,6 +2,9 @@
 # Copyright 2024 The HuggingFace Inc. team.
 # Copyright (c) 2022, NVIDIA CORPORATION.  All rights reserved.
 #
+# This code is adapted from https://github.com/Gen-Verse/MMaDA
+# with the modifications to run MMaDA on mindspore.
+#
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -436,7 +439,7 @@ class ModelMixin(nn.Cell, PushToHubMixin):
         r"""
         Instantiate a pretrained PyTorch model from a pretrained model configuration.
 
-        The model is set in evaluation mode - `model.eval()` - by default, and dropout modules are deactivated. To
+        The model is set in evaluation mode - `modelset_train(False)` - by default, and dropout modules are deactivated. To
         train the model, set it back in training mode with `model.train()`.
 
         Parameters:

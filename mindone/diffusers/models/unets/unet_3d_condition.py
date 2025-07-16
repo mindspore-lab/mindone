@@ -1,6 +1,9 @@
 # Copyright 2024 Alibaba DAMO-VILAB and The HuggingFace Team. All rights reserved.
 # Copyright 2024 The ModelScope Team.
 #
+# This code is adapted from https://github.com/huggingface/diffusers
+# with modifications to run diffusers on mindspore.
+#
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -26,17 +29,8 @@ from ..activations import get_activation
 from ..attention_processor import CROSS_ATTENTION_PROCESSORS, AttentionProcessor, AttnProcessor
 from ..embeddings import TimestepEmbedding, Timesteps
 from ..modeling_utils import ModelMixin
-from ..normalization import GroupNorm
 from ..transformers.transformer_temporal import TransformerTemporalModel
-from .unet_3d_blocks import (
-    CrossAttnDownBlock3D,
-    CrossAttnUpBlock3D,
-    DownBlock3D,
-    UNetMidBlock3DCrossAttn,
-    UpBlock3D,
-    get_down_block,
-    get_up_block,
-)
+from .unet_3d_blocks import UNetMidBlock3DCrossAttn, get_down_block, get_up_block
 
 logger = logging.get_logger(__name__)  # pylint: disable=invalid-name
 
@@ -88,6 +82,7 @@ class UNet3DConditionModel(ModelMixin, ConfigMixin, UNet2DConditionLoadersMixin)
     """
 
     _supports_gradient_checkpointing = False
+    _skip_layerwise_casting_patterns = ["norm", "time_embedding"]
 
     @register_to_config
     def __init__(
@@ -280,8 +275,10 @@ class UNet3DConditionModel(ModelMixin, ConfigMixin, UNet2DConditionLoadersMixin)
 
         # out
         if norm_num_groups is not None:
-            self.conv_norm_out = GroupNorm(num_channels=block_out_channels[0], num_groups=norm_num_groups, eps=norm_eps)
-            self.conv_act = get_activation("silu")()
+            self.conv_norm_out = mint.nn.GroupNorm(
+                num_channels=block_out_channels[0], num_groups=norm_num_groups, eps=norm_eps
+            )
+            self.conv_act = get_activation("silu")
         else:
             self.conv_norm_out = None
             self.conv_act = None
@@ -405,10 +402,6 @@ class UNet3DConditionModel(ModelMixin, ConfigMixin, UNet2DConditionLoadersMixin)
 
         self.set_attn_processor(processor)
 
-    def _set_gradient_checkpointing(self, module, value: bool = False) -> None:
-        if isinstance(module, (CrossAttnDownBlock3D, DownBlock3D, CrossAttnUpBlock3D, UpBlock3D)):
-            module.gradient_checkpointing = value
-
     def construct(
         self,
         sample: ms.Tensor,
@@ -483,10 +476,10 @@ class UNet3DConditionModel(ModelMixin, ConfigMixin, UNet2DConditionLoadersMixin)
         if not ops.is_tensor(timesteps):
             # TODO: this requires sync between CPU and GPU. So try to pass timesteps as tensors if you can
             if isinstance(timestep, float):
-                dtype = ms.float64
+                dtype = ms.float32
             else:
-                dtype = ms.int64
-            timesteps = ms.Tensor([timesteps], dtype=dtype)
+                dtype = ms.int32
+            timesteps = ms.tensor([timesteps], dtype=dtype)
         elif len(timesteps.shape) == 0:
             timesteps = timesteps[None]
 
@@ -502,8 +495,10 @@ class UNet3DConditionModel(ModelMixin, ConfigMixin, UNet2DConditionLoadersMixin)
         t_emb = t_emb.to(dtype=self.dtype)
 
         emb = self.time_embedding(t_emb, timestep_cond)
-        emb = emb.repeat_interleave(repeats=num_frames, dim=0)
-        encoder_hidden_states = encoder_hidden_states.repeat_interleave(repeats=num_frames, dim=0)
+        emb = emb.repeat_interleave(num_frames, dim=0, output_size=emb.shape[0] * num_frames)
+        encoder_hidden_states = encoder_hidden_states.repeat_interleave(
+            num_frames, dim=0, output_size=encoder_hidden_states.shape[0] * num_frames
+        )
 
         # 2. pre-process
         sample = sample.permute(0, 2, 1, 3, 4).reshape((sample.shape[0] * num_frames, -1) + sample.shape[3:])

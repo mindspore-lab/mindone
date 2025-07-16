@@ -1,3 +1,5 @@
+# Adapted from https://github.com/kohya-ss/sd-scripts/blob/main/library/sdxl_model_util.py
+
 import logging
 import os
 from typing import Dict, List, Union

@@ -1,3 +1,5 @@
+# Copied from https://github.com/idealo/imagededup/blob/master/imagededup/handlers/search/brute_force.py
+
 from typing import Callable, Dict
 
 

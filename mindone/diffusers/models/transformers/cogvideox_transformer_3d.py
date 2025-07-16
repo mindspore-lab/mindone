@@ -1,6 +1,9 @@
 # Copyright 2024 The CogVideoX team, Tsinghua University & ZhipuAI and The HuggingFace Team.
 # All rights reserved.
 #
+# This code is adapted from https://github.com/huggingface/diffusers
+# with modifications to run diffusers on mindspore.
+#
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -26,7 +29,7 @@ from ..attention_processor import AttentionProcessor, CogVideoXAttnProcessor2_0,
 from ..embeddings import CogVideoXPatchEmbed, TimestepEmbedding, Timesteps
 from ..modeling_outputs import Transformer2DModelOutput
 from ..modeling_utils import ModelMixin
-from ..normalization import AdaLayerNorm, CogVideoXLayerNormZero, LayerNorm
+from ..normalization import AdaLayerNorm, CogVideoXLayerNormZero
 
 logger = logging.get_logger(__name__)  # pylint: disable=invalid-name
 
@@ -118,8 +121,10 @@ class CogVideoXBlock(nn.Cell):
         encoder_hidden_states: ms.Tensor,
         temb: ms.Tensor,
         image_rotary_emb: Optional[Tuple[ms.Tensor, ms.Tensor]] = None,
+        attention_kwargs: Optional[Dict[str, Any]] = None,
     ) -> ms.Tensor:
         text_seq_length = encoder_hidden_states.shape[1]
+        attention_kwargs = attention_kwargs or {}
 
         # norm & modulate
         norm_hidden_states, norm_encoder_hidden_states, gate_msa, enc_gate_msa = self.norm1(
@@ -131,6 +136,7 @@ class CogVideoXBlock(nn.Cell):
             hidden_states=norm_hidden_states,
             encoder_hidden_states=norm_encoder_hidden_states,
             image_rotary_emb=image_rotary_emb,
+            **attention_kwargs,
         )
 
         hidden_states = hidden_states + gate_msa * attn_hidden_states
@@ -207,7 +213,9 @@ class CogVideoXTransformer3DModel(ModelMixin, ConfigMixin, PeftAdapterMixin):
             Scaling factor to apply in 3D positional embeddings across temporal dimensions.
     """
 
+    _skip_layerwise_casting_patterns = ["patch_embed", "norm"]
     _supports_gradient_checkpointing = True
+    _no_split_modules = ["CogVideoXBlock", "CogVideoXPatchEmbed"]
 
     @register_to_config
     def __init__(
@@ -272,6 +280,7 @@ class CogVideoXTransformer3DModel(ModelMixin, ConfigMixin, PeftAdapterMixin):
         self.embedding_dropout = mint.nn.Dropout(p=dropout)
 
         # 2. Time embeddings and ofs embedding(Only CogVideoX1.5-5B I2V have)
+
         self.time_proj = Timesteps(inner_dim, flip_sin_to_cos, freq_shift)
         self.time_embedding = TimestepEmbedding(inner_dim, time_embed_dim, timestep_activation_fn)
 
@@ -300,7 +309,7 @@ class CogVideoXTransformer3DModel(ModelMixin, ConfigMixin, PeftAdapterMixin):
                 for _ in range(num_layers)
             ]
         )
-        self.norm_final = LayerNorm(inner_dim, norm_eps, norm_elementwise_affine)
+        self.norm_final = mint.nn.LayerNorm(inner_dim, norm_eps, norm_elementwise_affine)
 
         # 4. Output blocks
         self.norm_out = AdaLayerNorm(
@@ -320,22 +329,7 @@ class CogVideoXTransformer3DModel(ModelMixin, ConfigMixin, PeftAdapterMixin):
 
         self.proj_out = mint.nn.Linear(inner_dim, output_dim)
 
-        self._gradient_checkpointing = False
-
-    @property
-    def gradient_checkpointing(self):
-        return self._gradient_checkpointing
-
-    @gradient_checkpointing.setter
-    def gradient_checkpointing(self, value):
-        if self._gradient_checkpointing != value:
-            self._gradient_checkpointing = value
-            for block in self.transformer_blocks:
-                block.recompute()
-
-    def _set_gradient_checkpointing(self, module, value=False):
-        if hasattr(module, "gradient_checkpointing"):
-            module.gradient_checkpointing = value
+        self.gradient_checkpointing = False
 
     @property
     # Copied from diffusers.models.unets.unet_2d_condition.UNet2DConditionModel.attn_processors
@@ -493,16 +487,10 @@ class CogVideoXTransformer3DModel(ModelMixin, ConfigMixin, PeftAdapterMixin):
                 encoder_hidden_states=encoder_hidden_states,
                 temb=emb,
                 image_rotary_emb=image_rotary_emb,
+                attention_kwargs=attention_kwargs,
             )
 
-        if not self.config["use_rotary_positional_embeddings"]:
-            # CogVideoX-2B
-            hidden_states = self.norm_final(hidden_states)
-        else:
-            # CogVideoX-5B
-            hidden_states = mint.cat([encoder_hidden_states, hidden_states], dim=1)
-            hidden_states = self.norm_final(hidden_states)
-            hidden_states = hidden_states[:, text_seq_length:]
+        hidden_states = self.norm_final(hidden_states)
 
         # 4. Final block
         hidden_states = self.norm_out(hidden_states, temb=emb)
@@ -519,12 +507,7 @@ class CogVideoXTransformer3DModel(ModelMixin, ConfigMixin, PeftAdapterMixin):
             output = hidden_states.reshape(
                 batch_size, (num_frames + p_t - 1) // p_t, height // p, width // p, -1, p_t, p, p
             )
-            output = (
-                output.permute(0, 1, 5, 4, 2, 6, 3, 7)
-                .flatten(start_dim=6, end_dim=7)
-                .flatten(start_dim=4, end_dim=5)
-                .flatten(start_dim=1, end_dim=2)
-            )
+            output = output.permute(0, 1, 5, 4, 2, 6, 3, 7).flatten(6, 7).flatten(4, 5).flatten(1, 2)
 
         if not return_dict:
             return (output,)

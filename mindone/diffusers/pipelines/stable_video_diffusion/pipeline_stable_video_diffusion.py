@@ -1,5 +1,8 @@
 # Copyright 2024 The HuggingFace Team. All rights reserved.
 #
+# This code is adapted from https://github.com/huggingface/diffusers
+# with modifications to run diffusers on mindspore.
+#
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -34,7 +37,10 @@ from ...utils.mindspore_utils import randn_tensor
 from ...video_processor import VideoProcessor
 from ..pipeline_utils import DiffusionPipeline
 
+XLA_AVAILABLE = False
+
 logger = logging.get_logger(__name__)  # pylint: disable=invalid-name
+
 
 EXAMPLE_DOC_STRING = """
     Examples:
@@ -174,7 +180,7 @@ class StableVideoDiffusionPipeline(DiffusionPipeline):
             scheduler=scheduler,
             feature_extractor=feature_extractor,
         )
-        self.vae_scale_factor = 2 ** (len(self.vae.config.block_out_channels) - 1)
+        self.vae_scale_factor = 2 ** (len(self.vae.config.block_out_channels) - 1) if getattr(self, "vae", None) else 8
         self.video_processor = VideoProcessor(do_resize=True, vae_scale_factor=self.vae_scale_factor)
 
     def _encode_image(
@@ -267,7 +273,7 @@ class StableVideoDiffusionPipeline(DiffusionPipeline):
                 "Please check `unet.config.time_embedding_type` and `text_encoder_2.config.projection_dim`."
             )
 
-        add_time_ids = ms.Tensor([add_time_ids], dtype=dtype)
+        add_time_ids = ms.tensor([add_time_ids], dtype=dtype)
         add_time_ids = add_time_ids.tile((batch_size * num_videos_per_prompt, 1))
 
         if do_classifier_free_guidance:
@@ -675,7 +681,7 @@ def _filter2d(input, kernel):
 
 def _gaussian(window_size: int, sigma):
     if isinstance(sigma, float):
-        sigma = ms.Tensor([[sigma]])
+        sigma = ms.tensor([[sigma]])
 
     batch_size = sigma.shape[0]
 
@@ -691,7 +697,7 @@ def _gaussian(window_size: int, sigma):
 
 def _gaussian_blur2d(input, kernel_size, sigma):
     if isinstance(sigma, tuple):
-        sigma = ms.Tensor([sigma], dtype=input.dtype)
+        sigma = ms.tensor([sigma], dtype=input.dtype)
     else:
         sigma = sigma.to(dtype=input.dtype)
 

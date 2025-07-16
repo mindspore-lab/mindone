@@ -1,5 +1,8 @@
 # Copyright 2024 The HuggingFace Team. All rights reserved.
 #
+# This code is adapted from https://github.com/huggingface/diffusers
+# with modifications to run diffusers on mindspore.
+#
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -26,6 +29,9 @@ from ...image_processor import PipelineImageInput, VaeImageProcessor
 from ...models import UVit2DModel, VQModel
 from ...schedulers import AmusedScheduler
 from ..pipeline_utils import DiffusionPipeline, ImagePipelineOutput
+
+XLA_AVAILABLE = False
+
 
 EXAMPLE_DOC_STRING = """
     Examples:
@@ -90,7 +96,9 @@ class AmusedInpaintPipeline(DiffusionPipeline):
             transformer=transformer,
             scheduler=scheduler,
         )
-        self.vae_scale_factor = 2 ** (len(self.vqvae.config.block_out_channels) - 1)
+        self.vae_scale_factor = (
+            2 ** (len(self.vqvae.config.block_out_channels) - 1) if getattr(self, "vqvae", None) else 8
+        )
         self.image_processor = VaeImageProcessor(vae_scale_factor=self.vae_scale_factor, do_normalize=False)
         self.mask_processor = VaeImageProcessor(
             vae_scale_factor=self.vae_scale_factor,

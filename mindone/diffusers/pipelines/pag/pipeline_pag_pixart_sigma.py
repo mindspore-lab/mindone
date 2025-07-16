@@ -1,5 +1,8 @@
 # Copyright 2024 PixArt-Sigma Authors and The HuggingFace Team. All rights reserved.
 #
+# This code is adapted from https://github.com/huggingface/diffusers
+# with modifications to run diffusers on mindspore.
+#
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -35,7 +38,10 @@ from ..pixart_alpha.pipeline_pixart_alpha import ASPECT_RATIO_256_BIN, ASPECT_RA
 from ..pixart_alpha.pipeline_pixart_sigma import ASPECT_RATIO_2048_BIN
 from .pag_utils import PAGMixin
 
+XLA_AVAILABLE = False
+
 logger = logging.get_logger(__name__)  # pylint: disable=invalid-name
+
 
 if is_bs4_available():
     from bs4 import BeautifulSoup
@@ -160,7 +166,7 @@ class PixArtSigmaPAGPipeline(DiffusionPipeline, PAGMixin):
             tokenizer=tokenizer, text_encoder=text_encoder, vae=vae, transformer=transformer, scheduler=scheduler
         )
 
-        self.vae_scale_factor = 2 ** (len(self.vae.config.block_out_channels) - 1)
+        self.vae_scale_factor = 2 ** (len(self.vae.config.block_out_channels) - 1) if getattr(self, "vae", None) else 8
         self.image_processor = PixArtImageProcessor(vae_scale_factor=self.vae_scale_factor)
 
         self.set_pag_applied_layers(pag_applied_layers)
@@ -237,7 +243,7 @@ class PixArtSigmaPAGPipeline(DiffusionPipeline, PAGMixin):
 
             prompt_attention_mask = ms.Tensor.from_numpy(text_inputs.attention_mask)
 
-            prompt_embeds = self.text_encoder(ms.Tensor(text_input_ids), attention_mask=prompt_attention_mask)
+            prompt_embeds = self.text_encoder(ms.tensor(text_input_ids), attention_mask=prompt_attention_mask)
             prompt_embeds = prompt_embeds[0]
 
         if self.text_encoder is not None:
@@ -770,10 +776,10 @@ class PixArtSigmaPAGPipeline(DiffusionPipeline, PAGMixin):
                 current_timestep = t
                 if not ops.is_tensor(current_timestep):
                     if isinstance(current_timestep, float):
-                        dtype = ms.float64
+                        dtype = ms.float32
                     else:
-                        dtype = ms.int64
-                    current_timestep = ms.Tensor([current_timestep], dtype=dtype)
+                        dtype = ms.int32
+                    current_timestep = ms.tensor([current_timestep], dtype=dtype)
                 elif len(current_timestep.shape) == 0:
                     current_timestep = current_timestep[None]
                 # broadcast to batch dimension in a way that's compatible with ONNX/Core ML

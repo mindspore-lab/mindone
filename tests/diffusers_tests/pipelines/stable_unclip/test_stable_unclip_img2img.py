@@ -1,3 +1,5 @@
+"""Adapted from https://github.com/huggingface/diffusers/tree/main/tests//pipelines/stable_unclip/test_stable_unclip_img2img.py."""
+
 import random
 import unittest
 
@@ -9,11 +11,7 @@ from transformers import CLIPTextConfig, CLIPVisionConfig
 import mindspore as ms
 
 from mindone.diffusers import DiffusionPipeline, StableUnCLIPImg2ImgPipeline
-from mindone.diffusers.utils.testing_utils import (
-    load_downloaded_image_from_hf_hub,
-    load_downloaded_numpy_from_hf_hub,
-    slow,
-)
+from mindone.diffusers.utils.testing_utils import load_downloaded_image_from_hf_hub, load_numpy_from_local_file, slow
 
 from ..pipeline_test_utils import (
     THRESHOLD_FP16,
@@ -259,8 +257,8 @@ class StableUnCLIPImg2ImgPipelineIntegrationTests(PipelineTesterMixin, unittest.
         torch.manual_seed(0)
         image = pipe(init_image, prompt=prompt)[0][0]
 
-        expected_image = load_downloaded_numpy_from_hf_hub(
-            "The-truth/mindone-testing-arrays",
+        expected_image = load_numpy_from_local_file(
+            "mindone-testing-arrays",
             f"stable_unclip_i2i_{dtype}.npy",
             subfolder="stable_unclip",
         )

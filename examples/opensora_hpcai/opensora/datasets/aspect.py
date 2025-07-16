@@ -1,3 +1,5 @@
+# Adapted from
+# https://github.com/hpcaitech/Open-Sora/blob/main/opensora/datasets/aspect.py
 """
 Credit: OpenSora HPC-AI Tech
 https://github.com/hpcaitech/Open-Sora/blob/ea41df3d6cc5f389b6824572854d97fa9f7779c3/opensora/datasets/aspect.py

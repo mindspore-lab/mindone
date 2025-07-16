@@ -1,3 +1,5 @@
+"""Adapted from https://github.com/huggingface/transformers/tree/main/src/transformers/generation/stopping_criteria.py."""
+
 import time
 import warnings
 from abc import ABC

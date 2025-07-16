@@ -1,5 +1,8 @@
 # Copyright 2024 The HuggingFace Team. All rights reserved.
 #
+# This code is adapted from https://github.com/huggingface/diffusers
+# with modifications to run diffusers on mindspore.
+#
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -23,7 +26,7 @@ from mindspore import mint, nn, ops
 from ..utils import deprecate
 from .activations import FP32SiLU, get_activation
 from .attention_processor import Attention
-from .layers_compat import pad, unflatten, view_as_complex
+from .layers_compat import GELU, pad, unflatten, view_as_complex
 
 
 def get_timestep_embedding(
@@ -56,7 +59,7 @@ def get_timestep_embedding(
     assert len(timesteps.shape) == 1, "Timesteps should be a 1d-array"
 
     half_dim = embedding_dim // 2
-    exponent = -mint.log(ms.Tensor(max_period, dtype=ms.float32)) * mint.arange(start=0, end=half_dim, dtype=ms.float32)
+    exponent = -mint.log(ms.tensor(max_period, dtype=ms.float32)) * mint.arange(start=0, end=half_dim, dtype=ms.float32)
     exponent = exponent / (half_dim - downscale_freq_shift)
 
     emb = mint.exp(exponent)
@@ -143,10 +146,14 @@ def get_3d_sincos_pos_embed(
     pos_embed_spatial = pos_embed_spatial[None, :, :]
     if pos_embed_spatial.dtype == ms.float64:
         pos_embed_spatial = (
-            pos_embed_spatial.to(ms.float32).repeat_interleave(temporal_size, dim=0).to(ms.float64)
+            pos_embed_spatial.to(ms.float32)
+            .repeat_interleave(temporal_size, dim=0, output_size=pos_embed_spatial.shape[0] * temporal_size)
+            .to(ms.float64)
         )  # [T, H*W, D // 4 * 3]
     else:
-        pos_embed_spatial = pos_embed_spatial.repeat_interleave(temporal_size, dim=0)  # [T, H*W, D // 4 * 3]
+        pos_embed_spatial = pos_embed_spatial.repeat_interleave(
+            temporal_size, dim=0, output_size=pos_embed_spatial.shape[0] * temporal_size
+        )  # [T, H*W, D // 4 * 3]
 
     pos_embed_temporal = pos_embed_temporal[:, None, :]
     if pos_embed_spatial.dtype == ms.float64:
@@ -337,7 +344,7 @@ def get_1d_sincos_pos_embed_from_grid(embed_dim, pos, output_type="np"):
             " `from_numpy` is no longer required."
             "  Pass `output_type='ms' to use the new version now."
         )
-        deprecate("output_type=='np'", "0.33.0", deprecation_message, standard_warn=False)
+        deprecate("output_type=='np'", "0.34.0", deprecation_message, standard_warn=False)
         return get_1d_sincos_pos_embed_from_grid_np(embed_dim=embed_dim, pos=pos)
     if embed_dim % 2 != 0:
         raise ValueError("embed_dim must be divisible by 2")
@@ -478,8 +485,6 @@ class PatchEmbed(nn.Cell):
         zero_module=False,  # For SD3 ControlNet
     ):
         super().__init__()
-        from .normalization import LayerNorm
-
         num_patches = (height // patch_size) * (width // patch_size)
         self.flatten = flatten
         self.layer_norm = layer_norm
@@ -498,7 +503,7 @@ class PatchEmbed(nn.Cell):
             self.proj.bias.set_data(init.initializer("zeros", self.proj.bias.shape, self.proj.bias.dtype))
 
         if layer_norm:
-            self.norm = LayerNorm(embed_dim, elementwise_affine=False, eps=1e-6)
+            self.norm = mint.nn.LayerNorm(embed_dim, elementwise_affine=False, eps=1e-6)
         else:
             self.norm = None
 
@@ -1138,15 +1143,11 @@ def get_1d_rotary_pos_embed(
     theta = theta * ntk_factor
     freqs = 1.0 / (theta ** (mint.arange(0, dim, 2, dtype=freqs_dtype)[: (dim // 2)] / dim)) / linear_factor  # [D/2]
     freqs = mint.outer(pos, freqs)  # type: ignore   # [S, D/2]
+    freqs = freqs.float()
     if use_real and repeat_interleave_real:
         # flux, hunyuan-dit, cogvideox
-        # ms.float64 is not support in mint.repeat_interleave
-        if freqs_dtype == ms.float64:
-            freqs_cos = freqs.cos().to(ms.float32).repeat_interleave(2, dim=1).to(freqs_dtype)  # [S, D]
-            freqs_sin = freqs.sin().to(ms.float32).repeat_interleave(2, dim=1).to(freqs_dtype)  # [S, D]
-        else:
-            freqs_cos = freqs.cos().repeat_interleave(2, dim=1)  # [S, D]
-            freqs_sin = freqs.sin().repeat_interleave(2, dim=1)  # [S, D]
+        freqs_cos = freqs.cos().repeat_interleave(2, dim=1, output_size=freqs.shape[1] * 2).float()  # [S, D]
+        freqs_sin = freqs.sin().repeat_interleave(2, dim=1, output_size=freqs.shape[1] * 2).float()  # [S, D]
         return freqs_cos, freqs_sin
     elif use_real:
         # stable audio, allegro
@@ -1155,8 +1156,7 @@ def get_1d_rotary_pos_embed(
         return freqs_cos, freqs_sin
     else:
         # lumina
-        # TODO: the dtype of abs required to be float32
-        freqs_cis = mint.polar(mint.ones_like(freqs).float(), freqs.float())  # complex64     # [S, D/2]
+        freqs_cis = mint.polar(mint.ones_like(freqs), freqs)  # complex64     # [S, D/2]
         return freqs_cis
 
 
@@ -1290,7 +1290,7 @@ class TimestepEmbedding(nn.Cell):
         else:
             self.cond_proj = None
 
-        self.act = get_activation(act_fn)()
+        self.act = get_activation(act_fn)
 
         if out_dim is not None:
             time_embed_dim_out = out_dim
@@ -1301,7 +1301,7 @@ class TimestepEmbedding(nn.Cell):
         if post_act_fn is None:
             self.post_act = None
         else:
-            self.post_act = get_activation(post_act_fn)()
+            self.post_act = get_activation(post_act_fn)
 
     def construct(self, sample, condition=None):
         if condition is not None:
@@ -1532,11 +1532,9 @@ class ImageProjection(nn.Cell):
         num_image_text_embeds: int = 32,
     ):
         super().__init__()
-        from .normalization import LayerNorm
-
         self.num_image_text_embeds = num_image_text_embeds
         self.image_embeds = mint.nn.Linear(image_embed_dim, self.num_image_text_embeds * cross_attention_dim)
-        self.norm = LayerNorm(cross_attention_dim)
+        self.norm = mint.nn.LayerNorm(cross_attention_dim)
 
     def construct(self, image_embeds: ms.Tensor):
         batch_size = image_embeds.shape[0]
@@ -1552,10 +1550,9 @@ class IPAdapterFullImageProjection(nn.Cell):
     def __init__(self, image_embed_dim=1024, cross_attention_dim=1024):
         super().__init__()
         from .attention import FeedForward
-        from .normalization import LayerNorm
 
         self.ff = FeedForward(image_embed_dim, cross_attention_dim, mult=1, activation_fn="gelu")
-        self.norm = LayerNorm(cross_attention_dim)
+        self.norm = mint.nn.LayerNorm(cross_attention_dim)
 
     def construct(self, image_embeds: ms.Tensor):
         return self.norm(self.ff(image_embeds))
@@ -1565,12 +1562,11 @@ class IPAdapterFaceIDImageProjection(nn.Cell):
     def __init__(self, image_embed_dim=1024, cross_attention_dim=1024, mult=1, num_tokens=1):
         super().__init__()
         from .attention import FeedForward
-        from .normalization import LayerNorm
 
         self.num_tokens = num_tokens
         self.cross_attention_dim = cross_attention_dim
         self.ff = FeedForward(image_embed_dim, cross_attention_dim * num_tokens, mult=mult, activation_fn="gelu")
-        self.norm = LayerNorm(cross_attention_dim)
+        self.norm = mint.nn.LayerNorm(cross_attention_dim)
 
     def construct(self, image_embeds: ms.Tensor):
         x = self.ff(image_embeds)
@@ -1782,8 +1778,6 @@ class HunyuanCombinedTimestepTextSizeStyleEmbedding(nn.Cell):
 class LuminaCombinedTimestepCaptionEmbedding(nn.Cell):
     def __init__(self, hidden_size=4096, cross_attention_dim=2048, frequency_embedding_size=256):
         super().__init__()
-        from .normalization import LayerNorm
-
         self.time_proj = Timesteps(
             num_channels=frequency_embedding_size, flip_sin_to_cos=True, downscale_freq_shift=0.0
         )
@@ -1791,7 +1785,7 @@ class LuminaCombinedTimestepCaptionEmbedding(nn.Cell):
         self.timestep_embedder = TimestepEmbedding(in_channels=frequency_embedding_size, time_embed_dim=hidden_size)
 
         self.caption_embedder = nn.SequentialCell(
-            LayerNorm(cross_attention_dim),
+            mint.nn.LayerNorm(cross_attention_dim),
             mint.nn.Linear(
                 cross_attention_dim,
                 hidden_size,
@@ -1802,7 +1796,7 @@ class LuminaCombinedTimestepCaptionEmbedding(nn.Cell):
     def construct(self, timestep, caption_feat, caption_mask):
         # timestep embedding:
         time_freq = self.time_proj(timestep)
-        time_embed = self.timestep_embedder(time_freq.to(dtype=self.timestep_embedder.linear_1.weight.dtype))
+        time_embed = self.timestep_embedder(time_freq.to(dtype=caption_feat.dtype))
 
         # caption condition embedding:
         caption_mask_float = caption_mask.float().unsqueeze(-1)
@@ -1853,12 +1847,10 @@ class MochiCombinedTimestepCaptionEmbedding(nn.Cell):
 class TextTimeEmbedding(nn.Cell):
     def __init__(self, encoder_dim: int, time_embed_dim: int, num_heads: int = 64):
         super().__init__()
-        from .normalization import LayerNorm
-
-        self.norm1 = LayerNorm(encoder_dim)
+        self.norm1 = mint.nn.LayerNorm(encoder_dim)
         self.pool = AttentionPooling(num_heads, encoder_dim)
         self.proj = mint.nn.Linear(encoder_dim, time_embed_dim)
-        self.norm2 = LayerNorm(time_embed_dim)
+        self.norm2 = mint.nn.LayerNorm(time_embed_dim)
 
     def construct(self, hidden_states):
         hidden_states = self.norm1(hidden_states)
@@ -1871,10 +1863,8 @@ class TextTimeEmbedding(nn.Cell):
 class TextImageTimeEmbedding(nn.Cell):
     def __init__(self, text_embed_dim: int = 768, image_embed_dim: int = 768, time_embed_dim: int = 1536):
         super().__init__()
-        from .normalization import LayerNorm
-
         self.text_proj = mint.nn.Linear(text_embed_dim, time_embed_dim)
-        self.text_norm = LayerNorm(time_embed_dim)
+        self.text_norm = mint.nn.LayerNorm(time_embed_dim)
         self.image_proj = mint.nn.Linear(image_embed_dim, time_embed_dim)
 
     def construct(self, text_embeds: ms.Tensor, image_embeds: ms.Tensor):
@@ -1891,10 +1881,8 @@ class TextImageTimeEmbedding(nn.Cell):
 class ImageTimeEmbedding(nn.Cell):
     def __init__(self, image_embed_dim: int = 768, time_embed_dim: int = 1536):
         super().__init__()
-        from .normalization import LayerNorm
-
         self.image_proj = mint.nn.Linear(image_embed_dim, time_embed_dim)
-        self.image_norm = LayerNorm(time_embed_dim)
+        self.image_norm = mint.nn.LayerNorm(time_embed_dim)
 
     def construct(self, image_embeds: ms.Tensor):
         # image
@@ -1906,10 +1894,8 @@ class ImageTimeEmbedding(nn.Cell):
 class ImageHintTimeEmbedding(nn.Cell):
     def __init__(self, image_embed_dim: int = 768, time_embed_dim: int = 1536):
         super().__init__()
-        from .normalization import LayerNorm
-
         self.image_proj = mint.nn.Linear(image_embed_dim, time_embed_dim)
-        self.image_norm = LayerNorm(time_embed_dim)
+        self.image_norm = mint.nn.LayerNorm(time_embed_dim)
         self.input_hint_block = nn.SequentialCell(
             mint.nn.Conv2d(3, 16, 3, padding=1),
             mint.nn.SiLU(),
@@ -2250,7 +2236,7 @@ class PixArtAlphaTextProjection(nn.Cell):
             out_features = hidden_size
         self.linear_1 = mint.nn.Linear(in_features, hidden_size, bias=True)
         if act_fn == "gelu_tanh":
-            self.act_1 = _GELU(approximate="tanh")
+            self.act_1 = GELU(approximate="tanh")
         elif act_fn == "silu":
             self.act_1 = mint.nn.SiLU()
         elif act_fn == "silu_fp32":
@@ -2276,10 +2262,9 @@ class IPAdapterPlusImageProjectionBlock(nn.Cell):
     ) -> None:
         super().__init__()
         from .attention import FeedForward
-        from .normalization import LayerNorm
 
-        self.ln0 = LayerNorm(embed_dims)
-        self.ln1 = LayerNorm(embed_dims)
+        self.ln0 = mint.nn.LayerNorm(embed_dims)
+        self.ln1 = mint.nn.LayerNorm(embed_dims)
         self.attn = Attention(
             query_dim=embed_dims,
             dim_head=dim_head,
@@ -2287,7 +2272,7 @@ class IPAdapterPlusImageProjectionBlock(nn.Cell):
             out_bias=False,
         )
         self.ff = nn.SequentialCell(
-            LayerNorm(embed_dims),
+            mint.nn.LayerNorm(embed_dims),
             FeedForward(embed_dims, embed_dims, activation_fn="gelu", mult=ffn_ratio, bias=False),
         )
 
@@ -2328,14 +2313,12 @@ class IPAdapterPlusImageProjection(nn.Cell):
         ffn_ratio: float = 4,
     ) -> None:
         super().__init__()
-        from .normalization import LayerNorm
-
         self.latents = ms.Parameter(mint.randn(1, num_queries, hidden_dims) / hidden_dims**0.5, name="latents")
 
         self.proj_in = mint.nn.Linear(embed_dims, hidden_dims)
 
         self.proj_out = mint.nn.Linear(hidden_dims, output_dims)
-        self.norm_out = LayerNorm(output_dims)
+        self.norm_out = mint.nn.LayerNorm(output_dims)
 
         self.layers = nn.CellList(
             [IPAdapterPlusImageProjectionBlock(hidden_dims, dim_head, heads, ffn_ratio) for _ in range(depth)]
@@ -2394,7 +2377,6 @@ class IPAdapterFaceIDPlusImageProjection(nn.Cell):
     ) -> None:
         super().__init__()
         from .attention import FeedForward
-        from .normalization import LayerNorm
 
         self.num_tokens = num_tokens
         self.embed_dim = embed_dims
@@ -2403,12 +2385,12 @@ class IPAdapterFaceIDPlusImageProjection(nn.Cell):
         self.shortcut_scale = 1.0
 
         self.proj = FeedForward(id_embeddings_dim, embed_dims * num_tokens, activation_fn="gelu", mult=ffproj_ratio)
-        self.norm = LayerNorm(embed_dims)
+        self.norm = mint.nn.LayerNorm(embed_dims)
 
         self.proj_in = mint.nn.Linear(hidden_dims, embed_dims)
 
         self.proj_out = mint.nn.Linear(embed_dims, output_dims)
-        self.norm_out = LayerNorm(output_dims)
+        self.norm_out = mint.nn.LayerNorm(output_dims)
 
         self.layers = nn.CellList(
             [IPAdapterPlusImageProjectionBlock(embed_dims, dim_head, heads, ffn_ratio) for _ in range(depth)]
@@ -2465,10 +2447,9 @@ class IPAdapterTimeImageProjectionBlock(nn.Cell):
     ) -> None:
         super().__init__()
         from .attention import FeedForward
-        from .normalization import LayerNorm
 
-        self.ln0 = LayerNorm(hidden_dim)
-        self.ln1 = LayerNorm(hidden_dim)
+        self.ln0 = mint.nn.LayerNorm(hidden_dim)
+        self.ln1 = mint.nn.LayerNorm(hidden_dim)
         self.attn = Attention(
             query_dim=hidden_dim,
             cross_attention_dim=hidden_dim,
@@ -2482,7 +2463,7 @@ class IPAdapterTimeImageProjectionBlock(nn.Cell):
         # AdaLayerNorm
         self.adaln_silu = mint.nn.SiLU()
         self.adaln_proj = mint.nn.Linear(hidden_dim, 4 * hidden_dim)
-        self.adaln_norm = LayerNorm(hidden_dim)
+        self.adaln_norm = mint.nn.LayerNorm(hidden_dim)
 
         # Set attention scale and fuse KV
         self.attn.scale = 1 / math.sqrt(math.sqrt(dim_head))
@@ -2586,12 +2567,10 @@ class IPAdapterTimeImageProjection(nn.Cell):
         timestep_freq_shift: int = 0,
     ) -> None:
         super().__init__()
-        from .normalization import LayerNorm
-
         self.latents = ms.Parameter(mint.randn(1, num_queries, hidden_dim) / hidden_dim**0.5, name="latents")
         self.proj_in = mint.nn.Linear(embed_dim, hidden_dim)
         self.proj_out = mint.nn.Linear(hidden_dim, output_dim)
-        self.norm_out = LayerNorm(output_dim)
+        self.norm_out = mint.nn.LayerNorm(output_dim)
         self.layers = nn.CellList(
             [IPAdapterTimeImageProjectionBlock(hidden_dim, dim_head, heads, ffn_ratio) for _ in range(depth)]
         )
@@ -2630,6 +2609,11 @@ class MultiIPAdapterImageProjection(nn.Cell):
     def __init__(self, IPAdapterImageProjectionLayers: Union[List[nn.Cell], Tuple[nn.Cell]]):
         super().__init__()
         self.image_projection_layers = nn.CellList(IPAdapterImageProjectionLayers)
+
+    @property
+    def num_ip_adapters(self) -> int:
+        """Number of IP-Adapters loaded."""
+        return len(self.image_projection_layers)
 
     def construct(self, image_embeds: List[ms.Tensor]):
         projected_image_embeds = []

@@ -1,4 +1,6 @@
-# reference to https://github.com/Stability-AI/generative-models
+# This code is adapted from https://github.com/Stability-AI/generative-models
+# with modifications to run on MindSpore.
+
 from functools import partial
 
 from gm.util import default, instantiate_from_config

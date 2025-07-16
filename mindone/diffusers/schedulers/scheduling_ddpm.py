@@ -1,5 +1,8 @@
 # Copyright 2024 UC Berkeley Team and The HuggingFace Team. All rights reserved.
 #
+# This code is adapted from https://github.com/huggingface/diffusers
+# with modifications to run diffusers on mindspore.
+#
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -143,7 +146,7 @@ class DDPMScheduler(SchedulerMixin, ConfigMixin):
             The final `beta` value.
         beta_schedule (`str`, defaults to `"linear"`):
             The beta schedule, a mapping from a beta range to a sequence of betas for stepping the model. Choose from
-            `linear`, `scaled_linear`, or `squaredcos_cap_v2`.
+            `linear`, `scaled_linear`, `squaredcos_cap_v2`, or `sigmoid`.
         trained_betas (`np.ndarray`, *optional*):
             An array of betas to pass directly to the constructor without using `beta_start` and `beta_end`.
         variance_type (`str`, defaults to `"fixed_small"`):
@@ -222,7 +225,7 @@ class DDPMScheduler(SchedulerMixin, ConfigMixin):
 
         self.alphas = 1.0 - self.betas
         self.alphas_cumprod = mint.cumprod(self.alphas, dim=0)
-        self.one = ms.Tensor(1.0)
+        self.one = ms.tensor(1.0)
 
         # standard deviation of the initial noise distribution
         self.init_noise_sigma = 1.0
@@ -230,7 +233,7 @@ class DDPMScheduler(SchedulerMixin, ConfigMixin):
         # setable values
         self.custom_timesteps = False
         self.num_inference_steps = None
-        self.timesteps = ms.Tensor(np.arange(0, num_train_timesteps)[::-1].copy())
+        self.timesteps = ms.tensor(np.arange(0, num_train_timesteps)[::-1].copy())
 
         self.variance_type = variance_type
 
@@ -279,8 +282,7 @@ class DDPMScheduler(SchedulerMixin, ConfigMixin):
 
             if timesteps[0] >= self.config.num_train_timesteps:
                 raise ValueError(
-                    f"`timesteps` must start before `self.config.train_timesteps`:"
-                    f" {self.config.num_train_timesteps}."
+                    f"`timesteps` must start before `self.config.train_timesteps`: {self.config.num_train_timesteps}."
                 )
 
             timesteps = np.array(timesteps, dtype=np.int64)
@@ -321,7 +323,7 @@ class DDPMScheduler(SchedulerMixin, ConfigMixin):
                     f"{self.config.timestep_spacing} is not supported. Please make sure to choose one of 'linspace', 'leading' or 'trailing'."
                 )
 
-        self.timesteps = ms.Tensor(timesteps)
+        self.timesteps = ms.tensor(timesteps)
 
     def _get_variance(self, t, predicted_variance=None, variance_type=None):
         prev_t = self.previous_timestep(t)

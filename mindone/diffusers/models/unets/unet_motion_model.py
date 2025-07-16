@@ -1,5 +1,8 @@
 # Copyright 2024 The HuggingFace Team. All rights reserved.
 #
+# This code is adapted from https://github.com/huggingface/diffusers
+# with modifications to run diffusers on mindspore.
+#
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -25,7 +28,6 @@ from ..attention import BasicTransformerBlock
 from ..attention_processor import CROSS_ATTENTION_PROCESSORS, AttentionProcessor, AttnProcessor, IPAdapterAttnProcessor
 from ..embeddings import TimestepEmbedding, Timesteps
 from ..modeling_utils import ModelMixin
-from ..normalization import GroupNorm
 from ..resnet import Downsample2D, ResnetBlock2D, Upsample2D
 from ..transformers.dual_transformer_2d import DualTransformer2DModel
 from ..transformers.transformer_2d import Transformer2DModel
@@ -102,7 +104,7 @@ class AnimateDiffTransformer3D(nn.Cell):
 
         self.in_channels = in_channels
 
-        self.norm = GroupNorm(num_groups=norm_num_groups, num_channels=in_channels, eps=1e-6, affine=True)
+        self.norm = mint.nn.GroupNorm(num_groups=norm_num_groups, num_channels=in_channels, eps=1e-6, affine=True)
         self.proj_in = mint.nn.Linear(in_channels, inner_dim)
 
         # 3. Define transformers blocks
@@ -305,6 +307,7 @@ class DownBlockMotion(nn.Cell):
         blocks = zip(self.resnets, self.motion_modules)
         for resnet, motion_module in blocks:
             hidden_states = resnet(input_tensor=hidden_states, temb=temb)
+
             hidden_states = motion_module(hidden_states, num_frames=num_frames)
 
             output_states = output_states + (hidden_states,)
@@ -478,10 +481,7 @@ class CrossAttnDownBlockMotion(nn.Cell):
                 return_dict=False,
             )[0]
 
-            hidden_states = motion_module(
-                hidden_states,
-                num_frames=num_frames,
-            )
+            hidden_states = motion_module(hidden_states, num_frames=num_frames)
 
             # apply additional residuals to the output of the last pair of resnet and attention blocks
             if i == len(blocks) - 1 and additional_residuals is not None:
@@ -666,10 +666,7 @@ class CrossAttnUpBlockMotion(nn.Cell):
                 return_dict=False,
             )[0]
 
-            hidden_states = motion_module(
-                hidden_states,
-                num_frames=num_frames,
-            )
+            hidden_states = motion_module(hidden_states, num_frames=num_frames)
 
         if self.upsamplers is not None:
             for upsampler in self.upsamplers:
@@ -946,10 +943,7 @@ class UNetMidBlockCrossAttnMotion(nn.Cell):
                 encoder_attention_mask=encoder_attention_mask,
                 return_dict=False,
             )[0]
-            hidden_states = motion_module(
-                hidden_states,
-                num_frames=num_frames,
-            )
+            hidden_states = motion_module(hidden_states, None, None, None, num_frames, None)
             hidden_states = resnet(input_tensor=hidden_states, temb=temb)
 
         return hidden_states
@@ -1144,6 +1138,7 @@ class UNetMotionModel(ModelMixin, ConfigMixin, UNet2DConditionLoadersMixin, Peft
     """
 
     _supports_gradient_checkpointing = True
+    _skip_layerwise_casting_patterns = ["norm"]
 
     @register_to_config
     def __init__(
@@ -1472,7 +1467,9 @@ class UNetMotionModel(ModelMixin, ConfigMixin, UNet2DConditionLoadersMixin, Peft
 
         # out
         if norm_num_groups is not None:
-            self.conv_norm_out = GroupNorm(num_channels=block_out_channels[0], num_groups=norm_num_groups, eps=norm_eps)
+            self.conv_norm_out = mint.nn.GroupNorm(
+                num_channels=block_out_channels[0], num_groups=norm_num_groups, eps=norm_eps
+            )
             self.conv_act = mint.nn.SiLU()
         else:
             self.conv_norm_out = None
@@ -1813,10 +1810,6 @@ class UNetMotionModel(ModelMixin, ConfigMixin, UNet2DConditionLoadersMixin, Peft
 
         self.set_attn_processor(processor)
 
-    def _set_gradient_checkpointing(self, module, value: bool = False) -> None:
-        if isinstance(module, (CrossAttnDownBlockMotion, DownBlockMotion, CrossAttnUpBlockMotion, UpBlockMotion)):
-            module.gradient_checkpointing = value
-
     def construct(
         self,
         sample: ms.Tensor,
@@ -1886,10 +1879,10 @@ class UNetMotionModel(ModelMixin, ConfigMixin, UNet2DConditionLoadersMixin, Peft
         if not ops.is_tensor(timesteps):
             # TODO: this requires sync between CPU and GPU. So try to pass timesteps as tensors if you can
             if isinstance(timestep, float):
-                dtype = ms.float64
+                dtype = ms.float32
             else:
-                dtype = ms.int64
-            timesteps = ms.Tensor([timesteps], dtype=dtype)
+                dtype = ms.int32
+            timesteps = ms.tensor([timesteps], dtype=dtype)
         elif len(timesteps.shape) == 0:
             timesteps = timesteps[None]
 
@@ -1927,7 +1920,7 @@ class UNetMotionModel(ModelMixin, ConfigMixin, UNet2DConditionLoadersMixin, Peft
             aug_emb = self.add_embedding(add_embeds)
 
         emb = emb if aug_emb is None else emb + aug_emb
-        emb = emb.repeat_interleave(repeats=num_frames, dim=0)
+        emb = emb.repeat_interleave(num_frames, dim=0, output_size=emb.shape[0] * num_frames)
 
         if self.encoder_hid_proj is not None and self.config["encoder_hid_dim_type"] == "ip_image_proj":
             if "image_embeds" not in added_cond_kwargs:
@@ -1937,8 +1930,10 @@ class UNetMotionModel(ModelMixin, ConfigMixin, UNet2DConditionLoadersMixin, Peft
                 )
             image_embeds = added_cond_kwargs.get("image_embeds")
             image_embeds = self.encoder_hid_proj(image_embeds)
-            image_embeds = [image_embed.repeat_interleave(repeats=num_frames, dim=0) for image_embed in image_embeds]
-
+            image_embeds = [
+                image_embed.repeat_interleave(num_frames, dim=0, output_size=image_embed.shape[0] * num_frames)
+                for image_embed in image_embeds
+            ]
             encoder_hidden_states = (encoder_hidden_states, image_embeds)
 
         # 2. pre-process

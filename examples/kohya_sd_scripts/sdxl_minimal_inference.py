@@ -1,3 +1,4 @@
+# Adapted from https://github.com/kohya-ss/sd-scripts/blob/main/sdxl_minimal_inference.py
 # 手元で推論を行うための最低限のコード。HuggingFace／DiffusersのCLIP、schedulerとVAEを使う
 # Minimal code for performing inference at local. Use HuggingFace/Diffusers CLIP, scheduler and VAE
 

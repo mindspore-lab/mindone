@@ -1,3 +1,5 @@
+"""Adapted from https://github.com/huggingface/transformers/tree/main/src/transformers/integrations/flash_attention.py."""
+
 from typing import Optional, Tuple
 
 from transformers.utils import logging

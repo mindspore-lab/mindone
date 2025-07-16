@@ -1,5 +1,8 @@
 # Copyright 2024 The HuggingFace Team. All rights reserved.
 #
+# This code is adapted from https://github.com/huggingface/diffusers
+# with modifications to run diffusers on mindspore.
+#
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -16,6 +19,8 @@ State dict utilities: utility methods for converting state dicts easily
 """
 
 import enum
+
+from mindspore import mint
 
 from .logging import get_logger
 
@@ -269,3 +274,12 @@ def convert_all_state_dict_to_peft(state_dict):
         raise ValueError("Your LoRA was not converted to PEFT")
 
     return peft_dict
+
+
+def state_dict_all_zero(state_dict, filter_str=None):
+    if filter_str is not None:
+        if isinstance(filter_str, str):
+            filter_str = [filter_str]
+        state_dict = {k: v for k, v in state_dict.items() if any(f in k for f in filter_str)}
+
+    return all(mint.all(param == 0).item() for param in state_dict.values())

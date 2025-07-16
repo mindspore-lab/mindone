@@ -1,5 +1,8 @@
 # Copyright 2024 The HuggingFace Team. All rights reserved.
 #
+# This code is adapted from https://github.com/huggingface/diffusers
+# with modifications to run diffusers on mindspore.
+#
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -30,7 +33,10 @@ from ...utils import BaseOutput, logging
 from ...utils.mindspore_utils import randn_tensor
 from ..pipeline_utils import DiffusionPipeline
 
+XLA_AVAILABLE = False
+
 logger = logging.get_logger(__name__)  # pylint: disable=invalid-name
+
 
 EXAMPLE_DOC_STRING = """
     Examples:
@@ -298,7 +304,7 @@ class KandinskyPriorPipeline(DiffusionPipeline):
             return_tensors="np",
         )
         text_input_ids = text_inputs.input_ids
-        text_mask = ms.Tensor(text_inputs.attention_mask)
+        text_mask = ms.tensor(text_inputs.attention_mask)
 
         untruncated_ids = self.tokenizer(prompt, padding="longest", return_tensors="np").input_ids
 
@@ -348,8 +354,8 @@ class KandinskyPriorPipeline(DiffusionPipeline):
                 truncation=True,
                 return_tensors="np",
             )
-            uncond_text_mask = ms.Tensor(uncond_input.attention_mask)
-            negative_prompt_embeds_text_encoder_output = self.text_encoder(ms.Tensor(uncond_input.input_ids))
+            uncond_text_mask = ms.tensor(uncond_input.attention_mask)
+            negative_prompt_embeds_text_encoder_output = self.text_encoder(ms.tensor(uncond_input.input_ids))
 
             negative_prompt_embeds = negative_prompt_embeds_text_encoder_output[0]
             uncond_text_encoder_hidden_states = negative_prompt_embeds_text_encoder_output[1]

@@ -1,5 +1,8 @@
 # Copyright 2024 The HuggingFace Team. All rights reserved.
 #
+# This code is adapted from https://github.com/huggingface/diffusers
+# with modifications to run diffusers on mindspore.
+#
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -20,14 +23,7 @@ from ..utils import logging
 from .activations import GEGLU, GELU, ApproximateGELU, FP32SiLU, LinearActivation, SwiGLU
 from .attention_processor import Attention, JointAttnProcessor2_0
 from .embeddings import SinusoidalPositionalEmbedding
-from .normalization import (
-    AdaLayerNorm,
-    AdaLayerNormContinuous,
-    AdaLayerNormZero,
-    LayerNorm,
-    RMSNorm,
-    SD35AdaLayerNormZeroX,
-)
+from .normalization import AdaLayerNorm, AdaLayerNormContinuous, AdaLayerNormZero, RMSNorm, SD35AdaLayerNormZeroX
 
 logger = logging.get_logger(__name__)
 
@@ -67,8 +63,8 @@ class GatedSelfAttentionDense(nn.Cell):
         self.attn = Attention(query_dim=query_dim, heads=n_heads, dim_head=d_head)
         self.ff = FeedForward(query_dim, activation_fn="geglu")
 
-        self.norm1 = LayerNorm(query_dim)
-        self.norm2 = LayerNorm(query_dim)
+        self.norm1 = mint.nn.LayerNorm(query_dim)
+        self.norm2 = mint.nn.LayerNorm(query_dim)
 
         self.alpha_attn = ms.Parameter(ms.tensor(0.0), name="alpha_attn")
         self.alpha_dense = ms.Parameter(ms.tensor(0.0), name="alpha_dense")
@@ -164,11 +160,11 @@ class JointTransformerBlock(nn.Cell):
         else:
             self.attn2 = None
 
-        self.norm2 = LayerNorm(dim, elementwise_affine=False, eps=1e-6)
+        self.norm2 = mint.nn.LayerNorm(dim, elementwise_affine=False, eps=1e-6)
         self.ff = FeedForward(dim=dim, dim_out=dim, activation_fn="gelu-approximate")
 
         if not context_pre_only:
-            self.norm2_context = LayerNorm(dim, elementwise_affine=False, eps=1e-6)
+            self.norm2_context = mint.nn.LayerNorm(dim, elementwise_affine=False, eps=1e-6)
             self.ff_context = FeedForward(dim=dim, dim_out=dim, activation_fn="gelu-approximate")
         else:
             self.norm2_context = None
@@ -372,7 +368,7 @@ class BasicTransformerBlock(nn.Cell):
                 "rms_norm",
             )
         else:
-            self.norm1 = LayerNorm(dim, eps=norm_eps, elementwise_affine=norm_elementwise_affine)
+            self.norm1 = mint.nn.LayerNorm(dim, eps=norm_eps, elementwise_affine=norm_elementwise_affine)
 
         self.attn1 = Attention(
             query_dim=dim,
@@ -402,7 +398,7 @@ class BasicTransformerBlock(nn.Cell):
                     "rms_norm",
                 )
             else:
-                self.norm2 = LayerNorm(dim, eps=norm_eps, elementwise_affine=norm_elementwise_affine)
+                self.norm2 = mint.nn.LayerNorm(dim, eps=norm_eps, elementwise_affine=norm_elementwise_affine)
 
             self.attn2 = Attention(
                 query_dim=dim,
@@ -416,7 +412,7 @@ class BasicTransformerBlock(nn.Cell):
             )  # is self-attn if encoder_hidden_states is none
         else:
             if norm_type == "ada_norm_single":  # For Latte
-                self.norm2 = LayerNorm(dim, norm_eps, norm_elementwise_affine)
+                self.norm2 = mint.nn.LayerNorm(dim, norm_eps, norm_elementwise_affine)
             else:
                 self.norm2 = None
             self.attn2 = None
@@ -433,7 +429,7 @@ class BasicTransformerBlock(nn.Cell):
             )
 
         elif norm_type in ["ada_norm_zero", "ada_norm", "layer_norm"]:
-            self.norm3 = LayerNorm(dim, eps=norm_eps, elementwise_affine=norm_elementwise_affine)
+            self.norm3 = mint.nn.LayerNorm(dim, eps=norm_eps, elementwise_affine=norm_elementwise_affine)
         elif norm_type == "layer_norm_i2vgen":
             self.norm3 = None
 
@@ -666,7 +662,7 @@ class TemporalBasicTransformerBlock(nn.Cell):
         super().__init__()
         self.is_res = dim == time_mix_inner_dim
 
-        self.norm_in = LayerNorm(dim)
+        self.norm_in = mint.nn.LayerNorm(dim)
 
         # Define 3 blocks. Each block has its own normalization layer.
         # 1. Self-Attn
@@ -676,7 +672,7 @@ class TemporalBasicTransformerBlock(nn.Cell):
             activation_fn="geglu",
         )
 
-        self.norm1 = LayerNorm(time_mix_inner_dim)
+        self.norm1 = mint.nn.LayerNorm(time_mix_inner_dim)
         self.attn1 = Attention(
             query_dim=time_mix_inner_dim,
             heads=num_attention_heads,
@@ -689,7 +685,7 @@ class TemporalBasicTransformerBlock(nn.Cell):
             # We currently only use AdaLayerNormZero for self attention where there will only be one attention block.
             # I.e. the number of returned modulation chunks from AdaLayerZero would not make sense if returned during
             # the second cross attention block.
-            self.norm2 = LayerNorm(time_mix_inner_dim)
+            self.norm2 = mint.nn.LayerNorm(time_mix_inner_dim)
             self.attn2 = Attention(
                 query_dim=time_mix_inner_dim,
                 cross_attention_dim=cross_attention_dim,
@@ -701,7 +697,7 @@ class TemporalBasicTransformerBlock(nn.Cell):
             self.attn2 = None
 
         # 3. Feed-forward
-        self.norm3 = LayerNorm(time_mix_inner_dim)
+        self.norm3 = mint.nn.LayerNorm(time_mix_inner_dim)
         self.ff = FeedForward(time_mix_inner_dim, activation_fn="geglu")
 
         # let chunk size default to None
@@ -976,7 +972,7 @@ class FreeNoiseTransformerBlock(nn.Cell):
 
         # Define 3 blocks. Each block has its own normalization layer.
         # 1. Self-Attn
-        self.norm1 = LayerNorm(dim, elementwise_affine=norm_elementwise_affine, eps=norm_eps)
+        self.norm1 = mint.nn.LayerNorm(dim, elementwise_affine=norm_elementwise_affine, eps=norm_eps)
 
         self.attn1 = Attention(
             query_dim=dim,
@@ -991,7 +987,7 @@ class FreeNoiseTransformerBlock(nn.Cell):
 
         # 2. Cross-Attn
         if cross_attention_dim is not None or double_self_attention:
-            self.norm2 = LayerNorm(dim, norm_eps, norm_elementwise_affine)
+            self.norm2 = mint.nn.LayerNorm(dim, norm_eps, norm_elementwise_affine)
 
             self.attn2 = Attention(
                 query_dim=dim,
@@ -1014,7 +1010,7 @@ class FreeNoiseTransformerBlock(nn.Cell):
             bias=ff_bias,
         )
 
-        self.norm3 = LayerNorm(dim, norm_eps, norm_elementwise_affine)
+        self.norm3 = mint.nn.LayerNorm(dim, norm_eps, norm_elementwise_affine)
 
         # let chunk size default to None
         self._chunk_size = None

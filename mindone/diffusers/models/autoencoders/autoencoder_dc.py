@@ -1,6 +1,9 @@
 # Copyright 2024 MIT, Tsinghua University, NVIDIA CORPORATION and The HuggingFace Team.
 # All rights reserved.
 #
+# This code is adapted from https://github.com/huggingface/diffusers
+# with modifications to run diffusers on mindspore.
+#
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -16,6 +19,7 @@
 from typing import Optional, Tuple, Union
 
 import mindspore as ms
+import mindspore.mint.nn.functional as F
 from mindspore import mint, nn, ops
 
 from ...configuration_utils import ConfigMixin, register_to_config
@@ -41,7 +45,7 @@ class ResBlock(nn.Cell):
 
         self.norm_type = norm_type
 
-        self.nonlinearity = get_activation(act_fn)() if act_fn is not None else mint.nn.Identity()
+        self.nonlinearity = get_activation(act_fn) if act_fn is not None else mint.nn.Identity()
         self.conv1 = mint.nn.Conv2d(in_channels, in_channels, 3, 1, padding=1, bias=True)
         self.conv2 = mint.nn.Conv2d(in_channels, out_channels, 3, 1, padding=1, bias=False)
         self.norm = get_normalization(norm_type, out_channels)
@@ -194,7 +198,7 @@ class DCUpBlock2d(nn.Cell):
             x = ops.pixel_shuffle(x, self.factor)
 
         if self.shortcut:
-            y = hidden_states.repeat_interleave(self.repeats, dim=1)
+            y = hidden_states.repeat_interleave(self.repeats, dim=1, output_size=hidden_states.shape[1] * self.repeats)
             # todo: unavailable mint interface
             y = ops.pixel_shuffle(y, self.factor)
             hidden_states = x + y
@@ -371,7 +375,9 @@ class Decoder(nn.Cell):
 
     def construct(self, hidden_states: ms.Tensor) -> ms.Tensor:
         if self.in_shortcut:
-            x = hidden_states.repeat_interleave(self.in_shortcut_repeats, dim=1)
+            x = hidden_states.repeat_interleave(
+                self.in_shortcut_repeats, dim=1, output_size=hidden_states.shape[1] * self.in_shortcut_repeats
+            )
             hidden_states = self.conv_in(hidden_states) + x
         else:
             hidden_states = self.conv_in(hidden_states)
@@ -497,6 +503,9 @@ class AutoencoderDC(ModelMixin, ConfigMixin, FromOriginalModelMixin):
         self.tile_sample_stride_height = 448
         self.tile_sample_stride_width = 448
 
+        self.tile_latent_min_height = self.tile_sample_min_height // self.spatial_compression_ratio
+        self.tile_latent_min_width = self.tile_sample_min_width // self.spatial_compression_ratio
+
     def enable_tiling(
         self,
         tile_sample_min_height: Optional[int] = None,
@@ -526,6 +535,8 @@ class AutoencoderDC(ModelMixin, ConfigMixin, FromOriginalModelMixin):
         self.tile_sample_min_width = tile_sample_min_width or self.tile_sample_min_width
         self.tile_sample_stride_height = tile_sample_stride_height or self.tile_sample_stride_height
         self.tile_sample_stride_width = tile_sample_stride_width or self.tile_sample_stride_width
+        self.tile_latent_min_height = self.tile_sample_min_height // self.spatial_compression_ratio
+        self.tile_latent_min_width = self.tile_sample_min_width // self.spatial_compression_ratio
 
     def disable_tiling(self) -> None:
         r"""
@@ -615,11 +626,106 @@ class AutoencoderDC(ModelMixin, ConfigMixin, FromOriginalModelMixin):
             return (decoded,)
         return DecoderOutput(sample=decoded)
 
+    def blend_v(self, a: ms.Tensor, b: ms.Tensor, blend_extent: int) -> ms.Tensor:
+        blend_extent = min(a.shape[2], b.shape[2], blend_extent)
+        for y in range(blend_extent):
+            b[:, :, y, :] = a[:, :, -blend_extent + y, :] * (1 - y / blend_extent) + b[:, :, y, :] * (y / blend_extent)
+        return b
+
+    def blend_h(self, a: ms.Tensor, b: ms.Tensor, blend_extent: int) -> ms.Tensor:
+        blend_extent = min(a.shape[3], b.shape[3], blend_extent)
+        for x in range(blend_extent):
+            b[:, :, :, x] = a[:, :, :, -blend_extent + x] * (1 - x / blend_extent) + b[:, :, :, x] * (x / blend_extent)
+        return b
+
     def tiled_encode(self, x: ms.Tensor, return_dict: bool = False) -> ms.Tensor:
-        raise NotImplementedError("`tiled_encode` has not been implemented for AutoencoderDC.")
+        batch_size, num_channels, height, width = x.shape
+        latent_height = height // self.spatial_compression_ratio
+        latent_width = width // self.spatial_compression_ratio
+
+        tile_latent_min_height = self.tile_sample_min_height // self.spatial_compression_ratio
+        tile_latent_min_width = self.tile_sample_min_width // self.spatial_compression_ratio
+        tile_latent_stride_height = self.tile_sample_stride_height // self.spatial_compression_ratio
+        tile_latent_stride_width = self.tile_sample_stride_width // self.spatial_compression_ratio
+        blend_height = tile_latent_min_height - tile_latent_stride_height
+        blend_width = tile_latent_min_width - tile_latent_stride_width
+
+        # Split x into overlapping tiles and encode them separately.
+        # The tiles have an overlap to avoid seams between tiles.
+        rows = []
+        for i in range(0, x.shape[2], self.tile_sample_stride_height):
+            row = []
+            for j in range(0, x.shape[3], self.tile_sample_stride_width):
+                tile = x[:, :, i : i + self.tile_sample_min_height, j : j + self.tile_sample_min_width]
+                if (
+                    tile.shape[2] % self.spatial_compression_ratio != 0
+                    or tile.shape[3] % self.spatial_compression_ratio != 0
+                ):
+                    pad_h = (self.spatial_compression_ratio - tile.shape[2]) % self.spatial_compression_ratio
+                    pad_w = (self.spatial_compression_ratio - tile.shape[3]) % self.spatial_compression_ratio
+                    tile = F.pad(tile, (0, pad_w, 0, pad_h))
+                tile = self.encoder(tile)
+                row.append(tile)
+            rows.append(row)
+        result_rows = []
+        for i, row in enumerate(rows):
+            result_row = []
+            for j, tile in enumerate(row):
+                # blend the above tile and the left tile
+                # to the current tile and add the current tile to the result row
+                if i > 0:
+                    tile = self.blend_v(rows[i - 1][j], tile, blend_height)
+                if j > 0:
+                    tile = self.blend_h(row[j - 1], tile, blend_width)
+                result_row.append(tile[:, :, :tile_latent_stride_height, :tile_latent_stride_width])
+            result_rows.append(mint.cat(result_row, dim=3))
+
+        encoded = mint.cat(result_rows, dim=2)[:, :, :latent_height, :latent_width]
+
+        if not return_dict:
+            return (encoded,)
+        return EncoderOutput(latent=encoded)
 
     def tiled_decode(self, z: ms.Tensor, return_dict: bool = False) -> Union[DecoderOutput, ms.Tensor]:
-        raise NotImplementedError("`tiled_decode` has not been implemented for AutoencoderDC.")
+        batch_size, num_channels, height, width = z.shape
+
+        tile_latent_min_height = self.tile_sample_min_height // self.spatial_compression_ratio
+        tile_latent_min_width = self.tile_sample_min_width // self.spatial_compression_ratio
+        tile_latent_stride_height = self.tile_sample_stride_height // self.spatial_compression_ratio
+        tile_latent_stride_width = self.tile_sample_stride_width // self.spatial_compression_ratio
+
+        blend_height = self.tile_sample_min_height - self.tile_sample_stride_height
+        blend_width = self.tile_sample_min_width - self.tile_sample_stride_width
+
+        # Split z into overlapping tiles and decode them separately.
+        # The tiles have an overlap to avoid seams between tiles.
+        rows = []
+        for i in range(0, height, tile_latent_stride_height):
+            row = []
+            for j in range(0, width, tile_latent_stride_width):
+                tile = z[:, :, i : i + tile_latent_min_height, j : j + tile_latent_min_width]
+                decoded = self.decoder(tile)
+                row.append(decoded)
+            rows.append(row)
+
+        result_rows = []
+        for i, row in enumerate(rows):
+            result_row = []
+            for j, tile in enumerate(row):
+                # blend the above tile and the left tile
+                # to the current tile and add the current tile to the result row
+                if i > 0:
+                    tile = self.blend_v(rows[i - 1][j], tile, blend_height)
+                if j > 0:
+                    tile = self.blend_h(row[j - 1], tile, blend_width)
+                result_row.append(tile[:, :, : self.tile_sample_stride_height, : self.tile_sample_stride_width])
+            result_rows.append(mint.cat(result_row, dim=3))
+
+        decoded = mint.cat(result_rows, dim=2)
+
+        if not return_dict:
+            return (decoded,)
+        return DecoderOutput(sample=decoded)
 
     def construct(self, sample: ms.Tensor, return_dict: bool = False) -> ms.Tensor:
         encoded = self.encode(sample, return_dict=False)[0]

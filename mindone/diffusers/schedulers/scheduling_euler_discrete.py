@@ -1,5 +1,8 @@
 # Copyright 2024 Katherine Crowson and The HuggingFace Team. All rights reserved.
 #
+# This code is adapted from https://github.com/huggingface/diffusers
+# with modifications to run diffusers on mindspore.
+#
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -437,7 +440,7 @@ class EulerDiscreteScheduler(SchedulerMixin, ConfigMixin):
 
             sigmas = np.concatenate([sigmas, [sigma_last]]).astype(np.float32)
 
-        sigmas = ms.Tensor(sigmas).to(dtype=ms.float32)
+        sigmas = ms.tensor(sigmas).to(dtype=ms.float32)
 
         # TODO: Support the full EDM scalings for all prediction types and timestep types
         if self.config.timestep_type == "continuous" and self.config.prediction_type == "v_prediction":

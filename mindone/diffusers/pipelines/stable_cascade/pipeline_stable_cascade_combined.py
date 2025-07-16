@@ -1,5 +1,8 @@
 # Copyright 2024 The HuggingFace Team. All rights reserved.
 #
+# This code is adapted from https://github.com/huggingface/diffusers
+# with modifications to run diffusers on mindspore.
+#
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -19,7 +22,7 @@ from transformers import CLIPImageProcessor, CLIPTokenizer
 
 import mindspore as ms
 
-from mindone.transformers import CLIPTextModel, CLIPVisionModelWithProjection
+from mindone.transformers import CLIPTextModelWithProjection, CLIPVisionModelWithProjection
 
 from ...models import StableCascadeUNet
 from ...schedulers import DDPMWuerstchenScheduler
@@ -50,7 +53,7 @@ class StableCascadeCombinedPipeline(DiffusionPipeline):
     Args:
         tokenizer (`CLIPTokenizer`):
             The decoder tokenizer to be used for text inputs.
-        text_encoder (`CLIPTextModel`):
+        text_encoder (`CLIPTextModelWithProjection`):
             The decoder text encoder to be used for text inputs.
         decoder (`StableCascadeUNet`):
             The decoder model to be used for decoder image generation pipeline.
@@ -58,27 +61,32 @@ class StableCascadeCombinedPipeline(DiffusionPipeline):
             The scheduler to be used for decoder image generation pipeline.
         vqgan (`PaellaVQModel`):
             The VQGAN model to be used for decoder image generation pipeline.
-        feature_extractor ([`~transformers.CLIPImageProcessor`]):
-            Model that extracts features from generated images to be used as inputs for the `image_encoder`.
-        image_encoder ([`CLIPVisionModelWithProjection`]):
-            Frozen CLIP image-encoder ([clip-vit-large-patch14](https://huggingface.co/openai/clip-vit-large-patch14)).
         prior_prior (`StableCascadeUNet`):
             The prior model to be used for prior pipeline.
+        prior_text_encoder (`CLIPTextModelWithProjection`):
+            The prior text encoder to be used for text inputs.
+        prior_tokenizer (`CLIPTokenizer`):
+            The prior tokenizer to be used for text inputs.
         prior_scheduler (`DDPMWuerstchenScheduler`):
             The scheduler to be used for prior pipeline.
+        prior_feature_extractor ([`~transformers.CLIPImageProcessor`]):
+            Model that extracts features from generated images to be used as inputs for the `image_encoder`.
+        prior_image_encoder ([`CLIPVisionModelWithProjection`]):
+            Frozen CLIP image-encoder ([clip-vit-large-patch14](https://huggingface.co/openai/clip-vit-large-patch14)).
     """
 
     _load_connected_pipes = True
+    _optional_components = ["prior_feature_extractor", "prior_image_encoder"]
 
     def __init__(
         self,
         tokenizer: CLIPTokenizer,
-        text_encoder: CLIPTextModel,
+        text_encoder: CLIPTextModelWithProjection,
         decoder: StableCascadeUNet,
         scheduler: DDPMWuerstchenScheduler,
         vqgan: PaellaVQModel,
         prior_prior: StableCascadeUNet,
-        prior_text_encoder: CLIPTextModel,
+        prior_text_encoder: CLIPTextModelWithProjection,
         prior_tokenizer: CLIPTokenizer,
         prior_scheduler: DDPMWuerstchenScheduler,
         prior_feature_extractor: Optional[CLIPImageProcessor] = None,

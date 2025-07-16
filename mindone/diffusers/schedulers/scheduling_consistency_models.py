@@ -1,5 +1,8 @@
 # Copyright 2024 The HuggingFace Team. All rights reserved.
 #
+# This code is adapted from https://github.com/huggingface/diffusers
+# with modifications to run diffusers on mindspore.
+#
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -94,8 +97,8 @@ class CMStochasticIterativeScheduler(SchedulerMixin, ConfigMixin):
 
         # setable values
         self.num_inference_steps = None
-        self.sigmas = ms.Tensor(sigmas)
-        self.timesteps = ms.Tensor(timesteps)
+        self.sigmas = ms.tensor(sigmas)
+        self.timesteps = ms.tensor(timesteps)
         self.custom_timesteps = False
         self.is_scale_input_called = False
         self._step_index = None
@@ -200,8 +203,7 @@ class CMStochasticIterativeScheduler(SchedulerMixin, ConfigMixin):
 
             if timesteps[0] >= self.config.num_train_timesteps:
                 raise ValueError(
-                    f"`timesteps` must start before `self.config.train_timesteps`:"
-                    f" {self.config.num_train_timesteps}."
+                    f"`timesteps` must start before `self.config.train_timesteps`: {self.config.num_train_timesteps}."
                 )
 
             timesteps = np.array(timesteps, dtype=np.int64)
@@ -229,9 +231,9 @@ class CMStochasticIterativeScheduler(SchedulerMixin, ConfigMixin):
         timesteps = self.sigma_to_t(sigmas)
 
         sigmas = np.concatenate([sigmas, [self.config.sigma_min]]).astype(np.float32)
-        self.sigmas = ms.Tensor(sigmas)
+        self.sigmas = ms.tensor(sigmas)
 
-        self.timesteps = ms.Tensor(timesteps)
+        self.timesteps = ms.tensor(timesteps)
 
         self._step_index = None
         self._begin_index = None

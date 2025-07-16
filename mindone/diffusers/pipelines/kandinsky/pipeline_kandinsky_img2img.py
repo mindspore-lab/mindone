@@ -1,5 +1,8 @@
 # Copyright 2024 The HuggingFace Team. All rights reserved.
 #
+# This code is adapted from https://github.com/huggingface/diffusers
+# with modifications to run diffusers on mindspore.
+#
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -29,7 +32,10 @@ from ...utils.mindspore_utils import randn_tensor
 from ..pipeline_utils import DiffusionPipeline, ImagePipelineOutput
 from .text_encoder import MultilingualCLIP
 
+XLA_AVAILABLE = False
+
 logger = logging.get_logger(__name__)  # pylint: disable=invalid-name
+
 
 EXAMPLE_DOC_STRING = """
     Examples:
@@ -183,7 +189,7 @@ class KandinskyImg2ImgPipeline(DiffusionPipeline):
                 f" {self.tokenizer.model_max_length} tokens: {removed_text}"
             )
 
-        text_mask = ms.Tensor(text_inputs.attention_mask)
+        text_mask = ms.tensor(text_inputs.attention_mask)
 
         prompt_embeds, text_encoder_hidden_states = self.text_encoder(
             input_ids=ms.tensor(text_input_ids), attention_mask=text_mask
@@ -222,8 +228,8 @@ class KandinskyImg2ImgPipeline(DiffusionPipeline):
                 add_special_tokens=True,
                 return_tensors="np",
             )
-            uncond_text_input_ids = ms.Tensor(uncond_input.input_ids)
-            uncond_text_mask = ms.Tensor(uncond_input.attention_mask)
+            uncond_text_input_ids = ms.tensor(uncond_input.input_ids)
+            uncond_text_mask = ms.tensor(uncond_input.attention_mask)
 
             negative_prompt_embeds, uncond_text_encoder_hidden_states = self.text_encoder(
                 input_ids=uncond_text_input_ids, attention_mask=uncond_text_mask

@@ -1,6 +1,9 @@
 # Copyright 2024 The RhymesAI and The HuggingFace Team.
 # All rights reserved.
 #
+# This code is adapted from https://github.com/huggingface/diffusers
+# with modifications to run diffusers on mindspore.
+#
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -37,6 +40,9 @@ from ...utils import BACKENDS_MAPPING, deprecate, is_bs4_available, is_ftfy_avai
 from ...utils.mindspore_utils import randn_tensor
 from ...video_processor import VideoProcessor
 from .pipeline_output import AllegroPipelineOutput
+
+XLA_AVAILABLE = False
+
 
 logger = logging.get_logger(__name__)
 
@@ -188,11 +194,9 @@ class AllegroPipeline(DiffusionPipeline):
             tokenizer=tokenizer, text_encoder=text_encoder, vae=vae, transformer=transformer, scheduler=scheduler
         )
         self.vae_scale_factor_spatial = (
-            2 ** (len(self.vae.config.block_out_channels) - 1) if hasattr(self, "vae") and self.vae is not None else 8
+            2 ** (len(self.vae.config.block_out_channels) - 1) if getattr(self, "vae", None) else 8
         )
-        self.vae_scale_factor_temporal = (
-            self.vae.config.temporal_compression_ratio if hasattr(self, "vae") and self.vae is not None else 4
-        )
+        self.vae_scale_factor_temporal = self.vae.config.temporal_compression_ratio if getattr(self, "vae", None) else 4
 
         self.video_processor = VideoProcessor(vae_scale_factor=self.vae_scale_factor_spatial)
 
@@ -658,6 +662,10 @@ class AllegroPipeline(DiffusionPipeline):
         return self._num_timesteps
 
     @property
+    def current_timestep(self):
+        return self._current_timestep
+
+    @property
     def interrupt(self):
         return self._interrupt
 
@@ -787,6 +795,7 @@ class AllegroPipeline(DiffusionPipeline):
             negative_prompt_attention_mask,
         )
         self._guidance_scale = guidance_scale
+        self._current_timestep = None
         self._interrupt = False
 
         # 2. Default height and width to transformer
@@ -863,6 +872,7 @@ class AllegroPipeline(DiffusionPipeline):
                 if self.interrupt:
                     continue
 
+                self._current_timestep = t
                 latent_model_input = mint.cat([latents] * 2) if do_classifier_free_guidance else latents
                 latent_model_input = self.scheduler.scale_model_input(latent_model_input, t)
 
@@ -900,6 +910,8 @@ class AllegroPipeline(DiffusionPipeline):
 
                 if i == len(timesteps) - 1 or ((i + 1) > num_warmup_steps and (i + 1) % self.scheduler.order == 0):
                     progress_bar.update()
+
+        self._current_timestep = None
 
         if not output_type == "latent":
             latents = latents.to(self.vae.dtype)

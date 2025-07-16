@@ -1,5 +1,8 @@
 # Copyright 2022 The HuggingFace Team. All rights reserved.
 #
+# This code is adapted from https://github.com/huggingface/diffusers
+# with modifications to run diffusers on mindspore.
+#
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -84,9 +87,9 @@ class MultiAdapter(ModelMixin):
                 summing them together. If `None`, equal weights will be used for all adapters.
         """
         if adapter_weights is None:
-            adapter_weights = ms.Tensor([1 / self.num_adapter] * self.num_adapter)
+            adapter_weights = ms.tensor([1 / self.num_adapter] * self.num_adapter)
         else:
-            adapter_weights = ms.Tensor(adapter_weights)
+            adapter_weights = ms.tensor(adapter_weights)
 
         accume_state = None
         for x, w, adapter in zip(xs, adapter_weights, self.adapters):

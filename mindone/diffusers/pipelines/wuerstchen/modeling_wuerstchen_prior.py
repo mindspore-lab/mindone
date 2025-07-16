@@ -1,6 +1,9 @@
 # Copyright (c) 2023 Dominic Rampas MIT License
 # Copyright 2024 The HuggingFace Team. All rights reserved.
 #
+# This code is adapted from https://github.com/huggingface/diffusers
+# with modifications to run diffusers on mindspore.
+#
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -137,16 +140,6 @@ class WuerstchenPrior(ModelMixin, ConfigMixin, UNet2DConditionLoadersMixin, Peft
             )
 
         self.set_attn_processor(processor)
-
-    @property
-    def _set_gradient_checkpointing(self):
-        return self._gradient_checkpointing
-
-    @_set_gradient_checkpointing.setter
-    def _set_gradient_checkpointing(self, module, value=False):
-        self._gradient_checkpointing = value
-        for block in self.blocks:
-            block._recompute(value)
 
     def gen_r_embedding(self, r, max_positions=10000):
         r = r * max_positions

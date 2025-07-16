@@ -1,5 +1,8 @@
 # coding=utf-8
-# Copyright 2024 HuggingFace Inc.
+# Copyright 2025 HuggingFace Inc.
+#
+# This code is adapted from https://github.com/huggingface/diffusers
+# with modifications to run diffusers on mindspore.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -28,7 +31,7 @@ import mindspore as ms
 from mindone.diffusers.utils.testing_utils import (
     fast,
     load_downloaded_image_from_hf_hub,
-    load_downloaded_numpy_from_hf_hub,
+    load_numpy_from_local_file,
     slow,
 )
 
@@ -257,8 +260,8 @@ class StableDiffusionDepth2ImgPipelineNightlyTests(PipelineTesterMixin, unittest
         torch.manual_seed(0)
         image = pipe(prompt=prompt, image=init_image, negative_prompt=n_propmt, strength=0.7)[0][0]
 
-        expected_image = load_downloaded_numpy_from_hf_hub(
-            "The-truth/mindone-testing-arrays",
+        expected_image = load_numpy_from_local_file(
+            "mindone-testing-arrays",
             f"depth2img_pndm_{dtype}.npy",
             subfolder="stable_diffusion_2",
         )

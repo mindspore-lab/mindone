@@ -1,5 +1,8 @@
 # Copyright 2024 Zhejiang University Team and The HuggingFace Team. All rights reserved.
 #
+# This code is adapted from https://github.com/huggingface/diffusers
+# with modifications to run diffusers on mindspore.
+#
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -219,7 +222,7 @@ class PNDMScheduler(SchedulerMixin, ConfigMixin):
             ].copy()  # we copy to avoid having negative strides which are not supported by torch.from_numpy
 
         timesteps = np.concatenate([self.prk_timesteps, self.plms_timesteps]).astype(np.int64)
-        self.timesteps = ms.Tensor(timesteps)
+        self.timesteps = ms.tensor(timesteps)
 
         self.ets = []
         self.counter = 0
@@ -293,7 +296,7 @@ class PNDMScheduler(SchedulerMixin, ConfigMixin):
 
         diff_to_prev = 0 if self.counter % 2 else self.config.num_train_timesteps // self.num_inference_steps // 2
         prev_timestep = timestep - diff_to_prev
-        timestep = ms.Tensor(self.prk_timesteps[self.counter // 4 * 4])
+        timestep = ms.tensor(self.prk_timesteps[self.counter // 4 * 4])
 
         if self.counter % 4 == 0:
             self.cur_model_output += 1 / 6 * model_output

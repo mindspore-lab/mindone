@@ -1,5 +1,8 @@
 # Copyright 2024 The HuggingFace Team. All rights reserved.
 #
+# This code is adapted from https://github.com/huggingface/diffusers
+# with modifications to run diffusers on mindspore.
+#
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -24,14 +27,15 @@ from mindone.safetensors.mindspore import load_file
 from mindone.transformers import CLIPVisionModelWithProjection, SiglipVisionModel
 
 from ..models.attention_processor import (
-    AttnProcessor,
+    AttnProcessor2_0,
     FluxAttnProcessor2_0,
     FluxIPAdapterJointAttnProcessor2_0,
     IPAdapterAttnProcessor,
+    IPAdapterAttnProcessor2_0,
     JointAttnProcessor2_0,
     SD3IPAdapterJointAttnProcessor2_0,
 )
-from ..utils import _get_model_file, logging
+from ..utils import _get_detailed_type, _get_model_file, _is_valid_type, logging
 from .unet_loader_utils import _maybe_expand_lora_scales
 
 logger = logging.get_logger(__name__)
@@ -172,7 +176,8 @@ class IPAdapterMixin:
                             subfolder=image_encoder_subfolder,
                             cache_dir=cache_dir,
                             local_files_only=local_files_only,
-                        ).to(self.dtype)
+                            mindspore_dtype=self.dtype,
+                        )
                         self.register_modules(image_encoder=image_encoder)
                     else:
                         raise ValueError(
@@ -244,11 +249,10 @@ class IPAdapterMixin:
         scale_configs = _maybe_expand_lora_scales(unet, scale, default_scale=0.0)
 
         for attn_name, attn_processor in unet.attn_processors.items():
-            if isinstance(attn_processor, (IPAdapterAttnProcessor)):
+            if isinstance(attn_processor, (IPAdapterAttnProcessor, IPAdapterAttnProcessor2_0)):
                 if len(scale_configs) != len(attn_processor.scale):
                     raise ValueError(
-                        f"Cannot assign {len(scale_configs)} scale_configs to "
-                        f"{len(attn_processor.scale)} IP-Adapter."
+                        f"Cannot assign {len(scale_configs)} scale_configs to {len(attn_processor.scale)} IP-Adapter."
                     )
                 elif len(scale_configs) == 1:
                     scale_configs = scale_configs * len(attn_processor.scale)
@@ -297,8 +301,12 @@ class IPAdapterMixin:
         # restore original Unet attention processors layers
         attn_procs = {}
         for name, value in self.unet.attn_processors.items():
-            attn_processor_class = AttnProcessor()
-            attn_procs[name] = attn_processor_class if isinstance(value, IPAdapterAttnProcessor) else value.__class__()
+            attn_processor_class = AttnProcessor2_0()
+            attn_procs[name] = (
+                attn_processor_class
+                if isinstance(value, (IPAdapterAttnProcessor, IPAdapterAttnProcessor2_0))
+                else value.__class__()
+            )
         self.unet.set_attn_processor(attn_procs)
 
 
@@ -503,29 +511,36 @@ class FluxIPAdapterMixin:
         pipeline.set_ip_adapter_scale(ip_strengths)
         ```
         """
-        transformer = self.transformer
-        if not isinstance(scale, list):
-            scale = [[scale] * transformer.config.num_layers]
-        elif isinstance(scale, list) and isinstance(scale[0], int) or isinstance(scale[0], float):
-            if len(scale) != transformer.config.num_layers:
-                raise ValueError(f"Expected list of {transformer.config.num_layers} scales, got {len(scale)}.")
+
+        scale_type = Union[int, float]
+        num_ip_adapters = self.transformer.encoder_hid_proj.num_ip_adapters
+        num_layers = self.transformer.config.num_layers
+
+        # Single value for all layers of all IP-Adapters
+        if isinstance(scale, scale_type):
+            scale = [scale for _ in range(num_ip_adapters)]
+        # List of per-layer scales for a single IP-Adapter
+        elif _is_valid_type(scale, List[scale_type]) and num_ip_adapters == 1:
             scale = [scale]
+        # Invalid scale type
+        elif not _is_valid_type(scale, List[Union[scale_type, List[scale_type]]]):
+            raise TypeError(f"Unexpected type {_get_detailed_type(scale)} for scale.")
 
-        scale_configs = scale
+        if len(scale) != num_ip_adapters:
+            raise ValueError(f"Cannot assign {len(scale)} scales to {num_ip_adapters} IP-Adapters.")
 
-        key_id = 0
-        for attn_name, attn_processor in transformer.attn_processors.items():
-            if isinstance(attn_processor, (FluxIPAdapterJointAttnProcessor2_0)):
-                if len(scale_configs) != len(attn_processor.scale):
-                    raise ValueError(
-                        f"Cannot assign {len(scale_configs)} scale_configs to "
-                        f"{len(attn_processor.scale)} IP-Adapter."
-                    )
-                elif len(scale_configs) == 1:
-                    scale_configs = scale_configs * len(attn_processor.scale)
-                for i, scale_config in enumerate(scale_configs):
-                    attn_processor.scale[i] = scale_config[key_id]
-                key_id += 1
+        if any(len(s) != num_layers for s in scale if isinstance(s, list)):
+            invalid_scale_sizes = {len(s) for s in scale if isinstance(s, list)} - {num_layers}
+            raise ValueError(
+                f"Expected list of {num_layers} scales, got {', '.join(str(x) for x in invalid_scale_sizes)}."
+            )
+
+        # Scalars are transformed to lists with length num_layers
+        scale_configs = [[s] * num_layers if isinstance(s, scale_type) else s for s in scale]
+
+        # Set scales. zip over scale_configs prevents going into single transformer layers
+        for attn_processor, *scale in zip(self.transformer.attn_processors.values(), *scale_configs):
+            attn_processor.scale = scale
 
     def unload_ip_adapter(self):
         """
@@ -698,11 +713,9 @@ class SD3IPAdapterMixin:
                     }
 
                     self.register_modules(
-                        feature_extractor=SiglipImageProcessor.from_pretrained(image_encoder_subfolder, **kwargs).to(
-                            dtype=self.dtype
-                        ),
-                        image_encoder=SiglipVisionModel.from_pretrained(image_encoder_subfolder, **kwargs).to(
-                            dtype=self.dtype
+                        feature_extractor=SiglipImageProcessor.from_pretrained(image_encoder_subfolder, **kwargs),
+                        image_encoder=SiglipVisionModel.from_pretrained(
+                            image_encoder_subfolder, mindspore_dtype=self.dtype, **kwargs
                         ),
                     )
                 else:

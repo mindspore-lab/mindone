@@ -1,3 +1,5 @@
+"""Adapted from https://github.com/huggingface/transformers/tree/main/tests//models/llama/test_modeling_llama.py."""
+
 # tests/models/llama/test_modeling_llama.py
 import inspect
 

@@ -1,5 +1,8 @@
 # Copyright 2024 Stability AI and The HuggingFace Team. All rights reserved.
 #
+# This code is adapted from https://github.com/huggingface/diffusers
+# with modifications to run diffusers on mindspore.
+#
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -204,6 +207,7 @@ class StableAudioDiTModel(ModelMixin, ConfigMixin):
     """
 
     _supports_gradient_checkpointing = True
+    _skip_layerwise_casting_patterns = ["preprocess_conv", "postprocess_conv", "^proj_in$", "^proj_out$", "norm"]
 
     @register_to_config
     def __init__(
@@ -339,10 +343,6 @@ class StableAudioDiTModel(ModelMixin, ConfigMixin):
         Disables custom attention processors and sets the default attention implementation.
         """
         self.set_attn_processor(StableAudioAttnProcessor2_0())
-
-    def _set_gradient_checkpointing(self, module, value=False):
-        if hasattr(module, "gradient_checkpointing"):
-            module.gradient_checkpointing = value
 
     def construct(
         self,

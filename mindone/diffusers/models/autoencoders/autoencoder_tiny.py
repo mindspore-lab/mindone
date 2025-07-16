@@ -1,5 +1,8 @@
 # Copyright 2024 Ollin Boer Bohan and The HuggingFace Team. All rights reserved.
 #
+# This code is adapted from https://github.com/huggingface/diffusers
+# with modifications to run diffusers on mindspore.
+#
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -155,10 +158,6 @@ class AutoencoderTiny(ModelMixin, ConfigMixin):
 
         self.register_to_config(block_out_channels=decoder_block_out_channels)
         self.register_to_config(force_upcast=False)
-
-    def _set_gradient_checkpointing(self, module, value: bool = False) -> None:
-        if isinstance(module, (EncoderTiny, DecoderTiny)):
-            module.gradient_checkpointing = value
 
     def scale_latents(self, x: ms.Tensor) -> ms.Tensor:
         """raw latents -> [0, 1]"""

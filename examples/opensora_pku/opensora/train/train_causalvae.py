@@ -1,3 +1,5 @@
+# Adapted from https://github.com/PKU-YuanGroup/Open-Sora-Plan/blob/main/opensora/train/train_causalvae.py
+
 """
 Train AutoEncoders with GAN loss
 """

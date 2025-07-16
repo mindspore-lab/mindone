@@ -1,3 +1,7 @@
+# This code is adapted from https://github.com/stepfun-ai/Step-Video-T2V
+# with modifications to run on MindSpore.
+
+
 import argparse
 import ast
 import os
