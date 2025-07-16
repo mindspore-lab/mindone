@@ -1,3 +1,5 @@
+"""Adapted from https://github.com/huggingface/transformers/tree/main/src/transformers/models/qwen2_5_omni/convert_spk_dict_pt2np.py."""
+
 import argparse
 
 import numpy as np

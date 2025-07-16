@@ -1,3 +1,5 @@
+"""Adapted from https://github.com/huggingface/diffusers/tree/main/tests//pipelines/stable_video_diffusion/test_stable_video_diffusion.py."""
+
 import random
 import unittest
 

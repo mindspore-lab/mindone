@@ -1,3 +1,5 @@
+"""Adapted from https://github.com/huggingface/diffusers/tree/main/src/diffusers/pipelines/kandinsky/text_encoder.py."""
+
 from transformers import XLMRobertaConfig
 
 from mindspore import mint

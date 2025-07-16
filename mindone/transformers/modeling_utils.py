@@ -2,6 +2,9 @@
 # Copyright 2018 The Google AI Language Team Authors, Facebook AI Research authors and The HuggingFace Inc. team.
 # Copyright (c) 2018, NVIDIA CORPORATION.  All rights reserved.
 #
+# This code is adapted from https://github.com/huggingface/transformers
+# with modifications to run transformers on mindspore.
+#
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -65,6 +68,14 @@ from .integrations.flash_attention import flash_attention_forward
 from .integrations.sdpa_attention import sdpa_attention_forward
 from .loss.loss_utils import LOSS_MAPPING
 from .mindspore_adapter import dtype_to_str
+from .mindspore_utils import (  # noqa: F401
+    Conv1D,
+    apply_chunking_to_forward,
+    find_pruneable_heads_and_indices,
+    prune_conv1d_layer,
+    prune_layer,
+    prune_linear_layer,
+)
 from .modeling_attn_mask_utils import dtype_to_min
 from .utils.import_utils import is_flash_attn_2_available, is_sdpa_available
 
