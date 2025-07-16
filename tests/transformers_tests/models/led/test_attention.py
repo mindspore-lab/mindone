@@ -208,6 +208,45 @@ class TestLEDEncoderSelfAttention(unittest.TestCase):
 
         np.testing.assert_allclose(ms_attn_scores.asnumpy(), torch_attn_scores.detach().numpy(), rtol=1e-4, atol=1e-4)
 
+    def test_sliding_chunk(self):
+        (
+            ms_query_vectors,
+            ms_key_vectors,
+            _,
+            torch_query_vectors,
+            torch_key_vectors,
+            _,
+        ) = self.get_qkv()
+
+        batch_size, seq_len, num_heads, head_dim = ms_query_vectors.shape
+        window_overlap = self.ms_attn.one_sided_attn_window_size
+        assert self.ms_attn.one_sided_attn_window_size == self.torch_attn.one_sided_attn_window_size
+
+        ms_query_vectors = ms_query_vectors.transpose(1, 2).reshape(batch_size * num_heads, seq_len, head_dim)
+        ms_key_vectors = ms_key_vectors.transpose(1, 2).reshape(batch_size * num_heads, seq_len, head_dim)
+
+        ms_query_vectors = self.ms_attn._chunk(
+            ms_query_vectors, window_overlap, getattr(self.ms_attn.config, "onnx_export", False)
+        )
+        ms_key_vectors = self.ms_attn._chunk(
+            ms_key_vectors, window_overlap, getattr(self.ms_attn.config, "onnx_export", False)
+        )
+
+        torch_query_vectors = torch_query_vectors.transpose(1, 2).reshape(batch_size * num_heads, seq_len, head_dim)
+        torch_key_vectors = torch_key_vectors.transpose(1, 2).reshape(batch_size * num_heads, seq_len, head_dim)
+
+        torch_query_vectors = self.torch_attn._chunk(
+            torch_query_vectors, window_overlap, getattr(self.torch_attn.config, "onnx_export", False)
+        )
+        torch_key_vectors = self.torch_attn._chunk(
+            torch_key_vectors, window_overlap, getattr(self.torch_attn.config, "onnx_export", False)
+        )
+
+        np.testing.assert_allclose(
+            ms_query_vectors.asnumpy(), torch_query_vectors.detach().numpy(), rtol=1e-4, atol=1e-4
+        )
+        np.testing.assert_allclose(ms_key_vectors.asnumpy(), torch_key_vectors.detach().numpy(), rtol=1e-4, atol=1e-4)
+
 
 if __name__ == "__main__":
     unittest.main()
