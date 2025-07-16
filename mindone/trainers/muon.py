@@ -1,3 +1,4 @@
+"""Modified from https://github.com/MoonshotAI/Moonlight/blob/master/examples/toy_train.py"""
 import math
 from typing import List, Optional, Tuple, Union
 
