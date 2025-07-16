@@ -15,16 +15,17 @@
 # ===== This file is an implementation of a dummy guardrail for the fast tests =====
 
 
-import numpy as np
-import torch
-import mindspore
 from typing import Union
 
+import numpy as np
+import torch
+from diffusers.configuration_utils import ConfigMixin
+from diffusers.models.modeling_utils import ModelMixin
+
+import mindspore
 
 from mindone.diffusers.configuration_utils import ConfigMixin as MsConfigMixin
 from mindone.diffusers.models.modeling_utils import ModelMixin as MsModelMixin
-from diffusers.configuration_utils import ConfigMixin
-from diffusers.models.modeling_utils import ModelMixin
 
 
 class MsDummyCosmosSafetyChecker(MsModelMixin, MsConfigMixin):
@@ -44,8 +45,6 @@ class MsDummyCosmosSafetyChecker(MsModelMixin, MsConfigMixin):
     @property
     def dtype(self) -> mindspore.dtype:
         return self._dtype
-
-
 
 
 class DummyCosmosSafetyChecker(ModelMixin, ConfigMixin):

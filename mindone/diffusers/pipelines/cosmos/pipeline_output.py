@@ -3,10 +3,10 @@ from typing import List, Union
 
 import numpy as np
 import PIL.Image
+
 import mindspore
 
 from mindone.diffusers.utils import BaseOutput, get_logger
-
 
 logger = get_logger(__name__)
 

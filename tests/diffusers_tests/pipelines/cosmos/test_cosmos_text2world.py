@@ -19,8 +19,8 @@ import torch
 from ddt import data, ddt, unpack
 
 import mindspore as ms
+
 from mindone.diffusers.utils.testing_utils import load_numpy_from_local_file, slow
-from .cosmos_guardrail import DummyCosmosSafetyChecker, MsDummyCosmosSafetyChecker
 
 from ..pipeline_test_utils import (
     THRESHOLD_FP16,
@@ -29,12 +29,12 @@ from ..pipeline_test_utils import (
     get_module,
     get_pipeline_components,
 )
+from .cosmos_guardrail import DummyCosmosSafetyChecker, MsDummyCosmosSafetyChecker
 
 test_cases = [
     {"mode": ms.PYNATIVE_MODE, "dtype": "float16"},
     {"mode": ms.PYNATIVE_MODE, "dtype": "bfloat16"},
 ]
-
 
 
 @ddt
@@ -130,7 +130,6 @@ class CosmosTextToWorldPipelineFastTests(PipelineTesterMixin, unittest.TestCase)
         ms_components["safety_checker"] = MsDummyCosmosSafetyChecker()
         return pt_components, ms_components
 
-
     def get_dummy_inputs(self):
         inputs = {
             "prompt": "dance monkey",
@@ -152,7 +151,9 @@ class CosmosTextToWorldPipelineFastTests(PipelineTesterMixin, unittest.TestCase)
 
         pt_components, ms_components = self.get_dummy_components()
         pt_pipe_cls = get_module("diffusers.pipelines.cosmos.pipeline_cosmos_text2world.CosmosTextToWorldPipeline")
-        ms_pipe_cls = get_module("mindone.diffusers.pipelines.cosmos.pipeline_cosmos_text2world.CosmosTextToWorldPipeline")
+        ms_pipe_cls = get_module(
+            "mindone.diffusers.pipelines.cosmos.pipeline_cosmos_text2world.CosmosTextToWorldPipeline"
+        )
 
         pt_pipe = pt_pipe_cls(**pt_components)
         ms_pipe = ms_pipe_cls(**ms_components)

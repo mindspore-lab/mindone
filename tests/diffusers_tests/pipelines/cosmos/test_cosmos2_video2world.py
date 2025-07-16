@@ -20,8 +20,8 @@ import torch
 from ddt import data, ddt, unpack
 
 import mindspore as ms
+
 from mindone.diffusers.utils.testing_utils import load_numpy_from_local_file, slow
-from .cosmos_guardrail import DummyCosmosSafetyChecker, MsDummyCosmosSafetyChecker
 
 from ..pipeline_test_utils import (
     THRESHOLD_FP16,
@@ -30,12 +30,15 @@ from ..pipeline_test_utils import (
     get_module,
     get_pipeline_components,
 )
+from .cosmos_guardrail import DummyCosmosSafetyChecker, MsDummyCosmosSafetyChecker
 
 test_cases = [
     {"mode": ms.PYNATIVE_MODE, "dtype": "float16"},
     {"mode": ms.PYNATIVE_MODE, "dtype": "bfloat16"},
 ]
 
+
+@ddt
 class Cosmos2VideoToWorldPipelineFastTests(PipelineTesterMixin, unittest.TestCase):
     pipeline_config = [
         [
@@ -60,8 +63,8 @@ class Cosmos2VideoToWorldPipelineFastTests(PipelineTesterMixin, unittest.TestCas
         ],
         [
             "vae",
-            "diffusers.models.autoencoder_kl_wan.AutoencoderKLWan",
-            "mindone.diffusers.models.autoencoder_kl_wan.AutoencoderKLWan",
+            "diffusers.models.autoencoders.autoencoder_kl_wan.AutoencoderKLWan",
+            "mindone.diffusers.models.autoencoders.autoencoder_kl_wan.AutoencoderKLWan",
             dict(
                 base_dim=3,
                 z_dim=16,
@@ -111,7 +114,6 @@ class Cosmos2VideoToWorldPipelineFastTests(PipelineTesterMixin, unittest.TestCas
         ms_components["safety_checker"] = MsDummyCosmosSafetyChecker()
         return pt_components, ms_components
 
-
     def get_dummy_inputs(self):
         image_height = 32
         image_width = 32
@@ -135,12 +137,13 @@ class Cosmos2VideoToWorldPipelineFastTests(PipelineTesterMixin, unittest.TestCas
     @data(*test_cases)
     @unpack
     def test_inference(self, mode, dtype):
-
         ms.set_context(mode=mode)
 
         pt_components, ms_components = self.get_dummy_components()
         pt_pipe_cls = get_module("diffusers.pipelines.cosmos.pipeline_cosmos2_video2world.Cosmos2VideoToWorldPipeline")
-        ms_pipe_cls = get_module("mindone.diffusers.pipelines.cosmos.pipeline_cosmos2_video2world.Cosmos2VideoToWorldPipeline")
+        ms_pipe_cls = get_module(
+            "mindone.diffusers.pipelines.cosmos.pipeline_cosmos2_video2world.Cosmos2VideoToWorldPipeline"
+        )
 
         pt_pipe = pt_pipe_cls(**pt_components)
         ms_pipe = ms_pipe_cls(**ms_components)
@@ -167,4 +170,3 @@ class Cosmos2VideoToWorldPipelineFastTests(PipelineTesterMixin, unittest.TestCas
             np.max(np.linalg.norm(pt_generated_video - ms_generated_video) / np.linalg.norm(pt_generated_video))
             < threshold
         )
-

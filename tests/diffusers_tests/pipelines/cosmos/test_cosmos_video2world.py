@@ -20,8 +20,8 @@ import torch
 from ddt import data, ddt, unpack
 
 import mindspore as ms
+
 from mindone.diffusers.utils.testing_utils import load_numpy_from_local_file, slow
-from .cosmos_guardrail import DummyCosmosSafetyChecker, MsDummyCosmosSafetyChecker
 
 from ..pipeline_test_utils import (
     THRESHOLD_FP16,
@@ -30,11 +30,13 @@ from ..pipeline_test_utils import (
     get_module,
     get_pipeline_components,
 )
+from .cosmos_guardrail import DummyCosmosSafetyChecker, MsDummyCosmosSafetyChecker
 
 test_cases = [
     {"mode": ms.PYNATIVE_MODE, "dtype": "float16"},
     {"mode": ms.PYNATIVE_MODE, "dtype": "bfloat16"},
 ]
+
 
 @ddt
 class CosmosTextToWorldPipelineFastTests(PipelineTesterMixin, unittest.TestCase):
@@ -57,7 +59,7 @@ class CosmosTextToWorldPipelineFastTests(PipelineTesterMixin, unittest.TestCase)
                 rope_scale=(2.0, 1.0, 1.0),
                 concat_padding_mask=True,
                 extra_pos_embed_type="learnable",
-                ),
+            ),
         ],
         [
             "vae",
@@ -111,7 +113,6 @@ class CosmosTextToWorldPipelineFastTests(PipelineTesterMixin, unittest.TestCase)
                 pretrained_model_name_or_path="hf-internal-testing/tiny-random-t5",
             ),
         ],
-
     ]
 
     def get_dummy_components(self):
@@ -130,9 +131,7 @@ class CosmosTextToWorldPipelineFastTests(PipelineTesterMixin, unittest.TestCase)
         ms_components["safety_checker"] = MsDummyCosmosSafetyChecker()
         return pt_components, ms_components
 
-
     def get_dummy_inputs(self):
-
         image_height = 32
         image_width = 32
         image = PIL.Image.new("RGB", (image_width, image_height))
@@ -158,7 +157,9 @@ class CosmosTextToWorldPipelineFastTests(PipelineTesterMixin, unittest.TestCase)
 
         pt_components, ms_components = self.get_dummy_components()
         pt_pipe_cls = get_module("diffusers.pipelines.cosmos.pipeline_cosmos_video2world.CosmosVideoToWorldPipeline")
-        ms_pipe_cls = get_module("mindone.diffusers.pipelines.cosmos.pipeline_cosmos_video2world.CosmosVideoToWorldPipeline")
+        ms_pipe_cls = get_module(
+            "mindone.diffusers.pipelines.cosmos.pipeline_cosmos_video2world.CosmosVideoToWorldPipeline"
+        )
 
         pt_pipe = pt_pipe_cls(**pt_components)
         ms_pipe = ms_pipe_cls(**ms_components)

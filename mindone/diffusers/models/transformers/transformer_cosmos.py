@@ -15,19 +15,20 @@
 from typing import Optional, Tuple
 
 import numpy as np
+
 import mindspore as ms
 from mindspore import mint, nn
 
 from ...configuration_utils import ConfigMixin, register_to_config
-# from ...utils import is_torchvision_available
-from ..layers_compat import unflatten
 from ..attention import FeedForward
 from ..attention_processor import Attention
 from ..embeddings import Timesteps
+
+# from ...utils import is_torchvision_available
+from ..layers_compat import unflatten
 from ..modeling_outputs import Transformer2DModelOutput
 from ..modeling_utils import ModelMixin
 from ..normalization import RMSNorm
-
 
 # if is_torchvision_available():
 #     from torchvision import transforms
@@ -100,11 +101,15 @@ class CosmosAdaLayerNorm(nn.Cell):
         embedded_timestep = self.linear_2(embedded_timestep)
 
         if temb is not None:
-            embedded_timestep = embedded_timestep + temb[:, : 2 * self.embedding_dim]
+            embedded_timestep = embedded_timestep + temb[..., : 2 * self.embedding_dim]
 
-        shift, scale = embedded_timestep.chunk(2, dim=1)
+        shift, scale = embedded_timestep.chunk(2, dim=-1)
         hidden_states = self.norm(hidden_states)
-        hidden_states = hidden_states * (1 + scale.unsqueeze(1)) + shift.unsqueeze(1)
+
+        if embedded_timestep.ndim == 2:
+            shift, scale = (x.unsqueeze(1) for x in (shift, scale))
+
+        hidden_states = hidden_states * (1 + scale) + shift
         return hidden_states
 
 
@@ -135,17 +140,17 @@ class CosmosAdaLayerNormZero(nn.Cell):
         if temb is not None:
             embedded_timestep = embedded_timestep + temb
 
-        shift, scale, gate = embedded_timestep.chunk(3, dim=1)
+        shift, scale, gate = embedded_timestep.chunk(3, dim=-1)
         hidden_states = self.norm(hidden_states)
-        hidden_states = hidden_states * (1 + scale.unsqueeze(1)) + shift.unsqueeze(1)
+
+        if embedded_timestep.ndim == 2:
+            shift, scale, gate = (x.unsqueeze(1) for x in (shift, scale, gate))
+
+        hidden_states = hidden_states * (1 + scale) + shift
         return hidden_states, gate
 
 
 class CosmosAttnProcessor2_0:
-    def __init__(self):
-        if not hasattr(F, "scaled_dot_product_attention"):
-            raise ImportError("CosmosAttnProcessor2_0 requires PyTorch 2.0. To use it, please upgrade PyTorch to 2.0.")
-
     def __call__(
         self,
         attn: Attention,
@@ -178,14 +183,14 @@ class CosmosAttnProcessor2_0:
             key = apply_rotary_emb(key, image_rotary_emb, use_real=True, use_real_unbind_dim=-2)
 
         # 4. Prepare for GQA
-        query_idx = ms.tensor(query.size(3))
-        key_idx = ms.tensor(key.size(3))
-        value_idx = ms.tensor(value.size(3))
+        query_idx = ms.tensor(query.shape[3])
+        key_idx = ms.tensor(key.shape[3])
+        value_idx = ms.tensor(value.shape[3])
         key = key.repeat_interleave(query_idx // key_idx, dim=3)
         value = value.repeat_interleave(query_idx // value_idx, dim=3)
 
         # 5. Attention
-        hidden_states = F.scaled_dot_product_attention(
+        hidden_states = attn.scaled_dot_product_attention(
             query, key, value, attn_mask=attention_mask, dropout_p=0.0, is_causal=False
         )
         hidden_states = hidden_states.transpose(1, 2).flatten(2, 3).type_as(query)
@@ -255,19 +260,19 @@ class CosmosTransformerBlock(nn.Cell):
         # 1. Self Attention
         norm_hidden_states, gate = self.norm1(hidden_states, embedded_timestep, temb)
         attn_output = self.attn1(norm_hidden_states, image_rotary_emb=image_rotary_emb)
-        hidden_states = hidden_states + gate.unsqueeze(1) * attn_output
+        hidden_states = hidden_states + gate * attn_output
 
         # 2. Cross Attention
         norm_hidden_states, gate = self.norm2(hidden_states, embedded_timestep, temb)
         attn_output = self.attn2(
             norm_hidden_states, encoder_hidden_states=encoder_hidden_states, attention_mask=attention_mask
         )
-        hidden_states = hidden_states + gate.unsqueeze(1) * attn_output
+        hidden_states = hidden_states + gate * attn_output
 
         # 3. Feed forward
         norm_hidden_states, gate = self.norm3(hidden_states, embedded_timestep, temb)
         ff_output = self.ff(norm_hidden_states)
-        hidden_states = hidden_states + gate.unsqueeze(1) * ff_output
+        hidden_states = hidden_states + gate * ff_output
 
         return hidden_states
 
@@ -298,22 +303,15 @@ class CosmosRotaryPosEmbed(nn.Cell):
     def construct(self, hidden_states: ms.tensor, fps: Optional[int] = None) -> Tuple[ms.tensor, ms.tensor]:
         batch_size, num_channels, num_frames, height, width = hidden_states.shape
         pe_size = [num_frames // self.patch_size[0], height // self.patch_size[1], width // self.patch_size[2]]
-        device = hidden_states.device
 
         h_theta = 10000.0 * self.h_ntk_factor
         w_theta = 10000.0 * self.w_ntk_factor
         t_theta = 10000.0 * self.t_ntk_factor
 
         seq = mint.arange(max(self.max_size), dtype=ms.float32)
-        dim_h_range = (
-            mint.arange(0, self.dim_h, 2, dtype=ms.float32)[: (self.dim_h // 2)] / self.dim_h
-        )
-        dim_w_range = (
-            mint.arange(0, self.dim_w, 2, dtype=ms.float32)[: (self.dim_w // 2)] / self.dim_w
-        )
-        dim_t_range = (
-            mint.arange(0, self.dim_t, 2, dtype=ms.float32)[: (self.dim_t // 2)] / self.dim_t
-        )
+        dim_h_range = mint.arange(0, self.dim_h, 2, dtype=ms.float32)[: (self.dim_h // 2)] / self.dim_h
+        dim_w_range = mint.arange(0, self.dim_w, 2, dtype=ms.float32)[: (self.dim_w // 2)] / self.dim_w
+        dim_t_range = mint.arange(0, self.dim_t, 2, dtype=ms.float32)[: (self.dim_t // 2)] / self.dim_t
         h_spatial_freqs = 1.0 / (h_theta**dim_h_range)
         w_spatial_freqs = 1.0 / (w_theta**dim_w_range)
         temporal_freqs = 1.0 / (t_theta**dim_t_range)
@@ -350,9 +348,9 @@ class CosmosLearnablePositionalEmbed(nn.Cell):
         self.patch_size = patch_size
         self.eps = eps
 
-        self.pos_emb_t = ms.Parameter(mint.zeros(self.max_size[0], hidden_size), name="pos_emb_t")
-        self.pos_emb_h = ms.Parameter(mint.zeros(self.max_size[1], hidden_size), name="pos_emb_h")
-        self.pos_emb_w = ms.Parameter(mint.zeros(self.max_size[2], hidden_size), name="pos_emb_w")
+        self.pos_emb_t = ms.Parameter(mint.zeros((self.max_size[0], hidden_size)), name="pos_emb_t")
+        self.pos_emb_h = ms.Parameter(mint.zeros((self.max_size[1], hidden_size)), name="pos_emb_h")
+        self.pos_emb_w = ms.Parameter(mint.zeros((self.max_size[2], hidden_size)), name="pos_emb_w")
 
     def construct(self, hidden_states: ms.tensor) -> ms.tensor:
         batch_size, num_channels, num_frames, height, width = hidden_states.shape
@@ -493,7 +491,9 @@ class CosmosTransformer3DModel(ModelMixin, ConfigMixin):
             # padding_mask = transforms.functional.resize(
             #     padding_mask, list(hidden_states.shape[-2:]), interpolation=transforms.InterpolationMode.NEAREST
             # )
-            padding_mask = mint.functional.interpolate(padding_mask, size=list(hidden_states.shape[-2:]), mode="nearest")
+            padding_mask = mint.functional.interpolate(
+                padding_mask, size=list(hidden_states.shape[-2:]), mode="nearest"
+            )
             hidden_states = mint.cat(
                 [hidden_states, padding_mask.unsqueeze(2).repeat(batch_size, 1, num_frames, 1, 1)], dim=1
             )
@@ -514,11 +514,30 @@ class CosmosTransformer3DModel(ModelMixin, ConfigMixin):
         hidden_states = hidden_states.flatten(1, 3)  # [B, T, H, W, C] -> [B, THW, C]
 
         # 4. Timestep embeddings
-        temb, embedded_timestep = self.time_embed(hidden_states, timestep)
+        if timestep.ndim == 1:
+            temb, embedded_timestep = self.time_embed(hidden_states, timestep)
+        elif timestep.ndim == 5:
+            assert timestep.shape == (
+                batch_size,
+                1,
+                num_frames,
+                1,
+                1,
+            ), f"Expected timestep to have shape [B, 1, T, 1, 1], but got {timestep.shape}"
+            timestep = timestep.flatten()
+            temb, embedded_timestep = self.time_embed(hidden_states, timestep)
+            # We can do this because num_frames == post_patch_num_frames, as p_t is 1
+            temb, embedded_timestep = (
+                x.view(batch_size, post_patch_num_frames, 1, 1, -1)
+                .expand((-1, -1, post_patch_height, post_patch_width, -1))
+                .flatten(1, 3)
+                for x in (temb, embedded_timestep)
+            )  # [BT, C] -> [B, T, 1, 1, C] -> [B, T, H, W, C] -> [B, THW, C]
+        else:
+            assert False
 
         # 5. Transformer blocks
         for block in self.transformer_blocks:
-            
             hidden_states = block(
                 hidden_states=hidden_states,
                 encoder_hidden_states=encoder_hidden_states,

@@ -161,7 +161,7 @@ class EDMEulerScheduler(SchedulerMixin, ConfigMixin):
         self._begin_index = begin_index
 
     def precondition_inputs(self, sample, sigma):
-        c_in = 1 / ((sigma**2 + self.sigma_data**2) ** 0.5)
+        c_in = self._get_conditioning_c_in(sigma)
         scaled_sample = sample * c_in
         return scaled_sample
 
@@ -314,6 +314,7 @@ class EDMEulerScheduler(SchedulerMixin, ConfigMixin):
         s_noise: float = 1.0,
         generator: Optional[np.random.Generator] = None,
         return_dict: bool = False,
+        pred_original_sample: Optional[ms.Tensor] = None,
     ) -> Union[EDMEulerSchedulerOutput, Tuple]:
         """
         Predict the sample from the previous timestep by reversing the SDE. This function propagates the diffusion
@@ -375,7 +376,8 @@ class EDMEulerScheduler(SchedulerMixin, ConfigMixin):
             sample = sample + eps * (sigma_hat**2 - sigma**2) ** 0.5
 
         # 1. compute predicted original sample (x_0) from sigma-scaled predicted noise
-        pred_original_sample = self.precondition_outputs(sample, model_output, sigma_hat)
+        if pred_original_sample is None:
+            pred_original_sample = self.precondition_outputs(sample, model_output, sigma_hat)
 
         # 2. Convert to an ODE derivative
         derivative = (sample - pred_original_sample) / sigma_hat
@@ -427,6 +429,10 @@ class EDMEulerScheduler(SchedulerMixin, ConfigMixin):
 
         noisy_samples = original_samples + noise * sigma
         return noisy_samples
+
+    def _get_conditioning_c_in(self, sigma):
+        c_in = 1 / ((sigma**2 + self.config.sigma_data**2) ** 0.5)
+        return c_in
 
     def __len__(self):
         return self.config.num_train_timesteps

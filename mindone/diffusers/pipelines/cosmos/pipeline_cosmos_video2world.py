@@ -16,9 +16,11 @@ import inspect
 from typing import Callable, Dict, List, Optional, Union
 
 import numpy as np
-import mindspore as ms
-from mindspore import ops, mint
 from transformers import T5TokenizerFast
+
+import mindspore as ms
+from mindspore import mint
+
 from mindone.transformers import T5EncoderModel
 
 from ...callbacks import MultiPipelineCallbacks, PipelineCallback
@@ -31,7 +33,6 @@ from ...video_processor import VideoProcessor
 from ..pipeline_utils import DiffusionPipeline
 from .pipeline_output import CosmosPipelineOutput
 
-
 _is_cosmos_guardrail_available = False
 
 if _is_cosmos_guardrail_available:
@@ -40,9 +41,7 @@ else:
 
     class CosmosSafetyChecker:
         def __init__(self, *args, **kwargs):
-            raise ImportError(
-                "`cosmos_guardrail` not adapted to Mindspore yet. " 
-            )
+            raise ImportError("`cosmos_guardrail` not adapted to Mindspore yet. ")
 
 
 logger = logging.get_logger(__name__)  # pylint: disable=invalid-name
@@ -80,7 +79,7 @@ EXAMPLE_DOC_STRING = """
         >>> pipe = CosmosVideoToWorldPipeline.from_pretrained(model_id, mindspore_dtype=mindspore.bfloat16)
         # >>> pipe.transformer = torch.compile(pipe.transformer)
 
-        >>> prompt = "The video depicts a winding mountain road covered in snow, with a single vehicle traveling along it. The road is flanked by steep, rocky cliffs and sparse vegetation. The landscape is characterized by rugged terrain and a river visible in the distance. The scene captures the solitude and beauty of a winter drive through a mountainous region."
+        >>> prompt = "The video depicts a winding mountain road covered in snow, with a single vehicle traveling along it. The road is flanked by steep, rocky cliffs and sparse vegetation. The landscape is characterized by rugged terrain and a river visible in the distance. The scene captures the solitude and beauty of a winter drive through a mountainous region." # noqa E501
         >>> video = load_video(
         ...     "https://huggingface.co/datasets/huggingface/documentation-images/resolve/main/diffusers/cosmos/cosmos-video2world-input-vid.mp4"
         ... )[
@@ -164,6 +163,7 @@ def retrieve_latents(
     else:
         return encoder_output
 
+
 class CosmosVideoToWorldPipeline(DiffusionPipeline):
     r"""
     Pipeline for image-to-world and video-to-world generation using [Cosmos
@@ -200,7 +200,7 @@ class CosmosVideoToWorldPipeline(DiffusionPipeline):
         transformer: CosmosTransformer3DModel,
         vae: AutoencoderKLCosmos,
         scheduler: EDMEulerScheduler,
-        safety_checker = None, # TODO CosmosSafetyChecker
+        safety_checker=None,  # TODO CosmosSafetyChecker
     ):
         super().__init__()
 
@@ -218,9 +218,7 @@ class CosmosVideoToWorldPipeline(DiffusionPipeline):
             safety_checker=safety_checker,
         )
 
-        self.vae_scale_factor_temporal = (
-            self.vae.config.temporal_compression_ratio if getattr(self, "vae", None) else 8
-        )
+        self.vae_scale_factor_temporal = self.vae.config.temporal_compression_ratio if getattr(self, "vae", None) else 8
         self.vae_scale_factor_spatial = self.vae.config.spatial_compression_ratio if getattr(self, "vae", None) else 8
         self.video_processor = VideoProcessor(vae_scale_factor=self.vae_scale_factor_spatial)
 
@@ -244,19 +242,19 @@ class CosmosVideoToWorldPipeline(DiffusionPipeline):
             return_offsets_mapping=False,
         )
         text_input_ids = text_inputs.input_ids
-        prompt_attention_mask = text_inputs.attention_mask.bool()
+        prompt_attention_mask = ms.tensor(text_inputs.attention_mask).bool()
 
         untruncated_ids = self.tokenizer(prompt, padding="longest", return_tensors="np").input_ids
-        if untruncated_ids.shape[-1] >= text_input_ids.shape[-1] and not np.array_equal(text_input_ids, untruncated_ids):
+        if untruncated_ids.shape[-1] >= text_input_ids.shape[-1] and not np.array_equal(
+            text_input_ids, untruncated_ids
+        ):
             removed_text = self.tokenizer.batch_decode(untruncated_ids[:, max_sequence_length - 1 : -1])
             logger.warning(
                 "The following part of your input was truncated because `max_sequence_length` is set to "
                 f" {max_sequence_length} tokens: {removed_text}"
             )
 
-        prompt_embeds = self.text_encoder(
-            text_input_ids, attention_mask=prompt_attention_mask
-        )[0]
+        prompt_embeds = self.text_encoder(ms.tensor(text_input_ids), attention_mask=prompt_attention_mask)[0]
         prompt_embeds = prompt_embeds.to(dtype=dtype)
 
         lengths = prompt_attention_mask.sum(dim=1)
@@ -373,16 +371,20 @@ class CosmosVideoToWorldPipeline(DiffusionPipeline):
         else:
             num_cond_latent_frames = (num_cond_frames - 1) // self.vae_scale_factor_temporal + 1
             num_padding_frames = num_frames - num_cond_frames
-            padding = video.new_zeros(video.shape[0], video.shape[1], num_padding_frames, video.shape[3], video.shape[4])
+            padding = video.new_zeros(
+                (video.shape[0], video.shape[1], num_padding_frames, video.shape[3], video.shape[4])
+            )
             video = mint.cat([video, padding], dim=2)
 
         if isinstance(generator, list):
             init_latents = [
-                retrieve_latents(self.vae.encode(video[i].unsqueeze(0)), generator=generator[i])
+                retrieve_latents(self.vae, self.vae.encode(video[i].unsqueeze(0))[0], generator=generator[i])
                 for i in range(batch_size)
             ]
         else:
-            init_latents = [retrieve_latents(self.vae.encode(vid.unsqueeze(0)), generator) for vid in video]
+            init_latents = [
+                retrieve_latents(self.vae, self.vae.encode(vid.unsqueeze(0))[0], generator) for vid in video
+            ]
 
         init_latents = mint.cat(init_latents, dim=0).to(dtype)
 
@@ -391,12 +393,12 @@ class CosmosVideoToWorldPipeline(DiffusionPipeline):
             latents_mean = (
                 ms.tensor(latents_mean)
                 .view(1, self.vae.config.latent_channels, -1, 1, 1)[:, :, : init_latents.shape[2]]
-                .to(init_latents)
+                .to(init_latents.dtype)
             )
             latents_std = (
                 ms.tensor(latents_std)
                 .view(1, self.vae.config.latent_channels, -1, 1, 1)[:, :, : init_latents.shape[2]]
-                .to(init_latents)
+                .to(init_latents.dtype)
             )
             init_latents = (init_latents - latents_mean) * self.scheduler.config.sigma_data / latents_std
         else:
@@ -418,13 +420,13 @@ class CosmosVideoToWorldPipeline(DiffusionPipeline):
         ones_padding = latents.new_ones(padding_shape)
         zeros_padding = latents.new_zeros(padding_shape)
 
-        cond_indicator = latents.new_zeros(1, 1, latents.shape[2], 1, 1)
+        cond_indicator = latents.new_zeros((1, 1, latents.shape[2], 1, 1))
         cond_indicator[:, :, :num_cond_latent_frames] = 1.0
         cond_mask = cond_indicator * ones_padding + (1 - cond_indicator) * zeros_padding
 
         uncond_indicator = uncond_mask = None
         if do_classifier_free_guidance:
-            uncond_indicator = latents.new_zeros(1, 1, latents.shape[2], 1, 1)
+            uncond_indicator = latents.new_zeros((1, 1, latents.shape[2], 1, 1))
             uncond_indicator[:, :, :num_cond_latent_frames] = 1.0
             uncond_mask = zeros_padding
             if not input_frames_guidance:
@@ -449,7 +451,8 @@ class CosmosVideoToWorldPipeline(DiffusionPipeline):
             k in self._callback_tensor_inputs for k in callback_on_step_end_tensor_inputs
         ):
             raise ValueError(
-                f"`callback_on_step_end_tensor_inputs` has to be in {self._callback_tensor_inputs}, but found {[k for k in callback_on_step_end_tensor_inputs if k not in self._callback_tensor_inputs]}"
+                f"`callback_on_step_end_tensor_inputs` has to be in {self._callback_tensor_inputs}, \
+                    but found {[k for k in callback_on_step_end_tensor_inputs if k not in self._callback_tensor_inputs]}"
             )
 
         if prompt is not None and prompt_embeds is not None:
@@ -594,7 +597,6 @@ class CosmosVideoToWorldPipeline(DiffusionPipeline):
         self._current_timestep = None
         self._interrupt = False
 
-
         if self.safety_checker is not None:
             if prompt is not None:
                 prompt_list = [prompt] if isinstance(prompt, str) else prompt
@@ -659,7 +661,7 @@ class CosmosVideoToWorldPipeline(DiffusionPipeline):
             uncond_mask = uncond_mask.to(transformer_dtype)
 
         augment_sigma = ms.Tensor([augment_sigma], dtype=ms.float32)
-        padding_mask = latents.new_zeros(1, 1, height, width, dtype=transformer_dtype)
+        padding_mask = latents.new_zeros((1, 1, height, width), dtype=transformer_dtype)
 
         # 6. Denoising loop
         num_warmup_steps = len(timesteps) - num_inference_steps * self.scheduler.order
@@ -671,7 +673,7 @@ class CosmosVideoToWorldPipeline(DiffusionPipeline):
                     continue
 
                 self._current_timestep = t
-                timestep = t.expand(latents.shape[0]).to(transformer_dtype)
+                timestep = t.expand((latents.shape[0],)).to(transformer_dtype)
 
                 current_sigma = self.scheduler.sigmas[i]
                 is_augment_sigma_greater = augment_sigma >= current_sigma
@@ -757,21 +759,20 @@ class CosmosVideoToWorldPipeline(DiffusionPipeline):
                 if i == len(timesteps) - 1 or ((i + 1) > num_warmup_steps and (i + 1) % self.scheduler.order == 0):
                     progress_bar.update()
 
-
         self._current_timestep = None
 
         if not output_type == "latent":
             if self.vae.config.latents_mean is not None:
                 latents_mean, latents_std = self.vae.config.latents_mean, self.vae.config.latents_std
                 latents_mean = (
-                    ms.Tensor(latents_mean)
+                    ms.tensor(latents_mean)
                     .view(1, self.vae.config.latent_channels, -1, 1, 1)[:, :, : latents.shape[2]]
-                    .to(latents)
+                    .to(latents.dtype)
                 )
                 latents_std = (
-                    ms.Tensor(latents_std)
+                    ms.tensor(latents_std)
                     .view(1, self.vae.config.latent_channels, -1, 1, 1)[:, :, : latents.shape[2]]
-                    .to(latents)
+                    .to(latents.dtype)
                 )
                 latents = latents * latents_std / self.scheduler.config.sigma_data + latents_mean
             else:
@@ -792,7 +793,6 @@ class CosmosVideoToWorldPipeline(DiffusionPipeline):
                 video = self.video_processor.postprocess_video(video, output_type=output_type)
         else:
             video = latents
-
 
         if not return_dict:
             return (video,)

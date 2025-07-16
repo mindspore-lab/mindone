@@ -16,9 +16,11 @@ import inspect
 from typing import Callable, Dict, List, Optional, Union
 
 import numpy as np
+from transformers import T5TokenizerFast
+
 import mindspore as ms
 from mindspore import mint
-from transformers import T5TokenizerFast
+
 from mindone.transformers import T5EncoderModel
 
 from ...callbacks import MultiPipelineCallbacks, PipelineCallback
@@ -30,7 +32,6 @@ from ...video_processor import VideoProcessor
 from ..pipeline_utils import DiffusionPipeline
 from .pipeline_output import CosmosPipelineOutput
 
-
 _is_cosmos_guardrail_available = False
 
 if _is_cosmos_guardrail_available:
@@ -39,9 +40,7 @@ else:
 
     class CosmosSafetyChecker:
         def __init__(self, *args, **kwargs):
-            raise ImportError(
-                "`cosmos_guardrail` not adapted to Mindspore yet. " 
-            )
+            raise ImportError("`cosmos_guardrail` not adapted to Mindspore yet. ")
 
 
 logger = logging.get_logger(__name__)  # pylint: disable=invalid-name
@@ -57,7 +56,7 @@ EXAMPLE_DOC_STRING = """
         >>> model_id = "nvidia/Cosmos-1.0-Diffusion-7B-Text2World"
         >>> pipe = CosmosTextToWorldPipeline.from_pretrained(model_id, mindspore_dtype=mindspore.bfloat16)
 
-        >>> prompt = "A sleek, humanoid robot stands in a vast warehouse filled with neatly stacked cardboard boxes on industrial shelves. The robot's metallic body gleams under the bright, even lighting, highlighting its futuristic design and intricate joints. A glowing blue light emanates from its chest, adding a touch of advanced technology. The background is dominated by rows of boxes, suggesting a highly organized storage system. The floor is lined with wooden pallets, enhancing the industrial setting. The camera remains static, capturing the robot's poised stance amidst the orderly environment, with a shallow depth of field that keeps the focus on the robot while subtly blurring the background for a cinematic effect."
+        >>> prompt = "A sleek, humanoid robot stands in a vast warehouse filled with neatly stacked cardboard boxes on industrial shelves. The robot's metallic body gleams under the bright, even lighting, highlighting its futuristic design and intricate joints. A glowing blue light emanates from its chest, adding a touch of advanced technology. The background is dominated by rows of boxes, suggesting a highly organized storage system. The floor is lined with wooden pallets, enhancing the industrial setting. The camera remains static, capturing the robot's poised stance amidst the orderly environment, with a shallow depth of field that keeps the focus on the robot while subtly blurring the background for a cinematic effect." # noqa E501
 
         >>> output = pipe(prompt=prompt)[0][0]
         >>> export_to_video(output, "output.mp4", fps=30)
@@ -157,14 +156,13 @@ class CosmosTextToWorldPipeline(DiffusionPipeline):
         transformer: CosmosTransformer3DModel,
         vae: AutoencoderKLCosmos,
         scheduler: EDMEulerScheduler,
-        safety_checker = None,
+        safety_checker=None,
     ):
         super().__init__()
 
         if safety_checker is None:
             # safety_checker = CosmosSafetyChecker()
             logger.warning("CosmosSafetyChecker not adapred to ms yet")
-
 
         self.register_modules(
             vae=vae,
@@ -175,9 +173,7 @@ class CosmosTextToWorldPipeline(DiffusionPipeline):
             safety_checker=safety_checker,
         )
 
-        self.vae_scale_factor_temporal = (
-            self.vae.config.temporal_compression_ratio if getattr(self, "vae", None) else 8
-        )
+        self.vae_scale_factor_temporal = self.vae.config.temporal_compression_ratio if getattr(self, "vae", None) else 8
         self.vae_scale_factor_spatial = self.vae.config.spatial_compression_ratio if getattr(self, "vae", None) else 8
         self.video_processor = VideoProcessor(vae_scale_factor=self.vae_scale_factor_spatial)
 
@@ -200,19 +196,19 @@ class CosmosTextToWorldPipeline(DiffusionPipeline):
             return_offsets_mapping=False,
         )
         text_input_ids = text_inputs.input_ids
-        prompt_attention_mask = text_inputs.attention_mask.bool()
+        prompt_attention_mask = ms.tensor(text_inputs.attention_mask).bool()
 
         untruncated_ids = self.tokenizer(prompt, padding="longest", return_tensors="np").input_ids
-        if untruncated_ids.shape[-1] >= text_input_ids.shape[-1] and not np.array_equal(text_input_ids, untruncated_ids):
+        if untruncated_ids.shape[-1] >= text_input_ids.shape[-1] and not np.array_equal(
+            text_input_ids, untruncated_ids
+        ):
             removed_text = self.tokenizer.batch_decode(untruncated_ids[:, max_sequence_length - 1 : -1])
             logger.warning(
                 "The following part of your input was truncated because `max_sequence_length` is set to "
                 f" {max_sequence_length} tokens: {removed_text}"
             )
 
-        prompt_embeds = self.text_encoder(
-            text_input_ids, attention_mask=prompt_attention_mask
-        )[0]
+        prompt_embeds = self.text_encoder(ms.tensor(text_input_ids), attention_mask=prompt_attention_mask)[0]
         prompt_embeds = prompt_embeds.to(dtype=dtype)
 
         lengths = prompt_attention_mask.sum(dim=1)
@@ -343,7 +339,8 @@ class CosmosTextToWorldPipeline(DiffusionPipeline):
             k in self._callback_tensor_inputs for k in callback_on_step_end_tensor_inputs
         ):
             raise ValueError(
-                f"`callback_on_step_end_tensor_inputs` has to be in {self._callback_tensor_inputs}, but found {[k for k in callback_on_step_end_tensor_inputs if k not in self._callback_tensor_inputs]}"
+                f"`callback_on_step_end_tensor_inputs` has to be in {self._callback_tensor_inputs}, \
+                    but found {[k for k in callback_on_step_end_tensor_inputs if k not in self._callback_tensor_inputs]}"
             )
 
         if prompt is not None and prompt_embeds is not None:
@@ -479,7 +476,6 @@ class CosmosTextToWorldPipeline(DiffusionPipeline):
         self._current_timestep = None
         self._interrupt = False
 
-
         if self.safety_checker is not None:
             if prompt is not None:
                 prompt_list = [prompt] if isinstance(prompt, str) else prompt
@@ -529,7 +525,7 @@ class CosmosTextToWorldPipeline(DiffusionPipeline):
             latents,
         )
 
-        padding_mask = latents.new_zeros(1, 1, height, width, dtype=transformer_dtype)
+        padding_mask = latents.new_zeros((1, 1, height, width), dtype=transformer_dtype)
 
         # 6. Denoising loop
         num_warmup_steps = len(timesteps) - num_inference_steps * self.scheduler.order
@@ -541,7 +537,7 @@ class CosmosTextToWorldPipeline(DiffusionPipeline):
                     continue
 
                 self._current_timestep = t
-                timestep = t.expand(latents.shape[0]).to(transformer_dtype)
+                timestep = t.expand((latents.shape[0],)).to(transformer_dtype)
 
                 latent_model_input = latents
                 latent_model_input = self.scheduler.scale_model_input(latent_model_input, t)
@@ -596,7 +592,6 @@ class CosmosTextToWorldPipeline(DiffusionPipeline):
                 if i == len(timesteps) - 1 or ((i + 1) > num_warmup_steps and (i + 1) % self.scheduler.order == 0):
                     progress_bar.update()
 
-
         self._current_timestep = None
 
         if not output_type == "latent":
@@ -605,12 +600,12 @@ class CosmosTextToWorldPipeline(DiffusionPipeline):
                 latents_mean = (
                     ms.tensor(latents_mean)
                     .view(1, self.vae.config.latent_channels, -1, 1, 1)[:, :, : latents.shape[2]]
-                    .to(latents)
+                    .to(latents.dtype)
                 )
                 latents_std = (
                     ms.tensor(latents_std)
                     .view(1, self.vae.config.latent_channels, -1, 1, 1)[:, :, : latents.shape[2]]
-                    .to(latents)
+                    .to(latents.dtype)
                 )
                 latents = latents * latents_std / self.scheduler.config.sigma_data + latents_mean
             else:
@@ -631,7 +626,6 @@ class CosmosTextToWorldPipeline(DiffusionPipeline):
                 video = self.video_processor.postprocess_video(video, output_type=output_type)
         else:
             video = latents
-
 
         if not return_dict:
             return (video,)

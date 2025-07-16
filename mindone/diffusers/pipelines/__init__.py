@@ -38,11 +38,11 @@ _import_structure = {
     "cogview4": ["CogView4Pipeline", "CogView4ControlPipeline"],
     "consisid": ["ConsisIDPipeline"],
     "cosmos": [
-        "CosmosTextToWorldPipeline", 
-        "CosmosVideoToWorldPipeline", 
+        "CosmosTextToWorldPipeline",
+        "CosmosVideoToWorldPipeline",
         "Cosmos2TextToImagePipeline",
         "Cosmos2VideoToWorldPipeline",
-        ],
+    ],
     "controlnet": [
         "BlipDiffusionControlNetPipeline",
         "StableDiffusionControlNetImg2ImgPipeline",
@@ -294,7 +294,12 @@ if TYPE_CHECKING:
     from .controlnet_hunyuandit import HunyuanDiTControlNetPipeline
     from .controlnet_sd3 import StableDiffusion3ControlNetInpaintingPipeline, StableDiffusion3ControlNetPipeline
     from .controlnet_xs import StableDiffusionControlNetXSPipeline, StableDiffusionXLControlNetXSPipeline
-    from .cosmos import CosmosTextToWorldPipeline, CosmosVideoToWorldPipeline, Cosmos2TextToImagePipeline, Cosmos2VideoToWorldPipeline
+    from .cosmos import (
+        Cosmos2TextToImagePipeline,
+        Cosmos2VideoToWorldPipeline,
+        CosmosTextToWorldPipeline,
+        CosmosVideoToWorldPipeline,
+    )
     from .ddim import DDIMPipeline
     from .ddpm import DDPMPipeline
     from .deepfloyd_if import (

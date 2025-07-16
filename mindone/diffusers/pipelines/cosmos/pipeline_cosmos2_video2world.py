@@ -16,9 +16,11 @@ import inspect
 from typing import Callable, Dict, List, Optional, Union
 
 import numpy as np
-import mindspore as ms
-from mindspore import ops, mint
 from transformers import T5TokenizerFast
+
+import mindspore as ms
+from mindspore import mint
+
 from mindone.transformers import T5EncoderModel
 
 from ...callbacks import MultiPipelineCallbacks, PipelineCallback
@@ -31,7 +33,6 @@ from ...video_processor import VideoProcessor
 from ..pipeline_utils import DiffusionPipeline
 from .pipeline_output import CosmosPipelineOutput
 
-
 _is_cosmos_guardrail_available = False
 
 if _is_cosmos_guardrail_available:
@@ -40,9 +41,7 @@ else:
 
     class CosmosSafetyChecker:
         def __init__(self, *args, **kwargs):
-            raise ImportError(
-                "`cosmos_guardrail` not adapted to Mindspore yet. " 
-            )
+            raise ImportError("`cosmos_guardrail` not adapted to Mindspore yet. ")
 
 
 logger = logging.get_logger(__name__)  # pylint: disable=invalid-name
@@ -59,8 +58,8 @@ EXAMPLE_DOC_STRING = """
         >>> model_id = "nvidia/Cosmos-Predict2-2B-Video2World"
         >>> pipe = Cosmos2VideoToWorldPipeline.from_pretrained(model_id, mindspore_dtype=mindspore.bfloat16)
 
-        >>> prompt = "A close-up shot captures a vibrant yellow scrubber vigorously working on a grimy plate, its bristles moving in circular motions to lift stubborn grease and food residue. The dish, once covered in remnants of a hearty meal, gradually reveals its original glossy surface. Suds form and bubble around the scrubber, creating a satisfying visual of cleanliness in progress. The sound of scrubbing fills the air, accompanied by the gentle clinking of the dish against the sink. As the scrubber continues its task, the dish transforms, gleaming under the bright kitchen lights, symbolizing the triumph of cleanliness over mess."
-        >>> negative_prompt = "The video captures a series of frames showing ugly scenes, static with no motion, motion blur, over-saturation, shaky footage, low resolution, grainy texture, pixelated images, poorly lit areas, underexposed and overexposed scenes, poor color balance, washed out colors, choppy sequences, jerky movements, low frame rate, artifacting, color banding, unnatural transitions, outdated special effects, fake elements, unconvincing visuals, poorly edited content, jump cuts, visual noise, and flickering. Overall, the video is of poor quality."
+        >>> prompt = "A close-up shot captures a vibrant yellow scrubber vigorously working on a grimy plate, its bristles moving in circular motions to lift stubborn grease and food residue. The dish, once covered in remnants of a hearty meal, gradually reveals its original glossy surface. Suds form and bubble around the scrubber, creating a satisfying visual of cleanliness in progress. The sound of scrubbing fills the air, accompanied by the gentle clinking of the dish against the sink. As the scrubber continues its task, the dish transforms, gleaming under the bright kitchen lights, symbolizing the triumph of cleanliness over mess." # noqa E501
+        >>> negative_prompt = "The video captures a series of frames showing ugly scenes, static with no motion, motion blur, over-saturation, shaky footage, low resolution, grainy texture, pixelated images, poorly lit areas, underexposed and overexposed scenes, poor color balance, washed out colors, choppy sequences, jerky movements, low frame rate, artifacting, color banding, unnatural transitions, outdated special effects, fake elements, unconvincing visuals, poorly edited content, jump cuts, visual noise, and flickering. Overall, the video is of poor quality." # noqa E501
         >>> image = load_image(
         ...     "https://huggingface.co/datasets/huggingface/documentation-images/resolve/main/diffusers/yellow-scrubber.png"
         ... )
@@ -181,7 +180,7 @@ class Cosmos2VideoToWorldPipeline(DiffusionPipeline):
         transformer: CosmosTransformer3DModel,
         vae: AutoencoderKLWan,
         scheduler: FlowMatchEulerDiscreteScheduler,
-        safety_checker = None, # TODO CosmosSafetyChecker
+        safety_checker=None,  # TODO CosmosSafetyChecker
     ):
         super().__init__()
 
@@ -235,19 +234,19 @@ class Cosmos2VideoToWorldPipeline(DiffusionPipeline):
             return_offsets_mapping=False,
         )
         text_input_ids = text_inputs.input_ids
-        prompt_attention_mask = text_inputs.attention_mask.bool()
+        prompt_attention_mask = ms.tensor(text_inputs.attention_mask).bool()
 
         untruncated_ids = self.tokenizer(prompt, padding="longest", return_tensors="np").input_ids
-        if untruncated_ids.shape[-1] >= text_input_ids.shape[-1] and not np.array_equal(text_input_ids, untruncated_ids):
+        if untruncated_ids.shape[-1] >= text_input_ids.shape[-1] and not np.array_equal(
+            text_input_ids, untruncated_ids
+        ):
             removed_text = self.tokenizer.batch_decode(untruncated_ids[:, max_sequence_length - 1 : -1])
             logger.warning(
                 "The following part of your input was truncated because `max_sequence_length` is set to "
                 f" {max_sequence_length} tokens: {removed_text}"
             )
 
-        prompt_embeds = self.text_encoder(
-            text_input_ids, attention_mask=prompt_attention_mask
-        )[0]
+        prompt_embeds = self.text_encoder(ms.tensor(text_input_ids), attention_mask=prompt_attention_mask)[0]
         prompt_embeds = prompt_embeds.to(dtype=dtype)
 
         lengths = prompt_attention_mask.sum(dim=1)
@@ -355,7 +354,7 @@ class Cosmos2VideoToWorldPipeline(DiffusionPipeline):
                 f" size of {batch_size}. Make sure the batch size matches the length of the generators."
             )
 
-        num_cond_frames = video.size(2)
+        num_cond_frames = video.shape[2]
         if num_cond_frames >= num_frames:
             # Take the last `num_frames` frames for conditioning
             num_cond_latent_frames = (num_frames - 1) // self.vae_scale_factor_temporal + 1
@@ -369,20 +368,18 @@ class Cosmos2VideoToWorldPipeline(DiffusionPipeline):
 
         if isinstance(generator, list):
             init_latents = [
-                retrieve_latents(self.vae.encode(video[i].unsqueeze(0)), generator=generator[i])
+                retrieve_latents(self.vae, self.vae.encode(video[i].unsqueeze(0))[0], generator=generator[i])
                 for i in range(batch_size)
             ]
         else:
-            init_latents = [retrieve_latents(self.vae.encode(vid.unsqueeze(0)), generator) for vid in video]
+            init_latents = [
+                retrieve_latents(self.vae, self.vae.encode(vid.unsqueeze(0))[0], generator) for vid in video
+            ]
 
         init_latents = mint.cat(init_latents, dim=0).to(dtype)
 
-        latents_mean = (
-            ms.tensor(self.vae.config.latents_mean).view(1, self.vae.config.z_dim, 1, 1, 1).to(dtype)
-        )
-        latents_std = (
-            ms.tensor(self.vae.config.latents_std).view(1, self.vae.config.z_dim, 1, 1, 1).to(dtype)
-        )
+        latents_mean = ms.tensor(self.vae.config.latents_mean).view(1, self.vae.config.z_dim, 1, 1, 1).to(dtype)
+        latents_std = ms.tensor(self.vae.config.latents_std).view(1, self.vae.config.z_dim, 1, 1, 1).to(dtype)
         init_latents = (init_latents - latents_mean) / latents_std * self.scheduler.config.sigma_data
 
         num_latent_frames = (num_frames - 1) // self.vae_scale_factor_temporal + 1
@@ -401,13 +398,13 @@ class Cosmos2VideoToWorldPipeline(DiffusionPipeline):
         ones_padding = latents.new_ones(padding_shape)
         zeros_padding = latents.new_zeros(padding_shape)
 
-        cond_indicator = latents.new_zeros(1, 1, latents.shape[2], 1, 1)
+        cond_indicator = latents.new_zeros((1, 1, latents.shape[2], 1, 1))
         cond_indicator[:, :, :num_cond_latent_frames] = 1.0
         cond_mask = cond_indicator * ones_padding + (1 - cond_indicator) * zeros_padding
 
         uncond_indicator = uncond_mask = None
         if do_classifier_free_guidance:
-            uncond_indicator = latents.new_zeros(1, 1, latents.shape[2], 1, 1)
+            uncond_indicator = latents.new_zeros((1, 1, latents.shape[2], 1, 1))
             uncond_indicator[:, :, :num_cond_latent_frames] = 1.0
             uncond_mask = uncond_indicator * ones_padding + (1 - uncond_indicator) * zeros_padding
 
@@ -429,7 +426,8 @@ class Cosmos2VideoToWorldPipeline(DiffusionPipeline):
             k in self._callback_tensor_inputs for k in callback_on_step_end_tensor_inputs
         ):
             raise ValueError(
-                f"`callback_on_step_end_tensor_inputs` has to be in {self._callback_tensor_inputs}, but found {[k for k in callback_on_step_end_tensor_inputs if k not in self._callback_tensor_inputs]}"
+                f"`callback_on_step_end_tensor_inputs` has to be in {self._callback_tensor_inputs}, \
+                    but found {[k for k in callback_on_step_end_tensor_inputs if k not in self._callback_tensor_inputs]}"
             )
 
         if prompt is not None and prompt_embeds is not None:
@@ -578,7 +576,6 @@ class Cosmos2VideoToWorldPipeline(DiffusionPipeline):
         self._current_timestep = None
         self._interrupt = False
 
-
         if self.safety_checker is not None:
             if prompt is not None:
                 prompt_list = [prompt] if isinstance(prompt, str) else prompt
@@ -649,7 +646,7 @@ class Cosmos2VideoToWorldPipeline(DiffusionPipeline):
             uncond_mask = uncond_mask.to(transformer_dtype)
             unconditioning_latents = conditioning_latents
 
-        padding_mask = latents.new_zeros(1, 1, height, width, dtype=transformer_dtype)
+        padding_mask = latents.new_zeros((1, 1, height, width), dtype=transformer_dtype)
         sigma_conditioning = ms.tensor(sigma_conditioning, dtype=ms.float32)
         t_conditioning = sigma_conditioning / (sigma_conditioning + 1)
 
@@ -670,7 +667,7 @@ class Cosmos2VideoToWorldPipeline(DiffusionPipeline):
                 c_skip = 1 - current_t
                 c_out = -current_t
                 timestep = current_t.view(1, 1, 1, 1, 1).expand(
-                    latents.size(0), -1, latents.size(2), -1, -1
+                    (latents.shape[0], -1, latents.shape[2], -1, -1)
                 )  # [B, 1, T, 1, 1]
 
                 cond_latent = latents * c_in
@@ -730,19 +727,14 @@ class Cosmos2VideoToWorldPipeline(DiffusionPipeline):
                 if i == len(timesteps) - 1 or ((i + 1) > num_warmup_steps and (i + 1) % self.scheduler.order == 0):
                     progress_bar.update()
 
-
         self._current_timestep = None
 
         if not output_type == "latent":
             latents_mean = (
-                ms.tensor(self.vae.config.latents_mean)
-                .view(1, self.vae.config.z_dim, 1, 1, 1)
-                .to(latents.dtype)
+                ms.tensor(self.vae.config.latents_mean).view(1, self.vae.config.z_dim, 1, 1, 1).to(latents.dtype)
             )
             latents_std = (
-                ms.tensor(self.vae.config.latents_std)
-                .view(1, self.vae.config.z_dim, 1, 1, 1)
-                .to(latents.dtype)
+                ms.tensor(self.vae.config.latents_std).view(1, self.vae.config.z_dim, 1, 1, 1).to(latents.dtype)
             )
             latents = latents * latents_std / self.scheduler.config.sigma_data + latents_mean
             video = self.vae.decode(latents.to(self.vae.dtype), return_dict=False)[0]
@@ -761,7 +753,6 @@ class Cosmos2VideoToWorldPipeline(DiffusionPipeline):
                 video = self.video_processor.postprocess_video(video, output_type=output_type)
         else:
             video = latents
-
 
         if not return_dict:
             return (video,)
