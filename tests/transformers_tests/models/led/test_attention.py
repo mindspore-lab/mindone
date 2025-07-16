@@ -10,6 +10,7 @@ import mindspore
 from mindspore import Tensor
 
 from mindone.transformers.models.led.modeling_led import LEDEncoderSelfAttention as MSLEDEncoderSelfAttention
+from mindone.transformers.models.led.modeling_led import as_strided
 
 
 class TestLEDEncoderSelfAttention(unittest.TestCase):
@@ -246,6 +247,61 @@ class TestLEDEncoderSelfAttention(unittest.TestCase):
             ms_query_vectors.asnumpy(), torch_query_vectors.detach().numpy(), rtol=1e-4, atol=1e-4
         )
         np.testing.assert_allclose(ms_key_vectors.asnumpy(), torch_key_vectors.detach().numpy(), rtol=1e-4, atol=1e-4)
+
+    def test_astrided(self):
+        (
+            ms_query_vectors,
+            _,
+            _,
+            torch_query_vectors,
+            _,
+            _,
+        ) = self.get_qkv()
+
+        batch_size, seq_len, num_heads, head_dim = ms_query_vectors.shape
+        window_overlap = self.ms_attn.one_sided_attn_window_size
+        assert self.ms_attn.one_sided_attn_window_size == self.torch_attn.one_sided_attn_window_size
+
+        ms_query_vectors = ms_query_vectors.transpose(1, 2).reshape(batch_size * num_heads, seq_len, head_dim)
+
+        ms_query_vectors = ms_query_vectors.view(
+            ms_query_vectors.shape[0],
+            mindspore.mint.div(ms_query_vectors.shape[1], (window_overlap * 2), rounding_mode="trunc").item(),
+            window_overlap * 2,
+            ms_query_vectors.shape[2],
+        )
+
+        ms_chunk_size = list(ms_query_vectors.shape)
+        ms_chunk_size[1] = ms_chunk_size[1] * 2 - 1
+
+        ms_chunk_stride = list(ms_query_vectors.stride())
+        ms_chunk_stride[1] = ms_chunk_stride[1] // 2
+
+        torch_query_vectors = torch_query_vectors.transpose(1, 2).reshape(batch_size * num_heads, seq_len, head_dim)
+        torch_query_vectors = torch_query_vectors.view(
+            torch_query_vectors.shape[0],
+            torch.div(torch_query_vectors.shape[1], (window_overlap * 2), rounding_mode="trunc"),
+            window_overlap * 2,
+            torch_query_vectors.shape[2],
+        )
+
+        torch_chunk_size = list(torch_query_vectors.shape)
+        torch_chunk_size[1] = torch_chunk_size[1] * 2 - 1
+        torch_chunk_stride = list(torch_query_vectors.stride())
+        torch_chunk_stride[1] = torch_chunk_stride[1] // 2
+
+        np.testing.assert_allclose(
+            ms_query_vectors.asnumpy(), torch_query_vectors.detach().numpy(), rtol=1e-4, atol=1e-4
+        )
+        assert torch_chunk_size == ms_chunk_size
+        assert torch_chunk_stride == ms_chunk_stride
+
+        ms_query_vectors = as_strided(ms_query_vectors, size=ms_chunk_size, stride=ms_chunk_stride)
+        torch_query_vectors = torch.as_strided(torch_query_vectors, size=torch_chunk_size, stride=torch_chunk_stride)
+
+        np.testing.assert_allclose(
+            ms_query_vectors.asnumpy(), torch_query_vectors.detach().numpy(), rtol=1e-4, atol=1e-4
+        )
 
 
 if __name__ == "__main__":
