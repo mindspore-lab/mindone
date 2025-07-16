@@ -1,3 +1,5 @@
+# This code is copied from https://github.com/Ji4chenLi/t2v-turbo
+
 import os
 
 from .simple_tokenizer import SimpleTokenizer as _Tokenizer

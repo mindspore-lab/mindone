@@ -1,3 +1,5 @@
+"""Adapted from https://github.com/huggingface/diffusers/tree/main/src/diffusers/pipelines/deepfloyd_if/safety_checker.py."""
+
 from transformers import CLIPConfig
 
 from mindspore import mint

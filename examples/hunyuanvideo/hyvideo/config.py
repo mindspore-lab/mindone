@@ -16,6 +16,7 @@ def parse_args(namespace=None):
     parser = add_denoise_schedule_args(parser)
     parser = add_inference_args(parser)
     parser = add_parallel_args(parser)
+    parser = add_teacache_args(parser)
 
     args = parser.parse_args(namespace=namespace)
     args = sanity_check_args(args)
@@ -437,6 +438,20 @@ def add_parallel_args(parser: argparse.ArgumentParser):
     #     help="Ulysses degree.",
     # )
 
+    return parser
+
+
+def add_teacache_args(parser):
+    group = parser.add_argument_group(title="Teacache args")
+    group.add_argument(
+        "--enable-teacache", default=False, type=str2bool, help="Enable video generation speedup with TeaCache."
+    )
+    group.add_argument(
+        "--teacache-thresh",
+        type=float,
+        default=0.1,
+        help="Relative L1 distance threshold. Use 0.1 for 1.6x speedup and 0.15 for 2.1x speedup",
+    )
     return parser
 
 
