@@ -1,6 +1,9 @@
 # coding=utf-8
 # Copyright 2018 The HuggingFace Inc. team.
 #
+# This code is adapted from https://github.com/huggingface/transformers
+# with modifications to run transformers on mindspore.
+#
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -13,7 +16,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 """Auto Config class."""
-
 import importlib
 import os
 import re
@@ -21,6 +23,8 @@ import warnings
 from collections import OrderedDict
 from typing import List, Union
 
+import transformers
+from packaging import version
 from transformers.configuration_utils import PretrainedConfig
 from transformers.dynamic_module_utils import get_class_from_dynamic_module, resolve_trust_remote_code
 from transformers.utils import CONFIG_NAME, logging
@@ -35,6 +39,7 @@ CONFIG_MAPPING_NAMES = OrderedDict(
         ("bert", "BertConfig"),
         ("bart", "BartConfig"),
         ("bit", "BitConfig"),
+        ("blip", "BlipConfig"),
         ("blip-2", "Blip2Config"),
         ("clip", "CLIPConfig"),
         ("clip_vision_model", "CLIPVisionConfig"),
@@ -52,6 +57,10 @@ CONFIG_MAPPING_NAMES = OrderedDict(
         ("granitemoe", "GraniteMoeConfig"),
         ("granitemoeshared", "GraniteMoeSharedConfig"),
         ("hiera", "HieraConfig"),
+        ("idefics", "IdeficsConfig"),
+        ("idefics2", "Idefics2Config"),
+        ("idefics3", "Idefics3Config"),
+        ("idefics3_vision", "Idefics3VisionConfig"),
         ("ijepa", "IJepaConfig"),
         ("imagegpt", "ImageGPTConfig"),
         ("levit", "LevitConfig"),
@@ -64,16 +73,18 @@ CONFIG_MAPPING_NAMES = OrderedDict(
         ("llava_onevision", "LlavaOnevisionConfig"),
         ("mistral", "MistralConfig"),
         ("mobilebert", "MobileBertConfig"),
+        ("mpt", "MptConfig"),
         ("mt5", "MT5Config"),
         ("megatron-bert", "MegatronBertConfig"),
         ("mixtral", "MixtralConfig"),
+        ("paligemma", "PaliGemmaConfig"),
+        ("phi", "PhiConfig"),
         ("phi3", "Phi3Config"),
         ("qwen2", "Qwen2Config"),
         ("qwen2_5_vl", "Qwen2_5_VLConfig"),
         ("qwen2_audio", "Qwen2AudioConfig"),
         ("qwen2_audio_encoder", "Qwen2AudioEncoderConfig"),
         ("qwen2_vl", "Qwen2VLConfig"),
-        ("qwen3", "Qwen3Config"),
         ("roberta", "RobertaConfig"),
         ("recurrent_gemma", "RecurrentGemmaConfig"),
         ("rembert", "RemBertConfig"),
@@ -97,6 +108,7 @@ MODEL_NAMES_MAPPING = OrderedDict(
         ("bert", "BERT"),
         ("bart", "BART"),
         ("bit", "BiT"),
+        ("blip", "BLIP"),
         ("blip-2", "BLIP-2"),
         ("chameleon", "Chameleon"),
         ("clap", "CLAP"),
@@ -121,6 +133,10 @@ MODEL_NAMES_MAPPING = OrderedDict(
         ("qwen2_audio", "Qwen2Audio"),
         ("qwen2_audio_encoder", "Qwen2AudioEncoder"),
         ("hiera", "Hiera"),
+        ("idefics", "IDEFICS"),
+        ("idefics2", "Idefics2"),
+        ("idefics3", "Idefics3"),
+        ("idefics3_vision", "Idefics3VisionTransformer"),
         ("ijepa", "I-JEPA"),
         ("imagegpt", "ImageGPT"),
         ("levit", "LeViT"),
@@ -135,16 +151,19 @@ MODEL_NAMES_MAPPING = OrderedDict(
         ("persimmon", "Persimmon"),
         ("fuyu", "Fuyu"),
         ("mobilebert", "MobileBERT"),
+        ("mpt", "MPT"),
         ("mt5", "MT5"),
         ("megatron-bert", "Megatron-BERT"),
+        ("mistral", "Mistral"),
         ("mixtral", "Mixtral"),
+        ("paligemma", "PaliGemma"),
+        ("phi", "Phi"),
         ("phi3", "Phi3"),
         ("qwen2", "Qwen2"),
         ("qwen2_5_vl", "Qwen2_5_VL"),
         ("qwen2_audio", "Qwen2Audio"),
         ("qwen2_audio_encoder", "Qwen2AudioEncoder"),
         ("qwen2_vl", "Qwen2VL"),
-        ("qwen3", "Qwen3Model"),
         ("recurrent_gemma", "RecurrentGemma"),
         ("rembert", "RemBERT"),
         ("siglip", "SigLIP"),
@@ -202,12 +221,21 @@ SPECIAL_MODEL_TYPE_TO_MODULE_NAME = OrderedDict(
         ("clip_vision_model", "clip"),
         ("qwen2_audio_encoder", "qwen2_audio"),
         ("gemma3_text", "gemma3"),
+        ("idefics3_vision", "idefics3"),
         ("clip_text_model", "clip"),
         ("siglip_vision_model", "siglip"),
         ("chinese_clip_vision_model", "chinese_clip"),
         ("rt_detr_resnet", "rt_detr"),
     ]
 )
+
+if version.parse(transformers.__version__) >= version.parse("4.51.0"):
+    CONFIG_MAPPING_NAMES.update({"qwen3": "Qwen3Config"})
+    MODEL_NAMES_MAPPING.update({"qwen3": "Qwen3Model"})
+
+if version.parse(transformers.__version__) >= version.parse("4.51.3"):
+    CONFIG_MAPPING_NAMES.update({"glm4": "Glm4Config"})
+    MODEL_NAMES_MAPPING.update({"glm4": "glm4"})
 
 
 def model_type_to_module_name(key):

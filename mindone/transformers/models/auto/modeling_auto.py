@@ -1,6 +1,9 @@
 # coding=utf-8
 # Copyright 2018 The HuggingFace Inc. team.
 #
+# This code is adapted from https://github.com/huggingface/transformers
+# with modifications to run transformers on mindspore.
+#
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -17,6 +20,8 @@
 import warnings
 from collections import OrderedDict
 
+import transformers
+from packaging import version
 from transformers.utils import logging
 
 from .auto_factory import _BaseAutoBackboneClass, _BaseAutoModelClass, _LazyAutoMapping, auto_class_update
@@ -31,6 +36,7 @@ MODEL_MAPPING_NAMES = OrderedDict(
         ("bert", "BertModel"),
         ("bart", "BartModel"),
         ("bit", "BitModel"),
+        ("blip", "BlipModel"),
         ("blip-2", "Blip2Model"),
         ("chameleon", "ChameleonModel"),
         ("clap", "ClapModel"),
@@ -56,21 +62,26 @@ MODEL_MAPPING_NAMES = OrderedDict(
         ("qwen2_audio_encoder", "Qwen2AudioEncoder"),
         ("siglip", "SiglipModel"),
         ("hiera", "HieraModel"),
+        ("idefics", "IdeficsModel"),
+        ("idefics2", "Idefics2Model"),
+        ("idefics3", "Idefics3Model"),
+        ("idefics3_vision", "Idefics3VisionTransformer"),
         ("ijepa", "IJepaModel"),
         ("imagegpt", "ImageGPTModel"),
         ("levit", "LevitModel"),
         ("llama", "LlamaModel"),
         ("mistral", "MistralModel"),
         ("mobilebert", "MobileBertModel"),
+        ("mpt", "MptModel"),
         ("mt5", "MT5Model"),
         ("megatron-bert", "MegatronBertModel"),
         ("mixtral", "MixtralModel"),
+        ("phi", "PhiModel"),
         ("phi3", "Phi3Model"),
         ("qwen2", "Qwen2Model"),
         ("qwen2_5_vl", "Qwen2_5_VLModel"),
         ("qwen2_audio_encoder", "Qwen2AudioEncoder"),
         ("qwen2_vl", "Qwen2VLModel"),
-        ("qwen3", "Qwen3Model"),
         ("roberta", "RobertaModel"),
         ("rembert", "RemBertModel"),
         ("siglip", "SiglipModel"),
@@ -94,6 +105,9 @@ MODEL_FOR_PRETRAINING_MAPPING_NAMES = OrderedDict(
         ("gpt2", "GPT2LMHeadModel"),
         ("gemma3", "Gemma3ForConditionalGeneration"),
         ("hiera", "HieraForPreTraining"),
+        ("idefics", "IdeficsForVisionText2Text"),
+        ("idefics2", "Idefics2ForConditionalGeneration"),
+        ("idefics3", "Idefics3ForConditionalGeneration"),
         ("llava", "LlavaForConditionalGeneration"),
         ("llava_next", "LlavaNextForConditionalGeneration"),
         ("llava_next_video", "LlavaNextVideoForConditionalGeneration"),
@@ -102,6 +116,8 @@ MODEL_FOR_PRETRAINING_MAPPING_NAMES = OrderedDict(
         ("qwen2_audio", "Qwen2AudioForConditionalGeneration"),
         ("roberta", "RobertaForMaskedLM"),
         ("megatron-bert", "MegatronBertForPreTraining"),
+        ("mpt", "MptForCausalLM"),
+        ("paligemma", "PaliGemmaForConditionalGeneration"),
         ("t5", "T5ForConditionalGeneration"),
         ("wav2vec2", "Wav2Vec2ForPreTraining"),
         ("xlm-roberta", "XLMRobertaForMaskedLM"),
@@ -121,6 +137,7 @@ MODEL_WITH_LM_HEAD_MAPPING_NAMES = OrderedDict(
         ("roberta", "RobertaForMaskedLM"),
         ("megatron-bert", "MegatronBertForCausalLM"),
         ("mobilebert", "MobileBertForMaskedLM"),
+        ("mpt", "MptForCausalLM"),
         ("rembert", "RemBertForMaskedLM"),
         ("t5", "T5ForConditionalGeneration"),
         ("wav2vec2", "Wav2Vec2ForMaskedLM"),
@@ -151,9 +168,10 @@ MODEL_FOR_CAUSAL_LM_MAPPING_NAMES = OrderedDict(
         ("megatron-bert", "MegatronBertForCausalLM"),
         ("mistral", "MistralForCausalLM"),
         ("mixtral", "MixtralForCausalLM"),
+        ("mpt", "MptForCausalLM"),
+        ("phi", "PhiForCausalLM"),
         ("phi3", "Phi3ForCausalLM"),
         ("qwen2", "Qwen2ForCausalLM"),
-        ("qwen3", "Qwen3ForCausalLM"),
         ("roberta", "RobertaForCausalLM"),
         ("recurrent_gemma", "RecurrentGemmaForCausalLM"),
         ("rembert", "RemBertForCausalLM"),
@@ -218,10 +236,13 @@ MODEL_FOR_VISION_2_SEQ_MAPPING_NAMES = OrderedDict(
         ("blip", "BlipForConditionalGeneration"),
         ("blip-2", "Blip2ForConditionalGeneration"),
         ("chameleon", "ChameleonForConditionalGeneration"),
+        ("idefics2", "Idefics2ForConditionalGeneration"),
+        ("idefics3", "Idefics3ForConditionalGeneration"),
         ("llava", "LlavaForConditionalGeneration"),
         ("llava_next", "LlavaNextForConditionalGeneration"),
         ("llava_next_video", "LlavaNextVideoForConditionalGeneration"),
         ("llava_onevision", "LlavaOnevisionForConditionalGeneration"),
+        ("paligemma", "PaliGemmaForConditionalGeneration"),
         ("qwen2_5_vl", "Qwen2_5_VLForConditionalGeneration"),
         ("qwen2_vl", "Qwen2VLForConditionalGeneration"),
     ]
@@ -233,10 +254,14 @@ MODEL_FOR_IMAGE_TEXT_TO_TEXT_MAPPING_NAMES = OrderedDict(
         ("blip-2", "Blip2ForConditionalGeneration"),
         ("gemma3", "Gemma3ForConditionalGeneration"),
         ("chameleon", "ChameleonForConditionalGeneration"),
+        ("idefics", "IdeficsForVisionText2Text"),
+        ("idefics2", "Idefics2ForConditionalGeneration"),
+        ("idefics3", "Idefics3ForConditionalGeneration"),
         ("fuyu", "FuyuForCausalLM"),
         ("llava", "LlavaForConditionalGeneration"),
         ("llava_next", "LlavaNextForConditionalGeneration"),
         ("llava_onevision", "LlavaOnevisionForConditionalGeneration"),
+        ("paligemma", "PaliGemmaForConditionalGeneration"),
         ("qwen2_5_vl", "Qwen2_5_VLForConditionalGeneration"),
         ("qwen2_vl", "Qwen2VLForConditionalGeneration"),
     ]
@@ -322,15 +347,16 @@ MODEL_FOR_SEQUENCE_CLASSIFICATION_MAPPING_NAMES = OrderedDict(
         ("gemma2", "Gemma2ForSequenceClassification"),
         ("glm", "GlmForSequenceClassification"),
         ("llama", "LlamaForSequenceClassification"),
+        ("megatron-bert", "MegatronBertForSequenceClassification"),
         ("mistral", "MistralForSequenceClassification"),
         ("mixtral", "MixtralForSequenceClassification"),
         ("mobilebert", "MobileBertForSequenceClassification"),
+        ("mpt", "MptForSequenceClassification"),
         ("mt5", "MT5ForSequenceClassification"),
-        ("megatron-bert", "MegatronBertForSequenceClassification"),
         ("persimmon", "PersimmonForSequenceClassification"),
+        ("phi", "PhiForSequenceClassification"),
         ("phi3", "Phi3ForSequenceClassification"),
         ("qwen2", "Qwen2ForSequenceClassification"),
-        ("qwen3", "Qwen3ForSequenceClassification"),
         ("rembert", "RemBertForSequenceClassification"),
         ("t5", "T5ForSequenceClassification"),
         ("umt5", "UMT5ForSequenceClassification"),
@@ -351,11 +377,12 @@ MODEL_FOR_QUESTION_ANSWERING_MAPPING_NAMES = OrderedDict(
         ("mistral", "MistralForQuestionAnswering"),
         ("mobilebert", "MobileBertForQuestionAnswering"),
         ("megatron-bert", "MegatronBertForQuestionAnswering"),
+        ("mistral", "MistralForQuestionAnswering"),
         ("qwen2", "Qwen2ForQuestionAnswering"),
-        ("qwen3", "Qwen3ForQuestionAnswering"),
         ("rembert", "RemBertForQuestionAnswering"),
         ("t5", "T5ForQuestionAnswering"),
         ("mixtral", "MixtralForQuestionAnswering"),
+        ("mpt", "MptForQuestionAnswering"),
         ("umt5", "UMT5ForQuestionAnswering"),
         ("xlm-roberta", "XLMRobertaForQuestionAnswering"),
         ("xlm-roberta-xl", "XLMRobertaXLForQuestionAnswering"),
@@ -364,7 +391,11 @@ MODEL_FOR_QUESTION_ANSWERING_MAPPING_NAMES = OrderedDict(
 
 MODEL_FOR_TABLE_QUESTION_ANSWERING_MAPPING_NAMES = OrderedDict()
 
-MODEL_FOR_VISUAL_QUESTION_ANSWERING_MAPPING_NAMES = OrderedDict()
+MODEL_FOR_VISUAL_QUESTION_ANSWERING_MAPPING_NAMES = OrderedDict(
+    [
+        ("blip", "BlipForQuestionAnswering"),
+    ]
+)
 
 MODEL_FOR_DOCUMENT_QUESTION_ANSWERING_MAPPING_NAMES = OrderedDict()
 
@@ -382,9 +413,10 @@ MODEL_FOR_TOKEN_CLASSIFICATION_MAPPING_NAMES = OrderedDict(
         ("persimmon", "PersimmonForTokenClassification"),
         ("megatron-bert", "MegatronBertForTokenClassification"),
         ("mixtral", "MixtralForTokenClassification"),
+        ("mpt", "MptForTokenClassification"),
+        ("phi", "PhiForTokenClassification"),
         ("phi3", "Phi3ForTokenClassification"),
         ("qwen2", "Qwen2ForTokenClassification"),
-        ("qwen3", "Qwen3ForTokenClassification"),
         ("roberta", "RobertaForTokenClassification"),
         ("rembert", "RemBertForTokenClassification"),
         ("t5", "T5ForTokenClassification"),
@@ -454,6 +486,7 @@ MODEL_FOR_TEXT_TO_WAVEFORM_MAPPING_NAMES = OrderedDict()
 MODEL_FOR_ZERO_SHOT_IMAGE_CLASSIFICATION_MAPPING_NAMES = OrderedDict(
     [
         # Model for Zero Shot Image Classification mapping
+        ("blip", "BlipModel"),
         ("siglip", "SiglipModel"),
     ]
 )
@@ -492,6 +525,21 @@ MODEL_FOR_TIME_SERIES_CLASSIFICATION_MAPPING_NAMES = OrderedDict()
 MODEL_FOR_TIME_SERIES_REGRESSION_MAPPING_NAMES = OrderedDict()
 
 MODEL_FOR_IMAGE_TO_IMAGE_MAPPING_NAMES = OrderedDict()
+
+
+if version.parse(transformers.__version__) >= version.parse("4.51.0"):
+    MODEL_FOR_CAUSAL_LM_MAPPING_NAMES.update({"qwen3": "Qwen3Model"})
+    MODEL_FOR_CAUSAL_LM_MAPPING_NAMES.update({"qwen3": "Qwen3ForCausalLM"})
+    MODEL_FOR_SEQUENCE_CLASSIFICATION_MAPPING_NAMES.update({"qwen3": "Qwen3ForSequenceClassification"})
+    MODEL_FOR_QUESTION_ANSWERING_MAPPING_NAMES.update({"qwen3": "Qwen3ForQuestionAnswering"})
+    MODEL_FOR_TOKEN_CLASSIFICATION_MAPPING_NAMES.update({"qwen3": "Qwen3ForTokenClassification"})
+
+if version.parse(transformers.__version__) >= version.parse("4.51.3"):
+    MODEL_MAPPING_NAMES.update({"glm4": "Glm4Model"})
+    MODEL_FOR_CAUSAL_LM_MAPPING_NAMES.update({"glm4": "Glm4ForCausalLM"})
+    MODEL_FOR_SEQUENCE_CLASSIFICATION_MAPPING_NAMES.update({"glm4": "Glm4ForSequenceClassification"})
+    MODEL_FOR_TOKEN_CLASSIFICATION_MAPPING_NAMES.update({"glm4": "Glm4ForTokenClassification"})
+
 
 MODEL_MAPPING = _LazyAutoMapping(CONFIG_MAPPING_NAMES, MODEL_MAPPING_NAMES)
 MODEL_FOR_PRETRAINING_MAPPING = _LazyAutoMapping(CONFIG_MAPPING_NAMES, MODEL_FOR_PRETRAINING_MAPPING_NAMES)

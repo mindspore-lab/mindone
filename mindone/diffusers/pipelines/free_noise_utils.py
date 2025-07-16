@@ -1,5 +1,8 @@
 # Copyright 2024 The HuggingFace Team. All rights reserved.
 #
+# This code is adapted from https://github.com/huggingface/diffusers
+# with modifications to run diffusers on mindspore.
+#
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -406,10 +409,10 @@ class AnimateDiffFreeNoiseMixin:
                 if window_length == 0:
                     break
 
-                indices = ms.Tensor(list(range(window_start, window_end)), dtype=ms.int64)
+                indices = ms.tensor(list(range(window_start, window_end)), dtype=ms.int64)
                 if generator is None:
                     generator = np.random.default_rng()
-                shuffled_indices = indices[ms.Tensor(generator.permutation(window_length))]
+                shuffled_indices = indices[ms.tensor(generator.permutation(window_length))]
 
                 current_start = i
                 current_end = min(num_frames, current_start + window_length)

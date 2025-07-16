@@ -1,3 +1,5 @@
+# Adapted from https://github.com/VectorSpaceLab/OmniGen/blob/main/OmniGen/processor.py
+
 import re
 from typing import Dict, List
 

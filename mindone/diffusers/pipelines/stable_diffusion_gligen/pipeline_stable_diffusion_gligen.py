@@ -1,5 +1,8 @@
 # Copyright 2024 The GLIGEN Authors and HuggingFace Team. All rights reserved.
 #
+# This code is adapted from https://github.com/huggingface/diffusers
+# with modifications to run diffusers on mindspore.
+#
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -35,7 +38,10 @@ from ..pipeline_utils import DiffusionPipeline, StableDiffusionMixin
 from ..stable_diffusion import StableDiffusionPipelineOutput
 from ..stable_diffusion.safety_checker import StableDiffusionSafetyChecker
 
+XLA_AVAILABLE = False
+
 logger = logging.get_logger(__name__)  # pylint: disable=invalid-name
+
 
 EXAMPLE_DOC_STRING = """
     Examples:
@@ -113,8 +119,8 @@ class StableDiffusionGLIGENPipeline(DiffusionPipeline, StableDiffusionMixin):
             [`DDIMScheduler`], [`LMSDiscreteScheduler`], or [`PNDMScheduler`].
         safety_checker ([`StableDiffusionSafetyChecker`]):
             Classification module that estimates whether generated images could be considered offensive or harmful.
-            Please refer to the [model card](https://huggingface.co/runwayml/stable-diffusion-v1-5) for more details
-            about a model's potential harms.
+            Please refer to the [model card](https://huggingface.co/stable-diffusion-v1-5/stable-diffusion-v1-5) for
+            more details about a model's potential harms.
         feature_extractor ([`~transformers.CLIPImageProcessor`]):
             A `CLIPImageProcessor` to extract features from generated images; used as inputs to the `safety_checker`.
     """
@@ -161,7 +167,7 @@ class StableDiffusionGLIGENPipeline(DiffusionPipeline, StableDiffusionMixin):
             safety_checker=safety_checker,
             feature_extractor=feature_extractor,
         )
-        self.vae_scale_factor = 2 ** (len(self.vae.config.block_out_channels) - 1)
+        self.vae_scale_factor = 2 ** (len(self.vae.config.block_out_channels) - 1) if getattr(self, "vae", None) else 8
         self.image_processor = VaeImageProcessor(vae_scale_factor=self.vae_scale_factor, do_convert_rgb=True)
         self.register_to_config(requires_safety_checker=requires_safety_checker)
 
@@ -275,16 +281,16 @@ class StableDiffusionGLIGENPipeline(DiffusionPipeline, StableDiffusionMixin):
                 )
 
             if hasattr(self.text_encoder.config, "use_attention_mask") and self.text_encoder.config.use_attention_mask:
-                attention_mask = ms.Tensor(text_inputs.attention_mask)
+                attention_mask = ms.tensor(text_inputs.attention_mask)
             else:
                 attention_mask = None
 
             if clip_skip is None:
-                prompt_embeds = self.text_encoder(ms.Tensor(text_input_ids), attention_mask=attention_mask)
+                prompt_embeds = self.text_encoder(ms.tensor(text_input_ids), attention_mask=attention_mask)
                 prompt_embeds = prompt_embeds[0]
             else:
                 prompt_embeds = self.text_encoder(
-                    ms.Tensor(text_input_ids), attention_mask=attention_mask, output_hidden_states=True
+                    ms.tensor(text_input_ids), attention_mask=attention_mask, output_hidden_states=True
                 )
                 # Access the `hidden_states` first, that contains a tuple of
                 # all the hidden states from the encoder layers. Then index into
@@ -345,12 +351,12 @@ class StableDiffusionGLIGENPipeline(DiffusionPipeline, StableDiffusionMixin):
             )
 
             if hasattr(self.text_encoder.config, "use_attention_mask") and self.text_encoder.config.use_attention_mask:
-                attention_mask = ms.Tensor(uncond_input.attention_mask)
+                attention_mask = ms.tensor(uncond_input.attention_mask)
             else:
                 attention_mask = None
 
             negative_prompt_embeds = self.text_encoder(
-                ms.Tensor(uncond_input.input_ids),
+                ms.tensor(uncond_input.input_ids),
                 attention_mask=attention_mask,
             )
             negative_prompt_embeds = negative_prompt_embeds[0]
@@ -382,7 +388,7 @@ class StableDiffusionGLIGENPipeline(DiffusionPipeline, StableDiffusionMixin):
                 feature_extractor_input = self.image_processor.numpy_to_pil(image)
             safety_checker_input = self.feature_extractor(feature_extractor_input, return_tensors="np")
             image, has_nsfw_concept = self.safety_checker(
-                images=image, clip_input=ms.Tensor(safety_checker_input.pixel_values).to(dtype)
+                images=image, clip_input=ms.tensor(safety_checker_input.pixel_values).to(dtype)
             )
 
             # Warning for safety checker operations here as it couldn't been done in construct()
@@ -706,7 +712,7 @@ class StableDiffusionGLIGENPipeline(DiffusionPipeline, StableDiffusionMixin):
         # For each entity, described in phrases, is denoted with a bounding box,
         # we represent the location information as (xmin,ymin,xmax,ymax)
         boxes = mint.zeros((max_objs, 4), dtype=self.text_encoder.dtype)
-        boxes[:n_objs] = ms.Tensor(gligen_boxes)
+        boxes[:n_objs] = ms.tensor(gligen_boxes)
         text_embeddings = mint.zeros((max_objs, self.unet.config.cross_attention_dim), dtype=self.text_encoder.dtype)
         text_embeddings[:n_objs] = _text_embeddings
         # Generate a mask for each object that is entity described by phrases

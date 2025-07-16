@@ -1,5 +1,8 @@
 # Copyright 2024 Stability AI and The HuggingFace Team. All rights reserved.
 #
+# This code is adapted from https://github.com/huggingface/diffusers
+# with modifications to run diffusers on mindspore.
+#
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -266,10 +269,10 @@ class StableAudioPipeline(DiffusionPipeline):
 
         # Cast the inputs to floats
         audio_start_in_s = [float(x) for x in audio_start_in_s]
-        audio_start_in_s = ms.Tensor(audio_start_in_s)
+        audio_start_in_s = ms.tensor(audio_start_in_s)
 
         audio_end_in_s = [float(x) for x in audio_end_in_s]
-        audio_end_in_s = ms.Tensor(audio_end_in_s)
+        audio_end_in_s = ms.tensor(audio_end_in_s)
 
         projection_output = self.projection_model(
             start_seconds=audio_start_in_s,
@@ -571,9 +574,7 @@ class StableAudioPipeline(DiffusionPipeline):
 
         if audio_end_in_s - audio_start_in_s > max_audio_length_in_s:
             raise ValueError(
-                f"The total audio length requested ({audio_end_in_s-audio_start_in_s}s) is longer  \
-                    than the model maximum possible length ({max_audio_length_in_s}).  \
-                    Make sure that 'audio_end_in_s-audio_start_in_s<={max_audio_length_in_s}'."
+                f"The total audio length requested ({audio_end_in_s - audio_start_in_s}s) is longer than the model maximum possible length ({max_audio_length_in_s}). Make sure that 'audio_end_in_s-audio_start_in_s<={max_audio_length_in_s}'."  # noqa
             )
 
         waveform_start = int(audio_start_in_s * self.vae.config.sampling_rate)

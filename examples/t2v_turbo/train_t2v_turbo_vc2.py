@@ -397,7 +397,7 @@ def main(args):
             start_time_s = time.time()
 
         if (epoch % args.ckpt_save_interval == 0) or (epoch == args.num_train_epochs):
-            ckpt_name = f"t2v-turbo-e{epoch}.ckpt"
+            ckpt_name = f"t2v-turbo-e{epoch}.npz"
             if ema is not None:
                 ema.swap_before_eval()
 
