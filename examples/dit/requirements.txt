@@ -4,3 +4,4 @@ einops
 omegaconf
 safetensors
 albumentations
+mindcv
