@@ -18,15 +18,7 @@
 ```
 cd examples/transformers/qwen2-vl
 pip install requirements.txt
-# NOTE: transformers requires >=4.45.0
 ```
-
-Tested with:
-- python==3.10.16
-- mindspore==2.4.1
-- transformers=4.46.3
-- tokenizers==0.20.0
-- mindone
 
 Pretrained weights from huggingface hub: [Qwen2-VL-7B-Instruct](https://huggingface.co/Qwen/Qwen2-VL-2B-Instruct)
 
@@ -71,10 +63,7 @@ inputs = processor(
 )
 # convert input to Tensor
 for key, value in inputs.items():
-    if isinstance(value, np.ndarray):
-        inputs[key] = ms.Tensor(value)
-    elif isinstance(value, list):
-        inputs[key] = ms.Tensor(value)
+    inputs[key] = ms.Tensor(value)
     if inputs[key].dtype == ms.int64:
         inputs[key] = inputs[key].to(ms.int32)
 generated_ids = model.generate(**inputs, max_new_tokens=128)
@@ -148,6 +137,3 @@ Response: 'The video shows a computer screen with a web browser open to a search
 
 text prompt: `请描述该视频。`<br>
 Response: "视频中显示了一个电脑屏幕，上面有两个窗口。左边的窗口显示了一个网页，上面有一个搜索框和一些搜索建议。右边的窗口显示了一个命令行界面，显示了一些文本。"
-
-<!-- # Tutorial of Qwen2-VL
-[Qwen2-VL Implementation Tutorial (MindSpore Version)](tutorial.md) -->
