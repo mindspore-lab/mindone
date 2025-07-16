@@ -41,6 +41,8 @@ from . import (
     granitemoe,
     granitemoeshared,
     hiera,
+    idefics,
+    idefics2,
     idefics3,
     ijepa,
     imagegpt,
