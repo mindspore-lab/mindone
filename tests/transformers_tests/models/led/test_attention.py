@@ -15,7 +15,7 @@ class TestLEDEncoderSelfAttention(unittest.TestCase):
     def setUp(self):
         # Common config for both implementations
         self.config = LEDConfig(
-            hidden_size=32,
+            hidden_size=768,
             num_attention_heads=4,
             attention_probs_dropout_prob=0.0,  # Set to 0 for deterministic comparison
             attention_window=[16, 16, 16, 16, 16, 16],  # Assuming 6 layers
@@ -29,6 +29,14 @@ class TestLEDEncoderSelfAttention(unittest.TestCase):
         # Set both models to eval mode
         self.ms_attn.set_train(False)
         self.torch_attn.eval()
+
+    def load_inputs(self):
+        # Create input tensors
+        hidden_states = np.load("layer0_ms/hidden_states.npy")
+        attention_mask = np.load("layer0_ms/attention_mask.npy")
+        is_index_masked = np.load("layer0_ms/is_index_masked.npy")
+        is_index_global_attn = np.load("layer0_ms/is_index_global_attn.npy")
+        return hidden_states, attention_mask, is_index_masked, is_index_global_attn
 
     def copy_weights(self):
         """Copy weights from PyTorch model to MindSpore model"""
@@ -63,28 +71,19 @@ class TestLEDEncoderSelfAttention(unittest.TestCase):
         torch.manual_seed(42)
         mindspore.set_seed(42)
 
-        # Create input tensors
-        batch_size, seq_len = 2, 32
-        hidden_states = np.random.randn(batch_size, seq_len, self.config.hidden_size)
-
+        hidden_states, attention_mask, is_index_masked, is_index_global_attn = self.load_inputs()
         # Convert to respective framework tensors
         ms_hidden_states = Tensor(hidden_states, dtype=mindspore.float32)
         torch_hidden_states = torch.tensor(hidden_states, dtype=torch.float32)
 
         # Create attention masks
-        attention_mask = np.ones((batch_size, seq_len))
         ms_attention_mask = Tensor(attention_mask, dtype=mindspore.float32)
         torch_attention_mask = torch.tensor(attention_mask, dtype=torch.float32)
 
-        torch_is_index_masked = torch.tensor(
-            [False] * (seq_len // 2) + [True] * (seq_len // 2), dtype=torch.bool
-        ).expand(batch_size, seq_len)
-        ms_is_index_masked = Tensor(
-            [False] * (seq_len // 2) + [True] * (seq_len // 2), dtype=mindspore.bool_
-        ).broadcast_to((batch_size, seq_len))
-
-        torch_is_index_global_attn = torch.tensor([False] * seq_len, dtype=torch.bool).expand(batch_size, seq_len)
-        ms_is_index_global_attn = Tensor([False] * seq_len, dtype=mindspore.bool_).broadcast_to((batch_size, seq_len))
+        torch_is_index_masked = torch.tensor(is_index_masked).bool()
+        ms_is_index_masked = Tensor(is_index_masked).bool()
+        torch_is_index_global_attn = torch.tensor(is_index_global_attn).bool()
+        ms_is_index_global_attn = Tensor(is_index_global_attn).bool()
 
         # Copy weights to ensure both models have identical parameters
         self.copy_weights()
@@ -96,6 +95,7 @@ class TestLEDEncoderSelfAttention(unittest.TestCase):
             layer_head_mask=None,
             is_index_masked=ms_is_index_masked,
             is_index_global_attn=ms_is_index_global_attn,
+            is_global_attn=False,
             output_attentions=False,
         )
 
@@ -105,6 +105,7 @@ class TestLEDEncoderSelfAttention(unittest.TestCase):
             layer_head_mask=None,
             is_index_masked=torch_is_index_masked,
             is_index_global_attn=torch_is_index_global_attn,
+            is_global_attn=False,
             output_attentions=False,
         )
 
@@ -127,10 +128,7 @@ class TestLEDEncoderSelfAttention(unittest.TestCase):
         torch.manual_seed(42)
         mindspore.set_seed(42)
 
-        # Create input tensors
-        batch_size, seq_len = 2, 32
-        hidden_states = np.random.randn(batch_size, seq_len, self.config.hidden_size)
-
+        hidden_states = self.load_inputs()[0]
         # Convert to respective framework tensors
         ms_hidden_states = Tensor(hidden_states, dtype=mindspore.float32)
         torch_hidden_states = torch.tensor(hidden_states, dtype=torch.float32)
