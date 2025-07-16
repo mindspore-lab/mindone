@@ -17,7 +17,7 @@ import math
 import warnings
 from dataclasses import dataclass
 from typing import List, Optional, Tuple, Union
-
+import numpy as np
 from transformers import LEDConfig
 from transformers.utils import (
     ModelOutput,
@@ -65,7 +65,7 @@ def normal_(tensor: Parameter, mean: float = 0.0, std: float = 1.0) -> None:
 def as_strided(input_tensor, size, stride, storage_offset=0):
     """
     A MindSpore implementation similar to PyTorch's torch.as_strided function.
-    Creates a view of the input tensor with specified size and stride.
+    Creates a sample of the input tensor with specified size and stride, not a view.
 
     Args:
         input_tensor: Input MindSpore tensor
@@ -92,26 +92,16 @@ def as_strided(input_tensor, size, stride, storage_offset=0):
     # Flatten input tensor to 1D array
     flat_input = input_tensor.reshape(-1)
 
-    # Create index arrays for each dimension
-    indices = []
-    total_elements = 1
-    for s, t in zip(size, stride):
-        total_elements *= s
-        idx = (mindspore.mint.arange(s).reshape(-1, 1) * t).reshape(-1)
-        indices.append(idx)
+    idx = mindspore.mint.arange(np.prod(size)).reshape(size)
 
-    # Generate combinations of indices for all dimensions
-    final_indices = storage_offset
-    for i, idx in enumerate(indices):
+    offset = mindspore.mint.zeros_like(idx)
+
+    for axis, s in enumerate(stride):
         shape = [1] * len(size)
-        shape[i] = -1
-        idx_shaped = idx.reshape(shape)
-        final_indices = final_indices + mindspore.mint.broadcast_to(idx_shaped, size)
-
-    # Use advanced indexing to get the result
-    result = flat_input[final_indices]
-    return result
-
+        shape[axis] = size[axis]
+        offset += mindspore.mint.arange(size[axis]).reshape(shape) * s
+    offset += storage_offset
+    return flat_input[offset]
 
 def shift_tokens_right(input_ids: mindspore.Tensor, pad_token_id: int, decoder_start_token_id: int):
     """
