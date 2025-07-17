@@ -33,7 +33,7 @@ from ...models.autoencoders import AutoencoderKLLTXVideo
 from ...models.transformers import LTXVideoTransformer3DModel
 from ...schedulers import FlowMatchEulerDiscreteScheduler
 from ...utils import logging
-from ...utils.mindspore_utils import randn, randn_tensor
+from ...utils.mindspore_utils import randn_tensor
 from ...video_processor import VideoProcessor
 from ..pipeline_utils import DiffusionPipeline
 from .pipeline_output import LTXPipelineOutput
@@ -422,6 +422,7 @@ class LTXConditionPipeline(DiffusionPipeline, FromSingleFileMixin, LTXVideoLoraL
         video,
         frame_index,
         strength,
+        denoise_strength,
         height,
         width,
         callback_on_step_end_tensor_inputs=None,
@@ -488,6 +489,9 @@ class LTXConditionPipeline(DiffusionPipeline, FromSingleFileMixin, LTXVideoLoraL
                 )
             elif isinstance(video, list) and isinstance(strength, list) and len(video) != len(strength):
                 raise ValueError("If `conditions` is not provided, `video` and `strength` must be of the same length.")
+
+        if denoise_strength < 0 or denoise_strength > 1:
+            raise ValueError(f"The value of strength should in [0.0, 1.0] but is {denoise_strength}")
 
     @staticmethod
     def _prepare_video_ids(
@@ -635,6 +639,8 @@ class LTXConditionPipeline(DiffusionPipeline, FromSingleFileMixin, LTXVideoLoraL
         width: int = 704,
         num_frames: int = 161,
         num_prefix_latent_frames: int = 2,
+        sigma: Optional[ms.Tensor] = None,
+        latents: Optional[ms.Tensor] = None,
         generator: Optional[np.random.Generator] = None,
         dtype: Optional[ms.Type] = None,
     ) -> Tuple[ms.Tensor, ms.Tensor, ms.Tensor, int]:
@@ -643,7 +649,18 @@ class LTXConditionPipeline(DiffusionPipeline, FromSingleFileMixin, LTXVideoLoraL
         latent_width = width // self.vae_spatial_compression_ratio
 
         shape = (batch_size, num_channels_latents, num_latent_frames, latent_height, latent_width)
-        latents = randn_tensor(shape, generator=generator, dtype=dtype)
+
+        noise = randn_tensor(shape, generator=generator, dtype=dtype)
+        if latents is not None and sigma is not None:
+            if latents.shape != shape:
+                raise ValueError(
+                    f"Latents shape {latents.shape} does not match expected shape {shape}. Please check the input."
+                )
+            latents = latents.to(dtype=dtype)
+            sigma = sigma.to(dtype=dtype)
+            latents = sigma * noise + (1 - sigma) * latents
+        else:
+            latents = noise
 
         if len(conditions) > 0:
             condition_latent_frames_mask = mint.zeros((batch_size, num_latent_frames), dtype=ms.float32)
@@ -741,6 +758,13 @@ class LTXConditionPipeline(DiffusionPipeline, FromSingleFileMixin, LTXVideoLoraL
 
         return latents, conditioning_mask, video_ids, extra_conditioning_num_latents
 
+    def get_timesteps(self, sigmas, timesteps, num_inference_steps, strength):
+        num_steps = min(int(num_inference_steps * strength), num_inference_steps)
+        start_index = max(num_inference_steps - num_steps, 0)
+        sigmas = sigmas[start_index:]
+        timesteps = timesteps[start_index:]
+        return sigmas, timesteps, num_inference_steps - start_index
+
     @property
     def guidance_scale(self):
         return self._guidance_scale
@@ -772,6 +796,7 @@ class LTXConditionPipeline(DiffusionPipeline, FromSingleFileMixin, LTXVideoLoraL
         video: List[PipelineImageInput] = None,
         frame_index: Union[int, List[int]] = 0,
         strength: Union[float, List[float]] = 1.0,
+        denoise_strength: float = 1.0,
         prompt: Union[str, List[str]] = None,
         negative_prompt: Optional[Union[str, List[str]]] = None,
         height: int = 512,
@@ -815,6 +840,10 @@ class LTXConditionPipeline(DiffusionPipeline, FromSingleFileMixin, LTXVideoLoraL
                 generation. If not provided, one has to pass `conditions`.
             strength (`float` or `List[float]`, *optional*):
                 The strength or strengths of the conditioning effect. If not provided, one has to pass `conditions`.
+            denoise_strength (`float`, defaults to `1.0`):
+                The strength of the noise added to the latents for editing. Higher strength leads to more noise added
+                to the latents, therefore leading to more differences between original video and generated video. This
+                is useful for video-to-video editing.
             prompt (`str` or `List[str]`, *optional*):
                 The prompt or prompts to guide the image generation. If not defined, one has to pass `prompt_embeds`.
                 instead.
@@ -891,8 +920,6 @@ class LTXConditionPipeline(DiffusionPipeline, FromSingleFileMixin, LTXVideoLoraL
 
         if isinstance(callback_on_step_end, (PipelineCallback, MultiPipelineCallbacks)):
             callback_on_step_end_tensor_inputs = callback_on_step_end.tensor_inputs
-        if latents is not None:
-            raise ValueError("Passing latents is not yet supported.")
 
         # 1. Check inputs. Raise error if not correct
         self.check_inputs(
@@ -902,6 +929,7 @@ class LTXConditionPipeline(DiffusionPipeline, FromSingleFileMixin, LTXVideoLoraL
             video=video,
             frame_index=frame_index,
             strength=strength,
+            denoise_strength=denoise_strength,
             height=height,
             width=width,
             callback_on_step_end_tensor_inputs=callback_on_step_end_tensor_inputs,
@@ -949,7 +977,9 @@ class LTXConditionPipeline(DiffusionPipeline, FromSingleFileMixin, LTXVideoLoraL
             if not isinstance(strength, list):
                 strength = [strength] * num_conditions
 
-        # 3. Prepare text embeddings
+        vae_dtype = self.vae.dtype
+
+        # 3. Prepare text embeddings & conditioning image/video
         (
             prompt_embeds,
             prompt_attention_mask,
@@ -1000,7 +1030,27 @@ class LTXConditionPipeline(DiffusionPipeline, FromSingleFileMixin, LTXVideoLoraL
                     )
                 conditioning_tensors.append(condition_tensor)
 
-        # 4. Prepare latent variables
+        # 4. Prepare timesteps
+        latent_num_frames = (num_frames - 1) // self.vae_temporal_compression_ratio + 1
+        latent_height = height // self.vae_spatial_compression_ratio
+        latent_width = width // self.vae_spatial_compression_ratio
+        if timesteps is None:
+            sigmas = linear_quadratic_schedule(num_inference_steps)
+            timesteps = sigmas * 1000
+        timesteps, num_inference_steps = retrieve_timesteps(self.scheduler, num_inference_steps, timesteps)
+        sigmas = self.scheduler.sigmas
+        num_warmup_steps = max(len(timesteps) - num_inference_steps * self.scheduler.order, 0)
+
+        latent_sigma = None
+        if denoise_strength < 1:
+            sigmas, timesteps, num_inference_steps = self.get_timesteps(
+                sigmas, timesteps, num_inference_steps, denoise_strength
+            )
+            latent_sigma = sigmas[:1].tile((batch_size * num_videos_per_prompt,))
+
+        self._num_timesteps = len(timesteps)
+
+        # 5. Prepare latent variables
         num_channels_latents = self.transformer.config.in_channels
         latents, conditioning_mask, video_coords, extra_conditioning_num_latents = self.prepare_latents(
             conditioning_tensors,
@@ -1011,6 +1061,8 @@ class LTXConditionPipeline(DiffusionPipeline, FromSingleFileMixin, LTXVideoLoraL
             height=height,
             width=width,
             num_frames=num_frames,
+            sigma=latent_sigma,
+            latents=latents,
             generator=generator,
             dtype=ms.float32,
         )
@@ -1022,20 +1074,6 @@ class LTXConditionPipeline(DiffusionPipeline, FromSingleFileMixin, LTXVideoLoraL
 
         if self.do_classifier_free_guidance:
             video_coords = mint.cat([video_coords, video_coords], dim=0)
-
-        # 5. Prepare timesteps
-        latent_num_frames = (num_frames - 1) // self.vae_temporal_compression_ratio + 1
-        latent_height = height // self.vae_spatial_compression_ratio
-        latent_width = width // self.vae_spatial_compression_ratio
-        sigmas = linear_quadratic_schedule(num_inference_steps)
-        timesteps = sigmas * 1000
-        timesteps, num_inference_steps = retrieve_timesteps(
-            self.scheduler,
-            num_inference_steps,
-            timesteps=timesteps,
-        )
-        num_warmup_steps = max(len(timesteps) - num_inference_steps * self.scheduler.order, 0)
-        self._num_timesteps = len(timesteps)
 
         # 6. Denoising loop
         with self.progress_bar(total=num_inference_steps) as progress_bar:
@@ -1131,7 +1169,7 @@ class LTXConditionPipeline(DiffusionPipeline, FromSingleFileMixin, LTXVideoLoraL
             if not self.vae.config.timestep_conditioning:
                 timestep = None
             else:
-                noise = randn(latents.shape, generator=generator, dtype=latents.dtype)
+                noise = randn_tensor(latents.shape, generator=generator, dtype=latents.dtype)
                 if not isinstance(decode_timestep, list):
                     decode_timestep = [decode_timestep] * batch_size
                 if decode_noise_scale is None:
