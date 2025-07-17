@@ -1399,8 +1399,6 @@ class BlenderbotSmallForCausalLM(BlenderbotSmallPreTrainedModel, GenerationMixin
         >>>         inputs[key] = ms.Tensor(value)
         >>>     elif isinstance(value, list):
         >>>         inputs[key] = ms.Tensor(value)
-        >>>     if inputs[key].dtype == ms.int64:
-        >>>         inputs[key] = inputs[key].to(ms.int32)
         >>> outputs = model(**inputs)
 
         >>> logits = outputs.logits

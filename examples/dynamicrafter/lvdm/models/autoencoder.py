@@ -1,3 +1,6 @@
+# Adapted from https://github.com/Doubiiu/DynamiCrafter to work with MindSpore.
+
+
 import sys
 
 sys.path.append("../stable_diffusion_v2")

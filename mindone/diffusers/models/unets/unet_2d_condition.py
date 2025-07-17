@@ -1,5 +1,8 @@
 # Copyright 2024 The HuggingFace Team. All rights reserved.
 #
+# This code is adapted from https://github.com/huggingface/diffusers
+# with modifications to run diffusers on mindspore.
+#
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -42,7 +45,6 @@ from ..embeddings import (
     Timesteps,
 )
 from ..modeling_utils import ModelMixin
-from ..normalization import GroupNorm
 from .unet_2d_blocks import get_down_block, get_mid_block, get_up_block
 
 logger = logging.get_logger(__name__)  # pylint: disable=invalid-name
@@ -159,6 +161,7 @@ class UNet2DConditionModel(
 
     _supports_gradient_checkpointing = True
     _no_split_modules = ["BasicTransformerBlock", "ResnetBlock2D", "CrossAttnUpBlock2D"]
+    _skip_layerwise_casting_patterns = ["norm"]
 
     @register_to_config
     def __init__(
@@ -309,7 +312,7 @@ class UNet2DConditionModel(
         if time_embedding_act_fn is None:
             self.time_embed_act = None
         else:
-            self.time_embed_act = get_activation(time_embedding_act_fn)()
+            self.time_embed_act = get_activation(time_embedding_act_fn)
 
         if isinstance(only_cross_attention, bool):
             if mid_block_only_cross_attention is None:
@@ -472,9 +475,11 @@ class UNet2DConditionModel(
 
         # out
         if norm_num_groups is not None:
-            self.conv_norm_out = GroupNorm(num_channels=block_out_channels[0], num_groups=norm_num_groups, eps=norm_eps)
+            self.conv_norm_out = mint.nn.GroupNorm(
+                num_channels=block_out_channels[0], num_groups=norm_num_groups, eps=norm_eps
+            )
 
-            self.conv_act = get_activation(act_fn)()
+            self.conv_act = get_activation(act_fn)
 
         else:
             self.conv_norm_out = None
@@ -780,19 +785,15 @@ class UNet2DConditionModel(
 
         self.set_attn_processor(processor)
 
-    def _set_gradient_checkpointing(self, module, value=False):
-        if hasattr(module, "gradient_checkpointing"):
-            module.gradient_checkpointing = value
-
     def get_time_embed(self, sample: ms.Tensor, timestep: Union[ms.Tensor, float, int]) -> Optional[ms.Tensor]:
         timesteps = timestep
         # todo: unavailable mint interface
         if not ops.is_tensor(timesteps):
             # TODO: this requires sync between CPU and GPU. So try to pass timesteps as tensors if you can
             if isinstance(timestep, float):
-                dtype = ms.float64
+                dtype = ms.float32
             else:
-                dtype = ms.int64
+                dtype = ms.int32
             timesteps = ms.tensor([timesteps], dtype=dtype)
         elif len(timesteps.shape) == 0:
             timesteps = timesteps[None]

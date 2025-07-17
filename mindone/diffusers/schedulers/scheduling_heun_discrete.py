@@ -1,5 +1,8 @@
 # Copyright 2024 Katherine Crowson, The HuggingFace Team and hlky. All rights reserved.
 #
+# This code is adapted from https://github.com/huggingface/diffusers
+# with modifications to run diffusers on mindspore.
+#
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -337,13 +340,13 @@ class HeunDiscreteScheduler(SchedulerMixin, ConfigMixin):
             timesteps = np.array([self._sigma_to_t(sigma, log_sigmas) for sigma in sigmas])
 
         sigmas = np.concatenate([sigmas, [0.0]]).astype(np.float32)
-        sigmas = ms.Tensor(sigmas)
+        sigmas = ms.tensor(sigmas)
         self.sigmas = mint.cat([sigmas[:1], sigmas[1:-1].repeat_interleave(2), sigmas[-1:]])
 
-        timesteps = ms.Tensor(timesteps)
+        timesteps = ms.tensor(timesteps)
         timesteps = mint.cat([timesteps[:1], timesteps[1:].repeat_interleave(2)])
 
-        self.timesteps = timesteps
+        self.timesteps = timesteps.to(dtype=ms.float32)
 
         # empty dt and derivative
         self.prev_derivative = None

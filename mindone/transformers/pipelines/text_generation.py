@@ -1,3 +1,5 @@
+"""Adapted from https://github.com/huggingface/transformers/tree/main/src/transformers/pipelines/text_generation.py."""
+
 import enum
 import warnings
 from typing import Dict

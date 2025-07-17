@@ -1,5 +1,8 @@
 # Copyright 2024 The HuggingFace Team. All rights reserved.
 #
+# This code is adapted from https://github.com/huggingface/diffusers
+# with modifications to run diffusers on mindspore.
+#
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -12,12 +15,11 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 import mindspore as ms
-from mindspore import nn, ops
+from mindspore import mint, nn
 
 from mindone.transformers import CLIPPreTrainedModel, CLIPVisionModel
 
 from ...models.attention import BasicTransformerBlock
-from ...models.normalization import LayerNorm
 from ...utils import logging
 
 logger = logging.get_logger(__name__)  # pylint: disable=invalid-name
@@ -30,11 +32,11 @@ class PaintByExampleImageEncoder(CLIPPreTrainedModel):
 
         self.model = CLIPVisionModel(config)
         self.mapper = PaintByExampleMapper(config)
-        self.final_layer_norm = LayerNorm(config.hidden_size)
-        self.proj_out = nn.Dense(config.hidden_size, self.proj_size)
+        self.final_layer_norm = mint.nn.LayerNorm(config.hidden_size)
+        self.proj_out = mint.nn.Linear(config.hidden_size, self.proj_size)
 
         # uncondition for scaling
-        self.uncond_vector = ms.Parameter(ops.randn((1, 1, self.proj_size)), name="uncond_vector")
+        self.uncond_vector = ms.Parameter(mint.randn((1, 1, self.proj_size)), name="uncond_vector")
 
     def construct(self, pixel_values, return_uncond_vector=False):
         clip_output = self.model(pixel_values=pixel_values)

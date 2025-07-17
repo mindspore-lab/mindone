@@ -1,5 +1,8 @@
 # Copyright 2024 TSAIL Team and The HuggingFace Team. All rights reserved.
 #
+# This code is adapted from https://github.com/huggingface/diffusers
+# with modifications to run diffusers on mindspore.
+#
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -137,8 +140,8 @@ class DPMSolverMultistepScheduler(SchedulerMixin, ConfigMixin):
             sampling, and `solver_order=3` for unconditional sampling.
         prediction_type (`str`, defaults to `epsilon`, *optional*):
             Prediction type of the scheduler function; can be `epsilon` (predicts the noise of the diffusion process),
-            `sample` (directly predicts the noisy sample`) or `v_prediction` (see section 2.4 of [Imagen
-            Video](https://imagen.research.google/video/paper.pdf) paper).
+            `sample` (directly predicts the noisy sample), `v_prediction` (see section 2.4 of [Imagen
+            Video](https://imagen.research.google/video/paper.pdf) paper), or `flow_prediction`.
         thresholding (`bool`, defaults to `False`):
             Whether to use the "dynamic thresholding" method. This is unsuitable for latent-space diffusion models such
             as Stable Diffusion.
@@ -175,6 +178,10 @@ class DPMSolverMultistepScheduler(SchedulerMixin, ConfigMixin):
             Whether to use the uniform-logSNR for step sizes proposed by Lu's DPM-Solver in the noise schedule during
             the sampling process. If `True`, the sigmas and time steps are determined according to a sequence of
             `lambda(t)`.
+        use_flow_sigmas (`bool`, *optional*, defaults to `False`):
+            Whether to use flow sigmas for step sizes in the noise schedule during the sampling process.
+        flow_shift (`float`, *optional*, defaults to 1.0):
+            The shift value for the timestep schedule for flow matching.
         final_sigmas_type (`str`, defaults to `"zero"`):
             The final `sigma` value for the noise schedule during the sampling process. If `"sigma_min"`, the final
             sigma is the same as the last sigma in the training schedule. If `zero`, the final sigma is set to 0.
@@ -297,7 +304,7 @@ class DPMSolverMultistepScheduler(SchedulerMixin, ConfigMixin):
         # setable values
         self.num_inference_steps = None
         timesteps = np.linspace(0, num_train_timesteps - 1, num_train_timesteps, dtype=np.float32)[::-1].copy()
-        self.timesteps = ms.Tensor(timesteps)
+        self.timesteps = ms.tensor(timesteps)
         self.model_outputs = [None] * solver_order
         self.lower_order_nums = 0
         self._step_index = None
@@ -395,12 +402,16 @@ class DPMSolverMultistepScheduler(SchedulerMixin, ConfigMixin):
         if self.config.use_karras_sigmas:
             sigmas = np.flip(sigmas).copy()
             sigmas = self._convert_to_karras(in_sigmas=sigmas, num_inference_steps=num_inference_steps)
-            timesteps = np.array([self._sigma_to_t(sigma, log_sigmas) for sigma in sigmas]).round()
+            timesteps = np.array([self._sigma_to_t(sigma, log_sigmas) for sigma in sigmas])
+            if self.config.beta_schedule != "squaredcos_cap_v2":
+                timesteps = timesteps.round()
         elif self.config.use_lu_lambdas:
             lambdas = np.flip(log_sigmas.copy())
             lambdas = self._convert_to_lu(in_lambdas=lambdas, num_inference_steps=num_inference_steps)
             sigmas = np.exp(lambdas)
-            timesteps = np.array([self._sigma_to_t(sigma, log_sigmas) for sigma in sigmas]).round()
+            timesteps = np.array([self._sigma_to_t(sigma, log_sigmas) for sigma in sigmas])
+            if self.config.beta_schedule != "squaredcos_cap_v2":
+                timesteps = timesteps.round()
         elif self.config.use_exponential_sigmas:
             sigmas = np.flip(sigmas).copy()
             sigmas = self._convert_to_exponential(in_sigmas=sigmas, num_inference_steps=num_inference_steps)
@@ -428,7 +439,7 @@ class DPMSolverMultistepScheduler(SchedulerMixin, ConfigMixin):
 
         sigmas = np.concatenate([sigmas, [sigma_last]]).astype(np.float32)
 
-        self.sigmas = ms.Tensor(sigmas)
+        self.sigmas = ms.tensor(sigmas)
         self.timesteps = ms.tensor(timesteps, dtype=ms.int64)
 
         self.num_inference_steps = len(timesteps)

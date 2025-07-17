@@ -1,3 +1,5 @@
+"""Adapted from https://github.com/huggingface/transformers/tree/main/src/transformers/pipelines/pt_utils.py."""
+
 import numpy as np
 from transformers.utils.generic import ModelOutput
 

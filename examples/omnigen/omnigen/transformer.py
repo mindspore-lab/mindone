@@ -1,3 +1,5 @@
+# Adapted from https://github.com/VectorSpaceLab/OmniGen/blob/main/OmniGen/transformer.py
+
 import logging
 from typing import List, Optional, Tuple, Union
 

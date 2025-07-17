@@ -1,6 +1,9 @@
 # Copyright 2024 The Genmo team and The HuggingFace Team.
 # All rights reserved.
 #
+# This code is adapted from https://github.com/huggingface/diffusers
+# with modifications to run diffusers on mindspore.
+#
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -28,7 +31,7 @@ from ..embeddings import PixArtAlphaTextProjection
 from ..layers_compat import unflatten
 from ..modeling_outputs import Transformer2DModelOutput
 from ..modeling_utils import ModelMixin
-from ..normalization import AdaLayerNormSingle, LayerNorm, RMSNorm
+from ..normalization import AdaLayerNormSingle, RMSNorm
 
 logger = logging.get_logger(__name__)  # pylint: disable=invalid-name
 
@@ -76,7 +79,7 @@ class LTXVideoAttentionProcessor2_0:
         hidden_states = attn.scaled_dot_product_attention(
             query, key, value, attn_mask=attention_mask, dropout_p=0.0, is_causal=False
         )
-        hidden_states = hidden_states.swapaxes(1, 2).flatten(start_dim=2, end_dim=3)
+        hidden_states = hidden_states.swapaxes(1, 2).flatten(2, 3)
         hidden_states = hidden_states.to(query.dtype)
 
         hidden_states = attn.to_out[0](hidden_states)
@@ -126,7 +129,7 @@ class LTXVideoRotaryPosEmbed(nn.Cell):
             grid[:, 1:2] = grid[:, 1:2] * rope_interpolation_scale[1] * self.patch_size / self.base_height
             grid[:, 2:3] = grid[:, 2:3] * rope_interpolation_scale[2] * self.patch_size / self.base_width
 
-        grid = grid.flatten(start_dim=2, end_dim=4).swapaxes(1, 2)
+        grid = grid.flatten(2, 4).swapaxes(1, 2)
 
         return grid
 
@@ -165,10 +168,11 @@ class LTXVideoRotaryPosEmbed(nn.Cell):
             math.log(start, self.theta),
             math.log(end, self.theta),
             self.dim // 6,
-        ).to(ms.float32)
+            dtype=ms.float32,
+        )
         freqs = freqs * math.pi / 2.0
         freqs = freqs * (grid.unsqueeze(-1) * 2 - 1)
-        freqs = freqs.swapaxes(-1, -2).flatten(start_dim=2)
+        freqs = freqs.swapaxes(-1, -2).flatten(2)
 
         cos_freqs = freqs.cos().repeat_interleave(2, dim=-1)
         sin_freqs = freqs.sin().repeat_interleave(2, dim=-1)
@@ -313,6 +317,7 @@ class LTXVideoTransformer3DModel(ModelMixin, ConfigMixin, FromOriginalModelMixin
     """
 
     _supports_gradient_checkpointing = True
+    _skip_layerwise_casting_patterns = ["norm"]
 
     @register_to_config
     def __init__(
@@ -373,14 +378,10 @@ class LTXVideoTransformer3DModel(ModelMixin, ConfigMixin, FromOriginalModelMixin
             ]
         )
 
-        self.norm_out = LayerNorm(inner_dim, eps=1e-6)
+        self.norm_out = mint.nn.LayerNorm(inner_dim, eps=1e-6)
         self.proj_out = mint.nn.Linear(inner_dim, out_channels)
 
         self.gradient_checkpointing = False
-
-    def _set_gradient_checkpointing(self, module, value=False):
-        if hasattr(module, "gradient_checkpointing"):
-            module.gradient_checkpointing = value
 
     def construct(
         self,
@@ -445,6 +446,6 @@ class LTXVideoTransformer3DModel(ModelMixin, ConfigMixin, FromOriginalModelMixin
 def apply_rotary_emb(x, freqs):
     cos, sin = freqs
     x_real, x_imag = unflatten(x, 2, (-1, 2)).unbind(-1)  # [B, S, H, D // 2]
-    x_rotated = mint.stack([-x_imag, x_real], dim=-1).flatten(start_dim=2)
+    x_rotated = mint.stack([-x_imag, x_real], dim=-1).flatten(2)
     out = (x.float() * cos + x_rotated.float() * sin).to(x.dtype)
     return out
