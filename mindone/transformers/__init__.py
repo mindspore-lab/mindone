@@ -342,6 +342,17 @@ from .models.roberta import (
     RobertaModel,
     RobertaPreTrainedModel,
 )
+from .models.roc_bert import (
+    RoCBertForCausalLM,
+    RoCBertForMaskedLM,
+    RoCBertForMultipleChoice,
+    RoCBertForPreTraining,
+    RoCBertForQuestionAnswering,
+    RoCBertForSequenceClassification,
+    RoCBertForTokenClassification,
+    RoCBertModel,
+    RoCBertPreTrainedModel,
+)
 from .models.siglip import (
     SiglipForImageClassification,
     SiglipModel,
