@@ -1,3 +1,5 @@
+# Adapted from https://github.com/ShareGPT4Omni/ShareGPT4V/blob/master/share4v/model/multimodal_encoder/builder.py
+
 import os
 
 from .clip_encoder import CLIPVisionTower

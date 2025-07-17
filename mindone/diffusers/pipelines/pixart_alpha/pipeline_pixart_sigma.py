@@ -1,5 +1,8 @@
 # Copyright 2024 PixArt-Sigma Authors and The HuggingFace Team. All rights reserved.
 #
+# This code is adapted from https://github.com/huggingface/diffusers
+# with modifications to run diffusers on mindspore.
+#
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -33,7 +36,10 @@ from ...utils.mindspore_utils import randn_tensor
 from ..pipeline_utils import DiffusionPipeline, ImagePipelineOutput
 from .pipeline_pixart_alpha import ASPECT_RATIO_256_BIN, ASPECT_RATIO_512_BIN, ASPECT_RATIO_1024_BIN
 
+XLA_AVAILABLE = False
+
 logger = logging.get_logger(__name__)  # pylint: disable=invalid-name
+
 
 if is_bs4_available():
     from bs4 import BeautifulSoup
@@ -198,7 +204,7 @@ class PixArtSigmaPipeline(DiffusionPipeline):
             tokenizer=tokenizer, text_encoder=text_encoder, vae=vae, transformer=transformer, scheduler=scheduler
         )
 
-        self.vae_scale_factor = 2 ** (len(self.vae.config.block_out_channels) - 1)
+        self.vae_scale_factor = 2 ** (len(self.vae.config.block_out_channels) - 1) if getattr(self, "vae", None) else 8
         self.image_processor = PixArtImageProcessor(vae_scale_factor=self.vae_scale_factor)
 
     # Copied from diffusers.pipelines.pixart_alpha.pipeline_pixart_alpha.PixArtAlphaPipeline.encode_prompt with 120->300
@@ -273,7 +279,7 @@ class PixArtSigmaPipeline(DiffusionPipeline):
 
             prompt_attention_mask = ms.Tensor.from_numpy(text_inputs.attention_mask)
 
-            prompt_embeds = self.text_encoder(ms.Tensor(text_input_ids), attention_mask=prompt_attention_mask)
+            prompt_embeds = self.text_encoder(ms.tensor(text_input_ids), attention_mask=prompt_attention_mask)
             prompt_embeds = prompt_embeds[0]
 
         if self.text_encoder is not None:
@@ -786,10 +792,10 @@ class PixArtSigmaPipeline(DiffusionPipeline):
                 # todo: unavailable mint interface
                 if not ops.is_tensor(current_timestep):
                     if isinstance(current_timestep, float):
-                        dtype = ms.float64
+                        dtype = ms.float32
                     else:
-                        dtype = ms.int64
-                    current_timestep = ms.Tensor([current_timestep], dtype=dtype)
+                        dtype = ms.int32
+                    current_timestep = ms.tensor([current_timestep], dtype=dtype)
                 elif len(current_timestep.shape) == 0:
                     current_timestep = current_timestep[None]
                 # broadcast to batch dimension in a way that's compatible with ONNX/Core ML
@@ -827,7 +833,7 @@ class PixArtSigmaPipeline(DiffusionPipeline):
                         callback(step_idx, t, latents)
 
         if not output_type == "latent":
-            image = self.vae.decode(latents / self.vae.config.scaling_factor, return_dict=False)[0]
+            image = self.vae.decode(latents.to(self.vae.dtype) / self.vae.config.scaling_factor, return_dict=False)[0]
             if use_resolution_binning:
                 image = self.image_processor.resize_and_crop_tensor(image, orig_width, orig_height)
         else:

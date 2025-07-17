@@ -1,5 +1,8 @@
 # Copyright 2024 Genmo and The HuggingFace Team. All rights reserved.
 #
+# This code is adapted from https://github.com/huggingface/diffusers
+# with modifications to run diffusers on mindspore.
+#
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -24,14 +27,16 @@ from mindspore import mint
 from ....transformers import T5EncoderModel
 from ...callbacks import MultiPipelineCallbacks, PipelineCallback
 from ...loaders import Mochi1LoraLoaderMixin
-from ...models.autoencoders import AutoencoderKL
-from ...models.transformers import MochiTransformer3DModel
+from ...models import AutoencoderKLMochi, MochiTransformer3DModel
 from ...schedulers import FlowMatchEulerDiscreteScheduler
 from ...utils import logging, scale_lora_layers, unscale_lora_layers
 from ...utils.mindspore_utils import randn_tensor
 from ...video_processor import VideoProcessor
 from ..pipeline_utils import DiffusionPipeline
 from .pipeline_output import MochiPipelineOutput
+
+XLA_AVAILABLE = False
+
 
 logger = logging.get_logger(__name__)  # pylint: disable=invalid-name
 
@@ -49,19 +54,6 @@ EXAMPLE_DOC_STRING = """
         >>> export_to_video(frames, "mochi.mp4")
         ```
 """
-
-
-def calculate_shift(
-    image_seq_len,
-    base_seq_len: int = 256,
-    max_seq_len: int = 4096,
-    base_shift: float = 0.5,
-    max_shift: float = 1.16,
-):
-    m = (max_shift - base_shift) / (max_seq_len - base_seq_len)
-    b = base_shift - m * base_seq_len
-    mu = image_seq_len * m + b
-    return mu
 
 
 # from: https://github.com/genmoai/models/blob/075b6e36db58f1242921deff83a1066887b9c9e1/src/mochi_preview/infer.py#L77
@@ -150,8 +142,8 @@ class MochiPipeline(DiffusionPipeline, Mochi1LoraLoaderMixin):
             Conditional Transformer architecture to denoise the encoded video latents.
         scheduler ([`FlowMatchEulerDiscreteScheduler`]):
             A scheduler to be used in combination with `transformer` to denoise the encoded image latents.
-        vae ([`AutoencoderKL`]):
-            Variational Auto-Encoder (VAE) Model to encode and decode images to and from latent representations.
+        vae ([`AutoencoderKLMochi`]):
+            Variational Auto-Encoder (VAE) Model to encode and decode videos to and from latent representations.
         text_encoder ([`T5EncoderModel`]):
             [T5](https://huggingface.co/docs/transformers/en/model_doc/t5#transformers.T5EncoderModel), specifically
             the [google/t5-v1_1-xxl](https://huggingface.co/google/t5-v1_1-xxl) variant.
@@ -170,7 +162,7 @@ class MochiPipeline(DiffusionPipeline, Mochi1LoraLoaderMixin):
     def __init__(
         self,
         scheduler: FlowMatchEulerDiscreteScheduler,
-        vae: AutoencoderKL,
+        vae: AutoencoderKLMochi,
         text_encoder: T5EncoderModel,
         tokenizer: T5TokenizerFast,
         transformer: MochiTransformer3DModel,
@@ -219,8 +211,8 @@ class MochiPipeline(DiffusionPipeline, Mochi1LoraLoaderMixin):
             return_tensors="np",
         )
 
-        text_input_ids = ms.Tensor(text_inputs.input_ids)
-        prompt_attention_mask = ms.Tensor(text_inputs.attention_mask, dtype=ms.bool_)
+        text_input_ids = ms.tensor(text_inputs.input_ids)
+        prompt_attention_mask = ms.tensor(text_inputs.attention_mask, dtype=ms.bool_)
 
         # The original Mochi implementation zeros out empty negative prompts
         # but this can lead to overflow when placing the entire pipeline under the autocast context
@@ -460,6 +452,10 @@ class MochiPipeline(DiffusionPipeline, Mochi1LoraLoaderMixin):
         return self._attention_kwargs
 
     @property
+    def current_timestep(self):
+        return self._current_timestep
+
+    @property
     def interrupt(self):
         return self._interrupt
 
@@ -581,6 +577,7 @@ class MochiPipeline(DiffusionPipeline, Mochi1LoraLoaderMixin):
 
         self._guidance_scale = guidance_scale
         self._attention_kwargs = attention_kwargs
+        self._current_timestep = None
         self._interrupt = False
 
         # 2. Define call parameters
@@ -653,6 +650,9 @@ class MochiPipeline(DiffusionPipeline, Mochi1LoraLoaderMixin):
                 if self.interrupt:
                     continue
 
+                # Note: Mochi uses reversed timesteps. To ensure compatibility with methods like FasterCache, we need
+                # to make sure we're using the correct non-reversed timestep values.
+                self._current_timestep = 1000 - t
                 latent_model_input = mint.cat([latents] * 2) if self.do_classifier_free_guidance else latents
                 # broadcast to batch dimension in a way that's compatible with ONNX/Core ML
                 timestep = t.broadcast_to((latent_model_input.shape[0],)).to(latents.dtype)
@@ -696,6 +696,8 @@ class MochiPipeline(DiffusionPipeline, Mochi1LoraLoaderMixin):
         if lora_scale is not None:
             # remove `lora_scale` from each PEFT layer
             unscale_lora_layers(self.transformer, lora_scale)
+
+        self._current_timestep = None
 
         if output_type == "latent":
             video = latents

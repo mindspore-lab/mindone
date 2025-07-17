@@ -1,3 +1,6 @@
+# This code is adapted from https://github.com/Ji4chenLi/t2v-turbo
+# with modifications to run on MindSpore.
+
 import logging
 from typing import List, Optional, Union
 

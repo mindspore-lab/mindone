@@ -1,3 +1,5 @@
+"""Adapted from https://github.com/huggingface/diffusers/tree/main/tests//pipelines/flux/test_pipeline_flux.py."""
+
 import unittest
 
 import numpy as np
@@ -8,7 +10,7 @@ from transformers import CLIPTextConfig
 
 import mindspore as ms
 
-from mindone.diffusers.utils.testing_utils import load_downloaded_numpy_from_hf_hub, slow
+from mindone.diffusers.utils.testing_utils import load_numpy_from_local_file, slow
 
 from ..pipeline_test_utils import (
     THRESHOLD_FP16,
@@ -189,7 +191,5 @@ class FluxPipelineSlowTests(PipelineTesterMixin, unittest.TestCase):
         torch.manual_seed(0)
         image = pipe(prompt=prompt, num_inference_steps=2, guidance_scale=5.0)[0][0]
 
-        expected_image = load_downloaded_numpy_from_hf_hub(
-            "The-truth/mindone-testing-arrays", f"flux_{dtype}.npy", subfolder="flux"
-        )
+        expected_image = load_numpy_from_local_file("mindone-testing-arrays", f"flux_{dtype}.npy", subfolder="flux")
         assert np.mean(np.abs(np.array(image, dtype=np.float32) - expected_image)) < THRESHOLD_PIXEL

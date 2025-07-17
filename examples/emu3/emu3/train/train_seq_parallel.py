@@ -1,3 +1,4 @@
+# Adapted from https://github.com/baaivision/Emu3 to work with MindSpore.
 import logging
 import math
 import os
