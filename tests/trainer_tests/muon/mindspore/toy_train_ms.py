@@ -7,16 +7,16 @@ from functools import partial
 import numpy as np
 from datasets import load_dataset
 from loguru import logger
-from optim import AdamW, Muon
 from tqdm import tqdm
 from transformers import Qwen2Config, Qwen2Tokenizer
 from transformers.optimization import _get_cosine_schedule_with_warmup_lr_lambda
 
 import mindspore as ms
 from mindspore.dataset import GeneratorDataset
-from mindspore.experimental.optim import Optimizer
+from mindspore.experimental.optim import AdamW, Optimizer
 from mindspore.experimental.optim.lr_scheduler import LambdaLR
 
+from mindone.trainers.muon import Muon
 from mindone.transformers import Qwen2ForCausalLM
 
 

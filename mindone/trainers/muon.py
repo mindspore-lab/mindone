@@ -37,7 +37,7 @@ def _update_run_op(
     ns_steps: int,
     weight_decay: float,
     lr: Parameter,
-    step: Parameter,
+    denom: Parameter,
     param: Parameter,
     m: Parameter,
     v: Parameter,
@@ -48,30 +48,20 @@ def _update_run_op(
     if weight_decay != 0:
         param.mul_(1 - lr * weight_decay)
 
-    v_next = None
     if use_muon:
-        # Muon branch
-        if g.ndim > 2:
-            g = g.view(g.shape[0], -1)
-        m_next = mu * m + g
+        m.mul_(mu).add_(g)
         if nesterov:
-            g = g.add(m_next, alpha=mu)
+            g = g.add(m, alpha=mu)
         else:
-            g = m_next
+            g = m
         g = zeropower_via_newtonschulz5(g, steps=ns_steps)
-        param.add_(-(lr * ratio) * g)
+        param.add_(lr * g, alpha=-ratio)
     else:
-        # AdamW branch
         m_next = mint.lerp(g, m, beta1)
         v_next = mint.lerp(mint.square(g), v, beta2)
         g = m_next / (eps + mint.sqrt(v_next))
-        bias_correction1 = 1 - mint.pow(beta1, step)
-        bias_correction2 = 1 - mint.pow(beta2, step)
-        scale = bias_correction1 / bias_correction2**0.5
-        param.add_(-(lr / scale) * g)
-
-    ops.assign(m, m_next)
-    if not use_muon:
+        param.add_(-(lr / denom) * g)
+        ops.assign(m, m_next)
         ops.assign(v, v_next)
     return True
 
@@ -86,21 +76,30 @@ def zeropower_via_newtonschulz5(G: Tensor, steps: int) -> Tensor:
     where S' is diagonal with S_{ii}' ~ Uniform(0.5, 1.5), which turns out not to hurt model
     performance at all relative to UV^T, where USV^T = G is the SVD.
     """
-    assert len(G.shape) == 2
-    a, b, c = (3.4445, -4.7750, 2.0315)
+    shape = G.shape
+
+    if len(shape) > 2:
+        G = G.view(G.shape[0], -1)
+    assert len(shape) == 2
+
+    a, b, c = 3.4445, -4.7750, 2.0315
     X = G.bfloat16()
     if G.shape[0] > G.shape[1]:
-        X = X.T
+        X = mint.t(X)
+
     # Ensure spectral norm is at most 1
     X = X / (mint.norm(X) + 1e-7)
     # Perform the NS iterations
     for _ in range(steps):
         A = mint.matmul(X, X.T)
-        B = b * A + c * mint.matmul(A, A)  # adapted from suggestion by @jxbz, @leloykun, and @YouJiacheng
-        X = a * X + mint.matmul(B, X)
+        B = mint.addmm(A, A, A, beta=b, alpha=c)  # adapted from suggestion by @jxbz, @leloykun, and @YouJiacheng
+        X = mint.addmm(X, B, X, beta=a)
 
     if G.shape[0] > G.shape[1]:
-        X = X.T
+        X = mint.t(X)
+
+    if len(shape) > 2:
+        X = X.view(*shape)
     return X
 
 
@@ -136,7 +135,7 @@ class Muon(Optimizer):
         use_muon = list()
         for p in muon_params:
             # Use Muon for every parameter in muon_params which is >= 2D and doesn't look like an embedding or head layer
-            assert p.ndim == 2, p.ndim
+            assert p.ndim >= 2, p.ndim
             use_muon.append(True)
 
         for p in adamw_params:
@@ -160,6 +159,7 @@ class Muon(Optimizer):
 
         self.state_step = Parameter(Tensor(0, dtype=ms.int32))
         self.increase_tensor = Tensor(1, dtype=ms.int32)
+        self.denom = Parameter(Tensor(1.0, dtype=ms.float32))
 
     def _cal_lr_ratio(self, param: Parameter, use_muon: bool, rms_scale: float = 0.2) -> float:
         if not use_muon:
@@ -171,7 +171,7 @@ class Muon(Optimizer):
         adjusted_ratio = rms_scale * math.sqrt(max(A, B))
         return adjusted_ratio
 
-    @ms.jit
+    @ms.jit(jit_level="O1")
     def muon(
         self,
         momentum: float,
@@ -188,6 +188,10 @@ class Muon(Optimizer):
         start_id: int,
         end_id: int,
     ) -> bool:
+        bias_correction1 = 1 - beta1**self.state_step
+        bias_correction2 = 1 - beta2**self.state_step
+        ops.assign(self.denom, bias_correction1 / bias_correction2**0.5)
+
         optim_result = self.hyper_map(
             ops.partial(
                 _muon_opt,
@@ -199,7 +203,7 @@ class Muon(Optimizer):
                 ns_steps,
                 weight_decay,
                 lr,
-                self.state_step,
+                self.denom,
             ),
             self.parameters[start_id:end_id],
             self.exp_avg[start_id:end_id],
@@ -211,7 +215,7 @@ class Muon(Optimizer):
         return optim_result
 
     def construct(self, gradients: Tuple[Tensor, ...]) -> bool:
-        self.state_step += self.increase_tensor
+        self.state_step.add_(self.increase_tensor)
         for group_id, group in enumerate(self.param_groups):
             beta1, beta2 = group["adamw_betas"]
             start_id = self.group_start_id[group_id]
