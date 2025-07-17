@@ -64,6 +64,7 @@ CONFIG_MAPPING_NAMES = OrderedDict(
         ("ijepa", "IJepaConfig"),
         ("imagegpt", "ImageGPTConfig"),
         ("levit", "LevitConfig"),
+        ("m2m_100", "M2M100Config"),
         ("llama", "LlamaConfig"),
         ("persimmon", "PersimmonConfig"),
         ("fuyu", "FuyuConfig"),
@@ -102,6 +103,7 @@ MODEL_NAMES_MAPPING = OrderedDict(
     [
         # Add full (and cased) model names here
         ("albert", "ALBERT"),
+        ("m2m_100", "M2M100"),
         ("bert", "BERT"),
         ("bart", "BART"),
         ("bit", "BiT"),
