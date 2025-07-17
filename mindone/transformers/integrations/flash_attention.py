@@ -5,9 +5,7 @@ from typing import Optional, Tuple
 from transformers.utils import logging
 
 import mindspore as ms
-from mindspore import mint, nn
-
-from mindone.transformers.modeling_flash_attention_utils import _flash_attention_forward
+from mindspore import mint, nn, ops
 
 logger = logging.get_logger(__name__)
 
@@ -73,15 +71,15 @@ def flash_attention_forward(
         key = key.to(ms.float16)
         value = value.to(ms.float16)
 
-    attn_output = _flash_attention_forward(
+    attn_output = ops.flash_attention_score(
         query,
         key,
         value,
-        num_head,
-        attention_mask,
-        dropout,
-        scaling,
-        input_layout,
+        head_num=num_head,
+        attn_mask=attention_mask,
+        keep_prob=1.0 - dropout,
+        scalar_value=scaling,
+        input_layout=input_layout,
     )
     attn_output = attn_output.to(origin_dtype)
 
