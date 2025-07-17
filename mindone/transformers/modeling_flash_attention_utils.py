@@ -40,20 +40,32 @@ def _flash_attention_forward(
     value: ms.Tensor,
     num_head,
     attention_mask,
-    dropout,
-    scaling,
-    input_layout,
+    dropout: float = 0.0,
+    scaling: float = 1.0,
+    input_layout="BSND",
 ):
-    attn_output = ops.flash_attention_score(
-        query,
-        key,
-        value,
-        head_num=num_head,
-        attn_mask=attention_mask,
-        keep_prob=1.0 - dropout,
-        scalar_value=scaling,
-        input_layout=input_layout,
-    )
+    if query.dtype == ms.float32:
+        attn_output = ops.flash_attention_score(
+            query.half(),
+            key.half(),
+            value.half(),
+            head_num=num_head,
+            attn_mask=attention_mask.half() if attention_mask else attention_mask,
+            keep_prob=1.0 - dropout,
+            scalar_value=scaling,
+            input_layout=input_layout,
+        )
+    else:
+        attn_output = ops.flash_attention_score(
+            query,
+            key,
+            value,
+            head_num=num_head,
+            attn_mask=attention_mask,
+            keep_prob=1.0 - dropout,
+            scalar_value=scaling,
+            input_layout=input_layout,
+        )
 
     return attn_output
 
