@@ -30,6 +30,7 @@ from . import (
     clap,
     clip,
     dpt,
+    electra,
     fuyu,
     gemma,
     gemma2,
