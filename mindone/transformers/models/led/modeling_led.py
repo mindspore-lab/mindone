@@ -17,7 +17,7 @@ import math
 import warnings
 from dataclasses import dataclass
 from typing import List, Optional, Tuple, Union
-import numpy as np
+
 from transformers import LEDConfig
 from transformers.utils import (
     ModelOutput,
@@ -61,47 +61,6 @@ def constant_(tensor: Parameter, val: float) -> None:
 def normal_(tensor: Parameter, mean: float = 0.0, std: float = 1.0) -> None:
     tensor.set_data(initializer(Normal(sigma=std, mean=mean), tensor.shape, tensor.dtype))
 
-
-def as_strided(input_tensor, size, stride, storage_offset=0):
-    """
-    A MindSpore implementation similar to PyTorch's torch.as_strided function.
-    Creates a sample of the input tensor with specified size and stride, not a view.
-
-    Args:
-        input_tensor: Input MindSpore tensor
-        size (tuple): The shape of the output tensor
-        stride (tuple): The stride of the output tensor (step size in each dimension)
-        storage_offset (int, optional): The offset in the underlying storage. Defaults to 0.
-
-    Returns:
-        MindSpore.Tensor: A tensor view with the specified size and stride
-
-    Example:
-        >>> x = ms.Tensor([[ 0.9039,  0.6291,  1.0795],
-                            [ 0.1586,  2.1939, -0.4900],
-                            [-0.1909, -0.7503,  1.9355]], dtype=ms.float32)
-        >>> result = as_strided(x, size=(2, 2), stride=(1, 2))
-        >>> print(result)
-        [[0.9039, 1.0795],
-        [0.6291, 0.1586]]
-        >>> result = as_strided(x, size=(2, 2), stride=(1, 2), storage_offset=1)
-        >>> print(result)
-        [[0.6291, 0.1586],
-        [1.0795, 2.1939]]
-    """
-    # Flatten input tensor to 1D array
-    flat_input = input_tensor.reshape(-1)
-
-    idx = mindspore.mint.arange(np.prod(size)).reshape(size)
-
-    offset = mindspore.mint.zeros_like(idx)
-
-    for axis, s in enumerate(stride):
-        shape = [1] * len(size)
-        shape[axis] = size[axis]
-        offset += mindspore.mint.arange(size[axis]).reshape(shape) * s
-    offset += storage_offset
-    return flat_input[offset]
 
 def shift_tokens_right(input_ids: mindspore.Tensor, pad_token_id: int, decoder_start_token_id: int):
     """
@@ -423,20 +382,20 @@ class LEDEncoderSelfAttention(mindspore.nn.Cell):
     def _chunk(hidden_states, window_overlap, onnx_export: bool = False):
         """convert into overlapping chunks. Chunk size = 2w, overlap size = w"""
         if not onnx_export:
+            # avoid using `as_strided` because it's not supported in MindSpore. Use `unfold` instead
             # non-overlapping chunks of size = 2w
-            hidden_states = hidden_states.view(
-                hidden_states.shape[0],
-                mindspore.mint.div(hidden_states.shape[1], (window_overlap * 2), rounding_mode="trunc").item(),
-                window_overlap * 2,
-                hidden_states.shape[2],
-            )
-            # use `as_strided` to make the chunks overlap with an overlap size = window_overlap
-            chunk_size = list(hidden_states.shape)
-            chunk_size[1] = chunk_size[1] * 2 - 1
+            batch_size, seq_len, hidden_dim = hidden_states.shape
+            num_chunks = 2 * mindspore.mint.div(seq_len, (window_overlap * 2), rounding_mode="trunc").item() - 1
 
-            chunk_stride = list(hidden_states.stride())
-            chunk_stride[1] = chunk_stride[1] // 2
-            return as_strided(hidden_states, size=chunk_size, stride=chunk_stride)
+            hidden_states = hidden_states.permute(0, 2, 1).unsqeeuze(-1)  # [batch_size,hidden_dim,seqlen,1]
+            hidden_states = mindspore.mint.functional.unfold(
+                hidden_states,
+                kernel_size=(window_overlap * 2, 1),
+                stride=(window_overlap, 1),
+            )  # unfold [batch_size, hidden_dim * 2 * window_overlap , num_chunks]
+            hidden_states = hidden_states.permute(0, 2, 1)  # [batch_size, num_chunks,  hidden_dim * 2 * window_overlap]
+            hidden_states = hidden_states.reshape(batch_size, num_chunks, hidden_dim, 2 * window_overlap)
+            return hidden_states.permute(0, 1, 3, 2)  # [batch_size, num_chunks, 2 * window_overlap, hidden_dim]
 
         # When exporting to ONNX, use this separate logic
         # have to use slow implementation since as_strided, unfold and 2d-tensor indexing aren't supported (yet) in ONNX export
@@ -581,7 +540,26 @@ class LEDEncoderSelfAttention(mindspore.nn.Cell):
             chunked_value_stride[1],
             chunked_value_stride[2],
         )
-        chunked_value = as_strided(padded_value, size=chunked_value_size, stride=chunked_value_stride)
+        # chunked_value = as_strided(padded_value, size=chunked_value_size, stride=chunked_value_stride)
+
+        # avoid using `as_strided` because it's not supported in MindSpore. Use `unfold` instead
+        chunked_value = padded_value.permute(0, 2, 1).unsqeeuze(-1)  # [batch_size * num_heads, hidden_dim, seq_len, 1]
+        chunked_value = mindspore.mint.functional.unfold(
+            chunked_value,
+            kernel_size=(window_overlap * 3, 1),
+            stride=(window_overlap, 1),
+        )  # [batch_size * num_heads, hidden_dim * 3 * window_overlap, num_chunks]
+        chunked_value = chunked_value.permute(
+            0, 2, 1
+        )  # [batch_size * num_heads, num_chunks, hidden_dim * 3 * window_overlap]
+        chunked_value = chunked_value.reshape(
+            batch_size * num_heads, chunks_count + 1, head_dim, 3 * window_overlap
+        ).permute(
+            0, 1, 3, 2
+        )  # [batch_size * num_heads, num_chunks, 3 * window_overlap, hidden_dim]
+        assert (
+            chunked_value.shape == chunked_value_size
+        ), f"chunked_value.shape: {chunked_value.shape}, chunked_value_size: {chunked_value_size}"
 
         chunked_attn_probs = self._pad_and_diagonalize(chunked_attn_probs)
 
