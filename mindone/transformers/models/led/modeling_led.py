@@ -387,7 +387,7 @@ class LEDEncoderSelfAttention(mindspore.nn.Cell):
             batch_size, seq_len, hidden_dim = hidden_states.shape
             num_chunks = 2 * mindspore.mint.div(seq_len, (window_overlap * 2), rounding_mode="trunc").item() - 1
 
-            hidden_states = hidden_states.permute(0, 2, 1).unsqeeuze(-1)  # [batch_size,hidden_dim,seqlen,1]
+            hidden_states = hidden_states.permute(0, 2, 1).unsuqeeze(-1)  # [batch_size,hidden_dim,seqlen,1]
             hidden_states = mindspore.mint.functional.unfold(
                 hidden_states,
                 kernel_size=(window_overlap * 2, 1),
@@ -543,7 +543,7 @@ class LEDEncoderSelfAttention(mindspore.nn.Cell):
         # chunked_value = as_strided(padded_value, size=chunked_value_size, stride=chunked_value_stride)
 
         # avoid using `as_strided` because it's not supported in MindSpore. Use `unfold` instead
-        chunked_value = padded_value.permute(0, 2, 1).unsqeeuze(-1)  # [batch_size * num_heads, hidden_dim, seq_len, 1]
+        chunked_value = padded_value.permute(0, 2, 1).unsuqeeze(-1)  # [batch_size * num_heads, hidden_dim, seq_len, 1]
         chunked_value = mindspore.mint.functional.unfold(
             chunked_value,
             kernel_size=(window_overlap * 3, 1),
