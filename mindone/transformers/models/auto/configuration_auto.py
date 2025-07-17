@@ -36,6 +36,7 @@ CONFIG_MAPPING_NAMES = OrderedDict(
     [
         # Add configs here
         ("albert", "AlbertConfig"),
+        ("beit", "BeitConfig"),
         ("bert", "BertConfig"),
         ("bart", "BartConfig"),
         ("bit", "BitConfig"),
@@ -79,11 +80,14 @@ CONFIG_MAPPING_NAMES = OrderedDict(
         ("paligemma", "PaliGemmaConfig"),
         ("phi", "PhiConfig"),
         ("phi3", "Phi3Config"),
+        ("pvt", "PvtConfig"),
+        ("pvt_v2", "PvtV2Config"),
         ("qwen2", "Qwen2Config"),
         ("qwen2_5_vl", "Qwen2_5_VLConfig"),
         ("qwen2_audio", "Qwen2AudioConfig"),
         ("qwen2_audio_encoder", "Qwen2AudioEncoderConfig"),
         ("qwen2_vl", "Qwen2VLConfig"),
+        ("resnet", "ResNetConfig"),
         ("roberta", "RobertaConfig"),
         ("recurrent_gemma", "RecurrentGemmaConfig"),
         ("rembert", "RemBertConfig"),
@@ -104,6 +108,7 @@ MODEL_NAMES_MAPPING = OrderedDict(
     [
         # Add full (and cased) model names here
         ("albert", "ALBERT"),
+        ("beit", "BEiT"),
         ("bert", "BERT"),
         ("bart", "BART"),
         ("bit", "BiT"),
@@ -156,6 +161,8 @@ MODEL_NAMES_MAPPING = OrderedDict(
         ("paligemma", "PaliGemma"),
         ("phi", "Phi"),
         ("phi3", "Phi3"),
+        ("pvt", "PVT"),
+        ("pvt_v2", "PVTv2"),
         ("qwen2", "Qwen2"),
         ("qwen2_5_vl", "Qwen2_5_VL"),
         ("qwen2_audio", "Qwen2Audio"),
@@ -163,6 +170,7 @@ MODEL_NAMES_MAPPING = OrderedDict(
         ("qwen2_vl", "Qwen2VL"),
         ("recurrent_gemma", "RecurrentGemma"),
         ("rembert", "RemBERT"),
+        ("resnet", "ResNet"),
         ("siglip", "SigLIP"),
         ("siglip_vision_model", "SiglipVisionModel"),
         ("speecht5", "SpeechT5"),
