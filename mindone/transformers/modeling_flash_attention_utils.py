@@ -41,19 +41,31 @@ def _flash_attention_forward(
     num_head,
     attention_mask,
     dropout,
-    scaling,
     input_layout,
+    scaling: float = 1.0,
 ):
-    attn_output = ops.flash_attention_score(
-        query,
-        key,
-        value,
-        head_num=num_head,
-        attn_mask=attention_mask,
-        keep_prob=1.0 - dropout,
-        scalar_value=scaling,
-        input_layout=input_layout,
-    )
+    if query.dtype == ms.float32:
+        attn_output = ops.flash_attention_score(
+            query.half(),
+            key.half(),
+            value.half(),
+            head_num=num_head,
+            attn_mask=attention_mask.half() if attention_mask else attention_mask,
+            keep_prob=1.0 - dropout,
+            scalar_value=scaling,
+            input_layout=input_layout,
+        )
+    else:
+        attn_output = ops.flash_attention_score(
+            query,
+            key,
+            value,
+            head_num=num_head,
+            attn_mask=attention_mask,
+            keep_prob=1.0 - dropout,
+            scalar_value=scaling,
+            input_layout=input_layout,
+        )
 
     return attn_output
 
