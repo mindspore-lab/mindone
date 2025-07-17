@@ -1,3 +1,6 @@
+# This code is adapted from https://github.com/FoundationVision/VAR
+# with modifications to run on MindSpore.
+
 import math
 from functools import partial
 from typing import List, Optional, Tuple, Union

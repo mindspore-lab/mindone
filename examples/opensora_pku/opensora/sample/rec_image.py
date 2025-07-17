@@ -1,3 +1,5 @@
+# Adapted from https://github.com/PKU-YuanGroup/Open-Sora-Plan/blob/main/opensora/sample/rec_image.py
+
 import argparse
 import logging
 import os

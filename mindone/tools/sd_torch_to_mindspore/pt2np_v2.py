@@ -1,6 +1,6 @@
-import pickle
 import sys
 
+import numpy as np
 import torch
 
 name = sys.argv[1]
@@ -13,5 +13,6 @@ with open("mindone/tools/sd_torch_to_mindspore/torch_v2.txt") as file_pt:
             name_pt, _, _ = line_pt.strip().split("#")
             name_ms, _, _ = line_ms.strip().split("#")
             d[name_ms] = ckpt[name_pt].cpu().detach().numpy()
-with open("torch.pkl", "wb") as file:
-    pickle.dump(d, file)
+
+
+np.savez("torch.npz", **d)

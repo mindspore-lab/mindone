@@ -2,6 +2,9 @@
  * Portable Snippets - https://github.com/nemequ/portable-snippets
  * Created by Evan Nemerson <evan@nemerson.com>
  *
+ *   This code is copied from
+ *   https://github.com/idealo/imagededup/blob/master/imagededup/handlers/search/builtin/builtin.h
+ *
  *   To the extent possible under law, the authors have waived all
  *   copyright and related or neighboring rights to this code.  For
  *   details, see the Creative Commons Zero 1.0 Universal license at

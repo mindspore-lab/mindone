@@ -1,3 +1,8 @@
+# This code is adapted from https://github.com/Vchitect/VEnhancer
+# with modifications to run on MindSpore.
+
+# Copyright (c) Alibaba, Inc. and its affiliates.
+
 import sys
 from abc import abstractmethod
 from typing import Callable, List, Optional, Tuple, Union

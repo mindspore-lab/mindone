@@ -1,7 +1,12 @@
+# This code is adapted from https://github.com/Stability-AI/generative-models
+# with modifications to run on MindSpore.
+
 """
     Partially ported from https://github.com/crowsonkb/k-diffusion/blob/master/k_diffusion/sampling.py
     Reference to https://github.com/Stability-AI/generative-models
 """
+
+
 from typing import Dict, Union
 
 import numpy as np

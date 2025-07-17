@@ -1,3 +1,5 @@
+"""Adapted from https://github.com/huggingface/diffusers/tree/main/tests//pipelines/text_to_video_synthesis/test_text_to_video_zero.py."""
+
 import unittest
 
 import numpy as np
