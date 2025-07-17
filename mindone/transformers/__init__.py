@@ -152,7 +152,16 @@ from .models.deberta_v2 import (
     DebertaV2Model,
     DebertaV2PreTrainedModel,
 )
+from .models.diffllama import (
+    DiffLlamaForCausalLM,
+    DiffLlamaForQuestionAnswering,
+    DiffLlamaForSequenceClassification,
+    DiffLlamaForTokenClassification,
+    DiffLlamaModel,
+    DiffLlamaPreTrainedModel,
+)
 from .models.dpt import DPTForDepthEstimation
+from .models.encoder_decoder import EncoderDecoderModel
 from .models.fuyu import FuyuForCausalLM, FuyuPreTrainedModel
 from .models.gemma import (
     GemmaForCausalLM,
@@ -282,6 +291,7 @@ from .models.mt5 import (
     MT5Model,
     MT5PreTrainedModel,
 )
+from .models.olmoe import OlmoeForCausalLM, OlmoeModel, OlmoePreTrainedModel
 from .models.paligemma import PaliGemmaForConditionalGeneration, PaliGemmaPreTrainedModel
 from .models.persimmon import (
     PersimmonForCausalLM,
