@@ -35,6 +35,7 @@ MODEL_MAPPING_NAMES = OrderedDict(
         ("albert", "AlbertModel"),
         ("bert", "BertModel"),
         ("bart", "BartModel"),
+        ("mvp", "MvpModel"),
         ("bit", "BitModel"),
         ("blip", "BlipModel"),
         ("blip-2", "Blip2Model"),
@@ -101,6 +102,7 @@ MODEL_FOR_PRETRAINING_MAPPING_NAMES = OrderedDict(
         # Model for pre-training mapping
         ("albert", "AlbertForPreTraining"),
         ("bart", "BartForConditionalGeneration"),
+        ("mvp", "MvpForConditionalGeneration"),
         ("bert", "BertForPreTraining"),
         ("gpt2", "GPT2LMHeadModel"),
         ("gemma3", "Gemma3ForConditionalGeneration"),
@@ -126,6 +128,7 @@ MODEL_WITH_LM_HEAD_MAPPING_NAMES = OrderedDict(
     [
         # Model with LM heads mapping
         ("albert", "AlbertForMaskedLM"),
+        ("mvp", "MvpForConditionalGeneration"),
         ("bart", "BartForConditionalGeneration"),
         ("bert", "BertForMaskedLM"),
         ("deberta", "DebertaForMaskedLM"),
@@ -148,6 +151,7 @@ MODEL_FOR_CAUSAL_LM_MAPPING_NAMES = OrderedDict(
     [
         # Model for Causal LM mapping
         ("bart", "BartForCausalLM"),
+        ("mvp", "MvpForCausalLM"),
         ("bert", "BertLMHeadModel"),
         ("bert-generation", "BertGenerationDecoder"),
         ("gemma", "GemmaForCausalLM"),
@@ -261,6 +265,7 @@ MODEL_FOR_IMAGE_TEXT_TO_TEXT_MAPPING_NAMES = OrderedDict(
 MODEL_FOR_MASKED_LM_MAPPING_NAMES = OrderedDict(
     [
         # Model for Masked LM mapping
+        ("mvp", "MvpForConditionalGeneration"),
         ("albert", "AlbertForMaskedLM"),
         ("bart", "BartForConditionalGeneration"),
         ("bert", "BertForMaskedLM"),
@@ -311,6 +316,7 @@ MODEL_FOR_SEQ_TO_SEQ_CAUSAL_LM_MAPPING_NAMES = OrderedDict(
     [
         # Model for Seq2Seq Causal LM mapping
         ("bart", "BartForConditionalGeneration"),
+        ("mvp", "MvpForConditionalGeneration"),
         ("mt5", "MT5ForConditionalGeneration"),
         ("qwen2_audio", "Qwen2AudioForConditionalGeneration"),
         ("t5", "T5ForConditionalGeneration"),
@@ -331,6 +337,7 @@ MODEL_FOR_SEQUENCE_CLASSIFICATION_MAPPING_NAMES = OrderedDict(
         ("albert", "AlbertForSequenceClassification"),
         ("bart", "BartForSequenceClassification"),
         ("bert", "BertForSequenceClassification"),
+        ("mvp", "MvpForSequenceClassification"),
         ("roberta", "RobertaForSequenceClassification"),
         ("deberta", "DebertaForSequenceClassification"),
         ("deberta-v2", "DebertaV2ForSequenceClassification"),
@@ -361,6 +368,7 @@ MODEL_FOR_QUESTION_ANSWERING_MAPPING_NAMES = OrderedDict(
         ("albert", "AlbertForQuestionAnswering"),
         ("bart", "BartForQuestionAnswering"),
         ("bert", "BertForQuestionAnswering"),
+        ("mvp", "MvpForQuestionAnswering"),
         ("roberta", "RobertaForQuestionAnswering"),
         ("deberta", "DebertaForQuestionAnswering"),
         ("deberta-v2", "DebertaV2ForQuestionAnswering"),

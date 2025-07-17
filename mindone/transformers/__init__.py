@@ -282,6 +282,14 @@ from .models.mt5 import (
     MT5Model,
     MT5PreTrainedModel,
 )
+from .models.mvp import (
+    MvpForCausalLM,
+    MvpForConditionalGeneration,
+    MvpForQuestionAnswering,
+    MvpForSequenceClassification,
+    MvpModel,
+    MvpPreTrainedModel,
+)
 from .models.paligemma import PaliGemmaForConditionalGeneration, PaliGemmaPreTrainedModel
 from .models.persimmon import (
     PersimmonForCausalLM,
