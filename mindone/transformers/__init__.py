@@ -283,6 +283,13 @@ from .models.mt5 import (
     MT5PreTrainedModel,
 )
 from .models.paligemma import PaliGemmaForConditionalGeneration, PaliGemmaPreTrainedModel
+from .models.opt import (
+    OPTForCausalLM,
+    OPTForQuestionAnswering,
+    OPTForSequenceClassification,
+    OPTModel,
+    OPTPreTrainedModel,
+)
 from .models.persimmon import (
     PersimmonForCausalLM,
     PersimmonForSequenceClassification,

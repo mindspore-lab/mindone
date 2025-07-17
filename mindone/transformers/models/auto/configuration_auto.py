@@ -82,6 +82,7 @@ CONFIG_MAPPING_NAMES = OrderedDict(
         ("qwen2_audio", "Qwen2AudioConfig"),
         ("qwen2_audio_encoder", "Qwen2AudioEncoderConfig"),
         ("qwen2_vl", "Qwen2VLConfig"),
+        ("opt", "OPTConfig"),
         ("roberta", "RobertaConfig"),
         ("recurrent_gemma", "RecurrentGemmaConfig"),
         ("rembert", "RemBertConfig"),
@@ -167,6 +168,7 @@ MODEL_NAMES_MAPPING = OrderedDict(
         ("umt5", "UMT5"),
         ("wav2vec2", "Wav2Vec2"),
         ("whisper", "Whisper"),
+        ("opt", "OPT"),
         ("xlm-roberta", "XLM-RoBERTa"),
         ("xlm-roberta-xl", "XLM-RoBERTa-XL"),
     ]
