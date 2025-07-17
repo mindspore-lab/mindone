@@ -1351,7 +1351,7 @@ class GenerationMixin:
 
         ```python
         >>> from transformers import GPT2Tokenizer
-        >>> from mindway.transformers import AutoModelForCausalLM
+        >>> from mindone.transformers import AutoModelForCausalLM
         >>> import numpy as np
 
         >>> tokenizer = GPT2Tokenizer.from_pretrained("gpt2")

@@ -29,6 +29,7 @@ from . import (
     blip_2,
     clap,
     clip,
+    convbert,
     dpt,
     fuyu,
     gemma,
