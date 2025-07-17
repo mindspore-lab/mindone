@@ -41,7 +41,11 @@ from .configuration_auto import (
 
 logger = logging.get_logger(__name__)
 
-FEATURE_EXTRACTOR_MAPPING_NAMES = OrderedDict()
+FEATURE_EXTRACTOR_MAPPING_NAMES = OrderedDict(
+    [
+        ("beit", "BeitFeatureExtractor"),
+    ]
+)
 
 FEATURE_EXTRACTOR_MAPPING = _LazyAutoMapping(CONFIG_MAPPING_NAMES, FEATURE_EXTRACTOR_MAPPING_NAMES)
 

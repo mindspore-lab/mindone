@@ -42,6 +42,7 @@ from .models.albert import (
     AlbertPreTrainedModel,
 )
 from .models.auto import (
+    AutoBackbone,
     AutoConfig,
     AutoFeatureExtractor,
     AutoImageProcessor,
@@ -59,6 +60,14 @@ from .models.bart import (
     BartPretrainedModel,
     BartPreTrainedModel,
     PretrainedBartModel,
+)
+from .models.beit import (
+    BeitBackbone,
+    BeitForImageClassification,
+    BeitForMaskedImageModeling,
+    BeitForSemanticSegmentation,
+    BeitModel,
+    BeitPreTrainedModel,
 )
 from .models.bert import (
     BertForMaskedLM,
@@ -153,6 +162,11 @@ from .models.deberta_v2 import (
     DebertaV2PreTrainedModel,
 )
 from .models.dpt import DPTForDepthEstimation
+from .models.falcon_mamba import (
+    FalconMambaForCausalLM,
+    FalconMambaModel,
+    FalconMambaPreTrainedModel,
+)
 from .models.fuyu import FuyuForCausalLM, FuyuPreTrainedModel
 from .models.gemma import (
     GemmaForCausalLM,
@@ -306,6 +320,17 @@ from .models.phi3 import (
     Phi3Model,
     Phi3PreTrainedModel,
 )
+from .models.pvt import (
+    PvtForImageClassification,
+    PvtModel,
+    PvtPreTrainedModel,
+)
+from .models.pvt_v2 import (
+    PvtV2Backbone,
+    PvtV2ForImageClassification,
+    PvtV2Model,
+    PvtV2PreTrainedModel,
+)
 from .models.qwen2 import Qwen2ForCausalLM, Qwen2ForSequenceClassification, Qwen2ForTokenClassification, Qwen2Model
 from .models.qwen2_5_omni import (
     Qwen2_5OmniForConditionalGeneration,
@@ -413,6 +438,16 @@ from .models.xlm_roberta_xl import (
     XLMRobertaXLForTokenClassification,
     XLMRobertaXLModel,
     XLMRobertaXLPreTrainedModel,
+)
+from .models.xmod import (
+    XmodForCausalLM,
+    XmodForMaskedLM,
+    XmodForMultipleChoice,
+    XmodForQuestionAnswering,
+    XmodForSequenceClassification,
+    XmodForTokenClassification,
+    XmodModel,
+    XmodPreTrainedModel,
 )
 from .pipelines import TextGenerationPipeline, pipeline
 from .processing_utils import ProcessorMixin

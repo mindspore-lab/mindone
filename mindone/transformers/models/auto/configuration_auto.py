@@ -36,6 +36,7 @@ CONFIG_MAPPING_NAMES = OrderedDict(
     [
         # Add configs here
         ("albert", "AlbertConfig"),
+        ("beit", "BeitConfig"),
         ("bert", "BertConfig"),
         ("bart", "BartConfig"),
         ("bit", "BitConfig"),
@@ -46,6 +47,7 @@ CONFIG_MAPPING_NAMES = OrderedDict(
         ("deberta", "DebertaConfig"),
         ("deberta-v2", "DebertaV2Config"),
         ("dpt", "DPTConfig"),
+        ("falcon_mamba", "FalconMambaConfig"),
         ("gemma", "GemmaConfig"),
         ("granite", "GraniteConfig"),
         ("gemma2", "Gemma2Config"),
@@ -79,6 +81,8 @@ CONFIG_MAPPING_NAMES = OrderedDict(
         ("paligemma", "PaliGemmaConfig"),
         ("phi", "PhiConfig"),
         ("phi3", "Phi3Config"),
+        ("pvt", "PvtConfig"),
+        ("pvt_v2", "PvtV2Config"),
         ("qwen2", "Qwen2Config"),
         ("qwen2_5_vl", "Qwen2_5_VLConfig"),
         ("qwen2_audio", "Qwen2AudioConfig"),
@@ -96,6 +100,7 @@ CONFIG_MAPPING_NAMES = OrderedDict(
         ("whisper", "WhisperConfig"),
         ("xlm-roberta", "XLMRobertaConfig"),
         ("xlm-roberta-xl", "XLMRobertaXLConfig"),
+        ("xmod", "XmodConfig"),
     ]
 )
 
@@ -104,6 +109,7 @@ MODEL_NAMES_MAPPING = OrderedDict(
     [
         # Add full (and cased) model names here
         ("albert", "ALBERT"),
+        ("beit", "BEiT"),
         ("bert", "BERT"),
         ("bart", "BART"),
         ("bit", "BiT"),
@@ -116,6 +122,7 @@ MODEL_NAMES_MAPPING = OrderedDict(
         ("deberta", "DeBERTa"),
         ("deberta-v2", "DeBERTa-v2"),
         ("dpt", "DPT"),
+        ("falcon_mamba", "FalconMamba"),
         ("gemma", "Gemma"),
         ("granite", "Granite"),
         ("gemma2", "Gemma2"),
@@ -156,6 +163,8 @@ MODEL_NAMES_MAPPING = OrderedDict(
         ("paligemma", "PaliGemma"),
         ("phi", "Phi"),
         ("phi3", "Phi3"),
+        ("pvt", "PVT"),
+        ("pvt_v2", "PVTv2"),
         ("qwen2", "Qwen2"),
         ("qwen2_5_vl", "Qwen2_5_VL"),
         ("qwen2_audio", "Qwen2Audio"),
@@ -173,6 +182,7 @@ MODEL_NAMES_MAPPING = OrderedDict(
         ("whisper", "Whisper"),
         ("xlm-roberta", "XLM-RoBERTa"),
         ("xlm-roberta-xl", "XLM-RoBERTa-XL"),
+        ("xmod", "X-MOD"),
     ]
 )
 

@@ -52,6 +52,8 @@ else:
             ("blip-2", ("BlipImageProcessor",)),
             ("clip", ("CLIPImageProcessor",)),
             ("dpt", ("DPTImageProcessor",)),
+            ("pvt", ("PvtImageProcessor",)),
+            ("pvt_v2", ("PvtImageProcessor",)),
         ]
     )
 
