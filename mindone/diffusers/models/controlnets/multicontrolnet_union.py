@@ -1,3 +1,5 @@
+"""Adapted from https://github.com/huggingface/diffusers/tree/main/src/diffusers/models/controlnets/multicontrolnet_union.py."""
+
 import os
 from typing import Any, Callable, Dict, List, Optional, Tuple, Union
 

@@ -1,3 +1,5 @@
+# Adapted from https://github.com/ShareGPT4Omni/ShareGPT4V/blob/master/share4v/model/multimodal_encoder/clip_encoder.py
+
 from share4v.transformers.models.clip import CLIPVisionModel
 from transformers import CLIPImageProcessor, CLIPVisionConfig
 

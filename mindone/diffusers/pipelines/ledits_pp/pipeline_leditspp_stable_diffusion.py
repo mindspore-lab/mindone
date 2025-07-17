@@ -1,3 +1,8 @@
+"""
+Adapted from https://github.com/huggingface/diffusers/tree/main/src/diffusers/
+pipelines/ledits_pp/pipeline_leditspp_stable_diffusion.py.
+"""
+
 import inspect
 import math
 from itertools import repeat

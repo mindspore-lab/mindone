@@ -1,4 +1,30 @@
-__version__ = "4.46.3"
+# Copyright 2020 The HuggingFace Team. All rights reserved.
+#
+# This code is adapted from https://github.com/huggingface/transformers
+# with modifications to run transformers on mindspore.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+# When adding a new object to this init, remember to add it twice: once inside the `_import_structure` dictionary and
+# once inside the `if TYPE_CHECKING` branch. The `TYPE_CHECKING` should have import statements as usual, but they are
+# only there for type checking. The `_import_structure` is a dictionary submodule to list of object names, and is used
+# to defer the actual importing for when the objects are requested. This way `import transformers` provides the names
+# in the namespace without actually importing anything (and especially none of the backends).
+
+__version__ = "4.50.0"
+import transformers
+from packaging import version
+
 # Feature Extractor
 from .feature_extraction_utils import BatchFeature, FeatureExtractionMixin
 from .image_processing_base import ImageProcessingMixin
@@ -68,6 +94,15 @@ from .models.bigbird_pegasus import (
     BigBirdPegasusPreTrainedModel,
 )
 from .models.bit import BitBackbone
+from .models.blip import (
+    BlipForConditionalGeneration,
+    BlipForImageTextRetrieval,
+    BlipForQuestionAnswering,
+    BlipModel,
+    BlipPreTrainedModel,
+    BlipTextModel,
+    BlipVisionModel,
+)
 from .models.blip_2 import (
     Blip2ForConditionalGeneration,
     Blip2Model,
@@ -141,13 +176,6 @@ from .models.glm import (
     GlmModel,
     GlmPreTrainedModel,
 )
-from .models.glm4v import (
-    Glm4vForConditionalGeneration,
-    Glm4vModel,
-    Glm4vPreTrainedModel,
-    Glm4vTextModel,
-    Glm4vVisionModel,
-)
 from .models.glpn import (
     GLPNFeatureExtractor,
     GLPNForDepthEstimation,
@@ -211,6 +239,14 @@ from .models.megatron_bert import (
     MegatronBertPreTrainedModel,
 )
 from .models.minicpm4 import MiniCPMForCausalLM, MiniCPMForSequenceClassification, MiniCPMModel
+from .models.mistral import (
+    MistralForCausalLM,
+    MistralForQuestionAnswering,
+    MistralForSequenceClassification,
+    MistralForTokenClassification,
+    MistralModel,
+    MistralPreTrainedModel,
+)
 from .models.mixtral import (
     MixtralForCausalLM,
     MixtralForQuestionAnswering,
@@ -230,6 +266,14 @@ from .models.mobilebert import (
     MobileBertLayer,
     MobileBertModel,
     MobileBertPreTrainedModel,
+)
+from .models.mpt import (
+    MptForCausalLM,
+    MptForQuestionAnswering,
+    MptForSequenceClassification,
+    MptForTokenClassification,
+    MptModel,
+    MptPreTrainedModel,
 )
 from .models.mt5 import (
     MT5_PRETRAINED_MODEL_ARCHIVE_LIST,
@@ -284,9 +328,6 @@ from .models.qwen2_5_omni import (
 from .models.qwen2_5_vl import Qwen2_5_VLForConditionalGeneration, Qwen2_5_VLModel, Qwen2_5_VLPreTrainedModel
 from .models.qwen2_audio import Qwen2AudioEncoder, Qwen2AudioForConditionalGeneration, Qwen2AudioPreTrainedModel
 from .models.qwen2_vl import Qwen2VLForConditionalGeneration, Qwen2VLModel, Qwen2VLPreTrainedModel
-from .models.qwen3 import Qwen3ForCausalLM, Qwen3Model, Qwen3PreTrainedModel
-
-# from .models.qwen3 import Qwen3ForCausalLM, Qwen3Model, Qwen3PreTrainedModel
 from .models.recurrent_gemma import RecurrentGemmaForCausalLM, RecurrentGemmaModel, RecurrentGemmaPreTrainedModel
 from .models.rembert import (
     RemBertForCausalLM,
@@ -381,3 +422,24 @@ from .models.xlm_roberta_xl import (
 )
 from .pipelines import TextGenerationPipeline, pipeline
 from .processing_utils import ProcessorMixin
+
+if version.parse(transformers.__version__) >= version.parse("4.51.0"):
+    from .models.qwen3 import Qwen3ForCausalLM, Qwen3Model, Qwen3PreTrainedModel
+
+if version.parse(transformers.__version__) >= version.parse("4.51.3"):
+    from .models.glm4 import (
+        Glm4ForCausalLM,
+        Glm4ForSequenceClassification,
+        Glm4ForTokenClassification,
+        Glm4Model,
+        Glm4PreTrainedModel,
+    )
+
+if version.parse(transformers.__version__) >= version.parse("4.53.0"):
+    from .models.glm4v import (
+        Glm4vForConditionalGeneration,
+        Glm4vModel,
+        Glm4vPreTrainedModel,
+        Glm4vTextModel,
+        Glm4vVisionModel,
+    )

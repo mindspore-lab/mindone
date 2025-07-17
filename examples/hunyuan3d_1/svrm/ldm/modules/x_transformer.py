@@ -1,3 +1,4 @@
+# Adapted from https://github.com/Tencent-Hunyuan/Hunyuan3D-1 to work with MindSpore.
 """shout-out to https://github.com/lucidrains/x-transformers/tree/main/x_transformers"""
 from collections import namedtuple
 from functools import partial

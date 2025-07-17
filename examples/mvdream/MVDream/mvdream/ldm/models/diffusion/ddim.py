@@ -1,3 +1,4 @@
+# Adapted from https://github.com/bytedance/MVDream/blob/main/mvdream/ldm/models/diffusion/ddim.py
 """SAMPLING ONLY. No need for the no_grad decorator, as the sampler won't be implemented as a child class of nn.Cell"""
 
 import numpy as np
