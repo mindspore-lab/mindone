@@ -27,6 +27,7 @@ from . import (
     bit,
     blip,
     blip_2,
+    camembert,
     clap,
     clip,
     dpt,
