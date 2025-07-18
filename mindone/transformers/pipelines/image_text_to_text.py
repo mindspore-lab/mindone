@@ -289,7 +289,7 @@ class ImageTextToTextPipeline(Pipeline):
             of both `generated_text` and `generated_token_ids`):
 
             - **generated_text** (`str`, present when `return_text=True`) -- The generated text.
-            - **generated_token_ids** (`torch.Tensor`, present when `return_tensors=True`) -- The token
+            - **generated_token_ids** (`ms.tensor`, present when `return_tensors=True`) -- The token
                 ids of the generated text.
             - **input_text** (`str`) -- The input text.
         """

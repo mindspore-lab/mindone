@@ -319,10 +319,9 @@ def pipeline(
             - `"zero-shot-audio-classification"`: will return a [`ZeroShotAudioClassificationPipeline`].
             - `"zero-shot-object-detection"`: will return a [`ZeroShotObjectDetectionPipeline`].
 
-        model (`str` or [`PreTrainedModel`] or [`TFPreTrainedModel`], *optional*):
+        model (`str` or [`PreTrainedModel`], *optional*):
             The model that will be used by the pipeline to make predictions. This can be a model identifier or an
-            actual instance of a pretrained model inheriting from [`PreTrainedModel`] (for PyTorch) or
-            [`TFPreTrainedModel`] (for TensorFlow).
+            actual instance of a pretrained model inheriting from [`PreTrainedModel`] (for MindSpore)
 
             If not provided, the default for the `task` will be loaded.
         config (`str` or [`PretrainedConfig`], *optional*):
@@ -371,11 +370,11 @@ def pipeline(
             If not provided, the default processor for the given `model` will be loaded (if it is a string). If `model`
             is not specified or not a string, then the default processor for `config` is loaded (if it is a string).
         framework (`str`, *optional*):
-            The framework to use, either `"ms"` for PyTorch or `"tf"` for TensorFlow. The specified framework must be
+            The framework to use, either `"ms"` for MindSpore or `"tf"` for TensorFlow. The specified framework must be
             installed.
 
             If no framework is specified, will default to the one currently installed. If no framework is specified and
-            both frameworks are installed, will default to the framework of the `model`, or to PyTorch if no model is
+            both frameworks are installed, will default to the framework of the `model`, or to MindSpore if no model is
             provided.
         revision (`str`, *optional*, defaults to `"main"`):
             When passing a task name or a string model identifier: The specific model version to use. It can be a
@@ -386,24 +385,10 @@ def pipeline(
         use_auth_token (`str` or *bool*, *optional*):
             The token to use as HTTP bearer authorization for remote files. If `True`, will use the token generated
             when running `huggingface-cli login` (stored in `~/.huggingface`).
-        device (`int` or `str` or `torch.device`):
-            Defines the device (*e.g.*, `"cpu"`, `"cuda:1"`, `"mps"`, or a GPU ordinal rank like `1`) on which this
-            pipeline will be allocated.
-        device_map (`str` or `Dict[str, Union[int, str, torch.device]`, *optional*):
-            Sent directly as `model_kwargs` (just a simpler shortcut). When `accelerate` library is present, set
-            `device_map="auto"` to compute the most optimized `device_map` automatically (see
-            [here](https://huggingface.co/docs/accelerate/main/en/package_reference/big_modeling#accelerate.cpu_offload)
-            for more information).
 
-            <Tip warning={true}>
-
-            Do not use `device_map` AND `device` at the same time as they will conflict
-
-            </Tip>
-
-        mindspore_dtype (`str` or `torch.dtype`, *optional*):
+        mindspore_dtype (`str` or `mindspore.Type`, *optional*):
             Sent directly as `model_kwargs` (just a simpler shortcut) to use the available precision for this model
-            (`torch.float16`, `torch.bfloat16`, ... or `"auto"`).
+            (`mindspore.float16`, `mindspore.bfloat16`, ... or `"auto"`).
         trust_remote_code (`bool`, *optional*, defaults to `False`):
             Whether or not to allow for custom code defined on the Hub in their own modeling, configuration,
             tokenization or even pipeline files. This option should only be set to `True` for repositories you trust
