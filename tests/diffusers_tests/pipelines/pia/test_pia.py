@@ -1,3 +1,5 @@
+"""Adapted from https://github.com/huggingface/diffusers/tree/main/tests//pipelines/pia/test_pia.py."""
+
 import random
 import unittest
 

@@ -1,3 +1,4 @@
+# Adapted from https://github.com/Tencent-Hunyuan/HunyuanVideo to work with MindSpore.
 import collections.abc
 from itertools import repeat
 

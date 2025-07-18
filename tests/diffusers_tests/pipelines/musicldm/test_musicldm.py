@@ -1,3 +1,5 @@
+"""Adapted from https://github.com/huggingface/diffusers/tree/main/tests//pipelines/musicldm/test_musicldm.py."""
+
 import unittest
 
 import numpy as np

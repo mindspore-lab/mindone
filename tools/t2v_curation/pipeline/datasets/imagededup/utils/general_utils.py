@@ -1,3 +1,5 @@
+# Copied from https://github.com/idealo/imagededup/blob/master/imagededup/utils/general_utils.py
+
 import json
 from multiprocessing import Pool
 from pathlib import Path, PurePath

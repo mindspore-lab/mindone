@@ -1,4 +1,5 @@
 # -*- coding: utf-8 -*-
+# Adapted from https://github.com/baaivision/Emu3 to work with MindSpore.
 
 import os
 import os.path as osp

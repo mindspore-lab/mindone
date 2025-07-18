@@ -1,6 +1,9 @@
 # coding=utf-8
 # Copyright 2018 The HuggingFace Inc. team.
 #
+# This code is adapted from https://github.com/huggingface/transformers
+# with modifications to run transformers on mindspore.
+#
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -36,6 +39,7 @@ CONFIG_MAPPING_NAMES = OrderedDict(
         ("bert", "BertConfig"),
         ("bart", "BartConfig"),
         ("bit", "BitConfig"),
+        ("blip", "BlipConfig"),
         ("blip-2", "Blip2Config"),
         ("clip", "CLIPConfig"),
         ("clip_vision_model", "CLIPVisionConfig"),
@@ -64,7 +68,9 @@ CONFIG_MAPPING_NAMES = OrderedDict(
         ("persimmon", "PersimmonConfig"),
         ("fuyu", "FuyuConfig"),
         ("llava", "LlavaConfig"),
+        ("mistral", "MistralConfig"),
         ("mobilebert", "MobileBertConfig"),
+        ("mpt", "MptConfig"),
         ("mt5", "MT5Config"),
         ("megatron-bert", "MegatronBertConfig"),
         ("mixtral", "MixtralConfig"),
@@ -99,6 +105,7 @@ MODEL_NAMES_MAPPING = OrderedDict(
         ("bert", "BERT"),
         ("bart", "BART"),
         ("bit", "BiT"),
+        ("blip", "BLIP"),
         ("blip-2", "BLIP-2"),
         ("chameleon", "Chameleon"),
         ("clap", "CLAP"),
@@ -137,8 +144,10 @@ MODEL_NAMES_MAPPING = OrderedDict(
         ("persimmon", "Persimmon"),
         ("fuyu", "Fuyu"),
         ("mobilebert", "MobileBERT"),
+        ("mpt", "MPT"),
         ("mt5", "MT5"),
         ("megatron-bert", "Megatron-BERT"),
+        ("mistral", "Mistral"),
         ("mixtral", "Mixtral"),
         ("paligemma", "PaliGemma"),
         ("phi", "Phi"),
@@ -217,10 +226,13 @@ if version.parse(transformers.__version__) >= version.parse("4.51.0"):
     CONFIG_MAPPING_NAMES.update({"qwen3": "Qwen3Config"})
     MODEL_NAMES_MAPPING.update({"qwen3": "Qwen3Model"})
 
+if version.parse(transformers.__version__) >= version.parse("4.51.3"):
+    CONFIG_MAPPING_NAMES.update({"glm4": "Glm4Config"})
+    MODEL_NAMES_MAPPING.update({"glm4": "glm4"})
+
 if version.parse(transformers.__version__) >= version.parse("4.53.0"):
     CONFIG_MAPPING_NAMES.update({"vjepa2": "VJEPA2Model"})
     MODEL_NAMES_MAPPING.update({"vjepa2": "VJEPA2Model"})
-
 
 def model_type_to_module_name(key):
     """Converts a config key to the corresponding module."""
