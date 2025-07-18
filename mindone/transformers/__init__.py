@@ -98,8 +98,11 @@ from .models.blip import (
     BlipForConditionalGeneration,
     BlipForImageTextRetrieval,
     BlipForQuestionAnswering,
+    BlipImageProcessor,
+    BlipImageProcessorFast,
     BlipModel,
     BlipPreTrainedModel,
+    BlipProcessor,
     BlipTextModel,
     BlipVisionModel,
 )

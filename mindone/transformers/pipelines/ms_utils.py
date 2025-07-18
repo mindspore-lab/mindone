@@ -8,7 +8,7 @@ from mindspore.dataset import Dataset
 
 
 # fixme
-# how to deal with different processing???
+# consider general methods for various processor
 class PipelineDataset(Dataset):
     def __init__(self, dataset, process, params):
         self.dataset = dataset
@@ -36,7 +36,7 @@ class PipelineIterator:
         ```
 
                 Arguments:
-                    loader (`torch.utils.data.DataLoader` or `Iterable`):
+                    loader (`mindspore.dataset.Generatordataset` or `Iterable`):
                         The iterator that will be used to apply `infer` on.
                     infer (any function):
                         The function to apply of each element of `loader`.
@@ -170,7 +170,7 @@ class PipelineChunkIterator(PipelineIterator):
         ```
 
                 Arguments:
-                    loader (`torch.utils.data.DataLoader` or `Iterable`):
+                    loader (`Mindspore.dataset.dataset` or `Iterable`):
                         The iterator that will be used to apply `infer` on.
                     infer (any function):
                         The function to apply of each element of `loader`.
@@ -231,7 +231,7 @@ class PipelinePackIterator(PipelineIterator):
     ```
 
         Arguments:
-            loader (`torch.utils.data.DataLoader` or `Iterable`):
+            loader (`Mindspore.dataset.GeneratorDataset` or `Iterable`):
                 The iterator that will be used to apply `infer` on.
             infer (any function):
                 The function to apply of each element of `loader`.
