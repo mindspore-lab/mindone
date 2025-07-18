@@ -1,3 +1,16 @@
+# Copyright (c) Meta Platforms, Inc. and affiliates.
+# All rights reserved.
+#
+# This code is adapted from https://github.com/PixArt-alpha/PixArt-sigma
+# with modifications to run PixArt-sigma on mindspore.
+#
+# This source code is licensed under the license found in the
+# LICENSE file in the root directory of this source tree.
+# --------------------------------------------------------
+# References:
+# GLIDE: https://github.com/openai/glide-text2im
+# MAE: https://github.com/facebookresearch/mae/blob/main/models_mae.py
+# --------------------------------------------------------
 from typing import Any, Dict, List, Literal, Optional, Tuple, Union
 
 import numpy as np

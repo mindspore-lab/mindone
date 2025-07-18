@@ -1,5 +1,8 @@
 # Copyright (c) Meta Platforms, Inc. and affiliates.
 #
+# This code is adapted from https://github.com/3DTopia/OpenLRM/
+# to run openlrm on mindspore.
+#
 # This source code is licensed under the Apache License, Version 2.0
 # found in the LICENSE file in the root directory of this source tree.
 

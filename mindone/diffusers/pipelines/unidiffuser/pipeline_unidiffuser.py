@@ -1,3 +1,5 @@
+"""Adapted from https://github.com/huggingface/diffusers/tree/main/src/diffusers/pipelines/unidiffuser/pipeline_unidiffuser.py."""
+
 import inspect
 from dataclasses import dataclass
 from typing import Callable, List, Optional, Union
@@ -129,7 +131,6 @@ class UniDiffuserPipeline(DiffusionPipeline):
             self.text_intermediate_dim = self.text_decoder.prefix_hidden_dim
 
         self.mode = None
-        self.text_decoder.set_share_weight(True)
 
         # TODO: handle safety checking?
         self.safety_checker = None
@@ -1382,10 +1383,6 @@ class UniDiffuserPipeline(DiffusionPipeline):
         if image is not None:
             do_denormalize = [True] * image.shape[0]
             image = self.image_processor.postprocess(image, output_type=output_type, do_denormalize=do_denormalize)
-
-        # Offload last model to CPU
-        if hasattr(self, "final_offload_hook") and self.final_offload_hook is not None:
-            self.final_offload_hook.offload()
 
         if not return_dict:
             return (image, text)

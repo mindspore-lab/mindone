@@ -1,3 +1,6 @@
+# This code is adapted from https://github.com/Ji4chenLi/t2v-turbo
+# with modifications to run on MindSpore.
+
 # pytorch_diffusion + derived encoder decoder
 import math
 
