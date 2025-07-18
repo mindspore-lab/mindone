@@ -1529,8 +1529,8 @@ LED_GENERATION_EXAMPLE = r"""
     >>> import mindspore
     >>> from transformers import AutoTokenizer, LEDForConditionalGeneration
 
-    >>> model = LEDForConditionalGeneration.from_pretrained("allenai/led-large-16384-arxiv")
-    >>> tokenizer = AutoTokenizer.from_pretrained("allenai/led-large-16384-arxiv")
+    >>> model = LEDForConditionalGeneration.from_pretrained("allenai/led-large-16384-arxiv", revision="refs/pr/1")  # mindspore can only load safetensors
+    >>> tokenizer = AutoTokenizer.from_pretrained("allenai/led-large-16384-arxiv", revision="refs/pr/1")
 
     >>> ARTICLE_TO_SUMMARIZE = '''Transformers (Vaswani et al., 2017) have achieved state-of-the-art
     ...     results in a wide range of natural language tasks including generative language modeling
@@ -1548,7 +1548,7 @@ LED_GENERATION_EXAMPLE = r"""
     ...     architectures to address such interactions. On the other hand, our proposed Longformer is able to build
     ...     contextual representations of the entire context using multiple layers of attention, reducing the need for
     ...     task-specific architectures.'''
-    >>> inputs = mindspore.Tensor(tokenizer.encode(ARTICLE_TO_SUMMARIZE, return_tensors="np"))
+    >>> inputs = mindspore.Tensor(tokenizer.encode(ARTICLE_TO_SUMMARIZE, return_tensors="np")["input_ids"])
 
     >>> # Global attention on the first token (cf. Beltagy et al. 2020)
     >>> global_attention_mask = mindspore.mint.zeros_like(inputs)
@@ -2400,13 +2400,13 @@ class LEDForConditionalGeneration(LEDPreTrainedModel, GenerationMixin):
         ```python
         >>> from transformers import AutoTokenizer
         >>> from mindone.transformers import LEDForConditionalGeneration
-        >>> from mindspore import Tensor
+        >>> from mindspore
 
-        >>> tokenizer = AutoTokenizer.from_pretrained("allenai/led-base-16384")
+        >>> tokenizer = AutoTokenizer.from_pretrained("allenai/led-base-16384", revision="refs/pr/4")
         >>> TXT = "My friends are <mask> but they eat too many carbs."
 
-        >>> model = LEDForConditionalGeneration.from_pretrained("allenai/led-base-16384")
-        >>> input_ids = Tensor(tokenizer([TXT], return_tensors="np")["input_ids"])
+        >>> model = LEDForConditionalGeneration.from_pretrained("allenai/led-base-16384", revision="refs/pr/4")  # mindspore can only load safetensors
+        >>> input_ids = mindspore.Tensor(tokenizer([TXT], return_tensors="np")["input_ids"])
 
         >>> prediction = model.generate(input_ids)[0]
         >>> print(tokenizer.decode(prediction, skip_special_tokens=True))
