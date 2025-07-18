@@ -53,6 +53,8 @@ from . import (
     mixtral,
     mobilebert,
     mpt,
+    olmo,
+    olmo2,
     paligemma,
     persimmon,
     phi,
