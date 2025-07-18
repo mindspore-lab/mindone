@@ -797,16 +797,16 @@ class HeliumForCausalLM(HeliumPreTrainedModel, GenerationMixin):
         Example:
 
         ```python
-        >>> from transformers import AutoTokenizer, HeliumForCausalLM
-
+        >>> from mindone.transformers import AutoTokenizer, HeliumForCausalLM
+        >>> import mindspore as ms
         >>> model = HeliumForCausalLM.from_pretrained("google/helium-7b")
         >>> tokenizer = AutoTokenizer.from_pretrained("google/helium-7b")
 
         >>> prompt = "What is your favorite condiment?"
-        >>> inputs = tokenizer(prompt, return_tensors="pt")
+        >>> inputs = ms.Tensor(tokenizer(prompt, return_tensors="np")["input_ids"])
 
         >>> # Generate
-        >>> generate_ids = model.generate(inputs.input_ids, max_length=30)
+        >>> generate_ids = model.generate(inputs, max_length=30)
         >>> tokenizer.batch_decode(generate_ids, skip_special_tokens=True, clean_up_tokenization_spaces=False)[0]
         "What is your favorite condiment?"
         ```"""
