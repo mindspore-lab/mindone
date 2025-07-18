@@ -1,3 +1,4 @@
+# This code is adapted from https://github.com/Tencent-Hunyuan/Hunyuan3D-1 to work with MindSpore.
 import importlib
 from inspect import isfunction
 

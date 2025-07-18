@@ -1,3 +1,5 @@
+"""Adapted from https://github.com/huggingface/diffusers/tree/main/src/diffusers/pipelines/__init__.py."""
+
 from typing import TYPE_CHECKING
 
 from ..utils import _LazyModule
@@ -36,6 +38,7 @@ _import_structure = {
     "consistency_models": ["ConsistencyModelPipeline"],
     "cogview3": ["CogView3PlusPipeline"],
     "cogview4": ["CogView4Pipeline", "CogView4ControlPipeline"],
+    "consisid": ["ConsisIDPipeline"],
     "controlnet": [
         "BlipDiffusionControlNetPipeline",
         "StableDiffusionControlNetImg2ImgPipeline",
@@ -89,7 +92,11 @@ _import_structure = {
         "ReduxImageEncoder",
     ],
     "hunyuandit": ["HunyuanDiTPipeline"],
-    "hunyuan_video": ["HunyuanVideoPipeline"],
+    "hunyuan_video": [
+        "HunyuanVideoPipeline",
+        "HunyuanSkyreelsImageToVideoPipeline",
+        "HunyuanVideoImageToVideoPipeline",
+    ],
     "i2vgen_xl": ["I2VGenXLPipeline"],
     "latent_diffusion": ["LDMSuperResolutionPipeline", "LDMTextToImagePipeline"],
     "ledits_pp": ["LEditsPPPipelineStableDiffusion", "LEditsPPPipelineStableDiffusionXL"],
@@ -266,6 +273,7 @@ if TYPE_CHECKING:
     )
     from .cogview3 import CogView3PlusPipeline
     from .cogview4 import CogView4ControlPipeline, CogView4Pipeline
+    from .consisid import ConsisIDPipeline
     from .consistency_models import ConsistencyModelPipeline
     from .controlnet import (
         BlipDiffusionControlNetPipeline,
@@ -308,7 +316,11 @@ if TYPE_CHECKING:
         FluxPriorReduxPipeline,
         ReduxImageEncoder,
     )
-    from .hunyuan_video import HunyuanVideoPipeline
+    from .hunyuan_video import (
+        HunyuanSkyreelsImageToVideoPipeline,
+        HunyuanVideoImageToVideoPipeline,
+        HunyuanVideoPipeline,
+    )
     from .hunyuandit import HunyuanDiTPipeline
     from .i2vgen_xl import I2VGenXLPipeline
     from .kandinsky import (

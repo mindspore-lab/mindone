@@ -1,3 +1,6 @@
+# This code is adapted from https://github.com/Vchitect/VEnhancer
+# with modifications to run on MindSpore.
+
 import numpy as np
 from video_to_video.utils.utils import blend_time
 

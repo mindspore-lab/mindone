@@ -1,3 +1,5 @@
+"""Adapted from https://github.com/huggingface/diffusers/tree/main/tests//pipelines/aura_flow/test_pipeline_aura_flow.py."""
+
 import unittest
 
 import numpy as np

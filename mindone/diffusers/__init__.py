@@ -1,4 +1,6 @@
-__version__ = "0.32.2"
+"""Adapted from https://github.com/huggingface/diffusers/tree/main/src/diffusers/__init__.py."""
+
+__version__ = "0.33.1"
 
 from typing import TYPE_CHECKING
 
@@ -34,6 +36,7 @@ _import_structure = {
         "CogVideoXTransformer3DModel",
         "CogView3PlusTransformer2DModel",
         "CogView4Transformer2DModel",
+        "ConsisIDTransformer3DModel",
         "ConsistencyDecoderVAE",
         "ControlNetModel",
         "ControlNetUnionModel",
@@ -122,6 +125,7 @@ _import_structure = {
         "CogView3PlusPipeline",
         "CogView4ControlPipeline",
         "CogView4Pipeline",
+        "ConsisIDPipeline",
         "ConsistencyModelPipeline",
         "DanceDiffusionPipeline",
         "DDIMPipeline",
@@ -145,6 +149,8 @@ _import_structure = {
         "HunyuanDiTControlNetPipeline",
         "HunyuanDiTPAGPipeline",
         "HunyuanDiTPipeline",
+        "HunyuanSkyreelsImageToVideoPipeline",
+        "HunyuanVideoImageToVideoPipeline",
         "HunyuanVideoPipeline",
         "I2VGenXLPipeline",
         "IFImg2ImgPipeline",
@@ -351,6 +357,7 @@ if TYPE_CHECKING:
         CogVideoXTransformer3DModel,
         CogView3PlusTransformer2DModel,
         CogView4Transformer2DModel,
+        ConsisIDTransformer3DModel,
         ConsistencyDecoderVAE,
         ControlNetModel,
         ControlNetUnionModel,
@@ -439,6 +446,7 @@ if TYPE_CHECKING:
         CogView3PlusPipeline,
         CogView4ControlPipeline,
         CogView4Pipeline,
+        ConsisIDPipeline,
         ConsistencyModelPipeline,
         DDIMPipeline,
         DDPMPipeline,
@@ -461,6 +469,8 @@ if TYPE_CHECKING:
         HunyuanDiTControlNetPipeline,
         HunyuanDiTPAGPipeline,
         HunyuanDiTPipeline,
+        HunyuanSkyreelsImageToVideoPipeline,
+        HunyuanVideoImageToVideoPipeline,
         HunyuanVideoPipeline,
         I2VGenXLPipeline,
         IFImg2ImgPipeline,
