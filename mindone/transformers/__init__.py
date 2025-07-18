@@ -469,6 +469,12 @@ from .models.starcoder2 import (
     Starcoder2ForTokenClassification,
     Starcoder2Model,
     Starcoder2PreTrainedModel,
+from .models.swin import (
+    SwinBackbone,
+    SwinForImageClassification,
+    SwinForMaskedImageModeling,
+    SwinModel,
+    SwinPreTrainedModel,
 )
 from .models.switch_transformers import (
     SwitchTransformersEncoderModel,
