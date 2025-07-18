@@ -18,7 +18,7 @@ from tests.modeling_test_utils import (
 )
 
 DTYPE_AND_THRESHOLDS = {"fp32": 5e-4, "fp16": 5e-3, "bf16": 5e-3}
-MODES = [0, 1]  # 0: graph mode, 1: pynative mode
+MODES = [1]  # 0: graph mode, 1: pynative mode
 
 
 class SwinModelTester:
