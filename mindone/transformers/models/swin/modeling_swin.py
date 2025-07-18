@@ -1146,7 +1146,7 @@ class SwinForMaskedImageModeling(SwinPreTrainedModel):
         >>> model = SwinForMaskedImageModeling.from_pretrained("microsoft/swin-base-simmim-window6-192")
 
         >>> num_patches = (model.config.image_size // model.config.patch_size) ** 2
-        >>> pixel_values = image_processor(images=image, return_tensors="pt").pixel_values
+        >>> pixel_values = ms.Tensor(image_processor(images=image, return_tensors="np")["pixel_values"])
         >>> # create random boolean mask of shape (batch_size, num_patches)
         >>> bool_masked_pos = ops.randint(low=0, high=2, size=(1, num_patches)).bool()
 
@@ -1350,7 +1350,6 @@ class SwinBackbone(SwinPreTrainedModel, BackboneMixin):
         ```python
         >>> from mindone.transformers import AutoImageProcessor, AutoBackbone
         >>> import mindspore as ms
-        >>> import mindspore.mint as mint
         >>> from PIL import Image
         >>> import requests
 
@@ -1362,8 +1361,8 @@ class SwinBackbone(SwinPreTrainedModel, BackboneMixin):
         ...     "microsoft/swin-tiny-patch4-window7-224", out_features=["stage1", "stage2", "stage3", "stage4"]
         ... )
 
-        >>> inputs = processor(image, return_tensors="pt")
-        >>> outputs = model(**inputs)
+        >>> inputs = ms.Tensor(processor(image, return_tensors="np")["pixel_values"])
+        >>> outputs = model(pixel_values=inputs)
         >>> feature_maps = outputs.feature_maps
         >>> list(feature_maps[-1].shape)
         [1, 768, 7, 7]
