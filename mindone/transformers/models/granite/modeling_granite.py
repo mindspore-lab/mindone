@@ -821,13 +821,21 @@ class GraniteForCausalLM(GranitePreTrainedModel, GenerationMixin):
         Example:
 
         ```python
-        >>> from transformers import AutoTokenizer, GraniteForCausalLM
+        >>> from transformers import AutoTokenizer
+        >>> from mindone.transformers import GraniteForCausalLM
+        >>> import numpy as np
+        >>> import mindspore as ms
 
         >>> model = GraniteForCausalLM.from_pretrained("meta-granite/Granite-2-7b-hf")
         >>> tokenizer = AutoTokenizer.from_pretrained("meta-granite/Granite-2-7b-hf")
 
         >>> prompt = "Hey, are you conscious? Can you talk to me?"
-        >>> inputs = tokenizer(prompt, return_tensors="pt")
+        >>> inputs = tokenizer(prompt, return_tensors="np")
+        >>> for key, value in inputs.items():
+        >>>     if isinstance(value, np.ndarray):
+        >>>         inputs[key] = ms.tensor(value)
+        >>>     elif isinstance(value, list):
+        >>>         inputs[key] = ms.tensor(value)
 
         >>> # Generate
         >>> generate_ids = model.generate(inputs.input_ids, max_length=30)

@@ -912,13 +912,21 @@ class Gemma3ForCausalLM(Gemma3PreTrainedModel, GenerationMixin):
         Example:
 
         ```python
-        >>> from transformers import AutoTokenizer, Gemma3ForCausalLM
+        >>> from transformers import AutoTokenizer
+        >>> from mindone.transformers import Gemma3ForCausalLM
+        >>> import mindspore as ms
+        >>> import numpy as np
 
         >>> model = Gemma3ForCausalLM.from_pretrained("google/gemma-2-9b")
         >>> tokenizer = AutoTokenizer.from_pretrained("google/gemma-2-9b")
 
         >>> prompt = "What is your favorite condiment?"
-        >>> inputs = tokenizer(prompt, return_tensors="pt")
+        >>> inputs = tokenizer(prompt, return_tensors="np")
+        >>> for key, value in inputs.items():
+        >>>     if isinstance(value, np.ndarray):
+        >>>         inputs[key] = ms.tensor(value)
+        >>>     elif isinstance(value, list):
+        >>>         inputs[key] = ms.tensor(value)
 
         >>> # Generate
         >>> generate_ids = model.generate(inputs.input_ids, max_length=30)
@@ -1217,7 +1225,9 @@ class Gemma3ForConditionalGeneration(Gemma3PreTrainedModel, GenerationMixin):
         ```python
         >>> from PIL import Image
         >>> import requests
-        >>> from transformers import AutoProcessor, Gemma3ForConditionalGeneration
+        >>> from transformers import AutoProcessor
+        >>> from mindone.transformers import Gemma3ForConditionalGeneration
+        >>> import numpy as np
 
         >>> model = Gemma3ForConditionalGeneration.from_pretrained("google/Gemma3-test-224px-hf")
         >>> processor = AutoProcessor.from_pretrained("google/Gemma3-test-224px-hf")
@@ -1226,7 +1236,12 @@ class Gemma3ForConditionalGeneration(Gemma3PreTrainedModel, GenerationMixin):
         >>> url = "https://huggingface.co/gv-hf/Gemma3-test-224px-hf/resolve/main/cow_beach_1.png"
         >>> image = Image.open(requests.get(url, stream=True).raw)
 
-        >>> inputs = processor(images=image, text=prompt,  return_tensors="pt")
+        >>> inputs = processor(images=image, text=prompt,  return_tensors="np")
+        >>> for key, value in inputs.items():
+        >>>     if isinstance(value, np.ndarray):
+        >>>         inputs[key] = ms.tensor(value)
+        >>>     elif isinstance(value, list):
+        >>>         inputs[key] = ms.tensor(value)
 
         >>> # Generate
         >>> generate_ids = model.generate(**inputs, max_length=30)

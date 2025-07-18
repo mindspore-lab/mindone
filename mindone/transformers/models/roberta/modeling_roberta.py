@@ -896,15 +896,22 @@ class RobertaForCausalLM(RobertaPreTrainedModel, GenerationMixin):
         Example:
 
         ```python
-        >>> from transformers import AutoTokenizer, RobertaForCausalLM, AutoConfig
-        >>> import mindspore
+        >>> from transformers import AutoTokenizer, AutoConfig
+        >>> from mindone.transformers import RobertaForCausalLM
+        >>> import mindspore as ms
+        >>> import numpy as np
 
         >>> tokenizer = AutoTokenizer.from_pretrained("FacebookAI/roberta-base")
         >>> config = AutoConfig.from_pretrained("FacebookAI/roberta-base")
         >>> config.is_decoder = True
         >>> model = RobertaForCausalLM.from_pretrained("FacebookAI/roberta-base", config=config)
 
-        >>> inputs = tokenizer("Hello, my dog is cute", return_tensors="pt")
+        >>> inputs = tokenizer("Hello, my dog is cute", return_tensors="np")
+        >>> for key, value in inputs.items():
+        >>>     if isinstance(value, np.ndarray):
+        >>>         inputs[key] = ms.tensor(value)
+        >>>     elif isinstance(value, list):
+        >>>         inputs[key] = ms.tensor(value)
         >>> outputs = model(**inputs)
 
         >>> prediction_logits = outputs.logits
