@@ -590,6 +590,13 @@ from .models.switch_transformers import (
     SwitchTransformersSparseMLP,
     SwitchTransformersTop1Router,
 )
+from .models.grounding_dino import (
+    GroundingDinoForObjectDetection,
+    GroundingDinoImageProcessor,
+    GroundingDinoModel,
+    GroundingDinoPreTrainedModel,
+    GroundingDinoProcessor,
+)
 from .models.t5 import (
     T5_PRETRAINED_MODEL_ARCHIVE_LIST,
     T5EncoderModel,
