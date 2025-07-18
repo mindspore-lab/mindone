@@ -349,6 +349,12 @@ from .models.siglip import (
     SiglipTextModel,
     SiglipVisionModel,
 )
+from .models.smolvlm import (
+    SmolVLMForConditionalGeneration,
+    SmolVLMModel,
+    SmolVLMPreTrainedModel,
+    SmolVLMVisionTransformer,
+)
 from .models.speecht5 import (
     SpeechT5ForSpeechToSpeech,
     SpeechT5ForSpeechToText,

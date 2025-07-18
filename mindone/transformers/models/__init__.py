@@ -64,6 +64,7 @@ from . import (
     qwen2_vl,
     roberta,
     siglip,
+    smolvlm,
     speecht5,
     switch_transformers,
     t5,
