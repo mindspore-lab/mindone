@@ -1132,7 +1132,7 @@ class SwinForMaskedImageModeling(SwinPreTrainedModel):
 
         Examples:
         ```python
-        >>> from transformers import AutoImageProcessor, SwinForMaskedImageModeling
+        >>> from mindone.transformers import AutoImageProcessor, SwinForMaskedImageModeling
         >>> import mindspore as ms
         >>> import mindspore.mint as mint
         >>> import mindspore.ops as ops
@@ -1348,7 +1348,7 @@ class SwinBackbone(SwinPreTrainedModel, BackboneMixin):
         Examples:
 
         ```python
-        >>> from transformers import AutoImageProcessor, AutoBackbone
+        >>> from mindone.transformers import AutoImageProcessor, AutoBackbone
         >>> import mindspore as ms
         >>> import mindspore.mint as mint
         >>> from PIL import Image
