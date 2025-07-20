@@ -13,7 +13,7 @@ import numpy as np
 import pytest
 import torch
 from transformers import GroundingDinoConfig, BertConfig
-
+from transformers.models.auto.configuration_auto import CONFIG_MAPPING
 import mindspore as ms
 
 from tests.modeling_test_utils import (
@@ -46,24 +46,30 @@ class GroundingDinoModelTester:
         use_labels=True,
         num_labels=3,
         # config parameters
-        encoder_layers=2,
-        encoder_ffn_dim=256,
+        backbone_config=None,
+        backbone=None,
+        use_pretrained_backbone=False,
+        use_timm_backbone=False,
+        backbone_kwargs=None,
+        text_config=None,
+        encoder_layers=6,
+        encoder_ffn_dim=24,
         encoder_attention_heads=4,
-        decoder_layers=2,
-        decoder_ffn_dim=256,
+        decoder_layers=1,
+        decoder_ffn_dim=24,
         decoder_attention_heads=4,
         is_encoder_decoder=True,
         activation_function="relu",
-        d_model=128,
+        d_model=256,
         dropout=0.1,
         attention_dropout=0.0,
         activation_dropout=0.0,
         auxiliary_loss=False,
         position_embedding_type="sine",
-        num_feature_levels=2,
-        encoder_n_points=2,
-        decoder_n_points=2,
-        two_stage=False,
+        num_feature_levels=4,
+        encoder_n_points=1,
+        decoder_n_points=1,
+        two_stage=True,
         class_cost=1.0,
         bbox_cost=5.0,
         giou_cost=2.0,
@@ -71,7 +77,8 @@ class GroundingDinoModelTester:
         giou_loss_coefficient=2.0,
         focal_alpha=0.25,
         disable_custom_kernels=False,
-        max_text_len=64,
+        # other parameters
+        max_text_len=256,
         text_enhancer_dropout=0.0,
         fusion_droppath=0.1,
         fusion_dropout=0.0,
@@ -137,8 +144,25 @@ class GroundingDinoModelTester:
         self.positional_embedding_temperature = positional_embedding_temperature
         self.init_std = init_std
         self.layer_norm_eps = layer_norm_eps
-        
-        # text config parameters
+        self.text_config = text_config
+        self.max_text_len = max_text_len
+
+        # Text Enhancer
+        self.text_enhancer_dropout = text_enhancer_dropout
+        # Fusion
+        self.fusion_droppath = fusion_droppath
+        self.fusion_dropout = fusion_dropout
+        # Others
+        self.embedding_init_target = embedding_init_target
+        self.query_dim = query_dim
+        self.decoder_bbox_embed_share = decoder_bbox_embed_share
+        self.two_stage_bbox_embed_share = two_stage_bbox_embed_share
+        if two_stage_bbox_embed_share and not decoder_bbox_embed_share:
+            raise ValueError("If two_stage_bbox_embed_share is True, decoder_bbox_embed_share must be True.")
+        self.positional_embedding_temperature = positional_embedding_temperature
+        self.init_std = init_std
+        self.layer_norm_eps = layer_norm_eps
+
         self.text_vocab_size = text_vocab_size
         self.text_hidden_size = text_hidden_size
         self.text_num_hidden_layers = text_num_hidden_layers
@@ -174,7 +198,7 @@ class GroundingDinoModelTester:
 
     def get_config(self):
         # Create text config
-        text_config = BertConfig(
+        self.text_config = BertConfig(
             vocab_size=self.text_vocab_size,
             hidden_size=self.text_hidden_size,
             num_hidden_layers=self.text_num_hidden_layers,
@@ -184,20 +208,17 @@ class GroundingDinoModelTester:
         )
         
         # Create simple backbone config for testing
-        backbone_config = {
-            "model_type": "resnet",
-            "num_channels": self.num_channels,
-            "embedding_size": 64,
-            "hidden_sizes": [64, 128],
-            "depths": [2, 2],
-            "layer_type": "bottleneck",
-            "hidden_act": "relu",
-            "downsample_in_first_stage": False,
-        }
-
+        self.backbone_config = CONFIG_MAPPING["swin"](
+            window_size=7,
+            image_size=224,
+            embed_dim=96,
+            depths=[2, 2, 6, 2],
+            num_heads=[3, 6, 12, 24],
+            out_indices=[2, 3, 4],
+        )
         return self.config_class(
-            backbone_config=backbone_config,
-            text_config=text_config,
+            backbone_config=self.backbone_config,
+            text_config=self.text_config,
             num_queries=self.num_queries,
             encoder_layers=self.encoder_layers,
             encoder_ffn_dim=self.encoder_ffn_dim,
