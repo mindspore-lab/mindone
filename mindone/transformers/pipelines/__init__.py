@@ -55,6 +55,8 @@ from .base import (
     get_default_model_and_revision,
     infer_framework_load_model,
 )
+from .image_classification import ImageClassificationPipeline
+from .image_segmentation import ImageSegmentationPipeline
 from .text2text_generation import Text2TextGenerationPipeline
 from .text_classification import TextClassificationPipeline
 from .text_generation import TextGenerationPipeline
@@ -64,6 +66,9 @@ if is_mindspore_available():
 
     from ..models.auto.modeling_auto import (
         AutoModelForCausalLM,
+        AutoModelForImageClassification,
+        AutoModelForImageSegmentation,
+        AutoModelForSemanticSegmentation,
         AutoModelForSeq2SeqLM,
         AutoModelForSequenceClassification,
         AutoModelForTokenClassification,
@@ -87,6 +92,22 @@ TASK_ALIASES = {
     "text-to-speech": "text-to-audio",
 }
 SUPPORTED_TASKS = {
+    "image-classification": {
+        "impl": ImageClassificationPipeline,
+        "ms": (AutoModelForImageClassification,) if is_mindspore_available() else (),
+        "default": {
+            "model": {
+                "ms": ("google/vit-base-patch16-224", "3f49326"),
+            }
+        },
+        "type": "image",
+    },
+    "image-segmentation": {
+        "impl": ImageSegmentationPipeline,
+        "ms": (AutoModelForImageSegmentation, AutoModelForSemanticSegmentation) if is_mindspore_available() else (),
+        "default": {"model": {"ms": ("facebook/detr-resnet-50-panoptic", "d53b52a")}},
+        "type": "multimodal",
+    },
     "text-classification": {
         "impl": TextClassificationPipeline,
         "ms": (AutoModelForSequenceClassification,) if is_mindspore_available() else (),
