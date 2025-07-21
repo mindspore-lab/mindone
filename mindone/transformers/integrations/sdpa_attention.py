@@ -3,7 +3,11 @@ from math import sqrt
 from typing import Optional
 
 import mindspore as ms
-from mindspore import mint, nn
+from mindspore import mint, nn, ops
+
+from ..utils import logging
+
+logger = logging.get_logger(__name__)
 
 
 def repeat_kv(hidden_states: ms.Tensor, n_rep: int) -> ms.Tensor:
@@ -23,12 +27,18 @@ def sdpa_attention_forward(
     query: ms.Tensor,
     key: ms.Tensor,
     value: ms.Tensor,
-    attention_mask: Optional[ms.Tensor],
+    attention_mask: Optional[ms.Tensor] = None,
     dropout: float = 0.0,
     scaling: Optional[float] = None,
     is_causal: Optional[bool] = None,
     **kwargs,
 ) -> tuple[ms.Tensor, None]:
+    if kwargs.get("output_attentions", False) or kwargs.get("head_mask", None) is not None:
+        logger.warning_once(
+            "`sdpa` attention does not support `output_attentions=True` or `head_mask`."
+            " Please set your attention to `eager` if you want any of these features."
+        )
+
     if hasattr(module, "num_key_value_groups"):
         key = repeat_kv(key, module.num_key_value_groups)
         value = repeat_kv(value, module.num_key_value_groups)
@@ -44,31 +54,26 @@ def sdpa_attention_forward(
         # This is mainly due to those models having mixed implementations for encoder, decoder, and encoder-decoder attns
         is_causal = query.shape[2] > 1 and attention_mask is None and getattr(module, "is_causal", True)
 
-    # PyTorch's scaled_dot_product_attention()
-    scaling = 1 / sqrt(query.shape[-1]) if scaling is None else scaling
-    attn_weights = mint.matmul(query, mint.transpose(key, -2, -1)) * scaling
-
     if is_causal:
         if attention_mask is not None:
             raise ValueError("Causal mode cannot be used with an explicit `attention_mask`")
+        attention_mask = mint.ones((query.shape[-2], key.shape[-2]), dtype=ms.bool_).tril(diagonal=0)
 
-        L, S = query.shape[-2], key.shape[-2]
-        attn_bias = mint.zeros((L, S), dtype=query.dtype)
-        temp_mask = mint.ones((L, S), dtype=ms.bool_).tril(diagonal=0)
-        attn_bias.masked_fill_(temp_mask.logical_not(), float("-inf"))
-        attn_weights += attn_bias
+    if attention_mask is not None:
+        attention_mask = mint.logical_not(attention_mask)  # in MindSpore, 0 indicates retain, 1 indicates discard
 
-    elif attention_mask is not None:
-        if attention_mask.dtype == ms.bool_:
-            attn_bias = mint.zeros_like(attention_mask, dtype=query.dtype)
-            attn_bias.masked_fill_(attention_mask.logical_not(), float("-inf"))
-        else:
-            attn_bias = attention_mask
-        attn_weights += attn_bias
+    scaling = 1 / sqrt(query.shape[-1]) if scaling is None else scaling
 
-    attn_weights = mint.nn.functional.softmax(attn_weights, dim=-1, dtype=ms.float32).to(query.dtype)
-    attn_weights = mint.nn.functional.dropout(attn_weights, p=dropout, training=module.training)
-    attn_output = mint.matmul(attn_weights, value)
+    attn_output = ops.speed_fusion_attention(
+        query,
+        key,
+        value,
+        head_num=query.shape[1],
+        input_layout="BNSD",
+        atten_mask=attention_mask,
+        scale=scaling,
+        keep_prob=1 - dropout,
+    )[0]
     attn_output = mint.transpose(attn_output, 1, 2).contiguous()
 
-    return attn_output, attn_weights
+    return attn_output, None
