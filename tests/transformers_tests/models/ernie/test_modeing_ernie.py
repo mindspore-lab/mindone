@@ -1,13 +1,20 @@
-# This module contains test cases that are defined in the `.test_cases.py` file, structured as lists or tuples like
-#     [name, pt_module, ms_module, init_args, init_kwargs, inputs_args, inputs_kwargs, outputs_map].
+# coding=utf-8
+# Copyright 2022 The HuggingFace Team. All rights reserved.
 #
-# Each defined case corresponds to a pair consisting of PyTorch and MindSpore modules, including their respective
-# initialization parameters and inputs for the forward. The testing framework adopted here is designed to generically
-# parse these parameters to assess and compare the precision of forward outcomes between the two frameworks.
+# This code is adapted from https://github.com/huggingface/transformers
+# with modifications to run transformers on mindspore.
 #
-# In cases where models have unique initialization procedures or require testing with specialized output formats,
-# it is necessary to develop distinct, dedicated test cases.
-
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
 import inspect
 
 import numpy as np

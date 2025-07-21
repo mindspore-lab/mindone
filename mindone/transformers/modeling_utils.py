@@ -2445,7 +2445,6 @@ class PreTrainedModel(nn.Cell, ModuleUtilsMixin, GenerationMixin, PushToHubMixin
 
         return key_renaming_mapping
 
-
     @classmethod
     def _load_pretrained_model(
         cls,
