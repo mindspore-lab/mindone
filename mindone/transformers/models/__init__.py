@@ -23,6 +23,8 @@ from . import (
     auto,
     bamba,
     bart,
+    barthez,
+    bartpho,
     bert,
     bert_generation,
     big_bird,
