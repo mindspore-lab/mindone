@@ -2,7 +2,8 @@ from typing import Any, Dict, List, Union
 
 import numpy as np
 
-from ..utils import add_end_docstrings, is_mindspore_available, is_vision_available, logging, requires_backends
+from transformers.utils import add_end_docstrings
+from ..utils import is_mindspore_available, is_vision_available, logging, requires_backends
 from .base import Pipeline, build_pipeline_init_args
 
 if is_vision_available():

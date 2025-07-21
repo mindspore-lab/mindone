@@ -126,13 +126,13 @@ class ViTEmbeddings(nn.Cell):
 
         if bool_masked_pos is not None:
             seq_length = embeddings.shape[1]
-            mask_tokens = self.mask_token.expand(batch_size, seq_length, -1)
+            mask_tokens = self.mask_token.expand((batch_size, seq_length, -1))
             # replace the masked visual tokens by mask_tokens
             mask = bool_masked_pos.unsqueeze(-1).type_as(mask_tokens)
             embeddings = embeddings * (1.0 - mask) + mask_tokens * mask
 
         # add the [CLS] token to the embedded patch tokens
-        cls_tokens = self.cls_token.expand(batch_size, -1, -1)
+        cls_tokens = self.cls_token.expand((batch_size, -1, -1))
         embeddings = mint.cat((cls_tokens, embeddings), dim=1)
 
         # add positional encoding to each token
@@ -185,7 +185,7 @@ class ViTPatchEmbeddings(nn.Cell):
         return embeddings
 
 
-def eager_attention_construct(
+def eager_attention_forward(
     module: nn.Cell,
     query: ms.Tensor,
     key: ms.Tensor,
@@ -248,7 +248,7 @@ class ViTSelfAttention(nn.Cell):
         value_layer = self.transpose_for_scores(self.value(hidden_states))
         query_layer = self.transpose_for_scores(self.query(hidden_states))
 
-        attention_interface: Callable = eager_attention_construct
+        attention_interface: Callable = eager_attention_forward
         if self.config._attn_implementation != "eager":
             if self.config._attn_implementation == "sdpa" and output_attentions:
                 logger.warning_once(
@@ -370,7 +370,7 @@ class ViTLayer(nn.Cell):
 
     def __init__(self, config: ViTConfig) -> None:
         super().__init__()
-        self.chunk_size_feed_construct = config.chunk_size_feed_construct
+        self.chunk_size_feed_forward = config.chunk_size_feed_forward
         self.seq_len_dim = 1
         self.attention = ViTAttention(config)
         self.intermediate = ViTIntermediate(config)

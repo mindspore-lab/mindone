@@ -15,9 +15,9 @@ from typing import List, Union
 
 import numpy as np
 
+from transformers.utils import add_end_docstrings
 from ..utils import (
     ExplicitEnum,
-    add_end_docstrings,
     is_mindspore_available,
     is_vision_available,
     logging,

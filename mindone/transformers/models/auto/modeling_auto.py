@@ -86,6 +86,7 @@ MODEL_MAPPING_NAMES = OrderedDict(
         ("speecht5", "SpeechT5Model"),
         ("t5", "T5Model"),
         ("umt5", "UMT5Model"),
+        ("vit", "ViTModel"),
         ("wav2vec2", "Wav2Vec2Model"),
         ("whisper", "WhisperModel"),
         ("xlm-roberta", "XLMRobertaModel"),
@@ -182,10 +183,13 @@ MODEL_FOR_IMAGE_MAPPING_NAMES = OrderedDict(
         ("ijepa", "IJepaModel"),
         ("imagegpt", "ImageGPTModel"),
         ("levit", "LevitModel"),
+        ("vit", "ViTModel"),
     ]
 )
 
-MODEL_FOR_MASKED_IMAGE_MODELING_MAPPING_NAMES = OrderedDict()
+MODEL_FOR_MASKED_IMAGE_MODELING_MAPPING_NAMES = OrderedDict(
+    ("vit", "ViTForMaskedImageModeling"),
+)
 
 
 MODEL_FOR_CAUSAL_IMAGE_MODELING_MAPPING_NAMES = OrderedDict(
@@ -207,6 +211,7 @@ MODEL_FOR_IMAGE_CLASSIFICATION_MAPPING_NAMES = OrderedDict(
             ("LevitForImageClassification", "LevitForImageClassificationWithTeacher"),
         ),
         ("siglip", "SiglipForImageClassification"),
+        ("vit", "ViTForImageClassification"),
     ]
 )
 
