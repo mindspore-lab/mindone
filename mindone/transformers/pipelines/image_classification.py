@@ -17,15 +17,9 @@
 from typing import List, Union
 
 import numpy as np
-
 from transformers.utils import add_end_docstrings
-from ..utils import (
-    ExplicitEnum,
-    is_mindspore_available,
-    is_vision_available,
-    logging,
-    requires_backends,
-)
+
+from ..utils import ExplicitEnum, is_mindspore_available, is_vision_available, logging, requires_backends
 from .base import Pipeline, build_pipeline_init_args
 
 if is_vision_available():
@@ -181,7 +175,7 @@ class ImageClassificationPipeline(Pipeline):
             model_inputs = model_inputs.to(self.torch_dtype)
         return model_inputs
 
-    def _construct(self, model_inputs):
+    def _forward(self, model_inputs):
         model_outputs = self.model(**model_inputs)
         return model_outputs
 

@@ -21,21 +21,7 @@ import collections.abc
 import math
 from typing import Callable, Dict, List, Optional, Set, Tuple, Union
 
-import mindspore as ms
-import mindspore.mint as mint
-from mindspore import nn
-from mindspore.mint.nn import BCEWithLogitsLoss, CrossEntropyLoss, MSELoss
-from mindone.models.utils import trunc_normal_, normal_, zeros_, ones_
-
-from ...activations import ACT2FN
-from ...modeling_outputs import (
-    BaseModelOutput,
-    BaseModelOutputWithPooling,
-    ImageClassifierOutput,
-    MaskedImageModelingOutput,
-)
-from ...modeling_utils import ALL_ATTENTION_FUNCTIONS, PreTrainedModel
-from ...mindspore_utils import find_pruneable_heads_and_indices, prune_linear_layer
+from transformers import ViTConfig
 from transformers.utils import (
     add_code_sample_docstrings,
     add_start_docstrings,
@@ -43,8 +29,23 @@ from transformers.utils import (
     logging,
     replace_return_docstrings,
 )
-from transformers import ViTConfig
 
+import mindspore as ms
+import mindspore.mint as mint
+from mindspore import nn
+from mindspore.mint.nn import BCEWithLogitsLoss, CrossEntropyLoss, MSELoss
+
+from mindone.models.utils import ones_, trunc_normal_, zeros_
+
+from ...activations import ACT2FN
+from ...mindspore_utils import find_pruneable_heads_and_indices, prune_linear_layer
+from ...modeling_outputs import (
+    BaseModelOutput,
+    BaseModelOutputWithPooling,
+    ImageClassifierOutput,
+    MaskedImageModelingOutput,
+)
+from ...modeling_utils import ALL_ATTENTION_FUNCTIONS, PreTrainedModel
 
 logger = logging.get_logger(__name__)
 
@@ -128,13 +129,13 @@ class ViTEmbeddings(nn.Cell):
 
         if bool_masked_pos is not None:
             seq_length = embeddings.shape[1]
-            mask_tokens = self.mask_token.expand((batch_size, seq_length, -1))
+            mask_tokens = self.mask_token.broadcast_to((batch_size, seq_length, -1))
             # replace the masked visual tokens by mask_tokens
             mask = bool_masked_pos.unsqueeze(-1).type_as(mask_tokens)
             embeddings = embeddings * (1.0 - mask) + mask_tokens * mask
 
         # add the [CLS] token to the embedded patch tokens
-        cls_tokens = self.cls_token.expand((batch_size, -1, -1))
+        cls_tokens = self.cls_token.broadcast_to((batch_size, -1, -1))
         embeddings = mint.cat((cls_tokens, embeddings), dim=1)
 
         # add positional encoding to each token
@@ -183,7 +184,7 @@ class ViTPatchEmbeddings(nn.Cell):
                     f"Input image size ({height}*{width}) doesn't match model"
                     f" ({self.image_size[0]}*{self.image_size[1]})."
                 )
-        embeddings = self.projection(pixel_values).flatten(2).transpose(1, 2)
+        embeddings = self.projection(pixel_values).flatten(2).swapaxes(1, 2)
         return embeddings
 
 
@@ -198,7 +199,7 @@ def eager_attention_forward(
     **kwargs,
 ):
     # Take the dot product between "query" and "key" to get the raw attention scores.
-    attn_weights = mint.matmul(query, key.transpose(-1, -2)) * scaling
+    attn_weights = mint.matmul(query, key.swapaxes(-1, -2)) * scaling
 
     # Normalize the attention scores to probabilities.
     attn_weights = mint.nn.functional.softmax(attn_weights, dim=-1, dtype=ms.float32).to(query.dtype)
@@ -212,7 +213,7 @@ def eager_attention_forward(
         attn_weights = attn_weights * attention_mask
 
     attn_output = mint.matmul(attn_weights, value)
-    attn_output = attn_output.transpose(1, 2).contiguous()
+    attn_output = attn_output.swapaxes(1, 2).contiguous()
 
     return attn_output, attn_weights
 
@@ -266,7 +267,7 @@ class ViTSelfAttention(nn.Cell):
             key_layer,
             value_layer,
             head_mask,
-            is_causal=self.is_causal, # TODO: wait for PR to be merged
+            is_causal=self.is_causal,
             scaling=self.scaling,
             dropout=0.0 if not self.training else self.dropout_prob,
         )
@@ -443,13 +444,7 @@ class ViTEncoder(nn.Cell):
         if output_hidden_states:
             all_hidden_states = all_hidden_states + (hidden_states,)
 
-        if not return_dict:
-            return tuple(v for v in [hidden_states, all_hidden_states, all_self_attentions] if v is not None)
-        return BaseModelOutput(
-            last_hidden_state=hidden_states,
-            hidden_states=all_hidden_states,
-            attentions=all_self_attentions,
-        )
+        return hidden_states, all_hidden_states, all_self_attentions  # support jit
 
 
 class ViTPreTrainedModel(PreTrainedModel):
@@ -489,7 +484,7 @@ class ViTPreTrainedModel(PreTrainedModel):
 
 
 VIT_START_DOCSTRING = r"""
-    This model is a MindSpore [mindspore.nn.Cell](https://www.mindspore.cn/docs/en/master/api_python/nn/mindspore.nn.Cell.html) subclass. 
+    This model is a MindSpore [mindspore.nn.Cell](https://www.mindspore.cn/docs/en/master/api_python/nn/mindspore.nn.Cell.html) subclass.
     Use it as a regular MindSpore Module and refer to the MindSpore documentation for all matter related to general usage and behavior.
 
     Parameters:
@@ -560,6 +555,7 @@ class ViTModel(ViTPreTrainedModel):
         modality="vision",
         expected_output=_EXPECTED_OUTPUT_SHAPE,
     )
+    # @ms.jit
     def construct(
         self,
         pixel_values: Optional[ms.Tensor] = None,
@@ -612,13 +608,13 @@ class ViTModel(ViTPreTrainedModel):
 
         if not return_dict:
             head_outputs = (sequence_output, pooled_output) if pooled_output is not None else (sequence_output,)
-            return head_outputs + encoder_outputs[1:]
+            return head_outputs + tuple(v for v in encoder_outputs[1:] if v is not None)
 
         return BaseModelOutputWithPooling(
             last_hidden_state=sequence_output,
             pooler_output=pooled_output,
-            hidden_states=encoder_outputs.hidden_states,
-            attentions=encoder_outputs.attentions,
+            hidden_states=encoder_outputs[1],
+            attentions=encoder_outputs[2],
         )
 
 
@@ -702,7 +698,7 @@ class ViTForMaskedImageModeling(ViTPreTrainedModel):
         >>> num_patches = (model.config.image_size // model.config.patch_size) ** 2
         >>> pixel_values = image_processor(images=image, return_tensors="np").pixel_values
         >>> pixel_values = ms.Tensor(pixel_values)
-		>>> # create random boolean mask of shape (batch_size, num_patches)
+                >>> # create random boolean mask of shape (batch_size, num_patches)
         >>> bool_masked_pos = ms.mint.randint(0, 2, (1, num_patches)).bool()
 
         >>> outputs = model(pixel_values, bool_masked_pos=bool_masked_pos)
@@ -713,7 +709,7 @@ class ViTForMaskedImageModeling(ViTPreTrainedModel):
         >>> # model predicts one of the 1000 ImageNet classes
         >>> predicted_class_idx = logits.argmax(-1).item()
         >>> print("Predicted class:", model.config.id2label[predicted_class_idx])
-		Predicted class: Egyptian cat
+                Predicted class: Egyptian cat
         ```"""
         return_dict = return_dict if return_dict is not None else self.config.use_return_dict
 
@@ -793,7 +789,9 @@ class ViTForImageClassification(ViTPreTrainedModel):
         self.vit = ViTModel(config, add_pooling_layer=False)
 
         # Classifier head
-        self.classifier = mint.nn.Linear(config.hidden_size, config.num_labels) if config.num_labels > 0 else mint.nn.Identity()
+        self.classifier = (
+            mint.nn.Linear(config.hidden_size, config.num_labels) if config.num_labels > 0 else mint.nn.Identity()
+        )
 
         # Initialize weights and apply final processing
         self.post_init()

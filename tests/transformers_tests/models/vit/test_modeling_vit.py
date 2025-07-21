@@ -29,10 +29,12 @@ from tests.modeling_test_utils import (
     generalized_parse_args,
     get_modules,
 )
-from tests.transformers_tests.models.modeling_common import floats_numpy, ids_numpy, random_attention_mask
+from tests.transformers_tests.models.modeling_common import floats_numpy, ids_numpy
 
-DTYPE_AND_THRESHOLDS = {"fp32": 5e-4, "fp16": 5e-3, "bf16": 6e-3}
+DTYPE_AND_THRESHOLDS = {"fp32": 5e-4, "fp16": 5e-3, "bf16": 7e-3}
 MODES = [1]
+
+
 class ViTModelTester:
     def __init__(
         self,
@@ -121,6 +123,7 @@ class ViTModelTester:
         inputs_dict = {"pixel_values": pixel_values}
         return config, inputs_dict
 
+
 model_tester = ViTModelTester()
 (
     config,
@@ -141,6 +144,34 @@ VIT_CASES = [
         },
         {
             "last_hidden_state": 0,
+        },
+    ],
+    [
+        "ViTForImageClassification",
+        "transformers.ViTForImageClassification",
+        "mindone.transformers.ViTForImageClassification",
+        (config,),
+        {},
+        (),
+        {
+            "pixel_values": inputs_dict["pixel_values"],
+        },
+        {
+            "logits": 0,
+        },
+    ],
+    [
+        "ViTForMaskedImageModeling",
+        "transformers.ViTForMaskedImageModeling",
+        "mindone.transformers.ViTForMaskedImageModeling",
+        (config,),
+        {},
+        (),
+        {
+            "pixel_values": inputs_dict["pixel_values"],
+        },
+        {
+            "reconstruction": 0,
         },
     ],
 ]

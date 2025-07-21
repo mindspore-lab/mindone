@@ -17,8 +17,8 @@
 from typing import Any, Dict, List, Union
 
 import numpy as np
-
 from transformers.utils import add_end_docstrings
+
 from ..utils import is_mindspore_available, is_vision_available, logging, requires_backends
 from .base import Pipeline, build_pipeline_init_args
 
@@ -183,7 +183,7 @@ class ImageSegmentationPipeline(Pipeline):
         inputs["target_size"] = target_size
         return inputs
 
-    def _construct(self, model_inputs):
+    def _forward(self, model_inputs):
         target_size = model_inputs.pop("target_size")
         model_outputs = self.model(**model_inputs)
         model_outputs["target_size"] = target_size
