@@ -36,6 +36,8 @@ CONFIG_MAPPING_NAMES = OrderedDict(
     [
         # Add configs here
         ("albert", "AlbertConfig"),
+        ("aria", "AriaConfig"),
+        ("aria_text", "AriaTextConfig"),
         ("bert", "BertConfig"),
         ("bart", "BartConfig"),
         ("bit", "BitConfig"),
@@ -102,6 +104,8 @@ MODEL_NAMES_MAPPING = OrderedDict(
     [
         # Add full (and cased) model names here
         ("albert", "ALBERT"),
+        ("aria", "Aria"),
+        ("aria_text", "AriaText"),
         ("bert", "BERT"),
         ("bart", "BART"),
         ("bit", "BiT"),
@@ -216,6 +220,7 @@ SPECIAL_MODEL_TYPE_TO_MODULE_NAME = OrderedDict(
         ("gemma3_text", "gemma3"),
         ("idefics3_vision", "idefics3"),
         ("clip_text_model", "clip"),
+        ("aria_text", "aria"),
         ("siglip_vision_model", "siglip"),
         ("chinese_clip_vision_model", "chinese_clip"),
         ("rt_detr_resnet", "rt_detr"),

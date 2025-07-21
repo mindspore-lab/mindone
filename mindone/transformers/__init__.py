@@ -41,6 +41,13 @@ from .models.albert import (
     AlbertModel,
     AlbertPreTrainedModel,
 )
+from .models.aria import (
+    AriaForConditionalGeneration,
+    AriaPreTrainedModel,
+    AriaTextForCausalLM,
+    AriaTextModel,
+    AriaTextPreTrainedModel,
+)
 from .models.auto import (
     AutoConfig,
     AutoFeatureExtractor,
