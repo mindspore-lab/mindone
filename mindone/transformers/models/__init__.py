@@ -21,6 +21,8 @@ from . import (
     albert,
     auto,
     bart,
+    barthez,
+    bartpho,
     bert,
     big_bird,
     bigbird_pegasus,
