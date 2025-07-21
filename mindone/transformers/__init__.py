@@ -367,6 +367,7 @@ from .models.speecht5 import (
     SpeechT5Model,
     SpeechT5PreTrainedModel,
 )
+from .models.swin2sr import Swin2SRForImageSuperResolution, Swin2SRModel, Swin2SRPreTrainedModel
 from .models.switch_transformers import (
     SwitchTransformersEncoderModel,
     SwitchTransformersForConditionalGeneration,
@@ -422,7 +423,13 @@ from .models.xlm_roberta_xl import (
     XLMRobertaXLModel,
     XLMRobertaXLPreTrainedModel,
 )
-from .pipelines import TextGenerationPipeline, pipeline
+from .pipelines import (
+    ImageToImagePipeline,
+    ImageToTextPipeline,
+    TextGenerationPipeline,
+    VisualQuestionAnsweringPipeline,
+    pipeline,
+)
 from .processing_utils import ProcessorMixin
 
 if version.parse(transformers.__version__) >= version.parse("4.51.0"):

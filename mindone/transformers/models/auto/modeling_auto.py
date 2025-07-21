@@ -89,6 +89,7 @@ MODEL_MAPPING_NAMES = OrderedDict(
         ("siglip", "SiglipModel"),
         ("siglip_vision_model", "SiglipVisionModel"),
         ("speecht5", "SpeechT5Model"),
+        ("swin2sr", "Swin2SRModel"),
         ("t5", "T5Model"),
         ("umt5", "UMT5Model"),
         ("wav2vec2", "Wav2Vec2Model"),
@@ -192,6 +193,7 @@ MODEL_FOR_IMAGE_MAPPING_NAMES = OrderedDict(
         ("ijepa", "IJepaModel"),
         ("imagegpt", "ImageGPTModel"),
         ("levit", "LevitModel"),
+        ("swin2sr", "Swin2SRModel"),
     ]
 )
 
@@ -517,7 +519,11 @@ MODEL_FOR_TIME_SERIES_CLASSIFICATION_MAPPING_NAMES = OrderedDict()
 
 MODEL_FOR_TIME_SERIES_REGRESSION_MAPPING_NAMES = OrderedDict()
 
-MODEL_FOR_IMAGE_TO_IMAGE_MAPPING_NAMES = OrderedDict()
+MODEL_FOR_IMAGE_TO_IMAGE_MAPPING_NAMES = OrderedDict(
+    [
+        ("swin2sr", "Swin2SRForImageSuperResolution"),
+    ]
+)
 
 
 if version.parse(transformers.__version__) >= version.parse("4.51.0"):
