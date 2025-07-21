@@ -12,6 +12,7 @@ Mindspore Qwen2 model.
 """
 
 import math
+import os
 from typing import Callable, List, Optional, Tuple, Union
 
 from transformers import Qwen2Config, logging
@@ -297,6 +298,139 @@ class Qwen2Attention(nn.Cell):
         return attn_output, attn_weights, past_key_value
 
 
+class Qwen2MLAAttention(nn.Cell):
+    """
+    Multi-headed attention from 'Attention Is All You Need' paper. Modified to use sliding window attention: Longformer
+    and "Generating Long Sequences with Sparse Transformers".
+    """
+
+    def __init__(self, config: Qwen2Config, layer_idx: Optional[int] = None):
+        super().__init__()
+        self.config = config
+        self.layer_idx = layer_idx
+        if layer_idx is None:
+            logger.warning_once(
+                f"Instantiating {self.__class__.__name__} without passing `layer_idx` is not recommended and will "
+                "to errors during the forward call, if caching is used. Please make sure to provide a `layer_idx` "
+                "when creating this class."
+            )
+
+        self.hidden_size = config.hidden_size
+        self.num_heads = config.num_attention_heads
+        self.head_dim = self.hidden_size // self.num_heads
+        self.num_key_value_heads = config.num_key_value_heads
+        self.num_key_value_groups = self.num_heads // self.num_key_value_heads
+        self.max_position_embeddings = config.max_position_embeddings
+        self.rope_theta = config.rope_theta
+        self.is_causal = True
+        self.attention_dropout = config.attention_dropout
+
+        self.q_lora_rank = config.intermediate_size // 14
+        self.qk_nope_head_dim = self.head_dim
+        self.qk_rope_head_dim = self.head_dim // 2
+        self.v_head_dim = self.head_dim
+        self.qk_head_dim = self.qk_nope_head_dim + self.qk_rope_head_dim
+        self.kv_lora_rank = config.hidden_size // 14
+
+        self.q_a_proj = nn.Dense(config.hidden_size, self.q_lora_rank, has_bias=True)
+        self.q_a_layernorm = Qwen2RMSNorm(self.q_lora_rank)
+        self.q_b_proj = nn.Dense(self.q_lora_rank, self.num_heads * self.qk_head_dim, has_bias=True)
+
+        self.kv_a_proj_with_mqa = nn.Dense(
+            config.hidden_size,
+            self.kv_lora_rank + self.qk_rope_head_dim,
+            has_bias=True,
+        )
+        self.kv_a_layernorm = Qwen2RMSNorm(self.kv_lora_rank)
+        self.kv_b_proj = nn.Dense(
+            self.kv_lora_rank,
+            self.num_heads * (self.qk_nope_head_dim + self.v_head_dim),
+            has_bias=True,
+        )
+
+        self.o_proj = nn.Dense(self.num_heads * self.v_head_dim, self.hidden_size, has_bias=False)
+
+        self.rotary_emb = Qwen2RotaryEmbedding(config)
+
+        self.scale = self.head_dim**-0.5
+
+    def construct(
+        self,
+        hidden_states: ms.Tensor,
+        attention_mask: Optional[ms.Tensor] = None,
+        position_ids: Optional[ms.Tensor] = None,
+        past_key_value: Optional[Cache] = None,
+        output_attentions: bool = False,
+        use_cache: bool = False,
+        cache_position: Optional[ms.Tensor] = None,
+        position_embeddings: Optional[Tuple[ms.Tensor, ms.Tensor]] = None,
+        **kwargs: Unpack[FlashAttentionKwargs],
+    ) -> Tuple[ms.Tensor, Optional[ms.Tensor], Optional[Tuple[ms.Tensor]]]:
+        bsz, q_len, _ = hidden_states.shape
+
+        query_states = self.q_b_proj(self.q_a_layernorm(self.q_a_proj(hidden_states)))
+        query_states = query_states.view(bsz, q_len, self.num_heads, self.qk_head_dim).transpose(1, 2)
+        query_pass, query_rot = mint.split(query_states, [self.qk_nope_head_dim, self.qk_rope_head_dim], dim=-1)
+
+        compressed_kv = self.kv_a_proj_with_mqa(hidden_states)
+        key_pass, key_rot = mint.split(compressed_kv, [self.kv_lora_rank, self.qk_rope_head_dim], dim=-1)
+
+        key_pass = self.kv_b_proj(self.kv_a_layernorm(key_pass))
+        key_pass = key_pass.view(bsz, q_len, self.num_heads, self.qk_nope_head_dim + self.v_head_dim).transpose(1, 2)
+        key_pass, value_states = mint.split(key_pass, [self.qk_nope_head_dim, self.v_head_dim], dim=-1)
+
+        key_rot = key_rot.view(bsz, 1, q_len, self.qk_rope_head_dim)
+
+        cos, sin = position_embeddings
+        query_rot, key_rot = apply_rotary_pos_emb(query_rot, key_rot, cos, sin)
+        key_rot = key_rot.expand((*key_pass.shape[:-1], -1))
+
+        query_states = mint.cat((query_pass, query_rot), dim=-1)
+        key_states = mint.cat((key_pass, key_rot), dim=-1)
+
+        if past_key_value is not None:
+            key_states, value_states = update(past_key_value, key_states, value_states, cache_position)
+            past_key_value = (key_states, value_states)
+
+        attention_interface: Callable = eager_attention_forward
+        if self.config._attn_implementation != "eager":
+            if self.config._attn_implementation == "sdpa" and not output_attentions:
+                logger.warning_once(
+                    "`mindspore.ops.scaled_dot_product_attention` does not support `output_attentions=True`. Falling back to "
+                    'eager attention. This warning can be removed using the argument `attn_implementation="eager"` when loading the model.'
+                )
+            else:
+                attention_interface = ALL_ATTENTION_FUNCTIONS[self.config._attn_implementation]
+
+        sliding_window = None
+        if (
+            self.config.use_sliding_window
+            and getattr(self.config, "sliding_window", None) is not None
+            and self.layer_idx >= self.config.max_window_layers
+        ):
+            sliding_window = self.config.sliding_window
+
+        attn_output, attn_weights = attention_interface(
+            self,
+            query_states,
+            key_states,
+            value_states,
+            attention_mask,
+            dropout=0.0 if not self.training else self.attention_dropout,
+            scaling=self.scale,
+            sliding_window=sliding_window,
+            **kwargs,
+        )
+
+        attn_output = attn_output.reshape(bsz, q_len, self.hidden_size)
+        attn_output = self.o_proj(attn_output)
+
+        if not output_attentions:
+            attn_weights = None
+
+        return attn_output, attn_weights, past_key_value
+
+
 class Qwen2PageAttention(Qwen2Attention):
     """
     Llama flash attention module. This module inherits from `LlamaAttention` as the weights of the module stays
@@ -377,11 +511,15 @@ class Qwen2DecoderLayer(nn.Cell):
                 f"Sliding Window Attention is enabled but not implemented for `{config._attn_implementation}`; "
                 "unexpected results may be encountered."
             )
-        self.self_attn = (
-            Qwen2Attention(config, layer_idx)
-            if not config._attn_implementation == "paged_attention"
-            else Qwen2PageAttention(config=config, layer_idx=layer_idx)
-        )
+
+        if config._attn_implementation == "paged_attention":
+            self.self_attn = Qwen2PageAttention(config=config, layer_idx=layer_idx)
+        elif os.environ["USE_MLA"] == "1":
+            print("Use MLA attention.")
+            self.self_attn = Qwen2MLAAttention(config=config, layer_idx=layer_idx)
+        else:
+            print("Use vanilla attention.")
+            self.self_attn = Qwen2Attention(config=config, layer_idx=layer_idx)
 
         self.mlp = Qwen2MLP(config)
         self.input_layernorm = Qwen2RMSNorm(config.hidden_size, eps=config.rms_norm_eps)
