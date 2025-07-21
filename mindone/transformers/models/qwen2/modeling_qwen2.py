@@ -22,6 +22,7 @@ import mindspore as ms
 from mindspore import Parameter, Tensor, mint, nn, ops
 from mindspore.nn import BCEWithLogitsLoss, CrossEntropyLoss, MSELoss
 
+from mindone.models.utils import normal_, zeros_
 from mindone.transformers.cache_utils import Cache, get_max_length, get_seq_length, update
 from mindone.transformers.generation import GenerationMixin
 from mindone.transformers.mindspore_adapter import str_to_dtype
@@ -646,16 +647,15 @@ class Qwen2PreTrainedModel(MSPreTrainedModel):
     _supports_attention_backend = True
 
     def _init_weights(self, module):
-        # std = self.config.initializer_range
-        # if isinstance(module, nn.Dense):
-        #     module.weight.data.normal_(mean=0.0, std=std)
-        #     if module.bias is not None:
-        #         module.bias.data.zero_()
-        # elif isinstance(module, nn.Embedding):
-        #     module.weight.data.normal_(mean=0.0, std=std)
-        #     if module.padding_idx is not None:
-        #         module.weight.data[module.padding_idx].zero_()
-        pass
+        std = self.config.initializer_range
+        if isinstance(module, nn.Dense):
+            normal_(module.weight, mean=0.0, std=std)
+            if module.bias is not None:
+                zeros_(module.bias)
+        elif isinstance(module, nn.Embedding):
+            normal_(module.embedding_table, mean=0.0, std=std)
+            if module.padding_idx is not None:
+                module.embedding_table[module.padding_idx] = 0
 
 
 QWEN2_INPUTS_DOCSTRING = r"""
