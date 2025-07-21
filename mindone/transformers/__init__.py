@@ -47,6 +47,7 @@ from .models.auto import (
     AutoImageProcessor,
     AutoModel,
     AutoModelForCausalLM,
+    AutoModelForImageTextToText,
     AutoModelForMaskedLM,
     AutoProcessor,
 )
