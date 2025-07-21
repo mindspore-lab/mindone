@@ -5,7 +5,6 @@ import numpy as np
 from ..utils import add_end_docstrings, is_mindspore_available, is_vision_available, logging, requires_backends
 from .base import Pipeline, build_pipeline_init_args
 
-
 if is_vision_available():
     from PIL import Image
 
@@ -36,7 +35,7 @@ class ImageSegmentationPipeline(Pipeline):
     Example:
 
     ```python
-    >>> from transformers import pipeline
+    >>> from mindone.transformers import pipeline
 
     >>> segmenter = pipeline(model="facebook/detr-resnet-50-panoptic")
     >>> segments = segmenter("https://huggingface.co/datasets/Narsil/image_dummy/raw/main/parrots.png")

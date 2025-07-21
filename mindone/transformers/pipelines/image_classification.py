@@ -25,7 +25,6 @@ from ..utils import (
 )
 from .base import Pipeline, build_pipeline_init_args
 
-
 if is_vision_available():
     from PIL import Image
 
@@ -33,7 +32,6 @@ if is_vision_available():
 
 if is_mindspore_available():
     import mindspore as ms
-    from mindspore import mint
 
     from ..models.auto.modeling_auto import MODEL_FOR_IMAGE_CLASSIFICATION_MAPPING_NAMES
 
@@ -79,11 +77,12 @@ class ImageClassificationPipeline(Pipeline):
     Example:
 
     ```python
-    >>> from transformers import pipeline
+    >>> from mindone.transformers import pipeline
 
     >>> classifier = pipeline(model="microsoft/beit-base-patch16-224-pt22k-ft22k")
     >>> classifier("https://huggingface.co/datasets/Narsil/image_dummy/raw/main/parrots.png")
-    [{'score': 0.442, 'label': 'macaw'}, {'score': 0.088, 'label': 'popinjay'}, {'score': 0.075, 'label': 'parrot'}, {'score': 0.073, 'label': 'parodist, lampooner'}, {'score': 0.046, 'label': 'poll, poll_parrot'}]
+    [{'score': 0.442, 'label': 'macaw'}, {'score': 0.088, 'label': 'popinjay'}, {'score': 0.075, 'label': 'parrot'},
+    {'score': 0.073, 'label': 'parodist, lampooner'}, {'score': 0.046, 'label': 'poll, poll_parrot'}]
 
     >>> classifier = pipeline(model="google/vit-base-patch16-224")
     >>> classifier("https://huggingface.co/datasets/Narsil/image_dummy/raw/main/parrots.png")
@@ -103,9 +102,7 @@ class ImageClassificationPipeline(Pipeline):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         requires_backends(self, "vision")
-        self.check_model_type(
-            MODEL_FOR_IMAGE_CLASSIFICATION_MAPPING_NAMES
-        )
+        self.check_model_type(MODEL_FOR_IMAGE_CLASSIFICATION_MAPPING_NAMES)
 
     def _sanitize_parameters(self, top_k=None, function_to_apply=None, timeout=None):
         preprocess_params = {}
