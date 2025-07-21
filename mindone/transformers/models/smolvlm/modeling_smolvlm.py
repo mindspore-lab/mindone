@@ -1018,7 +1018,7 @@ class SmolVLMForConditionalGeneration(SmolVLMPreTrainedModel, GenerationMixin):
         ...     }
         ... ]
 
-        >>> inputs = processor.apply_chat_template([messages], add_generation_prompt=True)
+        >>> inputs = processor.apply_chat_template([messages], add_generation_prompt=True, return_tensors="np")
 
         >>> # Generate
         >>> generated_ids = model.generate(**inputs, max_new_tokens=256)
