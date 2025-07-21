@@ -12,8 +12,9 @@ import inspect
 import numpy as np
 import pytest
 import torch
-from transformers import GroundingDinoConfig, BertConfig
+from transformers import BertConfig, GroundingDinoConfig
 from transformers.models.auto.configuration_auto import CONFIG_MAPPING
+
 import mindspore as ms
 
 from tests.modeling_test_utils import (
@@ -46,11 +47,6 @@ class GroundingDinoModelTester:
         use_labels=True,
         num_labels=3,
         # config parameters
-        backbone_config=None,
-        backbone=None,
-        use_pretrained_backbone=False,
-        use_timm_backbone=False,
-        backbone_kwargs=None,
         text_config=None,
         encoder_layers=6,
         encoder_ffn_dim=24,
@@ -106,7 +102,7 @@ class GroundingDinoModelTester:
         self.use_input_mask = use_input_mask
         self.use_labels = use_labels
         self.num_labels = num_labels
-        
+
         # config parameters
         self.encoder_layers = encoder_layers
         self.encoder_ffn_dim = encoder_ffn_dim
@@ -206,7 +202,7 @@ class GroundingDinoModelTester:
             intermediate_size=self.text_intermediate_size,
             max_position_embeddings=self.text_max_position_embeddings,
         )
-        
+
         # Create simple backbone config for testing
         self.backbone_config = CONFIG_MAPPING["swin"](
             window_size=7,
@@ -284,8 +280,6 @@ GROUNDING_DINO_CASES = [
         },
         {
             "last_hidden_state": 0,
-            "pred_boxes": 1,
-            "logits": 2,
         },
     ],
 ]
@@ -359,4 +353,4 @@ def test_named_modules(
     assert (np.array(diffs) < THRESHOLD).all(), (
         f"ms_dtype: {ms_dtype}, pt_type:{pt_dtype}, "
         f"Outputs({np.array(diffs).tolist()}) has diff bigger than {THRESHOLD}"
-    ) 
+    )
