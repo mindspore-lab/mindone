@@ -169,10 +169,11 @@ class ImageClassificationPipeline(Pipeline):
         return super().__call__(inputs, **kwargs)
 
     def preprocess(self, image, timeout=None):
+        return_tensors = "np"
         image = load_image(image, timeout=timeout)
-        model_inputs = self.image_processor(images=image, return_tensors=self.framework)
-        if self.framework == "ms":
-            model_inputs = model_inputs.to(self.torch_dtype)
+        model_inputs = self.image_processor(images=image, return_tensors=return_tensors)
+        for k, v in model_inputs.items():
+            model_inputs[k] = ms.tensor(v).to(self.torch_dtype)
         return model_inputs
 
     def _forward(self, model_inputs):
