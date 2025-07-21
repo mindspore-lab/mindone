@@ -2558,6 +2558,7 @@ class PreTrainedModel(nn.Cell, ModuleUtilsMixin, GenerationMixin, PushToHubMixin
                 remove_prefix_from_model,
                 ignore_mismatched_sizes,
             )
+
             error_msgs = _load_state_dict_into_model(model_to_load, state_dict, start_prefix, is_sharded=False)
         else:
             # Sharded checkpoint or whole but low_cpu_mem_usage==True
