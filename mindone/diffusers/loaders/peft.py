@@ -343,7 +343,7 @@ class PeftAdapterMixin:
             except Exception as e:
                 # In case `inject_adapter_in_model()` was unsuccessful even before injecting the `peft_config`.
                 if hasattr(self, "peft_config"):
-                    for module in self.modules():
+                    for _, module in self.cells_and_names():
                         if isinstance(module, BaseTunerLayer):
                             active_adapters = module.active_adapters
                             for active_adapter in active_adapters:
