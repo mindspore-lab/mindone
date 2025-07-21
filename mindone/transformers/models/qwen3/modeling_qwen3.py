@@ -346,8 +346,11 @@ class Qwen3DecoderLayer(nn.Cell):
     def __init__(self, config: Qwen3Config, layer_idx: int):
         super().__init__()
         self.hidden_size = config.hidden_size
-        self.self_attn = Qwen3Attention(config=config, layer_idx=layer_idx) \
-            if not config._attn_implementation == "paged_attention" else Qwen3PageAttention(config=config, layer_idx=layer_idx)
+        self.self_attn = (
+            Qwen3Attention(config=config, layer_idx=layer_idx)
+            if not config._attn_implementation == "paged_attention"
+            else Qwen3PageAttention(config=config, layer_idx=layer_idx)
+        )
         self.mlp = Qwen3MLP(config)
         self.input_layernorm = Qwen3RMSNorm(config.hidden_size, eps=config.rms_norm_eps)
         self.post_attention_layernorm = Qwen3RMSNorm(config.hidden_size, eps=config.rms_norm_eps)
@@ -867,7 +870,7 @@ class Qwen3Model(Qwen3PreTrainedModel):
                 mask_length = attention_mask.shape[-1]
                 padding_mask = causal_mask[:, :, :, :mask_length] + attention_mask[:, None, None, :]
                 padding_mask = padding_mask == 0
-                
+
                 # FIXME: not support masked_fill with bf16 & @jit on MindSpore 2.5.0
                 # causal_mask[:, :, :, :mask_length] = causal_mask[:, :, :, :mask_length].masked_fill(padding_mask, min_dtype)
                 causal_mask = causal_mask.to(ms.float32)
