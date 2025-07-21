@@ -205,6 +205,13 @@ from .models.gpt2 import (
 from .models.granite import GraniteForCausalLM, GraniteModel, GranitePreTrainedModel
 from .models.granitemoe import GraniteMoeForCausalLM, GraniteMoeModel, GraniteMoePreTrainedModel
 from .models.granitemoeshared import GraniteMoeSharedForCausalLM, GraniteMoeSharedModel, GraniteMoeSharedPreTrainedModel
+from .models.helium import (
+    HeliumForCausalLM,
+    HeliumForSequenceClassification,
+    HeliumForTokenClassification,
+    HeliumModel,
+    HeliumPreTrainedModel,
+)
 from .models.hiera import (
     HieraBackbone,
     HieraForImageClassification,
