@@ -188,7 +188,9 @@ MODEL_FOR_IMAGE_MAPPING_NAMES = OrderedDict(
 )
 
 MODEL_FOR_MASKED_IMAGE_MODELING_MAPPING_NAMES = OrderedDict(
-    ("vit", "ViTForMaskedImageModeling"),
+    [
+        ("vit", "ViTForMaskedImageModeling"),
+    ]
 )
 
 

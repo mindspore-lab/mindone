@@ -1,6 +1,9 @@
 # coding=utf-8
 # Copyright 2021 Google AI, Ross Wightman, The HuggingFace Inc. team. All rights reserved.
 #
+# This code is adapted from https://github.com/huggingface/transformers
+# with modifications to run transformers on mindspore.
+#
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -88,9 +91,8 @@ class ViTEmbeddings(nn.Cell):
         num_positions = self.position_embeddings.shape[1] - 1
 
         # always interpolate when tracing to ensure the exported model works for dynamic input shapes
-        # TODO: NOT SURE
-        # if not torch.jit.is_tracing() and num_patches == num_positions and height == width:
-        #     return self.position_embeddings
+        if num_patches == num_positions and height == width:
+            return self.position_embeddings
 
         class_pos_embed = self.position_embeddings[:, :1]
         patch_pos_embed = self.position_embeddings[:, 1:]
@@ -100,7 +102,7 @@ class ViTEmbeddings(nn.Cell):
         new_height = height // self.patch_size
         new_width = width // self.patch_size
 
-        sqrt_num_positions = ms.Tensor(num_positions**0.5).int()
+        sqrt_num_positions = int(num_positions**0.5)
         patch_pos_embed = patch_pos_embed.reshape(1, sqrt_num_positions, sqrt_num_positions, dim)
         patch_pos_embed = patch_pos_embed.permute(0, 3, 1, 2)
 
@@ -264,7 +266,7 @@ class ViTSelfAttention(nn.Cell):
             key_layer,
             value_layer,
             head_mask,
-            # is_causal=self.is_causal, # TODO: wait for PR to be merged
+            is_causal=self.is_causal, # TODO: wait for PR to be merged
             scaling=self.scaling,
             dropout=0.0 if not self.training else self.dropout_prob,
         )
@@ -467,8 +469,6 @@ class ViTPreTrainedModel(PreTrainedModel):
     def _init_weights(self, module: Union[mint.nn.Linear, mint.nn.Conv2d, mint.nn.LayerNorm]) -> None:
         """Initialize the weights"""
         if isinstance(module, (mint.nn.Linear, mint.nn.Conv2d)):
-            #TODO:??? Upcast the input in `fp32` and cast it back to desired `dtype` to avoid
-            # `trunc_normal_cpu` not implemented in `half` issues
             trunc_normal_(module.weight, mean=0.0, std=self.config.initializer_range)
             if module.bias is not None:
                 zeros_(module.bias.data)
@@ -702,7 +702,10 @@ class ViTForMaskedImageModeling(ViTPreTrainedModel):
         >>> num_patches = (model.config.image_size // model.config.patch_size) ** 2
         >>> pixel_values = image_processor(images=image, return_tensors="np").pixel_values
         >>> pixel_values = ms.Tensor(pixel_values)
-        >>> outputs = model(pixel_values)
+		>>> # create random boolean mask of shape (batch_size, num_patches)
+        >>> bool_masked_pos = ms.mint.randint(0, 2, (1, num_patches)).bool()
+
+        >>> outputs = model(pixel_values, bool_masked_pos=bool_masked_pos)
         >>> loss, reconstructed_pixel_values = outputs.loss, outputs.reconstruction
         >>> list(reconstructed_pixel_values.shape)
         [1, 3, 224, 224]
@@ -710,6 +713,7 @@ class ViTForMaskedImageModeling(ViTPreTrainedModel):
         >>> # model predicts one of the 1000 ImageNet classes
         >>> predicted_class_idx = logits.argmax(-1).item()
         >>> print("Predicted class:", model.config.id2label[predicted_class_idx])
+		Predicted class: Egyptian cat
         ```"""
         return_dict = return_dict if return_dict is not None else self.config.use_return_dict
 
