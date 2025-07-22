@@ -302,7 +302,7 @@ class SqueezeBertEncoder(nn.Cell):
             "before the first SqueezeBertModule."
         )
 
-        self.layers = nn.CellList(SqueezeBertModule(config) for _ in range(config.num_hidden_layers))
+        self.layers = nn.CellList([SqueezeBertModule(config) for _ in range(config.num_hidden_layers)])
 
     def construct(
         self,
