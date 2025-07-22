@@ -40,7 +40,6 @@ MODES = [1]
 class SqueezeBertModelTester:
     def __init__(
         self,
-        parent,
         batch_size=13,
         seq_length=7,
         is_training=True,
@@ -69,7 +68,6 @@ class SqueezeBertModelTester:
         intermediate_groups=4,
         output_groups=1,
     ):
-        self.parent = parent
         self.batch_size = batch_size
         self.seq_length = seq_length
         self.is_training = is_training
