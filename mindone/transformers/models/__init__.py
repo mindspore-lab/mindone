@@ -64,6 +64,7 @@ from . import (
     qwen2_5_vl,
     qwen2_audio,
     qwen2_vl,
+    resnet,
     roberta,
     segformer,
     siglip,

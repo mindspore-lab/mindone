@@ -351,6 +351,12 @@ from .models.qwen2_5_vl import Qwen2_5_VLForConditionalGeneration, Qwen2_5_VLMod
 from .models.qwen2_audio import Qwen2AudioEncoder, Qwen2AudioForConditionalGeneration, Qwen2AudioPreTrainedModel
 from .models.qwen2_vl import Qwen2VLForConditionalGeneration, Qwen2VLModel, Qwen2VLPreTrainedModel
 from .models.recurrent_gemma import RecurrentGemmaForCausalLM, RecurrentGemmaModel, RecurrentGemmaPreTrainedModel
+from .models.resnet import (
+    ResNetBackbone,
+    ResNetForImageClassification,
+    ResNetModel,
+    ResNetPreTrainedModel,
+)
 from .models.rembert import (
     RemBertForCausalLM,
     RemBertForMaskedLM,
