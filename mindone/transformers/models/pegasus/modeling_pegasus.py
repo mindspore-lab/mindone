@@ -23,7 +23,7 @@ from typing import List, Optional, Tuple, Union
 
 import numpy as np
 import mindspore as ms
-from mindspore import mint, nn
+from mindspore import mint, nn, ops
 from mindspore.mint.nn import CrossEntropyLoss
 
 from ...activations import ACT2FN
@@ -93,8 +93,7 @@ class PegasusSinusoidalPositionalEmbedding(mint.nn.Embedding):
         sentinel = dim // 2 if dim % 2 == 0 else (dim // 2) + 1
         out[:, 0:sentinel] = ms.Tensor(np.sin(position_enc[:, 0::2]))
         out[:, sentinel:] = ms.Tensor(np.cos(position_enc[:, 1::2]))
-        out.detach_()
-        return out
+        return ops.stop_gradient(out)
 
     @ms._no_grad()
     def construct(self, input_ids_shape, past_key_values_length: int = 0) -> ms.Tensor:
