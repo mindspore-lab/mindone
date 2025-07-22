@@ -52,7 +52,7 @@ def prepare_pegasus_inputs_dict(
     if decoder_attention_mask is None:
         decoder_attention_mask = np.not_equal(decoder_input_ids, config.pad_token_id)
     if head_mask is None:
-        head_mask = np.ones(config.encoder_layers, config.encoder_attention_heads)
+        head_mask = np.ones((config.encoder_layers, config.encoder_attention_heads))
     if decoder_head_mask is None:
         decoder_head_mask = np.ones((config.decoder_layers, config.decoder_attention_heads))
     if cross_attn_head_mask is None:
