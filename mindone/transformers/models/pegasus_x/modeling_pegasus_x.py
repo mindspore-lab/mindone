@@ -1033,7 +1033,7 @@ class PegasusXEncoder(PegasusXPreTrainedModel):
         if seq_len % self.config.block_size != 0:
             pad_len = self.config.block_size - seq_len % self.config.block_size
             hidden_states = mint.nn.functional.pad(hidden_states, pad=(0, 0, 0, pad_len), value=0)
-            attention_mask = mint.nn.functional.pad(attention_mask, pad=(0, pad_len), value=mask_min_value)
+            attention_mask = mint.nn.functional.pad(attention_mask, pad=(0, pad_len), value=float(mask_min_value))
 
         # Global tokens
         global_hidden_states = self.embed_global(
