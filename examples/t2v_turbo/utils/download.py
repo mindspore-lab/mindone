@@ -43,6 +43,31 @@ def download_weights(url, dest):
     print("downloading took: ", time.time() - start)
 
 
+def is_safe_member(member, target_dir):
+    member_path = os.path.join(target_dir, member.name)
+    abs_target_dir = os.path.abspath(target_dir)
+    abs_member_path = os.path.abspath(member_path)
+
+    if not abs_member_path.startswith(abs_target_dir):
+        return False
+
+    if member.name.startswith("/") or ".." in member.name:
+        return False
+
+    if member.islnk() or member.issym():
+        return False
+
+    return True
+
+
+def safe_members(tar, target_dir):
+    for member in tar.getmembers():
+        if is_safe_member(member, target_dir):
+            yield member
+        else:
+            print(f"Discarding unsafe member: {member.name}")
+
+
 class DownLoad:
     """Base utility class for downloading."""
 
@@ -54,7 +79,7 @@ class DownLoad:
     @staticmethod
     def calculate_md5(file_path: str, chunk_size: int = 1024 * 1024) -> str:
         """Calculate md5 value."""
-        md5 = hashlib.md5()
+        md5 = hashlib.md5(usedforsecurity=False)
         with open(file_path, "rb") as fp:
             for chunk in iter(lambda: fp.read(chunk_size), b""):
                 md5.update(chunk)
@@ -69,7 +94,7 @@ class DownLoad:
         """Extract tar format file."""
 
         with tarfile.open(from_path, f"r:{compression[1:]}" if compression else "r") as tar:
-            tar.extractall(to_path)
+            tar.extract_all(tar, members=safe_members(tar, to_path))
 
     @staticmethod
     def extract_zip(from_path: str, to_path: Optional[str] = None, compression: Optional[str] = None) -> None:
@@ -77,7 +102,7 @@ class DownLoad:
 
         compression_mode = zipfile.ZIP_BZIP2 if compression else zipfile.ZIP_STORED
         with zipfile.ZipFile(from_path, "r", compression=compression_mode) as zip_file:
-            zip_file.extractall(to_path)
+            zipfile.extract_all(zip_file, members=safe_members(zip_file, to_path))
 
     def extract_archive(self, from_path: str, to_path: str = None) -> str:
         """Extract and  archive from path to path."""
