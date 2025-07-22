@@ -1585,6 +1585,7 @@ class StableDiffusionControlNetInpaintPipeline(
         if lora_scale is not None:
             # remove `lora_scale` from each PEFT layer
             unscale_lora_layers(self.unet, lora_scale)
+            self.cross_attention_kwargs["scale"] = lora_scale
 
         if not output_type == "latent":
             image = self.vae.decode(latents / self.vae.config.scaling_factor, return_dict=False)[0]

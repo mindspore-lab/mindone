@@ -31,7 +31,7 @@ from ...loaders import Lumina2LoraLoaderMixin
 from ...models import AutoencoderKL
 from ...models.transformers.transformer_lumina2 import Lumina2Transformer2DModel
 from ...schedulers import FlowMatchEulerDiscreteScheduler
-from ...utils import deprecate, logging
+from ...utils import deprecate, logging, scale_lora_layers, unscale_lora_layers
 from ...utils.mindspore_utils import randn_tensor
 from ..pipeline_utils import DiffusionPipeline, ImagePipelineOutput
 
@@ -663,6 +663,13 @@ class Lumina2Pipeline(DiffusionPipeline, Lumina2LoraLoaderMixin):
         num_warmup_steps = max(len(timesteps) - num_inference_steps * self.scheduler.order, 0)
         self._num_timesteps = len(timesteps)
 
+        # we're popping the `scale` instead of getting it because otherwise `scale` will be propagated
+        # to the transformer and will raise RuntimeError.
+        lora_scale = self.attention_kwargs.pop("scale", None) if self.attention_kwargs is not None else None
+        if lora_scale is not None:
+            # weight the lora layers by setting `lora_scale` for each PEFT layer
+            scale_lora_layers(self.transformer, lora_scale)
+
         # 6. Denoising loop
         with self.progress_bar(total=num_inference_steps) as progress_bar:
             for i, t in enumerate(timesteps):
@@ -717,6 +724,11 @@ class Lumina2Pipeline(DiffusionPipeline, Lumina2LoraLoaderMixin):
                 # call the callback, if provided
                 if i == len(timesteps) - 1 or ((i + 1) > num_warmup_steps and (i + 1) % self.scheduler.order == 0):
                     progress_bar.update()
+
+        if lora_scale is not None:
+            # remove `lora_scale` from each PEFT layer
+            unscale_lora_layers(self.transformer, lora_scale)
+            self.attention_kwargs["scale"] = lora_scale
 
         if not output_type == "latent":
             latents = (latents / self.vae.config.scaling_factor) + self.vae.config.shift_factor

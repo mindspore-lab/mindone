@@ -15,22 +15,23 @@
 import sys
 import unittest
 
-import mindspore as ms
-from mindspore import mint
-from mindone.transformers import UMT5EncoderModel
+import numpy as np
 from transformers import AutoTokenizer
 
-from mindone.diffusers import (
-    AuraFlowPipeline,
-    AuraFlowTransformer2DModel,
-    FlowMatchEulerDiscreteScheduler,
-)
-from mindone.diffusers.utils.testing_utils import floats_tensor
+import mindspore as ms
+from mindspore import mint
 
+from mindone.diffusers import AuraFlowPipeline, AuraFlowTransformer2DModel, FlowMatchEulerDiscreteScheduler
+from mindone.diffusers.utils.testing_utils import floats_tensor
+from mindone.transformers import UMT5EncoderModel
 
 sys.path.append(".")
 
 from utils import PeftLoraLoaderMixinTests  # noqa: E402
+
+ms.set_deterministic(True)
+ms.manual_seed(0)
+np.random.seed(0)
 
 
 class AuraFlowLoRATests(unittest.TestCase, PeftLoraLoaderMixinTests):
@@ -80,9 +81,9 @@ class AuraFlowLoRATests(unittest.TestCase, PeftLoraLoaderMixinTests):
         num_channels = 4
         sizes = (32, 32)
 
-        generator = ms.manual_seed(0)
+        generator = np.random.default_rng(0)
         noise = floats_tensor((batch_size, num_channels) + sizes)
-        input_ids = mint.randint(1, sequence_length, (batch_size, sequence_length), generator=generator)
+        input_ids = mint.randint(1, sequence_length, (batch_size, sequence_length), generator=ms.manual_seed(0))
 
         pipeline_inputs = {
             "prompt": "A painting of a squirrel eating a burger",

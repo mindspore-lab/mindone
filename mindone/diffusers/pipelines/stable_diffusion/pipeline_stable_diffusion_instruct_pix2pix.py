@@ -32,7 +32,7 @@ from ...image_processor import PipelineImageInput, VaeImageProcessor
 from ...loaders import FromSingleFileMixin, IPAdapterMixin, StableDiffusionLoraLoaderMixin, TextualInversionLoaderMixin
 from ...models import AutoencoderKL, ImageProjection, UNet2DConditionModel
 from ...schedulers import KarrasDiffusionSchedulers
-from ...utils import PIL_INTERPOLATION, deprecate, logging
+from ...utils import PIL_INTERPOLATION, deprecate, logging, scale_lora_layers, unscale_lora_layers
 from ...utils.mindspore_utils import randn_tensor
 from ..pipeline_utils import DiffusionPipeline, StableDiffusionMixin
 from . import StableDiffusionPipelineOutput
@@ -403,6 +403,13 @@ class StableDiffusionInstructPix2PixPipeline(
         # 8.1 Add image embeds for IP-Adapter
         added_cond_kwargs = {"image_embeds": image_embeds} if ip_adapter_image is not None else None
 
+        # we're popping the `scale` instead of getting it because otherwise `scale` will be propagated
+        # to the unet and will raise RuntimeError.
+        lora_scale = cross_attention_kwargs.pop("scale", None) if cross_attention_kwargs is not None else None
+        if lora_scale is not None:
+            # weight the lora layers by setting `lora_scale` for each PEFT layer
+            scale_lora_layers(self.unet, lora_scale)
+
         # 9. Denoising loop
         num_warmup_steps = len(timesteps) - num_inference_steps * self.scheduler.order
         self._num_timesteps = len(timesteps)
@@ -456,6 +463,11 @@ class StableDiffusionInstructPix2PixPipeline(
                     if callback is not None and i % callback_steps == 0:
                         step_idx = i // getattr(self.scheduler, "order", 1)
                         callback(step_idx, t, latents)
+
+        if lora_scale is not None:
+            # remove `lora_scale` from each PEFT layer
+            unscale_lora_layers(self.unet, lora_scale)
+            cross_attention_kwargs["scale"] = lora_scale
 
         if not output_type == "latent":
             image = self.vae.decode(latents / self.vae.config.scaling_factor, return_dict=False)[0]

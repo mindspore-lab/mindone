@@ -1195,6 +1195,13 @@ class StableDiffusionControlNetPipeline(
             ]
             controlnet_keep.append(keeps[0] if isinstance(controlnet, ControlNetModel) else keeps)
 
+        # we're popping the `scale` instead of getting it because otherwise `scale` will be propagated
+        # to the unet and will raise RuntimeError.
+        lora_scale = self.cross_attention_kwargs.pop("scale", None) if self.cross_attention_kwargs is not None else None
+        if lora_scale is not None:
+            # weight the lora layers by setting `lora_scale` for each PEFT layer
+            scale_lora_layers(self.unet, lora_scale)
+
         # 8. Denoising loop
         num_warmup_steps = len(timesteps) - num_inference_steps * self.scheduler.order
         with self.progress_bar(total=num_inference_steps) as progress_bar:
@@ -1281,6 +1288,11 @@ class StableDiffusionControlNetPipeline(
                     if callback is not None and i % callback_steps == 0:
                         step_idx = i // getattr(self.scheduler, "order", 1)
                         callback(step_idx, t, latents)
+
+        if lora_scale is not None:
+            # remove `lora_scale` from each PEFT layer
+            unscale_lora_layers(self.unet, lora_scale)
+            self.cross_attention_kwargs["scale"] = lora_scale
 
         if not output_type == "latent":
             image = self.vae.decode(latents / self.vae.config.scaling_factor, return_dict=False)[0]

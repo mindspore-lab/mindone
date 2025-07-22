@@ -12,15 +12,15 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-import gc
 import sys
 import unittest
 
 import numpy as np
-import mindspore as ms
+import torch
 from huggingface_hub import hf_hub_download
-from mindone.transformers import CLIPTextModel
 from transformers import CLIPTokenizer
+
+import mindspore as ms
 
 from mindone.diffusers import (
     AutoPipelineForImage2Image,
@@ -30,12 +30,9 @@ from mindone.diffusers import (
     LCMScheduler,
     StableDiffusionPipeline,
 )
-from mindone.diffusers.utils.testing_utils import (
-    load_image,
-    numpy_cosine_similarity_distance,
-    slow,
-)
-
+from mindone.diffusers.utils.testing_utils import load_image, numpy_cosine_similarity_distance, slow
+from mindone.transformers import CLIPTextModel
+from tests.diffusers_tests.pipelines.pipeline_test_utils import PipelineTesterMixin
 
 sys.path.append(".")
 
@@ -80,13 +77,13 @@ class StableDiffusionLoRATests(PeftLoraLoaderMixinTests, unittest.TestCase):
 
 
 @slow
-class LoraIntegrationTests(unittest.TestCase):
+class LoraIntegrationTests(PipelineTesterMixin, unittest.TestCase):
     def test_integration_logits_with_scale(self):
         path = "stable-diffusion-v1-5/stable-diffusion-v1-5"
         lora_id = "takuma104/lora-test-text-encoder-lora-target"
 
         pipe = StableDiffusionPipeline.from_pretrained(path, mindspore_dtype=ms.float32)
-        pipe.load_lora_weights(lora_id)
+        pipe.load_lora_weights(lora_id, revision="refs/pr/1")
 
         self.assertTrue(
             check_if_lora_correctly_set(pipe.text_encoder),
@@ -99,11 +96,11 @@ class LoraIntegrationTests(unittest.TestCase):
             prompt=prompt,
             num_inference_steps=15,
             cross_attention_kwargs={"scale": 0.5},
-            generator=np.random.default_rng(0),
+            generator=torch.manual_seed(1),
             output_type="np",
         )[0]
 
-        expected_slice_scale = np.array([0.307, 0.283, 0.310, 0.310, 0.300, 0.314, 0.336, 0.314, 0.321])
+        expected_slice_scale = np.array([0.387, 0.388, 0.350, 0.327, 0.330, 0.270, 0.358, 0.328, 0.354])
         predicted_slice = images[0, -3:, -3:, -1].flatten()
 
         max_diff = numpy_cosine_similarity_distance(expected_slice_scale, predicted_slice)
@@ -116,7 +113,7 @@ class LoraIntegrationTests(unittest.TestCase):
         lora_id = "takuma104/lora-test-text-encoder-lora-target"
 
         pipe = StableDiffusionPipeline.from_pretrained(path, mindspore_dtype=ms.float32)
-        pipe.load_lora_weights(lora_id)
+        pipe.load_lora_weights(lora_id, revision="refs/pr/1")
 
         self.assertTrue(
             check_if_lora_correctly_set(pipe.text_encoder),
@@ -125,7 +122,7 @@ class LoraIntegrationTests(unittest.TestCase):
 
         prompt = "a red sks dog"
 
-        images = pipe(prompt=prompt, num_inference_steps=30, generator=np.random.default_rng(0), output_type="np")[0]
+        images = pipe(prompt=prompt, num_inference_steps=30, generator=torch.manual_seed(0), output_type="np")[0]
 
         expected_slice_scale = np.array([0.074, 0.064, 0.073, 0.0842, 0.069, 0.0641, 0.0794, 0.076, 0.084])
         predicted_slice = images[0, -3:, -3:, -1].flatten()
@@ -137,14 +134,14 @@ class LoraIntegrationTests(unittest.TestCase):
         pipe.unload_lora_weights()
 
     def test_dreambooth_old_format(self):
-        generator = np.random.Generator(np.random.PCG64(0))
+        generator = torch.Generator().manual_seed(0)
 
         lora_model_id = "hf-internal-testing/lora_dreambooth_dog_example"
 
         base_model_id = "stable-diffusion-v1-5/stable-diffusion-v1-5"
 
         pipe = StableDiffusionPipeline.from_pretrained(base_model_id, safety_checker=None)
-        pipe.load_lora_weights(lora_model_id)
+        pipe.load_lora_weights(lora_model_id, revision="refs/pr/1")
 
         images = pipe(
             "A photo of a sks dog floating in the river", output_type="np", generator=generator, num_inference_steps=2
@@ -159,14 +156,14 @@ class LoraIntegrationTests(unittest.TestCase):
         pipe.unload_lora_weights()
 
     def test_dreambooth_text_encoder_new_format(self):
-        generator = np.random.default_rng(0)
+        generator = torch.Generator().manual_seed(0)
 
         lora_model_id = "hf-internal-testing/lora-trained"
 
         base_model_id = "stable-diffusion-v1-5/stable-diffusion-v1-5"
 
         pipe = StableDiffusionPipeline.from_pretrained(base_model_id, safety_checker=None)
-        pipe.load_lora_weights(lora_model_id)
+        pipe.load_lora_weights(lora_model_id, revision="refs/pr/1")
 
         images = pipe("A photo of a sks dog", output_type="np", generator=generator, num_inference_steps=2)[0]
 
@@ -180,9 +177,11 @@ class LoraIntegrationTests(unittest.TestCase):
         pipe.unload_lora_weights()
 
     def test_a1111(self):
-        generator = np.random.default_rng(0)
+        generator = torch.Generator().manual_seed(0)
 
-        pipe = StableDiffusionPipeline.from_pretrained("hf-internal-testing/Counterfeit-V2.5", safety_checker=None)
+        pipe = StableDiffusionPipeline.from_pretrained(
+            "hf-internal-testing/Counterfeit-V2.5", safety_checker=None, revision="refs/pr/1"
+        )
         lora_model_id = "hf-internal-testing/civitai-light-shadow-lora"
         lora_filename = "light_and_shadow.safetensors"
         pipe.load_lora_weights(lora_model_id, weight_name=lora_filename)
@@ -200,7 +199,7 @@ class LoraIntegrationTests(unittest.TestCase):
         pipe.unload_lora_weights()
 
     def test_lycoris(self):
-        generator = np.random.default_rng(0)
+        generator = torch.Generator().manual_seed(0)
 
         pipe = StableDiffusionPipeline.from_pretrained(
             "hf-internal-testing/Amixx", safety_checker=None, use_safetensors=True, variant="fp16"
@@ -222,7 +221,7 @@ class LoraIntegrationTests(unittest.TestCase):
         pipe.unload_lora_weights()
 
     def test_kohya_sd_v15_with_higher_dimensions(self):
-        generator = np.random.default_rng(0)
+        generator = torch.Generator().manual_seed(0)
 
         pipe = StableDiffusionPipeline.from_pretrained(
             "stable-diffusion-v1-5/stable-diffusion-v1-5", safety_checker=None
@@ -244,14 +243,14 @@ class LoraIntegrationTests(unittest.TestCase):
         pipe.unload_lora_weights()
 
     def test_vanilla_funetuning(self):
-        generator = np.random.default_rng(0)
+        generator = torch.Generator().manual_seed(0)
 
         lora_model_id = "hf-internal-testing/sd-model-finetuned-lora-t4"
 
         base_model_id = "stable-diffusion-v1-5/stable-diffusion-v1-5"
 
         pipe = StableDiffusionPipeline.from_pretrained(base_model_id, safety_checker=None)
-        pipe.load_lora_weights(lora_model_id)
+        pipe.load_lora_weights(lora_model_id, revision="refs/pr/1")
 
         images = pipe("A pokemon with blue eyes.", output_type="np", generator=generator, num_inference_steps=2)[0]
 
@@ -265,30 +264,26 @@ class LoraIntegrationTests(unittest.TestCase):
         pipe.unload_lora_weights()
 
     def test_unload_kohya_lora(self):
-        generator = np.random.default_rng(0)
+        generator = torch.manual_seed(0)
         prompt = "masterpiece, best quality, mountain"
         num_inference_steps = 2
 
         pipe = StableDiffusionPipeline.from_pretrained(
             "stable-diffusion-v1-5/stable-diffusion-v1-5", safety_checker=None
         )
-        initial_images = pipe(
-            prompt, output_type="np", generator=generator, num_inference_steps=num_inference_steps
-        )[0]
+        initial_images = pipe(prompt, output_type="np", generator=generator, num_inference_steps=num_inference_steps)[0]
         initial_images = initial_images[0, -3:, -3:, -1].flatten()
 
         lora_model_id = "hf-internal-testing/civitai-colored-icons-lora"
         lora_filename = "Colored_Icons_by_vizsumit.safetensors"
 
         pipe.load_lora_weights(lora_model_id, weight_name=lora_filename)
-        generator = np.random.default_rng(0)
-        lora_images = pipe(
-            prompt, output_type="np", generator=generator, num_inference_steps=num_inference_steps
-        )[0]
+        generator = torch.manual_seed(0)
+        lora_images = pipe(prompt, output_type="np", generator=generator, num_inference_steps=num_inference_steps)[0]
         lora_images = lora_images[0, -3:, -3:, -1].flatten()
 
         pipe.unload_lora_weights()
-        generator = np.random.default_rng(0)
+        generator = torch.manual_seed(0)
         unloaded_lora_images = pipe(
             prompt, output_type="np", generator=generator, num_inference_steps=num_inference_steps
         )[0]
@@ -301,30 +296,26 @@ class LoraIntegrationTests(unittest.TestCase):
         # This test ensures that a Kohya-style LoRA can be safely unloaded and then loaded
         # without introducing any side-effects. Even though the test uses a Kohya-style
         # LoRA, the underlying adapter handling mechanism is format-agnostic.
-        generator = np.random.default_rng(0)
+        generator = torch.manual_seed(0)
         prompt = "masterpiece, best quality, mountain"
         num_inference_steps = 2
 
         pipe = StableDiffusionPipeline.from_pretrained(
             "stable-diffusion-v1-5/stable-diffusion-v1-5", safety_checker=None
         )
-        initial_images = pipe(
-            prompt, output_type="np", generator=generator, num_inference_steps=num_inference_steps
-        )[0]
+        initial_images = pipe(prompt, output_type="np", generator=generator, num_inference_steps=num_inference_steps)[0]
         initial_images = initial_images[0, -3:, -3:, -1].flatten()
 
         lora_model_id = "hf-internal-testing/civitai-colored-icons-lora"
         lora_filename = "Colored_Icons_by_vizsumit.safetensors"
 
         pipe.load_lora_weights(lora_model_id, weight_name=lora_filename)
-        generator = np.random.default_rng(0)
-        lora_images = pipe(
-            prompt, output_type="np", generator=generator, num_inference_steps=num_inference_steps
-        )[0]
+        generator = torch.manual_seed(0)
+        lora_images = pipe(prompt, output_type="np", generator=generator, num_inference_steps=num_inference_steps)[0]
         lora_images = lora_images[0, -3:, -3:, -1].flatten()
 
         pipe.unload_lora_weights()
-        generator = np.random.default_rng(0)
+        generator = torch.manual_seed(0)
         unloaded_lora_images = pipe(
             prompt, output_type="np", generator=generator, num_inference_steps=num_inference_steps
         )[0]
@@ -336,7 +327,7 @@ class LoraIntegrationTests(unittest.TestCase):
         # make sure we can load a LoRA again after unloading and they don't have
         # any undesired effects.
         pipe.load_lora_weights(lora_model_id, weight_name=lora_filename)
-        generator = np.random.default_rng(0)
+        generator = torch.manual_seed(0)
         lora_images_again = pipe(
             prompt, output_type="np", generator=generator, num_inference_steps=num_inference_steps
         )[0]
@@ -381,7 +372,7 @@ class LoraIntegrationTests(unittest.TestCase):
         )
         pipe.scheduler = LCMScheduler.from_config(pipe.scheduler.config)
 
-        generator = np.random.Generator(np.random.PCG64(0))
+        generator = torch.Generator().manual_seed(0)
 
         lora_model_id = "latent-consistency/lcm-lora-sdv1-5"
         pipe.load_lora_weights(lora_model_id)
@@ -412,7 +403,7 @@ class LoraIntegrationTests(unittest.TestCase):
             "https://huggingface.co/datasets/hf-internal-testing/diffusers-images/resolve/main/img2img/fantasy_landscape.png"
         )
 
-        generator = np.random.Generator(np.random.PCG64(0))
+        generator = torch.Generator().manual_seed(0)
 
         lora_model_id = "latent-consistency/lcm-lora-sdv1-5"
         pipe.load_lora_weights(lora_model_id)
@@ -450,7 +441,7 @@ class LoraIntegrationTests(unittest.TestCase):
         images = pipeline(
             "ahri, masterpiece, league of legends",
             output_type="np",
-            generator=np.random.default_rng(156),
+            generator=torch.Generator().manual_seed(156),
             num_inference_steps=5,
         )[0]
         images = images[0, -3:, -3:, -1].flatten()

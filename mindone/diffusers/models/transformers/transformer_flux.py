@@ -416,10 +416,16 @@ class FluxTransformer2DModel(
             If `return_dict` is True, an [`~models.transformer_2d.Transformer2DModelOutput`] is returned, otherwise a
             `tuple` where the first element is the sample tensor.
         """
-
-        if joint_attention_kwargs is not None and joint_attention_kwargs.get("scale", None) is not None:
-            logger.warning(
-                "Passing `scale` via `joint_attention_kwargs` when not using the PEFT backend is ineffective."
+        if joint_attention_kwargs is not None and "scale" in joint_attention_kwargs:
+            # weight the lora layers by setting `lora_scale` for each PEFT layer here
+            # and remove `lora_scale` from each PEFT layer at the end.
+            # scale_lora_layers & unscale_lora_layers maybe contains some operation forbidden in graph mode
+            raise RuntimeError(
+                f"You are trying to set scaling of lora layer by passing {joint_attention_kwargs['scale']=}. "
+                f"However it's not allowed in on-the-fly model forwarding. "
+                f"Please manually call `scale_lora_layers(model, lora_scale)` before model forwarding and "
+                f"`unscale_lora_layers(model, lora_scale)` after model forwarding. "
+                f"For example, it can be done in a pipeline call like `StableDiffusionPipeline.__call__`."
             )
 
         hidden_states = self.x_embedder(hidden_states)

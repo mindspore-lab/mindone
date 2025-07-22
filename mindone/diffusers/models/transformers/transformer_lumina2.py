@@ -499,9 +499,6 @@ class Lumina2Transformer2DModel(ModelMixin, ConfigMixin, PeftAdapterMixin, FromO
         attention_kwargs: Optional[Dict[str, Any]] = None,
         return_dict: bool = False,
     ) -> Union[ms.Tensor, Transformer2DModelOutput]:
-        if attention_kwargs is not None:
-            attention_kwargs = attention_kwargs.copy()
-
         if attention_kwargs is not None and attention_kwargs.get("scale", None) is not None:
             # weight the lora layers by setting `lora_scale` for each PEFT layer here
             # and remove `lora_scale` from each PEFT layer at the end.

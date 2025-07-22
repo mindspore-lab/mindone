@@ -972,6 +972,13 @@ class StableDiffusionXLControlNetXSPipeline(
 
         add_time_ids = add_time_ids.tile((batch_size * num_images_per_prompt, 1))
 
+        # we're popping the `scale` instead of getting it because otherwise `scale` will be propagated
+        # to the unet and will raise RuntimeError.
+        lora_scale = cross_attention_kwargs.pop("scale", None) if cross_attention_kwargs is not None else None
+        if lora_scale is not None:
+            # weight the lora layers by setting `lora_scale` for each PEFT layer
+            scale_lora_layers(self.unet, lora_scale)
+
         # 8. Denoising loop
         num_warmup_steps = len(timesteps) - num_inference_steps * self.scheduler.order
         self._num_timesteps = len(timesteps)
@@ -1020,6 +1027,11 @@ class StableDiffusionXLControlNetXSPipeline(
                 # call the callback, if provided
                 if i == len(timesteps) - 1 or ((i + 1) > num_warmup_steps and (i + 1) % self.scheduler.order == 0):
                     progress_bar.update()
+
+        if lora_scale is not None:
+            # remove `lora_scale` from each PEFT layer
+            unscale_lora_layers(self.unet, lora_scale)
+            cross_attention_kwargs["scale"] = lora_scale
 
         # Do not cast manually here for max memory savings like original diffusers as it will be done in
         # `if not output_type == "latent"` branch, and original casting outside has not corresponding

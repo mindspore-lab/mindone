@@ -2096,6 +2096,11 @@ class FluxLoraLoaderMixin(LoraBaseMixin):
             "If you notice something unexpected, please open an issue: https://github.com/huggingface/diffusers/issues."
         )
 
+        transformer_prefix_tmp = "model"
+        has_prefix_in_state_dict = any(k.startswith(transformer_prefix_tmp) for k in state_dict)
+        has_prefix_in_transformer = any(k.startswith(transformer_prefix_tmp) for k in transformer.parameters_dict())
+        if not has_prefix_in_state_dict and has_prefix_in_transformer:
+            state_dict.update({f"{transformer_prefix_tmp}.{k}": state_dict.pop(k) for k in list(state_dict.keys())})
         # We can't load with strict=True because the current state_dict does not contain all the transformer keys
         param_not_load, unexpected_keys = ms.load_param_into_net(transformer, state_dict, strict_load=False)
 
@@ -2491,7 +2496,7 @@ class FluxLoraLoaderMixin(LoraBaseMixin):
     @classmethod
     def _maybe_expand_lora_state_dict(cls, transformer, lora_state_dict):
         expanded_module_names = set()
-        transformer_state_dict = transformer.parameters_dict()
+        transformer_state_dict = transformer.state_dict()
         prefix = f"{cls.transformer_name}."
 
         lora_module_names = [key[: -len(".lora_A.weight")] for key in lora_state_dict if key.endswith(".lora_A.weight")]

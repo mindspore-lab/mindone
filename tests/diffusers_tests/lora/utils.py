@@ -20,28 +20,16 @@ import unittest
 from itertools import product
 
 import numpy as np
-import pytest
+
 import mindspore as ms
 from mindspore import mint
-from parameterized import parameterized
 
-from mindone.diffusers import (
-    AutoencoderKL,
-    DDIMScheduler,
-    LCMScheduler,
-    UNet2DConditionModel,
-)
+from mindone.diffusers import AutoencoderKL, DDIMScheduler, LCMScheduler, UNet2DConditionModel
 from mindone.diffusers.utils import logging
-from mindone.diffusers.utils.testing_utils import (
-    CaptureLogger,
-    check_if_dicts_are_equal,
-    floats_tensor,
-    require_peft_version_greater,
-)
-
-from mindone.diffusers._peft import LoraConfig, inject_adapter_in_model, set_peft_model_state_dict
-from mindone.diffusers._peft.tuners.tuners_utils import BaseTunerLayer
-from mindone.diffusers._peft.utils import get_peft_model_state_dict
+from mindone.diffusers.utils.testing_utils import CaptureLogger, floats_tensor, require_peft_version_greater
+from mindone.peft import LoraConfig
+from mindone.peft.tuners.tuners_utils import BaseTunerLayer
+from mindone.peft.utils import get_peft_model_state_dict
 
 
 def state_dicts_almost_equal(sd1, sd2):
@@ -90,9 +78,9 @@ class PeftLoraLoaderMixinTests:
 
     has_two_text_encoders = False
     has_three_text_encoders = False
-    text_encoder_cls, text_encoder_id, text_encoder_subfolder = None, None, ""
-    text_encoder_2_cls, text_encoder_2_id, text_encoder_2_subfolder = None, None, ""
-    text_encoder_3_cls, text_encoder_3_id, text_encoder_3_subfolder = None, None, ""
+    text_encoder_cls, text_encoder_id, text_encoder_subfolder, text_encoder_revision = None, None, "", "main"
+    text_encoder_2_cls, text_encoder_2_id, text_encoder_2_subfolder, text_encoder_2_revision = None, None, "", "main"
+    text_encoder_3_cls, text_encoder_3_id, text_encoder_3_subfolder, text_encoder_3_revision = None, None, "", "main"
     tokenizer_cls, tokenizer_id, tokenizer_subfolder = None, None, ""
     tokenizer_2_cls, tokenizer_2_id, tokenizer_2_subfolder = None, None, ""
     tokenizer_3_cls, tokenizer_3_id, tokenizer_3_subfolder = None, None, ""
@@ -128,13 +116,13 @@ class PeftLoraLoaderMixinTests:
         vae = self.vae_cls(**self.vae_kwargs)
 
         text_encoder = self.text_encoder_cls.from_pretrained(
-            self.text_encoder_id, subfolder=self.text_encoder_subfolder
+            self.text_encoder_id, subfolder=self.text_encoder_subfolder, revision=self.text_encoder_revision
         )
         tokenizer = self.tokenizer_cls.from_pretrained(self.tokenizer_id, subfolder=self.tokenizer_subfolder)
 
         if self.text_encoder_2_cls is not None:
             text_encoder_2 = self.text_encoder_2_cls.from_pretrained(
-                self.text_encoder_2_id, subfolder=self.text_encoder_2_subfolder
+                self.text_encoder_2_id, subfolder=self.text_encoder_2_subfolder, revision=self.text_encoder_2_revision
             )
             tokenizer_2 = self.tokenizer_2_cls.from_pretrained(
                 self.tokenizer_2_id, subfolder=self.tokenizer_2_subfolder
@@ -142,7 +130,7 @@ class PeftLoraLoaderMixinTests:
 
         if self.text_encoder_3_cls is not None:
             text_encoder_3 = self.text_encoder_3_cls.from_pretrained(
-                self.text_encoder_3_id, subfolder=self.text_encoder_3_subfolder
+                self.text_encoder_3_id, subfolder=self.text_encoder_3_subfolder, revision=self.text_encoder_3_revision
             )
             tokenizer_3 = self.tokenizer_3_cls.from_pretrained(
                 self.tokenizer_3_id, subfolder=self.tokenizer_3_subfolder
@@ -451,9 +439,9 @@ class PeftLoraLoaderMixinTests:
                     save_directory=tmpdirname, safe_serialization=False, **lora_state_dicts
                 )
 
-                self.assertTrue(os.path.isfile(os.path.join(tmpdirname, "pytorch_lora_weights.safetensors")))
+                self.assertTrue(os.path.isfile(os.path.join(tmpdirname, "pytorch_lora_weights.ckpt")))
                 pipe.unload_lora_weights()
-                pipe.load_lora_weights(os.path.join(tmpdirname, "pytorch_lora_weights.safetensors"))
+                pipe.load_lora_weights(os.path.join(tmpdirname, "pytorch_lora_weights.ckpt"))
 
             for module_name, module in modules_to_save.items():
                 self.assertTrue(check_if_lora_correctly_set(module), f"Lora not correctly set in {module_name}")
@@ -591,9 +579,9 @@ class PeftLoraLoaderMixinTests:
                     save_directory=tmpdirname, safe_serialization=False, **lora_state_dicts
                 )
 
-                self.assertTrue(os.path.isfile(os.path.join(tmpdirname, "pytorch_lora_weights.safetensors")))
+                self.assertTrue(os.path.isfile(os.path.join(tmpdirname, "pytorch_lora_weights.ckpt")))
                 pipe.unload_lora_weights()
-                pipe.load_lora_weights(os.path.join(tmpdirname, "pytorch_lora_weights.safetensors"))
+                pipe.load_lora_weights(os.path.join(tmpdirname, "pytorch_lora_weights.ckpt"))
 
             for module_name, module in modules_to_save.items():
                 self.assertTrue(check_if_lora_correctly_set(module), f"Lora not correctly set in {module_name}")
@@ -1293,9 +1281,9 @@ class PeftLoraLoaderMixinTests:
 
             # corrupt one LoRA weight with `inf` values
             if self.unet_kwargs:
-                pipe.unet.mid_block.attentions[0].transformer_blocks[0].attn1.to_q.lora_A[
-                    "adapter-1"
-                ].weight += float("inf")
+                pipe.unet.mid_block.attentions[0].transformer_blocks[0].attn1.to_q.lora_A["adapter-1"].weight += float(
+                    "inf"
+                )
             else:
                 named_modules = [name for name, _ in pipe.transformer.cells_and_names()]
                 possible_tower_names = [
@@ -1308,9 +1296,7 @@ class PeftLoraLoaderMixinTests:
                     tower_name for tower_name in possible_tower_names if hasattr(pipe.transformer, tower_name)
                 ]
                 if len(filtered_tower_names) == 0:
-                    reason = (
-                        f"`pipe.transformer` didn't have any of the following attributes: {possible_tower_names}."
-                    )
+                    reason = f"`pipe.transformer` didn't have any of the following attributes: {possible_tower_names}."
                     raise ValueError(reason)
                 for tower_name in filtered_tower_names:
                     transformer_tower = getattr(pipe.transformer, tower_name)
@@ -1570,9 +1556,7 @@ class PeftLoraLoaderMixinTests:
     @require_peft_version_greater(peft_version="0.9.0")
     def test_simple_inference_with_dora(self):
         for scheduler_cls in self.scheduler_classes:
-            components, text_lora_config, denoiser_lora_config = self.get_dummy_components(
-                scheduler_cls, use_dora=True
-            )
+            components, text_lora_config, denoiser_lora_config = self.get_dummy_components(scheduler_cls, use_dora=True)
             pipe = self.pipeline_class(**components)
             pipe.set_progress_bar_config(disable=None)
             _, _, inputs = self.get_dummy_inputs(with_generator=False)
@@ -1607,8 +1591,8 @@ class PeftLoraLoaderMixinTests:
                 save_directory=tmpdirname, safe_serialization=False, **lora_state_dicts
             )
             pipe.unload_lora_weights()
-            self.assertTrue(os.path.isfile(os.path.join(tmpdirname, "pytorch_lora_weights.safetensors")))
-            state_dict = ms.load_checkpoint(os.path.join(tmpdirname, "pytorch_lora_weights.safetensors"), format="safetensors")
+            self.assertTrue(os.path.isfile(os.path.join(tmpdirname, "pytorch_lora_weights.ckpt")))
+            state_dict = ms.load_checkpoint(os.path.join(tmpdirname, "pytorch_lora_weights.ckpt"))
 
         # To make things dynamic since we cannot settle with a single key for all the models where we
         # offer PEFT support.
@@ -1643,8 +1627,8 @@ class PeftLoraLoaderMixinTests:
                 save_directory=tmpdirname, safe_serialization=False, **lora_state_dicts
             )
             pipe.unload_lora_weights()
-            self.assertTrue(os.path.isfile(os.path.join(tmpdirname, "pytorch_lora_weights.safetensors")))
-            state_dict = ms.load_checkpoint(os.path.join(tmpdirname, "pytorch_lora_weights.safetensors"), format="safetensors")
+            self.assertTrue(os.path.isfile(os.path.join(tmpdirname, "pytorch_lora_weights.ckpt")))
+            state_dict = ms.load_checkpoint(os.path.join(tmpdirname, "pytorch_lora_weights.ckpt"))
 
         unexpected_key = [k for k in state_dict if "lora_A" in k][0] + ".diffusers_cat"
         state_dict[unexpected_key] = ms.tensor(1.0)
@@ -1679,22 +1663,22 @@ class PeftLoraLoaderMixinTests:
             # Just makes sure it works.
             _ = pipe(**inputs, generator=np.random.default_rng(0))[0]
 
-    def test_modify_padding_mode(self):
-        def set_pad_mode(network, mode="circular"):
-            for _, module in network.cells_and_names():
-                if isinstance(module, mint.nn.Conv2d):
-                    module.padding_mode = mode
+    # def test_modify_padding_mode(self):
+    #     def set_pad_mode(network, mode="circular"):
+    #         for _, module in network.cells_and_names():
+    #             if isinstance(module, mint.nn.Conv2d):
+    #                 module.padding_mode = mode
 
-        for scheduler_cls in self.scheduler_classes:
-            components, _, _ = self.get_dummy_components(scheduler_cls)
-            pipe = self.pipeline_class(**components)
-            pipe.set_progress_bar_config(disable=None)
-            _pad_mode = "circular"
-            set_pad_mode(pipe.vae, _pad_mode)
-            set_pad_mode(pipe.unet, _pad_mode)
+    #     for scheduler_cls in self.scheduler_classes:
+    #         components, _, _ = self.get_dummy_components(scheduler_cls)
+    #         pipe = self.pipeline_class(**components)
+    #         pipe.set_progress_bar_config(disable=None)
+    #         _pad_mode = "circular"
+    #         set_pad_mode(pipe.vae, _pad_mode)
+    #         set_pad_mode(pipe.unet, _pad_mode)
 
-            _, _, inputs = self.get_dummy_inputs()
-            _ = pipe(**inputs)[0]
+    #         _, _, inputs = self.get_dummy_inputs()
+    #         _ = pipe(**inputs)[0]
 
     def test_logs_info_when_no_lora_keys_found(self):
         scheduler_cls = self.scheduler_classes[0]

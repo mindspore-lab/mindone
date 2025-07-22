@@ -1174,6 +1174,13 @@ class StableDiffusionDiffEditPipeline(
         self.inverse_scheduler.set_timesteps(num_inference_steps)
         timesteps, num_inference_steps = self.get_inverse_timesteps(num_inference_steps, inpaint_strength)
 
+        # we're popping the `scale` instead of getting it because otherwise `scale` will be propagated
+        # to the unet and will raise RuntimeError.
+        lora_scale = cross_attention_kwargs.pop("scale", None) if cross_attention_kwargs is not None else None
+        if lora_scale is not None:
+            # weight the lora layers by setting `lora_scale` for each PEFT layer
+            scale_lora_layers(self.unet, lora_scale)
+
         # 7. Noising loop where we obtain the intermediate noised latent image for each timestep.
         num_warmup_steps = len(timesteps) - num_inference_steps * self.inverse_scheduler.order
         inverted_latents = []
@@ -1212,6 +1219,11 @@ class StableDiffusionDiffEditPipeline(
                     if callback is not None and i % callback_steps == 0:
                         step_idx = i // getattr(self.scheduler, "order", 1)
                         callback(step_idx, t, latents)
+
+        if lora_scale is not None:
+            # remove `lora_scale` from each PEFT layer
+            unscale_lora_layers(self.unet, lora_scale)
+            cross_attention_kwargs["scale"] = lora_scale
 
         assert len(inverted_latents) == len(timesteps)
         latents = mint.stack(list(reversed(inverted_latents)), 1)

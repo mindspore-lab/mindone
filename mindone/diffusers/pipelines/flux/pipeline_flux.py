@@ -855,6 +855,13 @@ class FluxPipeline(
                 batch_size * num_images_per_prompt,
             )
 
+        # we're popping the `scale` instead of getting it because otherwise `scale` will be propagated
+        # to the transformer and will raise RuntimeError.
+        lora_scale = self.joint_attention_kwargs.pop("scale", None) if self.joint_attention_kwargs is not None else None
+        if lora_scale is not None:
+            # weight the lora layers by setting `lora_scale` for each PEFT layer
+            scale_lora_layers(self.transformer, lora_scale)
+
         # 6. Denoising loop
         self.scheduler.set_begin_index(0)
         with self.progress_bar(total=num_inference_steps) as progress_bar:
@@ -919,6 +926,7 @@ class FluxPipeline(
         if lora_scale is not None:
             # remove `lora_scale` from each PEFT layer
             unscale_lora_layers(self.transformer, lora_scale)
+            self.joint_attention_kwargs["scale"] = lora_scale
 
         self._current_timestep = None
 

@@ -1086,6 +1086,14 @@ class StableDiffusion3ControlNetPipeline(DiffusionPipeline, SD3LoraLoaderMixin, 
             else:
                 self._joint_attention_kwargs.update(ip_adapter_image_embeds=ip_adapter_image_embeds)
 
+        # we're popping the `scale` instead of getting it because otherwise `scale` will be propagated
+        # to the unet and will raise RuntimeError.
+        lora_scale = self.joint_attention_kwargs.pop("scale", None) if self.joint_attention_kwargs is not None else None
+        if lora_scale is not None:
+            # weight the lora layers by setting `lora_scale` for each PEFT layer
+            scale_lora_layers(self.controlnet, lora_scale)
+            scale_lora_layers(self.transformer, lora_scale)
+
         # 8. Denoising loop
         with self.progress_bar(total=num_inference_steps) as progress_bar:
             for i, t in enumerate(timesteps):
@@ -1155,6 +1163,12 @@ class StableDiffusion3ControlNetPipeline(DiffusionPipeline, SD3LoraLoaderMixin, 
                 # call the callback, if provided
                 if i == len(timesteps) - 1 or ((i + 1) > num_warmup_steps and (i + 1) % self.scheduler.order == 0):
                     progress_bar.update()
+
+        if lora_scale is not None:
+            # remove `lora_scale` from each PEFT layer
+            unscale_lora_layers(self.controlnet, lora_scale)
+            unscale_lora_layers(self.transformer, lora_scale)
+            self.joint_attention_kwargs["scale"] = lora_scale
 
         if output_type == "latent":
             image = latents

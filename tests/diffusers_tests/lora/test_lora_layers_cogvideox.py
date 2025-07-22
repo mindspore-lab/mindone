@@ -15,10 +15,11 @@
 import sys
 import unittest
 
+import numpy as np
+from transformers import AutoTokenizer
+
 import mindspore as ms
 from mindspore import mint
-from mindone.transformers import T5EncoderModel
-from transformers import AutoTokenizer
 
 from mindone.diffusers import (
     AutoencoderKLCogVideoX,
@@ -28,6 +29,7 @@ from mindone.diffusers import (
     CogVideoXTransformer3DModel,
 )
 from mindone.diffusers.utils.testing_utils import floats_tensor
+from mindone.transformers import T5EncoderModel
 
 sys.path.append(".")
 
@@ -79,7 +81,11 @@ class CogVideoXLoRATests(unittest.TestCase, PeftLoraLoaderMixinTests):
     }
     vae_cls = AutoencoderKLCogVideoX
     tokenizer_cls, tokenizer_id = AutoTokenizer, "hf-internal-testing/tiny-random-t5"
-    text_encoder_cls, text_encoder_id = T5EncoderModel, "hf-internal-testing/tiny-random-t5"
+    text_encoder_cls, text_encoder_id, text_encoder_revision = (
+        T5EncoderModel,
+        "hf-internal-testing/tiny-random-t5",
+        "refs/pr/1",
+    )
 
     text_encoder_target_modules = ["q", "k", "v", "o"]
 
@@ -95,9 +101,9 @@ class CogVideoXLoRATests(unittest.TestCase, PeftLoraLoaderMixinTests):
         num_latent_frames = 3  # (num_frames - 1) // temporal_compression_ratio + 1
         sizes = (2, 2)
 
-        generator = ms.manual_seed(0)
+        generator = np.random.default_rng(0)
         noise = floats_tensor((batch_size, num_latent_frames, num_channels) + sizes)
-        input_ids = mint.randint(1, sequence_length, (batch_size, sequence_length), generator=generator)
+        input_ids = mint.randint(1, sequence_length, (batch_size, sequence_length), generator=ms.manual_seed(0))
 
         pipeline_inputs = {
             "prompt": "dance monkey",

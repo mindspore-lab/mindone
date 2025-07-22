@@ -1028,9 +1028,6 @@ class HunyuanVideoTransformer3DModel(ModelMixin, ConfigMixin, PeftAdapterMixin, 
         attention_kwargs: Optional[Dict[str, Any]] = None,
         return_dict: bool = False,
     ) -> Union[ms.Tensor, Dict[str, ms.Tensor]]:
-        if attention_kwargs is not None:
-            attention_kwargs = attention_kwargs.copy()
-
         if attention_kwargs is not None and "scale" in attention_kwargs:
             # weight the lora layers by setting `lora_scale` for each PEFT layer here
             # and remove `lora_scale` from each PEFT layer at the end.

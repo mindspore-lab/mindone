@@ -22,7 +22,15 @@ from mindone.transformers import T5EncoderModel
 from ...loaders import StableDiffusionLoraLoaderMixin
 from ...models import UNet2DConditionModel
 from ...schedulers import DDPMScheduler
-from ...utils import BACKENDS_MAPPING, PIL_INTERPOLATION, is_bs4_available, is_ftfy_available, logging
+from ...utils import (
+    BACKENDS_MAPPING,
+    PIL_INTERPOLATION,
+    is_bs4_available,
+    is_ftfy_available,
+    logging,
+    scale_lora_layers,
+    unscale_lora_layers,
+)
 from ...utils.mindspore_utils import randn_tensor
 from ..pipeline_utils import DiffusionPipeline
 from .pipeline_output import IFPipelineOutput
@@ -1024,6 +1032,13 @@ class IFInpaintingSuperResolutionPipeline(DiffusionPipeline, StableDiffusionLora
         # 8. Prepare extra step kwargs. TODO: Logic should ideally just be moved out of the pipeline
         extra_step_kwargs = self.prepare_extra_step_kwargs(generator, eta)
 
+        # we're popping the `scale` instead of getting it because otherwise `scale` will be propagated
+        # to the unet and will raise RuntimeError.
+        lora_scale = cross_attention_kwargs.pop("scale", None) if cross_attention_kwargs is not None else None
+        if lora_scale is not None:
+            # weight the lora layers by setting `lora_scale` for each PEFT layer
+            scale_lora_layers(self.unet, lora_scale)
+
         # 9. Denoising loop
         num_warmup_steps = len(timesteps) - num_inference_steps * self.scheduler.order
         with self.progress_bar(total=num_inference_steps) as progress_bar:
@@ -1068,6 +1083,11 @@ class IFInpaintingSuperResolutionPipeline(DiffusionPipeline, StableDiffusionLora
                     progress_bar.update()
                     if callback is not None and i % callback_steps == 0:
                         callback(i, t, intermediate_images)
+
+        if lora_scale is not None:
+            # remove `lora_scale` from each PEFT layer
+            unscale_lora_layers(self.unet, lora_scale)
+            cross_attention_kwargs["scale"] = lora_scale
 
         image = intermediate_images
 
