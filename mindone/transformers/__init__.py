@@ -162,6 +162,12 @@ from .models.deberta_v2 import (
     DebertaV2Model,
     DebertaV2PreTrainedModel,
 )
+from .models.detr import (
+    DetrForObjectDetection,
+    DetrForSegmentation,
+    DetrModel,
+    DetrPreTrainedModel,
+)
 from .models.dpt import DPTForDepthEstimation
 from .models.fuyu import FuyuForCausalLM, FuyuPreTrainedModel
 from .models.gemma import (
@@ -365,6 +371,13 @@ from .models.roberta import (
     RobertaForTokenClassification,
     RobertaModel,
     RobertaPreTrainedModel,
+)
+from .models.segformer import (
+    SegformerDecodeHead,
+    SegformerForImageClassification,
+    SegformerForSemanticSegmentation,
+    SegformerModel,
+    SegformerPreTrainedModel,
 )
 from .models.siglip import (
     SiglipForImageClassification,
