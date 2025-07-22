@@ -267,7 +267,7 @@ class PatchEmbed(nn.Cell):
         hidden_states = hidden_states.view(
             (-1, self.in_channels, self.temporal_patch_size, self.patch_size, self.patch_size)
         )
-        hidden_states = self.proj(hidden_states).view((-1, self.embed_dim)).to(dtype=target_dtype)
+        hidden_states = self.proj(hidden_states.to(dtype=target_dtype)).view((-1, self.embed_dim))
         return hidden_states
 
 
@@ -277,9 +277,9 @@ class PatchMerger(nn.Cell):
         self.hidden_size = context_dim * (spatial_merge_size**2)
         self.ln_q = LayerNorm(context_dim, eps=1e-6).to_float(ms.float32)
         self.mlp = nn.SequentialCell(
-            nn.Dense(self.hidden_size, self.hidden_size, has_bias=True),
+            mint.nn.Linear(self.hidden_size, self.hidden_size, bias=True),
             nn.GELU(approximate=False),
-            nn.Dense(self.hidden_size, dim, has_bias=True),
+            mint.nn.Linear(self.hidden_size, dim, bias=True),
         )
 
     def construct(self, x: ms.Tensor) -> ms.Tensor:
@@ -291,9 +291,9 @@ class PatchMerger(nn.Cell):
 class VisionMlp(nn.Cell):
     def __init__(self, dim: int, hidden_dim: int, hidden_act: str) -> None:
         super().__init__()
-        self.fc1 = nn.Dense(dim, hidden_dim, has_bias=True)
+        self.fc1 = mint.nn.Linear(dim, hidden_dim, bias=True)
         self.act = ACT2FN[hidden_act]  # QuickGELUActivation()
-        self.fc2 = nn.Dense(hidden_dim, dim, has_bias=True)
+        self.fc2 = mint.nn.Linear(hidden_dim, dim, bias=True)
 
     def construct(self, x) -> ms.Tensor:
         return self.fc2(self.act(self.fc1(x)))
@@ -304,8 +304,8 @@ class VisionAttention(nn.Cell):
         super().__init__()
         self.num_heads = num_heads
         self.head_dim = dim // num_heads
-        self.qkv = nn.Dense(dim, dim * 3, has_bias=True)
-        self.proj = nn.Dense(dim, dim, has_bias=True)
+        self.qkv = mint.nn.Linear(dim, dim * 3, bias=True)
+        self.proj = mint.nn.Linear(dim, dim, bias=True)
 
     def construct(
         self,
@@ -330,7 +330,7 @@ class VisionAttention(nn.Cell):
             cos, sin = position_embeddings
         q, k = apply_rotary_pos_emb_vision(q, k, cos, sin)
 
-        attention_mask = mint.full([1, seq_length, seq_length], dtype_to_min(q.dtype), dtype=q.dtype)
+        attention_mask = mint.full([1, seq_length, seq_length], dtype_to_min(q.dtype).item(), dtype=q.dtype)
         for i in range(1, len(cu_seqlens)):
             attention_mask[..., cu_seqlens[i - 1] : cu_seqlens[i], cu_seqlens[i - 1] : cu_seqlens[i]] = 0
 
@@ -339,7 +339,7 @@ class VisionAttention(nn.Cell):
         v = v.swapaxes(0, 1)
         attn_weights = mint.matmul(q, k.swapaxes(1, 2)) / math.sqrt(self.head_dim)
         attn_weights = attn_weights + attention_mask
-        attn_weights = mint.nn.functional.softmax(attn_weights.to(ms.float32), axis=-1).to(q.dtype)
+        attn_weights = mint.nn.functional.softmax(attn_weights.to(ms.float32), dim=-1).to(q.dtype)
         attn_output = mint.matmul(attn_weights, v)
         attn_output = attn_output.swapaxes(0, 1)
         attn_output = attn_output.reshape(seq_length, -1)
@@ -351,8 +351,8 @@ class VisionFlashAttention2(nn.Cell):
     def __init__(self, dim: int, num_heads: int = 16) -> None:
         super().__init__()
         self.num_heads = num_heads
-        self.qkv = nn.Dense(dim, dim * 3, has_bias=True)
-        self.proj = nn.Dense(dim, dim, has_bias=True)
+        self.qkv = mint.nn.Linear(dim, dim * 3, bias=True)
+        self.proj = mint.nn.Linear(dim, dim, bias=True)
 
     def construct(
         self,
@@ -460,9 +460,9 @@ class Qwen2MLP(nn.Cell):
         super().__init__()
         self.hidden_size = config.hidden_size
         self.intermediate_size = config.intermediate_size
-        self.gate_proj = nn.Dense(self.hidden_size, self.intermediate_size, has_bias=False)
-        self.up_proj = nn.Dense(self.hidden_size, self.intermediate_size, has_bias=False)
-        self.down_proj = nn.Dense(self.intermediate_size, self.hidden_size, has_bias=False)
+        self.gate_proj = mint.nn.Linear(self.hidden_size, self.intermediate_size, bias=False)
+        self.up_proj = mint.nn.Linear(self.hidden_size, self.intermediate_size, bias=False)
+        self.down_proj = mint.nn.Linear(self.intermediate_size, self.hidden_size, bias=False)
         self.act_fn = ACT2FN[config.hidden_act]  # SiLU
 
     def construct(self, x):
@@ -513,10 +513,10 @@ class Qwen2VLAttention(nn.Cell):
                 f"hidden_size must be divisible by num_heads (got `hidden_size`: {self.hidden_size}"
                 f" and `num_heads`: {self.num_heads})."
             )
-        self.q_proj = nn.Dense(self.hidden_size, self.num_heads * self.head_dim, has_bias=True)
-        self.k_proj = nn.Dense(self.hidden_size, self.num_key_value_heads * self.head_dim, has_bias=True)
-        self.v_proj = nn.Dense(self.hidden_size, self.num_key_value_heads * self.head_dim, has_bias=True)
-        self.o_proj = nn.Dense(self.num_heads * self.head_dim, self.hidden_size, has_bias=False)
+        self.q_proj = mint.nn.Linear(self.hidden_size, self.num_heads * self.head_dim, bias=True)
+        self.k_proj = mint.nn.Linear(self.hidden_size, self.num_key_value_heads * self.head_dim, bias=True)
+        self.v_proj = mint.nn.Linear(self.hidden_size, self.num_key_value_heads * self.head_dim, bias=True)
+        self.o_proj = mint.nn.Linear(self.num_heads * self.head_dim, self.hidden_size, bias=False)
 
         self.rotary_emb = Qwen2VLRotaryEmbedding(config)
 
@@ -537,9 +537,9 @@ class Qwen2VLAttention(nn.Cell):
         key_states = self.k_proj(hidden_states)
         value_states = self.v_proj(hidden_states)
 
-        query_states = query_states.view((bsz, q_len, self.num_heads, self.head_dim)).swapaxes(1, 2)
-        key_states = key_states.view((bsz, q_len, self.num_key_value_heads, self.head_dim)).swapaxes(1, 2)
-        value_states = value_states.view((bsz, q_len, self.num_key_value_heads, self.head_dim)).swapaxes(1, 2)
+        query_states = query_states.view((bsz, q_len, -1, self.head_dim)).swapaxes(1, 2)
+        key_states = key_states.view((bsz, q_len, -1, self.head_dim)).swapaxes(1, 2)
+        value_states = value_states.view((bsz, q_len, -1, self.head_dim)).swapaxes(1, 2)
 
         cos, sin = position_embeddings
         query_states, key_states = apply_multimodal_rotary_pos_emb(
@@ -807,7 +807,7 @@ class Qwen2VLPreTrainedModel(PreTrainedModel):
     def _init_weights(self, module):
         if self.training:
             std = self.config.initializer_range
-            if isinstance(module, (nn.Dense, nn.Conv3d, mint.nn.Conv3d)):
+            if isinstance(module, (mint.nn.Linear, nn.Conv3d, mint.nn.Conv3d)):
                 weight = Initializer(Normal(sigma=std, mean=0.0), shape=module.weight.shape)
                 module.weight.set_data(weight)
                 if module.bias is not None:
@@ -876,7 +876,7 @@ class Qwen2VisionTransformerPretrainedModel(Qwen2VLPreTrainedModel):
             pos_ids.append(mint.stack([hpos_ids, wpos_ids], dim=-1).tile((t, 1)))
         pos_ids = mint.cat(pos_ids, dim=0)
         max_grid_size = grid_thw[:, 1:].max()
-        rotary_pos_emb_full = self.rotary_pos_emb(max_grid_size)
+        rotary_pos_emb_full = self.rotary_pos_emb(max_grid_size.item())
         rotary_pos_emb = rotary_pos_emb_full[pos_ids].flatten(start_dim=1)
         return rotary_pos_emb
 
@@ -889,7 +889,7 @@ class Qwen2VisionTransformerPretrainedModel(Qwen2VLPreTrainedModel):
         cu_seqlens = (
             mint.repeat_interleave(grid_thw[:, 1] * grid_thw[:, 2], grid_thw[:, 0]).int().cumsum(axis=0, dtype=ms.int32)
         )
-        cu_seqlens = mint.nn.functional.pad(cu_seqlens, (1, 0), value=None)
+        cu_seqlens = mint.nn.functional.pad(cu_seqlens, (1, 0), value=0)
 
         for blk in self.blocks:
             hidden_states = blk(hidden_states, cu_seqlens=cu_seqlens, position_embeddings=position_embeddings)
@@ -1212,7 +1212,7 @@ class Qwen2VLForConditionalGeneration(Qwen2VLPreTrainedModel):
         self.visual = Qwen2VisionTransformerPretrainedModel(config.vision_config)
         self.model = Qwen2VLModel(config)
         self.vocab_size = config.vocab_size
-        self.lm_head = nn.Dense(config.hidden_size, config.vocab_size, has_bias=False)
+        self.lm_head = mint.nn.Linear(config.hidden_size, config.vocab_size, bias=False)
         self.rope_deltas = None  # cache rope_deltas here
 
         # Initialize weights and apply final processing

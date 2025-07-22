@@ -11,8 +11,8 @@
 ## Requirements:
 |mindspore |	ascend driver | firmware | cann tookit/kernel|
 |--- | --- | --- | --- |
+|2.6.0 | 24.1.RC3 | 7.5.T11.0 | 8.0.0.beta1|
 |2.5.0 | 24.1RC3 | 7.3.0.1.231 | 8.0.RC3.beta1|
-|2.4.1 | 24.1RC3 | 7.3.0.1.231 | 8.0.RC3.beta1|
 
 ### Installation:
 ```
@@ -25,7 +25,7 @@ Pretrained weights from huggingface hub: [Qwen2-VL-7B-Instruct](https://huggingf
 ## Quick Start
 
 
-`test_vqa.py` and `video_understanding.py` provides examples of image and video VQA. Here is an usage example of image understanding:
+`vqa_test.py` and `video_understanding.py` provides examples of image and video VQA. Here is an usage example of image understanding:
 
 ```python
 from transformers import AutoProcessor
@@ -83,6 +83,16 @@ Experiments are tested on ascend 910* pynative mode.
 
 Input an image or a list of video frames, and a text prompt, output textual response.
 
+- mindspore 2.6.0
+
+|model name	| precision* | cards	| batch size| resolution | flash attn |	s/step	| step | response/s | weight |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| Qwen2-VL-7B-Instruct |  fp16 | 1 | 1 | 1372x2044 (image) | OFF | 0.24 | 128| 0.03 | [weight](https://huggingface.co/Qwen/Qwen2-VL-2B-Instruct)
+| Qwen2-VL-7B-Instruct |  fp16 | 1 | 1 | 12x308x476(video) | OFF | 0.23 | 115 | 0.04 | [weight](https://huggingface.co/Qwen/Qwen2-VL-2B-Instruct)
+| Qwen2-VL-7B-Instruct |  fp16 | 1 | 1 | 1372x2044 (image) | ON  | 0.19 | 128 | 0.04 | [weight](https://huggingface.co/Qwen/Qwen2-VL-2B-Instruct)
+| Qwen2-VL-7B-Instruct |  fp16 | 1 | 1 | 12x308x476(video) | ON  | 0.22 | 63 | 0.07 | [weight](https://huggingface.co/Qwen/Qwen2-VL-2B-Instruct)
+| Qwen2-VL-7B-Instruct | bf16 | 1 | 1 | 1372x2044 (image) | ON  | 0.21 | 128 | 0.04 | [weight](https://huggingface.co/Qwen/Qwen2-VL-2B-Instruct)
+| Qwen2-VL-7B-Instruct | bf16 | 1 | 1 | 12x308x476(video) | ON  | 0.21 | 63 | 0.08 | [weight](https://huggingface.co/Qwen/Qwen2-VL-2B-Instruct)
 
 - mindspore 2.5.0
 
@@ -95,18 +105,7 @@ Input an image or a list of video frames, and a text prompt, output textual resp
 | Qwen2-VL-7B-Instruct | bf16 | 1 | 1 | 1372x2044 (image) | ON  | 0.32| 121 | 0.03 | [weight](https://huggingface.co/Qwen/Qwen2-VL-2B-Instruct)
 | Qwen2-VL-7B-Instruct | bf16 | 1 | 1 | 12x308x476(video) | ON  | 0.30| 128| 0.03 | [weight](https://huggingface.co/Qwen/Qwen2-VL-2B-Instruct)
 
-- mindspore 2.4.1
-
-|model name	| precision* | cards	| batch size| resolution | flash attn |	s/step	| step | response/s | weight |
-| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| Qwen2-VL-7B-Instruct |  fp16 | 1 | 1 | 1372x2044 (image) | OFF | 0.80 | 128 | 0.01 | [weight](https://huggingface.co/Qwen/Qwen2-VL-2B-Instruct)
-| Qwen2-VL-7B-Instruct |  fp16 | 1 | 1 | 12x308x476(video) | OFF | 0.67 | 97  | 0.02 | [weight](https://huggingface.co/Qwen/Qwen2-VL-2B-Instruct)
-| Qwen2-VL-7B-Instruct |  fp16 | 1 | 1 | 1372x2044 (image) | ON  | 0.35 | 127 | 0.02 | [weight](https://huggingface.co/Qwen/Qwen2-VL-2B-Instruct)
-| Qwen2-VL-7B-Instruct |  fp16 | 1 | 1 | 12x308x476(video) | ON  | 0.25 | 128 | 0.03 | [weight](https://huggingface.co/Qwen/Qwen2-VL-2B-Instruct)
-| Qwen2-VL-7B-Instruct | bf16 | 1 | 1 | 1372x2044 (image) | ON  | 0.35 | 121 | 0.02 | [weight](https://huggingface.co/Qwen/Qwen2-VL-2B-Instruct)
-| Qwen2-VL-7B-Instruct | bf16 | 1 | 1 | 12x308x476(video) | ON  | 0.29 | 128 | 0.03 | [weight](https://huggingface.co/Qwen/Qwen2-VL-2B-Instruct)
-
-*note: use mixed precision, `Conv3d` uses bf16, `flash attention` fp16, `LayerNorm` fp32.
+*note: use mixed precision, `LayerNorm` fp32.
 
 ### Inference Results
 
