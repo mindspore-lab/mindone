@@ -41,6 +41,13 @@ from .models.albert import (
     AlbertModel,
     AlbertPreTrainedModel,
 )
+from .models.aria import (
+    AriaForConditionalGeneration,
+    AriaPreTrainedModel,
+    AriaTextForCausalLM,
+    AriaTextModel,
+    AriaTextPreTrainedModel,
+)
 from .models.auto import (
     AutoConfig,
     AutoFeatureExtractor,
@@ -95,6 +102,18 @@ from .models.bigbird_pegasus import (
     BigBirdPegasusPreTrainedModel,
 )
 from .models.bit import BitBackbone
+from .models.blip import (
+    BlipForConditionalGeneration,
+    BlipForImageTextRetrieval,
+    BlipForQuestionAnswering,
+    BlipImageProcessor,
+    BlipImageProcessorFast,
+    BlipModel,
+    BlipPreTrainedModel,
+    BlipProcessor,
+    BlipTextModel,
+    BlipVisionModel,
+)
 from .models.blip_2 import (
     Blip2ForConditionalGeneration,
     Blip2Model,
@@ -187,6 +206,13 @@ from .models.gpt2 import (
 from .models.granite import GraniteForCausalLM, GraniteModel, GranitePreTrainedModel
 from .models.granitemoe import GraniteMoeForCausalLM, GraniteMoeModel, GraniteMoePreTrainedModel
 from .models.granitemoeshared import GraniteMoeSharedForCausalLM, GraniteMoeSharedModel, GraniteMoeSharedPreTrainedModel
+from .models.helium import (
+    HeliumForCausalLM,
+    HeliumForSequenceClassification,
+    HeliumForTokenClassification,
+    HeliumModel,
+    HeliumPreTrainedModel,
+)
 from .models.hiera import (
     HieraBackbone,
     HieraForImageClassification,
@@ -217,6 +243,13 @@ from .models.imagegpt import (
     ImageGPTModel,
     ImageGPTPreTrainedModel,
 )
+from .models.led import (
+    LEDForConditionalGeneration,
+    LEDForQuestionAnswering,
+    LEDForSequenceClassification,
+    LEDModel,
+    LEDPreTrainedModel,
+)
 from .models.levit import (
     LevitFeatureExtractor,
     LevitForImageClassification,
@@ -239,6 +272,14 @@ from .models.megatron_bert import (
     MegatronBertPreTrainedModel,
 )
 from .models.minicpm4 import MiniCPMForCausalLM, MiniCPMForSequenceClassification, MiniCPMModel
+from .models.mistral import (
+    MistralForCausalLM,
+    MistralForQuestionAnswering,
+    MistralForSequenceClassification,
+    MistralForTokenClassification,
+    MistralModel,
+    MistralPreTrainedModel,
+)
 from .models.mixtral import (
     MixtralForCausalLM,
     MixtralForQuestionAnswering,
@@ -258,6 +299,14 @@ from .models.mobilebert import (
     MobileBertLayer,
     MobileBertModel,
     MobileBertPreTrainedModel,
+)
+from .models.mpt import (
+    MptForCausalLM,
+    MptForQuestionAnswering,
+    MptForSequenceClassification,
+    MptForTokenClassification,
+    MptModel,
+    MptPreTrainedModel,
 )
 from .models.mt5 import (
     MT5_PRETRAINED_MODEL_ARCHIVE_LIST,
@@ -402,6 +451,15 @@ from .processing_utils import ProcessorMixin
 if version.parse(transformers.__version__) >= version.parse("4.51.0"):
     from .models.qwen3 import Qwen3ForCausalLM, Qwen3Model, Qwen3PreTrainedModel
 
+if version.parse(transformers.__version__) >= version.parse("4.51.3"):
+    from .models.glm4 import (
+        Glm4ForCausalLM,
+        Glm4ForSequenceClassification,
+        Glm4ForTokenClassification,
+        Glm4Model,
+        Glm4PreTrainedModel,
+    )
+
 if version.parse(transformers.__version__) >= version.parse("4.53.0"):
     from .models.glm4v import (
         Glm4vForConditionalGeneration,
@@ -410,3 +468,4 @@ if version.parse(transformers.__version__) >= version.parse("4.53.0"):
         Glm4vTextModel,
         Glm4vVisionModel,
     )
+    from .models.vjepa2 import VJEPA2ForVideoClassification, VJEPA2Model, VJEPA2PreTrainedModel

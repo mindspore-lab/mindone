@@ -48,7 +48,7 @@ from .image_utils import (
     validate_preprocess_arguments,
 )
 from .processing_utils import Unpack
-from .utils import TensorType, is_mindspore_available, is_vision_available
+from .utils import TensorType, is_mindspore_available, is_mindspore_tensor, is_vision_available
 
 if is_vision_available():
     from .image_utils import PILImageResampling
@@ -324,7 +324,7 @@ class BaseImageProcessorFast(BaseImageProcessor):
         Resize an image to `(size["height"], size["width"])`.
 
         Args:
-            image (`torch.Tensor`):
+            image (`ms.tensor`):
                 Image to resize.
             size (`SizeDict`):
                 Dictionary in the format `{"height": int, "width": int}` specifying the size of the output image.
@@ -332,7 +332,7 @@ class BaseImageProcessorFast(BaseImageProcessor):
                 `InterpolationMode` filter to use when resizing the image e.g. `InterpolationMode.BICUBIC`.
 
         Returns:
-            `torch.Tensor`: The resized image.
+            `ms.tensor`: The resized image.
         """
         interpolation = interpolation if interpolation is not None else InterpolationMode.BILINEAR
         if size.shortest_edge and size.longest_edge:
@@ -398,15 +398,15 @@ class BaseImageProcessorFast(BaseImageProcessor):
         Normalize an image. image = (image - image_mean) / image_std.
 
         Args:
-            image (`torch.Tensor`):
+            image (`ms.Tensor`):
                 Image to normalize.
-            mean (`torch.Tensor`, `float` or `Iterable[float]`):
+            mean (`ms.tensor`, `float` or `Iterable[float]`):
                 Image mean to use for normalization.
-            std (`torch.Tensor`, `float` or `Iterable[float]`):
+            std (`ms.tensor`, `float` or `Iterable[float]`):
                 Image standard deviation to use for normalization.
 
         Returns:
-            `torch.Tensor`: The normalized image.
+            `ms.tensor`: The normalized image.
         """
         mean = [float(mean[0]), float(mean[1]), float(mean[2])]
         std = [float(std[0]), float(std[1]), float(std[2])]
@@ -471,13 +471,13 @@ class BaseImageProcessorFast(BaseImageProcessor):
         any edge, the image is padded with 0's and then center cropped.
 
         Args:
-            image (`"torch.Tensor"`):
+            image (`"ms.tensor"`):
                 Image to center crop.
             size (`Dict[str, int]`):
                 Size of the output image.
 
         Returns:
-            `ms.Tensor`: The center cropped image.
+            `ms.tensor`: The center cropped image.
         """
         if size.height is None or size.width is None:
             raise ValueError(f"The size dictionary must have keys 'height' and 'width'. Got {size.keys()}")
@@ -756,7 +756,7 @@ class SemanticSegmentationMixin:
         Returns:
             semantic_segmentation: `List[ms.Tensor]` of length `batch_size`, where each item is a semantic
             segmentation map of shape (height, width) corresponding to the target_sizes entry (if `target_sizes` is
-            specified). Each entry of each `torch.Tensor` correspond to a semantic class id.
+            specified). Each entry of each `ms.tensor` correspond to a semantic class id.
         """
         logits = outputs.logits
 
@@ -765,8 +765,8 @@ class SemanticSegmentationMixin:
             if len(logits) != len(target_sizes):
                 raise ValueError("Make sure that you pass in as many target sizes as the batch dimension of the logits")
 
-            # if is_torch_tensor(target_sizes):
-            #     target_sizes = target_sizes.numpy()
+            if is_mindspore_tensor(target_sizes):
+                target_sizes = target_sizes.asnumpy()
 
             semantic_segmentation = []
 
