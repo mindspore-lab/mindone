@@ -152,7 +152,7 @@ class ConvActivation(nn.Cell):
 
     def __init__(self, cin, cout, groups, act):
         super().__init__()
-        self.conv1d = nn.Conv1d(in_channels=cin, out_channels=cout, kernel_size=1, groups=groups)
+        self.conv1d = mint.nn.Conv1d(in_channels=cin, out_channels=cout, kernel_size=1, groups=groups)
         self.act = ACT2FN[act]
 
     def construct(self, x):
@@ -175,9 +175,9 @@ class SqueezeBertSelfAttention(nn.Cell):
         self.attention_head_size = int(cin / config.num_attention_heads)
         self.all_head_size = self.num_attention_heads * self.attention_head_size
 
-        self.query = nn.Conv1d(in_channels=cin, out_channels=cin, kernel_size=1, groups=q_groups)
-        self.key = nn.Conv1d(in_channels=cin, out_channels=cin, kernel_size=1, groups=k_groups)
-        self.value = nn.Conv1d(in_channels=cin, out_channels=cin, kernel_size=1, groups=v_groups)
+        self.query = mint.nn.Conv1d(in_channels=cin, out_channels=cin, kernel_size=1, groups=q_groups)
+        self.key = mint.nn.Conv1d(in_channels=cin, out_channels=cin, kernel_size=1, groups=k_groups)
+        self.value = mint.nn.Conv1d(in_channels=cin, out_channels=cin, kernel_size=1, groups=v_groups)
 
         self.dropout = mint.nn.Dropout(config.attention_probs_dropout_prob)
         self.softmax = mint.nn.Softmax(dim=-1)
@@ -429,7 +429,7 @@ class SqueezeBertPreTrainedModel(PreTrainedModel):
 
     def _init_weights(self, module):
         """Initialize the weights"""
-        if isinstance(module, (mint.nn.Linear, nn.Conv1d)):
+        if isinstance(module, (mint.nn.Linear, mint.nn.Conv1d)):
             # Slightly different from the TF version which uses truncated_normal for initialization
             # cf https://github.com/pytorch/pytorch/pull/5617
             module.weight.data.normal_(mean=0.0, std=self.config.initializer_range)
