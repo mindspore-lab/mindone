@@ -82,6 +82,9 @@ class Qwen2RotaryEmbedding(nn.Cell):
             rope_type = "default"
 
         rope_init_fn = ROPE_INIT_FUNCTIONS[rope_type]
+        if os.environ.get("USE_MLA", None) == "1":
+            logger.info("Use MLA attention.")
+            config.head_dim = config.hidden_size // config.num_attention_heads // 2
 
         inv_freq, self.attention_scaling = rope_init_fn(config)
         self.inv_freq = inv_freq
@@ -515,11 +518,9 @@ class Qwen2DecoderLayer(nn.Cell):
 
         if config._attn_implementation == "paged_attention":
             self.self_attn = Qwen2PageAttention(config=config, layer_idx=layer_idx)
-        elif os.environ["USE_MLA"] == "1":
-            print("Use MLA attention.")
+        elif os.environ.get("USE_MLA", None) == "1":
             self.self_attn = Qwen2MLAAttention(config=config, layer_idx=layer_idx)
         else:
-            print("Use vanilla attention.")
             self.self_attn = Qwen2Attention(config=config, layer_idx=layer_idx)
 
         self.mlp = Qwen2MLP(config)
