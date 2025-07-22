@@ -17,14 +17,19 @@ import tempfile
 import unittest
 
 import numpy as np
-import mindspore as ms
-from mindspore import mint
-from mindone.transformers import GlmModel
 from transformers import AutoTokenizer
 
-from mindone.diffusers import AutoencoderKL, CogView4Pipeline, CogView4Transformer2DModel, FlowMatchEulerDiscreteScheduler
-from mindone.diffusers.utils.testing_utils import floats_tensor
+import mindspore as ms
+from mindspore import mint
 
+from mindone.diffusers import (
+    AutoencoderKL,
+    CogView4Pipeline,
+    CogView4Transformer2DModel,
+    FlowMatchEulerDiscreteScheduler,
+)
+from mindone.diffusers.utils.testing_utils import floats_tensor
+from mindone.transformers import GlmModel
 
 sys.path.append(".")
 
@@ -88,9 +93,9 @@ class CogView4LoRATests(unittest.TestCase, PeftLoraLoaderMixinTests):
         num_channels = 4
         sizes = (4, 4)
 
-        generator = ms.manual_seed(0)
+        generator = np.random.default_rng(0)
         noise = floats_tensor((batch_size, num_channels) + sizes)
-        input_ids = mint.randint(1, sequence_length, (batch_size, sequence_length), generator=generator)
+        input_ids = mint.randint(1, sequence_length, (batch_size, sequence_length), generator=ms.manual_seed(0))
 
         pipeline_inputs = {
             "prompt": "",
@@ -131,7 +136,6 @@ class CogView4LoRATests(unittest.TestCase, PeftLoraLoaderMixinTests):
                 pipe.save_pretrained(tmpdirname)
 
                 pipe_from_pretrained = self.pipeline_class.from_pretrained(tmpdirname)
-                pipe_from_pretrained.to(torch_device)
 
             images_lora_save_pretrained = pipe_from_pretrained(**inputs, generator=np.random.default_rng(0))[0]
 

@@ -31,8 +31,8 @@ from mindspore.nn.utils import no_init_parameters
 
 # from mindone.transformers.models.phi3.modeling_phi3 import Phi3RMSNorm, Phi3MLP, Phi3Attention, Phi3LongRoPEScaledRotaryEmbedding
 from mindone.diffusers import AutoencoderKL
-from mindone.diffusers._peft import LoraConfig, get_peft_model
 from mindone.diffusers.training_utils import AttrJitWrapper, TrainStep, cast_training_params
+from mindone.peft import LoraConfig, get_peft_model
 from mindone.trainers.lr_schedule import create_scheduler
 from mindone.trainers.optim import create_optimizer
 from mindone.utils.amp import auto_mixed_precision

@@ -47,7 +47,7 @@ EXAMPLE_DOC_STRING = """
         >>> from mindone.diffusers import MochiPipeline
         >>> from mindone.diffusers.utils import export_to_video
 
-        >>> pipe = MochiPipeline.from_pretrained("genmo/mochi-1-preview", torch_dtype=torch.bfloat16)
+        >>> pipe = MochiPipeline.from_pretrained("genmo/mochi-1-preview", mindspore_dtype=mindspore.bfloat16)
         >>> pipe.enable_vae_tiling()
         >>> prompt = "Close-up of a chameleon's eye, with its scaly skin changing color. Ultra high resolution 4k."
         >>> frames = pipe(prompt, num_inference_steps=28, guidance_scale=3.5)[0][0]
@@ -413,7 +413,6 @@ class MochiPipeline(DiffusionPipeline, Mochi1LoraLoaderMixin):
         width,
         num_frames,
         dtype,
-        device,
         generator,
         latents=None,
     ):
@@ -424,7 +423,7 @@ class MochiPipeline(DiffusionPipeline, Mochi1LoraLoaderMixin):
         shape = (batch_size, num_channels_latents, num_frames, height, width)
 
         if latents is not None:
-            return latents.to(device=device, dtype=dtype)
+            return latents.to(dtype=dtype)
         if isinstance(generator, list) and len(generator) != batch_size:
             raise ValueError(
                 f"You have passed a list of generators of length {len(generator)}, but requested an effective batch"
@@ -512,7 +511,7 @@ class MochiPipeline(DiffusionPipeline, Mochi1LoraLoaderMixin):
             num_videos_per_prompt (`int`, *optional*, defaults to 1):
                 The number of videos to generate per prompt.
             generator (`np.random.Generator` or `List[np.random.Generator]`, *optional*):
-                One or a list of [numpy generator(s)](https://pytorch.org/docs/stable/generated/torch.Generator.html)
+                One or a list of [numpy generator(s)](https://numpy.org/doc/stable/reference/random/generator.html)
                 to make generation deterministic.
             latents (`ms.Tensor`, *optional*):
                 Pre-generated noisy latents, sampled from a Gaussian distribution, to be used as inputs for image
@@ -639,7 +638,7 @@ class MochiPipeline(DiffusionPipeline, Mochi1LoraLoaderMixin):
 
         # we're popping the `scale` instead of getting it because otherwise `scale` will be propagated
         # to the transformer and will raise RuntimeError.
-        lora_scale = self.attention_kwargs.pop("scale", None) if self.attention_kwargs is not None else None
+        lora_scale = attention_kwargs.pop("scale", None) if attention_kwargs is not None else None
         if lora_scale is not None:
             # weight the lora layers by setting `lora_scale` for each PEFT layer
             scale_lora_layers(self.transformer, lora_scale)
@@ -696,6 +695,7 @@ class MochiPipeline(DiffusionPipeline, Mochi1LoraLoaderMixin):
         if lora_scale is not None:
             # remove `lora_scale` from each PEFT layer
             unscale_lora_layers(self.transformer, lora_scale)
+            attention_kwargs["scale"] = lora_scale
 
         self._current_timestep = None
 

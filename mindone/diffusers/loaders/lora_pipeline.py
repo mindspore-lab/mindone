@@ -2070,7 +2070,7 @@ class FluxLoraLoaderMixin(LoraBaseMixin):
                 state_dict[key.removeprefix(f"{prefix}.")] = state_dict.pop(key)
 
         # Find invalid keys
-        transformer_state_dict = transformer.state_dict()
+        transformer_state_dict = transformer.parameters_dict()
         transformer_keys = set(transformer_state_dict.keys())
         state_dict_keys = set(state_dict.keys())
         extra_keys = list(state_dict_keys - transformer_keys)

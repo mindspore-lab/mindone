@@ -29,10 +29,10 @@ from huggingface_hub.constants import HF_HUB_OFFLINE
 import mindspore as ms
 from mindspore import nn
 
+from mindone.peft.tuners.tuners_utils import BaseTunerLayer
 from mindone.safetensors.mindspore import load_file, save_file
 from mindone.transformers import MSPreTrainedModel
 
-from .._peft.tuners.tuners_utils import BaseTunerLayer
 from ..models.modeling_utils import ModelMixin, load_state_dict
 from ..utils import (
     _get_model_file,
@@ -52,7 +52,7 @@ from ..utils.state_dict_utils import _load_sft_state_dict_metadata
 
 logger = logging.get_logger(__name__)
 
-LORA_WEIGHT_NAME = "pytorch_lora_weights.bin"
+LORA_WEIGHT_NAME = "pytorch_lora_weights.ckpt"
 LORA_WEIGHT_NAME_SAFE = "pytorch_lora_weights.safetensors"
 LORA_ADAPTER_METADATA_KEY = "lora_adapter_metadata"
 
@@ -243,7 +243,7 @@ def _fetch_state_dict(
         if model_file is None:
             if weight_name is None:
                 weight_name = _best_guess_weight_name(
-                    pretrained_model_name_or_path_or_dict, file_extension=".bin", local_files_only=local_files_only
+                    pretrained_model_name_or_path_or_dict, file_extension=".ckpt", local_files_only=local_files_only
                 )
             model_file = _get_model_file(
                 pretrained_model_name_or_path_or_dict,
@@ -259,9 +259,6 @@ def _fetch_state_dict(
             )
             state_dict = load_state_dict(model_file)
             metadata = None
-            raise NotImplementedError(
-                f"Only supports deserialization of weights file in safetensors format, but got {model_file}"
-            )
     else:
         state_dict = pretrained_model_name_or_path_or_dict
 
