@@ -1,4 +1,4 @@
-# Copyright 2024 OmniGen team and The HuggingFace Team. All rights reserved.
+# Copyright 2025 OmniGen team and The HuggingFace Team. All rights reserved.
 #
 # This code is adapted from https://github.com/huggingface/diffusers
 # with modifications to run diffusers on mindspore.
@@ -297,7 +297,7 @@ class OmniGenBlock(nn.Cell):
 
 class OmniGenTransformer2DModel(ModelMixin, ConfigMixin):
     """
-    The Transformer model introduced in OmniGen (https://arxiv.org/pdf/2409.11340).
+    The Transformer model introduced in OmniGen (https://huggingface.co/papers/2409.11340).
 
     Parameters:
         in_channels (`int`, defaults to `4`):

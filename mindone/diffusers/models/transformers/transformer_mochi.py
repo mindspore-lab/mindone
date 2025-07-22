@@ -1,4 +1,4 @@
-# Copyright 2024 The Genmo team and The HuggingFace Team.
+# Copyright 2025 The Genmo team and The HuggingFace Team.
 # All rights reserved.
 #
 # This code is adapted from https://github.com/huggingface/diffusers

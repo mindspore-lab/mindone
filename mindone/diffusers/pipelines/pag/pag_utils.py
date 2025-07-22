@@ -1,4 +1,4 @@
-# Copyright 2024 The HuggingFace Team. All rights reserved.
+# Copyright 2025 The HuggingFace Team. All rights reserved.
 #
 # This code is adapted from https://github.com/huggingface/diffusers
 # with modifications to run diffusers on mindspore.
@@ -32,7 +32,7 @@ logger = logging.get_logger(__name__)  # pylint: disable=invalid-name
 
 
 class PAGMixin:
-    r"""Mixin class for [Pertubed Attention Guidance](https://arxiv.org/abs/2403.17377v1)."""
+    r"""Mixin class for [Pertubed Attention Guidance](https://huggingface.co/papers/2403.17377v1)."""
 
     def _set_pag_attn_processor(self, pag_applied_layers, do_classifier_free_guidance):
         r"""
