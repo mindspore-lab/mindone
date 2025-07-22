@@ -129,15 +129,19 @@ model_tester = PegasusXModelTester()
 
 PEGASUS_CASES = [
     [
-        "PegasusXForCausalLM",
-        "transformers.PegasusXForCausalLM",
-        "mindone.transformers.PegasusXForCausalLM",
+        "PegasusForConditionalGeneration",
+        "transformers.PegasusForConditionalGeneration",
+        "mindone.transformers.PegasusForConditionalGeneration",
         (config,),
         {},
-        (inputs_dict["input_ids"],),
-        {"attention_mask": inputs_dict["attention_mask"]},
+        (),
         {
-            "logits": 0,
+            "decoder_input_ids": inputs_dict["decoder_input_ids"],
+            "input_ids": inputs_dict["input_ids"],
+            "attention_mask": inputs_dict["attention_mask"],
+        },
+        {
+            "logits": 1,
         },
     ],
     [
