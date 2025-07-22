@@ -1,6 +1,4 @@
-# coding=utf-8
 # Copyright 2023-present the HuggingFace Inc. team.
-# Hacked together by / Copyright 2024 Genius Patrick @ MindSpore Team.
 #
 # This code is adapted from https://github.com/huggingface/peft
 # with modifications to run peft on mindspore.
@@ -17,16 +15,22 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-__version__ = "0.8.2"
+from mindone.peft.utils import register_peft_method
 
-from .config import PeftConfig, PromptLearningConfig
-from .mapping import (
-    MODEL_TYPE_TO_PEFT_MODEL_MAPPING,
-    PEFT_TYPE_TO_CONFIG_MAPPING,
-    get_peft_config,
-    get_peft_model,
-    inject_adapter_in_model,
-)
-from .peft_model import PeftModel
-from .tuners import LoftQConfig, LoraConfig, LoraModel
-from .utils import PeftType, TaskType, get_peft_model_state_dict, load_peft_weights, set_peft_model_state_dict
+from .config import EvaConfig, LoftQConfig, LoraConfig, LoraRuntimeConfig
+from .layer import Conv2d, Conv3d, Linear, LoraLayer
+from .model import LoraModel
+
+__all__ = [
+    "Conv2d",
+    "Conv3d",
+    "EvaConfig",
+    "Linear",
+    "LoftQConfig",
+    "LoraConfig",
+    "LoraLayer",
+    "LoraModel",
+    "LoraRuntimeConfig",
+]
+
+register_peft_method(name="lora", config_cls=LoraConfig, model_cls=LoraModel, is_mixed_compatible=True)

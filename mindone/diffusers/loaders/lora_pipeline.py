@@ -2491,7 +2491,7 @@ class FluxLoraLoaderMixin(LoraBaseMixin):
     @classmethod
     def _maybe_expand_lora_state_dict(cls, transformer, lora_state_dict):
         expanded_module_names = set()
-        transformer_state_dict = transformer.parameters_dict()
+        transformer_state_dict = transformer.state_dict()
         prefix = f"{cls.transformer_name}."
 
         lora_module_names = [key[: -len(".lora_A.weight")] for key in lora_state_dict if key.endswith(".lora_A.weight")]

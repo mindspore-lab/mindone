@@ -727,6 +727,17 @@ class CogView4Transformer2DModel(ModelMixin, ConfigMixin, PeftAdapterMixin):
         attention_mask: Optional[ms.Tensor] = None,
         image_rotary_emb: Optional[Union[Tuple[ms.Tensor, ms.Tensor], List[Tuple[ms.Tensor, ms.Tensor]]]] = None,
     ) -> Union[ms.Tensor, Transformer2DModelOutput]:
+        if attention_kwargs is not None and "scale" in attention_kwargs:
+            # weight the lora layers by setting `lora_scale` for each PEFT layer here
+            # and remove `lora_scale` from each PEFT layer at the end.
+            # scale_lora_layers & unscale_lora_layers maybe contains some operation forbidden in graph mode
+            raise RuntimeError(
+                f"You are trying to set scaling of lora layer by passing {attention_kwargs['scale']=}. "
+                f"However it's not allowed in on-the-fly model forwarding. "
+                f"Please manually call `scale_lora_layers(model, lora_scale)` before model forwarding and "
+                f"`unscale_lora_layers(model, lora_scale)` after model forwarding. "
+                f"For example, it can be done in a pipeline call like `StableDiffusionPipeline.__call__`."
+            )
         batch_size, num_channels, height, width = hidden_states.shape
 
         # 1. RoPE
