@@ -34,6 +34,26 @@ from .models.bart import (
     BartPreTrainedModel,
     PretrainedBartModel,
 )
+from .models.pegasus import (
+    PegasusForCausalLM,
+    PegasusForConditionalGeneration,
+    PegasusModel,
+    PegasusPreTrainedModel,
+)
+from .models.pegasus_x import (
+    PegasusXForConditionalGeneration,
+    PegasusXModel,
+    PegasusXPreTrainedModel,
+)
+from .models.squeezebert import (
+    SqueezeBertForMaskedLM,
+    SqueezeBertForMultipleChoice,
+    SqueezeBertForQuestionAnswering,
+    SqueezeBertForSequenceClassification,
+    SqueezeBertForTokenClassification,
+    SqueezeBertModel,
+    SqueezeBertPreTrainedModel,
+)
 from .models.bert import (
     BertForMaskedLM,
     BertForMultipleChoice,
