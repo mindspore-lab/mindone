@@ -121,7 +121,7 @@ class SqueezeBertLayerNorm(mint.nn.LayerNorm):
 
     def construct(self, x):
         x = x.permute(0, 2, 1)
-        x = mint.nn.LayerNorm.forward(self, x)
+        x = mint.nn.LayerNorm.construct(self, x)
         return x.permute(0, 2, 1)
 
 
@@ -333,7 +333,7 @@ class SqueezeBertEncoder(nn.Cell):
                 all_hidden_states += (hidden_states,)
                 hidden_states = hidden_states.permute(0, 2, 1)
 
-            layer_output = layer.forward(hidden_states, attention_mask, output_attentions)
+            layer_output = layer.construct(hidden_states, attention_mask, output_attentions)
 
             hidden_states = layer_output["feature_map"]
 
