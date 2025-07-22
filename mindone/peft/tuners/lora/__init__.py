@@ -1,4 +1,3 @@
-# coding=utf-8
 # Copyright 2023-present the HuggingFace Inc. team.
 #
 # This code is adapted from https://github.com/huggingface/peft
@@ -16,8 +15,22 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from .config import LoftQConfig, LoraConfig
-from .layer import Conv2d, Linear, LoraLayer
+from mindone.peft.utils import register_peft_method
+
+from .config import EvaConfig, LoftQConfig, LoraConfig, LoraRuntimeConfig
+from .layer import Conv2d, Conv3d, Linear, LoraLayer
 from .model import LoraModel
 
-__all__ = ["LoraConfig", "LoftQConfig", "Conv2d", "Linear", "LoraLayer", "LoraModel"]
+__all__ = [
+    "Conv2d",
+    "Conv3d",
+    "EvaConfig",
+    "Linear",
+    "LoftQConfig",
+    "LoraConfig",
+    "LoraLayer",
+    "LoraModel",
+    "LoraRuntimeConfig",
+]
+
+register_peft_method(name="lora", config_cls=LoraConfig, model_cls=LoraModel, is_mixed_compatible=True)
