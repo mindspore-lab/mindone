@@ -684,6 +684,11 @@ class PreTrainedModel(nn.Cell, ModuleUtilsMixin, GenerationMixin, PushToHubMixin
     # Has support for a `QuantoQuantizedCache` instance as `past_key_values`
     _supports_quantized_cache = False
 
+    # This flag signal that the model can be used as an efficient backend in TGI and vLLM
+    # In practice, it means that they support attention interface functions, fully pass the kwargs
+    # through all modules up to the Attention layer, can slice logits with Tensor, and have a default TP plan
+    _supports_attention_backend = False
+
     @property
     def dummy_inputs(self) -> Dict[str, Tensor]:
         """
@@ -749,7 +754,7 @@ class PreTrainedModel(nn.Cell, ModuleUtilsMixin, GenerationMixin, PushToHubMixin
                     ' We recommend to just use `attn_implementation="flash_attention_2"` when loading the model.'
                 )
 
-            if config._attn_implementation not in ["eager", "sdpa", "flash_attention_2", "paged_attention"]:
+            if config._attn_implementation not in ["eager", "paged_attention"] + ALL_ATTENTION_FUNCTIONS.valid_keys():
                 message = (
                     f'Specified `attn_implementation="{config._attn_implementation}"` is not supported. '
                     f'The only possible arguments are `attn_implementation="eager"`'
@@ -890,6 +895,10 @@ class PreTrainedModel(nn.Cell, ModuleUtilsMixin, GenerationMixin, PushToHubMixin
     @loss_function.setter
     def loss_function(self, value):
         self._loss_function = value
+
+    @classmethod
+    def is_backend_compatible(cls):
+        return cls._supports_attention_backend
 
     @classmethod
     def _check_and_enable_sdpa(cls, config, hard_check_only: bool = False) -> PretrainedConfig:
