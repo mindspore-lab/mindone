@@ -149,6 +149,7 @@ PEGASUS_CASES = [
         (),
         {
             "input_ids": inputs_dict["input_ids"],
+            "decoder_input_ids": inputs_dict["decoder_input_ids"],
             "attention_mask": inputs_dict["attention_mask"],
             "head_mask": inputs_dict["head_mask"],
         },
