@@ -49,6 +49,8 @@ from . import (
     levit,
     llama,
     llava,
+    mbart,
+    mbart50,
     megatron_bert,
     minicpm4,
     mistral,

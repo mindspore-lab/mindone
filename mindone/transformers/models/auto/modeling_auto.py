@@ -70,6 +70,7 @@ MODEL_MAPPING_NAMES = OrderedDict(
         ("imagegpt", "ImageGPTModel"),
         ("levit", "LevitModel"),
         ("llama", "LlamaModel"),
+        ("mbart", "MBartModel"),
         ("mistral", "MistralModel"),
         ("mobilebert", "MobileBertModel"),
         ("mpt", "MptModel"),
@@ -101,6 +102,7 @@ MODEL_FOR_PRETRAINING_MAPPING_NAMES = OrderedDict(
         # Model for pre-training mapping
         ("albert", "AlbertForPreTraining"),
         ("bart", "BartForConditionalGeneration"),
+        ("mbart", "MBartForConditionalGeneration"),
         ("bert", "BertForPreTraining"),
         ("gpt2", "GPT2LMHeadModel"),
         ("gemma3", "Gemma3ForConditionalGeneration"),
@@ -127,6 +129,7 @@ MODEL_WITH_LM_HEAD_MAPPING_NAMES = OrderedDict(
         # Model with LM heads mapping
         ("albert", "AlbertForMaskedLM"),
         ("bart", "BartForConditionalGeneration"),
+        ("mbart", "MBartForConditionalGeneration"),
         ("bert", "BertForMaskedLM"),
         ("deberta", "DebertaForMaskedLM"),
         ("deberta-v2", "DebertaV2ForMaskedLM"),
@@ -162,6 +165,7 @@ MODEL_FOR_CAUSAL_LM_MAPPING_NAMES = OrderedDict(
         ("granitemoe", "GraniteMoeForCausalLM"),
         ("granitemoeshared", "GraniteMoeSharedForCausalLM"),
         ("llama", "LlamaForCausalLM"),
+        ("mbart", "MBartForCausalLM"),
         ("megatron-bert", "MegatronBertForCausalLM"),
         ("mistral", "MistralForCausalLM"),
         ("mpt", "MptForCausalLM"),
@@ -339,6 +343,7 @@ MODEL_FOR_SEQUENCE_CLASSIFICATION_MAPPING_NAMES = OrderedDict(
         ("glm", "GlmForSequenceClassification"),
         ("llama", "LlamaForSequenceClassification"),
         ("persimmon", "PersimmonForSequenceClassification"),
+        ("mbart", "MBartForSequenceClassification"),
         ("mobilebert", "MobileBertForSequenceClassification"),
         ("mt5", "MT5ForSequenceClassification"),
         ("megatron-bert", "MegatronBertForSequenceClassification"),
@@ -360,6 +365,7 @@ MODEL_FOR_QUESTION_ANSWERING_MAPPING_NAMES = OrderedDict(
         # Model for Question Answering mapping
         ("albert", "AlbertForQuestionAnswering"),
         ("bart", "BartForQuestionAnswering"),
+        ("mbart", "MBartForQuestionAnswering"),
         ("bert", "BertForQuestionAnswering"),
         ("roberta", "RobertaForQuestionAnswering"),
         ("deberta", "DebertaForQuestionAnswering"),
