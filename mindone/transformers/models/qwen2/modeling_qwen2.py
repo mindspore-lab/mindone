@@ -179,7 +179,8 @@ def eager_attention_forward(
     key_states = repeat_kv(key, module.num_key_value_groups)
     value_states = repeat_kv(value, module.num_key_value_groups)
 
-    attn_weights = mint.matmul(query, key_states.swapaxes(2, 3)) / mint.sqrt(ms.tensor(module.head_dim))
+    qk_product = mint.matmul(query, key_states.swapaxes(2, 3))
+    attn_weights = qk_product / mint.sqrt(ms.tensor(module.head_dim))
     if attention_mask is not None:
         causal_mask = attention_mask[:, :, :, : key_states.shape[-2]]
         attn_weights = attn_weights + causal_mask
@@ -189,7 +190,7 @@ def eager_attention_forward(
     attn_output = mint.matmul(attn_weights, value_states)
     attn_output = attn_output.swapaxes(1, 2).contiguous()
 
-    return attn_output, attn_weights
+    return attn_output, attn_weights, qk_product
 
 
 class Qwen2Attention(nn.Cell):
@@ -414,7 +415,7 @@ class Qwen2MLAAttention(nn.Cell):
         ):
             sliding_window = self.config.sliding_window
 
-        attn_output, attn_weights = attention_interface(
+        attn_output, attn_weights, qk_product = attention_interface(
             self,
             query_states,
             key_states,
@@ -432,7 +433,7 @@ class Qwen2MLAAttention(nn.Cell):
         if not output_attentions:
             attn_weights = None
 
-        return attn_output, attn_weights, past_key_value
+        return attn_output, attn_weights, past_key_value, qk_product
 
 
 class Qwen2PageAttention(Qwen2Attention):
@@ -572,7 +573,7 @@ class Qwen2DecoderLayer(nn.Cell):
 
         # Self Attention
         if block_tables is None:
-            hidden_states, self_attn_weights, present_key_value = self.self_attn(
+            hidden_states, self_attn_weights, present_key_value, qk_product = self.self_attn(
                 hidden_states=hidden_states,
                 attention_mask=attention_mask,
                 position_ids=position_ids,
@@ -615,6 +616,8 @@ class Qwen2DecoderLayer(nn.Cell):
 
         if use_cache:
             outputs += (present_key_value,)
+
+        outputs += (qk_product,)
 
         return outputs
 
@@ -825,6 +828,7 @@ class Qwen2Model(Qwen2PreTrainedModel):
         position_embeddings = self.rotary_emb(hidden_states, position_ids)
 
         # decoder layers
+        all_qk_products = ()
         all_hidden_states = () if output_hidden_states else None
         all_self_attns = () if output_attentions else None
         next_caches = () if use_cache else None
@@ -856,6 +860,8 @@ class Qwen2Model(Qwen2PreTrainedModel):
             if output_attentions:
                 all_self_attns += (layer_outputs[1],)
 
+            all_qk_products += (layer_outputs[-1],)
+
         hidden_states = self.norm(hidden_states)
 
         # add hidden states from the last decoder layer
@@ -863,7 +869,11 @@ class Qwen2Model(Qwen2PreTrainedModel):
             all_hidden_states += (hidden_states,)
 
         if not return_dict:
-            return tuple(v for v in [hidden_states, next_caches, all_hidden_states, all_self_attns] if v is not None)
+            return tuple(
+                v
+                for v in [hidden_states, next_caches, all_hidden_states, all_self_attns, all_qk_products]
+                if v is not None
+            )
 
         return BaseModelOutputWithPast(
             last_hidden_state=hidden_states,

@@ -12,6 +12,7 @@ from transformers import Qwen2Config, Qwen2Tokenizer
 from transformers.optimization import _get_cosine_schedule_with_warmup_lr_lambda
 
 import mindspore as ms
+import mindspore.mint as mint
 from mindspore.dataset import GeneratorDataset
 from mindspore.experimental.optim import AdamW, Optimizer
 from mindspore.experimental.optim.lr_scheduler import LambdaLR
@@ -110,7 +111,7 @@ def get_model_and_dataloader(model_name, dataset_name, hidden_size):
     return model, train_loader
 
 
-def get_optimizer(optimizer_name, model, lr=1e-3, wd=0.1):
+def get_optimizer(optimizer_name, model, lr=1e-3, wd=0.1, clip_value=None):
     if optimizer_name == "adamw":
         return AdamW(model.get_parameters(), lr=lr, weight_decay=wd, betas=(0.9, 0.95))
     elif optimizer_name == "muon":
@@ -130,6 +131,7 @@ def get_optimizer(optimizer_name, model, lr=1e-3, wd=0.1):
             wd=wd,
             muon_params=muon_params,
             adamw_params=adamw_params,
+            clip_value=clip_value,
         )
     else:
         assert 0, "optimizer not supported"
@@ -145,11 +147,13 @@ if __name__ == "__main__":
     parser.add_argument("--wd", type=float, default=0.1)
     parser.add_argument("--dataset", type=str, default="openwebtext-100k")
     parser.add_argument("--hidden_size", type=int, default=1024)
+    parser.add_argument("--clip_value", type=float, default=None)
     args = parser.parse_args()
     logger.add(f"logs/train_{args.model}_{args.optimizer}_lr{args.lr}.log")
 
+    ms.set_seed(0)
     model, train_loader = get_model_and_dataloader(args.model, args.dataset, args.hidden_size)
-    optimizer = get_optimizer(args.optimizer, model, lr=args.lr)
+    optimizer = get_optimizer(args.optimizer, model, lr=args.lr, clip_value=args.clip_value)
 
     model.set_train(True)
     epoch = 1
@@ -160,14 +164,19 @@ if __name__ == "__main__":
         num_cycles=0.5,
     )
 
+    total_train_params = sum([x.numel() for x in optimizer.parameters])
+    logger.info(f"Total number of trainable parameters: {total_train_params:,}")
+
     grad_fn = ms.value_and_grad(model, grad_position=None, weights=optimizer.parameters, has_aux=True)
     for epoch in range(epoch):
         for step, batch in enumerate(train_loader.create_tuple_iterator()):
             (input_ids,) = batch
-            (loss, _), grads = grad_fn(input_ids=input_ids, labels=input_ids, return_dict=False)
+            (loss, _, qk_products), grads = grad_fn(input_ids=input_ids, labels=input_ids, return_dict=False)
+            qk_products_max = max([mint.max(x).item() for x in qk_products])
+            logger.info(f"QK max value: {qk_products_max:.3f}")
             ms.synchronize()
             start = time.time()
-            optimizer(grads)
+            optimizer(grads, qk_products)
             ms.synchronize()
             duration = time.time() - start
             lr_scheduler.step()

@@ -66,6 +66,36 @@ def _update_run_op(
     return True
 
 
+_qk_clip_opt = ops.MultitypeFuncGraph("qk_clip_opt")
+
+
+@_qk_clip_opt.register("Float", "Int", "Tensor", "Tensor", "Tensor")
+def _update_clip_op(
+    clip_value: float, qk_nope_head_dim: int, qk: Tensor, q_b_projs: Parameter, kv_b_projs: Parameter
+) -> bool:
+    qk = mint.transpose(qk, 0, 1).flatten(start_dim=1)
+    qk_max, _ = mint.max(qk, dim=1)
+    num_head = qk_max.shape[0]
+    scale = mint.clip(clip_value / qk_max, max=1.0)
+    scale = scale[:, None, None]
+    scale_sqrt = mint.sqrt(scale)
+    # clip Q projection
+    outdim, _ = q_b_projs.shape
+    head_dim = outdim // num_head
+    scale_q_b_nope = mint.tile(scale_sqrt, (1, qk_nope_head_dim, 1))
+    scale_q_b_rope = mint.tile(scale, (1, head_dim - qk_nope_head_dim, 1))
+    scale_q_b = mint.cat([scale_q_b_nope, scale_q_b_rope], dim=1)
+    q_b_projs.mul_(scale_q_b.view(-1, 1))
+    # clip K projection
+    outdim, _ = kv_b_projs.shape
+    head_dim = outdim // num_head
+    scale_kv_b_nope = mint.tile(scale_sqrt, (1, qk_nope_head_dim, 1))
+    scale_kv_b_rope = mint.ones((num_head, head_dim - qk_nope_head_dim, 1), dtype=scale_sqrt.dtype)
+    scale_kv_b = mint.cat([scale_kv_b_nope, scale_kv_b_rope], dim=1)
+    kv_b_projs.mul_(scale_kv_b.view(-1, 1))
+    return True
+
+
 def zeropower_via_newtonschulz5(G: Tensor, steps: int) -> Tensor:
     """
     Newton-Schulz iteration to compute the zeroth power / orthogonalization of G. We opt to use a
@@ -117,6 +147,8 @@ class Muon(Optimizer):
         adamw_params: Optional[List[Parameter]] = None,
         adamw_betas: Tuple[float, float] = (0.9, 0.95),
         adamw_eps: float = 1e-8,
+        clip_value: Optional[float] = 100.0,
+        qk_nope_head_dim: int = 64,
     ) -> None:
         defaults = dict(
             lr=lr,
@@ -131,6 +163,8 @@ class Muon(Optimizer):
         adamw_params = list(adamw_params) if adamw_params is not None else []
         params.extend(adamw_params)
         super().__init__(params, defaults)
+        self.clip_value = clip_value
+        self.qk_nope_head_dim = qk_nope_head_dim
         # Sort parameters into those for which we will use Muon, and those for which we will not
         use_muon = list()
         for p in muon_params:
@@ -160,6 +194,24 @@ class Muon(Optimizer):
         self.state_step = Parameter(Tensor(0, dtype=ms.int32))
         self.increase_tensor = Tensor(1, dtype=ms.int32)
         self.denom = Parameter(Tensor(1.0, dtype=ms.float32))
+
+        if self.clip_value is not None:
+            # group the Q and KV projection first for easier updating in QK-clip
+            # TODO: it should be extracted from optimizer as extra inputs
+            q_b_projs = []
+            kv_b_projs = []
+            for x in self.parameters:
+                if x.name.endswith("q_b_proj.weight"):
+                    layer_idx = int(x.name.split(".")[2])
+                    q_b_projs.append((layer_idx, x))
+                elif x.name.endswith("kv_b_proj.weight"):
+                    layer_idx = int(x.name.split(".")[2])
+                    kv_b_projs.append((layer_idx, x))
+            q_b_projs = sorted(q_b_projs, key=lambda x: x[0])
+            kv_b_projs = sorted(kv_b_projs, key=lambda x: x[0])
+            self.q_b_projs = ParameterTuple([x[1] for x in q_b_projs])
+            self.kv_b_projs = ParameterTuple([x[1] for x in kv_b_projs])
+            assert len(self.q_b_projs) > 0 and len(self.kv_b_projs) > 0
 
     def _cal_lr_ratio(self, param: Parameter, use_muon: bool, rms_scale: float = 0.2) -> float:
         if not use_muon:
@@ -214,7 +266,20 @@ class Muon(Optimizer):
         )
         return optim_result
 
-    def construct(self, gradients: Tuple[Tensor, ...]) -> bool:
+    @ms.jit(jit_level="O1")
+    def qk_clip(self, qk_products: Tuple[Tensor, ...]) -> bool:
+        optim_result = self.hyper_map(
+            ops.partial(_qk_clip_opt, self.clip_value, self.qk_nope_head_dim),
+            qk_products,
+            self.q_b_projs,
+            self.kv_b_projs,
+        )
+        return optim_result
+
+    def construct(self, gradients: Tuple[Tensor, ...], qk_products: Optional[Tuple[Tensor, ...]] = None) -> bool:
+        if self.clip_value is not None:
+            assert qk_products is not None
+
         self.state_step.add_(self.increase_tensor)
         for group_id, group in enumerate(self.param_groups):
             beta1, beta2 = group["adamw_betas"]
@@ -237,4 +302,8 @@ class Muon(Optimizer):
                 end_id,
             )
 
-        return True
+        if self.clip_value is None:
+            return True
+        else:
+            optim_result = self.qk_clip(qk_products)
+            return optim_result
