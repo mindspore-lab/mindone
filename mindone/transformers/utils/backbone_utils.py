@@ -20,7 +20,9 @@
 import enum
 import inspect
 from typing import Iterable, List, Optional, Tuple, Union
+
 from transformers import PretrainedConfig
+
 
 class BackboneType(enum.Enum):
     TIMM = "timm"

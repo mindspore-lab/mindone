@@ -171,7 +171,7 @@ class ImageSegmentationPipeline(Pipeline):
                 kwargs = {"task_inputs": [subtask]}
             inputs = self.image_processor(images=[image], return_tensors="np", **kwargs)
             if self.framework == "ms":
-                for k, v in kwargs.items():
+                for k, v in inputs.items():
                     inputs[k] = ms.Tensor(v, dtype=self.mindspore_dtype)
             inputs["task_inputs"] = self.tokenizer(
                 inputs["task_inputs"],
@@ -182,7 +182,7 @@ class ImageSegmentationPipeline(Pipeline):
         else:
             inputs = self.image_processor(images=[image], return_tensors="np")
             if self.framework == "ms":
-                for k, v in kwargs.items():
+                for k, v in inputs.items():
                     inputs[k] = ms.Tensor(v, dtype=self.mindspore_dtype)
         inputs["target_size"] = target_size
         return inputs

@@ -20,6 +20,8 @@
 from typing import Any, Dict, List, Optional, Tuple, Union
 
 import numpy as np
+from transformers.utils.deprecation import deprecate_kwarg
+
 from mindspore import mint
 
 from ...image_processing_utils import INIT_SERVICE_KWARGS, BaseImageProcessor, BatchFeature, get_size_dict
@@ -37,15 +39,7 @@ from ...image_utils import (
     valid_images,
     validate_preprocess_arguments,
 )
-from ...utils import (
-    TensorType,
-    filter_out_non_signature_kwargs,
-    is_mindspore_tensor,
-    is_vision_available,
-    logging,
-)
-from transformers.utils.deprecation import deprecate_kwarg
-
+from ...utils import TensorType, filter_out_non_signature_kwargs, is_mindspore_tensor, is_vision_available, logging
 
 if is_vision_available():
     import PIL.Image
@@ -456,9 +450,7 @@ class SegformerImageProcessor(BaseImageProcessor):
         # Resize logits and compute semantic segmentation maps
         if target_sizes is not None:
             if len(logits) != len(target_sizes):
-                raise ValueError(
-                    "Make sure that you pass in as many target sizes as the batch dimension of the logits"
-                )
+                raise ValueError("Make sure that you pass in as many target sizes as the batch dimension of the logits")
 
             if is_mindspore_tensor(target_sizes):
                 target_sizes = target_sizes.numpy()
