@@ -303,8 +303,9 @@ class T5Attention(nn.Cell):
         is_cross_attention = key_value_states is not None
 
         query_states = self.q(hidden_states)
-        query_states = query_states.view(batch_size, -1, self.n_heads, self.key_value_proj_dim).transpose(1, 2)
+        query_states = query_states.view(batch_size, -1, self.n_heads, self.key_value_proj_dim).swapaxes(1, 2)
 
+        is_updated = False
         if past_key_value is not None:
             is_updated = past_key_value.is_updated.get(self.layer_idx)
             if is_cross_attention:
@@ -314,6 +315,7 @@ class T5Attention(nn.Cell):
                 curr_past_key_value = past_key_value.self_attention_cache
 
         current_states = key_value_states if is_cross_attention else hidden_states
+        curr_past_key_value = None
         if is_cross_attention and past_key_value is not None and is_updated:
             # reuse k,v, cross_attentions
             key_states = curr_past_key_value.key_cache[self.layer_idx]
@@ -321,8 +323,8 @@ class T5Attention(nn.Cell):
         else:
             key_states = self.k(current_states)
             value_states = self.v(current_states)
-            key_states = key_states.view(batch_size, -1, self.n_heads, self.key_value_proj_dim).transpose(1, 2)
-            value_states = value_states.view(batch_size, -1, self.n_heads, self.key_value_proj_dim).transpose(1, 2)
+            key_states = key_states.view(batch_size, -1, self.n_heads, self.key_value_proj_dim).swapaxes(1, 2)
+            value_states = value_states.view(batch_size, -1, self.n_heads, self.key_value_proj_dim).swapaxes(1, 2)
 
             if past_key_value is not None:
                 # save all key/value_states to cache to be re-used for fast auto-regressive generation
@@ -335,7 +337,7 @@ class T5Attention(nn.Cell):
                     past_key_value.is_updated[self.layer_idx] = True
 
         # compute scores, equivalent of mint.einsum("bnqd,bnkd->bnqk", query_states, key_states), compatible with onnx op>9
-        scores = mint.matmul(query_states, key_states.transpose(3, 2))
+        scores = mint.matmul(query_states, key_states.swapaxes(3, 2))
 
         if position_bias is None:
             key_length = key_states.shape[-2]
@@ -372,7 +374,7 @@ class T5Attention(nn.Cell):
 
         attn_output = mint.matmul(attn_weights, value_states)
 
-        attn_output = attn_output.transpose(1, 2).contiguous()
+        attn_output = attn_output.swapaxes(1, 2).contiguous()
         attn_output = attn_output.view(batch_size, -1, self.inner_dim)
         attn_output = self.o(attn_output)
 
@@ -786,6 +788,7 @@ class T5Stack(T5PreTrainedModel):
         all_cross_attentions = () if (output_attentions and self.is_decoder) else None
         position_bias = None
         encoder_decoder_position_bias = None
+        next_decoder_cache = None
 
         hidden_states = self.dropout(inputs_embeds)
 
@@ -1229,7 +1232,7 @@ class T5ForConditionalGeneration(T5PreTrainedModel, GenerationMixin):
         use_cache: Optional[bool] = None,
         output_attentions: Optional[bool] = None,
         output_hidden_states: Optional[bool] = None,
-        return_dict: Optional[bool] = None,
+        return_dict: Optional[bool] = False,
         cache_position: Optional[ms.Tensor] = None,
     ) -> Union[Tuple[ms.Tensor], Seq2SeqLMOutput]:
         r"""
@@ -1447,7 +1450,7 @@ class T5ForSequenceClassification(T5PreTrainedModel):
         use_cache: Optional[bool] = None,
         output_attentions: Optional[bool] = None,
         output_hidden_states: Optional[bool] = None,
-        return_dict: Optional[bool] = None,
+        return_dict: Optional[bool] = False,
     ) -> Union[Tuple, Seq2SeqSequenceClassifierOutput]:
         r"""
         labels (`ms.Tensor` of shape `(batch_size,)`, *optional*):
@@ -1563,7 +1566,7 @@ class T5ForTokenClassification(T5PreTrainedModel):
         labels: Optional[ms.Tensor] = None,
         output_attentions: Optional[bool] = None,
         output_hidden_states: Optional[bool] = None,
-        return_dict: Optional[bool] = None,
+        return_dict: Optional[bool] = False,
     ) -> Union[Tuple[ms.Tensor], TokenClassifierOutput]:
         r"""
         labels (`ms.Tensor` of shape `(batch_size, sequence_length)`, *optional*):
@@ -1669,7 +1672,7 @@ class T5ForQuestionAnswering(T5PreTrainedModel):
         use_cache: Optional[bool] = None,
         output_attentions: Optional[bool] = None,
         output_hidden_states: Optional[bool] = None,
-        return_dict: Optional[bool] = None,
+        return_dict: Optional[bool] = False,
     ) -> Union[Tuple[ms.Tensor], Seq2SeqQuestionAnsweringModelOutput]:
         r"""
         start_positions (`ms.Tensor` of shape `(batch_size,)`, *optional*):
