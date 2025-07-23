@@ -20,7 +20,7 @@ from typing import Any, Dict, List, Optional, Tuple
 
 import sentencepiece as spm
 
-from ...tokenization_utils import AddedToken, PreTrainedTokenizer
+from transformers.tokenization_utils import AddedToken, PreTrainedTokenizer
 from ...utils import logging
 
 

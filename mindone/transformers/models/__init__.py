@@ -85,6 +85,8 @@ from . import (
     m2m_100,
     mamba,
     mamba2,
+    mbart,
+    mbart50,
     megatron_bert,
     mimi,
     minicpm4,

@@ -286,6 +286,8 @@ MODEL_NAMES_MAPPING = OrderedDict(
         ("mvp", "MVP"),
         ("opt", "OPT"),
         ("megatron-bert", "Megatron-BERT"),
+        ("mbart", "MBart"),
+        ("mbart50", "MBart50"),
         ("mistral", "Mistral"),
         ("mistral3", "Mistral3"),
         ("mixtral", "Mixtral"),

@@ -18,8 +18,8 @@ import os
 from shutil import copyfile
 from typing import List, Optional, Tuple
 
-from ...tokenization_utils import AddedToken
-from ...tokenization_utils_fast import PreTrainedTokenizerFast
+from transformers.tokenization_utils import AddedToken
+from transformers.tokenization_utils_fast import PreTrainedTokenizerFast
 from ...utils import logging
 
 from .tokenization_barthez import BarthezTokenizer
