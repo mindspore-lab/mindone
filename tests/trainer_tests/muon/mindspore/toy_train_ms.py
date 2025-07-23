@@ -78,7 +78,7 @@ def get_model_and_dataloader(model_name, dataset_name, hidden_size):
         assert 0, f"model {model_name} not supported"
     train_dataset = MoonDataset(dataset_name, train_dataset, tokenizer)
     # mike: default shuffle = True, for comparison set it to be False
-    train_loader = GeneratorDataset(train_dataset, column_names="input_ids", shuffle=False).batch(8)
+    train_loader = GeneratorDataset(train_dataset, column_names="input_ids", shuffle=True).batch(8)
 
     if model_name == "qwen":
         config = Qwen2Config(
