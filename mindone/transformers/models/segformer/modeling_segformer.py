@@ -20,18 +20,19 @@
 import math
 from typing import Optional, Union
 
+from transformers import SegformerConfig
+from transformers.utils import logging
+
 import mindspore as ms
-from mindspore import nn, mint
+from mindspore import mint, nn
 from mindspore.mint.nn import BCEWithLogitsLoss, CrossEntropyLoss, MSELoss
 
+from mindone.models.utils import normal_, ones_, zeros_
+
 from ...activations import ACT2FN
+from ...mindspore_utils import find_pruneable_heads_and_indices, prune_linear_layer
 from ...modeling_outputs import BaseModelOutput, ImageClassifierOutput, SemanticSegmenterOutput
 from ...modeling_utils import PreTrainedModel
-from ...mindspore_utils import find_pruneable_heads_and_indices, prune_linear_layer
-from mindone.models.utils import normal_, zeros_, ones_
-from transformers.utils import auto_docstring, logging
-from transformers import SegformerConfig
-
 
 logger = logging.get_logger(__name__)
 
@@ -205,7 +206,7 @@ class SegformerEfficientSelfAttention(nn.Cell):
         context_layer = mint.matmul(attention_probs, value_layer)
 
         context_layer = context_layer.permute(0, 2, 1, 3).contiguous()
-        new_context_layer_shape = context_layer.size()[:-2] + (self.all_head_size,)
+        new_context_layer_shape = context_layer.shape[:-2] + (self.all_head_size,)
         context_layer = context_layer.view(new_context_layer_shape)
 
         outputs = (context_layer, attention_probs) if output_attentions else (context_layer,)
@@ -349,9 +350,7 @@ class SegformerEncoder(nn.Cell):
         self.config = config
 
         # stochastic depth decay rule
-        drop_path_decays = [
-            x.item() for x in mint.linspace(0, config.drop_path_rate, sum(config.depths))
-        ]
+        drop_path_decays = [x.item() for x in mint.linspace(0, config.drop_path_rate, sum(config.depths))]
 
         # patch embeddings
         embeddings = []
@@ -436,7 +435,6 @@ class SegformerEncoder(nn.Cell):
         )
 
 
-@auto_docstring
 class SegformerPreTrainedModel(PreTrainedModel):
     config: SegformerConfig
     base_model_prefix = "segformer"
@@ -457,7 +455,6 @@ class SegformerPreTrainedModel(PreTrainedModel):
             ones_(module.weight)
 
 
-@auto_docstring
 class SegformerModel(SegformerPreTrainedModel):
     def __init__(self, config):
         super().__init__(config)
@@ -477,7 +474,6 @@ class SegformerModel(SegformerPreTrainedModel):
         for layer, heads in heads_to_prune.items():
             self.encoder.layer[layer].attention.prune_heads(heads)
 
-    @auto_docstring
     def construct(
         self,
         pixel_values: ms.Tensor,
@@ -509,13 +505,12 @@ class SegformerModel(SegformerPreTrainedModel):
         )
 
 
-@auto_docstring(
-    custom_intro="""
+class SegformerForImageClassification(SegformerPreTrainedModel):
+    """
     SegFormer Model transformer with an image classification head on top (a linear layer on top of the final hidden
     states) e.g. for ImageNet.
     """
-)
-class SegformerForImageClassification(SegformerPreTrainedModel):
+
     def __init__(self, config):
         super().__init__(config)
 
@@ -528,7 +523,6 @@ class SegformerForImageClassification(SegformerPreTrainedModel):
         # Initialize weights and apply final processing
         self.post_init()
 
-    @auto_docstring
     def construct(
         self,
         pixel_values: Optional[ms.Tensor] = None,
@@ -658,7 +652,7 @@ class SegformerDecodeHead(SegformerPreTrainedModel):
             encoder_hidden_state = encoder_hidden_state.reshape(batch_size, -1, height, width)
             # upsample
             encoder_hidden_state = mint.nn.functional.interpolate(
-                encoder_hidden_state, size=encoder_hidden_states[0].size()[2:], mode="bilinear", align_corners=False
+                encoder_hidden_state, size=encoder_hidden_states[0].shape[2:], mode="bilinear", align_corners=False
             )
             all_hidden_states += (encoder_hidden_state,)
 
@@ -673,12 +667,11 @@ class SegformerDecodeHead(SegformerPreTrainedModel):
         return logits
 
 
-@auto_docstring(
-    custom_intro="""
+class SegformerForSemanticSegmentation(SegformerPreTrainedModel):
+    """
     SegFormer Model transformer with an all-MLP decode head on top e.g. for ADE20k, CityScapes.
     """
-)
-class SegformerForSemanticSegmentation(SegformerPreTrainedModel):
+
     def __init__(self, config):
         super().__init__(config)
         self.segformer = SegformerModel(config)
@@ -687,7 +680,6 @@ class SegformerForSemanticSegmentation(SegformerPreTrainedModel):
         # Initialize weights and apply final processing
         self.post_init()
 
-    @auto_docstring
     def construct(
         self,
         pixel_values: ms.Tensor,

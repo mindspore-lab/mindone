@@ -19,6 +19,8 @@ from typing import Any, Dict, List, Union
 import numpy as np
 from transformers.utils import add_end_docstrings
 
+import mindspore as ms
+
 from ..utils import is_mindspore_available, is_vision_available, logging, requires_backends
 from .base import Pipeline, build_pipeline_init_args
 
@@ -167,9 +169,10 @@ class ImageSegmentationPipeline(Pipeline):
                 kwargs = {}
             else:
                 kwargs = {"task_inputs": [subtask]}
-            inputs = self.image_processor(images=[image], return_tensors="ms", **kwargs)
+            inputs = self.image_processor(images=[image], return_tensors="np", **kwargs)
             if self.framework == "ms":
-                inputs = inputs.to(self.torch_dtype)
+                for k, v in kwargs.items():
+                    inputs[k] = ms.Tensor(v, dtype=self.mindspore_dtype)
             inputs["task_inputs"] = self.tokenizer(
                 inputs["task_inputs"],
                 padding="max_length",
@@ -177,9 +180,10 @@ class ImageSegmentationPipeline(Pipeline):
                 return_tensors=self.framework,
             )["input_ids"]
         else:
-            inputs = self.image_processor(images=[image], return_tensors="ms")
+            inputs = self.image_processor(images=[image], return_tensors="np")
             if self.framework == "ms":
-                inputs = inputs.to(self.torch_dtype)
+                for k, v in kwargs.items():
+                    inputs[k] = ms.Tensor(v, dtype=self.mindspore_dtype)
         inputs["target_size"] = target_size
         return inputs
 

@@ -14,7 +14,6 @@
 # limitations under the License.
 """MindSpore ResNet model."""
 
-import math
 from typing import Optional
 
 from transformers.models.resnet.configuration_resnet import ResNetConfig

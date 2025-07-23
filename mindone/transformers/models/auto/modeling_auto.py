@@ -47,6 +47,7 @@ MODEL_MAPPING_NAMES = OrderedDict(
         ("clip_vision_model", "CLIPVisionModel"),
         ("deberta", "DebertaModel"),
         ("deberta-v2", "DebertaV2Model"),
+        ("detr", "DetrModel"),
         ("dpt", "DPTModel"),
         ("gemma", "GemmaModel"),
         ("gemma2", "Gemma2Model"),
@@ -88,6 +89,8 @@ MODEL_MAPPING_NAMES = OrderedDict(
         ("qwen2_vl", "Qwen2VLModel"),
         ("roberta", "RobertaModel"),
         ("rembert", "RemBertModel"),
+        ("resnet", "ResNetModel"),
+        ("segformer", "SegformerModel"),
         ("siglip", "SiglipModel"),
         ("siglip_vision_model", "SiglipVisionModel"),
         ("speecht5", "SpeechT5Model"),
@@ -188,13 +191,15 @@ MODEL_FOR_IMAGE_MAPPING_NAMES = OrderedDict(
     [
         # Model for Image mapping
         ("bit", "BitModel"),
-        ("siglip_vision_model", "SiglipVisionModel"),
+        ("detr", "DetrModel"),
         ("dpt", "DPTModel"),
         ("glpn", "GLPNModel"),
         ("hiera", "HieraModel"),
         ("ijepa", "IJepaModel"),
         ("imagegpt", "ImageGPTModel"),
         ("levit", "LevitModel"),
+        ("segformer", "SegformerModel"),
+        ("siglip_vision_model", "SiglipVisionModel"),
     ]
 )
 
@@ -219,17 +224,45 @@ MODEL_FOR_IMAGE_CLASSIFICATION_MAPPING_NAMES = OrderedDict(
             "levit",
             ("LevitForImageClassification", "LevitForImageClassificationWithTeacher"),
         ),
+        ("resnet", "ResNetForImageClassification"),
+        ("segformer", "SegformerForImageClassification"),
         ("siglip", "SiglipForImageClassification"),
     ]
 )
 
-MODEL_FOR_IMAGE_SEGMENTATION_MAPPING_NAMES = OrderedDict()
+MODEL_FOR_IMAGE_SEGMENTATION_MAPPING_NAMES = OrderedDict(
+    [
+        # Do not add new models here, this class will be deprecated in the future.
+        # Model for Image Segmentation mapping
+        ("detr", "DetrForSegmentation"),
+    ]
+)
 
-MODEL_FOR_SEMANTIC_SEGMENTATION_MAPPING_NAMES = OrderedDict()
+MODEL_FOR_SEMANTIC_SEGMENTATION_MAPPING_NAMES = OrderedDict(
+    [
+        # Model for Semantic Segmentation mapping
+        ("beit", "BeitForSemanticSegmentation"),
+        ("data2vec-vision", "Data2VecVisionForSemanticSegmentation"),
+        ("dpt", "DPTForSemanticSegmentation"),
+        ("mobilenet_v2", "MobileNetV2ForSemanticSegmentation"),
+        ("mobilevit", "MobileViTForSemanticSegmentation"),
+        ("mobilevitv2", "MobileViTV2ForSemanticSegmentation"),
+        ("segformer", "SegformerForSemanticSegmentation"),
+        ("upernet", "UperNetForSemanticSegmentation"),
+    ]
+)
 
 MODEL_FOR_INSTANCE_SEGMENTATION_MAPPING_NAMES = OrderedDict()
 
-MODEL_FOR_UNIVERSAL_SEGMENTATION_MAPPING_NAMES = OrderedDict()
+MODEL_FOR_UNIVERSAL_SEGMENTATION_MAPPING_NAMES = OrderedDict(
+    [
+        # Model for Universal Segmentation mapping
+        ("detr", "DetrForSegmentation"),
+        ("mask2former", "Mask2FormerForUniversalSegmentation"),
+        ("maskformer", "MaskFormerForInstanceSegmentation"),
+        ("oneformer", "OneFormerForUniversalSegmentation"),
+    ]
+)
 
 MODEL_FOR_VIDEO_CLASSIFICATION_MAPPING_NAMES = OrderedDict()
 
@@ -495,6 +528,7 @@ MODEL_FOR_ZERO_SHOT_IMAGE_CLASSIFICATION_MAPPING_NAMES = OrderedDict(
 MODEL_FOR_BACKBONE_MAPPING_NAMES = OrderedDict(
     [
         ("hiera", "HieraBackbone"),
+        ("resnet", "ResNetBackbone"),
     ]
 )
 

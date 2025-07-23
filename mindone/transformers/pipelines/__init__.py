@@ -68,8 +68,8 @@ if is_mindspore_available():
     from ..models.auto.modeling_auto import (
         AutoModelForCausalLM,
         AutoModelForImageSegmentation,
-        AutoModelForSemanticSegmentation,
         AutoModelForImageTextToText,
+        AutoModelForSemanticSegmentation,
         AutoModelForSeq2SeqLM,
         AutoModelForSequenceClassification,
         AutoModelForTokenClassification,
@@ -92,7 +92,7 @@ TASK_ALIASES = {
     "vqa": "visual-question-answering",
     "text-to-speech": "text-to-audio",
 }
-SUPPORTED_TASKS = {    
+SUPPORTED_TASKS = {
     "image-segmentation": {
         "impl": ImageSegmentationPipeline,
         "ms": (AutoModelForImageSegmentation, AutoModelForSemanticSegmentation) if is_mindspore_available() else (),

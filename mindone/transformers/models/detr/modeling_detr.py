@@ -21,33 +21,33 @@ import math
 from dataclasses import dataclass
 from typing import Dict, List, Optional, Tuple, Union
 
-import mindspore as ms
-from mindspore import Tensor, nn, mint
-
-from ...activations import ACT2FN
-from ...modeling_attn_mask_utils import _prepare_4d_attention_mask, dtype_to_min, dtype_to_max
-from ...modeling_outputs import BaseModelOutput, BaseModelOutputWithCrossAttentions, Seq2SeqModelOutput
-from ...modeling_utils import PreTrainedModel
-from mindone.models.utils import normal_, zeros_, xavier_uniform_
-
-from ...utils import requires_backends
-from transformers.utils import (
+from transformers import DetrConfig
+from transformers.utils import (  # is_timm_available,
     ModelOutput,
     add_start_docstrings,
     add_start_docstrings_to_model_forward,
-    # is_timm_available,
     logging,
     replace_return_docstrings,
 )
-# from ...utils.backbone_utils import load_backbone
-from transformers.utils.backbone_utils import load_backbone
-from transformers import DetrConfig
 
-from mindspore.common.initializer import initializer, Uniform
+import mindspore as ms
+from mindspore import Tensor, mint, nn
+from mindspore.common.initializer import Uniform, initializer
+
+from mindone.models.utils import normal_, xavier_uniform_, zeros_
+
+from ...activations import ACT2FN
+from ...mindspore_adapter import dtype_to_max, dtype_to_min
+from ...modeling_attn_mask_utils import _prepare_4d_attention_mask
+from ...modeling_outputs import BaseModelOutput, BaseModelOutputWithCrossAttentions, Seq2SeqModelOutput
+from ...modeling_utils import PreTrainedModel
+from ...utils.backbone_utils import load_backbone
+
 
 # NOTE: different from torch.nn.init.uniform_()
 def uniform_(tensor: ms.Parameter, scale: float = 0.07) -> None:
     tensor.set_data(initializer(Uniform(scale), tensor.shape, tensor.dtype))
+
 
 # if is_timm_available():
 #     from timm import create_model
@@ -77,11 +77,13 @@ class DetrDecoderOutput(BaseModelOutputWithCrossAttentions):
             Tuple of `ms.Tensor` (one for each layer) of shape `(batch_size, num_heads, sequence_length,
             sequence_length)`. Attentions weights after the attention softmax, used to compute the weighted average in
             the self-attention heads.
-        cross_attentions (`tuple(ms.Tensor)`, *optional*, returned when `output_attentions=True` and `config.add_cross_attention=True` is passed or when `config.output_attentions=True`):
+        cross_attentions (`tuple(ms.Tensor)`, *optional*, returned when `output_attentions=True` and `config.add_cross_attention=True` is passed
+        or when `config.output_attentions=True`):
             Tuple of `ms.Tensor` (one for each layer) of shape `(batch_size, num_heads, sequence_length,
             sequence_length)`. Attentions weights of the decoder's cross-attention layer, after the attention softmax,
             used to compute the weighted average in the cross-attention heads.
-        intermediate_hidden_states (`ms.Tensor` of shape `(config.decoder_layers, batch_size, num_queries, hidden_size)`, *optional*, returned when `config.auxiliary_loss=True`):
+        intermediate_hidden_states (`ms.Tensor` of shape `(config.decoder_layers, batch_size, num_queries, hidden_size)`, *optional*,
+         returned when `config.auxiliary_loss=True`):
             Intermediate decoder activations, i.e. the output of each decoder layer, each of them gone through a
             layernorm.
     """
@@ -121,7 +123,8 @@ class DetrModelOutput(Seq2SeqModelOutput):
             Tuple of `ms.Tensor` (one for each layer) of shape `(batch_size, num_heads, sequence_length,
             sequence_length)`. Attentions weights of the encoder, after the attention softmax, used to compute the
             weighted average in the self-attention heads.
-        intermediate_hidden_states (`ms.Tensor` of shape `(config.decoder_layers, batch_size, sequence_length, hidden_size)`, *optional*, returned when `config.auxiliary_loss=True`):
+        intermediate_hidden_states (`ms.Tensor` of shape `(config.decoder_layers, batch_size, sequence_length, hidden_size)`, *optional*,
+        returned when `config.auxiliary_loss=True`):
             Intermediate decoder activations, i.e. the output of each decoder layer, each of them gone through a
             layernorm.
     """
@@ -342,6 +345,36 @@ class DetrConvEncoder(nn.Cell):
 
     def __init__(self, config):
         super().__init__()
+
+        if config.use_timm_backbone:
+            logger.info("Timm is not supported in MindSpore yet, using the default AutoBackbone API instead.")
+            from ..auto.configuration_auto import CONFIG_MAPPING
+
+            config.use_timm_backbone = False
+            if config.backbone in (None, "resnet50"):
+                if config.use_pretrained_backbone:
+                    config.backbone = "microsoft/resnet-50"
+                    config.backbone_config = None
+                    kwargs = getattr(config, "backbone_kwargs", {})
+                    kwargs = {} if kwargs is None else kwargs.copy()
+                    # out_indices = kwargs.pop("out_indices", (1, 2, 3, 4))
+                    kwargs.pop("in_chans", config.num_channels)
+                    kwargs["out_features"] = ["stage1", "stage2", "stage3", "stage4"]
+                    config.backbone_kwargs = kwargs
+                else:
+                    config.backbone = None
+                    if config.backbone_config is None:
+                        logger.info(
+                            "`backbone_config` is `None`. Initializing the config with the default `ResNet` backbone."
+                        )
+                        config.backbone_config = CONFIG_MAPPING["resnet"](out_features=["stage4"])
+                    elif isinstance(config.backbone_config, dict):
+                        backbone_model_type = config.backbone_config.get("model_type")
+                        config_class = CONFIG_MAPPING[backbone_model_type]
+                        config.backbone_config = config_class.from_dict(config.backbone_config)
+                        config.backbone_kwargs = None
+                    # set timm attributes to None
+                    config.dilation = None
 
         self.config = config
 
@@ -687,7 +720,7 @@ class DetrEncoderLayer(nn.Cell):
         hidden_states = residual + hidden_states
         hidden_states = self.final_layer_norm(hidden_states)
 
-        if self.training: # TODO
+        if self.training:  # TODO
             if mint.isinf(hidden_states).any() or mint.isnan(hidden_states).any():
                 clamp_value = dtype_to_max(hidden_states.dtype) - 1000
                 hidden_states = mint.clamp(hidden_states, min=-clamp_value, max=clamp_value)
@@ -998,9 +1031,7 @@ class DetrEncoder(DetrPreTrainedModel):
 
         if not return_dict:
             return tuple(v for v in [hidden_states, encoder_states, all_attentions] if v is not None)
-        return BaseModelOutput(
-            last_hidden_state=hidden_states, hidden_states=encoder_states, attentions=all_attentions
-        )
+        return BaseModelOutput(last_hidden_state=hidden_states, hidden_states=encoder_states, attentions=all_attentions)
 
 
 class DetrDecoder(DetrPreTrainedModel):
@@ -1677,13 +1708,13 @@ class DetrForSegmentation(DetrPreTrainedModel):
         pred_masks = seg_masks.view(batch_size, self.detr.config.num_queries, seg_masks.shape[-2], seg_masks.shape[-1])
 
         loss, loss_dict, auxiliary_outputs = None, None, None
-        if labels is not None: # TODO
+        if labels is not None:  # TODO
             outputs_class, outputs_coord = None, None
             if self.config.auxiliary_loss:
                 intermediate = decoder_outputs.intermediate_hidden_states if return_dict else decoder_outputs[-1]
                 outputs_class = self.detr.class_labels_classifier(intermediate)
                 outputs_coord = self.detr.bbox_predictor(intermediate).sigmoid()
-            loss, loss_dict, auxiliary_outputs = self.loss_function( # TODO
+            loss, loss_dict, auxiliary_outputs = self.loss_function(  # TODO
                 logits, labels, pred_boxes, pred_masks, self.config, outputs_class, outputs_coord
             )
 

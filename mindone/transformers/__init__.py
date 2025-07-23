@@ -162,12 +162,7 @@ from .models.deberta_v2 import (
     DebertaV2Model,
     DebertaV2PreTrainedModel,
 )
-from .models.detr import (
-    DetrForObjectDetection,
-    DetrForSegmentation,
-    DetrModel,
-    DetrPreTrainedModel,
-)
+from .models.detr import DetrForObjectDetection, DetrForSegmentation, DetrModel, DetrPreTrainedModel
 from .models.dpt import DPTForDepthEstimation
 from .models.fuyu import FuyuForCausalLM, FuyuPreTrainedModel
 from .models.gemma import (
@@ -351,12 +346,6 @@ from .models.qwen2_5_vl import Qwen2_5_VLForConditionalGeneration, Qwen2_5_VLMod
 from .models.qwen2_audio import Qwen2AudioEncoder, Qwen2AudioForConditionalGeneration, Qwen2AudioPreTrainedModel
 from .models.qwen2_vl import Qwen2VLForConditionalGeneration, Qwen2VLModel, Qwen2VLPreTrainedModel
 from .models.recurrent_gemma import RecurrentGemmaForCausalLM, RecurrentGemmaModel, RecurrentGemmaPreTrainedModel
-from .models.resnet import (
-    ResNetBackbone,
-    ResNetForImageClassification,
-    ResNetModel,
-    ResNetPreTrainedModel,
-)
 from .models.rembert import (
     RemBertForCausalLM,
     RemBertForMaskedLM,
@@ -368,6 +357,7 @@ from .models.rembert import (
     RemBertModel,
     RemBertPreTrainedModel,
 )
+from .models.resnet import ResNetBackbone, ResNetForImageClassification, ResNetModel, ResNetPreTrainedModel
 from .models.roberta import (
     RobertaForCausalLM,
     RobertaForMaskedLM,
@@ -382,6 +372,7 @@ from .models.segformer import (
     SegformerDecodeHead,
     SegformerForImageClassification,
     SegformerForSemanticSegmentation,
+    SegformerImageProcessor,
     SegformerModel,
     SegformerPreTrainedModel,
 )
