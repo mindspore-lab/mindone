@@ -1,3 +1,8 @@
+"""
+Adapted from https://github.com/huggingface/diffusers/tree/main/src/diffusers/
+pipelines/deepfloyd_if/pipeline_if_img2img_superresolution.py.
+"""
+
 import html
 import inspect
 import re

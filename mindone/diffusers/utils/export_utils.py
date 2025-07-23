@@ -1,3 +1,5 @@
+"""Adapted from https://github.com/huggingface/diffusers/tree/main/src/diffusers/utils/export_utils.py."""
+
 import io
 import random
 import struct

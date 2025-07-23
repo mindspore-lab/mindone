@@ -1,3 +1,5 @@
+"""Adapted from https://github.com/huggingface/transformers/tree/main/src/transformers/pipelines/text_generation.py."""
+
 import enum
 import warnings
 from typing import Dict
@@ -253,7 +255,7 @@ class TextGenerationPipeline(Pipeline):
             of both `generated_text` and `generated_token_ids`):
 
             - **generated_text** (`str`, present when `return_text=True`) -- The generated text.
-            - **generated_token_ids** (`torch.Tensor` or `tf.Tensor`, present when `return_tensors=True`) -- The token
+            - **generated_token_ids** (`mindspore.tensor`, present when `return_tensors=True`) -- The token
               ids of the generated text.
         """
         if isinstance(

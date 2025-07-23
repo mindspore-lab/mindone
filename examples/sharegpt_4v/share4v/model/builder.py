@@ -1,3 +1,5 @@
+# Adapted from https://github.com/ShareGPT4Omni/ShareGPT4V/blob/master/share4v/model/builder.py
+
 from share4v.constants import DEFAULT_IM_END_TOKEN, DEFAULT_IM_START_TOKEN, DEFAULT_IMAGE_PATCH_TOKEN
 from share4v.model import Share4VLlamaForCausalLM
 from transformers import AutoTokenizer, BitsAndBytesConfig

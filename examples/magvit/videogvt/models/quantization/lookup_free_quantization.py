@@ -1,3 +1,5 @@
+# Adapted from
+# https://github.com/lucidrains/vector-quantize-pytorch/blob/master/vector_quantize_pytorch/lookup_free_quantization.py
 """
 Lookup Free Quantization
 Proposed in https://arxiv.org/abs/2310.05737

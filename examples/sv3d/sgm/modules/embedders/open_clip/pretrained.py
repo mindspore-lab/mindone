@@ -1,4 +1,5 @@
-# reference to https://github.com/mlfoundations/open_clip
+# This code is adapted from https://github.com/mlfoundations/open_clip
+# with modifications to run on MindSpore.
 
 import hashlib
 import os

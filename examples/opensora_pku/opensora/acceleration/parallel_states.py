@@ -1,3 +1,5 @@
+# Adapted from https://github.com/hpcaitech/Open-Sora/blob/main/opensora/acceleration/parallel_states.py
+
 from mindspore.communication import create_group, get_group_size, get_rank
 
 _SEQUENCE_PARALLEL_STATE = None

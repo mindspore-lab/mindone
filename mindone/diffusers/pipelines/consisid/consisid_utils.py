@@ -1,3 +1,5 @@
+"""Adapted from https://github.com/huggingface/diffusers/tree/main/src/diffusers/pipelines/consisid/consisid_utils.py."""
+
 import importlib.util
 
 import cv2

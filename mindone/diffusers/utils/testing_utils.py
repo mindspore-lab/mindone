@@ -1,3 +1,5 @@
+"""Adapted from https://github.com/huggingface/diffusers/tree/main/src/diffusers/utils/testing_utils.py."""
+
 import functools
 import importlib
 import inspect

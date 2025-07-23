@@ -1,4 +1,3 @@
-import pickle
 import sys
 
 import numpy as np
@@ -39,5 +38,4 @@ with open("mindone/tools/sd_torch_to_mindspore/torch.txt") as file_pt:
                 d[name_ms] = np.concatenate([w[1], w[0], w[2]])
                 i += 1
 
-with open("torch1.pkl", "wb") as file:
-    pickle.dump(d, file)
+np.savez("torch1.npz", **d)

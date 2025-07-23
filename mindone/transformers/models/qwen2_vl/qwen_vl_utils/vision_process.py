@@ -1,4 +1,4 @@
-# Adapted from https://github.com/QwenLM/Qwen2-VL/blob/main/qwen-vl-utils/src/qwen_vl_utils/vision_process.py
+# Adapted from https://github.com/QwenLM/Qwen2-VL/blob/main/qwen-vl-utils/src/qwen_vl_utils/vision_process.py.
 # This script read images/videos into a list of Pillow Image
 
 from __future__ import annotations

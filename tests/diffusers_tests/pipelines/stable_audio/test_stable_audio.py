@@ -1,3 +1,5 @@
+"""Adapted from https://github.com/huggingface/diffusers/tree/main/tests//pipelines/stable_audio/test_stable_audio.py."""
+
 import unittest
 
 import numpy as np

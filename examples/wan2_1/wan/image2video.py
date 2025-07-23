@@ -1,3 +1,6 @@
+# This code is adapted from https://github.com/Wan-Video/Wan2.1
+# with modifications to run on MindSpore.
+
 # Copyright 2024-2025 The Alibaba Wan Team Authors. All rights reserved.
 import logging
 import math

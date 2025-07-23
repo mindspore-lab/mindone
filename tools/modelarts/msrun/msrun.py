@@ -1,5 +1,7 @@
 import os
+import shlex
 import socket
+import subprocess
 import sys
 
 """
@@ -38,7 +40,7 @@ def run():
     command = f"bash /home/ma-user/modelarts/user-job-dir/mindone/tools/modelarts/msrun/run_train_modelarts.sh \
         {master_addr} {node_rank} {work_dir} {script_name} {args}"
     print("Running command:", command)
-    os.system(command)
+    subprocess.run(shlex.splt(command), check=True, shell=False)
 
 
 if __name__ == "__main__":

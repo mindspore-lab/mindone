@@ -1,3 +1,5 @@
+"""Adapted from https://github.com/huggingface/diffusers/tree/main/tests//pipelines/pag/test_pag_pixart_sigma.py."""
+
 import unittest
 
 import numpy as np

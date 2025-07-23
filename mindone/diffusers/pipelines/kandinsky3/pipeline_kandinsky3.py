@@ -1,3 +1,5 @@
+"""Adapted from https://github.com/huggingface/diffusers/tree/main/src/diffusers/pipelines/kandinsky3/pipeline_kandinsky3.py."""
+
 from typing import Callable, Dict, List, Optional, Union
 
 import numpy as np

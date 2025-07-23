@@ -1,4 +1,6 @@
-__version__ = "0.32.2"
+"""Adapted from https://github.com/huggingface/diffusers/tree/main/src/diffusers/__init__.py."""
+
+__version__ = "0.33.1"
 
 from typing import TYPE_CHECKING
 

@@ -1,16 +1,23 @@
+# Adapted from https://github.com/Tencent-Hunyuan/HunyuanVideo to work with MindSpore.
 import logging
 import os
 from typing import List, Optional
 
-from hyvideo.acceleration import GatherFowardSplitBackward, SplitFowardGatherBackward, get_sequence_parallel_group
+import numpy as np
 
 import mindspore as ms
-from mindspore import mint, nn, ops
+from mindspore import Tensor, mint, nn, ops, tensor
 from mindspore.communication import get_group_size
 
 from mindone.diffusers.configuration_utils import ConfigMixin, register_to_config
 from mindone.diffusers.models import ModelMixin
 
+from ..acceleration import (
+    GatherFowardSplitBackward,
+    SplitFowardGatherBackward,
+    get_sequence_parallel_group,
+    init_alltoall,
+)
 from .activation_layers import get_activation_layer
 from .attention import FlashAttentionVarLen, VanillaAttention  # , parallel_attention, get_cu_seqlens
 from .embed_layers import PatchEmbed, TextProjection, TimestepEmbedder
@@ -110,11 +117,11 @@ class MMDoubleStreamBlock(nn.Cell):
 
         if (sp_group := get_sequence_parallel_group()) is not None:
             self.sp_group_size = get_group_size(sp_group)
-            self.alltoall = ops.AlltoAll(
-                self.sp_group_size, 2, 1, group=sp_group
+            self.alltoall = init_alltoall(
+                2, 1, group=sp_group, split_count=self.sp_group_size
             )  # BSND, split at 2 dim and concat at 1 dim
-            self.alltoall_out = ops.AlltoAll(
-                self.sp_group_size, 1, 2, group=sp_group
+            self.alltoall_out = init_alltoall(
+                1, 2, group=sp_group, split_count=self.sp_group_size
             )  # BSND, split at 1 dim and concat at 2 dim
             if heads_num % self.sp_group_size != 0:
                 raise ValueError(f"heads_num {heads_num} must be divisible by sp_group_size {self.sp_group_size}")
@@ -335,11 +342,11 @@ class MMSingleStreamBlock(nn.Cell):
 
         if (sp_group := get_sequence_parallel_group()) is not None:
             self.sp_group_size = get_group_size(sp_group)
-            self.alltoall = ops.AlltoAll(
-                self.sp_group_size, 2, 1, group=sp_group
+            self.alltoall = init_alltoall(
+                2, 1, group=sp_group, split_count=self.sp_group_size
             )  # BSND, split at 2 dim and concat at 1 dim
-            self.alltoall_out = ops.AlltoAll(
-                self.sp_group_size, 1, 2, group=sp_group
+            self.alltoall_out = init_alltoall(
+                1, 2, group=sp_group, split_count=self.sp_group_size
             )  # BSND, split at 1 dim and concat at 2 dim
             if heads_num % self.sp_group_size != 0:
                 raise ValueError(f"heads_num {heads_num} must be divisible by sp_group_size {self.sp_group_size}")
@@ -515,6 +522,9 @@ class HYVideoDiffusionTransformer(ModelMixin, ConfigMixin):
         dtype=None,
         use_recompute=False,
         num_no_recompute: int = 0,
+        # TeaCache
+        enable_teacache: bool = False,
+        teacache_thresh: float = 0.1,
     ):
         factory_kwargs = {"dtype": dtype}
         super().__init__()
@@ -663,6 +673,14 @@ class HYVideoDiffusionTransformer(ModelMixin, ConfigMixin):
             self.split_forward_gather_backward = nn.Identity()
             self.gather_forward_split_backward = nn.Identity()
 
+        # TeaCache
+        self._teacache = enable_teacache
+        if self._teacache:
+            self._rel_l1_thresh = teacache_thresh
+            self._coef = [7.33226126e02, -4.01131952e02, 6.75869174e01, -3.14987800e00, 9.61237896e-02]
+            # actual values depend on the execution mode and are initialized in `init_teacache`
+            self._accum_rel_l1_distance = self._prev_mod_input = self._prev_residual = None
+
     def recompute(self, b):
         if not b._has_config_recompute:
             b.recompute(parallel_optimizer_comm_recompute=True)
@@ -682,6 +700,58 @@ class HYVideoDiffusionTransformer(ModelMixin, ConfigMixin):
             block.disable_deterministic()
         for block in self.single_blocks:
             block.disable_deterministic()
+
+    def init_teacache(self, shape: tuple[int, int, int, int, int]):
+        """
+        (Re)initializes the teacache for caching intermediate computation results.
+        Specifically, wraps variables with `Parameter` objects of fixed shape and dtype, as required by MindSpore's Graph mode.
+
+        Args:
+            shape: shape of the input latent tensor, in format [B C T H W].
+        """
+        if self._teacache:
+            if ms.get_context("mode") == ms.GRAPH_MODE:
+                seq_len = shape[2] * (shape[3] // 2) * (shape[4] // 2)
+                self._accum_rel_l1_distance = ms.Parameter(
+                    tensor(0, dtype=self.param_dtype), name="accum_rel_l1_distance"
+                )
+                self._prev_mod_input = ms.Parameter(
+                    tensor(np.zeros((shape[0], seq_len, self.hidden_size)), dtype=self.param_dtype),
+                    name="prev_mod_input",
+                )
+                if (sp_group := get_sequence_parallel_group()) is not None:  # Sequence Parallel case
+                    seq_len //= get_group_size(sp_group)
+                self._prev_residual = ms.Parameter(
+                    tensor(np.zeros((shape[0], seq_len, self.hidden_size)), dtype=self.param_dtype),
+                    name="prev_residual",
+                )
+            else:
+                self._accum_rel_l1_distance = tensor(0, dtype=self.param_dtype)
+                self._prev_mod_input = tensor(0, dtype=self.param_dtype)
+
+    def _calc_teacache(self, img: Tensor, vec: Tensor) -> bool:
+        img_mod1_shift, img_mod1_scale, *_ = self.double_blocks[0].img_mod(vec).chunk(6, dim=-1)
+        normed_inp = self.double_blocks[0].img_norm1(img)
+        modulated_inp = modulate(normed_inp, shift=img_mod1_shift, scale=img_mod1_scale)
+        modulated_inp = self.gather_forward_split_backward(modulated_inp)  # sequence parallel
+
+        x = mint.mean(mint.abs(modulated_inp - self._prev_mod_input)) / mint.mean(mint.abs(self._prev_mod_input))
+        self._accum_rel_l1_distance += (
+            self._coef[0] * mint.pow(x, 4)
+            + self._coef[1] * mint.pow(x, 3)
+            + self._coef[2] * mint.pow(x, 2)
+            + self._coef[3] * x
+            + self._coef[4]
+        )
+        # the first step will naturally fail as `self._rescale_func` will produce `NaN`
+        if self._accum_rel_l1_distance < self._rel_l1_thresh:
+            should_calc = False
+        else:
+            should_calc = True
+            self._accum_rel_l1_distance = tensor(0, dtype=self.param_dtype)
+
+        self._prev_mod_input = modulated_inp
+        return should_calc
 
     def construct(
         self,
@@ -774,38 +844,50 @@ class HYVideoDiffusionTransformer(ModelMixin, ConfigMixin):
                 )
 
         txt = self.split_forward_gather_backward(txt)
-        # --------------------- Pass through DiT blocks ------------------------
-        for _, block in enumerate(self.double_blocks):
-            # AMP: img bf16, txt bf16, vec bf16, freqs fp32
-            img, txt = block(
-                img,
-                txt,
-                vec,
-                freqs_cos=freqs_cos,
-                freqs_sin=freqs_sin,
-                actual_seq_qlen=actual_seq_len,
-                actual_seq_kvlen=actual_seq_len,
-                # attn_mask=mask,
-            )
 
-        # Merge txt and img to pass through single stream blocks.
-        x = ops.concat((img, txt), axis=1)
-        img_seq_len = img.shape[1]
-        if len(self.single_blocks) > 0:
-            for _, block in enumerate(self.single_blocks):
-                x = block(
-                    x,
+        # TeaCache
+        if self._teacache:
+            should_calc = self._calc_teacache(img, vec)
+
+        # --------------------- Pass through DiT blocks ------------------------
+        if self._teacache and not should_calc:
+            img += self._prev_residual
+        else:
+            if self._teacache:
+                ori_img = img.clone()
+            for _, block in enumerate(self.double_blocks):
+                # AMP: img bf16, txt bf16, vec bf16, freqs fp32
+                img, txt = block(
+                    img,
+                    txt,
                     vec,
-                    txt_seq_len,
                     freqs_cos=freqs_cos,
                     freqs_sin=freqs_sin,
                     actual_seq_qlen=actual_seq_len,
                     actual_seq_kvlen=actual_seq_len,
                     # attn_mask=mask,
                 )
-        # sequence parallel end
 
-        img = x[:, :img_seq_len, ...]
+            # Merge txt and img to pass through single stream blocks.
+            x = ops.concat((img, txt), axis=1)
+            img_seq_len = img.shape[1]
+            if len(self.single_blocks) > 0:
+                for _, block in enumerate(self.single_blocks):
+                    x = block(
+                        x,
+                        vec,
+                        txt_seq_len,
+                        freqs_cos=freqs_cos,
+                        freqs_sin=freqs_sin,
+                        actual_seq_qlen=actual_seq_len,
+                        actual_seq_kvlen=actual_seq_len,
+                        # attn_mask=mask,
+                    )
+            # sequence parallel end
+
+            img = x[:, :img_seq_len, ...]
+            if self._teacache:
+                self._prev_residual = img - ori_img
         img = self.gather_forward_split_backward(img)
         # print(img.shape)
 

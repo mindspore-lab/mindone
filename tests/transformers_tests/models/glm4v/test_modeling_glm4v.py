@@ -1,3 +1,5 @@
+"""Adapted from https://github.com/huggingface/transformers/tree/main/tests//models/glm4v/test_modeling_glm4v.py."""
+
 # This module contains test cases that are defined in the `.test_cases.py` file, structured as lists or tuples like
 #     [name, pt_module, ms_module, init_args, init_kwargs, inputs_args, inputs_kwargs, outputs_map].
 #
@@ -11,10 +13,10 @@
 import numpy as np
 import pytest
 import torch
-from transformers.models.glm4v.configuration_glm4v import Glm4vConfig
 
 import mindspore as ms
 
+from mindone.transformers.models.glm4v.configuration_glm4v import Glm4vConfig
 from tests.modeling_test_utils import compute_diffs, generalized_parse_args, get_modules
 from tests.transformers_tests.models.modeling_common import floats_numpy, ids_numpy
 

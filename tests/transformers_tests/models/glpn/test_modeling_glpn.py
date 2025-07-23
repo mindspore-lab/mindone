@@ -1,3 +1,5 @@
+"""Adapted from https://github.com/huggingface/transformers/tree/main/tests//models/glpn/test_modeling_glpn.py."""
+
 import logging
 
 import numpy as np

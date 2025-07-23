@@ -14,8 +14,6 @@ Key Features:
         - **view_as_complex**: Always custom due to framework limitations.
         [2024/09/02]
         - **interpolate**: mint interface post 2.3.0; ops.interpolate for earlier versions.
-        - **fp32_interpolate**: Always custom (upcast to fp32 during computation and cast back after)
-                                due to origin interface doesn't supported bfloat16 data type.
         [2024/07/26]
         - **conv_transpose1d**: Always custom due to framework limitations.
         - **conv_transpose2d**: Native post 2.3.0; custom for earlier versions.
@@ -50,7 +48,6 @@ __all__ = [
     "conv_transpose2d",
     "group_norm",
     "interpolate",
-    "fp32_interpolate",
     "unflatten",
     "upsample_nearest3d_free_interpolate",
     "multinomial",
@@ -204,6 +201,11 @@ else:
 # nn.GELU
 # ================================================================================
 class _GELU(nn.Cell):
+    """
+    Adapted from `torch.nn.GELU`
+    (https://github.com/pytorch/pytorch/blob/main/torch/nn/modules/activation.py)
+    """
+
     def __init__(self, approximate: str = "none") -> None:
         super().__init__()
         self.approximate = approximate
@@ -225,107 +227,6 @@ if MINDSPORE_VERSION >= parse("2.3.0"):
     interpolate = mint.nn.functional.interpolate
 else:
     interpolate = ops.interpolate
-
-
-# ================================================================================
-# FP32 interpolate
-# ================================================================================
-def _fp32_interpolate(input, **kwargs):
-    r"""
-    Samples the input Tensor to the given size or scale_factor by using one of the interpolate algorithms.
-    Upcast to float32 for computation and re-cast back to original data type as BFloat16 is not supported
-    for interpolate algorithms.
-
-    .. note::
-        - In 'linear' mode, backpropagation does not support scenarios where `scale_factor` is not None
-          and `align_corners` is False.
-
-    Args:
-        input (Tensor): Tensor to be resized.
-            Input tensor must be a 3-D, 4-D, or 5-D tensor with shape
-            :math:`(N, C, [optional D], [optional H], W)` , with data type of float.
-        size (Union[int, tuple[int], list[int]], optional): The target size.
-            If size is a tuple or list, its length should be the same as the number of dimensions in input
-            after removing the first two dimensions N, C.
-            One and only one of size and scale_factor can be set to None. Default: ``None`` .
-        scale_factor (Union[float, tuple[float], list[float]], optional): The scale factor of new size of the tensor.
-            If scale_factor is a tuple or list, its length should be the same as the number of dimensions in input
-            after removing the first two dimensions N, C.
-            One and only one of size and scale_factor can be set to None. Default: ``None`` .
-        mode (str): The sampling algorithm.
-            One of 'nearest', 'linear' (3D only), 'bilinear' (4D only), 'trilinear' (5D only), 'bicubic' (4D only),
-            'area', 'nearest-exact'(matches Scikit-Image and PIL nearest neighbours interpolation algorithms and fixes
-            knows issues with `nearest`, 3D and 4D). Default: ``"nearest"`` .
-
-        align_corners (bool): Whether to use corner alignment for coordinate mapping. Assuming a transformation is
-            applied to the input Tensor along the x-axis, the specific calculation formula is as follows:
-
-            .. code-block::
-
-                ori_i = new_length != 1 ? new_i * (ori_length - 1) / (new_length - 1) : 0   # 'align_corners' = True
-
-                ori_i = new_length > 1 ? (new_i + 0.5) * ori_length / new_length - 0.5 : 0  # 'align_corners' = False
-
-            Among them, :math:`ori\_length` and :math:`new\_length` represent the length of the Tensor before and after
-            transformation along the x-axis respectively; :math:`new\_i` represents the coordinate of the i-th element
-            along the x-axis after transformation; :math:`ori\_i` represents
-            the corresponding coordinate of the original
-            data along the x-axis.
-
-            This is only valid for ``'linear'``, ``'bilinear'``, or ``'bicubic'`` modes. Default: ``False`` .
-        recompute_scale_factor (bool, optional): Recalculate `scale_factor`.
-            If True, the parameter `size` will be calculated using the value of the `scale_factor`,
-            and finally scaled using the value of `size`.
-            If False, the value of `size` or `scale_factor` will be used for direct interpolation. Default: ``None`` .
-
-    .. note::
-        The 'nearest-exact' mode is the same as the nearest-neighbor interpolation algorithm used in
-        scikit-image and PIL. The 'nearest' mode produces the same results as the INTER_NEAREST interpolation
-        algorithm used in OpenCV.
-
-    Args Support List and Supported Platforms:
-
-    +---------------+-----------+---------------+--------------+----------------+
-    | mode          | input.dim | align_corners | scale_factor | device         |
-    +===============+===========+===============+==============+================+
-    | nearest       | 3         | \-            | √            | Ascend,GPU,CPU |
-    +---------------+-----------+---------------+--------------+----------------+
-    |               | 4         | \-            | √            | Ascend,GPU,CPU |
-    +---------------+-----------+---------------+--------------+----------------+
-    |               | 5         | \-            | √            | Ascend,GPU,CPU |
-    +---------------+-----------+---------------+--------------+----------------+
-    | linear        | 3         | √             | √            | Ascend,GPU,CPU |
-    +---------------+-----------+---------------+--------------+----------------+
-    | bilinear      | 4         | √             | ×            | Ascend,GPU,CPU |
-    +---------------+-----------+---------------+--------------+----------------+
-    | bicubic       | 4         | √             | ×            | Ascend,GPU,CPU |
-    +---------------+-----------+---------------+--------------+----------------+
-    | area          | 3         | \-            | √            | Ascend,GPU,CPU |
-    +---------------+-----------+---------------+--------------+----------------+
-    |               | 4         | \-            | √            | Ascend,GPU,CPU |
-    +---------------+-----------+---------------+--------------+----------------+
-    |               | 5         | \-            | √            | Ascend,GPU,CPU |
-    +---------------+-----------+---------------+--------------+----------------+
-    | nearest-exact | 3         | \-            | ×            | Ascend,CPU     |
-    +---------------+-----------+---------------+--------------+----------------+
-    |               | 4         | \-            | ×            | Ascend,CPU     |
-    +---------------+-----------+---------------+--------------+----------------+
-    | trilinear     | 5         | √             | √            | Ascend,GPU,CPU |
-    +---------------+-----------+---------------+--------------+----------------+
-
-    - `-` indicates that there is no such parameter.
-    - `×` indicates that this parameter is not currently supported.
-    - `√` indicates that this parameter is supported.
-
-    Returns:
-        Tensor, resized, whose dimensions and dtype are the same as `input`.
-    """
-    input_dtype = input.dtype
-    output = interpolate(input.float(), **kwargs).to(input_dtype)
-    return output
-
-
-fp32_interpolate = _fp32_interpolate
 
 
 # ================================================================================
@@ -491,25 +392,12 @@ else:
 # ================================================================================
 def _view_as_complex(input: ms.Tensor) -> ms.Tensor:
     r"""
-    view_as_complex(input) -> Tensor
-
-    Equivalence of `torch.view_as_complex`. Returns a view of :attr:`input` as a
-    complex tensor. For an input complex tensor of :attr:`size` :math:`m1, m2, \dots,
-    mi, 2`, this function returns a new complex tensor of :attr:`size` :math:`m1, m2,
-    \dots, mi` where the last dimension of the input tensor is expected to represent
-    the real and imaginary components of complex numbers.
-
-    .. warning::
-        :func:`view_as_complex` is only supported for tensors with
-        :class:`ms.dtype` ``ms.float64`` and ``ms.float32``.  The input is
-        expected to have the last dimension of :attr:`size` 2. In addition, the
-        tensor must have a `stride` of 1 for its last dimension. The strides of all
-        other dimensions must be even numbers.
+    Equivalence of `torch.view_as_complex`.
 
     Args:
         input (ms.Tensor): the input tensor.
 
-    Example::
+    Example:
 
         >>> import mindspore as ms
         >>> x = ms.ops.randn(4, 2)
@@ -536,7 +424,7 @@ view_as_complex = _view_as_complex
 # ================================================================================
 def _unflatten(input, dim, sizes):
     """
-    # Equivalence of torch.unflatten
+    Equivalence of `torch.unflatten`
 
     Args:
         tensor (ms.Tensor): The input tensor to unflatten.

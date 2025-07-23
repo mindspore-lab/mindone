@@ -1,5 +1,8 @@
 # Copyright 2021 The HuggingFace Inc. team.
 #
+# This code is adapted from https://github.com/huggingface/transformers
+# with modifications to run transformers on mindspore.
+#
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -344,7 +347,7 @@ def pil_to_tensor(image, is_normalize=True):
     if is_normalize:
         img_array = img_array / 255.0
 
-    tensor = ms.tensor(img_array, dtype=mindspore.float32)
+    tensor = ms.tensor(img_array, dtype=ms.float32)
 
     return tensor
 

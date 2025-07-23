@@ -1,3 +1,5 @@
+# Adapted from https://github.com/Doubiiu/DynamiCrafter to work with MindSpore.
+
 import numpy as np
 from lvdm.modules.networks.util import make_ddim_sampling_parameters, make_ddim_timesteps, noise_like, rescale_noise_cfg
 from tqdm import tqdm

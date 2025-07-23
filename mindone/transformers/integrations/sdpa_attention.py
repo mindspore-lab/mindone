@@ -1,3 +1,5 @@
+"""Adapted from https://github.com/huggingface/transformers/tree/main/src/transformers/integrations/sdpa_attention.py."""
+
 from typing import Optional
 
 import mindspore as ms

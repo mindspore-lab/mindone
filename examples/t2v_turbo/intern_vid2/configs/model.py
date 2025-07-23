@@ -1,3 +1,5 @@
+# This code is copied from https://github.com/Ji4chenLi/t2v-turbo
+
 TextEncoders = dict()
 TextEncoders["bert"] = dict(
     name="bert_base",
