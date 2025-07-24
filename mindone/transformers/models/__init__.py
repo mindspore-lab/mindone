@@ -48,6 +48,7 @@ from . import (
     levit,
     llama,
     llava,
+    marian,
     megatron_bert,
     minicpm4,
     mistral,
