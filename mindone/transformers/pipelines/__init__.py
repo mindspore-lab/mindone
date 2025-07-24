@@ -57,6 +57,8 @@ from .base import (
     infer_framework_load_model,
 )
 from .depth_estimation import DepthEstimationPipeline
+from .feature_extraction import FeatureExtractionPipeline
+from .image_feature_extraction import ImageFeatureExtractionPipeline
 from .image_text_to_text import ImageTextToTextPipeline
 from .text2text_generation import Text2TextGenerationPipeline
 from .text_classification import TextClassificationPipeline
@@ -66,6 +68,7 @@ if is_mindspore_available():
     import mindspore as ms
 
     from ..models.auto.modeling_auto import (
+        AutoModel,
         AutoModelForCausalLM,
         AutoModelForDepthEstimation,
         AutoModelForImageTextToText,
@@ -127,7 +130,19 @@ SUPPORTED_TASKS = {
     "depth-estimation": {
         "impl": DepthEstimationPipeline,
         "ms": (AutoModelForDepthEstimation,) if is_mindspore_available() else (),
-        "default": {"model": {"pt": ("Intel/dpt-large", "bc15f29")}},
+        "default": {"model": {"ms": ("Intel/dpt-large", "bc15f29")}},
+        "type": "image",
+    },
+    "feature-extraction": {
+        "impl": FeatureExtractionPipeline,
+        "ms": (AutoModel,) if is_mindspore_available() else (),
+        "default": {"model": {"ms": ("distilbert/distilbert-base-cased", "6ea8117")}},
+        "type": "multimodal",
+    },
+    "image-feature-extraction": {
+        "impl": ImageFeatureExtractionPipeline,
+        "ms": (AutoModel,) if is_mindspore_available() else (),
+        "default": {"model": {"ms": ("google/vit-base-patch16-224", "3f49326")}},
         "type": "image",
     },
 }
