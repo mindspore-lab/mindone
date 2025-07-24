@@ -462,6 +462,7 @@ class PegasusPreTrainedModel(PreTrainedModel):
     config_class = PegasusConfig
     base_model_prefix = "model"
     supports_gradient_checkpointing = True
+    _supports_dynamic_input = True
 
     def _init_weights(self, module):
         std = self.config.init_std
