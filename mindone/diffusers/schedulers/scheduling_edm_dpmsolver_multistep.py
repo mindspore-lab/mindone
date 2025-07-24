@@ -141,6 +141,8 @@ class EDMDPMSolverMultistepScheduler(SchedulerMixin, ConfigMixin):
 
         self.sigmas = mint.cat([sigmas, mint.zeros(1, dtype=sigmas.dtype)])
 
+        self.sigma_data = self.config.sigma_data
+
         # setable values
         self.num_inference_steps = None
         self.model_outputs = [None] * solver_order
