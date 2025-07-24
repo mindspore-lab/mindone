@@ -1029,9 +1029,27 @@ class SwinModel(SwinPreTrainedModel):
         return_dict: Optional[bool] = None,
     ) -> Union[Tuple, SwinModelOutput]:
         r"""
-        bool_masked_pos (`ms.Tensor` of shape `(batch_size, num_patches)`, *optional*):
-            Boolean masked positions. Indicates which patches are masked (1) and which aren't (0).
-        """
+        Examples:
+
+        ```python
+        >>> # Adapted from https://huggingface.co/docs/transformers/model_doc/swin#transformers.TFSwinModel.call.example
+        >>> import requests
+        >>> from PIL import Image
+        >>> import mindspore as ms
+
+        >>> from mindone.transformers import AutoImageProcessor, SwinModel
+
+        >>> url = "http://images.cocodataset.org/val2017/000000039769.jpg"
+        >>> image = Image.open(requests.get(url, stream=True).raw)
+
+        >>> processor = AutoImageProcessor.from_pretrained("shi-labs/nat-mini-in1k-224")
+        >>> model = SwinModel.from_pretrained("microsoft/swin-tiny-patch4-window7-224")
+
+        >>> inputs = ms.Tensor(processor(image, return_tensors="np")["pixel_values"])
+        >>> outputs = model(pixel_values=inputs)
+        >>> last_hidden_states = outputs.last_hidden_state
+        ```"""
+        
         output_attentions = output_attentions if output_attentions is not None else self.config.output_attentions
         output_hidden_states = (
             output_hidden_states if output_hidden_states is not None else self.config.output_hidden_states
