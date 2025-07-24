@@ -752,6 +752,7 @@ class PegasusXPreTrainedModel(PreTrainedModel):
     base_model_prefix = "model"
     supports_gradient_checkpointing = True
     _no_split_modules = [r"PegasusXEncoderLayer", r"PegasusXDecoderLayer"]
+    _supports_dynamic_input = True
 
     def _init_weights(self, module):
         std = self.config.init_std
@@ -1540,6 +1541,7 @@ class PegasusXForConditionalGeneration(PegasusXPreTrainedModel, GenerationMixin)
         output_attentions: Optional[bool] = None,
         output_hidden_states: Optional[bool] = None,
         return_dict: Optional[bool] = None,
+        cache_position: Optional[ms.Tensor] = None,
     ) -> Union[Tuple, Seq2SeqLMOutput]:
         r"""
         labels (`ms.Tensor` of shape `(batch_size, sequence_length)`, *optional*):
