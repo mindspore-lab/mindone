@@ -120,6 +120,16 @@ from .models.blip_2 import (
     Blip2QFormerModel,
     Blip2VisionModel,
 )
+from .models.camembert import (
+    CamembertForCausalLM,
+    CamembertForMaskedLM,
+    CamembertForMultipleChoice,
+    CamembertForQuestionAnswering,
+    CamembertForSequenceClassification,
+    CamembertForTokenClassification,
+    CamembertModel,
+    CamembertPreTrainedModel,
+)
 from .models.chameleon import (
     ChameleonForConditionalGeneration,
     ChameleonModel,
