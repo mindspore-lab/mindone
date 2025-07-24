@@ -66,6 +66,7 @@ from . import (
     qwen2_audio,
     qwen2_vl,
     roberta,
+    roc_bert,
     siglip,
     speecht5,
     starcoder2,
