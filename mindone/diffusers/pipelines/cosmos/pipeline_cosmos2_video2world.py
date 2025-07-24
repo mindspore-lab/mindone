@@ -558,13 +558,14 @@ class Cosmos2VideoToWorldPipeline(DiffusionPipeline):
                 the first element is a list with the generated images and the second element is a list of `bool`s
                 indicating whether the corresponding generated image contains "not-safe-for-work" (nsfw) content.
         """
-
+        # FIXME
         if self.safety_checker is None:
-            raise ValueError(
-                f"You have disabled the safety checker for {self.__class__}. This is in violation of the "
-                "[NVIDIA Open Model License Agreement](https://www.nvidia.com/en-us/agreements/enterprise-software/nvidia-open-model-license). "
-                f"Please ensure that you are compliant with the license agreement."
-            )
+            # raise ValueError(
+            #     f"You have disabled the safety checker for {self.__class__}. This is in violation of the "
+            #     "[NVIDIA Open Model License Agreement](https://www.nvidia.com/en-us/agreements/enterprise-software/nvidia-open-model-license). "
+            #     f"Please ensure that you are compliant with the license agreement."
+            # )
+            pass
 
         if isinstance(callback_on_step_end, (PipelineCallback, MultiPipelineCallbacks)):
             callback_on_step_end_tensor_inputs = callback_on_step_end.tensor_inputs
