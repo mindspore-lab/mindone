@@ -51,6 +51,8 @@ else:
             ("blip", ("BlipImageProcessor",)),
             ("blip-2", ("BlipImageProcessor",)),
             ("clip", ("CLIPImageProcessor",)),
+            ("depth_anything", ("DPTImageProcessor",)),
+            ("dinov2", ("BitImageProcessor",)),
             ("dpt", ("DPTImageProcessor",)),
         ]
     )

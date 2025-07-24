@@ -47,6 +47,7 @@ MODEL_MAPPING_NAMES = OrderedDict(
         ("clip_vision_model", "CLIPVisionModel"),
         ("deberta", "DebertaModel"),
         ("deberta-v2", "DebertaV2Model"),
+        ("dinov2", "Dinov2Model"),
         ("dpt", "DPTModel"),
         ("gemma", "GemmaModel"),
         ("gemma2", "Gemma2Model"),
@@ -191,6 +192,7 @@ MODEL_FOR_IMAGE_MAPPING_NAMES = OrderedDict(
         # Model for Image mapping
         ("bit", "BitModel"),
         ("siglip_vision_model", "SiglipVisionModel"),
+        ("dinov2", "Dinov2Model"),
         ("dpt", "DPTModel"),
         ("glpn", "GLPNModel"),
         ("hiera", "HieraModel"),
@@ -214,6 +216,7 @@ MODEL_FOR_IMAGE_CLASSIFICATION_MAPPING_NAMES = OrderedDict(
         # Model for Image Classification mapping
         ("bit", "BitForImageClassification"),
         ("clip", "CLIPForImageClassification"),
+        ("dinov2", "Dinov2ForImageClassification"),
         ("hiera", "HieraForImageClassification"),
         ("ijepa", "IJepaForImageClassification"),
         ("imagegpt", "ImageGPTForImageClassification"),
@@ -496,6 +499,7 @@ MODEL_FOR_ZERO_SHOT_IMAGE_CLASSIFICATION_MAPPING_NAMES = OrderedDict(
 
 MODEL_FOR_BACKBONE_MAPPING_NAMES = OrderedDict(
     [
+        ("dinov2", "Dinov2Backbone"),
         ("hiera", "HieraBackbone"),
     ]
 )

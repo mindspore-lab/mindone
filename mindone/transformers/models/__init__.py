@@ -30,6 +30,8 @@ from . import (
     blip_2,
     clap,
     clip,
+    depth_anything,
+    dinov2,
     dpt,
     fuyu,
     gemma,
