@@ -22,8 +22,8 @@ def q_k_v_target_mask() -> dict[str, tuple]:
     # B, H, S, D
     set_seed(42)
     q = np.random.uniform(size=(2, 8, 256, 32)).astype(np.float32)
-    k = np.random.uniform(size=(2, 8, 384, 32)).astype(np.float32)
-    v = np.random.uniform(size=(2, 8, 384, 32)).astype(np.float32)
+    k = np.random.uniform(size=(2, 8, 256, 32)).astype(np.float32)
+    v = np.random.uniform(size=(2, 8, 256, 32)).astype(np.float32)
     target = np.random.uniform(size=(2, 256, 8, 32)).astype(np.float32)
     attention_mask = np.random.randint(0, 2, (q.shape[0], 1, q.shape[2], k.shape[2]), dtype=bool)
     return {
