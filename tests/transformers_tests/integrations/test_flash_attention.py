@@ -7,7 +7,7 @@ import pytest
 import torch
 from transformers.integrations.flash_attention import flash_attention_forward as flash_attention_forward_transformers
 
-from mindspore import jit, mint, set_seed, tensor, value_and_grad
+from mindspore import grad, jit, mint, set_seed, tensor
 
 from mindone.transformers.integrations.flash_attention import flash_attention_forward
 from tests.modeling_test_utils import MS_DTYPE_MAPPING, PT_DTYPE_MAPPING
@@ -32,10 +32,10 @@ class MockAttentionModule:
 def q_k_v_target() -> dict[str, tuple]:
     # B, H, S, D
     set_seed(42)
-    q = np.random.randn(2, 8, 256, 32).astype(np.float32)
-    k = np.random.randn(2, 8, 256, 32).astype(np.float32)
-    v = np.random.randn(2, 8, 256, 32).astype(np.float32)
-    target = np.full((2, 256, 8, 32), fill_value=10, dtype=np.float32)
+    q = np.random.uniform(size=(2, 8, 256, 32)).astype(np.float32)
+    k = np.random.uniform(size=(2, 8, 256, 32)).astype(np.float32)
+    v = np.random.uniform(size=(2, 8, 256, 32)).astype(np.float32)
+    target = np.random.uniform(size=(2, 256, 8, 32)).astype(np.float32)
     return {
         "ms": (tensor(q), tensor(k), tensor(v), tensor(target)),
         "pt": (torch.tensor(q), torch.tensor(k), torch.tensor(v), torch.tensor(target)),
@@ -109,7 +109,7 @@ def test_fa_attention_backward(q_k_v_target, dtype: str, causal: bool, jit_compi
             output = fa_forward(module, q_, k_, v_, None, scaling=scaling)[0]
             return mint.nn.functional.mse_loss(output, target_)
 
-        grad_out = value_and_grad(_forward, grad_position=(0, 1, 2))(q, k, v, target)[1]
+        grad_out = grad(_forward, grad_position=(0, 1, 2))(q, k, v, target)
         grad_out = mint.stack(grad_out, dim=0)
 
         grad_out_pt = torch.load(f"fa_attn_bwd_{dtype}_{causal}.pt")
