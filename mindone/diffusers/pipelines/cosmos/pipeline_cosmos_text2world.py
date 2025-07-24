@@ -495,6 +495,11 @@ class CosmosTextToWorldPipeline(DiffusionPipeline):
             batch_size = prompt_embeds.shape[0]
 
         # 3. Encode input prompt
+        # FIXME T5 dose not perform well in bf16, so we use fp32 here
+        org_dtype_t5 = self.text_encoder.dtype
+        if org_dtype_t5 != ms.float32:
+            self.text_encoder.to(ms.float32)
+            
         (
             prompt_embeds,
             negative_prompt_embeds,
@@ -507,6 +512,10 @@ class CosmosTextToWorldPipeline(DiffusionPipeline):
             negative_prompt_embeds=negative_prompt_embeds,
             max_sequence_length=max_sequence_length,
         )
+
+        if org_dtype_t5 != ms.float32:
+            prompt_embeds = prompt_embeds.to(org_dtype_t5)
+            negative_prompt_embeds = negative_prompt_embeds.to(org_dtype_t5)
 
         # 4. Prepare timesteps
         timesteps, num_inference_steps = retrieve_timesteps(self.scheduler, num_inference_steps)
