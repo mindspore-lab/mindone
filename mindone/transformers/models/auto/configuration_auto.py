@@ -77,7 +77,6 @@ CONFIG_MAPPING_NAMES = OrderedDict(
         ("mpt", "MptConfig"),
         ("mt5", "MT5Config"),
         ("megatron-bert", "MegatronBertConfig"),
-        ("minimax", "MiniMaxConfig"),
         ("mixtral", "MixtralConfig"),
         ("paligemma", "PaliGemmaConfig"),
         ("phi", "PhiConfig"),
@@ -157,7 +156,6 @@ MODEL_NAMES_MAPPING = OrderedDict(
         ("mpt", "MPT"),
         ("mt5", "MT5"),
         ("megatron-bert", "Megatron-BERT"),
-        ("minimax", "MiniMax"),
         ("mistral", "Mistral"),
         ("mixtral", "Mixtral"),
         ("paligemma", "PaliGemma"),
@@ -244,8 +242,8 @@ if version.parse(transformers.__version__) >= version.parse("4.51.3"):
     MODEL_NAMES_MAPPING.update({"glm4": "glm4"})
 
 if version.parse(transformers.__version__) >= version.parse("4.53.0"):
-    CONFIG_MAPPING_NAMES.update({"vjepa2": "VJEPA2Model"})
-    MODEL_NAMES_MAPPING.update({"vjepa2": "VJEPA2Model"})
+    CONFIG_MAPPING_NAMES.update({"minimax": "MiniMaxConfig", "vjepa2": "VJEPA2Model"})
+    MODEL_NAMES_MAPPING.update({"minimax": "MiniMax", "vjepa2": "VJEPA2Model"})
 
 
 def model_type_to_module_name(key):
