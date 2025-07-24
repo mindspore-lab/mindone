@@ -16,16 +16,19 @@ import unittest
 
 import numpy as np
 import PIL.Image
+import pytest
 import torch
 from ddt import data, ddt, unpack
 
 import mindspore as ms
 
+from mindone.diffusers import Cosmos2VideoToWorldPipeline
 from mindone.diffusers.utils.testing_utils import load_numpy_from_local_file, slow
 
 from ..pipeline_test_utils import (
     THRESHOLD_FP16,
     THRESHOLD_FP32,
+    THRESHOLD_PIXEL,
     PipelineTesterMixin,
     get_module,
     get_pipeline_components,
@@ -170,3 +173,32 @@ class Cosmos2VideoToWorldPipelineFastTests(PipelineTesterMixin, unittest.TestCas
             np.max(np.linalg.norm(pt_generated_video - ms_generated_video) / np.linalg.norm(pt_generated_video))
             < threshold
         )
+
+
+@slow
+@ddt
+class Cosmos2VideoToWorldPipelineSlowTests(PipelineTesterMixin, unittest.TestCase):
+    @data(*test_cases)
+    @unpack
+    def test_inference(self, mode, dtype):
+        if dtype == "float16":
+            pytest.skip("FP16 runs black results on both torch and mindspore")
+
+        ms.set_context(mode=mode)
+        ms_dtype = getattr(ms, dtype)
+
+        model_id = "nvidia/Cosmos-Predict2-2B-Text2Image"
+        pipe = Cosmos2VideoToWorldPipeline.from_pretrained(model_id, mindspore_dtype=ms_dtype)
+
+        torch.manual_seed(1)
+        image = pipe(
+            prompt="A close-up shot captures a vibrant yellow scrubber vigorously working on a grimy plate, its bristles moving in circular motions to lift stubborn grease and food residue. The dish, once covered in remnants of a hearty meal, gradually reveals its original glossy surface. Suds form and bubble around the scrubber, creating a satisfying visual of cleanliness in progress. The sound of scrubbing fills the air, accompanied by the gentle clinking of the dish against the sink. As the scrubber continues its task, the dish transforms, gleaming under the bright kitchen lights, symbolizing the triumph of cleanliness over mess.",
+            negative_prompt="The video captures a series of frames showing ugly scenes, static with no motion, motion blur, over-saturation, shaky footage, low resolution, grainy texture, pixelated images, poorly lit areas, underexposed and overexposed scenes, poor color balance, washed out colors, choppy sequences, jerky movements, low frame rate, artifacting, color banding, unnatural transitions, outdated special effects, fake elements, unconvincing visuals, poorly edited content, jump cuts, visual noise, and flickering. Overall, the video is of poor quality.",
+        )[0][0][1]
+
+        expected_image = load_numpy_from_local_file(
+            "mindone-testing-arrays",
+            f"cosmos2_v2w_{dtype}.npy",
+            subfolder="cosmos",
+        )
+        assert np.mean(np.abs(np.array(image, dtype=np.float32) - expected_image)) < THRESHOLD_PIXEL

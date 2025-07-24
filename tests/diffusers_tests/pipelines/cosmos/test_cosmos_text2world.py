@@ -15,16 +15,19 @@
 import unittest
 
 import numpy as np
+import pytest
 import torch
 from ddt import data, ddt, unpack
 
 import mindspore as ms
 
+from mindone.diffusers import CosmosTextToWorldPipeline
 from mindone.diffusers.utils.testing_utils import load_numpy_from_local_file, slow
 
 from ..pipeline_test_utils import (
     THRESHOLD_FP16,
     THRESHOLD_FP32,
+    THRESHOLD_PIXEL,
     PipelineTesterMixin,
     get_module,
     get_pipeline_components,
@@ -180,3 +183,31 @@ class CosmosTextToWorldPipelineFastTests(PipelineTesterMixin, unittest.TestCase)
             np.max(np.linalg.norm(pt_generated_video - ms_generated_video) / np.linalg.norm(pt_generated_video))
             < threshold
         )
+
+
+@slow
+@ddt
+class CosmosTextToWorldPipelineSlowTests(PipelineTesterMixin, unittest.TestCase):
+    @data(*test_cases)
+    @unpack
+    def test_inference(self, mode, dtype):
+        if dtype == "float16":
+            pytest.skip("FP16 runs black results on both torch and mindspore")
+
+        ms.set_context(mode=mode)
+        ms_dtype = getattr(ms, dtype)
+
+        model_id = "nvidia/Cosmos-1.0-Diffusion-7B-Text2World"
+        pipe = CosmosTextToWorldPipeline.from_pretrained(model_id, mindspore_dtype=ms_dtype)
+
+        torch.manual_seed(0)
+        image = pipe(
+            prompt="A sleek, humanoid robot stands in a vast warehouse filled with neatly stacked cardboard boxes on industrial shelves. The robot's metallic body gleams under the bright, even lighting, highlighting its futuristic design and intricate joints. A glowing blue light emanates from its chest, adding a touch of advanced technology. The background is dominated by rows of boxes, suggesting a highly organized storage system. The floor is lined with wooden pallets, enhancing the industrial setting. The camera remains static, capturing the robot's poised stance amidst the orderly environment, with a shallow depth of field that keeps the focus on the robot while subtly blurring the background for a cinematic effect."
+        )[0][0][1]
+
+        expected_image = load_numpy_from_local_file(
+            "mindone-testing-arrays",
+            f"cosmos_t2w_{dtype}.npy",
+            subfolder="cosmos",
+        )
+        assert np.mean(np.abs(np.array(image, dtype=np.float32) - expected_image)) < THRESHOLD_PIXEL

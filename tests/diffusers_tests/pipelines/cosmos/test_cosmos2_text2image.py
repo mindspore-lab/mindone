@@ -15,16 +15,19 @@
 import unittest
 
 import numpy as np
+import pytest
 import torch
 from ddt import data, ddt, unpack
 
 import mindspore as ms
 
+from mindone.diffusers import Cosmos2TextToImagePipeline
 from mindone.diffusers.utils.testing_utils import load_numpy_from_local_file, slow
 
 from ..pipeline_test_utils import (
     THRESHOLD_FP16,
     THRESHOLD_FP32,
+    THRESHOLD_PIXEL,
     PipelineTesterMixin,
     get_module,
     get_pipeline_components,
@@ -163,3 +166,34 @@ class Cosmos2TextToImagePipelineFastTests(PipelineTesterMixin, unittest.TestCase
             np.max(np.linalg.norm(pt_generated_video - ms_generated_video) / np.linalg.norm(pt_generated_video))
             < threshold
         )
+
+
+@slow
+@ddt
+class Cosmos2TextToImagePipelineSlowTests(PipelineTesterMixin, unittest.TestCase):
+    @data(*test_cases)
+    @unpack
+    def test_inference(self, mode, dtype):
+        if dtype == "float16":
+            pytest.skip("FP16 runs black results on both torch and mindspore")
+
+        ms.set_context(mode=mode)
+        ms_dtype = getattr(ms, dtype)
+
+        model_id = "nvidia/Cosmos-Predict2-2B-Text2Image"
+        pipe = Cosmos2TextToImagePipeline.from_pretrained(model_id, mindspore_dtype=ms_dtype)
+
+        torch.manual_seed(1)
+        image = pipe(
+            prompt="dance monkey",
+            negative_prompt="bad quality",
+        )[
+            0
+        ][0]
+
+        expected_image = load_numpy_from_local_file(
+            "mindone-testing-arrays",
+            f"cosmos2_t2i_{dtype}.npy",
+            subfolder="cosmos",
+        )
+        assert np.mean(np.abs(np.array(image, dtype=np.float32) - expected_image)) < THRESHOLD_PIXEL

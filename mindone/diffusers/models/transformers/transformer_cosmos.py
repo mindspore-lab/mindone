@@ -23,15 +23,10 @@ from ...configuration_utils import ConfigMixin, register_to_config
 from ..attention import FeedForward
 from ..attention_processor import Attention
 from ..embeddings import Timesteps
-
-# from ...utils import is_torchvision_available
 from ..layers_compat import unflatten
 from ..modeling_outputs import Transformer2DModelOutput
 from ..modeling_utils import ModelMixin
 from ..normalization import RMSNorm
-
-# if is_torchvision_available():
-#     from torchvision import transforms
 
 
 class CosmosPatchEmbed(nn.Cell):
