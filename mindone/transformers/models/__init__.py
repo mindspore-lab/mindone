@@ -28,6 +28,7 @@ from . import (
     bit,
     blip,
     blip_2,
+    chameleon,
     clap,
     clip,
     dpt,
