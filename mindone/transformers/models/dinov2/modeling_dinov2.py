@@ -717,7 +717,8 @@ class Dinov2Backbone(Dinov2PreTrainedModel, BackboneMixin):
         ...     "facebook/dinov2-base", out_features=["stage2", "stage5", "stage8", "stage11"]
         ... )
 
-        >>> inputs = processor(image, return_tensors="pt")
+        >>> inputs = processor(image, return_tensors="np")
+        >>> inputs = {k: ms.Tensor(v) for k, v in inputs.items()}
 
         >>> outputs = model(**inputs)
         >>> feature_maps = outputs.feature_maps

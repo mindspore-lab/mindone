@@ -1,5 +1,5 @@
 # coding=utf-8
-# Copyright 2024 The HuggingFace Inc. team. All rights reserved.
+# Copyright 2023 The HuggingFace Inc. team. All rights reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -12,85 +12,81 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-"""Testing suite for the MindSpore Depth Anything model."""
+"""Testing suite for the MindSpore Dinov2 model."""
 
 import numpy as np
 import pytest
 import torch
-from transformers import DepthAnythingConfig, Dinov2Config
+from transformers import Dinov2Config
 
 import mindspore as ms
 
 from tests.modeling_test_utils import compute_diffs, generalized_parse_args, get_modules
 from tests.transformers_tests.models.modeling_common import floats_numpy, ids_numpy
 
-DTYPE_AND_THRESHOLDS = {"fp32": 5e-4, "bf16": 5e-2}
+DTYPE_AND_THRESHOLDS = {"fp32": 5e-4, "fp16": 5e-3, "bf16": 5e-2}
 MODES = [1]  # not support graph mode yet
 
 
-class DepthAnythingModelTester:
-    # Copied from tests.models.dpt.test_modeling_dpt_auto_backbone.DPTModelTester.__init__
+class Dinov2ModelTester:
     def __init__(
         self,
-        batch_size=2,
+        batch_size=13,
+        image_size=30,
+        patch_size=2,
         num_channels=3,
-        image_size=32,
-        patch_size=16,
-        use_labels=True,
-        num_labels=3,
         is_training=True,
-        hidden_size=4,
+        use_labels=True,
+        hidden_size=32,
         num_hidden_layers=2,
-        num_attention_heads=2,
-        intermediate_size=8,
-        out_features=["stage1", "stage2"],
-        apply_layernorm=False,
-        reshape_hidden_states=False,
-        neck_hidden_sizes=[2, 2],
-        fusion_hidden_size=6,
+        num_attention_heads=4,
+        intermediate_size=37,
+        hidden_act="gelu",
+        hidden_dropout_prob=0.1,
+        attention_probs_dropout_prob=0.1,
+        type_sequence_label_size=10,
+        initializer_range=0.02,
+        scope=None,
+        attn_implementation="eager",
+        mask_ratio=0.5,
     ):
         self.batch_size = batch_size
-        self.num_channels = num_channels
         self.image_size = image_size
         self.patch_size = patch_size
+        self.num_channels = num_channels
+        self.is_training = is_training
+        self.use_labels = use_labels
         self.hidden_size = hidden_size
         self.num_hidden_layers = num_hidden_layers
         self.num_attention_heads = num_attention_heads
         self.intermediate_size = intermediate_size
-        self.out_features = out_features
-        self.apply_layernorm = apply_layernorm
-        self.reshape_hidden_states = reshape_hidden_states
-        self.use_labels = use_labels
-        self.num_labels = num_labels
-        self.is_training = is_training
-        self.neck_hidden_sizes = neck_hidden_sizes
-        self.fusion_hidden_size = fusion_hidden_size
-        # DPT's sequence length
-        self.seq_length = (self.image_size // self.patch_size) ** 2 + 1
+        self.hidden_act = hidden_act
+        self.hidden_dropout_prob = hidden_dropout_prob
+        self.attention_probs_dropout_prob = attention_probs_dropout_prob
+        self.type_sequence_label_size = type_sequence_label_size
+        self.initializer_range = initializer_range
+        self.scope = scope
+        self.attn_implementation = attn_implementation
+        self.mask_ratio = mask_ratio
 
-    # Copied from tests.models.dpt.test_modeling_dpt_auto_backbone.DPTModelTester.prepare_config_and_inputs
+        # in Dinov2, the seq length equals the number of patches + 1 (we add 1 for the [CLS] token)
+        num_patches = (image_size // patch_size) ** 2
+        self.seq_length = num_patches + 1
+        self.num_masks = int(self.mask_ratio * self.seq_length)
+        self.mask_length = num_patches
+
     def prepare_config_and_inputs(self):
         pixel_values = floats_numpy([self.batch_size, self.num_channels, self.image_size, self.image_size])
 
         labels = None
         if self.use_labels:
-            labels = ids_numpy([self.batch_size, self.image_size, self.image_size], self.num_labels)
+            labels = ids_numpy([self.batch_size], self.type_sequence_label_size)
 
         config = self.get_config()
 
         return config, pixel_values, labels
 
     def get_config(self):
-        return DepthAnythingConfig(
-            backbone_config=self.get_backbone_config(),
-            reassemble_hidden_size=self.hidden_size,
-            patch_size=self.patch_size,
-            neck_hidden_sizes=self.neck_hidden_sizes,
-            fusion_hidden_size=self.fusion_hidden_size,
-        )
-
-    # Copied from tests.models.dpt.test_modeling_dpt_auto_backbone.DPTModelTester.get_backbone_config
-    def get_backbone_config(self):
         return Dinov2Config(
             image_size=self.image_size,
             patch_size=self.patch_size,
@@ -99,34 +95,40 @@ class DepthAnythingModelTester:
             num_hidden_layers=self.num_hidden_layers,
             num_attention_heads=self.num_attention_heads,
             intermediate_size=self.intermediate_size,
-            is_training=self.is_training,
-            out_features=self.out_features,
-            reshape_hidden_states=self.reshape_hidden_states,
+            hidden_act=self.hidden_act,
+            hidden_dropout_prob=self.hidden_dropout_prob,
+            attention_probs_dropout_prob=self.attention_probs_dropout_prob,
+            is_decoder=False,
+            initializer_range=self.initializer_range,
+            attn_implementation=self.attn_implementation,
         )
 
-    # Copied from tests.models.dpt.test_modeling_dpt_auto_backbone.DPTModelTester.prepare_config_and_inputs_for_common
     def prepare_config_and_inputs_for_common(self):
         config_and_inputs = self.prepare_config_and_inputs()
-        config, pixel_values, labels = config_and_inputs
+        (
+            config,
+            pixel_values,
+            labels,
+        ) = config_and_inputs
         inputs_dict = {"pixel_values": pixel_values}
         return config, inputs_dict
 
 
-model_tester = DepthAnythingModelTester()
+model_tester = Dinov2ModelTester()
 config, pixel_values, labels = model_tester.prepare_config_and_inputs()
 
 
 DPT_CASES = [
     [
-        "DepthAnythingForDepthEstimation",
-        "transformers.DepthAnythingForDepthEstimation",
-        "mindone.transformers.DepthAnythingForDepthEstimation",
+        "Dinov2ForImageClassification",
+        "transformers.Dinov2ForImageClassification",
+        "mindone.transformers.Dinov2ForImageClassification",
         (config,),
         {},
         (pixel_values,),
         {},
         {
-            "predicted_depth": 0,
+            "logits": 0,
         },
     ],
 ]
