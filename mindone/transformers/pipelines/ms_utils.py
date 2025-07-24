@@ -71,8 +71,6 @@ class PipelineIterator:
         return len(self.loader)
 
     def __iter__(self):
-        # modification
-        # self.iterator = iter(self.loader)
         self.iterator = iter(self.loader)
         return self
 
