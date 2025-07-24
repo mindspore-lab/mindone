@@ -66,6 +66,7 @@ from . import (
     roberta,
     siglip,
     speecht5,
+    starcoder2,
     switch_transformers,
     t5,
     umt5,
