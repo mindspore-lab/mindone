@@ -391,6 +391,13 @@ from .models.speecht5 import (
     SpeechT5Model,
     SpeechT5PreTrainedModel,
 )
+from .models.starcoder2 import (
+    Starcoder2ForCausalLM,
+    Starcoder2ForSequenceClassification,
+    Starcoder2ForTokenClassification,
+    Starcoder2Model,
+    Starcoder2PreTrainedModel,
+)
 from .models.switch_transformers import (
     SwitchTransformersEncoderModel,
     SwitchTransformersForConditionalGeneration,
