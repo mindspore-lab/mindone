@@ -58,6 +58,7 @@ from . import (
     mobilebert,
     mpt,
     mvp,
+    opt,
     paligemma,
     persimmon,
     phi,

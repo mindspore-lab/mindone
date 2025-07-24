@@ -334,6 +334,13 @@ from .models.mvp import (
     MvpModel,
     MvpPreTrainedModel,
 )
+from .models.opt import (
+    OPTForCausalLM,
+    OPTForQuestionAnswering,
+    OPTForSequenceClassification,
+    OPTModel,
+    OPTPreTrainedModel,
+)
 from .models.paligemma import PaliGemmaForConditionalGeneration, PaliGemmaPreTrainedModel
 from .models.persimmon import (
     PersimmonForCausalLM,
