@@ -8,9 +8,9 @@ import mindspore as ms
 from mindspore import mint, nn, ops
 
 from mindone.diffusers.configuration_utils import ConfigMixin, register_to_config
+from mindone.diffusers.models.modeling_utils import ModelMixin
 
 from .common_modules import AttnBlock, Downsample, Normalize, ResnetBlock, Upsample, nonlinearity
-from .modeling_utils import ModelMixin
 
 
 class Updateable:
