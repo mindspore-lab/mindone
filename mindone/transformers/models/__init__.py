@@ -31,6 +31,7 @@ from . import (
     camembert,
     clap,
     clip,
+    ctrl,
     dpt,
     fuyu,
     gemma,
