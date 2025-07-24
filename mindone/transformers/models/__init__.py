@@ -56,6 +56,7 @@ from . import (
     mixtral,
     mobilebert,
     mpt,
+    nemotron,
     paligemma,
     persimmon,
     phi,
