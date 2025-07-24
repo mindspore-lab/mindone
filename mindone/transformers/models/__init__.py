@@ -49,6 +49,7 @@ from . import (
     levit,
     llama,
     llava,
+    m2m_100,
     megatron_bert,
     minicpm4,
     mistral,

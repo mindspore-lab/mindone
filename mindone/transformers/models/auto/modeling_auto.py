@@ -51,6 +51,7 @@ MODEL_MAPPING_NAMES = OrderedDict(
         ("deberta-v2", "DebertaV2Model"),
         ("dpt", "DPTModel"),
         ("gemma", "GemmaModel"),
+        ("m2m_100", "M2M100Model"),
         ("gemma2", "Gemma2Model"),
         ("persimmon", "PersimmonModel"),
         ("glm", "GlmModel"),
@@ -135,6 +136,7 @@ MODEL_WITH_LM_HEAD_MAPPING_NAMES = OrderedDict(
         # Model with LM heads mapping
         ("albert", "AlbertForMaskedLM"),
         ("bart", "BartForConditionalGeneration"),
+        ("m2m_100", "M2M100ForConditionalGeneration"),
         ("bert", "BertForMaskedLM"),
         ("deberta", "DebertaForMaskedLM"),
         ("deberta-v2", "DebertaV2ForMaskedLM"),
@@ -328,6 +330,7 @@ MODEL_FOR_SEQ_TO_SEQ_CAUSAL_LM_MAPPING_NAMES = OrderedDict(
         # Model for Seq2Seq Causal LM mapping
         ("bart", "BartForConditionalGeneration"),
         ("led", "LEDForConditionalGeneration"),
+        ("m2m_100", "M2M100ForConditionalGeneration"),
         ("mt5", "MT5ForConditionalGeneration"),
         ("qwen2_audio", "Qwen2AudioForConditionalGeneration"),
         ("t5", "T5ForConditionalGeneration"),
