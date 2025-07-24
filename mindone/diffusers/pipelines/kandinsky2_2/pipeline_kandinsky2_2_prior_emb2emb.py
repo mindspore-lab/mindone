@@ -1,3 +1,8 @@
+"""
+Adapted from https://github.com/huggingface/diffusers/tree/main/src/diffusers/
+pipelines/kandinsky2_2/pipeline_kandinsky2_2_prior_emb2emb.py.
+"""
+
 from typing import List, Optional, Union
 
 import numpy as np

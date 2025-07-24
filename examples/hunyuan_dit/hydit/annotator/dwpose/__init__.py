@@ -1,3 +1,5 @@
+# Copied from https://github.com/Tencent-Hunyuan/HunyuanDiT
+
 # Openpose
 # Original from CMU https://github.com/CMU-Perceptual-Computing-Lab/openpose
 # 2nd Edited by https://github.com/Hzzone/pytorch-openpose

@@ -1,3 +1,5 @@
+# Adapted from https://github.com/Gen-Verse/MMaDA/blob/main/models/modeling_llada.py
+
 from __future__ import annotations
 
 import logging

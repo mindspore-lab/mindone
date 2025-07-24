@@ -1,6 +1,9 @@
 # coding=utf-8
 # Copyright 2018 The HuggingFace Inc. team.
 #
+# This code is adapted from https://github.com/huggingface/transformers
+# with modifications to run transformers on mindspore.
+#
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -33,9 +36,12 @@ CONFIG_MAPPING_NAMES = OrderedDict(
     [
         # Add configs here
         ("albert", "AlbertConfig"),
+        ("aria", "AriaConfig"),
+        ("aria_text", "AriaTextConfig"),
         ("bert", "BertConfig"),
         ("bart", "BartConfig"),
         ("bit", "BitConfig"),
+        ("blip", "BlipConfig"),
         ("blip-2", "Blip2Config"),
         ("clip", "CLIPConfig"),
         ("clip_vision_model", "CLIPVisionConfig"),
@@ -52,6 +58,7 @@ CONFIG_MAPPING_NAMES = OrderedDict(
         ("gpt2", "GPT2Config"),
         ("granitemoe", "GraniteMoeConfig"),
         ("granitemoeshared", "GraniteMoeSharedConfig"),
+        ("helium", "HeliumConfig"),
         ("hiera", "HieraConfig"),
         ("idefics", "IdeficsConfig"),
         ("idefics2", "Idefics2Config"),
@@ -59,12 +66,15 @@ CONFIG_MAPPING_NAMES = OrderedDict(
         ("idefics3_vision", "Idefics3VisionConfig"),
         ("ijepa", "IJepaConfig"),
         ("imagegpt", "ImageGPTConfig"),
+        ("led", "LEDConfig"),
         ("levit", "LevitConfig"),
         ("llama", "LlamaConfig"),
         ("persimmon", "PersimmonConfig"),
         ("fuyu", "FuyuConfig"),
         ("llava", "LlavaConfig"),
+        ("mistral", "MistralConfig"),
         ("mobilebert", "MobileBertConfig"),
+        ("mpt", "MptConfig"),
         ("mt5", "MT5Config"),
         ("megatron-bert", "MegatronBertConfig"),
         ("mixtral", "MixtralConfig"),
@@ -88,6 +98,7 @@ CONFIG_MAPPING_NAMES = OrderedDict(
         ("whisper", "WhisperConfig"),
         ("xlm-roberta", "XLMRobertaConfig"),
         ("xlm-roberta-xl", "XLMRobertaXLConfig"),
+        ("cohere2", "Cohere2Config"),
     ]
 )
 
@@ -96,9 +107,12 @@ MODEL_NAMES_MAPPING = OrderedDict(
     [
         # Add full (and cased) model names here
         ("albert", "ALBERT"),
+        ("aria", "Aria"),
+        ("aria_text", "AriaText"),
         ("bert", "BERT"),
         ("bart", "BART"),
         ("bit", "BiT"),
+        ("blip", "BLIP"),
         ("blip-2", "BLIP-2"),
         ("chameleon", "Chameleon"),
         ("clap", "CLAP"),
@@ -122,6 +136,7 @@ MODEL_NAMES_MAPPING = OrderedDict(
         ("gemma3_text", "Gemma3ForCausalLM"),
         ("qwen2_audio", "Qwen2Audio"),
         ("qwen2_audio_encoder", "Qwen2AudioEncoder"),
+        ("helium", "Helium"),
         ("hiera", "Hiera"),
         ("idefics", "IDEFICS"),
         ("idefics2", "Idefics2"),
@@ -129,6 +144,7 @@ MODEL_NAMES_MAPPING = OrderedDict(
         ("idefics3_vision", "Idefics3VisionTransformer"),
         ("ijepa", "I-JEPA"),
         ("imagegpt", "ImageGPT"),
+        ("led", "LED"),
         ("levit", "LeViT"),
         ("llama", "LLaMA"),
         ("llama2", "Llama2"),
@@ -137,8 +153,10 @@ MODEL_NAMES_MAPPING = OrderedDict(
         ("persimmon", "Persimmon"),
         ("fuyu", "Fuyu"),
         ("mobilebert", "MobileBERT"),
+        ("mpt", "MPT"),
         ("mt5", "MT5"),
         ("megatron-bert", "Megatron-BERT"),
+        ("mistral", "Mistral"),
         ("mixtral", "Mixtral"),
         ("paligemma", "PaliGemma"),
         ("phi", "Phi"),
@@ -160,6 +178,7 @@ MODEL_NAMES_MAPPING = OrderedDict(
         ("whisper", "Whisper"),
         ("xlm-roberta", "XLM-RoBERTa"),
         ("xlm-roberta-xl", "XLM-RoBERTa-XL"),
+        ("cohere2", "Cohere2"),
     ]
 )
 
@@ -207,6 +226,7 @@ SPECIAL_MODEL_TYPE_TO_MODULE_NAME = OrderedDict(
         ("gemma3_text", "gemma3"),
         ("idefics3_vision", "idefics3"),
         ("clip_text_model", "clip"),
+        ("aria_text", "aria"),
         ("siglip_vision_model", "siglip"),
         ("chinese_clip_vision_model", "chinese_clip"),
         ("rt_detr_resnet", "rt_detr"),
@@ -216,6 +236,14 @@ SPECIAL_MODEL_TYPE_TO_MODULE_NAME = OrderedDict(
 if version.parse(transformers.__version__) >= version.parse("4.51.0"):
     CONFIG_MAPPING_NAMES.update({"qwen3": "Qwen3Config"})
     MODEL_NAMES_MAPPING.update({"qwen3": "Qwen3Model"})
+
+if version.parse(transformers.__version__) >= version.parse("4.51.3"):
+    CONFIG_MAPPING_NAMES.update({"glm4": "Glm4Config"})
+    MODEL_NAMES_MAPPING.update({"glm4": "glm4"})
+
+if version.parse(transformers.__version__) >= version.parse("4.53.0"):
+    CONFIG_MAPPING_NAMES.update({"vjepa2": "VJEPA2Model"})
+    MODEL_NAMES_MAPPING.update({"vjepa2": "VJEPA2Model"})
 
 
 def model_type_to_module_name(key):

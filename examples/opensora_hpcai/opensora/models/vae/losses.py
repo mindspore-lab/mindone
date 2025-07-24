@@ -1,3 +1,5 @@
+# Adapted from https://github.com/hpcaitech/Open-Sora/blob/main/opensora/models/vae/losses.py
+
 import mindspore as ms
 from mindspore import nn, ops
 
