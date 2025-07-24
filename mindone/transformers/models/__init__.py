@@ -29,6 +29,7 @@ from . import (
     blip,
     blip_2,
     camembert,
+    canine,
     clap,
     clip,
     convbert,

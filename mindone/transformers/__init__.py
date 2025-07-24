@@ -130,6 +130,15 @@ from .models.camembert import (
     CamembertModel,
     CamembertPreTrainedModel,
 )
+from .models.canine import (
+    CanineForMultipleChoice,
+    CanineForQuestionAnswering,
+    CanineForSequenceClassification,
+    CanineForTokenClassification,
+    CanineLayer,
+    CanineModel,
+    CaninePreTrainedModel,
+)
 from .models.chameleon import (
     ChameleonForConditionalGeneration,
     ChameleonModel,
