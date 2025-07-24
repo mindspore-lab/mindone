@@ -61,6 +61,7 @@ MODEL_MAPPING_NAMES = OrderedDict(
         ("glm", "GlmModel"),
         ("glpn", "GLPNModel"),
         ("gpt2", "GPT2Model"),
+        ("prophetnet", "ProphetNetModel"),
         ("granite", "GraniteModel"),
         ("granitemoe", "GraniteMoeModel"),
         ("granitemoeshared", "GraniteMoeSharedModel"),
@@ -182,6 +183,7 @@ MODEL_FOR_CAUSAL_LM_MAPPING_NAMES = OrderedDict(
         ("glm", "GlmForCausalLM"),
         ("gpt2", "GPT2LMHeadModel"),
         ("persimmon", "PersimmonForCausalLM"),
+        ("prophetnet", "ProphetNetForCausalLM"),
         ("fuyu", "FuyuForCausalLM"),
         ("granitemoe", "GraniteMoeForCausalLM"),
         ("granitemoeshared", "GraniteMoeSharedForCausalLM"),
@@ -261,6 +263,7 @@ MODEL_FOR_VISION_2_SEQ_MAPPING_NAMES = OrderedDict(
         ("idefics3", "Idefics3ForConditionalGeneration"),
         ("llava", "LlavaForConditionalGeneration"),
         ("paligemma", "PaliGemmaForConditionalGeneration"),
+        ("prophetnet", "ProphetNetForConditionalGeneration"),
         ("qwen2_5_vl", "Qwen2_5_VLForConditionalGeneration"),
         ("qwen2_vl", "Qwen2VLForConditionalGeneration"),
     ]
