@@ -624,7 +624,7 @@ class PegasusXEncoderLayer(nn.Cell):
         padded_mask = mint.nn.functional.pad(
             attention_mask,
             pad=(pad_size, pad_size),
-            value=mask_min_value,
+            value=float(mask_min_value),
         )
         return padded_hidden_states, padded_mask
 
