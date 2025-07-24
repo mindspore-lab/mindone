@@ -20,43 +20,36 @@
 # This source code is licensed under the license found in the
 # LICENSE file in the root directory of this source tree.
 
-from typing import Optional, Tuple, Union
+from typing import Literal, Optional, Tuple, Union
 
-import numpy as np
-from opensora.models.vae.utils import ChannelChunkConv3d, get_activation, get_conv3d_n_chunks
+from opensora.models.vae.utils import get_activation
 
-import mindspore as ms
+import mindspore.mint.nn.functional as F
+from mindspore import Tensor
+from mindspore import dtype as mstype
 from mindspore import mint, nn
 
 from mindone.diffusers.models.attention_processor import Attention
 from mindone.diffusers.utils import logging
 
-logger = logging.get_logger(__name__)  # pylint: disable=invalid-name
+from ...acceleration import SplitForwardGatherBackward
+from .distributed import Conv3dTPCol, Conv3dTPRow, GroupNormTP, initialize_parallel_group
 
-INTERPOLATE_NUMEL_LIMIT = 2**31 - 1
-
-
-def chunk_nearest_interpolate(
-    x: ms.tensor,
-    scale_factor,
-):
-    limit = INTERPOLATE_NUMEL_LIMIT // np.prod(scale_factor)
-    n_chunks = get_conv3d_n_chunks(x.numel(), x.shape[1], limit)
-    x_chunks = x.chunk(n_chunks, dim=1)
-    x_chunks = [
-        mint.nn.functional.interpolate(x_chunk, scale_factor=scale_factor, mode="nearest") for x_chunk in x_chunks
-    ]
-    return mint.cat(x_chunks, dim=1)
+logger = logging.get_logger(__name__)
 
 
-def prepare_causal_attention_mask(n_frame: int, n_hw: int, dtype, batch_size: int = None):
+def prepare_causal_attention_mask(n_frame: int, n_hw: int, dtype, batch_size: int = None, return_fa_mask: bool = False):
     seq_len = n_frame * n_hw
     mask = mint.full((seq_len, seq_len), float("-inf"), dtype=dtype)
-    for i in range(seq_len):
-        i_frame = i // n_hw
-        mask[i, : (i_frame + 1) * n_hw] = 0
+    row_indices = mint.arange(seq_len)
+    col_indices = (row_indices // n_hw + 1) * n_hw
+
+    bool_mask = mint.arange(seq_len).unsqueeze(0) < col_indices.unsqueeze(1)
+    mask = mint.where(bool_mask, mint.zeros_like(mask), mask)
     if batch_size is not None:
-        mask = mask.unsqueeze(0).expand((batch_size, -1, -1))
+        mask = mask.unsqueeze(0).broadcast_to((batch_size, -1, -1))
+    if return_fa_mask:
+        mask = (mask == 0).to(mstype.bool_)  # bool
     return mask
 
 
@@ -128,6 +121,8 @@ class CausalConv3d(nn.Cell):
         stride: Union[int, Tuple[int, int, int]] = 1,
         dilation: Union[int, Tuple[int, int, int]] = 1,
         pad_mode="replicate",
+        tp_split: Optional[Literal["row", "col"]] = None,
+        split_output: bool = False,
         **kwargs,
     ):
         super().__init__()
@@ -143,7 +138,15 @@ class CausalConv3d(nn.Cell):
         )  # W, H, T
         self.time_causal_padding = padding
 
-        self.conv = ChannelChunkConv3d(chan_in, chan_out, kernel_size, stride=stride, dilation=dilation, **kwargs)
+        tp_group, *_ = initialize_parallel_group()
+        if tp_group is not None and tp_split == "row":
+            kwargs["split_output"] = split_output
+            conv3d = Conv3dTPRow
+        elif tp_group is not None and tp_split == "col":
+            conv3d = Conv3dTPCol
+        else:
+            conv3d = mint.nn.Conv3d
+        self.conv = conv3d(chan_in, chan_out, kernel_size, stride=stride, dilation=dilation, **kwargs)
         assert self.pad_mode == "replicate", f"pad mode {self.pad_mode} is not supported other than `replicate`"
         self.pad = MSReplicationPad5D(self.time_causal_padding)
 
@@ -164,23 +167,22 @@ class UpsampleCausal3D(nn.Cell):
         kernel_size: int = 3,
         bias=True,
         upsample_factor=(2, 2, 2),
+        parallel: bool = False,
     ):
         super().__init__()
         self.channels = channels
         self.out_channels = out_channels or channels
         self.upsample_factor = tuple(float(uf) for uf in upsample_factor)  # upsample_factor must be float in MindSpore
-        self.conv = CausalConv3d(self.channels, self.out_channels, kernel_size=kernel_size, bias=bias)
+        self.conv = CausalConv3d(
+            self.channels,
+            self.out_channels,
+            kernel_size=kernel_size,
+            bias=bias,
+            tp_split="row" if parallel else None,
+            split_output=True,
+        )
 
-    def construct(
-        self,
-        input_tensor: ms.tensor,
-    ) -> ms.tensor:
-        assert input_tensor.shape[1] == self.channels
-
-        #######################
-        # handle hidden states
-        #######################
-        hidden_states = input_tensor
+    def construct(self, hidden_states: Tensor) -> Tensor:
         # Cast to float32 to as 'upsample_nearest2d_out_frame' op does not support bfloat16
         # dtype = hidden_states.dtype
         # if dtype == ms.bfloat16:
@@ -192,13 +194,13 @@ class UpsampleCausal3D(nn.Cell):
 
         # interpolate H & W only for the first frame; interpolate T & H & W for the rest
         T = hidden_states.shape[2]
-        first_h, other_h = hidden_states.split((1, T - 1), dim=2)
+        first_h, other_h = mint.split(hidden_states, (1, T - 1), dim=2)
         # process non-1st frames
         if T > 1:
-            other_h = chunk_nearest_interpolate(other_h, scale_factor=self.upsample_factor)
-        # proess 1st fram
+            other_h = F.interpolate(other_h, scale_factor=self.upsample_factor, mode="nearest")
+        # process 1st frame
         first_h = first_h.squeeze(2)
-        first_h = chunk_nearest_interpolate(first_h, scale_factor=self.upsample_factor[1:])
+        first_h = F.interpolate(first_h, scale_factor=self.upsample_factor[1:], mode="nearest")
         first_h = first_h.unsqueeze(2)
         # concat together
         if T > 1:
@@ -221,22 +223,21 @@ class DownsampleCausal3D(nn.Cell):
     """
 
     def __init__(
-        self,
-        channels: int,
-        kernel_size=3,
-        bias=True,
-        stride=2,
+        self, channels: int, kernel_size=3, bias=True, stride=2, parallel: bool = False, split_output: bool = False
     ):
         super().__init__()
-        self.channels = channels
-        self.out_channels = channels
-        self.conv = CausalConv3d(self.channels, self.out_channels, kernel_size=kernel_size, stride=stride, bias=bias)
+        self.conv = CausalConv3d(
+            channels,
+            channels,
+            kernel_size=kernel_size,
+            stride=stride,
+            bias=bias,
+            tp_split="row" if parallel else None,
+            split_output=split_output,
+        )
 
-    def construct(self, input_tensor: ms.tensor) -> ms.tensor:
-        assert input_tensor.shape[1] == self.channels
-        hidden_states = self.conv(input_tensor)
-
-        return hidden_states
+    def construct(self, hidden_states: Tensor) -> Tensor:
+        return self.conv(hidden_states)
 
 
 class ResnetBlockCausal3D(nn.Cell):
@@ -259,6 +260,7 @@ class ResnetBlockCausal3D(nn.Cell):
         use_in_shortcut: Optional[bool] = None,
         conv_shortcut_bias: bool = True,
         conv_3d_out_channels: Optional[int] = None,
+        parallel: bool = False,
     ):
         super().__init__()
         self.pre_norm = pre_norm
@@ -271,13 +273,29 @@ class ResnetBlockCausal3D(nn.Cell):
         if groups_out is None:
             groups_out = groups
 
-        self.norm1 = mint.nn.GroupNorm(num_groups=groups, num_channels=in_channels, eps=eps, affine=True)
-        self.conv1 = CausalConv3d(in_channels, out_channels, kernel_size=3, stride=1)
-        self.norm2 = mint.nn.GroupNorm(num_groups=groups_out, num_channels=out_channels, eps=eps, affine=True)
+        self.norm1 = GroupNormTP(num_groups=groups, num_channels=in_channels, eps=eps, affine=True, enable_tp=parallel)
+        self.conv1 = CausalConv3d(
+            in_channels,
+            out_channels,
+            kernel_size=3,
+            stride=1,
+            tp_split="row" if parallel else None,
+            split_output=True,
+        )
+        self.norm2 = GroupNormTP(
+            num_groups=groups_out, num_channels=out_channels, eps=eps, affine=True, enable_tp=parallel
+        )
 
         self.dropout = mint.nn.Dropout(dropout)
         conv_3d_out_channels = conv_3d_out_channels or out_channels
-        self.conv2 = CausalConv3d(out_channels, conv_3d_out_channels, kernel_size=3, stride=1)
+        self.conv2 = CausalConv3d(
+            out_channels,
+            conv_3d_out_channels,
+            kernel_size=3,
+            stride=1,
+            tp_split="row" if parallel else None,
+            split_output=True,
+        )
 
         self.nonlinearity = get_activation(non_linearity)
 
@@ -293,12 +311,11 @@ class ResnetBlockCausal3D(nn.Cell):
                 kernel_size=1,
                 stride=1,
                 bias=conv_shortcut_bias,
+                tp_split="row" if parallel else None,
+                split_output=True,
             )
 
-    def construct(
-        self,
-        input_tensor: ms.tensor,
-    ) -> ms.tensor:
+    def construct(self, input_tensor: Tensor) -> Tensor:
         hidden_states = input_tensor
 
         hidden_states = self.norm1(hidden_states)
@@ -400,7 +417,7 @@ class UNetMidBlockCausal3D(nn.Cell):
         self.attentions = nn.CellList(attentions)
         self.resnets = nn.CellList(resnets)
 
-    def construct(self, hidden_states: ms.tensor, attention_mask: Optional[ms.tensor]) -> ms.tensor:
+    def construct(self, hidden_states: Tensor, attention_mask: Optional[Tensor]) -> Tensor:
         hidden_states = self.resnets[0](hidden_states)
         for attn, resnet in zip(self.attentions, self.resnets[1:]):
             if attn is not None:
@@ -431,6 +448,8 @@ class DownEncoderBlockCausal3D(nn.Cell):
         output_scale_factor: float = 1.0,
         add_downsample: bool = True,
         downsample_stride: int = 2,
+        parallel: bool = False,
+        split_downsample_output: bool = False,
     ):
         super().__init__()
         resnets = []
@@ -447,6 +466,7 @@ class DownEncoderBlockCausal3D(nn.Cell):
                     non_linearity=resnet_act_fn,
                     output_scale_factor=output_scale_factor,
                     pre_norm=resnet_pre_norm,
+                    parallel=parallel,
                 )
             )
 
@@ -456,22 +476,19 @@ class DownEncoderBlockCausal3D(nn.Cell):
             self.downsamplers = nn.CellList(
                 [
                     DownsampleCausal3D(
-                        out_channels,
-                        stride=downsample_stride,
+                        out_channels, stride=downsample_stride, parallel=parallel, split_output=split_downsample_output
                     )
                 ]
             )
         else:
             self.downsamplers = None
 
-    def construct(self, hidden_states: ms.tensor) -> ms.tensor:
+    def construct(self, hidden_states: Tensor) -> Tensor:
         for resnet in self.resnets:
-            # hidden_states = auto_grad_checkpoint(resnet, hidden_states)  # TODO: check
             hidden_states = resnet(hidden_states)
 
         if self.downsamplers is not None:
             for downsampler in self.downsamplers:
-                # hidden_states = auto_grad_checkpoint(downsampler, hidden_states)
                 hidden_states = downsampler(hidden_states)
 
         return hidden_states
@@ -492,6 +509,8 @@ class UpDecoderBlockCausal3D(nn.Cell):
         output_scale_factor: float = 1.0,
         add_upsample: bool = True,
         upsample_scale_factor=(2, 2, 2),
+        parallel: bool = False,
+        split_upsampler_input: bool = False,
     ):
         super().__init__()
         resnets = []
@@ -509,18 +528,25 @@ class UpDecoderBlockCausal3D(nn.Cell):
                     non_linearity=resnet_act_fn,
                     output_scale_factor=output_scale_factor,
                     pre_norm=resnet_pre_norm,
+                    parallel=parallel,
                 )
             )
 
         self.resnets = nn.CellList(resnets)
 
         if add_upsample:
+            self._split_forward_gather_backward = nn.Identity()
+            if split_upsampler_input:
+                tp_group, *_ = initialize_parallel_group()
+                if tp_group is not None:
+                    self._split_forward_gather_backward = SplitForwardGatherBackward(dim=1, group=tp_group)
             self.upsamplers = nn.CellList(
                 [
                     UpsampleCausal3D(
                         out_channels,
                         out_channels=out_channels,
                         upsample_factor=upsample_scale_factor,
+                        parallel=parallel or split_upsampler_input,
                     )
                 ]
             )
@@ -529,14 +555,13 @@ class UpDecoderBlockCausal3D(nn.Cell):
 
         self.resolution_idx = resolution_idx
 
-    def construct(self, hidden_states: ms.tensor) -> ms.tensor:
+    def construct(self, hidden_states: Tensor) -> Tensor:
         for resnet in self.resnets:
-            # hidden_states = auto_grad_checkpoint(resnet, hidden_states)
             hidden_states = resnet(hidden_states)
 
         if self.upsamplers is not None:
+            hidden_states = self._split_forward_gather_backward(hidden_states)
             for upsampler in self.upsamplers:
-                # hidden_states = auto_grad_checkpoint(upsampler, hidden_states)
                 hidden_states = upsampler(hidden_states)
 
         return hidden_states
