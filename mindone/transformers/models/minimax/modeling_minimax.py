@@ -154,7 +154,7 @@ class MiniMaxLightningAttention(nn.Cell):
         past_key_value: Optional[Cache] = None,
         cache_position: Optional[ms.Tensor] = None,
         **kwargs: Unpack[FlashAttentionKwargs],
-    ) -> tuple[ms.Tensor, Optional[ms.Tensor], Optional[tuple[ms.Tensor]]]:
+    ) -> tuple[ms.Tensor, ms.Tensor]:
         batch_size, seq_len, hidden_size = hidden_states.shape
         num_blocks = (seq_len + self.block_size - 1) // self.block_size
 
@@ -343,7 +343,7 @@ class MiniMaxAttention(nn.Cell):
         past_key_value: Optional[Cache] = None,
         cache_position: Optional[ms.Tensor] = None,
         **kwargs: Unpack[FlashAttentionKwargs],
-    ) -> tuple[ms.Tensor, Optional[ms.Tensor], Optional[tuple[ms.Tensor]]]:
+    ) -> tuple[ms.Tensor, Optional[ms.Tensor]]:
         input_shape = hidden_states.shape[:-1]
         hidden_shape = (*input_shape, -1, self.head_dim)
 
@@ -425,7 +425,7 @@ class MiniMaxSparseMoeBlock(nn.Cell):
         # Jitter parameters
         self.jitter_noise = config.router_jitter_noise
 
-    def construct(self, hidden_states: ms.Tensor) -> ms.Tensor:
+    def construct(self, hidden_states: ms.Tensor) -> tuple[ms.Tensor, ms.Tensor]:
         """ """
         batch_size, sequence_length, hidden_dim = hidden_states.shape
         if self.training and self.jitter_noise > 0:
@@ -500,7 +500,7 @@ class MiniMaxDecoderLayer(nn.Cell):
         use_cache: Optional[bool] = False,
         cache_position: Optional[ms.Tensor] = None,
         **kwargs: Unpack[FlashAttentionKwargs],
-    ) -> tuple[ms.Tensor, Optional[tuple[ms.Tensor, ms.Tensor]]]:
+    ) -> tuple[ms.Tensor, ...]:
         """
         Args:
             hidden_states (`ms.Tensor`): input to the layer of shape `(batch, seq_len, embed_dim)`
