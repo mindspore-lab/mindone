@@ -21,13 +21,13 @@ class DepthEstimationPipeline(Pipeline):
     Example:
 
     ```python
-    >>> from transformers import pipeline
+    >>> from mindone.transformers import pipeline
 
     >>> depth_estimator = pipeline(task="depth-estimation", model="LiheYoung/depth-anything-base-hf")
     >>> output = depth_estimator("http://images.cocodataset.org/val2017/000000039769.jpg")
     >>> # This is a tensor with the values being the depth expressed in meters for each pixel
     >>> output["predicted_depth"].shape
-    [1, 384, 384]
+    [480, 640]
     ```
 
     Learn more about the basics of using a pipeline in the [pipeline tutorial](../pipeline_tutorial)
@@ -96,7 +96,7 @@ class DepthEstimationPipeline(Pipeline):
         image = load_image(image, timeout)
         model_inputs = self.image_processor(images=image, return_tensors=self.framework)
         if self.framework == "ms":
-            model_inputs = model_inputs.to(self.torch_dtype)
+            model_inputs = model_inputs.to(self.mindspore_dtype)
         model_inputs["target_size"] = image.size[::-1]
         return model_inputs
 
