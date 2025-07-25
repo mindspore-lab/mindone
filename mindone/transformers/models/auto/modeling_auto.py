@@ -36,6 +36,7 @@ MODEL_MAPPING_NAMES = OrderedDict(
         ("aria", "AriaForConditionalGeneration"),
         ("aria_text", "AriaTextModel"),
         ("bert", "BertModel"),
+        ("bert-generation", "BertGenerationEncoder"),
         ("bart", "BartModel"),
         ("camembert", "CamembertModel"),
         ("mvp", "MvpModel"),
@@ -53,6 +54,7 @@ MODEL_MAPPING_NAMES = OrderedDict(
         ("deberta", "DebertaModel"),
         ("opt", "OPTModel"),
         ("deberta-v2", "DebertaV2Model"),
+        ("deit", "DeiTModel"),
         ("dpt", "DPTModel"),
         ("gemma", "GemmaModel"),
         ("m2m_100", "M2M100Model"),
@@ -90,6 +92,7 @@ MODEL_MAPPING_NAMES = OrderedDict(
         ("mixtral", "MixtralModel"),
         ("phi", "PhiModel"),
         ("phi3", "Phi3Model"),
+        ("poolformer", "PoolFormerModel"),
         ("qwen2", "Qwen2Model"),
         ("qwen2_5_vl", "Qwen2_5_VLModel"),
         ("qwen2_audio_encoder", "Qwen2AudioEncoder"),
@@ -216,6 +219,7 @@ MODEL_FOR_IMAGE_MAPPING_NAMES = OrderedDict(
         # Model for Image mapping
         ("bit", "BitModel"),
         ("siglip_vision_model", "SiglipVisionModel"),
+        ("deit", "DeiTModel"),
         ("dpt", "DPTModel"),
         ("glpn", "GLPNModel"),
         ("hiera", "HieraModel"),
@@ -223,6 +227,7 @@ MODEL_FOR_IMAGE_MAPPING_NAMES = OrderedDict(
         ("ijepa", "IJepaModel"),
         ("imagegpt", "ImageGPTModel"),
         ("levit", "LevitModel"),
+        ("poolformer", "PoolFormerModel"),
         ("siglip_vision_model", "SiglipVisionModel"),
         ("vit", "ViTModel"),
     ]
@@ -230,6 +235,7 @@ MODEL_FOR_IMAGE_MAPPING_NAMES = OrderedDict(
 
 MODEL_FOR_MASKED_IMAGE_MODELING_MAPPING_NAMES = OrderedDict(
     [
+        ("deit", "DeiTForMaskedImageModeling"),
         ("vit", "ViTForMaskedImageModeling"),
     ]
 )
@@ -246,6 +252,10 @@ MODEL_FOR_IMAGE_CLASSIFICATION_MAPPING_NAMES = OrderedDict(
         # Model for Image Classification mapping
         ("bit", "BitForImageClassification"),
         ("clip", "CLIPForImageClassification"),
+        (
+            "deit",
+            ("DeiTForImageClassification", "DeiTForImageClassificationWithTeacher"),
+        ),
         ("hiera", "HieraForImageClassification"),
         ("ijepa", "IJepaForImageClassification"),
         ("imagegpt", "ImageGPTForImageClassification"),
@@ -253,6 +263,7 @@ MODEL_FOR_IMAGE_CLASSIFICATION_MAPPING_NAMES = OrderedDict(
             "levit",
             ("LevitForImageClassification", "LevitForImageClassificationWithTeacher"),
         ),
+        ("poolformer", "PoolFormerForImageClassification"),
         ("siglip", "SiglipForImageClassification"),
         ("vit", "ViTForImageClassification"),
     ]
