@@ -527,11 +527,9 @@ class LlamaModel(LlamaPreTrainedModel):
     def set_input_embeddings(self, value: mint.nn.Embedding):
         if not isinstance(value, mint.nn.Embedding):
             raise NotImplementedError
-        ori_name = value.embedding_table.name
-
+        ori_name = value.weight.name
         self.embed_tokens = value
-
-        self.embed_tokens.embedding_table.name = ori_name
+        self.embed_tokens.weight.name = ori_name
 
     def gradient_checkpointing_enable(self, gradient_checkpointing_kwargs=None):
         if gradient_checkpointing_kwargs is None:

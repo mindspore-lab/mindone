@@ -111,6 +111,7 @@ class Qwen2VLRotaryEmbedding(nn.Cell):
             self.rope_type = config.rope_scaling.get("rope_type", config.rope_scaling.get("type"))
         else:
             self.rope_type = "default"
+        self.rope_kwargs = {}
         self.max_seq_len_cached = config.max_position_embeddings
         self.original_max_seq_len = config.max_position_embeddings
 
@@ -118,8 +119,7 @@ class Qwen2VLRotaryEmbedding(nn.Cell):
         self.rope_init_fn = ROPE_INIT_FUNCTIONS[self.rope_type]
 
         inv_freq, self.attention_scaling = self.rope_init_fn(self.config)
-        # self.register_buffer("inv_freq", inv_freq, persistent=False) # WRONG! cannot convert to target model dtype
-        self.inv_freq = ms.Parameter(inv_freq, requires_grad=False, name="inv_freq")
+        self.register_buffer("inv_freq", inv_freq, persistent=False)
         self.original_inv_freq = self.inv_freq
 
     def _dynamic_frequency_update(self, position_ids):
@@ -254,13 +254,7 @@ class PatchEmbed(nn.Cell):
             patch_size,
         )  # For 'Conv3d', the type of 'kernel_size' should be one of '['int', 'tuple']'
 
-        if ms.__version__ >= "2.5.0":
-            self.proj = mint.nn.Conv3d(in_channels, embed_dim, kernel_size=kernel_size, stride=kernel_size, bias=False)
-        else:
-            self.proj = nn.Conv3d(
-                in_channels, embed_dim, kernel_size=kernel_size, stride=kernel_size, has_bias=False
-            ).to_float(ms.bfloat16)
-            # nn.Conv3d does not support float32
+        self.proj = mint.nn.Conv3d(in_channels, embed_dim, kernel_size=kernel_size, stride=kernel_size, bias=False)
 
     def construct(self, hidden_states: ms.Tensor) -> ms.Tensor:
         target_dtype = self.proj.weight.dtype
@@ -275,7 +269,7 @@ class PatchMerger(nn.Cell):
     def __init__(self, dim: int, context_dim: int, spatial_merge_size: int = 2) -> None:
         super().__init__()
         self.hidden_size = context_dim * (spatial_merge_size**2)
-        self.ln_q = LayerNorm(context_dim, eps=1e-6).to_float(ms.float32)
+        self.ln_q = LayerNorm(context_dim, eps=1e-6).to_float(ms.float32)  # TODO: test bf16 accuracy
         self.mlp = nn.SequentialCell(
             mint.nn.Linear(self.hidden_size, self.hidden_size, bias=True),
             nn.GELU(approximate=False),
@@ -807,7 +801,7 @@ class Qwen2VLPreTrainedModel(PreTrainedModel):
     def _init_weights(self, module):
         if self.training:
             std = self.config.initializer_range
-            if isinstance(module, (mint.nn.Linear, nn.Conv3d, mint.nn.Conv3d)):
+            if isinstance(module, (mint.nn.Linear, mint.nn.Conv3d)):
                 weight = Initializer(Normal(sigma=std, mean=0.0), shape=module.weight.shape)
                 module.weight.set_data(weight)
                 if module.bias is not None:
