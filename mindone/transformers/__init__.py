@@ -54,6 +54,7 @@ from .models.auto import (
     AutoImageProcessor,
     AutoModel,
     AutoModelForCausalLM,
+    AutoModelForImageTextToText,
     AutoModelForMaskedLM,
     AutoProcessor,
 )
@@ -416,6 +417,12 @@ from .models.siglip import (
     SiglipPreTrainedModel,
     SiglipTextModel,
     SiglipVisionModel,
+)
+from .models.smolvlm import (
+    SmolVLMForConditionalGeneration,
+    SmolVLMModel,
+    SmolVLMPreTrainedModel,
+    SmolVLMVisionTransformer,
 )
 from .models.speecht5 import (
     SpeechT5ForSpeechToSpeech,
