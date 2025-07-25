@@ -1,3 +1,6 @@
+# Adapted from
+# https://github.com/PKU-YuanGroup/Open-Sora-Plan/blob/main/opensora/models/causalvideovae/eval/cal_fvd.py
+
 from tqdm import tqdm
 
 from mindspore import mint

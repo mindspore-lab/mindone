@@ -1,3 +1,4 @@
+# Adapted from https://github.com/TencentARC/InstantMesh to work with MindSpore.
 import importlib
 
 

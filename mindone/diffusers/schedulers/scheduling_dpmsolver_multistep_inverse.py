@@ -1,5 +1,8 @@
 # Copyright 2024 TSAIL Team and The HuggingFace Team. All rights reserved.
 #
+# This code is adapted from https://github.com/huggingface/diffusers
+# with modifications to run diffusers on mindspore.
+#
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -314,7 +317,7 @@ class DPMSolverMultistepInverseScheduler(SchedulerMixin, ConfigMixin):
             ) ** 0.5
             sigmas = np.concatenate([sigmas, [sigma_max]]).astype(np.float32)
 
-        self.sigmas = ms.Tensor(sigmas)
+        self.sigmas = ms.tensor(sigmas)
 
         # when num_inference_steps == num_train_timesteps, we can end up with
         # duplicates in timesteps.

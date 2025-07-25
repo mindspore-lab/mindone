@@ -1,3 +1,5 @@
+"""Adapted from https://github.com/huggingface/diffusers/tree/main/src/diffusers/models/controlnets/__init__.py."""
+
 from .controlnet import ControlNetModel, ControlNetOutput
 from .controlnet_flux import FluxControlNetModel, FluxControlNetOutput, FluxMultiControlNetModel
 from .controlnet_hunyuan import HunyuanControlNetOutput, HunyuanDiT2DControlNetModel, HunyuanDiT2DMultiControlNetModel
@@ -6,3 +8,4 @@ from .controlnet_sparsectrl import SparseControlNetConditioningEmbedding, Sparse
 from .controlnet_union import ControlNetUnionModel
 from .controlnet_xs import ControlNetXSAdapter, ControlNetXSOutput, UNetControlNetXSModel
 from .multicontrolnet import MultiControlNetModel
+from .multicontrolnet_union import MultiControlNetUnionModel

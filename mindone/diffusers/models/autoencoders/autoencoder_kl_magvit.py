@@ -1,6 +1,9 @@
 # Copyright 2025 The EasyAnimate team and The HuggingFace Team.
 # All rights reserved.
 #
+# This code is adapted from https://github.com/huggingface/diffusers
+# with modifications to run diffusers on mindspore.
+#
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -171,7 +174,7 @@ class EasyAnimateResidualBlock3D(nn.Cell):
             eps=norm_eps,
             affine=True,
         )
-        self.nonlinearity = get_activation(non_linearity)()
+        self.nonlinearity = get_activation(non_linearity)
         self.conv1 = EasyAnimateCausalConv3d(in_channels, out_channels, kernel_size=3)
 
         self.norm2 = mint.nn.GroupNorm(num_groups=norm_num_groups, num_channels=out_channels, eps=norm_eps, affine=True)
@@ -518,7 +521,7 @@ class EasyAnimateEncoder(nn.Cell):
             num_groups=norm_num_groups,
             eps=1e-6,
         )
-        self.conv_act = get_activation(act_fn)()
+        self.conv_act = get_activation(act_fn)
 
         # Initialize the output convolution layer
         conv_out_channels = 2 * out_channels if double_z else out_channels
@@ -634,7 +637,7 @@ class EasyAnimateDecoder(nn.Cell):
             num_groups=norm_num_groups,
             eps=1e-6,
         )
-        self.conv_act = get_activation(act_fn)()
+        self.conv_act = get_activation(act_fn)
 
         # Output convolution layer
         self.conv_out = EasyAnimateCausalConv3d(block_out_channels[0], out_channels, kernel_size=3)

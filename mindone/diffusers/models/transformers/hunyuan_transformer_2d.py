@@ -1,4 +1,7 @@
-# Copyright 2024 HunyuanDiT Authors and The HuggingFace Team. All rights reserved.
+# Copyright 2024 HunyuanDiT Authors, Qixun Wang and The HuggingFace Team. All rights reserved.
+#
+# This code is adapted from https://github.com/huggingface/diffusers
+# with modifications to run diffusers on mindspore.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -239,6 +242,9 @@ class HunyuanDiT2DModel(ModelMixin, ConfigMixin):
             Whether or not to use style condition and image meta size. True for version <=1.1, False for version >= 1.2
     """
 
+    _skip_layerwise_casting_patterns = ["pos_embed", "norm", "pooler"]
+    _supports_group_offloading = False
+
     @register_to_config
     def __init__(
         self,
@@ -273,7 +279,7 @@ class HunyuanDiT2DModel(ModelMixin, ConfigMixin):
         )
 
         self.text_embedding_padding = ms.Parameter(
-            mint.randn(text_len + text_len_t5, cross_attention_dim, dtype=ms.float32),
+            mint.randn(text_len + text_len_t5, cross_attention_dim),
             name="text_embedding_padding",
         )
 

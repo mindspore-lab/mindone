@@ -1,5 +1,8 @@
 # Copyright 2024 The HuggingFace Team. All rights reserved.
 #
+# This code is adapted from https://github.com/huggingface/diffusers
+# with modifications to run diffusers on mindspore.
+#
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -181,7 +184,7 @@ class OobleckDiagonalGaussianDistribution(object):
 
     def kl(self, other: "OobleckDiagonalGaussianDistribution" = None) -> ms.Tensor:
         if self.deterministic:
-            return ms.Tensor([0.0])
+            return ms.tensor([0.0])
         else:
             if other is None:
                 return (self.mean * self.mean + self.var - self.logvar - 1.0).sum(1).mean()
@@ -349,6 +352,7 @@ class AutoencoderOobleck(ModelMixin, ConfigMixin):
     """
 
     _supports_gradient_checkpointing = False
+    _supports_group_offloading = False
 
     @register_to_config
     def __init__(

@@ -1,0 +1,1 @@
+from .modeling_vjepa2 import VJEPA2ForVideoClassification, VJEPA2Model, VJEPA2PreTrainedModel

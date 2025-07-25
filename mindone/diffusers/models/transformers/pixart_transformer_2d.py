@@ -1,5 +1,8 @@
 # Copyright 2024 The HuggingFace Team. All rights reserved.
 #
+# This code is adapted from https://github.com/huggingface/diffusers
+# with modifications to run diffusers on mindspore.
+#
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -78,6 +81,7 @@ class PixArtTransformer2DModel(ModelMixin, ConfigMixin):
 
     _supports_gradient_checkpointing = True
     _no_split_modules = ["BasicTransformerBlock", "PatchEmbed"]
+    _skip_layerwise_casting_patterns = ["pos_embed", "norm", "adaln_single"]
 
     @register_to_config
     def __init__(
@@ -183,10 +187,6 @@ class PixArtTransformer2DModel(ModelMixin, ConfigMixin):
             self.caption_projection = PixArtAlphaTextProjection(
                 in_features=self.config.caption_channels, hidden_size=self.inner_dim
             )
-
-    def _set_gradient_checkpointing(self, module, value=False):
-        if hasattr(module, "gradient_checkpointing"):
-            module.gradient_checkpointing = value
 
     @property
     def attn_processors(self) -> Dict[str, AttentionProcessor]:

@@ -1,3 +1,21 @@
+# coding=utf-8
+# Copyright 2020 The Google AI Language Team Authors, Facebook AI Research authors and The HuggingFace Inc. team.
+# Copyright (c) 2020, NVIDIA CORPORATION.  All rights reserved.
+#
+# This code is adapted from https://github.com/huggingface/transformers
+# with modifications to run transformers on mindspore.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
 import copy
 import inspect
 import time
@@ -1158,11 +1176,13 @@ class GenerationMixin:
                     begin_index,
                 )
             )
-        if generation_config.forced_decoder_ids is not None:
-            raise ValueError(
-                "You have explicitly specified `forced_decoder_ids`. Please remove the `forced_decoder_ids` argument "
-                "in favour of `input_ids` or `decoder_input_ids` respectively.",
-            )
+
+        # Fixme
+        # if generation_config.forced_decoder_ids is not None:
+        #     raise ValueError(
+        #         "You have explicitly specified `forced_decoder_ids`. Please remove the `forced_decoder_ids` argument "
+        #         "in favour of `input_ids` or `decoder_input_ids` respectively.",
+        #     )
 
         processors = self._merge_criteria_processor_list(processors, logits_processor)
 
@@ -1331,7 +1351,7 @@ class GenerationMixin:
 
         ```python
         >>> from transformers import GPT2Tokenizer
-        >>> from mindway.transformers import AutoModelForCausalLM
+        >>> from mindone.transformers import AutoModelForCausalLM
         >>> import numpy as np
 
         >>> tokenizer = GPT2Tokenizer.from_pretrained("gpt2")

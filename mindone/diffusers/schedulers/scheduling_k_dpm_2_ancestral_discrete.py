@@ -1,5 +1,8 @@
 # Copyright 2024 Katherine Crowson, The HuggingFace Team and hlky. All rights reserved.
 #
+# This code is adapted from https://github.com/huggingface/diffusers
+# with modifications to run diffusers on mindspore.
+#
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -293,12 +296,12 @@ class KDPM2AncestralDiscreteScheduler(SchedulerMixin, ConfigMixin):
             sigmas = self._convert_to_beta(in_sigmas=sigmas, num_inference_steps=num_inference_steps)
             timesteps = np.array([self._sigma_to_t(sigma, log_sigmas) for sigma in sigmas])
 
-        self.log_sigmas = ms.Tensor(log_sigmas)
+        self.log_sigmas = ms.tensor(log_sigmas)
         sigmas = np.concatenate([sigmas, [0.0]]).astype(np.float32)
-        sigmas = ms.Tensor(sigmas)
+        sigmas = ms.tensor(sigmas)
 
         # compute up and down sigmas
-        sigmas_next = ms.Tensor(np.roll(sigmas.asnumpy(), -1))
+        sigmas_next = ms.tensor(np.roll(sigmas.asnumpy(), -1))
         sigmas_next[-1] = 0.0
         sigmas_up = (sigmas_next**2 * (sigmas**2 - sigmas_next**2) / sigmas**2) ** 0.5
         sigmas_down = (sigmas_next**2 - sigmas_up**2) ** 0.5
@@ -316,7 +319,7 @@ class KDPM2AncestralDiscreteScheduler(SchedulerMixin, ConfigMixin):
         self.sigmas_up = mint.cat([sigmas_up[:1], sigmas_up[1:].repeat_interleave(2), sigmas_up[-1:]])
         self.sigmas_down = mint.cat([sigmas_down[:1], sigmas_down[1:].repeat_interleave(2), sigmas_down[-1:]])
 
-        timesteps = ms.Tensor(timesteps)
+        timesteps = ms.tensor(timesteps)
 
         log_sigmas = self.log_sigmas
         timesteps_interpol = np.array(

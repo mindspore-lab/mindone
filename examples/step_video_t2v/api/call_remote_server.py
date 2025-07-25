@@ -1,3 +1,7 @@
+# This code is adapted from https://github.com/stepfun-ai/Step-Video-T2V
+# with modifications to run on MindSpore.
+
+
 import argparse
 import ast
 import os
@@ -203,7 +207,7 @@ class RemoteServer(object):
                 resource_class_args=[self.caption_pipeline],
             )
 
-    def run(self, host="0.0.0.0", port=8080):
+    def run(self, host="127.0.0.1", port=8080):
         if self.enable_vae:
             port = 5001
             print(f"enable vae, port setting to {port}")
@@ -229,4 +233,4 @@ if __name__ == "__main__":
     )
 
     flask_server = RemoteServer(args)
-    flask_server.run(host="0.0.0.0", port=args.port)
+    flask_server.run(host="127.0.0.1", port=args.port)

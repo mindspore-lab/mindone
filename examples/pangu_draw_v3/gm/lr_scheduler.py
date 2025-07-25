@@ -3,6 +3,7 @@
 import numpy as np
 
 
+# Adapted from https://github.com/CompVis/taming-transformers/blob/master/taming/lr_scheduler.py
 class LambdaWarmUpCosineScheduler:
     """
     note: use with a base_lr of 1.0
