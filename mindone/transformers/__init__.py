@@ -511,6 +511,7 @@ from .models.starcoder2 import (
     Starcoder2ForTokenClassification,
     Starcoder2Model,
     Starcoder2PreTrainedModel,
+)
 from .models.swin import (
     SwinBackbone,
     SwinForImageClassification,
