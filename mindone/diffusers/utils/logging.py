@@ -1,5 +1,5 @@
 # coding=utf-8
-# Copyright 2024 Optuna, Hugging Face
+# Copyright 2025 Optuna, Hugging Face
 #
 # This code is adapted from https://github.com/huggingface/diffusers
 # with modifications to run diffusers on mindspore.
