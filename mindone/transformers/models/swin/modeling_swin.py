@@ -1049,7 +1049,7 @@ class SwinModel(SwinPreTrainedModel):
         >>> outputs = model(pixel_values=inputs)
         >>> last_hidden_states = outputs.last_hidden_state
         ```"""
-        
+
         output_attentions = output_attentions if output_attentions is not None else self.config.output_attentions
         output_hidden_states = (
             output_hidden_states if output_hidden_states is not None else self.config.output_hidden_states
