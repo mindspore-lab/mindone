@@ -306,6 +306,7 @@ class T5Attention(nn.Cell):
         query_states = query_states.view(batch_size, -1, self.n_heads, self.key_value_proj_dim).swapaxes(1, 2)
 
         is_updated = False
+        curr_past_key_value = None
         if past_key_value is not None:
             is_updated = past_key_value.is_updated.get(self.layer_idx)
             if is_cross_attention:
@@ -315,7 +316,6 @@ class T5Attention(nn.Cell):
                 curr_past_key_value = past_key_value.self_attention_cache
 
         current_states = key_value_states if is_cross_attention else hidden_states
-        curr_past_key_value = None
         if is_cross_attention and past_key_value is not None and is_updated:
             # reuse k,v, cross_attentions
             key_states = curr_past_key_value.key_cache[self.layer_idx]
