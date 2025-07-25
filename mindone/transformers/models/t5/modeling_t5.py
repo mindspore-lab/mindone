@@ -485,7 +485,7 @@ class T5Block(nn.Cell):
         past_key_value=None,
         use_cache=False,
         output_attentions=False,
-        return_dict: Optional[bool] = False,
+        return_dict: Optional[bool] = None,
         cache_position=None,
     ):
         self_attention_outputs = self.layer[0](
@@ -678,7 +678,7 @@ class T5Stack(T5PreTrainedModel):
         use_cache=None,
         output_attentions=None,
         output_hidden_states=None,
-        return_dict: Optional[bool] = False,
+        return_dict: Optional[bool] = None,
         cache_position=None,
     ):
         use_cache = use_cache if use_cache is not None else self.config.use_cache
@@ -1072,7 +1072,7 @@ class T5Model(T5PreTrainedModel):
         use_cache: Optional[bool] = None,
         output_attentions: Optional[bool] = None,
         output_hidden_states: Optional[bool] = None,
-        return_dict: Optional[bool] = False,
+        return_dict: Optional[bool] = None,
         cache_position: Optional[ms.Tensor] = None,
     ) -> Union[Tuple[ms.Tensor], Seq2SeqModelOutput]:
         r"""
@@ -1102,6 +1102,7 @@ class T5Model(T5PreTrainedModel):
         >>> last_hidden_states = outputs[0]
         ```"""
         use_cache = use_cache if use_cache is not None else self.use_cache
+        return_dict = return_dict if return_dict is not None else self.config.use_return_dict
 
         # Encode if needed (training, first prediction pass)
         if encoder_outputs is None:
@@ -1232,7 +1233,7 @@ class T5ForConditionalGeneration(T5PreTrainedModel, GenerationMixin):
         use_cache: Optional[bool] = None,
         output_attentions: Optional[bool] = None,
         output_hidden_states: Optional[bool] = None,
-        return_dict: Optional[bool] = False,
+        return_dict: Optional[bool] = None,
         cache_position: Optional[ms.Tensor] = None,
     ) -> Union[Tuple[ms.Tensor], Seq2SeqLMOutput]:
         r"""
@@ -1386,7 +1387,7 @@ class T5EncoderModel(T5PreTrainedModel):
         inputs_embeds: Optional[Tensor] = None,
         output_attentions: Optional[bool] = None,
         output_hidden_states: Optional[bool] = None,
-        return_dict: Optional[bool] = False,
+        return_dict: Optional[bool] = None,
     ) -> Union[Tuple[ms.Tensor], BaseModelOutput]:
         r"""
         Returns:
@@ -1406,6 +1407,7 @@ class T5EncoderModel(T5PreTrainedModel):
         >>> outputs = model(input_ids=Tensor(input_ids))
         >>> last_hidden_states = outputs[0]
         ```"""
+        return_dict = return_dict if return_dict is not None else self.config.use_return_dict
 
         encoder_outputs = self.encoder(
             input_ids=input_ids,
@@ -1450,7 +1452,7 @@ class T5ForSequenceClassification(T5PreTrainedModel):
         use_cache: Optional[bool] = None,
         output_attentions: Optional[bool] = None,
         output_hidden_states: Optional[bool] = None,
-        return_dict: Optional[bool] = False,
+        return_dict: Optional[bool] = None,
     ) -> Union[Tuple, Seq2SeqSequenceClassifierOutput]:
         r"""
         labels (`ms.Tensor` of shape `(batch_size,)`, *optional*):
@@ -1566,7 +1568,7 @@ class T5ForTokenClassification(T5PreTrainedModel):
         labels: Optional[ms.Tensor] = None,
         output_attentions: Optional[bool] = None,
         output_hidden_states: Optional[bool] = None,
-        return_dict: Optional[bool] = False,
+        return_dict: Optional[bool] = None,
     ) -> Union[Tuple[ms.Tensor], TokenClassifierOutput]:
         r"""
         labels (`ms.Tensor` of shape `(batch_size, sequence_length)`, *optional*):
@@ -1672,7 +1674,7 @@ class T5ForQuestionAnswering(T5PreTrainedModel):
         use_cache: Optional[bool] = None,
         output_attentions: Optional[bool] = None,
         output_hidden_states: Optional[bool] = None,
-        return_dict: Optional[bool] = False,
+        return_dict: Optional[bool] = None,
     ) -> Union[Tuple[ms.Tensor], Seq2SeqQuestionAnsweringModelOutput]:
         r"""
         start_positions (`ms.Tensor` of shape `(batch_size,)`, *optional*):
