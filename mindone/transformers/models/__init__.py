@@ -54,6 +54,7 @@ from . import (
     llava_next,
     llava_next_video,
     llava_onevision,
+    m2m_100,
     megatron_bert,
     minicpm4,
     mistral,
