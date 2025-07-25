@@ -52,6 +52,8 @@ else:
             ("blip-2", ("BlipImageProcessor",)),
             ("clip", ("CLIPImageProcessor",)),
             ("dpt", ("DPTImageProcessor",)),
+            ("mistral3", ("PixtralImageProcessor",)),
+            ("pixtral", ("PixtralImageProcessor",)),
         ]
     )
 
