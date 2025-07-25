@@ -52,6 +52,7 @@ from . import (
     llama,
     llava,
     m2m_100,
+    markuplm,
     megatron_bert,
     minicpm4,
     mistral,
