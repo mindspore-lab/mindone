@@ -162,6 +162,7 @@ from .models.bert import (
     BertModel,
     BertPreTrainedModel,
 )
+from .models.bert_generation import BertGenerationDecoder, BertGenerationEncoder, BertGenerationPreTrainedModel
 from .models.big_bird import (
     BigBirdForCausalLM,
     BigBirdForMaskedLM,
@@ -316,6 +317,13 @@ from .models.deberta_v2 import (
     DebertaV2ForTokenClassification,
     DebertaV2Model,
     DebertaV2PreTrainedModel,
+)
+from .models.deit import (
+    DeiTForImageClassification,
+    DeiTForImageClassificationWithTeacher,
+    DeiTForMaskedImageModeling,
+    DeiTModel,
+    DeiTPreTrainedModel,
 )
 from .models.depth_anything import DepthAnythingForDepthEstimation, DepthAnythingPreTrainedModel
 from .models.dinov2 import Dinov2Backbone, Dinov2ForImageClassification, Dinov2Model, Dinov2PreTrainedModel
@@ -582,6 +590,7 @@ from .models.phi3 import (
     Phi3PreTrainedModel,
 )
 from .models.pixtral import PixtralPreTrainedModel, PixtralVisionModel
+from .models.poolformer import PoolFormerForImageClassification, PoolFormerModel, PoolFormerPreTrainedModel
 from .models.qwen2 import Qwen2ForCausalLM, Qwen2ForSequenceClassification, Qwen2ForTokenClassification, Qwen2Model
 from .models.qwen2_5_omni import (
     Qwen2_5OmniForConditionalGeneration,
