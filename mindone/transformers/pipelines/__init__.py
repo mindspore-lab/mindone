@@ -57,6 +57,7 @@ from .base import (
     infer_framework_load_model,
 )
 from .image_text_to_text import ImageTextToTextPipeline
+from .question_answering import QuestionAnsweringArgumentHandler, QuestionAnsweringPipeline
 from .text2text_generation import Text2TextGenerationPipeline
 from .text_classification import TextClassificationPipeline
 from .text_generation import TextGenerationPipeline
@@ -67,6 +68,7 @@ if is_mindspore_available():
     from ..models.auto.modeling_auto import (
         AutoModelForCausalLM,
         AutoModelForImageTextToText,
+        AutoModelForQuestionAnswering,
         AutoModelForSeq2SeqLM,
         AutoModelForSequenceClassification,
         AutoModelForTokenClassification,
@@ -99,6 +101,16 @@ SUPPORTED_TASKS = {
             }
         },
         "type": "multimodal",
+    },
+    "question-answering": {
+        "impl": QuestionAnsweringPipeline,
+        "ms": (AutoModelForQuestionAnswering,) if is_mindspore_available() else (),
+        "default": {
+            "model": {
+                "ms": ("distilbert/distilbert-base-cased-distilled-squad", "564e9b5"),
+            },
+        },
+        "type": "text",
     },
     "text-classification": {
         "impl": TextClassificationPipeline,
