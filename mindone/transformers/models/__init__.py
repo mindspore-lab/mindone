@@ -76,6 +76,7 @@ from . import (
     switch_transformers,
     t5,
     umt5,
+    videomae,
     vits,
     wav2vec2,
     xlm_roberta,
