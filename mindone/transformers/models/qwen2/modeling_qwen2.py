@@ -834,16 +834,22 @@ class Qwen2Model(Qwen2PreTrainedModel):
                 # causal_mask[:, :, :, :mask_length] = causal_mask[:, :, :, :mask_length].masked_fill(
                 #     padding_mask, min_dtype
                 # )
+
+                # FIXME: not support masked_fill with bf16 & @jit on MindSpore 2.5.0
+                causal_mask = causal_mask.to(ms.float32)
                 if mask_length >= causal_mask.shape[-1]:
-                    causal_mask = causal_mask.masked_fill(padding_mask, min_dtype)
+                    causal_mask = causal_mask.masked_fill(padding_mask, min_dtype.to(ms.float32))
                 else:
                     causal_mask = ops.cat(
                         [
-                            ops.narrow(causal_mask, -1, 0, mask_length).masked_fill(padding_mask, min_dtype),
+                            ops.narrow(causal_mask, -1, 0, mask_length).masked_fill(
+                                padding_mask, min_dtype.to(ms.float32)
+                            ),
                             ops.narrow(causal_mask, -1, mask_length, causal_mask.shape[-1] - mask_length),
                         ],
                         axis=-1,
                     )
+                causal_mask = causal_mask.to(dtype)
 
         return causal_mask
 
