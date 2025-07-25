@@ -555,7 +555,6 @@ class ViTModel(ViTPreTrainedModel):
         modality="vision",
         expected_output=_EXPECTED_OUTPUT_SHAPE,
     )
-    # @ms.jit
     def construct(
         self,
         pixel_values: Optional[ms.Tensor] = None,
