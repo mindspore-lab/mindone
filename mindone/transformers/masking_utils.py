@@ -64,6 +64,25 @@ def causal_mask_function(batch_idx: int, head_idx: int, q_idx: int, kv_idx: int)
     return kv_idx <= q_idx
 
 
+def sliding_window_overlay(sliding_window: int) -> Callable:
+    """
+    This is an overlay depicting a sliding window pattern. Add it on top of a causal mask for a proper sliding
+    window mask.
+    """
+
+    def inner_mask(batch_idx: int, head_idx: int, q_idx: int, kv_idx: int) -> bool:
+        return kv_idx > q_idx - sliding_window
+
+    return inner_mask
+
+
+def sliding_window_causal_mask_function(sliding_window: int) -> Callable:
+    """
+    This return the mask_function function to create a sliding window mask.
+    """
+    return and_masks(sliding_window_overlay(sliding_window), causal_mask_function)
+
+
 def _vmap_for_bhqkv(mask_function: Callable, bh_indices: bool = True) -> Callable:
     """
     Used to vmap our mask_functions over the q_idx and kv_idx dimensions of the inputs. Optionally, vmap over
@@ -280,12 +299,65 @@ def eager_mask(
     return mask
 
 
+def flash_attention_mask(
+    batch_size: int,
+    cache_position: ms.Tensor,
+    kv_length: int,
+    kv_offset: int = 0,
+    mask_function: Callable = causal_mask_function,
+    attention_mask: Optional[ms.Tensor] = None,
+    **kwargs,
+):
+    """
+    Create the attention mask necesary to use FA2. Since FA2 is un-padded by definition, here we simply return
+    `None` if the mask is fully causal, or we return the 2D mask which will then be used to extract the seq_lens.
+    We just slice it in case of sliding window.
+
+    Args:
+        batch_size (`int`):
+            The batch size of the input sequence.
+        cache_position (`ms.Tensor`):
+            A tensor of shape (query_length,) indicating the current indices of the input sequence elements.
+        kv_length (`int`):
+            The size that the key and value states will have during the attention computation.
+        kv_offset (`int`, optional):
+            An optional offset to indicate at which first position the key and values states will refer to.
+        mask_function (`Callable`):
+            The mask factory function describing the mask pattern.
+        attention_mask (`ms.Tensor`, optional):
+            The 2D attention mask corresponding to padded tokens of shape (batch_size, number_of_seen_tokens+q_length)
+    """
+    if attention_mask is not None:
+        # Here we need to slice from the right if using sliding or chunked (for full attention, this is equivalent to doing nothing)
+        attention_mask = attention_mask[:, -kv_length:]
+        # We only return an actual mask if there is at least 1 padding token, otherwise we return `None` and use `is_causal` in FA2
+        # (note that the attention_mask is a boolean dtype here)
+        if attention_mask.all():
+            attention_mask = None
+
+    return attention_mask
+
+
+def flex_attention_mask(
+    batch_size: int,
+    cache_position: ms.Tensor,
+    kv_length: int,
+    kv_offset: int = 0,
+    mask_function: Callable = causal_mask_function,
+    attention_mask: Optional[ms.Tensor] = None,
+    **kwargs,
+):
+    raise NotImplementedError("`flex_attention` is not supported yet.")
+
+
 class AttentionMaskInterface(GeneralInterface):
     # Class instance object, so that a call to `register` can be reflected into all other files correctly, even if
     # a new instance is created (in order to locally override a given function)
     _global_mapping = {
+        "sdpa": sdpa_mask,
         "eager": eager_mask,
-        "flash_attention_2": eager_mask,
+        "flash_attention_2": flash_attention_mask,
+        "flex_attention": flex_attention_mask,
     }
 
 
@@ -308,13 +380,13 @@ def _preprocess_mask_arguments(
     Args:
         config (`PretrainedConfig`):
             The model config.
-        input_embeds (`torch.Tensor`):
+        input_embeds (`ms.Tensor`):
             The input embeddings of shape (batch_size, query_length, hidden_dim). This is used only to infer the
             batch size, query length and dtype.
-        attention_mask (`torch.Tensor`, optional):
+        attention_mask (`ms.Tensor`, optional):
             The 2D attention mask corresponding to padded tokens of shape (batch_size, number_of_seen_tokens+q_length).
             It can also be an already prepared 4D mask, in which case it is returned as-is.
-        cache_position (`torch.Tensor`):
+        cache_position (`ms.Tensor`):
             A tensor of shape (query_length,) indicating the current indices of the input sequence elements.
         past_key_values (`Cache`, optional):
             The past key values, if we use a cache.
@@ -325,7 +397,7 @@ def _preprocess_mask_arguments(
     Returns:
         early_exit (`bool`):
             Whether we should early exit mask creation, and return the mask as-is.
-        attention_mask (`torch.Tensor` or `BlockMask` or `None`):
+        attention_mask (`ms.Tensor` or `BlockMask` or `None`):
             The attention mask to either return immediately, or to use in downstream mask creation.
         kv_length (`int`):
             The size that the key and value states will have during the attention computation.
@@ -375,13 +447,13 @@ def create_causal_mask(
     Args:
         config (`PretrainedConfig`):
             The model config.
-        input_embeds (`torch.Tensor`):
+        input_embeds (`ms.Tensor`):
             The input embeddings of shape (batch_size, query_length, hidden_dim). This is used only to infer the
             batch size, query length and dtype.
-        attention_mask (`torch.Tensor`, optional):
+        attention_mask (`ms.Tensor`, optional):
             The 2D attention mask corresponding to padded tokens of shape (batch_size, number_of_seen_tokens+q_length).
             It can also be an already prepared 4D mask, in which case it is returned as-is.
-        cache_position (`torch.Tensor`):
+        cache_position (`ms.Tensor`):
             A tensor of shape (query_length,) indicating the current indices of the input sequence elements.
         past_key_values (`Cache`, optional):
             The past key values, if we use a cache.
@@ -435,6 +507,86 @@ def create_causal_mask(
     return causal_mask
 
 
+def create_sliding_window_causal_mask(
+    config: PretrainedConfig,
+    input_embeds: ms.Tensor,
+    attention_mask: Optional[ms.Tensor],
+    cache_position: ms.Tensor,
+    past_key_values: Optional[Cache],
+    or_mask_function: Optional[Callable] = None,
+    and_mask_function: Optional[Callable] = None,
+) -> Optional[Union[ms.Tensor, BlockMask]]:
+    """
+    Create a sliding window causal mask based on the attention implementation used (stored in the config). This type
+    of attention pattern was mostly democratized by Mistral. If `past_key_values` has an HybridCache structure, this
+    function will return the mask corresponding to one of the "sliding_attention" layers (to align to what is needed in the
+    `modeling_xxx.py` files).
+
+    Args:
+        config (`PretrainedConfig`):
+            The model config.
+        input_embeds (`ms.Tensor`):
+            The input embeddings of shape (batch_size, query_length, hidden_dim). This is used only to infer the
+            batch size, query length and dtype.
+        attention_mask (`ms.Tensor`, optional):
+            The 2D attention mask corresponding to padded tokens of shape (batch_size, number_of_seen_tokens+q_length).
+            It can also be an already prepared 4D mask, in which case it is returned as-is.
+        cache_position (`ms.Tensor`):
+            A tensor of shape (query_length,) indicating the current indices of the input sequence elements.
+        past_key_values (`Cache`, optional):
+            The past key values, if we use a cache.
+        or_mask_function (`Callable`, optional):
+            An optional mask function to combine with the sliding causal mask function (by doing the union of both). This is
+            useful to easily overlay another mask on top of the sliding causal one, for example for image tokens handling.
+        and_mask_function (`Callable`, optional):
+            An optional mask function to combine with the sliding causal mask function (by doing the intersection of both). This is
+            useful to easily overlay another mask on top of the sliding causal one, for example for image tokens handling.
+    """
+    # If we have an HybridCache structure, here we want to create the mask for the sliding layers
+    if hasattr(past_key_values, "is_sliding") and True in past_key_values.is_sliding:
+        layer_idx = past_key_values.is_sliding.index(True)
+    else:
+        layer_idx = 0
+
+    early_exit, attention_mask, kv_length, kv_offset = _preprocess_mask_arguments(
+        config, input_embeds, attention_mask, cache_position, past_key_values, layer_idx
+    )
+    if early_exit:
+        return attention_mask
+
+    sliding_window = getattr(config, "sliding_window", None)
+    if sliding_window is None:
+        raise ValueError("Could not find a `sliding_window` argument in the config, or it is not set")
+
+    batch_size, dtype = input_embeds.shape[0], input_embeds.dtype
+    mask_factory_function = sliding_window_causal_mask_function(sliding_window)
+    mask_interface = ALL_MASK_ATTENTION_FUNCTIONS[config._attn_implementation]
+
+    # Do not allow skip if we are compiling (this is to match BC)
+    # TODO: cyril -> probably revisit and remove this, but a lot of tests rely on it
+    allow_is_causal_skip = not past_key_values.is_compileable if past_key_values is not None else True
+
+    # Allow slight deviations from sliding causal mask
+    if or_mask_function is not None or and_mask_function is not None:
+        raise NotImplementedError("`or_mask_function` or `and_mask_function` arguments are not supported yet.")
+
+    # We now create the mask
+    causal_mask = mask_interface(
+        batch_size=batch_size,
+        cache_position=cache_position,
+        kv_length=kv_length,
+        kv_offset=kv_offset,
+        mask_function=mask_factory_function,
+        attention_mask=attention_mask,
+        allow_is_causal_skip=allow_is_causal_skip,  # additional kwarg for sdpa
+        local_size=sliding_window,  # Additional kwarg for sdpa
+        dtype=dtype,  # Additional kwarg for eager
+        config=config,  # Pass the config as well, in case someone wants to easily have their own mask_interface
+    )
+    return causal_mask
+
+
 LAYER_PATTERN_TO_MASK_FUNCTION_MAPPING = {
     "full_attention": create_causal_mask,
+    "sliding_attention": create_sliding_window_causal_mask,
 }

@@ -16,7 +16,8 @@
 # limitations under the License.
 
 import math
-from typing import Optional, Tuple
+from functools import wraps
+from typing import Optional
 
 from transformers import PretrainedConfig
 from transformers.utils import logging
@@ -27,9 +28,63 @@ from mindspore import Tensor, mint
 logger = logging.get_logger(__name__)
 
 
+def dynamic_rope_update(rope_forward):
+    """
+    Decorator function to update the RoPE parameters in the forward pass, if the model is using a dynamic RoPE
+    (i.e. a RoPE implementation that may recompute its frequencies in the forward pass).
+
+    Args:
+        rope_forward (Callable):
+            The forward pass of the RoPE implementation.
+
+    Returns:
+        The decorated forward pass.
+    """
+
+    def longrope_frequency_update(self, position_ids):
+        """Longrope uses long factor if sequence is larger than original pretraining length, short otherwise."""
+        seq_len = mint.max(position_ids) + 1
+        if hasattr(self.config, "original_max_position_embeddings"):
+            original_max_position_embeddings = self.config.original_max_position_embeddings
+        else:
+            original_max_position_embeddings = self.config.max_position_embeddings
+        if seq_len > original_max_position_embeddings:
+            if not hasattr(self, "long_inv_freq"):
+                self.long_inv_freq, _ = self.rope_init_fn(self.config, seq_len=original_max_position_embeddings + 1)
+            self.register_buffer("inv_freq", self.long_inv_freq, persistent=False)
+        else:
+            self.register_buffer("inv_freq", self.original_inv_freq, persistent=False)
+
+    def dynamic_frequency_update(self, position_ids):
+        """
+        dynamic RoPE layers should recompute `inv_freq` in the following situations:
+        1 - growing beyond the cached sequence length (allow scaling)
+        2 - the current sequence length is in the original scale (avoid losing precision with small sequences)
+        """
+        seq_len = mint.max(position_ids) + 1
+        if seq_len > self.max_seq_len_cached:  # growth
+            inv_freq, self.attention_scaling = self.rope_init_fn(self.config, seq_len=seq_len)
+            self.register_buffer("inv_freq", inv_freq, persistent=False)  # TODO joao: may break with compilation
+            self.max_seq_len_cached = seq_len
+
+        if seq_len < self.original_max_seq_len < self.max_seq_len_cached:  # reset
+            self.register_buffer("inv_freq", self.original_inv_freq, persistent=False)
+            self.max_seq_len_cached = self.original_max_seq_len
+
+    @wraps(rope_forward)
+    def wrapper(self, x, position_ids):
+        if "dynamic" in self.rope_type:
+            dynamic_frequency_update(self, position_ids)
+        elif self.rope_type == "longrope":
+            longrope_frequency_update(self, position_ids)
+        return rope_forward(self, x, position_ids)
+
+    return wrapper
+
+
 def _compute_default_rope_parameters(
     config: Optional[PretrainedConfig] = None, seq_len: Optional[int] = None, **rope_kwargs
-) -> Tuple[Tensor, float]:
+) -> tuple[Tensor, float]:
     """
     Computes the inverse frequencies according to the original RoPE implementation
     Args:
@@ -54,7 +109,7 @@ def _compute_default_rope_parameters(
     elif config is not None:
         base = config.rope_theta
         partial_rotary_factor = config.partial_rotary_factor if hasattr(config, "partial_rotary_factor") else 1.0
-        head_dim = getattr(config, "head_dim", config.hidden_size // config.num_attention_heads)
+        head_dim = getattr(config, "head_dim", None) or config.hidden_size // config.num_attention_heads
         dim = int(head_dim * partial_rotary_factor)
 
     attention_factor = 1.0  # Unused in this type of RoPE
