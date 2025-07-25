@@ -21,7 +21,7 @@ from ddt import data, ddt, unpack
 
 import mindspore as ms
 
-from mindone.diffusers.utils.testing_utils import load_numpy_from_local_file, slow # noqa F401
+from mindone.diffusers.utils.testing_utils import load_numpy_from_local_file, slow  # noqa F401
 
 from ..pipeline_test_utils import (
     THRESHOLD_FP16,

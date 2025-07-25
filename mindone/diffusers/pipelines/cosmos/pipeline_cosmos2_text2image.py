@@ -35,7 +35,7 @@ from .pipeline_output import CosmosImagePipelineOutput
 _is_cosmos_guardrail_available = False
 
 if _is_cosmos_guardrail_available:
-    from .cosmos_guardrail import CosmosSafetyChecker
+    from ._cosmos_guardrail import CosmosSafetyChecker
 else:
 
     class CosmosSafetyChecker:
@@ -50,7 +50,7 @@ EXAMPLE_DOC_STRING = """
     Examples:
         ```python
         >>> import mindspore
-        >>> from diffusers import Cosmos2TextToImagePipeline
+        >>> from mindone.diffusers import Cosmos2TextToImagePipeline
 
         >>> # Available checkpoints: nvidia/Cosmos-Predict2-2B-Text2Image, nvidia/Cosmos-Predict2-14B-Text2Image
         >>> model_id = "nvidia/Cosmos-Predict2-2B-Text2Image"
@@ -479,7 +479,6 @@ class Cosmos2TextToImagePipeline(DiffusionPipeline):
             #     f"Please ensure that you are compliant with the license agreement."
             # )
             pass
-        
 
         if isinstance(callback_on_step_end, (PipelineCallback, MultiPipelineCallbacks)):
             callback_on_step_end_tensor_inputs = callback_on_step_end.tensor_inputs

@@ -36,7 +36,7 @@ from .pipeline_output import CosmosPipelineOutput
 _is_cosmos_guardrail_available = False
 
 if _is_cosmos_guardrail_available:
-    from .cosmos_guardrail import CosmosSafetyChecker
+    from ._cosmos_guardrail import CosmosSafetyChecker
 else:
 
     class CosmosSafetyChecker:
