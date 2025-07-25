@@ -1,4 +1,5 @@
 # -*- coding: utf-8 -*-
+# Adapted from https://github.com/baaivision/Emu3 to work with MindSpore.
 
 import os
 import os.path as osp
@@ -45,6 +46,7 @@ images = Tensor(images).unsqueeze(0)  # [1, Frames, C, H, W]
 
 # single image autoencode #
 image = images[:, 0].to(MS_DTYPE)
+start_time = time.time()
 with no_grad():
     # encode
     codes = ops.stop_gradient(model.encode(image))

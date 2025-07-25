@@ -31,12 +31,12 @@ from tqdm.auto import tqdm
 from transformers import AutoTokenizer
 
 import mindspore as ms
-from mindspore import nn, ops
-from mindspore.amp import auto_mixed_precision
+from mindspore import mint, nn, ops
 from mindspore.dataset import GeneratorDataset, transforms, vision
 
 from mindone.diffusers import AutoencoderKL, FlowMatchEulerDiscreteScheduler, FluxTransformer2DModel
 from mindone.diffusers.models.controlnet_flux import FluxControlNetModel
+from mindone.diffusers.models.layers_compat import set_amp_strategy
 from mindone.diffusers.optimization import get_scheduler
 from mindone.diffusers.pipelines.flux.pipeline_flux_controlnet import FluxControlNetPipeline
 from mindone.diffusers.training_utils import (
@@ -766,7 +766,7 @@ def encode_prompt(prompt_batch, text_encoders, tokenizers, proportion_empty_prom
         max_sequence_length=512,
     )
     dtype = text_encoders[0].dtype
-    text_ids = ops.zeros((prompt_embeds.shape[1], 3), dtype=dtype)
+    text_ids = mint.zeros((prompt_embeds.shape[1], 3), dtype=dtype)
 
     return prompt_embeds, pooled_prompt_embeds, text_ids
 
@@ -939,10 +939,6 @@ def main():
     vae.to(dtype=weight_dtype)
     flux_transformer.to(dtype=weight_dtype)
 
-    # Make sure the trainable params are in float32. and do AMP wrapper manually
-    if weight_dtype != ms.float32:
-        flux_controlnet = auto_mixed_precision(flux_controlnet, amp_level="auto", dtype=weight_dtype)
-
     def compute_embeddings(
         batch,
         proportion_empty_prompts,
@@ -1057,6 +1053,13 @@ def main():
         weight_decay=args.adam_weight_decay,
         eps=args.adam_epsilon,
     )
+
+    # Prepare everything with our `accelerator`.
+    # TODO: We will update the training methods during mixed precision training to ensure the performance and strategies during the training process.
+    if args.mixed_precision and args.mixed_precision != "no":
+        set_amp_strategy(flux_controlnet, weight_dtype)
+        for _, cell in flux_controlnet.cells_and_names():
+            set_amp_strategy(cell, weight_dtype)
 
     # create train_step for training
     network_with_loss = FluxControlNetWithLoss(
@@ -1369,7 +1372,7 @@ class FluxControlNetWithLoss(nn.Cell):
         )
 
         bsz = pixel_latents.shape[0]
-        noise = ops.randn_like(pixel_latents).to(dtype=self.weight_dtype)
+        noise = mint.randn_like(pixel_latents).to(dtype=self.weight_dtype)
         # Sample a random timestep for each image
         # for weighting schemes where we sample timesteps non-uniformly
         u = compute_density_for_timestep_sampling(
@@ -1388,7 +1391,7 @@ class FluxControlNetWithLoss(nn.Cell):
 
         # handle guidance
         if self.flux_transformer_config_guidance_embeds:
-            guidance_vec = ops.full(
+            guidance_vec = mint.full(
                 (noisy_model_input.shape[0],),
                 self.args.guidance_scale,
                 dtype=self.weight_dtype,
@@ -1427,7 +1430,7 @@ class FluxControlNetWithLoss(nn.Cell):
             return_dict=False,
         )[0]
 
-        loss = ops.mse_loss(noise_pred.float(), (noise - pixel_latents).float(), reduction="mean")
+        loss = mint.nn.functional.mse_loss(noise_pred.float(), (noise - pixel_latents).float(), reduction="mean")
 
         return loss
 

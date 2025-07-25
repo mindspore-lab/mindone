@@ -1,5 +1,8 @@
 # Copyright 2024 The HuggingFace Team. All rights reserved.
 #
+# This code is adapted from https://github.com/huggingface/diffusers
+# with modifications to run diffusers on mindspore.
+#
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -17,7 +20,7 @@ from huggingface_hub.utils import validate_hf_hub_args
 from transformers import PreTrainedModel, PreTrainedTokenizer
 
 import mindspore
-from mindspore import nn, ops
+from mindspore import mint
 
 from mindone.safetensors.mindspore import load_file
 
@@ -35,7 +38,7 @@ def load_textual_inversion_state_dicts(pretrained_model_name_or_paths, **kwargs)
     force_download = kwargs.pop("force_download", False)
     proxies = kwargs.pop("proxies", None)
     local_files_only = kwargs.pop("local_files_only", None)
-    token = kwargs.pop("token", None)
+    hf_token = kwargs.pop("hf_token", None)
     revision = kwargs.pop("revision", None)
     subfolder = kwargs.pop("subfolder", None)
     weight_name = kwargs.pop("weight_name", None)
@@ -68,7 +71,7 @@ def load_textual_inversion_state_dicts(pretrained_model_name_or_paths, **kwargs)
                         force_download=force_download,
                         proxies=proxies,
                         local_files_only=local_files_only,
-                        token=token,
+                        token=hf_token,
                         revision=revision,
                         subfolder=subfolder,
                         user_agent=user_agent,
@@ -88,7 +91,7 @@ def load_textual_inversion_state_dicts(pretrained_model_name_or_paths, **kwargs)
                     force_download=force_download,
                     proxies=proxies,
                     local_files_only=local_files_only,
-                    token=token,
+                    token=hf_token,
                     revision=revision,
                     subfolder=subfolder,
                     user_agent=user_agent,
@@ -284,7 +287,7 @@ class TextualInversionLoaderMixin:
                     - A path to a *file* (for example `./my_text_inversions.pt`) containing textual inversion weights.
                     - A mindspore state dict.
 
-            token (`str` or `List[str]`, *optional*):
+            hf_token (`str` or `List[str]`, *optional*):
                 Override the token to use for the textual inversion weights. If `pretrained_model_name_or_path` is a
                 list, then `token` must also be a list of equal length.
             text_encoder ([`~transformers.CLIPTextModel`], *optional*):
@@ -332,7 +335,7 @@ class TextualInversionLoaderMixin:
         from mindone.diffusers import StableDiffusionPipeline
         import mindspore
 
-        model_id = "runwayml/stable-diffusion-v1-5"
+        model_id = "stable-diffusion-v1-5/stable-diffusion-v1-5"
         pipe = StableDiffusionPipeline.from_pretrained(model_id, mindspore_dtype=mindspore.float16)
 
         pipe.load_textual_inversion("sd-concepts-library/cat-toy")
@@ -380,7 +383,7 @@ class TextualInversionLoaderMixin:
         tokens, embeddings = self._extend_tokens_and_embeddings(tokens, embeddings, tokenizer)
 
         # 6. Make sure all embeddings have the correct size
-        expected_emb_dim = text_encoder.get_input_embeddings().embedding_table.shape[-1]
+        expected_emb_dim = text_encoder.get_input_embeddings().weight.shape[-1]
         if any(expected_emb_dim != emb.shape[-1] for emb in embeddings):
             raise ValueError(
                 "Loaded embeddings are of incorrect shape. Expected each textual inversion embedding "
@@ -393,7 +396,7 @@ class TextualInversionLoaderMixin:
 
         # 7.3 Increase token embedding matrix
         text_encoder.resize_token_embeddings(len(tokenizer) + len(tokens))
-        input_embeddings = text_encoder.get_input_embeddings().embedding_table
+        input_embeddings = text_encoder.get_input_embeddings().weight
 
         # 7.4 Load token and embedding
         for token, embedding in zip(tokens, embeddings):
@@ -419,7 +422,7 @@ class TextualInversionLoaderMixin:
         from mindone.diffusers import AutoPipelineForText2Image
         import mindspore as ms
 
-        pipeline = AutoPipelineForText2Image.from_pretrained("runwayml/stable-diffusion-v1-5")
+        pipeline = AutoPipelineForText2Image.from_pretrained("stable-diffusion-v1-5/stable-diffusion-v1-5")
 
         # Example 1
         pipeline.load_textual_inversion("sd-concepts-library/gta5-artwork")
@@ -516,15 +519,15 @@ class TextualInversionLoaderMixin:
 
         # Delete from text encoder
         text_embedding_dim = text_encoder.get_input_embeddings().embedding_size
-        temp_text_embedding_weights = text_encoder.get_input_embeddings().embedding_table
+        temp_text_embedding_weights = text_encoder.get_input_embeddings().weight
         text_embedding_weights = temp_text_embedding_weights[: last_special_token_id + 1]
         to_append = []
         for i in range(last_special_token_id + 1, temp_text_embedding_weights.shape[0]):
             if i not in token_ids:
                 to_append.append(temp_text_embedding_weights[i].unsqueeze(0))
         if len(to_append) > 0:
-            to_append = ops.concat(to_append, axis=0)
-            text_embedding_weights = ops.concat((text_embedding_weights, to_append), axis=0)
-        text_embeddings_filtered = nn.Embedding(text_embedding_weights.shape[0], text_embedding_dim)
-        text_embeddings_filtered.embedding_table = text_embedding_weights
+            to_append = mint.concat(to_append, dim=0)
+            text_embedding_weights = mint.concat((text_embedding_weights, to_append), dim=0)
+        text_embeddings_filtered = mint.nn.Embedding(text_embedding_weights.shape[0], text_embedding_dim)
+        text_embeddings_filtered.weight = text_embedding_weights
         text_encoder.set_input_embeddings(text_embeddings_filtered)

@@ -1,3 +1,5 @@
+"""Adapted from https://github.com/huggingface/diffusers/tree/main/src/diffusers/pipelines/deepfloyd_if/pipeline_output.py."""
+
 from dataclasses import dataclass
 from typing import List, Optional, Union
 

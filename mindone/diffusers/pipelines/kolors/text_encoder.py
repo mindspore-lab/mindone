@@ -1,5 +1,8 @@
 # Copyright 2024 ChatGLM3-6B Model Team, Kwai-Kolors Team and The HuggingFace Team. All rights reserved.
 #
+# This code is adapted from https://github.com/huggingface/diffusers
+# with modifications to run diffusers on mindspore.
+#
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -19,12 +22,12 @@ import numpy as np
 from transformers import PretrainedConfig
 
 import mindspore as ms
-from mindspore import nn, ops
+import mindspore.mint.nn.functional as F
+from mindspore import mint, nn, ops
 
 from mindone.transformers import MSPreTrainedModel
 from mindone.transformers.modeling_outputs import BaseModelOutputWithPast
 
-from ...models.normalization import LayerNorm, RMSNorm
 from ...utils import logging
 
 logger = logging.get_logger(__name__)
@@ -91,6 +94,20 @@ class ChatGLMConfig(PretrainedConfig):
         super().__init__(**kwargs)
 
 
+class RMSNorm(nn.Cell):
+    def __init__(self, normalized_shape, eps=1e-5, dtype=None, **kwargs):
+        super().__init__()
+        self.weight = ms.Parameter(mint.zeros(normalized_shape, dtype=dtype))
+        self.eps = eps
+
+    def construct(self, hidden_states: ms.Tensor):
+        input_dtype = hidden_states.dtype
+        variance = hidden_states.to(ms.float32).pow(2).mean(-1, keepdim=True)
+        hidden_states = hidden_states * mint.rsqrt(variance + self.eps)
+
+        return (self.weight * hidden_states).to(input_dtype)
+
+
 class CoreAttention(nn.Cell):
     def __init__(self, config: ChatGLMConfig, layer_number):
         super(CoreAttention, self).__init__()
@@ -115,7 +132,7 @@ class CoreAttention(nn.Cell):
             self.norm_factor *= coeff
         self.coeff = coeff
 
-        self.attention_dropout = nn.Dropout(p=config.attention_dropout)
+        self.attention_dropout = mint.nn.Dropout(p=config.attention_dropout)
         self.min_fp16 = ms.tensor(np.finfo(np.float16).min, dtype=ms.float16)
         self.min_fp32 = ms.tensor(np.finfo(np.float32).min, dtype=ms.float32)
         self.min_fp64 = ms.tensor(np.finfo(np.float64).min, dtype=ms.float64)
@@ -145,13 +162,13 @@ class CoreAttention(nn.Cell):
         key_layer = key_layer.view(output_size[3], output_size[0] * output_size[1], -1)
 
         # preallocting input tensor: [b * np, sq, sk]
-        matmul_input_buffer = ops.zeros(
+        matmul_input_buffer = mint.zeros(
             (output_size[0] * output_size[1], output_size[2], output_size[3]),
             dtype=query_layer.dtype,
         )
 
         # Raw attention scores. [b * np, sq, sk]
-        matmul_result = ops.baddbmm(
+        matmul_result = mint.baddbmm(
             matmul_input_buffer,
             query_layer.swapaxes(0, 1),  # [b * np, sq, hn]
             key_layer.swapaxes(0, 1).swapaxes(1, 2),  # [b * np, hn, sk]
@@ -172,14 +189,15 @@ class CoreAttention(nn.Cell):
         if self.coeff is not None:
             attention_scores = attention_scores * self.coeff
         if attention_mask is None and attention_scores.shape[2] == attention_scores.shape[3]:
-            attention_mask = ops.ones((output_size[0], 1, output_size[2], output_size[3]))
-            attention_mask = ops.tril(attention_mask).bool()
-            attention_mask = ops.logical_not(attention_mask)
+            attention_mask = mint.ones((output_size[0], 1, output_size[2], output_size[3]))
+            attention_mask = mint.tril(attention_mask).bool()
+            attention_mask = mint.logical_not(attention_mask)
         if attention_mask is not None:
+            # todo: unavailable mint interface
             attention_scores = ops.masked_fill(
                 attention_scores, attention_mask, self.dtype_to_min(attention_scores.dtype)
             )
-        attention_probs = ops.softmax(attention_scores, axis=-1)
+        attention_probs = F.softmax(attention_scores, dim=-1)
         attention_probs = attention_probs.type_as(value_layer)
 
         # This is actually dropping out entire tokens to attend to, which might
@@ -199,11 +217,11 @@ class CoreAttention(nn.Cell):
         # change view [b * np, sq, sk]
         attention_probs = attention_probs.view(output_size[0] * output_size[1], output_size[2], -1)
         # matmul: [b * np, sq, hn]
-        context_layer = ops.bmm(attention_probs, value_layer.swapaxes(0, 1))
+        context_layer = mint.bmm(attention_probs, value_layer.swapaxes(0, 1))
         # change view [b, np, sq, hn]
         context_layer = context_layer.view(output_size)
         # [b, np, sq, hn] --> [sq, b, np, hn]
-        context_layer = context_layer.permute(2, 0, 1, 3)
+        context_layer = context_layer.permute(2, 0, 1, 3).contiguous()
         # [sq, b, np, hn] --> [sq, b, hp]
         new_context_layer_shape = context_layer.shape[:-2] + (self.hidden_size_per_partition,)
         context_layer = context_layer.view(new_context_layer_shape)
@@ -231,7 +249,7 @@ def split_tensor_along_last_dim(
     last_dim = tensor.dim() - 1
     last_dim_size = tensor.shape[last_dim] // num_partitions
     # Split.
-    tensor_list = ops.split(tensor, last_dim_size, axis=last_dim)
+    tensor_list = mint.split(tensor, last_dim_size, dim=last_dim)
     if contiguous_split_chunks:
         return tuple(chunk for chunk in tensor_list)
 
@@ -247,15 +265,15 @@ def apply_rotary_pos_emb(x: ms.Tensor, rope_cache: ms.Tensor) -> ms.Tensor:
     rope_cache = rope_cache[:sq]
     xshaped = x.reshape(sq, -1, np, rot_dim // 2, 2)
     rope_cache = rope_cache.view(sq, -1, 1, xshaped.shape[3], 2)
-    x_out2 = ops.stack(
+    x_out2 = mint.stack(
         [
             xshaped[..., 0] * rope_cache[..., 0] - xshaped[..., 1] * rope_cache[..., 1],
             xshaped[..., 1] * rope_cache[..., 0] + xshaped[..., 0] * rope_cache[..., 1],
         ],
         -1,
     )
-    x_out2 = x_out2.flatten(start_dim=3)
-    return ops.cat((x_out2, x_pass), axis=-1)
+    x_out2 = x_out2.flatten(3)
+    return mint.cat((x_out2, x_pass), dim=-1)
 
 
 class SelfAttention(nn.Cell):
@@ -281,19 +299,19 @@ class SelfAttention(nn.Cell):
             self.qkv_hidden_size = (
                 self.projection_size + 2 * self.hidden_size_per_attention_head * config.multi_query_group_num
             )
-        self.query_key_value = nn.Dense(
+        self.query_key_value = mint.nn.Linear(
             config.hidden_size,
             self.qkv_hidden_size,
-            has_bias=config.add_bias_linear or config.add_qkv_bias,
+            bias=config.add_bias_linear or config.add_qkv_bias,
         )
 
         self.core_attention = CoreAttention(config, self.layer_number)
 
         # Output.
-        self.dense = nn.Dense(
+        self.dense = mint.nn.Linear(
             self.projection_size,
             config.hidden_size,
-            has_bias=config.add_bias_linear,
+            bias=config.add_bias_linear,
         )
 
     def _allocate_memory(self, inference_max_sequence_len, batch_size, dtype=None):
@@ -301,7 +319,7 @@ class SelfAttention(nn.Cell):
             num_attention_heads = self.num_multi_query_groups_per_partition
         else:
             num_attention_heads = self.num_attention_heads_per_partition
-        return ops.zeros(
+        return mint.zeros(
             (inference_max_sequence_len, batch_size, num_attention_heads, self.hidden_size_per_attention_head),
             dtype=dtype,
         )
@@ -356,8 +374,8 @@ class SelfAttention(nn.Cell):
         # adjust key and value for inference
         if kv_cache is not None:
             cache_k, cache_v = kv_cache
-            key_layer = ops.cat((cache_k, key_layer), axis=0)
-            value_layer = ops.cat((cache_v, value_layer), axis=0)
+            key_layer = mint.cat((cache_k, key_layer), dim=0)
+            value_layer = mint.cat((cache_v, value_layer), dim=0)
         if use_cache:
             kv_cache = (key_layer, value_layer)
         else:
@@ -368,14 +386,14 @@ class SelfAttention(nn.Cell):
             key_layer = key_layer.broadcast_to(
                 (-1, -1, -1, self.num_attention_heads_per_partition // self.num_multi_query_groups_per_partition, -1)
             )
-            key_layer = key_layer.view(
+            key_layer = key_layer.contiguous().view(
                 key_layer.shape[:2] + (self.num_attention_heads_per_partition, self.hidden_size_per_attention_head)
             )
             value_layer = value_layer.unsqueeze(-2)
             value_layer = value_layer.broadcast_to(
                 (-1, -1, -1, self.num_attention_heads_per_partition // self.num_multi_query_groups_per_partition, -1)
             )
-            value_layer = value_layer.view(
+            value_layer = value_layer.contiguous().view(
                 value_layer.shape[:2] + (self.num_attention_heads_per_partition, self.hidden_size_per_attention_head)
             )
 
@@ -407,24 +425,20 @@ class MLP(nn.Cell):
         self.add_bias = config.add_bias_linear
 
         # Project to 4h. If using swiglu double the output width, see https://arxiv.org/pdf/2002.05202.pdf
-        self.dense_h_to_4h = nn.Dense(
+        self.dense_h_to_4h = mint.nn.Linear(
             config.hidden_size,
             config.ffn_hidden_size * 2,
-            has_bias=self.add_bias,
+            bias=self.add_bias,
         )
 
         def swiglu(x):
-            x = ops.chunk(x, 2, axis=-1)
-            return ops.silu(x[0]) * x[1]
+            x = mint.chunk(x, 2, dim=-1)
+            return F.silu(x[0]) * x[1]
 
         self.activation_func = swiglu
 
         # Project back to h.
-        self.dense_4h_to_h = nn.Dense(
-            config.ffn_hidden_size,
-            config.hidden_size,
-            has_bias=self.add_bias,
-        )
+        self.dense_4h_to_h = mint.nn.Linear(config.ffn_hidden_size, config.hidden_size, bias=self.add_bias)
 
     def construct(self, hidden_states):
         # [s, b, 4hp]
@@ -449,7 +463,7 @@ class GLMBlock(nn.Cell):
 
         self.fp32_residual_connection = config.fp32_residual_connection
 
-        LayerNormFunc = RMSNorm if config.rmsnorm else LayerNorm
+        LayerNormFunc = RMSNorm if config.rmsnorm else mint.nn.LayerNorm
         # Layernorm on the input data.
         self.input_layernorm = LayerNormFunc(config.hidden_size, eps=config.layernorm_epsilon)
 
@@ -486,7 +500,7 @@ class GLMBlock(nn.Cell):
         else:
             residual = hidden_states
 
-        layernorm_input = ops.dropout(attention_output, p=self.hidden_dropout, training=self.training)
+        layernorm_input = mint.nn.functional.dropout(attention_output, p=self.hidden_dropout, training=self.training)
         layernorm_input = residual + layernorm_input
 
         # Layer norm post the self attention.
@@ -501,7 +515,7 @@ class GLMBlock(nn.Cell):
         else:
             residual = layernorm_input
 
-        output = ops.dropout(mlp_output, p=self.hidden_dropout, training=self.training)
+        output = mint.nn.functional.dropout(mlp_output, p=self.hidden_dropout, training=self.training)
         output = residual + output
 
         return output, kv_cache
@@ -526,7 +540,7 @@ class GLMTransformer(nn.Cell):
         self.layers = nn.CellList([build_layer(i + 1) for i in range(self.num_layers)])
 
         if self.post_layer_norm:
-            LayerNormFunc = RMSNorm if config.rmsnorm else LayerNorm
+            LayerNormFunc = RMSNorm if config.rmsnorm else mint.nn.LayerNorm
             # Final layer norm before output.
             self.final_layernorm = LayerNormFunc(config.hidden_size, eps=config.layernorm_epsilon)
 
@@ -599,14 +613,14 @@ class ChatGLMPreTrainedModel(MSPreTrainedModel):
 
     def get_masks(self, input_ids, past_key_values, padding_mask=None):
         batch_size, seq_length = input_ids.shape
-        full_attention_mask = ops.ones((batch_size, seq_length, seq_length))
-        full_attention_mask = ops.tril(full_attention_mask)
+        full_attention_mask = mint.ones((batch_size, seq_length, seq_length))
+        full_attention_mask = mint.tril(full_attention_mask)
         past_length = 0
         if past_key_values:
             past_length = past_key_values[0][0].shape[0]
         if past_length:
-            full_attention_mask = ops.cat(
-                (ops.ones((batch_size, seq_length, past_length)), full_attention_mask), axis=-1
+            full_attention_mask = mint.cat(
+                (mint.ones((batch_size, seq_length, past_length)), full_attention_mask), dim=-1
             )
         if padding_mask is not None:
             full_attention_mask = full_attention_mask * padding_mask.unsqueeze(1)
@@ -618,12 +632,8 @@ class ChatGLMPreTrainedModel(MSPreTrainedModel):
 
     def get_position_ids(self, input_ids):
         batch_size, seq_length = input_ids.shape
-        position_ids = ops.arange(seq_length, dtype=ms.int32).unsqueeze(0).tile((batch_size, 1))
+        position_ids = mint.arange(seq_length, dtype=ms.int32).unsqueeze(0).tile((batch_size, 1))
         return position_ids
-
-    def _set_gradient_checkpointing(self, module, value=False):
-        if isinstance(module, GLMTransformer):
-            module.gradient_checkpointing = value
 
 
 def default_init(cls, *args, **kwargs):
@@ -638,7 +648,7 @@ class Embedding(nn.Cell):
 
         self.hidden_size = config.hidden_size
         # Word embeddings (parallel).
-        self.word_embeddings = nn.Embedding(
+        self.word_embeddings = mint.nn.Embedding(
             config.padded_vocab_size,
             self.hidden_size,
         )
@@ -649,7 +659,7 @@ class Embedding(nn.Cell):
         words_embeddings = self.word_embeddings(input_ids)
         embeddings = words_embeddings
         # Data format change to avoid explicit tranposes : [b s h] --> [s b h].
-        embeddings = embeddings.swapaxes(0, 1)
+        embeddings = embeddings.swapaxes(0, 1).contiguous()
         # If the input flag for fp32 residual connection is set, convert for float.
         if self.fp32_residual_connection:
             embeddings = embeddings.float()
@@ -673,15 +683,15 @@ class RotaryEmbedding(nn.Cell):
         https://github.com/labmlai/annotated_deep_learning_paper_implementations/blob/master/license.
         """
         # $\Theta = {\theta_i = 10000^{\frac{2(i-1)}{d}}, i \in [1, 2, ..., \frac{d}{2}]}$
-        theta = 1.0 / (base ** (ops.arange(0, n_elem, 2, dtype=ms.float32) / n_elem))
+        theta = 1.0 / (base ** (mint.arange(0, n_elem, 2, dtype=ms.float32) / n_elem))
 
         # Create position indexes `[0, 1, ..., seq_len - 1]`
-        seq_idx = ops.arange(seq_len, dtype=ms.float32)
+        seq_idx = mint.arange(seq_len, dtype=ms.float32)
 
         # Calculate the product of position index and $\theta_i$
-        idx_theta = ops.outer(seq_idx, theta).float()
+        idx_theta = mint.outer(seq_idx, theta).float()
 
-        cache = ops.stack([ops.cos(idx_theta), ops.sin(idx_theta)], axis=-1)
+        cache = mint.stack([mint.cos(idx_theta), mint.sin(idx_theta)], dim=-1)
 
         # this is to mimic the behaviour of complex32, else we will get different results
         if dtype in (ms.float16, ms.bfloat16, ms.int8):
@@ -704,14 +714,14 @@ class PrefixEncoder(nn.Cell):
         if self.prefix_projection:
             # Use a two-layer MLP to encode the prefix
             kv_size = config.num_layers * config.kv_channels * config.multi_query_group_num * 2
-            self.embedding = nn.Embedding(config.pre_seq_len, kv_size)
+            self.embedding = mint.nn.Embedding(config.pre_seq_len, kv_size)
             self.trans = nn.SequentialCell(
-                nn.Dense(kv_size, config.hidden_size),
-                nn.Tanh(),
-                nn.Dense(config.hidden_size, kv_size),
+                mint.nn.Linear(kv_size, config.hidden_size),
+                mint.nn.Tanh(),
+                mint.nn.Linear(config.hidden_size, kv_size),
             )
         else:
-            self.embedding = nn.Embedding(
+            self.embedding = mint.nn.Embedding(
                 config.pre_seq_len, config.num_layers * config.kv_channels * config.multi_query_group_num * 2
             )
 
@@ -749,10 +759,10 @@ class ChatGLMModel(ChatGLMPreTrainedModel):
         )
         self.encoder = init_method(GLMTransformer, config, **init_kwargs)
         self.output_layer = init_method(
-            nn.Dense,
+            mint.nn.Linear,
             config.hidden_size,
             config.padded_vocab_size,
-            has_bias=False,
+            bias=False,
             **init_kwargs,
         )
         self.pre_seq_len = config.pre_seq_len
@@ -760,10 +770,9 @@ class ChatGLMModel(ChatGLMPreTrainedModel):
         if self.pre_seq_len is not None:
             for _, param in self.parameters_and_names():
                 param.requires_grad = False
-            self.prefix_tokens = ops.arange(self.pre_seq_len).long()
+            self.prefix_tokens = mint.arange(self.pre_seq_len).long()
             self.prefix_encoder = PrefixEncoder(config)
-            self.dropout = nn.Dropout(p=0.1)
-        self.post_init()
+            self.dropout = mint.nn.Dropout(0.1)
 
     def get_input_embeddings(self):
         return self.embedding.word_embeddings
@@ -805,8 +814,8 @@ class ChatGLMModel(ChatGLMPreTrainedModel):
             if past_key_values is None:
                 past_key_values = self.get_prompt(batch_size=batch_size, dtype=inputs_embeds.dtype)
             if attention_mask is not None:
-                attention_mask = ops.cat(
-                    [attention_mask.new_ones((batch_size, self.pre_seq_len)), attention_mask], axis=-1
+                attention_mask = mint.cat(
+                    [attention_mask.new_ones((batch_size, self.pre_seq_len)), attention_mask], dim=-1
                 )
 
         if full_attention_mask is None:
@@ -819,7 +828,7 @@ class ChatGLMModel(ChatGLMPreTrainedModel):
             rotary_pos_emb = rotary_pos_emb[position_ids]
         else:
             rotary_pos_emb = rotary_pos_emb[None, :seq_length]
-        rotary_pos_emb = rotary_pos_emb.swapaxes(0, 1)
+        rotary_pos_emb = rotary_pos_emb.swapaxes(0, 1).contiguous()
 
         # Run encoder.
         hidden_states, presents, all_hidden_states, all_self_attentions = self.encoder(

@@ -1,6 +1,9 @@
 # coding=utf-8
 # Copyright 2024 Optuna, Hugging Face
 #
+# This code is adapted from https://github.com/huggingface/diffusers
+# with modifications to run diffusers on mindspore.
+#
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -49,8 +52,7 @@ def _get_default_logging_level() -> int:
             return log_levels[env_level_str]
         else:
             logging.getLogger().warning(
-                f"Unknown option DIFFUSERS_VERBOSITY={env_level_str}, "
-                f"has to be one of: { ', '.join(log_levels.keys()) }"
+                f"Unknown option DIFFUSERS_VERBOSITY={env_level_str}, has to be one of: {', '.join(log_levels.keys())}"
             )
     return _default_log_level
 

@@ -12,6 +12,10 @@ specific language governing permissions and limitations under the License.
 
 # Text-to-Video Generation with AnimateDiff
 
+<div class="flex flex-wrap space-x-1">
+  <img alt="LoRA" src="https://img.shields.io/badge/LoRA-d8b4fe?style=flat"/>
+</div>
+
 ## Overview
 
 [AnimateDiff: Animate Your Personalized Text-to-Image Diffusion Models without Specific Tuning](https://arxiv.org/abs/2307.04725) by Yuwei Guo, Ceyuan Yang, Anyi Rao, Yaohui Wang, Yu Qiao, Dahua Lin, Bo Dai.
@@ -119,7 +123,7 @@ controlnet = ControlNetModel.from_pretrained("lllyasviel/sd-controlnet-depth", m
 motion_adapter = MotionAdapter.from_pretrained("wangfuyun/AnimateLCM")
 
 vae = AutoencoderKL.from_pretrained("stabilityai/sd-vae-ft-mse", mindspore_dtype=ms.float16)
-pipe: AnimateDiffControlNetPipeline = AnimateDiffControlNetPipeline.from_pretrained(
+pipe = AnimateDiffControlNetPipeline = AnimateDiffControlNetPipeline.from_pretrained(
     "SG161222/Realistic_Vision_V5.1_noVAE",
     motion_adapter=motion_adapter,
     controlnet=controlnet,

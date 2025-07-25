@@ -1,6 +1,9 @@
 # Copyright 2024 The CogVideoX team, Tsinghua University & ZhipuAI and The HuggingFace Team.
 # All rights reserved.
 #
+# This code is adapted from https://github.com/huggingface/diffusers
+# with modifications to run diffusers on mindspore.
+#
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -20,7 +23,7 @@ import numpy as np
 from transformers import T5Tokenizer
 
 import mindspore as ms
-from mindspore import ops
+from mindspore import mint
 
 from mindone.transformers import T5EncoderModel
 
@@ -32,6 +35,8 @@ from ...schedulers import CogVideoXDDIMScheduler, CogVideoXDPMScheduler
 from ...utils import logging
 from ...utils.mindspore_utils import randn_tensor
 from .pipeline_output import CogView3PipelineOutput
+
+XLA_AVAILABLE = False
 
 logger = logging.get_logger(__name__)  # pylint: disable=invalid-name
 
@@ -153,9 +158,7 @@ class CogView3PlusPipeline(DiffusionPipeline):
         self.register_modules(
             tokenizer=tokenizer, text_encoder=text_encoder, vae=vae, transformer=transformer, scheduler=scheduler
         )
-        self.vae_scale_factor = (
-            2 ** (len(self.vae.config.block_out_channels) - 1) if hasattr(self, "vae") and self.vae is not None else 8
-        )
+        self.vae_scale_factor = 2 ** (len(self.vae.config.block_out_channels) - 1) if getattr(self, "vae", None) else 8
 
         self.image_processor = VaeImageProcessor(vae_scale_factor=self.vae_scale_factor)
 
@@ -546,7 +549,7 @@ class CogView3PlusPipeline(DiffusionPipeline):
             max_sequence_length=max_sequence_length,
         )
         if self.do_classifier_free_guidance:
-            prompt_embeds = ops.cat([negative_prompt_embeds, prompt_embeds], axis=0)
+            prompt_embeds = mint.cat([negative_prompt_embeds, prompt_embeds], dim=0)
 
         # 4. Prepare timesteps
         timesteps, num_inference_steps = retrieve_timesteps(self.scheduler, num_inference_steps, timesteps)
@@ -573,9 +576,9 @@ class CogView3PlusPipeline(DiffusionPipeline):
         crops_coords_top_left = ms.tensor([crops_coords_top_left], dtype=prompt_embeds.dtype)
 
         if self.do_classifier_free_guidance:
-            original_size = ops.cat([original_size, original_size])
-            target_size = ops.cat([target_size, target_size])
-            crops_coords_top_left = ops.cat([crops_coords_top_left, crops_coords_top_left])
+            original_size = mint.cat([original_size, original_size])
+            target_size = mint.cat([target_size, target_size])
+            crops_coords_top_left = mint.cat([crops_coords_top_left, crops_coords_top_left])
 
         original_size = original_size.tile((batch_size * num_images_per_prompt, 1))
         target_size = target_size.tile((batch_size * num_images_per_prompt, 1))
@@ -591,7 +594,7 @@ class CogView3PlusPipeline(DiffusionPipeline):
                 if self.interrupt:
                     continue
 
-                latent_model_input = ops.cat([latents] * 2) if self.do_classifier_free_guidance else latents
+                latent_model_input = mint.cat([latents] * 2) if self.do_classifier_free_guidance else latents
                 latent_model_input = self.scheduler.scale_model_input(latent_model_input, t)
 
                 # broadcast to batch dimension in a way that's compatible with ONNX/Core ML

@@ -1,5 +1,8 @@
 # Copyright 2024 The CogView team, Tsinghua University & ZhipuAI and The HuggingFace Team. All rights reserved.
 #
+# This code is adapted from https://github.com/huggingface/diffusers
+# with modifications to run diffusers on mindspore.
+#
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -16,13 +19,13 @@
 from typing import Dict, Union
 
 import mindspore as ms
-from mindspore import nn, ops
+from mindspore import mint, nn
 
 from ...configuration_utils import ConfigMixin, register_to_config
 from ...models.attention import FeedForward
 from ...models.attention_processor import Attention, AttentionProcessor, CogVideoXAttnProcessor2_0
 from ...models.modeling_utils import ModelMixin
-from ...models.normalization import AdaLayerNormContinuous, LayerNorm
+from ...models.normalization import AdaLayerNormContinuous
 from ...utils import logging
 from ..embeddings import CogView3CombinedTimestepSizeEmbeddings, CogView3PlusPatchEmbed
 from ..modeling_outputs import Transformer2DModelOutput
@@ -69,8 +72,8 @@ class CogView3PlusTransformerBlock(nn.Cell):
             processor=CogVideoXAttnProcessor2_0(),
         )
 
-        self.norm2 = LayerNorm(dim, elementwise_affine=False, eps=1e-5)
-        self.norm2_context = LayerNorm(dim, elementwise_affine=False, eps=1e-5)
+        self.norm2 = mint.nn.LayerNorm(dim, elementwise_affine=False, eps=1e-5)
+        self.norm2_context = mint.nn.LayerNorm(dim, elementwise_affine=False, eps=1e-5)
 
         self.ff = FeedForward(dim=dim, dim_out=dim, activation_fn="gelu-approximate")
 
@@ -112,7 +115,7 @@ class CogView3PlusTransformerBlock(nn.Cell):
         norm_encoder_hidden_states = norm_encoder_hidden_states * (1 + c_scale_mlp[:, None]) + c_shift_mlp[:, None]
 
         # feed-forward
-        norm_hidden_states = ops.cat([norm_encoder_hidden_states, norm_hidden_states], axis=1)
+        norm_hidden_states = mint.cat([norm_encoder_hidden_states, norm_hidden_states], dim=1)
         ff_output = self.ff(norm_hidden_states)
 
         hidden_states = hidden_states + gate_mlp.unsqueeze(1) * ff_output[:, text_seq_length:]
@@ -161,6 +164,8 @@ class CogView3PlusTransformer2DModel(ModelMixin, ConfigMixin):
     """
 
     _supports_gradient_checkpointing = True
+    _skip_layerwise_casting_patterns = ["patch_embed", "norm"]
+    _no_split_modules = ["CogView3PlusTransformerBlock", "CogView3PlusPatchEmbed"]
 
     @register_to_config
     def __init__(
@@ -218,7 +223,7 @@ class CogView3PlusTransformer2DModel(ModelMixin, ConfigMixin):
             elementwise_affine=False,
             eps=1e-6,
         )
-        self.proj_out = nn.Dense(self.inner_dim, patch_size * patch_size * self.out_channels, has_bias=True)
+        self.proj_out = mint.nn.Linear(self.inner_dim, patch_size * patch_size * self.out_channels, bias=True)
 
         self.gradient_checkpointing = False
         self.patch_size = self.config.patch_size
@@ -282,10 +287,6 @@ class CogView3PlusTransformer2DModel(ModelMixin, ConfigMixin):
 
         for name, module in self.name_cells().items():
             fn_recursive_attn_processor(name, module, processor)
-
-    def _set_gradient_checkpointing(self, module, value=False):
-        if hasattr(module, "gradient_checkpointing"):
-            module.gradient_checkpointing = value
 
     def construct(
         self,
@@ -354,7 +355,7 @@ class CogView3PlusTransformer2DModel(ModelMixin, ConfigMixin):
         hidden_states = hidden_states.reshape(
             hidden_states.shape[0], height, width, self.out_channels, patch_size, patch_size
         )
-        hidden_states = hidden_states.permute(0, 3, 1, 4, 2, 5)  # torch.einsum("nhwcpq->nchpwq", hidden_states)
+        hidden_states = mint.einsum("nhwcpq->nchpwq", hidden_states)
         output = hidden_states.reshape(
             hidden_states.shape[0], self.out_channels, height * patch_size, width * patch_size
         )

@@ -1,5 +1,8 @@
 # Copyright 2024 The HuggingFace Team. All rights reserved.
 #
+# This code is adapted from https://github.com/huggingface/diffusers
+# with modifications to run diffusers on mindspore.
+#
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -22,7 +25,7 @@ from typing import List, Optional, Tuple, Union
 import numpy as np
 
 import mindspore as ms
-from mindspore import nn, ops
+from mindspore import mint, nn
 
 from . import logging
 
@@ -112,7 +115,7 @@ def randn_tensor(
     if isinstance(generator, list):
         shape = (1,) + shape[1:]
         latents = [randn(shape, generator=generator[i], dtype=dtype) for i in range(batch_size)]
-        latents = ops.cat(latents, axis=0)
+        latents = mint.cat(latents, dim=0)
     else:
         latents = randn(shape, generator=generator, dtype=dtype)
 

@@ -1,3 +1,7 @@
+# This code is adapted from https://github.com/Stability-AI/generative-models
+# with modifications to run on MindSpore.
+
+
 from typing import Tuple
 
 from sgm.modules.distributions.distributions import DiagonalGaussianDistribution

@@ -1,6 +1,8 @@
 # coding=utf-8
 # Copyright 2024 The Emu team, BAAI and The HuggingFace Inc. team. All rights reserved.
 #
+# This code is adapted from https://github.com/baaivision/Emu3 to work with MindSpore.
+#
 # This code is based on EleutherAI's GPT-NeoX library and the GPT-NeoX
 # and OPT implementations in this library. It has been modified from its
 # original forms to accommodate minor architectural differences compared
@@ -22,7 +24,6 @@
 #
 """ MindSpore Emu3 model."""
 import math
-import warnings
 from typing import List, Optional, Tuple, Union
 
 from emu3.acceleration import GatherFowardSplitBackward, SplitFowardGatherBackward, get_sequence_parallel_group
@@ -42,16 +43,8 @@ from mindspore.communication import get_group_size
 from mindone.transformers.activations import ACT2FN
 from mindone.transformers.cache_utils import Cache, DynamicCache  # , get_max_length, get_seq_length, update
 from mindone.transformers.mindspore_utils import ALL_LAYERNORM_LAYERS
-from mindone.transformers.modeling_attn_mask_utils import (
-    _MIN_FP16,
-    AttentionMaskConverter,
-    _prepare_4d_attention_mask,
-    _prepare_4d_causal_attention_mask,
-)
-from mindone.transformers.modeling_outputs import (  # SequenceClassifierOutputWithPast,
-    BaseModelOutputWithPast,
-    CausalLMOutputWithPast,
-)
+from mindone.transformers.modeling_attn_mask_utils import _MIN_FP16, _prepare_4d_causal_attention_mask
+from mindone.transformers.modeling_outputs import BaseModelOutputWithPast, CausalLMOutputWithPast
 from mindone.transformers.modeling_utils import MSPreTrainedModel
 
 logger = logging.get_logger(__name__)
@@ -66,36 +59,6 @@ if FLASH_IS_AVAILABLE:
 from mindspore.nn import CrossEntropyLoss  # BCEWithLogitsLoss, MSELoss
 
 _CONFIG_FOR_DOC = "Emu3Config"
-
-
-def _get_unpad_data(attention_mask):
-    seqlens_in_batch = attention_mask.sum(dim=-1, dtype=ms.int32)
-    indices = ops.nonzero(attention_mask.flatten(start_dim=0), as_tuple=False).flatten(start_dim=0)
-    max_seqlen_in_batch = seqlens_in_batch.max().item()
-    cu_seqlens = ops.pad(ops.cumsum(seqlens_in_batch, axis=0, dtype=ms.int32), (1, 0))
-    return (
-        indices,
-        cu_seqlens,
-        max_seqlen_in_batch,
-    )
-
-
-def _expand_mask(mask: ms.Tensor, dtype: ms.dtype, tgt_len: Optional[int] = None):
-    warnings.warn(
-        "Calling `transformers.models.emu3.modeling_emu3._prepare_4d_attention_mask` is deprecated and will be removed in v4.37. "
-        "Use `transformers.modeling_attn_mask_utils._prepare_4d_attention_mask"
-    )
-    return _prepare_4d_attention_mask(mask=mask, dtype=dtype, tgt_len=tgt_len)
-
-
-def _make_causal_mask(input_ids_shape, dtype: ms.dtype, past_key_values_length: int = 0):
-    warnings.warn(
-        "Calling `transformers.models.emu3.modeling_emu3._make_causal_mask` is deprecated and will be removed in v4.37. "
-        "Use `transformers.models.emu3.modeling_emu3.AttentionMaskConverter._make_causal_mask"
-    )
-    return AttentionMaskConverter._make_causal_mask(
-        input_ids_shape=input_ids_shape, dtype=dtype, past_key_values_length=past_key_values_length
-    )
 
 
 class Emu3RMSNorm(nn.Cell):

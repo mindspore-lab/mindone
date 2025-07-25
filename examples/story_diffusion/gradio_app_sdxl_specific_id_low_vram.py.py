@@ -1,3 +1,7 @@
+# This code is adapted from https://github.com/HVision-NKU/StoryDiffusion
+# with modifications to run on MindSpore.
+
+
 import copy
 import datetime
 import gc
@@ -1284,4 +1288,4 @@ with gr.Blocks(css=css) as demo:
     gr.Markdown(article)
 
 
-demo.launch(server_name="0.0.0.0", share=True)
+demo.launch(server_name="127.0.0.1", share=True)

@@ -1,5 +1,8 @@
 # Copyright 2024 The HuggingFace Team. All rights reserved.
 #
+# This code is adapted from https://github.com/huggingface/diffusers
+# with modifications to run diffusers on mindspore.
+#
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -15,14 +18,13 @@ from dataclasses import dataclass
 from typing import Any, Dict, Optional
 
 import mindspore as ms
-from mindspore import nn, ops
+from mindspore import mint, nn
 
 from ...configuration_utils import ConfigMixin, register_to_config
 from ...utils import BaseOutput
 from ..attention import BasicTransformerBlock, TemporalBasicTransformerBlock
 from ..embeddings import TimestepEmbedding, Timesteps
 from ..modeling_utils import ModelMixin
-from ..normalization import GroupNorm
 from ..resnet import AlphaBlender
 
 
@@ -68,6 +70,8 @@ class TransformerTemporalModel(ModelMixin, ConfigMixin):
             The maximum length of the sequence over which to apply positional embeddings.
     """
 
+    _skip_layerwise_casting_patterns = ["norm"]
+
     @register_to_config
     def __init__(
         self,
@@ -94,8 +98,8 @@ class TransformerTemporalModel(ModelMixin, ConfigMixin):
 
         self.in_channels = in_channels
 
-        self.norm = GroupNorm(num_groups=norm_num_groups, num_channels=in_channels, eps=1e-6, affine=True)
-        self.proj_in = nn.Dense(in_channels, inner_dim)
+        self.norm = mint.nn.GroupNorm(num_groups=norm_num_groups, num_channels=in_channels, eps=1e-6, affine=True)
+        self.proj_in = mint.nn.Linear(in_channels, inner_dim)
 
         # 3. Define transformers blocks
         self.transformer_blocks = nn.CellList(
@@ -117,7 +121,7 @@ class TransformerTemporalModel(ModelMixin, ConfigMixin):
             ]
         )
 
-        self.proj_out = nn.Dense(inner_dim, in_channels)
+        self.proj_out = mint.nn.Linear(inner_dim, in_channels)
 
     def construct(
         self,
@@ -187,7 +191,10 @@ class TransformerTemporalModel(ModelMixin, ConfigMixin):
         # 3. Output
         hidden_states = self.proj_out(hidden_states)
         hidden_states = (
-            hidden_states[None, None, :].reshape(batch_size, height, width, num_frames, channel).permute(0, 3, 4, 1, 2)
+            hidden_states[None, None, :]
+            .reshape(batch_size, height, width, num_frames, channel)
+            .permute(0, 3, 4, 1, 2)
+            .contiguous()
         )
         hidden_states = hidden_states.reshape(batch_frames, channel, height, width)
 
@@ -232,8 +239,8 @@ class TransformerSpatioTemporalModel(nn.Cell):
 
         # 2. Define input layers
         self.in_channels = in_channels
-        self.norm = GroupNorm(num_groups=32, num_channels=in_channels, eps=1e-6)
-        self.proj_in = nn.Dense(in_channels, inner_dim)
+        self.norm = mint.nn.GroupNorm(num_groups=32, num_channels=in_channels, eps=1e-6)
+        self.proj_in = mint.nn.Linear(in_channels, inner_dim)
 
         # 3. Define transformers blocks
         self.transformer_blocks = nn.CellList(
@@ -270,7 +277,7 @@ class TransformerSpatioTemporalModel(nn.Cell):
         # 4. Define output layers
         self.out_channels = in_channels if out_channels is None else out_channels
         # TODO: should use out_channels for continuous projections
-        self.proj_out = nn.Dense(inner_dim, in_channels)
+        self.proj_out = mint.nn.Linear(inner_dim, in_channels)
 
         self.gradient_checkpointing = False
 
@@ -309,22 +316,24 @@ class TransformerSpatioTemporalModel(nn.Cell):
         batch_size = batch_frames // num_frames
 
         time_context = encoder_hidden_states
-        time_context_first_timestep = time_context[None, :].reshape(batch_size, num_frames, -1, time_context.shape[-1])[
-            :, 0
-        ]
-        time_context = time_context_first_timestep[:, None].broadcast_to(
-            (batch_size, height * width, time_context.shape[-2], time_context.shape[-1])
+        time_context_first_timestep = mint.reshape(
+            time_context[None, :], (batch_size, num_frames, -1, time_context.shape[-1])
+        )[:, 0]
+        time_context = mint.broadcast_to(
+            time_context_first_timestep[:, None],
+            (batch_size, height * width, time_context.shape[-2], time_context.shape[-1]),
         )
-        time_context = time_context.reshape(batch_size * height * width, -1, time_context.shape[-1])
+        time_context = mint.reshape(time_context, (batch_size * height * width, -1, time_context.shape[-1]))
 
         residual = hidden_states
 
         hidden_states = self.norm(hidden_states)
         inner_dim = hidden_states.shape[1]
         hidden_states = hidden_states.permute(0, 2, 3, 1).reshape(batch_frames, height * width, inner_dim)
+
         hidden_states = self.proj_in(hidden_states)
 
-        num_frames_emb = ops.arange(num_frames)
+        num_frames_emb = mint.arange(num_frames)
         num_frames_emb = num_frames_emb.tile((batch_size, 1))
         num_frames_emb = num_frames_emb.reshape(-1)
         t_emb = self.time_proj(num_frames_emb)
@@ -339,10 +348,7 @@ class TransformerSpatioTemporalModel(nn.Cell):
 
         # 2. Blocks
         for block, temporal_block in zip(self.transformer_blocks, self.temporal_transformer_blocks):
-            hidden_states = block(
-                hidden_states,
-                encoder_hidden_states=encoder_hidden_states,
-            )
+            hidden_states = block(hidden_states, encoder_hidden_states=encoder_hidden_states)
 
             hidden_states_mix = hidden_states
             hidden_states_mix = hidden_states_mix + emb
@@ -360,7 +366,7 @@ class TransformerSpatioTemporalModel(nn.Cell):
 
         # 3. Output
         hidden_states = self.proj_out(hidden_states)
-        hidden_states = hidden_states.reshape(batch_frames, height, width, inner_dim).permute(0, 3, 1, 2)
+        hidden_states = hidden_states.reshape(batch_frames, height, width, inner_dim).permute(0, 3, 1, 2).contiguous()
 
         output = hidden_states + residual
 

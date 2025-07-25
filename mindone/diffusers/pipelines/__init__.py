@@ -1,3 +1,5 @@
+"""Adapted from https://github.com/huggingface/diffusers/tree/main/src/diffusers/pipelines/__init__.py."""
+
 from typing import TYPE_CHECKING
 
 from ..utils import _LazyModule
@@ -15,6 +17,11 @@ _import_structure = {
         "AnimateDiffVideoToVideoControlNetPipeline",
     ],
     "audioldm": ["AudioLDMPipeline"],
+    "audioldm2": [
+        "AudioLDM2Pipeline",
+        "AudioLDM2ProjectionModel",
+        "AudioLDM2UNet2DConditionModel",
+    ],
     "aura_flow": ["AuraFlowPipeline"],
     "auto_pipeline": [
         "AutoPipelineForImage2Image",
@@ -30,7 +37,8 @@ _import_structure = {
     ],
     "consistency_models": ["ConsistencyModelPipeline"],
     "cogview3": ["CogView3PlusPipeline"],
-    "cogview4": ["CogView4Pipeline"],
+    "cogview4": ["CogView4Pipeline", "CogView4ControlPipeline"],
+    "consisid": ["ConsisIDPipeline"],
     "controlnet": [
         "BlipDiffusionControlNetPipeline",
         "StableDiffusionControlNetImg2ImgPipeline",
@@ -64,6 +72,11 @@ _import_structure = {
         "IFSuperResolutionPipeline",
     ],
     "dit": ["DiTPipeline"],
+    "easyanimate": [
+        "EasyAnimatePipeline",
+        "EasyAnimateInpaintPipeline",
+        "EasyAnimateControlPipeline",
+    ],
     "flux": [
         "FluxControlImg2ImgPipeline",
         "FluxControlInpaintPipeline",
@@ -76,9 +89,14 @@ _import_structure = {
         "FluxInpaintPipeline",
         "FluxPipeline",
         "FluxPriorReduxPipeline",
+        "ReduxImageEncoder",
     ],
     "hunyuandit": ["HunyuanDiTPipeline"],
-    "hunyuan_video": ["HunyuanVideoPipeline"],
+    "hunyuan_video": [
+        "HunyuanVideoPipeline",
+        "HunyuanSkyreelsImageToVideoPipeline",
+        "HunyuanVideoImageToVideoPipeline",
+    ],
     "i2vgen_xl": ["I2VGenXLPipeline"],
     "latent_diffusion": ["LDMSuperResolutionPipeline", "LDMTextToImagePipeline"],
     "ledits_pp": ["LEditsPPPipelineStableDiffusion", "LEditsPPPipelineStableDiffusionXL"],
@@ -116,14 +134,17 @@ _import_structure = {
         "LatentConsistencyModelPipeline",
     ],
     "latte": ["LattePipeline"],
-    "ltx": ["LTXPipeline", "LTXImageToVideoPipeline"],
-    "lumina": ["LuminaText2ImgPipeline"],
+    "ltx": ["LTXPipeline", "LTXImageToVideoPipeline", "LTXConditionPipeline"],
+    "lumina": ["LuminaPipeline", "LuminaText2ImgPipeline"],
+    "lumina2": ["Lumina2Pipeline", "Lumina2Text2ImgPipeline"],
     "marigold": [
         "MarigoldDepthPipeline",
+        "MarigoldIntrinsicsPipeline",
         "MarigoldNormalsPipeline",
     ],
     "mochi": ["MochiPipeline"],
     "musicldm": ["MusicLDMPipeline"],
+    "omnigen": ["OmniGenPipeline"],
     "pag": [
         "StableDiffusionControlNetPAGInpaintPipeline",
         "AnimateDiffPAGPipeline",
@@ -149,7 +170,7 @@ _import_structure = {
         "PixArtAlphaPipeline",
         "PixArtSigmaPipeline",
     ],
-    "sana": ["SanaPipeline"],
+    "sana": ["SanaPipeline", "SanaSprintPipeline"],
     "semantic_stable_diffusion": ["SemanticStableDiffusionPipeline"],
     "shap_e": ["ShapEImg2ImgPipeline", "ShapEPipeline"],
     "stable_audio": ["StableAudioProjectionModel", "StableAudioPipeline"],
@@ -176,6 +197,8 @@ _import_structure = {
         "StableDiffusion3Img2ImgPipeline",
         "StableDiffusion3InpaintPipeline",
     ],
+    "stable_diffusion_attend_and_excite": ["StableDiffusionAttendAndExcitePipeline"],
+    "stable_diffusion_safe": ["StableDiffusionPipelineSafe"],
     "stable_diffusion_sag": ["StableDiffusionSAGPipeline"],
     "stable_diffusion_gligen": [
         "StableDiffusionGLIGENPipeline",
@@ -186,6 +209,10 @@ _import_structure = {
         "StableDiffusionXLImg2ImgPipeline",
         "StableDiffusionXLInstructPix2PixPipeline",
         "StableDiffusionXLPipeline",
+    ],
+    "stable_diffusion_k_diffusion": [
+        "StableDiffusionKDiffusionPipeline",
+        "StableDiffusionXLKDiffusionPipeline",
     ],
     "stable_diffusion_diffedit": ["StableDiffusionDiffEditPipeline"],
     "stable_diffusion_ldm3d": ["StableDiffusionLDM3DPipeline"],
@@ -213,6 +240,7 @@ _import_structure = {
         "WuerstchenDecoderPipeline",
         "WuerstchenPriorPipeline",
     ],
+    "wan": ["WanPipeline", "WanImageToVideoPipeline", "WanVideoToVideoPipeline"],
     "pipeline_utils": [
         "AudioPipelineOutput",
         "DiffusionPipeline",
@@ -233,6 +261,7 @@ if TYPE_CHECKING:
         AnimateDiffVideoToVideoPipeline,
     )
     from .audioldm import AudioLDMPipeline
+    from .audioldm2 import AudioLDM2Pipeline, AudioLDM2ProjectionModel, AudioLDM2UNet2DConditionModel
     from .aura_flow import AuraFlowPipeline
     from .auto_pipeline import AutoPipelineForImage2Image, AutoPipelineForInpainting, AutoPipelineForText2Image
     from .blip_diffusion import BlipDiffusionPipeline
@@ -243,7 +272,8 @@ if TYPE_CHECKING:
         CogVideoXVideoToVideoPipeline,
     )
     from .cogview3 import CogView3PlusPipeline
-    from .cogview4 import CogView4Pipeline
+    from .cogview4 import CogView4ControlPipeline, CogView4Pipeline
+    from .consisid import ConsisIDPipeline
     from .consistency_models import ConsistencyModelPipeline
     from .controlnet import (
         BlipDiffusionControlNetPipeline,
@@ -271,6 +301,7 @@ if TYPE_CHECKING:
         IFSuperResolutionPipeline,
     )
     from .dit import DiTPipeline
+    from .easyanimate import EasyAnimateControlPipeline, EasyAnimateInpaintPipeline, EasyAnimatePipeline
     from .flux import (
         FluxControlImg2ImgPipeline,
         FluxControlInpaintPipeline,
@@ -283,8 +314,13 @@ if TYPE_CHECKING:
         FluxInpaintPipeline,
         FluxPipeline,
         FluxPriorReduxPipeline,
+        ReduxImageEncoder,
     )
-    from .hunyuan_video import HunyuanVideoPipeline
+    from .hunyuan_video import (
+        HunyuanSkyreelsImageToVideoPipeline,
+        HunyuanVideoImageToVideoPipeline,
+        HunyuanVideoPipeline,
+    )
     from .hunyuandit import HunyuanDiTPipeline
     from .i2vgen_xl import I2VGenXLPipeline
     from .kandinsky import (
@@ -319,11 +355,13 @@ if TYPE_CHECKING:
         LEditsPPPipelineStableDiffusion,
         LEditsPPPipelineStableDiffusionXL,
     )
-    from .ltx import LTXImageToVideoPipeline, LTXPipeline
-    from .lumina import LuminaText2ImgPipeline
-    from .marigold import MarigoldDepthPipeline, MarigoldNormalsPipeline
+    from .ltx import LTXConditionPipeline, LTXImageToVideoPipeline, LTXPipeline
+    from .lumina import LuminaPipeline, LuminaText2ImgPipeline
+    from .lumina2 import Lumina2Pipeline, Lumina2Text2ImgPipeline
+    from .marigold import MarigoldDepthPipeline, MarigoldIntrinsicsPipeline, MarigoldNormalsPipeline
     from .mochi import MochiPipeline
     from .musicldm import MusicLDMPipeline
+    from .omnigen import OmniGenPipeline
     from .pag import (
         AnimateDiffPAGPipeline,
         HunyuanDiTPAGPipeline,
@@ -347,7 +385,7 @@ if TYPE_CHECKING:
     from .pia import PIAPipeline
     from .pipeline_utils import AudioPipelineOutput, DiffusionPipeline, ImagePipelineOutput, StableDiffusionMixin
     from .pixart_alpha import PixArtAlphaPipeline, PixArtSigmaPipeline
-    from .sana import SanaPipeline
+    from .sana import SanaPipeline, SanaSprintPipeline
     from .semantic_stable_diffusion import SemanticStableDiffusionPipeline
     from .shap_e import ShapEImg2ImgPipeline, ShapEPipeline
     from .stable_audio import StableAudioPipeline, StableAudioProjectionModel
@@ -370,10 +408,13 @@ if TYPE_CHECKING:
         StableDiffusion3InpaintPipeline,
         StableDiffusion3Pipeline,
     )
+    from .stable_diffusion_attend_and_excite import StableDiffusionAttendAndExcitePipeline
     from .stable_diffusion_diffedit import StableDiffusionDiffEditPipeline
     from .stable_diffusion_gligen import StableDiffusionGLIGENPipeline, StableDiffusionGLIGENTextImagePipeline
+    from .stable_diffusion_k_diffusion import StableDiffusionKDiffusionPipeline, StableDiffusionXLKDiffusionPipeline
     from .stable_diffusion_ldm3d import StableDiffusionLDM3DPipeline
     from .stable_diffusion_panorama import StableDiffusionPanoramaPipeline
+    from .stable_diffusion_safe import StableDiffusionPipelineSafe
     from .stable_diffusion_sag import StableDiffusionSAGPipeline
     from .stable_diffusion_xl import (
         StableDiffusionXLImg2ImgPipeline,
@@ -391,6 +432,7 @@ if TYPE_CHECKING:
     )
     from .unclip import UnCLIPImageVariationPipeline, UnCLIPPipeline
     from .unidiffuser import ImageTextPipelineOutput, UniDiffuserModel, UniDiffuserPipeline, UniDiffuserTextDecoder
+    from .wan import WanImageToVideoPipeline, WanPipeline, WanVideoToVideoPipeline
     from .wuerstchen import WuerstchenCombinedPipeline, WuerstchenDecoderPipeline, WuerstchenPriorPipeline
 else:
     import sys

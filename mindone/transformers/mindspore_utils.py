@@ -1,5 +1,8 @@
 # Copyright 2022 The HuggingFace Team. All rights reserved.
 #
+# This code is adapted from https://github.com/huggingface/transformers
+# with modifications to run transformers on mindspore.
+#
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -255,3 +258,10 @@ def isin_mps_friendly(elements: ms.Tensor, test_elements: ms.Tensor) -> ms.Tenso
 
     # Note: don't use named arguments in `torch.isin`, see https://github.com/pytorch/pytorch/issues/126045
     return ms.tensor(np.isin(elements.numpy(), test_elements.numpy()))
+
+
+def meshgrid(*tensors: ms.Tensor, indexing) -> tuple[ms.Tensor, ...]:
+    """
+    Wrapper around torch.meshgrid to avoid warning messages about the introduced `indexing` argument.
+    """
+    return mint.meshgrid(*tensors, indexing=indexing)

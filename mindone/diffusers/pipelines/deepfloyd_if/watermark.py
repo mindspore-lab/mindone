@@ -1,10 +1,12 @@
+"""Adapted from https://github.com/huggingface/diffusers/tree/main/src/diffusers/pipelines/deepfloyd_if/watermark.py."""
+
 from typing import List
 
 import PIL.Image
 from PIL import Image
 
 import mindspore as ms
-from mindspore import ops
+from mindspore import mint
 
 from ...configuration_utils import ConfigMixin
 from ...models.modeling_utils import ModelMixin
@@ -18,7 +20,7 @@ class IFWatermarker(ModelMixin, ConfigMixin):
         # Set `self.watermark_image` as mindspore.Parameter requiring no grads
         # So that it could be loaded from checkpoint
         self.watermark_image = ms.Parameter(
-            ops.zeros((62, 62, 4), dtype=ms.float32),
+            mint.zeros((62, 62, 4), dtype=ms.float32),
             name="watermark_image",
             requires_grad=False,
         )

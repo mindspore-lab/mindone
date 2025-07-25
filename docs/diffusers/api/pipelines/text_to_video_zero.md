@@ -12,6 +12,10 @@ specific language governing permissions and limitations under the License.
 
 # Text2Video-Zero
 
+<div class="flex flex-wrap space-x-1">
+  <img alt="LoRA" src="https://img.shields.io/badge/LoRA-d8b4fe?style=flat"/>
+</div>
+
 [Text2Video-Zero: Text-to-Image Diffusion Models are Zero-Shot Video Generators](https://huggingface.co/papers/2303.13439) is by Levon Khachatryan, Andranik Movsisyan, Vahram Tadevosyan, Roberto Henschel, [Zhangyang Wang](https://www.ece.utexas.edu/people/faculty/atlas-wang), Shant Navasardyan, [Humphrey Shi](https://www.humphreyshi.com).
 
 Text2Video-Zero enables zero-shot video generation using either:
@@ -91,6 +95,57 @@ imageio.mimsave("video.mp4", result, fps=4)
 ```
 
 
+### Text-To-Video with Pose Control
+To generate a video from prompt with additional pose control
+
+1. Download a demo video
+
+    ```python
+    from huggingface_hub import hf_hub_download
+
+    filename = "__assets__/poses_skeleton_gifs/dance1_corr.mp4"
+    repo_id = "PAIR/Text2Video-Zero"
+    video_path = hf_hub_download(repo_type="space", repo_id=repo_id, filename=filename)
+    ```
+
+
+2. Read video containing extracted pose images
+    ```python
+    from PIL import Image
+    import imageio
+
+    reader = imageio.get_reader(video_path, "ffmpeg")
+    frame_count = 8
+    pose_images = [Image.fromarray(reader.get_data(i)) for i in range(frame_count)]
+    ```
+    To extract pose from actual video, read [ControlNet documentation](controlnet).
+
+3. Run `StableDiffusionControlNetPipeline` with our custom attention processor
+
+    ```python
+    import mindspore as ms
+    from mindone.diffusers import StableDiffusionControlNetPipeline, ControlNetModel
+    from mindone.diffusers.pipelines.text_to_video_synthesis.pipeline_text_to_video_zero import CrossFrameAttnProcessor
+
+    model_id = "stable-diffusion-v1-5/stable-diffusion-v1-5"
+    controlnet = ControlNetModel.from_pretrained("lllyasviel/sd-controlnet-openpose", torch_dtype=ms.float16)
+    pipe = StableDiffusionControlNetPipeline.from_pretrained(
+        model_id, controlnet=controlnet, torch_dtype=ms.float16
+    )
+
+    # Set the attention processor
+    pipe.unet.set_attn_processor(CrossFrameAttnProcessor(batch_size=2))
+    pipe.controlnet.set_attn_processor(CrossFrameAttnProcessor(batch_size=2))
+
+    # fix latents for all frames
+    latents = ms.ops.randn((1, 4, 64, 64), dtype=ms.float16).repeat(len(pose_images), 1, 1, 1)
+
+    prompt = "Darth Vader dancing in a desert"
+    result = pipe(prompt=[prompt] * len(pose_images), image=pose_images, latents=latents).images
+    imageio.mimsave("video.mp4", result, fps=4)
+    ```
+
+
 ### Text-To-Video with Edge Control
 
 To generate a video from prompt with additional Canny edge control, follow the same steps described above for pose-guided generation using [Canny edge ControlNet model](https://huggingface.co/lllyasviel/sd-controlnet-canny).
@@ -138,7 +193,7 @@ To perform text-guided video editing (with [InstructPix2Pix](pix2pix.md)):
 
 !!! tip
 
-    Make sure to check out the Schedulers [guide](../../using-diffusers/schedulers) to learn how to explore the tradeoff between scheduler speed and quality, and see the [reuse components across pipelines](../../using-diffusers/loading#reuse-components-across-pipelines) section to learn how to efficiently load the same components into multiple pipelines.
+    Make sure to check out the Schedulers [guide](../../using-diffusers/schedulers.md) to learn how to explore the tradeoff between scheduler speed and quality, and see the [reuse components across pipelines](../../using-diffusers/loading.md#reuse-a-pipeline) section to learn how to efficiently load the same components into multiple pipelines.
 
 
 

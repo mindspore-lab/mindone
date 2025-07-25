@@ -1,5 +1,8 @@
 # Copyright 2024 The HuggingFace Team. All rights reserved.
 #
+# This code is adapted from https://github.com/huggingface/diffusers
+# with modifications to run diffusers on mindspore.
+#
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -17,14 +20,14 @@ from typing import Optional, Tuple
 import numpy as np
 
 import mindspore as ms
-from mindspore import nn, ops
+import mindspore.common.initializer as init
+from mindspore import mint, nn, ops
 from mindspore.common.initializer import Uniform
 
 from ...utils import BaseOutput
 from ...utils.mindspore_utils import randn_tensor
 from ..activations import get_activation
 from ..attention_processor import SpatialNorm
-from ..normalization import GroupNorm
 from ..unets.unet_2d_blocks import AutoencoderTinyBlock, UNetMidBlock2D, get_down_block, get_up_block
 
 
@@ -93,14 +96,12 @@ class Encoder(nn.Cell):
         super().__init__()
         self.layers_per_block = layers_per_block
 
-        self.conv_in = nn.Conv2d(
+        self.conv_in = mint.nn.Conv2d(
             in_channels,
             block_out_channels[0],
             kernel_size=3,
             stride=1,
-            pad_mode="pad",
             padding=1,
-            has_bias=True,
         )
 
         # down
@@ -141,26 +142,15 @@ class Encoder(nn.Cell):
         )
 
         # out
-        self.conv_norm_out = GroupNorm(num_channels=block_out_channels[-1], num_groups=norm_num_groups, eps=1e-6)
-        self.conv_act = nn.SiLU()
+        self.conv_norm_out = mint.nn.GroupNorm(
+            num_channels=block_out_channels[-1], num_groups=norm_num_groups, eps=1e-6
+        )
+        self.conv_act = mint.nn.SiLU()
 
         conv_out_channels = 2 * out_channels if double_z else out_channels
-        self.conv_out = nn.Conv2d(
-            block_out_channels[-1], conv_out_channels, 3, pad_mode="pad", padding=1, has_bias=True
-        )
+        self.conv_out = mint.nn.Conv2d(block_out_channels[-1], conv_out_channels, 3, padding=1)
 
-        self._gradient_checkpointing = False
-
-    @property
-    def gradient_checkpointing(self):
-        return self._gradient_checkpointing
-
-    @gradient_checkpointing.setter
-    def gradient_checkpointing(self, value=False):
-        self._gradient_checkpointing = value
-        for down_block in self.down_blocks:
-            down_block._recompute(value)
-        self.mid_block._recompute(value)
+        self.gradient_checkpointing = False
 
     def construct(self, sample: ms.Tensor) -> ms.Tensor:
         r"""The forward method of the `Encoder` class."""
@@ -220,14 +210,12 @@ class Decoder(nn.Cell):
         super().__init__()
         self.layers_per_block = layers_per_block
 
-        self.conv_in = nn.Conv2d(
+        self.conv_in = mint.nn.Conv2d(
             in_channels,
             block_out_channels[-1],
             kernel_size=3,
             stride=1,
-            pad_mode="pad",
             padding=1,
-            has_bias=True,
         )
 
         temb_channels = in_channels if norm_type == "spatial" else None
@@ -277,22 +265,13 @@ class Decoder(nn.Cell):
         if norm_type == "spatial":
             self.conv_norm_out = SpatialNorm(block_out_channels[0], temb_channels)
         else:
-            self.conv_norm_out = GroupNorm(num_channels=block_out_channels[0], num_groups=norm_num_groups, eps=1e-6)
-        self.conv_act = nn.SiLU()
-        self.conv_out = nn.Conv2d(block_out_channels[0], out_channels, 3, pad_mode="pad", padding=1, has_bias=True)
+            self.conv_norm_out = mint.nn.GroupNorm(
+                num_channels=block_out_channels[0], num_groups=norm_num_groups, eps=1e-6
+            )
+        self.conv_act = mint.nn.SiLU()
+        self.conv_out = mint.nn.Conv2d(block_out_channels[0], out_channels, 3, padding=1)
 
-        self._gradient_checkpointing = False
-
-    @property
-    def gradient_checkpointing(self):
-        return self._gradient_checkpointing
-
-    @gradient_checkpointing.setter
-    def gradient_checkpointing(self, value=False):
-        self._gradient_checkpointing = value
-        self.mid_block._recompute(value)
-        for up_block in self.up_blocks:
-            up_block._recompute(value)
+        self.gradient_checkpointing = False
 
     def construct(
         self,
@@ -340,13 +319,11 @@ class UpSample(nn.Cell):
         super().__init__()
         self.in_channels = in_channels
         self.out_channels = out_channels
-        self.deconv = nn.Conv2dTranspose(
-            in_channels, out_channels, kernel_size=4, stride=2, pad_mode="pad", padding=1, has_bias=True
-        )
+        self.deconv = mint.nn.ConvTranspose2d(in_channels, out_channels, kernel_size=4, stride=2, padding=1)
 
     def construct(self, x: ms.Tensor) -> ms.Tensor:
         r"""The forward method of the `UpSample` class."""
-        x = ops.relu(x)
+        x = mint.nn.functional.relu(x)
         x = self.deconv(x)
         return x
 
@@ -386,13 +363,9 @@ class MaskConditionEncoder(nn.Cell):
         for l in range(len(out_channels)):  # noqa: E741
             out_ch_ = out_channels[l]
             if l == 0 or l == 1:  # noqa: E741
-                layers.append(
-                    nn.Conv2d(in_ch_, out_ch_, kernel_size=3, stride=1, pad_mode="pad", padding=1, has_bias=True)
-                )
+                layers.append(mint.nn.Conv2d(in_ch_, out_ch_, kernel_size=3, stride=1, padding=1))
             else:
-                layers.append(
-                    nn.Conv2d(in_ch_, out_ch_, kernel_size=4, stride=2, pad_mode="pad", padding=1, has_bias=True)
-                )
+                layers.append(mint.nn.Conv2d(in_ch_, out_ch_, kernel_size=4, stride=2, padding=1))
             in_ch_ = out_ch_
 
         # nn.SequentialCell does not support the len(self.layers) method nor does it support self.layers[l],
@@ -406,7 +379,7 @@ class MaskConditionEncoder(nn.Cell):
             layer = self.layers[l]
             x = layer(x)
             out[str(tuple(x.shape))] = x
-            x = ops.relu(x)
+            x = mint.nn.functional.relu(x)
         return out
 
 
@@ -447,14 +420,12 @@ class MaskConditionDecoder(nn.Cell):
         super().__init__()
         self.layers_per_block = layers_per_block
 
-        self.conv_in = nn.Conv2d(
+        self.conv_in = mint.nn.Conv2d(
             in_channels,
             block_out_channels[-1],
             kernel_size=3,
             stride=1,
-            pad_mode="pad",
             padding=1,
-            has_bias=True,
         )
 
         self.up_blocks = []
@@ -511,9 +482,11 @@ class MaskConditionDecoder(nn.Cell):
         if norm_type == "spatial":
             self.conv_norm_out = SpatialNorm(block_out_channels[0], temb_channels)
         else:
-            self.conv_norm_out = GroupNorm(num_channels=block_out_channels[0], num_groups=norm_num_groups, eps=1e-6)
-        self.conv_act = nn.SiLU()
-        self.conv_out = nn.Conv2d(block_out_channels[0], out_channels, 3, pad_mode="pad", padding=1, has_bias=True)
+            self.conv_norm_out = mint.nn.GroupNorm(
+                num_channels=block_out_channels[0], num_groups=norm_num_groups, eps=1e-6
+            )
+        self.conv_act = mint.nn.SiLU()
+        self.conv_out = mint.nn.Conv2d(block_out_channels[0], out_channels, 3, padding=1)
 
         self.gradient_checkpointing = False
 
@@ -541,7 +514,7 @@ class MaskConditionDecoder(nn.Cell):
         for up_block in self.up_blocks:
             if image is not None and mask is not None:
                 sample_ = im_x[str(tuple(sample.shape))]
-                mask_ = ops.interpolate(mask, size=sample.shape[-2:], mode="nearest")
+                mask_ = mint.nn.functional.interpolate(mask, size=sample.shape[-2:], mode="nearest")
                 sample = sample * mask_ + sample_ * (1 - mask_)
             sample = up_block(sample, latent_embeds)
         if image is not None and mask is not None:
@@ -583,15 +556,14 @@ class VectorQuantizer(nn.Cell):
         self.beta = beta
         self.legacy = legacy
 
-        self.embedding = nn.Embedding(
-            self.n_e,
-            self.vq_embed_dim,
-            embedding_table=Uniform(1 / self.n_e),
+        self.embedding = mint.nn.Embedding(self.n_e, self.vq_embed_dim)
+        self.embedding.weight.set_data(
+            init.initializer(Uniform(1 / self.n_e), self.embedding.weight.shape, self.embedding.weight.dtype)
         )
 
         self.remap = remap
         if self.remap is not None:
-            self.used = ms.Tensor(np.load(self.remap))
+            self.used = ms.tensor(np.load(self.remap))
             self.used: ms.Tensor
             self.re_embed = self.used.shape[0]
             self.unknown_index = unknown_index  # "random" or "extra" or integer
@@ -616,7 +588,7 @@ class VectorQuantizer(nn.Cell):
         new = match.argmax(-1)
         unknown = match.sum(2) < 1
         if self.unknown_index == "random":
-            new[unknown] = ops.randint(0, self.re_embed, size=new[unknown].shape)
+            new[unknown] = mint.randint(0, self.re_embed, size=new[unknown].shape)
         else:
             new[unknown] = self.unknown_index
         return new.reshape(ishape)
@@ -628,7 +600,7 @@ class VectorQuantizer(nn.Cell):
         used = self.used.to(inds.dtype)
         if self.re_embed > self.used.shape[0]:  # extra token
             inds[inds >= self.used.shape[0]] = 0  # simply set to zero
-        back = ops.gather_elements(used[None, :][inds.shape[0] * [0], :], 1, inds)
+        back = mint.gather(used[None, :][inds.shape[0] * [0], :], 1, inds)
         return back.reshape(ishape)
 
     def construct(self, z: ms.Tensor) -> Tuple[ms.Tensor, ms.Tensor, Tuple]:
@@ -638,8 +610,8 @@ class VectorQuantizer(nn.Cell):
 
         # distances from z to embeddings e_j (z - e)^2 = z^2 + e^2 - 2 e * z
         # ops.cdist caused unexpected error on NPU, use equivalent implement
-        cdist = ops.pow(z_flattened[:, None, :] - self.embedding.embedding_table[None, ...], 2).mean(axis=-1)
-        min_encoding_indices = ops.argmin(cdist, axis=1)
+        cdist = mint.mean(mint.pow(z_flattened[:, None, :] - self.embedding.weight[None, ...], 2), dim=-1)
+        min_encoding_indices = mint.argmin(cdist, dim=1)
 
         z_q = self.embedding(min_encoding_indices).view(z.shape)
         perplexity = None
@@ -647,9 +619,13 @@ class VectorQuantizer(nn.Cell):
 
         # compute loss for embedding
         if not self.legacy:
-            loss = self.beta * ops.mean((ops.stop_gradient(z_q) - z) ** 2) + ops.mean((z_q - ops.stop_gradient(z)) ** 2)
+            loss = self.beta * mint.mean((ops.stop_gradient(z_q) - z) ** 2) + mint.mean(
+                (z_q - ops.stop_gradient(z)) ** 2
+            )
         else:
-            loss = ops.mean((ops.stop_gradient(z_q) - z) ** 2) + self.beta * ops.mean((z_q - ops.stop_gradient(z)) ** 2)
+            loss = mint.mean((ops.stop_gradient(z_q) - z) ** 2) + self.beta * mint.mean(
+                (z_q - ops.stop_gradient(z)) ** 2
+            )
 
         # preserve gradients
         z_q = z + ops.stop_gradient(z_q - z)
@@ -691,13 +667,13 @@ class DiagonalGaussianDistribution(object):
         self.deterministic = deterministic
 
     def init(self, parameters: ms.Tensor) -> Tuple[ms.Tensor, ...]:
-        mean, logvar = ops.chunk(parameters, 2, axis=1)
-        logvar = ops.clamp(logvar, -30.0, 20.0)
+        mean, logvar = mint.chunk(parameters, 2, dim=1)
+        logvar = mint.clamp(logvar, -30.0, 20.0)
         if self.deterministic:
-            var = std = ops.zeros_like(mean, dtype=parameters.dtype)
+            var = std = mint.zeros_like(mean, dtype=parameters.dtype)
         else:
-            var = ops.exp(logvar)
-            std = ops.exp(0.5 * logvar)
+            var = mint.exp(logvar)
+            std = mint.exp(0.5 * logvar)
         return mean, logvar, var, std
 
     def sample(self, parameters: ms.Tensor, generator: Optional[np.random.Generator] = None) -> ms.Tensor:
@@ -714,18 +690,18 @@ class DiagonalGaussianDistribution(object):
     def kl(self, parameters: ms.Tensor, other: ms.Tensor = None) -> ms.Tensor:
         mean, logvar, var, std = self.init(parameters)
         if self.deterministic:
-            return ms.Tensor([0.0])
+            return ms.tensor([0.0])
         else:
             if other is None:
-                return 0.5 * ops.sum(
-                    ops.pow(mean, 2) + var - 1.0 - logvar,
+                return 0.5 * mint.sum(
+                    mint.pow(mean, 2) + var - 1.0 - logvar,
                     dim=[1, 2, 3],
                 )
             else:
                 other_mean, other_logvar, other_var, other_std = self.init(other)
                 # fmt: off
-                return 0.5 * ops.sum(
-                    ops.pow(mean - other_mean, 2) / other_var
+                return 0.5 * mint.sum(
+                    mint.pow(mean - other_mean, 2) / other_var
                     + var / other_var
                     - 1.0
                     - logvar
@@ -737,10 +713,10 @@ class DiagonalGaussianDistribution(object):
     def nll(self, parameters: ms.Tensor, sample: ms.Tensor, dims: Tuple[int, ...] = (1, 2, 3)) -> ms.Tensor:
         mean, logvar, var, std = self.init(parameters)
         if self.deterministic:
-            return ms.Tensor([0.0])
+            return ms.tensor([0.0])
         logtwopi = np.log(2.0 * np.pi)
-        return 0.5 * ops.sum(
-            logtwopi + logvar + ops.pow(sample - mean, 2) / var,
+        return 0.5 * mint.sum(
+            logtwopi + logvar + mint.pow(sample - mean, 2) / var,
             dim=dims,
         )
 
@@ -782,28 +758,23 @@ class EncoderTiny(nn.Cell):
             num_channels = block_out_channels[i]
 
             if i == 0:
-                layers.append(
-                    nn.Conv2d(in_channels, num_channels, kernel_size=3, pad_mode="pad", padding=1, has_bias=True)
-                )
+                layers.append(mint.nn.Conv2d(in_channels, num_channels, kernel_size=3, padding=1))
             else:
                 layers.append(
-                    nn.Conv2d(
+                    mint.nn.Conv2d(
                         num_channels,
                         num_channels,
                         kernel_size=3,
-                        pad_mode="pad",
                         padding=1,
                         stride=2,
-                        has_bias=False,
+                        bias=False,
                     )
                 )
 
             for _ in range(num_block):
                 layers.append(AutoencoderTinyBlock(num_channels, num_channels, act_fn))
 
-        layers.append(
-            nn.Conv2d(block_out_channels[-1], out_channels, kernel_size=3, pad_mode="pad", padding=1, has_bias=True)
-        )
+        layers.append(mint.nn.Conv2d(block_out_channels[-1], out_channels, kernel_size=3, padding=1))
 
         self.layers = nn.SequentialCell(*layers)
         self.gradient_checkpointing = False
@@ -849,8 +820,8 @@ class DecoderTiny(nn.Cell):
         super().__init__()
 
         layers = [
-            nn.Conv2d(in_channels, block_out_channels[0], kernel_size=3, pad_mode="pad", padding=1, has_bias=True),
-            get_activation(act_fn)(),
+            mint.nn.Conv2d(in_channels, block_out_channels[0], kernel_size=3, padding=1),
+            get_activation(act_fn),
         ]
 
         for i, num_block in enumerate(num_blocks):
@@ -861,17 +832,16 @@ class DecoderTiny(nn.Cell):
                 layers.append(AutoencoderTinyBlock(num_channels, num_channels, act_fn))
 
             if not is_final_block:
-                layers.append(DecoderTinyUpsample(scale_factor=upsampling_scaling_factor, mode=upsample_fn))
+                layers.append(mint.nn.Upsample(scale_factor=float(upsampling_scaling_factor), mode=upsample_fn))
 
             conv_out_channel = num_channels if not is_final_block else out_channels
             layers.append(
-                nn.Conv2d(
+                mint.nn.Conv2d(
                     num_channels,
                     conv_out_channel,
                     kernel_size=3,
-                    pad_mode="pad",
                     padding=1,
-                    has_bias=is_final_block,
+                    bias=is_final_block,
                 )
             )
 
@@ -881,33 +851,8 @@ class DecoderTiny(nn.Cell):
     def construct(self, x: ms.Tensor) -> ms.Tensor:
         r"""The forward method of the `DecoderTiny` class."""
         # Clamp.
-        x = ops.tanh(x / 3) * 3
+        x = mint.tanh(x / 3) * 3
         x = self.layers(x)
 
         # scale image from [0, 1] to [-1, 1] to match diffusers convention
         return x.mul(2).sub(1)
-
-
-class DecoderTinyUpsample(nn.Cell):
-    def __init__(self, size=None, scale_factor=None, mode="nearest", align_corners=None, recompute_scale_factor=None):
-        """
-        This class provides an equivalent implementation of the `nn.Upsample`. The native `nn.Upsample` relies on
-        `ops.interpolate`, which encounters limitations when handling the `scale_factor` parameter in forward.
-        Instead this class uses the `size` argument to control output tensor shape.
-        """
-        super().__init__()
-        self.size = size
-        self.scale_factor = scale_factor
-        self.mode = mode
-        self.align_corners = align_corners
-        self.recompute_scale_factor = recompute_scale_factor
-
-    def construct(self, x):
-        if self.size is None:
-            assert self.scale_factor is not None
-            size = (int(x.shape[-2] * self.scale_factor), int(x.shape[-1] * self.scale_factor))
-        else:
-            size = self.size
-
-        out = ops.interpolate(x, size, None, self.mode, self.align_corners, self.recompute_scale_factor)
-        return out

@@ -1,3 +1,5 @@
+"""Adapted from https://github.com/huggingface/transformers/tree/main/src/transformers/integrations/sdpa_attention.py."""
+
 from typing import Optional
 
 import mindspore as ms
@@ -12,7 +14,7 @@ def repeat_kv(hidden_states: ms.Tensor, n_rep: int) -> ms.Tensor:
     batch, num_key_value_heads, slen, head_dim = hidden_states.shape  # BNSD format
     if n_rep == 1:
         return hidden_states
-    hidden_states = hidden_states[:, :, None, :, :].expand(batch, num_key_value_heads, n_rep, slen, head_dim)
+    hidden_states = hidden_states[:, :, None, :, :].expand((batch, num_key_value_heads, n_rep, slen, head_dim))
     return hidden_states.reshape(batch, num_key_value_heads * n_rep, slen, head_dim)
 
 
@@ -31,7 +33,7 @@ def sdpa_attention_forward(
     value_states = repeat_kv(value, module.num_key_value_groups)
 
     attn_weights = mint.matmul(query, key_states.transpose(2, 3)) * scaling
-    if attention_mask is not None:
+    if attention_mask is not None and attention_mask.dim() == 4:
         causal_mask = attention_mask[:, :, :, : key_states.shape[-2]]
         attn_weights = attn_weights + causal_mask
 
