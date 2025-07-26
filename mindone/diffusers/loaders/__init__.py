@@ -63,6 +63,7 @@ _import_structure = {
         "AmusedLoraLoaderMixin",
         "StableDiffusionLoraLoaderMixin",
         "SD3LoraLoaderMixin",
+        "AuraFlowLoraLoaderMixin",
         "StableDiffusionXLLoraLoaderMixin",
         "LTXVideoLoraLoaderMixin",
         "LoraLoaderMixin",
@@ -74,6 +75,7 @@ _import_structure = {
         "SanaLoraLoaderMixin",
         "Lumina2LoraLoaderMixin",
         "WanLoraLoaderMixin",
+        "HiDreamImageLoraLoaderMixin",
     ],
     "peft": ["PeftAdapterMixin"],
     "single_file": ["FromSingleFileMixin"],
@@ -86,9 +88,11 @@ if TYPE_CHECKING:
     from .ip_adapter import FluxIPAdapterMixin, IPAdapterMixin, SD3IPAdapterMixin
     from .lora_pipeline import (
         AmusedLoraLoaderMixin,
+        AuraFlowLoraLoaderMixin,
         CogVideoXLoraLoaderMixin,
         CogView4LoraLoaderMixin,
         FluxLoraLoaderMixin,
+        HiDreamImageLoraLoaderMixin,
         HunyuanVideoLoraLoaderMixin,
         LoraLoaderMixin,
         LTXVideoLoraLoaderMixin,

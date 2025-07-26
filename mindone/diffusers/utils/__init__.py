@@ -16,6 +16,7 @@
 # limitations under the License.
 
 from .constants import (
+    CKPT_FILE_EXTENSION,
     CONFIG_NAME,
     DEPRECATED_REVISION_ARGS,
     DIFFUSERS_DYNAMIC_MODULE_NAME,

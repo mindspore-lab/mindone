@@ -1,4 +1,4 @@
-# Copyright 2024 The HuggingFace Team. All rights reserved.
+# Copyright 2025 The HuggingFace Team. All rights reserved.
 #
 # This code is adapted from https://github.com/huggingface/diffusers
 # with modifications to run diffusers on mindspore.
@@ -31,7 +31,7 @@ logger = logging.get_logger(__name__)  # pylint: disable=invalid-name
 
 class DiTTransformer2DModel(ModelMixin, ConfigMixin):
     r"""
-    A 2D Transformer model as introduced in DiT (https://arxiv.org/abs/2212.09748).
+    A 2D Transformer model as introduced in DiT (https://huggingface.co/papers/2212.09748).
 
     Parameters:
         num_attention_heads (int, optional, defaults to 16): The number of heads to use for multi-head attention.

@@ -1,4 +1,4 @@
-# Copyright 2024 The HuggingFace Team. All rights reserved.
+# Copyright 2025 The HuggingFace Team. All rights reserved.
 #
 # This code is adapted from https://github.com/huggingface/diffusers
 # with modifications to run diffusers on mindspore.
@@ -452,16 +452,13 @@ class FluxIPAdapterMixin:
                 if image_encoder_pretrained_model_name_or_path is not None:
                     if not isinstance(pretrained_model_name_or_path_or_dict, dict):
                         logger.info(f"loading image_encoder from {image_encoder_pretrained_model_name_or_path}")
-                        image_encoder = (
-                            CLIPVisionModelWithProjection.from_pretrained(
-                                image_encoder_pretrained_model_name_or_path,
-                                subfolder=image_encoder_subfolder,
-                                cache_dir=cache_dir,
-                                local_files_only=local_files_only,
-                            )
-                            .to(dtype=image_encoder_dtype)
-                            .set_train(False)
-                        )
+                        image_encoder = CLIPVisionModelWithProjection.from_pretrained(
+                            image_encoder_pretrained_model_name_or_path,
+                            subfolder=image_encoder_subfolder,
+                            cache_dir=cache_dir,
+                            local_files_only=local_files_only,
+                            mindspore_dtype=image_encoder_dtype,
+                        ).set_train(False)
                         self.register_modules(image_encoder=image_encoder)
                     else:
                         raise ValueError(
