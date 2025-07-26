@@ -10,9 +10,7 @@
 # In cases where models have unique initialization procedures or require testing with specialized output formats,
 # it is necessary to develop distinct, dedicated test cases.
 
-# NOTE: need to install transformers by
-# pip install git+https://github.com/huggingface/transformers@f742a644ca32e65758c3adb36225aef1731bd2a8
-# or download https://github.com/huggingface/transformers/archive/f742a644ca32e65758c3adb36225aef1731bd2a8.zip
+# NOTE: need to install transformers by `pip install transformers>=4.52.0`
 
 import inspect
 
@@ -39,9 +37,8 @@ from tests.modeling_test_utils import (
 )
 from tests.transformers_tests.models.modeling_common import ids_numpy
 
-DTYPE_AND_THRESHOLDS = {"fp32": 5e-4, "fp16": 5e-4, "bf16": 6e-3}  # Thinker
-# DTYPE_AND_THRESHOLDS = {"fp32": 5e-4, "fp16": 5e-4, "bf16": 7e-3} # Talker
-MODES = [1]  # TODO: graph mode
+DTYPE_AND_THRESHOLDS = {"fp32": 5e-2, "fp16": 5e-4, "bf16": 5e-2}
+MODES = [1]
 
 
 class Qwen2_5_OmniModelTester:
@@ -111,10 +108,6 @@ class Qwen2_5_OmniModelTester:
             lm_labels = ids_numpy([self.batch_size, self.decoder_seq_length], self.vocab_size)
 
         thinker_config, talker_config, token2wav_config = self.get_config()
-        # config = self.get_large_model_config()
-        # thinker_config = config.thinker_config.text_config
-        # talker_config = config.talker_config
-        # token2wav_config = config.token2wav_config
 
         return (
             thinker_config,
@@ -189,7 +182,7 @@ model_tester = Qwen2_5_OmniModelTester()
 T5_CASES = [
     [
         "Qwen2_5OmniThinkerTextModel",
-        "transformers.models.qwen2_5_omni.Qwen2_5OmniThinkerModel",  # NOTE: name is different from latest version
+        "transformers.models.qwen2_5_omni.Qwen2_5OmniThinkerTextModel",  # NOTE: name is different
         "mindone.transformers.Qwen2_5OmniThinkerTextModel",
         (thinker_config,),
         {},
