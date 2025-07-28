@@ -112,7 +112,7 @@ class Idefics3ModelTester:
             max_position_embeddings=self.max_position_embeddings,
             use_cache=self.use_cache,
             attn_implementation=self.attn_implementation,
-            torch_dtype=self.torch_dtype,  # ??
+            torch_dtype=self.torch_dtype,
         )
         vision_config = Idefics3VisionConfig(
             hidden_size=self.hidden_size,
@@ -123,12 +123,14 @@ class Idefics3ModelTester:
             image_size=64,
             patch_size=32,
             attn_implementation=self.attn_implementation,
+            torch_dtype=self.torch_dtype,
         )
         config = Idefics3Config(
             use_cache=self.use_cache,
             vision_config=vision_config,
             text_config=text_config,
             attn_implementation=self.attn_implementation,
+            torch_dtype=self.torch_dtype,
         )
 
         return config
