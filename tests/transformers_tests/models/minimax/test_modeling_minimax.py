@@ -1,3 +1,7 @@
+"""
+Adapted from https://github.com/huggingface/transformers/blob/a6393e7d28e652c598ced79f0107f1eff370df1b/tests/models/minimax/test_modeling_minimax.py
+"""
+
 # This module contains test cases that are defined in the `.test_cases.py` file, structured as lists or tuples like
 #     [name, pt_module, ms_module, init_args, init_kwargs, inputs_args, inputs_kwargs, outputs_map].
 #
