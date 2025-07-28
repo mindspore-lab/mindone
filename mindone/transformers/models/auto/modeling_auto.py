@@ -92,6 +92,7 @@ MODEL_MAPPING_NAMES = OrderedDict(
         ("swin2sr", "Swin2SRModel"),
         ("t5", "T5Model"),
         ("umt5", "UMT5Model"),
+        ("vilt", "ViltModel"),
         ("wav2vec2", "Wav2Vec2Model"),
         ("whisper", "WhisperModel"),
         ("xlm-roberta", "XLMRobertaModel"),
@@ -243,6 +244,7 @@ MODEL_FOR_VISION_2_SEQ_MAPPING_NAMES = OrderedDict(
         ("paligemma", "PaliGemmaForConditionalGeneration"),
         ("qwen2_5_vl", "Qwen2_5_VLForConditionalGeneration"),
         ("qwen2_vl", "Qwen2VLForConditionalGeneration"),
+        ("vision-encoder-decoder", "VisionEncoderDecoderModel"),
     ]
 )
 
@@ -261,6 +263,7 @@ MODEL_FOR_IMAGE_TEXT_TO_TEXT_MAPPING_NAMES = OrderedDict(
         ("paligemma", "PaliGemmaForConditionalGeneration"),
         ("qwen2_5_vl", "Qwen2_5_VLForConditionalGeneration"),
         ("qwen2_vl", "Qwen2VLForConditionalGeneration"),
+        ("vision-encoder-decoder", "VisionEncoderDecoderModel"),
     ]
 )
 
@@ -390,6 +393,7 @@ MODEL_FOR_TABLE_QUESTION_ANSWERING_MAPPING_NAMES = OrderedDict()
 MODEL_FOR_VISUAL_QUESTION_ANSWERING_MAPPING_NAMES = OrderedDict(
     [
         ("blip", "BlipForQuestionAnswering"),
+        ("vilt", "ViltForQuestionAnswering"),
     ]
 )
 

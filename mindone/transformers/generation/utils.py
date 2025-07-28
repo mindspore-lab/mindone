@@ -1841,6 +1841,7 @@ class GenerationMixin:
             self._supports_dynamic_input
             or self._supports_default_dynamic_cache()
             or self.config._attn_implementation == "paged_attention"
+            or any(class_name in self.__class__.__name__.lower() for class_name in ["visionencoderdecoder"])
         )
 
     def _prepare_legacy_cache(

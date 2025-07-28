@@ -43,7 +43,7 @@ class ImageToTextPipeline(Pipeline):
     ```python
     >>> from mindone.transformers import pipeline
 
-    >>> captioner = pipeline(model="ydshieh/vit-gpt2-coco-en")
+    >>> captioner = pipeline(model="ydshieh/vit-gpt2-coco-en", revision="refs/pr/4")
     >>> captioner("https://huggingface.co/datasets/Narsil/image_dummy/raw/main/parrots.png")
     [{'generated_text': 'two birds are standing next to each other '}]
     ```
