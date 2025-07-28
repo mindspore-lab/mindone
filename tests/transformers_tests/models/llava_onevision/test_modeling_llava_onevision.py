@@ -1,3 +1,4 @@
+"""Adapted from https://github.com/huggingface/transformers/tree/main/tests/models/llava_onevision/test_modeling_llava_onevision.py."""
 import numpy as np
 import pytest
 import torch

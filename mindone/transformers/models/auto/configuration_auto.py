@@ -43,6 +43,7 @@ CONFIG_MAPPING_NAMES = OrderedDict(
         ("bit", "BitConfig"),
         ("blip", "BlipConfig"),
         ("blip-2", "Blip2Config"),
+        ("chameleon", "ChameleonConfig"),
         ("camembert", "CamembertConfig"),
         ("convbert", "ConvBertConfig"),
         ("clip", "CLIPConfig"),

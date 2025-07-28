@@ -283,6 +283,7 @@ MODEL_FOR_IMAGE_TEXT_TO_TEXT_MAPPING_NAMES = OrderedDict(
         ("aria", "AriaForConditionalGeneration"),
         ("blip", "BlipForConditionalGeneration"),
         ("blip-2", "Blip2ForConditionalGeneration"),
+        ("chameleon", "ChameleonForConditionalGeneration"),
         ("gemma3", "Gemma3ForConditionalGeneration"),
         ("chameleon", "ChameleonForConditionalGeneration"),
         ("idefics", "IdeficsForVisionText2Text"),

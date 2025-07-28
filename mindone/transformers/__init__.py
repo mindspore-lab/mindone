@@ -142,8 +142,10 @@ from .models.canine import (
 )
 from .models.chameleon import (
     ChameleonForConditionalGeneration,
+    ChameleonImageProcessor,
     ChameleonModel,
     ChameleonPreTrainedModel,
+    ChameleonProcessor,
     ChameleonVQVAE,
 )
 from .models.clap import (
