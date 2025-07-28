@@ -258,7 +258,7 @@ class LlavaOnevisionForConditionalGeneration(LlavaOnevisionPreTrainedModel, Gene
         super().__init__(config)
         # TODO: remove the config fix once they are fixed.
         config.vision_config._attn_implementation = config._attn_implementation
-        config.vision_config.torch_dtype = getattr(config, "mindspore_dtype", None)
+        config.vision_config.mindspore_dtype = getattr(config, "mindspore_dtype", None)
         self.vision_tower = AutoModel.from_config(config.vision_config)
 
         self.multi_modal_projector = LlavaOnevisionMultiModalProjector(config)
@@ -268,7 +268,7 @@ class LlavaOnevisionForConditionalGeneration(LlavaOnevisionPreTrainedModel, Gene
         self.vocab_size = config.text_config.vocab_size
         # TODO: remove the config fix once they are fixed.
         config.text_config._attn_implementation = config._attn_implementation
-        config.text_config.torch_dtype = getattr(config, "mindspore_dtype", None)
+        config.text_config.mindspore_dtype = getattr(config, "mindspore_dtype", None)
         self.language_model = AutoModelForCausalLM.from_config(config.text_config)
         if self.language_model._tied_weights_keys is not None:
             self._tied_weights_keys = [f"language_model.{k}" for k in self.language_model._tied_weights_keys]
@@ -512,6 +512,53 @@ class LlavaOnevisionForConditionalGeneration(LlavaOnevisionPreTrainedModel, Gene
         logits_to_keep: Union[int, ms.Tensor] = 0,
         **lm_kwargs,
     ) -> Union[Tuple, LlavaOnevisionCausalLMOutputWithPast]:
+        r"""
+            labels (`mindspore.Tensor` of shape `(batch_size, sequence_length)`, *optional*):
+                Labels for computing the masked language modeling loss. Indices should either be in `[0, ...,
+                config.vocab_size]` or -100 (see `input_ids` docstring). Tokens with indices set to `-100` are ignored
+                (masked), the loss is only computed for the tokens with labels in `[0, ..., config.vocab_size]`.
+
+            logits_to_keep (`int` or `mindspore.Tensor`, *optional*):
+                If an `int`, compute logits for the last `logits_to_keep` tokens. If `0`, calculate logits for all
+                `input_ids` (special case). Only last token logits are needed for generation, and calculating them only for that
+                token can save memory, which becomes pretty significant for long sequences or large vocabulary size.
+                If a `mindspore.Tensor`, must be 1D corresponding to the indices to keep in the sequence length dimension.
+                This is useful when using packed tensor format (single dimension for batch and sequence length).
+
+
+        Returns:
+            [`~LlavaOnevisionCausalLMOutputWithPast`] (if `return_dict=True`) or a `tuple`.
+
+        Example:
+
+        ```python
+        >>> from PIL import Image
+        >>> import requests
+        >>> import mindspore as ms
+        >>> from mindone.transformers import LlavaOnevisionProcessor, LlavaOnevisionForConditionalGeneration
+
+        >>> model = LlavaOnevisionForConditionalGeneration.from_pretrained("llava-hf/llava-onevision-qwen2-7b-ov-hf", mindspore_dtype=ms.float16)
+        >>> processor = LlavaOnevisionProcessor.from_pretrained("llava-hf/llava-onevision-qwen2-7b-ov-hf")
+
+        >>> conversation = [
+        ...     {
+        ...       "role": "user",
+        ...       "content": [
+        ...           {"type": "text", "text": "What is shown in this image?"},
+        ...           {"type": "image"},
+        ...         ],
+        ...     },
+        ... ]
+        >>> prompt = processor.apply_chat_template(conversation, add_generation_prompt=True)
+
+        >>> image_file = "http://images.cocodataset.org/val2017/000000039769.jpg"
+        >>> raw_image = Image.open(requests.get(image_file, stream=True).raw)
+        >>> inputs = processor(text=prompt, images=raw_image, return_tensors='ms').to(ms.float16)
+
+        >>> output = model.generate(**inputs, max_new_tokens=20, do_sample=False)
+        >>> processor.batch_decode(output, skip_special_tokens=True)[0]
+        "user\n\nWhat is shown in this image?\nassistant\ncat"
+        ```"""
         output_attentions = output_attentions if output_attentions is not None else self.config.output_attentions
         output_hidden_states = (
             output_hidden_states if output_hidden_states is not None else self.config.output_hidden_states
@@ -654,6 +701,10 @@ class LlavaOnevisionForConditionalGeneration(LlavaOnevisionPreTrainedModel, Gene
         logits_to_keep=None,
         **kwargs,
     ):
+        # TODO: remove this once it is fixed in pipeline.
+        if logits_to_keep is None:
+            logits_to_keep = 1
+
         # Overwritten -- in specific circumstances we don't want to construct image inputs to the model
 
         model_inputs = self.language_model.prepare_inputs_for_generation(

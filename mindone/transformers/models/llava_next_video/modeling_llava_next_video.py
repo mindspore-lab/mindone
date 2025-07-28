@@ -124,7 +124,7 @@ class LlavaNextVideoPreTrainedModel(PreTrainedModel):
     supports_gradient_checkpointing = True
     _no_split_modules = ["LlavaNextVideoVisionAttention"]
     _skip_keys_device_placement = "past_key_values"
-    _supports_cache_class = False  # FIXME: since llama does not support cache_class, so it is false
+    _supports_cache_class = True
     _supports_flash_attn_2 = True
     _supports_sdpa = False
     _supports_quantized_cache = False
@@ -288,6 +288,9 @@ class LlavaNextVideoForConditionalGeneration(LlavaNextVideoPreTrainedModel, Gene
         config: LlavaNextVideoConfig,
     ):
         super().__init__(config)
+        # TODO: remove the config fix once they are fixed.
+        config.vision_config._attn_implementation = config._attn_implementation
+        config.vision_config.mindspore_dtype = getattr(config, "mindspore_dtype", None)
         self.vision_tower = AutoModel.from_config(config.vision_config)
 
         self.multi_modal_projector = LlavaNextVideoMultiModalProjector(config)
@@ -297,7 +300,7 @@ class LlavaNextVideoForConditionalGeneration(LlavaNextVideoPreTrainedModel, Gene
         self.vocab_size = config.text_config.vocab_size
         # TODO: remove the config fix once they are fixed.
         config.text_config._attn_implementation = config._attn_implementation
-        config.text_config.torch_dtype = getattr(config, "mindspore_dtype", None)
+        config.text_config.mindspore_dtype = getattr(config, "mindspore_dtype", None)
         self.language_model = AutoModelForCausalLM.from_config(config.text_config)
         if self.language_model._tied_weights_keys is not None:
             self._tied_weights_keys = [f"language_model.{k}" for k in self.language_model._tied_weights_keys]
@@ -482,6 +485,81 @@ class LlavaNextVideoForConditionalGeneration(LlavaNextVideoPreTrainedModel, Gene
         logits_to_keep: Union[int, ms.Tensor] = 0,
         **lm_kwargs,
     ) -> Union[Tuple, LlavaNextVideoCausalLMOutputWithPast]:
+        r"""
+            pixel_values_videos (`mindspore.Tensor` of shape `(batch_size, num_frames, num_channels, image_size, image_size)):
+                The tensors corresponding to the input videos. Pixel values can be obtained using
+                [`AutoImageProcessor`]. See [`LlavaNextVideoVideoProcessor.__call__`] for details. [`LlavaProcessor`] uses
+                [`LlavaNextVideoVideoProcessor`] for processing videos.
+            labels (`mindspore.Tensor` of shape `(batch_size, sequence_length)`, *optional*):
+                Labels for computing the masked language modeling loss. Indices should either be in `[0, ...,
+                config.vocab_size]` or -100 (see `input_ids` docstring). Tokens with indices set to `-100` are ignored
+                (masked), the loss is only computed for the tokens with labels in `[0, ..., config.vocab_size]`.
+            logits_to_keep (`int` or `mindspore.Tensor`, *optional*):
+                If an `int`, compute logits for the last `logits_to_keep` tokens. If `0`, calculate logits for all
+                `input_ids` (special case). Only last token logits are needed for generation, and calculating them only for that
+                token can save memory, which becomes pretty significant for long sequences or large vocabulary size.
+                If a `mindspore.Tensor`, must be 1D corresponding to the indices to keep in the sequence length dimension.
+                This is useful when using packed tensor format (single dimension for batch and sequence length).
+
+        Returns:
+
+        Example:
+
+        ```python
+        >>> from PIL import Image
+        >>> import requests
+        >>> import av
+        >>> from mindone.transformers import AutoProcessor, LlavaNextVideoForConditionalGeneration
+
+        >>> def read_video_pyav(container, indices):
+        ...     '''
+        ...     Decode the video with PyAV decoder.
+        ...     Args:
+        ...         container (`av.container.input.InputContainer`): PyAV container.
+        ...         indices (`List[int]`): List of frame indices to decode.
+        ...     Returns:
+        ...         result (np.ndarray): np array of decoded frames of shape (num_frames, height, width, 3).
+        ...     '''
+        ...     frames = []
+        ...     container.seek(0)
+        ...     start_index = indices[0]
+        ...     end_index = indices[-1]
+        ...     for i, frame in enumerate(container.decode(video=0)):
+        ...         if i > end_index:
+        ...             break
+        ...         if i >= start_index and i in indices:
+        ...             frames.append(frame)
+        ...     return np.stack([x.to_ndarray(format="rgb24") for x in frames])
+
+        >>> model = LlavaNextVideoForConditionalGeneration.from_pretrained("llava-hf/LLaVA-NeXT-Video-7B-hf")
+        >>> processor = AutoProcessor.from_pretrained("llava-hf/LLaVA-NeXT-Video-7B-hf")
+
+        >>> prompt = "USER: <video>\nWhy is this video funny? ASSISTANT:"
+        >>> video_path = hf_hub_download(repo_id="raushan-testing-hf/videos-test", filename="sample_demo_1.mp4", repo_type="dataset")
+        >>> container = av.open(video_path)
+
+        >>> # sample uniformly 8 frames from the video (model was trained with 32 frames per video, but this video is short)
+        >>> total_frames = container.streams.video[0].frames
+        >>> indices = np.arange(0, total_frames, total_frames / 8).astype(int)
+        >>> clip = read_video_pyav(container, indices)
+        >>> inputs_video = processor(text=prompt, videos=clip, return_tensors="ms")
+
+        >>> # load an image to generate from an image
+        >>> prompt = "USER:<image>\nWhat is shown in this image? ASSISTANT:"
+        >>> url = "https://www.ilankelman.org/stopsigns/australia.jpg"
+        >>> image = Image.open(requests.get(url, stream=True).raw)
+        >>> inputs_image = processor(text=prompt, images=image, return_tensors="ms")
+
+        >>> # Generate from video
+        >>> generate_ids = model.generate(**inputs_video, max_new_tokens=50)
+        >>> processor.batch_decode(generate_ids, skip_special_tokens=True, clean_up_tokenization_spaces=False)[0]
+        "USER:\nWhy is this video funny? ASSISTANT: The humor in this video comes from the unexpected and endearing sight of a baby wearing glasses and (...)"
+
+        >>> # Generate from image
+        >>> generate_ids = model.generate(**inputs_image, max_new_tokens=30)
+        >>> processor.batch_decode(generate_ids, skip_special_tokens=True, clean_up_tokenization_spaces=False)[0]
+        "USER: \nWhat's the content of the image? ASSISTANT: The image shows a red stop sign on a pole, with a traditional Chinese archway (...)"
+        ```"""
         output_attentions = output_attentions if output_attentions is not None else self.config.output_attentions
         output_hidden_states = (
             output_hidden_states if output_hidden_states is not None else self.config.output_hidden_states
@@ -571,7 +649,7 @@ class LlavaNextVideoForConditionalGeneration(LlavaNextVideoPreTrainedModel, Gene
             output_hidden_states=output_hidden_states,
             return_dict=return_dict,
             cache_position=cache_position,
-            # logits_to_keep=logits_to_keep,  # FIXME: add logits_to_keep in llama
+            logits_to_keep=logits_to_keep,
             **lm_kwargs,
         )
 
@@ -620,6 +698,9 @@ class LlavaNextVideoForConditionalGeneration(LlavaNextVideoPreTrainedModel, Gene
         logits_to_keep=None,
         **kwargs,
     ):
+        # TODO: remove this once it is fixed in pipeline.
+        if logits_to_keep is None:
+            logits_to_keep = 1
         # Overwritten -- extra custom processing
 
         model_inputs = self.language_model.prepare_inputs_for_generation(

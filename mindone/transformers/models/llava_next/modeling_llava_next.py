@@ -23,7 +23,7 @@ from transformers import LlavaNextConfig
 
 import mindspore as ms
 import mindspore.mint as mint
-from mindspore import nn
+import mindspore.nn as nn
 
 from mindone.models.utils import normal_, zeros_
 
@@ -249,6 +249,9 @@ class LlavaNextPreTrainedModel(PreTrainedModel):
 class LlavaNextForConditionalGeneration(LlavaNextPreTrainedModel, GenerationMixin):
     def __init__(self, config: LlavaNextConfig):
         super().__init__(config)
+        # TODO: remove the config fix once they are fixed.
+        config.vision_config._attn_implementation = config._attn_implementation
+        config.vision_config.mindspore_dtype = getattr(config, "mindspore_dtype", None)
         self.vision_tower = AutoModel.from_config(config.vision_config)
 
         self.multi_modal_projector = LlavaNextMultiModalProjector(config)
@@ -258,7 +261,7 @@ class LlavaNextForConditionalGeneration(LlavaNextPreTrainedModel, GenerationMixi
         self.vocab_size = config.text_config.vocab_size
         # TODO: remove the config fix once they are fixed.
         config.text_config._attn_implementation = config._attn_implementation
-        config.text_config.torch_dtype = getattr(config, "mindspore_dtype", None)
+        config.text_config.mindspore_dtype = getattr(config, "mindspore_dtype", None)
         self.language_model = AutoModelForCausalLM.from_config(config.text_config)
         if self.language_model._tied_weights_keys is not None:
             self._tied_weights_keys = [f"language_model.{k}" for k in self.language_model._tied_weights_keys]
@@ -468,7 +471,7 @@ class LlavaNextForConditionalGeneration(LlavaNextPreTrainedModel, GenerationMixi
         ```python
         >>> from PIL import Image
         >>> import requests
-        >>> from transformers import AutoProcessor, LlavaNextForConditionalGeneration
+        >>> from mindone.transformers import AutoProcessor, LlavaNextForConditionalGeneration
 
         >>> model = LlavaNextForConditionalGeneration.from_pretrained("llava-hf/llava-v1.6-mistral-7b-hf")
         >>> processor = AutoProcessor.from_pretrained("llava-hf/llava-v1.6-mistral-7b-hf")
@@ -477,10 +480,10 @@ class LlavaNextForConditionalGeneration(LlavaNextPreTrainedModel, GenerationMixi
         >>> url = "https://www.ilankelman.org/stopsigns/australia.jpg"
         >>> image = Image.open(requests.get(url, stream=True).raw)
 
-        >>> inputs = processor(images=image, text=prompt, return_tensors="pt")
+        >>> inputs = processor(images=image, text=prompt, return_tensors="ms")
 
         >>> # Generate
-        >>> generate_ids = model.generate(**inputs, max_length=30)
+        >>> generate_ids = model.generate(**inputs, max_new_tokens=30)
         >>> processor.batch_decode(generate_ids, skip_special_tokens=True, clean_up_tokenization_spaces=False)[0]
         "[INST]  \nWhat is shown in this image? [/INST] The image appears to be a radar chart, which is a type of multi-dimensional plot (...)"
         ```"""
@@ -550,7 +553,7 @@ class LlavaNextForConditionalGeneration(LlavaNextPreTrainedModel, GenerationMixi
             output_hidden_states=output_hidden_states,
             return_dict=return_dict,
             cache_position=cache_position,
-            # logits_to_keep=logits_to_keep,  # TODO: add back once llama is updated to >=4.50.0
+            logits_to_keep=logits_to_keep,
             **lm_kwargs,
         )
 
@@ -597,6 +600,10 @@ class LlavaNextForConditionalGeneration(LlavaNextPreTrainedModel, GenerationMixi
         logits_to_keep=None,
         **kwargs,
     ):
+        # TODO: remove this once it is fixed in pipeline.
+        if logits_to_keep is None:
+            logits_to_keep = 1
+
         # Overwritten -- in specific circumstances we don't want to construct image inputs to the model
 
         model_inputs = self.language_model.prepare_inputs_for_generation(
