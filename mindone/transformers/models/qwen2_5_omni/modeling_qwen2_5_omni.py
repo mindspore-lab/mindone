@@ -23,7 +23,9 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import json
 import math
+import zipfile
 from dataclasses import dataclass
 from typing import Any, Dict, List, Optional, Tuple, Union
 
@@ -4295,8 +4297,8 @@ class Qwen2_5OmniForConditionalGeneration(Qwen2_5OmniPreTrainedModel, Generation
         self.has_talker = True
 
     def load_speakers(self, path):
-        np_dict = np.load(path, allow_pickle=True).item()
-        for key, value in np_dict.items():
+        data_dict = _load_from_zip_file(path)
+        for key, value in data_dict.items():
             if isinstance(value, dict):
                 value_ms_dict = {}
                 for k, v in value.items():
@@ -4306,7 +4308,7 @@ class Qwen2_5OmniForConditionalGeneration(Qwen2_5OmniPreTrainedModel, Generation
                         value_ms_dict[k] = v
                 self.speaker_map[key] = value_ms_dict
             else:
-                if isinstance(v, np.ndarray):
+                if isinstance(value, np.ndarray):
                     self.speaker_map[key] = ms.tensor(value)
                 else:
                     self.speaker_map[key] = value
@@ -4351,7 +4353,7 @@ class Qwen2_5OmniForConditionalGeneration(Qwen2_5OmniPreTrainedModel, Generation
         )
         spk_path = cached_file(
             pretrained_model_name_or_path,
-            "spk_dict.npy",
+            "spk_dict.zip",
             subfolder=kwargs.pop("subfolder", None),
             cache_dir=kwargs.pop("cache_dir", None),
             force_download=kwargs.pop("force_download", False),
@@ -4552,6 +4554,33 @@ class Qwen2_5OmniForConditionalGeneration(Qwen2_5OmniPreTrainedModel, Generation
         )
 
         return thinker_result.sequences, wav.float()
+
+
+def _load_from_zip_file(filepath: str) -> dict:
+    result = {}
+    with zipfile.ZipFile(filepath, "r") as zf:
+        # load numpy data
+        if "arrays.npz" in zf.namelist():
+            with zf.open("arrays.npz") as f:
+                npz_data = np.load(f)
+                for key in npz_data.files:
+                    *path, final_key = key.split("/")
+                    current = result
+                    for p in path:
+                        current = current.setdefault(p, {})
+                    current[final_key] = npz_data[key]
+
+        # load json data
+        if "meta.json" in zf.namelist():
+            with zf.open("meta.json") as f:
+                json_data = json.load(f)
+                for key, value in json_data.items():
+                    *path, final_key = key.split("/")
+                    current = result
+                    for p in path:
+                        current = current.setdefault(p, {})
+                    current[final_key] = value
+    return result
 
 
 __all__ = [

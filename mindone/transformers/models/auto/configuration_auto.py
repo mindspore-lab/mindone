@@ -36,9 +36,12 @@ CONFIG_MAPPING_NAMES = OrderedDict(
     [
         # Add configs here
         ("albert", "AlbertConfig"),
+        ("aria", "AriaConfig"),
+        ("aria_text", "AriaTextConfig"),
         ("bert", "BertConfig"),
         ("bart", "BartConfig"),
         ("bit", "BitConfig"),
+        ("blip", "BlipConfig"),
         ("blip-2", "Blip2Config"),
         ("clip", "CLIPConfig"),
         ("clip_vision_model", "CLIPVisionConfig"),
@@ -55,19 +58,28 @@ CONFIG_MAPPING_NAMES = OrderedDict(
         ("gpt2", "GPT2Config"),
         ("granitemoe", "GraniteMoeConfig"),
         ("granitemoeshared", "GraniteMoeSharedConfig"),
+        ("helium", "HeliumConfig"),
         ("hiera", "HieraConfig"),
+        ("camembert", "CamembertConfig"),
+        ("convbert", "ConvBertConfig"),
         ("idefics", "IdeficsConfig"),
         ("idefics2", "Idefics2Config"),
         ("idefics3", "Idefics3Config"),
         ("idefics3_vision", "Idefics3VisionConfig"),
         ("ijepa", "IJepaConfig"),
         ("imagegpt", "ImageGPTConfig"),
+        ("led", "LEDConfig"),
         ("levit", "LevitConfig"),
+        ("m2m_100", "M2M100Config"),
+        ("canine", "CanineConfig"),
         ("llama", "LlamaConfig"),
         ("persimmon", "PersimmonConfig"),
         ("fuyu", "FuyuConfig"),
         ("llava", "LlavaConfig"),
+        ("mistral", "MistralConfig"),
         ("mobilebert", "MobileBertConfig"),
+        ("mpt", "MptConfig"),
+        ("starcoder2", "Starcoder2Config"),
         ("mt5", "MT5Config"),
         ("megatron-bert", "MegatronBertConfig"),
         ("mixtral", "MixtralConfig"),
@@ -79,6 +91,7 @@ CONFIG_MAPPING_NAMES = OrderedDict(
         ("qwen2_audio", "Qwen2AudioConfig"),
         ("qwen2_audio_encoder", "Qwen2AudioEncoderConfig"),
         ("qwen2_vl", "Qwen2VLConfig"),
+        ("opt", "OPTConfig"),
         ("roberta", "RobertaConfig"),
         ("recurrent_gemma", "RecurrentGemmaConfig"),
         ("rembert", "RemBertConfig"),
@@ -88,9 +101,11 @@ CONFIG_MAPPING_NAMES = OrderedDict(
         ("t5", "T5Config"),
         ("umt5", "UMT5Config"),
         ("wav2vec2", "Wav2Vec2Config"),
+        ("mvp", "MvpConfig"),
         ("whisper", "WhisperConfig"),
         ("xlm-roberta", "XLMRobertaConfig"),
         ("xlm-roberta-xl", "XLMRobertaXLConfig"),
+        ("cohere2", "Cohere2Config"),
     ]
 )
 
@@ -99,13 +114,21 @@ MODEL_NAMES_MAPPING = OrderedDict(
     [
         # Add full (and cased) model names here
         ("albert", "ALBERT"),
+        ("aria", "Aria"),
+        ("aria_text", "AriaText"),
+        ("m2m_100", "M2M100"),
         ("bert", "BERT"),
         ("bart", "BART"),
+        ("camembert", "CamemBERT"),
         ("bit", "BiT"),
+        ("blip", "BLIP"),
+        ("mvp", "MVP"),
         ("blip-2", "BLIP-2"),
         ("chameleon", "Chameleon"),
         ("clap", "CLAP"),
+        ("canine", "CANINE"),
         ("clip", "CLIP"),
+        ("starcoder2", "Starcoder2"),
         ("clip_vision_model", "CLIPVisionModel"),
         ("deberta", "DeBERTa"),
         ("deberta-v2", "DeBERTa-v2"),
@@ -125,6 +148,7 @@ MODEL_NAMES_MAPPING = OrderedDict(
         ("gemma3_text", "Gemma3ForCausalLM"),
         ("qwen2_audio", "Qwen2Audio"),
         ("qwen2_audio_encoder", "Qwen2AudioEncoder"),
+        ("helium", "Helium"),
         ("hiera", "Hiera"),
         ("idefics", "IDEFICS"),
         ("idefics2", "Idefics2"),
@@ -132,6 +156,7 @@ MODEL_NAMES_MAPPING = OrderedDict(
         ("idefics3_vision", "Idefics3VisionTransformer"),
         ("ijepa", "I-JEPA"),
         ("imagegpt", "ImageGPT"),
+        ("led", "LED"),
         ("levit", "LeViT"),
         ("llama", "LLaMA"),
         ("llama2", "Llama2"),
@@ -140,8 +165,10 @@ MODEL_NAMES_MAPPING = OrderedDict(
         ("persimmon", "Persimmon"),
         ("fuyu", "Fuyu"),
         ("mobilebert", "MobileBERT"),
+        ("mpt", "MPT"),
         ("mt5", "MT5"),
         ("megatron-bert", "Megatron-BERT"),
+        ("mistral", "Mistral"),
         ("mixtral", "Mixtral"),
         ("paligemma", "PaliGemma"),
         ("phi", "Phi"),
@@ -161,8 +188,11 @@ MODEL_NAMES_MAPPING = OrderedDict(
         ("umt5", "UMT5"),
         ("wav2vec2", "Wav2Vec2"),
         ("whisper", "Whisper"),
+        ("convbert", "ConvBERT"),
+        ("opt", "OPT"),
         ("xlm-roberta", "XLM-RoBERTa"),
         ("xlm-roberta-xl", "XLM-RoBERTa-XL"),
+        ("cohere2", "Cohere2"),
     ]
 )
 
@@ -210,6 +240,7 @@ SPECIAL_MODEL_TYPE_TO_MODULE_NAME = OrderedDict(
         ("gemma3_text", "gemma3"),
         ("idefics3_vision", "idefics3"),
         ("clip_text_model", "clip"),
+        ("aria_text", "aria"),
         ("siglip_vision_model", "siglip"),
         ("chinese_clip_vision_model", "chinese_clip"),
         ("rt_detr_resnet", "rt_detr"),
@@ -219,6 +250,14 @@ SPECIAL_MODEL_TYPE_TO_MODULE_NAME = OrderedDict(
 if version.parse(transformers.__version__) >= version.parse("4.51.0"):
     CONFIG_MAPPING_NAMES.update({"qwen3": "Qwen3Config"})
     MODEL_NAMES_MAPPING.update({"qwen3": "Qwen3Model"})
+
+if version.parse(transformers.__version__) >= version.parse("4.51.3"):
+    CONFIG_MAPPING_NAMES.update({"glm4": "Glm4Config"})
+    MODEL_NAMES_MAPPING.update({"glm4": "glm4"})
+
+if version.parse(transformers.__version__) >= version.parse("4.53.0"):
+    CONFIG_MAPPING_NAMES.update({"vjepa2": "VJEPA2Model"})
+    MODEL_NAMES_MAPPING.update({"vjepa2": "VJEPA2Model"})
 
 
 def model_type_to_module_name(key):

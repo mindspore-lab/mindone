@@ -19,15 +19,20 @@ from packaging import version
 
 from . import (
     albert,
+    aria,
     auto,
     bart,
     bert,
     big_bird,
     bigbird_pegasus,
     bit,
+    blip,
     blip_2,
+    camembert,
+    canine,
     clap,
     clip,
+    convbert,
     dpt,
     fuyu,
     gemma,
@@ -46,10 +51,15 @@ from . import (
     levit,
     llama,
     llava,
+    m2m_100,
     megatron_bert,
     minicpm4,
+    mistral,
     mixtral,
     mobilebert,
+    mpt,
+    mvp,
+    opt,
     paligemma,
     persimmon,
     phi,
@@ -62,6 +72,7 @@ from . import (
     roberta,
     siglip,
     speecht5,
+    starcoder2,
     switch_transformers,
     t5,
     umt5,
@@ -73,5 +84,8 @@ from . import (
 if version.parse(transformers.__version__) >= version.parse("4.51.0"):
     from . import qwen3
 
+if version.parse(transformers.__version__) >= version.parse("4.51.3"):
+    from . import glm4
+
 if version.parse(transformers.__version__) >= version.parse("4.53.0"):
-    from . import glm4v
+    from . import glm4v, vjepa2

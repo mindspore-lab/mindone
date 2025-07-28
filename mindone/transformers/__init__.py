@@ -41,6 +41,13 @@ from .models.albert import (
     AlbertModel,
     AlbertPreTrainedModel,
 )
+from .models.aria import (
+    AriaForConditionalGeneration,
+    AriaPreTrainedModel,
+    AriaTextForCausalLM,
+    AriaTextModel,
+    AriaTextPreTrainedModel,
+)
 from .models.auto import (
     AutoConfig,
     AutoFeatureExtractor,
@@ -94,12 +101,43 @@ from .models.bigbird_pegasus import (
     BigBirdPegasusPreTrainedModel,
 )
 from .models.bit import BitBackbone
+from .models.blip import (
+    BlipForConditionalGeneration,
+    BlipForImageTextRetrieval,
+    BlipForQuestionAnswering,
+    BlipImageProcessor,
+    BlipImageProcessorFast,
+    BlipModel,
+    BlipPreTrainedModel,
+    BlipProcessor,
+    BlipTextModel,
+    BlipVisionModel,
+)
 from .models.blip_2 import (
     Blip2ForConditionalGeneration,
     Blip2Model,
     Blip2PreTrainedModel,
     Blip2QFormerModel,
     Blip2VisionModel,
+)
+from .models.camembert import (
+    CamembertForCausalLM,
+    CamembertForMaskedLM,
+    CamembertForMultipleChoice,
+    CamembertForQuestionAnswering,
+    CamembertForSequenceClassification,
+    CamembertForTokenClassification,
+    CamembertModel,
+    CamembertPreTrainedModel,
+)
+from .models.canine import (
+    CanineForMultipleChoice,
+    CanineForQuestionAnswering,
+    CanineForSequenceClassification,
+    CanineForTokenClassification,
+    CanineLayer,
+    CanineModel,
+    CaninePreTrainedModel,
 )
 from .models.chameleon import (
     ChameleonForConditionalGeneration,
@@ -126,6 +164,15 @@ from .models.clip import (
     CLIPVisionModelWithProjection,
 )
 from .models.cohere2 import Cohere2ForCausalLM, Cohere2Model, Cohere2PreTrainedModel
+from .models.convbert import (
+    ConvBertForMaskedLM,
+    ConvBertForMultipleChoice,
+    ConvBertForQuestionAnswering,
+    ConvBertForSequenceClassification,
+    ConvBertForTokenClassification,
+    ConvBertLayer,
+    ConvBertModel,
+)
 from .models.deberta import (
     DebertaForMaskedLM,
     DebertaForQuestionAnswering,
@@ -186,6 +233,13 @@ from .models.gpt2 import (
 from .models.granite import GraniteForCausalLM, GraniteModel, GranitePreTrainedModel
 from .models.granitemoe import GraniteMoeForCausalLM, GraniteMoeModel, GraniteMoePreTrainedModel
 from .models.granitemoeshared import GraniteMoeSharedForCausalLM, GraniteMoeSharedModel, GraniteMoeSharedPreTrainedModel
+from .models.helium import (
+    HeliumForCausalLM,
+    HeliumForSequenceClassification,
+    HeliumForTokenClassification,
+    HeliumModel,
+    HeliumPreTrainedModel,
+)
 from .models.hiera import (
     HieraBackbone,
     HieraForImageClassification,
@@ -208,6 +262,13 @@ from .models.imagegpt import (
     ImageGPTModel,
     ImageGPTPreTrainedModel,
 )
+from .models.led import (
+    LEDForConditionalGeneration,
+    LEDForQuestionAnswering,
+    LEDForSequenceClassification,
+    LEDModel,
+    LEDPreTrainedModel,
+)
 from .models.levit import (
     LevitFeatureExtractor,
     LevitForImageClassification,
@@ -217,6 +278,7 @@ from .models.levit import (
 )
 from .models.llama import LlamaForCausalLM, LlamaForSequenceClassification, LlamaModel, LlamaPreTrainedModel
 from .models.llava import LlavaConfig, LlavaForConditionalGeneration
+from .models.m2m_100 import M2M100ForConditionalGeneration, M2M100Model, M2M100PreTrainedModel
 from .models.megatron_bert import (
     MegatronBertForCausalLM,
     MegatronBertForMaskedLM,
@@ -230,6 +292,14 @@ from .models.megatron_bert import (
     MegatronBertPreTrainedModel,
 )
 from .models.minicpm4 import MiniCPMForCausalLM, MiniCPMForSequenceClassification, MiniCPMModel
+from .models.mistral import (
+    MistralForCausalLM,
+    MistralForQuestionAnswering,
+    MistralForSequenceClassification,
+    MistralForTokenClassification,
+    MistralModel,
+    MistralPreTrainedModel,
+)
 from .models.mixtral import (
     MixtralForCausalLM,
     MixtralForQuestionAnswering,
@@ -250,12 +320,35 @@ from .models.mobilebert import (
     MobileBertModel,
     MobileBertPreTrainedModel,
 )
+from .models.mpt import (
+    MptForCausalLM,
+    MptForQuestionAnswering,
+    MptForSequenceClassification,
+    MptForTokenClassification,
+    MptModel,
+    MptPreTrainedModel,
+)
 from .models.mt5 import (
     MT5_PRETRAINED_MODEL_ARCHIVE_LIST,
     MT5EncoderModel,
     MT5ForConditionalGeneration,
     MT5Model,
     MT5PreTrainedModel,
+)
+from .models.mvp import (
+    MvpForCausalLM,
+    MvpForConditionalGeneration,
+    MvpForQuestionAnswering,
+    MvpForSequenceClassification,
+    MvpModel,
+    MvpPreTrainedModel,
+)
+from .models.opt import (
+    OPTForCausalLM,
+    OPTForQuestionAnswering,
+    OPTForSequenceClassification,
+    OPTModel,
+    OPTPreTrainedModel,
 )
 from .models.paligemma import PaliGemmaForConditionalGeneration, PaliGemmaPreTrainedModel
 from .models.persimmon import (
@@ -332,6 +425,13 @@ from .models.speecht5 import (
     SpeechT5Model,
     SpeechT5PreTrainedModel,
 )
+from .models.starcoder2 import (
+    Starcoder2ForCausalLM,
+    Starcoder2ForSequenceClassification,
+    Starcoder2ForTokenClassification,
+    Starcoder2Model,
+    Starcoder2PreTrainedModel,
+)
 from .models.switch_transformers import (
     SwitchTransformersEncoderModel,
     SwitchTransformersForConditionalGeneration,
@@ -393,6 +493,15 @@ from .processing_utils import ProcessorMixin
 if version.parse(transformers.__version__) >= version.parse("4.51.0"):
     from .models.qwen3 import Qwen3ForCausalLM, Qwen3Model, Qwen3PreTrainedModel
 
+if version.parse(transformers.__version__) >= version.parse("4.51.3"):
+    from .models.glm4 import (
+        Glm4ForCausalLM,
+        Glm4ForSequenceClassification,
+        Glm4ForTokenClassification,
+        Glm4Model,
+        Glm4PreTrainedModel,
+    )
+
 if version.parse(transformers.__version__) >= version.parse("4.53.0"):
     from .models.glm4v import (
         Glm4vForConditionalGeneration,
@@ -401,3 +510,4 @@ if version.parse(transformers.__version__) >= version.parse("4.53.0"):
         Glm4vTextModel,
         Glm4vVisionModel,
     )
+    from .models.vjepa2 import VJEPA2ForVideoClassification, VJEPA2Model, VJEPA2PreTrainedModel
