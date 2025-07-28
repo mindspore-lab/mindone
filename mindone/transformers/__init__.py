@@ -56,6 +56,7 @@ from .models.auto import (
     AutoModelForCausalLM,
     AutoModelForImageTextToText,
     AutoModelForMaskedLM,
+    AutoModelForVision2Seq,
     AutoProcessor,
 )
 from .models.bart import (
@@ -251,6 +252,14 @@ from .models.hiera import (
     HieraPreTrainedModel,
 )
 from .models.hubert import HubertForCTC, HubertForSequenceClassification, HubertModel, HubertPreTrainedModel
+from .models.idefics import (
+    IdeficsForVisionText2Text,
+    IdeficsImageProcessor,
+    IdeficsModel,
+    IdeficsPreTrainedModel,
+    IdeficsProcessor,
+)
+from .models.idefics2 import Idefics2ForConditionalGeneration, Idefics2Model, Idefics2PreTrainedModel
 from .models.idefics3 import (
     Idefics3ForConditionalGeneration,
     Idefics3Model,

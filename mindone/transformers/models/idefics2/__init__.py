@@ -1,4 +1,4 @@
-# Copyright 2020 The HuggingFace Team. All rights reserved.
+# Copyright 2024 The HuggingFace Team. All rights reserved.
 #
 # This code is adapted from https://github.com/huggingface/transformers
 # with modifications to run transformers on mindspore.
@@ -14,14 +14,4 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-from .configuration_auto import AutoConfig
-from .feature_extraction_auto import AutoFeatureExtractor
-from .image_processing_auto import AutoImageProcessor
-from .modeling_auto import (
-    AutoModel,
-    AutoModelForCausalLM,
-    AutoModelForImageTextToText,
-    AutoModelForMaskedLM,
-    AutoModelForVision2Seq,
-)
-from .processing_auto import AutoProcessor
+from .modeling_idefics2 import Idefics2ForConditionalGeneration, Idefics2Model, Idefics2PreTrainedModel
