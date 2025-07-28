@@ -1,3 +1,4 @@
+"""Adapted from https://github.com/huggingface/transformers/tree/main/tests/models/llava_next_video/test_modeling_llava_next_video.py."""
 import numpy as np
 import pytest
 import torch
