@@ -372,9 +372,10 @@ class ModuleUtilsMixin:
         return self.__class__.__name__
 
     def to(self, dtype: Optional[ms.Type] = None):
-        for _, b in self.named_buffers():
-            if b.is_floating_point():
-                b.set_dtype(dtype)
+        # FIXME: In ms 2.6.0 `tensor.set_dtype()` encountered a bug that it occurs wrong values.
+        # Resume to use self.register_buffer() in network and set dtype for buffer tensors after ms2.7.0 launched.
+        # Now we use `Parameter` and `Parameter.set_dtype()` instead.
+
         for p in self.get_parameters():
             p.set_dtype(dtype)
         return self

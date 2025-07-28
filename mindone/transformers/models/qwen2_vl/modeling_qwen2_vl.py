@@ -119,7 +119,10 @@ class Qwen2VLRotaryEmbedding(nn.Cell):
         self.rope_init_fn = ROPE_INIT_FUNCTIONS[self.rope_type]
 
         inv_freq, self.attention_scaling = self.rope_init_fn(self.config)
-        self.register_buffer("inv_freq", inv_freq, persistent=False)
+        # FIXME: In ms 2.6.0 `tensor.set_dtype()` encountered a bug that it occurs wrong values.
+        # Use `self.register_buffer("inv_freq", inv_freq, persistent=False)` after ms 2.7.0 launched.
+        # Now we use `Parameter` and `Parameter.set_dtype()` instead.
+        self.inv_freq = ms.Parameter(inv_freq, name="inv_freq", requires_grad=False)
         self.original_inv_freq = self.inv_freq
 
     def _dynamic_frequency_update(self, position_ids):

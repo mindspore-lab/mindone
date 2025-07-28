@@ -103,7 +103,7 @@ Input an image or a list of video frames, and a text prompt, output textual resp
 | Qwen2-VL-7B-Instruct |  fp16 | 1 | 1 | 1372x2044 (image) | ON  | 2.94 | 127 |  [weight](https://huggingface.co/Qwen/Qwen2-VL-2B-Instruct)
 | Qwen2-VL-7B-Instruct |  fp16 | 1 | 1 | 12x308x476(video) | ON  | 3.33 | 128 |  [weight](https://huggingface.co/Qwen/Qwen2-VL-2B-Instruct)
 | Qwen2-VL-7B-Instruct | bf16 | 1 | 1 | 1372x2044 (image) | ON  | 3.13| 121 |  [weight](https://huggingface.co/Qwen/Qwen2-VL-2B-Instruct)
-| Qwen2-VL-7B-Instruct | bf16 | 1 | 1 | 12x308x476(video) | ON  | 0.33| 128|   [weight](https://huggingface.co/Qwen/Qwen2-VL-2B-Instruct)
+| Qwen2-VL-7B-Instruct | bf16 | 1 | 1 | 12x308x476(video) | ON  | 3.33| 128|   [weight](https://huggingface.co/Qwen/Qwen2-VL-2B-Instruct)
 
 *note: use mixed precision, `LayerNorm` fp32.
 
