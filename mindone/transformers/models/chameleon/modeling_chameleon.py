@@ -967,6 +967,9 @@ class ChameleonModel(ChameleonPreTrainedModel):
         decoder_layer = ChameleonDecoderLayer if not self.config.swin_norm else ChameleonSwinDecoderLayer
         self.layers = nn.CellList([decoder_layer(config, layer_idx) for layer_idx in range(config.num_hidden_layers)])
         self.norm = ChameleonRMSNorm(config.hidden_size, eps=config.rms_norm_eps)
+        # TODO: remove the config fix once they are fixed.
+        config.vq_config._attn_implementation = config._attn_implementation
+        config.vq_config.mindspore_dtype = getattr(config, "mindspore_dtype", None)
         self.vqmodel = ChameleonVQVAE._from_config(config.vq_config)
         self.gradient_checkpointing = False
 
@@ -1262,6 +1265,36 @@ class ChameleonForConditionalGeneration(ChameleonPreTrainedModel, GenerationMixi
         return_dict: Optional[bool] = None,
         cache_position: Optional[ms.Tensor] = None,
     ) -> Union[Tuple, CausalLMOutputWithPast]:
+        r"""
+            labels (`ms.Tensor` of shape `(batch_size, sequence_length)`, *optional*):
+                Labels for computing the masked language modeling loss. Indices should either be in `[0, ...,
+                config.vocab_size]` or -100 (see `input_ids` docstring). Tokens with indices set to `-100` are ignored
+                (masked), the loss is only computed for the tokens with labels in `[0, ..., config.vocab_size]`.
+
+        Returns:
+
+        Example:
+
+        ```python
+        >>> from mindone.transformers import ChameleonProcessor, ChameleonForConditionalGeneration
+        >>> import mindspore as ms
+        >>> import requests
+        >>> from PIL import Image
+
+        >>> model = ChameleonForConditionalGeneration.from_pretrained("facebook/chameleon-7b", mindspore_dtype=ms.bfloat16)
+        >>> processor = ChameleonProcessor.from_pretrained("facebook/chameleon-7b")
+
+        >>> prompt = "I used to know a lot about constellations when I was younger, but as I grew older, I forgot most of what I knew. "
+        >>> prompt += "These are the only two constellations that I really remember now.<image><image>I would like for you to tell me about 3 more "
+        >>> prompt += "constellations and give me a little bit of history about the constellation."
+        >>> image = Image.open(requests.get("https://nineplanets.org/wp-content/uploads/2020/12/the-big-dipper-1.jpg", stream=True).raw)
+        >>> image_2 = Image.open(requests.get("https://www.kxan.com/wp-content/uploads/sites/40/2020/10/ORION.jpg", stream=True).raw)
+
+        >>> inputs = processor(images=[image, image_2], text=prompt, return_tensors="ms").to(ms.bfloat16)
+
+        >>> generated_ids = model.generate(**inputs, max_new_tokens=100, do_sample=False)
+        >>> processor.batch_decode(generated_ids, skip_special_tokens=True)[0]
+        ```"""
         output_attentions = output_attentions if output_attentions is not None else self.config.output_attentions
         output_hidden_states = (
             output_hidden_states if output_hidden_states is not None else self.config.output_hidden_states
