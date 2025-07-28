@@ -1,5 +1,8 @@
 # Copyright 2024 The HuggingFace Team. All rights reserved.
 #
+# This code is adapted from https://github.com/huggingface/diffusers
+# with modifications to run diffusers on mindspore.
+#
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -18,7 +21,7 @@ import numpy as np
 from transformers import CLIPTokenizer
 
 import mindspore as ms
-from mindspore import ops
+from mindspore import mint
 
 from mindone.transformers import CLIPTextModel
 
@@ -29,7 +32,10 @@ from ..pipeline_utils import DiffusionPipeline, ImagePipelineOutput
 from .modeling_paella_vq_model import PaellaVQModel
 from .modeling_wuerstchen_diffnext import WuerstchenDiffNeXt
 
+XLA_AVAILABLE = False
+
 logger = logging.get_logger(__name__)  # pylint: disable=invalid-name
+
 
 EXAMPLE_DOC_STRING = """
     Examples:
@@ -129,7 +135,7 @@ class WuerstchenDecoderPipeline(DiffusionPipeline):
             return_tensors="np",
         )
         text_input_ids = text_inputs.input_ids
-        attention_mask = ms.Tensor(text_inputs.attention_mask)
+        attention_mask = ms.tensor(text_inputs.attention_mask)
 
         untruncated_ids = self.tokenizer(prompt, padding="longest", return_tensors="np").input_ids
 
@@ -144,7 +150,7 @@ class WuerstchenDecoderPipeline(DiffusionPipeline):
             text_input_ids = text_input_ids[:, : self.tokenizer.model_max_length]
             attention_mask = attention_mask[:, : self.tokenizer.model_max_length]
 
-        text_encoder_output = self.text_encoder(ms.Tensor(text_input_ids), attention_mask=attention_mask)
+        text_encoder_output = self.text_encoder(ms.tensor(text_input_ids), attention_mask=attention_mask)
         text_encoder_hidden_states = text_encoder_output[0]
         text_encoder_hidden_states = text_encoder_hidden_states.repeat_interleave(num_images_per_prompt, dim=0)
 
@@ -177,7 +183,7 @@ class WuerstchenDecoderPipeline(DiffusionPipeline):
                 return_tensors="np",
             )
             negative_prompt_embeds_text_encoder_output = self.text_encoder(
-                ms.Tensor(uncond_input.input_ids), attention_mask=ms.Tensor(uncond_input.attention_mask)
+                ms.tensor(uncond_input.input_ids), attention_mask=ms.tensor(uncond_input.attention_mask)
             )
 
             uncond_text_encoder_hidden_states = negative_prompt_embeds_text_encoder_output[0]
@@ -324,9 +330,9 @@ class WuerstchenDecoderPipeline(DiffusionPipeline):
                     )
 
         if isinstance(image_embeddings, list):
-            image_embeddings = ops.cat(image_embeddings, axis=0)
+            image_embeddings = mint.cat(image_embeddings, dim=0)
         if isinstance(image_embeddings, np.ndarray):
-            image_embeddings = ms.Tensor(image_embeddings).to(dtype=dtype)
+            image_embeddings = ms.tensor(image_embeddings).to(dtype=dtype)
         if not isinstance(image_embeddings, ms.Tensor):
             raise TypeError(
                 f"'image_embeddings' must be of type 'ms.Tensor' or 'np.array', but got {type(image_embeddings)}."
@@ -346,10 +352,10 @@ class WuerstchenDecoderPipeline(DiffusionPipeline):
             negative_prompt,
         )
         text_encoder_hidden_states = (
-            ops.cat([prompt_embeds, negative_prompt_embeds]) if negative_prompt_embeds is not None else prompt_embeds
+            mint.cat([prompt_embeds, negative_prompt_embeds]) if negative_prompt_embeds is not None else prompt_embeds
         )
         effnet = (
-            ops.cat([image_embeddings, ops.zeros_like(image_embeddings)])
+            mint.cat([image_embeddings, mint.zeros_like(image_embeddings)])
             if self.do_classifier_free_guidance
             else image_embeddings
         )
@@ -377,8 +383,8 @@ class WuerstchenDecoderPipeline(DiffusionPipeline):
             ratio = t.broadcast_to((latents.shape[0],)).to(dtype)
             # 7. Denoise latents
             predicted_latents = self.decoder(
-                ops.cat([latents] * 2) if self.do_classifier_free_guidance else latents,
-                r=ops.cat([ratio] * 2) if self.do_classifier_free_guidance else ratio,
+                mint.cat([latents] * 2) if self.do_classifier_free_guidance else latents,
+                r=mint.cat([ratio] * 2) if self.do_classifier_free_guidance else ratio,
                 effnet=effnet,
                 clip=text_encoder_hidden_states,
             )
@@ -386,7 +392,7 @@ class WuerstchenDecoderPipeline(DiffusionPipeline):
             # 8. Check for classifier free guidance and apply it
             if self.do_classifier_free_guidance:
                 predicted_latents_text, predicted_latents_uncond = predicted_latents.chunk(2)
-                predicted_latents = ops.lerp(
+                predicted_latents = mint.lerp(
                     predicted_latents_uncond,
                     predicted_latents_text,
                     ms.tensor(self.guidance_scale, dtype=predicted_latents_text.dtype),

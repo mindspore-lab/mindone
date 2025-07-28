@@ -1,5 +1,8 @@
 # Copyright 2024 Stability AI, Katherine Crowson and The HuggingFace Team. All rights reserved.
 #
+# This code is adapted from https://github.com/huggingface/diffusers
+# with modifications to run diffusers on mindspore.
+#
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -18,7 +21,7 @@ from typing import Optional, Tuple, Union
 import numpy as np
 
 import mindspore as ms
-from mindspore import ops
+from mindspore import mint
 
 from ..configuration_utils import ConfigMixin, register_to_config
 from ..utils import BaseOutput, logging
@@ -155,18 +158,18 @@ class FlowMatchHeunDiscreteScheduler(SchedulerMixin, ConfigMixin):
         sigmas = ms.Tensor.from_numpy(sigmas).to(dtype=ms.float32)
 
         timesteps = sigmas * self.config.num_train_timesteps
-        timesteps = ops.cat([timesteps[:1], timesteps[1:].repeat_interleave(2)])
+        timesteps = mint.cat([timesteps[:1], timesteps[1:].repeat_interleave(2)])
         self.timesteps = timesteps
 
-        sigmas = ops.cat(
+        sigmas = mint.cat(
             [
                 sigmas,
-                ops.zeros(
+                mint.zeros(
                     1,
                 ),
             ]
         )
-        self.sigmas = ops.cat([sigmas[:1], sigmas[1:-1].repeat_interleave(2), sigmas[-1:]])
+        self.sigmas = mint.cat([sigmas[:1], sigmas[1:-1].repeat_interleave(2), sigmas[-1:]])
 
         # empty dt and derivative
         self.prev_derivative = None
@@ -230,13 +233,14 @@ class FlowMatchHeunDiscreteScheduler(SchedulerMixin, ConfigMixin):
             generator (`np.random.Generator`, *optional*):
                 A random number generator.
             return_dict (`bool`):
-                Whether or not to return a [`~schedulers.scheduling_Heun_discrete.HeunDiscreteSchedulerOutput`] or
-                tuple.
+                Whether or not to return a
+                [`~schedulers.scheduling_flow_match_heun_discrete.FlowMatchHeunDiscreteSchedulerOutput`] or tuple.
 
         Returns:
-            [`~schedulers.scheduling_Heun_discrete.HeunDiscreteSchedulerOutput`] or `tuple`:
-                If return_dict is `True`, [`~schedulers.scheduling_Heun_discrete.HeunDiscreteSchedulerOutput`] is
-                returned, otherwise a tuple is returned where the first element is the sample tensor.
+            [`~schedulers.scheduling_flow_match_heun_discrete.FlowMatchHeunDiscreteSchedulerOutput`] or `tuple`:
+                If return_dict is `True`,
+                [`~schedulers.scheduling_flow_match_heun_discrete.FlowMatchHeunDiscreteSchedulerOutput`] is returned,
+                otherwise a tuple is returned where the first element is the sample tensor.
         """
 
         if isinstance(timestep, int) or (
@@ -245,7 +249,7 @@ class FlowMatchHeunDiscreteScheduler(SchedulerMixin, ConfigMixin):
             raise ValueError(
                 (
                     "Passing integer indices (e.g. from `enumerate(timesteps)`) as timesteps to"
-                    " `HeunDiscreteScheduler.step()` is not supported. Make sure to pass"
+                    " `FlowMatchHeunDiscreteScheduler.step()` is not supported. Make sure to pass"
                     " one of the `scheduler.timesteps` as a timestep."
                 ),
             )

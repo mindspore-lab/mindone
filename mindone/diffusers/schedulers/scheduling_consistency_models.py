@@ -1,5 +1,8 @@
 # Copyright 2024 The HuggingFace Team. All rights reserved.
 #
+# This code is adapted from https://github.com/huggingface/diffusers
+# with modifications to run diffusers on mindspore.
+#
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -18,7 +21,7 @@ from typing import List, Optional, Tuple, Union
 import numpy as np
 
 import mindspore as ms
-from mindspore import ops
+from mindspore import mint
 
 from ..configuration_utils import ConfigMixin, register_to_config
 from ..utils import BaseOutput, logging
@@ -94,8 +97,8 @@ class CMStochasticIterativeScheduler(SchedulerMixin, ConfigMixin):
 
         # setable values
         self.num_inference_steps = None
-        self.sigmas = ms.Tensor(sigmas)
-        self.timesteps = ms.Tensor(timesteps)
+        self.sigmas = ms.tensor(sigmas)
+        self.timesteps = ms.tensor(timesteps)
         self.custom_timesteps = False
         self.is_scale_input_called = False
         self._step_index = None
@@ -200,8 +203,7 @@ class CMStochasticIterativeScheduler(SchedulerMixin, ConfigMixin):
 
             if timesteps[0] >= self.config.num_train_timesteps:
                 raise ValueError(
-                    f"`timesteps` must start before `self.config.train_timesteps`:"
-                    f" {self.config.num_train_timesteps}."
+                    f"`timesteps` must start before `self.config.train_timesteps`: {self.config.num_train_timesteps}."
                 )
 
             timesteps = np.array(timesteps, dtype=np.int64)
@@ -229,9 +231,9 @@ class CMStochasticIterativeScheduler(SchedulerMixin, ConfigMixin):
         timesteps = self.sigma_to_t(sigmas)
 
         sigmas = np.concatenate([sigmas, [self.config.sigma_min]]).astype(np.float32)
-        self.sigmas = ms.Tensor(sigmas)
+        self.sigmas = ms.tensor(sigmas)
 
-        self.timesteps = ms.Tensor(timesteps)
+        self.timesteps = ms.tensor(timesteps)
 
         self._step_index = None
         self._begin_index = None
@@ -382,7 +384,7 @@ class CMStochasticIterativeScheduler(SchedulerMixin, ConfigMixin):
         if len(self.timesteps) > 1:
             noise = randn_tensor(model_output.shape, dtype=model_output.dtype, generator=generator)
         else:
-            noise = ops.zeros_like(model_output)
+            noise = mint.zeros_like(model_output)
         z = noise * self.config.s_noise
 
         sigma_hat = sigma_next.clamp(min=sigma_min, max=sigma_max)
@@ -424,7 +426,7 @@ class CMStochasticIterativeScheduler(SchedulerMixin, ConfigMixin):
         sigma = sigmas[step_indices].flatten()
         # while len(sigma.shape) < len(original_samples.shape):
         #     sigma = sigma.unsqueeze(-1)
-        sigma = ops.reshape(sigma, (timesteps.shape[0],) + (1,) * (len(broadcast_shape) - 1))
+        sigma = mint.reshape(sigma, (timesteps.shape[0],) + (1,) * (len(broadcast_shape) - 1))
 
         noisy_samples = original_samples + noise * sigma
         return noisy_samples

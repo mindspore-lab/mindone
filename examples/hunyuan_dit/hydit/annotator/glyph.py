@@ -1,3 +1,5 @@
+# Copied from https://github.com/Tencent-Hunyuan/HunyuanDiT
+
 # MIT License
 # Copyright (c) 2023 AIGText
 # https://github.com/AIGText/GlyphControl-release

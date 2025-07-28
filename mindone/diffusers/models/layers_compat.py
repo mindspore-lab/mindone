@@ -14,13 +14,11 @@ Key Features:
         - **view_as_complex**: Always custom due to framework limitations.
         [2024/09/02]
         - **interpolate**: mint interface post 2.3.0; ops.interpolate for earlier versions.
-        - **fp32_interpolate**: Always custom (upcast to fp32 during computation and cast back after)
-                                due to origin interface doesn't supported bfloat16 data type.
         [2024/07/26]
         - **conv_transpose1d**: Always custom due to framework limitations.
         - **conv_transpose2d**: Native post 2.3.0; custom for earlier versions.
         - **group_norm**: Native post 2.3.0; custom for earlier versions.
-        - **multinomial**: Native post 2.3.0; custom for earlier versions.
+        - **multinomial**: Native post 2.4.1; custom for earlier versions.
         - **pad**: Native post 2.3.0; custom for earlier versions.
 
         [2025/01/14]
@@ -40,7 +38,8 @@ Todo:
 from packaging.version import parse
 
 import mindspore as ms
-from mindspore import ops
+from mindspore import mint, nn, ops
+from mindspore._c_expression.amp import AmpLevel, create_amp_strategy
 from mindspore.common.api import _function_forbid_reuse
 from mindspore.ops.function.nn_func import _interploate_ext_make_tuple, _interpolate_ext_scale_factor_convert_size
 
@@ -49,7 +48,6 @@ __all__ = [
     "conv_transpose2d",
     "group_norm",
     "interpolate",
-    "fp32_interpolate",
     "unflatten",
     "upsample_nearest3d_free_interpolate",
     "multinomial",
@@ -94,6 +92,7 @@ def _conv_transpose1d(input, weight, bias=None, stride=1, padding=0, output_padd
     outH = (iH - 1) * stride[0] - (padding[0] + padding[1]) + dilation[0] * (kH - 1) + 1
     outW = (iW - 1) * stride[1] - (padding[2] + padding[3]) + dilation[1] * (kW - 1) + 1
 
+    # todo: unavailable mint interface
     op_conv_transpose2d = ops.Conv2DTranspose(
         out_channel=out_channels,
         kernel_size=(kH, kW),
@@ -199,113 +198,35 @@ else:
 
 
 # ================================================================================
+# nn.GELU
+# ================================================================================
+class _GELU(nn.Cell):
+    """
+    Adapted from `torch.nn.GELU`
+    (https://github.com/pytorch/pytorch/blob/main/torch/nn/modules/activation.py)
+    """
+
+    def __init__(self, approximate: str = "none") -> None:
+        super().__init__()
+        self.approximate = approximate
+
+    def construct(self, input: ms.Tensor) -> ms.Tensor:
+        return mint.nn.functional.gelu(input, approximate=self.approximate)
+
+
+if MINDSPORE_VERSION >= parse("2.6.0"):
+    GELU = mint.nn.GELU
+else:
+    GELU = _GELU
+
+
+# ================================================================================
 # interpolate
 # ================================================================================
 if MINDSPORE_VERSION >= parse("2.3.0"):
-    interpolate = ms.mint.nn.functional.interpolate
+    interpolate = mint.nn.functional.interpolate
 else:
     interpolate = ops.interpolate
-
-
-# ================================================================================
-# FP32 interpolate
-# ================================================================================
-def _fp32_interpolate(input, **kwargs):
-    r"""
-    Samples the input Tensor to the given size or scale_factor by using one of the interpolate algorithms.
-    Upcast to float32 for computation and re-cast back to original data type as BFloat16 is not supported
-    for interpolate algorithms.
-
-    .. note::
-        - In 'linear' mode, backpropagation does not support scenarios where `scale_factor` is not None
-          and `align_corners` is False.
-
-    Args:
-        input (Tensor): Tensor to be resized.
-            Input tensor must be a 3-D, 4-D, or 5-D tensor with shape
-            :math:`(N, C, [optional D], [optional H], W)` , with data type of float.
-        size (Union[int, tuple[int], list[int]], optional): The target size.
-            If size is a tuple or list, its length should be the same as the number of dimensions in input
-            after removing the first two dimensions N, C.
-            One and only one of size and scale_factor can be set to None. Default: ``None`` .
-        scale_factor (Union[float, tuple[float], list[float]], optional): The scale factor of new size of the tensor.
-            If scale_factor is a tuple or list, its length should be the same as the number of dimensions in input
-            after removing the first two dimensions N, C.
-            One and only one of size and scale_factor can be set to None. Default: ``None`` .
-        mode (str): The sampling algorithm.
-            One of 'nearest', 'linear' (3D only), 'bilinear' (4D only), 'trilinear' (5D only), 'bicubic' (4D only),
-            'area', 'nearest-exact'(matches Scikit-Image and PIL nearest neighbours interpolation algorithms and fixes
-            knows issues with `nearest`, 3D and 4D). Default: ``"nearest"`` .
-
-        align_corners (bool): Whether to use corner alignment for coordinate mapping. Assuming a transformation is
-            applied to the input Tensor along the x-axis, the specific calculation formula is as follows:
-
-            .. code-block::
-
-                ori_i = new_length != 1 ? new_i * (ori_length - 1) / (new_length - 1) : 0   # 'align_corners' = True
-
-                ori_i = new_length > 1 ? (new_i + 0.5) * ori_length / new_length - 0.5 : 0  # 'align_corners' = False
-
-            Among them, :math:`ori\_length` and :math:`new\_length` represent the length of the Tensor before and after
-            transformation along the x-axis respectively; :math:`new\_i` represents the coordinate of the i-th element
-            along the x-axis after transformation; :math:`ori\_i` represents
-            the corresponding coordinate of the original
-            data along the x-axis.
-
-            This is only valid for ``'linear'``, ``'bilinear'``, or ``'bicubic'`` modes. Default: ``False`` .
-        recompute_scale_factor (bool, optional): Recalculate `scale_factor`.
-            If True, the parameter `size` will be calculated using the value of the `scale_factor`,
-            and finally scaled using the value of `size`.
-            If False, the value of `size` or `scale_factor` will be used for direct interpolation. Default: ``None`` .
-
-    .. note::
-        The 'nearest-exact' mode is the same as the nearest-neighbor interpolation algorithm used in
-        scikit-image and PIL. The 'nearest' mode produces the same results as the INTER_NEAREST interpolation
-        algorithm used in OpenCV.
-
-    Args Support List and Supported Platforms:
-
-    +---------------+-----------+---------------+--------------+----------------+
-    | mode          | input.dim | align_corners | scale_factor | device         |
-    +===============+===========+===============+==============+================+
-    | nearest       | 3         | \-            | √            | Ascend,GPU,CPU |
-    +---------------+-----------+---------------+--------------+----------------+
-    |               | 4         | \-            | √            | Ascend,GPU,CPU |
-    +---------------+-----------+---------------+--------------+----------------+
-    |               | 5         | \-            | √            | Ascend,GPU,CPU |
-    +---------------+-----------+---------------+--------------+----------------+
-    | linear        | 3         | √             | √            | Ascend,GPU,CPU |
-    +---------------+-----------+---------------+--------------+----------------+
-    | bilinear      | 4         | √             | ×            | Ascend,GPU,CPU |
-    +---------------+-----------+---------------+--------------+----------------+
-    | bicubic       | 4         | √             | ×            | Ascend,GPU,CPU |
-    +---------------+-----------+---------------+--------------+----------------+
-    | area          | 3         | \-            | √            | Ascend,GPU,CPU |
-    +---------------+-----------+---------------+--------------+----------------+
-    |               | 4         | \-            | √            | Ascend,GPU,CPU |
-    +---------------+-----------+---------------+--------------+----------------+
-    |               | 5         | \-            | √            | Ascend,GPU,CPU |
-    +---------------+-----------+---------------+--------------+----------------+
-    | nearest-exact | 3         | \-            | ×            | Ascend,CPU     |
-    +---------------+-----------+---------------+--------------+----------------+
-    |               | 4         | \-            | ×            | Ascend,CPU     |
-    +---------------+-----------+---------------+--------------+----------------+
-    | trilinear     | 5         | √             | √            | Ascend,GPU,CPU |
-    +---------------+-----------+---------------+--------------+----------------+
-
-    - `-` indicates that there is no such parameter.
-    - `×` indicates that this parameter is not currently supported.
-    - `√` indicates that this parameter is supported.
-
-    Returns:
-        Tensor, resized, whose dimensions and dtype are the same as `input`.
-    """
-    input_dtype = input.dtype
-    output = interpolate(input.float(), **kwargs).to(input_dtype)
-    return output
-
-
-fp32_interpolate = _fp32_interpolate
 
 
 # ================================================================================
@@ -394,8 +315,8 @@ def _multinomial(input, num_samples, replacement=True, **kwargs):
     return result.long()
 
 
-if MINDSPORE_VERSION >= parse("2.3.0"):
-    multinomial = ops.multinomial
+if MINDSPORE_VERSION >= parse("2.4.1"):
+    multinomial = mint.multinomial
 else:
     multinomial = _multinomial
 
@@ -471,25 +392,12 @@ else:
 # ================================================================================
 def _view_as_complex(input: ms.Tensor) -> ms.Tensor:
     r"""
-    view_as_complex(input) -> Tensor
-
-    Equivalence of `torch.view_as_complex`. Returns a view of :attr:`input` as a
-    complex tensor. For an input complex tensor of :attr:`size` :math:`m1, m2, \dots,
-    mi, 2`, this function returns a new complex tensor of :attr:`size` :math:`m1, m2,
-    \dots, mi` where the last dimension of the input tensor is expected to represent
-    the real and imaginary components of complex numbers.
-
-    .. warning::
-        :func:`view_as_complex` is only supported for tensors with
-        :class:`ms.dtype` ``ms.float64`` and ``ms.float32``.  The input is
-        expected to have the last dimension of :attr:`size` 2. In addition, the
-        tensor must have a `stride` of 1 for its last dimension. The strides of all
-        other dimensions must be even numbers.
+    Equivalence of `torch.view_as_complex`.
 
     Args:
         input (ms.Tensor): the input tensor.
 
-    Example::
+    Example:
 
         >>> import mindspore as ms
         >>> x = ms.ops.randn(4, 2)
@@ -502,7 +410,8 @@ def _view_as_complex(input: ms.Tensor) -> ms.Tensor:
         [1.6116-0.5772j   -1.4606-0.9120j   0.0786-1.7497j   -0.6561-1.6623j]
     """
     assert input.shape[-1] == 2, "Tensor must have a last dimension of size 2"
-    real_part, imag_part = input.chunk(2, axis=-1)
+    real_part, imag_part = input.chunk(2, dim=-1)
+    # todo: unavailable mint interface ops.Complex
     output = ops.Complex()(real_part, imag_part).squeeze(axis=-1)
     return output
 
@@ -515,7 +424,7 @@ view_as_complex = _view_as_complex
 # ================================================================================
 def _unflatten(input, dim, sizes):
     """
-    # Equivalence of torch.unflatten
+    Equivalence of `torch.unflatten`
 
     Args:
         tensor (ms.Tensor): The input tensor to unflatten.
@@ -556,3 +465,25 @@ def _unflatten(input, dim, sizes):
 
 
 unflatten = _unflatten
+
+
+# ================================================================================
+# set_amp_strategy
+# ================================================================================
+def set_amp_strategy(net, weight_dtype=None, level=AmpLevel.AmpO3, white_list=None, black_list=None):
+    """
+    Apply AMP (Automatic Mixed Precision) strategy to a MindSpore network.
+
+    Args:
+        net (Cell): The neural network to configure.
+        weight_dtype (ms.dtype): The target data type for weights (e.g., ms.float16).
+        level (AmpLevel): The AMP level to use (e.g., AmpLevel.AmpO3).
+        white_list (list): List of layer names or modules to skip casting.
+        black_list (list): List of layer names or modules to explicitly cast.
+    """
+    if white_list is None:
+        white_list = []
+    if black_list is None:
+        black_list = []
+
+    net.amp_strategy = create_amp_strategy(level, weight_dtype, white_list, black_list)

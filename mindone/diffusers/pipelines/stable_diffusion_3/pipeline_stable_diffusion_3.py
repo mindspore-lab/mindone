@@ -1,5 +1,8 @@
 # Copyright 2024 Stability AI, The HuggingFace Team and The InstantX Team. All rights reserved.
 #
+# This code is adapted from https://github.com/huggingface/diffusers
+# with modifications to run diffusers on mindspore.
+#
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -16,22 +19,24 @@ import inspect
 from typing import Any, Callable, Dict, List, Optional, Union
 
 import numpy as np
-from transformers import BaseImageProcessor, CLIPTokenizer, T5TokenizerFast
+from transformers import CLIPTokenizer, SiglipImageProcessor, T5TokenizerFast
 
 import mindspore as ms
-from mindspore import ops
+from mindspore import mint
 
-from ....transformers import CLIPTextModelWithProjection, MSPreTrainedModel, T5EncoderModel
+from mindone.transformers import CLIPTextModelWithProjection, SiglipVisionModel, T5EncoderModel
+
 from ...image_processor import PipelineImageInput, VaeImageProcessor
 from ...loaders import FromSingleFileMixin, SD3IPAdapterMixin, SD3LoraLoaderMixin
 from ...models.autoencoders import AutoencoderKL
-from ...models.layers_compat import pad
 from ...models.transformers import SD3Transformer2DModel
 from ...schedulers import FlowMatchEulerDiscreteScheduler
 from ...utils import logging, scale_lora_layers, unscale_lora_layers
 from ...utils.mindspore_utils import randn_tensor
 from ..pipeline_utils import DiffusionPipeline
 from .pipeline_output import StableDiffusion3PipelineOutput
+
+XLA_AVAILABLE = False
 
 logger = logging.get_logger(__name__)  # pylint: disable=invalid-name
 
@@ -58,7 +63,7 @@ def calculate_shift(
     base_seq_len: int = 256,
     max_seq_len: int = 4096,
     base_shift: float = 0.5,
-    max_shift: float = 1.16,
+    max_shift: float = 1.15,
 ):
     m = (max_shift - base_shift) / (max_seq_len - base_seq_len)
     b = base_shift - m * base_seq_len
@@ -155,9 +160,9 @@ class StableDiffusion3Pipeline(DiffusionPipeline, SD3LoraLoaderMixin, FromSingle
         tokenizer_3 (`T5TokenizerFast`):
             Tokenizer of class
             [T5Tokenizer](https://huggingface.co/docs/transformers/model_doc/t5#transformers.T5Tokenizer).
-        image_encoder (`MSPreTrainedModel`, *optional*):
+        image_encoder (`SiglipVisionModel`, *optional*):
             Pre-trained Vision Model for IP Adapter.
-        feature_extractor (`BaseImageProcessor`, *optional*):
+        feature_extractor (`SiglipImageProcessor`, *optional*):
             Image processor for IP Adapter.
     """
 
@@ -176,8 +181,8 @@ class StableDiffusion3Pipeline(DiffusionPipeline, SD3LoraLoaderMixin, FromSingle
         tokenizer_2: CLIPTokenizer,
         text_encoder_3: T5EncoderModel,
         tokenizer_3: T5TokenizerFast,
-        image_encoder: MSPreTrainedModel = None,
-        feature_extractor: BaseImageProcessor = None,
+        image_encoder: SiglipVisionModel = None,
+        feature_extractor: SiglipImageProcessor = None,
     ):
         super().__init__()
 
@@ -194,9 +199,7 @@ class StableDiffusion3Pipeline(DiffusionPipeline, SD3LoraLoaderMixin, FromSingle
             image_encoder=image_encoder,
             feature_extractor=feature_extractor,
         )
-        self.vae_scale_factor = (
-            2 ** (len(self.vae.config.block_out_channels) - 1) if hasattr(self, "vae") and self.vae is not None else 8
-        )
+        self.vae_scale_factor = 2 ** (len(self.vae.config.block_out_channels) - 1) if getattr(self, "vae", None) else 8
         self.image_processor = VaeImageProcessor(vae_scale_factor=self.vae_scale_factor)
         self.tokenizer_max_length = (
             self.tokenizer.model_max_length if hasattr(self, "tokenizer") and self.tokenizer is not None else 77
@@ -206,10 +209,6 @@ class StableDiffusion3Pipeline(DiffusionPipeline, SD3LoraLoaderMixin, FromSingle
             if hasattr(self, "transformer") and self.transformer is not None
             else 128
         )
-        self.patch_size = (
-            self.transformer.config.patch_size if hasattr(self, "transformer") and self.transformer is not None else 2
-        )
-
         self.patch_size = (
             self.transformer.config.patch_size if hasattr(self, "transformer") and self.transformer is not None else 2
         )
@@ -227,7 +226,7 @@ class StableDiffusion3Pipeline(DiffusionPipeline, SD3LoraLoaderMixin, FromSingle
         batch_size = len(prompt)
 
         if self.text_encoder_3 is None:
-            return ops.zeros(
+            return mint.zeros(
                 (
                     batch_size * num_images_per_prompt,
                     self.tokenizer_max_length,
@@ -363,9 +362,9 @@ class StableDiffusion3Pipeline(DiffusionPipeline, SD3LoraLoaderMixin, FromSingle
             negative_prompt_2 (`str` or `List[str]`, *optional*):
                 The prompt or prompts not to guide the image generation to be sent to `tokenizer_2` and
                 `text_encoder_2`. If not defined, `negative_prompt` is used in all the text-encoders.
-            negative_prompt_2 (`str` or `List[str]`, *optional*):
+            negative_prompt_3 (`str` or `List[str]`, *optional*):
                 The prompt or prompts not to guide the image generation to be sent to `tokenizer_3` and
-                `text_encoder_3`. If not defined, `negative_prompt` is used in both text-encoders
+                `text_encoder_3`. If not defined, `negative_prompt` is used in all the text-encoders.
             prompt_embeds (`ms.Tensor`, *optional*):
                 Pre-generated text embeddings. Can be used to easily tweak text inputs, *e.g.* prompt weighting. If not
                 provided, text embeddings will be generated from `prompt` input argument.
@@ -422,7 +421,7 @@ class StableDiffusion3Pipeline(DiffusionPipeline, SD3LoraLoaderMixin, FromSingle
                 clip_skip=clip_skip,
                 clip_model_index=1,
             )
-            clip_prompt_embeds = ops.cat([prompt_embed, prompt_2_embed], axis=-1)
+            clip_prompt_embeds = mint.cat([prompt_embed, prompt_2_embed], dim=-1)
 
             t5_prompt_embed = self._get_t5_prompt_embeds(
                 prompt=prompt_3,
@@ -430,10 +429,12 @@ class StableDiffusion3Pipeline(DiffusionPipeline, SD3LoraLoaderMixin, FromSingle
                 max_sequence_length=max_sequence_length,
             )
 
-            clip_prompt_embeds = pad(clip_prompt_embeds, (0, t5_prompt_embed.shape[-1] - clip_prompt_embeds.shape[-1]))
+            clip_prompt_embeds = mint.nn.functional.pad(
+                clip_prompt_embeds, (0, t5_prompt_embed.shape[-1] - clip_prompt_embeds.shape[-1])
+            )
 
-            prompt_embeds = ops.cat([clip_prompt_embeds, t5_prompt_embed], axis=-2)
-            pooled_prompt_embeds = ops.cat([pooled_prompt_embed, pooled_prompt_2_embed], axis=-1)
+            prompt_embeds = mint.cat([clip_prompt_embeds, t5_prompt_embed], dim=-2)
+            pooled_prompt_embeds = mint.cat([pooled_prompt_embed, pooled_prompt_2_embed], dim=-1)
 
         if do_classifier_free_guidance and negative_prompt_embeds is None:
             negative_prompt = negative_prompt or ""
@@ -473,7 +474,7 @@ class StableDiffusion3Pipeline(DiffusionPipeline, SD3LoraLoaderMixin, FromSingle
                 clip_skip=None,
                 clip_model_index=1,
             )
-            negative_clip_prompt_embeds = ops.cat([negative_prompt_embed, negative_prompt_2_embed], axis=-1)
+            negative_clip_prompt_embeds = mint.cat([negative_prompt_embed, negative_prompt_2_embed], dim=-1)
 
             t5_negative_prompt_embed = self._get_t5_prompt_embeds(
                 prompt=negative_prompt_3,
@@ -481,14 +482,14 @@ class StableDiffusion3Pipeline(DiffusionPipeline, SD3LoraLoaderMixin, FromSingle
                 max_sequence_length=max_sequence_length,
             )
 
-            negative_clip_prompt_embeds = pad(
+            negative_clip_prompt_embeds = mint.nn.functional.pad(
                 negative_clip_prompt_embeds,
                 (0, t5_negative_prompt_embed.shape[-1] - negative_clip_prompt_embeds.shape[-1]),
             )
 
-            negative_prompt_embeds = ops.cat([negative_clip_prompt_embeds, t5_negative_prompt_embed], axis=-2)
-            negative_pooled_prompt_embeds = ops.cat(
-                [negative_pooled_prompt_embed, negative_pooled_prompt_2_embed], axis=-1
+            negative_prompt_embeds = mint.cat([negative_clip_prompt_embeds, t5_negative_prompt_embed], dim=-2)
+            negative_pooled_prompt_embeds = mint.cat(
+                [negative_pooled_prompt_embed, negative_pooled_prompt_2_embed], dim=-1
             )
 
         if self.text_encoder is not None:
@@ -709,15 +710,15 @@ class StableDiffusion3Pipeline(DiffusionPipeline, SD3LoraLoaderMixin, FromSingle
         elif ip_adapter_image is not None:
             single_image_embeds = self.encode_image(ip_adapter_image)
             if do_classifier_free_guidance:
-                single_negative_image_embeds = ops.zeros_like(single_image_embeds)
+                single_negative_image_embeds = mint.zeros_like(single_image_embeds)
         else:
             raise ValueError("Neither `ip_adapter_image_embeds` or `ip_adapter_image_embeds` were provided.")
 
-        image_embeds = ops.cat([single_image_embeds] * num_images_per_prompt, axis=0)
+        image_embeds = mint.cat([single_image_embeds] * num_images_per_prompt, dim=0)
 
         if do_classifier_free_guidance:
-            negative_image_embeds = ops.cat([single_negative_image_embeds] * num_images_per_prompt, axis=0)
-            image_embeds = ops.cat([negative_image_embeds, image_embeds], axis=0)
+            negative_image_embeds = mint.cat([single_negative_image_embeds] * num_images_per_prompt, dim=0)
+            image_embeds = mint.cat([negative_image_embeds, image_embeds], dim=0)
 
         return image_embeds
 
@@ -819,7 +820,8 @@ class StableDiffusion3Pipeline(DiffusionPipeline, SD3LoraLoaderMixin, FromSingle
                 Pre-generated negative pooled text embeddings. Can be used to easily tweak text inputs, *e.g.* prompt
                 weighting. If not provided, pooled negative_prompt_embeds will be generated from `negative_prompt`
                 input argument.
-            ip_adapter_image (`PipelineImageInput`, *optional*): Optional image input to work with IP Adapters.
+            ip_adapter_image (`PipelineImageInput`, *optional*):
+                Optional image input to work with IP Adapters.
             ip_adapter_image_embeds (`ms.Tensor`, *optional*):
                 Pre-generated image embeddings for IP-Adapter. Should be a tensor of shape `(batch_size, num_images,
                 emb_dim)`. It should contain the negative image embedding if `do_classifier_free_guidance` is set to
@@ -936,8 +938,8 @@ class StableDiffusion3Pipeline(DiffusionPipeline, SD3LoraLoaderMixin, FromSingle
             if skip_guidance_layers is not None:
                 original_prompt_embeds = prompt_embeds
                 original_pooled_prompt_embeds = pooled_prompt_embeds
-            prompt_embeds = ops.cat([negative_prompt_embeds, prompt_embeds], axis=0)
-            pooled_prompt_embeds = ops.cat([negative_pooled_prompt_embeds, pooled_prompt_embeds], axis=0)
+            prompt_embeds = mint.cat([negative_prompt_embeds, prompt_embeds], dim=0)
+            pooled_prompt_embeds = mint.cat([negative_pooled_prompt_embeds, pooled_prompt_embeds], dim=0)
 
         # 4. Prepare latent variables
         num_channels_latents = self.transformer.config.in_channels
@@ -960,10 +962,10 @@ class StableDiffusion3Pipeline(DiffusionPipeline, SD3LoraLoaderMixin, FromSingle
             )
             mu = calculate_shift(
                 image_seq_len,
-                self.scheduler.config.base_image_seq_len,
-                self.scheduler.config.max_image_seq_len,
-                self.scheduler.config.base_shift,
-                self.scheduler.config.max_shift,
+                self.scheduler.config.get("base_image_seq_len", 256),
+                self.scheduler.config.get("max_image_seq_len", 4096),
+                self.scheduler.config.get("base_shift", 0.5),
+                self.scheduler.config.get("max_shift", 1.16),
             )
             scheduler_kwargs["mu"] = mu
         elif mu is not None:
@@ -998,7 +1000,7 @@ class StableDiffusion3Pipeline(DiffusionPipeline, SD3LoraLoaderMixin, FromSingle
                     continue
 
                 # expand the latents if we are doing classifier free guidance
-                latent_model_input = ops.cat([latents] * 2) if self.do_classifier_free_guidance else latents
+                latent_model_input = mint.cat([latents] * 2) if self.do_classifier_free_guidance else latents
                 # broadcast to batch dimension in a way that's compatible with ONNX/Core ML
                 timestep = t.broadcast_to((latent_model_input.shape[0],))
 

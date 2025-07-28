@@ -1,3 +1,5 @@
+"""Adapted from https://github.com/huggingface/diffusers/tree/main/src/diffusers/pipelines/sana/__init__.py."""
+
 from typing import TYPE_CHECKING
 
 from ...utils import _LazyModule
@@ -7,9 +9,11 @@ _import_structure = {}
 
 
 _import_structure["pipeline_sana"] = ["SanaPipeline"]
+_import_structure["pipeline_sana_sprint"] = ["SanaSprintPipeline"]
 
 if TYPE_CHECKING:
     from .pipeline_sana import SanaPipeline
+    from .pipeline_sana_sprint import SanaSprintPipeline
 else:
     import sys
 

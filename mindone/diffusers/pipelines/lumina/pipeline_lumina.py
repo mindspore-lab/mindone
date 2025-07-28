@@ -1,5 +1,8 @@
 # Copyright 2024 Alpha-VLLM and The HuggingFace Team. All rights reserved.
 #
+# This code is adapted from https://github.com/huggingface/diffusers
+# with modifications to run diffusers on mindspore.
+#
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -17,26 +20,30 @@ import inspect
 import math
 import re
 import urllib.parse as ul
-from typing import List, Optional, Tuple, Union
+from typing import Callable, Dict, List, Optional, Tuple, Union
 
 import numpy as np
-from transformers import AutoTokenizer
+from transformers import GemmaTokenizer, GemmaTokenizerFast
 
 import mindspore as ms
-from mindspore import ops
+from mindspore import mint, ops
 
-from mindone.transformers import GemmaModel
+from mindone.transformers import GemmaPreTrainedModel
 
+from ...callbacks import MultiPipelineCallbacks, PipelineCallback
 from ...image_processor import VaeImageProcessor
 from ...models import AutoencoderKL
 from ...models.embeddings import get_2d_rotary_pos_embed_lumina
 from ...models.transformers.lumina_nextdit2d import LuminaNextDiT2DModel
 from ...schedulers import FlowMatchEulerDiscreteScheduler
-from ...utils import BACKENDS_MAPPING, is_bs4_available, is_ftfy_available, logging
-from ...utils.mindspore_utils import randn_tensor
+from ...utils import BACKENDS_MAPPING, deprecate, is_bs4_available, is_ftfy_available, logging
+from ...utils.mindspore_utils import pynative_context, randn_tensor
 from ..pipeline_utils import DiffusionPipeline, ImagePipelineOutput
 
+XLA_AVAILABLE = False
+
 logger = logging.get_logger(__name__)  # pylint: disable=invalid-name
+
 
 if is_bs4_available():
     from bs4 import BeautifulSoup
@@ -48,13 +55,11 @@ EXAMPLE_DOC_STRING = """
     Examples:
         ```py
         >>> import mindspore as ms
-        >>> from mindone.diffusers import LuminaText2ImgPipeline
+        >>> from mindone.diffusers import LuminaPipeline
 
-        >>> pipe = LuminaText2ImgPipeline.from_pretrained(
-        ...     "Alpha-VLLM/Lumina-Next-SFT-diffusers", mindspore_dtype=ms.float16)
+        >>> pipe = LuminaPipeline.from_pretrained("Alpha-VLLM/Lumina-Next-SFT-diffusers", mindspore_dtype=ms.float16)
 
-        >>> prompt = ("Upper body of a young woman in a Victorian-era outfit with brass goggles and leather straps. "
-                      "Background shows an industrial revolution cityscape with smoky skies and tall, metal structures")
+        >>> prompt = "Upper body of a young woman in a Victorian-era outfit with brass goggles and leather straps. Background shows an industrial revolution cityscape with smoky skies and tall, metal structures" # noqa
         >>> image = pipe(prompt)[0][0]
         ```
 """
@@ -117,7 +122,7 @@ def retrieve_timesteps(
     return timesteps, num_inference_steps
 
 
-class LuminaText2ImgPipeline(DiffusionPipeline):
+class LuminaPipeline(DiffusionPipeline):
     r"""
     Pipeline for text-to-image generation using Lumina-T2I.
 
@@ -127,13 +132,10 @@ class LuminaText2ImgPipeline(DiffusionPipeline):
     Args:
         vae ([`AutoencoderKL`]):
             Variational Auto-Encoder (VAE) Model to encode and decode images to and from latent representations.
-        text_encoder ([`AutoModel`]):
-            Frozen text-encoder. Lumina-T2I uses
-            [T5](https://huggingface.co/docs/transformers/model_doc/t5#transformers.AutoModel), specifically the
-            [t5-v1_1-xxl](https://huggingface.co/Alpha-VLLM/tree/main/t5-v1_1-xxl) variant.
-        tokenizer (`AutoModel`):
-            Tokenizer of class
-            [AutoModel](https://huggingface.co/docs/transformers/model_doc/t5#transformers.AutoModel).
+        text_encoder ([`GemmaPreTrainedModel`]):
+            Frozen Gemma text-encoder.
+        tokenizer (`GemmaTokenizer` or `GemmaTokenizerFast`):
+            Gemma tokenizer.
         transformer ([`Transformer2DModel`]):
             A text conditioned `Transformer2DModel` to denoise the encoded image latents.
         scheduler ([`SchedulerMixin`]):
@@ -158,14 +160,18 @@ class LuminaText2ImgPipeline(DiffusionPipeline):
 
     _optional_components = []
     model_cpu_offload_seq = "text_encoder->transformer->vae"
+    _callback_tensor_inputs = [
+        "latents",
+        "prompt_embeds",
+    ]
 
     def __init__(
         self,
         transformer: LuminaNextDiT2DModel,
         scheduler: FlowMatchEulerDiscreteScheduler,
         vae: AutoencoderKL,
-        text_encoder: GemmaModel,
-        tokenizer: AutoTokenizer,
+        text_encoder: GemmaPreTrainedModel,
+        tokenizer: Union[GemmaTokenizer, GemmaTokenizerFast],
     ):
         super().__init__()
 
@@ -218,10 +224,11 @@ class LuminaText2ImgPipeline(DiffusionPipeline):
             )
 
         prompt_attention_mask = ms.tensor(text_inputs.attention_mask)
-        prompt_embeds = self.text_encoder(
-            ms.tensor(text_input_ids), attention_mask=prompt_attention_mask, output_hidden_states=True
-        )
-        prompt_embeds = prompt_embeds[1][-2]
+        with pynative_context():
+            prompt_embeds = self.text_encoder(
+                ms.tensor(text_input_ids), attention_mask=prompt_attention_mask, output_hidden_states=True
+            )
+            prompt_embeds = prompt_embeds.hidden_states[-2]
 
         if self.text_encoder is not None:
             dtype = self.text_encoder.dtype
@@ -323,14 +330,15 @@ class LuminaText2ImgPipeline(DiffusionPipeline):
             negative_text_input_ids = ms.tensor(negative_text_inputs.input_ids)
             negative_prompt_attention_mask = ms.tensor(negative_text_inputs.attention_mask)
             # Get the negative prompt embeddings
-            negative_prompt_embeds = self.text_encoder(
-                negative_text_input_ids,
-                attention_mask=negative_prompt_attention_mask,
-                output_hidden_states=True,
-            )
+            with pynative_context():
+                negative_prompt_embeds = self.text_encoder(
+                    negative_text_input_ids,
+                    attention_mask=negative_prompt_attention_mask,
+                    output_hidden_states=True,
+                )
 
-            negative_dtype = self.text_encoder.dtype
-            negative_prompt_embeds = negative_prompt_embeds[1][-2]
+                negative_dtype = self.text_encoder.dtype
+                negative_prompt_embeds = negative_prompt_embeds.hidden_states[-2]
             _, seq_len, _ = negative_prompt_embeds.shape
 
             negative_prompt_embeds = negative_prompt_embeds.to(dtype=negative_dtype)
@@ -370,9 +378,19 @@ class LuminaText2ImgPipeline(DiffusionPipeline):
         negative_prompt_embeds=None,
         prompt_attention_mask=None,
         negative_prompt_attention_mask=None,
+        callback_on_step_end_tensor_inputs=None,
     ):
-        if height % 8 != 0 or width % 8 != 0:
-            raise ValueError(f"`height` and `width` have to be divisible by 8 but are {height} and {width}.")
+        if height % (self.vae_scale_factor * 2) != 0 or width % (self.vae_scale_factor * 2) != 0:
+            raise ValueError(
+                f"`height` and `width` have to be divisible by {self.vae_scale_factor * 2} but are {height} and {width}."
+            )
+
+        if callback_on_step_end_tensor_inputs is not None and not all(
+            k in self._callback_tensor_inputs for k in callback_on_step_end_tensor_inputs
+        ):
+            raise ValueError(
+                f"`callback_on_step_end_tensor_inputs` has to be in {self._callback_tensor_inputs}, but found {[k for k in callback_on_step_end_tensor_inputs if k not in self._callback_tensor_inputs]}"  # noqa
+            )
 
         if prompt is not None and prompt_embeds is not None:
             raise ValueError(
@@ -613,6 +631,10 @@ class LuminaText2ImgPipeline(DiffusionPipeline):
         max_sequence_length: int = 256,
         scaling_watershed: Optional[float] = 1.0,
         proportional_attn: Optional[bool] = True,
+        callback_on_step_end: Optional[
+            Union[Callable[[int, int, Dict], None], PipelineCallback, MultiPipelineCallbacks]
+        ] = None,
+        callback_on_step_end_tensor_inputs: List[str] = ["latents"],
     ) -> Union[ImagePipelineOutput, Tuple]:
         """
         Function invoked when calling the pipeline for generation.
@@ -704,7 +726,11 @@ class LuminaText2ImgPipeline(DiffusionPipeline):
             negative_prompt_embeds=negative_prompt_embeds,
             prompt_attention_mask=prompt_attention_mask,
             negative_prompt_attention_mask=negative_prompt_attention_mask,
+            callback_on_step_end_tensor_inputs=callback_on_step_end_tensor_inputs,
         )
+
+        self._guidance_scale = guidance_scale
+
         cross_attention_kwargs = {}
 
         # 2. Define call parameters
@@ -744,8 +770,8 @@ class LuminaText2ImgPipeline(DiffusionPipeline):
             max_sequence_length=max_sequence_length,
         )
         if do_classifier_free_guidance:
-            prompt_embeds = ops.cat([prompt_embeds, negative_prompt_embeds], axis=0)
-            prompt_attention_mask = ops.cat([prompt_attention_mask, negative_prompt_attention_mask], axis=0)
+            prompt_embeds = mint.cat([prompt_embeds, negative_prompt_embeds], dim=0)
+            prompt_attention_mask = mint.cat([prompt_attention_mask, negative_prompt_attention_mask], dim=0)
 
         # 4. Prepare timesteps
         timesteps, num_inference_steps = retrieve_timesteps(self.scheduler, num_inference_steps, sigmas=sigmas)
@@ -762,11 +788,13 @@ class LuminaText2ImgPipeline(DiffusionPipeline):
             latents,
         )
 
+        self._num_timesteps = len(timesteps)
+
         # 6. Denoising loop
         with self.progress_bar(total=num_inference_steps) as progress_bar:
             for i, t in enumerate(timesteps):
                 # expand the latents if we are doing classifier free guidance
-                latent_model_input = ops.cat([latents] * 2) if do_classifier_free_guidance else latents
+                latent_model_input = mint.cat([latents] * 2) if do_classifier_free_guidance else latents
 
                 current_timestep = t
                 if not ops.is_tensor(current_timestep):
@@ -814,7 +842,7 @@ class LuminaText2ImgPipeline(DiffusionPipeline):
                     cross_attention_kwargs=cross_attention_kwargs,
                     return_dict=False,
                 )[0]
-                noise_pred = noise_pred.chunk(2, axis=1)[0]
+                noise_pred = noise_pred.chunk(2, dim=1)[0]
 
                 # perform guidance scale
                 # NOTE: For exact reproducibility reasons, we apply classifier-free guidance on only
@@ -823,22 +851,31 @@ class LuminaText2ImgPipeline(DiffusionPipeline):
                 # eps, rest = model_out[:, :self.in_channels], model_out[:, self.in_channels:]
                 if do_classifier_free_guidance:
                     noise_pred_eps, noise_pred_rest = noise_pred[:, :3], noise_pred[:, 3:]
-                    noise_pred_cond_eps, noise_pred_uncond_eps = ops.split(
-                        noise_pred_eps, len(noise_pred_eps) // 2, axis=0
+                    noise_pred_cond_eps, noise_pred_uncond_eps = mint.split(
+                        noise_pred_eps, len(noise_pred_eps) // 2, dim=0
                     )
                     noise_pred_half = noise_pred_uncond_eps + guidance_scale * (
                         noise_pred_cond_eps - noise_pred_uncond_eps
                     )
-                    noise_pred_eps = ops.cat([noise_pred_half, noise_pred_half], axis=0)
+                    noise_pred_eps = mint.cat([noise_pred_half, noise_pred_half], dim=0)
 
-                    noise_pred = ops.cat([noise_pred_eps, noise_pred_rest], axis=1)
-                    noise_pred, _ = noise_pred.chunk(2, axis=0)
+                    noise_pred = mint.cat([noise_pred_eps, noise_pred_rest], dim=1)
+                    noise_pred, _ = noise_pred.chunk(2, dim=0)
 
                 # compute the previous noisy sample x_t -> x_t-1
                 noise_pred = -noise_pred
                 latents = self.scheduler.step(noise_pred, t, latents, return_dict=False)[0]
 
                 progress_bar.update()
+
+                if callback_on_step_end is not None:
+                    callback_kwargs = {}
+                    for k in callback_on_step_end_tensor_inputs:
+                        callback_kwargs[k] = locals()[k]
+                    callback_outputs = callback_on_step_end(self, i, t, callback_kwargs)
+
+                    latents = callback_outputs.pop("latents", latents)
+                    prompt_embeds = callback_outputs.pop("prompt_embeds", prompt_embeds)
 
         if not output_type == "latent":
             latents = latents / self.vae.config.scaling_factor
@@ -851,3 +888,23 @@ class LuminaText2ImgPipeline(DiffusionPipeline):
             return (image,)
 
         return ImagePipelineOutput(images=image)
+
+
+class LuminaText2ImgPipeline(LuminaPipeline):
+    def __init__(
+        self,
+        transformer: LuminaNextDiT2DModel,
+        scheduler: FlowMatchEulerDiscreteScheduler,
+        vae: AutoencoderKL,
+        text_encoder: GemmaPreTrainedModel,
+        tokenizer: Union[GemmaTokenizer, GemmaTokenizerFast],
+    ):
+        deprecation_message = "`LuminaText2ImgPipeline` has been renamed to `LuminaPipeline` and will be removed in a future version. Please use `LuminaPipeline` instead."  # noqa
+        deprecate("diffusers.pipelines.lumina.pipeline_lumina.LuminaText2ImgPipeline", "0.34", deprecation_message)
+        super().__init__(
+            transformer=transformer,
+            scheduler=scheduler,
+            vae=vae,
+            text_encoder=text_encoder,
+            tokenizer=tokenizer,
+        )

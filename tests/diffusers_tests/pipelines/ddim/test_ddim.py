@@ -1,5 +1,8 @@
 # coding=utf-8
-# Copyright 2024 HuggingFace Inc.
+# Copyright 2025 HuggingFace Inc.
+#
+# This code is adapted from https://github.com/huggingface/diffusers
+# with modifications to run diffusers on mindspore.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -21,7 +24,7 @@ from ddt import data, ddt, unpack
 
 import mindspore as ms
 
-from mindone.diffusers.utils.testing_utils import load_downloaded_numpy_from_hf_hub, slow
+from mindone.diffusers.utils.testing_utils import load_numpy_from_local_file, slow
 
 from ..pipeline_test_utils import (
     THRESHOLD_FP16,
@@ -130,14 +133,14 @@ class DDIMPipelineIntegrationTests(PipelineTesterMixin, unittest.TestCase):
         model_id = "google/ddpm-cifar10-32"
 
         pipe_cls = get_module("mindone.diffusers.pipelines.ddim.DDIMPipeline")
-        ddim = pipe_cls.from_pretrained(model_id, use_safetensors=True, mindspore_dtype=ms_dtype)
+        ddim = pipe_cls.from_pretrained(model_id, mindspore_dtype=ms_dtype)
         ddim.set_progress_bar_config(disable=None)
 
         torch.manual_seed(0)
         image = ddim(eta=0.0)[0][0]
 
-        expected_image = load_downloaded_numpy_from_hf_hub(
-            "The-truth/mindone-testing-arrays",
+        expected_image = load_numpy_from_local_file(
+            "mindone-testing-arrays",
             f"ddim_cifar10_{dtype}.npy",
             subfolder="ddim",
         )

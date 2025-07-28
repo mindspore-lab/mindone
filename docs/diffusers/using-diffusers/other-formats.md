@@ -155,6 +155,7 @@ pipeline = DiffusionPipeline.from_pretrained(
 Benefits of using the Diffusers-multifolder layout include:
 
 1. Faster to load each component file individually or in parallel.
+2. Reduced memory usage because you only load the components you need. For example, models like [SDXL Turbo](https://hf.co/stabilityai/sdxl-turbo), [SDXL Lightning](https://hf.co/ByteDance/SDXL-Lightning), and [Hyper-SD](https://hf.co/ByteDance/Hyper-SD) have the same components except for the UNet. You can reuse their shared components with the [`from_pipe`](https://mindspore-lab.github.io/mindone/latest/diffusers/api/pipelines/overview/#mindone.diffusers.DiffusionPipeline.from_pipe) method without consuming any additional memory (take a look at the [Reuse a pipeline](./loading.md#reuse-a-pipeline) guide) and only load the UNet. This way, you don't need to download redundant components and unnecessarily use more memory.
 
 ```py
 import mindspore as ms
@@ -175,10 +176,24 @@ unet = UNet2DConditionModel.from_pretrained(
     variant="fp16",
     use_safetensors=True
 )
+# reuse all the same components in new model except for the UNet
+turbo_pipeline = StableDiffusionXLPipeline.from_pipe(
+    sdxl_pipeline, unet=unet,
+)
+turbo_pipeline.scheduler = EulerDiscreteScheduler.from_config(
+    turbo_pipeline.scheduler.config,
+    timestep_spacing="trailing",
+)
+image = turbo_pipeline(
+    "an astronaut riding a unicorn on mars",
+    num_inference_steps=1,
+    guidance_scale=0.0,
+)[0][0]
+image
 ```
 
-2. Reduced storage requirements because if a component, such as the SDXL [VAE](https://hf.co/madebyollin/sdxl-vae-fp16-fix), is shared across multiple models, you only need to download and store a single copy of it instead of downloading and storing it multiple times. For 10 SDXL models, this can save ~3.5GB of storage. The storage savings is even greater for newer models like PixArt Sigma, where the [text encoder](https://hf.co/PixArt-alpha/PixArt-Sigma-XL-2-1024-MS/tree/main/text_encoder) alone is ~19GB!
-3. Flexibility to replace a component in the model with a newer or better version.
+3. Reduced storage requirements because if a component, such as the SDXL [VAE](https://hf.co/madebyollin/sdxl-vae-fp16-fix), is shared across multiple models, you only need to download and store a single copy of it instead of downloading and storing it multiple times. For 10 SDXL models, this can save ~3.5GB of storage. The storage savings is even greater for newer models like PixArt Sigma, where the [text encoder](https://hf.co/PixArt-alpha/PixArt-Sigma-XL-2-1024-MS/tree/main/text_encoder) alone is ~19GB!
+4. Flexibility to replace a component in the model with a newer or better version.
 
 ```py
 from mindone.diffusers import DiffusionPipeline, AutoencoderKL
@@ -192,7 +207,7 @@ pipeline = DiffusionPipeline.from_pretrained(
 )
 ```
 
-4. More visibility and information about a model's components, which are stored in a [config.json](https://hf.co/stabilityai/stable-diffusion-xl-base-1.0/blob/main/unet/config.json) file in each component subfolder.
+5. More visibility and information about a model's components, which are stored in a [config.json](https://hf.co/stabilityai/stable-diffusion-xl-base-1.0/blob/main/unet/config.json) file in each component subfolder.
 
 ### Single-file
 

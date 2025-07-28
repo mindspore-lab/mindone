@@ -1,6 +1,9 @@
 # Copyright 2024 The RhymesAI and The HuggingFace Team.
 # All rights reserved.
 #
+# This code is adapted from https://github.com/huggingface/diffusers
+# with modifications to run diffusers on mindspore.
+#
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -16,7 +19,7 @@
 from typing import Optional, Tuple
 
 import mindspore as ms
-from mindspore import nn, ops
+from mindspore import mint, nn, ops
 
 from ...configuration_utils import ConfigMixin, register_to_config
 from ...utils import logging
@@ -25,7 +28,7 @@ from ..attention_processor import AllegroAttnProcessor2_0, Attention
 from ..embeddings import PatchEmbed, PixArtAlphaTextProjection
 from ..modeling_outputs import Transformer2DModelOutput
 from ..modeling_utils import ModelMixin
-from ..normalization import AdaLayerNormSingle, LayerNorm
+from ..normalization import AdaLayerNormSingle
 
 logger = logging.get_logger(__name__)
 
@@ -73,7 +76,7 @@ class AllegroTransformerBlock(nn.Cell):
         super().__init__()
 
         # 1. Self Attention
-        self.norm1 = LayerNorm(dim, elementwise_affine=norm_elementwise_affine, eps=norm_eps)
+        self.norm1 = mint.nn.LayerNorm(dim, elementwise_affine=norm_elementwise_affine, eps=norm_eps)
 
         self.attn1 = Attention(
             query_dim=dim,
@@ -86,7 +89,7 @@ class AllegroTransformerBlock(nn.Cell):
         )
 
         # 2. Cross Attention
-        self.norm2 = LayerNorm(dim, elementwise_affine=norm_elementwise_affine, eps=norm_eps)
+        self.norm2 = mint.nn.LayerNorm(dim, elementwise_affine=norm_elementwise_affine, eps=norm_eps)
         self.attn2 = Attention(
             query_dim=dim,
             cross_attention_dim=cross_attention_dim,
@@ -98,7 +101,7 @@ class AllegroTransformerBlock(nn.Cell):
         )
 
         # 3. Feed Forward
-        self.norm3 = LayerNorm(dim, elementwise_affine=norm_elementwise_affine, eps=norm_eps)
+        self.norm3 = mint.nn.LayerNorm(dim, elementwise_affine=norm_elementwise_affine, eps=norm_eps)
 
         self.ff = FeedForward(
             dim,
@@ -107,7 +110,7 @@ class AllegroTransformerBlock(nn.Cell):
         )
 
         # 4. Scale-shift
-        self.scale_shift_table = ms.Parameter(ops.randn(6, dim) / dim**0.5, name="scale_shift_table")
+        self.scale_shift_table = ms.Parameter(mint.randn(6, dim) / dim**0.5, name="scale_shift_table")
 
     def construct(
         self,
@@ -123,7 +126,7 @@ class AllegroTransformerBlock(nn.Cell):
 
         shift_msa, scale_msa, gate_msa, shift_mlp, scale_mlp, gate_mlp = (
             self.scale_shift_table[None] + temb.reshape(batch_size, 6, -1)
-        ).chunk(6, axis=1)
+        ).chunk(6, dim=1)
         norm_hidden_states = self.norm1(hidden_states)
         norm_hidden_states = norm_hidden_states * (1 + scale_msa) + shift_msa
         # If input is of shape: (A×1×B), squeeze(input, 0) leaves the tensor unchanged. This function is not supported in MS.
@@ -219,6 +222,9 @@ class AllegroTransformer3DModel(ModelMixin, ConfigMixin):
             Scaling factor to apply in 3D positional embeddings across time dimension.
     """
 
+    _supports_gradient_checkpointing = True
+    _skip_layerwise_casting_patterns = ["pos_embed", "norm", "adaln_single"]
+
     @register_to_config
     def __init__(
         self,
@@ -286,11 +292,11 @@ class AllegroTransformer3DModel(ModelMixin, ConfigMixin):
         )
 
         # 3. Output projection & norm
-        self.norm_out = LayerNorm(self.inner_dim, elementwise_affine=False, eps=1e-6)
+        self.norm_out = mint.nn.LayerNorm(self.inner_dim, elementwise_affine=False, eps=1e-6)
         self.scale_shift_table = ms.Parameter(
-            ops.randn(2, self.inner_dim) / self.inner_dim**0.5, name="scale_shift_table"
+            mint.randn(2, self.inner_dim) / self.inner_dim**0.5, name="scale_shift_table"
         )
-        self.proj_out = nn.Dense(self.inner_dim, patch_size * patch_size * out_channels)
+        self.proj_out = mint.nn.Linear(self.inner_dim, patch_size * patch_size * out_channels)
 
         # 4. Timestep embeddings
         self.adaln_single = AdaLayerNormSingle(self.inner_dim, use_additional_conditions=False)
@@ -299,9 +305,6 @@ class AllegroTransformer3DModel(ModelMixin, ConfigMixin):
         self.caption_projection = PixArtAlphaTextProjection(in_features=caption_channels, hidden_size=self.inner_dim)
 
         self.gradient_checkpointing = False
-
-    def _set_gradient_checkpointing(self, module, value=False):
-        self.gradient_checkpointing = value
 
     def construct(
         self,
@@ -343,8 +346,9 @@ class AllegroTransformer3DModel(ModelMixin, ConfigMixin):
 
             if attention_mask.numel() > 0:
                 attention_mask = attention_mask.unsqueeze(1)  # [batch_size, 1, num_frames, height, width]
+                # todo: unavailable mint interface
                 attention_mask = ops.max_pool3d(attention_mask, kernel_size=(p_t, p, p), stride=(p_t, p, p))
-                attention_mask = attention_mask.flatten(start_dim=1).view(batch_size, 1, -1)
+                attention_mask = attention_mask.flatten(1).view(batch_size, 1, -1)
 
             attention_mask = (
                 (1 - attention_mask.bool().to(hidden_states.dtype)) * -10000.0 if attention_mask.numel() > 0 else None
@@ -361,7 +365,7 @@ class AllegroTransformer3DModel(ModelMixin, ConfigMixin):
         )
 
         # 2. Patch embeddings
-        hidden_states = hidden_states.permute(0, 2, 1, 3, 4).flatten(start_dim=0, end_dim=1)
+        hidden_states = hidden_states.permute(0, 2, 1, 3, 4).flatten(0, 1)
         hidden_states = self.pos_embed(hidden_states)
         hidden_states = hidden_states.reshape(
             hidden_states.shape[:0] + (batch_size, -1) + hidden_states.shape[1:]
@@ -382,7 +386,7 @@ class AllegroTransformer3DModel(ModelMixin, ConfigMixin):
             )
 
         # 4. Output normalization & projection
-        shift, scale = (self.scale_shift_table[None] + embedded_timestep[:, None]).chunk(2, axis=1)
+        shift, scale = (self.scale_shift_table[None] + embedded_timestep[:, None]).chunk(2, dim=1)
         hidden_states = self.norm_out(hidden_states)
 
         # Modulation
