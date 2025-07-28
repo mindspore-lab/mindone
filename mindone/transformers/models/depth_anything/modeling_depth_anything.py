@@ -375,8 +375,7 @@ class DepthAnythingForDepthEstimation(DepthAnythingPreTrainedModel):
         >>> # prepare image for the model
         >>> inputs = image_processor(images=image, return_tensors="ms")
 
-        >>> with torch.no_grad():
-        ...     outputs = model(**inputs)
+        >>> outputs = model(**inputs)
 
         >>> # interpolate to original size
         >>> post_processed_output = image_processor.post_process_depth_estimation(
