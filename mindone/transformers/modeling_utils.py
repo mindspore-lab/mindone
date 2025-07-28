@@ -372,8 +372,9 @@ class ModuleUtilsMixin:
         return self.__class__.__name__
 
     def to(self, dtype: Optional[ms.Type] = None):
-        for _, v in self._buffers.items():
-            v.set_dtype(dtype)
+        for _, b in self.named_buffers():
+            if b.is_floating_point():
+                b.set_dtype(dtype)
         for p in self.get_parameters():
             p.set_dtype(dtype)
         return self
