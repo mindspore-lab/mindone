@@ -77,9 +77,22 @@ def flash_attention_forward(
         raise NotImplementedError("Sliding window is not supported in Mindspore yet. Please set `sliding_window=None`.")
     if softcap is not None:
         raise NotImplementedError("Softcap is not supported in Mindspore yet. Please set `softcap=None`.")
+    if scaling is None:
+        # `flash_attention_score` does not support `None`
+        # and the value can't be set in jit mode, thus must be set in advance
+        raise ValueError("`scaling` must be provided.")
+
+    # This is before the transpose
+    num_head = query.shape[1]
+
+    # BNSD -> BSND
+    query = query.swapaxes(1, 2)
+    key = key.swapaxes(1, 2)
+    value = value.swapaxes(1, 2)
+    input_layout = "BSND"
 
     if module.is_causal:
-        attention_mask = mint.tril(mint.ones((query.shape[-2], key.shape[-2]), dtype=ms.bool_), diagonal=0)
+        attention_mask = mint.tril(mint.ones((query.shape[1], key.shape[1]), dtype=ms.bool_), diagonal=0)
     # For `attn_mask` of ops.flash_attention_score, False indicates retention and True indicates discard, Which is
     # opposite to PyTorch
     if attention_mask is not None:
@@ -92,22 +105,16 @@ def flash_attention_forward(
         key = key.to(ms.float16)
         value = value.to(ms.float16)
 
-    if scaling is None:
-        # `flash_attention_score` does not support `None`
-        # and the value can't set in jit mode, thus must be set in advance
-        raise ValueError("`scaling` must be provided.")
-
     attn_output = ops.flash_attention_score(
         query,
         key,
         value,
-        head_num=query.shape[1],
+        head_num=num_head,
         attn_mask=attention_mask,
         keep_prob=1.0 - dropout,
         scalar_value=scaling,
-        input_layout="BNSD",
+        input_layout=input_layout,
     )
     attn_output = attn_output.to(origin_dtype)
-    attn_output = mint.transpose(attn_output, 1, 2).contiguous()
 
     return attn_output, None
