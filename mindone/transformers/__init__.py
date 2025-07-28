@@ -248,6 +248,7 @@ from .models.hiera import (
     HieraModel,
     HieraPreTrainedModel,
 )
+from .models.hubert import HubertForCTC, HubertForSequenceClassification, HubertModel, HubertPreTrainedModel
 from .models.idefics3 import (
     Idefics3ForConditionalGeneration,
     Idefics3Model,
