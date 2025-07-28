@@ -72,6 +72,7 @@ MODEL_MAPPING_NAMES = OrderedDict(
         ("siglip", "SiglipModel"),
         ("helium", "HeliumModel"),
         ("hiera", "HieraModel"),
+        ("hubert", "HubertModel"),
         ("idefics", "IdeficsModel"),
         ("idefics2", "Idefics2Model"),
         ("idefics3", "Idefics3Model"),
@@ -97,6 +98,8 @@ MODEL_MAPPING_NAMES = OrderedDict(
         ("rembert", "RemBertModel"),
         ("siglip", "SiglipModel"),
         ("siglip_vision_model", "SiglipVisionModel"),
+        ("smolvlm", "SmolVLMModel"),
+        ("smolvlm_vision", "SmolVLMVisionTransformer"),
         ("speecht5", "SpeechT5Model"),
         ("t5", "T5Model"),
         ("umt5", "UMT5Model"),
@@ -119,10 +122,14 @@ MODEL_FOR_PRETRAINING_MAPPING_NAMES = OrderedDict(
         ("gpt2", "GPT2LMHeadModel"),
         ("gemma3", "Gemma3ForConditionalGeneration"),
         ("hiera", "HieraForPreTraining"),
+        ("hubert", "HubertForPreTraining"),
         ("idefics", "IdeficsForVisionText2Text"),
         ("idefics2", "Idefics2ForConditionalGeneration"),
         ("idefics3", "Idefics3ForConditionalGeneration"),
         ("llava", "LlavaForConditionalGeneration"),
+        ("llava_next", "LlavaNextForConditionalGeneration"),
+        ("llava_next_video", "LlavaNextVideoForConditionalGeneration"),
+        ("llava_onevision", "LlavaOnevisionForConditionalGeneration"),
         ("mobilebert", "MobileBertForPreTraining"),
         ("qwen2_audio", "Qwen2AudioForConditionalGeneration"),
         ("roberta", "RobertaForMaskedLM"),
@@ -211,9 +218,11 @@ MODEL_FOR_IMAGE_MAPPING_NAMES = OrderedDict(
         ("dpt", "DPTModel"),
         ("glpn", "GLPNModel"),
         ("hiera", "HieraModel"),
+        ("hubert", "HubertModel"),
         ("ijepa", "IJepaModel"),
         ("imagegpt", "ImageGPTModel"),
         ("levit", "LevitModel"),
+        ("siglip_vision_model", "SiglipVisionModel"),
     ]
 )
 
@@ -260,6 +269,9 @@ MODEL_FOR_VISION_2_SEQ_MAPPING_NAMES = OrderedDict(
         ("idefics2", "Idefics2ForConditionalGeneration"),
         ("idefics3", "Idefics3ForConditionalGeneration"),
         ("llava", "LlavaForConditionalGeneration"),
+        ("llava_next", "LlavaNextForConditionalGeneration"),
+        ("llava_next_video", "LlavaNextVideoForConditionalGeneration"),
+        ("llava_onevision", "LlavaOnevisionForConditionalGeneration"),
         ("paligemma", "PaliGemmaForConditionalGeneration"),
         ("qwen2_5_vl", "Qwen2_5_VLForConditionalGeneration"),
         ("qwen2_vl", "Qwen2VLForConditionalGeneration"),
@@ -279,9 +291,12 @@ MODEL_FOR_IMAGE_TEXT_TO_TEXT_MAPPING_NAMES = OrderedDict(
         ("idefics3", "Idefics3ForConditionalGeneration"),
         ("fuyu", "FuyuForCausalLM"),
         ("llava", "LlavaForConditionalGeneration"),
+        ("llava_next", "LlavaNextForConditionalGeneration"),
+        ("llava_onevision", "LlavaOnevisionForConditionalGeneration"),
         ("paligemma", "PaliGemmaForConditionalGeneration"),
         ("qwen2_5_vl", "Qwen2_5_VLForConditionalGeneration"),
         ("qwen2_vl", "Qwen2VLForConditionalGeneration"),
+        ("smolvlm", "SmolVLMForConditionalGeneration"),
     ]
 )
 
@@ -374,6 +389,7 @@ MODEL_FOR_SEQUENCE_CLASSIFICATION_MAPPING_NAMES = OrderedDict(
         ("gemma2", "Gemma2ForSequenceClassification"),
         ("glm", "GlmForSequenceClassification"),
         ("helium", "HeliumForSequenceClassification"),
+        ("hubert", "HubertForSequenceClassification"),
         ("led", "LEDForSequenceClassification"),
         ("starcoder2", "Starcoder2ForSequenceClassification"),
         ("canine", "CanineForSequenceClassification"),
@@ -411,6 +427,7 @@ MODEL_FOR_QUESTION_ANSWERING_MAPPING_NAMES = OrderedDict(
         ("led", "LEDForQuestionAnswering"),
         ("convbert", "ConvBertForQuestionAnswering"),
         ("llama", "LlamaForQuestionAnswering"),
+        ("mistral", "MistralForQuestionAnswering"),
         ("mobilebert", "MobileBertForQuestionAnswering"),
         ("megatron-bert", "MegatronBertForQuestionAnswering"),
         ("mistral", "MistralForQuestionAnswering"),
@@ -530,6 +547,7 @@ MODEL_FOR_TEXT_TO_WAVEFORM_MAPPING_NAMES = OrderedDict()
 
 MODEL_FOR_ZERO_SHOT_IMAGE_CLASSIFICATION_MAPPING_NAMES = OrderedDict(
     [
+        # Model for Zero Shot Image Classification mapping
         ("blip", "BlipModel"),
         ("siglip", "SiglipModel"),
     ]

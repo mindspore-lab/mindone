@@ -54,6 +54,7 @@ from .models.auto import (
     AutoImageProcessor,
     AutoModel,
     AutoModelForCausalLM,
+    AutoModelForImageTextToText,
     AutoModelForMaskedLM,
     AutoProcessor,
 )
@@ -249,6 +250,7 @@ from .models.hiera import (
     HieraModel,
     HieraPreTrainedModel,
 )
+from .models.hubert import HubertForCTC, HubertForSequenceClassification, HubertModel, HubertPreTrainedModel
 from .models.idefics3 import (
     Idefics3ForConditionalGeneration,
     Idefics3Model,
@@ -280,6 +282,25 @@ from .models.levit import (
 )
 from .models.llama import LlamaForCausalLM, LlamaForSequenceClassification, LlamaModel, LlamaPreTrainedModel
 from .models.llava import LlavaConfig, LlavaForConditionalGeneration
+from .models.llava_next import (
+    LlavaNextForConditionalGeneration,
+    LlavaNextImageProcessor,
+    LlavaNextPreTrainedModel,
+    LlavaNextProcessor,
+)
+from .models.llava_next_video import (
+    LlavaNextVideoForConditionalGeneration,
+    LlavaNextVideoImageProcessor,
+    LlavaNextVideoPreTrainedModel,
+    LlavaNextVideoProcessor,
+)
+from .models.llava_onevision import (
+    LlavaOnevisionForConditionalGeneration,
+    LlavaOnevisionImageProcessor,
+    LlavaOnevisionPreTrainedModel,
+    LlavaOnevisionProcessor,
+    LlavaOnevisionVideoProcessor,
+)
 from .models.m2m_100 import M2M100ForConditionalGeneration, M2M100Model, M2M100PreTrainedModel
 from .models.megatron_bert import (
     MegatronBertForCausalLM,
@@ -418,6 +439,12 @@ from .models.siglip import (
     SiglipPreTrainedModel,
     SiglipTextModel,
     SiglipVisionModel,
+)
+from .models.smolvlm import (
+    SmolVLMForConditionalGeneration,
+    SmolVLMModel,
+    SmolVLMPreTrainedModel,
+    SmolVLMVisionTransformer,
 )
 from .models.speecht5 import (
     SpeechT5ForSpeechToSpeech,
