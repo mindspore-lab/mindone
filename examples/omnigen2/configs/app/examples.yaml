@@ -1,0 +1,629 @@
+examples:
+  - prompt: "Please briefly describe this image."
+    width: 1024
+    height: 1024
+    scheduler: "euler"
+    num_inference_steps: 50
+    input_image: "https://raw.githubusercontent.com/VectorSpaceLab/OmniGen2/32399044e5d280fe5b2782443e72690ffad242eb/example_images/1e5953ff5e029bfc81bb0a1d4792d26d.jpg"
+    input_image2: null
+    input_image3: null
+    text_guidance_scale: 5.0
+    image_guidance_scale: 2.0
+    cfg_range_start: 0.0
+    cfg_range_end: 1.0
+    num_images_per_prompt: 1
+    max_input_image_size: 2048
+    max_image_size: 1048576
+    seed: 0
+
+  - prompt: "The sun rises slightly, the dew on the rose petals in the garden is clear, a crystal ladybug is crawling to the dew, the background is the early morning garden, macro lens."
+    width: 1024
+    height: 1024
+    scheduler: "euler"
+    num_inference_steps: 50
+    input_image: null
+    input_image2: null
+    input_image3: null
+    text_guidance_scale: 3.5
+    image_guidance_scale: 1.0
+    cfg_range_start: 0.0
+    cfg_range_end: 1.0
+    num_images_per_prompt: 1
+    max_input_image_size: 2048
+    max_image_size: 1048576
+    seed: 0
+
+  - prompt: "A snow maiden with pale translucent skin, frosty white lashes, and a soft expression of longing"
+    width: 1024
+    height: 1024
+    scheduler: "euler"
+    num_inference_steps: 50
+    input_image: null
+    input_image2: null
+    input_image3: null
+    text_guidance_scale: 3.5
+    image_guidance_scale: 1.0
+    cfg_range_start: 0.0
+    cfg_range_end: 1.0
+    num_images_per_prompt: 1
+    max_input_image_size: 2048
+    max_image_size: 1048576
+    seed: 0
+
+  - prompt: "Add a fisherman hat to the woman's head"
+    width: 1024
+    height: 1024
+    scheduler: "euler"
+    num_inference_steps: 50
+    input_image: "https://raw.githubusercontent.com/VectorSpaceLab/OmniGen2/32399044e5d280fe5b2782443e72690ffad242eb/example_images/flux5.png"
+    input_image2: null
+    input_image3: null
+    text_guidance_scale: 5.0
+    image_guidance_scale: 2.0
+    cfg_range_start: 0.0
+    cfg_range_end: 1.0
+    num_images_per_prompt: 1
+    max_input_image_size: 2048
+    max_image_size: 1048576
+    seed: 0
+
+  - prompt: "replace the sword with a hammer."
+    width: 1024
+    height: 1024
+    scheduler: "euler"
+    num_inference_steps: 50
+    input_image: "https://raw.githubusercontent.com/VectorSpaceLab/OmniGen2/32399044e5d280fe5b2782443e72690ffad242eb/example_images/d8f8f44c64106e7715c61b5dfa9d9ca0974314c5d4a4a50418acf7ff373432bb.png"
+    input_image2: None
+    input_image3: None
+    text_guidance_scale: 5.0
+    image_guidance_scale: 2.0
+    cfg_range_start: 0.0
+    cfg_range_end: 1.0
+    num_images_per_prompt: 1
+    max_input_image_size: 2048
+    max_image_size: 1048576
+    seed: 0
+
+  - prompt: "Extract the character from the picture and fill the rest of the background with white."
+    width: 1024
+    height: 1024
+    scheduler: "euler"
+    num_inference_steps: 50
+    input_image: "https://raw.githubusercontent.com/VectorSpaceLab/OmniGen2/32399044e5d280fe5b2782443e72690ffad242eb/example_images/46e79704-c88e-4e68-97b4-b4c40cd29826.png"
+    input_image2: None
+    input_image3: None
+    text_guidance_scale: 5.0
+    image_guidance_scale: 2.0
+    cfg_range_start: 0.0
+    cfg_range_end: 1.0
+    num_images_per_prompt: 1
+    max_input_image_size: 2048
+    max_image_size: 1048576
+    seed: 0
+
+  - prompt: "Make he smile"
+    width: 1024
+    height: 1024
+    scheduler: "euler"
+    num_inference_steps: 50
+    input_image: "https://raw.githubusercontent.com/VectorSpaceLab/OmniGen2/32399044e5d280fe5b2782443e72690ffad242eb/example_images/vicky-hladynets-C8Ta0gwPbQg-unsplash.jpg"
+    input_image2: None
+    input_image3: None
+    text_guidance_scale: 5.0
+    image_guidance_scale: 2.0
+    cfg_range_start: 0.0
+    cfg_range_end: 1.0
+    num_images_per_prompt: 1
+    max_input_image_size: 2048
+    max_image_size: 1048576
+    seed: 0
+
+  - prompt: "Change the background to classroom"
+    width: 1024
+    height: 1024
+    scheduler: "euler"
+    num_inference_steps: 50
+    input_image: "https://raw.githubusercontent.com/VectorSpaceLab/OmniGen2/32399044e5d280fe5b2782443e72690ffad242eb/example_images/ComfyUI_temp_mllvz_00071_.png"
+    input_image2: None
+    input_image3: None
+    text_guidance_scale: 5.0
+    image_guidance_scale: 2.0
+    cfg_range_start: 0.0
+    cfg_range_end: 1.0
+    num_images_per_prompt: 1
+    max_input_image_size: 2048
+    max_image_size: 1048576
+    seed: 0
+
+  - prompt: "Raise his hand"
+    width: 1024
+    height: 1024
+    scheduler: "euler"
+    num_inference_steps: 50
+    input_image: "https://raw.githubusercontent.com/VectorSpaceLab/OmniGen2/32399044e5d280fe5b2782443e72690ffad242eb/example_images/289089159-a6d7abc142419e63cab0a566eb38e0fb6acb217b340f054c6172139b316f6596.png"
+    input_image2: None
+    input_image3: None
+    text_guidance_scale: 5.0
+    image_guidance_scale: 2.0
+    cfg_range_start: 0.0
+    cfg_range_end: 1.0
+    num_images_per_prompt: 1
+    max_input_image_size: 2048
+    max_image_size: 1048576
+    seed: 0
+
+  - prompt: "Generate a photo of an anime-style figurine placed on a desk. The figurine model should be based on the character photo provided in the attachment, accurately replicating the full-body pose, facial expression, and clothing style of the character in the photo, ensuring the entire figurine is fully presented. The overall design should be exquisite and detailed, soft gradient colors and a delicate texture, leaning towards a Japanese anime style, rich in details, with a realistic quality and beautiful visual appeal."
+    width: 1024
+    height: 1024
+    scheduler: "euler"
+    num_inference_steps: 50
+    input_image: "https://raw.githubusercontent.com/VectorSpaceLab/OmniGen2/32399044e5d280fe5b2782443e72690ffad242eb/example_images/RAL_0315.JPG"
+    input_image2: None
+    input_image3: None
+    text_guidance_scale: 5.0
+    image_guidance_scale: 2.0
+    cfg_range_start: 0.0
+    cfg_range_end: 1.0
+    num_images_per_prompt: 1
+    max_input_image_size: 2048
+    max_image_size: 1048576
+    seed: 0
+
+  - prompt: "Change the dress to blue."
+    width: 1024
+    height: 1024
+    scheduler: "euler"
+    num_inference_steps: 50
+    input_image: "https://raw.githubusercontent.com/VectorSpaceLab/OmniGen2/32399044e5d280fe5b2782443e72690ffad242eb/example_images/1.png"
+    input_image2: None
+    input_image3: None
+    text_guidance_scale: 5.0
+    image_guidance_scale: 2.0
+    cfg_range_start: 0.0
+    cfg_range_end: 1.0
+    num_images_per_prompt: 1
+    max_input_image_size: 2048
+    max_image_size: 1048576
+    seed: 0
+
+  - prompt: "Remove the cat"
+    width: 1024
+    height: 1024
+    scheduler: "euler"
+    num_inference_steps: 50
+    input_image: "https://raw.githubusercontent.com/VectorSpaceLab/OmniGen2/32399044e5d280fe5b2782443e72690ffad242eb/example_images/386724677-589d19050d4ea0603aee6831459aede29a24f4d8668c62c049f413db31508a54.png"
+    input_image2: None
+    input_image3: None
+    text_guidance_scale: 5.0
+    image_guidance_scale: 2.0
+    cfg_range_start: 0.0
+    cfg_range_end: 1.0
+    num_images_per_prompt: 1
+    max_input_image_size: 2048
+    max_image_size: 1048576
+    seed: 0
+
+  - prompt: "In a cozy café, the anime figure is sitting in front of a laptop, smiling confidently."
+    width: 1024
+    height: 1024
+    scheduler: "euler"
+    num_inference_steps: 50
+    input_image: "https://raw.githubusercontent.com/VectorSpaceLab/OmniGen2/32399044e5d280fe5b2782443e72690ffad242eb/example_images/ComfyUI_00254_.png"
+    input_image2: None
+    input_image3: None
+    text_guidance_scale: 5.0
+    image_guidance_scale: 2.0
+    cfg_range_start: 0.0
+    cfg_range_end: 1.0
+    num_images_per_prompt: 1
+    max_input_image_size: 2048
+    max_image_size: 1048576
+    seed: 0
+
+  - prompt: "Convert this image into Ghibli style"
+    width: 1024
+    height: 1024
+    scheduler: "euler"
+    num_inference_steps: 50
+    input_image: "https://raw.githubusercontent.com/VectorSpaceLab/OmniGen2/32399044e5d280fe5b2782443e72690ffad242eb/example_images/girl.png"
+    input_image2: None
+    input_image3: None
+    text_guidance_scale: 5.0
+    image_guidance_scale: 2.0
+    cfg_range_start: 0.0
+    cfg_range_end: 1.0
+    num_images_per_prompt: 1
+    max_input_image_size: 2048
+    max_image_size: 1048576
+    seed: 0
+
+  - prompt: "Convert this image to clay style"
+    width: 1024
+    height: 1024
+    scheduler: "euler"
+    num_inference_steps: 50
+    input_image: "https://raw.githubusercontent.com/VectorSpaceLab/OmniGen2/32399044e5d280fe5b2782443e72690ffad242eb/example_images/girl.png"
+    input_image2: None
+    input_image3: None
+    text_guidance_scale: 5.0
+    image_guidance_scale: 2.0
+    cfg_range_start: 0.0
+    cfg_range_end: 1.0
+    num_images_per_prompt: 1
+    max_input_image_size: 2048
+    max_image_size: 1048576
+    seed: 0
+
+  - prompt: "Generate an ad for this object. Add this product into a minimalist interior inspired by japanese aesthetic. The picture should have the product front and center, placed on a minimalist shelf with a concrete wall behind it. Add plants and other stylish accessories to make it feel like a photo of a home. "
+    width: 1024
+    height: 1024
+    scheduler: "euler"
+    num_inference_steps: 50
+    input_image: "https://raw.githubusercontent.com/VectorSpaceLab/OmniGen2/32399044e5d280fe5b2782443e72690ffad242eb/example_images/nezha.png"
+    input_image2: None
+    input_image3: None
+    text_guidance_scale: 5.0
+    image_guidance_scale: 2.0
+    cfg_range_start: 0.0
+    cfg_range_end: 1.0
+    num_images_per_prompt: 1
+    max_input_image_size: 2048
+    max_image_size: 1048576
+    seed: 0
+
+  - prompt: "Generate an ad for this object. Add this product into a minimalist interior inspired by japanese aesthetic. The picture should have the product front and center, placed on a minimalist shelf with a concrete wall behind it. Add plants and other stylish accessories to make it feel like a photo of a home. "
+    width: 1024
+    height: 1024
+    scheduler: "euler"
+    num_inference_steps: 50
+    input_image: "https://raw.githubusercontent.com/VectorSpaceLab/OmniGen2/32399044e5d280fe5b2782443e72690ffad242eb/example_images/blv.png"
+    input_image2: None
+    input_image3: None
+    text_guidance_scale: 5.0
+    image_guidance_scale: 2.0
+    cfg_range_start: 0.0
+    cfg_range_end: 1.0
+    num_images_per_prompt: 1
+    max_input_image_size: 2048
+    max_image_size: 1048576
+    seed: 0
+
+  - prompt: "It is placed on a figure display shelf inside a well-lit glass cabinet. Soft LED lights highlight its intricate details, and the shelf stands against a clean white wall, giving the collection a modern, curated look."
+    width: 1024
+    height: 1024
+    scheduler: "euler"
+    num_inference_steps: 50
+    input_image: "https://raw.githubusercontent.com/VectorSpaceLab/OmniGen2/32399044e5d280fe5b2782443e72690ffad242eb/example_images/toy.png"
+    input_image2: None
+    input_image3: None
+    text_guidance_scale: 5.0
+    image_guidance_scale: 2.0
+    cfg_range_start: 0.0
+    cfg_range_end: 1.0
+    num_images_per_prompt: 1
+    max_input_image_size: 2048
+    max_image_size: 1048576
+    seed: 0
+
+  - prompt: "It is placed on a figure display shelf inside a well-lit glass cabinet. Soft LED lights highlight its intricate details, and the shelf stands against a clean white wall, giving the collection a modern, curated look."
+    width: 1024
+    height: 1024
+    scheduler: "euler"
+    num_inference_steps: 50
+    input_image: "https://raw.githubusercontent.com/VectorSpaceLab/OmniGen2/32399044e5d280fe5b2782443e72690ffad242eb/example_images/doll1.jpg"
+    input_image2: None
+    input_image3: None
+    text_guidance_scale: 5.0
+    image_guidance_scale: 2.0
+    cfg_range_start: 0.0
+    cfg_range_end: 1.0
+    num_images_per_prompt: 1
+    max_input_image_size: 2048
+    max_image_size: 1048576
+    seed: 0
+
+  - prompt: "The doll is part of a stop-motion film set, surrounded by camera gear and miniature lighting rigs."
+    width: 1024
+    height: 1024
+    scheduler: "euler"
+    num_inference_steps: 50
+    input_image: "https://raw.githubusercontent.com/VectorSpaceLab/OmniGen2/32399044e5d280fe5b2782443e72690ffad242eb/example_images/doll1.jpg"
+    input_image2: None
+    input_image3: None
+    text_guidance_scale: 5.0
+    image_guidance_scale: 2.0
+    cfg_range_start: 0.0
+    cfg_range_end: 1.0
+    num_images_per_prompt: 1
+    max_input_image_size: 2048
+    max_image_size: 1048576
+    seed: 0
+
+  - prompt: "The doll is part of a stop-motion film set, surrounded by camera gear and miniature lighting rigs."
+    width: 1024
+    height: 1024
+    scheduler: "euler"
+    num_inference_steps: 50
+    input_image: "https://raw.githubusercontent.com/VectorSpaceLab/OmniGen2/32399044e5d280fe5b2782443e72690ffad242eb/example_images/doll2.jpg"
+    input_image2: None
+    input_image3: None
+    text_guidance_scale: 5.0
+    image_guidance_scale: 2.0
+    cfg_range_start: 0.0
+    cfg_range_end: 1.0
+    num_images_per_prompt: 1
+    max_input_image_size: 2048
+    max_image_size: 1048576
+    seed: 0
+
+  - prompt: "Edit the first image: add the man from the second image. The man is talking with a woman in the kitchen"
+    width: 1024
+    height: 768
+    scheduler: "euler"
+    num_inference_steps: 50
+    input_image: "https://raw.githubusercontent.com/VectorSpaceLab/OmniGen2/32399044e5d280fe5b2782443e72690ffad242eb/example_images/woman_kitchen.webp"
+    input_image2: "https://raw.githubusercontent.com/VectorSpaceLab/OmniGen2/32399044e5d280fe5b2782443e72690ffad242eb/example_images/a_man.webp"
+    input_image3: None
+    text_guidance_scale: 5.0
+    image_guidance_scale: 2.0
+    cfg_range_start: 0.0
+    cfg_range_end: 1.0
+    num_images_per_prompt: 1
+    max_input_image_size: 2048
+    max_image_size: 1048576
+    seed: 0
+
+  - prompt: "Edit the first image: replace the woman with the person from the second image. The person is watching his phone in the kitchen"
+    width: 1024
+    height: 768
+    scheduler: "euler"
+    num_inference_steps: 50
+    input_image: "https://raw.githubusercontent.com/VectorSpaceLab/OmniGen2/32399044e5d280fe5b2782443e72690ffad242eb/example_images/woman_kitchen.webp"
+    input_image2: "https://raw.githubusercontent.com/VectorSpaceLab/OmniGen2/32399044e5d280fe5b2782443e72690ffad242eb/example_images/a_man.webp"
+    input_image3: None
+    text_guidance_scale: 5.0
+    image_guidance_scale: 2.0
+    cfg_range_start: 0.0
+    cfg_range_end: 1.0
+    num_images_per_prompt: 1
+    max_input_image_size: 2048
+    max_image_size: 1048576
+    seed: 0
+
+  - prompt: "Edit the first image: replace the apple with the cat from the second image."
+    width: 1024
+    height: 768
+    scheduler: "euler"
+    num_inference_steps: 50
+    input_image: "https://raw.githubusercontent.com/VectorSpaceLab/OmniGen2/32399044e5d280fe5b2782443e72690ffad242eb/example_images/apple.png"
+    input_image2: "https://raw.githubusercontent.com/VectorSpaceLab/OmniGen2/32399044e5d280fe5b2782443e72690ffad242eb/example_images/468404374-d52ec1a44aa7e0dc9c2807ce09d303a111c78f34da3da2401b83ce10815ff872.png"
+    input_image3: None
+    text_guidance_scale: 5.0
+    image_guidance_scale: 2.0
+    cfg_range_start: 0.0
+    cfg_range_end: 1.0
+    num_images_per_prompt: 1
+    max_input_image_size: 2048
+    max_image_size: 1048576
+    seed: 0
+
+  - prompt: "She holds the sunflower close to her chest, eyes closed and smiling softly, standing on a sunlit balcony with the awakening city skyline behind her."
+    width: 1024
+    height: 1536
+    scheduler: "euler"
+    num_inference_steps: 50
+    input_image: "https://raw.githubusercontent.com/VectorSpaceLab/OmniGen2/32399044e5d280fe5b2782443e72690ffad242eb/example_images/woman1.webp"
+    input_image2: None
+    input_image3: None
+    text_guidance_scale: 5.0
+    image_guidance_scale: 2.0
+    cfg_range_start: 0.0
+    cfg_range_end: 1.0
+    num_images_per_prompt: 1
+    max_input_image_size: 2048
+    max_image_size: 1048576
+    seed: 0
+
+  - prompt: "She does push-ups on the moonlit beach, staring intensely at the camera. Moonlight highlights her strong, focused expression, with waves crashing beside her on the glistening sand."
+    width: 1024
+    height: 1536
+    scheduler: "euler"
+    num_inference_steps: 50
+    input_image: "https://raw.githubusercontent.com/VectorSpaceLab/OmniGen2/32399044e5d280fe5b2782443e72690ffad242eb/example_images/woman1.webp"
+    input_image2: None
+    input_image3: None
+    text_guidance_scale: 5.0
+    image_guidance_scale: 3.0
+    cfg_range_start: 0.0
+    cfg_range_end: 1.0
+    num_images_per_prompt: 1
+    max_input_image_size: 2048
+    max_image_size: 1048576
+    seed: 0
+
+  - prompt: "She is sitting on a motorcycle, framed by a daytime backdrop with swaying palm trees."
+    width: 1024
+    height: 1536
+    scheduler: "euler"
+    num_inference_steps: 50
+    input_image: "https://raw.githubusercontent.com/VectorSpaceLab/OmniGen2/32399044e5d280fe5b2782443e72690ffad242eb/example_images/woman1.webp"
+    input_image2: None
+    input_image3: None
+    text_guidance_scale: 5.0
+    image_guidance_scale: 2.0
+    cfg_range_start: 0.0
+    cfg_range_end: 1.0
+    num_images_per_prompt: 1
+    max_input_image_size: 2048
+    max_image_size: 1048576
+    seed: 0
+
+  - prompt: "The two people shown in the images are sitting in a theater, watching the screen. One person points at the other person."
+    width: 1024
+    height: 1024
+    scheduler: "euler"
+    num_inference_steps: 50
+    input_image: "https://raw.githubusercontent.com/VectorSpaceLab/OmniGen2/32399044e5d280fe5b2782443e72690ffad242eb/example_images/man1.webp"
+    input_image2: "https://raw.githubusercontent.com/VectorSpaceLab/OmniGen2/32399044e5d280fe5b2782443e72690ffad242eb/example_images/woman1.webp"
+    input_image3: None
+    text_guidance_scale: 5.0
+    image_guidance_scale: 3.0
+    cfg_range_start: 0.0
+    cfg_range_end: 1.0
+    num_images_per_prompt: 1
+    max_input_image_size: 2048
+    max_image_size: 1048576
+    seed: 0
+
+  - prompt: "The two people shown in the images are sitting in a theater, watching the screen. One person points at the other person."
+    width: 1024
+    height: 1024
+    scheduler: "euler"
+    num_inference_steps: 50
+    input_image: "https://raw.githubusercontent.com/VectorSpaceLab/OmniGen2/32399044e5d280fe5b2782443e72690ffad242eb/example_images/saml-altman-openai-ceo.webp"
+    input_image2: "https://raw.githubusercontent.com/VectorSpaceLab/OmniGen2/32399044e5d280fe5b2782443e72690ffad242eb/example_images/elon-twitter-new-ceo.webp"
+    input_image3: None
+    text_guidance_scale: 5.0
+    image_guidance_scale: 3.0
+    cfg_range_start: 0.0
+    cfg_range_end: 1.0
+    num_images_per_prompt: 1
+    max_input_image_size: 2048
+    max_image_size: 1048576
+    seed: 0
+
+  - prompt: "The two people shown in the images are drinking wine, their eyes locked in an intense gaze at the camera, seated at an elegantly set table in a dimly lit room. Soft, golden light spills from a nearby chandelier, casting a warm glow over the polished wood surface, while the ambient sound of quiet conversation fills the air."
+    width: 1024
+    height: 1024
+    scheduler: "euler"
+    num_inference_steps: 50
+    input_image: "https://raw.githubusercontent.com/VectorSpaceLab/OmniGen2/32399044e5d280fe5b2782443e72690ffad242eb/example_images/man1.webp"
+    input_image2: "https://raw.githubusercontent.com/VectorSpaceLab/OmniGen2/32399044e5d280fe5b2782443e72690ffad242eb/example_images/woman1.webp"
+    input_image3: None
+    text_guidance_scale: 5.0
+    image_guidance_scale: 3.0
+    cfg_range_start: 0.0
+    cfg_range_end: 1.0
+    num_images_per_prompt: 1
+    max_input_image_size: 2048
+    max_image_size: 1048576
+    seed: 0
+
+  - prompt: "The two people shown in the images are drinking wine, their eyes locked in an intense gaze at the camera, seated at an elegantly set table in a dimly lit room. Soft, golden light spills from a nearby chandelier, casting a warm glow over the polished wood surface, while the ambient sound of quiet conversation fills the air."
+    width: 1024
+    height: 1024
+    scheduler: "euler"
+    num_inference_steps: 50
+    input_image: "https://raw.githubusercontent.com/VectorSpaceLab/OmniGen2/32399044e5d280fe5b2782443e72690ffad242eb/example_images/saml-altman-openai-ceo.webp"
+    input_image2: "https://raw.githubusercontent.com/VectorSpaceLab/OmniGen2/32399044e5d280fe5b2782443e72690ffad242eb/example_images/elon-twitter-new-ceo.webp"
+    input_image3: None
+    text_guidance_scale: 5.0
+    image_guidance_scale: 3.0
+    cfg_range_start: 0.0
+    cfg_range_end: 1.0
+    num_images_per_prompt: 1
+    max_input_image_size: 2048
+    max_image_size: 1048576
+    seed: 0
+
+  - prompt: "Create a wedding figure based on the girl in the first image and the man in the second image. Set the background as a wedding hall, with the man dressed in a suit and the girl in a white wedding dress. Ensure that the original faces remain unchanged and are accurately preserved. The man should adopt a realistic style, whereas the girl should maintain their classic anime style."
+    width: 1024
+    height: 1024
+    scheduler: "euler"
+    num_inference_steps: 50
+    input_image: "https://raw.githubusercontent.com/VectorSpaceLab/OmniGen2/32399044e5d280fe5b2782443e72690ffad242eb/example_images/1_20241127203215.png"
+    input_image2: "https://raw.githubusercontent.com/VectorSpaceLab/OmniGen2/32399044e5d280fe5b2782443e72690ffad242eb/example_images/000050281.jpg"
+    input_image3: None
+    text_guidance_scale: 5.0
+    image_guidance_scale: 3.0
+    cfg_range_start: 0.0
+    cfg_range_end: 1.0
+    num_images_per_prompt: 1
+    max_input_image_size: 2048
+    max_image_size: 1048576
+    seed: 0
+
+  - prompt: "Let the girl and the boy get married in the church. "
+    width: 1024
+    height: 1024
+    scheduler: "euler"
+    num_inference_steps: 50
+    input_image: "https://raw.githubusercontent.com/VectorSpaceLab/OmniGen2/32399044e5d280fe5b2782443e72690ffad242eb/example_images/8FtFUxRzXqaguVRGzkHvN.png"
+    input_image2: "https://raw.githubusercontent.com/VectorSpaceLab/OmniGen2/32399044e5d280fe5b2782443e72690ffad242eb/example_images/01194-20240127001056_1024x1536.png"
+    input_image3: None
+    text_guidance_scale: 5.0
+    image_guidance_scale: 3.0
+    cfg_range_start: 0.0
+    cfg_range_end: 1.0
+    num_images_per_prompt: 1
+    max_input_image_size: 2048
+    max_image_size: 1048576
+    seed: 0
+
+  - prompt: "Let the man from image1 and the woman from image2 kiss and hug"
+    width: 1024
+    height: 1024
+    scheduler: "euler"
+    num_inference_steps: 50
+    input_image: "https://raw.githubusercontent.com/VectorSpaceLab/OmniGen2/32399044e5d280fe5b2782443e72690ffad242eb/example_images/1280X1280.png"
+    input_image2: "https://raw.githubusercontent.com/VectorSpaceLab/OmniGen2/32399044e5d280fe5b2782443e72690ffad242eb/example_images/000077066.jpg"
+    input_image3: None
+    text_guidance_scale: 5.0
+    image_guidance_scale: 2.0
+    cfg_range_start: 0.0
+    cfg_range_end: 1.0
+    num_images_per_prompt: 1
+    max_input_image_size: 2048
+    max_image_size: 1048576
+    seed: 0
+
+  - prompt: "Please let the person in image 2 hold the toy from the first image in a parking lot."
+    width: 1024
+    height: 1024
+    scheduler: "euler"
+    num_inference_steps: 50
+    input_image: "https://raw.githubusercontent.com/VectorSpaceLab/OmniGen2/32399044e5d280fe5b2782443e72690ffad242eb/example_images/04.jpg"
+    input_image2: "https://raw.githubusercontent.com/VectorSpaceLab/OmniGen2/32399044e5d280fe5b2782443e72690ffad242eb/example_images/000365954.jpg"
+    input_image3: None
+    text_guidance_scale: 5.0
+    image_guidance_scale: 2.0
+    cfg_range_start: 0.0
+    cfg_range_end: 1.0
+    num_images_per_prompt: 1
+    max_input_image_size: 2048
+    max_image_size: 1048576
+    seed: 0
+
+  - prompt: "Make the girl pray in the second image."
+    width: 1024
+    height: 682
+    scheduler: "euler"
+    num_inference_steps: 50
+    input_image: "https://raw.githubusercontent.com/VectorSpaceLab/OmniGen2/32399044e5d280fe5b2782443e72690ffad242eb/example_images/000440817.jpg"
+    input_image2: "https://raw.githubusercontent.com/VectorSpaceLab/OmniGen2/32399044e5d280fe5b2782443e72690ffad242eb/example_images/000119733.jpg"
+    input_image3: None
+    text_guidance_scale: 5.0
+    image_guidance_scale: 2.0
+    cfg_range_start: 0.0
+    cfg_range_end: 1.0
+    num_images_per_prompt: 1
+    max_input_image_size: 2048
+    max_image_size: 1048576
+    seed: 0
+
+  - prompt: "The cat is sitting on the table. The bird is perching on the edge of the table."
+    width: 800
+    height: 512
+    scheduler: "euler"
+    num_inference_steps: 50
+    input_image: "https://raw.githubusercontent.com/VectorSpaceLab/OmniGen2/32399044e5d280fe5b2782443e72690ffad242eb/example_images/996e2cf6-daa5-48c4-9ad7-0719af640c17_1748848108409.png"
+    input_image2: "https://raw.githubusercontent.com/VectorSpaceLab/OmniGen2/32399044e5d280fe5b2782443e72690ffad242eb/example_images/468404374-d52ec1a44aa7e0dc9c2807ce09d303a111c78f34da3da2401b83ce10815ff872.png"
+    input_image3: "https://raw.githubusercontent.com/VectorSpaceLab/OmniGen2/32399044e5d280fe5b2782443e72690ffad242eb/example_images/00066-10350085.png"
+    text_guidance_scale: 5.0
+    image_guidance_scale: 2.0
+    cfg_range_start: 0.0
+    cfg_range_end: 1.0
+    num_images_per_prompt: 1
+    max_input_image_size: 2048
+    max_image_size: 1048576
+    seed: 0
