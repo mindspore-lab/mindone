@@ -50,6 +50,9 @@ logger = logging.get_logger(__name__)
 PROCESSOR_MAPPING_NAMES = OrderedDict(
     [
         ("blip", "BlipProcessor"),
+        ("llava_next", "LlavaNextProcessor"),
+        ("llava_next_video", "LlavaNextVideoProcessor"),
+        ("llava_onevision", "LlavaOnevisionProcessor"),
     ]
 )
 
