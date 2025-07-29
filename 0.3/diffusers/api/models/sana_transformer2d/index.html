@@ -3045,6 +3045,29 @@
   
   
     <li class="md-nav__item">
+      <a href="../controlnet_sana/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    SanaControlNetModel
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../controlnet_sd3/" class="md-nav__link">
         
   
@@ -4930,6 +4953,29 @@
   
   
     <li class="md-nav__item">
+      <a href="../../pipelines/controlnet_sana/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    ControlNet-Sana
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../../pipelines/controlnetxs/" class="md-nav__link">
         
   
@@ -5189,6 +5235,29 @@
   
   <span class="md-ellipsis">
     FluxControlInpaint
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../pipelines/framepack/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Framepack
     
   </span>
   
@@ -5955,10 +6024,10 @@
       
         
         
-        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2_11_4_65" >
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2_11_4_67" >
         
           
-          <label class="md-nav__link" for="__nav_2_11_4_65" id="__nav_2_11_4_65_label" tabindex="0">
+          <label class="md-nav__link" for="__nav_2_11_4_67" id="__nav_2_11_4_67_label" tabindex="0">
             
   
   
@@ -5971,8 +6040,8 @@
             <span class="md-nav__icon md-icon"></span>
           </label>
         
-        <nav class="md-nav" data-md-level="4" aria-labelledby="__nav_2_11_4_65_label" aria-expanded="false">
-          <label class="md-nav__title" for="__nav_2_11_4_65">
+        <nav class="md-nav" data-md-level="4" aria-labelledby="__nav_2_11_4_67_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_2_11_4_67">
             <span class="md-nav__icon md-icon"></span>
             Stable Diffusion
           </label>
@@ -6528,6 +6597,29 @@
   
   <span class="md-ellipsis">
     Value-guided sampling
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../pipelines/visualcloze/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    VisualCloze
     
   </span>
   
@@ -8817,7 +8909,10 @@ specific language governing permissions and limitations under the License. -->
 <span class="normal">560</span>
 <span class="normal">561</span>
 <span class="normal">562</span>
-<span class="normal">563</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">class</span><span class="w"> </span><span class="nc">SanaTransformer2DModel</span><span class="p">(</span><span class="n">ModelMixin</span><span class="p">,</span> <span class="n">ConfigMixin</span><span class="p">,</span> <span class="n">PeftAdapterMixin</span><span class="p">,</span> <span class="n">FromOriginalModelMixin</span><span class="p">):</span>
+<span class="normal">563</span>
+<span class="normal">564</span>
+<span class="normal">565</span>
+<span class="normal">566</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">class</span><span class="w"> </span><span class="nc">SanaTransformer2DModel</span><span class="p">(</span><span class="n">ModelMixin</span><span class="p">,</span> <span class="n">ConfigMixin</span><span class="p">,</span> <span class="n">PeftAdapterMixin</span><span class="p">,</span> <span class="n">FromOriginalModelMixin</span><span class="p">):</span>
 <span class="w">    </span><span class="sa">r</span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    A 2D Transformer model introduced in [Sana](https://huggingface.co/papers/2410.10629) family of models.</span>
 
@@ -9011,6 +9106,7 @@ specific language governing permissions and limitations under the License. -->
         <span class="n">encoder_attention_mask</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">ms</span><span class="o">.</span><span class="n">Tensor</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
         <span class="n">attention_mask</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">ms</span><span class="o">.</span><span class="n">Tensor</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
         <span class="n">attention_kwargs</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">]]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">controlnet_block_samples</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Tuple</span><span class="p">[</span><span class="n">ms</span><span class="o">.</span><span class="n">Tensor</span><span class="p">]]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
         <span class="n">return_dict</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
     <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Union</span><span class="p">[</span><span class="n">Tuple</span><span class="p">[</span><span class="n">ms</span><span class="o">.</span><span class="n">Tensor</span><span class="p">,</span> <span class="o">...</span><span class="p">],</span> <span class="n">Transformer2DModelOutput</span><span class="p">]:</span>
         <span class="k">if</span> <span class="n">attention_kwargs</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="ow">and</span> <span class="s2">&quot;scale&quot;</span> <span class="ow">in</span> <span class="n">attention_kwargs</span><span class="p">:</span>
@@ -9068,7 +9164,7 @@ specific language governing permissions and limitations under the License. -->
         <span class="n">encoder_hidden_states</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">caption_norm</span><span class="p">(</span><span class="n">encoder_hidden_states</span><span class="p">)</span>
 
         <span class="c1"># 2. Transformer blocks</span>
-        <span class="k">for</span> <span class="n">block</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">transformer_blocks</span><span class="p">:</span>
+        <span class="k">for</span> <span class="n">index_block</span><span class="p">,</span> <span class="n">block</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">transformer_blocks</span><span class="p">):</span>
             <span class="n">hidden_states</span> <span class="o">=</span> <span class="n">block</span><span class="p">(</span>
                 <span class="n">hidden_states</span><span class="p">,</span>
                 <span class="n">attention_mask</span><span class="p">,</span>
@@ -9078,6 +9174,8 @@ specific language governing permissions and limitations under the License. -->
                 <span class="n">post_patch_height</span><span class="p">,</span>
                 <span class="n">post_patch_width</span><span class="p">,</span>
             <span class="p">)</span>
+            <span class="k">if</span> <span class="n">controlnet_block_samples</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="ow">and</span> <span class="mi">0</span> <span class="o">&lt;</span> <span class="n">index_block</span> <span class="o">&lt;=</span> <span class="nb">len</span><span class="p">(</span><span class="n">controlnet_block_samples</span><span class="p">):</span>
+                <span class="n">hidden_states</span> <span class="o">=</span> <span class="n">hidden_states</span> <span class="o">+</span> <span class="n">controlnet_block_samples</span><span class="p">[</span><span class="n">index_block</span> <span class="o">-</span> <span class="mi">1</span><span class="p">]</span>
 
         <span class="c1"># 3. Normalization</span>
         <span class="n">hidden_states</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">norm_out</span><span class="p">(</span><span class="n">hidden_states</span><span class="p">,</span> <span class="n">embedded_timestep</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">scale_shift_table</span><span class="p">)</span>

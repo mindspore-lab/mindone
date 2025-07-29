@@ -14,7 +14,7 @@
         <link rel="prev" href="../easyanimate/">
       
       
-        <link rel="next" href="../hunyuandit/">
+        <link rel="next" href="../framepack/">
       
       
       <link rel="icon" href="../../../../assets/images/favicon.png">
@@ -3043,6 +3043,29 @@
   
   
     <li class="md-nav__item">
+      <a href="../../models/controlnet_sana/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    SanaControlNetModel
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../../models/controlnet_sd3/" class="md-nav__link">
         
   
@@ -4844,6 +4867,29 @@
   
   
     <li class="md-nav__item">
+      <a href="../controlnet_sana/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    ControlNet-Sana
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../controlnetxs/" class="md-nav__link">
         
   
@@ -5648,6 +5694,29 @@
   
   
     <li class="md-nav__item">
+      <a href="../framepack/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Framepack
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../hunyuandit/" class="md-nav__link">
         
   
@@ -6397,10 +6466,10 @@
       
         
         
-        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2_11_4_65" >
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2_11_4_67" >
         
           
-          <label class="md-nav__link" for="__nav_2_11_4_65" id="__nav_2_11_4_65_label" tabindex="0">
+          <label class="md-nav__link" for="__nav_2_11_4_67" id="__nav_2_11_4_67_label" tabindex="0">
             
   
   
@@ -6413,8 +6482,8 @@
             <span class="md-nav__icon md-icon"></span>
           </label>
         
-        <nav class="md-nav" data-md-level="4" aria-labelledby="__nav_2_11_4_65_label" aria-expanded="false">
-          <label class="md-nav__title" for="__nav_2_11_4_65">
+        <nav class="md-nav" data-md-level="4" aria-labelledby="__nav_2_11_4_67_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_2_11_4_67">
             <span class="md-nav__icon md-icon"></span>
             Stable Diffusion
           </label>
@@ -6970,6 +7039,29 @@
   
   <span class="md-ellipsis">
     Value-guided sampling
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../visualcloze/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    VisualCloze
     
   </span>
   
@@ -36174,7 +36266,8 @@ the <a href="https://huggingface.co/google/t5-v1_1-xxl">google/t5-v1_1-xxl</a> v
 <span class="normal">995</span>
 <span class="normal">996</span>
 <span class="normal">997</span>
-<span class="normal">998</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">class</span><span class="w"> </span><span class="nc">FluxFillPipeline</span><span class="p">(</span>
+<span class="normal">998</span>
+<span class="normal">999</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">class</span><span class="w"> </span><span class="nc">FluxFillPipeline</span><span class="p">(</span>
     <span class="n">DiffusionPipeline</span><span class="p">,</span>
     <span class="n">FluxLoraLoaderMixin</span><span class="p">,</span>
     <span class="n">FromSingleFileMixin</span><span class="p">,</span>
@@ -36287,7 +36380,8 @@ the <a href="https://huggingface.co/google/t5-v1_1-xxl">google/t5-v1_1-xxl</a> v
                 <span class="sa">f</span><span class="s2">&quot; </span><span class="si">{</span><span class="n">max_sequence_length</span><span class="si">}</span><span class="s2"> tokens: </span><span class="si">{</span><span class="n">removed_text</span><span class="si">}</span><span class="s2">&quot;</span>
             <span class="p">)</span>
 
-        <span class="n">prompt_embeds</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">text_encoder_2</span><span class="p">(</span><span class="n">ms</span><span class="o">.</span><span class="n">Tensor</span><span class="o">.</span><span class="n">from_numpy</span><span class="p">(</span><span class="n">text_input_ids</span><span class="p">),</span> <span class="n">output_hidden_states</span><span class="o">=</span><span class="kc">False</span><span class="p">)[</span><span class="mi">0</span><span class="p">]</span>
+        <span class="k">with</span> <span class="n">pynative_context</span><span class="p">():</span>
+            <span class="n">prompt_embeds</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">text_encoder_2</span><span class="p">(</span><span class="n">ms</span><span class="o">.</span><span class="n">Tensor</span><span class="o">.</span><span class="n">from_numpy</span><span class="p">(</span><span class="n">text_input_ids</span><span class="p">),</span> <span class="n">output_hidden_states</span><span class="o">=</span><span class="kc">False</span><span class="p">)[</span><span class="mi">0</span><span class="p">]</span>
 
         <span class="n">dtype</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">text_encoder_2</span><span class="o">.</span><span class="n">dtype</span>
         <span class="n">prompt_embeds</span> <span class="o">=</span> <span class="n">prompt_embeds</span><span class="o">.</span><span class="n">to</span><span class="p">(</span><span class="n">dtype</span><span class="o">=</span><span class="n">dtype</span><span class="p">)</span>
@@ -37573,8 +37667,7 @@ will be passed as <code>callback_kwargs</code> argument. You will only be able t
 
             <details class="quote">
               <summary>Source code in <code>mindone/diffusers/pipelines/flux/pipeline_flux_fill.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">704</span>
-<span class="normal">705</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">705</span>
 <span class="normal">706</span>
 <span class="normal">707</span>
 <span class="normal">708</span>
@@ -37867,7 +37960,8 @@ will be passed as <code>callback_kwargs</code> argument. You will only be able t
 <span class="normal">995</span>
 <span class="normal">996</span>
 <span class="normal">997</span>
-<span class="normal">998</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="fm">__call__</span><span class="p">(</span>
+<span class="normal">998</span>
+<span class="normal">999</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="fm">__call__</span><span class="p">(</span>
     <span class="bp">self</span><span class="p">,</span>
     <span class="n">prompt</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">List</span><span class="p">[</span><span class="nb">str</span><span class="p">]]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
     <span class="n">prompt_2</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Union</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">List</span><span class="p">[</span><span class="nb">str</span><span class="p">]]]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
@@ -38185,12 +38279,12 @@ computing decoding in one step.</p>
 
             <details class="quote">
               <summary>Source code in <code>mindone/diffusers/pipelines/flux/pipeline_flux_fill.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">616</span>
-<span class="normal">617</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">617</span>
 <span class="normal">618</span>
 <span class="normal">619</span>
 <span class="normal">620</span>
-<span class="normal">621</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">disable_vae_slicing</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+<span class="normal">621</span>
+<span class="normal">622</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">disable_vae_slicing</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
 <span class="w">    </span><span class="sa">r</span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    Disable sliced VAE decoding. If `enable_vae_slicing` was previously enabled, this method will go back to</span>
 <span class="sd">    computing decoding in one step.</span>
@@ -38219,12 +38313,12 @@ computing decoding in one step.</p>
 
             <details class="quote">
               <summary>Source code in <code>mindone/diffusers/pipelines/flux/pipeline_flux_fill.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">631</span>
-<span class="normal">632</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">632</span>
 <span class="normal">633</span>
 <span class="normal">634</span>
 <span class="normal">635</span>
-<span class="normal">636</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">disable_vae_tiling</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+<span class="normal">636</span>
+<span class="normal">637</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">disable_vae_tiling</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
 <span class="w">    </span><span class="sa">r</span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    Disable tiled VAE decoding. If `enable_vae_tiling` was previously enabled, this method will go back to</span>
 <span class="sd">    computing decoding in one step.</span>
@@ -38253,12 +38347,12 @@ compute decoding in several steps. This is useful to save some memory and allow 
 
             <details class="quote">
               <summary>Source code in <code>mindone/diffusers/pipelines/flux/pipeline_flux_fill.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">609</span>
-<span class="normal">610</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">610</span>
 <span class="normal">611</span>
 <span class="normal">612</span>
 <span class="normal">613</span>
-<span class="normal">614</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">enable_vae_slicing</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+<span class="normal">614</span>
+<span class="normal">615</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">enable_vae_slicing</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
 <span class="w">    </span><span class="sa">r</span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    Enable sliced VAE decoding. When this option is enabled, the VAE will split the input tensor in slices to</span>
 <span class="sd">    compute decoding in several steps. This is useful to save some memory and allow larger batch sizes.</span>
@@ -38288,13 +38382,13 @@ processing larger images.</p>
 
             <details class="quote">
               <summary>Source code in <code>mindone/diffusers/pipelines/flux/pipeline_flux_fill.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">623</span>
-<span class="normal">624</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">624</span>
 <span class="normal">625</span>
 <span class="normal">626</span>
 <span class="normal">627</span>
 <span class="normal">628</span>
-<span class="normal">629</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">enable_vae_tiling</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+<span class="normal">629</span>
+<span class="normal">630</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">enable_vae_tiling</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
 <span class="w">    </span><span class="sa">r</span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    Enable tiled VAE decoding. When this option is enabled, the VAE will split the input tensor into tiles to</span>
 <span class="sd">    compute decoding and encoding in several steps. This is useful for saving a large amount of memory and to allow</span>
@@ -38449,8 +38543,7 @@ If not provided, pooled text embeddings will be generated from <code>prompt</cod
 
             <details class="quote">
               <summary>Source code in <code>mindone/diffusers/pipelines/flux/pipeline_flux_fill.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">404</span>
-<span class="normal">405</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">405</span>
 <span class="normal">406</span>
 <span class="normal">407</span>
 <span class="normal">408</span>
@@ -38519,7 +38612,8 @@ If not provided, pooled text embeddings will be generated from <code>prompt</cod
 <span class="normal">471</span>
 <span class="normal">472</span>
 <span class="normal">473</span>
-<span class="normal">474</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">encode_prompt</span><span class="p">(</span>
+<span class="normal">474</span>
+<span class="normal">475</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">encode_prompt</span><span class="p">(</span>
     <span class="bp">self</span><span class="p">,</span>
     <span class="n">prompt</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">List</span><span class="p">[</span><span class="nb">str</span><span class="p">]],</span>
     <span class="n">prompt_2</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">List</span><span class="p">[</span><span class="nb">str</span><span class="p">]],</span>
@@ -38705,13 +38799,13 @@ If not provided, pooled text embeddings will be generated from <code>prompt</cod
         
         
           
-          <a href="../hunyuandit/" class="md-footer__link md-footer__link--next" aria-label="Next: Hunyuan-DiT">
+          <a href="../framepack/" class="md-footer__link md-footer__link--next" aria-label="Next: Framepack">
             <div class="md-footer__title">
               <span class="md-footer__direction">
                 Next
               </span>
               <div class="md-ellipsis">
-                Hunyuan-DiT
+                Framepack
               </div>
             </div>
             <div class="md-footer__button md-icon">

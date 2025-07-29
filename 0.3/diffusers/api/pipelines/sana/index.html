@@ -3043,6 +3043,29 @@
   
   
     <li class="md-nav__item">
+      <a href="../../models/controlnet_sana/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    SanaControlNetModel
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../../models/controlnet_sd3/" class="md-nav__link">
         
   
@@ -4844,6 +4867,29 @@
   
   
     <li class="md-nav__item">
+      <a href="../controlnet_sana/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    ControlNet-Sana
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../controlnetxs/" class="md-nav__link">
         
   
@@ -5103,6 +5149,29 @@
   
   <span class="md-ellipsis">
     FluxControlInpaint
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../framepack/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Framepack
     
   </span>
   
@@ -6058,10 +6127,10 @@
       
         
         
-        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2_11_4_65" >
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2_11_4_67" >
         
           
-          <label class="md-nav__link" for="__nav_2_11_4_65" id="__nav_2_11_4_65_label" tabindex="0">
+          <label class="md-nav__link" for="__nav_2_11_4_67" id="__nav_2_11_4_67_label" tabindex="0">
             
   
   
@@ -6074,8 +6143,8 @@
             <span class="md-nav__icon md-icon"></span>
           </label>
         
-        <nav class="md-nav" data-md-level="4" aria-labelledby="__nav_2_11_4_65_label" aria-expanded="false">
-          <label class="md-nav__title" for="__nav_2_11_4_65">
+        <nav class="md-nav" data-md-level="4" aria-labelledby="__nav_2_11_4_67_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_2_11_4_67">
             <span class="md-nav__icon md-icon"></span>
             Stable Diffusion
           </label>
@@ -6631,6 +6700,29 @@
   
   <span class="md-ellipsis">
     Value-guided sampling
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../visualcloze/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    VisualCloze
     
   </span>
   
@@ -9220,10 +9312,7 @@
 <span class="normal">969</span>
 <span class="normal">970</span>
 <span class="normal">971</span>
-<span class="normal">972</span>
-<span class="normal">973</span>
-<span class="normal">974</span>
-<span class="normal">975</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">class</span><span class="w"> </span><span class="nc">SanaPipeline</span><span class="p">(</span><span class="n">DiffusionPipeline</span><span class="p">,</span> <span class="n">SanaLoraLoaderMixin</span><span class="p">):</span>
+<span class="normal">972</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">class</span><span class="w"> </span><span class="nc">SanaPipeline</span><span class="p">(</span><span class="n">DiffusionPipeline</span><span class="p">,</span> <span class="n">SanaLoraLoaderMixin</span><span class="p">):</span>
 <span class="w">    </span><span class="sa">r</span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    Pipeline for text-to-image generation using [Sana](https://huggingface.co/papers/2410.10629).</span>
 <span class="sd">    &quot;&quot;&quot;</span>
@@ -9380,9 +9469,7 @@
 <span class="sd">                If `complex_human_instruction` is not empty, the function will use the complex Human instruction for</span>
 <span class="sd">                the prompt.</span>
 <span class="sd">        &quot;&quot;&quot;</span>
-        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">transformer</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
-            <span class="n">dtype</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">transformer</span><span class="o">.</span><span class="n">dtype</span>
-        <span class="k">elif</span> <span class="bp">self</span><span class="o">.</span><span class="n">text_encoder</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">text_encoder</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
             <span class="n">dtype</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">text_encoder</span><span class="o">.</span><span class="n">dtype</span>
         <span class="k">else</span><span class="p">:</span>
             <span class="n">dtype</span> <span class="o">=</span> <span class="kc">None</span>
@@ -9949,6 +10036,7 @@
         <span class="n">num_warmup_steps</span> <span class="o">=</span> <span class="nb">max</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">timesteps</span><span class="p">)</span> <span class="o">-</span> <span class="n">num_inference_steps</span> <span class="o">*</span> <span class="bp">self</span><span class="o">.</span><span class="n">scheduler</span><span class="o">.</span><span class="n">order</span><span class="p">,</span> <span class="mi">0</span><span class="p">)</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">_num_timesteps</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">timesteps</span><span class="p">)</span>
 
+        <span class="n">transformer_dtype</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">transformer</span><span class="o">.</span><span class="n">dtype</span>
         <span class="k">with</span> <span class="bp">self</span><span class="o">.</span><span class="n">progress_bar</span><span class="p">(</span><span class="n">total</span><span class="o">=</span><span class="n">num_inference_steps</span><span class="p">)</span> <span class="k">as</span> <span class="n">progress_bar</span><span class="p">:</span>
             <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="n">t</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">timesteps</span><span class="p">):</span>
                 <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">interrupt</span><span class="p">:</span>
@@ -9958,13 +10046,13 @@
                 <span class="n">latent_model_input</span> <span class="o">=</span> <span class="n">latent_model_input</span><span class="o">.</span><span class="n">to</span><span class="p">(</span><span class="n">prompt_embeds</span><span class="o">.</span><span class="n">dtype</span><span class="p">)</span>
 
                 <span class="c1"># broadcast to batch dimension in a way that&#39;s compatible with ONNX/Core ML</span>
-                <span class="n">timestep</span> <span class="o">=</span> <span class="n">t</span><span class="o">.</span><span class="n">broadcast_to</span><span class="p">((</span><span class="n">latent_model_input</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">],))</span><span class="o">.</span><span class="n">to</span><span class="p">(</span><span class="n">latents</span><span class="o">.</span><span class="n">dtype</span><span class="p">)</span>
+                <span class="n">timestep</span> <span class="o">=</span> <span class="n">t</span><span class="o">.</span><span class="n">broadcast_to</span><span class="p">((</span><span class="n">latent_model_input</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">],))</span>
                 <span class="n">timestep</span> <span class="o">=</span> <span class="n">timestep</span> <span class="o">*</span> <span class="bp">self</span><span class="o">.</span><span class="n">transformer</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">timestep_scale</span>
 
                 <span class="c1"># predict noise model_output</span>
                 <span class="n">noise_pred</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">transformer</span><span class="p">(</span>
-                    <span class="n">latent_model_input</span><span class="p">,</span>
-                    <span class="n">encoder_hidden_states</span><span class="o">=</span><span class="n">prompt_embeds</span><span class="p">,</span>
+                    <span class="n">latent_model_input</span><span class="o">.</span><span class="n">to</span><span class="p">(</span><span class="n">dtype</span><span class="o">=</span><span class="n">transformer_dtype</span><span class="p">),</span>
+                    <span class="n">encoder_hidden_states</span><span class="o">=</span><span class="n">prompt_embeds</span><span class="o">.</span><span class="n">to</span><span class="p">(</span><span class="n">dtype</span><span class="o">=</span><span class="n">transformer_dtype</span><span class="p">),</span>
                     <span class="n">encoder_attention_mask</span><span class="o">=</span><span class="n">prompt_attention_mask</span><span class="p">,</span>
                     <span class="n">timestep</span><span class="o">=</span><span class="n">timestep</span><span class="p">,</span>
                     <span class="n">return_dict</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
@@ -9980,8 +10068,6 @@
                 <span class="c1"># learned sigma</span>
                 <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">transformer</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">out_channels</span> <span class="o">//</span> <span class="mi">2</span> <span class="o">==</span> <span class="n">latent_channels</span><span class="p">:</span>
                     <span class="n">noise_pred</span> <span class="o">=</span> <span class="n">noise_pred</span><span class="o">.</span><span class="n">chunk</span><span class="p">(</span><span class="mi">2</span><span class="p">,</span> <span class="n">dim</span><span class="o">=</span><span class="mi">1</span><span class="p">)[</span><span class="mi">0</span><span class="p">]</span>
-                <span class="k">else</span><span class="p">:</span>
-                    <span class="n">noise_pred</span> <span class="o">=</span> <span class="n">noise_pred</span>
 
                 <span class="c1"># compute previous image: x_t -&gt; x_t-1</span>
                 <span class="n">latents</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">scheduler</span><span class="o">.</span><span class="n">step</span><span class="p">(</span><span class="n">noise_pred</span><span class="p">,</span> <span class="n">t</span><span class="p">,</span> <span class="n">latents</span><span class="p">,</span> <span class="o">**</span><span class="n">extra_step_kwargs</span><span class="p">,</span> <span class="n">return_dict</span><span class="o">=</span><span class="kc">False</span><span class="p">)[</span><span class="mi">0</span><span class="p">]</span>
@@ -10608,7 +10694,7 @@ https://github.com/NVlabs/Sana/blob/main/configs/sana_app_config/Sana_1600M_app.
 
   
       dataclass
-  " href="#mindone.diffusers.pipelines.sana.pipeline_output.SanaPipelineOutput">SanaPipelineOutput</a>, <span title="typing.Tuple">Tuple</span>]</code>
+  " href="../controlnet_sana/#mindone.diffusers.pipelines.sana.pipeline_output.SanaPipelineOutput">SanaPipelineOutput</a>, <span title="typing.Tuple">Tuple</span>]</code>
                 </span>
             </td>
             <td class="doc-returns-details">
@@ -10625,7 +10711,9 @@ otherwise a <code>tuple</code> is returned where the first element is a list wit
 
             <details class="quote">
               <summary>Source code in <code>mindone/diffusers/pipelines/sana/pipeline_sana.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">681</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">679</span>
+<span class="normal">680</span>
+<span class="normal">681</span>
 <span class="normal">682</span>
 <span class="normal">683</span>
 <span class="normal">684</span>
@@ -10916,10 +11004,7 @@ otherwise a <code>tuple</code> is returned where the first element is a list wit
 <span class="normal">969</span>
 <span class="normal">970</span>
 <span class="normal">971</span>
-<span class="normal">972</span>
-<span class="normal">973</span>
-<span class="normal">974</span>
-<span class="normal">975</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="fm">__call__</span><span class="p">(</span>
+<span class="normal">972</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="fm">__call__</span><span class="p">(</span>
     <span class="bp">self</span><span class="p">,</span>
     <span class="n">prompt</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">List</span><span class="p">[</span><span class="nb">str</span><span class="p">]]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
     <span class="n">negative_prompt</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;&quot;</span><span class="p">,</span>
@@ -11144,6 +11229,7 @@ otherwise a <code>tuple</code> is returned where the first element is a list wit
     <span class="n">num_warmup_steps</span> <span class="o">=</span> <span class="nb">max</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">timesteps</span><span class="p">)</span> <span class="o">-</span> <span class="n">num_inference_steps</span> <span class="o">*</span> <span class="bp">self</span><span class="o">.</span><span class="n">scheduler</span><span class="o">.</span><span class="n">order</span><span class="p">,</span> <span class="mi">0</span><span class="p">)</span>
     <span class="bp">self</span><span class="o">.</span><span class="n">_num_timesteps</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">timesteps</span><span class="p">)</span>
 
+    <span class="n">transformer_dtype</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">transformer</span><span class="o">.</span><span class="n">dtype</span>
     <span class="k">with</span> <span class="bp">self</span><span class="o">.</span><span class="n">progress_bar</span><span class="p">(</span><span class="n">total</span><span class="o">=</span><span class="n">num_inference_steps</span><span class="p">)</span> <span class="k">as</span> <span class="n">progress_bar</span><span class="p">:</span>
         <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="n">t</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">timesteps</span><span class="p">):</span>
             <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">interrupt</span><span class="p">:</span>
@@ -11153,13 +11239,13 @@ otherwise a <code>tuple</code> is returned where the first element is a list wit
             <span class="n">latent_model_input</span> <span class="o">=</span> <span class="n">latent_model_input</span><span class="o">.</span><span class="n">to</span><span class="p">(</span><span class="n">prompt_embeds</span><span class="o">.</span><span class="n">dtype</span><span class="p">)</span>
 
             <span class="c1"># broadcast to batch dimension in a way that&#39;s compatible with ONNX/Core ML</span>
-            <span class="n">timestep</span> <span class="o">=</span> <span class="n">t</span><span class="o">.</span><span class="n">broadcast_to</span><span class="p">((</span><span class="n">latent_model_input</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">],))</span><span class="o">.</span><span class="n">to</span><span class="p">(</span><span class="n">latents</span><span class="o">.</span><span class="n">dtype</span><span class="p">)</span>
+            <span class="n">timestep</span> <span class="o">=</span> <span class="n">t</span><span class="o">.</span><span class="n">broadcast_to</span><span class="p">((</span><span class="n">latent_model_input</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">],))</span>
             <span class="n">timestep</span> <span class="o">=</span> <span class="n">timestep</span> <span class="o">*</span> <span class="bp">self</span><span class="o">.</span><span class="n">transformer</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">timestep_scale</span>
 
             <span class="c1"># predict noise model_output</span>
             <span class="n">noise_pred</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">transformer</span><span class="p">(</span>
-                <span class="n">latent_model_input</span><span class="p">,</span>
-                <span class="n">encoder_hidden_states</span><span class="o">=</span><span class="n">prompt_embeds</span><span class="p">,</span>
+                <span class="n">latent_model_input</span><span class="o">.</span><span class="n">to</span><span class="p">(</span><span class="n">dtype</span><span class="o">=</span><span class="n">transformer_dtype</span><span class="p">),</span>
+                <span class="n">encoder_hidden_states</span><span class="o">=</span><span class="n">prompt_embeds</span><span class="o">.</span><span class="n">to</span><span class="p">(</span><span class="n">dtype</span><span class="o">=</span><span class="n">transformer_dtype</span><span class="p">),</span>
                 <span class="n">encoder_attention_mask</span><span class="o">=</span><span class="n">prompt_attention_mask</span><span class="p">,</span>
                 <span class="n">timestep</span><span class="o">=</span><span class="n">timestep</span><span class="p">,</span>
                 <span class="n">return_dict</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
@@ -11175,8 +11261,6 @@ otherwise a <code>tuple</code> is returned where the first element is a list wit
             <span class="c1"># learned sigma</span>
             <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">transformer</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">out_channels</span> <span class="o">//</span> <span class="mi">2</span> <span class="o">==</span> <span class="n">latent_channels</span><span class="p">:</span>
                 <span class="n">noise_pred</span> <span class="o">=</span> <span class="n">noise_pred</span><span class="o">.</span><span class="n">chunk</span><span class="p">(</span><span class="mi">2</span><span class="p">,</span> <span class="n">dim</span><span class="o">=</span><span class="mi">1</span><span class="p">)[</span><span class="mi">0</span><span class="p">]</span>
-            <span class="k">else</span><span class="p">:</span>
-                <span class="n">noise_pred</span> <span class="o">=</span> <span class="n">noise_pred</span>
 
             <span class="c1"># compute previous image: x_t -&gt; x_t-1</span>
             <span class="n">latents</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">scheduler</span><span class="o">.</span><span class="n">step</span><span class="p">(</span><span class="n">noise_pred</span><span class="p">,</span> <span class="n">t</span><span class="p">,</span> <span class="n">latents</span><span class="p">,</span> <span class="o">**</span><span class="n">extra_step_kwargs</span><span class="p">,</span> <span class="n">return_dict</span><span class="o">=</span><span class="kc">False</span><span class="p">)[</span><span class="mi">0</span><span class="p">]</span>
@@ -11685,9 +11769,7 @@ the prompt.</p>
 <span class="normal">411</span>
 <span class="normal">412</span>
 <span class="normal">413</span>
-<span class="normal">414</span>
-<span class="normal">415</span>
-<span class="normal">416</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">encode_prompt</span><span class="p">(</span>
+<span class="normal">414</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">encode_prompt</span><span class="p">(</span>
     <span class="bp">self</span><span class="p">,</span>
     <span class="n">prompt</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">List</span><span class="p">[</span><span class="nb">str</span><span class="p">]],</span>
     <span class="n">do_classifier_free_guidance</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span><span class="p">,</span>
@@ -11728,9 +11810,7 @@ the prompt.</p>
 <span class="sd">            If `complex_human_instruction` is not empty, the function will use the complex Human instruction for</span>
 <span class="sd">            the prompt.</span>
 <span class="sd">    &quot;&quot;&quot;</span>
-    <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">transformer</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
-        <span class="n">dtype</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">transformer</span><span class="o">.</span><span class="n">dtype</span>
-    <span class="k">elif</span> <span class="bp">self</span><span class="o">.</span><span class="n">text_encoder</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+    <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">text_encoder</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
         <span class="n">dtype</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">text_encoder</span><span class="o">.</span><span class="n">dtype</span>
     <span class="k">else</span><span class="p">:</span>
         <span class="n">dtype</span> <span class="o">=</span> <span class="kc">None</span>

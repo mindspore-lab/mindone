@@ -3043,6 +3043,29 @@
   
   
     <li class="md-nav__item">
+      <a href="../../models/controlnet_sana/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    SanaControlNetModel
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../../models/controlnet_sd3/" class="md-nav__link">
         
   
@@ -4844,6 +4867,29 @@
   
   
     <li class="md-nav__item">
+      <a href="../controlnet_sana/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    ControlNet-Sana
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../controlnetxs/" class="md-nav__link">
         
   
@@ -5103,6 +5149,29 @@
   
   <span class="md-ellipsis">
     FluxControlInpaint
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../framepack/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Framepack
     
   </span>
   
@@ -5989,10 +6058,10 @@
       
         
         
-        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2_11_4_65" >
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2_11_4_67" >
         
           
-          <label class="md-nav__link" for="__nav_2_11_4_65" id="__nav_2_11_4_65_label" tabindex="0">
+          <label class="md-nav__link" for="__nav_2_11_4_67" id="__nav_2_11_4_67_label" tabindex="0">
             
   
   
@@ -6005,8 +6074,8 @@
             <span class="md-nav__icon md-icon"></span>
           </label>
         
-        <nav class="md-nav" data-md-level="4" aria-labelledby="__nav_2_11_4_65_label" aria-expanded="false">
-          <label class="md-nav__title" for="__nav_2_11_4_65">
+        <nav class="md-nav" data-md-level="4" aria-labelledby="__nav_2_11_4_67_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_2_11_4_67">
             <span class="md-nav__icon md-icon"></span>
             Stable Diffusion
           </label>
@@ -6562,6 +6631,29 @@
   
   <span class="md-ellipsis">
     Value-guided sampling
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../visualcloze/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    VisualCloze
     
   </span>
   
@@ -10919,8 +11011,8 @@ processing larger images.</p>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>List of video outputs - It can be a nested list of length <code>batch_size,</code> with each sub-list containing
-denoised PIL image sequences of length <code>num_frames.</code> It can also be a NumPy array or Torch tensor of shape
-<code>(batch_size, num_frames, channels, height, width)</code>.</p>
+denoised PIL image sequences of length <code>num_frames.</code> It can also be a NumPy array or MindSpore tensor of
+shape <code>(batch_size, num_frames, channels, height, width)</code>.</p>
               </div>
               <p>
                   <span class="doc-param-annotation">
@@ -10941,11 +11033,7 @@ denoised PIL image sequences of length <code>num_frames.</code> It can also be a
 
               <details class="quote">
                 <summary>Source code in <code>mindone/diffusers/pipelines/hunyuan_video/pipeline_output.py</code></summary>
-                <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">10</span>
-<span class="normal">11</span>
-<span class="normal">12</span>
-<span class="normal">13</span>
-<span class="normal">14</span>
+                <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">14</span>
 <span class="normal">15</span>
 <span class="normal">16</span>
 <span class="normal">17</span>
@@ -10953,7 +11041,11 @@ denoised PIL image sequences of length <code>num_frames.</code> It can also be a
 <span class="normal">19</span>
 <span class="normal">20</span>
 <span class="normal">21</span>
-<span class="normal">22</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@dataclass</span>
+<span class="normal">22</span>
+<span class="normal">23</span>
+<span class="normal">24</span>
+<span class="normal">25</span>
+<span class="normal">26</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@dataclass</span>
 <span class="k">class</span><span class="w"> </span><span class="nc">HunyuanVideoPipelineOutput</span><span class="p">(</span><span class="n">BaseOutput</span><span class="p">):</span>
 <span class="w">    </span><span class="sa">r</span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    Output class for HunyuanVideo pipelines.</span>
@@ -10961,8 +11053,8 @@ denoised PIL image sequences of length <code>num_frames.</code> It can also be a
 <span class="sd">    Args:</span>
 <span class="sd">        frames (`ms.Tensor`, `np.ndarray`, or List[List[PIL.Image.Image]]):</span>
 <span class="sd">            List of video outputs - It can be a nested list of length `batch_size,` with each sub-list containing</span>
-<span class="sd">            denoised PIL image sequences of length `num_frames.` It can also be a NumPy array or Torch tensor of shape</span>
-<span class="sd">            `(batch_size, num_frames, channels, height, width)`.</span>
+<span class="sd">            denoised PIL image sequences of length `num_frames.` It can also be a NumPy array or MindSpore tensor of</span>
+<span class="sd">            shape `(batch_size, num_frames, channels, height, width)`.</span>
 <span class="sd">    &quot;&quot;&quot;</span>
 
     <span class="n">frames</span><span class="p">:</span> <span class="n">ms</span><span class="o">.</span><span class="n">Tensor</span>
