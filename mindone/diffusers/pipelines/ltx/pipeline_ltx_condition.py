@@ -1082,7 +1082,7 @@ class LTXConditionPipeline(DiffusionPipeline, FromSingleFileMixin, LTXVideoLoraL
             sigmas, timesteps, num_inference_steps = self.get_timesteps(
                 sigmas, timesteps, num_inference_steps, denoise_strength
             )
-            latent_sigma = sigmas[:1].repeat((batch_size * num_videos_per_prompt,))
+            latent_sigma = sigmas[:1].tile((batch_size * num_videos_per_prompt,))
 
         self._num_timesteps = len(timesteps)
 

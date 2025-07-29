@@ -12,14 +12,16 @@ Mindspore Qwen2 model.
 """
 
 import math
-from typing import List, Optional, Tuple, Union
+from typing import Callable, List, Optional, Tuple, Union
 
 from transformers import Qwen2Config, logging
+from transformers.utils import LossKwargs
 
 import mindspore as ms
 from mindspore import Parameter, Tensor, mint, nn, ops
 from mindspore.nn import BCEWithLogitsLoss, CrossEntropyLoss, MSELoss
 
+from mindone.models.utils import normal_, zeros_
 from mindone.transformers.cache_utils import Cache, get_max_length, get_seq_length, update
 from mindone.transformers.generation import GenerationMixin
 from mindone.transformers.mindspore_adapter import str_to_dtype
@@ -27,86 +29,23 @@ from mindone.transformers.mindspore_adapter.paged_attention_freqs import FreqsMg
 from mindone.transformers.mindspore_adapter.paged_attention_infer_attention_block import InferAttention
 from mindone.transformers.mindspore_adapter.paged_attention_mask import LowerTriangularMaskWithDynamic
 from mindone.transformers.modeling_attn_mask_utils import dtype_to_min
+from mindone.transformers.modeling_flash_attention_utils import FlashAttentionKwargs
 from mindone.transformers.modeling_outputs import (
     BaseModelOutputWithPast,
     CausalLMOutputWithPast,
+    QuestionAnsweringModelOutput,
     SequenceClassifierOutputWithPast,
     TokenClassifierOutput,
 )
 from mindone.transformers.modeling_rope_utils import ROPE_INIT_FUNCTIONS
-from mindone.transformers.modeling_utils import MSPreTrainedModel
+from mindone.transformers.modeling_utils import ALL_ATTENTION_FUNCTIONS, MSPreTrainedModel
+from mindone.transformers.processing_utils import Unpack
 
 logger = logging.get_logger(__name__)
 
 
 _CHECKPOINT_FOR_DOC = "Qwen/Qwen2-7B-beta"
 _CONFIG_FOR_DOC = "Qwen2Config"
-
-
-# Copied from transformers.models.llama.modeling_llama._prepare_4d_causal_attention_mask_with_cache_position
-def _prepare_4d_causal_attention_mask_with_cache_position(
-    attention_mask: ms.Tensor,
-    sequence_length: int,
-    target_length: int,
-    dtype: ms.dtype,
-    device: None,
-    min_dtype: float,
-    cache_position: ms.Tensor,
-    batch_size: int,
-):
-    """
-    Creates a causal 4D mask of shape `(batch_size, 1, query_length, key_value_length)` from a 2D mask of shape
-    `(batch_size, key_value_length)`, or if the input `attention_mask` is already 4D, do nothing.
-
-    Args:
-        attention_mask (`ms.Tensor`):
-            A 2D attention mask of shape `(batch_size, key_value_length)` or a 4D attention mask of shape `(batch_size, 1, query_length, key_value_length)`.
-        sequence_length (`int`):
-            The sequence length being processed.
-        target_length (`int`):
-            The target length: when generating with static cache, the mask should be as long as the static cache,
-            to account for the 0 padding, the part of the cache that is not filled yet.
-        dtype (`torch.dtype`):
-            The dtype to use for the 4D attention mask.
-        device (`torch.device`):
-            The device to plcae the 4D attention mask on.
-        min_dtype (`float`):
-            The minimum value representable with the dtype `dtype`.
-        cache_position (`ms.Tensor`):
-            Indices depicting the position of the input sequence tokens in the sequence.
-        batch_size (`ms.Tensor`):
-            Batch size.
-    """
-    if attention_mask is not None and attention_mask.dim() == 4:
-        # In this case we assume that the mask comes already in inverted form and requires no inversion or slicing.
-        causal_mask = attention_mask
-    else:
-        causal_mask = ops.full((sequence_length, target_length), fill_value=min_dtype, dtype=dtype)
-        if sequence_length != 1:
-            causal_mask = ops.triu(causal_mask, diagonal=1)
-        causal_mask *= ops.arange(target_length) > cache_position.reshape(-1, 1)
-        causal_mask = causal_mask[None, None, :, :].broadcast_to((batch_size, 1, -1, -1))
-        if attention_mask is not None:
-            # causal_mask = causal_mask  # copy to contiguous memory for in-place edit
-            mask_length = attention_mask.shape[-1]
-            # padding_mask = causal_mask[:, :, :, :mask_length] + attention_mask[:, None, None, :]
-            padding_mask = ops.narrow(causal_mask, -1, 0, mask_length) + attention_mask[:, None, None, :]
-            padding_mask = padding_mask == 0
-            # causal_mask[:, :, :, :mask_length] = causal_mask[:, :, :, :mask_length].masked_fill(
-            #     padding_mask, min_dtype
-            # )
-            if mask_length >= causal_mask.shape[-1]:
-                causal_mask = causal_mask.masked_fill(padding_mask, min_dtype)
-            else:
-                causal_mask = ops.cat(
-                    [
-                        ops.narrow(causal_mask, -1, 0, mask_length).masked_fill(padding_mask, min_dtype),
-                        ops.narrow(causal_mask, -1, mask_length, causal_mask.shape[-1] - mask_length),
-                    ],
-                    axis=-1,
-                )
-
-    return causal_mask
 
 
 # Copied from transformers.models.llama.modeling_llama.LlamaRMSNorm with Llama->Qwen2
@@ -143,30 +82,19 @@ class Qwen2RotaryEmbedding(nn.Cell):
 
         rope_init_fn = ROPE_INIT_FUNCTIONS[rope_type]
 
-        inv_freq, _ = rope_init_fn(config)
+        inv_freq, self.attention_scaling = rope_init_fn(config)
         self.inv_freq = inv_freq
-        # Build here to make `torch.jit.trace` work.
-        self._set_cos_sin_cache(seq_len=config.max_position_embeddings, dtype=ms.float32)
 
-    def _set_cos_sin_cache(self, seq_len, dtype):
-        self.max_seq_len_cached = seq_len
-        t = ops.arange(self.max_seq_len_cached, dtype=ms.int64).type_as(self.inv_freq)
+    def construct(self, x, position_ids):
+        inv_freq_expanded = self.inv_freq[None, :, None].float().broadcast_to((position_ids.shape[0], -1, 1))
+        position_ids_expanded = position_ids[:, None, :].float()
 
-        freqs = ops.outer(t, self.inv_freq)
-        # Different from paper, but it uses a different permutation in order to obtain the same calculation
-        emb = ops.cat((freqs, freqs), axis=-1)
-        self.cos_cached = emb.cos().to(dtype)
-        self.sin_cached = emb.sin().to(dtype)
+        freqs = (inv_freq_expanded.float() @ position_ids_expanded.float()).swapaxes(1, 2)
+        emb = mint.cat((freqs, freqs), dim=-1)
+        cos = emb.cos() * self.attention_scaling
+        sin = emb.sin() * self.attention_scaling
 
-    def construct(self, x, seq_len=None):
-        # x: [bs, num_attention_heads, seq_len, head_size]
-        # if seq_len > self.max_seq_len_cached:
-        #     self._set_cos_sin_cache(seq_len=seq_len, device=None, dtype=x.dtype)
-
-        return (
-            self.cos_cached[:seq_len].to(dtype=x.dtype),
-            self.sin_cached[:seq_len].to(dtype=x.dtype),
-        )
+        return cos.to(dtype=x.dtype), sin.to(dtype=x.dtype)
 
 
 # Copied from transformers.models.llama.modeling_llama.rotate_half
@@ -178,7 +106,7 @@ def rotate_half(x):
 
 
 # Copied from transformers.models.mixtral.modeling_mixtral.apply_rotary_pos_emb
-def apply_rotary_pos_emb(q, k, cos, sin, position_ids, unsqueeze_dim=1):
+def apply_rotary_pos_emb(q, k, cos, sin, position_ids=None, unsqueeze_dim=1):
     """Applies Rotary Position Embedding to the query and key tensors.
 
     Args:
@@ -199,8 +127,8 @@ def apply_rotary_pos_emb(q, k, cos, sin, position_ids, unsqueeze_dim=1):
     Returns:
         `tuple(ms.Tensor)` comprising of the query and key tensors rotated using the Rotary Position Embedding.
     """
-    cos = cos[position_ids].unsqueeze(unsqueeze_dim)
-    sin = sin[position_ids].unsqueeze(unsqueeze_dim)
+    cos = cos.unsqueeze(unsqueeze_dim)
+    sin = sin.unsqueeze(unsqueeze_dim)
     q_embed = (q * cos) + (rotate_half(q) * sin)
     k_embed = (k * cos) + (rotate_half(k) * sin)
     return q_embed, k_embed
@@ -232,6 +160,32 @@ def repeat_kv(hidden_states: ms.Tensor, n_rep: int) -> ms.Tensor:
         return hidden_states
     hidden_states = hidden_states[:, :, None, :, :].broadcast_to((batch, num_key_value_heads, n_rep, slen, head_dim))
     return hidden_states.reshape(batch, num_key_value_heads * n_rep, slen, head_dim)
+
+
+def eager_attention_forward(
+    module: nn.Cell,
+    query: ms.Tensor,
+    key: ms.Tensor,
+    value: ms.Tensor,
+    attention_mask: Optional[ms.Tensor],
+    scaling: float,
+    dropout: float = 0.0,
+    **kwargs,
+):
+    key_states = repeat_kv(key, module.num_key_value_groups)
+    value_states = repeat_kv(value, module.num_key_value_groups)
+
+    attn_weights = mint.matmul(query, key_states.swapaxes(2, 3)) / mint.sqrt(ms.tensor(module.head_dim))
+    if attention_mask is not None:
+        causal_mask = attention_mask[:, :, :, : key_states.shape[-2]]
+        attn_weights = attn_weights + causal_mask
+
+    attn_weights = mint.softmax(attn_weights, dim=-1, dtype=ms.float32).to(query.dtype)
+    attn_weights = ops.dropout(attn_weights, p=dropout, training=module.training)
+    attn_output = mint.matmul(attn_weights, value_states)
+    attn_output = attn_output.swapaxes(1, 2).contiguous()
+
+    return attn_output, attn_weights
 
 
 class Qwen2Attention(nn.Cell):
@@ -285,6 +239,8 @@ class Qwen2Attention(nn.Cell):
         output_attentions: bool = False,
         use_cache: bool = False,
         cache_position: Optional[ms.Tensor] = None,
+        position_embeddings: Optional[Tuple[ms.Tensor, ms.Tensor]] = None,
+        **kwargs: Unpack[FlashAttentionKwargs],
     ) -> Tuple[ms.Tensor, Optional[ms.Tensor], Optional[Tuple[ms.Tensor]]]:
         bsz, q_len, _ = hidden_states.shape
 
@@ -296,54 +252,44 @@ class Qwen2Attention(nn.Cell):
         key_states = key_states.view(bsz, q_len, self.num_key_value_heads, self.head_dim).swapaxes(1, 2)
         value_states = value_states.view(bsz, q_len, self.num_key_value_heads, self.head_dim).swapaxes(1, 2)
 
-        kv_seq_len = key_states.shape[-2]  # seq/1
-        if past_key_value is not None:
-            # this is commented for solving control flow problem in dynamic shape scene
-            # if self.layer_idx is None:
-            #     raise ValueError(
-            #         f"The cache structure has changed since version v4.36. If you are using {self.__class__.__name__} "
-            #         "for auto-regressive decoding with k/v caching, please make sure to initialize the attention class "
-            #         "with a layer index."
-            #     )
-            kv_seq_len = past_key_value[0].shape[-2]  # seq
-        cos, sin = self.rotary_emb(value_states, seq_len=kv_seq_len)
-        query_states, key_states = apply_rotary_pos_emb(query_states, key_states, cos, sin, position_ids)
+        cos, sin = position_embeddings
+        query_states, key_states = apply_rotary_pos_emb(query_states, key_states, cos, sin)
 
         if past_key_value is not None:
             key_states, value_states = update(past_key_value, key_states, value_states, cache_position)
             past_key_value = (key_states, value_states)
-        # repeat k/v heads if n_kv_heads < n_heads
-        key_states = repeat_kv(key_states, self.num_key_value_groups)
-        value_states = repeat_kv(value_states, self.num_key_value_groups)
 
-        attn_weights = mint.matmul(query_states, key_states.swapaxes(2, 3)) / mint.sqrt(ms.tensor(self.head_dim))
+        attention_interface: Callable = eager_attention_forward
+        if self.config._attn_implementation != "eager":
+            if self.config._attn_implementation == "sdpa" and not output_attentions:
+                logger.warning_once(
+                    "`mindspore.ops.scaled_dot_product_attention` does not support `output_attentions=True`. Falling back to "
+                    'eager attention. This warning can be removed using the argument `attn_implementation="eager"` when loading the model.'
+                )
+            else:
+                attention_interface = ALL_ATTENTION_FUNCTIONS[self.config._attn_implementation]
 
-        # for dyn shape
-        # if attn_weights.shape != (bsz, self.num_heads, q_len, kv_seq_len):
-        #     raise ValueError(
-        #         f"Attention weights should be of size {(bsz, self.num_heads, q_len, kv_seq_len)}, but is"
-        #         f" {attn_weights.shape}"
-        #     )
+        sliding_window = None
+        if (
+            self.config.use_sliding_window
+            and getattr(self.config, "sliding_window", None) is not None
+            and self.layer_idx >= self.config.max_window_layers
+        ):
+            sliding_window = self.config.sliding_window
 
-        if attention_mask is not None:  # no matter the length, we just slice it
-            causal_mask = attention_mask[:, :, :, : key_states.shape[-2]]
-            attn_weights = attn_weights + causal_mask
+        attn_output, attn_weights = attention_interface(
+            self,
+            query_states,
+            key_states,
+            value_states,
+            attention_mask,
+            dropout=0.0 if not self.training else self.attention_dropout,
+            scaling=self.scale,
+            sliding_window=sliding_window,
+            **kwargs,
+        )
 
-        # upcast attention to fp32
-        attn_weights = mint.softmax(attn_weights, dim=-1, dtype=ms.float32).to(query_states.dtype)
-        attn_weights = ops.dropout(attn_weights, p=self.attention_dropout, training=self.training)
-        attn_output = mint.matmul(attn_weights, value_states)
-
-        # this is commented for solving control flow problem in dynamic shape scene
-        # if attn_output.shape != (bsz, self.num_heads, q_len, self.head_dim):
-        #     raise ValueError(
-        #         f"`attn_output` should be of size {(bsz, self.num_heads, q_len, self.head_dim)}, but is"
-        #         f" {attn_output.shape}"
-        #     )
-
-        attn_output = attn_output.swapaxes(1, 2)
         attn_output = attn_output.reshape(bsz, q_len, self.hidden_size)
-
         attn_output = self.o_proj(attn_output)
 
         if not output_attentions:
@@ -422,12 +368,6 @@ class Qwen2PageAttention(Qwen2Attention):
         return attn_output, None, past_key_value
 
 
-QWEN2_ATTENTION_CLASSES = {
-    "eager": Qwen2Attention,
-    "paged_attention": Qwen2PageAttention,
-}
-
-
 class Qwen2DecoderLayer(nn.Cell):
     def __init__(self, config: Qwen2Config, layer_idx: int):
         super().__init__()
@@ -438,7 +378,11 @@ class Qwen2DecoderLayer(nn.Cell):
                 f"Sliding Window Attention is enabled but not implemented for `{config._attn_implementation}`; "
                 "unexpected results may be encountered."
             )
-        self.self_attn = QWEN2_ATTENTION_CLASSES[config._attn_implementation](config, layer_idx)
+        self.self_attn = (
+            Qwen2Attention(config, layer_idx)
+            if not config._attn_implementation == "paged_attention"
+            else Qwen2PageAttention(config=config, layer_idx=layer_idx)
+        )
 
         self.mlp = Qwen2MLP(config)
         self.input_layernorm = Qwen2RMSNorm(config.hidden_size, eps=config.rms_norm_eps)
@@ -456,12 +400,13 @@ class Qwen2DecoderLayer(nn.Cell):
         output_attentions: Optional[bool] = False,
         use_cache: Optional[bool] = False,
         cache_position: Optional[ms.Tensor] = None,
+        position_embeddings: Optional[Tuple[ms.Tensor, ms.Tensor]] = None,
         block_tables: Optional[ms.Tensor] = None,
         slot_mapping: Optional[ms.Tensor] = None,
         freqs_cis: Optional[ms.Tensor] = None,
         mask: Optional[ms.Tensor] = None,
         batch_valid_length: Optional[ms.Tensor] = None,
-        **kwargs,
+        **kwargs: Unpack[FlashAttentionKwargs],
     ) -> Tuple[ms.Tensor, Optional[Tuple[ms.Tensor, ms.Tensor]]]:
         """
         Args:
@@ -496,6 +441,8 @@ class Qwen2DecoderLayer(nn.Cell):
                 output_attentions=output_attentions,
                 use_cache=use_cache,
                 cache_position=cache_position,
+                position_embeddings=position_embeddings,
+                **kwargs,
             )
         else:
             hidden_states, self_attn_weights, present_key_value = self.self_attn(
@@ -506,11 +453,13 @@ class Qwen2DecoderLayer(nn.Cell):
                 output_attentions=output_attentions,
                 use_cache=use_cache,
                 cache_position=cache_position,
+                position_embeddings=position_embeddings,
                 block_tables=block_tables,
                 slot_mapping=slot_mapping,
                 freqs_cis=freqs_cis,
                 mask=mask,
                 batch_valid_length=batch_valid_length,
+                **kwargs,
             )
         hidden_states = residual + hidden_states
 
@@ -557,18 +506,18 @@ class Qwen2PreTrainedModel(MSPreTrainedModel):
     _supports_flash_attn_2 = True
     _supports_sdpa = True
     _supports_cache_class = False  # FIXME
+    _supports_attention_backend = True
 
     def _init_weights(self, module):
-        # std = self.config.initializer_range
-        # if isinstance(module, nn.Dense):
-        #     module.weight.data.normal_(mean=0.0, std=std)
-        #     if module.bias is not None:
-        #         module.bias.data.zero_()
-        # elif isinstance(module, nn.Embedding):
-        #     module.weight.data.normal_(mean=0.0, std=std)
-        #     if module.padding_idx is not None:
-        #         module.weight.data[module.padding_idx].zero_()
-        pass
+        std = self.config.initializer_range
+        if isinstance(module, nn.Dense):
+            normal_(module.weight, mean=0.0, std=std)
+            if module.bias is not None:
+                zeros_(module.bias)
+        elif isinstance(module, nn.Embedding):
+            normal_(module.embedding_table, mean=0.0, std=std)
+            if module.padding_idx is not None:
+                module.embedding_table[module.padding_idx] = 0
 
 
 QWEN2_INPUTS_DOCSTRING = r"""
@@ -665,6 +614,8 @@ class Qwen2Model(Qwen2PreTrainedModel):
         self._attn_implementation = config._attn_implementation
         self.norm = Qwen2RMSNorm(config.hidden_size, eps=config.rms_norm_eps)
 
+        self.rotary_emb = Qwen2RotaryEmbedding(config)
+
         if self.config._attn_implementation == "paged_attention":
             self.is_first_iteration = True
 
@@ -695,6 +646,7 @@ class Qwen2Model(Qwen2PreTrainedModel):
         freqs_cis: Optional[ms.Tensor] = None,
         mask: Optional[ms.Tensor] = None,
         batch_valid_length: Optional[ms.Tensor] = None,
+        **flash_attn_kwargs: Unpack[FlashAttentionKwargs],
     ) -> Union[Tuple, BaseModelOutputWithPast]:
         output_attentions = output_attentions if output_attentions is not None else self.config.output_attentions
         output_hidden_states = (
@@ -730,6 +682,9 @@ class Qwen2Model(Qwen2PreTrainedModel):
 
         hidden_states = inputs_embeds
 
+        # create position embeddings to be shared across the decoder layers
+        position_embeddings = self.rotary_emb(hidden_states, position_ids)
+
         # decoder layers
         all_hidden_states = () if output_hidden_states else None
         all_self_attns = () if output_attentions else None
@@ -747,11 +702,13 @@ class Qwen2Model(Qwen2PreTrainedModel):
                 output_attentions=output_attentions,
                 use_cache=use_cache,
                 cache_position=cache_position,
+                position_embeddings=position_embeddings,
                 block_tables=block_tables,
                 slot_mapping=slot_mapping,
                 freqs_cis=freqs_cis,
                 mask=mask,
                 batch_valid_length=batch_valid_length,
+                **flash_attn_kwargs,
             )
             hidden_states = layer_outputs[0]
 
@@ -790,17 +747,17 @@ class Qwen2Model(Qwen2PreTrainedModel):
         # (`recording cudagraph tree for symint key 13`, etc.), which is VERY slow. A workaround is `@torch.compiler.disable`, but this prevents using
         # `fullgraph=True`. See more context in https://github.com/huggingface/transformers/pull/29114
 
-        if self.config._attn_implementation == "flash_attention_2":
-            if attention_mask is not None and 0.0 in attention_mask:
-                return attention_mask
-            return None
+        # if self.config._attn_implementation == "flash_attention_2":
+        #     if attention_mask is not None and 0.0 in attention_mask:
+        #         return attention_mask
+        #     return None
 
         # For SDPA, when possible, we will rely on its `is_causal` argument instead of its `attn_mask` argument, in
         # order to dispatch on Flash Attention 2. This feature is not compatible with static cache, as SDPA will fail
         # to infer the attention mask.
         past_seen_tokens = get_seq_length(past_key_values) if past_key_values is not None else 0
 
-        dtype, device = input_tensor.dtype, None
+        dtype = input_tensor.dtype
         min_dtype = dtype_to_min(dtype)
         sequence_length = input_tensor.shape[1]
         if past_key_values is not None:
@@ -813,18 +770,92 @@ class Qwen2Model(Qwen2PreTrainedModel):
             )
 
         # In case the provided `attention` mask is 2D, we generate a causal mask here (4D).
-        causal_mask = _prepare_4d_causal_attention_mask_with_cache_position(
+        causal_mask = self._prepare_4d_causal_attention_mask_with_cache_position(
             attention_mask,
             sequence_length=sequence_length,
             target_length=target_length,
             dtype=dtype,
-            device=device,
             min_dtype=min_dtype,
             cache_position=cache_position,
             batch_size=input_tensor.shape[0],
         )
 
         return causal_mask
+
+    # Copied from transformers.models.llama.modeling_llama._prepare_4d_causal_attention_mask_with_cache_position
+    @staticmethod
+    def _prepare_4d_causal_attention_mask_with_cache_position(
+        attention_mask: ms.Tensor,
+        sequence_length: int,
+        target_length: int,
+        dtype: ms.dtype,
+        min_dtype: float,
+        cache_position: ms.Tensor,
+        batch_size: int,
+    ):
+        """
+        Creates a causal 4D mask of shape `(batch_size, 1, query_length, key_value_length)` from a 2D mask of shape
+        `(batch_size, key_value_length)`, or if the input `attention_mask` is already 4D, do nothing.
+
+        Args:
+            attention_mask (`ms.Tensor`):
+                A 2D attention mask of shape `(batch_size, key_value_length)` or a 4D attention mask of shape `(batch_size, 1, query_length, key_value_length)`.
+            sequence_length (`int`):
+                The sequence length being processed.
+            target_length (`int`):
+                The target length: when generating with static cache, the mask should be as long as the static cache,
+                to account for the 0 padding, the part of the cache that is not filled yet.
+            dtype (`torch.dtype`):
+                The dtype to use for the 4D attention mask.
+            device (`torch.device`):
+                The device to plcae the 4D attention mask on.
+            min_dtype (`float`):
+                The minimum value representable with the dtype `dtype`.
+            cache_position (`ms.Tensor`):
+                Indices depicting the position of the input sequence tokens in the sequence.
+            batch_size (`ms.Tensor`):
+                Batch size.
+        """
+        if attention_mask is not None and attention_mask.dim() == 4:
+            # In this case we assume that the mask comes already in inverted form and requires no inversion or slicing.
+            causal_mask = attention_mask
+        else:
+            causal_mask = ops.full((sequence_length, target_length), fill_value=min_dtype, dtype=dtype)
+            if sequence_length != 1:
+                causal_mask = ops.triu(causal_mask, diagonal=1)
+            causal_mask *= ops.arange(target_length) > cache_position.reshape(-1, 1)
+            causal_mask = causal_mask[None, None, :, :].broadcast_to((batch_size, 1, -1, -1))
+            if attention_mask is not None:
+                # causal_mask = causal_mask  # copy to contiguous memory for in-place edit
+                mask_length = attention_mask.shape[-1]
+                # padding_mask = causal_mask[:, :, :, :mask_length] + attention_mask[:, None, None, :]
+                padding_mask = ops.narrow(causal_mask, -1, 0, mask_length) + attention_mask[:, None, None, :]
+                padding_mask = padding_mask == 0
+                # causal_mask[:, :, :, :mask_length] = causal_mask[:, :, :, :mask_length].masked_fill(
+                #     padding_mask, min_dtype
+                # )
+
+                # FIXME: not support masked_fill with bf16 & @jit on MindSpore 2.5.0
+                causal_mask = causal_mask.to(ms.float32)
+                if mask_length >= causal_mask.shape[-1]:
+                    causal_mask = causal_mask.masked_fill(padding_mask, min_dtype.to(ms.float32))
+                else:
+                    causal_mask = ops.cat(
+                        [
+                            ops.narrow(causal_mask, -1, 0, mask_length).masked_fill(
+                                padding_mask, min_dtype.to(ms.float32)
+                            ),
+                            ops.narrow(causal_mask, -1, mask_length, causal_mask.shape[-1] - mask_length),
+                        ],
+                        axis=-1,
+                    )
+                causal_mask = causal_mask.to(dtype)
+
+        return causal_mask
+
+
+class KwargsForCausalLM(FlashAttentionKwargs, LossKwargs):
+    ...
 
 
 class Qwen2ForCausalLM(Qwen2PreTrainedModel, GenerationMixin):
@@ -933,6 +964,7 @@ class Qwen2ForCausalLM(Qwen2PreTrainedModel, GenerationMixin):
         block_tables: Optional[ms.Tensor] = None,
         slot_mapping: Optional[ms.Tensor] = None,
         batch_valid_length: Optional[ms.Tensor] = None,
+        **kwargs: Unpack[KwargsForCausalLM],
     ) -> Union[Tuple, CausalLMOutputWithPast]:
         r"""
         Args:
@@ -994,6 +1026,7 @@ class Qwen2ForCausalLM(Qwen2PreTrainedModel, GenerationMixin):
             freqs_cis=freqs_cis,
             mask=mask,
             batch_valid_length=batch_valid_length,
+            **kwargs,
         )
 
         hidden_states = outputs[0]
@@ -1207,6 +1240,77 @@ class Qwen2ForTokenClassification(Qwen2PreTrainedModel):
         return TokenClassifierOutput(
             loss=loss,
             logits=logits,
+            hidden_states=outputs.hidden_states,
+            attentions=outputs.attentions,
+        )
+
+
+class Qwen2ForQuestionAnswering(Qwen2PreTrainedModel):
+    base_model_prefix = "transformer"
+
+    def __init__(self, config):
+        super().__init__(config)
+        self.transformer = Qwen2Model(config)
+        self.qa_outputs = nn.Dense(config.hidden_size, 2)
+
+        # Initialize weights and apply final processing
+        self.post_init()
+
+    def get_input_embeddings(self):
+        return self.transformer.embed_tokens
+
+    def set_input_embeddings(self, value):
+        self.transformer.embed_tokens = value
+
+    def construct(
+        self,
+        input_ids: Optional[ms.Tensor] = None,
+        attention_mask: Optional[ms.Tensor] = None,
+        position_ids: Optional[ms.Tensor] = None,
+        past_key_values: Optional[List[ms.Tensor]] = None,
+        inputs_embeds: Optional[ms.Tensor] = None,
+        start_positions: Optional[ms.Tensor] = None,
+        end_positions: Optional[ms.Tensor] = None,
+        output_attentions: Optional[bool] = None,
+        output_hidden_states: Optional[bool] = None,
+        **kwargs,
+    ) -> QuestionAnsweringModelOutput:
+        r"""
+        start_positions (`torch.LongTensor` of shape `(batch_size,)`, *optional*):
+            Labels for position (index) of the start of the labelled span for computing the token classification loss.
+            Positions are clamped to the length of the sequence (`sequence_length`). Position outside of the sequence
+            are not taken into account for computing the loss.
+        end_positions (`torch.LongTensor` of shape `(batch_size,)`, *optional*):
+            Labels for position (index) of the end of the labelled span for computing the token classification loss.
+            Positions are clamped to the length of the sequence (`sequence_length`). Position outside of the sequence
+            are not taken into account for computing the loss.
+        """
+
+        outputs: BaseModelOutputWithPast = self.transformer(
+            input_ids,
+            attention_mask=attention_mask,
+            position_ids=position_ids,
+            past_key_values=past_key_values,
+            inputs_embeds=inputs_embeds,
+            output_attentions=output_attentions,
+            output_hidden_states=output_hidden_states,
+        )
+
+        sequence_output = outputs.last_hidden_state
+
+        logits = self.qa_outputs(sequence_output)
+        start_logits, end_logits = logits.split(1, dim=-1)
+        start_logits = start_logits.squeeze(-1).contiguous()
+        end_logits = end_logits.squeeze(-1).contiguous()
+
+        loss = None
+        if start_positions is not None and end_positions is not None:
+            loss = self.loss_function(start_logits, end_logits, start_positions, end_positions, **kwargs)
+
+        return QuestionAnsweringModelOutput(
+            loss=loss,
+            start_logits=start_logits,
+            end_logits=end_logits,
             hidden_states=outputs.hidden_states,
             attentions=outputs.attentions,
         )
