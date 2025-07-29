@@ -1,3 +1,5 @@
+# This code is adapted from https://github.com/huggingface/transformers
+# with modifications to run transformers on mindspore.
 from typing import List, Union
 
 from ..utils import is_mindspore_available, is_vision_available, logging, requires_backends
@@ -94,9 +96,21 @@ class DepthEstimationPipeline(Pipeline):
 
     def preprocess(self, image, timeout=None):
         image = load_image(image, timeout)
-        model_inputs = self.image_processor(images=image, return_tensors=self.framework)
-        if self.framework == "ms":
-            model_inputs = model_inputs.to(self.mindspore_dtype)
+        try:
+            model_inputs = self.image_processor(images=image, return_tensors=self.framework)
+            if self.framework == "ms":
+                model_inputs = model_inputs.to(self.mindspore_dtype)
+        except ValueError:
+            # for transformer image processor compatibility
+            # consider to drop this branch if all processors are migrated to mindone.transformers in future
+            requires_backends(self, ["mindspore"])
+            import mindspore as ms  # noqa
+
+            model_inputs = self.image_processor(image, return_tensors="np")
+            if self.framework == "ms":
+                for k, v in model_inputs.items():
+                    model_inputs[k] = ms.tensor(v, dtype=self.mindspore_dtype)
+
         model_inputs["target_size"] = image.size[::-1]
         return model_inputs
 

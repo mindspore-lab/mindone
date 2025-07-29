@@ -1,5 +1,8 @@
+# This code is adapted from https://github.com/huggingface/transformers
+# with modifications to run transformers on mindspore.
 from typing import Dict
 
+from ..utils import requires_backends
 from .base import GenericTensor, Pipeline
 
 
@@ -11,7 +14,7 @@ class FeatureExtractionPipeline(Pipeline):
     Example:
 
     ```python
-    >>> from transformers import pipeline
+    >>> from mindone.transformers import pipeline
 
     >>> extractor = pipeline(model="google-bert/bert-base-uncased", task="feature-extraction")
     >>> result = extractor("This is a simple test.", return_tensors=True)
@@ -48,7 +51,13 @@ class FeatureExtractionPipeline(Pipeline):
         return preprocess_params, {}, postprocess_params
 
     def preprocess(self, inputs, **tokenize_kwargs) -> Dict[str, GenericTensor]:
-        model_inputs = self.tokenizer(inputs, return_tensors=self.framework, **tokenize_kwargs)
+        model_inputs = self.tokenizer(inputs, return_tensors="np", **tokenize_kwargs)
+        if self.framework == "ms":
+            requires_backends(self, ["mindspore"])
+            import mindspore as ms  # noqa
+
+            for k, v in model_inputs.items():
+                model_inputs[k] = ms.tensor(v)
         return model_inputs
 
     def _forward(self, model_inputs):

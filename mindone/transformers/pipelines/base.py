@@ -981,6 +981,13 @@ class Pipeline(_ScikitCompat, PushToHubMixin):
                 # ImageSegmentationPipeline(.., feature_extractor=MyFeatureExtractor())
                 # then we should keep working
                 self.image_processor = self.feature_extractor
+            else:
+                # check if the processor is imported from transformers instead of mindone.transformers
+                # consider to drop this branch if all processors are migrated to mindone.transformers in future
+                from transformers import BaseImageProcessor as BaseImageProcessor_
+
+                if isinstance(self.feature_extractor, BaseImageProcessor_):
+                    self.image_processor = self.feature_extractor
 
     def save_pretrained(
         self,

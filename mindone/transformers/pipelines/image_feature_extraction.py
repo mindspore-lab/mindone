@@ -1,6 +1,8 @@
+# This code is adapted from https://github.com/huggingface/transformers
+# with modifications to run transformers on mindspore.
 from typing import Dict
 
-from ..utils import is_vision_available
+from ..utils import is_vision_available, requires_backends
 from .base import GenericTensor, Pipeline
 
 if is_vision_available():
@@ -15,7 +17,7 @@ class ImageFeatureExtractionPipeline(Pipeline):
     Example:
 
     ```python
-    >>> from transformers import pipeline
+    >>> from mindone.transformers import pipeline
 
     >>> extractor = pipeline(model="google/vit-base-patch16-224", task="image-feature-extraction")
     >>> result = extractor("https://huggingface.co/datasets/Narsil/image_dummy/raw/main/parrots.png", return_tensors=True)
@@ -48,9 +50,21 @@ class ImageFeatureExtractionPipeline(Pipeline):
 
     def preprocess(self, image, timeout=None, **image_processor_kwargs) -> Dict[str, GenericTensor]:
         image = load_image(image, timeout=timeout)
-        model_inputs = self.image_processor(image, return_tensors=self.framework, **image_processor_kwargs)
-        if self.framework == "ms":
-            model_inputs = model_inputs.to(self.torch_dtype)
+        try:
+            model_inputs = self.image_processor(image, return_tensors=self.framework, **image_processor_kwargs)
+            if self.framework == "ms":
+                model_inputs = model_inputs.to(self.mindspore_dtype)
+        except ValueError:
+            # for transformer image processor compatibility,
+            # consider to drop this branch if all processors are migrated to mindone.transformers in future
+            requires_backends(self, ["mindspore"])
+            import mindspore as ms  # noqa
+
+            model_inputs = self.image_processor(image, return_tensors="np", **image_processor_kwargs)
+            if self.framework == "ms":
+                for k, v in model_inputs.items():
+                    model_inputs[k] = ms.tensor(v, dtype=self.mindspore_dtype)
+
         return model_inputs
 
     def _forward(self, model_inputs):
