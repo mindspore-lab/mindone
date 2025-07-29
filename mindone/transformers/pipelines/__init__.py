@@ -58,6 +58,7 @@ from .base import (
 )
 from .image_text_to_text import ImageTextToTextPipeline
 from .question_answering import QuestionAnsweringArgumentHandler, QuestionAnsweringPipeline
+from .table_question_answering import TableQuestionAnsweringPipeline
 from .text2text_generation import Text2TextGenerationPipeline
 from .text_classification import TextClassificationPipeline
 from .text_generation import TextGenerationPipeline
@@ -71,6 +72,7 @@ if is_mindspore_available():
         AutoModelForQuestionAnswering,
         AutoModelForSeq2SeqLM,
         AutoModelForSequenceClassification,
+        AutoModelForTableQuestionAnswering,
         AutoModelForTokenClassification,
     )
 
@@ -132,6 +134,16 @@ SUPPORTED_TASKS = {
         "impl": Text2TextGenerationPipeline,
         "ms": (AutoModelForSeq2SeqLM,) if is_mindspore_available() else (),
         "default": {"model": {"ms": ("google-t5/t5-base", "a9723ea")}},
+        "type": "text",
+    },
+    "table-question-answering": {
+        "impl": TableQuestionAnsweringPipeline,
+        "ms": (AutoModelForTableQuestionAnswering,) if is_mindspore_available() else (),
+        "default": {
+            "model": {
+                "ms": ("google/tapas-base-finetuned-wtq", "e3dde19"),
+            },
+        },
         "type": "text",
     },
 }

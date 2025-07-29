@@ -68,6 +68,7 @@ from . import (
     speecht5,
     switch_transformers,
     t5,
+    tapas,
     umt5,
     vits,
     wav2vec2,
