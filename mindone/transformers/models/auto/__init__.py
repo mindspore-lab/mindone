@@ -22,6 +22,7 @@ from .modeling_auto import (
     AutoModel,
     AutoModelForCausalLM,
     AutoModelForDepthEstimation,
+    AutoModelForImageTextToText,
     AutoModelForMaskedLM,
 )
 from .processing_auto import AutoProcessor
