@@ -441,7 +441,7 @@ class SegformerPreTrainedModel(PreTrainedModel):
     models.
     """
 
-    config_class: SegformerConfig
+    config_class = SegformerConfig
     base_model_prefix = "segformer"
     main_input_name = "pixel_values"
 
@@ -725,8 +725,8 @@ class SegformerForSemanticSegmentation(SegformerPreTrainedModel):
             output_hidden_states if output_hidden_states is not None else self.config.output_hidden_states
         )
 
-        if labels is not None and self.config.num_labels < 1:
-            raise ValueError(f"Number of labels should be >=0: {self.config.num_labels}")
+        if labels is not None and self.config.num_labels <= 0:
+            raise ValueError(f"Number of labels should be > 0: but got {self.config.num_labels}")
 
         outputs = self.segformer(
             pixel_values,

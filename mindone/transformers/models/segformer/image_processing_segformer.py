@@ -39,11 +39,7 @@ from ...image_utils import (
     valid_images,
     validate_preprocess_arguments,
 )
-from ...utils import TensorType, filter_out_non_signature_kwargs, is_mindspore_tensor, is_vision_available, logging
-
-if is_vision_available():
-    import PIL.Image
-
+from ...utils import TensorType, filter_out_non_signature_kwargs, is_mindspore_tensor, logging
 
 logger = logging.get_logger(__name__)
 
@@ -314,7 +310,7 @@ class SegformerImageProcessor(BaseImageProcessor):
         return_tensors: Optional[Union[str, TensorType]] = None,
         data_format: ChannelDimension = ChannelDimension.FIRST,
         input_data_format: Optional[Union[str, ChannelDimension]] = None,
-    ) -> PIL.Image.Image:
+    ) -> BatchFeature:
         """
         Preprocess an image or batch of images.
 

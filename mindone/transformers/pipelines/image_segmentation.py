@@ -158,7 +158,7 @@ class ImageSegmentationPipeline(Pipeline):
         if "images" in kwargs:
             inputs = kwargs.pop("images")
         if inputs is None:
-            raise ValueError("Cannot call the image-classification pipeline without an inputs argument!")
+            raise ValueError("Cannot call the image-segmentation pipeline without an inputs argument!")
         return super().__call__(inputs, **kwargs)
 
     def preprocess(self, image, subtask=None, timeout=None):
