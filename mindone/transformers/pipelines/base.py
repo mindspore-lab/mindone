@@ -1245,7 +1245,7 @@ class Pipeline(_ScikitCompat, PushToHubMixin):
 
         if num_workers is None:
             if self._num_workers is None:
-                num_workers = 0
+                num_workers = 1
             else:
                 num_workers = self._num_workers
         if batch_size is None:
