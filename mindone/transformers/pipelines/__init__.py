@@ -58,6 +58,7 @@ from .base import (
 )
 from .depth_estimation import DepthEstimationPipeline
 from .feature_extraction import FeatureExtractionPipeline
+from .image_classification import ImageClassificationPipeline
 from .image_feature_extraction import ImageFeatureExtractionPipeline
 from .image_text_to_text import ImageTextToTextPipeline
 from .text2text_generation import Text2TextGenerationPipeline
@@ -71,6 +72,7 @@ if is_mindspore_available():
         AutoModel,
         AutoModelForCausalLM,
         AutoModelForDepthEstimation,
+        AutoModelForImageClassification,
         AutoModelForImageTextToText,
         AutoModelForSeq2SeqLM,
         AutoModelForSequenceClassification,
@@ -95,6 +97,16 @@ TASK_ALIASES = {
     "text-to-speech": "text-to-audio",
 }
 SUPPORTED_TASKS = {
+    "image-classification": {
+        "impl": ImageClassificationPipeline,
+        "ms": (AutoModelForImageClassification,) if is_mindspore_available() else (),
+        "default": {
+            "model": {
+                "ms": ("google/vit-base-patch16-224", "3f49326"),
+            }
+        },
+        "type": "image",
+    },
     "image-text-to-text": {
         "impl": ImageTextToTextPipeline,
         "ms": (AutoModelForImageTextToText,) if is_mindspore_available() else (),
