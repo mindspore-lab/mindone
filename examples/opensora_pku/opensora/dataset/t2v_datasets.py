@@ -12,7 +12,6 @@ from os.path import join as opj
 from pathlib import Path
 
 import cv2
-import decord
 import numpy as np
 from opensora.dataset.transform import (
     add_aesthetic_notice_image,
@@ -98,6 +97,10 @@ dataset_prog = DataSetProg()
 
 class DecordDecoder(object):
     def __init__(self, url, num_threads=1):
+        try:
+            import decord
+        except ImportError:
+            raise ImportError("Please install decord!")
         self.num_threads = num_threads
         self.ctx = decord.cpu(0)
         self.reader = decord.VideoReader(url, ctx=self.ctx, num_threads=self.num_threads)
