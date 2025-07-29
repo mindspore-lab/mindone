@@ -119,7 +119,7 @@ model_tester = DepthAnythingModelTester()
 config, pixel_values, labels = model_tester.prepare_config_and_inputs()
 
 
-DPT_CASES = [
+_CASES = [
     [
         "DepthAnythingForDepthEstimation",
         "transformers.DepthAnythingForDepthEstimation",
@@ -145,7 +145,7 @@ DPT_CASES = [
         + [
             mode,
         ]
-        for case in DPT_CASES
+        for case in _CASES
         for dtype in DTYPE_AND_THRESHOLDS.keys()
         for mode in MODES
     ],
