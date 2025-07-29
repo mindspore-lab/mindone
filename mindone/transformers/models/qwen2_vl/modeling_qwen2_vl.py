@@ -272,7 +272,7 @@ class PatchMerger(nn.Cell):
     def __init__(self, dim: int, context_dim: int, spatial_merge_size: int = 2) -> None:
         super().__init__()
         self.hidden_size = context_dim * (spatial_merge_size**2)
-        self.ln_q = LayerNorm(context_dim, eps=1e-6).to_float(ms.float32)  # TODO: test bf16 accuracy
+        self.ln_q = LayerNorm(context_dim, eps=1e-6)
         self.mlp = nn.SequentialCell(
             mint.nn.Linear(self.hidden_size, self.hidden_size, bias=True),
             nn.GELU(approximate=False),
@@ -280,8 +280,7 @@ class PatchMerger(nn.Cell):
         )
 
     def construct(self, x: ms.Tensor) -> ms.Tensor:
-        target_dtype = x.dtype  # LayerNorm used fp32
-        x = self.mlp(self.ln_q(x).view((-1, self.hidden_size)).to(target_dtype))
+        x = self.mlp(self.ln_q(x).view((-1, self.hidden_size)))
         return x
 
 
