@@ -436,7 +436,12 @@ class SegformerEncoder(nn.Cell):
 
 
 class SegformerPreTrainedModel(PreTrainedModel):
-    config: SegformerConfig
+    """
+    An abstract class to handle weights initialization and a simple interface for downloading and loading pretrained
+    models.
+    """
+
+    config_class: SegformerConfig
     base_model_prefix = "segformer"
     main_input_name = "pixel_values"
 
@@ -696,8 +701,7 @@ class SegformerForSemanticSegmentation(SegformerPreTrainedModel):
         Examples:
 
         ```python
-        >>> from transformers import AutoImageProcessor
-        >>> from mindone.transformers import SegformerForSemanticSegmentation
+        >>> from mindone.transformers import AutoImageProcessor, SegformerForSemanticSegmentation
         >>> import mindspore as ms
         >>> from PIL import Image
         >>> import requests
@@ -710,7 +714,7 @@ class SegformerForSemanticSegmentation(SegformerPreTrainedModel):
 
         >>> inputs = image_processor(images=image, return_tensors="np")
         >>> for k, v in inputs.items():
-        ...     inputs[k] = ms.Tensor(v)
+        ...     inputs[k] = ms.Tensor(v, dtype=model.dtype)
         >>> outputs = model(**inputs)
         >>> logits = outputs.logits  # shape (batch_size, num_labels, height/4, width/4)
         >>> list(logits.shape)

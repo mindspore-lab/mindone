@@ -56,22 +56,22 @@ class ImageSegmentationPipeline(Pipeline):
     ```python
     >>> from mindone.transformers import pipeline
 
-    >>> segmenter = pipeline(model="facebook/detr-resnet-50-panoptic")
-    >>> segments = segmenter("https://huggingface.co/datasets/Narsil/image_dummy/raw/main/parrots.png")
+    >>> segmenter = pipeline("image-segmentation", model="nvidia/segformer-b0-finetuned-ade-512-512")
+    >>> segments = segmenter("https://huggingface.co/datasets/huggingface/documentation-images/resolve/main/transformers/tasks/segmentation_input.jpg")
     >>> len(segments)
-    2
+    8
 
     >>> segments[0]["label"]
-    'bird'
+    'building'
 
     >>> segments[1]["label"]
-    'bird'
+    'sky'
 
-    >>> type(segments[0]["mask"])  # This is a black and white mask showing where is the bird on the original image.
+    >>> type(segments[0]["mask"])  # This is a black and white mask showing where is the road on the original image.
     <class 'PIL.Image.Image'>
 
     >>> segments[0]["mask"].size
-    (768, 512)
+    (612, 415)
     ```
 
 

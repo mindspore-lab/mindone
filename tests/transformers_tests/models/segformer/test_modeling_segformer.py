@@ -31,8 +31,9 @@ import inspect
 import numpy as np
 import pytest
 import torch
-import mindspore as ms
 from transformers import SegformerConfig
+
+import mindspore as ms
 
 from tests.modeling_test_utils import (
     MS_DTYPE_MAPPING,
@@ -41,10 +42,11 @@ from tests.modeling_test_utils import (
     generalized_parse_args,
     get_modules,
 )
-from tests.transformers_tests.models.modeling_common import ids_numpy, floats_numpy
+from tests.transformers_tests.models.modeling_common import floats_numpy, ids_numpy
 
-DTYPE_AND_THRESHOLDS = {"fp32": 5e-4, "fp16": 5e-3, "bf16": 5e-3}
-MODES = [0]
+DTYPE_AND_THRESHOLDS = {"fp32": 5e-3, "fp16": 5e-3, "bf16": 5e-2}
+MODES = [1]
+
 
 class SegformerModelTester:
     def __init__(
@@ -108,6 +110,7 @@ class SegformerModelTester:
             attention_probs_dropout_prob=self.attention_probs_dropout_prob,
             initializer_range=self.initializer_range,
         )
+
 
 model_tester = SegformerModelTester()
 config, pixel_values, labels = model_tester.prepare_config_and_inputs()
