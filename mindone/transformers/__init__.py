@@ -543,6 +543,15 @@ from .models.llava_onevision import (
 from .models.m2m_100 import M2M100ForConditionalGeneration, M2M100Model, M2M100PreTrainedModel
 from .models.mamba import MambaForCausalLM, MambaModel, MambaPreTrainedModel
 from .models.mamba2 import Mamba2ForCausalLM, Mamba2Model, Mamba2PreTrainedModel
+from .models.mbart import (
+    MBartForCausalLM,
+    MBartForConditionalGeneration,
+    MBartForQuestionAnswering,
+    MBartForSequenceClassification,
+    MBartModel,
+    MBartPreTrainedModel,
+)
+
 from .models.megatron_bert import (
     MegatronBertForCausalLM,
     MegatronBertForMaskedLM,
