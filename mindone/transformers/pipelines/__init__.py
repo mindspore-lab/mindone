@@ -56,6 +56,7 @@ from .base import (
     get_default_model_and_revision,
     infer_framework_load_model,
 )
+from .image_classification import ImageClassificationPipeline
 from .image_text_to_text import ImageTextToTextPipeline
 from .image_to_image import ImageToImagePipeline
 from .image_to_text import ImageToTextPipeline
@@ -69,6 +70,7 @@ if is_mindspore_available():
 
     from ..models.auto.modeling_auto import (
         AutoModelForCausalLM,
+        AutoModelForImageClassification,
         AutoModelForImageTextToText,
         AutoModelForImageToImage,
         AutoModelForSeq2SeqLM,
@@ -96,6 +98,16 @@ TASK_ALIASES = {
     "text-to-speech": "text-to-audio",
 }
 SUPPORTED_TASKS = {
+    "image-classification": {
+        "impl": ImageClassificationPipeline,
+        "ms": (AutoModelForImageClassification,) if is_mindspore_available() else (),
+        "default": {
+            "model": {
+                "ms": ("google/vit-base-patch16-224", "3f49326"),
+            }
+        },
+        "type": "image",
+    },
     "image-to-text": {
         "impl": ImageToTextPipeline,
         "ms": (AutoModelForVision2Seq,) if is_mindspore_available() else (),

@@ -157,8 +157,8 @@ class ViltEmbeddings(nn.Cell):
         valid_row_idx = [valid_idx[valid_idx[:, 0] == u] for u in unique_rows]
         non_valid_row_idx = [non_valid_idx[non_valid_idx[:, 0] == u] for u in unique_rows]
 
-        valid_nums = [v.size(0) for v in valid_row_idx]
-        non_valid_nums = [v.size(0) for v in non_valid_row_idx]
+        valid_nums = [v.shape[0] for v in valid_row_idx]
+        non_valid_nums = [v.shape[0] for v in non_valid_row_idx]
         pad_nums = [max_image_length - v for v in valid_nums]
 
         select = []
@@ -185,7 +185,7 @@ class ViltEmbeddings(nn.Cell):
         x = x + pos_embed
         x = self.dropout(x)
 
-        x_mask = mint.cat([mint.ones((x_mask.shape[0], 1)).to(x_mask), x_mask], dim=1)
+        x_mask = mint.cat([mint.ones((x_mask.shape[0], 1)).to(x_mask.dtype), x_mask], dim=1)
 
         return x, x_mask, (patch_index, (height, width))
 
@@ -224,7 +224,8 @@ class ViltEmbeddings(nn.Cell):
 
         # PART 4: concatenate
         embeddings = mint.cat([text_embeds, image_embeds], dim=1)
-        masks = mint.cat([attention_mask, image_masks], dim=1)
+        # cast to same dtype to avoid `mint.cat` error when `image_masks` is int64 and `attention_mask` is float32
+        masks = mint.cat([attention_mask, image_masks.to(attention_mask.dtype)], dim=1)
 
         return embeddings, masks
 
@@ -244,11 +245,8 @@ class TextEmbeddings(nn.Cell):
         self.dropout = mint.nn.Dropout(config.hidden_dropout_prob)
         # position_ids (1, len position emb) is contiguous in memory and exported when serialized
         self.position_embedding_type = getattr(config, "position_embedding_type", "absolute")
-        # self.register_buffer(
-        #     "position_ids", mint.arange(config.max_position_embeddings).broadcast_to((1, -1)), persistent=False
-        # )
-        self.position_ids = ms.Parameter(
-            mint.arange(config.max_position_embeddings).broadcast_to((1, -1)), name="position_ids"
+        self.register_buffer(
+            "position_ids", mint.arange(config.max_position_embeddings).broadcast_to((1, -1)), persistent=False
         )
         self.register_buffer("token_type_ids", mint.zeros(self.position_ids.shape, dtype=ms.int64), persistent=False)
 
@@ -772,7 +770,7 @@ class ViltModel(ViltPreTrainedModel):
         >>> text = "hello world"
 
         >>> processor = ViltProcessor.from_pretrained("dandelin/vilt-b32-mlm")
-        >>> model = ViltModel.from_pretrained("dandelin/vilt-b32-mlm")
+        >>> model = ViltModel.from_pretrained("dandelin/vilt-b32-mlm", revision="refs/pr/4")
 
         >>> inputs = processor(image, text, return_tensors="np")
         >>> for k, v in inputs.items():
@@ -937,7 +935,7 @@ class ViltForMaskedLM(ViltPreTrainedModel):
         >>> text = "a bunch of [MASK] laying on a [MASK]."
 
         >>> processor = ViltProcessor.from_pretrained("dandelin/vilt-b32-mlm")
-        >>> model = ViltForMaskedLM.from_pretrained("dandelin/vilt-b32-mlm")
+        >>> model = ViltForMaskedLM.from_pretrained("dandelin/vilt-b32-mlm", revision="refs/pr/4")
 
         >>> # prepare inputs
         >>> encoding = processor(image, text, return_tensors="np")
@@ -959,7 +957,7 @@ class ViltForMaskedLM(ViltPreTrainedModel):
         ...     mlm_logits = outputs.logits[0]  # shape (seq_len, vocab_size)
         ...     # only take into account text features (minus CLS and SEP token)
         ...     mlm_logits = mlm_logits[1 : input_ids.shape[1] - 1, :]
-        ...     mlm_values, mlm_ids = mlm_logits.softmax(dim=-1).max(dim=-1)
+        ...     mlm_values, mlm_ids = mlm_logits.softmax(axis=-1).max(dim=-1)
         ...     # only take into account text
         ...     mlm_values[ms.tensor(encoded) != 103] = 0
         ...     select = mlm_values.argmax().item()
@@ -1115,7 +1113,7 @@ class ViltForQuestionAnswering(ViltPreTrainedModel):
         >>> text = "How many cats are there?"
 
         >>> processor = ViltProcessor.from_pretrained("dandelin/vilt-b32-finetuned-vqa")
-        >>> model = ViltForQuestionAnswering.from_pretrained("dandelin/vilt-b32-finetuned-vqa")
+        >>> model = ViltForQuestionAnswering.from_pretrained("dandelin/vilt-b32-finetuned-vqa", revision="refs/pr/9")
 
         >>> # prepare inputs
         >>> encoding = processor(image, text, return_tensors="np")
@@ -1222,7 +1220,7 @@ class ViltForImageAndTextRetrieval(ViltPreTrainedModel):
         >>> texts = ["An image of two cats chilling on a couch", "A football player scoring a goal"]
 
         >>> processor = ViltProcessor.from_pretrained("dandelin/vilt-b32-finetuned-coco")
-        >>> model = ViltForImageAndTextRetrieval.from_pretrained("dandelin/vilt-b32-finetuned-coco")
+        >>> model = ViltForImageAndTextRetrieval.from_pretrained("dandelin/vilt-b32-finetuned-coco", revision="refs/pr/2")
 
         >>> # forward pass
         >>> scores = dict()
@@ -1332,7 +1330,7 @@ class ViltForImagesAndTextClassification(ViltPreTrainedModel):
         >>> text = "The left image contains twice the number of dogs as the right image."
 
         >>> processor = ViltProcessor.from_pretrained("dandelin/vilt-b32-finetuned-nlvr2")
-        >>> model = ViltForImagesAndTextClassification.from_pretrained("dandelin/vilt-b32-finetuned-nlvr2")
+        >>> model = ViltForImagesAndTextClassification.from_pretrained("dandelin/vilt-b32-finetuned-nlvr2", revision="refs/pr/2")
 
         >>> # prepare inputs
         >>> encoding = processor([image1, image2], text, return_tensors="np")

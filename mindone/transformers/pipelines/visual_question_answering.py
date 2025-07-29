@@ -1,5 +1,6 @@
 from typing import List, Union
 
+import numpy as np
 from transformers import add_end_docstrings
 
 from ..utils import is_mindspore_available, is_vision_available, logging
@@ -168,9 +169,12 @@ class VisualQuestionAnsweringPipeline(Pipeline):
         image_features = self.image_processor(images=image, return_tensors="np")
         if self.framework == "ms":
             for k, v in model_inputs.items():
-                model_inputs[k] = ms.tensor(v).to(self.mindspore_dtype)
+                if np.issubdtype(v.dtype, np.floating):
+                    model_inputs[k] = ms.tensor(v).to(self.mindspore_dtype)
+                else:
+                    model_inputs[k] = ms.tensor(v)
             for k, v in image_features.items():
-                image_features = ms.tensor(image_features.float().numpy()).to(self.mindspore_dtype)
+                image_features[k] = ms.tensor(v).to(self.mindspore_dtype)
         model_inputs.update(image_features)
         return model_inputs
 
