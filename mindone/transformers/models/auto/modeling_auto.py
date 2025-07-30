@@ -529,6 +529,10 @@ if version.parse(transformers.__version__) >= version.parse("4.51.3"):
     MODEL_FOR_SEQUENCE_CLASSIFICATION_MAPPING_NAMES.update({"glm4": "Glm4ForSequenceClassification"})
     MODEL_FOR_TOKEN_CLASSIFICATION_MAPPING_NAMES.update({"glm4": "Glm4ForTokenClassification"})
 
+if version.parse(transformers.__version__) >= version.parse("4.52.0"):
+    MODEL_MAPPING_NAMES.update({"internvl": "InternVLModel"})
+    MODEL_MAPPING_NAMES.update({"internvl_vision": "InternVLVisionModel"})
+    MODEL_FOR_IMAGE_TEXT_TO_TEXT_MAPPING_NAMES.update({"internvl": "InternVLForConditionalGeneration"})
 
 MODEL_MAPPING = _LazyAutoMapping(CONFIG_MAPPING_NAMES, MODEL_MAPPING_NAMES)
 MODEL_FOR_PRETRAINING_MAPPING = _LazyAutoMapping(CONFIG_MAPPING_NAMES, MODEL_FOR_PRETRAINING_MAPPING_NAMES)
