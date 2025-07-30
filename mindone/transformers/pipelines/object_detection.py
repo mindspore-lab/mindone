@@ -117,10 +117,10 @@ class ObjectDetectionPipeline(Pipeline):
     def preprocess(self, image, timeout=None):
         image = load_image(image, timeout=timeout)
         target_size = ms.tensor([[image.height, image.width]], dtype=ms.int32)
-        inputs = ms.tensor(self.image_processor(images=[image], return_tensors="np"))
-        inputs = inputs.to(self.mindspore_dtype)
+        inputs = self.image_processor(images=[image], return_tensors="np")
         if self.tokenizer is not None:
-            inputs = ms.tensor(self.tokenizer(text=inputs["words"], boxes=inputs["boxes"], return_tensors="np"))
+            inputs = self.tokenizer(text=inputs["words"], boxes=inputs["boxes"], return_tensors="np")
+        inputs = {k: ms.tensor(v).to(self.mindspore_dtype) for k, v in inputs.items()}
         inputs["target_size"] = target_size
         return inputs
 

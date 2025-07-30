@@ -184,9 +184,10 @@ class ZeroShotObjectDetectionPipeline(ChunkPipeline):
 
         target_size = ms.tensor([[image.height, image.width]], dtype=ms.int32)
         for i, candidate_label in enumerate(candidate_labels):
-            text_inputs = ms.tensor(self.tokenizer(candidate_label, return_tensors="np"))
-            image_features = ms.tensor(self.image_processor(image, return_tensors="np"))
-            image_features = image_features.to(self.mindspore_dtype)
+            text_inputs = self.tokenizer(candidate_label, return_tensors="np")
+            text_inputs = {k: ms.tensor(v) for k, v in text_inputs.items()}
+            image_features = self.image_processor(image, return_tensors="np")
+            image_features = {k: ms.tensor(v).to(self.mindspore_dtype) for k, v in image_features.items()}
             yield {
                 "is_last": i == len(candidate_labels) - 1,
                 "target_size": target_size,

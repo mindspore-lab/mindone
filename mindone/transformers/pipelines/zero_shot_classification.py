@@ -130,15 +130,14 @@ class ZeroShotClassificationPipeline(ChunkPipeline):
             )
             self.tokenizer.pad_token = self.tokenizer.eos_token
         try:
-            inputs = ms.tensor(
-                self.tokenizer(
-                    sequence_pairs,
-                    add_special_tokens=add_special_tokens,
-                    return_tensors="np",
-                    padding=padding,
-                    truncation=truncation,
-                )
+            inputs = self.tokenizer(
+                sequence_pairs,
+                add_special_tokens=add_special_tokens,
+                return_tensors="np",
+                padding=padding,
+                truncation=truncation,
             )
+            inputs = {k: ms.tensor(v) for k, v in inputs.items()}
         except Exception as e:
             if "too short" in str(e):
                 # tokenizers might yell that we want to truncate
@@ -147,15 +146,14 @@ class ZeroShotClassificationPipeline(ChunkPipeline):
                 # It seems there's not a really better way to catch that
                 # exception.
 
-                inputs = ms.tensor(
-                    self.tokenizer(
-                        sequence_pairs,
-                        add_special_tokens=add_special_tokens,
-                        return_tensors="np",
-                        padding=padding,
-                        truncation=TruncationStrategy.DO_NOT_TRUNCATE,
-                    )
+                inputs = self.tokenizer(
+                    sequence_pairs,
+                    add_special_tokens=add_special_tokens,
+                    return_tensors="np",
+                    padding=padding,
+                    truncation=TruncationStrategy.DO_NOT_TRUNCATE,
                 )
+                inputs = {k: ms.tensor(v) for k, v in inputs.items()}
             else:
                 raise e
 
