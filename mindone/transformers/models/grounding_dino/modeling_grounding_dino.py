@@ -2481,34 +2481,32 @@ class GroundingDinoForObjectDetection(GroundingDinoPreTrainedModel):
         >>> import mindspore as ms
         >>> import mindspore.mint as mint
         >>> from PIL import Image
-        >>> from transformers import AutoProcessor, AutoModelForZeroShotObjectDetection
+        >>> from mindone.transformers import GroundingDinoForObjectDetection, GroundingDinoProcessor
 
-        >>> model_id = "IDEA-Research/grounding-dino-tiny"
-
-        >>> processor = AutoProcessor.from_pretrained(model_id)
-        >>> model = AutoModelForZeroShotObjectDetection.from_pretrained(model_id)
+        >>> model_id = "IDEA-Research/grounding-dino-base"
+        >>> dtype = ms.float16
+        >>> processor = GroundingDinoProcessor.from_pretrained(model_id)
+        >>> model = GroundingDinoForObjectDetection.from_pretrained(model_id, mindspore_dtype=dtype)
 
         >>> image_url = "http://images.cocodataset.org/val2017/000000039769.jpg"
         >>> image = Image.open(requests.get(image_url, stream=True).raw)
         >>> # Check for cats and remote controls
         >>> text_labels = [["a cat", "a remote control"]]
 
-        >>> inputs = processor(images=image, text=text_labels, return_tensors="pt")
+        >>> inputs = processor(images=image, text=text_labels, return_tensors="np")
+        >>> inputs = {k: ms.Tensor(inputs[k]) for k in inputs.keys()}
+        >>> inputs["pixel_values"] = inputs["pixel_values"].to(dtype)
         >>> outputs = model(**inputs)
+
         >>> results = processor.post_process_grounded_object_detection(
-        ...     outputs,
-        ...     threshold=0.4,
-        ...     text_threshold=0.3,
-        ...     target_sizes=[(image.height, image.width)]
+        ...     outputs, inputs["input_ids"], threshold=0.4, text_threshold=0.3, target_sizes=[image.size[::-1]]
         ... )
+
         >>> # Retrieve the first image result
         >>> result = results[0]
         >>> for box, score, text_label in zip(result["boxes"], result["scores"], result["text_labels"]):
         ...     box = [round(x, 2) for x in box.tolist()]
         ...     print(f"Detected {text_label} with confidence {round(score.item(), 3)} at location {box}")
-        Detected a cat with confidence 0.479 at location [344.7, 23.11, 637.18, 374.28]
-        Detected a cat with confidence 0.438 at location [12.27, 51.91, 316.86, 472.44]
-        Detected a remote control with confidence 0.478 at location [38.57, 70.0, 176.78, 118.18]
         ```
         """
         return_dict = return_dict if return_dict is not None else self.config.use_return_dict

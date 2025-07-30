@@ -1,10 +1,13 @@
-import mindspore as ms
-from PIL import Image
+from time import time
+
 import requests
+from PIL import Image
+
+import mindspore as ms
 
 from mindone.transformers import GroundingDinoForObjectDetection, GroundingDinoProcessor
 
-model_id = "IDEA-Research/grounding-dino-tiny"
+model_id = "IDEA-Research/grounding-dino-base"
 dtype = ms.float16
 processor = GroundingDinoProcessor.from_pretrained(model_id)
 model = GroundingDinoForObjectDetection.from_pretrained(model_id, mindspore_dtype=dtype)
@@ -13,11 +16,15 @@ image_url = "http://images.cocodataset.org/val2017/000000039769.jpg"
 image = Image.open(requests.get(image_url, stream=True).raw)
 # Check for cats and remote controls
 text_labels = [["a cat", "a remote control"]]
+start_time = time()
 
 inputs = processor(images=image, text=text_labels, return_tensors="np")
 inputs = {k: ms.Tensor(inputs[k]) for k in inputs.keys()}
 inputs["pixel_values"] = inputs["pixel_values"].to(dtype)
+print(f"Time taken to process image inputs: {time() - start_time} seconds")
+start_time = time()
 outputs = model(**inputs)
+print(f"Time taken to process model outputs: {time() - start_time} seconds")
 
 results = processor.post_process_grounded_object_detection(
     outputs, inputs["input_ids"], threshold=0.4, text_threshold=0.3, target_sizes=[image.size[::-1]]
