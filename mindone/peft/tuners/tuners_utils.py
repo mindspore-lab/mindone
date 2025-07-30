@@ -494,6 +494,9 @@ class BaseTuner(nn.Cell, ABC):
             else:
                 model.modules_to_save.update(set(peft_config.modules_to_save))
 
+        # keep the patch at the very last of inject_adapter
+        refresh_parameter_name_of_model(model)
+
     def merge_adapter(self, adapter_names: Optional[list[str]] = None) -> None:
         """
         This method merges the adapter layers into the base model.
@@ -1089,3 +1092,14 @@ def replicate_layers(model: nn.Cell, layer_map: list[tuple[int, int]]):
         raise ValueError("Unexpected model type, need to handle post-processing of layers.")
     if hasattr(model.config, "num_hidden_layers"):  # Common to Llama, Bert, Falcon.
         model.config.num_hidden_layers = len(new_layers)
+
+
+def refresh_parameter_name_of_model(model: nn.Cell) -> None:
+    """
+    Helper function to refresh parameter name of model after inject adapter.
+
+    Parameters in MindSpore has 'name' attribute which requires manual adjustment
+    after we have manipulated some attributes of the model(for example: 'inject_adapter').
+    """
+    for name, param in model.parameters_and_names():
+        param.name = name

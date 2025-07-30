@@ -115,12 +115,12 @@ def _get_padded_linear(lora_module: nn.Cell, target_rank: int, is_lora_A: bool) 
     # lora_A and lora_B are always nn.Linear
     if is_lora_A:
         # LoRA A affects out_features
-        padded = mint.zeros(target_rank, in_features, dtype=weight.dtype)
+        padded = mint.zeros((target_rank, in_features), dtype=weight.dtype)
         padded[:original_rank, :] = weight
         new_layer = mint.nn.Linear(in_features, target_rank, bias=lora_module.bias is not None)
     else:
         # LoRA B affects in_features
-        padded = mint.zeros(out_features, target_rank, dtype=weight.dtype)
+        padded = mint.zeros((out_features, target_rank), dtype=weight.dtype)
         padded[:, :original_rank] = weight
         new_layer = mint.nn.Linear(target_rank, out_features, bias=lora_module.bias is not None)
 
@@ -179,7 +179,7 @@ def _get_padded_conv2d(lora_module: nn.Cell, target_rank: int, is_lora_A: bool) 
     # lora_A and lora_B are always nn.Conv2d
     if is_lora_A:
         # LoRA A affects out_channels
-        padded = mint.zeros(target_rank, in_channels, kh, kw, dtype=weight.dtype)
+        padded = mint.zeros((target_rank, in_channels, kh, kw), dtype=weight.dtype)
         padded[:out_channels, :, :, :] = weight
         new_layer = mint.nn.Conv2d(
             in_channels,
@@ -192,7 +192,7 @@ def _get_padded_conv2d(lora_module: nn.Cell, target_rank: int, is_lora_A: bool) 
         )
     else:
         # LoRA B affects in_channels
-        padded = mint.zeros(out_channels, target_rank, kh, kw, dtype=weight.dtype)
+        padded = mint.zeros((out_channels, target_rank, kh, kw), dtype=weight.dtype)
         padded[:, :in_channels, :, :] = weight
         new_layer = mint.nn.Conv2d(
             target_rank,

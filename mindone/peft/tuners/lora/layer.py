@@ -534,8 +534,16 @@ class Linear(nn.Cell, LoraLayer):
         return output_tensor
 
     def construct(self, x: ms.Tensor, *args: Any, **kwargs: Any) -> ms.Tensor:
-        self._check_forward_args(x, *args, **kwargs)
-        adapter_names = kwargs.pop("adapter_names", None)
+        # Equivalent to: adapter_names = kwargs.pop("adapter_names", None)
+        # We do so since kwargs.pop() is not supported in MindSpore GRAPH MODE.
+        adapter_names = kwargs.get("adapter_names", None)
+        if adapter_names is not None:
+            copied_kwargs = {}
+            for k, v in kwargs.items():
+                if k == "adapter_names":
+                    continue
+                copied_kwargs[k] = v
+            kwargs = copied_kwargs
 
         if self.disable_adapters:
             if self.merged:
@@ -807,8 +815,16 @@ class _ConvNd(nn.Cell, LoraLayer):
         return output_tensor
 
     def construct(self, x: ms.Tensor, *args, **kwargs) -> ms.Tensor:
-        self._check_forward_args(x, *args, **kwargs)
-        adapter_names = kwargs.pop("adapter_names", None)
+        # Equivalent to: adapter_names = kwargs.pop("adapter_names", None)
+        # We do so since kwargs.pop() is not supported in MindSpore GRAPH MODE.
+        adapter_names = kwargs.get("adapter_names", None)
+        if adapter_names is not None:
+            copied_kwargs = {}
+            for k, v in kwargs.items():
+                if k == "adapter_names":
+                    continue
+                copied_kwargs[k] = v
+            kwargs = copied_kwargs
 
         if self.disable_adapters:
             if self.merged:
@@ -991,11 +1007,11 @@ class MultiheadAttention(nn.Cell, LoraLayer):
         return self.get_base_layer().head_dim
 
     @property
-    def in_proj_weight(self) -> nn.Parameter:
+    def in_proj_weight(self) -> ms.Parameter:
         return self.get_base_layer().in_proj_weight
 
     @property
-    def in_proj_bias(self) -> nn.Parameter:
+    def in_proj_bias(self) -> ms.Parameter:
         return self.get_base_layer().in_proj_bias
 
     @property
@@ -1003,11 +1019,11 @@ class MultiheadAttention(nn.Cell, LoraLayer):
         return self.get_base_layer().out_proj.get_base_layer()
 
     @property
-    def bias_k(self) -> Optional[nn.Parameter]:
+    def bias_k(self) -> Optional[ms.Parameter]:
         return self.get_base_layer().bias_k
 
     @property
-    def bias_v(self) -> Optional[nn.Parameter]:
+    def bias_v(self) -> Optional[ms.Parameter]:
         return self.get_base_layer().bias_v
 
     def merge_masks(self, *args, **kwargs) -> tuple[Optional[ms.Tensor], Optional[int]]:
@@ -1049,7 +1065,7 @@ class MultiheadAttention(nn.Cell, LoraLayer):
                 base_layer = self.get_base_layer()
                 if safe_merge:
                     # TODO: work with separate weights
-                    # merging in_proj (nn.Parameter)
+                    # merging in_proj (ms.Parameter)
                     orig_weights_in = base_layer.in_proj_weight.clone()
                     orig_weights_in += self.get_delta_weight(active_adapter)
                     if not mint.isfinite(orig_weights_in).all():
@@ -1074,7 +1090,7 @@ class MultiheadAttention(nn.Cell, LoraLayer):
                     base_layer.out_proj.get_base_layer().weight = orig_weights_out
                     base_layer.out_proj.merge(adapter_names=[active_adapter])
                 else:
-                    # merging in_proj (nn.Parameter)
+                    # merging in_proj (ms.Parameter)
                     # TODO: work with separate weights
                     weight_merged = base_layer.in_proj_weight + self.get_delta_weight(active_adapter)
 
@@ -1174,7 +1190,6 @@ class MultiheadAttention(nn.Cell, LoraLayer):
 
     def construct(self, x: ms.Tensor, *args: Any, **kwargs: Any) -> ms.Tensor:
         previous_dtype = x.dtype
-        self._check_forward_args(x, *args, **kwargs)
 
         if self.disable_adapters:
             if self.merged:
