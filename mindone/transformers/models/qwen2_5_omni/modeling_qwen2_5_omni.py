@@ -80,7 +80,7 @@ class Qwen2RMSNorm(nn.Cell):
         self.weight = ms.Parameter(mint.ones(hidden_size))
         self.variance_epsilon = eps
 
-    def forward(self, hidden_states):
+    def construct(self, hidden_states):
         input_dtype = hidden_states.dtype
         hidden_states = hidden_states.to(ms.float32)
         variance = hidden_states.pow(2).mean(-1, keepdim=True)
@@ -603,8 +603,8 @@ def eager_attention_forward(
         causal_mask = attention_mask[:, :, :, : key_states.shape[-2]]
         attn_weights = attn_weights + causal_mask
 
-    attn_weights = nn.functional.softmax(attn_weights, dim=-1, dtype=ms.float32).to(query.dtype)
-    attn_weights = nn.functional.dropout(attn_weights, p=dropout, training=module.training)
+    attn_weights = F.softmax(attn_weights, dim=-1, dtype=ms.float32).to(query.dtype)
+    attn_weights = F.dropout(attn_weights, p=dropout, training=module.training)
     attn_output = mint.matmul(attn_weights, value_states)
     attn_output = attn_output.swapaxes(1, 2).contiguous()
 
@@ -1341,7 +1341,7 @@ def apply_multimodal_rotary_pos_emb(q, k, cos, sin, mrope_section, unsqueeze_dim
     return q_embed, k_embed
 
 
-class Qwen2_5OmniAttention(nn.Module):
+class Qwen2_5OmniAttention(nn.Cell):
     """
     Multi-headed attention from 'Attention Is All You Need' paper. Modified to use sliding window attention: Longformer
     and "Generating Long Sequences with Sparse Transformers".
@@ -1957,6 +1957,8 @@ class Qwen2_5OmniThinkerForConditionalGeneration(Qwen2_5OmniPreTrainedModelForCo
         video_second_per_grid (`ms.Tensor` of shape `(num_videos)`, *optional*):
             Number of seconds per grid for each video, used for temporal feature mapping.
 
+        Returns:
+
         Example:
 
         ```python
@@ -2419,6 +2421,8 @@ class Qwen2_5OmniTalkerForConditionalGeneration(Qwen2_5OmniPreTrainedModelForCon
             The length of feature shape of each audio in LLM.
         video_second_per_grid (`ms.Tensor` of shape `(num_videos)`, *optional*):
             Number of seconds per grid for each video, used for temporal feature mapping.
+
+        Returns:
 
         Example:
 
