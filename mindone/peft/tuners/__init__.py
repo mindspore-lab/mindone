@@ -1,4 +1,3 @@
-# coding=utf-8
 # Copyright 2023-present the HuggingFace Inc. team.
 #
 # This code is adapted from https://github.com/huggingface/peft
@@ -16,8 +15,12 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from .config import LoftQConfig, LoraConfig
-from .layer import Conv2d, Linear, LoraLayer
-from .model import LoraModel
+from .lora import EvaConfig, LoftQConfig, LoraConfig, LoraModel, LoraRuntimeConfig
 
-__all__ = ["LoraConfig", "LoftQConfig", "Conv2d", "Linear", "LoraLayer", "LoraModel"]
+__all__ = [
+    "EvaConfig",
+    "LoftQConfig",
+    "LoraConfig",
+    "LoraModel",
+    "LoraRuntimeConfig",
+]

@@ -28,10 +28,10 @@ from huggingface_hub.constants import HF_HUB_OFFLINE
 import mindspore as ms
 from mindspore import nn
 
+from mindone.peft.tuners.tuners_utils import BaseTunerLayer
 from mindone.safetensors.mindspore import load_file, save_file
 from mindone.transformers import MSPreTrainedModel
 
-from .._peft.tuners.tuners_utils import BaseTunerLayer
 from ..models.lora import text_encoder_attn_modules, text_encoder_mlp_modules
 from ..models.modeling_utils import ModelMixin
 from ..utils import (
@@ -311,7 +311,7 @@ def _load_lora_into_text_encoder(
     _pipeline=None,
     hotswap: bool = False,
 ):
-    from mindone.diffusers._peft import LoraConfig
+    from mindone.peft import LoraConfig
 
     # If the serialization format is new (introduced in https://github.com/huggingface/diffusers/pull/2918),
     # then the `state_dict` keys should have `unet_name` and/or `text_encoder_name` as

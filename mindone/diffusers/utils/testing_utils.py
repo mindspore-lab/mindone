@@ -196,9 +196,9 @@ def require_peft_version_greater(peft_version):
     """
 
     def decorator(test_case):
-        from mindone.diffusers._peft import __version__ as _mindone_diffusers_peft_version
+        from mindone.peft import __version__ as _mindone_peft_version
 
-        correct_peft_version = version.parse(_mindone_diffusers_peft_version) > version.parse(peft_version)
+        correct_peft_version = version.parse(_mindone_peft_version) > version.parse(peft_version)
         return pytest.mark.skipif(
             not correct_peft_version, reason=f"test requires PEFT backend with the version greater than {peft_version}"
         )(test_case)
