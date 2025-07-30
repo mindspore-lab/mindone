@@ -331,6 +331,13 @@ from .models.gpt2 import (
 from .models.granite import GraniteForCausalLM, GraniteModel, GranitePreTrainedModel
 from .models.granitemoe import GraniteMoeForCausalLM, GraniteMoeModel, GraniteMoePreTrainedModel
 from .models.granitemoeshared import GraniteMoeSharedForCausalLM, GraniteMoeSharedModel, GraniteMoeSharedPreTrainedModel
+from .models.grounding_dino import (
+    GroundingDinoForObjectDetection,
+    GroundingDinoImageProcessor,
+    GroundingDinoModel,
+    GroundingDinoPreTrainedModel,
+    GroundingDinoProcessor,
+)
 from .models.helium import (
     HeliumForCausalLM,
     HeliumForSequenceClassification,
@@ -589,13 +596,6 @@ from .models.switch_transformers import (
     SwitchTransformersPreTrainedModel,
     SwitchTransformersSparseMLP,
     SwitchTransformersTop1Router,
-)
-from .models.grounding_dino import (
-    GroundingDinoForObjectDetection,
-    GroundingDinoImageProcessor,
-    GroundingDinoModel,
-    GroundingDinoPreTrainedModel,
-    GroundingDinoProcessor,
 )
 from .models.t5 import (
     T5_PRETRAINED_MODEL_ARCHIVE_LIST,
