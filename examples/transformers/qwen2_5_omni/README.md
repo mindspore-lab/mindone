@@ -13,7 +13,8 @@ The abstract from the [Qwen2.5-Omni Technical Report](https://arxiv.org/abs/2503
 ## Requirements:
 |mindspore |	ascend driver | firmware | cann tookit/kernel|
 |--- | --- | --- | --- |
-|2.5.0 | 24.1RC3 | 7.3.0.1.231 | 8.0.RC3.beta1|
+|2.6.0 | 24.1.RC3 | 7.5.T11.0 | 8.1.RC1|
+|2.5.0 | 24.1.RC3 | 7.3.0.1.231 | 8.0.RC3.beta1|
 
 ### Installation
 ```
