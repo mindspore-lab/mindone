@@ -456,7 +456,10 @@ class ModulesToSaveWrapper(AuxiliaryTrainingWrapper):
             # In caes of multiple adapters, each bringing their own modules to save, each
             # ModulesToSaveWrapper will be queried but not every wrapper is obliged to serve the same adapters.
             return {}
-        return {k: f"modules_to_save.{adapter_name}.{k}" for k in self.modules_to_save[adapter_name].state_dict()}
+        return {
+            k: f"modules_to_save.{adapter_name}.{k}"
+            for k, _ in self.modules_to_save[adapter_name].parameters_and_names()
+        }
 
     def adapter_state_dict(self, adapter_name, state_dict):
         if adapter_name not in self._adapters:
@@ -466,7 +469,7 @@ class ModulesToSaveWrapper(AuxiliaryTrainingWrapper):
 
         return {
             k: state_dict[f"modules_to_save.{adapter_name}.{k}"]
-            for k in self.modules_to_save[adapter_name].state_dict()
+            for k, _ in self.modules_to_save[adapter_name].parameters_and_names()
         }
 
     def unload_and_optionally_merge_module(

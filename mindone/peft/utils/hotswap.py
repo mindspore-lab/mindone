@@ -388,7 +388,7 @@ def hotswap_adapter_from_state_dict(
     # Ensure that all the keys of the new adapter correspond exactly to the keys of the old adapter, otherwise
     # hot-swapping is not possible
     # TODO: there is probably a more precise way to identify the adapter keys
-    missing_keys = {k for k in model.state_dict() if (parameter_prefix in k) and (adapter_name in k)}
+    missing_keys = {k for k, _ in model.parameters_and_names() if (parameter_prefix in k) and (adapter_name in k)}
     unexpected_keys = []
 
     # first: dry run, not swapping anything

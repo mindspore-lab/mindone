@@ -18,8 +18,9 @@ from __future__ import annotations
 
 import os
 import warnings
+from collections import OrderedDict
 from contextlib import contextmanager
-from typing import Optional
+from typing import Dict, List, Optional
 
 import huggingface_hub
 from huggingface_hub import file_exists, hf_hub_download
@@ -79,7 +80,7 @@ def get_peft_model_state_dict(
 
     config = model.peft_config[adapter_name]
     if state_dict is None:
-        state_dict = model.state_dict()
+        state_dict = {k: v for k, v in model.parameters_and_names()}
 
     # TUNER SPECIFIC CODE
     if config.peft_type in (PeftType.LORA, PeftType.ADALORA):
@@ -281,7 +282,7 @@ def _find_mismatched_keys(
         return peft_model_state_dict, []
 
     mismatched = []
-    state_dict = model.state_dict()
+    state_dict = {k: v for k, v in model.parameters_and_names()}
     for key, tensor in peft_model_state_dict.items():
         if key not in state_dict:
             continue
@@ -448,14 +449,15 @@ def set_peft_model_state_dict(
     )
 
     with silence_mindspore_logger():
-        load_result = model.load_state_dict(peft_model_state_dict, strict=False)
+        load_result = _load_state_dict_into_model(model, peft_model_state_dict)
     if config.is_prompt_learning:
-        model.prompt_encoder[adapter_name].embedding.load_state_dict(
-            {"weight": peft_model_state_dict["prompt_embeddings"]}, strict=True
+        _load_state_dict_into_model(
+            model.prompt_encoder[adapter_name].embedding,
+            {"weight": peft_model_state_dict["prompt_embeddings"]},
         )
 
     if config.peft_type == PeftType.MULTITASK_PROMPT_TUNING:
-        model.prompt_encoder[adapter_name].load_state_dict(peft_model_state_dict, strict=False)
+        _load_state_dict_into_model(model.prompt_encoder[adapter_name], peft_model_state_dict)
 
     if mismatched_keys:
         # see https://github.com/huggingface/transformers/blob/09f9f566de83eef1f13ee83b5a1bbeebde5c80c1/src/transformers/modeling_utils.py#L4039
@@ -553,3 +555,31 @@ def load_peft_weights(model_id: str, device: Optional[str] = None, **hf_hub_down
         adapters_weights = ms.load_checkpoint(filename)
 
     return adapters_weights
+
+
+# Adapted from mindone.diffusers.models.model_loading_utils._load_state_dict_into_model
+def _load_state_dict_into_model(model_to_load, state_dict: OrderedDict) -> Dict[str, List[str]]:
+    r"""
+    This interface was introduced for the following reason:
+        The `mindspore.load_param_into_net` interface, when set to `strict_load=True`, does not support cases
+        where the data types (dtype) of parameters in the state dict differ from those in the model. When
+        `strict_load=False`, it will load parameters into the network if the suffix of a parameter name in the
+        checkpoint file matches that of a parameter in the network. This overly permissive behavior can lead to
+        unintended weight loading, especially since parameters of Tuner Layers (e.g., LoraLayer) often share
+        the same suffixes.
+    Therefore, we encapsulated the `mindspore.load_param_into_net` interface by first aligning the data types of
+    parameters in the state dict and the network before the core call, then performing strict loading, thus
+    resolving the issues mentioned above.
+
+    TODO: MindSpore 2.6 provides a native `model.load_state_dict` interface that meets our requirements. We will
+          deprecate this custom interface and switch to the `load_state_dict` interface once MindONE no longer
+          supports MindSpore versions below 2.6.
+    """
+    local_state = {k: v for k, v in model_to_load.parameters_and_names()}
+    for k, v in state_dict.items():
+        if k in local_state:
+            v.set_dtype(local_state[k].dtype)
+
+    param_not_load, ckpt_not_load = ms.load_param_into_net(model_to_load, state_dict, strict_load=True)
+    load_result = dict(missing_keys=param_not_load, unexpected_keys=ckpt_not_load)
+    return load_result
