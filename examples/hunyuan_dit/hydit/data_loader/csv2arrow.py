@@ -20,7 +20,7 @@ def parse_data(data):
 
         with open(img_path, "rb") as fp:
             image = fp.read()
-            md5 = hashlib.md5(image).hexdigest()
+            md5 = hashlib.md5(image, usedforsecurity=False).hexdigest()
 
         with Image.open(img_path) as f:
             width, height = f.size

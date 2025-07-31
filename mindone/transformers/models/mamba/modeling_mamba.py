@@ -105,7 +105,13 @@ class MambaMixer(nn.Cell):
         self.use_bias = config.use_bias
 
     # fmt: off
-    def slow_forward(self, input_states, cache_params: Optional[MambaCache]=None, cache_position:Optional[ms.Tensor]=None, attention_mask: Optional[ms.Tensor] = None):
+    def slow_forward(
+        self,
+        input_states,
+        cache_params: Optional[MambaCache] = None,
+        cache_position: Optional[ms.Tensor] = None,
+        attention_mask: Optional[ms.Tensor] = None,
+    ):
         batch_size, seq_len, _ = input_states.shape
         dtype = input_states.dtype
         # 1. Gated MLP's linear projection
@@ -151,11 +157,11 @@ class MambaMixer(nn.Cell):
             ssm_parameters, [self.time_step_rank, self.ssm_state_size, self.ssm_state_size], dim=-1
         )
         discrete_time_step = self.dt_proj(time_step)                                    # [batch, seq_len, intermediate_size]
-        discrete_time_step = mint.nn.functional.softplus(discrete_time_step).swapaxes(1, 2) # [batch, intermediate_size, seq_len]
+        discrete_time_step = mint.nn.functional.softplus(discrete_time_step).swapaxes(1, 2)  # [batch, intermediate_size, seq_len]
 
         # 3.b. Discretization: B and C to [batch, seq_len, intermediate_size, ssm_state_size] (SRAM)
         A = -mint.exp(self.A_log.float())                                              # [intermediate_size, ssm_state_size]
-        discrete_A = mint.exp(A[None, :, None, :] * discrete_time_step[:, :, :, None]) # [batch, intermediate_size, seq_len, ssm_state_size]
+        discrete_A = mint.exp(A[None, :, None, :] * discrete_time_step[:, :, :, None])  # [batch, intermediate_size, seq_len, ssm_state_size]
         discrete_B = discrete_time_step[:, :, :, None] * B[:, None, :, :].float()       # [batch, intermediate_size, seq_len, ssm_state_size]
         deltaB_u = discrete_B * hidden_states[:, :, :, None].float()
 
@@ -246,6 +252,7 @@ class MambaPreTrainedModel(PreTrainedModel):
     _no_split_modules = ["MambaBlock", "MambaMixer"]
     supports_gradient_checkpointing = True
     _is_stateful = True
+    _supports_dynamic_input = True
 
     def _init_weights(self, module):
         """Initialize the weights."""

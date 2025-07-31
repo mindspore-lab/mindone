@@ -101,7 +101,7 @@ def segment_sum(input_tensor):
     chunk_size = input_tensor.shape[-1]
     # 1. expand input tensor to have an additional dimension and repeat along that dimension
     # [..., chunk_size] -> [..., chunk_size, chunk_size]
-    input_tensor = input_tensor[..., None].expand((*input_tensor.shape, chunk_size))
+    input_tensor = input_tensor[..., None].broadcast_to((input_tensor.shape + (chunk_size,)))
     # 2. create a lower triangular mask with the diagonal set to 0 to 0 out elements above diag
     mask = mint.tril(mint.ones((chunk_size, chunk_size), dtype=ms.bool_), diagonal=-1)
     input_tensor = input_tensor.masked_fill(~mask, 0)
@@ -286,7 +286,13 @@ class Mamba2Mixer(nn.Cell):
             )
 
     # fmt: off
-    def mindspore_forward(self, input_states, cache_params: Optional[Mamba2Cache]=None, cache_position:Optional[ms.Tensor]=None, attention_mask: Optional[ms.Tensor]=None):
+    def mindspore_forward(
+        self,
+        input_states,
+        cache_params: Optional[Mamba2Cache] = None,
+        cache_position: Optional[ms.Tensor] = None,
+        attention_mask: Optional[ms.Tensor] = None,
+    ):
         batch_size, seq_len, _ = input_states.shape
         dtype = input_states.dtype
 
@@ -294,8 +300,8 @@ class Mamba2Mixer(nn.Cell):
         input_states = apply_mask_to_padding_states(input_states, attention_mask)
         projected_states = self.in_proj(input_states)
         d_mlp = (projected_states.shape[-1] - 2 * self.intermediate_size - 2 * self.n_groups * self.ssm_state_size-self.num_heads) // 2
-        _, _, gate, hidden_states_B_C, dt = projected_states.split(
-                [d_mlp, d_mlp, self.intermediate_size,  self.conv_dim, self.num_heads], dim=-1
+        _, _, gate, hidden_states_B_C, dt = mint.split(
+            projected_states, [d_mlp, d_mlp, self.intermediate_size,  self.conv_dim, self.num_heads], dim=-1
         )
 
         # 2. Convolution sequence transformation
@@ -337,13 +343,13 @@ class Mamba2Mixer(nn.Cell):
             # Note: there is no need to pad parameter matrices here, as there is just one new token
             # for batched generation
             dt = dt[:, 0, :][:, None, ...]
-            dt = dt.swapaxes(1, 2).expand((batch_size, dt.shape[-1], self.head_dim))
+            dt = dt.swapaxes(1, 2).broadcast_to((batch_size, dt.shape[-1], self.head_dim))
             # [num_heads] -> [num_heads, head_dim]
-            dt_bias = self.dt_bias[..., None].expand((self.dt_bias.shape[0], self.head_dim))
+            dt_bias = self.dt_bias[..., None].broadcast_to((self.dt_bias.shape[0], self.head_dim))
 
             dt = mint.nn.functional.softplus(dt + dt_bias.to(dt.dtype))
             dt = mint.clamp(dt, self.time_step_limit[0], self.time_step_limit[1])
-            A = A[..., None, None].expand((self.num_heads, self.head_dim, self.ssm_state_size)).to(dtype=ms.float32)
+            A = A[..., None, None].broadcast_to((self.num_heads, self.head_dim, self.ssm_state_size)).to(dtype=ms.float32)
             # [bsz, num_heads, head_dim, state_size]
             dA = (mint.exp(dt[..., None] * A))
 
@@ -351,7 +357,7 @@ class Mamba2Mixer(nn.Cell):
             # [bsz, n_groups * state_size] -> [bsz, n_groups, 1, state_size] ->
             # -> [bsz, n_groups, group to head repetition factor, state_size] -> [bsz, num_heads, state_size]
             B = B.reshape(batch_size, self.n_groups, -1)[..., None, :]
-            B = B.expand((batch_size, self.n_groups, self.num_heads // self.n_groups, B.shape[-1])).contiguous()
+            B = B.broadcast_to((batch_size, self.n_groups, self.num_heads // self.n_groups, B.shape[-1])).contiguous()
             B = B.reshape(batch_size, -1, B.shape[-1])
             # [bsz, num_heads, head_dim, state_size]
             dB = dt[..., None] * B[..., None, :]
@@ -370,7 +376,7 @@ class Mamba2Mixer(nn.Cell):
             # Subsequent output
             # [bsz, n_groups * state_size] -> [bsz, num_heads, state_size]
             C = C.reshape(batch_size, self.n_groups, -1)[..., None, :]
-            C = C.expand((batch_size, self.n_groups, self.num_heads // self.n_groups, C.shape[-1])).contiguous()
+            C = C.broadcast_to((batch_size, self.n_groups, self.num_heads // self.n_groups, C.shape[-1])).contiguous()
             C = C.reshape(batch_size, -1, C.shape[-1])
             # [bsz, num_heads, head_dim]
 
@@ -383,7 +389,7 @@ class Mamba2Mixer(nn.Cell):
 
             # D skip connection
             # [num_heads] -> [num_heads, head_dim]
-            D = self.D[..., None].expand((self.D.shape[0], self.head_dim))
+            D = self.D[..., None].broadcast_to((self.D.shape[0], self.head_dim))
             y = (y + hidden_states * D).to(y.dtype)
 
             # [bsz, num_heads, head_dim] -> [bsz, 1, intermediate_size]
@@ -547,6 +553,7 @@ class Mamba2PreTrainedModel(PreTrainedModel):
     _no_split_modules = ["Mamba2Block"]
     supports_gradient_checkpointing = True
     _is_stateful = True
+    _supports_dynamic_input = True
 
     def _init_weights(self, module):
         """Initialize the weights."""
@@ -651,7 +658,7 @@ MAMBA2_START_DOCSTRING = r"""
     library implements for all its model (such as downloading or saving, resizing the input embeddings, pruning heads
     etc.)
 
-    This model is also a MindSpore [nn.Cell](https://www.mindspore.cn/docs/zh-CN/master/api_python/nn/mindspore.nn.Cell.html?highlight=cell#mindspore.nn.Cell) subclass.
+    This model is also a MindSpore [nn.Cell](https://www.mindspore.cn/docs/zh-CN/master/api_python/nn/mindspore.nn.Cell.html) subclass.
     Use it as a regular MindSpore Module and refer to the MindSpore documentation for all matter related to general usage
     and behavior.
 
@@ -752,7 +759,9 @@ class Mamba2Model(Mamba2PreTrainedModel):
         use_cache = use_cache if use_cache is not None else (self.config.use_cache if not self.training else False)
         return_dict = return_dict if return_dict is not None else self.config.use_return_dict
 
-        if (input_ids is None) ^ (inputs_embeds is not None):  # ^ is python for xor
+        # unsupported input type in MindSpore
+        # if (input_ids is None) ^ (inputs_embeds is not None):  # ^ is python for xor
+        if (input_ids is None and inputs_embeds is None) or (input_ids is not None and inputs_embeds is not None):
             raise ValueError("You must specify exactly one of input_ids or inputs_embeds")
 
         if inputs_embeds is None:
