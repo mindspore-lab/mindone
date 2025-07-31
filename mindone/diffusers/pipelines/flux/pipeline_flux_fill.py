@@ -32,7 +32,7 @@ from ...models.autoencoders import AutoencoderKL
 from ...models.transformers import FluxTransformer2DModel
 from ...schedulers import FlowMatchEulerDiscreteScheduler
 from ...utils import logging, scale_lora_layers, unscale_lora_layers
-from ...utils.mindspore_utils import randn_tensor
+from ...utils.mindspore_utils import pynative_context, randn_tensor
 from ..pipeline_utils import DiffusionPipeline
 from .pipeline_output import FluxPipelineOutput
 
@@ -264,7 +264,8 @@ class FluxFillPipeline(
                 f" {max_sequence_length} tokens: {removed_text}"
             )
 
-        prompt_embeds = self.text_encoder_2(ms.Tensor.from_numpy(text_input_ids), output_hidden_states=False)[0]
+        with pynative_context():
+            prompt_embeds = self.text_encoder_2(ms.Tensor.from_numpy(text_input_ids), output_hidden_states=False)[0]
 
         dtype = self.text_encoder_2.dtype
         prompt_embeds = prompt_embeds.to(dtype=dtype)
