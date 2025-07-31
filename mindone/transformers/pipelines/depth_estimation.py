@@ -102,7 +102,7 @@ class DepthEstimationPipeline(Pipeline):
                 model_inputs = model_inputs.to(self.mindspore_dtype)
         except ValueError:
             # for transformer image processor compatibility
-            # consider to drop this branch if all processors are migrated to mindone.transformers in future
+            # FIXME: consider to drop this branch if all processors are migrated to mindone.transformers in future
             requires_backends(self, ["mindspore"])
             import mindspore as ms  # noqa
 
