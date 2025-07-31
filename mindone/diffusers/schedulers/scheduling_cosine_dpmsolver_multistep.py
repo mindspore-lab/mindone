@@ -1,5 +1,8 @@
 # Copyright 2024 TSAIL Team and The HuggingFace Team. All rights reserved.
 #
+# This code is adapted from https://github.com/huggingface/diffusers
+# with modifications to run diffusers on mindspore.
+#
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -96,7 +99,7 @@ class CosineDPMSolverMultistepScheduler(SchedulerMixin, ConfigMixin):
             else:
                 raise NotImplementedError(f"{solver_type} is not implemented for {self.__class__}")
 
-        ramp = ms.Tensor(np.linspace(0, 1, num_train_timesteps))
+        ramp = ms.tensor(np.linspace(0, 1, num_train_timesteps))
         if sigma_schedule == "karras":
             sigmas = self._compute_karras_sigmas(ramp)
         elif sigma_schedule == "exponential":
@@ -153,7 +156,7 @@ class CosineDPMSolverMultistepScheduler(SchedulerMixin, ConfigMixin):
 
     def precondition_noise(self, sigma):
         if not isinstance(sigma, ms.Tensor):
-            sigma = ms.Tensor([sigma])
+            sigma = ms.tensor([sigma])
 
         return sigma.atan() / math.pi * 2
 
@@ -209,7 +212,7 @@ class CosineDPMSolverMultistepScheduler(SchedulerMixin, ConfigMixin):
 
         self.num_inference_steps = num_inference_steps
 
-        ramp = ms.Tensor(np.linspace(0, 1, self.num_inference_steps))
+        ramp = ms.tensor(np.linspace(0, 1, self.num_inference_steps))
         if self.config.sigma_schedule == "karras":
             sigmas = self._compute_karras_sigmas(ramp)
         elif self.config.sigma_schedule == "exponential":
@@ -290,7 +293,7 @@ class CosineDPMSolverMultistepScheduler(SchedulerMixin, ConfigMixin):
         return t
 
     def _sigma_to_alpha_sigma_t(self, sigma):
-        alpha_t = ms.Tensor(1)  # Inputs are pre-scaled before going into unet, so alpha_t = 1
+        alpha_t = ms.tensor(1)  # Inputs are pre-scaled before going into unet, so alpha_t = 1
         sigma_t = sigma
 
         return alpha_t, sigma_t

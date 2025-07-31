@@ -1,3 +1,5 @@
+"""Adapted from https://github.com/huggingface/diffusers/tree/main/src/diffusers/models/modeling_outputs.py."""
+
 from dataclasses import dataclass
 
 import mindspore as ms

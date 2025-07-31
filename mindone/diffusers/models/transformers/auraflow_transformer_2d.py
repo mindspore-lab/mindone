@@ -1,5 +1,8 @@
 # Copyright 2024 AuraFlow Authors, The HuggingFace Team. All rights reserved.
 #
+# This code is adapted from https://github.com/huggingface/diffusers
+# with modifications to run diffusers on mindspore.
+#
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -16,11 +19,12 @@
 from typing import Dict, Union
 
 import mindspore as ms
+import mindspore.mint.nn.functional as F
 from mindspore import mint, nn
 
 from ...configuration_utils import ConfigMixin, register_to_config
+from ...loaders import FromOriginalModelMixin
 from ...utils import logging
-from ..activations import SiLU
 from ..attention_processor import Attention, AttentionProcessor, AuraFlowAttnProcessor2_0, FusedAuraFlowAttnProcessor2_0
 from ..embeddings import TimestepEmbedding, Timesteps
 from ..modeling_outputs import Transformer2DModelOutput
@@ -108,7 +112,7 @@ class AuraFlowFeedForward(nn.Cell):
         self.out_projection = mint.nn.Linear(final_hidden_dim, dim, bias=False)
 
     def construct(self, x: ms.Tensor) -> ms.Tensor:
-        x = mint.nn.functional.silu(self.linear_1(x)) * self.linear_2(x)
+        x = F.silu(self.linear_1(x)) * self.linear_2(x)
         x = self.out_projection(x)
         return x
 
@@ -117,7 +121,7 @@ class AuraFlowPreFinalBlock(nn.Cell):
     def __init__(self, embedding_dim: int, conditioning_embedding_dim: int):
         super().__init__()
 
-        self.silu = SiLU()
+        self.silu = mint.nn.SiLU()
         self.linear = mint.nn.Linear(conditioning_embedding_dim, embedding_dim * 2, bias=False)
 
     def construct(self, x: ms.Tensor, conditioning_embedding: ms.Tensor) -> ms.Tensor:
@@ -242,7 +246,7 @@ class AuraFlowJointTransformerBlock(nn.Cell):
         return encoder_hidden_states, hidden_states
 
 
-class AuraFlowTransformer2DModel(ModelMixin, ConfigMixin):
+class AuraFlowTransformer2DModel(ModelMixin, ConfigMixin, FromOriginalModelMixin):
     r"""
     A 2D Transformer model as introduced in AuraFlow (https://blog.fal.ai/auraflow/).
 
@@ -263,6 +267,8 @@ class AuraFlowTransformer2DModel(ModelMixin, ConfigMixin):
         pos_embed_max_size (`int`, defaults to 4096): Maximum positions to embed from the image latents.
     """
 
+    _no_split_modules = ["AuraFlowJointTransformerBlock", "AuraFlowSingleTransformerBlock", "AuraFlowPatchEmbed"]
+    _skip_layerwise_casting_patterns = ["pos_embed", "norm"]
     _supports_gradient_checkpointing = True
 
     @register_to_config
@@ -433,10 +439,6 @@ class AuraFlowTransformer2DModel(ModelMixin, ConfigMixin):
         if self.original_attn_processors is not None:
             self.set_attn_processor(self.original_attn_processors)
 
-    def _set_gradient_checkpointing(self, module, value=False):
-        if hasattr(module, "gradient_checkpointing"):
-            module.gradient_checkpointing = value
-
     def construct(
         self,
         hidden_states: ms.Tensor,
@@ -485,7 +487,6 @@ class AuraFlowTransformer2DModel(ModelMixin, ConfigMixin):
         hidden_states = hidden_states.reshape(
             hidden_states.shape[0], height, width, patch_size, patch_size, out_channels
         )
-        # hidden_states = torch.einsum("nhwpqc->nchpwq", hidden_states)
         hidden_states = mint.einsum("nhwpqc->nchpwq", hidden_states)
         output = hidden_states.reshape(hidden_states.shape[0], out_channels, height * patch_size, width * patch_size)
 

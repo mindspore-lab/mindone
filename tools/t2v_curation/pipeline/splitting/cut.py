@@ -1,4 +1,6 @@
 import argparse
+import ast
+import json
 import os
 import subprocess
 from functools import partial
@@ -28,7 +30,10 @@ def process_single_row(row, args):
             timestamp = row["timestamp"]
             if not (timestamp.startswith("[") and timestamp.endswith("]")):
                 return False
-            scene_list = eval(timestamp)
+            try:
+                scene_list = json.loads(timestamp)
+            except json.JSONDecodeError:
+                scene_list = ast.literal_eval(timestamp)
             scene_list = [(FrameTimecode(s, fps=100), FrameTimecode(t, fps=100)) for s, t in scene_list]
         else:
             scene_list = [None]

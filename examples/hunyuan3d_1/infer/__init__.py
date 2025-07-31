@@ -22,6 +22,8 @@
 # fine-tuning enabling code and other elements of the foregoing made publicly available
 # by Tencent in accordance with TENCENT HUNYUAN COMMUNITY LICENSE AGREEMENT.
 
+# This code is adapted from https://github.com/Tencent-Hunyuan/Hunyuan3D-1 to work with MindSpore.
+
 from .gif_render import GifRenderer
 from .image_to_views import Image2Views, save_gif
 from .removebg import Removebg

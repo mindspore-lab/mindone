@@ -1,3 +1,5 @@
+"""Adapted from https://github.com/huggingface/diffusers/tree/main/src/diffusers/pipelines/stable_diffusion_safe/pipeline_output.py."""
+
 from dataclasses import dataclass
 from typing import List, Optional, Union
 

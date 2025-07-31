@@ -1,5 +1,8 @@
 # Copyright 2024 ETH Zurich Computer Vision Lab and The HuggingFace Team. All rights reserved.
 #
+# This code is adapted from https://github.com/huggingface/diffusers
+# with modifications to run diffusers on mindspore.
+#
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -324,7 +327,11 @@ class RePaintScheduler(SchedulerMixin, ConfigMixin):
         )
 
         # 8. Algorithm 1 Line 5 https://arxiv.org/pdf/2201.09865.pdf
-        prev_known_part = (alpha_prod_t_prev**0.5).to(dtype) * original_image + (1 - alpha_prod_t_prev).to(
+        # The computation reported in Algorithm 1 Line 5 is incorrect. Line 5 refers to formula (8a) of the same paper,
+        # which tells to sample from a Gaussian distribution with mean "(alpha_prod_t_prev**0.5) * original_image"
+        # and variance "(1 - alpha_prod_t_prev)". This means that the standard Gaussian distribution "noise" should be
+        # scaled by the square root of the variance (as it is done here), however Algorithm 1 Line 5 tells to scale by the variance.
+        prev_known_part = (alpha_prod_t_prev**0.5).to(dtype) * original_image + ((1 - alpha_prod_t_prev) ** 0.5).to(
             dtype
         ) * noise
 

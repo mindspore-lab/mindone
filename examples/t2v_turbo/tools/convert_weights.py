@@ -1,8 +1,8 @@
 import argparse
 import os
-import pickle
 import sys
 
+import numpy as np
 from omegaconf import OmegaConf
 
 import mindspore as ms
@@ -83,14 +83,16 @@ def convert_t2v_vc2(src_path, target_path):
 def convert_lora(src_path, target_path):
     lora_weights = load_torch_ckpt(src_path)
     if isinstance(lora_weights, dict):
-        weights = {k: ms.Tensor(v.cpu().detach().numpy()) for k, v in lora_weights.items()}
+        weights = {k: v.cpu().detach().numpy() for k, v in lora_weights.items()}
     elif isinstance(lora_weights, list):
-        weights = [ms.Tensor(v.cpu().detach().numpy()) for v in lora_weights]
+        weights = [v.cpu().detach().numpy() for v in lora_weights]
     else:
         raise Exception("Unknown LORA weights format!")
 
-    with open(target_path, "wb") as f:
-        pickle.dump(weights, f)
+    if isinstance(weights, dict):
+        np.savez(target_path, **weights)
+    elif isinstance(weights, list):
+        np.savez(target_path, *weights)
 
 
 def convert_internvid2(src_path, target_path):
@@ -186,7 +188,7 @@ def convert_weights(model_folder):
 
     # output path
     out_vc2 = os.path.join(model_folder, "VideoCrafter2_model_ms.ckpt")
-    out_lora = os.path.join(model_folder, "unet_lora.ckpt")
+    out_lora = os.path.join(model_folder, "unet_lora.npz")
 
     # convert videocrafter2
     print(f"converting the weights of {fn_vc2} ...")
@@ -228,7 +230,10 @@ if __name__ == "__main__":
 
     if args.target is None:
         filename, suffix = os.path.splitext(args.source)
-        target_path = filename + ".ckpt"
+        if args.type == "lora":
+            target_path = filename + ".npz"
+        else:
+            target_path = filename + ".ckpt"
     else:
         target_path = args.target
 
