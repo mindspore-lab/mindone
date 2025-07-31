@@ -1,5 +1,8 @@
 # Copyright 2024 The Hunyuan Team and The HuggingFace Team. All rights reserved.
 #
+# This code is adapted from https://github.com/huggingface/diffusers
+# with modifications to run diffusers on mindspore.
+#
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -74,7 +77,10 @@ class HunyuanVideoCausalConv3d(nn.Cell):
         self.conv = mint.nn.Conv3d(in_channels, out_channels, kernel_size, stride, padding, dilation, bias=bias)
 
     def construct(self, hidden_states: ms.Tensor) -> ms.Tensor:
-        hidden_states = F.pad(hidden_states, self.time_causal_padding, mode=self.pad_mode)
+        # TODO: bfloat16 is not supported in mint.nn.functional.pad
+        hidden_states = F.pad(hidden_states.float(), self.time_causal_padding, mode=self.pad_mode).to(
+            hidden_states.dtype
+        )
         return self.conv(hidden_states)
 
 

@@ -1,3 +1,5 @@
+"""Adapted from https://github.com/huggingface/transformers/tree/main/tests//models/ijepa/test_modeling_ijepa.py."""
+
 import logging
 
 import numpy as np

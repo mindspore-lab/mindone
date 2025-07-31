@@ -1,3 +1,5 @@
+# Adapted from https://github.com/Gen-Verse/MMaDA/blob/main/parquet/my_dataset.py
+
 import glob
 import json
 import logging

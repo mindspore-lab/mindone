@@ -1,3 +1,8 @@
+"""
+Adapted from https://github.com/huggingface/diffusers/tree/main/src/diffusers/
+pipelines/text_to_video_synthesis/pipeline_text_to_video_zero_sdxl.py.
+"""
+
 import copy
 import inspect
 from dataclasses import dataclass

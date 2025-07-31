@@ -1,3 +1,5 @@
+# This code is copied from https://github.com/Wan-Video/Wan2.1
+
 from .model import WanModel
 from .t5 import T5Decoder, T5Encoder, T5EncoderModel, T5Model
 from .tokenizers import HuggingfaceTokenizer

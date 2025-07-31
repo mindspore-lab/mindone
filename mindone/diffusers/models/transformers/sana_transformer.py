@@ -1,5 +1,8 @@
 # Copyright 2024 The HuggingFace Team. All rights reserved.
 #
+# This code is adapted from https://github.com/huggingface/diffusers
+# with modifications to run diffusers on mindspore.
+#
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -474,6 +477,7 @@ class SanaTransformer2DModel(ModelMixin, ConfigMixin, PeftAdapterMixin, FromOrig
         encoder_attention_mask: Optional[ms.Tensor] = None,
         attention_mask: Optional[ms.Tensor] = None,
         attention_kwargs: Optional[Dict[str, Any]] = None,
+        controlnet_block_samples: Optional[Tuple[ms.Tensor]] = None,
         return_dict: bool = False,
     ) -> Union[Tuple[ms.Tensor, ...], Transformer2DModelOutput]:
         if attention_kwargs is not None and "scale" in attention_kwargs:
@@ -531,7 +535,7 @@ class SanaTransformer2DModel(ModelMixin, ConfigMixin, PeftAdapterMixin, FromOrig
         encoder_hidden_states = self.caption_norm(encoder_hidden_states)
 
         # 2. Transformer blocks
-        for block in self.transformer_blocks:
+        for index_block, block in enumerate(self.transformer_blocks):
             hidden_states = block(
                 hidden_states,
                 attention_mask,
@@ -541,6 +545,8 @@ class SanaTransformer2DModel(ModelMixin, ConfigMixin, PeftAdapterMixin, FromOrig
                 post_patch_height,
                 post_patch_width,
             )
+            if controlnet_block_samples is not None and 0 < index_block <= len(controlnet_block_samples):
+                hidden_states = hidden_states + controlnet_block_samples[index_block - 1]
 
         # 3. Normalization
         hidden_states = self.norm_out(hidden_states, embedded_timestep, self.scale_shift_table)

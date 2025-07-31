@@ -1,3 +1,7 @@
+# This code is adapted from https://github.com/stepfun-ai/Step-Video-T2V
+# with modifications to run on MindSpore.
+
+
 from dataclasses import dataclass
 from typing import Optional, Tuple, Union
 

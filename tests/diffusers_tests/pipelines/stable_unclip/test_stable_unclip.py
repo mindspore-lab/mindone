@@ -1,3 +1,5 @@
+"""Adapted from https://github.com/huggingface/diffusers/tree/main/tests//pipelines/stable_unclip/test_stable_unclip.py."""
+
 import unittest
 
 import numpy as np
