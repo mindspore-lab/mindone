@@ -1,3 +1,5 @@
+# Adapted from https://github.com/kohya-ss/sd-scripts/blob/main/library/sdxl_train_util.py
+
 import argparse
 import math
 import os

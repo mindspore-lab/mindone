@@ -1,5 +1,8 @@
 # Copyright 2024 Alpha-VLLM Authors and The HuggingFace Team. All rights reserved.
 #
+# This code is adapted from https://github.com/huggingface/diffusers
+# with modifications to run diffusers on mindspore.
+#
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -216,6 +219,8 @@ class LuminaNextDiT2DModel(ModelMixin, ConfigMixin):
             A scaling factor applied to certain parameters or layers in the model. This can be used for adjusting the
             overall scale of the model's operations.
     """
+
+    _skip_layerwise_casting_patterns = ["patch_embedder", "norm", "ffn_norm"]
 
     @register_to_config
     def __init__(

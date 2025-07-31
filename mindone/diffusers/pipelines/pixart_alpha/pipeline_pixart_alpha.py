@@ -1,5 +1,8 @@
 # Copyright 2024 PixArt-Alpha Authors and The HuggingFace Team. All rights reserved.
 #
+# This code is adapted from https://github.com/huggingface/diffusers
+# with modifications to run diffusers on mindspore.
+#
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -31,7 +34,10 @@ from ...utils import BACKENDS_MAPPING, deprecate, is_bs4_available, is_ftfy_avai
 from ...utils.mindspore_utils import randn_tensor
 from ..pipeline_utils import DiffusionPipeline, ImagePipelineOutput
 
+XLA_AVAILABLE = False
+
 logger = logging.get_logger(__name__)  # pylint: disable=invalid-name
+
 
 if is_bs4_available():
     from bs4 import BeautifulSoup
@@ -162,7 +168,7 @@ ASPECT_RATIO_256_BIN = {
 }
 
 
-# Copied from mindone.diffusers.pipelines.stable_diffusion.pipeline_stable_diffusion.retrieve_timesteps
+# Copied from diffusers.pipelines.stable_diffusion.pipeline_stable_diffusion.retrieve_timesteps
 def retrieve_timesteps(
     scheduler,
     num_inference_steps: Optional[int] = None,
@@ -275,7 +281,7 @@ class PixArtAlphaPipeline(DiffusionPipeline):
             tokenizer=tokenizer, text_encoder=text_encoder, vae=vae, transformer=transformer, scheduler=scheduler
         )
 
-        self.vae_scale_factor = 2 ** (len(self.vae.config.block_out_channels) - 1)
+        self.vae_scale_factor = 2 ** (len(self.vae.config.block_out_channels) - 1) if getattr(self, "vae", None) else 8
         self.image_processor = PixArtImageProcessor(vae_scale_factor=self.vae_scale_factor)
 
     def encode_prompt(
@@ -382,10 +388,10 @@ class PixArtAlphaPipeline(DiffusionPipeline):
                 add_special_tokens=True,
                 return_tensors="np",
             )
-            negative_prompt_attention_mask = ms.Tensor(uncond_input.attention_mask)
+            negative_prompt_attention_mask = ms.tensor(uncond_input.attention_mask)
 
             negative_prompt_embeds = self.text_encoder(
-                ms.Tensor(uncond_input.input_ids), attention_mask=negative_prompt_attention_mask
+                ms.tensor(uncond_input.input_ids), attention_mask=negative_prompt_attention_mask
             )
             negative_prompt_embeds = negative_prompt_embeds[0]
 
@@ -406,7 +412,7 @@ class PixArtAlphaPipeline(DiffusionPipeline):
 
         return prompt_embeds, prompt_attention_mask, negative_prompt_embeds, negative_prompt_attention_mask
 
-    # Copied from mindone.diffusers.pipelines.stable_diffusion.pipeline_stable_diffusion.StableDiffusionPipeline.prepare_extra_step_kwargs
+    # Copied from diffusers.pipelines.stable_diffusion.pipeline_stable_diffusion.StableDiffusionPipeline.prepare_extra_step_kwargs
     def prepare_extra_step_kwargs(self, generator, eta):
         # prepare extra kwargs for the scheduler step, since not all schedulers have the same signature
         # eta (η) is only used with the DDIMScheduler, it will be ignored for other schedulers.
@@ -910,9 +916,7 @@ class PixArtAlphaPipeline(DiffusionPipeline):
                 latents_dtype = latents.dtype
                 if num_inference_steps == 1:
                     # For DMD one step sampling: https://arxiv.org/abs/2311.18828
-                    latents = self.scheduler.step(
-                        noise_pred, t, latents, **extra_step_kwargs, return_dict=True
-                    ).pred_original_sample
+                    latents = self.scheduler.step(noise_pred, t, latents, **extra_step_kwargs, return_dict=False)[1]
                 else:
                     latents = self.scheduler.step(noise_pred, t, latents, **extra_step_kwargs, return_dict=False)[0]
                 latents = latents.to(latents_dtype)

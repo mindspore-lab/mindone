@@ -1,5 +1,4 @@
 import os
-import ssl
 import urllib.request
 
 from kimi_vl import KimiVLConfig, KimiVLForConditionalGeneration
@@ -31,7 +30,9 @@ def main():
 
     image_path = "demo.png"
     if not os.path.isfile(image_path):
-        ssl._create_default_https_context = ssl._create_unverified_context  # disable ssl verify
+        # For security reasons, this repository code does not provide a function to disable SSL.
+        # If necessary, please disable SSL verification yourself.
+        # ssl._create_default_https_context = ssl._create_unverified_context  # disable ssl verify
         urllib.request.urlretrieve(
             "https://huggingface.co/moonshotai/Kimi-VL-A3B-Instruct/resolve/main/figures/demo.png", image_path
         )

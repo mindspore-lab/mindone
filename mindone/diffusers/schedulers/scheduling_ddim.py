@@ -1,5 +1,8 @@
 # Copyright 2024 Stanford University Team and The HuggingFace Team. All rights reserved.
 #
+# This code is adapted from https://github.com/huggingface/diffusers
+# with modifications to run diffusers on mindspore.
+#
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -234,7 +237,7 @@ class DDIMScheduler(SchedulerMixin, ConfigMixin):
 
         # setable values
         self.num_inference_steps = None
-        self.timesteps = ms.Tensor(np.arange(0, num_train_timesteps)[::-1].copy().astype(np.int64))
+        self.timesteps = ms.tensor(np.arange(0, num_train_timesteps)[::-1].copy().astype(np.int64))
 
     def scale_model_input(self, sample: ms.Tensor, timestep: Optional[int] = None) -> ms.Tensor:
         """
@@ -340,7 +343,7 @@ class DDIMScheduler(SchedulerMixin, ConfigMixin):
                 f"{self.config.timestep_spacing} is not supported. Please make sure to choose one of 'leading' or 'trailing'."
             )
 
-        self.timesteps = ms.Tensor(timesteps)
+        self.timesteps = ms.tensor(timesteps)
 
     def step(
         self,

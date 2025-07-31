@@ -1,5 +1,8 @@
 # coding=utf-8
-# Copyright 2024 Latte Team and HuggingFace Inc.
+# Copyright 2025 Latte Team and HuggingFace Inc.
+#
+# This code is adapted from https://github.com/huggingface/diffusers
+# with modifications to run diffusers on mindspore.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -21,7 +24,7 @@ from ddt import data, ddt, unpack
 
 import mindspore as ms
 
-from mindone.diffusers.utils.testing_utils import load_downloaded_numpy_from_hf_hub, slow
+from mindone.diffusers.utils.testing_utils import load_numpy_from_local_file, slow
 
 from ..pipeline_test_utils import (
     THRESHOLD_FP16,
@@ -185,8 +188,8 @@ class LattePipelineIntegrationTests(PipelineTesterMixin, unittest.TestCase):
         videos = pipe(prompt=prompt, height=512, width=512, num_inference_steps=2, clean_caption=False)[0]
 
         video = videos[0]
-        expected_video = load_downloaded_numpy_from_hf_hub(
-            "The-truth/mindone-testing-arrays",
+        expected_video = load_numpy_from_local_file(
+            "mindone-testing-arrays",
             f"latte_{dtype}.npy",
             subfolder="latte",
         )

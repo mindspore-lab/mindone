@@ -1,5 +1,8 @@
 # Copyright 2024 The HuggingFace Team. All rights reserved.
 #
+# This code is adapted from https://github.com/huggingface/diffusers
+# with modifications to run diffusers on mindspore.
+#
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -522,11 +525,11 @@ class AudioLDM2UNet2DConditionModel(ModelMixin, ConfigMixin, UNet2DConditionLoad
 
         # out
         if norm_num_groups is not None:
-            self.conv_norm_out = nn.GroupNorm(
+            self.conv_norm_out = mint.nn.GroupNorm(
                 num_channels=block_out_channels[0], num_groups=norm_num_groups, eps=norm_eps
             )
 
-            self.conv_act = get_activation(act_fn)()
+            self.conv_act = get_activation(act_fn)
 
         else:
             self.conv_norm_out = None

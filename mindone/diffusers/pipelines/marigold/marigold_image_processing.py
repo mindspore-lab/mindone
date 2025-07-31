@@ -1,3 +1,25 @@
+# Copyright 2023-2025 Marigold Team, ETH Zürich. All rights reserved.
+# Copyright 2024-2025 The HuggingFace Team. All rights reserved.
+#
+# This code is adapted from https://github.com/huggingface/diffusers
+# with modifications to run diffusers on mindspore.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+# --------------------------------------------------------------------------
+# More information and citation instructions are available on the
+# Marigold project website: https://marigoldcomputervision.github.io
+# --------------------------------------------------------------------------
+
 from typing import Any, Dict, List, Optional, Tuple, Union
 
 import numpy as np
@@ -303,14 +325,14 @@ class MarigoldImageProcessor(ConfigMixin):
             out = out[..., :3]  # [?,3]
 
             if arg_is_ms:
-                out = ms.Tensor(out)
+                out = ms.tensor(out)
 
             return out
 
         def method_custom(image, cmap, bytes=False):
             arg_is_np = isinstance(image, np.ndarray)
             if arg_is_np:
-                image = ms.Tensor(image)
+                image = ms.tensor(image)
             if image.dtype == ms.uint8:
                 image = image.float() / 255
             else:
@@ -328,7 +350,7 @@ class MarigoldImageProcessor(ConfigMixin):
             cmap = supported_cmaps[cmap]
             if is_cmap_reversed:
                 cmap = cmap[::-1]
-            cmap = ms.Tensor(cmap, dtype=ms.float32)  # [K,3]
+            cmap = ms.tensor(cmap, dtype=ms.float32)  # [K,3]
             K = cmap.shape[0]
 
             pos = image.clamp(min=0, max=1) * (K - 1)
@@ -494,7 +516,7 @@ class MarigoldImageProcessor(ConfigMixin):
         """
         flip_vec = None
         if any((flip_x, flip_y, flip_z)):
-            flip_vec = ms.Tensor(
+            flip_vec = ms.tensor(
                 [
                     (-1) ** flip_x,
                     (-1) ** flip_y,

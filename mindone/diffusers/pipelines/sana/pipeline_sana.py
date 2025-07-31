@@ -1,5 +1,8 @@
 # Copyright 2024 PixArt-Sigma Authors and The HuggingFace Team. All rights reserved.
 #
+# This code is adapted from https://github.com/huggingface/diffusers
+# with modifications to run diffusers on mindspore.
+#
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -19,12 +22,13 @@ import urllib.parse as ul
 from typing import Any, Callable, Dict, List, Optional, Tuple, Union
 
 import numpy as np
-from transformers import AutoTokenizer
+from transformers import GemmaTokenizer, GemmaTokenizerFast
 
 import mindspore as ms
 from mindspore import mint
 
-from ....transformers import MSPreTrainedModel
+from mindone.transformers import Gemma2PreTrainedModel
+
 from ...callbacks import MultiPipelineCallbacks, PipelineCallback
 from ...image_processor import PixArtImageProcessor
 from ...loaders import SanaLoraLoaderMixin
@@ -44,6 +48,8 @@ from ..pixart_alpha.pipeline_pixart_alpha import ASPECT_RATIO_512_BIN, ASPECT_RA
 from ..pixart_alpha.pipeline_pixart_sigma import ASPECT_RATIO_2048_BIN
 from .pipeline_output import SanaPipelineOutput
 
+XLA_AVAILABLE = False
+
 logger = logging.get_logger(__name__)  # pylint: disable=invalid-name
 
 if is_bs4_available():
@@ -52,6 +58,49 @@ if is_bs4_available():
 if is_ftfy_available():
     import ftfy
 
+
+ASPECT_RATIO_4096_BIN = {
+    "0.25": [2048.0, 8192.0],
+    "0.26": [2048.0, 7936.0],
+    "0.27": [2048.0, 7680.0],
+    "0.28": [2048.0, 7424.0],
+    "0.32": [2304.0, 7168.0],
+    "0.33": [2304.0, 6912.0],
+    "0.35": [2304.0, 6656.0],
+    "0.4": [2560.0, 6400.0],
+    "0.42": [2560.0, 6144.0],
+    "0.48": [2816.0, 5888.0],
+    "0.5": [2816.0, 5632.0],
+    "0.52": [2816.0, 5376.0],
+    "0.57": [3072.0, 5376.0],
+    "0.6": [3072.0, 5120.0],
+    "0.68": [3328.0, 4864.0],
+    "0.72": [3328.0, 4608.0],
+    "0.78": [3584.0, 4608.0],
+    "0.82": [3584.0, 4352.0],
+    "0.88": [3840.0, 4352.0],
+    "0.94": [3840.0, 4096.0],
+    "1.0": [4096.0, 4096.0],
+    "1.07": [4096.0, 3840.0],
+    "1.13": [4352.0, 3840.0],
+    "1.21": [4352.0, 3584.0],
+    "1.29": [4608.0, 3584.0],
+    "1.38": [4608.0, 3328.0],
+    "1.46": [4864.0, 3328.0],
+    "1.67": [5120.0, 3072.0],
+    "1.75": [5376.0, 3072.0],
+    "2.0": [5632.0, 2816.0],
+    "2.09": [5888.0, 2816.0],
+    "2.4": [6144.0, 2560.0],
+    "2.5": [6400.0, 2560.0],
+    "2.89": [6656.0, 2304.0],
+    "3.0": [6912.0, 2304.0],
+    "3.11": [7168.0, 2304.0],
+    "3.62": [7424.0, 2048.0],
+    "3.75": [7680.0, 2048.0],
+    "3.88": [7936.0, 2048.0],
+    "4.0": [8192.0, 2048.0],
+}
 
 EXAMPLE_DOC_STRING = """
     Examples:
@@ -142,8 +191,8 @@ class SanaPipeline(DiffusionPipeline, SanaLoraLoaderMixin):
 
     def __init__(
         self,
-        tokenizer: AutoTokenizer,
-        text_encoder: MSPreTrainedModel,
+        tokenizer: Union[GemmaTokenizer, GemmaTokenizerFast],
+        text_encoder: Gemma2PreTrainedModel,
         vae: AutoencoderDC,
         transformer: SanaTransformer2DModel,
         scheduler: DPMSolverMultistepScheduler,
@@ -160,6 +209,35 @@ class SanaPipeline(DiffusionPipeline, SanaLoraLoaderMixin):
             else 32
         )
         self.image_processor = PixArtImageProcessor(vae_scale_factor=self.vae_scale_factor)
+
+    def enable_vae_slicing(self):
+        r"""
+        Enable sliced VAE decoding. When this option is enabled, the VAE will split the input tensor in slices to
+        compute decoding in several steps. This is useful to save some memory and allow larger batch sizes.
+        """
+        self.vae.enable_slicing()
+
+    def disable_vae_slicing(self):
+        r"""
+        Disable sliced VAE decoding. If `enable_vae_slicing` was previously enabled, this method will go back to
+        computing decoding in one step.
+        """
+        self.vae.disable_slicing()
+
+    def enable_vae_tiling(self):
+        r"""
+        Enable tiled VAE decoding. When this option is enabled, the VAE will split the input tensor into tiles to
+        compute decoding and encoding in several steps. This is useful for saving a large amount of memory and to allow
+        processing larger images.
+        """
+        self.vae.enable_tiling()
+
+    def disable_vae_tiling(self):
+        r"""
+        Disable tiled VAE decoding. If `enable_vae_tiling` was previously enabled, this method will go back to
+        computing decoding in one step.
+        """
+        self.vae.disable_tiling()
 
     def _get_gemma_prompt_embeds(
         self,
@@ -256,9 +334,7 @@ class SanaPipeline(DiffusionPipeline, SanaLoraLoaderMixin):
                 If `complex_human_instruction` is not empty, the function will use the complex Human instruction for
                 the prompt.
         """
-        if self.transformer is not None:
-            dtype = self.transformer.dtype
-        elif self.text_encoder is not None:
+        if self.text_encoder is not None:
             dtype = self.text_encoder.dtype
         else:
             dtype = None
@@ -279,7 +355,8 @@ class SanaPipeline(DiffusionPipeline, SanaLoraLoaderMixin):
         else:
             batch_size = prompt_embeds.shape[0]
 
-        self.tokenizer.padding_side = "right"
+        if getattr(self, "tokenizer", None) is not None:
+            self.tokenizer.padding_side = "right"
 
         # See Section 3.1. of the paper.
         max_length = max_sequence_length
@@ -619,7 +696,7 @@ class SanaPipeline(DiffusionPipeline, SanaLoraLoaderMixin):
         negative_prompt_attention_mask: Optional[ms.Tensor] = None,
         output_type: Optional[str] = "pil",
         return_dict: bool = False,
-        clean_caption: bool = True,
+        clean_caption: bool = False,
         use_resolution_binning: bool = True,
         attention_kwargs: Optional[Dict[str, Any]] = None,
         callback_on_step_end: Optional[Callable[[int, int, Dict], None]] = None,
@@ -674,7 +751,7 @@ class SanaPipeline(DiffusionPipeline, SanaLoraLoaderMixin):
                 Corresponds to parameter eta (η) in the DDIM paper: https://arxiv.org/abs/2010.02502. Only applies to
                 [`schedulers.DDIMScheduler`], will be ignored for others.
             generator (`np.random.Generator` or `List[np.random.Generator]`, *optional*):
-                One or a list of [numpy generator(s)](https://pytorch.org/docs/stable/generated/torch.Generator.html)
+                One or a list of [numpy generator(s)](https://numpy.org/doc/stable/reference/random/generator.html)
                 to make generation deterministic.
             latents (`ms.Tensor`, *optional*):
                 Pre-generated noisy latents, sampled from a Gaussian distribution, to be used as inputs for image
@@ -734,7 +811,9 @@ class SanaPipeline(DiffusionPipeline, SanaLoraLoaderMixin):
 
         # 1. Check inputs. Raise error if not correct
         if use_resolution_binning:
-            if self.transformer.config.sample_size == 64:
+            if self.transformer.config.sample_size == 128:
+                aspect_ratio_bin = ASPECT_RATIO_4096_BIN
+            elif self.transformer.config.sample_size == 64:
                 aspect_ratio_bin = ASPECT_RATIO_2048_BIN
             elif self.transformer.config.sample_size == 32:
                 aspect_ratio_bin = ASPECT_RATIO_1024_BIN
@@ -822,6 +901,7 @@ class SanaPipeline(DiffusionPipeline, SanaLoraLoaderMixin):
         num_warmup_steps = max(len(timesteps) - num_inference_steps * self.scheduler.order, 0)
         self._num_timesteps = len(timesteps)
 
+        transformer_dtype = self.transformer.dtype
         with self.progress_bar(total=num_inference_steps) as progress_bar:
             for i, t in enumerate(timesteps):
                 if self.interrupt:
@@ -831,12 +911,13 @@ class SanaPipeline(DiffusionPipeline, SanaLoraLoaderMixin):
                 latent_model_input = latent_model_input.to(prompt_embeds.dtype)
 
                 # broadcast to batch dimension in a way that's compatible with ONNX/Core ML
-                timestep = t.broadcast_to((latent_model_input.shape[0],)).to(latents.dtype)
+                timestep = t.broadcast_to((latent_model_input.shape[0],))
+                timestep = timestep * self.transformer.config.timestep_scale
 
                 # predict noise model_output
                 noise_pred = self.transformer(
-                    latent_model_input,
-                    encoder_hidden_states=prompt_embeds,
+                    latent_model_input.to(dtype=transformer_dtype),
+                    encoder_hidden_states=prompt_embeds.to(dtype=transformer_dtype),
                     encoder_attention_mask=prompt_attention_mask,
                     timestep=timestep,
                     return_dict=False,
@@ -852,8 +933,6 @@ class SanaPipeline(DiffusionPipeline, SanaLoraLoaderMixin):
                 # learned sigma
                 if self.transformer.config.out_channels // 2 == latent_channels:
                     noise_pred = noise_pred.chunk(2, dim=1)[0]
-                else:
-                    noise_pred = noise_pred
 
                 # compute previous image: x_t -> x_t-1
                 latents = self.scheduler.step(noise_pred, t, latents, **extra_step_kwargs, return_dict=False)[0]
