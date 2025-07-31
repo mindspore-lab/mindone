@@ -1,5 +1,8 @@
 # Copyright 2024 The HuggingFace Team. All rights reserved.
 #
+# This code is adapted from https://github.com/huggingface/diffusers
+# with modifications to run diffusers on mindspore.
+#
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -45,6 +48,8 @@ from .pag_utils import PAGMixin
 if is_invisible_watermark_available():
     from ..stable_diffusion_xl.watermark import StableDiffusionXLWatermarker
 
+
+XLA_AVAILABLE = False
 
 logger = logging.get_logger(__name__)  # pylint: disable=invalid-name
 
@@ -252,7 +257,7 @@ class StableDiffusionXLControlNetPAGImg2ImgPipeline(
             feature_extractor=feature_extractor,
             image_encoder=image_encoder,
         )
-        self.vae_scale_factor = 2 ** (len(self.vae.config.block_out_channels) - 1)
+        self.vae_scale_factor = 2 ** (len(self.vae.config.block_out_channels) - 1) if getattr(self, "vae", None) else 8
         self.image_processor = VaeImageProcessor(vae_scale_factor=self.vae_scale_factor, do_convert_rgb=True)
         self.control_image_processor = VaeImageProcessor(
             vae_scale_factor=self.vae_scale_factor, do_convert_rgb=True, do_normalize=False
@@ -384,7 +389,9 @@ class StableDiffusionXLControlNetPAGImg2ImgPipeline(
                 prompt_embeds = text_encoder(ms.tensor(text_input_ids), output_hidden_states=True)
 
                 # We are only ALWAYS interested in the pooled output of the final text encoder
-                pooled_prompt_embeds = prompt_embeds[0]
+                if pooled_prompt_embeds is None and prompt_embeds[0].ndim == 2:
+                    pooled_prompt_embeds = prompt_embeds[0]
+
                 if clip_skip is None:
                     prompt_embeds = prompt_embeds[2][-2]
                 else:
@@ -443,8 +450,10 @@ class StableDiffusionXLControlNetPAGImg2ImgPipeline(
                     ms.tensor(uncond_input.input_ids),
                     output_hidden_states=True,
                 )
+
                 # We are only ALWAYS interested in the pooled output of the final text encoder
-                negative_pooled_prompt_embeds = negative_prompt_embeds[0]
+                if negative_pooled_prompt_embeds is None and negative_prompt_embeds[0].ndim == 2:
+                    negative_pooled_prompt_embeds = negative_prompt_embeds[0]
                 negative_prompt_embeds = negative_prompt_embeds[2][-2]
 
                 negative_prompt_embeds_list.append(negative_prompt_embeds)

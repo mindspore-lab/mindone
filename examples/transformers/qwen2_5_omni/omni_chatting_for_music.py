@@ -5,13 +5,12 @@ This script demonstrates how to use Qwen2.5-Omni to chat about music content in 
 
 import numpy as np
 import soundfile as sf
+from qwen_omni_utils import process_mm_info
 
 import mindspore as ms
 
 from mindone.transformers import Qwen2_5OmniForConditionalGeneration
 from mindone.transformers.models.qwen2_5_omni import Qwen2_5OmniProcessor
-
-from .qwen_omni_utils import process_mm_info
 
 
 # inference function

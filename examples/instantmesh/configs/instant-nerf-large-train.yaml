@@ -32,7 +32,7 @@ data:
     target: data.objaverse.ObjaverseDataset
     params:
       root_dir: YOUR_PATH_DATA  # for overfitting exp
-      meta_fname: uid_set.pkl
+      meta_fname: uid_set.json
       input_image_dir: input
       target_image_dir: input
       input_view_num: 3

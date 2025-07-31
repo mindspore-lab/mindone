@@ -1,5 +1,7 @@
-# coding=utf-8
 # Copyright 2022 The HuggingFace Inc. team.
+#
+# This code is adapted from https://github.com/huggingface/transformers
+# with modifications to run transformers on mindspore.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -469,7 +471,14 @@ class ProcessorMixin(PushToHubMixin):
             # Nothing is ever going to be an instance of "AutoXxx", in that case we check the base class.
             class_name = AUTO_TO_BASE_CLASS_MAPPING.get(class_name, class_name)
             if isinstance(class_name, tuple):
-                proper_class = tuple(getattr(transformers_module, n) for n in class_name if n is not None)
+                if "ImageProcess" in class_name[0]:
+                    sub_path = os.path.abspath(os.path.dirname(__file__))
+                    sub_path = str(Path(sub_path).parent)
+                    sys.path.insert(0, sub_path)
+                    module_name = importlib.import_module("mindone.transformers")
+                    proper_class = tuple(getattr(module_name, n) for n in class_name if n is not None)
+                else:
+                    proper_class = tuple(getattr(transformers_module, n) for n in class_name if n is not None)
             elif "ImageProcess" in class_name:
                 sub_path = os.path.abspath(os.path.dirname(__file__))
                 sub_path = str(Path(sub_path).parent)
@@ -1074,7 +1083,14 @@ class ProcessorMixin(PushToHubMixin):
         for attribute_name in cls.attributes:
             class_name = getattr(cls, f"{attribute_name}_class")
             if isinstance(class_name, tuple):
-                classes = tuple(getattr(transformers_module, n) if n is not None else None for n in class_name)
+                if "ImageProcess" in class_name[0]:
+                    sub_path = os.path.abspath(os.path.dirname(__file__))
+                    sub_path = str(Path(sub_path).parent)
+                    sys.path.insert(0, sub_path)
+                    module_name = importlib.import_module("mindone.transformers")
+                    classes = tuple(getattr(module_name, n) if n is not None else None for n in class_name)
+                else:
+                    classes = tuple(getattr(transformers_module, n) if n is not None else None for n in class_name)
                 use_fast = kwargs.get("use_fast", True)
                 if use_fast and classes[1] is not None:
                     attribute_class = classes[1]

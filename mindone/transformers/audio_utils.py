@@ -1,5 +1,7 @@
-# coding=utf-8
 # Copyright 2023 The HuggingFace Inc. team and the librosa & torchaudio authors.
+#
+# This code is adapted from https://github.com/huggingface/transformers
+# with modifications to run transformers on mindspore.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.

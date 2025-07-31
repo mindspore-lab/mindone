@@ -1,3 +1,5 @@
+"""Adapted from https://github.com/huggingface/diffusers/tree/main/src/diffusers/pipelines/kandinsky3/pipeline_kandinsky3_img2img.py."""
+
 import inspect
 from typing import Callable, Dict, List, Optional, Union
 
@@ -18,7 +20,10 @@ from ...utils import deprecate, logging
 from ...utils.mindspore_utils import randn_tensor
 from ..pipeline_utils import DiffusionPipeline, ImagePipelineOutput
 
+XLA_AVAILABLE = False
+
 logger = logging.get_logger(__name__)  # pylint: disable=invalid-name
+
 
 EXAMPLE_DOC_STRING = """
     Examples:
