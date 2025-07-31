@@ -8286,104 +8286,8 @@ specific language governing permissions and limitations under the License.
 
     <div class="doc doc-contents first">
             <p class="doc doc-class-bases">
-              Bases: <code><a class="autorefs autorefs-internal" title="mindone.diffusers.DiffusionPipeline (mindone.diffusers.pipelines.pipeline_utils.DiffusionPipeline)" href="../overview/#mindone.diffusers.DiffusionPipeline">DiffusionPipeline</a></code>, <code><span title="mindone.diffusers.pipelines.pipeline_utils.StableDiffusionMixin">StableDiffusionMixin</span></code></p>
+              Bases: <code><span title="mindone.diffusers.pipelines.pipeline_utils.DeprecatedPipelineMixin">DeprecatedPipelineMixin</span></code>, <code><a class="autorefs autorefs-internal" title="mindone.diffusers.DiffusionPipeline (mindone.diffusers.pipelines.pipeline_utils.DiffusionPipeline)" href="../overview/#mindone.diffusers.DiffusionPipeline">DiffusionPipeline</a></code>, <code><span title="mindone.diffusers.pipelines.pipeline_utils.StableDiffusionMixin">StableDiffusionMixin</span></code></p>
 
-
-        <p>Pipeline for image-to-video generation as proposed in <a href="https://i2vgen-xl.github.io/">I2VGenXL</a>.</p>
-<p>This model inherits from [<code>DiffusionPipeline</code>]. Check the superclass documentation for the generic methods
-implemented for all pipelines (downloading, saving, running on a particular device, etc.).</p>
-
-
-<table>
-      <thead>
-        <tr>
-          <th><span class="doc-section-title">PARAMETER</span></th>
-          <th><span>DESCRIPTION</span></th>
-        </tr>
-      </thead>
-      <tbody>
-          <tr class="doc-section-item">
-            <td>
-                <code>vae</code>
-            </td>
-            <td class="doc-param-details">
-              <div class="doc-md-description">
-                <p>Variational Auto-Encoder (VAE) Model to encode and decode images to and from latent representations.</p>
-              </div>
-              <p>
-                  <span class="doc-param-annotation">
-                    <b>TYPE:</b>
-                      <code>[`AutoencoderKL`]</code>
-                  </span>
-              </p>
-            </td>
-          </tr>
-          <tr class="doc-section-item">
-            <td>
-                <code>text_encoder</code>
-            </td>
-            <td class="doc-param-details">
-              <div class="doc-md-description">
-                <p>Frozen text-encoder (<a href="https://huggingface.co/openai/clip-vit-large-patch14">clip-vit-large-patch14</a>).</p>
-              </div>
-              <p>
-                  <span class="doc-param-annotation">
-                    <b>TYPE:</b>
-                      <code>[`CLIPTextModel`]</code>
-                  </span>
-              </p>
-            </td>
-          </tr>
-          <tr class="doc-section-item">
-            <td>
-                <code>tokenizer</code>
-            </td>
-            <td class="doc-param-details">
-              <div class="doc-md-description">
-                <p>A [<code>~transformers.CLIPTokenizer</code>] to tokenize text.</p>
-              </div>
-              <p>
-                  <span class="doc-param-annotation">
-                    <b>TYPE:</b>
-                      <code>`CLIPTokenizer`</code>
-                  </span>
-              </p>
-            </td>
-          </tr>
-          <tr class="doc-section-item">
-            <td>
-                <code>unet</code>
-            </td>
-            <td class="doc-param-details">
-              <div class="doc-md-description">
-                <p>A [<code>I2VGenXLUNet</code>] to denoise the encoded video latents.</p>
-              </div>
-              <p>
-                  <span class="doc-param-annotation">
-                    <b>TYPE:</b>
-                      <code>[`I2VGenXLUNet`]</code>
-                  </span>
-              </p>
-            </td>
-          </tr>
-          <tr class="doc-section-item">
-            <td>
-                <code>scheduler</code>
-            </td>
-            <td class="doc-param-details">
-              <div class="doc-md-description">
-                <p>A scheduler to be used in combination with <code>unet</code> to denoise the encoded image latents.</p>
-              </div>
-              <p>
-                  <span class="doc-param-annotation">
-                    <b>TYPE:</b>
-                      <code>[`DDIMScheduler`]</code>
-                  </span>
-              </p>
-            </td>
-          </tr>
-      </tbody>
-    </table>
 
 
 
@@ -9024,7 +8928,17 @@ implemented for all pipelines (downloading, saving, running on a particular devi
 <span class="normal">722</span>
 <span class="normal">723</span>
 <span class="normal">724</span>
-<span class="normal">725</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">class</span><span class="w"> </span><span class="nc">I2VGenXLPipeline</span><span class="p">(</span><span class="n">DiffusionPipeline</span><span class="p">,</span> <span class="n">StableDiffusionMixin</span><span class="p">):</span>
+<span class="normal">725</span>
+<span class="normal">726</span>
+<span class="normal">727</span>
+<span class="normal">728</span>
+<span class="normal">729</span>
+<span class="normal">730</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">class</span><span class="w"> </span><span class="nc">I2VGenXLPipeline</span><span class="p">(</span>
+    <span class="n">DeprecatedPipelineMixin</span><span class="p">,</span>
+    <span class="n">DiffusionPipeline</span><span class="p">,</span>
+    <span class="n">StableDiffusionMixin</span><span class="p">,</span>
+<span class="p">):</span>
+    <span class="n">_last_supported_version</span> <span class="o">=</span> <span class="s2">&quot;0.33.1&quot;</span>
 <span class="w">    </span><span class="sa">r</span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    Pipeline for image-to-video generation as proposed in [I2VGenXL](https://i2vgen-xl.github.io/).</span>
 
@@ -9076,7 +8990,7 @@ implemented for all pipelines (downloading, saving, running on a particular devi
         <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_guidance_scale</span>
 
     <span class="c1"># here `guidance_scale` is defined analog to the guidance weight `w` of equation (2)</span>
-    <span class="c1"># of the Imagen paper: https://arxiv.org/pdf/2205.11487.pdf . `guidance_scale = 1`</span>
+    <span class="c1"># of the Imagen paper: https://huggingface.co/papers/2205.11487 . `guidance_scale = 1`</span>
     <span class="c1"># corresponds to doing no classifier free guidance.</span>
     <span class="nd">@property</span>
     <span class="k">def</span><span class="w"> </span><span class="nf">do_classifier_free_guidance</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
@@ -9306,7 +9220,7 @@ implemented for all pipelines (downloading, saving, running on a particular devi
     <span class="k">def</span><span class="w"> </span><span class="nf">prepare_extra_step_kwargs</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">generator</span><span class="p">,</span> <span class="n">eta</span><span class="p">):</span>
         <span class="c1"># prepare extra kwargs for the scheduler step, since not all schedulers have the same signature</span>
         <span class="c1"># eta (η) is only used with the DDIMScheduler, it will be ignored for other schedulers.</span>
-        <span class="c1"># eta corresponds to η in DDIM paper: https://arxiv.org/abs/2010.02502</span>
+        <span class="c1"># eta corresponds to η in DDIM paper: https://huggingface.co/papers/2010.02502</span>
         <span class="c1"># and should be between [0, 1]</span>
 
         <span class="n">accepts_eta</span> <span class="o">=</span> <span class="s2">&quot;eta&quot;</span> <span class="ow">in</span> <span class="nb">set</span><span class="p">(</span><span class="n">inspect</span><span class="o">.</span><span class="n">signature</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">scheduler</span><span class="o">.</span><span class="n">step</span><span class="p">)</span><span class="o">.</span><span class="n">parameters</span><span class="o">.</span><span class="n">keys</span><span class="p">())</span>
@@ -9379,7 +9293,7 @@ implemented for all pipelines (downloading, saving, running on a particular devi
         <span class="n">image_latents</span> <span class="o">=</span> <span class="n">image_latents</span><span class="o">.</span><span class="n">unsqueeze</span><span class="p">(</span><span class="mi">2</span><span class="p">)</span>
 
         <span class="c1"># Append a position mask for each subsequent frame</span>
-        <span class="c1"># after the intial image latent frame</span>
+        <span class="c1"># after the initial image latent frame</span>
         <span class="n">frame_position_mask</span> <span class="o">=</span> <span class="p">[]</span>
         <span class="k">for</span> <span class="n">frame_idx</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">num_frames</span> <span class="o">-</span> <span class="mi">1</span><span class="p">):</span>
             <span class="n">scale</span> <span class="o">=</span> <span class="p">(</span><span class="n">frame_idx</span> <span class="o">+</span> <span class="mi">1</span><span class="p">)</span> <span class="o">/</span> <span class="p">(</span><span class="n">num_frames</span> <span class="o">-</span> <span class="mi">1</span><span class="p">)</span>
@@ -9470,8 +9384,8 @@ implemented for all pipelines (downloading, saving, running on a particular devi
 <span class="sd">                The prompt or prompts to guide what to not include in image generation. If not defined, you need to</span>
 <span class="sd">                pass `negative_prompt_embeds` instead. Ignored when not using guidance (`guidance_scale &lt; 1`).</span>
 <span class="sd">            eta (`float`, *optional*):</span>
-<span class="sd">                Corresponds to parameter eta (η) from the [DDIM](https://arxiv.org/abs/2010.02502) paper. Only applies</span>
-<span class="sd">                to the [`~schedulers.DDIMScheduler`], and is ignored in other schedulers.</span>
+<span class="sd">                Corresponds to parameter eta (η) from the [DDIM](https://huggingface.co/papers/2010.02502) paper. Only</span>
+<span class="sd">                applies to the [`~schedulers.DDIMScheduler`], and is ignored in other schedulers.</span>
 <span class="sd">            num_videos_per_prompt (`int`, *optional*):</span>
 <span class="sd">                The number of images to generate per prompt.</span>
 <span class="sd">            decode_chunk_size (`int`, *optional*):</span>
@@ -9534,7 +9448,7 @@ implemented for all pipelines (downloading, saving, running on a particular devi
             <span class="n">batch_size</span> <span class="o">=</span> <span class="n">prompt_embeds</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
 
         <span class="c1"># here `guidance_scale` is defined analog to the guidance weight `w` of equation (2)</span>
-        <span class="c1"># of the Imagen paper: https://arxiv.org/pdf/2205.11487.pdf . `guidance_scale = 1`</span>
+        <span class="c1"># of the Imagen paper: https://huggingface.co/papers/2205.11487 . `guidance_scale = 1`</span>
         <span class="c1"># corresponds to doing no classifier free guidance.</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">_guidance_scale</span> <span class="o">=</span> <span class="n">guidance_scale</span>
 
@@ -9883,8 +9797,8 @@ pass <code>negative_prompt_embeds</code> instead. Ignored when not using guidanc
             </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
-                <p>Corresponds to parameter eta (η) from the <a href="https://arxiv.org/abs/2010.02502">DDIM</a> paper. Only applies
-to the [<code>~schedulers.DDIMScheduler</code>], and is ignored in other schedulers.</p>
+                <p>Corresponds to parameter eta (η) from the <a href="https://huggingface.co/papers/2010.02502">DDIM</a> paper. Only
+applies to the [<code>~schedulers.DDIMScheduler</code>], and is ignored in other schedulers.</p>
               </div>
               <p>
                   <span class="doc-param-annotation">
@@ -10138,12 +10052,7 @@ returned, otherwise a <code>tuple</code> is returned where the first element is 
 
             <details class="quote">
               <summary>Source code in <code>mindone/diffusers/pipelines/i2vgen_xl/pipeline_i2vgen_xl.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">490</span>
-<span class="normal">491</span>
-<span class="normal">492</span>
-<span class="normal">493</span>
-<span class="normal">494</span>
-<span class="normal">495</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">495</span>
 <span class="normal">496</span>
 <span class="normal">497</span>
 <span class="normal">498</span>
@@ -10373,7 +10282,12 @@ returned, otherwise a <code>tuple</code> is returned where the first element is 
 <span class="normal">722</span>
 <span class="normal">723</span>
 <span class="normal">724</span>
-<span class="normal">725</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="fm">__call__</span><span class="p">(</span>
+<span class="normal">725</span>
+<span class="normal">726</span>
+<span class="normal">727</span>
+<span class="normal">728</span>
+<span class="normal">729</span>
+<span class="normal">730</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="fm">__call__</span><span class="p">(</span>
     <span class="bp">self</span><span class="p">,</span>
     <span class="n">prompt</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">List</span><span class="p">[</span><span class="nb">str</span><span class="p">]]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
     <span class="n">image</span><span class="p">:</span> <span class="n">PipelineImageInput</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
@@ -10423,8 +10337,8 @@ returned, otherwise a <code>tuple</code> is returned where the first element is 
 <span class="sd">            The prompt or prompts to guide what to not include in image generation. If not defined, you need to</span>
 <span class="sd">            pass `negative_prompt_embeds` instead. Ignored when not using guidance (`guidance_scale &lt; 1`).</span>
 <span class="sd">        eta (`float`, *optional*):</span>
-<span class="sd">            Corresponds to parameter eta (η) from the [DDIM](https://arxiv.org/abs/2010.02502) paper. Only applies</span>
-<span class="sd">            to the [`~schedulers.DDIMScheduler`], and is ignored in other schedulers.</span>
+<span class="sd">            Corresponds to parameter eta (η) from the [DDIM](https://huggingface.co/papers/2010.02502) paper. Only</span>
+<span class="sd">            applies to the [`~schedulers.DDIMScheduler`], and is ignored in other schedulers.</span>
 <span class="sd">        num_videos_per_prompt (`int`, *optional*):</span>
 <span class="sd">            The number of images to generate per prompt.</span>
 <span class="sd">        decode_chunk_size (`int`, *optional*):</span>
@@ -10487,7 +10401,7 @@ returned, otherwise a <code>tuple</code> is returned where the first element is 
         <span class="n">batch_size</span> <span class="o">=</span> <span class="n">prompt_embeds</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
 
     <span class="c1"># here `guidance_scale` is defined analog to the guidance weight `w` of equation (2)</span>
-    <span class="c1"># of the Imagen paper: https://arxiv.org/pdf/2205.11487.pdf . `guidance_scale = 1`</span>
+    <span class="c1"># of the Imagen paper: https://huggingface.co/papers/2205.11487 . `guidance_scale = 1`</span>
     <span class="c1"># corresponds to doing no classifier free guidance.</span>
     <span class="bp">self</span><span class="o">.</span><span class="n">_guidance_scale</span> <span class="o">=</span> <span class="n">guidance_scale</span>
 
@@ -10777,12 +10691,7 @@ the output of the pre-final layer will be used for computing the prompt embeddin
 
             <details class="quote">
               <summary>Source code in <code>mindone/diffusers/pipelines/i2vgen_xl/pipeline_i2vgen_xl.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">152</span>
-<span class="normal">153</span>
-<span class="normal">154</span>
-<span class="normal">155</span>
-<span class="normal">156</span>
-<span class="normal">157</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">157</span>
 <span class="normal">158</span>
 <span class="normal">159</span>
 <span class="normal">160</span>
@@ -10941,7 +10850,12 @@ the output of the pre-final layer will be used for computing the prompt embeddin
 <span class="normal">313</span>
 <span class="normal">314</span>
 <span class="normal">315</span>
-<span class="normal">316</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">encode_prompt</span><span class="p">(</span>
+<span class="normal">316</span>
+<span class="normal">317</span>
+<span class="normal">318</span>
+<span class="normal">319</span>
+<span class="normal">320</span>
+<span class="normal">321</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">encode_prompt</span><span class="p">(</span>
     <span class="bp">self</span><span class="p">,</span>
     <span class="n">prompt</span><span class="p">,</span>
     <span class="n">num_videos_per_prompt</span><span class="p">,</span>

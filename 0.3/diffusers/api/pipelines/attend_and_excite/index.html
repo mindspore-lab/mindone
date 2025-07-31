@@ -8264,7 +8264,7 @@ specific language governing permissions and limitations under the License.
 
     <div class="doc doc-contents first">
             <p class="doc doc-class-bases">
-              Bases: <code><a class="autorefs autorefs-internal" title="mindone.diffusers.DiffusionPipeline (mindone.diffusers.pipelines.pipeline_utils.DiffusionPipeline)" href="../overview/#mindone.diffusers.DiffusionPipeline">DiffusionPipeline</a></code>, <code><span title="mindone.diffusers.pipelines.pipeline_utils.StableDiffusionMixin">StableDiffusionMixin</span></code>, <code><a class="autorefs autorefs-internal" title="mindone.diffusers.loaders.textual_inversion.TextualInversionLoaderMixin (mindone.diffusers.loaders.TextualInversionLoaderMixin)" href="../../loaders/textual_inversion/#mindone.diffusers.loaders.textual_inversion.TextualInversionLoaderMixin">TextualInversionLoaderMixin</a></code></p>
+              Bases: <code><span title="mindone.diffusers.pipelines.pipeline_utils.DeprecatedPipelineMixin">DeprecatedPipelineMixin</span></code>, <code><a class="autorefs autorefs-internal" title="mindone.diffusers.DiffusionPipeline (mindone.diffusers.pipelines.pipeline_utils.DiffusionPipeline)" href="../overview/#mindone.diffusers.DiffusionPipeline">DiffusionPipeline</a></code>, <code><span title="mindone.diffusers.pipelines.pipeline_utils.StableDiffusionMixin">StableDiffusionMixin</span></code>, <code><a class="autorefs autorefs-internal" title="mindone.diffusers.loaders.textual_inversion.TextualInversionLoaderMixin (mindone.diffusers.loaders.TextualInversionLoaderMixin)" href="../../loaders/textual_inversion/#mindone.diffusers.loaders.textual_inversion.TextualInversionLoaderMixin">TextualInversionLoaderMixin</a></code></p>
 
 
         <p>Pipeline for text-to-image generation using Stable Diffusion and Attend-and-Excite.</p>
@@ -8375,8 +8375,8 @@ implemented for all pipelines (downloading, saving, running on a particular devi
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Classification module that estimates whether generated images could be considered offensive or harmful.
-Please refer to the <a href="https://huggingface.co/runwayml/stable-diffusion-v1-5">model card</a> for more details
-about a model's potential harms.</p>
+Please refer to the <a href="https://huggingface.co/stable-diffusion-v1-5/stable-diffusion-v1-5">model card</a> for
+more details about a model's potential harms.</p>
               </div>
               <p>
                   <span class="doc-param-annotation">
@@ -9281,7 +9281,13 @@ about a model's potential harms.</p>
 <span class="normal">1037</span>
 <span class="normal">1038</span>
 <span class="normal">1039</span>
-<span class="normal">1040</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">class</span><span class="w"> </span><span class="nc">StableDiffusionAttendAndExcitePipeline</span><span class="p">(</span><span class="n">DiffusionPipeline</span><span class="p">,</span> <span class="n">StableDiffusionMixin</span><span class="p">,</span> <span class="n">TextualInversionLoaderMixin</span><span class="p">):</span>
+<span class="normal">1040</span>
+<span class="normal">1041</span>
+<span class="normal">1042</span>
+<span class="normal">1043</span>
+<span class="normal">1044</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">class</span><span class="w"> </span><span class="nc">StableDiffusionAttendAndExcitePipeline</span><span class="p">(</span>
+    <span class="n">DeprecatedPipelineMixin</span><span class="p">,</span> <span class="n">DiffusionPipeline</span><span class="p">,</span> <span class="n">StableDiffusionMixin</span><span class="p">,</span> <span class="n">TextualInversionLoaderMixin</span>
+<span class="p">):</span>
 <span class="w">    </span><span class="sa">r</span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    Pipeline for text-to-image generation using Stable Diffusion and Attend-and-Excite.</span>
 
@@ -9305,11 +9311,13 @@ about a model's potential harms.</p>
 <span class="sd">            [`DDIMScheduler`], [`LMSDiscreteScheduler`], or [`PNDMScheduler`].</span>
 <span class="sd">        safety_checker ([`StableDiffusionSafetyChecker`]):</span>
 <span class="sd">            Classification module that estimates whether generated images could be considered offensive or harmful.</span>
-<span class="sd">            Please refer to the [model card](https://huggingface.co/runwayml/stable-diffusion-v1-5) for more details</span>
-<span class="sd">            about a model&#39;s potential harms.</span>
+<span class="sd">            Please refer to the [model card](https://huggingface.co/stable-diffusion-v1-5/stable-diffusion-v1-5) for</span>
+<span class="sd">            more details about a model&#39;s potential harms.</span>
 <span class="sd">        feature_extractor ([`~transformers.CLIPImageProcessor`]):</span>
 <span class="sd">            A `CLIPImageProcessor` to extract features from generated images; used as inputs to the `safety_checker`.</span>
 <span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="n">_last_supported_version</span> <span class="o">=</span> <span class="s2">&quot;0.33.1&quot;</span>
 
     <span class="n">model_cpu_offload_seq</span> <span class="o">=</span> <span class="s2">&quot;text_encoder-&gt;unet-&gt;vae&quot;</span>
     <span class="n">_optional_components</span> <span class="o">=</span> <span class="p">[</span><span class="s2">&quot;safety_checker&quot;</span><span class="p">,</span> <span class="s2">&quot;feature_extractor&quot;</span><span class="p">]</span>
@@ -9601,7 +9609,7 @@ about a model's potential harms.</p>
     <span class="k">def</span><span class="w"> </span><span class="nf">prepare_extra_step_kwargs</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">generator</span><span class="p">,</span> <span class="n">eta</span><span class="p">):</span>
         <span class="c1"># prepare extra kwargs for the scheduler step, since not all schedulers have the same signature</span>
         <span class="c1"># eta (η) is only used with the DDIMScheduler, it will be ignored for other schedulers.</span>
-        <span class="c1"># eta corresponds to η in DDIM paper: https://arxiv.org/abs/2010.02502</span>
+        <span class="c1"># eta corresponds to η in DDIM paper: https://huggingface.co/papers/2010.02502</span>
         <span class="c1"># and should be between [0, 1]</span>
 
         <span class="n">accepts_eta</span> <span class="o">=</span> <span class="s2">&quot;eta&quot;</span> <span class="ow">in</span> <span class="nb">set</span><span class="p">(</span><span class="n">inspect</span><span class="o">.</span><span class="n">signature</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">scheduler</span><span class="o">.</span><span class="n">step</span><span class="p">)</span><span class="o">.</span><span class="n">parameters</span><span class="o">.</span><span class="n">keys</span><span class="p">())</span>
@@ -9928,8 +9936,8 @@ about a model's potential harms.</p>
 <span class="sd">            num_images_per_prompt (`int`, *optional*, defaults to 1):</span>
 <span class="sd">                The number of images to generate per prompt.</span>
 <span class="sd">            eta (`float`, *optional*, defaults to 0.0):</span>
-<span class="sd">                Corresponds to parameter eta (η) from the [DDIM](https://arxiv.org/abs/2010.02502) paper. Only applies</span>
-<span class="sd">                to the [`~schedulers.DDIMScheduler`], and is ignored in other schedulers.</span>
+<span class="sd">                Corresponds to parameter eta (η) from the [DDIM](https://huggingface.co/papers/2010.02502) paper. Only</span>
+<span class="sd">                applies to the [`~schedulers.DDIMScheduler`], and is ignored in other schedulers.</span>
 <span class="sd">            generator (`np.random.Generator` or `List[np.random.Generator]`, *optional*):</span>
 <span class="sd">                A [`np.random.Generator`](https://numpy.org/doc/stable/reference/random/generator.html) to make</span>
 <span class="sd">                generation deterministic.</span>
@@ -10006,7 +10014,7 @@ about a model's potential harms.</p>
             <span class="n">batch_size</span> <span class="o">=</span> <span class="n">prompt_embeds</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
 
         <span class="c1"># here `guidance_scale` is defined analog to the guidance weight `w` of equation (2)</span>
-        <span class="c1"># of the Imagen paper: https://arxiv.org/pdf/2205.11487.pdf . `guidance_scale = 1`</span>
+        <span class="c1"># of the Imagen paper: https://huggingface.co/papers/2205.11487 . `guidance_scale = 1`</span>
         <span class="c1"># corresponds to doing no classifier free guidance.</span>
         <span class="n">do_classifier_free_guidance</span> <span class="o">=</span> <span class="n">guidance_scale</span> <span class="o">&gt;</span> <span class="mf">1.0</span>
 
@@ -10348,8 +10356,8 @@ pass <code>negative_prompt_embeds</code> instead. Ignored when not using guidanc
             </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
-                <p>Corresponds to parameter eta (η) from the <a href="https://arxiv.org/abs/2010.02502">DDIM</a> paper. Only applies
-to the [<code>~schedulers.DDIMScheduler</code>], and is ignored in other schedulers.</p>
+                <p>Corresponds to parameter eta (η) from the <a href="https://huggingface.co/papers/2010.02502">DDIM</a> paper. Only
+applies to the [<code>~schedulers.DDIMScheduler</code>], and is ignored in other schedulers.</p>
               </div>
               <p>
                   <span class="doc-param-annotation">
@@ -10688,11 +10696,7 @@ second element is a list of <code>bool</code>s indicating whether the correspond
 
             <details class="quote">
               <summary>Source code in <code>mindone/diffusers/pipelines/stable_diffusion_attend_and_excite/pipeline_stable_diffusion_attend_and_excite.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal"> 769</span>
-<span class="normal"> 770</span>
-<span class="normal"> 771</span>
-<span class="normal"> 772</span>
-<span class="normal"> 773</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal"> 773</span>
 <span class="normal"> 774</span>
 <span class="normal"> 775</span>
 <span class="normal"> 776</span>
@@ -10959,7 +10963,11 @@ second element is a list of <code>bool</code>s indicating whether the correspond
 <span class="normal">1037</span>
 <span class="normal">1038</span>
 <span class="normal">1039</span>
-<span class="normal">1040</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="fm">__call__</span><span class="p">(</span>
+<span class="normal">1040</span>
+<span class="normal">1041</span>
+<span class="normal">1042</span>
+<span class="normal">1043</span>
+<span class="normal">1044</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="fm">__call__</span><span class="p">(</span>
     <span class="bp">self</span><span class="p">,</span>
     <span class="n">prompt</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">List</span><span class="p">[</span><span class="nb">str</span><span class="p">]],</span>
     <span class="n">token_indices</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="n">List</span><span class="p">[</span><span class="nb">int</span><span class="p">],</span> <span class="n">List</span><span class="p">[</span><span class="n">List</span><span class="p">[</span><span class="nb">int</span><span class="p">]]],</span>
@@ -11009,8 +11017,8 @@ second element is a list of <code>bool</code>s indicating whether the correspond
 <span class="sd">        num_images_per_prompt (`int`, *optional*, defaults to 1):</span>
 <span class="sd">            The number of images to generate per prompt.</span>
 <span class="sd">        eta (`float`, *optional*, defaults to 0.0):</span>
-<span class="sd">            Corresponds to parameter eta (η) from the [DDIM](https://arxiv.org/abs/2010.02502) paper. Only applies</span>
-<span class="sd">            to the [`~schedulers.DDIMScheduler`], and is ignored in other schedulers.</span>
+<span class="sd">            Corresponds to parameter eta (η) from the [DDIM](https://huggingface.co/papers/2010.02502) paper. Only</span>
+<span class="sd">            applies to the [`~schedulers.DDIMScheduler`], and is ignored in other schedulers.</span>
 <span class="sd">        generator (`np.random.Generator` or `List[np.random.Generator]`, *optional*):</span>
 <span class="sd">            A [`np.random.Generator`](https://numpy.org/doc/stable/reference/random/generator.html) to make</span>
 <span class="sd">            generation deterministic.</span>
@@ -11087,7 +11095,7 @@ second element is a list of <code>bool</code>s indicating whether the correspond
         <span class="n">batch_size</span> <span class="o">=</span> <span class="n">prompt_embeds</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
 
     <span class="c1"># here `guidance_scale` is defined analog to the guidance weight `w` of equation (2)</span>
-    <span class="c1"># of the Imagen paper: https://arxiv.org/pdf/2205.11487.pdf . `guidance_scale = 1`</span>
+    <span class="c1"># of the Imagen paper: https://huggingface.co/papers/2205.11487 . `guidance_scale = 1`</span>
     <span class="c1"># corresponds to doing no classifier free guidance.</span>
     <span class="n">do_classifier_free_guidance</span> <span class="o">=</span> <span class="n">guidance_scale</span> <span class="o">&gt;</span> <span class="mf">1.0</span>
 
@@ -11419,11 +11427,7 @@ the output of the pre-final layer will be used for computing the prompt embeddin
 
             <details class="quote">
               <summary>Source code in <code>mindone/diffusers/pipelines/stable_diffusion_attend_and_excite/pipeline_stable_diffusion_attend_and_excite.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">280</span>
-<span class="normal">281</span>
-<span class="normal">282</span>
-<span class="normal">283</span>
-<span class="normal">284</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">284</span>
 <span class="normal">285</span>
 <span class="normal">286</span>
 <span class="normal">287</span>
@@ -11591,7 +11595,11 @@ the output of the pre-final layer will be used for computing the prompt embeddin
 <span class="normal">449</span>
 <span class="normal">450</span>
 <span class="normal">451</span>
-<span class="normal">452</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">encode_prompt</span><span class="p">(</span>
+<span class="normal">452</span>
+<span class="normal">453</span>
+<span class="normal">454</span>
+<span class="normal">455</span>
+<span class="normal">456</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">encode_prompt</span><span class="p">(</span>
     <span class="bp">self</span><span class="p">,</span>
     <span class="n">prompt</span><span class="p">,</span>
     <span class="n">num_images_per_prompt</span><span class="p">,</span>
@@ -11786,11 +11794,11 @@ the output of the pre-final layer will be used for computing the prompt embeddin
 
             <details class="quote">
               <summary>Source code in <code>mindone/diffusers/pipelines/stable_diffusion_attend_and_excite/pipeline_stable_diffusion_attend_and_excite.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">720</span>
-<span class="normal">721</span>
-<span class="normal">722</span>
-<span class="normal">723</span>
-<span class="normal">724</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">get_indices</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">prompt</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">int</span><span class="p">]:</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">724</span>
+<span class="normal">725</span>
+<span class="normal">726</span>
+<span class="normal">727</span>
+<span class="normal">728</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">get_indices</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">prompt</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">int</span><span class="p">]:</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;Utility function to list the indices of the tokens you wish to alte&quot;&quot;&quot;</span>
     <span class="n">ids</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">tokenizer</span><span class="p">(</span><span class="n">prompt</span><span class="p">)</span><span class="o">.</span><span class="n">input_ids</span>
     <span class="n">indices</span> <span class="o">=</span> <span class="p">{</span><span class="n">i</span><span class="p">:</span> <span class="n">tok</span> <span class="k">for</span> <span class="n">tok</span><span class="p">,</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">zip</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">tokenizer</span><span class="o">.</span><span class="n">convert_ids_to_tokens</span><span class="p">(</span><span class="n">ids</span><span class="p">),</span> <span class="nb">range</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">ids</span><span class="p">)))}</span>

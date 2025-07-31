@@ -8451,9 +8451,7 @@ HunyuanDiT uses a fine-tuned [bilingual CLIP].</p>
 
               <details class="quote">
                 <summary>Source code in <code>mindone/diffusers/pipelines/hunyuandit/pipeline_hunyuandit.py</code></summary>
-                <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">142</span>
-<span class="normal">143</span>
-<span class="normal">144</span>
+                <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">144</span>
 <span class="normal">145</span>
 <span class="normal">146</span>
 <span class="normal">147</span>
@@ -9199,7 +9197,9 @@ HunyuanDiT uses a fine-tuned [bilingual CLIP].</p>
 <span class="normal">887</span>
 <span class="normal">888</span>
 <span class="normal">889</span>
-<span class="normal">890</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">class</span><span class="w"> </span><span class="nc">HunyuanDiTPipeline</span><span class="p">(</span><span class="n">DiffusionPipeline</span><span class="p">):</span>
+<span class="normal">890</span>
+<span class="normal">891</span>
+<span class="normal">892</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">class</span><span class="w"> </span><span class="nc">HunyuanDiTPipeline</span><span class="p">(</span><span class="n">DiffusionPipeline</span><span class="p">):</span>
 <span class="w">    </span><span class="sa">r</span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    Pipeline for English/Chinese-to-image generation using HunyuanDiT.</span>
 
@@ -9484,7 +9484,7 @@ HunyuanDiT uses a fine-tuned [bilingual CLIP].</p>
     <span class="k">def</span><span class="w"> </span><span class="nf">prepare_extra_step_kwargs</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">generator</span><span class="p">,</span> <span class="n">eta</span><span class="p">):</span>
         <span class="c1"># prepare extra kwargs for the scheduler step, since not all schedulers have the same signature</span>
         <span class="c1"># eta (η) is only used with the DDIMScheduler, it will be ignored for other schedulers.</span>
-        <span class="c1"># eta corresponds to η in DDIM paper: https://arxiv.org/abs/2010.02502</span>
+        <span class="c1"># eta corresponds to η in DDIM paper: https://huggingface.co/papers/2010.02502</span>
         <span class="c1"># and should be between [0, 1]</span>
 
         <span class="n">accepts_eta</span> <span class="o">=</span> <span class="s2">&quot;eta&quot;</span> <span class="ow">in</span> <span class="nb">set</span><span class="p">(</span><span class="n">inspect</span><span class="o">.</span><span class="n">signature</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">scheduler</span><span class="o">.</span><span class="n">step</span><span class="p">)</span><span class="o">.</span><span class="n">parameters</span><span class="o">.</span><span class="n">keys</span><span class="p">())</span>
@@ -9608,7 +9608,7 @@ HunyuanDiT uses a fine-tuned [bilingual CLIP].</p>
         <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_guidance_rescale</span>
 
     <span class="c1"># here `guidance_scale` is defined analog to the guidance weight `w` of equation (2)</span>
-    <span class="c1"># of the Imagen paper: https://arxiv.org/pdf/2205.11487.pdf . `guidance_scale = 1`</span>
+    <span class="c1"># of the Imagen paper: https://huggingface.co/papers/2205.11487 . `guidance_scale = 1`</span>
     <span class="c1"># corresponds to doing no classifier free guidance.</span>
     <span class="nd">@property</span>
     <span class="k">def</span><span class="w"> </span><span class="nf">do_classifier_free_guidance</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
@@ -9676,8 +9676,8 @@ HunyuanDiT uses a fine-tuned [bilingual CLIP].</p>
 <span class="sd">            num_images_per_prompt (`int`, *optional*, defaults to 1):</span>
 <span class="sd">                The number of images to generate per prompt.</span>
 <span class="sd">            eta (`float`, *optional*, defaults to 0.0):</span>
-<span class="sd">                Corresponds to parameter eta (η) from the [DDIM](https://arxiv.org/abs/2010.02502) paper. Only applies</span>
-<span class="sd">                to the [`~schedulers.DDIMScheduler`], and is ignored in other schedulers.</span>
+<span class="sd">                Corresponds to parameter eta (η) from the [DDIM](https://huggingface.co/papers/2010.02502) paper. Only</span>
+<span class="sd">                applies to the [`~schedulers.DDIMScheduler`], and is ignored in other schedulers.</span>
 <span class="sd">            generator (`np.random.Generator` or `List[np.random.Generator]`, *optional*):</span>
 <span class="sd">                A [`np.random.Generator`](https://pytorch.org/docs/stable/generated/torch.Generator.html) to make</span>
 <span class="sd">                generation deterministic.</span>
@@ -9713,7 +9713,7 @@ HunyuanDiT uses a fine-tuned [bilingual CLIP].</p>
 <span class="sd">                inputs will be passed.</span>
 <span class="sd">            guidance_rescale (`float`, *optional*, defaults to 0.0):</span>
 <span class="sd">                Rescale the noise_cfg according to `guidance_rescale`. Based on findings of [Common Diffusion Noise</span>
-<span class="sd">                Schedules and Sample Steps are Flawed](https://arxiv.org/pdf/2305.08891.pdf). See Section 3.4</span>
+<span class="sd">                Schedules and Sample Steps are Flawed](https://huggingface.co/papers/2305.08891). See Section 3.4</span>
 <span class="sd">            original_size (`Tuple[int, int]`, *optional*, defaults to `(1024, 1024)`):</span>
 <span class="sd">                The original size of the image. Used to calculate the time ids.</span>
 <span class="sd">            target_size (`Tuple[int, int]`, *optional*):</span>
@@ -9907,7 +9907,7 @@ HunyuanDiT uses a fine-tuned [bilingual CLIP].</p>
                     <span class="n">noise_pred</span> <span class="o">=</span> <span class="n">noise_pred_uncond</span> <span class="o">+</span> <span class="n">guidance_scale</span> <span class="o">*</span> <span class="p">(</span><span class="n">noise_pred_text</span> <span class="o">-</span> <span class="n">noise_pred_uncond</span><span class="p">)</span>
 
                 <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">do_classifier_free_guidance</span> <span class="ow">and</span> <span class="n">guidance_rescale</span> <span class="o">&gt;</span> <span class="mf">0.0</span><span class="p">:</span>
-                    <span class="c1"># Based on 3.4. in https://arxiv.org/pdf/2305.08891.pdf</span>
+                    <span class="c1"># Based on 3.4. in https://huggingface.co/papers/2305.08891</span>
                     <span class="n">noise_pred</span> <span class="o">=</span> <span class="n">rescale_noise_cfg</span><span class="p">(</span><span class="n">noise_pred</span><span class="p">,</span> <span class="n">noise_pred_text</span><span class="p">,</span> <span class="n">guidance_rescale</span><span class="o">=</span><span class="n">guidance_rescale</span><span class="p">)</span>
 
                 <span class="c1"># compute the previous noisy sample x_t -&gt; x_t-1</span>
@@ -10134,8 +10134,8 @@ pass <code>negative_prompt_embeds</code> instead. Ignored when not using guidanc
             </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
-                <p>Corresponds to parameter eta (η) from the <a href="https://arxiv.org/abs/2010.02502">DDIM</a> paper. Only applies
-to the [<code>~schedulers.DDIMScheduler</code>], and is ignored in other schedulers.</p>
+                <p>Corresponds to parameter eta (η) from the <a href="https://huggingface.co/papers/2010.02502">DDIM</a> paper. Only
+applies to the [<code>~schedulers.DDIMScheduler</code>], and is ignored in other schedulers.</p>
               </div>
               <p>
                   <span class="doc-param-annotation">
@@ -10422,7 +10422,7 @@ inputs will be passed.</p>
             </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
-                <p>Rescale the noise_cfg according to <code>guidance_rescale</code>. Based on findings of <a href="https://arxiv.org/pdf/2305.08891.pdf">Common Diffusion Noise
+                <p>Rescale the noise_cfg according to <code>guidance_rescale</code>. Based on findings of <a href="https://huggingface.co/papers/2305.08891">Common Diffusion Noise
 Schedules and Sample Steps are Flawed</a>. See Section 3.4</p>
               </div>
               <p>
@@ -10551,9 +10551,7 @@ second element is a list of <code>bool</code>s indicating whether the correspond
 
             <details class="quote">
               <summary>Source code in <code>mindone/diffusers/pipelines/hunyuandit/pipeline_hunyuandit.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">565</span>
-<span class="normal">566</span>
-<span class="normal">567</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">567</span>
 <span class="normal">568</span>
 <span class="normal">569</span>
 <span class="normal">570</span>
@@ -10876,7 +10874,9 @@ second element is a list of <code>bool</code>s indicating whether the correspond
 <span class="normal">887</span>
 <span class="normal">888</span>
 <span class="normal">889</span>
-<span class="normal">890</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="fm">__call__</span><span class="p">(</span>
+<span class="normal">890</span>
+<span class="normal">891</span>
+<span class="normal">892</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="fm">__call__</span><span class="p">(</span>
     <span class="bp">self</span><span class="p">,</span>
     <span class="n">prompt</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">List</span><span class="p">[</span><span class="nb">str</span><span class="p">]]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
     <span class="n">height</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">int</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
@@ -10930,8 +10930,8 @@ second element is a list of <code>bool</code>s indicating whether the correspond
 <span class="sd">        num_images_per_prompt (`int`, *optional*, defaults to 1):</span>
 <span class="sd">            The number of images to generate per prompt.</span>
 <span class="sd">        eta (`float`, *optional*, defaults to 0.0):</span>
-<span class="sd">            Corresponds to parameter eta (η) from the [DDIM](https://arxiv.org/abs/2010.02502) paper. Only applies</span>
-<span class="sd">            to the [`~schedulers.DDIMScheduler`], and is ignored in other schedulers.</span>
+<span class="sd">            Corresponds to parameter eta (η) from the [DDIM](https://huggingface.co/papers/2010.02502) paper. Only</span>
+<span class="sd">            applies to the [`~schedulers.DDIMScheduler`], and is ignored in other schedulers.</span>
 <span class="sd">        generator (`np.random.Generator` or `List[np.random.Generator]`, *optional*):</span>
 <span class="sd">            A [`np.random.Generator`](https://pytorch.org/docs/stable/generated/torch.Generator.html) to make</span>
 <span class="sd">            generation deterministic.</span>
@@ -10967,7 +10967,7 @@ second element is a list of <code>bool</code>s indicating whether the correspond
 <span class="sd">            inputs will be passed.</span>
 <span class="sd">        guidance_rescale (`float`, *optional*, defaults to 0.0):</span>
 <span class="sd">            Rescale the noise_cfg according to `guidance_rescale`. Based on findings of [Common Diffusion Noise</span>
-<span class="sd">            Schedules and Sample Steps are Flawed](https://arxiv.org/pdf/2305.08891.pdf). See Section 3.4</span>
+<span class="sd">            Schedules and Sample Steps are Flawed](https://huggingface.co/papers/2305.08891). See Section 3.4</span>
 <span class="sd">        original_size (`Tuple[int, int]`, *optional*, defaults to `(1024, 1024)`):</span>
 <span class="sd">            The original size of the image. Used to calculate the time ids.</span>
 <span class="sd">        target_size (`Tuple[int, int]`, *optional*):</span>
@@ -11161,7 +11161,7 @@ second element is a list of <code>bool</code>s indicating whether the correspond
                 <span class="n">noise_pred</span> <span class="o">=</span> <span class="n">noise_pred_uncond</span> <span class="o">+</span> <span class="n">guidance_scale</span> <span class="o">*</span> <span class="p">(</span><span class="n">noise_pred_text</span> <span class="o">-</span> <span class="n">noise_pred_uncond</span><span class="p">)</span>
 
             <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">do_classifier_free_guidance</span> <span class="ow">and</span> <span class="n">guidance_rescale</span> <span class="o">&gt;</span> <span class="mf">0.0</span><span class="p">:</span>
-                <span class="c1"># Based on 3.4. in https://arxiv.org/pdf/2305.08891.pdf</span>
+                <span class="c1"># Based on 3.4. in https://huggingface.co/papers/2305.08891</span>
                 <span class="n">noise_pred</span> <span class="o">=</span> <span class="n">rescale_noise_cfg</span><span class="p">(</span><span class="n">noise_pred</span><span class="p">,</span> <span class="n">noise_pred_text</span><span class="p">,</span> <span class="n">guidance_rescale</span><span class="o">=</span><span class="n">guidance_rescale</span><span class="p">)</span>
 
             <span class="c1"># compute the previous noisy sample x_t -&gt; x_t-1</span>
@@ -11457,9 +11457,7 @@ argument.</p>
 
             <details class="quote">
               <summary>Source code in <code>mindone/diffusers/pipelines/hunyuandit/pipeline_hunyuandit.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">241</span>
-<span class="normal">242</span>
-<span class="normal">243</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">243</span>
 <span class="normal">244</span>
 <span class="normal">245</span>
 <span class="normal">246</span>
@@ -11614,7 +11612,9 @@ argument.</p>
 <span class="normal">395</span>
 <span class="normal">396</span>
 <span class="normal">397</span>
-<span class="normal">398</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">encode_prompt</span><span class="p">(</span>
+<span class="normal">398</span>
+<span class="normal">399</span>
+<span class="normal">400</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">encode_prompt</span><span class="p">(</span>
     <span class="bp">self</span><span class="p">,</span>
     <span class="n">prompt</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
     <span class="n">dtype</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">ms</span><span class="o">.</span><span class="n">Type</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>

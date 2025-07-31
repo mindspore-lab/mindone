@@ -8246,7 +8246,7 @@ specific language governing permissions and limitations under the License.
 
     <div class="doc doc-contents first">
             <p class="doc doc-class-bases">
-              Bases: <code><a class="autorefs autorefs-internal" title="mindone.diffusers.DiffusionPipeline (mindone.diffusers.pipelines.pipeline_utils.DiffusionPipeline)" href="../overview/#mindone.diffusers.DiffusionPipeline">DiffusionPipeline</a></code>, <code><span title="mindone.diffusers.pipelines.pipeline_utils.StableDiffusionMixin">StableDiffusionMixin</span></code>, <code><a class="autorefs autorefs-internal" title="mindone.diffusers.loaders.textual_inversion.TextualInversionLoaderMixin (mindone.diffusers.loaders.TextualInversionLoaderMixin)" href="../../loaders/textual_inversion/#mindone.diffusers.loaders.textual_inversion.TextualInversionLoaderMixin">TextualInversionLoaderMixin</a></code>, <code><a class="autorefs autorefs-internal" title="mindone.diffusers.loaders.ip_adapter.IPAdapterMixin (mindone.diffusers.loaders.IPAdapterMixin)" href="../../loaders/ip_adapter/#mindone.diffusers.loaders.ip_adapter.IPAdapterMixin">IPAdapterMixin</a></code></p>
+              Bases: <code><span title="mindone.diffusers.pipelines.pipeline_utils.DeprecatedPipelineMixin">DeprecatedPipelineMixin</span></code>, <code><a class="autorefs autorefs-internal" title="mindone.diffusers.DiffusionPipeline (mindone.diffusers.pipelines.pipeline_utils.DiffusionPipeline)" href="../overview/#mindone.diffusers.DiffusionPipeline">DiffusionPipeline</a></code>, <code><span title="mindone.diffusers.pipelines.pipeline_utils.StableDiffusionMixin">StableDiffusionMixin</span></code>, <code><a class="autorefs autorefs-internal" title="mindone.diffusers.loaders.textual_inversion.TextualInversionLoaderMixin (mindone.diffusers.loaders.TextualInversionLoaderMixin)" href="../../loaders/textual_inversion/#mindone.diffusers.loaders.textual_inversion.TextualInversionLoaderMixin">TextualInversionLoaderMixin</a></code>, <code><a class="autorefs autorefs-internal" title="mindone.diffusers.loaders.ip_adapter.IPAdapterMixin (mindone.diffusers.loaders.IPAdapterMixin)" href="../../loaders/ip_adapter/#mindone.diffusers.loaders.ip_adapter.IPAdapterMixin">IPAdapterMixin</a></code></p>
 
 
         <p>Pipeline for text-to-image generation using Stable Diffusion.</p>
@@ -9216,7 +9216,11 @@ more details about a model's potential harms.</p>
 <span class="normal">918</span>
 <span class="normal">919</span>
 <span class="normal">920</span>
-<span class="normal">921</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">class</span><span class="w"> </span><span class="nc">StableDiffusionSAGPipeline</span><span class="p">(</span><span class="n">DiffusionPipeline</span><span class="p">,</span> <span class="n">StableDiffusionMixin</span><span class="p">,</span> <span class="n">TextualInversionLoaderMixin</span><span class="p">,</span> <span class="n">IPAdapterMixin</span><span class="p">):</span>
+<span class="normal">921</span>
+<span class="normal">922</span>
+<span class="normal">923</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">class</span><span class="w"> </span><span class="nc">StableDiffusionSAGPipeline</span><span class="p">(</span>
+    <span class="n">DeprecatedPipelineMixin</span><span class="p">,</span> <span class="n">DiffusionPipeline</span><span class="p">,</span> <span class="n">StableDiffusionMixin</span><span class="p">,</span> <span class="n">TextualInversionLoaderMixin</span><span class="p">,</span> <span class="n">IPAdapterMixin</span>
+<span class="p">):</span>
 <span class="w">    </span><span class="sa">r</span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    Pipeline for text-to-image generation using Stable Diffusion.</span>
 
@@ -9580,7 +9584,7 @@ more details about a model's potential harms.</p>
     <span class="k">def</span><span class="w"> </span><span class="nf">prepare_extra_step_kwargs</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">generator</span><span class="p">,</span> <span class="n">eta</span><span class="p">):</span>
         <span class="c1"># prepare extra kwargs for the scheduler step, since not all schedulers have the same signature</span>
         <span class="c1"># eta (η) is only used with the DDIMScheduler, it will be ignored for other schedulers.</span>
-        <span class="c1"># eta corresponds to η in DDIM paper: https://arxiv.org/abs/2010.02502</span>
+        <span class="c1"># eta corresponds to η in DDIM paper: https://huggingface.co/papers/2010.02502</span>
         <span class="c1"># and should be between [0, 1]</span>
 
         <span class="n">accepts_eta</span> <span class="o">=</span> <span class="s2">&quot;eta&quot;</span> <span class="ow">in</span> <span class="nb">set</span><span class="p">(</span><span class="n">inspect</span><span class="o">.</span><span class="n">signature</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">scheduler</span><span class="o">.</span><span class="n">step</span><span class="p">)</span><span class="o">.</span><span class="n">parameters</span><span class="o">.</span><span class="n">keys</span><span class="p">())</span>
@@ -9720,8 +9724,8 @@ more details about a model's potential harms.</p>
 <span class="sd">            num_images_per_prompt (`int`, *optional*, defaults to 1):</span>
 <span class="sd">                The number of images to generate per prompt.</span>
 <span class="sd">            eta (`float`, *optional*, defaults to 0.0):</span>
-<span class="sd">                Corresponds to parameter eta (η) from the [DDIM](https://arxiv.org/abs/2010.02502) paper. Only applies</span>
-<span class="sd">                to the [`~schedulers.DDIMScheduler`], and is ignored in other schedulers.</span>
+<span class="sd">                Corresponds to parameter eta (η) from the [DDIM](https://huggingface.co/papers/2010.02502) paper. Only</span>
+<span class="sd">                applies to the [`~schedulers.DDIMScheduler`], and is ignored in other schedulers.</span>
 <span class="sd">            generator (`np.random.Generator` or `List[np.random.Generator]`, *optional*):</span>
 <span class="sd">                A [`np.random.Generator`](https://numpy.org/doc/stable/reference/random/generator.html) to make</span>
 <span class="sd">                generation deterministic.</span>
@@ -9782,11 +9786,11 @@ more details about a model's potential harms.</p>
             <span class="n">batch_size</span> <span class="o">=</span> <span class="n">prompt_embeds</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
 
         <span class="c1"># here `guidance_scale` is defined analog to the guidance weight `w` of equation (2)</span>
-        <span class="c1"># of the Imagen paper: https://arxiv.org/pdf/2205.11487.pdf . `guidance_scale = 1`</span>
+        <span class="c1"># of the Imagen paper: https://huggingface.co/papers/2205.11487 . `guidance_scale = 1`</span>
         <span class="c1"># corresponds to doing no classifier free guidance.</span>
         <span class="n">do_classifier_free_guidance</span> <span class="o">=</span> <span class="n">guidance_scale</span> <span class="o">&gt;</span> <span class="mf">1.0</span>
         <span class="c1"># and `sag_scale` is` `s` of equation (16)</span>
-        <span class="c1"># of the self-attention guidance paper: https://arxiv.org/pdf/2210.00939.pdf</span>
+        <span class="c1"># of the self-attention guidance paper: https://huggingface.co/papers/2210.00939</span>
         <span class="c1"># `sag_scale = 0` means no self-attention guidance</span>
         <span class="n">do_self_attention_guidance</span> <span class="o">=</span> <span class="n">sag_scale</span> <span class="o">&gt;</span> <span class="mf">0.0</span>
 
@@ -9899,7 +9903,7 @@ more details about a model's potential harms.</p>
                 <span class="k">if</span> <span class="n">do_self_attention_guidance</span><span class="p">:</span>
                     <span class="c1"># classifier-free guidance produces two chunks of attention map</span>
                     <span class="c1"># and we only use unconditional one according to equation (25)</span>
-                    <span class="c1"># in https://arxiv.org/pdf/2210.00939.pdf</span>
+                    <span class="c1"># in https://huggingface.co/papers/2210.00939</span>
                     <span class="k">if</span> <span class="n">do_classifier_free_guidance</span><span class="p">:</span>
                         <span class="c1"># DDIM-like prediction of x0</span>
                         <span class="n">pred_x0</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">pred_x0</span><span class="p">(</span><span class="n">latents</span><span class="p">,</span> <span class="n">noise_pred_uncond</span><span class="p">,</span> <span class="n">t</span><span class="p">)</span>
@@ -9969,7 +9973,7 @@ more details about a model's potential harms.</p>
         <span class="k">return</span> <span class="n">StableDiffusionPipelineOutput</span><span class="p">(</span><span class="n">images</span><span class="o">=</span><span class="n">image</span><span class="p">,</span> <span class="n">nsfw_content_detected</span><span class="o">=</span><span class="n">has_nsfw_concept</span><span class="p">)</span>
 
     <span class="k">def</span><span class="w"> </span><span class="nf">sag_masking</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">original_latents</span><span class="p">,</span> <span class="n">attn_map</span><span class="p">,</span> <span class="n">map_size</span><span class="p">,</span> <span class="n">t</span><span class="p">,</span> <span class="n">eps</span><span class="p">):</span>
-        <span class="c1"># Same masking process as in SAG paper: https://arxiv.org/pdf/2210.00939.pdf</span>
+        <span class="c1"># Same masking process as in SAG paper: https://huggingface.co/papers/2210.00939</span>
         <span class="n">bh</span><span class="p">,</span> <span class="n">hw1</span><span class="p">,</span> <span class="n">hw2</span> <span class="o">=</span> <span class="n">attn_map</span><span class="o">.</span><span class="n">shape</span>
         <span class="n">b</span><span class="p">,</span> <span class="n">latent_channel</span><span class="p">,</span> <span class="n">latent_h</span><span class="p">,</span> <span class="n">latent_w</span> <span class="o">=</span> <span class="n">original_latents</span><span class="o">.</span><span class="n">shape</span>
         <span class="n">h</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">unet</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">attention_head_dim</span>
@@ -10243,8 +10247,8 @@ pass <code>negative_prompt_embeds</code> instead. Ignored when not using guidanc
             </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
-                <p>Corresponds to parameter eta (η) from the <a href="https://arxiv.org/abs/2010.02502">DDIM</a> paper. Only applies
-to the [<code>~schedulers.DDIMScheduler</code>], and is ignored in other schedulers.</p>
+                <p>Corresponds to parameter eta (η) from the <a href="https://huggingface.co/papers/2010.02502">DDIM</a> paper. Only
+applies to the [<code>~schedulers.DDIMScheduler</code>], and is ignored in other schedulers.</p>
               </div>
               <p>
                   <span class="doc-param-annotation">
@@ -10542,9 +10546,7 @@ second element is a list of <code>bool</code>s indicating whether the correspond
 
             <details class="quote">
               <summary>Source code in <code>mindone/diffusers/pipelines/stable_diffusion_sag/pipeline_stable_diffusion_sag.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">557</span>
-<span class="normal">558</span>
-<span class="normal">559</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">559</span>
 <span class="normal">560</span>
 <span class="normal">561</span>
 <span class="normal">562</span>
@@ -10836,7 +10838,9 @@ second element is a list of <code>bool</code>s indicating whether the correspond
 <span class="normal">848</span>
 <span class="normal">849</span>
 <span class="normal">850</span>
-<span class="normal">851</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="fm">__call__</span><span class="p">(</span>
+<span class="normal">851</span>
+<span class="normal">852</span>
+<span class="normal">853</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="fm">__call__</span><span class="p">(</span>
     <span class="bp">self</span><span class="p">,</span>
     <span class="n">prompt</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">List</span><span class="p">[</span><span class="nb">str</span><span class="p">]]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
     <span class="n">height</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">int</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
@@ -10884,8 +10888,8 @@ second element is a list of <code>bool</code>s indicating whether the correspond
 <span class="sd">        num_images_per_prompt (`int`, *optional*, defaults to 1):</span>
 <span class="sd">            The number of images to generate per prompt.</span>
 <span class="sd">        eta (`float`, *optional*, defaults to 0.0):</span>
-<span class="sd">            Corresponds to parameter eta (η) from the [DDIM](https://arxiv.org/abs/2010.02502) paper. Only applies</span>
-<span class="sd">            to the [`~schedulers.DDIMScheduler`], and is ignored in other schedulers.</span>
+<span class="sd">            Corresponds to parameter eta (η) from the [DDIM](https://huggingface.co/papers/2010.02502) paper. Only</span>
+<span class="sd">            applies to the [`~schedulers.DDIMScheduler`], and is ignored in other schedulers.</span>
 <span class="sd">        generator (`np.random.Generator` or `List[np.random.Generator]`, *optional*):</span>
 <span class="sd">            A [`np.random.Generator`](https://numpy.org/doc/stable/reference/random/generator.html) to make</span>
 <span class="sd">            generation deterministic.</span>
@@ -10946,11 +10950,11 @@ second element is a list of <code>bool</code>s indicating whether the correspond
         <span class="n">batch_size</span> <span class="o">=</span> <span class="n">prompt_embeds</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
 
     <span class="c1"># here `guidance_scale` is defined analog to the guidance weight `w` of equation (2)</span>
-    <span class="c1"># of the Imagen paper: https://arxiv.org/pdf/2205.11487.pdf . `guidance_scale = 1`</span>
+    <span class="c1"># of the Imagen paper: https://huggingface.co/papers/2205.11487 . `guidance_scale = 1`</span>
     <span class="c1"># corresponds to doing no classifier free guidance.</span>
     <span class="n">do_classifier_free_guidance</span> <span class="o">=</span> <span class="n">guidance_scale</span> <span class="o">&gt;</span> <span class="mf">1.0</span>
     <span class="c1"># and `sag_scale` is` `s` of equation (16)</span>
-    <span class="c1"># of the self-attention guidance paper: https://arxiv.org/pdf/2210.00939.pdf</span>
+    <span class="c1"># of the self-attention guidance paper: https://huggingface.co/papers/2210.00939</span>
     <span class="c1"># `sag_scale = 0` means no self-attention guidance</span>
     <span class="n">do_self_attention_guidance</span> <span class="o">=</span> <span class="n">sag_scale</span> <span class="o">&gt;</span> <span class="mf">0.0</span>
 
@@ -11063,7 +11067,7 @@ second element is a list of <code>bool</code>s indicating whether the correspond
             <span class="k">if</span> <span class="n">do_self_attention_guidance</span><span class="p">:</span>
                 <span class="c1"># classifier-free guidance produces two chunks of attention map</span>
                 <span class="c1"># and we only use unconditional one according to equation (25)</span>
-                <span class="c1"># in https://arxiv.org/pdf/2210.00939.pdf</span>
+                <span class="c1"># in https://huggingface.co/papers/2210.00939</span>
                 <span class="k">if</span> <span class="n">do_classifier_free_guidance</span><span class="p">:</span>
                     <span class="c1"># DDIM-like prediction of x0</span>
                     <span class="n">pred_x0</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">pred_x0</span><span class="p">(</span><span class="n">latents</span><span class="p">,</span> <span class="n">noise_pred_uncond</span><span class="p">,</span> <span class="n">t</span><span class="p">)</span>
@@ -11319,9 +11323,7 @@ the output of the pre-final layer will be used for computing the prompt embeddin
 
             <details class="quote">
               <summary>Source code in <code>mindone/diffusers/pipelines/stable_diffusion_sag/pipeline_stable_diffusion_sag.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">196</span>
-<span class="normal">197</span>
-<span class="normal">198</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">198</span>
 <span class="normal">199</span>
 <span class="normal">200</span>
 <span class="normal">201</span>
@@ -11491,7 +11493,9 @@ the output of the pre-final layer will be used for computing the prompt embeddin
 <span class="normal">365</span>
 <span class="normal">366</span>
 <span class="normal">367</span>
-<span class="normal">368</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">encode_prompt</span><span class="p">(</span>
+<span class="normal">368</span>
+<span class="normal">369</span>
+<span class="normal">370</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">encode_prompt</span><span class="p">(</span>
     <span class="bp">self</span><span class="p">,</span>
     <span class="n">prompt</span><span class="p">,</span>
     <span class="n">num_images_per_prompt</span><span class="p">,</span>

@@ -8316,7 +8316,7 @@ specific language governing permissions and limitations under the License.
 
         <p>Implements the Euler scheduler in EDM formulation as presented in Karras et al. 2022 [1].</p>
 <p>[1] Karras, Tero, et al. "Elucidating the Design Space of Diffusion-Based Generative Models."
-https://arxiv.org/abs/2206.00364</p>
+https://huggingface.co/papers/2206.00364</p>
 <p>This model inherits from [<code>SchedulerMixin</code>] and [<code>ConfigMixin</code>]. Check the superclass documentation for the generic
 methods the library implements for all schedulers such as loading and saving.</p>
 
@@ -8398,8 +8398,8 @@ range is [0.2, 80.0].</p>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Sigma schedule to compute the <code>sigmas</code>. By default, we the schedule introduced in the EDM paper
-(https://arxiv.org/abs/2206.00364). Other acceptable value is "exponential". The exponential schedule was
-incorporated in this model: https://huggingface.co/stabilityai/cosxl.</p>
+(https://huggingface.co/papers/2206.00364). Other acceptable value is "exponential". The exponential
+schedule was incorporated in this model: https://huggingface.co/stabilityai/cosxl.</p>
               </div>
               <p>
                   <span class="doc-param-annotation">
@@ -8888,12 +8888,21 @@ sigma is the same as the last sigma in the training schedule. If <code>zero</cod
 <span class="normal">432</span>
 <span class="normal">433</span>
 <span class="normal">434</span>
-<span class="normal">435</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">class</span><span class="w"> </span><span class="nc">EDMEulerScheduler</span><span class="p">(</span><span class="n">SchedulerMixin</span><span class="p">,</span> <span class="n">ConfigMixin</span><span class="p">):</span>
+<span class="normal">435</span>
+<span class="normal">436</span>
+<span class="normal">437</span>
+<span class="normal">438</span>
+<span class="normal">439</span>
+<span class="normal">440</span>
+<span class="normal">441</span>
+<span class="normal">442</span>
+<span class="normal">443</span>
+<span class="normal">444</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">class</span><span class="w"> </span><span class="nc">EDMEulerScheduler</span><span class="p">(</span><span class="n">SchedulerMixin</span><span class="p">,</span> <span class="n">ConfigMixin</span><span class="p">):</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    Implements the Euler scheduler in EDM formulation as presented in Karras et al. 2022 [1].</span>
 
 <span class="sd">    [1] Karras, Tero, et al. &quot;Elucidating the Design Space of Diffusion-Based Generative Models.&quot;</span>
-<span class="sd">    https://arxiv.org/abs/2206.00364</span>
+<span class="sd">    https://huggingface.co/papers/2206.00364</span>
 
 <span class="sd">    This model inherits from [`SchedulerMixin`] and [`ConfigMixin`]. Check the superclass documentation for the generic</span>
 <span class="sd">    methods the library implements for all schedulers such as loading and saving.</span>
@@ -8909,8 +8918,8 @@ sigma is the same as the last sigma in the training schedule. If <code>zero</cod
 <span class="sd">            The standard deviation of the data distribution. This is set to 0.5 in the EDM paper [1].</span>
 <span class="sd">        sigma_schedule (`str`, *optional*, defaults to `karras`):</span>
 <span class="sd">            Sigma schedule to compute the `sigmas`. By default, we the schedule introduced in the EDM paper</span>
-<span class="sd">            (https://arxiv.org/abs/2206.00364). Other acceptable value is &quot;exponential&quot;. The exponential schedule was</span>
-<span class="sd">            incorporated in this model: https://huggingface.co/stabilityai/cosxl.</span>
+<span class="sd">            (https://huggingface.co/papers/2206.00364). Other acceptable value is &quot;exponential&quot;. The exponential</span>
+<span class="sd">            schedule was incorporated in this model: https://huggingface.co/stabilityai/cosxl.</span>
 <span class="sd">        num_train_timesteps (`int`, defaults to 1000):</span>
 <span class="sd">            The number of diffusion steps to train the model.</span>
 <span class="sd">        prediction_type (`str`, defaults to `epsilon`, *optional*):</span>
@@ -8945,11 +8954,13 @@ sigma is the same as the last sigma in the training schedule. If <code>zero</cod
         <span class="c1"># setable values</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">num_inference_steps</span> <span class="o">=</span> <span class="kc">None</span>
 
-        <span class="n">sigmas</span> <span class="o">=</span> <span class="n">mint</span><span class="o">.</span><span class="n">arange</span><span class="p">(</span><span class="n">num_train_timesteps</span> <span class="o">+</span> <span class="mi">1</span><span class="p">)</span> <span class="o">/</span> <span class="n">num_train_timesteps</span>
+        <span class="n">sigmas_dtype</span> <span class="o">=</span> <span class="n">ms</span><span class="o">.</span><span class="n">float64</span>
+        <span class="n">sigmas</span> <span class="o">=</span> <span class="n">mint</span><span class="o">.</span><span class="n">arange</span><span class="p">(</span><span class="n">num_train_timesteps</span> <span class="o">+</span> <span class="mi">1</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="n">sigmas_dtype</span><span class="p">)</span> <span class="o">/</span> <span class="n">num_train_timesteps</span>
         <span class="k">if</span> <span class="n">sigma_schedule</span> <span class="o">==</span> <span class="s2">&quot;karras&quot;</span><span class="p">:</span>
             <span class="n">sigmas</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_compute_karras_sigmas</span><span class="p">(</span><span class="n">sigmas</span><span class="p">)</span>
         <span class="k">elif</span> <span class="n">sigma_schedule</span> <span class="o">==</span> <span class="s2">&quot;exponential&quot;</span><span class="p">:</span>
             <span class="n">sigmas</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_compute_exponential_sigmas</span><span class="p">(</span><span class="n">sigmas</span><span class="p">)</span>
+        <span class="n">sigmas</span> <span class="o">=</span> <span class="n">sigmas</span><span class="o">.</span><span class="n">to</span><span class="p">(</span><span class="n">ms</span><span class="o">.</span><span class="n">float32</span><span class="p">)</span>
 
         <span class="bp">self</span><span class="o">.</span><span class="n">timesteps</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">precondition_noise</span><span class="p">(</span><span class="n">sigmas</span><span class="p">)</span>
 
@@ -9001,7 +9012,7 @@ sigma is the same as the last sigma in the training schedule. If <code>zero</cod
         <span class="bp">self</span><span class="o">.</span><span class="n">_begin_index</span> <span class="o">=</span> <span class="n">begin_index</span>
 
     <span class="k">def</span><span class="w"> </span><span class="nf">precondition_inputs</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">sample</span><span class="p">,</span> <span class="n">sigma</span><span class="p">):</span>
-        <span class="n">c_in</span> <span class="o">=</span> <span class="mi">1</span> <span class="o">/</span> <span class="p">((</span><span class="n">sigma</span><span class="o">**</span><span class="mi">2</span> <span class="o">+</span> <span class="bp">self</span><span class="o">.</span><span class="n">sigma_data</span><span class="o">**</span><span class="mi">2</span><span class="p">)</span> <span class="o">**</span> <span class="mf">0.5</span><span class="p">)</span>
+        <span class="n">c_in</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_get_conditioning_c_in</span><span class="p">(</span><span class="n">sigma</span><span class="p">)</span>
         <span class="n">scaled_sample</span> <span class="o">=</span> <span class="n">sample</span> <span class="o">*</span> <span class="n">c_in</span>
         <span class="k">return</span> <span class="n">scaled_sample</span>
 
@@ -9069,18 +9080,19 @@ sigma is the same as the last sigma in the training schedule. If <code>zero</cod
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">num_inference_steps</span> <span class="o">=</span> <span class="n">num_inference_steps</span>
 
+        <span class="n">sigmas_dtype</span> <span class="o">=</span> <span class="n">ms</span><span class="o">.</span><span class="n">float64</span>
         <span class="k">if</span> <span class="n">sigmas</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
-            <span class="n">sigmas</span> <span class="o">=</span> <span class="n">mint</span><span class="o">.</span><span class="n">linspace</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">num_inference_steps</span><span class="p">)</span>
+            <span class="n">sigmas</span> <span class="o">=</span> <span class="n">mint</span><span class="o">.</span><span class="n">linspace</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">num_inference_steps</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="n">sigmas_dtype</span><span class="p">)</span>
         <span class="k">elif</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">sigmas</span><span class="p">,</span> <span class="nb">float</span><span class="p">):</span>
-            <span class="n">sigmas</span> <span class="o">=</span> <span class="n">ms</span><span class="o">.</span><span class="n">tensor</span><span class="p">(</span><span class="n">sigmas</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="n">ms</span><span class="o">.</span><span class="n">float32</span><span class="p">)</span>
+            <span class="n">sigmas</span> <span class="o">=</span> <span class="n">ms</span><span class="o">.</span><span class="n">tensor</span><span class="p">(</span><span class="n">sigmas</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="n">sigmas_dtype</span><span class="p">)</span>
         <span class="k">else</span><span class="p">:</span>
-            <span class="n">sigmas</span> <span class="o">=</span> <span class="n">sigmas</span>
+            <span class="n">sigmas</span> <span class="o">=</span> <span class="n">sigmas</span><span class="o">.</span><span class="n">to</span><span class="p">(</span><span class="n">sigmas_dtype</span><span class="p">)</span>
         <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">sigma_schedule</span> <span class="o">==</span> <span class="s2">&quot;karras&quot;</span><span class="p">:</span>
             <span class="n">sigmas</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_compute_karras_sigmas</span><span class="p">(</span><span class="n">sigmas</span><span class="p">)</span>
         <span class="k">elif</span> <span class="bp">self</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">sigma_schedule</span> <span class="o">==</span> <span class="s2">&quot;exponential&quot;</span><span class="p">:</span>
             <span class="n">sigmas</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_compute_exponential_sigmas</span><span class="p">(</span><span class="n">sigmas</span><span class="p">)</span>
-
         <span class="n">sigmas</span> <span class="o">=</span> <span class="n">sigmas</span><span class="o">.</span><span class="n">to</span><span class="p">(</span><span class="n">ms</span><span class="o">.</span><span class="n">float32</span><span class="p">)</span>
+
         <span class="bp">self</span><span class="o">.</span><span class="n">timesteps</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">precondition_noise</span><span class="p">(</span><span class="n">sigmas</span><span class="p">)</span>
 
         <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">final_sigmas_type</span> <span class="o">==</span> <span class="s2">&quot;sigma_min&quot;</span><span class="p">:</span>
@@ -9154,6 +9166,7 @@ sigma is the same as the last sigma in the training schedule. If <code>zero</cod
         <span class="n">s_noise</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">1.0</span><span class="p">,</span>
         <span class="n">generator</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">random</span><span class="o">.</span><span class="n">Generator</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
         <span class="n">return_dict</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
+        <span class="n">pred_original_sample</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">ms</span><span class="o">.</span><span class="n">Tensor</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
     <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Union</span><span class="p">[</span><span class="n">EDMEulerSchedulerOutput</span><span class="p">,</span> <span class="n">Tuple</span><span class="p">]:</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Predict the sample from the previous timestep by reversing the SDE. This function propagates the diffusion</span>
@@ -9215,7 +9228,8 @@ sigma is the same as the last sigma in the training schedule. If <code>zero</cod
             <span class="n">sample</span> <span class="o">=</span> <span class="n">sample</span> <span class="o">+</span> <span class="n">eps</span> <span class="o">*</span> <span class="p">(</span><span class="n">sigma_hat</span><span class="o">**</span><span class="mi">2</span> <span class="o">-</span> <span class="n">sigma</span><span class="o">**</span><span class="mi">2</span><span class="p">)</span> <span class="o">**</span> <span class="mf">0.5</span>
 
         <span class="c1"># 1. compute predicted original sample (x_0) from sigma-scaled predicted noise</span>
-        <span class="n">pred_original_sample</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">precondition_outputs</span><span class="p">(</span><span class="n">sample</span><span class="p">,</span> <span class="n">model_output</span><span class="p">,</span> <span class="n">sigma_hat</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">pred_original_sample</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">pred_original_sample</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">precondition_outputs</span><span class="p">(</span><span class="n">sample</span><span class="p">,</span> <span class="n">model_output</span><span class="p">,</span> <span class="n">sigma_hat</span><span class="p">)</span>
 
         <span class="c1"># 2. Convert to an ODE derivative</span>
         <span class="n">derivative</span> <span class="o">=</span> <span class="p">(</span><span class="n">sample</span> <span class="o">-</span> <span class="n">pred_original_sample</span><span class="p">)</span> <span class="o">/</span> <span class="n">sigma_hat</span>
@@ -9267,6 +9281,10 @@ sigma is the same as the last sigma in the training schedule. If <code>zero</cod
 
         <span class="n">noisy_samples</span> <span class="o">=</span> <span class="n">original_samples</span> <span class="o">+</span> <span class="n">noise</span> <span class="o">*</span> <span class="n">sigma</span>
         <span class="k">return</span> <span class="n">noisy_samples</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">_get_conditioning_c_in</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">sigma</span><span class="p">):</span>
+        <span class="n">c_in</span> <span class="o">=</span> <span class="mi">1</span> <span class="o">/</span> <span class="p">((</span><span class="n">sigma</span><span class="o">**</span><span class="mi">2</span> <span class="o">+</span> <span class="bp">self</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">sigma_data</span><span class="o">**</span><span class="mi">2</span><span class="p">)</span> <span class="o">**</span> <span class="mf">0.5</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">c_in</span>
 
     <span class="k">def</span><span class="w"> </span><span class="fm">__len__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
         <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">num_train_timesteps</span>
@@ -9415,9 +9433,7 @@ A scaled input sample.</p>
 
             <details class="quote">
               <summary>Source code in <code>mindone/diffusers/schedulers/scheduling_edm_euler.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">194</span>
-<span class="normal">195</span>
-<span class="normal">196</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">196</span>
 <span class="normal">197</span>
 <span class="normal">198</span>
 <span class="normal">199</span>
@@ -9437,7 +9453,9 @@ A scaled input sample.</p>
 <span class="normal">213</span>
 <span class="normal">214</span>
 <span class="normal">215</span>
-<span class="normal">216</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">scale_model_input</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">sample</span><span class="p">:</span> <span class="n">ms</span><span class="o">.</span><span class="n">Tensor</span><span class="p">,</span> <span class="n">timestep</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="nb">float</span><span class="p">,</span> <span class="n">ms</span><span class="o">.</span><span class="n">Tensor</span><span class="p">])</span> <span class="o">-&gt;</span> <span class="n">ms</span><span class="o">.</span><span class="n">Tensor</span><span class="p">:</span>
+<span class="normal">216</span>
+<span class="normal">217</span>
+<span class="normal">218</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">scale_model_input</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">sample</span><span class="p">:</span> <span class="n">ms</span><span class="o">.</span><span class="n">Tensor</span><span class="p">,</span> <span class="n">timestep</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="nb">float</span><span class="p">,</span> <span class="n">ms</span><span class="o">.</span><span class="n">Tensor</span><span class="p">])</span> <span class="o">-&gt;</span> <span class="n">ms</span><span class="o">.</span><span class="n">Tensor</span><span class="p">:</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    Ensures interchangeability with schedulers that need to scale the denoising model input depending on the</span>
 <span class="sd">    current timestep. Scales the denoising model input by `(sigma**2 + 1) ** 0.5` to match the Euler algorithm.</span>
@@ -9514,15 +9532,15 @@ A scaled input sample.</p>
 
             <details class="quote">
               <summary>Source code in <code>mindone/diffusers/schedulers/scheduling_edm_euler.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">156</span>
-<span class="normal">157</span>
-<span class="normal">158</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">158</span>
 <span class="normal">159</span>
 <span class="normal">160</span>
 <span class="normal">161</span>
 <span class="normal">162</span>
 <span class="normal">163</span>
-<span class="normal">164</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">set_begin_index</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">begin_index</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">0</span><span class="p">):</span>
+<span class="normal">164</span>
+<span class="normal">165</span>
+<span class="normal">166</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">set_begin_index</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">begin_index</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">0</span><span class="p">):</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    Sets the begin index for the scheduler. This function should be run from pipeline before the inference.</span>
 
@@ -9606,9 +9624,7 @@ A scaled input sample.</p>
 
             <details class="quote">
               <summary>Source code in <code>mindone/diffusers/schedulers/scheduling_edm_euler.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">218</span>
-<span class="normal">219</span>
-<span class="normal">220</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">220</span>
 <span class="normal">221</span>
 <span class="normal">222</span>
 <span class="normal">223</span>
@@ -9648,7 +9664,10 @@ A scaled input sample.</p>
 <span class="normal">257</span>
 <span class="normal">258</span>
 <span class="normal">259</span>
-<span class="normal">260</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">set_timesteps</span><span class="p">(</span>
+<span class="normal">260</span>
+<span class="normal">261</span>
+<span class="normal">262</span>
+<span class="normal">263</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">set_timesteps</span><span class="p">(</span>
     <span class="bp">self</span><span class="p">,</span>
     <span class="n">num_inference_steps</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
     <span class="n">sigmas</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Union</span><span class="p">[</span><span class="n">ms</span><span class="o">.</span><span class="n">Tensor</span><span class="p">,</span> <span class="n">List</span><span class="p">[</span><span class="nb">float</span><span class="p">]]]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
@@ -9665,18 +9684,19 @@ A scaled input sample.</p>
 <span class="sd">    &quot;&quot;&quot;</span>
     <span class="bp">self</span><span class="o">.</span><span class="n">num_inference_steps</span> <span class="o">=</span> <span class="n">num_inference_steps</span>
 
+    <span class="n">sigmas_dtype</span> <span class="o">=</span> <span class="n">ms</span><span class="o">.</span><span class="n">float64</span>
     <span class="k">if</span> <span class="n">sigmas</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
-        <span class="n">sigmas</span> <span class="o">=</span> <span class="n">mint</span><span class="o">.</span><span class="n">linspace</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">num_inference_steps</span><span class="p">)</span>
+        <span class="n">sigmas</span> <span class="o">=</span> <span class="n">mint</span><span class="o">.</span><span class="n">linspace</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">num_inference_steps</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="n">sigmas_dtype</span><span class="p">)</span>
     <span class="k">elif</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">sigmas</span><span class="p">,</span> <span class="nb">float</span><span class="p">):</span>
-        <span class="n">sigmas</span> <span class="o">=</span> <span class="n">ms</span><span class="o">.</span><span class="n">tensor</span><span class="p">(</span><span class="n">sigmas</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="n">ms</span><span class="o">.</span><span class="n">float32</span><span class="p">)</span>
+        <span class="n">sigmas</span> <span class="o">=</span> <span class="n">ms</span><span class="o">.</span><span class="n">tensor</span><span class="p">(</span><span class="n">sigmas</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="n">sigmas_dtype</span><span class="p">)</span>
     <span class="k">else</span><span class="p">:</span>
-        <span class="n">sigmas</span> <span class="o">=</span> <span class="n">sigmas</span>
+        <span class="n">sigmas</span> <span class="o">=</span> <span class="n">sigmas</span><span class="o">.</span><span class="n">to</span><span class="p">(</span><span class="n">sigmas_dtype</span><span class="p">)</span>
     <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">sigma_schedule</span> <span class="o">==</span> <span class="s2">&quot;karras&quot;</span><span class="p">:</span>
         <span class="n">sigmas</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_compute_karras_sigmas</span><span class="p">(</span><span class="n">sigmas</span><span class="p">)</span>
     <span class="k">elif</span> <span class="bp">self</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">sigma_schedule</span> <span class="o">==</span> <span class="s2">&quot;exponential&quot;</span><span class="p">:</span>
         <span class="n">sigmas</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_compute_exponential_sigmas</span><span class="p">(</span><span class="n">sigmas</span><span class="p">)</span>
-
     <span class="n">sigmas</span> <span class="o">=</span> <span class="n">sigmas</span><span class="o">.</span><span class="n">to</span><span class="p">(</span><span class="n">ms</span><span class="o">.</span><span class="n">float32</span><span class="p">)</span>
+
     <span class="bp">self</span><span class="o">.</span><span class="n">timesteps</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">precondition_noise</span><span class="p">(</span><span class="n">sigmas</span><span class="p">)</span>
 
     <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">final_sigmas_type</span> <span class="o">==</span> <span class="s2">&quot;sigma_min&quot;</span><span class="p">:</span>
@@ -9701,7 +9721,7 @@ A scaled input sample.</p>
 
 
 <h3 id="mindone.diffusers.EDMEulerScheduler.step" class="doc doc-heading">
-            <code class="highlight language-python"><span class="n">mindone</span><span class="o">.</span><span class="n">diffusers</span><span class="o">.</span><span class="n">EDMEulerScheduler</span><span class="o">.</span><span class="n">step</span><span class="p">(</span><span class="n">model_output</span><span class="p">,</span> <span class="n">timestep</span><span class="p">,</span> <span class="n">sample</span><span class="p">,</span> <span class="n">s_churn</span><span class="o">=</span><span class="mf">0.0</span><span class="p">,</span> <span class="n">s_tmin</span><span class="o">=</span><span class="mf">0.0</span><span class="p">,</span> <span class="n">s_tmax</span><span class="o">=</span><span class="nb">float</span><span class="p">(</span><span class="s1">&#39;inf&#39;</span><span class="p">),</span> <span class="n">s_noise</span><span class="o">=</span><span class="mf">1.0</span><span class="p">,</span> <span class="n">generator</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">return_dict</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span></code>
+            <code class="highlight language-python"><span class="n">mindone</span><span class="o">.</span><span class="n">diffusers</span><span class="o">.</span><span class="n">EDMEulerScheduler</span><span class="o">.</span><span class="n">step</span><span class="p">(</span><span class="n">model_output</span><span class="p">,</span> <span class="n">timestep</span><span class="p">,</span> <span class="n">sample</span><span class="p">,</span> <span class="n">s_churn</span><span class="o">=</span><span class="mf">0.0</span><span class="p">,</span> <span class="n">s_tmin</span><span class="o">=</span><span class="mf">0.0</span><span class="p">,</span> <span class="n">s_tmax</span><span class="o">=</span><span class="nb">float</span><span class="p">(</span><span class="s1">&#39;inf&#39;</span><span class="p">),</span> <span class="n">s_noise</span><span class="o">=</span><span class="mf">1.0</span><span class="p">,</span> <span class="n">generator</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">return_dict</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">pred_original_sample</span><span class="o">=</span><span class="kc">None</span><span class="p">)</span></code>
 
 <a href="#mindone.diffusers.EDMEulerScheduler.step" class="headerlink" title="Permanent link">&para;</a></h3>
 
@@ -9925,10 +9945,7 @@ returned, otherwise a tuple is returned where the first element is the sample te
 
             <details class="quote">
               <summary>Source code in <code>mindone/diffusers/schedulers/scheduling_edm_euler.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">309</span>
-<span class="normal">310</span>
-<span class="normal">311</span>
-<span class="normal">312</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">312</span>
 <span class="normal">313</span>
 <span class="normal">314</span>
 <span class="normal">315</span>
@@ -10018,7 +10035,12 @@ returned, otherwise a tuple is returned where the first element is the sample te
 <span class="normal">399</span>
 <span class="normal">400</span>
 <span class="normal">401</span>
-<span class="normal">402</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">step</span><span class="p">(</span>
+<span class="normal">402</span>
+<span class="normal">403</span>
+<span class="normal">404</span>
+<span class="normal">405</span>
+<span class="normal">406</span>
+<span class="normal">407</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">step</span><span class="p">(</span>
     <span class="bp">self</span><span class="p">,</span>
     <span class="n">model_output</span><span class="p">:</span> <span class="n">ms</span><span class="o">.</span><span class="n">Tensor</span><span class="p">,</span>
     <span class="n">timestep</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="nb">float</span><span class="p">,</span> <span class="n">ms</span><span class="o">.</span><span class="n">Tensor</span><span class="p">],</span>
@@ -10029,6 +10051,7 @@ returned, otherwise a tuple is returned where the first element is the sample te
     <span class="n">s_noise</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">1.0</span><span class="p">,</span>
     <span class="n">generator</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">random</span><span class="o">.</span><span class="n">Generator</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
     <span class="n">return_dict</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
+    <span class="n">pred_original_sample</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">ms</span><span class="o">.</span><span class="n">Tensor</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
 <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Union</span><span class="p">[</span><span class="n">EDMEulerSchedulerOutput</span><span class="p">,</span> <span class="n">Tuple</span><span class="p">]:</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    Predict the sample from the previous timestep by reversing the SDE. This function propagates the diffusion</span>
@@ -10090,7 +10113,8 @@ returned, otherwise a tuple is returned where the first element is the sample te
         <span class="n">sample</span> <span class="o">=</span> <span class="n">sample</span> <span class="o">+</span> <span class="n">eps</span> <span class="o">*</span> <span class="p">(</span><span class="n">sigma_hat</span><span class="o">**</span><span class="mi">2</span> <span class="o">-</span> <span class="n">sigma</span><span class="o">**</span><span class="mi">2</span><span class="p">)</span> <span class="o">**</span> <span class="mf">0.5</span>
 
     <span class="c1"># 1. compute predicted original sample (x_0) from sigma-scaled predicted noise</span>
-    <span class="n">pred_original_sample</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">precondition_outputs</span><span class="p">(</span><span class="n">sample</span><span class="p">,</span> <span class="n">model_output</span><span class="p">,</span> <span class="n">sigma_hat</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">pred_original_sample</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="n">pred_original_sample</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">precondition_outputs</span><span class="p">(</span><span class="n">sample</span><span class="p">,</span> <span class="n">model_output</span><span class="p">,</span> <span class="n">sigma_hat</span><span class="p">)</span>
 
     <span class="c1"># 2. Convert to an ODE derivative</span>
     <span class="n">derivative</span> <span class="o">=</span> <span class="p">(</span><span class="n">sample</span> <span class="o">-</span> <span class="n">pred_original_sample</span><span class="p">)</span> <span class="o">/</span> <span class="n">sigma_hat</span>

@@ -8372,7 +8372,7 @@ It is being used in the <a href="https://arxiv.org/abs/2407.14358">Stable Audio 
 
         <p>Implements a variant of <code>DPMSolverMultistepScheduler</code> with cosine schedule, proposed by Nichol and Dhariwal (2021).
 This scheduler was used in Stable Audio Open [1].</p>
-<p>[1] Evans, Parker, et al. "Stable Audio Open" https://arxiv.org/abs/2407.14358</p>
+<p>[1] Evans, Parker, et al. "Stable Audio Open" https://huggingface.co/papers/2407.14358</p>
 <p>This model inherits from [<code>SchedulerMixin</code>] and [<code>ConfigMixin</code>]. Check the superclass documentation for the generic
 methods the library implements for all schedulers such as loading and saving.</p>
 
@@ -8452,8 +8452,8 @@ methods the library implements for all schedulers such as loading and saving.</p
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Sigma schedule to compute the <code>sigmas</code>. By default, we the schedule introduced in the EDM paper
-(https://arxiv.org/abs/2206.00364). Other acceptable value is "exponential". The exponential schedule was
-incorporated in this model: https://huggingface.co/stabilityai/cosxl.</p>
+(https://huggingface.co/papers/2206.00364). Other acceptable value is "exponential". The exponential
+schedule was incorporated in this model: https://huggingface.co/stabilityai/cosxl.</p>
               </div>
               <p>
                   <span class="doc-param-annotation">
@@ -9160,12 +9160,17 @@ sigma is the same as the last sigma in the training schedule. If <code>zero</cod
 <span class="normal">565</span>
 <span class="normal">566</span>
 <span class="normal">567</span>
-<span class="normal">568</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">class</span><span class="w"> </span><span class="nc">CosineDPMSolverMultistepScheduler</span><span class="p">(</span><span class="n">SchedulerMixin</span><span class="p">,</span> <span class="n">ConfigMixin</span><span class="p">):</span>
+<span class="normal">568</span>
+<span class="normal">569</span>
+<span class="normal">570</span>
+<span class="normal">571</span>
+<span class="normal">572</span>
+<span class="normal">573</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">class</span><span class="w"> </span><span class="nc">CosineDPMSolverMultistepScheduler</span><span class="p">(</span><span class="n">SchedulerMixin</span><span class="p">,</span> <span class="n">ConfigMixin</span><span class="p">):</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    Implements a variant of `DPMSolverMultistepScheduler` with cosine schedule, proposed by Nichol and Dhariwal (2021).</span>
 <span class="sd">    This scheduler was used in Stable Audio Open [1].</span>
 
-<span class="sd">    [1] Evans, Parker, et al. &quot;Stable Audio Open&quot; https://arxiv.org/abs/2407.14358</span>
+<span class="sd">    [1] Evans, Parker, et al. &quot;Stable Audio Open&quot; https://huggingface.co/papers/2407.14358</span>
 
 <span class="sd">    This model inherits from [`SchedulerMixin`] and [`ConfigMixin`]. Check the superclass documentation for the generic</span>
 <span class="sd">    methods the library implements for all schedulers such as loading and saving.</span>
@@ -9179,8 +9184,8 @@ sigma is the same as the last sigma in the training schedule. If <code>zero</cod
 <span class="sd">            The standard deviation of the data distribution. This is set to 1.0 in Stable Audio Open [1].</span>
 <span class="sd">        sigma_schedule (`str`, *optional*, defaults to `exponential`):</span>
 <span class="sd">            Sigma schedule to compute the `sigmas`. By default, we the schedule introduced in the EDM paper</span>
-<span class="sd">            (https://arxiv.org/abs/2206.00364). Other acceptable value is &quot;exponential&quot;. The exponential schedule was</span>
-<span class="sd">            incorporated in this model: https://huggingface.co/stabilityai/cosxl.</span>
+<span class="sd">            (https://huggingface.co/papers/2206.00364). Other acceptable value is &quot;exponential&quot;. The exponential</span>
+<span class="sd">            schedule was incorporated in this model: https://huggingface.co/stabilityai/cosxl.</span>
 <span class="sd">        num_train_timesteps (`int`, defaults to 1000):</span>
 <span class="sd">            The number of diffusion steps to train the model.</span>
 <span class="sd">        solver_order (`int`, defaults to 2):</span>
@@ -9278,7 +9283,7 @@ sigma is the same as the last sigma in the training schedule. If <code>zero</cod
 
     <span class="c1"># Copied from diffusers.schedulers.scheduling_edm_euler.EDMEulerScheduler.precondition_inputs</span>
     <span class="k">def</span><span class="w"> </span><span class="nf">precondition_inputs</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">sample</span><span class="p">,</span> <span class="n">sigma</span><span class="p">):</span>
-        <span class="n">c_in</span> <span class="o">=</span> <span class="mi">1</span> <span class="o">/</span> <span class="p">((</span><span class="n">sigma</span><span class="o">**</span><span class="mi">2</span> <span class="o">+</span> <span class="bp">self</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">sigma_data</span><span class="o">**</span><span class="mi">2</span><span class="p">)</span> <span class="o">**</span> <span class="mf">0.5</span><span class="p">)</span>
+        <span class="n">c_in</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_get_conditioning_c_in</span><span class="p">(</span><span class="n">sigma</span><span class="p">)</span>
         <span class="n">scaled_sample</span> <span class="o">=</span> <span class="n">sample</span> <span class="o">*</span> <span class="n">c_in</span>
         <span class="c1"># ms.Tensor keeping dtype</span>
         <span class="n">scaled_sample</span> <span class="o">=</span> <span class="n">scaled_sample</span><span class="o">.</span><span class="n">to</span><span class="p">(</span><span class="n">sample</span><span class="o">.</span><span class="n">dtype</span><span class="p">)</span>
@@ -9693,6 +9698,11 @@ sigma is the same as the last sigma in the training schedule. If <code>zero</cod
 
         <span class="n">noisy_samples</span> <span class="o">=</span> <span class="n">original_samples</span> <span class="o">+</span> <span class="n">noise</span> <span class="o">*</span> <span class="n">sigma</span>
         <span class="k">return</span> <span class="n">noisy_samples</span>
+
+    <span class="c1"># Copied from diffusers.schedulers.scheduling_edm_euler.EDMEulerScheduler._get_conditioning_c_in</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">_get_conditioning_c_in</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">sigma</span><span class="p">):</span>
+        <span class="n">c_in</span> <span class="o">=</span> <span class="mi">1</span> <span class="o">/</span> <span class="p">((</span><span class="n">sigma</span><span class="o">**</span><span class="mi">2</span> <span class="o">+</span> <span class="bp">self</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">sigma_data</span><span class="o">**</span><span class="mi">2</span><span class="p">)</span> <span class="o">**</span> <span class="mf">0.5</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">c_in</span>
 
     <span class="k">def</span><span class="w"> </span><span class="fm">__len__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
         <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">num_train_timesteps</span>

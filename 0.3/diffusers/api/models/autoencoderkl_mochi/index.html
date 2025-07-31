@@ -8456,7 +8456,7 @@ for all models (such as downloading or saving).</p>
 training set. This is used to scale the latent space to have unit variance when training the diffusion
 model. The latents are scaled with the formula <code>z = z * scaling_factor</code> before being passed to the
 diffusion model. When decoding, the latents are scaled back to the original scale with the formula: <code>z = 1
-/ scaling_factor * z</code>. For more details, refer to sections 4.3.2 and D.1 of the <a href="https://arxiv.org/abs/2112.10752">High-Resolution Image
+/ scaling_factor * z</code>. For more details, refer to sections 4.3.2 and D.1 of the <a href="https://huggingface.co/papers/2112.10752">High-Resolution Image
 Synthesis with Latent Diffusion Models</a> paper.</p>
               </div>
               <p>
@@ -8976,7 +8976,7 @@ Synthesis with Latent Diffusion Models</a> paper.</p>
 <span class="sd">            model. The latents are scaled with the formula `z = z * scaling_factor` before being passed to the</span>
 <span class="sd">            diffusion model. When decoding, the latents are scaled back to the original scale with the formula: `z = 1</span>
 <span class="sd">            / scaling_factor * z`. For more details, refer to sections 4.3.2 and D.1 of the [High-Resolution Image</span>
-<span class="sd">            Synthesis with Latent Diffusion Models](https://arxiv.org/abs/2112.10752) paper.</span>
+<span class="sd">            Synthesis with Latent Diffusion Models](https://huggingface.co/papers/2112.10752) paper.</span>
 <span class="sd">    &quot;&quot;&quot;</span>
 
     <span class="n">_supports_gradient_checkpointing</span> <span class="o">=</span> <span class="kc">True</span>
@@ -9149,7 +9149,7 @@ Synthesis with Latent Diffusion Models</a> paper.</p>
 <span class="sd">        framewise encoding, encode a video, and try to decode it, there will be noticeable jittering effect.</span>
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">use_framewise_encoding</span> <span class="o">=</span> <span class="kc">True</span>
-        <span class="k">for</span> <span class="n">name</span><span class="p">,</span> <span class="n">module</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">named_modules</span><span class="p">():</span>
+        <span class="k">for</span> <span class="n">name</span><span class="p">,</span> <span class="n">module</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">cells_and_names</span><span class="p">():</span>
             <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">module</span><span class="p">,</span> <span class="n">CogVideoXCausalConv3d</span><span class="p">):</span>
                 <span class="n">module</span><span class="o">.</span><span class="n">pad_mode</span> <span class="o">=</span> <span class="s2">&quot;constant&quot;</span>
 
@@ -9159,7 +9159,7 @@ Synthesis with Latent Diffusion Models</a> paper.</p>
 <span class="sd">        oneshot decoding implementation without current latent replicate padding.</span>
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">use_framewise_decoding</span> <span class="o">=</span> <span class="kc">True</span>
-        <span class="k">for</span> <span class="n">name</span><span class="p">,</span> <span class="n">module</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">named_modules</span><span class="p">():</span>
+        <span class="k">for</span> <span class="n">name</span><span class="p">,</span> <span class="n">module</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">cells_and_names</span><span class="p">():</span>
             <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">module</span><span class="p">,</span> <span class="n">CogVideoXCausalConv3d</span><span class="p">):</span>
                 <span class="n">module</span><span class="o">.</span><span class="n">pad_mode</span> <span class="o">=</span> <span class="s2">&quot;constant&quot;</span>
 
@@ -9211,7 +9211,7 @@ Synthesis with Latent Diffusion Models</a> paper.</p>
     <span class="k">def</span><span class="w"> </span><span class="nf">_decode</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">z</span><span class="p">:</span> <span class="n">ms</span><span class="o">.</span><span class="n">Tensor</span><span class="p">,</span> <span class="n">return_dict</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Union</span><span class="p">[</span><span class="n">DecoderOutput</span><span class="p">,</span> <span class="n">ms</span><span class="o">.</span><span class="n">Tensor</span><span class="p">]:</span>
         <span class="n">batch_size</span><span class="p">,</span> <span class="n">num_channels</span><span class="p">,</span> <span class="n">num_frames</span><span class="p">,</span> <span class="n">height</span><span class="p">,</span> <span class="n">width</span> <span class="o">=</span> <span class="n">z</span><span class="o">.</span><span class="n">shape</span>
         <span class="n">tile_latent_min_height</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">tile_sample_min_height</span> <span class="o">//</span> <span class="bp">self</span><span class="o">.</span><span class="n">spatial_compression_ratio</span>
-        <span class="n">tile_latent_min_width</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">tile_sample_stride_width</span> <span class="o">//</span> <span class="bp">self</span><span class="o">.</span><span class="n">spatial_compression_ratio</span>
+        <span class="n">tile_latent_min_width</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">tile_sample_min_width</span> <span class="o">//</span> <span class="bp">self</span><span class="o">.</span><span class="n">spatial_compression_ratio</span>
 
         <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">use_tiling</span> <span class="ow">and</span> <span class="p">(</span><span class="n">width</span> <span class="o">&gt;</span> <span class="n">tile_latent_min_width</span> <span class="ow">or</span> <span class="n">height</span> <span class="o">&gt;</span> <span class="n">tile_latent_min_height</span><span class="p">):</span>
             <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">tiled_decode</span><span class="p">(</span><span class="n">z</span><span class="p">,</span> <span class="n">return_dict</span><span class="o">=</span><span class="n">return_dict</span><span class="p">)</span>

@@ -8373,7 +8373,7 @@ samples, and it can generate quite good samples even in 10 steps.</p>
         <p>Implements DPMSolverMultistepScheduler in EDM formulation as presented in Karras et al. 2022 [1].
 <code>EDMDPMSolverMultistepScheduler</code> is a fast dedicated high-order solver for diffusion ODEs.</p>
 <p>[1] Karras, Tero, et al. "Elucidating the Design Space of Diffusion-Based Generative Models."
-https://arxiv.org/abs/2206.00364</p>
+https://huggingface.co/papers/2206.00364</p>
 <p>This model inherits from [<code>SchedulerMixin</code>] and [<code>ConfigMixin</code>]. Check the superclass documentation for the generic
 methods the library implements for all schedulers such as loading and saving.</p>
 
@@ -8455,8 +8455,8 @@ range is [0.2, 80.0].</p>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Sigma schedule to compute the <code>sigmas</code>. By default, we the schedule introduced in the EDM paper
-(https://arxiv.org/abs/2206.00364). Other acceptable value is "exponential". The exponential schedule was
-incorporated in this model: https://huggingface.co/stabilityai/cosxl.</p>
+(https://huggingface.co/papers/2206.00364). Other acceptable value is "exponential". The exponential
+schedule was incorporated in this model: https://huggingface.co/stabilityai/cosxl.</p>
               </div>
               <p>
                   <span class="doc-param-annotation">
@@ -9387,13 +9387,18 @@ sigma is the same as the last sigma in the training schedule. If <code>zero</cod
 <span class="normal">704</span>
 <span class="normal">705</span>
 <span class="normal">706</span>
-<span class="normal">707</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">class</span><span class="w"> </span><span class="nc">EDMDPMSolverMultistepScheduler</span><span class="p">(</span><span class="n">SchedulerMixin</span><span class="p">,</span> <span class="n">ConfigMixin</span><span class="p">):</span>
+<span class="normal">707</span>
+<span class="normal">708</span>
+<span class="normal">709</span>
+<span class="normal">710</span>
+<span class="normal">711</span>
+<span class="normal">712</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">class</span><span class="w"> </span><span class="nc">EDMDPMSolverMultistepScheduler</span><span class="p">(</span><span class="n">SchedulerMixin</span><span class="p">,</span> <span class="n">ConfigMixin</span><span class="p">):</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    Implements DPMSolverMultistepScheduler in EDM formulation as presented in Karras et al. 2022 [1].</span>
 <span class="sd">    `EDMDPMSolverMultistepScheduler` is a fast dedicated high-order solver for diffusion ODEs.</span>
 
 <span class="sd">    [1] Karras, Tero, et al. &quot;Elucidating the Design Space of Diffusion-Based Generative Models.&quot;</span>
-<span class="sd">    https://arxiv.org/abs/2206.00364</span>
+<span class="sd">    https://huggingface.co/papers/2206.00364</span>
 
 <span class="sd">    This model inherits from [`SchedulerMixin`] and [`ConfigMixin`]. Check the superclass documentation for the generic</span>
 <span class="sd">    methods the library implements for all schedulers such as loading and saving.</span>
@@ -9409,8 +9414,8 @@ sigma is the same as the last sigma in the training schedule. If <code>zero</cod
 <span class="sd">            The standard deviation of the data distribution. This is set to 0.5 in the EDM paper [1].</span>
 <span class="sd">        sigma_schedule (`str`, *optional*, defaults to `karras`):</span>
 <span class="sd">            Sigma schedule to compute the `sigmas`. By default, we the schedule introduced in the EDM paper</span>
-<span class="sd">            (https://arxiv.org/abs/2206.00364). Other acceptable value is &quot;exponential&quot;. The exponential schedule was</span>
-<span class="sd">            incorporated in this model: https://huggingface.co/stabilityai/cosxl.</span>
+<span class="sd">            (https://huggingface.co/papers/2206.00364). Other acceptable value is &quot;exponential&quot;. The exponential</span>
+<span class="sd">            schedule was incorporated in this model: https://huggingface.co/stabilityai/cosxl.</span>
 <span class="sd">        num_train_timesteps (`int`, defaults to 1000):</span>
 <span class="sd">            The number of diffusion steps to train the model.</span>
 <span class="sd">        solver_order (`int`, defaults to 2):</span>
@@ -9538,7 +9543,7 @@ sigma is the same as the last sigma in the training schedule. If <code>zero</cod
 
     <span class="c1"># Copied from diffusers.schedulers.scheduling_edm_euler.EDMEulerScheduler.precondition_inputs</span>
     <span class="k">def</span><span class="w"> </span><span class="nf">precondition_inputs</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">sample</span><span class="p">,</span> <span class="n">sigma</span><span class="p">):</span>
-        <span class="n">c_in</span> <span class="o">=</span> <span class="mi">1</span> <span class="o">/</span> <span class="p">((</span><span class="n">sigma</span><span class="o">**</span><span class="mi">2</span> <span class="o">+</span> <span class="bp">self</span><span class="o">.</span><span class="n">sigma_data</span><span class="o">**</span><span class="mi">2</span><span class="p">)</span> <span class="o">**</span> <span class="mf">0.5</span><span class="p">)</span>
+        <span class="n">c_in</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_get_conditioning_c_in</span><span class="p">(</span><span class="n">sigma</span><span class="p">)</span>
         <span class="n">scaled_sample</span> <span class="o">=</span> <span class="p">(</span><span class="n">sample</span> <span class="o">*</span> <span class="n">c_in</span><span class="p">)</span><span class="o">.</span><span class="n">to</span><span class="p">(</span><span class="n">sample</span><span class="o">.</span><span class="n">dtype</span><span class="p">)</span>
         <span class="k">return</span> <span class="n">scaled_sample</span>
 
@@ -9665,7 +9670,7 @@ sigma is the same as the last sigma in the training schedule. If <code>zero</cod
 <span class="sd">        pixels from saturation at each step. We find that dynamic thresholding results in significantly better</span>
 <span class="sd">        photorealism as well as better image-text alignment, especially when using very large guidance weights.&quot;</span>
 
-<span class="sd">        https://arxiv.org/abs/2205.11487</span>
+<span class="sd">        https://huggingface.co/papers/2205.11487</span>
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="n">dtype</span> <span class="o">=</span> <span class="n">sample</span><span class="o">.</span><span class="n">dtype</span>
         <span class="n">batch_size</span><span class="p">,</span> <span class="n">channels</span><span class="p">,</span> <span class="o">*</span><span class="n">remaining_dims</span> <span class="o">=</span> <span class="n">sample</span><span class="o">.</span><span class="n">shape</span>
@@ -9834,7 +9839,7 @@ sigma is the same as the last sigma in the training schedule. If <code>zero</cod
         <span class="n">r0</span> <span class="o">=</span> <span class="n">h_0</span> <span class="o">/</span> <span class="n">h</span>
         <span class="n">D0</span><span class="p">,</span> <span class="n">D1</span> <span class="o">=</span> <span class="n">m0</span><span class="p">,</span> <span class="p">(</span><span class="mf">1.0</span> <span class="o">/</span> <span class="n">r0</span><span class="p">)</span><span class="o">.</span><span class="n">to</span><span class="p">(</span><span class="n">dtype</span><span class="p">)</span> <span class="o">*</span> <span class="p">(</span><span class="n">m0</span> <span class="o">-</span> <span class="n">m1</span><span class="p">)</span>
         <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">algorithm_type</span> <span class="o">==</span> <span class="s2">&quot;dpmsolver++&quot;</span><span class="p">:</span>
-            <span class="c1"># See https://arxiv.org/abs/2211.01095 for detailed derivations</span>
+            <span class="c1"># See https://huggingface.co/papers/2211.01095 for detailed derivations</span>
             <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">solver_type</span> <span class="o">==</span> <span class="s2">&quot;midpoint&quot;</span><span class="p">:</span>
                 <span class="n">x_t</span> <span class="o">=</span> <span class="p">(</span>
                     <span class="p">(</span><span class="n">sigma_t</span> <span class="o">/</span> <span class="n">sigma_s0</span><span class="p">)</span><span class="o">.</span><span class="n">to</span><span class="p">(</span><span class="n">dtype</span><span class="p">)</span> <span class="o">*</span> <span class="n">sample</span>
@@ -9911,7 +9916,7 @@ sigma is the same as the last sigma in the training schedule. If <code>zero</cod
         <span class="n">D1</span> <span class="o">=</span> <span class="n">D1_0</span> <span class="o">+</span> <span class="p">(</span><span class="n">r0</span> <span class="o">/</span> <span class="p">(</span><span class="n">r0</span> <span class="o">+</span> <span class="n">r1</span><span class="p">))</span><span class="o">.</span><span class="n">to</span><span class="p">(</span><span class="n">dtype</span><span class="p">)</span> <span class="o">*</span> <span class="p">(</span><span class="n">D1_0</span> <span class="o">-</span> <span class="n">D1_1</span><span class="p">)</span>
         <span class="n">D2</span> <span class="o">=</span> <span class="p">(</span><span class="mf">1.0</span> <span class="o">/</span> <span class="p">(</span><span class="n">r0</span> <span class="o">+</span> <span class="n">r1</span><span class="p">))</span><span class="o">.</span><span class="n">to</span><span class="p">(</span><span class="n">dtype</span><span class="p">)</span> <span class="o">*</span> <span class="p">(</span><span class="n">D1_0</span> <span class="o">-</span> <span class="n">D1_1</span><span class="p">)</span>
         <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">algorithm_type</span> <span class="o">==</span> <span class="s2">&quot;dpmsolver++&quot;</span><span class="p">:</span>
-            <span class="c1"># See https://arxiv.org/abs/2206.00927 for detailed derivations</span>
+            <span class="c1"># See https://huggingface.co/papers/2206.00927 for detailed derivations</span>
             <span class="n">x_t</span> <span class="o">=</span> <span class="p">(</span>
                 <span class="p">(</span><span class="n">sigma_t</span> <span class="o">/</span> <span class="n">sigma_s0</span><span class="p">)</span><span class="o">.</span><span class="n">to</span><span class="p">(</span><span class="n">dtype</span><span class="p">)</span> <span class="o">*</span> <span class="n">sample</span>
                 <span class="o">-</span> <span class="p">(</span><span class="n">alpha_t</span> <span class="o">*</span> <span class="p">(</span><span class="n">mint</span><span class="o">.</span><span class="n">exp</span><span class="p">(</span><span class="o">-</span><span class="n">h</span><span class="p">)</span> <span class="o">-</span> <span class="mf">1.0</span><span class="p">))</span><span class="o">.</span><span class="n">to</span><span class="p">(</span><span class="n">dtype</span><span class="p">)</span> <span class="o">*</span> <span class="n">D0</span>
@@ -10059,6 +10064,11 @@ sigma is the same as the last sigma in the training schedule. If <code>zero</cod
 
         <span class="n">noisy_samples</span> <span class="o">=</span> <span class="n">original_samples</span> <span class="o">+</span> <span class="n">noise</span> <span class="o">*</span> <span class="n">sigma</span>
         <span class="k">return</span> <span class="n">noisy_samples</span>
+
+    <span class="c1"># Copied from diffusers.schedulers.scheduling_edm_euler.EDMEulerScheduler._get_conditioning_c_in</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">_get_conditioning_c_in</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">sigma</span><span class="p">):</span>
+        <span class="n">c_in</span> <span class="o">=</span> <span class="mi">1</span> <span class="o">/</span> <span class="p">((</span><span class="n">sigma</span><span class="o">**</span><span class="mi">2</span> <span class="o">+</span> <span class="bp">self</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">sigma_data</span><span class="o">**</span><span class="mi">2</span><span class="p">)</span> <span class="o">**</span> <span class="mf">0.5</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">c_in</span>
 
     <span class="k">def</span><span class="w"> </span><span class="fm">__len__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
         <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">num_train_timesteps</span>
@@ -10658,7 +10668,7 @@ The sample tensor at the previous timestep.</p>
     <span class="n">r0</span> <span class="o">=</span> <span class="n">h_0</span> <span class="o">/</span> <span class="n">h</span>
     <span class="n">D0</span><span class="p">,</span> <span class="n">D1</span> <span class="o">=</span> <span class="n">m0</span><span class="p">,</span> <span class="p">(</span><span class="mf">1.0</span> <span class="o">/</span> <span class="n">r0</span><span class="p">)</span><span class="o">.</span><span class="n">to</span><span class="p">(</span><span class="n">dtype</span><span class="p">)</span> <span class="o">*</span> <span class="p">(</span><span class="n">m0</span> <span class="o">-</span> <span class="n">m1</span><span class="p">)</span>
     <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">algorithm_type</span> <span class="o">==</span> <span class="s2">&quot;dpmsolver++&quot;</span><span class="p">:</span>
-        <span class="c1"># See https://arxiv.org/abs/2211.01095 for detailed derivations</span>
+        <span class="c1"># See https://huggingface.co/papers/2211.01095 for detailed derivations</span>
         <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">solver_type</span> <span class="o">==</span> <span class="s2">&quot;midpoint&quot;</span><span class="p">:</span>
             <span class="n">x_t</span> <span class="o">=</span> <span class="p">(</span>
                 <span class="p">(</span><span class="n">sigma_t</span> <span class="o">/</span> <span class="n">sigma_s0</span><span class="p">)</span><span class="o">.</span><span class="n">to</span><span class="p">(</span><span class="n">dtype</span><span class="p">)</span> <span class="o">*</span> <span class="n">sample</span>
@@ -10882,7 +10892,7 @@ The sample tensor at the previous timestep.</p>
     <span class="n">D1</span> <span class="o">=</span> <span class="n">D1_0</span> <span class="o">+</span> <span class="p">(</span><span class="n">r0</span> <span class="o">/</span> <span class="p">(</span><span class="n">r0</span> <span class="o">+</span> <span class="n">r1</span><span class="p">))</span><span class="o">.</span><span class="n">to</span><span class="p">(</span><span class="n">dtype</span><span class="p">)</span> <span class="o">*</span> <span class="p">(</span><span class="n">D1_0</span> <span class="o">-</span> <span class="n">D1_1</span><span class="p">)</span>
     <span class="n">D2</span> <span class="o">=</span> <span class="p">(</span><span class="mf">1.0</span> <span class="o">/</span> <span class="p">(</span><span class="n">r0</span> <span class="o">+</span> <span class="n">r1</span><span class="p">))</span><span class="o">.</span><span class="n">to</span><span class="p">(</span><span class="n">dtype</span><span class="p">)</span> <span class="o">*</span> <span class="p">(</span><span class="n">D1_0</span> <span class="o">-</span> <span class="n">D1_1</span><span class="p">)</span>
     <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">algorithm_type</span> <span class="o">==</span> <span class="s2">&quot;dpmsolver++&quot;</span><span class="p">:</span>
-        <span class="c1"># See https://arxiv.org/abs/2206.00927 for detailed derivations</span>
+        <span class="c1"># See https://huggingface.co/papers/2206.00927 for detailed derivations</span>
         <span class="n">x_t</span> <span class="o">=</span> <span class="p">(</span>
             <span class="p">(</span><span class="n">sigma_t</span> <span class="o">/</span> <span class="n">sigma_s0</span><span class="p">)</span><span class="o">.</span><span class="n">to</span><span class="p">(</span><span class="n">dtype</span><span class="p">)</span> <span class="o">*</span> <span class="n">sample</span>
             <span class="o">-</span> <span class="p">(</span><span class="n">alpha_t</span> <span class="o">*</span> <span class="p">(</span><span class="n">mint</span><span class="o">.</span><span class="n">exp</span><span class="p">(</span><span class="o">-</span><span class="n">h</span><span class="p">)</span> <span class="o">-</span> <span class="mf">1.0</span><span class="p">))</span><span class="o">.</span><span class="n">to</span><span class="p">(</span><span class="n">dtype</span><span class="p">)</span> <span class="o">*</span> <span class="n">D0</span>

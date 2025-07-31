@@ -8607,6 +8607,26 @@ more exaggerated or stylized.</p>
               </p>
             </td>
           </tr>
+          <tr class="doc-section-item">
+            <td>
+                <code>stochastic_sampling</code>
+            </td>
+            <td class="doc-param-details">
+              <div class="doc-md-description">
+                <p>Whether to use stochastic sampling.</p>
+              </div>
+              <p>
+                  <span class="doc-param-annotation">
+                    <b>TYPE:</b>
+                      <code>`bool`, defaults to False</code>
+                  </span>
+                  <span class="doc-param-default">
+                    <b>DEFAULT:</b>
+                      <code>False</code>
+                  </span>
+              </p>
+            </td>
+          </tr>
       </tbody>
     </table>
 
@@ -9106,7 +9126,22 @@ more exaggerated or stylized.</p>
 <span class="normal">536</span>
 <span class="normal">537</span>
 <span class="normal">538</span>
-<span class="normal">539</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">class</span><span class="w"> </span><span class="nc">FlowMatchEulerDiscreteScheduler</span><span class="p">(</span><span class="n">SchedulerMixin</span><span class="p">,</span> <span class="n">ConfigMixin</span><span class="p">):</span>
+<span class="normal">539</span>
+<span class="normal">540</span>
+<span class="normal">541</span>
+<span class="normal">542</span>
+<span class="normal">543</span>
+<span class="normal">544</span>
+<span class="normal">545</span>
+<span class="normal">546</span>
+<span class="normal">547</span>
+<span class="normal">548</span>
+<span class="normal">549</span>
+<span class="normal">550</span>
+<span class="normal">551</span>
+<span class="normal">552</span>
+<span class="normal">553</span>
+<span class="normal">554</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">class</span><span class="w"> </span><span class="nc">FlowMatchEulerDiscreteScheduler</span><span class="p">(</span><span class="n">SchedulerMixin</span><span class="p">,</span> <span class="n">ConfigMixin</span><span class="p">):</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    Euler scheduler.</span>
 
@@ -9142,6 +9177,8 @@ more exaggerated or stylized.</p>
 <span class="sd">            Whether to use beta sigmas for step sizes in the noise schedule during sampling.</span>
 <span class="sd">        time_shift_type (`str`, defaults to &quot;exponential&quot;):</span>
 <span class="sd">            The type of dynamic resolution-dependent timestep shifting to apply. Either &quot;exponential&quot; or &quot;linear&quot;.</span>
+<span class="sd">        stochastic_sampling (`bool`, defaults to False):</span>
+<span class="sd">            Whether to use stochastic sampling.</span>
 <span class="sd">    &quot;&quot;&quot;</span>
 
     <span class="n">_compatibles</span> <span class="o">=</span> <span class="p">[]</span>
@@ -9163,6 +9200,7 @@ more exaggerated or stylized.</p>
         <span class="n">use_exponential_sigmas</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">bool</span><span class="p">]</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
         <span class="n">use_beta_sigmas</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">bool</span><span class="p">]</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
         <span class="n">time_shift_type</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;exponential&quot;</span><span class="p">,</span>
+        <span class="n">stochastic_sampling</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
     <span class="p">):</span>
         <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">use_beta_sigmas</span> <span class="ow">and</span> <span class="ow">not</span> <span class="n">is_scipy_available</span><span class="p">():</span>
             <span class="k">raise</span> <span class="ne">ImportError</span><span class="p">(</span><span class="s2">&quot;Make sure to install scipy if you want to use beta sigmas.&quot;</span><span class="p">)</span>
@@ -9488,13 +9526,25 @@ more exaggerated or stylized.</p>
             <span class="n">lower_mask</span> <span class="o">=</span> <span class="n">sigmas</span> <span class="o">&lt;</span> <span class="n">per_token_sigmas</span><span class="p">[</span><span class="kc">None</span><span class="p">]</span> <span class="o">-</span> <span class="mf">1e-6</span>
             <span class="n">lower_sigmas</span> <span class="o">=</span> <span class="n">lower_mask</span> <span class="o">*</span> <span class="n">sigmas</span>
             <span class="n">lower_sigmas</span><span class="p">,</span> <span class="n">_</span> <span class="o">=</span> <span class="n">lower_sigmas</span><span class="o">.</span><span class="n">max</span><span class="p">(</span><span class="n">dim</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>
-            <span class="n">dt</span> <span class="o">=</span> <span class="p">(</span><span class="n">per_token_sigmas</span> <span class="o">-</span> <span class="n">lower_sigmas</span><span class="p">)[</span><span class="o">...</span><span class="p">,</span> <span class="kc">None</span><span class="p">]</span>
+
+            <span class="n">current_sigma</span> <span class="o">=</span> <span class="n">per_token_sigmas</span><span class="p">[</span><span class="o">...</span><span class="p">,</span> <span class="kc">None</span><span class="p">]</span>
+            <span class="n">next_sigma</span> <span class="o">=</span> <span class="n">lower_sigmas</span><span class="p">[</span><span class="o">...</span><span class="p">,</span> <span class="kc">None</span><span class="p">]</span>
+            <span class="n">dt</span> <span class="o">=</span> <span class="n">current_sigma</span> <span class="o">-</span> <span class="n">next_sigma</span>
         <span class="k">else</span><span class="p">:</span>
-            <span class="n">sigma</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">sigmas</span><span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">step_index</span><span class="p">]</span>
-            <span class="n">sigma_next</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">sigmas</span><span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">step_index</span> <span class="o">+</span> <span class="mi">1</span><span class="p">]</span>
+            <span class="n">sigma_idx</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">step_index</span>
+            <span class="n">sigma</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">sigmas</span><span class="p">[</span><span class="n">sigma_idx</span><span class="p">]</span>
+            <span class="n">sigma_next</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">sigmas</span><span class="p">[</span><span class="n">sigma_idx</span> <span class="o">+</span> <span class="mi">1</span><span class="p">]</span>
+
+            <span class="n">current_sigma</span> <span class="o">=</span> <span class="n">sigma</span>
+            <span class="n">next_sigma</span> <span class="o">=</span> <span class="n">sigma_next</span>
             <span class="n">dt</span> <span class="o">=</span> <span class="n">sigma_next</span> <span class="o">-</span> <span class="n">sigma</span>
 
-        <span class="n">prev_sample</span> <span class="o">=</span> <span class="n">sample</span> <span class="o">+</span> <span class="n">dt</span> <span class="o">*</span> <span class="n">model_output</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">stochastic_sampling</span><span class="p">:</span>
+            <span class="n">x0</span> <span class="o">=</span> <span class="n">sample</span> <span class="o">-</span> <span class="n">current_sigma</span> <span class="o">*</span> <span class="n">model_output</span>
+            <span class="n">noise</span> <span class="o">=</span> <span class="n">mint</span><span class="o">.</span><span class="n">randn_like</span><span class="p">(</span><span class="n">sample</span><span class="p">)</span>
+            <span class="n">prev_sample</span> <span class="o">=</span> <span class="p">(</span><span class="mf">1.0</span> <span class="o">-</span> <span class="n">next_sigma</span><span class="p">)</span> <span class="o">*</span> <span class="n">x0</span> <span class="o">+</span> <span class="n">next_sigma</span> <span class="o">*</span> <span class="n">noise</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">prev_sample</span> <span class="o">=</span> <span class="n">sample</span> <span class="o">+</span> <span class="n">dt</span> <span class="o">*</span> <span class="n">model_output</span>
 
         <span class="c1"># upon completion increase step index by one</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">_step_index</span> <span class="o">+=</span> <span class="mi">1</span>
@@ -9761,10 +9811,7 @@ A scaled input sample.</p>
 
             <details class="quote">
               <summary>Source code in <code>mindone/diffusers/schedulers/scheduling_flow_match_euler_discrete.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">172</span>
-<span class="normal">173</span>
-<span class="normal">174</span>
-<span class="normal">175</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">175</span>
 <span class="normal">176</span>
 <span class="normal">177</span>
 <span class="normal">178</span>
@@ -9803,7 +9850,10 @@ A scaled input sample.</p>
 <span class="normal">211</span>
 <span class="normal">212</span>
 <span class="normal">213</span>
-<span class="normal">214</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">scale_noise</span><span class="p">(</span>
+<span class="normal">214</span>
+<span class="normal">215</span>
+<span class="normal">216</span>
+<span class="normal">217</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">scale_noise</span><span class="p">(</span>
     <span class="bp">self</span><span class="p">,</span>
     <span class="n">sample</span><span class="p">:</span> <span class="n">ms</span><span class="o">.</span><span class="n">Tensor</span><span class="p">,</span>
     <span class="n">timestep</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="nb">float</span><span class="p">,</span> <span class="n">ms</span><span class="o">.</span><span class="n">Tensor</span><span class="p">],</span>
@@ -9900,15 +9950,15 @@ A scaled input sample.</p>
 
             <details class="quote">
               <summary>Source code in <code>mindone/diffusers/schedulers/scheduling_flow_match_euler_discrete.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">159</span>
-<span class="normal">160</span>
-<span class="normal">161</span>
-<span class="normal">162</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">162</span>
 <span class="normal">163</span>
 <span class="normal">164</span>
 <span class="normal">165</span>
 <span class="normal">166</span>
-<span class="normal">167</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">set_begin_index</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">begin_index</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">0</span><span class="p">):</span>
+<span class="normal">167</span>
+<span class="normal">168</span>
+<span class="normal">169</span>
+<span class="normal">170</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">set_begin_index</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">begin_index</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">0</span><span class="p">):</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    Sets the begin index for the scheduler. This function should be run from pipeline before the inference.</span>
 
@@ -10034,10 +10084,7 @@ automatically.</p>
 
             <details class="quote">
               <summary>Source code in <code>mindone/diffusers/schedulers/scheduling_flow_match_euler_discrete.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">246</span>
-<span class="normal">247</span>
-<span class="normal">248</span>
-<span class="normal">249</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">249</span>
 <span class="normal">250</span>
 <span class="normal">251</span>
 <span class="normal">252</span>
@@ -10131,7 +10178,10 @@ automatically.</p>
 <span class="normal">340</span>
 <span class="normal">341</span>
 <span class="normal">342</span>
-<span class="normal">343</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">set_timesteps</span><span class="p">(</span>
+<span class="normal">343</span>
+<span class="normal">344</span>
+<span class="normal">345</span>
+<span class="normal">346</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">set_timesteps</span><span class="p">(</span>
     <span class="bp">self</span><span class="p">,</span>
     <span class="n">num_inference_steps</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">int</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
     <span class="n">sigmas</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">List</span><span class="p">[</span><span class="nb">float</span><span class="p">]]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
@@ -10480,10 +10530,7 @@ otherwise a tuple is returned where the first element is the sample tensor.</p>
 
             <details class="quote">
               <summary>Source code in <code>mindone/diffusers/schedulers/scheduling_flow_match_euler_discrete.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">365</span>
-<span class="normal">366</span>
-<span class="normal">367</span>
-<span class="normal">368</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">368</span>
 <span class="normal">369</span>
 <span class="normal">370</span>
 <span class="normal">371</span>
@@ -10565,7 +10612,22 @@ otherwise a tuple is returned where the first element is the sample tensor.</p>
 <span class="normal">447</span>
 <span class="normal">448</span>
 <span class="normal">449</span>
-<span class="normal">450</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">step</span><span class="p">(</span>
+<span class="normal">450</span>
+<span class="normal">451</span>
+<span class="normal">452</span>
+<span class="normal">453</span>
+<span class="normal">454</span>
+<span class="normal">455</span>
+<span class="normal">456</span>
+<span class="normal">457</span>
+<span class="normal">458</span>
+<span class="normal">459</span>
+<span class="normal">460</span>
+<span class="normal">461</span>
+<span class="normal">462</span>
+<span class="normal">463</span>
+<span class="normal">464</span>
+<span class="normal">465</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">step</span><span class="p">(</span>
     <span class="bp">self</span><span class="p">,</span>
     <span class="n">model_output</span><span class="p">:</span> <span class="n">ms</span><span class="o">.</span><span class="n">Tensor</span><span class="p">,</span>
     <span class="n">timestep</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="nb">float</span><span class="p">,</span> <span class="n">ms</span><span class="o">.</span><span class="n">Tensor</span><span class="p">],</span>
@@ -10633,13 +10695,25 @@ otherwise a tuple is returned where the first element is the sample tensor.</p>
         <span class="n">lower_mask</span> <span class="o">=</span> <span class="n">sigmas</span> <span class="o">&lt;</span> <span class="n">per_token_sigmas</span><span class="p">[</span><span class="kc">None</span><span class="p">]</span> <span class="o">-</span> <span class="mf">1e-6</span>
         <span class="n">lower_sigmas</span> <span class="o">=</span> <span class="n">lower_mask</span> <span class="o">*</span> <span class="n">sigmas</span>
         <span class="n">lower_sigmas</span><span class="p">,</span> <span class="n">_</span> <span class="o">=</span> <span class="n">lower_sigmas</span><span class="o">.</span><span class="n">max</span><span class="p">(</span><span class="n">dim</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>
-        <span class="n">dt</span> <span class="o">=</span> <span class="p">(</span><span class="n">per_token_sigmas</span> <span class="o">-</span> <span class="n">lower_sigmas</span><span class="p">)[</span><span class="o">...</span><span class="p">,</span> <span class="kc">None</span><span class="p">]</span>
+
+        <span class="n">current_sigma</span> <span class="o">=</span> <span class="n">per_token_sigmas</span><span class="p">[</span><span class="o">...</span><span class="p">,</span> <span class="kc">None</span><span class="p">]</span>
+        <span class="n">next_sigma</span> <span class="o">=</span> <span class="n">lower_sigmas</span><span class="p">[</span><span class="o">...</span><span class="p">,</span> <span class="kc">None</span><span class="p">]</span>
+        <span class="n">dt</span> <span class="o">=</span> <span class="n">current_sigma</span> <span class="o">-</span> <span class="n">next_sigma</span>
     <span class="k">else</span><span class="p">:</span>
-        <span class="n">sigma</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">sigmas</span><span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">step_index</span><span class="p">]</span>
-        <span class="n">sigma_next</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">sigmas</span><span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">step_index</span> <span class="o">+</span> <span class="mi">1</span><span class="p">]</span>
+        <span class="n">sigma_idx</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">step_index</span>
+        <span class="n">sigma</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">sigmas</span><span class="p">[</span><span class="n">sigma_idx</span><span class="p">]</span>
+        <span class="n">sigma_next</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">sigmas</span><span class="p">[</span><span class="n">sigma_idx</span> <span class="o">+</span> <span class="mi">1</span><span class="p">]</span>
+
+        <span class="n">current_sigma</span> <span class="o">=</span> <span class="n">sigma</span>
+        <span class="n">next_sigma</span> <span class="o">=</span> <span class="n">sigma_next</span>
         <span class="n">dt</span> <span class="o">=</span> <span class="n">sigma_next</span> <span class="o">-</span> <span class="n">sigma</span>
 
-    <span class="n">prev_sample</span> <span class="o">=</span> <span class="n">sample</span> <span class="o">+</span> <span class="n">dt</span> <span class="o">*</span> <span class="n">model_output</span>
+    <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">stochastic_sampling</span><span class="p">:</span>
+        <span class="n">x0</span> <span class="o">=</span> <span class="n">sample</span> <span class="o">-</span> <span class="n">current_sigma</span> <span class="o">*</span> <span class="n">model_output</span>
+        <span class="n">noise</span> <span class="o">=</span> <span class="n">mint</span><span class="o">.</span><span class="n">randn_like</span><span class="p">(</span><span class="n">sample</span><span class="p">)</span>
+        <span class="n">prev_sample</span> <span class="o">=</span> <span class="p">(</span><span class="mf">1.0</span> <span class="o">-</span> <span class="n">next_sigma</span><span class="p">)</span> <span class="o">*</span> <span class="n">x0</span> <span class="o">+</span> <span class="n">next_sigma</span> <span class="o">*</span> <span class="n">noise</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="n">prev_sample</span> <span class="o">=</span> <span class="n">sample</span> <span class="o">+</span> <span class="n">dt</span> <span class="o">*</span> <span class="n">model_output</span>
 
     <span class="c1"># upon completion increase step index by one</span>
     <span class="bp">self</span><span class="o">.</span><span class="n">_step_index</span> <span class="o">+=</span> <span class="mi">1</span>
@@ -10729,10 +10803,7 @@ A tensor of adjusted timesteps such that the final value equals <code>self.confi
 
             <details class="quote">
               <summary>Source code in <code>mindone/diffusers/schedulers/scheduling_flow_match_euler_discrete.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">225</span>
-<span class="normal">226</span>
-<span class="normal">227</span>
-<span class="normal">228</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">228</span>
 <span class="normal">229</span>
 <span class="normal">230</span>
 <span class="normal">231</span>
@@ -10748,7 +10819,10 @@ A tensor of adjusted timesteps such that the final value equals <code>self.confi
 <span class="normal">241</span>
 <span class="normal">242</span>
 <span class="normal">243</span>
-<span class="normal">244</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">stretch_shift_to_terminal</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">t</span><span class="p">:</span> <span class="n">ms</span><span class="o">.</span><span class="n">Tensor</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">ms</span><span class="o">.</span><span class="n">Tensor</span><span class="p">:</span>
+<span class="normal">244</span>
+<span class="normal">245</span>
+<span class="normal">246</span>
+<span class="normal">247</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">stretch_shift_to_terminal</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">t</span><span class="p">:</span> <span class="n">ms</span><span class="o">.</span><span class="n">Tensor</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">ms</span><span class="o">.</span><span class="n">Tensor</span><span class="p">:</span>
 <span class="w">    </span><span class="sa">r</span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    Stretches and shifts the timestep schedule to ensure it terminates at the configured `shift_terminal` config</span>
 <span class="sd">    value.</span>

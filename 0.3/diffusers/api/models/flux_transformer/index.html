@@ -8856,9 +8856,7 @@ specific language governing permissions and limitations under the License.
 <span class="normal">511</span>
 <span class="normal">512</span>
 <span class="normal">513</span>
-<span class="normal">514</span>
-<span class="normal">515</span>
-<span class="normal">516</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">class</span><span class="w"> </span><span class="nc">FluxTransformer2DModel</span><span class="p">(</span>
+<span class="normal">514</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">class</span><span class="w"> </span><span class="nc">FluxTransformer2DModel</span><span class="p">(</span>
     <span class="n">ModelMixin</span><span class="p">,</span> <span class="n">ConfigMixin</span><span class="p">,</span> <span class="n">PeftAdapterMixin</span><span class="p">,</span> <span class="n">FromOriginalModelMixin</span><span class="p">,</span> <span class="n">FluxTransformer2DLoadersMixin</span>
 <span class="p">):</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
@@ -8909,7 +8907,7 @@ specific language governing permissions and limitations under the License.
         <span class="n">joint_attention_dim</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">4096</span><span class="p">,</span>
         <span class="n">pooled_projection_dim</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">768</span><span class="p">,</span>
         <span class="n">guidance_embeds</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
-        <span class="n">axes_dims_rope</span><span class="p">:</span> <span class="n">Tuple</span><span class="p">[</span><span class="nb">int</span><span class="p">]</span> <span class="o">=</span> <span class="p">(</span><span class="mi">16</span><span class="p">,</span> <span class="mi">56</span><span class="p">,</span> <span class="mi">56</span><span class="p">),</span>
+        <span class="n">axes_dims_rope</span><span class="p">:</span> <span class="n">Tuple</span><span class="p">[</span><span class="nb">int</span><span class="p">,</span> <span class="nb">int</span><span class="p">,</span> <span class="nb">int</span><span class="p">]</span> <span class="o">=</span> <span class="p">(</span><span class="mi">16</span><span class="p">,</span> <span class="mi">56</span><span class="p">,</span> <span class="mi">56</span><span class="p">),</span>
     <span class="p">):</span>
         <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">()</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">out_channels</span> <span class="o">=</span> <span class="n">out_channels</span> <span class="ow">or</span> <span class="n">in_channels</span>
@@ -9034,7 +9032,7 @@ specific language governing permissions and limitations under the License.
 
         <span class="bp">self</span><span class="o">.</span><span class="n">original_attn_processors</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">attn_processors</span>
 
-        <span class="k">for</span> <span class="n">module</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">cells</span><span class="p">():</span>
+        <span class="k">for</span> <span class="n">_</span><span class="p">,</span> <span class="n">module</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">cells_and_names</span><span class="p">():</span>
             <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">module</span><span class="p">,</span> <span class="n">Attention</span><span class="p">):</span>
                 <span class="n">module</span><span class="o">.</span><span class="n">fuse_projections</span><span class="p">(</span><span class="n">fuse</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
 
@@ -9106,8 +9104,6 @@ specific language governing permissions and limitations under the License.
         <span class="n">timestep</span> <span class="o">=</span> <span class="n">timestep</span><span class="o">.</span><span class="n">to</span><span class="p">(</span><span class="n">hidden_states</span><span class="o">.</span><span class="n">dtype</span><span class="p">)</span> <span class="o">*</span> <span class="mi">1000</span>
         <span class="k">if</span> <span class="n">guidance</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
             <span class="n">guidance</span> <span class="o">=</span> <span class="n">guidance</span><span class="o">.</span><span class="n">to</span><span class="p">(</span><span class="n">hidden_states</span><span class="o">.</span><span class="n">dtype</span><span class="p">)</span> <span class="o">*</span> <span class="mi">1000</span>
-        <span class="k">else</span><span class="p">:</span>
-            <span class="n">guidance</span> <span class="o">=</span> <span class="kc">None</span>
 
         <span class="n">temb</span> <span class="o">=</span> <span class="p">(</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">time_text_embed</span><span class="p">(</span><span class="n">timestep</span><span class="p">,</span> <span class="n">pooled_projections</span><span class="p">)</span>
@@ -9608,9 +9604,7 @@ tuple.</p>
 <span class="normal">511</span>
 <span class="normal">512</span>
 <span class="normal">513</span>
-<span class="normal">514</span>
-<span class="normal">515</span>
-<span class="normal">516</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">construct</span><span class="p">(</span>
+<span class="normal">514</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">construct</span><span class="p">(</span>
     <span class="bp">self</span><span class="p">,</span>
     <span class="n">hidden_states</span><span class="p">:</span> <span class="n">ms</span><span class="o">.</span><span class="n">Tensor</span><span class="p">,</span>
     <span class="n">encoder_hidden_states</span><span class="p">:</span> <span class="n">ms</span><span class="o">.</span><span class="n">Tensor</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
@@ -9662,8 +9656,6 @@ tuple.</p>
     <span class="n">timestep</span> <span class="o">=</span> <span class="n">timestep</span><span class="o">.</span><span class="n">to</span><span class="p">(</span><span class="n">hidden_states</span><span class="o">.</span><span class="n">dtype</span><span class="p">)</span> <span class="o">*</span> <span class="mi">1000</span>
     <span class="k">if</span> <span class="n">guidance</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
         <span class="n">guidance</span> <span class="o">=</span> <span class="n">guidance</span><span class="o">.</span><span class="n">to</span><span class="p">(</span><span class="n">hidden_states</span><span class="o">.</span><span class="n">dtype</span><span class="p">)</span> <span class="o">*</span> <span class="mi">1000</span>
-    <span class="k">else</span><span class="p">:</span>
-        <span class="n">guidance</span> <span class="o">=</span> <span class="kc">None</span>
 
     <span class="n">temb</span> <span class="o">=</span> <span class="p">(</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">time_text_embed</span><span class="p">(</span><span class="n">timestep</span><span class="p">,</span> <span class="n">pooled_projections</span><span class="p">)</span>
@@ -9817,7 +9809,7 @@ are fused. For cross-attention modules, key and value projection matrices are fu
 
     <span class="bp">self</span><span class="o">.</span><span class="n">original_attn_processors</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">attn_processors</span>
 
-    <span class="k">for</span> <span class="n">module</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">cells</span><span class="p">():</span>
+    <span class="k">for</span> <span class="n">_</span><span class="p">,</span> <span class="n">module</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">cells_and_names</span><span class="p">():</span>
         <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">module</span><span class="p">,</span> <span class="n">Attention</span><span class="p">):</span>
             <span class="n">module</span><span class="o">.</span><span class="n">fuse_projections</span><span class="p">(</span><span class="n">fuse</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
 

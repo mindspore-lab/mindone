@@ -8259,7 +8259,7 @@ specific language governing permissions and limitations under the License.
 
     <div class="doc doc-contents first">
             <p class="doc doc-class-bases">
-              Bases: <code><a class="autorefs autorefs-internal" title="mindone.diffusers.DiffusionPipeline (mindone.diffusers.pipelines.pipeline_utils.DiffusionPipeline)" href="../overview/#mindone.diffusers.DiffusionPipeline">DiffusionPipeline</a></code></p>
+              Bases: <code><span title="mindone.diffusers.pipelines.pipeline_utils.DeprecatedPipelineMixin">DeprecatedPipelineMixin</span></code>, <code><a class="autorefs autorefs-internal" title="mindone.diffusers.DiffusionPipeline (mindone.diffusers.pipelines.pipeline_utils.DiffusionPipeline)" href="../overview/#mindone.diffusers.DiffusionPipeline">DiffusionPipeline</a></code></p>
 
 
         <p>Pipeline for Zero-Shot Subject Driven Generation using Blip Diffusion.</p>
@@ -8418,8 +8418,7 @@ library implements for all the pipelines (such as downloading or saving, running
 
               <details class="quote">
                 <summary>Source code in <code>mindone/diffusers/pipelines/blip_diffusion/pipeline_blip_diffusion.py</code></summary>
-                <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal"> 81</span>
-<span class="normal"> 82</span>
+                <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal"> 82</span>
 <span class="normal"> 83</span>
 <span class="normal"> 84</span>
 <span class="normal"> 85</span>
@@ -8684,7 +8683,11 @@ library implements for all the pipelines (such as downloading or saving, running
 <span class="normal">344</span>
 <span class="normal">345</span>
 <span class="normal">346</span>
-<span class="normal">347</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">class</span><span class="w"> </span><span class="nc">BlipDiffusionPipeline</span><span class="p">(</span><span class="n">DiffusionPipeline</span><span class="p">):</span>
+<span class="normal">347</span>
+<span class="normal">348</span>
+<span class="normal">349</span>
+<span class="normal">350</span>
+<span class="normal">351</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">class</span><span class="w"> </span><span class="nc">BlipDiffusionPipeline</span><span class="p">(</span><span class="n">DeprecatedPipelineMixin</span><span class="p">,</span> <span class="n">DiffusionPipeline</span><span class="p">):</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    Pipeline for Zero-Shot Subject Driven Generation using Blip Diffusion.</span>
 
@@ -8709,6 +8712,9 @@ library implements for all the pipelines (such as downloading or saving, running
 <span class="sd">        ctx_begin_pos (int, `optional`, defaults to 2):</span>
 <span class="sd">            Position of the context token in the text encoder.</span>
 <span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="n">_last_supported_version</span> <span class="o">=</span> <span class="s2">&quot;0.33.1&quot;</span>
+    <span class="n">model_cpu_offload_seq</span> <span class="o">=</span> <span class="s2">&quot;qformer-&gt;text_encoder-&gt;unet-&gt;vae&quot;</span>
 
     <span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span>
         <span class="bp">self</span><span class="p">,</span>
@@ -8744,7 +8750,7 @@ library implements for all the pipelines (such as downloading or saving, running
             <span class="n">image_input</span><span class="o">=</span><span class="n">input_image</span><span class="p">,</span> <span class="n">text_input_ids</span><span class="o">=</span><span class="n">input_ids</span><span class="p">,</span> <span class="n">text_attention_mask</span><span class="o">=</span><span class="n">attention_mask</span><span class="p">,</span> <span class="n">return_dict</span><span class="o">=</span><span class="kc">False</span>
         <span class="p">)</span>
 
-    <span class="c1"># from the original Blip Diffusion code, speciefies the target subject and augments the prompt by repeating it</span>
+    <span class="c1"># from the original Blip Diffusion code, specifies the target subject and augments the prompt by repeating it</span>
     <span class="k">def</span><span class="w"> </span><span class="nf">_build_prompt</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">prompts</span><span class="p">,</span> <span class="n">tgt_subjects</span><span class="p">,</span> <span class="n">prompt_strength</span><span class="o">=</span><span class="mf">1.0</span><span class="p">,</span> <span class="n">prompt_reps</span><span class="o">=</span><span class="mi">20</span><span class="p">):</span>
         <span class="n">rv</span> <span class="o">=</span> <span class="p">[]</span>
         <span class="k">for</span> <span class="n">prompt</span><span class="p">,</span> <span class="n">tgt_subject</span> <span class="ow">in</span> <span class="nb">zip</span><span class="p">(</span><span class="n">prompts</span><span class="p">,</span> <span class="n">tgt_subjects</span><span class="p">):</span>
@@ -8831,11 +8837,11 @@ library implements for all the pipelines (such as downloading or saving, running
 <span class="sd">                generation. Can be used to tweak the same generation with different prompts. If not provided, a latents</span>
 <span class="sd">                tensor will ge generated by random sampling.</span>
 <span class="sd">            guidance_scale (`float`, *optional*, defaults to 7.5):</span>
-<span class="sd">                Guidance scale as defined in [Classifier-Free Diffusion Guidance](https://arxiv.org/abs/2207.12598).</span>
-<span class="sd">                `guidance_scale` is defined as `w` of equation 2. of [Imagen</span>
-<span class="sd">                Paper](https://arxiv.org/pdf/2205.11487.pdf). Guidance scale is enabled by setting `guidance_scale &gt;</span>
-<span class="sd">                1`. Higher guidance scale encourages to generate images that are closely linked to the text `prompt`,</span>
-<span class="sd">                usually at the expense of lower image quality.</span>
+<span class="sd">                Guidance scale as defined in [Classifier-Free Diffusion</span>
+<span class="sd">                Guidance](https://huggingface.co/papers/2207.12598). `guidance_scale` is defined as `w` of equation 2.</span>
+<span class="sd">                of [Imagen Paper](https://huggingface.co/papers/2205.11487). Guidance scale is enabled by setting</span>
+<span class="sd">                `guidance_scale &gt; 1`. Higher guidance scale encourages to generate images that are closely linked to</span>
+<span class="sd">                the text `prompt`, usually at the expense of lower image quality.</span>
 <span class="sd">            height (`int`, *optional*, defaults to 512):</span>
 <span class="sd">                The height of the generated image.</span>
 <span class="sd">            width (`int`, *optional*, defaults to 512):</span>
@@ -9080,11 +9086,11 @@ tensor will ge generated by random sampling.</p>
             </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
-                <p>Guidance scale as defined in <a href="https://arxiv.org/abs/2207.12598">Classifier-Free Diffusion Guidance</a>.
-<code>guidance_scale</code> is defined as <code>w</code> of equation 2. of <a href="https://arxiv.org/pdf/2205.11487.pdf">Imagen
-Paper</a>. Guidance scale is enabled by setting <code>guidance_scale &gt;
-1</code>. Higher guidance scale encourages to generate images that are closely linked to the text <code>prompt</code>,
-usually at the expense of lower image quality.</p>
+                <p>Guidance scale as defined in <a href="https://huggingface.co/papers/2207.12598">Classifier-Free Diffusion
+Guidance</a>. <code>guidance_scale</code> is defined as <code>w</code> of equation 2.
+of <a href="https://huggingface.co/papers/2205.11487">Imagen Paper</a>. Guidance scale is enabled by setting
+<code>guidance_scale &gt; 1</code>. Higher guidance scale encourages to generate images that are closely linked to
+the text <code>prompt</code>, usually at the expense of lower image quality.</p>
               </div>
               <p>
                   <span class="doc-param-annotation">
@@ -9311,11 +9317,7 @@ to amplify the prompt.</p>
 
             <details class="quote">
               <summary>Source code in <code>mindone/diffusers/pipelines/blip_diffusion/pipeline_blip_diffusion.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">193</span>
-<span class="normal">194</span>
-<span class="normal">195</span>
-<span class="normal">196</span>
-<span class="normal">197</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">197</span>
 <span class="normal">198</span>
 <span class="normal">199</span>
 <span class="normal">200</span>
@@ -9465,7 +9467,11 @@ to amplify the prompt.</p>
 <span class="normal">344</span>
 <span class="normal">345</span>
 <span class="normal">346</span>
-<span class="normal">347</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="fm">__call__</span><span class="p">(</span>
+<span class="normal">347</span>
+<span class="normal">348</span>
+<span class="normal">349</span>
+<span class="normal">350</span>
+<span class="normal">351</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="fm">__call__</span><span class="p">(</span>
     <span class="bp">self</span><span class="p">,</span>
     <span class="n">prompt</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="nb">str</span><span class="p">],</span>
     <span class="n">reference_image</span><span class="p">:</span> <span class="n">PIL</span><span class="o">.</span><span class="n">Image</span><span class="o">.</span><span class="n">Image</span><span class="p">,</span>
@@ -9500,11 +9506,11 @@ to amplify the prompt.</p>
 <span class="sd">            generation. Can be used to tweak the same generation with different prompts. If not provided, a latents</span>
 <span class="sd">            tensor will ge generated by random sampling.</span>
 <span class="sd">        guidance_scale (`float`, *optional*, defaults to 7.5):</span>
-<span class="sd">            Guidance scale as defined in [Classifier-Free Diffusion Guidance](https://arxiv.org/abs/2207.12598).</span>
-<span class="sd">            `guidance_scale` is defined as `w` of equation 2. of [Imagen</span>
-<span class="sd">            Paper](https://arxiv.org/pdf/2205.11487.pdf). Guidance scale is enabled by setting `guidance_scale &gt;</span>
-<span class="sd">            1`. Higher guidance scale encourages to generate images that are closely linked to the text `prompt`,</span>
-<span class="sd">            usually at the expense of lower image quality.</span>
+<span class="sd">            Guidance scale as defined in [Classifier-Free Diffusion</span>
+<span class="sd">            Guidance](https://huggingface.co/papers/2207.12598). `guidance_scale` is defined as `w` of equation 2.</span>
+<span class="sd">            of [Imagen Paper](https://huggingface.co/papers/2205.11487). Guidance scale is enabled by setting</span>
+<span class="sd">            `guidance_scale &gt; 1`. Higher guidance scale encourages to generate images that are closely linked to</span>
+<span class="sd">            the text `prompt`, usually at the expense of lower image quality.</span>
 <span class="sd">        height (`int`, *optional*, defaults to 512):</span>
 <span class="sd">            The height of the generated image.</span>
 <span class="sd">        width (`int`, *optional*, defaults to 512):</span>
@@ -10216,7 +10222,7 @@ library implements for all the pipelines (such as downloading or saving, running
             <span class="n">image_input</span><span class="o">=</span><span class="n">input_image</span><span class="p">,</span> <span class="n">text_input_ids</span><span class="o">=</span><span class="n">input_ids</span><span class="p">,</span> <span class="n">text_attention_mask</span><span class="o">=</span><span class="n">attention_mask</span><span class="p">,</span> <span class="n">return_dict</span><span class="o">=</span><span class="kc">False</span>
         <span class="p">)</span>
 
-    <span class="c1"># from the original Blip Diffusion code, speciefies the target subject and augments the prompt by repeating it</span>
+    <span class="c1"># from the original Blip Diffusion code, specifies the target subject and augments the prompt by repeating it</span>
     <span class="k">def</span><span class="w"> </span><span class="nf">_build_prompt</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">prompts</span><span class="p">,</span> <span class="n">tgt_subjects</span><span class="p">,</span> <span class="n">prompt_strength</span><span class="o">=</span><span class="mf">1.0</span><span class="p">,</span> <span class="n">prompt_reps</span><span class="o">=</span><span class="mi">20</span><span class="p">):</span>
         <span class="n">rv</span> <span class="o">=</span> <span class="p">[]</span>
         <span class="k">for</span> <span class="n">prompt</span><span class="p">,</span> <span class="n">tgt_subject</span> <span class="ow">in</span> <span class="nb">zip</span><span class="p">(</span><span class="n">prompts</span><span class="p">,</span> <span class="n">tgt_subjects</span><span class="p">):</span>
@@ -10343,11 +10349,11 @@ library implements for all the pipelines (such as downloading or saving, running
 <span class="sd">                generation. Can be used to tweak the same generation with different prompts. If not provided, a latents</span>
 <span class="sd">                tensor will ge generated by random sampling.</span>
 <span class="sd">            guidance_scale (`float`, *optional*, defaults to 7.5):</span>
-<span class="sd">                Guidance scale as defined in [Classifier-Free Diffusion Guidance](https://arxiv.org/abs/2207.12598).</span>
-<span class="sd">                `guidance_scale` is defined as `w` of equation 2. of [Imagen</span>
-<span class="sd">                Paper](https://arxiv.org/pdf/2205.11487.pdf). Guidance scale is enabled by setting `guidance_scale &gt;</span>
-<span class="sd">                1`. Higher guidance scale encourages to generate images that are closely linked to the text `prompt`,</span>
-<span class="sd">                usually at the expense of lower image quality.</span>
+<span class="sd">                Guidance scale as defined in [Classifier-Free Diffusion</span>
+<span class="sd">                Guidance](https://huggingface.co/papers/2207.12598). `guidance_scale` is defined as `w` of equation 2.</span>
+<span class="sd">                of [Imagen Paper](https://huggingface.co/papers/2205.11487). Guidance scale is enabled by setting</span>
+<span class="sd">                `guidance_scale &gt; 1`. Higher guidance scale encourages to generate images that are closely linked to</span>
+<span class="sd">                the text `prompt`, usually at the expense of lower image quality.</span>
 <span class="sd">            height (`int`, *optional*, defaults to 512):</span>
 <span class="sd">                The height of the generated image.</span>
 <span class="sd">            width (`int`, *optional*, defaults to 512):</span>
@@ -10624,11 +10630,11 @@ tensor will ge generated by random sampling.</p>
             </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
-                <p>Guidance scale as defined in <a href="https://arxiv.org/abs/2207.12598">Classifier-Free Diffusion Guidance</a>.
-<code>guidance_scale</code> is defined as <code>w</code> of equation 2. of <a href="https://arxiv.org/pdf/2205.11487.pdf">Imagen
-Paper</a>. Guidance scale is enabled by setting <code>guidance_scale &gt;
-1</code>. Higher guidance scale encourages to generate images that are closely linked to the text <code>prompt</code>,
-usually at the expense of lower image quality.</p>
+                <p>Guidance scale as defined in <a href="https://huggingface.co/papers/2207.12598">Classifier-Free Diffusion
+Guidance</a>. <code>guidance_scale</code> is defined as <code>w</code> of equation 2.
+of <a href="https://huggingface.co/papers/2205.11487">Imagen Paper</a>. Guidance scale is enabled by setting
+<code>guidance_scale &gt; 1</code>. Higher guidance scale encourages to generate images that are closely linked to
+the text <code>prompt</code>, usually at the expense of lower image quality.</p>
               </div>
               <p>
                   <span class="doc-param-annotation">
@@ -11041,11 +11047,11 @@ to amplify the prompt.</p>
 <span class="sd">            generation. Can be used to tweak the same generation with different prompts. If not provided, a latents</span>
 <span class="sd">            tensor will ge generated by random sampling.</span>
 <span class="sd">        guidance_scale (`float`, *optional*, defaults to 7.5):</span>
-<span class="sd">            Guidance scale as defined in [Classifier-Free Diffusion Guidance](https://arxiv.org/abs/2207.12598).</span>
-<span class="sd">            `guidance_scale` is defined as `w` of equation 2. of [Imagen</span>
-<span class="sd">            Paper](https://arxiv.org/pdf/2205.11487.pdf). Guidance scale is enabled by setting `guidance_scale &gt;</span>
-<span class="sd">            1`. Higher guidance scale encourages to generate images that are closely linked to the text `prompt`,</span>
-<span class="sd">            usually at the expense of lower image quality.</span>
+<span class="sd">            Guidance scale as defined in [Classifier-Free Diffusion</span>
+<span class="sd">            Guidance](https://huggingface.co/papers/2207.12598). `guidance_scale` is defined as `w` of equation 2.</span>
+<span class="sd">            of [Imagen Paper](https://huggingface.co/papers/2205.11487). Guidance scale is enabled by setting</span>
+<span class="sd">            `guidance_scale &gt; 1`. Higher guidance scale encourages to generate images that are closely linked to</span>
+<span class="sd">            the text `prompt`, usually at the expense of lower image quality.</span>
 <span class="sd">        height (`int`, *optional*, defaults to 512):</span>
 <span class="sd">            The height of the generated image.</span>
 <span class="sd">        width (`int`, *optional*, defaults to 512):</span>

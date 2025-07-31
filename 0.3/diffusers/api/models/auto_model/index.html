@@ -8219,9 +8219,7 @@ specific language governing permissions and limitations under the License.
 
               <details class="quote">
                 <summary>Source code in <code>mindone/diffusers/models/auto_model.py</code></summary>
-                <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal"> 27</span>
-<span class="normal"> 28</span>
-<span class="normal"> 29</span>
+                <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal"> 29</span>
 <span class="normal"> 30</span>
 <span class="normal"> 31</span>
 <span class="normal"> 32</span>
@@ -8351,7 +8349,43 @@ specific language governing permissions and limitations under the License.
 <span class="normal">156</span>
 <span class="normal">157</span>
 <span class="normal">158</span>
-<span class="normal">159</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">class</span><span class="w"> </span><span class="nc">AutoModel</span><span class="p">(</span><span class="n">ConfigMixin</span><span class="p">):</span>
+<span class="normal">159</span>
+<span class="normal">160</span>
+<span class="normal">161</span>
+<span class="normal">162</span>
+<span class="normal">163</span>
+<span class="normal">164</span>
+<span class="normal">165</span>
+<span class="normal">166</span>
+<span class="normal">167</span>
+<span class="normal">168</span>
+<span class="normal">169</span>
+<span class="normal">170</span>
+<span class="normal">171</span>
+<span class="normal">172</span>
+<span class="normal">173</span>
+<span class="normal">174</span>
+<span class="normal">175</span>
+<span class="normal">176</span>
+<span class="normal">177</span>
+<span class="normal">178</span>
+<span class="normal">179</span>
+<span class="normal">180</span>
+<span class="normal">181</span>
+<span class="normal">182</span>
+<span class="normal">183</span>
+<span class="normal">184</span>
+<span class="normal">185</span>
+<span class="normal">186</span>
+<span class="normal">187</span>
+<span class="normal">188</span>
+<span class="normal">189</span>
+<span class="normal">190</span>
+<span class="normal">191</span>
+<span class="normal">192</span>
+<span class="normal">193</span>
+<span class="normal">194</span>
+<span class="normal">195</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">class</span><span class="w"> </span><span class="nc">AutoModel</span><span class="p">(</span><span class="n">ConfigMixin</span><span class="p">):</span>
     <span class="n">config_name</span> <span class="o">=</span> <span class="s2">&quot;config.json&quot;</span>
 
     <span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
@@ -8382,9 +8416,8 @@ specific language governing permissions and limitations under the License.
 <span class="sd">            cache_dir (`Union[str, os.PathLike]`, *optional*):</span>
 <span class="sd">                Path to a directory where a downloaded pretrained model configuration is cached if the standard cache</span>
 <span class="sd">                is not used.</span>
-<span class="sd">            mindspore_dtype (`str` or `mindspore.Type`, *optional*):</span>
-<span class="sd">                Override the default `mindspore.Type` and load the model with another dtype. If `&quot;auto&quot;` is passed, the</span>
-<span class="sd">                dtype is automatically derived from the model&#39;s weights.</span>
+<span class="sd">            mindspore_dtype (`mindspore.Type`, *optional*):</span>
+<span class="sd">                Override the default `mindspore.Type` and load the model with another dtype.</span>
 <span class="sd">            force_download (`bool`, *optional*, defaults to `False`):</span>
 <span class="sd">                Whether or not to force the (re-)download of the model weights and configuration files, overriding the</span>
 <span class="sd">                cached versions if they exist.</span>
@@ -8470,15 +8503,50 @@ specific language governing permissions and limitations under the License.
             <span class="s2">&quot;token&quot;</span><span class="p">:</span> <span class="n">token</span><span class="p">,</span>
             <span class="s2">&quot;local_files_only&quot;</span><span class="p">:</span> <span class="n">local_files_only</span><span class="p">,</span>
             <span class="s2">&quot;revision&quot;</span><span class="p">:</span> <span class="n">revision</span><span class="p">,</span>
-            <span class="s2">&quot;subfolder&quot;</span><span class="p">:</span> <span class="n">subfolder</span><span class="p">,</span>
         <span class="p">}</span>
 
-        <span class="n">config</span> <span class="o">=</span> <span class="bp">cls</span><span class="o">.</span><span class="n">load_config</span><span class="p">(</span><span class="n">pretrained_model_or_path</span><span class="p">,</span> <span class="o">**</span><span class="n">load_config_kwargs</span><span class="p">)</span>
-        <span class="n">orig_class_name</span> <span class="o">=</span> <span class="n">config</span><span class="p">[</span><span class="s2">&quot;_class_name&quot;</span><span class="p">]</span>
+        <span class="n">library</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="n">orig_class_name</span> <span class="o">=</span> <span class="kc">None</span>
 
-        <span class="n">library</span> <span class="o">=</span> <span class="n">importlib</span><span class="o">.</span><span class="n">import_module</span><span class="p">(</span><span class="s2">&quot;mindone.diffusers&quot;</span><span class="p">)</span>
+        <span class="c1"># Always attempt to fetch model_index.json first</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="bp">cls</span><span class="o">.</span><span class="n">config_name</span> <span class="o">=</span> <span class="s2">&quot;model_index.json&quot;</span>
+            <span class="n">config</span> <span class="o">=</span> <span class="bp">cls</span><span class="o">.</span><span class="n">load_config</span><span class="p">(</span><span class="n">pretrained_model_or_path</span><span class="p">,</span> <span class="o">**</span><span class="n">load_config_kwargs</span><span class="p">)</span>
 
-        <span class="n">model_cls</span> <span class="o">=</span> <span class="nb">getattr</span><span class="p">(</span><span class="n">library</span><span class="p">,</span> <span class="n">orig_class_name</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">subfolder</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="ow">and</span> <span class="n">subfolder</span> <span class="ow">in</span> <span class="n">config</span><span class="p">:</span>
+                <span class="n">library</span><span class="p">,</span> <span class="n">orig_class_name</span> <span class="o">=</span> <span class="n">config</span><span class="p">[</span><span class="n">subfolder</span><span class="p">]</span>
+                <span class="n">load_config_kwargs</span><span class="o">.</span><span class="n">update</span><span class="p">({</span><span class="s2">&quot;subfolder&quot;</span><span class="p">:</span> <span class="n">subfolder</span><span class="p">})</span>
+
+        <span class="k">except</span> <span class="ne">EnvironmentError</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+            <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="n">e</span><span class="p">)</span>
+
+        <span class="c1"># Unable to load from model_index.json so fallback to loading from config</span>
+        <span class="k">if</span> <span class="n">library</span> <span class="ow">is</span> <span class="kc">None</span> <span class="ow">and</span> <span class="n">orig_class_name</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="bp">cls</span><span class="o">.</span><span class="n">config_name</span> <span class="o">=</span> <span class="s2">&quot;config.json&quot;</span>
+            <span class="n">config</span> <span class="o">=</span> <span class="bp">cls</span><span class="o">.</span><span class="n">load_config</span><span class="p">(</span><span class="n">pretrained_model_or_path</span><span class="p">,</span> <span class="n">subfolder</span><span class="o">=</span><span class="n">subfolder</span><span class="p">,</span> <span class="o">**</span><span class="n">load_config_kwargs</span><span class="p">)</span>
+
+            <span class="k">if</span> <span class="s2">&quot;_class_name&quot;</span> <span class="ow">in</span> <span class="n">config</span><span class="p">:</span>
+                <span class="c1"># If we find a class name in the config, we can try to load the model as a diffusers model</span>
+                <span class="n">orig_class_name</span> <span class="o">=</span> <span class="n">config</span><span class="p">[</span><span class="s2">&quot;_class_name&quot;</span><span class="p">]</span>
+                <span class="n">library</span> <span class="o">=</span> <span class="s2">&quot;mindone.diffusers&quot;</span>
+                <span class="n">load_config_kwargs</span><span class="o">.</span><span class="n">update</span><span class="p">({</span><span class="s2">&quot;subfolder&quot;</span><span class="p">:</span> <span class="n">subfolder</span><span class="p">})</span>
+            <span class="k">elif</span> <span class="s2">&quot;model_type&quot;</span> <span class="ow">in</span> <span class="n">config</span><span class="p">:</span>
+                <span class="n">orig_class_name</span> <span class="o">=</span> <span class="s2">&quot;AutoModel&quot;</span>
+                <span class="n">library</span> <span class="o">=</span> <span class="s2">&quot;mindone.transformers&quot;</span>
+                <span class="n">load_config_kwargs</span><span class="o">.</span><span class="n">update</span><span class="p">({</span><span class="s2">&quot;subfolder&quot;</span><span class="p">:</span> <span class="s2">&quot;&quot;</span> <span class="k">if</span> <span class="n">subfolder</span> <span class="ow">is</span> <span class="kc">None</span> <span class="k">else</span> <span class="n">subfolder</span><span class="p">})</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Couldn&#39;t find model associated with the config file at </span><span class="si">{</span><span class="n">pretrained_model_or_path</span><span class="si">}</span><span class="s2">.&quot;</span><span class="p">)</span>
+
+        <span class="kn">from</span><span class="w"> </span><span class="nn">..pipelines.pipeline_loading_utils</span><span class="w"> </span><span class="kn">import</span> <span class="n">ALL_IMPORTABLE_CLASSES</span><span class="p">,</span> <span class="n">get_class_obj_and_candidates</span>
+
+        <span class="n">model_cls</span><span class="p">,</span> <span class="n">_</span> <span class="o">=</span> <span class="n">get_class_obj_and_candidates</span><span class="p">(</span>
+            <span class="n">library_name</span><span class="o">=</span><span class="n">library</span><span class="p">,</span>
+            <span class="n">class_name</span><span class="o">=</span><span class="n">orig_class_name</span><span class="p">,</span>
+            <span class="n">importable_classes</span><span class="o">=</span><span class="n">ALL_IMPORTABLE_CLASSES</span><span class="p">,</span>
+            <span class="n">pipelines</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+            <span class="n">is_pipeline_module</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
+        <span class="p">)</span>
+
         <span class="k">if</span> <span class="n">model_cls</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
             <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;AutoModel can&#39;t find a model linked to </span><span class="si">{</span><span class="n">orig_class_name</span><span class="si">}</span><span class="s2">.&quot;</span><span class="p">)</span>
 
@@ -8571,13 +8639,12 @@ is not used.</p>
             </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
-                <p>Override the default <code>mindspore.Type</code> and load the model with another dtype. If <code>"auto"</code> is passed, the
-dtype is automatically derived from the model's weights.</p>
+                <p>Override the default <code>mindspore.Type</code> and load the model with another dtype.</p>
               </div>
               <p>
                   <span class="doc-param-annotation">
                     <b>TYPE:</b>
-                      <code>`str` or `mindspore.Type`, *optional*</code>
+                      <code>`mindspore.Type`, *optional*</code>
                   </span>
               </p>
             </td>
@@ -8858,9 +8925,7 @@ You<span class="w"> </span>should<span class="w"> </span>probably<span class="w"
 
             <details class="quote">
               <summary>Source code in <code>mindone/diffusers/models/auto_model.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal"> 37</span>
-<span class="normal"> 38</span>
-<span class="normal"> 39</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal"> 39</span>
 <span class="normal"> 40</span>
 <span class="normal"> 41</span>
 <span class="normal"> 42</span>
@@ -8980,7 +9045,43 @@ You<span class="w"> </span>should<span class="w"> </span>probably<span class="w"
 <span class="normal">156</span>
 <span class="normal">157</span>
 <span class="normal">158</span>
-<span class="normal">159</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@classmethod</span>
+<span class="normal">159</span>
+<span class="normal">160</span>
+<span class="normal">161</span>
+<span class="normal">162</span>
+<span class="normal">163</span>
+<span class="normal">164</span>
+<span class="normal">165</span>
+<span class="normal">166</span>
+<span class="normal">167</span>
+<span class="normal">168</span>
+<span class="normal">169</span>
+<span class="normal">170</span>
+<span class="normal">171</span>
+<span class="normal">172</span>
+<span class="normal">173</span>
+<span class="normal">174</span>
+<span class="normal">175</span>
+<span class="normal">176</span>
+<span class="normal">177</span>
+<span class="normal">178</span>
+<span class="normal">179</span>
+<span class="normal">180</span>
+<span class="normal">181</span>
+<span class="normal">182</span>
+<span class="normal">183</span>
+<span class="normal">184</span>
+<span class="normal">185</span>
+<span class="normal">186</span>
+<span class="normal">187</span>
+<span class="normal">188</span>
+<span class="normal">189</span>
+<span class="normal">190</span>
+<span class="normal">191</span>
+<span class="normal">192</span>
+<span class="normal">193</span>
+<span class="normal">194</span>
+<span class="normal">195</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@classmethod</span>
 <span class="nd">@validate_hf_hub_args</span>
 <span class="k">def</span><span class="w"> </span><span class="nf">from_pretrained</span><span class="p">(</span><span class="bp">cls</span><span class="p">,</span> <span class="n">pretrained_model_or_path</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Union</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">os</span><span class="o">.</span><span class="n">PathLike</span><span class="p">]]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
 <span class="w">    </span><span class="sa">r</span><span class="sd">&quot;&quot;&quot;</span>
@@ -9001,9 +9102,8 @@ You<span class="w"> </span>should<span class="w"> </span>probably<span class="w"
 <span class="sd">        cache_dir (`Union[str, os.PathLike]`, *optional*):</span>
 <span class="sd">            Path to a directory where a downloaded pretrained model configuration is cached if the standard cache</span>
 <span class="sd">            is not used.</span>
-<span class="sd">        mindspore_dtype (`str` or `mindspore.Type`, *optional*):</span>
-<span class="sd">            Override the default `mindspore.Type` and load the model with another dtype. If `&quot;auto&quot;` is passed, the</span>
-<span class="sd">            dtype is automatically derived from the model&#39;s weights.</span>
+<span class="sd">        mindspore_dtype (`mindspore.Type`, *optional*):</span>
+<span class="sd">            Override the default `mindspore.Type` and load the model with another dtype.</span>
 <span class="sd">        force_download (`bool`, *optional*, defaults to `False`):</span>
 <span class="sd">            Whether or not to force the (re-)download of the model weights and configuration files, overriding the</span>
 <span class="sd">            cached versions if they exist.</span>
@@ -9089,15 +9189,50 @@ You<span class="w"> </span>should<span class="w"> </span>probably<span class="w"
         <span class="s2">&quot;token&quot;</span><span class="p">:</span> <span class="n">token</span><span class="p">,</span>
         <span class="s2">&quot;local_files_only&quot;</span><span class="p">:</span> <span class="n">local_files_only</span><span class="p">,</span>
         <span class="s2">&quot;revision&quot;</span><span class="p">:</span> <span class="n">revision</span><span class="p">,</span>
-        <span class="s2">&quot;subfolder&quot;</span><span class="p">:</span> <span class="n">subfolder</span><span class="p">,</span>
     <span class="p">}</span>
 
-    <span class="n">config</span> <span class="o">=</span> <span class="bp">cls</span><span class="o">.</span><span class="n">load_config</span><span class="p">(</span><span class="n">pretrained_model_or_path</span><span class="p">,</span> <span class="o">**</span><span class="n">load_config_kwargs</span><span class="p">)</span>
-    <span class="n">orig_class_name</span> <span class="o">=</span> <span class="n">config</span><span class="p">[</span><span class="s2">&quot;_class_name&quot;</span><span class="p">]</span>
+    <span class="n">library</span> <span class="o">=</span> <span class="kc">None</span>
+    <span class="n">orig_class_name</span> <span class="o">=</span> <span class="kc">None</span>
 
-    <span class="n">library</span> <span class="o">=</span> <span class="n">importlib</span><span class="o">.</span><span class="n">import_module</span><span class="p">(</span><span class="s2">&quot;mindone.diffusers&quot;</span><span class="p">)</span>
+    <span class="c1"># Always attempt to fetch model_index.json first</span>
+    <span class="k">try</span><span class="p">:</span>
+        <span class="bp">cls</span><span class="o">.</span><span class="n">config_name</span> <span class="o">=</span> <span class="s2">&quot;model_index.json&quot;</span>
+        <span class="n">config</span> <span class="o">=</span> <span class="bp">cls</span><span class="o">.</span><span class="n">load_config</span><span class="p">(</span><span class="n">pretrained_model_or_path</span><span class="p">,</span> <span class="o">**</span><span class="n">load_config_kwargs</span><span class="p">)</span>
 
-    <span class="n">model_cls</span> <span class="o">=</span> <span class="nb">getattr</span><span class="p">(</span><span class="n">library</span><span class="p">,</span> <span class="n">orig_class_name</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">subfolder</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="ow">and</span> <span class="n">subfolder</span> <span class="ow">in</span> <span class="n">config</span><span class="p">:</span>
+            <span class="n">library</span><span class="p">,</span> <span class="n">orig_class_name</span> <span class="o">=</span> <span class="n">config</span><span class="p">[</span><span class="n">subfolder</span><span class="p">]</span>
+            <span class="n">load_config_kwargs</span><span class="o">.</span><span class="n">update</span><span class="p">({</span><span class="s2">&quot;subfolder&quot;</span><span class="p">:</span> <span class="n">subfolder</span><span class="p">})</span>
+
+    <span class="k">except</span> <span class="ne">EnvironmentError</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+        <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="n">e</span><span class="p">)</span>
+
+    <span class="c1"># Unable to load from model_index.json so fallback to loading from config</span>
+    <span class="k">if</span> <span class="n">library</span> <span class="ow">is</span> <span class="kc">None</span> <span class="ow">and</span> <span class="n">orig_class_name</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="bp">cls</span><span class="o">.</span><span class="n">config_name</span> <span class="o">=</span> <span class="s2">&quot;config.json&quot;</span>
+        <span class="n">config</span> <span class="o">=</span> <span class="bp">cls</span><span class="o">.</span><span class="n">load_config</span><span class="p">(</span><span class="n">pretrained_model_or_path</span><span class="p">,</span> <span class="n">subfolder</span><span class="o">=</span><span class="n">subfolder</span><span class="p">,</span> <span class="o">**</span><span class="n">load_config_kwargs</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="s2">&quot;_class_name&quot;</span> <span class="ow">in</span> <span class="n">config</span><span class="p">:</span>
+            <span class="c1"># If we find a class name in the config, we can try to load the model as a diffusers model</span>
+            <span class="n">orig_class_name</span> <span class="o">=</span> <span class="n">config</span><span class="p">[</span><span class="s2">&quot;_class_name&quot;</span><span class="p">]</span>
+            <span class="n">library</span> <span class="o">=</span> <span class="s2">&quot;mindone.diffusers&quot;</span>
+            <span class="n">load_config_kwargs</span><span class="o">.</span><span class="n">update</span><span class="p">({</span><span class="s2">&quot;subfolder&quot;</span><span class="p">:</span> <span class="n">subfolder</span><span class="p">})</span>
+        <span class="k">elif</span> <span class="s2">&quot;model_type&quot;</span> <span class="ow">in</span> <span class="n">config</span><span class="p">:</span>
+            <span class="n">orig_class_name</span> <span class="o">=</span> <span class="s2">&quot;AutoModel&quot;</span>
+            <span class="n">library</span> <span class="o">=</span> <span class="s2">&quot;mindone.transformers&quot;</span>
+            <span class="n">load_config_kwargs</span><span class="o">.</span><span class="n">update</span><span class="p">({</span><span class="s2">&quot;subfolder&quot;</span><span class="p">:</span> <span class="s2">&quot;&quot;</span> <span class="k">if</span> <span class="n">subfolder</span> <span class="ow">is</span> <span class="kc">None</span> <span class="k">else</span> <span class="n">subfolder</span><span class="p">})</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Couldn&#39;t find model associated with the config file at </span><span class="si">{</span><span class="n">pretrained_model_or_path</span><span class="si">}</span><span class="s2">.&quot;</span><span class="p">)</span>
+
+    <span class="kn">from</span><span class="w"> </span><span class="nn">..pipelines.pipeline_loading_utils</span><span class="w"> </span><span class="kn">import</span> <span class="n">ALL_IMPORTABLE_CLASSES</span><span class="p">,</span> <span class="n">get_class_obj_and_candidates</span>
+
+    <span class="n">model_cls</span><span class="p">,</span> <span class="n">_</span> <span class="o">=</span> <span class="n">get_class_obj_and_candidates</span><span class="p">(</span>
+        <span class="n">library_name</span><span class="o">=</span><span class="n">library</span><span class="p">,</span>
+        <span class="n">class_name</span><span class="o">=</span><span class="n">orig_class_name</span><span class="p">,</span>
+        <span class="n">importable_classes</span><span class="o">=</span><span class="n">ALL_IMPORTABLE_CLASSES</span><span class="p">,</span>
+        <span class="n">pipelines</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+        <span class="n">is_pipeline_module</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
+    <span class="p">)</span>
+
     <span class="k">if</span> <span class="n">model_cls</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
         <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;AutoModel can&#39;t find a model linked to </span><span class="si">{</span><span class="n">orig_class_name</span><span class="si">}</span><span class="s2">.&quot;</span><span class="p">)</span>
 

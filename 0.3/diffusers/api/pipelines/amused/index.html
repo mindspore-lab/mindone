@@ -8340,7 +8340,7 @@ specific language governing permissions and limitations under the License.
 
     <div class="doc doc-contents first">
             <p class="doc doc-class-bases">
-              Bases: <code><a class="autorefs autorefs-internal" title="mindone.diffusers.DiffusionPipeline (mindone.diffusers.pipelines.pipeline_utils.DiffusionPipeline)" href="../overview/#mindone.diffusers.DiffusionPipeline">DiffusionPipeline</a></code></p>
+              Bases: <code><span title="mindone.diffusers.pipelines.pipeline_utils.DeprecatedPipelineMixin">DeprecatedPipelineMixin</span></code>, <code><a class="autorefs autorefs-internal" title="mindone.diffusers.DiffusionPipeline (mindone.diffusers.pipelines.pipeline_utils.DiffusionPipeline)" href="../overview/#mindone.diffusers.DiffusionPipeline">DiffusionPipeline</a></code></p>
 
 
 
@@ -8632,7 +8632,9 @@ specific language governing permissions and limitations under the License.
 <span class="normal">327</span>
 <span class="normal">328</span>
 <span class="normal">329</span>
-<span class="normal">330</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">class</span><span class="w"> </span><span class="nc">AmusedPipeline</span><span class="p">(</span><span class="n">DiffusionPipeline</span><span class="p">):</span>
+<span class="normal">330</span>
+<span class="normal">331</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">class</span><span class="w"> </span><span class="nc">AmusedPipeline</span><span class="p">(</span><span class="n">DeprecatedPipelineMixin</span><span class="p">,</span> <span class="n">DiffusionPipeline</span><span class="p">):</span>
+    <span class="n">_last_supported_version</span> <span class="o">=</span> <span class="s2">&quot;0.33.1&quot;</span>
     <span class="n">image_processor</span><span class="p">:</span> <span class="n">VaeImageProcessor</span>
     <span class="n">vqvae</span><span class="p">:</span> <span class="n">VQModel</span>
     <span class="n">tokenizer</span><span class="p">:</span> <span class="n">CLIPTokenizer</span>
@@ -8714,7 +8716,7 @@ specific language governing permissions and limitations under the License.
 <span class="sd">                generation deterministic.</span>
 <span class="sd">            latents (`ms.Tensor`, *optional*):</span>
 <span class="sd">                Pre-generated tokens representing latent vectors in `self.vqvae`, to be used as inputs for image</span>
-<span class="sd">                gneration. If not provided, the starting latents will be completely masked.</span>
+<span class="sd">                generation. If not provided, the starting latents will be completely masked.</span>
 <span class="sd">            prompt_embeds (`ms.Tensor`, *optional*):</span>
 <span class="sd">                Pre-generated text embeddings. Can be used to easily tweak text inputs (prompt weighting). If not</span>
 <span class="sd">                provided, text embeddings are generated from the `prompt` input argument. A single vector from the</span>
@@ -8743,10 +8745,10 @@ specific language governing permissions and limitations under the License.
 <span class="sd">            micro_conditioning_aesthetic_score (`int`, *optional*, defaults to 6):</span>
 <span class="sd">                The targeted aesthetic score according to the laion aesthetic classifier. See</span>
 <span class="sd">                https://laion.ai/blog/laion-aesthetics/ and the micro-conditioning section of</span>
-<span class="sd">                https://arxiv.org/abs/2307.01952.</span>
+<span class="sd">                https://huggingface.co/papers/2307.01952.</span>
 <span class="sd">            micro_conditioning_crop_coord (`Tuple[int]`, *optional*, defaults to (0, 0)):</span>
 <span class="sd">                The targeted height, width crop coordinates. See the micro-conditioning section of</span>
-<span class="sd">                https://arxiv.org/abs/2307.01952.</span>
+<span class="sd">                https://huggingface.co/papers/2307.01952.</span>
 <span class="sd">            temperature (`Union[int, Tuple[int, int], List[int]]`, *optional*, defaults to (2, 0)):</span>
 <span class="sd">                Configures the temperature scheduler on `self.scheduler` see `AmusedScheduler#set_timesteps`.</span>
 
@@ -9122,7 +9124,7 @@ generation deterministic.</p>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Pre-generated tokens representing latent vectors in <code>self.vqvae</code>, to be used as inputs for image
-gneration. If not provided, the starting latents will be completely masked.</p>
+generation. If not provided, the starting latents will be completely masked.</p>
               </div>
               <p>
                   <span class="doc-param-annotation">
@@ -9331,7 +9333,7 @@ every step.</p>
               <div class="doc-md-description">
                 <p>The targeted aesthetic score according to the laion aesthetic classifier. See
 https://laion.ai/blog/laion-aesthetics/ and the micro-conditioning section of
-https://arxiv.org/abs/2307.01952.</p>
+https://huggingface.co/papers/2307.01952.</p>
               </div>
               <p>
                   <span class="doc-param-annotation">
@@ -9352,7 +9354,7 @@ https://arxiv.org/abs/2307.01952.</p>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The targeted height, width crop coordinates. See the micro-conditioning section of
-https://arxiv.org/abs/2307.01952.</p>
+https://huggingface.co/papers/2307.01952.</p>
               </div>
               <p>
                   <span class="doc-param-annotation">
@@ -9416,8 +9418,7 @@ If <code>return_dict</code> is <code>True</code>, [<code>~pipelines.pipeline_uti
 
             <details class="quote">
               <summary>Source code in <code>mindone/diffusers/pipelines/amused/pipeline_amused.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal"> 81</span>
-<span class="normal"> 82</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal"> 82</span>
 <span class="normal"> 83</span>
 <span class="normal"> 84</span>
 <span class="normal"> 85</span>
@@ -9665,7 +9666,8 @@ If <code>return_dict</code> is <code>True</code>, [<code>~pipelines.pipeline_uti
 <span class="normal">327</span>
 <span class="normal">328</span>
 <span class="normal">329</span>
-<span class="normal">330</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="fm">__call__</span><span class="p">(</span>
+<span class="normal">330</span>
+<span class="normal">331</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="fm">__call__</span><span class="p">(</span>
     <span class="bp">self</span><span class="p">,</span>
     <span class="n">prompt</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Union</span><span class="p">[</span><span class="n">List</span><span class="p">[</span><span class="nb">str</span><span class="p">],</span> <span class="nb">str</span><span class="p">]]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
     <span class="n">height</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">int</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
@@ -9715,7 +9717,7 @@ If <code>return_dict</code> is <code>True</code>, [<code>~pipelines.pipeline_uti
 <span class="sd">            generation deterministic.</span>
 <span class="sd">        latents (`ms.Tensor`, *optional*):</span>
 <span class="sd">            Pre-generated tokens representing latent vectors in `self.vqvae`, to be used as inputs for image</span>
-<span class="sd">            gneration. If not provided, the starting latents will be completely masked.</span>
+<span class="sd">            generation. If not provided, the starting latents will be completely masked.</span>
 <span class="sd">        prompt_embeds (`ms.Tensor`, *optional*):</span>
 <span class="sd">            Pre-generated text embeddings. Can be used to easily tweak text inputs (prompt weighting). If not</span>
 <span class="sd">            provided, text embeddings are generated from the `prompt` input argument. A single vector from the</span>
@@ -9744,10 +9746,10 @@ If <code>return_dict</code> is <code>True</code>, [<code>~pipelines.pipeline_uti
 <span class="sd">        micro_conditioning_aesthetic_score (`int`, *optional*, defaults to 6):</span>
 <span class="sd">            The targeted aesthetic score according to the laion aesthetic classifier. See</span>
 <span class="sd">            https://laion.ai/blog/laion-aesthetics/ and the micro-conditioning section of</span>
-<span class="sd">            https://arxiv.org/abs/2307.01952.</span>
+<span class="sd">            https://huggingface.co/papers/2307.01952.</span>
 <span class="sd">        micro_conditioning_crop_coord (`Tuple[int]`, *optional*, defaults to (0, 0)):</span>
 <span class="sd">            The targeted height, width crop coordinates. See the micro-conditioning section of</span>
-<span class="sd">            https://arxiv.org/abs/2307.01952.</span>
+<span class="sd">            https://huggingface.co/papers/2307.01952.</span>
 <span class="sd">        temperature (`Union[int, Tuple[int, int], List[int]]`, *optional*, defaults to (2, 0)):</span>
 <span class="sd">            Configures the temperature scheduler on `self.scheduler` see `AmusedScheduler#set_timesteps`.</span>
 
@@ -9942,7 +9944,7 @@ If <code>return_dict</code> is <code>True</code>, [<code>~pipelines.pipeline_uti
 
     <div class="doc doc-contents first">
             <p class="doc doc-class-bases">
-              Bases: <code><a class="autorefs autorefs-internal" title="mindone.diffusers.DiffusionPipeline (mindone.diffusers.pipelines.pipeline_utils.DiffusionPipeline)" href="../overview/#mindone.diffusers.DiffusionPipeline">DiffusionPipeline</a></code></p>
+              Bases: <code><span title="mindone.diffusers.pipelines.pipeline_utils.DeprecatedPipelineMixin">DeprecatedPipelineMixin</span></code>, <code><a class="autorefs autorefs-internal" title="mindone.diffusers.DiffusionPipeline (mindone.diffusers.pipelines.pipeline_utils.DiffusionPipeline)" href="../overview/#mindone.diffusers.DiffusionPipeline">DiffusionPipeline</a></code></p>
 
 
 
@@ -10249,7 +10251,9 @@ If <code>return_dict</code> is <code>True</code>, [<code>~pipelines.pipeline_uti
 <span class="normal">352</span>
 <span class="normal">353</span>
 <span class="normal">354</span>
-<span class="normal">355</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">class</span><span class="w"> </span><span class="nc">AmusedImg2ImgPipeline</span><span class="p">(</span><span class="n">DiffusionPipeline</span><span class="p">):</span>
+<span class="normal">355</span>
+<span class="normal">356</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">class</span><span class="w"> </span><span class="nc">AmusedImg2ImgPipeline</span><span class="p">(</span><span class="n">DeprecatedPipelineMixin</span><span class="p">,</span> <span class="n">DiffusionPipeline</span><span class="p">):</span>
+    <span class="n">_last_supported_version</span> <span class="o">=</span> <span class="s2">&quot;0.33.1&quot;</span>
     <span class="n">image_processor</span><span class="p">:</span> <span class="n">VaeImageProcessor</span>
     <span class="n">vqvae</span><span class="p">:</span> <span class="n">VQModel</span>
     <span class="n">tokenizer</span><span class="p">:</span> <span class="n">CLIPTokenizer</span>
@@ -10369,10 +10373,10 @@ If <code>return_dict</code> is <code>True</code>, [<code>~pipelines.pipeline_uti
 <span class="sd">            micro_conditioning_aesthetic_score (`int`, *optional*, defaults to 6):</span>
 <span class="sd">                The targeted aesthetic score according to the laion aesthetic classifier. See</span>
 <span class="sd">                https://laion.ai/blog/laion-aesthetics/ and the micro-conditioning section of</span>
-<span class="sd">                https://arxiv.org/abs/2307.01952.</span>
+<span class="sd">                https://huggingface.co/papers/2307.01952.</span>
 <span class="sd">            micro_conditioning_crop_coord (`Tuple[int]`, *optional*, defaults to (0, 0)):</span>
 <span class="sd">                The targeted height, width crop coordinates. See the micro-conditioning section of</span>
-<span class="sd">                https://arxiv.org/abs/2307.01952.</span>
+<span class="sd">                https://huggingface.co/papers/2307.01952.</span>
 <span class="sd">            temperature (`Union[int, Tuple[int, int], List[int]]`, *optional*, defaults to (2, 0)):</span>
 <span class="sd">                Configures the temperature scheduler on `self.scheduler` see `AmusedScheduler#set_timesteps`.</span>
 
@@ -10950,7 +10954,7 @@ every step.</p>
               <div class="doc-md-description">
                 <p>The targeted aesthetic score according to the laion aesthetic classifier. See
 https://laion.ai/blog/laion-aesthetics/ and the micro-conditioning section of
-https://arxiv.org/abs/2307.01952.</p>
+https://huggingface.co/papers/2307.01952.</p>
               </div>
               <p>
                   <span class="doc-param-annotation">
@@ -10971,7 +10975,7 @@ https://arxiv.org/abs/2307.01952.</p>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The targeted height, width crop coordinates. See the micro-conditioning section of
-https://arxiv.org/abs/2307.01952.</p>
+https://huggingface.co/papers/2307.01952.</p>
               </div>
               <p>
                   <span class="doc-param-annotation">
@@ -11035,8 +11039,7 @@ If <code>return_dict</code> is <code>True</code>, [<code>~pipelines.pipeline_uti
 
             <details class="quote">
               <summary>Source code in <code>mindone/diffusers/pipelines/amused/pipeline_amused_img2img.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal"> 96</span>
-<span class="normal"> 97</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal"> 97</span>
 <span class="normal"> 98</span>
 <span class="normal"> 99</span>
 <span class="normal">100</span>
@@ -11294,7 +11297,8 @@ If <code>return_dict</code> is <code>True</code>, [<code>~pipelines.pipeline_uti
 <span class="normal">352</span>
 <span class="normal">353</span>
 <span class="normal">354</span>
-<span class="normal">355</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="fm">__call__</span><span class="p">(</span>
+<span class="normal">355</span>
+<span class="normal">356</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="fm">__call__</span><span class="p">(</span>
     <span class="bp">self</span><span class="p">,</span>
     <span class="n">prompt</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Union</span><span class="p">[</span><span class="n">List</span><span class="p">[</span><span class="nb">str</span><span class="p">],</span> <span class="nb">str</span><span class="p">]]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
     <span class="n">image</span><span class="p">:</span> <span class="n">PipelineImageInput</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
@@ -11377,10 +11381,10 @@ If <code>return_dict</code> is <code>True</code>, [<code>~pipelines.pipeline_uti
 <span class="sd">        micro_conditioning_aesthetic_score (`int`, *optional*, defaults to 6):</span>
 <span class="sd">            The targeted aesthetic score according to the laion aesthetic classifier. See</span>
 <span class="sd">            https://laion.ai/blog/laion-aesthetics/ and the micro-conditioning section of</span>
-<span class="sd">            https://arxiv.org/abs/2307.01952.</span>
+<span class="sd">            https://huggingface.co/papers/2307.01952.</span>
 <span class="sd">        micro_conditioning_crop_coord (`Tuple[int]`, *optional*, defaults to (0, 0)):</span>
 <span class="sd">            The targeted height, width crop coordinates. See the micro-conditioning section of</span>
-<span class="sd">            https://arxiv.org/abs/2307.01952.</span>
+<span class="sd">            https://huggingface.co/papers/2307.01952.</span>
 <span class="sd">        temperature (`Union[int, Tuple[int, int], List[int]]`, *optional*, defaults to (2, 0)):</span>
 <span class="sd">            Configures the temperature scheduler on `self.scheduler` see `AmusedScheduler#set_timesteps`.</span>
 
@@ -11581,7 +11585,7 @@ If <code>return_dict</code> is <code>True</code>, [<code>~pipelines.pipeline_uti
 
     <div class="doc doc-contents first">
             <p class="doc doc-class-bases">
-              Bases: <code><a class="autorefs autorefs-internal" title="mindone.diffusers.DiffusionPipeline (mindone.diffusers.pipelines.pipeline_utils.DiffusionPipeline)" href="../overview/#mindone.diffusers.DiffusionPipeline">DiffusionPipeline</a></code></p>
+              Bases: <code><span title="mindone.diffusers.pipelines.pipeline_utils.DeprecatedPipelineMixin">DeprecatedPipelineMixin</span></code>, <code><a class="autorefs autorefs-internal" title="mindone.diffusers.DiffusionPipeline (mindone.diffusers.pipelines.pipeline_utils.DiffusionPipeline)" href="../overview/#mindone.diffusers.DiffusionPipeline">DiffusionPipeline</a></code></p>
 
 
 
@@ -11909,7 +11913,9 @@ If <code>return_dict</code> is <code>True</code>, [<code>~pipelines.pipeline_uti
 <span class="normal">381</span>
 <span class="normal">382</span>
 <span class="normal">383</span>
-<span class="normal">384</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">class</span><span class="w"> </span><span class="nc">AmusedInpaintPipeline</span><span class="p">(</span><span class="n">DiffusionPipeline</span><span class="p">):</span>
+<span class="normal">384</span>
+<span class="normal">385</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">class</span><span class="w"> </span><span class="nc">AmusedInpaintPipeline</span><span class="p">(</span><span class="n">DeprecatedPipelineMixin</span><span class="p">,</span> <span class="n">DiffusionPipeline</span><span class="p">):</span>
+    <span class="n">_last_supported_version</span> <span class="o">=</span> <span class="s2">&quot;0.33.1&quot;</span>
     <span class="n">image_processor</span><span class="p">:</span> <span class="n">VaeImageProcessor</span>
     <span class="n">vqvae</span><span class="p">:</span> <span class="n">VQModel</span>
     <span class="n">tokenizer</span><span class="p">:</span> <span class="n">CLIPTokenizer</span>
@@ -12045,10 +12051,10 @@ If <code>return_dict</code> is <code>True</code>, [<code>~pipelines.pipeline_uti
 <span class="sd">            micro_conditioning_aesthetic_score (`int`, *optional*, defaults to 6):</span>
 <span class="sd">                The targeted aesthetic score according to the laion aesthetic classifier. See</span>
 <span class="sd">                https://laion.ai/blog/laion-aesthetics/ and the micro-conditioning section of</span>
-<span class="sd">                https://arxiv.org/abs/2307.01952.</span>
+<span class="sd">                https://huggingface.co/papers/2307.01952.</span>
 <span class="sd">            micro_conditioning_crop_coord (`Tuple[int]`, *optional*, defaults to (0, 0)):</span>
 <span class="sd">                The targeted height, width crop coordinates. See the micro-conditioning section of</span>
-<span class="sd">                https://arxiv.org/abs/2307.01952.</span>
+<span class="sd">                https://huggingface.co/papers/2307.01952.</span>
 <span class="sd">            temperature (`Union[int, Tuple[int, int], List[int]]`, *optional*, defaults to (2, 0)):</span>
 <span class="sd">                Configures the temperature scheduler on `self.scheduler` see `AmusedScheduler#set_timesteps`.</span>
 
@@ -12656,7 +12662,7 @@ every step.</p>
               <div class="doc-md-description">
                 <p>The targeted aesthetic score according to the laion aesthetic classifier. See
 https://laion.ai/blog/laion-aesthetics/ and the micro-conditioning section of
-https://arxiv.org/abs/2307.01952.</p>
+https://huggingface.co/papers/2307.01952.</p>
               </div>
               <p>
                   <span class="doc-param-annotation">
@@ -12677,7 +12683,7 @@ https://arxiv.org/abs/2307.01952.</p>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>The targeted height, width crop coordinates. See the micro-conditioning section of
-https://arxiv.org/abs/2307.01952.</p>
+https://huggingface.co/papers/2307.01952.</p>
               </div>
               <p>
                   <span class="doc-param-annotation">
@@ -12741,8 +12747,7 @@ If <code>return_dict</code> is <code>True</code>, [<code>~pipelines.pipeline_uti
 
             <details class="quote">
               <summary>Source code in <code>mindone/diffusers/pipelines/amused/pipeline_amused_inpaint.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">112</span>
-<span class="normal">113</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">113</span>
 <span class="normal">114</span>
 <span class="normal">115</span>
 <span class="normal">116</span>
@@ -13013,7 +13018,8 @@ If <code>return_dict</code> is <code>True</code>, [<code>~pipelines.pipeline_uti
 <span class="normal">381</span>
 <span class="normal">382</span>
 <span class="normal">383</span>
-<span class="normal">384</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="fm">__call__</span><span class="p">(</span>
+<span class="normal">384</span>
+<span class="normal">385</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="fm">__call__</span><span class="p">(</span>
     <span class="bp">self</span><span class="p">,</span>
     <span class="n">prompt</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Union</span><span class="p">[</span><span class="n">List</span><span class="p">[</span><span class="nb">str</span><span class="p">],</span> <span class="nb">str</span><span class="p">]]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
     <span class="n">image</span><span class="p">:</span> <span class="n">PipelineImageInput</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
@@ -13104,10 +13110,10 @@ If <code>return_dict</code> is <code>True</code>, [<code>~pipelines.pipeline_uti
 <span class="sd">        micro_conditioning_aesthetic_score (`int`, *optional*, defaults to 6):</span>
 <span class="sd">            The targeted aesthetic score according to the laion aesthetic classifier. See</span>
 <span class="sd">            https://laion.ai/blog/laion-aesthetics/ and the micro-conditioning section of</span>
-<span class="sd">            https://arxiv.org/abs/2307.01952.</span>
+<span class="sd">            https://huggingface.co/papers/2307.01952.</span>
 <span class="sd">        micro_conditioning_crop_coord (`Tuple[int]`, *optional*, defaults to (0, 0)):</span>
 <span class="sd">            The targeted height, width crop coordinates. See the micro-conditioning section of</span>
-<span class="sd">            https://arxiv.org/abs/2307.01952.</span>
+<span class="sd">            https://huggingface.co/papers/2307.01952.</span>
 <span class="sd">        temperature (`Union[int, Tuple[int, int], List[int]]`, *optional*, defaults to (2, 0)):</span>
 <span class="sd">            Configures the temperature scheduler on `self.scheduler` see `AmusedScheduler#set_timesteps`.</span>
 

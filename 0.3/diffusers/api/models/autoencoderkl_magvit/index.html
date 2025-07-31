@@ -8357,7 +8357,7 @@ specific language governing permissions and limitations under the License. -->
 
 
         <p>A VAE model with KL loss for encoding images into latents and decoding latent representations into images. This
-model is used in <a href="https://arxiv.org/abs/2405.18991">EasyAnimate</a>.</p>
+model is used in <a href="https://huggingface.co/papers/2405.18991">EasyAnimate</a>.</p>
 <p>This model inherits from [<code>ModelMixin</code>]. Check the superclass documentation for it's generic methods implemented
 for all models (such as downloading or saving).</p>
 
@@ -8801,7 +8801,7 @@ for all models (such as downloading or saving).</p>
 <span class="normal">1103</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">class</span><span class="w"> </span><span class="nc">AutoencoderKLMagvit</span><span class="p">(</span><span class="n">ModelMixin</span><span class="p">,</span> <span class="n">ConfigMixin</span><span class="p">):</span>
 <span class="w">    </span><span class="sa">r</span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    A VAE model with KL loss for encoding images into latents and decoding latent representations into images. This</span>
-<span class="sd">    model is used in [EasyAnimate](https://arxiv.org/abs/2405.18991).</span>
+<span class="sd">    model is used in [EasyAnimate](https://huggingface.co/papers/2405.18991).</span>
 
 <span class="sd">    This model inherits from [`ModelMixin`]. Check the superclass documentation for it&#39;s generic methods implemented</span>
 <span class="sd">    for all models (such as downloading or saving).</span>
@@ -9024,7 +9024,7 @@ for all models (such as downloading or saving).</p>
     <span class="k">def</span><span class="w"> </span><span class="nf">_decode</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">z</span><span class="p">:</span> <span class="n">ms</span><span class="o">.</span><span class="n">Tensor</span><span class="p">,</span> <span class="n">return_dict</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Union</span><span class="p">[</span><span class="n">DecoderOutput</span><span class="p">,</span> <span class="n">ms</span><span class="o">.</span><span class="n">Tensor</span><span class="p">]:</span>
         <span class="n">batch_size</span><span class="p">,</span> <span class="n">num_channels</span><span class="p">,</span> <span class="n">num_frames</span><span class="p">,</span> <span class="n">height</span><span class="p">,</span> <span class="n">width</span> <span class="o">=</span> <span class="n">z</span><span class="o">.</span><span class="n">shape</span>
         <span class="n">tile_latent_min_height</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">tile_sample_min_height</span> <span class="o">//</span> <span class="bp">self</span><span class="o">.</span><span class="n">spatial_compression_ratio</span>
-        <span class="n">tile_latent_min_width</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">tile_sample_stride_width</span> <span class="o">//</span> <span class="bp">self</span><span class="o">.</span><span class="n">spatial_compression_ratio</span>
+        <span class="n">tile_latent_min_width</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">tile_sample_min_width</span> <span class="o">//</span> <span class="bp">self</span><span class="o">.</span><span class="n">spatial_compression_ratio</span>
 
         <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">use_tiling</span> <span class="ow">and</span> <span class="p">(</span><span class="n">z</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span> <span class="o">&gt;</span> <span class="n">tile_latent_min_height</span> <span class="ow">or</span> <span class="n">z</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="o">-</span><span class="mi">2</span><span class="p">]</span> <span class="o">&gt;</span> <span class="n">tile_latent_min_width</span><span class="p">):</span>
             <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">tiled_decode</span><span class="p">(</span><span class="n">z</span><span class="p">,</span> <span class="n">return_dict</span><span class="o">=</span><span class="n">return_dict</span><span class="p">)</span>

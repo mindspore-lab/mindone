@@ -9036,7 +9036,7 @@ implemented for all pipelines (downloading, saving, running on a particular devi
         <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_guidance_scale</span>
 
     <span class="c1"># here `guidance_scale` is defined analog to the guidance weight `w` of equation (2)</span>
-    <span class="c1"># of the Imagen paper: https://arxiv.org/pdf/2205.11487.pdf . `guidance_scale = 1`</span>
+    <span class="c1"># of the Imagen paper: https://huggingface.co/papers/2205.11487 . `guidance_scale = 1`</span>
     <span class="c1"># corresponds to doing no classifier free guidance.</span>
     <span class="nd">@property</span>
     <span class="k">def</span><span class="w"> </span><span class="nf">do_classifier_free_guidance</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
@@ -9154,7 +9154,7 @@ implemented for all pipelines (downloading, saving, running on a particular devi
         <span class="k">else</span><span class="p">:</span>
             <span class="n">batch_size</span> <span class="o">=</span> <span class="n">image</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
         <span class="c1"># here `guidance_scale` is defined analog to the guidance weight `w` of equation (2)</span>
-        <span class="c1"># of the Imagen paper: https://arxiv.org/pdf/2205.11487.pdf . `guidance_scale = 1`</span>
+        <span class="c1"># of the Imagen paper: https://huggingface.co/papers/2205.11487 . `guidance_scale = 1`</span>
         <span class="c1"># corresponds to doing no classifier free guidance.</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">_guidance_scale</span> <span class="o">=</span> <span class="n">max_guidance_scale</span>
 
@@ -10076,7 +10076,7 @@ otherwise a <code>tuple</code> of (<code>List[List[PIL.Image.Image]]</code> or <
     <span class="k">else</span><span class="p">:</span>
         <span class="n">batch_size</span> <span class="o">=</span> <span class="n">image</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
     <span class="c1"># here `guidance_scale` is defined analog to the guidance weight `w` of equation (2)</span>
-    <span class="c1"># of the Imagen paper: https://arxiv.org/pdf/2205.11487.pdf . `guidance_scale = 1`</span>
+    <span class="c1"># of the Imagen paper: https://huggingface.co/papers/2205.11487 . `guidance_scale = 1`</span>
     <span class="c1"># corresponds to doing no classifier free guidance.</span>
     <span class="bp">self</span><span class="o">.</span><span class="n">_guidance_scale</span> <span class="o">=</span> <span class="n">max_guidance_scale</span>
 

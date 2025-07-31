@@ -9207,7 +9207,7 @@ the <a href="https://huggingface.co/openai/clip-vit-large-patch14">clip-vit-larg
             <span class="n">input_ids</span><span class="o">=</span><span class="n">text_input_ids</span><span class="p">,</span>
             <span class="n">attention_mask</span><span class="o">=</span><span class="n">prompt_attention_mask</span><span class="p">,</span>
             <span class="n">output_hidden_states</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
-        <span class="p">)[</span><span class="mi">2</span><span class="p">][</span><span class="o">-</span><span class="p">(</span><span class="n">num_hidden_layers_to_skip</span> <span class="o">+</span> <span class="mi">1</span><span class="p">)]</span>
+        <span class="p">)[</span><span class="mi">1</span><span class="p">][</span><span class="o">-</span><span class="p">(</span><span class="n">num_hidden_layers_to_skip</span> <span class="o">+</span> <span class="mi">1</span><span class="p">)]</span>
         <span class="n">prompt_embeds</span> <span class="o">=</span> <span class="n">prompt_embeds</span><span class="o">.</span><span class="n">to</span><span class="p">(</span><span class="n">dtype</span><span class="o">=</span><span class="n">dtype</span><span class="p">)</span>
 
         <span class="k">if</span> <span class="n">crop_start</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="ow">and</span> <span class="n">crop_start</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">:</span>
@@ -9486,13 +9486,13 @@ the <a href="https://huggingface.co/openai/clip-vit-large-patch14">clip-vit-larg
 <span class="sd">            true_cfg_scale (`float`, *optional*, defaults to 1.0):</span>
 <span class="sd">                When &gt; 1.0 and a provided `negative_prompt`, enables true classifier-free guidance.</span>
 <span class="sd">            guidance_scale (`float`, defaults to `6.0`):</span>
-<span class="sd">                Guidance scale as defined in [Classifier-Free Diffusion Guidance](https://arxiv.org/abs/2207.12598).</span>
-<span class="sd">                `guidance_scale` is defined as `w` of equation 2. of [Imagen</span>
-<span class="sd">                Paper](https://arxiv.org/pdf/2205.11487.pdf). Guidance scale is enabled by setting `guidance_scale &gt;</span>
-<span class="sd">                1`. Higher guidance scale encourages to generate images that are closely linked to the text `prompt`,</span>
-<span class="sd">                usually at the expense of lower image quality. Note that the only available HunyuanVideo model is</span>
-<span class="sd">                CFG-distilled, which means that traditional guidance between unconditional and conditional latent is</span>
-<span class="sd">                not applied.</span>
+<span class="sd">                Guidance scale as defined in [Classifier-Free Diffusion</span>
+<span class="sd">                Guidance](https://huggingface.co/papers/2207.12598). `guidance_scale` is defined as `w` of equation 2.</span>
+<span class="sd">                of [Imagen Paper](https://huggingface.co/papers/2205.11487). Guidance scale is enabled by setting</span>
+<span class="sd">                `guidance_scale &gt; 1`. Higher guidance scale encourages to generate images that are closely linked to</span>
+<span class="sd">                the text `prompt`, usually at the expense of lower image quality. Note that the only available</span>
+<span class="sd">                HunyuanVideo model is CFG-distilled, which means that traditional guidance between unconditional and</span>
+<span class="sd">                conditional latent is not applied.</span>
 <span class="sd">            num_videos_per_prompt (`int`, *optional*, defaults to 1):</span>
 <span class="sd">                The number of images to generate per prompt.</span>
 <span class="sd">            generator (`torch.Generator` or `List[torch.Generator]`, *optional*):</span>
@@ -9947,13 +9947,13 @@ will be used.</p>
             </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
-                <p>Guidance scale as defined in <a href="https://arxiv.org/abs/2207.12598">Classifier-Free Diffusion Guidance</a>.
-<code>guidance_scale</code> is defined as <code>w</code> of equation 2. of <a href="https://arxiv.org/pdf/2205.11487.pdf">Imagen
-Paper</a>. Guidance scale is enabled by setting <code>guidance_scale &gt;
-1</code>. Higher guidance scale encourages to generate images that are closely linked to the text <code>prompt</code>,
-usually at the expense of lower image quality. Note that the only available HunyuanVideo model is
-CFG-distilled, which means that traditional guidance between unconditional and conditional latent is
-not applied.</p>
+                <p>Guidance scale as defined in <a href="https://huggingface.co/papers/2207.12598">Classifier-Free Diffusion
+Guidance</a>. <code>guidance_scale</code> is defined as <code>w</code> of equation 2.
+of <a href="https://huggingface.co/papers/2205.11487">Imagen Paper</a>. Guidance scale is enabled by setting
+<code>guidance_scale &gt; 1</code>. Higher guidance scale encourages to generate images that are closely linked to
+the text <code>prompt</code>, usually at the expense of lower image quality. Note that the only available
+HunyuanVideo model is CFG-distilled, which means that traditional guidance between unconditional and
+conditional latent is not applied.</p>
               </div>
               <p>
                   <span class="doc-param-annotation">
@@ -10610,13 +10610,13 @@ indicating whether the corresponding generated image contains "not-safe-for-work
 <span class="sd">        true_cfg_scale (`float`, *optional*, defaults to 1.0):</span>
 <span class="sd">            When &gt; 1.0 and a provided `negative_prompt`, enables true classifier-free guidance.</span>
 <span class="sd">        guidance_scale (`float`, defaults to `6.0`):</span>
-<span class="sd">            Guidance scale as defined in [Classifier-Free Diffusion Guidance](https://arxiv.org/abs/2207.12598).</span>
-<span class="sd">            `guidance_scale` is defined as `w` of equation 2. of [Imagen</span>
-<span class="sd">            Paper](https://arxiv.org/pdf/2205.11487.pdf). Guidance scale is enabled by setting `guidance_scale &gt;</span>
-<span class="sd">            1`. Higher guidance scale encourages to generate images that are closely linked to the text `prompt`,</span>
-<span class="sd">            usually at the expense of lower image quality. Note that the only available HunyuanVideo model is</span>
-<span class="sd">            CFG-distilled, which means that traditional guidance between unconditional and conditional latent is</span>
-<span class="sd">            not applied.</span>
+<span class="sd">            Guidance scale as defined in [Classifier-Free Diffusion</span>
+<span class="sd">            Guidance](https://huggingface.co/papers/2207.12598). `guidance_scale` is defined as `w` of equation 2.</span>
+<span class="sd">            of [Imagen Paper](https://huggingface.co/papers/2205.11487). Guidance scale is enabled by setting</span>
+<span class="sd">            `guidance_scale &gt; 1`. Higher guidance scale encourages to generate images that are closely linked to</span>
+<span class="sd">            the text `prompt`, usually at the expense of lower image quality. Note that the only available</span>
+<span class="sd">            HunyuanVideo model is CFG-distilled, which means that traditional guidance between unconditional and</span>
+<span class="sd">            conditional latent is not applied.</span>
 <span class="sd">        num_videos_per_prompt (`int`, *optional*, defaults to 1):</span>
 <span class="sd">            The number of images to generate per prompt.</span>
 <span class="sd">        generator (`torch.Generator` or `List[torch.Generator]`, *optional*):</span>

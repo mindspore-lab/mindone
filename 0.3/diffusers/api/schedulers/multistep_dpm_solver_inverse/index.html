@@ -9956,7 +9956,7 @@ Sample Steps are Flawed</a> for more information.</p>
         <span class="p">)</span><span class="o">.</span><span class="n">item</span><span class="p">()</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">noisiest_timestep</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">num_train_timesteps</span> <span class="o">-</span> <span class="mi">1</span> <span class="o">-</span> <span class="n">clipped_idx</span>
 
-        <span class="c1"># &quot;linspace&quot;, &quot;leading&quot;, &quot;trailing&quot; corresponds to annotation of Table 2. of https://arxiv.org/abs/2305.08891</span>
+        <span class="c1"># &quot;linspace&quot;, &quot;leading&quot;, &quot;trailing&quot; corresponds to annotation of Table 2. of https://huggingface.co/papers/2305.08891</span>
         <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">timestep_spacing</span> <span class="o">==</span> <span class="s2">&quot;linspace&quot;</span><span class="p">:</span>
             <span class="n">timesteps</span> <span class="o">=</span> <span class="p">(</span>
                 <span class="n">np</span><span class="o">.</span><span class="n">linspace</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">noisiest_timestep</span><span class="p">,</span> <span class="n">num_inference_steps</span> <span class="o">+</span> <span class="mi">1</span><span class="p">)</span><span class="o">.</span><span class="n">round</span><span class="p">()[:</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span><span class="o">.</span><span class="n">copy</span><span class="p">()</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">int64</span><span class="p">)</span>
@@ -10036,7 +10036,7 @@ Sample Steps are Flawed</a> for more information.</p>
 <span class="sd">        pixels from saturation at each step. We find that dynamic thresholding results in significantly better</span>
 <span class="sd">        photorealism as well as better image-text alignment, especially when using very large guidance weights.&quot;</span>
 
-<span class="sd">        https://arxiv.org/abs/2205.11487</span>
+<span class="sd">        https://huggingface.co/papers/2205.11487</span>
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="n">dtype</span> <span class="o">=</span> <span class="n">sample</span><span class="o">.</span><span class="n">dtype</span>
         <span class="n">batch_size</span><span class="p">,</span> <span class="n">channels</span><span class="p">,</span> <span class="o">*</span><span class="n">remaining_dims</span> <span class="o">=</span> <span class="n">sample</span><span class="o">.</span><span class="n">shape</span>
@@ -10211,7 +10211,7 @@ Sample Steps are Flawed</a> for more information.</p>
             <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">args</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">1</span><span class="p">:</span>
                 <span class="n">sample</span> <span class="o">=</span> <span class="n">args</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span>
             <span class="k">else</span><span class="p">:</span>
-                <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;missing `sample` as a required keyward argument&quot;</span><span class="p">)</span>
+                <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;missing `sample` as a required keyword argument&quot;</span><span class="p">)</span>
         <span class="k">if</span> <span class="n">timestep</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
             <span class="n">deprecate</span><span class="p">(</span>
                 <span class="s2">&quot;timesteps&quot;</span><span class="p">,</span>
@@ -10308,7 +10308,7 @@ Sample Steps are Flawed</a> for more information.</p>
             <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">args</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">2</span><span class="p">:</span>
                 <span class="n">sample</span> <span class="o">=</span> <span class="n">args</span><span class="p">[</span><span class="mi">2</span><span class="p">]</span>
             <span class="k">else</span><span class="p">:</span>
-                <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot; missing `sample` as a required keyward argument&quot;</span><span class="p">)</span>
+                <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;missing `sample` as a required keyword argument&quot;</span><span class="p">)</span>
         <span class="k">if</span> <span class="n">timestep</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
             <span class="n">deprecate</span><span class="p">(</span>
                 <span class="s2">&quot;timesteps&quot;</span><span class="p">,</span>
@@ -10380,7 +10380,7 @@ Sample Steps are Flawed</a> for more information.</p>
             <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">args</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">2</span><span class="p">:</span>
                 <span class="n">sample</span> <span class="o">=</span> <span class="n">args</span><span class="p">[</span><span class="mi">2</span><span class="p">]</span>
             <span class="k">else</span><span class="p">:</span>
-                <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot; missing `sample` as a required keyward argument&quot;</span><span class="p">)</span>
+                <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;missing `sample` as a required keyword argument&quot;</span><span class="p">)</span>
         <span class="k">if</span> <span class="n">timestep_list</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
             <span class="n">deprecate</span><span class="p">(</span>
                 <span class="s2">&quot;timestep_list&quot;</span><span class="p">,</span>
@@ -10415,7 +10415,7 @@ Sample Steps are Flawed</a> for more information.</p>
         <span class="n">r0</span> <span class="o">=</span> <span class="n">h_0</span> <span class="o">/</span> <span class="n">h</span>
         <span class="n">D0</span><span class="p">,</span> <span class="n">D1</span> <span class="o">=</span> <span class="n">m0</span><span class="p">,</span> <span class="p">((</span><span class="mf">1.0</span> <span class="o">/</span> <span class="n">r0</span><span class="p">))</span><span class="o">.</span><span class="n">to</span><span class="p">(</span><span class="n">m0</span><span class="o">.</span><span class="n">dtype</span><span class="p">)</span> <span class="o">*</span> <span class="p">(</span><span class="n">m0</span> <span class="o">-</span> <span class="n">m1</span><span class="p">)</span>
         <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">algorithm_type</span> <span class="o">==</span> <span class="s2">&quot;dpmsolver++&quot;</span><span class="p">:</span>
-            <span class="c1"># See https://arxiv.org/abs/2211.01095 for detailed derivations</span>
+            <span class="c1"># See https://huggingface.co/papers/2211.01095 for detailed derivations</span>
             <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">solver_type</span> <span class="o">==</span> <span class="s2">&quot;midpoint&quot;</span><span class="p">:</span>
                 <span class="n">x_t</span> <span class="o">=</span> <span class="p">(</span>
                     <span class="p">(</span><span class="n">sigma_t</span> <span class="o">/</span> <span class="n">sigma_s0</span><span class="p">)</span><span class="o">.</span><span class="n">to</span><span class="p">(</span><span class="n">dtype</span><span class="p">)</span> <span class="o">*</span> <span class="n">sample</span>
@@ -10429,7 +10429,7 @@ Sample Steps are Flawed</a> for more information.</p>
                     <span class="o">+</span> <span class="p">(</span><span class="n">alpha_t</span> <span class="o">*</span> <span class="p">((</span><span class="n">mint</span><span class="o">.</span><span class="n">exp</span><span class="p">(</span><span class="o">-</span><span class="n">h</span><span class="p">)</span> <span class="o">-</span> <span class="mf">1.0</span><span class="p">)</span> <span class="o">/</span> <span class="n">h</span> <span class="o">+</span> <span class="mf">1.0</span><span class="p">))</span><span class="o">.</span><span class="n">to</span><span class="p">(</span><span class="n">dtype</span><span class="p">)</span> <span class="o">*</span> <span class="n">D1</span>
                 <span class="p">)</span>
         <span class="k">elif</span> <span class="bp">self</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">algorithm_type</span> <span class="o">==</span> <span class="s2">&quot;dpmsolver&quot;</span><span class="p">:</span>
-            <span class="c1"># See https://arxiv.org/abs/2206.00927 for detailed derivations</span>
+            <span class="c1"># See https://huggingface.co/papers/2206.00927 for detailed derivations</span>
             <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">solver_type</span> <span class="o">==</span> <span class="s2">&quot;midpoint&quot;</span><span class="p">:</span>
                 <span class="n">x_t</span> <span class="o">=</span> <span class="p">(</span>
                     <span class="p">(</span><span class="n">alpha_t</span> <span class="o">/</span> <span class="n">alpha_s0</span><span class="p">)</span><span class="o">.</span><span class="n">to</span><span class="p">(</span><span class="n">dtype</span><span class="p">)</span> <span class="o">*</span> <span class="n">sample</span>
@@ -10506,7 +10506,7 @@ Sample Steps are Flawed</a> for more information.</p>
             <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">args</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">2</span><span class="p">:</span>
                 <span class="n">sample</span> <span class="o">=</span> <span class="n">args</span><span class="p">[</span><span class="mi">2</span><span class="p">]</span>
             <span class="k">else</span><span class="p">:</span>
-                <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot; missing`sample` as a required keyward argument&quot;</span><span class="p">)</span>
+                <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;missing `sample` as a required keyword argument&quot;</span><span class="p">)</span>
         <span class="k">if</span> <span class="n">timestep_list</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
             <span class="n">deprecate</span><span class="p">(</span>
                 <span class="s2">&quot;timestep_list&quot;</span><span class="p">,</span>
@@ -10547,7 +10547,7 @@ Sample Steps are Flawed</a> for more information.</p>
         <span class="n">D1</span> <span class="o">=</span> <span class="n">D1_0</span> <span class="o">+</span> <span class="p">(</span><span class="n">r0</span> <span class="o">/</span> <span class="p">(</span><span class="n">r0</span> <span class="o">+</span> <span class="n">r1</span><span class="p">))</span><span class="o">.</span><span class="n">to</span><span class="p">(</span><span class="n">dtype</span><span class="p">)</span> <span class="o">*</span> <span class="p">(</span><span class="n">D1_0</span> <span class="o">-</span> <span class="n">D1_1</span><span class="p">)</span>
         <span class="n">D2</span> <span class="o">=</span> <span class="p">(</span><span class="mf">1.0</span> <span class="o">/</span> <span class="p">(</span><span class="n">r0</span> <span class="o">+</span> <span class="n">r1</span><span class="p">))</span><span class="o">.</span><span class="n">to</span><span class="p">(</span><span class="n">dtype</span><span class="p">)</span> <span class="o">*</span> <span class="p">(</span><span class="n">D1_0</span> <span class="o">-</span> <span class="n">D1_1</span><span class="p">)</span>
         <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">algorithm_type</span> <span class="o">==</span> <span class="s2">&quot;dpmsolver++&quot;</span><span class="p">:</span>
-            <span class="c1"># See https://arxiv.org/abs/2206.00927 for detailed derivations</span>
+            <span class="c1"># See https://huggingface.co/papers/2206.00927 for detailed derivations</span>
             <span class="n">x_t</span> <span class="o">=</span> <span class="p">(</span>
                 <span class="p">(</span><span class="n">sigma_t</span> <span class="o">/</span> <span class="n">sigma_s0</span><span class="p">)</span><span class="o">.</span><span class="n">to</span><span class="p">(</span><span class="n">dtype</span><span class="p">)</span> <span class="o">*</span> <span class="n">sample</span>
                 <span class="o">-</span> <span class="p">(</span><span class="n">alpha_t</span> <span class="o">*</span> <span class="p">(</span><span class="n">mint</span><span class="o">.</span><span class="n">exp</span><span class="p">(</span><span class="o">-</span><span class="n">h</span><span class="p">)</span> <span class="o">-</span> <span class="mf">1.0</span><span class="p">))</span><span class="o">.</span><span class="n">to</span><span class="p">(</span><span class="n">dtype</span><span class="p">)</span> <span class="o">*</span> <span class="n">D0</span>
@@ -10555,7 +10555,7 @@ Sample Steps are Flawed</a> for more information.</p>
                 <span class="o">-</span> <span class="p">(</span><span class="n">alpha_t</span> <span class="o">*</span> <span class="p">((</span><span class="n">mint</span><span class="o">.</span><span class="n">exp</span><span class="p">(</span><span class="o">-</span><span class="n">h</span><span class="p">)</span> <span class="o">-</span> <span class="mf">1.0</span> <span class="o">+</span> <span class="n">h</span><span class="p">)</span> <span class="o">/</span> <span class="n">h</span><span class="o">**</span><span class="mi">2</span> <span class="o">-</span> <span class="mf">0.5</span><span class="p">))</span><span class="o">.</span><span class="n">to</span><span class="p">(</span><span class="n">dtype</span><span class="p">)</span> <span class="o">*</span> <span class="n">D2</span>
             <span class="p">)</span>
         <span class="k">elif</span> <span class="bp">self</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">algorithm_type</span> <span class="o">==</span> <span class="s2">&quot;dpmsolver&quot;</span><span class="p">:</span>
-            <span class="c1"># See https://arxiv.org/abs/2206.00927 for detailed derivations</span>
+            <span class="c1"># See https://huggingface.co/papers/2206.00927 for detailed derivations</span>
             <span class="n">x_t</span> <span class="o">=</span> <span class="p">(</span>
                 <span class="p">(</span><span class="n">alpha_t</span> <span class="o">/</span> <span class="n">alpha_s0</span><span class="p">)</span><span class="o">.</span><span class="n">to</span><span class="p">(</span><span class="n">dtype</span><span class="p">)</span> <span class="o">*</span> <span class="n">sample</span>
                 <span class="o">-</span> <span class="p">(</span><span class="n">sigma_t</span> <span class="o">*</span> <span class="p">(</span><span class="n">mint</span><span class="o">.</span><span class="n">exp</span><span class="p">(</span><span class="n">h</span><span class="p">)</span> <span class="o">-</span> <span class="mf">1.0</span><span class="p">))</span><span class="o">.</span><span class="n">to</span><span class="p">(</span><span class="n">dtype</span><span class="p">)</span> <span class="o">*</span> <span class="n">D0</span>
@@ -10988,7 +10988,7 @@ The converted model output.</p>
         <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">args</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">1</span><span class="p">:</span>
             <span class="n">sample</span> <span class="o">=</span> <span class="n">args</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span>
         <span class="k">else</span><span class="p">:</span>
-            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;missing `sample` as a required keyward argument&quot;</span><span class="p">)</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;missing `sample` as a required keyword argument&quot;</span><span class="p">)</span>
     <span class="k">if</span> <span class="n">timestep</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
         <span class="n">deprecate</span><span class="p">(</span>
             <span class="s2">&quot;timesteps&quot;</span><span class="p">,</span>
@@ -11247,7 +11247,7 @@ The sample tensor at the previous timestep.</p>
         <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">args</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">2</span><span class="p">:</span>
             <span class="n">sample</span> <span class="o">=</span> <span class="n">args</span><span class="p">[</span><span class="mi">2</span><span class="p">]</span>
         <span class="k">else</span><span class="p">:</span>
-            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot; missing `sample` as a required keyward argument&quot;</span><span class="p">)</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;missing `sample` as a required keyword argument&quot;</span><span class="p">)</span>
     <span class="k">if</span> <span class="n">timestep</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
         <span class="n">deprecate</span><span class="p">(</span>
             <span class="s2">&quot;timesteps&quot;</span><span class="p">,</span>
@@ -11534,7 +11534,7 @@ The sample tensor at the previous timestep.</p>
         <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">args</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">2</span><span class="p">:</span>
             <span class="n">sample</span> <span class="o">=</span> <span class="n">args</span><span class="p">[</span><span class="mi">2</span><span class="p">]</span>
         <span class="k">else</span><span class="p">:</span>
-            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot; missing `sample` as a required keyward argument&quot;</span><span class="p">)</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;missing `sample` as a required keyword argument&quot;</span><span class="p">)</span>
     <span class="k">if</span> <span class="n">timestep_list</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
         <span class="n">deprecate</span><span class="p">(</span>
             <span class="s2">&quot;timestep_list&quot;</span><span class="p">,</span>
@@ -11569,7 +11569,7 @@ The sample tensor at the previous timestep.</p>
     <span class="n">r0</span> <span class="o">=</span> <span class="n">h_0</span> <span class="o">/</span> <span class="n">h</span>
     <span class="n">D0</span><span class="p">,</span> <span class="n">D1</span> <span class="o">=</span> <span class="n">m0</span><span class="p">,</span> <span class="p">((</span><span class="mf">1.0</span> <span class="o">/</span> <span class="n">r0</span><span class="p">))</span><span class="o">.</span><span class="n">to</span><span class="p">(</span><span class="n">m0</span><span class="o">.</span><span class="n">dtype</span><span class="p">)</span> <span class="o">*</span> <span class="p">(</span><span class="n">m0</span> <span class="o">-</span> <span class="n">m1</span><span class="p">)</span>
     <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">algorithm_type</span> <span class="o">==</span> <span class="s2">&quot;dpmsolver++&quot;</span><span class="p">:</span>
-        <span class="c1"># See https://arxiv.org/abs/2211.01095 for detailed derivations</span>
+        <span class="c1"># See https://huggingface.co/papers/2211.01095 for detailed derivations</span>
         <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">solver_type</span> <span class="o">==</span> <span class="s2">&quot;midpoint&quot;</span><span class="p">:</span>
             <span class="n">x_t</span> <span class="o">=</span> <span class="p">(</span>
                 <span class="p">(</span><span class="n">sigma_t</span> <span class="o">/</span> <span class="n">sigma_s0</span><span class="p">)</span><span class="o">.</span><span class="n">to</span><span class="p">(</span><span class="n">dtype</span><span class="p">)</span> <span class="o">*</span> <span class="n">sample</span>
@@ -11583,7 +11583,7 @@ The sample tensor at the previous timestep.</p>
                 <span class="o">+</span> <span class="p">(</span><span class="n">alpha_t</span> <span class="o">*</span> <span class="p">((</span><span class="n">mint</span><span class="o">.</span><span class="n">exp</span><span class="p">(</span><span class="o">-</span><span class="n">h</span><span class="p">)</span> <span class="o">-</span> <span class="mf">1.0</span><span class="p">)</span> <span class="o">/</span> <span class="n">h</span> <span class="o">+</span> <span class="mf">1.0</span><span class="p">))</span><span class="o">.</span><span class="n">to</span><span class="p">(</span><span class="n">dtype</span><span class="p">)</span> <span class="o">*</span> <span class="n">D1</span>
             <span class="p">)</span>
     <span class="k">elif</span> <span class="bp">self</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">algorithm_type</span> <span class="o">==</span> <span class="s2">&quot;dpmsolver&quot;</span><span class="p">:</span>
-        <span class="c1"># See https://arxiv.org/abs/2206.00927 for detailed derivations</span>
+        <span class="c1"># See https://huggingface.co/papers/2206.00927 for detailed derivations</span>
         <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">solver_type</span> <span class="o">==</span> <span class="s2">&quot;midpoint&quot;</span><span class="p">:</span>
             <span class="n">x_t</span> <span class="o">=</span> <span class="p">(</span>
                 <span class="p">(</span><span class="n">alpha_t</span> <span class="o">/</span> <span class="n">alpha_s0</span><span class="p">)</span><span class="o">.</span><span class="n">to</span><span class="p">(</span><span class="n">dtype</span><span class="p">)</span> <span class="o">*</span> <span class="n">sample</span>
@@ -11847,7 +11847,7 @@ The sample tensor at the previous timestep.</p>
         <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">args</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">2</span><span class="p">:</span>
             <span class="n">sample</span> <span class="o">=</span> <span class="n">args</span><span class="p">[</span><span class="mi">2</span><span class="p">]</span>
         <span class="k">else</span><span class="p">:</span>
-            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot; missing`sample` as a required keyward argument&quot;</span><span class="p">)</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;missing `sample` as a required keyword argument&quot;</span><span class="p">)</span>
     <span class="k">if</span> <span class="n">timestep_list</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
         <span class="n">deprecate</span><span class="p">(</span>
             <span class="s2">&quot;timestep_list&quot;</span><span class="p">,</span>
@@ -11888,7 +11888,7 @@ The sample tensor at the previous timestep.</p>
     <span class="n">D1</span> <span class="o">=</span> <span class="n">D1_0</span> <span class="o">+</span> <span class="p">(</span><span class="n">r0</span> <span class="o">/</span> <span class="p">(</span><span class="n">r0</span> <span class="o">+</span> <span class="n">r1</span><span class="p">))</span><span class="o">.</span><span class="n">to</span><span class="p">(</span><span class="n">dtype</span><span class="p">)</span> <span class="o">*</span> <span class="p">(</span><span class="n">D1_0</span> <span class="o">-</span> <span class="n">D1_1</span><span class="p">)</span>
     <span class="n">D2</span> <span class="o">=</span> <span class="p">(</span><span class="mf">1.0</span> <span class="o">/</span> <span class="p">(</span><span class="n">r0</span> <span class="o">+</span> <span class="n">r1</span><span class="p">))</span><span class="o">.</span><span class="n">to</span><span class="p">(</span><span class="n">dtype</span><span class="p">)</span> <span class="o">*</span> <span class="p">(</span><span class="n">D1_0</span> <span class="o">-</span> <span class="n">D1_1</span><span class="p">)</span>
     <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">algorithm_type</span> <span class="o">==</span> <span class="s2">&quot;dpmsolver++&quot;</span><span class="p">:</span>
-        <span class="c1"># See https://arxiv.org/abs/2206.00927 for detailed derivations</span>
+        <span class="c1"># See https://huggingface.co/papers/2206.00927 for detailed derivations</span>
         <span class="n">x_t</span> <span class="o">=</span> <span class="p">(</span>
             <span class="p">(</span><span class="n">sigma_t</span> <span class="o">/</span> <span class="n">sigma_s0</span><span class="p">)</span><span class="o">.</span><span class="n">to</span><span class="p">(</span><span class="n">dtype</span><span class="p">)</span> <span class="o">*</span> <span class="n">sample</span>
             <span class="o">-</span> <span class="p">(</span><span class="n">alpha_t</span> <span class="o">*</span> <span class="p">(</span><span class="n">mint</span><span class="o">.</span><span class="n">exp</span><span class="p">(</span><span class="o">-</span><span class="n">h</span><span class="p">)</span> <span class="o">-</span> <span class="mf">1.0</span><span class="p">))</span><span class="o">.</span><span class="n">to</span><span class="p">(</span><span class="n">dtype</span><span class="p">)</span> <span class="o">*</span> <span class="n">D0</span>
@@ -11896,7 +11896,7 @@ The sample tensor at the previous timestep.</p>
             <span class="o">-</span> <span class="p">(</span><span class="n">alpha_t</span> <span class="o">*</span> <span class="p">((</span><span class="n">mint</span><span class="o">.</span><span class="n">exp</span><span class="p">(</span><span class="o">-</span><span class="n">h</span><span class="p">)</span> <span class="o">-</span> <span class="mf">1.0</span> <span class="o">+</span> <span class="n">h</span><span class="p">)</span> <span class="o">/</span> <span class="n">h</span><span class="o">**</span><span class="mi">2</span> <span class="o">-</span> <span class="mf">0.5</span><span class="p">))</span><span class="o">.</span><span class="n">to</span><span class="p">(</span><span class="n">dtype</span><span class="p">)</span> <span class="o">*</span> <span class="n">D2</span>
         <span class="p">)</span>
     <span class="k">elif</span> <span class="bp">self</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">algorithm_type</span> <span class="o">==</span> <span class="s2">&quot;dpmsolver&quot;</span><span class="p">:</span>
-        <span class="c1"># See https://arxiv.org/abs/2206.00927 for detailed derivations</span>
+        <span class="c1"># See https://huggingface.co/papers/2206.00927 for detailed derivations</span>
         <span class="n">x_t</span> <span class="o">=</span> <span class="p">(</span>
             <span class="p">(</span><span class="n">alpha_t</span> <span class="o">/</span> <span class="n">alpha_s0</span><span class="p">)</span><span class="o">.</span><span class="n">to</span><span class="p">(</span><span class="n">dtype</span><span class="p">)</span> <span class="o">*</span> <span class="n">sample</span>
             <span class="o">-</span> <span class="p">(</span><span class="n">sigma_t</span> <span class="o">*</span> <span class="p">(</span><span class="n">mint</span><span class="o">.</span><span class="n">exp</span><span class="p">(</span><span class="n">h</span><span class="p">)</span> <span class="o">-</span> <span class="mf">1.0</span><span class="p">))</span><span class="o">.</span><span class="n">to</span><span class="p">(</span><span class="n">dtype</span><span class="p">)</span> <span class="o">*</span> <span class="n">D0</span>
@@ -12169,7 +12169,7 @@ A scaled input sample.</p>
     <span class="p">)</span><span class="o">.</span><span class="n">item</span><span class="p">()</span>
     <span class="bp">self</span><span class="o">.</span><span class="n">noisiest_timestep</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">num_train_timesteps</span> <span class="o">-</span> <span class="mi">1</span> <span class="o">-</span> <span class="n">clipped_idx</span>
 
-    <span class="c1"># &quot;linspace&quot;, &quot;leading&quot;, &quot;trailing&quot; corresponds to annotation of Table 2. of https://arxiv.org/abs/2305.08891</span>
+    <span class="c1"># &quot;linspace&quot;, &quot;leading&quot;, &quot;trailing&quot; corresponds to annotation of Table 2. of https://huggingface.co/papers/2305.08891</span>
     <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">timestep_spacing</span> <span class="o">==</span> <span class="s2">&quot;linspace&quot;</span><span class="p">:</span>
         <span class="n">timesteps</span> <span class="o">=</span> <span class="p">(</span>
             <span class="n">np</span><span class="o">.</span><span class="n">linspace</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">noisiest_timestep</span><span class="p">,</span> <span class="n">num_inference_steps</span> <span class="o">+</span> <span class="mi">1</span><span class="p">)</span><span class="o">.</span><span class="n">round</span><span class="p">()[:</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span><span class="o">.</span><span class="n">copy</span><span class="p">()</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">int64</span><span class="p">)</span>

@@ -10008,7 +10008,7 @@ Please, refer to the <a href="https://huggingface.co/CompVis/stable-diffusion-v1
     <span class="k">def</span><span class="w"> </span><span class="nf">prepare_extra_step_kwargs</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">eta</span><span class="p">,</span> <span class="n">generator</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
         <span class="c1"># prepare extra kwargs for the scheduler step, since not all schedulers have the same signature</span>
         <span class="c1"># eta (η) is only used with the DDIMScheduler, it will be ignored for other schedulers.</span>
-        <span class="c1"># eta corresponds to η in DDIM paper: https://arxiv.org/abs/2010.02502</span>
+        <span class="c1"># eta corresponds to η in DDIM paper: https://huggingface.co/papers/2010.02502</span>
         <span class="c1"># and should be between [0, 1]</span>
 
         <span class="n">accepts_eta</span> <span class="o">=</span> <span class="s2">&quot;eta&quot;</span> <span class="ow">in</span> <span class="nb">set</span><span class="p">(</span><span class="n">inspect</span><span class="o">.</span><span class="n">signature</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">scheduler</span><span class="o">.</span><span class="n">step</span><span class="p">)</span><span class="o">.</span><span class="n">parameters</span><span class="o">.</span><span class="n">keys</span><span class="p">())</span>
@@ -10370,7 +10370,7 @@ Please, refer to the <a href="https://huggingface.co/CompVis/stable-diffusion-v1
 <span class="sd">            edit_guidance_scale (`float` or `List[float]`, *optional*, defaults to 5):</span>
 <span class="sd">                Guidance scale for guiding the image generation. If provided as list values should correspond to</span>
 <span class="sd">                `editing_prompt`. `edit_guidance_scale` is defined as `s_e` of equation 12 of [LEDITS++</span>
-<span class="sd">                Paper](https://arxiv.org/abs/2301.12247).</span>
+<span class="sd">                Paper](https://huggingface.co/papers/2301.12247).</span>
 <span class="sd">            edit_warmup_steps (`float` or `List[float]`, *optional*, defaults to 10):</span>
 <span class="sd">                Number of diffusion steps (for each prompt) for which guidance will not be applied.</span>
 <span class="sd">            edit_cooldown_steps (`float` or `List[float]`, *optional*, defaults to `None`):</span>
@@ -10378,7 +10378,7 @@ Please, refer to the <a href="https://huggingface.co/CompVis/stable-diffusion-v1
 <span class="sd">            edit_threshold (`float` or `List[float]`, *optional*, defaults to 0.9):</span>
 <span class="sd">                Masking threshold of guidance. Threshold should be proportional to the image region that is modified.</span>
 <span class="sd">                &#39;edit_threshold&#39; is defined as &#39;λ&#39; of equation 12 of [LEDITS++</span>
-<span class="sd">                Paper](https://arxiv.org/abs/2301.12247).</span>
+<span class="sd">                Paper](https://huggingface.co/papers/2301.12247).</span>
 <span class="sd">            user_mask (`ms.Tensor`, *optional*):</span>
 <span class="sd">                User-provided mask for even better control over the editing process. This is helpful when LEDITS++&#39;s</span>
 <span class="sd">                implicit masks do not meet user preferences.</span>
@@ -10388,11 +10388,11 @@ Please, refer to the <a href="https://huggingface.co/CompVis/stable-diffusion-v1
 <span class="sd">            use_cross_attn_mask (`bool`, defaults to `False`):</span>
 <span class="sd">                Whether cross-attention masks are used. Cross-attention masks are always used when use_intersect_mask</span>
 <span class="sd">                is set to true. Cross-attention masks are defined as &#39;M^1&#39; of equation 12 of [LEDITS++</span>
-<span class="sd">                paper](https://arxiv.org/pdf/2311.16711.pdf).</span>
+<span class="sd">                paper](https://huggingface.co/papers/2311.16711).</span>
 <span class="sd">            use_intersect_mask (`bool`, defaults to `True`):</span>
 <span class="sd">                Whether the masking term is calculated as intersection of cross-attention masks and masks derived from</span>
 <span class="sd">                the noise estimate. Cross-attention mask are defined as &#39;M^1&#39; and masks derived from the noise estimate</span>
-<span class="sd">                are defined as &#39;M^2&#39; of equation 12 of [LEDITS++ paper](https://arxiv.org/pdf/2311.16711.pdf).</span>
+<span class="sd">                are defined as &#39;M^2&#39; of equation 12 of [LEDITS++ paper](https://huggingface.co/papers/2311.16711).</span>
 <span class="sd">            attn_store_steps (`List[int]`, *optional*):</span>
 <span class="sd">                Steps for which the attention maps are stored in the AttentionStore. Just for visualization purposes.</span>
 <span class="sd">            store_averaged_over_steps (`bool`, defaults to `True`):</span>
@@ -10403,7 +10403,7 @@ Please, refer to the <a href="https://huggingface.co/CompVis/stable-diffusion-v1
 <span class="sd">                [`self.processor`](https://github.com/huggingface/diffusers/blob/main/src/diffusers/models/attention_processor.py).</span>
 <span class="sd">            guidance_rescale (`float`, *optional*, defaults to 0.0):</span>
 <span class="sd">                Guidance rescale factor from [Common Diffusion Noise Schedules and Sample Steps are</span>
-<span class="sd">                Flawed](https://arxiv.org/pdf/2305.08891.pdf). Guidance rescale factor should fix overexposure when</span>
+<span class="sd">                Flawed](https://huggingface.co/papers/2305.08891). Guidance rescale factor should fix overexposure when</span>
 <span class="sd">                using zero terminal SNR.</span>
 <span class="sd">            clip_skip (`int`, *optional*):</span>
 <span class="sd">                Number of layers to be skipped from CLIP while computing the prompt embeddings. A value of 1 means that</span>
@@ -10765,7 +10765,7 @@ Please, refer to the <a href="https://huggingface.co/CompVis/stable-diffusion-v1
                     <span class="n">noise_pred</span> <span class="o">=</span> <span class="n">noise_pred_uncond</span> <span class="o">+</span> <span class="n">noise_guidance_edit</span>
 
                     <span class="k">if</span> <span class="n">enable_edit_guidance</span> <span class="ow">and</span> <span class="bp">self</span><span class="o">.</span><span class="n">guidance_rescale</span> <span class="o">&gt;</span> <span class="mf">0.0</span><span class="p">:</span>
-                        <span class="c1"># Based on 3.4. in https://arxiv.org/pdf/2305.08891.pdf</span>
+                        <span class="c1"># Based on 3.4. in https://huggingface.co/papers/2305.08891</span>
                         <span class="n">noise_pred</span> <span class="o">=</span> <span class="n">rescale_noise_cfg</span><span class="p">(</span>
                             <span class="n">noise_pred</span><span class="p">,</span>
                             <span class="n">noise_pred_edit_concepts</span><span class="o">.</span><span class="n">mean</span><span class="p">(</span><span class="n">dim</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span> <span class="n">keepdim</span><span class="o">=</span><span class="kc">False</span><span class="p">),</span>
@@ -10833,8 +10833,8 @@ Please, refer to the <a href="https://huggingface.co/CompVis/stable-diffusion-v1
     <span class="p">):</span>
 <span class="w">        </span><span class="sa">r</span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        The function to the pipeline for image inversion as described by the [LEDITS++</span>
-<span class="sd">        Paper](https://arxiv.org/abs/2301.12247). If the scheduler is set to [`~schedulers.DDIMScheduler`] the</span>
-<span class="sd">        inversion proposed by [edit-friendly DPDM](https://arxiv.org/abs/2304.06140) will be performed instead.</span>
+<span class="sd">        Paper](https://huggingface.co/papers/2301.12247). If the scheduler is set to [`~schedulers.DDIMScheduler`] the</span>
+<span class="sd">        inversion proposed by [edit-friendly DPDM](https://huggingface.co/papers/2304.06140) will be performed instead.</span>
 
 <span class="sd">        Args:</span>
 <span class="sd">            image (`PipelineImageInput`):</span>
@@ -11202,7 +11202,7 @@ not provided, <code>negative_prompt_embeds</code> are generated from the <code>n
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Guidance scale for guiding the image generation. If provided as list values should correspond to
-<code>editing_prompt</code>. <code>edit_guidance_scale</code> is defined as <code>s_e</code> of equation 12 of <a href="https://arxiv.org/abs/2301.12247">LEDITS++
+<code>editing_prompt</code>. <code>edit_guidance_scale</code> is defined as <code>s_e</code> of equation 12 of <a href="https://huggingface.co/papers/2301.12247">LEDITS++
 Paper</a>.</p>
               </div>
               <p>
@@ -11264,7 +11264,7 @@ Paper</a>.</p>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Masking threshold of guidance. Threshold should be proportional to the image region that is modified.
-'edit_threshold' is defined as 'λ' of equation 12 of <a href="https://arxiv.org/abs/2301.12247">LEDITS++
+'edit_threshold' is defined as 'λ' of equation 12 of <a href="https://huggingface.co/papers/2301.12247">LEDITS++
 Paper</a>.</p>
               </div>
               <p>
@@ -11328,7 +11328,7 @@ correspond to <code>num_inference_steps</code>.</p>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Whether cross-attention masks are used. Cross-attention masks are always used when use_intersect_mask
-is set to true. Cross-attention masks are defined as 'M^1' of equation 12 of <a href="https://arxiv.org/pdf/2311.16711.pdf">LEDITS++
+is set to true. Cross-attention masks are defined as 'M^1' of equation 12 of <a href="https://huggingface.co/papers/2311.16711">LEDITS++
 paper</a>.</p>
               </div>
               <p>
@@ -11351,7 +11351,7 @@ paper</a>.</p>
               <div class="doc-md-description">
                 <p>Whether the masking term is calculated as intersection of cross-attention masks and masks derived from
 the noise estimate. Cross-attention mask are defined as 'M^1' and masks derived from the noise estimate
-are defined as 'M^2' of equation 12 of <a href="https://arxiv.org/pdf/2311.16711.pdf">LEDITS++ paper</a>.</p>
+are defined as 'M^2' of equation 12 of <a href="https://huggingface.co/papers/2311.16711">LEDITS++ paper</a>.</p>
               </div>
               <p>
                   <span class="doc-param-annotation">
@@ -11433,7 +11433,7 @@ False, attention maps for each step are stores separately. Just for visualizatio
             </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
-                <p>Guidance rescale factor from <a href="https://arxiv.org/pdf/2305.08891.pdf">Common Diffusion Noise Schedules and Sample Steps are
+                <p>Guidance rescale factor from <a href="https://huggingface.co/papers/2305.08891">Common Diffusion Noise Schedules and Sample Steps are
 Flawed</a>. Guidance rescale factor should fix overexposure when
 using zero terminal SNR.</p>
               </div>
@@ -12143,7 +12143,7 @@ will be passed as <code>callback_kwargs</code> argument. You will only be able t
 <span class="sd">        edit_guidance_scale (`float` or `List[float]`, *optional*, defaults to 5):</span>
 <span class="sd">            Guidance scale for guiding the image generation. If provided as list values should correspond to</span>
 <span class="sd">            `editing_prompt`. `edit_guidance_scale` is defined as `s_e` of equation 12 of [LEDITS++</span>
-<span class="sd">            Paper](https://arxiv.org/abs/2301.12247).</span>
+<span class="sd">            Paper](https://huggingface.co/papers/2301.12247).</span>
 <span class="sd">        edit_warmup_steps (`float` or `List[float]`, *optional*, defaults to 10):</span>
 <span class="sd">            Number of diffusion steps (for each prompt) for which guidance will not be applied.</span>
 <span class="sd">        edit_cooldown_steps (`float` or `List[float]`, *optional*, defaults to `None`):</span>
@@ -12151,7 +12151,7 @@ will be passed as <code>callback_kwargs</code> argument. You will only be able t
 <span class="sd">        edit_threshold (`float` or `List[float]`, *optional*, defaults to 0.9):</span>
 <span class="sd">            Masking threshold of guidance. Threshold should be proportional to the image region that is modified.</span>
 <span class="sd">            &#39;edit_threshold&#39; is defined as &#39;λ&#39; of equation 12 of [LEDITS++</span>
-<span class="sd">            Paper](https://arxiv.org/abs/2301.12247).</span>
+<span class="sd">            Paper](https://huggingface.co/papers/2301.12247).</span>
 <span class="sd">        user_mask (`ms.Tensor`, *optional*):</span>
 <span class="sd">            User-provided mask for even better control over the editing process. This is helpful when LEDITS++&#39;s</span>
 <span class="sd">            implicit masks do not meet user preferences.</span>
@@ -12161,11 +12161,11 @@ will be passed as <code>callback_kwargs</code> argument. You will only be able t
 <span class="sd">        use_cross_attn_mask (`bool`, defaults to `False`):</span>
 <span class="sd">            Whether cross-attention masks are used. Cross-attention masks are always used when use_intersect_mask</span>
 <span class="sd">            is set to true. Cross-attention masks are defined as &#39;M^1&#39; of equation 12 of [LEDITS++</span>
-<span class="sd">            paper](https://arxiv.org/pdf/2311.16711.pdf).</span>
+<span class="sd">            paper](https://huggingface.co/papers/2311.16711).</span>
 <span class="sd">        use_intersect_mask (`bool`, defaults to `True`):</span>
 <span class="sd">            Whether the masking term is calculated as intersection of cross-attention masks and masks derived from</span>
 <span class="sd">            the noise estimate. Cross-attention mask are defined as &#39;M^1&#39; and masks derived from the noise estimate</span>
-<span class="sd">            are defined as &#39;M^2&#39; of equation 12 of [LEDITS++ paper](https://arxiv.org/pdf/2311.16711.pdf).</span>
+<span class="sd">            are defined as &#39;M^2&#39; of equation 12 of [LEDITS++ paper](https://huggingface.co/papers/2311.16711).</span>
 <span class="sd">        attn_store_steps (`List[int]`, *optional*):</span>
 <span class="sd">            Steps for which the attention maps are stored in the AttentionStore. Just for visualization purposes.</span>
 <span class="sd">        store_averaged_over_steps (`bool`, defaults to `True`):</span>
@@ -12176,7 +12176,7 @@ will be passed as <code>callback_kwargs</code> argument. You will only be able t
 <span class="sd">            [`self.processor`](https://github.com/huggingface/diffusers/blob/main/src/diffusers/models/attention_processor.py).</span>
 <span class="sd">        guidance_rescale (`float`, *optional*, defaults to 0.0):</span>
 <span class="sd">            Guidance rescale factor from [Common Diffusion Noise Schedules and Sample Steps are</span>
-<span class="sd">            Flawed](https://arxiv.org/pdf/2305.08891.pdf). Guidance rescale factor should fix overexposure when</span>
+<span class="sd">            Flawed](https://huggingface.co/papers/2305.08891). Guidance rescale factor should fix overexposure when</span>
 <span class="sd">            using zero terminal SNR.</span>
 <span class="sd">        clip_skip (`int`, *optional*):</span>
 <span class="sd">            Number of layers to be skipped from CLIP while computing the prompt embeddings. A value of 1 means that</span>
@@ -12538,7 +12538,7 @@ will be passed as <code>callback_kwargs</code> argument. You will only be able t
                 <span class="n">noise_pred</span> <span class="o">=</span> <span class="n">noise_pred_uncond</span> <span class="o">+</span> <span class="n">noise_guidance_edit</span>
 
                 <span class="k">if</span> <span class="n">enable_edit_guidance</span> <span class="ow">and</span> <span class="bp">self</span><span class="o">.</span><span class="n">guidance_rescale</span> <span class="o">&gt;</span> <span class="mf">0.0</span><span class="p">:</span>
-                    <span class="c1"># Based on 3.4. in https://arxiv.org/pdf/2305.08891.pdf</span>
+                    <span class="c1"># Based on 3.4. in https://huggingface.co/papers/2305.08891</span>
                     <span class="n">noise_pred</span> <span class="o">=</span> <span class="n">rescale_noise_cfg</span><span class="p">(</span>
                         <span class="n">noise_pred</span><span class="p">,</span>
                         <span class="n">noise_pred_edit_concepts</span><span class="o">.</span><span class="n">mean</span><span class="p">(</span><span class="n">dim</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span> <span class="n">keepdim</span><span class="o">=</span><span class="kc">False</span><span class="p">),</span>
@@ -13297,9 +13297,9 @@ the output of the pre-final layer will be used for computing the prompt embeddin
 
     <div class="doc doc-contents ">
 
-        <p>The function to the pipeline for image inversion as described by the <a href="https://arxiv.org/abs/2301.12247">LEDITS++
+        <p>The function to the pipeline for image inversion as described by the <a href="https://huggingface.co/papers/2301.12247">LEDITS++
 Paper</a>. If the scheduler is set to [<code>~schedulers.DDIMScheduler</code>] the
-inversion proposed by <a href="https://arxiv.org/abs/2304.06140">edit-friendly DPDM</a> will be performed instead.</p>
+inversion proposed by <a href="https://huggingface.co/papers/2304.06140">edit-friendly DPDM</a> will be performed instead.</p>
 
 
 <table>
@@ -13758,8 +13758,8 @@ supported for PIL image input.</p>
 <span class="p">):</span>
 <span class="w">    </span><span class="sa">r</span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    The function to the pipeline for image inversion as described by the [LEDITS++</span>
-<span class="sd">    Paper](https://arxiv.org/abs/2301.12247). If the scheduler is set to [`~schedulers.DDIMScheduler`] the</span>
-<span class="sd">    inversion proposed by [edit-friendly DPDM](https://arxiv.org/abs/2304.06140) will be performed instead.</span>
+<span class="sd">    Paper](https://huggingface.co/papers/2301.12247). If the scheduler is set to [`~schedulers.DDIMScheduler`] the</span>
+<span class="sd">    inversion proposed by [edit-friendly DPDM](https://huggingface.co/papers/2304.06140) will be performed instead.</span>
 
 <span class="sd">    Args:</span>
 <span class="sd">        image (`PipelineImageInput`):</span>
@@ -15506,7 +15506,8 @@ watermarker will be used.</p>
 <span class="normal">1634</span>
 <span class="normal">1635</span>
 <span class="normal">1636</span>
-<span class="normal">1637</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">class</span><span class="w"> </span><span class="nc">LEditsPPPipelineStableDiffusionXL</span><span class="p">(</span>
+<span class="normal">1637</span>
+<span class="normal">1638</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">class</span><span class="w"> </span><span class="nc">LEditsPPPipelineStableDiffusionXL</span><span class="p">(</span>
     <span class="n">DiffusionPipeline</span><span class="p">,</span>
     <span class="n">FromSingleFileMixin</span><span class="p">,</span>
     <span class="n">StableDiffusionXLLoraLoaderMixin</span><span class="p">,</span>
@@ -15846,7 +15847,7 @@ watermarker will be used.</p>
     <span class="k">def</span><span class="w"> </span><span class="nf">prepare_extra_step_kwargs</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">eta</span><span class="p">,</span> <span class="n">generator</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
         <span class="c1"># prepare extra kwargs for the scheduler step, since not all schedulers have the same signature</span>
         <span class="c1"># eta (η) is only used with the DDIMScheduler, it will be ignored for other schedulers.</span>
-        <span class="c1"># eta corresponds to η in DDIM paper: https://arxiv.org/abs/2010.02502</span>
+        <span class="c1"># eta corresponds to η in DDIM paper: https://huggingface.co/papers/2010.02502</span>
         <span class="c1"># and should be between [0, 1]</span>
 
         <span class="n">accepts_eta</span> <span class="o">=</span> <span class="s2">&quot;eta&quot;</span> <span class="ow">in</span> <span class="nb">set</span><span class="p">(</span><span class="n">inspect</span><span class="o">.</span><span class="n">signature</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">scheduler</span><span class="o">.</span><span class="n">step</span><span class="p">)</span><span class="o">.</span><span class="n">parameters</span><span class="o">.</span><span class="n">keys</span><span class="p">())</span>
@@ -15957,7 +15958,7 @@ watermarker will be used.</p>
         <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_clip_skip</span>
 
     <span class="c1"># here `guidance_scale` is defined analog to the guidance weight `w` of equation (2)</span>
-    <span class="c1"># of the Imagen paper: https://arxiv.org/pdf/2205.11487.pdf . `guidance_scale = 1`</span>
+    <span class="c1"># of the Imagen paper: https://huggingface.co/papers/2205.11487 . `guidance_scale = 1`</span>
     <span class="c1"># corresponds to doing no classifier free guidance.</span>
     <span class="nd">@property</span>
     <span class="k">def</span><span class="w"> </span><span class="nf">do_classifier_free_guidance</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
@@ -16109,9 +16110,10 @@ watermarker will be used.</p>
 <span class="sd">                [diffusers.models.attention_processor](https://github.com/huggingface/diffusers/blob/main/src/diffusers/models/attention_processor.py).</span>
 <span class="sd">            guidance_rescale (`float`, *optional*, defaults to 0.7):</span>
 <span class="sd">                Guidance rescale factor proposed by [Common Diffusion Noise Schedules and Sample Steps are</span>
-<span class="sd">                Flawed](https://arxiv.org/pdf/2305.08891.pdf) `guidance_scale` is defined as `φ` in equation 16. of</span>
-<span class="sd">                [Common Diffusion Noise Schedules and Sample Steps are Flawed](https://arxiv.org/pdf/2305.08891.pdf).</span>
-<span class="sd">                Guidance rescale factor should fix overexposure when using zero terminal SNR.</span>
+<span class="sd">                Flawed](https://huggingface.co/papers/2305.08891) `guidance_scale` is defined as `φ` in equation 16. of</span>
+<span class="sd">                [Common Diffusion Noise Schedules and Sample Steps are</span>
+<span class="sd">                Flawed](https://huggingface.co/papers/2305.08891). Guidance rescale factor should fix overexposure when</span>
+<span class="sd">                using zero terminal SNR.</span>
 <span class="sd">            crops_coords_top_left (`Tuple[int]`, *optional*, defaults to (0, 0)):</span>
 <span class="sd">                `crops_coords_top_left` can be used to generate an image that appears to be &quot;cropped&quot; from the position</span>
 <span class="sd">                `crops_coords_top_left` downwards. Favorable, well-centered images are usually achieved by setting</span>
@@ -16137,7 +16139,7 @@ watermarker will be used.</p>
 <span class="sd">            edit_guidance_scale (`float` or `List[float]`, *optional*, defaults to 5):</span>
 <span class="sd">                Guidance scale for guiding the image generation. If provided as list values should correspond to</span>
 <span class="sd">                `editing_prompt`. `edit_guidance_scale` is defined as `s_e` of equation 12 of [LEDITS++</span>
-<span class="sd">                Paper](https://arxiv.org/abs/2301.12247).</span>
+<span class="sd">                Paper](https://huggingface.co/papers/2301.12247).</span>
 <span class="sd">            edit_warmup_steps (`float` or `List[float]`, *optional*, defaults to 10):</span>
 <span class="sd">                Number of diffusion steps (for each prompt) for which guidance is not applied.</span>
 <span class="sd">            edit_cooldown_steps (`float` or `List[float]`, *optional*, defaults to `None`):</span>
@@ -16145,18 +16147,18 @@ watermarker will be used.</p>
 <span class="sd">            edit_threshold (`float` or `List[float]`, *optional*, defaults to 0.9):</span>
 <span class="sd">                Masking threshold of guidance. Threshold should be proportional to the image region that is modified.</span>
 <span class="sd">                &#39;edit_threshold&#39; is defined as &#39;λ&#39; of equation 12 of [LEDITS++</span>
-<span class="sd">                Paper](https://arxiv.org/abs/2301.12247).</span>
+<span class="sd">                Paper](https://huggingface.co/papers/2301.12247).</span>
 <span class="sd">            sem_guidance (`List[ms.Tensor]`, *optional*):</span>
 <span class="sd">                List of pre-generated guidance vectors to be applied at generation. Length of the list has to</span>
 <span class="sd">                correspond to `num_inference_steps`.</span>
 <span class="sd">            use_cross_attn_mask:</span>
 <span class="sd">                Whether cross-attention masks are used. Cross-attention masks are always used when use_intersect_mask</span>
 <span class="sd">                is set to true. Cross-attention masks are defined as &#39;M^1&#39; of equation 12 of [LEDITS++</span>
-<span class="sd">                paper](https://arxiv.org/pdf/2311.16711.pdf).</span>
+<span class="sd">                paper](https://huggingface.co/papers/2311.16711).</span>
 <span class="sd">            use_intersect_mask:</span>
 <span class="sd">                Whether the masking term is calculated as intersection of cross-attention masks and masks derived from</span>
 <span class="sd">                the noise estimate. Cross-attention mask are defined as &#39;M^1&#39; and masks derived from the noise estimate</span>
-<span class="sd">                are defined as &#39;M^2&#39; of equation 12 of [LEDITS++ paper](https://arxiv.org/pdf/2311.16711.pdf).</span>
+<span class="sd">                are defined as &#39;M^2&#39; of equation 12 of [LEDITS++ paper](https://huggingface.co/papers/2311.16711).</span>
 <span class="sd">            user_mask:</span>
 <span class="sd">                User-provided mask for even better control over the editing process. This is helpful when LEDITS++&#39;s</span>
 <span class="sd">                implicit masks do not meet user preferences.</span>
@@ -16564,7 +16566,7 @@ watermarker will be used.</p>
 
                 <span class="c1"># compute the previous noisy sample x_t -&gt; x_t-1</span>
                 <span class="k">if</span> <span class="n">enable_edit_guidance</span> <span class="ow">and</span> <span class="bp">self</span><span class="o">.</span><span class="n">guidance_rescale</span> <span class="o">&gt;</span> <span class="mf">0.0</span><span class="p">:</span>
-                    <span class="c1"># Based on 3.4. in https://arxiv.org/pdf/2305.08891.pdf</span>
+                    <span class="c1"># Based on 3.4. in https://huggingface.co/papers/2305.08891</span>
                     <span class="n">noise_pred</span> <span class="o">=</span> <span class="n">rescale_noise_cfg</span><span class="p">(</span>
                         <span class="n">noise_pred</span><span class="p">,</span>
                         <span class="n">noise_pred_edit_concepts</span><span class="o">.</span><span class="n">mean</span><span class="p">(</span><span class="n">dim</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span> <span class="n">keepdim</span><span class="o">=</span><span class="kc">False</span><span class="p">),</span>
@@ -16684,8 +16686,8 @@ watermarker will be used.</p>
     <span class="p">):</span>
 <span class="w">        </span><span class="sa">r</span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        The function to the pipeline for image inversion as described by the [LEDITS++</span>
-<span class="sd">        Paper](https://arxiv.org/abs/2301.12247). If the scheduler is set to [`~schedulers.DDIMScheduler`] the</span>
-<span class="sd">        inversion proposed by [edit-friendly DPDM](https://arxiv.org/abs/2304.06140) will be performed instead.</span>
+<span class="sd">        Paper](https://huggingface.co/papers/2301.12247). If the scheduler is set to [`~schedulers.DDIMScheduler`] the</span>
+<span class="sd">        inversion proposed by [edit-friendly DPDM](https://huggingface.co/papers/2304.06140) will be performed instead.</span>
 
 <span class="sd">        Args:</span>
 <span class="sd">            image (`PipelineImageInput`):</span>
@@ -17165,10 +17167,11 @@ called at every step.</p>
             </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
-                <p>Guidance rescale factor proposed by <a href="https://arxiv.org/pdf/2305.08891.pdf">Common Diffusion Noise Schedules and Sample Steps are
+                <p>Guidance rescale factor proposed by <a href="https://huggingface.co/papers/2305.08891">Common Diffusion Noise Schedules and Sample Steps are
 Flawed</a> <code>guidance_scale</code> is defined as <code>φ</code> in equation 16. of
-<a href="https://arxiv.org/pdf/2305.08891.pdf">Common Diffusion Noise Schedules and Sample Steps are Flawed</a>.
-Guidance rescale factor should fix overexposure when using zero terminal SNR.</p>
+<a href="https://huggingface.co/papers/2305.08891">Common Diffusion Noise Schedules and Sample Steps are
+Flawed</a>. Guidance rescale factor should fix overexposure when
+using zero terminal SNR.</p>
               </div>
               <p>
                   <span class="doc-param-annotation">
@@ -17315,7 +17318,7 @@ argument.</p>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Guidance scale for guiding the image generation. If provided as list values should correspond to
-<code>editing_prompt</code>. <code>edit_guidance_scale</code> is defined as <code>s_e</code> of equation 12 of <a href="https://arxiv.org/abs/2301.12247">LEDITS++
+<code>editing_prompt</code>. <code>edit_guidance_scale</code> is defined as <code>s_e</code> of equation 12 of <a href="https://huggingface.co/papers/2301.12247">LEDITS++
 Paper</a>.</p>
               </div>
               <p>
@@ -17377,7 +17380,7 @@ Paper</a>.</p>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Masking threshold of guidance. Threshold should be proportional to the image region that is modified.
-'edit_threshold' is defined as 'λ' of equation 12 of <a href="https://arxiv.org/abs/2301.12247">LEDITS++
+'edit_threshold' is defined as 'λ' of equation 12 of <a href="https://huggingface.co/papers/2301.12247">LEDITS++
 Paper</a>.</p>
               </div>
               <p>
@@ -17420,7 +17423,7 @@ correspond to <code>num_inference_steps</code>.</p>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Whether cross-attention masks are used. Cross-attention masks are always used when use_intersect_mask
-is set to true. Cross-attention masks are defined as 'M^1' of equation 12 of <a href="https://arxiv.org/pdf/2311.16711.pdf">LEDITS++
+is set to true. Cross-attention masks are defined as 'M^1' of equation 12 of <a href="https://huggingface.co/papers/2311.16711">LEDITS++
 paper</a>.</p>
               </div>
               <p>
@@ -17443,7 +17446,7 @@ paper</a>.</p>
               <div class="doc-md-description">
                 <p>Whether the masking term is calculated as intersection of cross-attention masks and masks derived from
 the noise estimate. Cross-attention mask are defined as 'M^1' and masks derived from the noise estimate
-are defined as 'M^2' of equation 12 of <a href="https://arxiv.org/pdf/2311.16711.pdf">LEDITS++ paper</a>.</p>
+are defined as 'M^2' of equation 12 of <a href="https://huggingface.co/papers/2311.16711">LEDITS++ paper</a>.</p>
               </div>
               <p>
                   <span class="doc-param-annotation">
@@ -18229,7 +18232,8 @@ will be passed as <code>callback_kwargs</code> argument. You will only be able t
 <span class="normal">1372</span>
 <span class="normal">1373</span>
 <span class="normal">1374</span>
-<span class="normal">1375</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="fm">__call__</span><span class="p">(</span>
+<span class="normal">1375</span>
+<span class="normal">1376</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="fm">__call__</span><span class="p">(</span>
     <span class="bp">self</span><span class="p">,</span>
     <span class="n">denoising_end</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">float</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
     <span class="n">negative_prompt</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Union</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">List</span><span class="p">[</span><span class="nb">str</span><span class="p">]]]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
@@ -18309,9 +18313,10 @@ will be passed as <code>callback_kwargs</code> argument. You will only be able t
 <span class="sd">            [diffusers.models.attention_processor](https://github.com/huggingface/diffusers/blob/main/src/diffusers/models/attention_processor.py).</span>
 <span class="sd">        guidance_rescale (`float`, *optional*, defaults to 0.7):</span>
 <span class="sd">            Guidance rescale factor proposed by [Common Diffusion Noise Schedules and Sample Steps are</span>
-<span class="sd">            Flawed](https://arxiv.org/pdf/2305.08891.pdf) `guidance_scale` is defined as `φ` in equation 16. of</span>
-<span class="sd">            [Common Diffusion Noise Schedules and Sample Steps are Flawed](https://arxiv.org/pdf/2305.08891.pdf).</span>
-<span class="sd">            Guidance rescale factor should fix overexposure when using zero terminal SNR.</span>
+<span class="sd">            Flawed](https://huggingface.co/papers/2305.08891) `guidance_scale` is defined as `φ` in equation 16. of</span>
+<span class="sd">            [Common Diffusion Noise Schedules and Sample Steps are</span>
+<span class="sd">            Flawed](https://huggingface.co/papers/2305.08891). Guidance rescale factor should fix overexposure when</span>
+<span class="sd">            using zero terminal SNR.</span>
 <span class="sd">        crops_coords_top_left (`Tuple[int]`, *optional*, defaults to (0, 0)):</span>
 <span class="sd">            `crops_coords_top_left` can be used to generate an image that appears to be &quot;cropped&quot; from the position</span>
 <span class="sd">            `crops_coords_top_left` downwards. Favorable, well-centered images are usually achieved by setting</span>
@@ -18337,7 +18342,7 @@ will be passed as <code>callback_kwargs</code> argument. You will only be able t
 <span class="sd">        edit_guidance_scale (`float` or `List[float]`, *optional*, defaults to 5):</span>
 <span class="sd">            Guidance scale for guiding the image generation. If provided as list values should correspond to</span>
 <span class="sd">            `editing_prompt`. `edit_guidance_scale` is defined as `s_e` of equation 12 of [LEDITS++</span>
-<span class="sd">            Paper](https://arxiv.org/abs/2301.12247).</span>
+<span class="sd">            Paper](https://huggingface.co/papers/2301.12247).</span>
 <span class="sd">        edit_warmup_steps (`float` or `List[float]`, *optional*, defaults to 10):</span>
 <span class="sd">            Number of diffusion steps (for each prompt) for which guidance is not applied.</span>
 <span class="sd">        edit_cooldown_steps (`float` or `List[float]`, *optional*, defaults to `None`):</span>
@@ -18345,18 +18350,18 @@ will be passed as <code>callback_kwargs</code> argument. You will only be able t
 <span class="sd">        edit_threshold (`float` or `List[float]`, *optional*, defaults to 0.9):</span>
 <span class="sd">            Masking threshold of guidance. Threshold should be proportional to the image region that is modified.</span>
 <span class="sd">            &#39;edit_threshold&#39; is defined as &#39;λ&#39; of equation 12 of [LEDITS++</span>
-<span class="sd">            Paper](https://arxiv.org/abs/2301.12247).</span>
+<span class="sd">            Paper](https://huggingface.co/papers/2301.12247).</span>
 <span class="sd">        sem_guidance (`List[ms.Tensor]`, *optional*):</span>
 <span class="sd">            List of pre-generated guidance vectors to be applied at generation. Length of the list has to</span>
 <span class="sd">            correspond to `num_inference_steps`.</span>
 <span class="sd">        use_cross_attn_mask:</span>
 <span class="sd">            Whether cross-attention masks are used. Cross-attention masks are always used when use_intersect_mask</span>
 <span class="sd">            is set to true. Cross-attention masks are defined as &#39;M^1&#39; of equation 12 of [LEDITS++</span>
-<span class="sd">            paper](https://arxiv.org/pdf/2311.16711.pdf).</span>
+<span class="sd">            paper](https://huggingface.co/papers/2311.16711).</span>
 <span class="sd">        use_intersect_mask:</span>
 <span class="sd">            Whether the masking term is calculated as intersection of cross-attention masks and masks derived from</span>
 <span class="sd">            the noise estimate. Cross-attention mask are defined as &#39;M^1&#39; and masks derived from the noise estimate</span>
-<span class="sd">            are defined as &#39;M^2&#39; of equation 12 of [LEDITS++ paper](https://arxiv.org/pdf/2311.16711.pdf).</span>
+<span class="sd">            are defined as &#39;M^2&#39; of equation 12 of [LEDITS++ paper](https://huggingface.co/papers/2311.16711).</span>
 <span class="sd">        user_mask:</span>
 <span class="sd">            User-provided mask for even better control over the editing process. This is helpful when LEDITS++&#39;s</span>
 <span class="sd">            implicit masks do not meet user preferences.</span>
@@ -18764,7 +18769,7 @@ will be passed as <code>callback_kwargs</code> argument. You will only be able t
 
             <span class="c1"># compute the previous noisy sample x_t -&gt; x_t-1</span>
             <span class="k">if</span> <span class="n">enable_edit_guidance</span> <span class="ow">and</span> <span class="bp">self</span><span class="o">.</span><span class="n">guidance_rescale</span> <span class="o">&gt;</span> <span class="mf">0.0</span><span class="p">:</span>
-                <span class="c1"># Based on 3.4. in https://arxiv.org/pdf/2305.08891.pdf</span>
+                <span class="c1"># Based on 3.4. in https://huggingface.co/papers/2305.08891</span>
                 <span class="n">noise_pred</span> <span class="o">=</span> <span class="n">rescale_noise_cfg</span><span class="p">(</span>
                     <span class="n">noise_pred</span><span class="p">,</span>
                     <span class="n">noise_pred_edit_concepts</span><span class="o">.</span><span class="n">mean</span><span class="p">(</span><span class="n">dim</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span> <span class="n">keepdim</span><span class="o">=</span><span class="kc">False</span><span class="p">),</span>
@@ -19836,9 +19841,9 @@ input argument.</p>
 
     <div class="doc doc-contents ">
 
-        <p>The function to the pipeline for image inversion as described by the <a href="https://arxiv.org/abs/2301.12247">LEDITS++
+        <p>The function to the pipeline for image inversion as described by the <a href="https://huggingface.co/papers/2301.12247">LEDITS++
 Paper</a>. If the scheduler is set to [<code>~schedulers.DDIMScheduler</code>] the
-inversion proposed by <a href="https://arxiv.org/abs/2304.06140">edit-friendly DPDM</a> will be performed instead.</p>
+inversion proposed by <a href="https://huggingface.co/papers/2304.06140">edit-friendly DPDM</a> will be performed instead.</p>
 
 
 <table>
@@ -20114,8 +20119,7 @@ SD-XL in combination with [<code>DPMSolverMultistepScheduler</code>] will produc
 
             <details class="quote">
               <summary>Source code in <code>mindone/diffusers/pipelines/ledits_pp/pipeline_leditspp_stable_diffusion_xl.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">1412</span>
-<span class="normal">1413</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">1413</span>
 <span class="normal">1414</span>
 <span class="normal">1415</span>
 <span class="normal">1416</span>
@@ -20339,7 +20343,8 @@ SD-XL in combination with [<code>DPMSolverMultistepScheduler</code>] will produc
 <span class="normal">1634</span>
 <span class="normal">1635</span>
 <span class="normal">1636</span>
-<span class="normal">1637</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">invert</span><span class="p">(</span>
+<span class="normal">1637</span>
+<span class="normal">1638</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">invert</span><span class="p">(</span>
     <span class="bp">self</span><span class="p">,</span>
     <span class="n">image</span><span class="p">:</span> <span class="n">PipelineImageInput</span><span class="p">,</span>
     <span class="n">source_prompt</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;&quot;</span><span class="p">,</span>
@@ -20359,8 +20364,8 @@ SD-XL in combination with [<code>DPMSolverMultistepScheduler</code>] will produc
 <span class="p">):</span>
 <span class="w">    </span><span class="sa">r</span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    The function to the pipeline for image inversion as described by the [LEDITS++</span>
-<span class="sd">    Paper](https://arxiv.org/abs/2301.12247). If the scheduler is set to [`~schedulers.DDIMScheduler`] the</span>
-<span class="sd">    inversion proposed by [edit-friendly DPDM](https://arxiv.org/abs/2304.06140) will be performed instead.</span>
+<span class="sd">    Paper](https://huggingface.co/papers/2301.12247). If the scheduler is set to [`~schedulers.DDIMScheduler`] the</span>
+<span class="sd">    inversion proposed by [edit-friendly DPDM](https://huggingface.co/papers/2304.06140) will be performed instead.</span>
 
 <span class="sd">    Args:</span>
 <span class="sd">        image (`PipelineImageInput`):</span>

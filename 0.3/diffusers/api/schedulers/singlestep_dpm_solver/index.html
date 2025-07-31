@@ -8656,11 +8656,11 @@ as Stable Diffusion.</p>
             </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
-                <p>Algorithm type for the solver; can be <code>dpmsolver</code> or <code>dpmsolver++</code>. The <code>dpmsolver</code> type implements the
-algorithms in the <a href="https://huggingface.co/papers/2206.00927">DPMSolver</a> paper, and the <code>dpmsolver++</code> type
-implements the algorithms in the <a href="https://huggingface.co/papers/2211.01095">DPMSolver++</a> paper. It is
-recommended to use <code>dpmsolver++</code> or <code>sde-dpmsolver++</code> with <code>solver_order=2</code> for guided sampling like in
-Stable Diffusion.</p>
+                <p>Algorithm type for the solver; can be <code>dpmsolver</code> or <code>dpmsolver++</code> or <code>sde-dpmsolver++</code>. The <code>dpmsolver</code>
+type implements the algorithms in the <a href="https://huggingface.co/papers/2206.00927">DPMSolver</a> paper, and the
+<code>dpmsolver++</code> type implements the algorithms in the <a href="https://huggingface.co/papers/2211.01095">DPMSolver++</a>
+paper. It is recommended to use <code>dpmsolver++</code> or <code>sde-dpmsolver++</code> with <code>solver_order=2</code> for guided
+sampling like in Stable Diffusion.</p>
               </div>
               <p>
                   <span class="doc-param-annotation">
@@ -9971,11 +9971,11 @@ contains the predicted Gaussian variance.</p>
 <span class="sd">            The threshold value for dynamic thresholding. Valid only when `thresholding=True` and</span>
 <span class="sd">            `algorithm_type=&quot;dpmsolver++&quot;`.</span>
 <span class="sd">        algorithm_type (`str`, defaults to `dpmsolver++`):</span>
-<span class="sd">            Algorithm type for the solver; can be `dpmsolver` or `dpmsolver++`. The `dpmsolver` type implements the</span>
-<span class="sd">            algorithms in the [DPMSolver](https://huggingface.co/papers/2206.00927) paper, and the `dpmsolver++` type</span>
-<span class="sd">            implements the algorithms in the [DPMSolver++](https://huggingface.co/papers/2211.01095) paper. It is</span>
-<span class="sd">            recommended to use `dpmsolver++` or `sde-dpmsolver++` with `solver_order=2` for guided sampling like in</span>
-<span class="sd">            Stable Diffusion.</span>
+<span class="sd">            Algorithm type for the solver; can be `dpmsolver` or `dpmsolver++` or `sde-dpmsolver++`. The `dpmsolver`</span>
+<span class="sd">            type implements the algorithms in the [DPMSolver](https://huggingface.co/papers/2206.00927) paper, and the</span>
+<span class="sd">            `dpmsolver++` type implements the algorithms in the [DPMSolver++](https://huggingface.co/papers/2211.01095)</span>
+<span class="sd">            paper. It is recommended to use `dpmsolver++` or `sde-dpmsolver++` with `solver_order=2` for guided</span>
+<span class="sd">            sampling like in Stable Diffusion.</span>
 <span class="sd">        solver_type (`str`, defaults to `midpoint`):</span>
 <span class="sd">            Solver type for the second-order solver; can be `midpoint` or `heun`. The solver type slightly affects the</span>
 <span class="sd">            sample quality, especially for a small number of steps. It is recommended to use `midpoint` solvers.</span>
@@ -10082,7 +10082,7 @@ contains the predicted Gaussian variance.</p>
 
         <span class="k">if</span> <span class="n">algorithm_type</span> <span class="ow">not</span> <span class="ow">in</span> <span class="p">[</span><span class="s2">&quot;dpmsolver++&quot;</span><span class="p">,</span> <span class="s2">&quot;sde-dpmsolver++&quot;</span><span class="p">]</span> <span class="ow">and</span> <span class="n">final_sigmas_type</span> <span class="o">==</span> <span class="s2">&quot;zero&quot;</span><span class="p">:</span>
             <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
-                <span class="sa">f</span><span class="s2">&quot;`final_sigmas_type` </span><span class="si">{</span><span class="n">final_sigmas_type</span><span class="si">}</span><span class="s2"> is not supported for `algorithm_type` </span><span class="si">{</span><span class="n">algorithm_type</span><span class="si">}</span><span class="s2">. Please chooose `sigma_min` instead.&quot;</span>
+                <span class="sa">f</span><span class="s2">&quot;`final_sigmas_type` </span><span class="si">{</span><span class="n">final_sigmas_type</span><span class="si">}</span><span class="s2"> is not supported for `algorithm_type` </span><span class="si">{</span><span class="n">algorithm_type</span><span class="si">}</span><span class="s2">. Please choose `sigma_min` instead.&quot;</span>
             <span class="p">)</span>
 
         <span class="c1"># setable values</span>
@@ -10267,7 +10267,7 @@ contains the predicted Gaussian variance.</p>
 <span class="sd">        pixels from saturation at each step. We find that dynamic thresholding results in significantly better</span>
 <span class="sd">        photorealism as well as better image-text alignment, especially when using very large guidance weights.&quot;</span>
 
-<span class="sd">        https://arxiv.org/abs/2205.11487</span>
+<span class="sd">        https://huggingface.co/papers/2205.11487</span>
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="n">dtype</span> <span class="o">=</span> <span class="n">sample</span><span class="o">.</span><span class="n">dtype</span>
         <span class="n">batch_size</span><span class="p">,</span> <span class="n">channels</span><span class="p">,</span> <span class="o">*</span><span class="n">remaining_dims</span> <span class="o">=</span> <span class="n">sample</span><span class="o">.</span><span class="n">shape</span>
@@ -10442,7 +10442,7 @@ contains the predicted Gaussian variance.</p>
             <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">args</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">1</span><span class="p">:</span>
                 <span class="n">sample</span> <span class="o">=</span> <span class="n">args</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span>
             <span class="k">else</span><span class="p">:</span>
-                <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;missing `sample` as a required keyward argument&quot;</span><span class="p">)</span>
+                <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;missing `sample` as a required keyword argument&quot;</span><span class="p">)</span>
         <span class="k">if</span> <span class="n">timestep</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
             <span class="n">deprecate</span><span class="p">(</span>
                 <span class="s2">&quot;timesteps&quot;</span><span class="p">,</span>
@@ -10540,7 +10540,7 @@ contains the predicted Gaussian variance.</p>
             <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">args</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">2</span><span class="p">:</span>
                 <span class="n">sample</span> <span class="o">=</span> <span class="n">args</span><span class="p">[</span><span class="mi">2</span><span class="p">]</span>
             <span class="k">else</span><span class="p">:</span>
-                <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot; missing `sample` as a required keyward argument&quot;</span><span class="p">)</span>
+                <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;missing `sample` as a required keyword argument&quot;</span><span class="p">)</span>
         <span class="k">if</span> <span class="n">timestep</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
             <span class="n">deprecate</span><span class="p">(</span>
                 <span class="s2">&quot;timesteps&quot;</span><span class="p">,</span>
@@ -10606,7 +10606,7 @@ contains the predicted Gaussian variance.</p>
             <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">args</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">2</span><span class="p">:</span>
                 <span class="n">sample</span> <span class="o">=</span> <span class="n">args</span><span class="p">[</span><span class="mi">2</span><span class="p">]</span>
             <span class="k">else</span><span class="p">:</span>
-                <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot; missing `sample` as a required keyward argument&quot;</span><span class="p">)</span>
+                <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;missing `sample` as a required keyword argument&quot;</span><span class="p">)</span>
         <span class="k">if</span> <span class="n">timestep_list</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
             <span class="n">deprecate</span><span class="p">(</span>
                 <span class="s2">&quot;timestep_list&quot;</span><span class="p">,</span>
@@ -10640,7 +10640,7 @@ contains the predicted Gaussian variance.</p>
         <span class="n">r0</span> <span class="o">=</span> <span class="n">h_0</span> <span class="o">/</span> <span class="n">h</span>
         <span class="n">D0</span><span class="p">,</span> <span class="n">D1</span> <span class="o">=</span> <span class="n">m1</span><span class="p">,</span> <span class="p">(</span><span class="mf">1.0</span> <span class="o">/</span> <span class="n">r0</span><span class="p">)</span> <span class="o">*</span> <span class="p">(</span><span class="n">m0</span> <span class="o">-</span> <span class="n">m1</span><span class="p">)</span>
         <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">algorithm_type</span> <span class="o">==</span> <span class="s2">&quot;dpmsolver++&quot;</span><span class="p">:</span>
-            <span class="c1"># See https://arxiv.org/abs/2211.01095 for detailed derivations</span>
+            <span class="c1"># See https://huggingface.co/papers/2211.01095 for detailed derivations</span>
             <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">solver_type</span> <span class="o">==</span> <span class="s2">&quot;midpoint&quot;</span><span class="p">:</span>
                 <span class="n">x_t</span> <span class="o">=</span> <span class="p">(</span>
                     <span class="p">(</span><span class="n">sigma_t</span> <span class="o">/</span> <span class="n">sigma_s1</span><span class="p">)</span> <span class="o">*</span> <span class="n">sample</span>
@@ -10654,7 +10654,7 @@ contains the predicted Gaussian variance.</p>
                     <span class="o">+</span> <span class="p">(</span><span class="n">alpha_t</span> <span class="o">*</span> <span class="p">((</span><span class="n">mint</span><span class="o">.</span><span class="n">exp</span><span class="p">(</span><span class="o">-</span><span class="n">h</span><span class="p">)</span> <span class="o">-</span> <span class="mf">1.0</span><span class="p">)</span> <span class="o">/</span> <span class="n">h</span> <span class="o">+</span> <span class="mf">1.0</span><span class="p">))</span> <span class="o">*</span> <span class="n">D1</span>
                 <span class="p">)</span>
         <span class="k">elif</span> <span class="bp">self</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">algorithm_type</span> <span class="o">==</span> <span class="s2">&quot;dpmsolver&quot;</span><span class="p">:</span>
-            <span class="c1"># See https://arxiv.org/abs/2206.00927 for detailed derivations</span>
+            <span class="c1"># See https://huggingface.co/papers/2206.00927 for detailed derivations</span>
             <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">solver_type</span> <span class="o">==</span> <span class="s2">&quot;midpoint&quot;</span><span class="p">:</span>
                 <span class="n">x_t</span> <span class="o">=</span> <span class="p">(</span>
                     <span class="p">(</span><span class="n">alpha_t</span> <span class="o">/</span> <span class="n">alpha_s1</span><span class="p">)</span> <span class="o">*</span> <span class="n">sample</span>
@@ -10719,7 +10719,7 @@ contains the predicted Gaussian variance.</p>
             <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">args</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">2</span><span class="p">:</span>
                 <span class="n">sample</span> <span class="o">=</span> <span class="n">args</span><span class="p">[</span><span class="mi">2</span><span class="p">]</span>
             <span class="k">else</span><span class="p">:</span>
-                <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot; missing`sample` as a required keyward argument&quot;</span><span class="p">)</span>
+                <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;missing `sample` as a required keyword argument&quot;</span><span class="p">)</span>
         <span class="k">if</span> <span class="n">timestep_list</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
             <span class="n">deprecate</span><span class="p">(</span>
                 <span class="s2">&quot;timestep_list&quot;</span><span class="p">,</span>
@@ -10760,7 +10760,7 @@ contains the predicted Gaussian variance.</p>
         <span class="n">D1</span> <span class="o">=</span> <span class="p">(</span><span class="n">r0</span> <span class="o">*</span> <span class="n">D1_0</span> <span class="o">-</span> <span class="n">r1</span> <span class="o">*</span> <span class="n">D1_1</span><span class="p">)</span> <span class="o">/</span> <span class="p">(</span><span class="n">r0</span> <span class="o">-</span> <span class="n">r1</span><span class="p">)</span>
         <span class="n">D2</span> <span class="o">=</span> <span class="mf">2.0</span> <span class="o">*</span> <span class="p">(</span><span class="n">D1_1</span> <span class="o">-</span> <span class="n">D1_0</span><span class="p">)</span> <span class="o">/</span> <span class="p">(</span><span class="n">r0</span> <span class="o">-</span> <span class="n">r1</span><span class="p">)</span>
         <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">algorithm_type</span> <span class="o">==</span> <span class="s2">&quot;dpmsolver++&quot;</span><span class="p">:</span>
-            <span class="c1"># See https://arxiv.org/abs/2206.00927 for detailed derivations</span>
+            <span class="c1"># See https://huggingface.co/papers/2206.00927 for detailed derivations</span>
             <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">solver_type</span> <span class="o">==</span> <span class="s2">&quot;midpoint&quot;</span><span class="p">:</span>
                 <span class="n">x_t</span> <span class="o">=</span> <span class="p">(</span>
                     <span class="p">(</span><span class="n">sigma_t</span> <span class="o">/</span> <span class="n">sigma_s2</span><span class="p">)</span> <span class="o">*</span> <span class="n">sample</span>
@@ -10775,7 +10775,7 @@ contains the predicted Gaussian variance.</p>
                     <span class="o">-</span> <span class="p">(</span><span class="n">alpha_t</span> <span class="o">*</span> <span class="p">((</span><span class="n">mint</span><span class="o">.</span><span class="n">exp</span><span class="p">(</span><span class="o">-</span><span class="n">h</span><span class="p">)</span> <span class="o">-</span> <span class="mf">1.0</span> <span class="o">+</span> <span class="n">h</span><span class="p">)</span> <span class="o">/</span> <span class="n">h</span><span class="o">**</span><span class="mi">2</span> <span class="o">-</span> <span class="mf">0.5</span><span class="p">))</span> <span class="o">*</span> <span class="n">D2</span>
                 <span class="p">)</span>
         <span class="k">elif</span> <span class="bp">self</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">algorithm_type</span> <span class="o">==</span> <span class="s2">&quot;dpmsolver&quot;</span><span class="p">:</span>
-            <span class="c1"># See https://arxiv.org/abs/2206.00927 for detailed derivations</span>
+            <span class="c1"># See https://huggingface.co/papers/2206.00927 for detailed derivations</span>
             <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">solver_type</span> <span class="o">==</span> <span class="s2">&quot;midpoint&quot;</span><span class="p">:</span>
                 <span class="n">x_t</span> <span class="o">=</span> <span class="p">(</span>
                     <span class="p">(</span><span class="n">alpha_t</span> <span class="o">/</span> <span class="n">alpha_s2</span><span class="p">)</span> <span class="o">*</span> <span class="n">sample</span>
@@ -10842,12 +10842,12 @@ contains the predicted Gaussian variance.</p>
             <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">args</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">2</span><span class="p">:</span>
                 <span class="n">sample</span> <span class="o">=</span> <span class="n">args</span><span class="p">[</span><span class="mi">2</span><span class="p">]</span>
             <span class="k">else</span><span class="p">:</span>
-                <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot; missing`sample` as a required keyward argument&quot;</span><span class="p">)</span>
+                <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;missing `sample` as a required keyword argument&quot;</span><span class="p">)</span>
         <span class="k">if</span> <span class="n">order</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
             <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">args</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">3</span><span class="p">:</span>
                 <span class="n">order</span> <span class="o">=</span> <span class="n">args</span><span class="p">[</span><span class="mi">3</span><span class="p">]</span>
             <span class="k">else</span><span class="p">:</span>
-                <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot; missing `order` as a required keyward argument&quot;</span><span class="p">)</span>
+                <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;missing `order` as a required keyword argument&quot;</span><span class="p">)</span>
         <span class="k">if</span> <span class="n">timestep_list</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
             <span class="n">deprecate</span><span class="p">(</span>
                 <span class="s2">&quot;timestep_list&quot;</span><span class="p">,</span>
@@ -11309,7 +11309,7 @@ The converted model output.</p>
         <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">args</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">1</span><span class="p">:</span>
             <span class="n">sample</span> <span class="o">=</span> <span class="n">args</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span>
         <span class="k">else</span><span class="p">:</span>
-            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;missing `sample` as a required keyward argument&quot;</span><span class="p">)</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;missing `sample` as a required keyword argument&quot;</span><span class="p">)</span>
     <span class="k">if</span> <span class="n">timestep</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
         <span class="n">deprecate</span><span class="p">(</span>
             <span class="s2">&quot;timesteps&quot;</span><span class="p">,</span>
@@ -11596,7 +11596,7 @@ The sample tensor at the previous timestep.</p>
         <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">args</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">2</span><span class="p">:</span>
             <span class="n">sample</span> <span class="o">=</span> <span class="n">args</span><span class="p">[</span><span class="mi">2</span><span class="p">]</span>
         <span class="k">else</span><span class="p">:</span>
-            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot; missing `sample` as a required keyward argument&quot;</span><span class="p">)</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;missing `sample` as a required keyword argument&quot;</span><span class="p">)</span>
     <span class="k">if</span> <span class="n">timestep</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
         <span class="n">deprecate</span><span class="p">(</span>
             <span class="s2">&quot;timesteps&quot;</span><span class="p">,</span>
@@ -12469,7 +12469,7 @@ The sample tensor at the previous timestep.</p>
         <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">args</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">2</span><span class="p">:</span>
             <span class="n">sample</span> <span class="o">=</span> <span class="n">args</span><span class="p">[</span><span class="mi">2</span><span class="p">]</span>
         <span class="k">else</span><span class="p">:</span>
-            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot; missing `sample` as a required keyward argument&quot;</span><span class="p">)</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;missing `sample` as a required keyword argument&quot;</span><span class="p">)</span>
     <span class="k">if</span> <span class="n">timestep_list</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
         <span class="n">deprecate</span><span class="p">(</span>
             <span class="s2">&quot;timestep_list&quot;</span><span class="p">,</span>
@@ -12503,7 +12503,7 @@ The sample tensor at the previous timestep.</p>
     <span class="n">r0</span> <span class="o">=</span> <span class="n">h_0</span> <span class="o">/</span> <span class="n">h</span>
     <span class="n">D0</span><span class="p">,</span> <span class="n">D1</span> <span class="o">=</span> <span class="n">m1</span><span class="p">,</span> <span class="p">(</span><span class="mf">1.0</span> <span class="o">/</span> <span class="n">r0</span><span class="p">)</span> <span class="o">*</span> <span class="p">(</span><span class="n">m0</span> <span class="o">-</span> <span class="n">m1</span><span class="p">)</span>
     <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">algorithm_type</span> <span class="o">==</span> <span class="s2">&quot;dpmsolver++&quot;</span><span class="p">:</span>
-        <span class="c1"># See https://arxiv.org/abs/2211.01095 for detailed derivations</span>
+        <span class="c1"># See https://huggingface.co/papers/2211.01095 for detailed derivations</span>
         <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">solver_type</span> <span class="o">==</span> <span class="s2">&quot;midpoint&quot;</span><span class="p">:</span>
             <span class="n">x_t</span> <span class="o">=</span> <span class="p">(</span>
                 <span class="p">(</span><span class="n">sigma_t</span> <span class="o">/</span> <span class="n">sigma_s1</span><span class="p">)</span> <span class="o">*</span> <span class="n">sample</span>
@@ -12517,7 +12517,7 @@ The sample tensor at the previous timestep.</p>
                 <span class="o">+</span> <span class="p">(</span><span class="n">alpha_t</span> <span class="o">*</span> <span class="p">((</span><span class="n">mint</span><span class="o">.</span><span class="n">exp</span><span class="p">(</span><span class="o">-</span><span class="n">h</span><span class="p">)</span> <span class="o">-</span> <span class="mf">1.0</span><span class="p">)</span> <span class="o">/</span> <span class="n">h</span> <span class="o">+</span> <span class="mf">1.0</span><span class="p">))</span> <span class="o">*</span> <span class="n">D1</span>
             <span class="p">)</span>
     <span class="k">elif</span> <span class="bp">self</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">algorithm_type</span> <span class="o">==</span> <span class="s2">&quot;dpmsolver&quot;</span><span class="p">:</span>
-        <span class="c1"># See https://arxiv.org/abs/2206.00927 for detailed derivations</span>
+        <span class="c1"># See https://huggingface.co/papers/2206.00927 for detailed derivations</span>
         <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">solver_type</span> <span class="o">==</span> <span class="s2">&quot;midpoint&quot;</span><span class="p">:</span>
             <span class="n">x_t</span> <span class="o">=</span> <span class="p">(</span>
                 <span class="p">(</span><span class="n">alpha_t</span> <span class="o">/</span> <span class="n">alpha_s1</span><span class="p">)</span> <span class="o">*</span> <span class="n">sample</span>
@@ -12830,7 +12830,7 @@ The sample tensor at the previous timestep.</p>
         <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">args</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">2</span><span class="p">:</span>
             <span class="n">sample</span> <span class="o">=</span> <span class="n">args</span><span class="p">[</span><span class="mi">2</span><span class="p">]</span>
         <span class="k">else</span><span class="p">:</span>
-            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot; missing`sample` as a required keyward argument&quot;</span><span class="p">)</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;missing `sample` as a required keyword argument&quot;</span><span class="p">)</span>
     <span class="k">if</span> <span class="n">timestep_list</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
         <span class="n">deprecate</span><span class="p">(</span>
             <span class="s2">&quot;timestep_list&quot;</span><span class="p">,</span>
@@ -12871,7 +12871,7 @@ The sample tensor at the previous timestep.</p>
     <span class="n">D1</span> <span class="o">=</span> <span class="p">(</span><span class="n">r0</span> <span class="o">*</span> <span class="n">D1_0</span> <span class="o">-</span> <span class="n">r1</span> <span class="o">*</span> <span class="n">D1_1</span><span class="p">)</span> <span class="o">/</span> <span class="p">(</span><span class="n">r0</span> <span class="o">-</span> <span class="n">r1</span><span class="p">)</span>
     <span class="n">D2</span> <span class="o">=</span> <span class="mf">2.0</span> <span class="o">*</span> <span class="p">(</span><span class="n">D1_1</span> <span class="o">-</span> <span class="n">D1_0</span><span class="p">)</span> <span class="o">/</span> <span class="p">(</span><span class="n">r0</span> <span class="o">-</span> <span class="n">r1</span><span class="p">)</span>
     <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">algorithm_type</span> <span class="o">==</span> <span class="s2">&quot;dpmsolver++&quot;</span><span class="p">:</span>
-        <span class="c1"># See https://arxiv.org/abs/2206.00927 for detailed derivations</span>
+        <span class="c1"># See https://huggingface.co/papers/2206.00927 for detailed derivations</span>
         <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">solver_type</span> <span class="o">==</span> <span class="s2">&quot;midpoint&quot;</span><span class="p">:</span>
             <span class="n">x_t</span> <span class="o">=</span> <span class="p">(</span>
                 <span class="p">(</span><span class="n">sigma_t</span> <span class="o">/</span> <span class="n">sigma_s2</span><span class="p">)</span> <span class="o">*</span> <span class="n">sample</span>
@@ -12886,7 +12886,7 @@ The sample tensor at the previous timestep.</p>
                 <span class="o">-</span> <span class="p">(</span><span class="n">alpha_t</span> <span class="o">*</span> <span class="p">((</span><span class="n">mint</span><span class="o">.</span><span class="n">exp</span><span class="p">(</span><span class="o">-</span><span class="n">h</span><span class="p">)</span> <span class="o">-</span> <span class="mf">1.0</span> <span class="o">+</span> <span class="n">h</span><span class="p">)</span> <span class="o">/</span> <span class="n">h</span><span class="o">**</span><span class="mi">2</span> <span class="o">-</span> <span class="mf">0.5</span><span class="p">))</span> <span class="o">*</span> <span class="n">D2</span>
             <span class="p">)</span>
     <span class="k">elif</span> <span class="bp">self</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">algorithm_type</span> <span class="o">==</span> <span class="s2">&quot;dpmsolver&quot;</span><span class="p">:</span>
-        <span class="c1"># See https://arxiv.org/abs/2206.00927 for detailed derivations</span>
+        <span class="c1"># See https://huggingface.co/papers/2206.00927 for detailed derivations</span>
         <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">solver_type</span> <span class="o">==</span> <span class="s2">&quot;midpoint&quot;</span><span class="p">:</span>
             <span class="n">x_t</span> <span class="o">=</span> <span class="p">(</span>
                 <span class="p">(</span><span class="n">alpha_t</span> <span class="o">/</span> <span class="n">alpha_s2</span><span class="p">)</span> <span class="o">*</span> <span class="n">sample</span>
@@ -13160,12 +13160,12 @@ The sample tensor at the previous timestep.</p>
         <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">args</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">2</span><span class="p">:</span>
             <span class="n">sample</span> <span class="o">=</span> <span class="n">args</span><span class="p">[</span><span class="mi">2</span><span class="p">]</span>
         <span class="k">else</span><span class="p">:</span>
-            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot; missing`sample` as a required keyward argument&quot;</span><span class="p">)</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;missing `sample` as a required keyword argument&quot;</span><span class="p">)</span>
     <span class="k">if</span> <span class="n">order</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
         <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">args</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">3</span><span class="p">:</span>
             <span class="n">order</span> <span class="o">=</span> <span class="n">args</span><span class="p">[</span><span class="mi">3</span><span class="p">]</span>
         <span class="k">else</span><span class="p">:</span>
-            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot; missing `order` as a required keyward argument&quot;</span><span class="p">)</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;missing `order` as a required keyword argument&quot;</span><span class="p">)</span>
     <span class="k">if</span> <span class="n">timestep_list</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
         <span class="n">deprecate</span><span class="p">(</span>
             <span class="s2">&quot;timestep_list&quot;</span><span class="p">,</span>

@@ -9045,7 +9045,7 @@ dark samples instead of limiting it to samples with medium brightness. Loosely r
 
         <span class="bp">self</span><span class="o">.</span><span class="n">num_inference_steps</span> <span class="o">=</span> <span class="n">num_inference_steps</span>
 
-        <span class="c1"># &quot;linspace&quot;, &quot;leading&quot;, &quot;trailing&quot; corresponds to annotation of Table 2. of https://arxiv.org/abs/2305.08891</span>
+        <span class="c1"># &quot;linspace&quot;, &quot;leading&quot;, &quot;trailing&quot; corresponds to annotation of Table 2. of https://huggingface.co/papers/2305.08891</span>
         <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">timestep_spacing</span> <span class="o">==</span> <span class="s2">&quot;linspace&quot;</span><span class="p">:</span>
             <span class="n">timesteps</span> <span class="o">=</span> <span class="p">(</span>
                 <span class="n">np</span><span class="o">.</span><span class="n">linspace</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">num_train_timesteps</span> <span class="o">-</span> <span class="mi">1</span><span class="p">,</span> <span class="n">num_inference_steps</span><span class="p">)</span>
@@ -9120,7 +9120,7 @@ dark samples instead of limiting it to samples with medium brightness. Loosely r
                 <span class="s2">&quot;Number of inference steps is &#39;None&#39;, you need to run &#39;set_timesteps&#39; after creating the scheduler&quot;</span>
             <span class="p">)</span>
 
-        <span class="c1"># See formulas (12) and (16) of DDIM paper https://arxiv.org/pdf/2010.02502.pdf</span>
+        <span class="c1"># See formulas (12) and (16) of DDIM paper https://huggingface.co/papers/2010.02502</span>
         <span class="c1"># Ideally, read DDIM paper in-detail understanding</span>
 
         <span class="c1"># Notation (&lt;variable name&gt; -&gt; &lt;name in paper&gt;</span>
@@ -9141,7 +9141,7 @@ dark samples instead of limiting it to samples with medium brightness. Loosely r
         <span class="n">beta_prod_t</span> <span class="o">=</span> <span class="mi">1</span> <span class="o">-</span> <span class="n">alpha_prod_t</span>
 
         <span class="c1"># 3. compute predicted original sample from predicted noise also called</span>
-        <span class="c1"># &quot;predicted x_0&quot; of formula (12) from https://arxiv.org/pdf/2010.02502.pdf</span>
+        <span class="c1"># &quot;predicted x_0&quot; of formula (12) from https://huggingface.co/papers/2010.02502</span>
         <span class="c1"># To make style tests pass, commented out `pred_epsilon` as it is an unused variable</span>
         <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">prediction_type</span> <span class="o">==</span> <span class="s2">&quot;epsilon&quot;</span><span class="p">:</span>
             <span class="n">pred_original_sample</span> <span class="o">=</span> <span class="p">(</span><span class="n">sample</span> <span class="o">-</span> <span class="n">beta_prod_t</span> <span class="o">**</span> <span class="p">(</span><span class="mf">0.5</span><span class="p">)</span> <span class="o">*</span> <span class="n">model_output</span><span class="p">)</span> <span class="o">/</span> <span class="n">alpha_prod_t</span> <span class="o">**</span> <span class="p">(</span><span class="mf">0.5</span><span class="p">)</span>
@@ -9462,7 +9462,7 @@ A scaled input sample.</p>
 
     <span class="bp">self</span><span class="o">.</span><span class="n">num_inference_steps</span> <span class="o">=</span> <span class="n">num_inference_steps</span>
 
-    <span class="c1"># &quot;linspace&quot;, &quot;leading&quot;, &quot;trailing&quot; corresponds to annotation of Table 2. of https://arxiv.org/abs/2305.08891</span>
+    <span class="c1"># &quot;linspace&quot;, &quot;leading&quot;, &quot;trailing&quot; corresponds to annotation of Table 2. of https://huggingface.co/papers/2305.08891</span>
     <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">timestep_spacing</span> <span class="o">==</span> <span class="s2">&quot;linspace&quot;</span><span class="p">:</span>
         <span class="n">timesteps</span> <span class="o">=</span> <span class="p">(</span>
             <span class="n">np</span><span class="o">.</span><span class="n">linspace</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">num_train_timesteps</span> <span class="o">-</span> <span class="mi">1</span><span class="p">,</span> <span class="n">num_inference_steps</span><span class="p">)</span>
@@ -9846,7 +9846,7 @@ tuple is returned where the first element is the sample tensor.</p>
             <span class="s2">&quot;Number of inference steps is &#39;None&#39;, you need to run &#39;set_timesteps&#39; after creating the scheduler&quot;</span>
         <span class="p">)</span>
 
-    <span class="c1"># See formulas (12) and (16) of DDIM paper https://arxiv.org/pdf/2010.02502.pdf</span>
+    <span class="c1"># See formulas (12) and (16) of DDIM paper https://huggingface.co/papers/2010.02502</span>
     <span class="c1"># Ideally, read DDIM paper in-detail understanding</span>
 
     <span class="c1"># Notation (&lt;variable name&gt; -&gt; &lt;name in paper&gt;</span>
@@ -9867,7 +9867,7 @@ tuple is returned where the first element is the sample tensor.</p>
     <span class="n">beta_prod_t</span> <span class="o">=</span> <span class="mi">1</span> <span class="o">-</span> <span class="n">alpha_prod_t</span>
 
     <span class="c1"># 3. compute predicted original sample from predicted noise also called</span>
-    <span class="c1"># &quot;predicted x_0&quot; of formula (12) from https://arxiv.org/pdf/2010.02502.pdf</span>
+    <span class="c1"># &quot;predicted x_0&quot; of formula (12) from https://huggingface.co/papers/2010.02502</span>
     <span class="c1"># To make style tests pass, commented out `pred_epsilon` as it is an unused variable</span>
     <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">prediction_type</span> <span class="o">==</span> <span class="s2">&quot;epsilon&quot;</span><span class="p">:</span>
         <span class="n">pred_original_sample</span> <span class="o">=</span> <span class="p">(</span><span class="n">sample</span> <span class="o">-</span> <span class="n">beta_prod_t</span> <span class="o">**</span> <span class="p">(</span><span class="mf">0.5</span><span class="p">)</span> <span class="o">*</span> <span class="n">model_output</span><span class="p">)</span> <span class="o">/</span> <span class="n">alpha_prod_t</span> <span class="o">**</span> <span class="p">(</span><span class="mf">0.5</span><span class="p">)</span>

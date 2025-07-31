@@ -9229,7 +9229,11 @@ the <a href="https://huggingface.co/google/umt5-xxl">google/umt5-xxl</a> variant
 <span class="normal">568</span>
 <span class="normal">569</span>
 <span class="normal">570</span>
-<span class="normal">571</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">class</span><span class="w"> </span><span class="nc">WanPipeline</span><span class="p">(</span><span class="n">DiffusionPipeline</span><span class="p">,</span> <span class="n">WanLoraLoaderMixin</span><span class="p">):</span>
+<span class="normal">571</span>
+<span class="normal">572</span>
+<span class="normal">573</span>
+<span class="normal">574</span>
+<span class="normal">575</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">class</span><span class="w"> </span><span class="nc">WanPipeline</span><span class="p">(</span><span class="n">DiffusionPipeline</span><span class="p">,</span> <span class="n">WanLoraLoaderMixin</span><span class="p">):</span>
 <span class="w">    </span><span class="sa">r</span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    Pipeline for text-to-video generation using Wan.</span>
 
@@ -9513,8 +9517,10 @@ the <a href="https://huggingface.co/google/umt5-xxl">google/umt5-xxl</a> variant
 
 <span class="sd">        Args:</span>
 <span class="sd">            prompt (`str` or `List[str]`, *optional*):</span>
-<span class="sd">                The prompt or prompts to guide the image generation. If not defined, one has to pass `prompt_embeds`.</span>
-<span class="sd">                instead.</span>
+<span class="sd">                The prompt or prompts to guide the image generation. If not defined, pass `prompt_embeds` instead.</span>
+<span class="sd">            negative_prompt (`str` or `List[str]`, *optional*):</span>
+<span class="sd">                The prompt or prompts to avoid during image generation. If not defined, pass `negative_prompt_embeds`</span>
+<span class="sd">                instead. Ignored when not using guidance (`guidance_scale` &lt; `1`).</span>
 <span class="sd">            height (`int`, defaults to `480`):</span>
 <span class="sd">                The height in pixels of the generated image.</span>
 <span class="sd">            width (`int`, defaults to `832`):</span>
@@ -9525,11 +9531,11 @@ the <a href="https://huggingface.co/google/umt5-xxl">google/umt5-xxl</a> variant
 <span class="sd">                The number of denoising steps. More denoising steps usually lead to a higher quality image at the</span>
 <span class="sd">                expense of slower inference.</span>
 <span class="sd">            guidance_scale (`float`, defaults to `5.0`):</span>
-<span class="sd">                Guidance scale as defined in [Classifier-Free Diffusion Guidance](https://arxiv.org/abs/2207.12598).</span>
-<span class="sd">                `guidance_scale` is defined as `w` of equation 2. of [Imagen</span>
-<span class="sd">                Paper](https://arxiv.org/pdf/2205.11487.pdf). Guidance scale is enabled by setting `guidance_scale &gt;</span>
-<span class="sd">                1`. Higher guidance scale encourages to generate images that are closely linked to the text `prompt`,</span>
-<span class="sd">                usually at the expense of lower image quality.</span>
+<span class="sd">                Guidance scale as defined in [Classifier-Free Diffusion</span>
+<span class="sd">                Guidance](https://huggingface.co/papers/2207.12598). `guidance_scale` is defined as `w` of equation 2.</span>
+<span class="sd">                of [Imagen Paper](https://huggingface.co/papers/2205.11487). Guidance scale is enabled by setting</span>
+<span class="sd">                `guidance_scale &gt; 1`. Higher guidance scale encourages to generate images that are closely linked to</span>
+<span class="sd">                the text `prompt`, usually at the expense of lower image quality.</span>
 <span class="sd">            num_videos_per_prompt (`int`, *optional*, defaults to 1):</span>
 <span class="sd">                The number of images to generate per prompt.</span>
 <span class="sd">            generator (`np.random.Generator` or `List[np.random.Generator]`, *optional*):</span>
@@ -9542,7 +9548,7 @@ the <a href="https://huggingface.co/google/umt5-xxl">google/umt5-xxl</a> variant
 <span class="sd">            prompt_embeds (`ms.Tensor`, *optional*):</span>
 <span class="sd">                Pre-generated text embeddings. Can be used to easily tweak text inputs (prompt weighting). If not</span>
 <span class="sd">                provided, text embeddings are generated from the `prompt` input argument.</span>
-<span class="sd">            output_type (`str`, *optional*, defaults to `&quot;pil&quot;`):</span>
+<span class="sd">            output_type (`str`, *optional*, defaults to `&quot;np&quot;`):</span>
 <span class="sd">                The output format of the generated image. Choose between `PIL.Image` or `np.array`.</span>
 <span class="sd">            return_dict (`bool`, *optional*, defaults to `False`):</span>
 <span class="sd">                Whether or not to return a [`WanPipelineOutput`] instead of a plain tuple.</span>
@@ -9559,8 +9565,9 @@ the <a href="https://huggingface.co/google/umt5-xxl">google/umt5-xxl</a> variant
 <span class="sd">                The list of tensor inputs for the `callback_on_step_end` function. The tensors specified in the list</span>
 <span class="sd">                will be passed as `callback_kwargs` argument. You will only be able to include variables listed in the</span>
 <span class="sd">                `._callback_tensor_inputs` attribute of your pipeline class.</span>
-<span class="sd">            autocast_dtype (`ms.Type`, *optional*, defaults to `ms.bfloat16`):</span>
-<span class="sd">                The dtype to use for the ms.amp.autocast.</span>
+<span class="sd">            max_sequence_length (`int`, defaults to `512`):</span>
+<span class="sd">                The maximum sequence length of the text encoder. If the prompt is longer than this, it will be</span>
+<span class="sd">                truncated. If the prompt is shorter, it will be padded to this length.</span>
 
 <span class="sd">        Examples:</span>
 
@@ -9635,6 +9642,7 @@ the <a href="https://huggingface.co/google/umt5-xxl">google/umt5-xxl</a> variant
             <span class="n">num_frames</span><span class="p">,</span>
             <span class="n">ms</span><span class="o">.</span><span class="n">float32</span><span class="p">,</span>
             <span class="n">generator</span><span class="p">,</span>
+            <span class="n">latents</span><span class="p">,</span>
         <span class="p">)</span>
 
         <span class="c1"># 6. Denoising loop</span>
@@ -9750,8 +9758,28 @@ the <a href="https://huggingface.co/google/umt5-xxl">google/umt5-xxl</a> variant
             </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
-                <p>The prompt or prompts to guide the image generation. If not defined, one has to pass <code>prompt_embeds</code>.
-instead.</p>
+                <p>The prompt or prompts to guide the image generation. If not defined, pass <code>prompt_embeds</code> instead.</p>
+              </div>
+              <p>
+                  <span class="doc-param-annotation">
+                    <b>TYPE:</b>
+                      <code>`str` or `List[str]`, *optional*</code>
+                  </span>
+                  <span class="doc-param-default">
+                    <b>DEFAULT:</b>
+                      <code>None</code>
+                  </span>
+              </p>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+                <code>negative_prompt</code>
+            </td>
+            <td class="doc-param-details">
+              <div class="doc-md-description">
+                <p>The prompt or prompts to avoid during image generation. If not defined, pass <code>negative_prompt_embeds</code>
+instead. Ignored when not using guidance (<code>guidance_scale</code> &lt; <code>1</code>).</p>
               </div>
               <p>
                   <span class="doc-param-annotation">
@@ -9852,11 +9880,11 @@ expense of slower inference.</p>
             </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
-                <p>Guidance scale as defined in <a href="https://arxiv.org/abs/2207.12598">Classifier-Free Diffusion Guidance</a>.
-<code>guidance_scale</code> is defined as <code>w</code> of equation 2. of <a href="https://arxiv.org/pdf/2205.11487.pdf">Imagen
-Paper</a>. Guidance scale is enabled by setting <code>guidance_scale &gt;
-1</code>. Higher guidance scale encourages to generate images that are closely linked to the text <code>prompt</code>,
-usually at the expense of lower image quality.</p>
+                <p>Guidance scale as defined in <a href="https://huggingface.co/papers/2207.12598">Classifier-Free Diffusion
+Guidance</a>. <code>guidance_scale</code> is defined as <code>w</code> of equation 2.
+of <a href="https://huggingface.co/papers/2205.11487">Imagen Paper</a>. Guidance scale is enabled by setting
+<code>guidance_scale &gt; 1</code>. Higher guidance scale encourages to generate images that are closely linked to
+the text <code>prompt</code>, usually at the expense of lower image quality.</p>
               </div>
               <p>
                   <span class="doc-param-annotation">
@@ -9965,7 +9993,7 @@ provided, text embeddings are generated from the <code>prompt</code> input argum
               <p>
                   <span class="doc-param-annotation">
                     <b>TYPE:</b>
-                      <code>`str`, *optional*, defaults to `&#34;pil&#34;`</code>
+                      <code>`str`, *optional*, defaults to `&#34;np&#34;`</code>
                   </span>
                   <span class="doc-param-default">
                     <b>DEFAULT:</b>
@@ -10063,16 +10091,21 @@ will be passed as <code>callback_kwargs</code> argument. You will only be able t
           </tr>
           <tr class="doc-section-item">
             <td>
-                <code>autocast_dtype</code>
+                <code>max_sequence_length</code>
             </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
-                <p>The dtype to use for the ms.amp.autocast.</p>
+                <p>The maximum sequence length of the text encoder. If the prompt is longer than this, it will be
+truncated. If the prompt is shorter, it will be padded to this length.</p>
               </div>
               <p>
                   <span class="doc-param-annotation">
                     <b>TYPE:</b>
-                      <code>`ms.Type`, *optional*, defaults to `ms.bfloat16`</code>
+                      <code>`int`, defaults to `512`</code>
+                  </span>
+                  <span class="doc-param-default">
+                    <b>DEFAULT:</b>
+                      <code>512</code>
                   </span>
               </p>
             </td>
@@ -10329,7 +10362,11 @@ indicating whether the corresponding generated image contains "not-safe-for-work
 <span class="normal">568</span>
 <span class="normal">569</span>
 <span class="normal">570</span>
-<span class="normal">571</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="fm">__call__</span><span class="p">(</span>
+<span class="normal">571</span>
+<span class="normal">572</span>
+<span class="normal">573</span>
+<span class="normal">574</span>
+<span class="normal">575</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="fm">__call__</span><span class="p">(</span>
     <span class="bp">self</span><span class="p">,</span>
     <span class="n">prompt</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">List</span><span class="p">[</span><span class="nb">str</span><span class="p">]]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
     <span class="n">negative_prompt</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">List</span><span class="p">[</span><span class="nb">str</span><span class="p">]]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
@@ -10357,8 +10394,10 @@ indicating whether the corresponding generated image contains "not-safe-for-work
 
 <span class="sd">    Args:</span>
 <span class="sd">        prompt (`str` or `List[str]`, *optional*):</span>
-<span class="sd">            The prompt or prompts to guide the image generation. If not defined, one has to pass `prompt_embeds`.</span>
-<span class="sd">            instead.</span>
+<span class="sd">            The prompt or prompts to guide the image generation. If not defined, pass `prompt_embeds` instead.</span>
+<span class="sd">        negative_prompt (`str` or `List[str]`, *optional*):</span>
+<span class="sd">            The prompt or prompts to avoid during image generation. If not defined, pass `negative_prompt_embeds`</span>
+<span class="sd">            instead. Ignored when not using guidance (`guidance_scale` &lt; `1`).</span>
 <span class="sd">        height (`int`, defaults to `480`):</span>
 <span class="sd">            The height in pixels of the generated image.</span>
 <span class="sd">        width (`int`, defaults to `832`):</span>
@@ -10369,11 +10408,11 @@ indicating whether the corresponding generated image contains "not-safe-for-work
 <span class="sd">            The number of denoising steps. More denoising steps usually lead to a higher quality image at the</span>
 <span class="sd">            expense of slower inference.</span>
 <span class="sd">        guidance_scale (`float`, defaults to `5.0`):</span>
-<span class="sd">            Guidance scale as defined in [Classifier-Free Diffusion Guidance](https://arxiv.org/abs/2207.12598).</span>
-<span class="sd">            `guidance_scale` is defined as `w` of equation 2. of [Imagen</span>
-<span class="sd">            Paper](https://arxiv.org/pdf/2205.11487.pdf). Guidance scale is enabled by setting `guidance_scale &gt;</span>
-<span class="sd">            1`. Higher guidance scale encourages to generate images that are closely linked to the text `prompt`,</span>
-<span class="sd">            usually at the expense of lower image quality.</span>
+<span class="sd">            Guidance scale as defined in [Classifier-Free Diffusion</span>
+<span class="sd">            Guidance](https://huggingface.co/papers/2207.12598). `guidance_scale` is defined as `w` of equation 2.</span>
+<span class="sd">            of [Imagen Paper](https://huggingface.co/papers/2205.11487). Guidance scale is enabled by setting</span>
+<span class="sd">            `guidance_scale &gt; 1`. Higher guidance scale encourages to generate images that are closely linked to</span>
+<span class="sd">            the text `prompt`, usually at the expense of lower image quality.</span>
 <span class="sd">        num_videos_per_prompt (`int`, *optional*, defaults to 1):</span>
 <span class="sd">            The number of images to generate per prompt.</span>
 <span class="sd">        generator (`np.random.Generator` or `List[np.random.Generator]`, *optional*):</span>
@@ -10386,7 +10425,7 @@ indicating whether the corresponding generated image contains "not-safe-for-work
 <span class="sd">        prompt_embeds (`ms.Tensor`, *optional*):</span>
 <span class="sd">            Pre-generated text embeddings. Can be used to easily tweak text inputs (prompt weighting). If not</span>
 <span class="sd">            provided, text embeddings are generated from the `prompt` input argument.</span>
-<span class="sd">        output_type (`str`, *optional*, defaults to `&quot;pil&quot;`):</span>
+<span class="sd">        output_type (`str`, *optional*, defaults to `&quot;np&quot;`):</span>
 <span class="sd">            The output format of the generated image. Choose between `PIL.Image` or `np.array`.</span>
 <span class="sd">        return_dict (`bool`, *optional*, defaults to `False`):</span>
 <span class="sd">            Whether or not to return a [`WanPipelineOutput`] instead of a plain tuple.</span>
@@ -10403,8 +10442,9 @@ indicating whether the corresponding generated image contains "not-safe-for-work
 <span class="sd">            The list of tensor inputs for the `callback_on_step_end` function. The tensors specified in the list</span>
 <span class="sd">            will be passed as `callback_kwargs` argument. You will only be able to include variables listed in the</span>
 <span class="sd">            `._callback_tensor_inputs` attribute of your pipeline class.</span>
-<span class="sd">        autocast_dtype (`ms.Type`, *optional*, defaults to `ms.bfloat16`):</span>
-<span class="sd">            The dtype to use for the ms.amp.autocast.</span>
+<span class="sd">        max_sequence_length (`int`, defaults to `512`):</span>
+<span class="sd">            The maximum sequence length of the text encoder. If the prompt is longer than this, it will be</span>
+<span class="sd">            truncated. If the prompt is shorter, it will be padded to this length.</span>
 
 <span class="sd">    Examples:</span>
 
@@ -10479,6 +10519,7 @@ indicating whether the corresponding generated image contains "not-safe-for-work
         <span class="n">num_frames</span><span class="p">,</span>
         <span class="n">ms</span><span class="o">.</span><span class="n">float32</span><span class="p">,</span>
         <span class="n">generator</span><span class="p">,</span>
+        <span class="n">latents</span><span class="p">,</span>
     <span class="p">)</span>
 
     <span class="c1"># 6. Denoising loop</span>
@@ -11600,7 +11641,25 @@ variant.</p>
 <span class="normal">697</span>
 <span class="normal">698</span>
 <span class="normal">699</span>
-<span class="normal">700</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">class</span><span class="w"> </span><span class="nc">WanImageToVideoPipeline</span><span class="p">(</span><span class="n">DiffusionPipeline</span><span class="p">,</span> <span class="n">WanLoraLoaderMixin</span><span class="p">):</span>
+<span class="normal">700</span>
+<span class="normal">701</span>
+<span class="normal">702</span>
+<span class="normal">703</span>
+<span class="normal">704</span>
+<span class="normal">705</span>
+<span class="normal">706</span>
+<span class="normal">707</span>
+<span class="normal">708</span>
+<span class="normal">709</span>
+<span class="normal">710</span>
+<span class="normal">711</span>
+<span class="normal">712</span>
+<span class="normal">713</span>
+<span class="normal">714</span>
+<span class="normal">715</span>
+<span class="normal">716</span>
+<span class="normal">717</span>
+<span class="normal">718</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">class</span><span class="w"> </span><span class="nc">WanImageToVideoPipeline</span><span class="p">(</span><span class="n">DiffusionPipeline</span><span class="p">,</span> <span class="n">WanLoraLoaderMixin</span><span class="p">):</span>
 <span class="w">    </span><span class="sa">r</span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    Pipeline for image-to-video generation using Wan.</span>
 
@@ -11846,6 +11905,7 @@ variant.</p>
         <span class="n">dtype</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">ms</span><span class="o">.</span><span class="n">Type</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
         <span class="n">generator</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Union</span><span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">random</span><span class="o">.</span><span class="n">Generator</span><span class="p">,</span> <span class="n">List</span><span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">random</span><span class="o">.</span><span class="n">Generator</span><span class="p">]]]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
         <span class="n">latents</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">ms</span><span class="o">.</span><span class="n">Tensor</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">last_image</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">ms</span><span class="o">.</span><span class="n">Tensor</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
     <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Tuple</span><span class="p">[</span><span class="n">ms</span><span class="o">.</span><span class="n">Tensor</span><span class="p">,</span> <span class="n">ms</span><span class="o">.</span><span class="n">Tensor</span><span class="p">]:</span>
         <span class="n">num_latent_frames</span> <span class="o">=</span> <span class="p">(</span><span class="n">num_frames</span> <span class="o">-</span> <span class="mi">1</span><span class="p">)</span> <span class="o">//</span> <span class="bp">self</span><span class="o">.</span><span class="n">vae_scale_factor_temporal</span> <span class="o">+</span> <span class="mi">1</span>
         <span class="n">latent_height</span> <span class="o">=</span> <span class="n">height</span> <span class="o">//</span> <span class="bp">self</span><span class="o">.</span><span class="n">vae_scale_factor_spatial</span>
@@ -11864,10 +11924,17 @@ variant.</p>
             <span class="n">latents</span> <span class="o">=</span> <span class="n">latents</span><span class="o">.</span><span class="n">to</span><span class="p">(</span><span class="n">dtype</span><span class="o">=</span><span class="n">dtype</span><span class="p">)</span>
 
         <span class="n">image</span> <span class="o">=</span> <span class="n">image</span><span class="o">.</span><span class="n">unsqueeze</span><span class="p">(</span><span class="mi">2</span><span class="p">)</span>
-        <span class="n">video_condition</span> <span class="o">=</span> <span class="n">mint</span><span class="o">.</span><span class="n">cat</span><span class="p">(</span>
-            <span class="p">[</span><span class="n">image</span><span class="p">,</span> <span class="n">image</span><span class="o">.</span><span class="n">new_zeros</span><span class="p">((</span><span class="n">image</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="n">image</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">1</span><span class="p">],</span> <span class="n">num_frames</span> <span class="o">-</span> <span class="mi">1</span><span class="p">,</span> <span class="n">height</span><span class="p">,</span> <span class="n">width</span><span class="p">))],</span> <span class="n">dim</span><span class="o">=</span><span class="mi">2</span>
-        <span class="p">)</span>
-        <span class="n">video_condition</span> <span class="o">=</span> <span class="n">video_condition</span><span class="o">.</span><span class="n">to</span><span class="p">(</span><span class="n">dtype</span><span class="o">=</span><span class="n">dtype</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">last_image</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">video_condition</span> <span class="o">=</span> <span class="n">mint</span><span class="o">.</span><span class="n">cat</span><span class="p">(</span>
+                <span class="p">[</span><span class="n">image</span><span class="p">,</span> <span class="n">image</span><span class="o">.</span><span class="n">new_zeros</span><span class="p">((</span><span class="n">image</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="n">image</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">1</span><span class="p">],</span> <span class="n">num_frames</span> <span class="o">-</span> <span class="mi">1</span><span class="p">,</span> <span class="n">height</span><span class="p">,</span> <span class="n">width</span><span class="p">))],</span> <span class="n">dim</span><span class="o">=</span><span class="mi">2</span>
+            <span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">last_image</span> <span class="o">=</span> <span class="n">last_image</span><span class="o">.</span><span class="n">unsqueeze</span><span class="p">(</span><span class="mi">2</span><span class="p">)</span>
+            <span class="n">video_condition</span> <span class="o">=</span> <span class="n">mint</span><span class="o">.</span><span class="n">cat</span><span class="p">(</span>
+                <span class="p">[</span><span class="n">image</span><span class="p">,</span> <span class="n">image</span><span class="o">.</span><span class="n">new_zeros</span><span class="p">((</span><span class="n">image</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="n">image</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">1</span><span class="p">],</span> <span class="n">num_frames</span> <span class="o">-</span> <span class="mi">2</span><span class="p">,</span> <span class="n">height</span><span class="p">,</span> <span class="n">width</span><span class="p">)),</span> <span class="n">last_image</span><span class="p">],</span>
+                <span class="n">dim</span><span class="o">=</span><span class="mi">2</span><span class="p">,</span>
+            <span class="p">)</span>
+        <span class="n">video_condition</span> <span class="o">=</span> <span class="n">video_condition</span><span class="o">.</span><span class="n">to</span><span class="p">(</span><span class="n">dtype</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">vae</span><span class="o">.</span><span class="n">dtype</span><span class="p">)</span>
 
         <span class="n">latents_mean</span> <span class="o">=</span> <span class="n">ms</span><span class="o">.</span><span class="n">tensor</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">vae</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">latents_mean</span><span class="p">)</span><span class="o">.</span><span class="n">view</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">vae</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">z_dim</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">)</span><span class="o">.</span><span class="n">to</span><span class="p">(</span><span class="n">latents</span><span class="o">.</span><span class="n">dtype</span><span class="p">)</span>
         <span class="n">latents_std</span> <span class="o">=</span> <span class="mf">1.0</span> <span class="o">/</span> <span class="n">ms</span><span class="o">.</span><span class="n">tensor</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">vae</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">latents_std</span><span class="p">)</span><span class="o">.</span><span class="n">view</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">vae</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">z_dim</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">)</span><span class="o">.</span><span class="n">to</span><span class="p">(</span>
@@ -11886,10 +11953,15 @@ variant.</p>
                 <span class="n">latent_condition</span> <span class="o">=</span> <span class="n">retrieve_latents</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">vae</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">vae</span><span class="o">.</span><span class="n">encode</span><span class="p">(</span><span class="n">video_condition</span><span class="p">)[</span><span class="mi">0</span><span class="p">],</span> <span class="n">sample_mode</span><span class="o">=</span><span class="s2">&quot;argmax&quot;</span><span class="p">)</span>
                 <span class="n">latent_condition</span> <span class="o">=</span> <span class="n">latent_condition</span><span class="o">.</span><span class="n">tile</span><span class="p">((</span><span class="n">batch_size</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">))</span>
 
+        <span class="n">latent_condition</span> <span class="o">=</span> <span class="n">latent_condition</span><span class="o">.</span><span class="n">to</span><span class="p">(</span><span class="n">dtype</span><span class="p">)</span>
         <span class="n">latent_condition</span> <span class="o">=</span> <span class="p">(</span><span class="n">latent_condition</span> <span class="o">-</span> <span class="n">latents_mean</span><span class="p">)</span> <span class="o">*</span> <span class="n">latents_std</span>
 
         <span class="n">mask_lat_size</span> <span class="o">=</span> <span class="n">mint</span><span class="o">.</span><span class="n">ones</span><span class="p">((</span><span class="n">batch_size</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="n">num_frames</span><span class="p">,</span> <span class="n">latent_height</span><span class="p">,</span> <span class="n">latent_width</span><span class="p">))</span>
-        <span class="n">mask_lat_size</span><span class="p">[:,</span> <span class="p">:,</span> <span class="nb">list</span><span class="p">(</span><span class="nb">range</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="n">num_frames</span><span class="p">))]</span> <span class="o">=</span> <span class="mi">0</span>
+
+        <span class="k">if</span> <span class="n">last_image</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">mask_lat_size</span><span class="p">[:,</span> <span class="p">:,</span> <span class="nb">list</span><span class="p">(</span><span class="nb">range</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="n">num_frames</span><span class="p">))]</span> <span class="o">=</span> <span class="mi">0</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">mask_lat_size</span><span class="p">[:,</span> <span class="p">:,</span> <span class="nb">list</span><span class="p">(</span><span class="nb">range</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="n">num_frames</span> <span class="o">-</span> <span class="mi">1</span><span class="p">))]</span> <span class="o">=</span> <span class="mi">0</span>
         <span class="n">first_frame_mask</span> <span class="o">=</span> <span class="n">mask_lat_size</span><span class="p">[:,</span> <span class="p">:,</span> <span class="mi">0</span><span class="p">:</span><span class="mi">1</span><span class="p">]</span>
         <span class="n">first_frame_mask</span> <span class="o">=</span> <span class="n">mint</span><span class="o">.</span><span class="n">repeat_interleave</span><span class="p">(</span><span class="n">first_frame_mask</span><span class="p">,</span> <span class="n">dim</span><span class="o">=</span><span class="mi">2</span><span class="p">,</span> <span class="n">repeats</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">vae_scale_factor_temporal</span><span class="p">)</span>
         <span class="n">mask_lat_size</span> <span class="o">=</span> <span class="n">mint</span><span class="o">.</span><span class="n">concat</span><span class="p">([</span><span class="n">first_frame_mask</span><span class="p">,</span> <span class="n">mask_lat_size</span><span class="p">[:,</span> <span class="p">:,</span> <span class="mi">1</span><span class="p">:,</span> <span class="p">:]],</span> <span class="n">dim</span><span class="o">=</span><span class="mi">2</span><span class="p">)</span>
@@ -11938,6 +12010,7 @@ variant.</p>
         <span class="n">prompt_embeds</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">ms</span><span class="o">.</span><span class="n">Tensor</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
         <span class="n">negative_prompt_embeds</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">ms</span><span class="o">.</span><span class="n">Tensor</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
         <span class="n">image_embeds</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">ms</span><span class="o">.</span><span class="n">Tensor</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">last_image</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">ms</span><span class="o">.</span><span class="n">Tensor</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
         <span class="n">output_type</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="s2">&quot;np&quot;</span><span class="p">,</span>
         <span class="n">return_dict</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
         <span class="n">attention_kwargs</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">]]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
@@ -11970,11 +12043,11 @@ variant.</p>
 <span class="sd">                The number of denoising steps. More denoising steps usually lead to a higher quality image at the</span>
 <span class="sd">                expense of slower inference.</span>
 <span class="sd">            guidance_scale (`float`, defaults to `5.0`):</span>
-<span class="sd">                Guidance scale as defined in [Classifier-Free Diffusion Guidance](https://arxiv.org/abs/2207.12598).</span>
-<span class="sd">                `guidance_scale` is defined as `w` of equation 2. of [Imagen</span>
-<span class="sd">                Paper](https://arxiv.org/pdf/2205.11487.pdf). Guidance scale is enabled by setting `guidance_scale &gt;</span>
-<span class="sd">                1`. Higher guidance scale encourages to generate images that are closely linked to the text `prompt`,</span>
-<span class="sd">                usually at the expense of lower image quality.</span>
+<span class="sd">                Guidance scale as defined in [Classifier-Free Diffusion</span>
+<span class="sd">                Guidance](https://huggingface.co/papers/2207.12598). `guidance_scale` is defined as `w` of equation 2.</span>
+<span class="sd">                of [Imagen Paper](https://huggingface.co/papers/2205.11487). Guidance scale is enabled by setting</span>
+<span class="sd">                `guidance_scale &gt; 1`. Higher guidance scale encourages to generate images that are closely linked to</span>
+<span class="sd">                the text `prompt`, usually at the expense of lower image quality.</span>
 <span class="sd">            num_videos_per_prompt (`int`, *optional*, defaults to 1):</span>
 <span class="sd">                The number of images to generate per prompt.</span>
 <span class="sd">            generator (`np.random.Generator` or `List[np.random.Generator]`, *optional*):</span>
@@ -11993,7 +12066,7 @@ variant.</p>
 <span class="sd">            image_embeds (`ms.Tensor`, *optional*):</span>
 <span class="sd">                Pre-generated image embeddings. Can be used to easily tweak image inputs (weighting). If not provided,</span>
 <span class="sd">                image embeddings are generated from the `image` input argument.</span>
-<span class="sd">            output_type (`str`, *optional*, defaults to `&quot;pil&quot;`):</span>
+<span class="sd">            output_type (`str`, *optional*, defaults to `&quot;np&quot;`):</span>
 <span class="sd">                The output format of the generated image. Choose between `PIL.Image` or `np.array`.</span>
 <span class="sd">            return_dict (`bool`, *optional*, defaults to `False`):</span>
 <span class="sd">                Whether or not to return a [`WanPipelineOutput`] instead of a plain tuple.</span>
@@ -12010,12 +12083,10 @@ variant.</p>
 <span class="sd">                The list of tensor inputs for the `callback_on_step_end` function. The tensors specified in the list</span>
 <span class="sd">                will be passed as `callback_kwargs` argument. You will only be able to include variables listed in the</span>
 <span class="sd">                `._callback_tensor_inputs` attribute of your pipeline class.</span>
-<span class="sd">            max_sequence_length (`int`, *optional*, defaults to `512`):</span>
-<span class="sd">                The maximum sequence length of the prompt.</span>
-<span class="sd">            shift (`float`, *optional*, defaults to `5.0`):</span>
-<span class="sd">                The shift of the flow.</span>
-<span class="sd">            autocast_dtype (`ms.Type`, *optional*, defaults to `ms.bfloat16`):</span>
-<span class="sd">                The dtype to use for the ms.amp.autocast.</span>
+<span class="sd">            max_sequence_length (`int`, defaults to `512`):</span>
+<span class="sd">                The maximum sequence length of the text encoder. If the prompt is longer than this, it will be</span>
+<span class="sd">                truncated. If the prompt is shorter, it will be padded to this length.</span>
+
 <span class="sd">        Examples:</span>
 
 <span class="sd">        Returns:</span>
@@ -12079,7 +12150,10 @@ variant.</p>
             <span class="n">negative_prompt_embeds</span> <span class="o">=</span> <span class="n">negative_prompt_embeds</span><span class="o">.</span><span class="n">to</span><span class="p">(</span><span class="n">transformer_dtype</span><span class="p">)</span>
 
         <span class="k">if</span> <span class="n">image_embeds</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
-            <span class="n">image_embeds</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">encode_image</span><span class="p">(</span><span class="n">image</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">last_image</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+                <span class="n">image_embeds</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">encode_image</span><span class="p">(</span><span class="n">image</span><span class="p">)</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">image_embeds</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">encode_image</span><span class="p">([</span><span class="n">image</span><span class="p">,</span> <span class="n">last_image</span><span class="p">])</span>
         <span class="n">image_embeds</span> <span class="o">=</span> <span class="n">image_embeds</span><span class="o">.</span><span class="n">tile</span><span class="p">((</span><span class="n">batch_size</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">))</span>
         <span class="n">image_embeds</span> <span class="o">=</span> <span class="n">image_embeds</span><span class="o">.</span><span class="n">to</span><span class="p">(</span><span class="n">transformer_dtype</span><span class="p">)</span>
 
@@ -12090,6 +12164,8 @@ variant.</p>
         <span class="c1"># 5. Prepare latent variables</span>
         <span class="n">num_channels_latents</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">vae</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">z_dim</span>
         <span class="n">image</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">video_processor</span><span class="o">.</span><span class="n">preprocess</span><span class="p">(</span><span class="n">image</span><span class="p">,</span> <span class="n">height</span><span class="o">=</span><span class="n">height</span><span class="p">,</span> <span class="n">width</span><span class="o">=</span><span class="n">width</span><span class="p">)</span><span class="o">.</span><span class="n">to</span><span class="p">(</span><span class="n">dtype</span><span class="o">=</span><span class="n">ms</span><span class="o">.</span><span class="n">float32</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">last_image</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">last_image</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">video_processor</span><span class="o">.</span><span class="n">preprocess</span><span class="p">(</span><span class="n">last_image</span><span class="p">,</span> <span class="n">height</span><span class="o">=</span><span class="n">height</span><span class="p">,</span> <span class="n">width</span><span class="o">=</span><span class="n">width</span><span class="p">)</span><span class="o">.</span><span class="n">to</span><span class="p">(</span><span class="n">dtype</span><span class="o">=</span><span class="n">ms</span><span class="o">.</span><span class="n">float32</span><span class="p">)</span>
         <span class="n">latents</span><span class="p">,</span> <span class="n">condition</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">prepare_latents</span><span class="p">(</span>
             <span class="n">image</span><span class="p">,</span>
             <span class="n">batch_size</span> <span class="o">*</span> <span class="n">num_videos_per_prompt</span><span class="p">,</span>
@@ -12100,6 +12176,7 @@ variant.</p>
             <span class="n">ms</span><span class="o">.</span><span class="n">float32</span><span class="p">,</span>
             <span class="n">generator</span><span class="p">,</span>
             <span class="n">latents</span><span class="p">,</span>
+            <span class="n">last_image</span><span class="p">,</span>
         <span class="p">)</span>
 
         <span class="c1"># 6. Denoising loop</span>
@@ -12193,7 +12270,7 @@ variant.</p>
 
 
 <h3 id="mindone.diffusers.WanImageToVideoPipeline.__call__" class="doc doc-heading">
-            <code class="highlight language-python"><span class="n">mindone</span><span class="o">.</span><span class="n">diffusers</span><span class="o">.</span><span class="n">WanImageToVideoPipeline</span><span class="o">.</span><span class="fm">__call__</span><span class="p">(</span><span class="n">image</span><span class="p">,</span> <span class="n">prompt</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">negative_prompt</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">height</span><span class="o">=</span><span class="mi">480</span><span class="p">,</span> <span class="n">width</span><span class="o">=</span><span class="mi">832</span><span class="p">,</span> <span class="n">num_frames</span><span class="o">=</span><span class="mi">81</span><span class="p">,</span> <span class="n">num_inference_steps</span><span class="o">=</span><span class="mi">50</span><span class="p">,</span> <span class="n">guidance_scale</span><span class="o">=</span><span class="mf">5.0</span><span class="p">,</span> <span class="n">num_videos_per_prompt</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span> <span class="n">generator</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">latents</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">prompt_embeds</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">negative_prompt_embeds</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">image_embeds</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">output_type</span><span class="o">=</span><span class="s1">&#39;np&#39;</span><span class="p">,</span> <span class="n">return_dict</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">attention_kwargs</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">callback_on_step_end</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">callback_on_step_end_tensor_inputs</span><span class="o">=</span><span class="p">[</span><span class="s1">&#39;latents&#39;</span><span class="p">],</span> <span class="n">max_sequence_length</span><span class="o">=</span><span class="mi">512</span><span class="p">)</span></code>
+            <code class="highlight language-python"><span class="n">mindone</span><span class="o">.</span><span class="n">diffusers</span><span class="o">.</span><span class="n">WanImageToVideoPipeline</span><span class="o">.</span><span class="fm">__call__</span><span class="p">(</span><span class="n">image</span><span class="p">,</span> <span class="n">prompt</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">negative_prompt</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">height</span><span class="o">=</span><span class="mi">480</span><span class="p">,</span> <span class="n">width</span><span class="o">=</span><span class="mi">832</span><span class="p">,</span> <span class="n">num_frames</span><span class="o">=</span><span class="mi">81</span><span class="p">,</span> <span class="n">num_inference_steps</span><span class="o">=</span><span class="mi">50</span><span class="p">,</span> <span class="n">guidance_scale</span><span class="o">=</span><span class="mf">5.0</span><span class="p">,</span> <span class="n">num_videos_per_prompt</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span> <span class="n">generator</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">latents</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">prompt_embeds</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">negative_prompt_embeds</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">image_embeds</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">last_image</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">output_type</span><span class="o">=</span><span class="s1">&#39;np&#39;</span><span class="p">,</span> <span class="n">return_dict</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">attention_kwargs</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">callback_on_step_end</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">callback_on_step_end_tensor_inputs</span><span class="o">=</span><span class="p">[</span><span class="s1">&#39;latents&#39;</span><span class="p">],</span> <span class="n">max_sequence_length</span><span class="o">=</span><span class="mi">512</span><span class="p">)</span></code>
 
 <a href="#mindone.diffusers.WanImageToVideoPipeline.__call__" class="headerlink" title="Permanent link">&para;</a></h3>
 
@@ -12357,11 +12434,11 @@ expense of slower inference.</p>
             </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
-                <p>Guidance scale as defined in <a href="https://arxiv.org/abs/2207.12598">Classifier-Free Diffusion Guidance</a>.
-<code>guidance_scale</code> is defined as <code>w</code> of equation 2. of <a href="https://arxiv.org/pdf/2205.11487.pdf">Imagen
-Paper</a>. Guidance scale is enabled by setting <code>guidance_scale &gt;
-1</code>. Higher guidance scale encourages to generate images that are closely linked to the text <code>prompt</code>,
-usually at the expense of lower image quality.</p>
+                <p>Guidance scale as defined in <a href="https://huggingface.co/papers/2207.12598">Classifier-Free Diffusion
+Guidance</a>. <code>guidance_scale</code> is defined as <code>w</code> of equation 2.
+of <a href="https://huggingface.co/papers/2205.11487">Imagen Paper</a>. Guidance scale is enabled by setting
+<code>guidance_scale &gt; 1</code>. Higher guidance scale encourages to generate images that are closely linked to
+the text <code>prompt</code>, usually at the expense of lower image quality.</p>
               </div>
               <p>
                   <span class="doc-param-annotation">
@@ -12512,7 +12589,7 @@ image embeddings are generated from the <code>image</code> input argument.</p>
               <p>
                   <span class="doc-param-annotation">
                     <b>TYPE:</b>
-                      <code>`str`, *optional*, defaults to `&#34;pil&#34;`</code>
+                      <code>`str`, *optional*, defaults to `&#34;np&#34;`</code>
                   </span>
                   <span class="doc-param-default">
                     <b>DEFAULT:</b>
@@ -12614,48 +12691,17 @@ will be passed as <code>callback_kwargs</code> argument. You will only be able t
             </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
-                <p>The maximum sequence length of the prompt.</p>
+                <p>The maximum sequence length of the text encoder. If the prompt is longer than this, it will be
+truncated. If the prompt is shorter, it will be padded to this length.</p>
               </div>
               <p>
                   <span class="doc-param-annotation">
                     <b>TYPE:</b>
-                      <code>`int`, *optional*, defaults to `512`</code>
+                      <code>`int`, defaults to `512`</code>
                   </span>
                   <span class="doc-param-default">
                     <b>DEFAULT:</b>
                       <code>512</code>
-                  </span>
-              </p>
-            </td>
-          </tr>
-          <tr class="doc-section-item">
-            <td>
-                <code>shift</code>
-            </td>
-            <td class="doc-param-details">
-              <div class="doc-md-description">
-                <p>The shift of the flow.</p>
-              </div>
-              <p>
-                  <span class="doc-param-annotation">
-                    <b>TYPE:</b>
-                      <code>`float`, *optional*, defaults to `5.0`</code>
-                  </span>
-              </p>
-            </td>
-          </tr>
-          <tr class="doc-section-item">
-            <td>
-                <code>autocast_dtype</code>
-            </td>
-            <td class="doc-param-details">
-              <div class="doc-md-description">
-                <p>The dtype to use for the ms.amp.autocast.</p>
-              </div>
-              <p>
-                  <span class="doc-param-annotation">
-                    <b>TYPE:</b>
-                      <code>`ms.Type`, *optional*, defaults to `ms.bfloat16`</code>
                   </span>
               </p>
             </td>
@@ -12691,20 +12737,7 @@ indicating whether the corresponding generated image contains "not-safe-for-work
 
             <details class="quote">
               <summary>Source code in <code>mindone/diffusers/pipelines/wan/pipeline_wan_i2v.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">449</span>
-<span class="normal">450</span>
-<span class="normal">451</span>
-<span class="normal">452</span>
-<span class="normal">453</span>
-<span class="normal">454</span>
-<span class="normal">455</span>
-<span class="normal">456</span>
-<span class="normal">457</span>
-<span class="normal">458</span>
-<span class="normal">459</span>
-<span class="normal">460</span>
-<span class="normal">461</span>
-<span class="normal">462</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">462</span>
 <span class="normal">463</span>
 <span class="normal">464</span>
 <span class="normal">465</span>
@@ -12942,7 +12975,25 @@ indicating whether the corresponding generated image contains "not-safe-for-work
 <span class="normal">697</span>
 <span class="normal">698</span>
 <span class="normal">699</span>
-<span class="normal">700</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="fm">__call__</span><span class="p">(</span>
+<span class="normal">700</span>
+<span class="normal">701</span>
+<span class="normal">702</span>
+<span class="normal">703</span>
+<span class="normal">704</span>
+<span class="normal">705</span>
+<span class="normal">706</span>
+<span class="normal">707</span>
+<span class="normal">708</span>
+<span class="normal">709</span>
+<span class="normal">710</span>
+<span class="normal">711</span>
+<span class="normal">712</span>
+<span class="normal">713</span>
+<span class="normal">714</span>
+<span class="normal">715</span>
+<span class="normal">716</span>
+<span class="normal">717</span>
+<span class="normal">718</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="fm">__call__</span><span class="p">(</span>
     <span class="bp">self</span><span class="p">,</span>
     <span class="n">image</span><span class="p">:</span> <span class="n">PipelineImageInput</span><span class="p">,</span>
     <span class="n">prompt</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">List</span><span class="p">[</span><span class="nb">str</span><span class="p">]]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
@@ -12958,6 +13009,7 @@ indicating whether the corresponding generated image contains "not-safe-for-work
     <span class="n">prompt_embeds</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">ms</span><span class="o">.</span><span class="n">Tensor</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
     <span class="n">negative_prompt_embeds</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">ms</span><span class="o">.</span><span class="n">Tensor</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
     <span class="n">image_embeds</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">ms</span><span class="o">.</span><span class="n">Tensor</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="n">last_image</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">ms</span><span class="o">.</span><span class="n">Tensor</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
     <span class="n">output_type</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="s2">&quot;np&quot;</span><span class="p">,</span>
     <span class="n">return_dict</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
     <span class="n">attention_kwargs</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">]]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
@@ -12990,11 +13042,11 @@ indicating whether the corresponding generated image contains "not-safe-for-work
 <span class="sd">            The number of denoising steps. More denoising steps usually lead to a higher quality image at the</span>
 <span class="sd">            expense of slower inference.</span>
 <span class="sd">        guidance_scale (`float`, defaults to `5.0`):</span>
-<span class="sd">            Guidance scale as defined in [Classifier-Free Diffusion Guidance](https://arxiv.org/abs/2207.12598).</span>
-<span class="sd">            `guidance_scale` is defined as `w` of equation 2. of [Imagen</span>
-<span class="sd">            Paper](https://arxiv.org/pdf/2205.11487.pdf). Guidance scale is enabled by setting `guidance_scale &gt;</span>
-<span class="sd">            1`. Higher guidance scale encourages to generate images that are closely linked to the text `prompt`,</span>
-<span class="sd">            usually at the expense of lower image quality.</span>
+<span class="sd">            Guidance scale as defined in [Classifier-Free Diffusion</span>
+<span class="sd">            Guidance](https://huggingface.co/papers/2207.12598). `guidance_scale` is defined as `w` of equation 2.</span>
+<span class="sd">            of [Imagen Paper](https://huggingface.co/papers/2205.11487). Guidance scale is enabled by setting</span>
+<span class="sd">            `guidance_scale &gt; 1`. Higher guidance scale encourages to generate images that are closely linked to</span>
+<span class="sd">            the text `prompt`, usually at the expense of lower image quality.</span>
 <span class="sd">        num_videos_per_prompt (`int`, *optional*, defaults to 1):</span>
 <span class="sd">            The number of images to generate per prompt.</span>
 <span class="sd">        generator (`np.random.Generator` or `List[np.random.Generator]`, *optional*):</span>
@@ -13013,7 +13065,7 @@ indicating whether the corresponding generated image contains "not-safe-for-work
 <span class="sd">        image_embeds (`ms.Tensor`, *optional*):</span>
 <span class="sd">            Pre-generated image embeddings. Can be used to easily tweak image inputs (weighting). If not provided,</span>
 <span class="sd">            image embeddings are generated from the `image` input argument.</span>
-<span class="sd">        output_type (`str`, *optional*, defaults to `&quot;pil&quot;`):</span>
+<span class="sd">        output_type (`str`, *optional*, defaults to `&quot;np&quot;`):</span>
 <span class="sd">            The output format of the generated image. Choose between `PIL.Image` or `np.array`.</span>
 <span class="sd">        return_dict (`bool`, *optional*, defaults to `False`):</span>
 <span class="sd">            Whether or not to return a [`WanPipelineOutput`] instead of a plain tuple.</span>
@@ -13030,12 +13082,10 @@ indicating whether the corresponding generated image contains "not-safe-for-work
 <span class="sd">            The list of tensor inputs for the `callback_on_step_end` function. The tensors specified in the list</span>
 <span class="sd">            will be passed as `callback_kwargs` argument. You will only be able to include variables listed in the</span>
 <span class="sd">            `._callback_tensor_inputs` attribute of your pipeline class.</span>
-<span class="sd">        max_sequence_length (`int`, *optional*, defaults to `512`):</span>
-<span class="sd">            The maximum sequence length of the prompt.</span>
-<span class="sd">        shift (`float`, *optional*, defaults to `5.0`):</span>
-<span class="sd">            The shift of the flow.</span>
-<span class="sd">        autocast_dtype (`ms.Type`, *optional*, defaults to `ms.bfloat16`):</span>
-<span class="sd">            The dtype to use for the ms.amp.autocast.</span>
+<span class="sd">        max_sequence_length (`int`, defaults to `512`):</span>
+<span class="sd">            The maximum sequence length of the text encoder. If the prompt is longer than this, it will be</span>
+<span class="sd">            truncated. If the prompt is shorter, it will be padded to this length.</span>
+
 <span class="sd">    Examples:</span>
 
 <span class="sd">    Returns:</span>
@@ -13099,7 +13149,10 @@ indicating whether the corresponding generated image contains "not-safe-for-work
         <span class="n">negative_prompt_embeds</span> <span class="o">=</span> <span class="n">negative_prompt_embeds</span><span class="o">.</span><span class="n">to</span><span class="p">(</span><span class="n">transformer_dtype</span><span class="p">)</span>
 
     <span class="k">if</span> <span class="n">image_embeds</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
-        <span class="n">image_embeds</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">encode_image</span><span class="p">(</span><span class="n">image</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">last_image</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">image_embeds</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">encode_image</span><span class="p">(</span><span class="n">image</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">image_embeds</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">encode_image</span><span class="p">([</span><span class="n">image</span><span class="p">,</span> <span class="n">last_image</span><span class="p">])</span>
     <span class="n">image_embeds</span> <span class="o">=</span> <span class="n">image_embeds</span><span class="o">.</span><span class="n">tile</span><span class="p">((</span><span class="n">batch_size</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">))</span>
     <span class="n">image_embeds</span> <span class="o">=</span> <span class="n">image_embeds</span><span class="o">.</span><span class="n">to</span><span class="p">(</span><span class="n">transformer_dtype</span><span class="p">)</span>
 
@@ -13110,6 +13163,8 @@ indicating whether the corresponding generated image contains "not-safe-for-work
     <span class="c1"># 5. Prepare latent variables</span>
     <span class="n">num_channels_latents</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">vae</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">z_dim</span>
     <span class="n">image</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">video_processor</span><span class="o">.</span><span class="n">preprocess</span><span class="p">(</span><span class="n">image</span><span class="p">,</span> <span class="n">height</span><span class="o">=</span><span class="n">height</span><span class="p">,</span> <span class="n">width</span><span class="o">=</span><span class="n">width</span><span class="p">)</span><span class="o">.</span><span class="n">to</span><span class="p">(</span><span class="n">dtype</span><span class="o">=</span><span class="n">ms</span><span class="o">.</span><span class="n">float32</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">last_image</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="n">last_image</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">video_processor</span><span class="o">.</span><span class="n">preprocess</span><span class="p">(</span><span class="n">last_image</span><span class="p">,</span> <span class="n">height</span><span class="o">=</span><span class="n">height</span><span class="p">,</span> <span class="n">width</span><span class="o">=</span><span class="n">width</span><span class="p">)</span><span class="o">.</span><span class="n">to</span><span class="p">(</span><span class="n">dtype</span><span class="o">=</span><span class="n">ms</span><span class="o">.</span><span class="n">float32</span><span class="p">)</span>
     <span class="n">latents</span><span class="p">,</span> <span class="n">condition</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">prepare_latents</span><span class="p">(</span>
         <span class="n">image</span><span class="p">,</span>
         <span class="n">batch_size</span> <span class="o">*</span> <span class="n">num_videos_per_prompt</span><span class="p">,</span>
@@ -13120,6 +13175,7 @@ indicating whether the corresponding generated image contains "not-safe-for-work
         <span class="n">ms</span><span class="o">.</span><span class="n">float32</span><span class="p">,</span>
         <span class="n">generator</span><span class="p">,</span>
         <span class="n">latents</span><span class="p">,</span>
+        <span class="n">last_image</span><span class="p">,</span>
     <span class="p">)</span>
 
     <span class="c1"># 6. Denoising loop</span>
@@ -14177,9 +14233,7 @@ the <a href="https://huggingface.co/google/umt5-xxl">google/umt5-xxl</a> variant
 <span class="normal">694</span>
 <span class="normal">695</span>
 <span class="normal">696</span>
-<span class="normal">697</span>
-<span class="normal">698</span>
-<span class="normal">699</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">class</span><span class="w"> </span><span class="nc">WanVideoToVideoPipeline</span><span class="p">(</span><span class="n">DiffusionPipeline</span><span class="p">,</span> <span class="n">WanLoraLoaderMixin</span><span class="p">):</span>
+<span class="normal">697</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">class</span><span class="w"> </span><span class="nc">WanVideoToVideoPipeline</span><span class="p">(</span><span class="n">DiffusionPipeline</span><span class="p">,</span> <span class="n">WanLoraLoaderMixin</span><span class="p">):</span>
 <span class="w">    </span><span class="sa">r</span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    Pipeline for video-to-video generation using Wan.</span>
 
@@ -14419,15 +14473,10 @@ the <a href="https://huggingface.co/google/umt5-xxl">google/umt5-xxl</a> variant
         <span class="k">if</span> <span class="n">latents</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
             <span class="c1"># TODO: we use pynative mode here since cache in vae.encode which not supported in graph mode</span>
             <span class="k">with</span> <span class="n">pynative_context</span><span class="p">():</span>
-                <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">generator</span><span class="p">,</span> <span class="nb">list</span><span class="p">):</span>
-                    <span class="n">init_latents</span> <span class="o">=</span> <span class="p">[</span>
-                        <span class="n">retrieve_latents</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">vae</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">vae</span><span class="o">.</span><span class="n">encode</span><span class="p">(</span><span class="n">video</span><span class="p">[</span><span class="n">i</span><span class="p">]</span><span class="o">.</span><span class="n">unsqueeze</span><span class="p">(</span><span class="mi">0</span><span class="p">))[</span><span class="mi">0</span><span class="p">],</span> <span class="n">generator</span><span class="p">)</span>
-                        <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">batch_size</span><span class="p">)</span>
-                    <span class="p">]</span>
-                <span class="k">else</span><span class="p">:</span>
-                    <span class="n">init_latents</span> <span class="o">=</span> <span class="p">[</span>
-                        <span class="n">retrieve_latents</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">vae</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">vae</span><span class="o">.</span><span class="n">encode</span><span class="p">(</span><span class="n">vid</span><span class="o">.</span><span class="n">unsqueeze</span><span class="p">(</span><span class="mi">0</span><span class="p">))[</span><span class="mi">0</span><span class="p">],</span> <span class="n">generator</span><span class="p">)</span> <span class="k">for</span> <span class="n">vid</span> <span class="ow">in</span> <span class="n">video</span>
-                    <span class="p">]</span>
+                <span class="n">init_latents</span> <span class="o">=</span> <span class="p">[</span>
+                    <span class="n">retrieve_latents</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">vae</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">vae</span><span class="o">.</span><span class="n">encode</span><span class="p">(</span><span class="n">vid</span><span class="o">.</span><span class="n">unsqueeze</span><span class="p">(</span><span class="mi">0</span><span class="p">))[</span><span class="mi">0</span><span class="p">],</span> <span class="n">sample_mode</span><span class="o">=</span><span class="s2">&quot;argmax&quot;</span><span class="p">)</span>
+                    <span class="k">for</span> <span class="n">vid</span> <span class="ow">in</span> <span class="n">video</span>
+                <span class="p">]</span>
 
             <span class="n">init_latents</span> <span class="o">=</span> <span class="n">mint</span><span class="o">.</span><span class="n">cat</span><span class="p">(</span><span class="n">init_latents</span><span class="p">,</span> <span class="n">dim</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span><span class="o">.</span><span class="n">to</span><span class="p">(</span><span class="n">dtype</span><span class="p">)</span>
 
@@ -14440,7 +14489,7 @@ the <a href="https://huggingface.co/google/umt5-xxl">google/umt5-xxl</a> variant
             <span class="k">if</span> <span class="nb">hasattr</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">scheduler</span><span class="p">,</span> <span class="s2">&quot;add_noise&quot;</span><span class="p">):</span>
                 <span class="n">latents</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">scheduler</span><span class="o">.</span><span class="n">add_noise</span><span class="p">(</span><span class="n">init_latents</span><span class="p">,</span> <span class="n">noise</span><span class="p">,</span> <span class="n">timestep</span><span class="p">)</span>
             <span class="k">else</span><span class="p">:</span>
-                <span class="n">latents</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">scheduelr</span><span class="o">.</span><span class="n">scale_noise</span><span class="p">(</span><span class="n">init_latents</span><span class="p">,</span> <span class="n">timestep</span><span class="p">,</span> <span class="n">noise</span><span class="p">)</span>
+                <span class="n">latents</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">scheduler</span><span class="o">.</span><span class="n">scale_noise</span><span class="p">(</span><span class="n">init_latents</span><span class="p">,</span> <span class="n">timestep</span><span class="p">,</span> <span class="n">noise</span><span class="p">)</span>
 
         <span class="k">return</span> <span class="n">latents</span>
 
@@ -14508,7 +14557,7 @@ the <a href="https://huggingface.co/google/umt5-xxl">google/umt5-xxl</a> variant
 
 <span class="sd">        Args:</span>
 <span class="sd">            prompt (`str` or `List[str]`, *optional*):</span>
-<span class="sd">                The prompt or prompts to guide the image generation. If not defined, one has to pass `prompt_embeds`.</span>
+<span class="sd">                The prompt or prompts to guide the image generation. If not defined, one has to pass `prompt_embeds`</span>
 <span class="sd">                instead.</span>
 <span class="sd">            height (`int`, defaults to `480`):</span>
 <span class="sd">                The height in pixels of the generated image.</span>
@@ -14520,11 +14569,13 @@ the <a href="https://huggingface.co/google/umt5-xxl">google/umt5-xxl</a> variant
 <span class="sd">                The number of denoising steps. More denoising steps usually lead to a higher quality image at the</span>
 <span class="sd">                expense of slower inference.</span>
 <span class="sd">            guidance_scale (`float`, defaults to `5.0`):</span>
-<span class="sd">                Guidance scale as defined in [Classifier-Free Diffusion Guidance](https://arxiv.org/abs/2207.12598).</span>
-<span class="sd">                `guidance_scale` is defined as `w` of equation 2. of [Imagen</span>
-<span class="sd">                Paper](https://arxiv.org/pdf/2205.11487.pdf). Guidance scale is enabled by setting `guidance_scale &gt;</span>
-<span class="sd">                1`. Higher guidance scale encourages to generate images that are closely linked to the text `prompt`,</span>
-<span class="sd">                usually at the expense of lower image quality.</span>
+<span class="sd">                Guidance scale as defined in [Classifier-Free Diffusion</span>
+<span class="sd">                Guidance](https://huggingface.co/papers/2207.12598). `guidance_scale` is defined as `w` of equation 2.</span>
+<span class="sd">                of [Imagen Paper](https://huggingface.co/papers/2205.11487). Guidance scale is enabled by setting</span>
+<span class="sd">                `guidance_scale &gt; 1`. Higher guidance scale encourages to generate images that are closely linked to</span>
+<span class="sd">                the text `prompt`, usually at the expense of lower image quality.</span>
+<span class="sd">            strength (`float`, defaults to `0.8`):</span>
+<span class="sd">                Higher strength leads to more differences between original image and generated video.</span>
 <span class="sd">            num_videos_per_prompt (`int`, *optional*, defaults to 1):</span>
 <span class="sd">                The number of images to generate per prompt.</span>
 <span class="sd">            generator (`np.random.Generator` or `List[np.random.Generator]`, *optional*):</span>
@@ -14537,7 +14588,7 @@ the <a href="https://huggingface.co/google/umt5-xxl">google/umt5-xxl</a> variant
 <span class="sd">            prompt_embeds (`ms.Tensor`, *optional*):</span>
 <span class="sd">                Pre-generated text embeddings. Can be used to easily tweak text inputs (prompt weighting). If not</span>
 <span class="sd">                provided, text embeddings are generated from the `prompt` input argument.</span>
-<span class="sd">            output_type (`str`, *optional*, defaults to `&quot;pil&quot;`):</span>
+<span class="sd">            output_type (`str`, *optional*, defaults to `&quot;np&quot;`):</span>
 <span class="sd">                The output format of the generated image. Choose between `PIL.Image` or `np.array`.</span>
 <span class="sd">            return_dict (`bool`, *optional*, defaults to `False`):</span>
 <span class="sd">                Whether or not to return a [`WanPipelineOutput`] instead of a plain tuple.</span>
@@ -14554,8 +14605,9 @@ the <a href="https://huggingface.co/google/umt5-xxl">google/umt5-xxl</a> variant
 <span class="sd">                The list of tensor inputs for the `callback_on_step_end` function. The tensors specified in the list</span>
 <span class="sd">                will be passed as `callback_kwargs` argument. You will only be able to include variables listed in the</span>
 <span class="sd">                `._callback_tensor_inputs` attribute of your pipeline class.</span>
-<span class="sd">            autocast_dtype (`ms.Type`, *optional*, defaults to `ms.bfloat16`):</span>
-<span class="sd">                The dtype to use for the ms.amp.autocast.</span>
+<span class="sd">            max_sequence_length (`int`, defaults to `512`):</span>
+<span class="sd">                The maximum sequence length of the text encoder. If the prompt is longer than this, it will be</span>
+<span class="sd">                truncated. If the prompt is shorter, it will be padded to this length.</span>
 
 <span class="sd">        Examples:</span>
 
@@ -14751,7 +14803,7 @@ the <a href="https://huggingface.co/google/umt5-xxl">google/umt5-xxl</a> variant
             </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
-                <p>The prompt or prompts to guide the image generation. If not defined, one has to pass <code>prompt_embeds</code>.
+                <p>The prompt or prompts to guide the image generation. If not defined, one has to pass <code>prompt_embeds</code>
 instead.</p>
               </div>
               <p>
@@ -14849,11 +14901,11 @@ expense of slower inference.</p>
             </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
-                <p>Guidance scale as defined in <a href="https://arxiv.org/abs/2207.12598">Classifier-Free Diffusion Guidance</a>.
-<code>guidance_scale</code> is defined as <code>w</code> of equation 2. of <a href="https://arxiv.org/pdf/2205.11487.pdf">Imagen
-Paper</a>. Guidance scale is enabled by setting <code>guidance_scale &gt;
-1</code>. Higher guidance scale encourages to generate images that are closely linked to the text <code>prompt</code>,
-usually at the expense of lower image quality.</p>
+                <p>Guidance scale as defined in <a href="https://huggingface.co/papers/2207.12598">Classifier-Free Diffusion
+Guidance</a>. <code>guidance_scale</code> is defined as <code>w</code> of equation 2.
+of <a href="https://huggingface.co/papers/2205.11487">Imagen Paper</a>. Guidance scale is enabled by setting
+<code>guidance_scale &gt; 1</code>. Higher guidance scale encourages to generate images that are closely linked to
+the text <code>prompt</code>, usually at the expense of lower image quality.</p>
               </div>
               <p>
                   <span class="doc-param-annotation">
@@ -14863,6 +14915,26 @@ usually at the expense of lower image quality.</p>
                   <span class="doc-param-default">
                     <b>DEFAULT:</b>
                       <code>5.0</code>
+                  </span>
+              </p>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+                <code>strength</code>
+            </td>
+            <td class="doc-param-details">
+              <div class="doc-md-description">
+                <p>Higher strength leads to more differences between original image and generated video.</p>
+              </div>
+              <p>
+                  <span class="doc-param-annotation">
+                    <b>TYPE:</b>
+                      <code>`float`, defaults to `0.8`</code>
+                  </span>
+                  <span class="doc-param-default">
+                    <b>DEFAULT:</b>
+                      <code>0.8</code>
                   </span>
               </p>
             </td>
@@ -14962,7 +15034,7 @@ provided, text embeddings are generated from the <code>prompt</code> input argum
               <p>
                   <span class="doc-param-annotation">
                     <b>TYPE:</b>
-                      <code>`str`, *optional*, defaults to `&#34;pil&#34;`</code>
+                      <code>`str`, *optional*, defaults to `&#34;np&#34;`</code>
                   </span>
                   <span class="doc-param-default">
                     <b>DEFAULT:</b>
@@ -15060,16 +15132,21 @@ will be passed as <code>callback_kwargs</code> argument. You will only be able t
           </tr>
           <tr class="doc-section-item">
             <td>
-                <code>autocast_dtype</code>
+                <code>max_sequence_length</code>
             </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
-                <p>The dtype to use for the ms.amp.autocast.</p>
+                <p>The maximum sequence length of the text encoder. If the prompt is longer than this, it will be
+truncated. If the prompt is shorter, it will be padded to this length.</p>
               </div>
               <p>
                   <span class="doc-param-annotation">
                     <b>TYPE:</b>
-                      <code>`ms.Type`, *optional*, defaults to `ms.bfloat16`</code>
+                      <code>`int`, defaults to `512`</code>
+                  </span>
+                  <span class="doc-param-default">
+                    <b>DEFAULT:</b>
+                      <code>512</code>
                   </span>
               </p>
             </td>
@@ -15105,7 +15182,12 @@ indicating whether the corresponding generated image contains "not-safe-for-work
 
             <details class="quote">
               <summary>Source code in <code>mindone/diffusers/pipelines/wan/pipeline_wan_video2video.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">470</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">465</span>
+<span class="normal">466</span>
+<span class="normal">467</span>
+<span class="normal">468</span>
+<span class="normal">469</span>
+<span class="normal">470</span>
 <span class="normal">471</span>
 <span class="normal">472</span>
 <span class="normal">473</span>
@@ -15332,9 +15414,7 @@ indicating whether the corresponding generated image contains "not-safe-for-work
 <span class="normal">694</span>
 <span class="normal">695</span>
 <span class="normal">696</span>
-<span class="normal">697</span>
-<span class="normal">698</span>
-<span class="normal">699</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="fm">__call__</span><span class="p">(</span>
+<span class="normal">697</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="fm">__call__</span><span class="p">(</span>
     <span class="bp">self</span><span class="p">,</span>
     <span class="n">video</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="n">Image</span><span class="o">.</span><span class="n">Image</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
     <span class="n">prompt</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">List</span><span class="p">[</span><span class="nb">str</span><span class="p">]]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
@@ -15364,7 +15444,7 @@ indicating whether the corresponding generated image contains "not-safe-for-work
 
 <span class="sd">    Args:</span>
 <span class="sd">        prompt (`str` or `List[str]`, *optional*):</span>
-<span class="sd">            The prompt or prompts to guide the image generation. If not defined, one has to pass `prompt_embeds`.</span>
+<span class="sd">            The prompt or prompts to guide the image generation. If not defined, one has to pass `prompt_embeds`</span>
 <span class="sd">            instead.</span>
 <span class="sd">        height (`int`, defaults to `480`):</span>
 <span class="sd">            The height in pixels of the generated image.</span>
@@ -15376,11 +15456,13 @@ indicating whether the corresponding generated image contains "not-safe-for-work
 <span class="sd">            The number of denoising steps. More denoising steps usually lead to a higher quality image at the</span>
 <span class="sd">            expense of slower inference.</span>
 <span class="sd">        guidance_scale (`float`, defaults to `5.0`):</span>
-<span class="sd">            Guidance scale as defined in [Classifier-Free Diffusion Guidance](https://arxiv.org/abs/2207.12598).</span>
-<span class="sd">            `guidance_scale` is defined as `w` of equation 2. of [Imagen</span>
-<span class="sd">            Paper](https://arxiv.org/pdf/2205.11487.pdf). Guidance scale is enabled by setting `guidance_scale &gt;</span>
-<span class="sd">            1`. Higher guidance scale encourages to generate images that are closely linked to the text `prompt`,</span>
-<span class="sd">            usually at the expense of lower image quality.</span>
+<span class="sd">            Guidance scale as defined in [Classifier-Free Diffusion</span>
+<span class="sd">            Guidance](https://huggingface.co/papers/2207.12598). `guidance_scale` is defined as `w` of equation 2.</span>
+<span class="sd">            of [Imagen Paper](https://huggingface.co/papers/2205.11487). Guidance scale is enabled by setting</span>
+<span class="sd">            `guidance_scale &gt; 1`. Higher guidance scale encourages to generate images that are closely linked to</span>
+<span class="sd">            the text `prompt`, usually at the expense of lower image quality.</span>
+<span class="sd">        strength (`float`, defaults to `0.8`):</span>
+<span class="sd">            Higher strength leads to more differences between original image and generated video.</span>
 <span class="sd">        num_videos_per_prompt (`int`, *optional*, defaults to 1):</span>
 <span class="sd">            The number of images to generate per prompt.</span>
 <span class="sd">        generator (`np.random.Generator` or `List[np.random.Generator]`, *optional*):</span>
@@ -15393,7 +15475,7 @@ indicating whether the corresponding generated image contains "not-safe-for-work
 <span class="sd">        prompt_embeds (`ms.Tensor`, *optional*):</span>
 <span class="sd">            Pre-generated text embeddings. Can be used to easily tweak text inputs (prompt weighting). If not</span>
 <span class="sd">            provided, text embeddings are generated from the `prompt` input argument.</span>
-<span class="sd">        output_type (`str`, *optional*, defaults to `&quot;pil&quot;`):</span>
+<span class="sd">        output_type (`str`, *optional*, defaults to `&quot;np&quot;`):</span>
 <span class="sd">            The output format of the generated image. Choose between `PIL.Image` or `np.array`.</span>
 <span class="sd">        return_dict (`bool`, *optional*, defaults to `False`):</span>
 <span class="sd">            Whether or not to return a [`WanPipelineOutput`] instead of a plain tuple.</span>
@@ -15410,8 +15492,9 @@ indicating whether the corresponding generated image contains "not-safe-for-work
 <span class="sd">            The list of tensor inputs for the `callback_on_step_end` function. The tensors specified in the list</span>
 <span class="sd">            will be passed as `callback_kwargs` argument. You will only be able to include variables listed in the</span>
 <span class="sd">            `._callback_tensor_inputs` attribute of your pipeline class.</span>
-<span class="sd">        autocast_dtype (`ms.Type`, *optional*, defaults to `ms.bfloat16`):</span>
-<span class="sd">            The dtype to use for the ms.amp.autocast.</span>
+<span class="sd">        max_sequence_length (`int`, defaults to `512`):</span>
+<span class="sd">            The maximum sequence length of the text encoder. If the prompt is longer than this, it will be</span>
+<span class="sd">            truncated. If the prompt is shorter, it will be padded to this length.</span>
 
 <span class="sd">    Examples:</span>
 

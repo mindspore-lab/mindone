@@ -9626,8 +9626,7 @@ saving models.</p>
 <span class="normal">1251</span>
 <span class="normal">1252</span>
 <span class="normal">1253</span>
-<span class="normal">1254</span>
-<span class="normal">1255</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">class</span><span class="w"> </span><span class="nc">ModelMixin</span><span class="p">(</span><span class="n">nn</span><span class="o">.</span><span class="n">Cell</span><span class="p">,</span> <span class="n">PushToHubMixin</span><span class="p">):</span>
+<span class="normal">1254</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">class</span><span class="w"> </span><span class="nc">ModelMixin</span><span class="p">(</span><span class="n">nn</span><span class="o">.</span><span class="n">Cell</span><span class="p">,</span> <span class="n">PushToHubMixin</span><span class="p">):</span>
 <span class="w">    </span><span class="sa">r</span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    Base class for all models.</span>
 
@@ -10063,9 +10062,8 @@ saving models.</p>
 <span class="sd">            cache_dir (`Union[str, os.PathLike]`, *optional*):</span>
 <span class="sd">                Path to a directory where a downloaded pretrained model configuration is cached if the standard cache</span>
 <span class="sd">                is not used.</span>
-<span class="sd">            mindspore_dtype (`str` or `mindspore.Type`, *optional*):</span>
-<span class="sd">                Override the default `mindspore.Type` and load the model with another dtype. If `&quot;auto&quot;` is passed, the</span>
-<span class="sd">                dtype is automatically derived from the model&#39;s weights.</span>
+<span class="sd">            mindspore_dtype (`mindspore.Type`, *optional*):</span>
+<span class="sd">                Override the default `mindspore.Type` and load the model with another dtype.</span>
 <span class="sd">            force_download (`bool`, *optional*, defaults to `False`):</span>
 <span class="sd">                Whether or not to force the (re-)download of the model weights and configuration files, overriding the</span>
 <span class="sd">                cached versions if they exist.</span>
@@ -10188,7 +10186,7 @@ saving models.</p>
         <span class="c1"># use_keep_in_fp32_modules = cls._keep_in_fp32_modules is not None and (</span>
         <span class="c1">#     hf_quantizer is None or getattr(hf_quantizer, &quot;use_keep_in_fp32_modules&quot;, False)</span>
         <span class="c1"># )</span>
-        <span class="n">use_keep_in_fp32_modules</span> <span class="o">=</span> <span class="p">(</span><span class="bp">cls</span><span class="o">.</span><span class="n">_keep_in_fp32_modules</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">)</span> <span class="ow">and</span> <span class="p">(</span><span class="n">mindspore_dtype</span> <span class="o">==</span> <span class="n">ms</span><span class="o">.</span><span class="n">float16</span><span class="p">)</span>
+        <span class="n">use_keep_in_fp32_modules</span> <span class="o">=</span> <span class="bp">cls</span><span class="o">.</span><span class="n">_keep_in_fp32_modules</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span>
 
         <span class="k">if</span> <span class="n">use_keep_in_fp32_modules</span><span class="p">:</span>
             <span class="n">keep_in_fp32_modules</span> <span class="o">=</span> <span class="bp">cls</span><span class="o">.</span><span class="n">_keep_in_fp32_modules</span>
@@ -10341,7 +10339,7 @@ saving models.</p>
             <span class="s2">&quot;error_msgs&quot;</span><span class="p">:</span> <span class="n">error_msgs</span><span class="p">,</span>
         <span class="p">}</span>
 
-        <span class="k">if</span> <span class="n">mindspore_dtype</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="ow">and</span> <span class="ow">not</span> <span class="n">use_keep_in_fp32_modules</span><span class="p">:</span>
+        <span class="k">if</span> <span class="n">mindspore_dtype</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
             <span class="n">model</span> <span class="o">=</span> <span class="n">model</span><span class="o">.</span><span class="n">to</span><span class="p">(</span><span class="n">mindspore_dtype</span><span class="p">)</span>
 
         <span class="n">model</span><span class="o">.</span><span class="n">register_to_config</span><span class="p">(</span><span class="n">_name_or_path</span><span class="o">=</span><span class="n">pretrained_model_name_or_path</span><span class="p">)</span>
@@ -11648,13 +11646,12 @@ is not used.</p>
             </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
-                <p>Override the default <code>mindspore.Type</code> and load the model with another dtype. If <code>"auto"</code> is passed, the
-dtype is automatically derived from the model's weights.</p>
+                <p>Override the default <code>mindspore.Type</code> and load the model with another dtype.</p>
               </div>
               <p>
                   <span class="doc-param-annotation">
                     <b>TYPE:</b>
-                      <code>`str` or `mindspore.Type`, *optional*</code>
+                      <code>`mindspore.Type`, *optional*</code>
                   </span>
               </p>
             </td>
@@ -12194,8 +12191,7 @@ You<span class="w"> </span>should<span class="w"> </span>probably<span class="w"
 <span class="normal">870</span>
 <span class="normal">871</span>
 <span class="normal">872</span>
-<span class="normal">873</span>
-<span class="normal">874</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@classmethod</span>
+<span class="normal">873</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@classmethod</span>
 <span class="nd">@validate_hf_hub_args</span>
 <span class="k">def</span><span class="w"> </span><span class="nf">from_pretrained</span><span class="p">(</span><span class="bp">cls</span><span class="p">,</span> <span class="n">pretrained_model_name_or_path</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Union</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">os</span><span class="o">.</span><span class="n">PathLike</span><span class="p">]],</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Self</span><span class="p">:</span>
 <span class="w">    </span><span class="sa">r</span><span class="sd">&quot;&quot;&quot;</span>
@@ -12216,9 +12212,8 @@ You<span class="w"> </span>should<span class="w"> </span>probably<span class="w"
 <span class="sd">        cache_dir (`Union[str, os.PathLike]`, *optional*):</span>
 <span class="sd">            Path to a directory where a downloaded pretrained model configuration is cached if the standard cache</span>
 <span class="sd">            is not used.</span>
-<span class="sd">        mindspore_dtype (`str` or `mindspore.Type`, *optional*):</span>
-<span class="sd">            Override the default `mindspore.Type` and load the model with another dtype. If `&quot;auto&quot;` is passed, the</span>
-<span class="sd">            dtype is automatically derived from the model&#39;s weights.</span>
+<span class="sd">        mindspore_dtype (`mindspore.Type`, *optional*):</span>
+<span class="sd">            Override the default `mindspore.Type` and load the model with another dtype.</span>
 <span class="sd">        force_download (`bool`, *optional*, defaults to `False`):</span>
 <span class="sd">            Whether or not to force the (re-)download of the model weights and configuration files, overriding the</span>
 <span class="sd">            cached versions if they exist.</span>
@@ -12341,7 +12336,7 @@ You<span class="w"> </span>should<span class="w"> </span>probably<span class="w"
     <span class="c1"># use_keep_in_fp32_modules = cls._keep_in_fp32_modules is not None and (</span>
     <span class="c1">#     hf_quantizer is None or getattr(hf_quantizer, &quot;use_keep_in_fp32_modules&quot;, False)</span>
     <span class="c1"># )</span>
-    <span class="n">use_keep_in_fp32_modules</span> <span class="o">=</span> <span class="p">(</span><span class="bp">cls</span><span class="o">.</span><span class="n">_keep_in_fp32_modules</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">)</span> <span class="ow">and</span> <span class="p">(</span><span class="n">mindspore_dtype</span> <span class="o">==</span> <span class="n">ms</span><span class="o">.</span><span class="n">float16</span><span class="p">)</span>
+    <span class="n">use_keep_in_fp32_modules</span> <span class="o">=</span> <span class="bp">cls</span><span class="o">.</span><span class="n">_keep_in_fp32_modules</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span>
 
     <span class="k">if</span> <span class="n">use_keep_in_fp32_modules</span><span class="p">:</span>
         <span class="n">keep_in_fp32_modules</span> <span class="o">=</span> <span class="bp">cls</span><span class="o">.</span><span class="n">_keep_in_fp32_modules</span>
@@ -12494,7 +12489,7 @@ You<span class="w"> </span>should<span class="w"> </span>probably<span class="w"
         <span class="s2">&quot;error_msgs&quot;</span><span class="p">:</span> <span class="n">error_msgs</span><span class="p">,</span>
     <span class="p">}</span>
 
-    <span class="k">if</span> <span class="n">mindspore_dtype</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="ow">and</span> <span class="ow">not</span> <span class="n">use_keep_in_fp32_modules</span><span class="p">:</span>
+    <span class="k">if</span> <span class="n">mindspore_dtype</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
         <span class="n">model</span> <span class="o">=</span> <span class="n">model</span><span class="o">.</span><span class="n">to</span><span class="p">(</span><span class="n">mindspore_dtype</span><span class="p">)</span>
 
     <span class="n">model</span><span class="o">.</span><span class="n">register_to_config</span><span class="p">(</span><span class="n">_name_or_path</span><span class="o">=</span><span class="n">pretrained_model_name_or_path</span><span class="p">)</span>
@@ -12633,7 +12628,8 @@ path or resolves to something that is not an
 
             <details class="quote">
               <summary>Source code in <code>mindone/diffusers/models/modeling_utils.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">1194</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">1193</span>
+<span class="normal">1194</span>
 <span class="normal">1195</span>
 <span class="normal">1196</span>
 <span class="normal">1197</span>
@@ -12693,8 +12689,7 @@ path or resolves to something that is not an
 <span class="normal">1251</span>
 <span class="normal">1252</span>
 <span class="normal">1253</span>
-<span class="normal">1254</span>
-<span class="normal">1255</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">get_submodule</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">target</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">nn</span><span class="o">.</span><span class="n">Cell</span><span class="p">:</span>
+<span class="normal">1254</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">get_submodule</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">target</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">nn</span><span class="o">.</span><span class="n">Cell</span><span class="p">:</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;Return the submodule given by ``target`` if it exists, otherwise throw an error.</span>
 
 <span class="sd">    For example, let&#39;s say you have an ``nn.Cell`` ``A`` that</span>
@@ -12861,7 +12856,8 @@ path or resolves to something that is not an
 
             <details class="quote">
               <summary>Source code in <code>mindone/diffusers/models/modeling_utils.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">1075</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">1074</span>
+<span class="normal">1075</span>
 <span class="normal">1076</span>
 <span class="normal">1077</span>
 <span class="normal">1078</span>
@@ -12905,8 +12901,7 @@ path or resolves to something that is not an
 <span class="normal">1116</span>
 <span class="normal">1117</span>
 <span class="normal">1118</span>
-<span class="normal">1119</span>
-<span class="normal">1120</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">num_parameters</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">only_trainable</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span> <span class="n">exclude_embeddings</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">int</span><span class="p">:</span>
+<span class="normal">1119</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">num_parameters</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">only_trainable</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span> <span class="n">exclude_embeddings</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">int</span><span class="p">:</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    Get number of (trainable or non-embedding) parameters in the module.</span>
 

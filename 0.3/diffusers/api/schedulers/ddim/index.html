@@ -8658,8 +8658,7 @@ dark samples instead of limiting it to samples with medium brightness. Loosely r
 
               <details class="quote">
                 <summary>Source code in <code>mindone/diffusers/schedulers/scheduling_ddim.py</code></summary>
-                <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">135</span>
-<span class="normal">136</span>
+                <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">136</span>
 <span class="normal">137</span>
 <span class="normal">138</span>
 <span class="normal">139</span>
@@ -9065,7 +9064,8 @@ dark samples instead of limiting it to samples with medium brightness. Loosely r
 <span class="normal">539</span>
 <span class="normal">540</span>
 <span class="normal">541</span>
-<span class="normal">542</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">class</span><span class="w"> </span><span class="nc">DDIMScheduler</span><span class="p">(</span><span class="n">SchedulerMixin</span><span class="p">,</span> <span class="n">ConfigMixin</span><span class="p">):</span>
+<span class="normal">542</span>
+<span class="normal">543</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">class</span><span class="w"> </span><span class="nc">DDIMScheduler</span><span class="p">(</span><span class="n">SchedulerMixin</span><span class="p">,</span> <span class="n">ConfigMixin</span><span class="p">):</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    `DDIMScheduler` extends the denoising procedure introduced in denoising diffusion probabilistic models (DDPMs) with</span>
 <span class="sd">    non-Markovian guidance.</span>
@@ -9208,7 +9208,7 @@ dark samples instead of limiting it to samples with medium brightness. Loosely r
 <span class="sd">        pixels from saturation at each step. We find that dynamic thresholding results in significantly better</span>
 <span class="sd">        photorealism as well as better image-text alignment, especially when using very large guidance weights.&quot;</span>
 
-<span class="sd">        https://arxiv.org/abs/2205.11487</span>
+<span class="sd">        https://huggingface.co/papers/2205.11487</span>
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="n">dtype</span> <span class="o">=</span> <span class="n">sample</span><span class="o">.</span><span class="n">dtype</span>
         <span class="n">batch_size</span><span class="p">,</span> <span class="n">channels</span><span class="p">,</span> <span class="o">*</span><span class="n">remaining_dims</span> <span class="o">=</span> <span class="n">sample</span><span class="o">.</span><span class="n">shape</span>
@@ -9251,7 +9251,7 @@ dark samples instead of limiting it to samples with medium brightness. Loosely r
 
         <span class="bp">self</span><span class="o">.</span><span class="n">num_inference_steps</span> <span class="o">=</span> <span class="n">num_inference_steps</span>
 
-        <span class="c1"># &quot;linspace&quot;, &quot;leading&quot;, &quot;trailing&quot; corresponds to annotation of Table 2. of https://arxiv.org/abs/2305.08891</span>
+        <span class="c1"># &quot;linspace&quot;, &quot;leading&quot;, &quot;trailing&quot; corresponds to annotation of Table 2. of https://huggingface.co/papers/2305.08891</span>
         <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">timestep_spacing</span> <span class="o">==</span> <span class="s2">&quot;linspace&quot;</span><span class="p">:</span>
             <span class="n">timesteps</span> <span class="o">=</span> <span class="p">(</span>
                 <span class="n">np</span><span class="o">.</span><span class="n">linspace</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">num_train_timesteps</span> <span class="o">-</span> <span class="mi">1</span><span class="p">,</span> <span class="n">num_inference_steps</span><span class="p">)</span>
@@ -9326,7 +9326,7 @@ dark samples instead of limiting it to samples with medium brightness. Loosely r
                 <span class="s2">&quot;Number of inference steps is &#39;None&#39;, you need to run &#39;set_timesteps&#39; after creating the scheduler&quot;</span>
             <span class="p">)</span>
 
-        <span class="c1"># See formulas (12) and (16) of DDIM paper https://arxiv.org/pdf/2010.02502.pdf</span>
+        <span class="c1"># See formulas (12) and (16) of DDIM paper https://huggingface.co/papers/2010.02502</span>
         <span class="c1"># Ideally, read DDIM paper in-detail understanding</span>
 
         <span class="c1"># Notation (&lt;variable name&gt; -&gt; &lt;name in paper&gt;</span>
@@ -9348,7 +9348,7 @@ dark samples instead of limiting it to samples with medium brightness. Loosely r
         <span class="n">beta_prod_t</span> <span class="o">=</span> <span class="mi">1</span> <span class="o">-</span> <span class="n">alpha_prod_t</span>
 
         <span class="c1"># 3. compute predicted original sample from predicted noise also called</span>
-        <span class="c1"># &quot;predicted x_0&quot; of formula (12) from https://arxiv.org/pdf/2010.02502.pdf</span>
+        <span class="c1"># &quot;predicted x_0&quot; of formula (12) from https://huggingface.co/papers/2010.02502</span>
         <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">prediction_type</span> <span class="o">==</span> <span class="s2">&quot;epsilon&quot;</span><span class="p">:</span>
             <span class="n">pred_original_sample</span> <span class="o">=</span> <span class="p">(</span>
                 <span class="p">(</span><span class="n">sample</span> <span class="o">-</span> <span class="p">(</span><span class="n">beta_prod_t</span> <span class="o">**</span> <span class="p">(</span><span class="mf">0.5</span><span class="p">))</span><span class="o">.</span><span class="n">to</span><span class="p">(</span><span class="n">dtype</span><span class="p">)</span> <span class="o">*</span> <span class="n">model_output</span><span class="p">)</span> <span class="o">/</span> <span class="n">alpha_prod_t</span> <span class="o">**</span> <span class="p">(</span><span class="mf">0.5</span><span class="p">)</span>
@@ -9389,10 +9389,10 @@ dark samples instead of limiting it to samples with medium brightness. Loosely r
                 <span class="p">(</span><span class="n">sample</span> <span class="o">-</span> <span class="p">(</span><span class="n">alpha_prod_t</span> <span class="o">**</span> <span class="p">(</span><span class="mf">0.5</span><span class="p">))</span><span class="o">.</span><span class="n">to</span><span class="p">(</span><span class="n">dtype</span><span class="p">)</span> <span class="o">*</span> <span class="n">pred_original_sample</span><span class="p">)</span> <span class="o">/</span> <span class="n">beta_prod_t</span> <span class="o">**</span> <span class="p">(</span><span class="mf">0.5</span><span class="p">)</span>
             <span class="p">)</span><span class="o">.</span><span class="n">to</span><span class="p">(</span><span class="n">dtype</span><span class="p">)</span>
 
-        <span class="c1"># 6. compute &quot;direction pointing to x_t&quot; of formula (12) from https://arxiv.org/pdf/2010.02502.pdf</span>
+        <span class="c1"># 6. compute &quot;direction pointing to x_t&quot; of formula (12) from https://huggingface.co/papers/2010.02502</span>
         <span class="n">pred_sample_direction</span> <span class="o">=</span> <span class="p">((</span><span class="mi">1</span> <span class="o">-</span> <span class="n">alpha_prod_t_prev</span> <span class="o">-</span> <span class="n">std_dev_t</span><span class="o">**</span><span class="mi">2</span><span class="p">)</span> <span class="o">**</span> <span class="p">(</span><span class="mf">0.5</span><span class="p">))</span><span class="o">.</span><span class="n">to</span><span class="p">(</span><span class="n">dtype</span><span class="p">)</span> <span class="o">*</span> <span class="n">pred_epsilon</span>
 
-        <span class="c1"># 7. compute x_t without &quot;random noise&quot; of formula (12) from https://arxiv.org/pdf/2010.02502.pdf</span>
+        <span class="c1"># 7. compute x_t without &quot;random noise&quot; of formula (12) from https://huggingface.co/papers/2010.02502</span>
         <span class="n">prev_sample</span> <span class="o">=</span> <span class="p">(</span><span class="n">alpha_prod_t_prev</span> <span class="o">**</span> <span class="p">(</span><span class="mf">0.5</span><span class="p">))</span><span class="o">.</span><span class="n">to</span><span class="p">(</span><span class="n">dtype</span><span class="p">)</span> <span class="o">*</span> <span class="n">pred_original_sample</span> <span class="o">+</span> <span class="n">pred_sample_direction</span>
 
         <span class="k">if</span> <span class="n">eta</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">:</span>
@@ -9578,8 +9578,7 @@ A scaled input sample.</p>
 
             <details class="quote">
               <summary>Source code in <code>mindone/diffusers/schedulers/scheduling_ddim.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">242</span>
-<span class="normal">243</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">243</span>
 <span class="normal">244</span>
 <span class="normal">245</span>
 <span class="normal">246</span>
@@ -9593,7 +9592,8 @@ A scaled input sample.</p>
 <span class="normal">254</span>
 <span class="normal">255</span>
 <span class="normal">256</span>
-<span class="normal">257</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">scale_model_input</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">sample</span><span class="p">:</span> <span class="n">ms</span><span class="o">.</span><span class="n">Tensor</span><span class="p">,</span> <span class="n">timestep</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">int</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">ms</span><span class="o">.</span><span class="n">Tensor</span><span class="p">:</span>
+<span class="normal">257</span>
+<span class="normal">258</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">scale_model_input</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">sample</span><span class="p">:</span> <span class="n">ms</span><span class="o">.</span><span class="n">Tensor</span><span class="p">,</span> <span class="n">timestep</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">int</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">ms</span><span class="o">.</span><span class="n">Tensor</span><span class="p">:</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    Ensures interchangeability with schedulers that need to scale the denoising model input depending on the</span>
 <span class="sd">    current timestep.</span>
@@ -9659,8 +9659,7 @@ A scaled input sample.</p>
 
             <details class="quote">
               <summary>Source code in <code>mindone/diffusers/schedulers/scheduling_ddim.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">303</span>
-<span class="normal">304</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">304</span>
 <span class="normal">305</span>
 <span class="normal">306</span>
 <span class="normal">307</span>
@@ -9702,7 +9701,8 @@ A scaled input sample.</p>
 <span class="normal">343</span>
 <span class="normal">344</span>
 <span class="normal">345</span>
-<span class="normal">346</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">set_timesteps</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">num_inference_steps</span><span class="p">:</span> <span class="nb">int</span><span class="p">):</span>
+<span class="normal">346</span>
+<span class="normal">347</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">set_timesteps</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">num_inference_steps</span><span class="p">:</span> <span class="nb">int</span><span class="p">):</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    Sets the discrete timesteps used for the diffusion chain (to be run before inference).</span>
 
@@ -9720,7 +9720,7 @@ A scaled input sample.</p>
 
     <span class="bp">self</span><span class="o">.</span><span class="n">num_inference_steps</span> <span class="o">=</span> <span class="n">num_inference_steps</span>
 
-    <span class="c1"># &quot;linspace&quot;, &quot;leading&quot;, &quot;trailing&quot; corresponds to annotation of Table 2. of https://arxiv.org/abs/2305.08891</span>
+    <span class="c1"># &quot;linspace&quot;, &quot;leading&quot;, &quot;trailing&quot; corresponds to annotation of Table 2. of https://huggingface.co/papers/2305.08891</span>
     <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">timestep_spacing</span> <span class="o">==</span> <span class="s2">&quot;linspace&quot;</span><span class="p">:</span>
         <span class="n">timesteps</span> <span class="o">=</span> <span class="p">(</span>
             <span class="n">np</span><span class="o">.</span><span class="n">linspace</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">num_train_timesteps</span> <span class="o">-</span> <span class="mi">1</span><span class="p">,</span> <span class="n">num_inference_steps</span><span class="p">)</span>
@@ -9964,8 +9964,7 @@ tuple is returned where the first element is the sample tensor.</p>
 
             <details class="quote">
               <summary>Source code in <code>mindone/diffusers/schedulers/scheduling_ddim.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">348</span>
-<span class="normal">349</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">349</span>
 <span class="normal">350</span>
 <span class="normal">351</span>
 <span class="normal">352</span>
@@ -10100,7 +10099,8 @@ tuple is returned where the first element is the sample tensor.</p>
 <span class="normal">481</span>
 <span class="normal">482</span>
 <span class="normal">483</span>
-<span class="normal">484</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">step</span><span class="p">(</span>
+<span class="normal">484</span>
+<span class="normal">485</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">step</span><span class="p">(</span>
     <span class="bp">self</span><span class="p">,</span>
     <span class="n">model_output</span><span class="p">:</span> <span class="n">ms</span><span class="o">.</span><span class="n">Tensor</span><span class="p">,</span>
     <span class="n">timestep</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span>
@@ -10148,7 +10148,7 @@ tuple is returned where the first element is the sample tensor.</p>
             <span class="s2">&quot;Number of inference steps is &#39;None&#39;, you need to run &#39;set_timesteps&#39; after creating the scheduler&quot;</span>
         <span class="p">)</span>
 
-    <span class="c1"># See formulas (12) and (16) of DDIM paper https://arxiv.org/pdf/2010.02502.pdf</span>
+    <span class="c1"># See formulas (12) and (16) of DDIM paper https://huggingface.co/papers/2010.02502</span>
     <span class="c1"># Ideally, read DDIM paper in-detail understanding</span>
 
     <span class="c1"># Notation (&lt;variable name&gt; -&gt; &lt;name in paper&gt;</span>
@@ -10170,7 +10170,7 @@ tuple is returned where the first element is the sample tensor.</p>
     <span class="n">beta_prod_t</span> <span class="o">=</span> <span class="mi">1</span> <span class="o">-</span> <span class="n">alpha_prod_t</span>
 
     <span class="c1"># 3. compute predicted original sample from predicted noise also called</span>
-    <span class="c1"># &quot;predicted x_0&quot; of formula (12) from https://arxiv.org/pdf/2010.02502.pdf</span>
+    <span class="c1"># &quot;predicted x_0&quot; of formula (12) from https://huggingface.co/papers/2010.02502</span>
     <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">prediction_type</span> <span class="o">==</span> <span class="s2">&quot;epsilon&quot;</span><span class="p">:</span>
         <span class="n">pred_original_sample</span> <span class="o">=</span> <span class="p">(</span>
             <span class="p">(</span><span class="n">sample</span> <span class="o">-</span> <span class="p">(</span><span class="n">beta_prod_t</span> <span class="o">**</span> <span class="p">(</span><span class="mf">0.5</span><span class="p">))</span><span class="o">.</span><span class="n">to</span><span class="p">(</span><span class="n">dtype</span><span class="p">)</span> <span class="o">*</span> <span class="n">model_output</span><span class="p">)</span> <span class="o">/</span> <span class="n">alpha_prod_t</span> <span class="o">**</span> <span class="p">(</span><span class="mf">0.5</span><span class="p">)</span>
@@ -10211,10 +10211,10 @@ tuple is returned where the first element is the sample tensor.</p>
             <span class="p">(</span><span class="n">sample</span> <span class="o">-</span> <span class="p">(</span><span class="n">alpha_prod_t</span> <span class="o">**</span> <span class="p">(</span><span class="mf">0.5</span><span class="p">))</span><span class="o">.</span><span class="n">to</span><span class="p">(</span><span class="n">dtype</span><span class="p">)</span> <span class="o">*</span> <span class="n">pred_original_sample</span><span class="p">)</span> <span class="o">/</span> <span class="n">beta_prod_t</span> <span class="o">**</span> <span class="p">(</span><span class="mf">0.5</span><span class="p">)</span>
         <span class="p">)</span><span class="o">.</span><span class="n">to</span><span class="p">(</span><span class="n">dtype</span><span class="p">)</span>
 
-    <span class="c1"># 6. compute &quot;direction pointing to x_t&quot; of formula (12) from https://arxiv.org/pdf/2010.02502.pdf</span>
+    <span class="c1"># 6. compute &quot;direction pointing to x_t&quot; of formula (12) from https://huggingface.co/papers/2010.02502</span>
     <span class="n">pred_sample_direction</span> <span class="o">=</span> <span class="p">((</span><span class="mi">1</span> <span class="o">-</span> <span class="n">alpha_prod_t_prev</span> <span class="o">-</span> <span class="n">std_dev_t</span><span class="o">**</span><span class="mi">2</span><span class="p">)</span> <span class="o">**</span> <span class="p">(</span><span class="mf">0.5</span><span class="p">))</span><span class="o">.</span><span class="n">to</span><span class="p">(</span><span class="n">dtype</span><span class="p">)</span> <span class="o">*</span> <span class="n">pred_epsilon</span>
 
-    <span class="c1"># 7. compute x_t without &quot;random noise&quot; of formula (12) from https://arxiv.org/pdf/2010.02502.pdf</span>
+    <span class="c1"># 7. compute x_t without &quot;random noise&quot; of formula (12) from https://huggingface.co/papers/2010.02502</span>
     <span class="n">prev_sample</span> <span class="o">=</span> <span class="p">(</span><span class="n">alpha_prod_t_prev</span> <span class="o">**</span> <span class="p">(</span><span class="mf">0.5</span><span class="p">))</span><span class="o">.</span><span class="n">to</span><span class="p">(</span><span class="n">dtype</span><span class="p">)</span> <span class="o">*</span> <span class="n">pred_original_sample</span> <span class="o">+</span> <span class="n">pred_sample_direction</span>
 
     <span class="k">if</span> <span class="n">eta</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">:</span>
@@ -10331,8 +10331,7 @@ denoising loop.</p>
 
               <details class="quote">
                 <summary>Source code in <code>mindone/diffusers/schedulers/scheduling_ddim.py</code></summary>
-                <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">35</span>
-<span class="normal">36</span>
+                <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">36</span>
 <span class="normal">37</span>
 <span class="normal">38</span>
 <span class="normal">39</span>
@@ -10347,7 +10346,8 @@ denoising loop.</p>
 <span class="normal">48</span>
 <span class="normal">49</span>
 <span class="normal">50</span>
-<span class="normal">51</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@dataclass</span>
+<span class="normal">51</span>
+<span class="normal">52</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@dataclass</span>
 <span class="c1"># Copied from diffusers.schedulers.scheduling_ddpm.DDPMSchedulerOutput with DDPM-&gt;DDIM</span>
 <span class="k">class</span><span class="w"> </span><span class="nc">DDIMSchedulerOutput</span><span class="p">(</span><span class="n">BaseOutput</span><span class="p">):</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>

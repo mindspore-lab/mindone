@@ -8425,7 +8425,20 @@ more details about adapters and injecting them in a base model, check out the PE
 
               <details class="quote">
                 <summary>Source code in <code>mindone/diffusers/loaders/peft.py</code></summary>
-                <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal"> 79</span>
+                <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal"> 66</span>
+<span class="normal"> 67</span>
+<span class="normal"> 68</span>
+<span class="normal"> 69</span>
+<span class="normal"> 70</span>
+<span class="normal"> 71</span>
+<span class="normal"> 72</span>
+<span class="normal"> 73</span>
+<span class="normal"> 74</span>
+<span class="normal"> 75</span>
+<span class="normal"> 76</span>
+<span class="normal"> 77</span>
+<span class="normal"> 78</span>
+<span class="normal"> 79</span>
 <span class="normal"> 80</span>
 <span class="normal"> 81</span>
 <span class="normal"> 82</span>
@@ -9080,53 +9093,7 @@ more details about adapters and injecting them in a base model, check out the PE
 <span class="normal">731</span>
 <span class="normal">732</span>
 <span class="normal">733</span>
-<span class="normal">734</span>
-<span class="normal">735</span>
-<span class="normal">736</span>
-<span class="normal">737</span>
-<span class="normal">738</span>
-<span class="normal">739</span>
-<span class="normal">740</span>
-<span class="normal">741</span>
-<span class="normal">742</span>
-<span class="normal">743</span>
-<span class="normal">744</span>
-<span class="normal">745</span>
-<span class="normal">746</span>
-<span class="normal">747</span>
-<span class="normal">748</span>
-<span class="normal">749</span>
-<span class="normal">750</span>
-<span class="normal">751</span>
-<span class="normal">752</span>
-<span class="normal">753</span>
-<span class="normal">754</span>
-<span class="normal">755</span>
-<span class="normal">756</span>
-<span class="normal">757</span>
-<span class="normal">758</span>
-<span class="normal">759</span>
-<span class="normal">760</span>
-<span class="normal">761</span>
-<span class="normal">762</span>
-<span class="normal">763</span>
-<span class="normal">764</span>
-<span class="normal">765</span>
-<span class="normal">766</span>
-<span class="normal">767</span>
-<span class="normal">768</span>
-<span class="normal">769</span>
-<span class="normal">770</span>
-<span class="normal">771</span>
-<span class="normal">772</span>
-<span class="normal">773</span>
-<span class="normal">774</span>
-<span class="normal">775</span>
-<span class="normal">776</span>
-<span class="normal">777</span>
-<span class="normal">778</span>
-<span class="normal">779</span>
-<span class="normal">780</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">class</span><span class="w"> </span><span class="nc">PeftAdapterMixin</span><span class="p">:</span>
+<span class="normal">734</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">class</span><span class="w"> </span><span class="nc">PeftAdapterMixin</span><span class="p">:</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    A class containing all functions for loading and using adapters weights that are supported in PEFT library. For</span>
 <span class="sd">    more details about adapters and injecting them in a base model, check out the PEFT</span>
@@ -9215,8 +9182,11 @@ more details about adapters and injecting them in a base model, check out the PE
 <span class="sd">                Note that hotswapping adapters of the text encoder is not yet supported. There are some further</span>
 <span class="sd">                limitations to this technique, which are documented here:</span>
 <span class="sd">                https://huggingface.co/docs/peft/main/en/package_reference/hotswap</span>
+<span class="sd">            metadata:</span>
+<span class="sd">                LoRA adapter metadata. When supplied, the metadata inferred through the state dict isn&#39;t used to</span>
+<span class="sd">                initialize `LoraConfig`.</span>
 <span class="sd">        &quot;&quot;&quot;</span>
-        <span class="kn">from</span><span class="w"> </span><span class="nn">mindone.diffusers._peft</span><span class="w"> </span><span class="kn">import</span> <span class="n">LoraConfig</span><span class="p">,</span> <span class="n">inject_adapter_in_model</span><span class="p">,</span> <span class="n">set_peft_model_state_dict</span>
+        <span class="kn">from</span><span class="w"> </span><span class="nn">mindone.diffusers._peft</span><span class="w"> </span><span class="kn">import</span> <span class="n">inject_adapter_in_model</span><span class="p">,</span> <span class="n">set_peft_model_state_dict</span>
         <span class="kn">from</span><span class="w"> </span><span class="nn">mindone.diffusers._peft.tuners.tuners_utils</span><span class="w"> </span><span class="kn">import</span> <span class="n">BaseTunerLayer</span>
 
         <span class="n">cache_dir</span> <span class="o">=</span> <span class="n">kwargs</span><span class="o">.</span><span class="n">pop</span><span class="p">(</span><span class="s2">&quot;cache_dir&quot;</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span>
@@ -9231,14 +9201,11 @@ more details about adapters and injecting them in a base model, check out the PE
         <span class="n">adapter_name</span> <span class="o">=</span> <span class="n">kwargs</span><span class="o">.</span><span class="n">pop</span><span class="p">(</span><span class="s2">&quot;adapter_name&quot;</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span>
         <span class="n">network_alphas</span> <span class="o">=</span> <span class="n">kwargs</span><span class="o">.</span><span class="n">pop</span><span class="p">(</span><span class="s2">&quot;network_alphas&quot;</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span>
         <span class="n">_pipeline</span> <span class="o">=</span> <span class="n">kwargs</span><span class="o">.</span><span class="n">pop</span><span class="p">(</span><span class="s2">&quot;_pipeline&quot;</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span>  <span class="c1"># noqa</span>
+        <span class="n">metadata</span> <span class="o">=</span> <span class="n">kwargs</span><span class="o">.</span><span class="n">pop</span><span class="p">(</span><span class="s2">&quot;metadata&quot;</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span>
         <span class="n">allow_pickle</span> <span class="o">=</span> <span class="kc">False</span>
 
-        <span class="n">user_agent</span> <span class="o">=</span> <span class="p">{</span>
-            <span class="s2">&quot;file_type&quot;</span><span class="p">:</span> <span class="s2">&quot;attn_procs_weights&quot;</span><span class="p">,</span>
-            <span class="s2">&quot;framework&quot;</span><span class="p">:</span> <span class="s2">&quot;pytorch&quot;</span><span class="p">,</span>
-        <span class="p">}</span>
-
-        <span class="n">state_dict</span> <span class="o">=</span> <span class="n">_fetch_state_dict</span><span class="p">(</span>
+        <span class="n">user_agent</span> <span class="o">=</span> <span class="p">{</span><span class="s2">&quot;file_type&quot;</span><span class="p">:</span> <span class="s2">&quot;attn_procs_weights&quot;</span><span class="p">,</span> <span class="s2">&quot;framework&quot;</span><span class="p">:</span> <span class="s2">&quot;pytorch&quot;</span><span class="p">}</span>
+        <span class="n">state_dict</span><span class="p">,</span> <span class="n">metadata</span> <span class="o">=</span> <span class="n">_fetch_state_dict</span><span class="p">(</span>
             <span class="n">pretrained_model_name_or_path_or_dict</span><span class="o">=</span><span class="n">pretrained_model_name_or_path_or_dict</span><span class="p">,</span>
             <span class="n">weight_name</span><span class="o">=</span><span class="n">weight_name</span><span class="p">,</span>
             <span class="n">use_safetensors</span><span class="o">=</span><span class="n">use_safetensors</span><span class="p">,</span>
@@ -9251,12 +9218,17 @@ more details about adapters and injecting them in a base model, check out the PE
             <span class="n">subfolder</span><span class="o">=</span><span class="n">subfolder</span><span class="p">,</span>
             <span class="n">user_agent</span><span class="o">=</span><span class="n">user_agent</span><span class="p">,</span>
             <span class="n">allow_pickle</span><span class="o">=</span><span class="n">allow_pickle</span><span class="p">,</span>
+            <span class="n">metadata</span><span class="o">=</span><span class="n">metadata</span><span class="p">,</span>
         <span class="p">)</span>
         <span class="k">if</span> <span class="n">network_alphas</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="ow">and</span> <span class="n">prefix</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
             <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;`network_alphas` cannot be None when `prefix` is None.&quot;</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">network_alphas</span> <span class="ow">and</span> <span class="n">metadata</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;Both `network_alphas` and `metadata` cannot be specified.&quot;</span><span class="p">)</span>
 
         <span class="k">if</span> <span class="n">prefix</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
-            <span class="n">state_dict</span> <span class="o">=</span> <span class="p">{</span><span class="n">k</span><span class="p">[</span><span class="nb">len</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">prefix</span><span class="si">}</span><span class="s2">.&quot;</span><span class="p">)</span> <span class="p">:]:</span> <span class="n">v</span> <span class="k">for</span> <span class="n">k</span><span class="p">,</span> <span class="n">v</span> <span class="ow">in</span> <span class="n">state_dict</span><span class="o">.</span><span class="n">items</span><span class="p">()</span> <span class="k">if</span> <span class="n">k</span><span class="o">.</span><span class="n">startswith</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">prefix</span><span class="si">}</span><span class="s2">.&quot;</span><span class="p">)}</span>
+            <span class="n">state_dict</span> <span class="o">=</span> <span class="p">{</span><span class="n">k</span><span class="o">.</span><span class="n">removeprefix</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">prefix</span><span class="si">}</span><span class="s2">.&quot;</span><span class="p">):</span> <span class="n">v</span> <span class="k">for</span> <span class="n">k</span><span class="p">,</span> <span class="n">v</span> <span class="ow">in</span> <span class="n">state_dict</span><span class="o">.</span><span class="n">items</span><span class="p">()</span> <span class="k">if</span> <span class="n">k</span><span class="o">.</span><span class="n">startswith</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">prefix</span><span class="si">}</span><span class="s2">.&quot;</span><span class="p">)}</span>
+            <span class="k">if</span> <span class="n">metadata</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+                <span class="n">metadata</span> <span class="o">=</span> <span class="p">{</span><span class="n">k</span><span class="o">.</span><span class="n">removeprefix</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">prefix</span><span class="si">}</span><span class="s2">.&quot;</span><span class="p">):</span> <span class="n">v</span> <span class="k">for</span> <span class="n">k</span><span class="p">,</span> <span class="n">v</span> <span class="ow">in</span> <span class="n">metadata</span><span class="o">.</span><span class="n">items</span><span class="p">()</span> <span class="k">if</span> <span class="n">k</span><span class="o">.</span><span class="n">startswith</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">prefix</span><span class="si">}</span><span class="s2">.&quot;</span><span class="p">)}</span>
 
         <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">state_dict</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">:</span>
             <span class="k">if</span> <span class="n">adapter_name</span> <span class="ow">in</span> <span class="nb">getattr</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="s2">&quot;peft_config&quot;</span><span class="p">,</span> <span class="p">{})</span> <span class="ow">and</span> <span class="ow">not</span> <span class="n">hotswap</span><span class="p">:</span>
@@ -9276,7 +9248,7 @@ more details about adapters and injecting them in a base model, check out the PE
 
             <span class="n">rank</span> <span class="o">=</span> <span class="p">{}</span>
             <span class="k">for</span> <span class="n">key</span><span class="p">,</span> <span class="n">val</span> <span class="ow">in</span> <span class="n">state_dict</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
-                <span class="c1"># Cannot figure out rank from lora layers that don&#39;t have atleast 2 dimensions.</span>
+                <span class="c1"># Cannot figure out rank from lora layers that don&#39;t have at least 2 dimensions.</span>
                 <span class="c1"># Bias layers in LoRA only have a single dimension</span>
                 <span class="k">if</span> <span class="s2">&quot;lora_B&quot;</span> <span class="ow">in</span> <span class="n">key</span> <span class="ow">and</span> <span class="n">val</span><span class="o">.</span><span class="n">ndim</span> <span class="o">&gt;</span> <span class="mi">1</span><span class="p">:</span>
                     <span class="c1"># Check out https://github.com/huggingface/peft/pull/2419 for the `^` symbol.</span>
@@ -9287,32 +9259,11 @@ more details about adapters and injecting them in a base model, check out the PE
 
             <span class="k">if</span> <span class="n">network_alphas</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="ow">and</span> <span class="nb">len</span><span class="p">(</span><span class="n">network_alphas</span><span class="p">)</span> <span class="o">&gt;=</span> <span class="mi">1</span><span class="p">:</span>
                 <span class="n">alpha_keys</span> <span class="o">=</span> <span class="p">[</span><span class="n">k</span> <span class="k">for</span> <span class="n">k</span> <span class="ow">in</span> <span class="n">network_alphas</span><span class="o">.</span><span class="n">keys</span><span class="p">()</span> <span class="k">if</span> <span class="n">k</span><span class="o">.</span><span class="n">startswith</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">prefix</span><span class="si">}</span><span class="s2">.&quot;</span><span class="p">)]</span>
-                <span class="n">network_alphas</span> <span class="o">=</span> <span class="p">{</span><span class="n">k</span><span class="o">.</span><span class="n">replace</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">prefix</span><span class="si">}</span><span class="s2">.&quot;</span><span class="p">,</span> <span class="s2">&quot;&quot;</span><span class="p">):</span> <span class="n">v</span> <span class="k">for</span> <span class="n">k</span><span class="p">,</span> <span class="n">v</span> <span class="ow">in</span> <span class="n">network_alphas</span><span class="o">.</span><span class="n">items</span><span class="p">()</span> <span class="k">if</span> <span class="n">k</span> <span class="ow">in</span> <span class="n">alpha_keys</span><span class="p">}</span>
+                <span class="n">network_alphas</span> <span class="o">=</span> <span class="p">{</span><span class="n">k</span><span class="o">.</span><span class="n">removeprefix</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">prefix</span><span class="si">}</span><span class="s2">.&quot;</span><span class="p">):</span> <span class="n">v</span> <span class="k">for</span> <span class="n">k</span><span class="p">,</span> <span class="n">v</span> <span class="ow">in</span> <span class="n">network_alphas</span><span class="o">.</span><span class="n">items</span><span class="p">()</span> <span class="k">if</span> <span class="n">k</span> <span class="ow">in</span> <span class="n">alpha_keys</span><span class="p">}</span>
 
-            <span class="n">lora_config_kwargs</span> <span class="o">=</span> <span class="n">get_peft_kwargs</span><span class="p">(</span><span class="n">rank</span><span class="p">,</span> <span class="n">network_alpha_dict</span><span class="o">=</span><span class="n">network_alphas</span><span class="p">,</span> <span class="n">peft_state_dict</span><span class="o">=</span><span class="n">state_dict</span><span class="p">)</span>
-            <span class="n">_maybe_raise_error_for_ambiguity</span><span class="p">(</span><span class="n">lora_config_kwargs</span><span class="p">)</span>
+            <span class="c1"># create LoraConfig</span>
+            <span class="n">lora_config</span> <span class="o">=</span> <span class="n">_create_lora_config</span><span class="p">(</span><span class="n">state_dict</span><span class="p">,</span> <span class="n">network_alphas</span><span class="p">,</span> <span class="n">metadata</span><span class="p">,</span> <span class="n">rank</span><span class="p">)</span>
 
-            <span class="k">if</span> <span class="s2">&quot;use_dora&quot;</span> <span class="ow">in</span> <span class="n">lora_config_kwargs</span><span class="p">:</span>
-                <span class="k">if</span> <span class="n">lora_config_kwargs</span><span class="p">[</span><span class="s2">&quot;use_dora&quot;</span><span class="p">]:</span>
-                    <span class="k">if</span> <span class="n">is_peft_version</span><span class="p">(</span><span class="s2">&quot;&lt;&quot;</span><span class="p">,</span> <span class="s2">&quot;0.9.0&quot;</span><span class="p">):</span>
-                        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
-                            <span class="s2">&quot;You need `peft` 0.9.0 at least to use DoRA-enabled LoRAs. Please upgrade your installation of `peft`.&quot;</span>
-                        <span class="p">)</span>
-                <span class="k">else</span><span class="p">:</span>
-                    <span class="k">if</span> <span class="n">is_peft_version</span><span class="p">(</span><span class="s2">&quot;&lt;&quot;</span><span class="p">,</span> <span class="s2">&quot;0.9.0&quot;</span><span class="p">):</span>
-                        <span class="n">lora_config_kwargs</span><span class="o">.</span><span class="n">pop</span><span class="p">(</span><span class="s2">&quot;use_dora&quot;</span><span class="p">)</span>
-
-            <span class="k">if</span> <span class="s2">&quot;lora_bias&quot;</span> <span class="ow">in</span> <span class="n">lora_config_kwargs</span><span class="p">:</span>
-                <span class="k">if</span> <span class="n">lora_config_kwargs</span><span class="p">[</span><span class="s2">&quot;lora_bias&quot;</span><span class="p">]:</span>
-                    <span class="k">if</span> <span class="n">is_peft_version</span><span class="p">(</span><span class="s2">&quot;&lt;=&quot;</span><span class="p">,</span> <span class="s2">&quot;0.13.2&quot;</span><span class="p">):</span>
-                        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
-                            <span class="s2">&quot;You need `peft` 0.14.0 at least to use `lora_bias` in LoRAs. Please upgrade your installation of `peft`.&quot;</span>
-                        <span class="p">)</span>
-                <span class="k">else</span><span class="p">:</span>
-                    <span class="k">if</span> <span class="n">is_peft_version</span><span class="p">(</span><span class="s2">&quot;&lt;=&quot;</span><span class="p">,</span> <span class="s2">&quot;0.13.2&quot;</span><span class="p">):</span>
-                        <span class="n">lora_config_kwargs</span><span class="o">.</span><span class="n">pop</span><span class="p">(</span><span class="s2">&quot;lora_bias&quot;</span><span class="p">)</span>
-
-            <span class="n">lora_config</span> <span class="o">=</span> <span class="n">LoraConfig</span><span class="p">(</span><span class="o">**</span><span class="n">lora_config_kwargs</span><span class="p">)</span>
             <span class="c1"># adapter_name</span>
             <span class="k">if</span> <span class="n">adapter_name</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
                 <span class="n">adapter_name</span> <span class="o">=</span> <span class="n">get_adapter_name</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span>
@@ -9322,7 +9273,7 @@ more details about adapters and injecting them in a base model, check out the PE
             <span class="c1"># Now we remove any existing hooks to `_pipeline`.</span>
 
             <span class="c1"># In case the pipeline has been already offloaded to CPU - temporarily remove the hooks</span>
-            <span class="c1"># otherwise loading LoRA weights will lead to an error</span>
+            <span class="c1"># otherwise loading LoRA weights will lead to an error.</span>
             <span class="n">peft_kwargs</span> <span class="o">=</span> <span class="p">{}</span>
 
             <span class="k">if</span> <span class="n">hotswap</span> <span class="ow">or</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_prepare_lora_hotswap_kwargs</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">):</span>
@@ -9352,7 +9303,7 @@ more details about adapters and injecting them in a base model, check out the PE
                         <span class="n">new_sd</span><span class="p">[</span><span class="n">k</span><span class="p">]</span> <span class="o">=</span> <span class="n">v</span>
                     <span class="k">return</span> <span class="n">new_sd</span>
 
-            <span class="c1"># To handle scenarios where we cannot successfully set state dict. If it&#39;s unsucessful,</span>
+            <span class="c1"># To handle scenarios where we cannot successfully set state dict. If it&#39;s unsuccessful,</span>
             <span class="c1"># we should also delete the `peft_config` associated to the `adapter_name`.</span>
             <span class="k">try</span><span class="p">:</span>
                 <span class="k">if</span> <span class="n">hotswap</span><span class="p">:</span>
@@ -9366,7 +9317,7 @@ more details about adapters and injecting them in a base model, check out the PE
                             <span class="n">config</span><span class="o">=</span><span class="n">lora_config</span><span class="p">,</span>
                         <span class="p">)</span>
                     <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
-                        <span class="n">logger</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Hotswapping </span><span class="si">{</span><span class="n">adapter_name</span><span class="si">}</span><span class="s2"> was unsucessful with the following error: </span><span class="se">\n</span><span class="si">{</span><span class="n">e</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+                        <span class="n">logger</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Hotswapping </span><span class="si">{</span><span class="n">adapter_name</span><span class="si">}</span><span class="s2"> was unsuccessful with the following error: </span><span class="se">\n</span><span class="si">{</span><span class="n">e</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
                         <span class="k">raise</span>
                     <span class="c1"># the hotswap function raises if there are incompatible keys, so if we reach this point we can set</span>
                     <span class="c1"># it to None</span>
@@ -9393,7 +9344,7 @@ more details about adapters and injecting them in a base model, check out the PE
             <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
                 <span class="c1"># In case `inject_adapter_in_model()` was unsuccessful even before injecting the `peft_config`.</span>
                 <span class="k">if</span> <span class="nb">hasattr</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="s2">&quot;peft_config&quot;</span><span class="p">):</span>
-                    <span class="k">for</span> <span class="n">module</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">modules</span><span class="p">():</span>
+                    <span class="k">for</span> <span class="n">_</span><span class="p">,</span> <span class="n">module</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">cells_and_names</span><span class="p">():</span>
                         <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">module</span><span class="p">,</span> <span class="n">BaseTunerLayer</span><span class="p">):</span>
                             <span class="n">active_adapters</span> <span class="o">=</span> <span class="n">module</span><span class="o">.</span><span class="n">active_adapters</span>
                             <span class="k">for</span> <span class="n">active_adapter</span> <span class="ow">in</span> <span class="n">active_adapters</span><span class="p">:</span>
@@ -9401,39 +9352,17 @@ more details about adapters and injecting them in a base model, check out the PE
                                     <span class="n">module</span><span class="o">.</span><span class="n">delete_adapter</span><span class="p">(</span><span class="n">adapter_name</span><span class="p">)</span>
 
                     <span class="bp">self</span><span class="o">.</span><span class="n">peft_config</span><span class="o">.</span><span class="n">pop</span><span class="p">(</span><span class="n">adapter_name</span><span class="p">)</span>
-                <span class="n">logger</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Loading </span><span class="si">{</span><span class="n">adapter_name</span><span class="si">}</span><span class="s2"> was unsucessful with the following error: </span><span class="se">\n</span><span class="si">{</span><span class="n">e</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+                <span class="n">logger</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Loading </span><span class="si">{</span><span class="n">adapter_name</span><span class="si">}</span><span class="s2"> was unsuccessful with the following error: </span><span class="se">\n</span><span class="si">{</span><span class="n">e</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
                 <span class="k">raise</span>
 
-            <span class="n">warn_msg</span> <span class="o">=</span> <span class="s2">&quot;&quot;</span>
-            <span class="k">if</span> <span class="n">incompatible_keys</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
-                <span class="c1"># Check only for unexpected keys.</span>
-                <span class="n">unexpected_keys</span> <span class="o">=</span> <span class="nb">getattr</span><span class="p">(</span><span class="n">incompatible_keys</span><span class="p">,</span> <span class="s2">&quot;unexpected_keys&quot;</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span>
-                <span class="k">if</span> <span class="n">unexpected_keys</span><span class="p">:</span>
-                    <span class="n">lora_unexpected_keys</span> <span class="o">=</span> <span class="p">[</span><span class="n">k</span> <span class="k">for</span> <span class="n">k</span> <span class="ow">in</span> <span class="n">unexpected_keys</span> <span class="k">if</span> <span class="s2">&quot;lora_&quot;</span> <span class="ow">in</span> <span class="n">k</span> <span class="ow">and</span> <span class="n">adapter_name</span> <span class="ow">in</span> <span class="n">k</span><span class="p">]</span>
-                    <span class="k">if</span> <span class="n">lora_unexpected_keys</span><span class="p">:</span>
-                        <span class="n">warn_msg</span> <span class="o">=</span> <span class="p">(</span>
-                            <span class="sa">f</span><span class="s2">&quot;Loading adapter weights from state_dict led to unexpected keys found in the model:&quot;</span>
-                            <span class="sa">f</span><span class="s2">&quot; </span><span class="si">{</span><span class="s1">&#39;, &#39;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">lora_unexpected_keys</span><span class="p">)</span><span class="si">}</span><span class="s2">. &quot;</span>
-                        <span class="p">)</span>
-
-                <span class="c1"># Filter missing keys specific to the current adapter.</span>
-                <span class="n">missing_keys</span> <span class="o">=</span> <span class="nb">getattr</span><span class="p">(</span><span class="n">incompatible_keys</span><span class="p">,</span> <span class="s2">&quot;missing_keys&quot;</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span>
-                <span class="k">if</span> <span class="n">missing_keys</span><span class="p">:</span>
-                    <span class="n">lora_missing_keys</span> <span class="o">=</span> <span class="p">[</span><span class="n">k</span> <span class="k">for</span> <span class="n">k</span> <span class="ow">in</span> <span class="n">missing_keys</span> <span class="k">if</span> <span class="s2">&quot;lora_&quot;</span> <span class="ow">in</span> <span class="n">k</span> <span class="ow">and</span> <span class="n">adapter_name</span> <span class="ow">in</span> <span class="n">k</span><span class="p">]</span>
-                    <span class="k">if</span> <span class="n">lora_missing_keys</span><span class="p">:</span>
-                        <span class="n">warn_msg</span> <span class="o">+=</span> <span class="p">(</span>
-                            <span class="sa">f</span><span class="s2">&quot;Loading adapter weights from state_dict led to missing keys in the model:&quot;</span>
-                            <span class="sa">f</span><span class="s2">&quot; </span><span class="si">{</span><span class="s1">&#39;, &#39;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">lora_missing_keys</span><span class="p">)</span><span class="si">}</span><span class="s2">.&quot;</span>
-                        <span class="p">)</span>
-
-            <span class="k">if</span> <span class="n">warn_msg</span><span class="p">:</span>
-                <span class="n">logger</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span><span class="n">warn_msg</span><span class="p">)</span>
+            <span class="n">_maybe_warn_for_unhandled_keys</span><span class="p">(</span><span class="n">incompatible_keys</span><span class="p">,</span> <span class="n">adapter_name</span><span class="p">)</span>
 
         <span class="k">if</span> <span class="n">prefix</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="ow">and</span> <span class="ow">not</span> <span class="n">state_dict</span><span class="p">:</span>
+            <span class="n">model_class_name</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="vm">__class__</span><span class="o">.</span><span class="vm">__name__</span>
             <span class="n">logger</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span>
-                <span class="sa">f</span><span class="s2">&quot;No LoRA keys associated to </span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="vm">__class__</span><span class="o">.</span><span class="vm">__name__</span><span class="si">}</span><span class="s2"> found with the </span><span class="si">{</span><span class="n">prefix</span><span class="si">=}</span><span class="s2">. &quot;</span>
+                <span class="sa">f</span><span class="s2">&quot;No LoRA keys associated to </span><span class="si">{</span><span class="n">model_class_name</span><span class="si">}</span><span class="s2"> found with the </span><span class="si">{</span><span class="n">prefix</span><span class="si">=}</span><span class="s2">. &quot;</span>
                 <span class="s2">&quot;This is safe to ignore if LoRA state dict didn&#39;t originally have any &quot;</span>
-                <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="vm">__class__</span><span class="o">.</span><span class="vm">__name__</span><span class="si">}</span><span class="s2"> related params. You can also try specifying `prefix=None` &quot;</span>
+                <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">model_class_name</span><span class="si">}</span><span class="s2"> related params. You can also try specifying `prefix=None` &quot;</span>
                 <span class="s2">&quot;to resolve the warning. Otherwise, open an issue if you think it&#39;s unexpected: &quot;</span>
                 <span class="s2">&quot;https://github.com/huggingface/diffusers/issues/new&quot;</span>
             <span class="p">)</span>
@@ -9456,23 +9385,21 @@ more details about adapters and injecting them in a base model, check out the PE
 <span class="sd">                underlying model has multiple adapters loaded.</span>
 <span class="sd">            upcast_before_saving (`bool`, defaults to `False`):</span>
 <span class="sd">                Whether to cast the underlying model to `torch.float32` before serialization.</span>
-<span class="sd">            save_function (`Callable`):</span>
-<span class="sd">                The function to use to save the state dictionary. Useful during distributed training when you need to</span>
-<span class="sd">                replace `torch.save` with another method. Can be configured with the environment variable</span>
-<span class="sd">                `DIFFUSERS_SAVE_MODE`.</span>
 <span class="sd">            safe_serialization (`bool`, *optional*, defaults to `True`):</span>
 <span class="sd">                Whether to save the model using `safetensors` or the traditional PyTorch way with `pickle`.</span>
 <span class="sd">            weight_name: (`str`, *optional*, defaults to `None`): Name of the file to serialize the state dict with.</span>
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="kn">from</span><span class="w"> </span><span class="nn">mindone.diffusers._peft.utils</span><span class="w"> </span><span class="kn">import</span> <span class="n">get_peft_model_state_dict</span>
 
-        <span class="kn">from</span><span class="w"> </span><span class="nn">.lora_base</span><span class="w"> </span><span class="kn">import</span> <span class="n">LORA_WEIGHT_NAME</span><span class="p">,</span> <span class="n">LORA_WEIGHT_NAME_SAFE</span>
+        <span class="kn">from</span><span class="w"> </span><span class="nn">.lora_base</span><span class="w"> </span><span class="kn">import</span> <span class="n">LORA_ADAPTER_METADATA_KEY</span><span class="p">,</span> <span class="n">LORA_WEIGHT_NAME</span><span class="p">,</span> <span class="n">LORA_WEIGHT_NAME_SAFE</span>
 
         <span class="k">if</span> <span class="n">adapter_name</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
             <span class="n">adapter_name</span> <span class="o">=</span> <span class="n">get_adapter_name</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span>
 
         <span class="k">if</span> <span class="n">adapter_name</span> <span class="ow">not</span> <span class="ow">in</span> <span class="nb">getattr</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="s2">&quot;peft_config&quot;</span><span class="p">,</span> <span class="p">{}):</span>
             <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Adapter name </span><span class="si">{</span><span class="n">adapter_name</span><span class="si">}</span><span class="s2"> not found in the model.&quot;</span><span class="p">)</span>
+
+        <span class="n">lora_adapter_metadata</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">peft_config</span><span class="p">[</span><span class="n">adapter_name</span><span class="p">]</span><span class="o">.</span><span class="n">to_dict</span><span class="p">()</span>
 
         <span class="n">lora_layers_to_save</span> <span class="o">=</span> <span class="n">get_peft_model_state_dict</span><span class="p">(</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">to</span><span class="p">(</span><span class="n">dtype</span><span class="o">=</span><span class="n">ms</span><span class="o">.</span><span class="n">float32</span> <span class="k">if</span> <span class="n">upcast_before_saving</span> <span class="k">else</span> <span class="kc">None</span><span class="p">),</span> <span class="n">adapter_name</span><span class="o">=</span><span class="n">adapter_name</span>
@@ -9483,7 +9410,15 @@ more details about adapters and injecting them in a base model, check out the PE
         <span class="k">if</span> <span class="n">safe_serialization</span><span class="p">:</span>
 
             <span class="k">def</span><span class="w"> </span><span class="nf">save_function</span><span class="p">(</span><span class="n">weights</span><span class="p">,</span> <span class="n">filename</span><span class="p">):</span>
-                <span class="k">return</span> <span class="n">save_file</span><span class="p">(</span><span class="n">weights</span><span class="p">,</span> <span class="n">filename</span><span class="p">,</span> <span class="n">metadata</span><span class="o">=</span><span class="p">{</span><span class="s2">&quot;format&quot;</span><span class="p">:</span> <span class="s2">&quot;np&quot;</span><span class="p">})</span>
+                <span class="c1"># Inject framework format.</span>
+                <span class="n">metadata</span> <span class="o">=</span> <span class="p">{</span><span class="s2">&quot;format&quot;</span><span class="p">:</span> <span class="s2">&quot;np&quot;</span><span class="p">}</span>
+                <span class="k">if</span> <span class="n">lora_adapter_metadata</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+                    <span class="k">for</span> <span class="n">key</span><span class="p">,</span> <span class="n">value</span> <span class="ow">in</span> <span class="n">lora_adapter_metadata</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+                        <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">value</span><span class="p">,</span> <span class="nb">set</span><span class="p">):</span>
+                            <span class="n">lora_adapter_metadata</span><span class="p">[</span><span class="n">key</span><span class="p">]</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="n">value</span><span class="p">)</span>
+                    <span class="n">metadata</span><span class="p">[</span><span class="n">LORA_ADAPTER_METADATA_KEY</span><span class="p">]</span> <span class="o">=</span> <span class="n">json</span><span class="o">.</span><span class="n">dumps</span><span class="p">(</span><span class="n">lora_adapter_metadata</span><span class="p">,</span> <span class="n">indent</span><span class="o">=</span><span class="mi">2</span><span class="p">,</span> <span class="n">sort_keys</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+
+                <span class="k">return</span> <span class="n">save_file</span><span class="p">(</span><span class="n">weights</span><span class="p">,</span> <span class="n">filename</span><span class="p">,</span> <span class="n">metadata</span><span class="o">=</span><span class="n">metadata</span><span class="p">)</span>
 
         <span class="k">else</span><span class="p">:</span>
             <span class="n">save_function</span> <span class="o">=</span> <span class="n">ms</span><span class="o">.</span><span class="n">save_checkpoint</span>
@@ -9496,7 +9431,6 @@ more details about adapters and injecting them in a base model, check out the PE
             <span class="k">else</span><span class="p">:</span>
                 <span class="n">weight_name</span> <span class="o">=</span> <span class="n">LORA_WEIGHT_NAME</span>
 
-        <span class="c1"># TODO: we could consider saving the `peft_config` as well.</span>
         <span class="n">save_path</span> <span class="o">=</span> <span class="n">Path</span><span class="p">(</span><span class="n">save_directory</span><span class="p">,</span> <span class="n">weight_name</span><span class="p">)</span><span class="o">.</span><span class="n">as_posix</span><span class="p">()</span>
         <span class="n">save_function</span><span class="p">(</span><span class="n">lora_layers_to_save</span><span class="p">,</span> <span class="n">save_path</span><span class="p">)</span>
         <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Model weights saved in </span><span class="si">{</span><span class="n">save_path</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
@@ -9507,7 +9441,7 @@ more details about adapters and injecting them in a base model, check out the PE
         <span class="n">weights</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Union</span><span class="p">[</span><span class="nb">float</span><span class="p">,</span> <span class="n">Dict</span><span class="p">,</span> <span class="n">List</span><span class="p">[</span><span class="nb">float</span><span class="p">],</span> <span class="n">List</span><span class="p">[</span><span class="n">Dict</span><span class="p">],</span> <span class="n">List</span><span class="p">[</span><span class="kc">None</span><span class="p">]]]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
     <span class="p">):</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
-<span class="sd">        Set the currently active adapters for use in the UNet.</span>
+<span class="sd">        Set the currently active adapters for use in the diffusion network (e.g. unet, transformer, etc.).</span>
 
 <span class="sd">        Args:</span>
 <span class="sd">            adapter_names (`List[str]` or `str`):</span>
@@ -9529,7 +9463,7 @@ more details about adapters and injecting them in a base model, check out the PE
 <span class="sd">            &quot;jbilcke-hf/sdxl-cinematic-1&quot;, weight_name=&quot;pytorch_lora_weights.safetensors&quot;, adapter_name=&quot;cinematic&quot;</span>
 <span class="sd">        )</span>
 <span class="sd">        pipeline.load_lora_weights(&quot;nerijs/pixel-art-xl&quot;, weight_name=&quot;pixel-art-xl.safetensors&quot;, adapter_name=&quot;pixel&quot;)</span>
-<span class="sd">        pipeline.set_adapters([&quot;cinematic&quot;, &quot;pixel&quot;], adapter_weights=[0.5, 0.5])</span>
+<span class="sd">        pipeline.unet.set_adapters([&quot;cinematic&quot;, &quot;pixel&quot;], adapter_weights=[0.5, 0.5])</span>
 <span class="sd">        ```</span>
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="n">adapter_names</span> <span class="o">=</span> <span class="p">[</span><span class="n">adapter_names</span><span class="p">]</span> <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">adapter_names</span><span class="p">,</span> <span class="nb">str</span><span class="p">)</span> <span class="k">else</span> <span class="n">adapter_names</span>
@@ -9723,7 +9657,7 @@ more details about adapters and injecting them in a base model, check out the PE
 
     <span class="k">def</span><span class="w"> </span><span class="nf">disable_lora</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
-<span class="sd">        Disable the UNet&#39;s active LoRA layers.</span>
+<span class="sd">        Disables the active LoRA layers of the underlying model.</span>
 
 <span class="sd">        Example:</span>
 
@@ -9737,7 +9671,7 @@ more details about adapters and injecting them in a base model, check out the PE
 <span class="sd">        pipeline.load_lora_weights(</span>
 <span class="sd">            &quot;jbilcke-hf/sdxl-cinematic-1&quot;, weight_name=&quot;pytorch_lora_weights.safetensors&quot;, adapter_name=&quot;cinematic&quot;</span>
 <span class="sd">        )</span>
-<span class="sd">        pipeline.disable_lora()</span>
+<span class="sd">        pipeline.unet.disable_lora()</span>
 <span class="sd">        ```</span>
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="n">set_adapter_layers</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">enabled</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
@@ -9758,7 +9692,7 @@ more details about adapters and injecting them in a base model, check out the PE
 <span class="sd">        pipeline.load_lora_weights(</span>
 <span class="sd">            &quot;jbilcke-hf/sdxl-cinematic-1&quot;, weight_name=&quot;pytorch_lora_weights.safetensors&quot;, adapter_name=&quot;cinematic&quot;</span>
 <span class="sd">        )</span>
-<span class="sd">        pipeline.enable_lora()</span>
+<span class="sd">        pipeline.unet.enable_lora()</span>
 <span class="sd">        ```</span>
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="n">set_adapter_layers</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">enabled</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
@@ -9783,7 +9717,7 @@ more details about adapters and injecting them in a base model, check out the PE
 <span class="sd">        pipeline.load_lora_weights(</span>
 <span class="sd">            &quot;jbilcke-hf/sdxl-cinematic-1&quot;, weight_name=&quot;pytorch_lora_weights.safetensors&quot;, adapter_names=&quot;cinematic&quot;</span>
 <span class="sd">        )</span>
-<span class="sd">        pipeline.delete_adapters(&quot;cinematic&quot;)</span>
+<span class="sd">        pipeline.unet.delete_adapters(&quot;cinematic&quot;)</span>
 <span class="sd">        ```</span>
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">adapter_names</span><span class="p">,</span> <span class="nb">str</span><span class="p">):</span>
@@ -9861,21 +9795,21 @@ more details about adapters and injecting them in a base model, check out the PE
 
             <details class="quote">
               <summary>Source code in <code>mindone/diffusers/loaders/peft.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">618</span>
-<span class="normal">619</span>
-<span class="normal">620</span>
-<span class="normal">621</span>
-<span class="normal">622</span>
-<span class="normal">623</span>
-<span class="normal">624</span>
-<span class="normal">625</span>
-<span class="normal">626</span>
-<span class="normal">627</span>
-<span class="normal">628</span>
-<span class="normal">629</span>
-<span class="normal">630</span>
-<span class="normal">631</span>
-<span class="normal">632</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">active_adapters</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">List</span><span class="p">[</span><span class="nb">str</span><span class="p">]:</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">572</span>
+<span class="normal">573</span>
+<span class="normal">574</span>
+<span class="normal">575</span>
+<span class="normal">576</span>
+<span class="normal">577</span>
+<span class="normal">578</span>
+<span class="normal">579</span>
+<span class="normal">580</span>
+<span class="normal">581</span>
+<span class="normal">582</span>
+<span class="normal">583</span>
+<span class="normal">584</span>
+<span class="normal">585</span>
+<span class="normal">586</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">active_adapters</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">List</span><span class="p">[</span><span class="nb">str</span><span class="p">]:</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    Gets the current list of active adapters of the model.</span>
 
@@ -9964,36 +9898,36 @@ methods.</p>
 
             <details class="quote">
               <summary>Source code in <code>mindone/diffusers/loaders/peft.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">507</span>
-<span class="normal">508</span>
-<span class="normal">509</span>
-<span class="normal">510</span>
-<span class="normal">511</span>
-<span class="normal">512</span>
-<span class="normal">513</span>
-<span class="normal">514</span>
-<span class="normal">515</span>
-<span class="normal">516</span>
-<span class="normal">517</span>
-<span class="normal">518</span>
-<span class="normal">519</span>
-<span class="normal">520</span>
-<span class="normal">521</span>
-<span class="normal">522</span>
-<span class="normal">523</span>
-<span class="normal">524</span>
-<span class="normal">525</span>
-<span class="normal">526</span>
-<span class="normal">527</span>
-<span class="normal">528</span>
-<span class="normal">529</span>
-<span class="normal">530</span>
-<span class="normal">531</span>
-<span class="normal">532</span>
-<span class="normal">533</span>
-<span class="normal">534</span>
-<span class="normal">535</span>
-<span class="normal">536</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">add_adapter</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">adapter_config</span><span class="p">,</span> <span class="n">adapter_name</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;default&quot;</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">461</span>
+<span class="normal">462</span>
+<span class="normal">463</span>
+<span class="normal">464</span>
+<span class="normal">465</span>
+<span class="normal">466</span>
+<span class="normal">467</span>
+<span class="normal">468</span>
+<span class="normal">469</span>
+<span class="normal">470</span>
+<span class="normal">471</span>
+<span class="normal">472</span>
+<span class="normal">473</span>
+<span class="normal">474</span>
+<span class="normal">475</span>
+<span class="normal">476</span>
+<span class="normal">477</span>
+<span class="normal">478</span>
+<span class="normal">479</span>
+<span class="normal">480</span>
+<span class="normal">481</span>
+<span class="normal">482</span>
+<span class="normal">483</span>
+<span class="normal">484</span>
+<span class="normal">485</span>
+<span class="normal">486</span>
+<span class="normal">487</span>
+<span class="normal">488</span>
+<span class="normal">489</span>
+<span class="normal">490</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">add_adapter</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">adapter_config</span><span class="p">,</span> <span class="n">adapter_name</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;default&quot;</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
 <span class="w">    </span><span class="sa">r</span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    Adds a new adapter to the current model for training. If no adapter name is passed, a default name is assigned</span>
 <span class="sd">    to the adapter to follow the convention of the PEFT library.</span>
@@ -10078,44 +10012,44 @@ methods.</p>
 <span class="n">pipeline</span><span class="o">.</span><span class="n">load_lora_weights</span><span class="p">(</span>
     <span class="s2">&quot;jbilcke-hf/sdxl-cinematic-1&quot;</span><span class="p">,</span> <span class="n">weight_name</span><span class="o">=</span><span class="s2">&quot;pytorch_lora_weights.safetensors&quot;</span><span class="p">,</span> <span class="n">adapter_names</span><span class="o">=</span><span class="s2">&quot;cinematic&quot;</span>
 <span class="p">)</span>
-<span class="n">pipeline</span><span class="o">.</span><span class="n">delete_adapters</span><span class="p">(</span><span class="s2">&quot;cinematic&quot;</span><span class="p">)</span>
+<span class="n">pipeline</span><span class="o">.</span><span class="n">unet</span><span class="o">.</span><span class="n">delete_adapters</span><span class="p">(</span><span class="s2">&quot;cinematic&quot;</span><span class="p">)</span>
 </code></pre></div>
 
 
             <details class="quote">
               <summary>Source code in <code>mindone/diffusers/loaders/peft.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">716</span>
-<span class="normal">717</span>
-<span class="normal">718</span>
-<span class="normal">719</span>
-<span class="normal">720</span>
-<span class="normal">721</span>
-<span class="normal">722</span>
-<span class="normal">723</span>
-<span class="normal">724</span>
-<span class="normal">725</span>
-<span class="normal">726</span>
-<span class="normal">727</span>
-<span class="normal">728</span>
-<span class="normal">729</span>
-<span class="normal">730</span>
-<span class="normal">731</span>
-<span class="normal">732</span>
-<span class="normal">733</span>
-<span class="normal">734</span>
-<span class="normal">735</span>
-<span class="normal">736</span>
-<span class="normal">737</span>
-<span class="normal">738</span>
-<span class="normal">739</span>
-<span class="normal">740</span>
-<span class="normal">741</span>
-<span class="normal">742</span>
-<span class="normal">743</span>
-<span class="normal">744</span>
-<span class="normal">745</span>
-<span class="normal">746</span>
-<span class="normal">747</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">delete_adapters</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">adapter_names</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="n">List</span><span class="p">[</span><span class="nb">str</span><span class="p">],</span> <span class="nb">str</span><span class="p">]):</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">670</span>
+<span class="normal">671</span>
+<span class="normal">672</span>
+<span class="normal">673</span>
+<span class="normal">674</span>
+<span class="normal">675</span>
+<span class="normal">676</span>
+<span class="normal">677</span>
+<span class="normal">678</span>
+<span class="normal">679</span>
+<span class="normal">680</span>
+<span class="normal">681</span>
+<span class="normal">682</span>
+<span class="normal">683</span>
+<span class="normal">684</span>
+<span class="normal">685</span>
+<span class="normal">686</span>
+<span class="normal">687</span>
+<span class="normal">688</span>
+<span class="normal">689</span>
+<span class="normal">690</span>
+<span class="normal">691</span>
+<span class="normal">692</span>
+<span class="normal">693</span>
+<span class="normal">694</span>
+<span class="normal">695</span>
+<span class="normal">696</span>
+<span class="normal">697</span>
+<span class="normal">698</span>
+<span class="normal">699</span>
+<span class="normal">700</span>
+<span class="normal">701</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">delete_adapters</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">adapter_names</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="n">List</span><span class="p">[</span><span class="nb">str</span><span class="p">],</span> <span class="nb">str</span><span class="p">]):</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    Delete an adapter&#39;s LoRA layers from the UNet.</span>
 
@@ -10135,7 +10069,7 @@ methods.</p>
 <span class="sd">    pipeline.load_lora_weights(</span>
 <span class="sd">        &quot;jbilcke-hf/sdxl-cinematic-1&quot;, weight_name=&quot;pytorch_lora_weights.safetensors&quot;, adapter_names=&quot;cinematic&quot;</span>
 <span class="sd">    )</span>
-<span class="sd">    pipeline.delete_adapters(&quot;cinematic&quot;)</span>
+<span class="sd">    pipeline.unet.delete_adapters(&quot;cinematic&quot;)</span>
 <span class="sd">    ```</span>
 <span class="sd">    &quot;&quot;&quot;</span>
     <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">adapter_names</span><span class="p">,</span> <span class="nb">str</span><span class="p">):</span>
@@ -10171,24 +10105,24 @@ methods.</p>
 
             <details class="quote">
               <summary>Source code in <code>mindone/diffusers/loaders/peft.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">579</span>
-<span class="normal">580</span>
-<span class="normal">581</span>
-<span class="normal">582</span>
-<span class="normal">583</span>
-<span class="normal">584</span>
-<span class="normal">585</span>
-<span class="normal">586</span>
-<span class="normal">587</span>
-<span class="normal">588</span>
-<span class="normal">589</span>
-<span class="normal">590</span>
-<span class="normal">591</span>
-<span class="normal">592</span>
-<span class="normal">593</span>
-<span class="normal">594</span>
-<span class="normal">595</span>
-<span class="normal">596</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">disable_adapters</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">533</span>
+<span class="normal">534</span>
+<span class="normal">535</span>
+<span class="normal">536</span>
+<span class="normal">537</span>
+<span class="normal">538</span>
+<span class="normal">539</span>
+<span class="normal">540</span>
+<span class="normal">541</span>
+<span class="normal">542</span>
+<span class="normal">543</span>
+<span class="normal">544</span>
+<span class="normal">545</span>
+<span class="normal">546</span>
+<span class="normal">547</span>
+<span class="normal">548</span>
+<span class="normal">549</span>
+<span class="normal">550</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">disable_adapters</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
 <span class="w">    </span><span class="sa">r</span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    Disable all adapters attached to the model and fallback to inference with the base model only.</span>
 
@@ -10223,7 +10157,7 @@ methods.</p>
 
     <div class="doc doc-contents ">
 
-        <p>Disable the UNet's active LoRA layers.</p>
+        <p>Disables the active LoRA layers of the underlying model.</p>
 <p>Example:</p>
 <div class="highlight"><pre><span></span><code><span class="kn">from</span><span class="w"> </span><span class="nn">mindone.diffusers</span><span class="w"> </span><span class="kn">import</span> <span class="n">AutoPipelineForText2Image</span>
 <span class="kn">import</span><span class="w"> </span><span class="nn">mindspore</span>
@@ -10234,34 +10168,34 @@ methods.</p>
 <span class="n">pipeline</span><span class="o">.</span><span class="n">load_lora_weights</span><span class="p">(</span>
     <span class="s2">&quot;jbilcke-hf/sdxl-cinematic-1&quot;</span><span class="p">,</span> <span class="n">weight_name</span><span class="o">=</span><span class="s2">&quot;pytorch_lora_weights.safetensors&quot;</span><span class="p">,</span> <span class="n">adapter_name</span><span class="o">=</span><span class="s2">&quot;cinematic&quot;</span>
 <span class="p">)</span>
-<span class="n">pipeline</span><span class="o">.</span><span class="n">disable_lora</span><span class="p">()</span>
+<span class="n">pipeline</span><span class="o">.</span><span class="n">unet</span><span class="o">.</span><span class="n">disable_lora</span><span class="p">()</span>
 </code></pre></div>
 
 
             <details class="quote">
               <summary>Source code in <code>mindone/diffusers/loaders/peft.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">674</span>
-<span class="normal">675</span>
-<span class="normal">676</span>
-<span class="normal">677</span>
-<span class="normal">678</span>
-<span class="normal">679</span>
-<span class="normal">680</span>
-<span class="normal">681</span>
-<span class="normal">682</span>
-<span class="normal">683</span>
-<span class="normal">684</span>
-<span class="normal">685</span>
-<span class="normal">686</span>
-<span class="normal">687</span>
-<span class="normal">688</span>
-<span class="normal">689</span>
-<span class="normal">690</span>
-<span class="normal">691</span>
-<span class="normal">692</span>
-<span class="normal">693</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">disable_lora</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">628</span>
+<span class="normal">629</span>
+<span class="normal">630</span>
+<span class="normal">631</span>
+<span class="normal">632</span>
+<span class="normal">633</span>
+<span class="normal">634</span>
+<span class="normal">635</span>
+<span class="normal">636</span>
+<span class="normal">637</span>
+<span class="normal">638</span>
+<span class="normal">639</span>
+<span class="normal">640</span>
+<span class="normal">641</span>
+<span class="normal">642</span>
+<span class="normal">643</span>
+<span class="normal">644</span>
+<span class="normal">645</span>
+<span class="normal">646</span>
+<span class="normal">647</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">disable_lora</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
-<span class="sd">    Disable the UNet&#39;s active LoRA layers.</span>
+<span class="sd">    Disables the active LoRA layers of the underlying model.</span>
 
 <span class="sd">    Example:</span>
 
@@ -10275,7 +10209,7 @@ methods.</p>
 <span class="sd">    pipeline.load_lora_weights(</span>
 <span class="sd">        &quot;jbilcke-hf/sdxl-cinematic-1&quot;, weight_name=&quot;pytorch_lora_weights.safetensors&quot;, adapter_name=&quot;cinematic&quot;</span>
 <span class="sd">    )</span>
-<span class="sd">    pipeline.disable_lora()</span>
+<span class="sd">    pipeline.unet.disable_lora()</span>
 <span class="sd">    ```</span>
 <span class="sd">    &quot;&quot;&quot;</span>
     <span class="n">set_adapter_layers</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">enabled</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
@@ -10304,25 +10238,25 @@ adapters to enable.</p>
 
             <details class="quote">
               <summary>Source code in <code>mindone/diffusers/loaders/peft.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">598</span>
-<span class="normal">599</span>
-<span class="normal">600</span>
-<span class="normal">601</span>
-<span class="normal">602</span>
-<span class="normal">603</span>
-<span class="normal">604</span>
-<span class="normal">605</span>
-<span class="normal">606</span>
-<span class="normal">607</span>
-<span class="normal">608</span>
-<span class="normal">609</span>
-<span class="normal">610</span>
-<span class="normal">611</span>
-<span class="normal">612</span>
-<span class="normal">613</span>
-<span class="normal">614</span>
-<span class="normal">615</span>
-<span class="normal">616</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">enable_adapters</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">552</span>
+<span class="normal">553</span>
+<span class="normal">554</span>
+<span class="normal">555</span>
+<span class="normal">556</span>
+<span class="normal">557</span>
+<span class="normal">558</span>
+<span class="normal">559</span>
+<span class="normal">560</span>
+<span class="normal">561</span>
+<span class="normal">562</span>
+<span class="normal">563</span>
+<span class="normal">564</span>
+<span class="normal">565</span>
+<span class="normal">566</span>
+<span class="normal">567</span>
+<span class="normal">568</span>
+<span class="normal">569</span>
+<span class="normal">570</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">enable_adapters</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    Enable adapters that are attached to the model. The model uses `self.active_adapters()` to retrieve the list of</span>
 <span class="sd">    adapters to enable.</span>
@@ -10369,32 +10303,32 @@ adapters to enable.</p>
 <span class="n">pipeline</span><span class="o">.</span><span class="n">load_lora_weights</span><span class="p">(</span>
     <span class="s2">&quot;jbilcke-hf/sdxl-cinematic-1&quot;</span><span class="p">,</span> <span class="n">weight_name</span><span class="o">=</span><span class="s2">&quot;pytorch_lora_weights.safetensors&quot;</span><span class="p">,</span> <span class="n">adapter_name</span><span class="o">=</span><span class="s2">&quot;cinematic&quot;</span>
 <span class="p">)</span>
-<span class="n">pipeline</span><span class="o">.</span><span class="n">enable_lora</span><span class="p">()</span>
+<span class="n">pipeline</span><span class="o">.</span><span class="n">unet</span><span class="o">.</span><span class="n">enable_lora</span><span class="p">()</span>
 </code></pre></div>
 
 
             <details class="quote">
               <summary>Source code in <code>mindone/diffusers/loaders/peft.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">695</span>
-<span class="normal">696</span>
-<span class="normal">697</span>
-<span class="normal">698</span>
-<span class="normal">699</span>
-<span class="normal">700</span>
-<span class="normal">701</span>
-<span class="normal">702</span>
-<span class="normal">703</span>
-<span class="normal">704</span>
-<span class="normal">705</span>
-<span class="normal">706</span>
-<span class="normal">707</span>
-<span class="normal">708</span>
-<span class="normal">709</span>
-<span class="normal">710</span>
-<span class="normal">711</span>
-<span class="normal">712</span>
-<span class="normal">713</span>
-<span class="normal">714</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">enable_lora</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">649</span>
+<span class="normal">650</span>
+<span class="normal">651</span>
+<span class="normal">652</span>
+<span class="normal">653</span>
+<span class="normal">654</span>
+<span class="normal">655</span>
+<span class="normal">656</span>
+<span class="normal">657</span>
+<span class="normal">658</span>
+<span class="normal">659</span>
+<span class="normal">660</span>
+<span class="normal">661</span>
+<span class="normal">662</span>
+<span class="normal">663</span>
+<span class="normal">664</span>
+<span class="normal">665</span>
+<span class="normal">666</span>
+<span class="normal">667</span>
+<span class="normal">668</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">enable_lora</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    Enable the UNet&#39;s active LoRA layers.</span>
 
@@ -10410,7 +10344,7 @@ adapters to enable.</p>
 <span class="sd">    pipeline.load_lora_weights(</span>
 <span class="sd">        &quot;jbilcke-hf/sdxl-cinematic-1&quot;, weight_name=&quot;pytorch_lora_weights.safetensors&quot;, adapter_name=&quot;cinematic&quot;</span>
 <span class="sd">    )</span>
-<span class="sd">    pipeline.enable_lora()</span>
+<span class="sd">    pipeline.unet.enable_lora()</span>
 <span class="sd">    ```</span>
 <span class="sd">    &quot;&quot;&quot;</span>
     <span class="n">set_adapter_layers</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">enabled</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
@@ -10494,38 +10428,38 @@ options are:
 
             <details class="quote">
               <summary>Source code in <code>mindone/diffusers/loaders/peft.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">749</span>
-<span class="normal">750</span>
-<span class="normal">751</span>
-<span class="normal">752</span>
-<span class="normal">753</span>
-<span class="normal">754</span>
-<span class="normal">755</span>
-<span class="normal">756</span>
-<span class="normal">757</span>
-<span class="normal">758</span>
-<span class="normal">759</span>
-<span class="normal">760</span>
-<span class="normal">761</span>
-<span class="normal">762</span>
-<span class="normal">763</span>
-<span class="normal">764</span>
-<span class="normal">765</span>
-<span class="normal">766</span>
-<span class="normal">767</span>
-<span class="normal">768</span>
-<span class="normal">769</span>
-<span class="normal">770</span>
-<span class="normal">771</span>
-<span class="normal">772</span>
-<span class="normal">773</span>
-<span class="normal">774</span>
-<span class="normal">775</span>
-<span class="normal">776</span>
-<span class="normal">777</span>
-<span class="normal">778</span>
-<span class="normal">779</span>
-<span class="normal">780</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">enable_lora_hotswap</span><span class="p">(</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">703</span>
+<span class="normal">704</span>
+<span class="normal">705</span>
+<span class="normal">706</span>
+<span class="normal">707</span>
+<span class="normal">708</span>
+<span class="normal">709</span>
+<span class="normal">710</span>
+<span class="normal">711</span>
+<span class="normal">712</span>
+<span class="normal">713</span>
+<span class="normal">714</span>
+<span class="normal">715</span>
+<span class="normal">716</span>
+<span class="normal">717</span>
+<span class="normal">718</span>
+<span class="normal">719</span>
+<span class="normal">720</span>
+<span class="normal">721</span>
+<span class="normal">722</span>
+<span class="normal">723</span>
+<span class="normal">724</span>
+<span class="normal">725</span>
+<span class="normal">726</span>
+<span class="normal">727</span>
+<span class="normal">728</span>
+<span class="normal">729</span>
+<span class="normal">730</span>
+<span class="normal">731</span>
+<span class="normal">732</span>
+<span class="normal">733</span>
+<span class="normal">734</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">enable_lora_hotswap</span><span class="p">(</span>
     <span class="bp">self</span><span class="p">,</span> <span class="n">target_rank</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">128</span><span class="p">,</span> <span class="n">check_compiled</span><span class="p">:</span> <span class="n">Literal</span><span class="p">[</span><span class="s2">&quot;error&quot;</span><span class="p">,</span> <span class="s2">&quot;warn&quot;</span><span class="p">,</span> <span class="s2">&quot;ignore&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="s2">&quot;error&quot;</span>
 <span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;Enables the possibility to hotswap LoRA adapters.</span>
@@ -10798,13 +10732,39 @@ https://huggingface.co/docs/peft/main/en/package_reference/hotswap</p>
               </p>
             </td>
           </tr>
+          <tr class="doc-section-item">
+            <td>
+                <code>metadata</code>
+            </td>
+            <td class="doc-param-details">
+              <div class="doc-md-description">
+                <p>LoRA adapter metadata. When supplied, the metadata inferred through the state dict isn't used to
+initialize <code>LoraConfig</code>.</p>
+              </div>
+              <p>
+              </p>
+            </td>
+          </tr>
       </tbody>
     </table>
 
 
             <details class="quote">
               <summary>Source code in <code>mindone/diffusers/loaders/peft.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">102</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal"> 89</span>
+<span class="normal"> 90</span>
+<span class="normal"> 91</span>
+<span class="normal"> 92</span>
+<span class="normal"> 93</span>
+<span class="normal"> 94</span>
+<span class="normal"> 95</span>
+<span class="normal"> 96</span>
+<span class="normal"> 97</span>
+<span class="normal"> 98</span>
+<span class="normal"> 99</span>
+<span class="normal">100</span>
+<span class="normal">101</span>
+<span class="normal">102</span>
 <span class="normal">103</span>
 <span class="normal">104</span>
 <span class="normal">105</span>
@@ -11040,58 +11000,7 @@ https://huggingface.co/docs/peft/main/en/package_reference/hotswap</p>
 <span class="normal">335</span>
 <span class="normal">336</span>
 <span class="normal">337</span>
-<span class="normal">338</span>
-<span class="normal">339</span>
-<span class="normal">340</span>
-<span class="normal">341</span>
-<span class="normal">342</span>
-<span class="normal">343</span>
-<span class="normal">344</span>
-<span class="normal">345</span>
-<span class="normal">346</span>
-<span class="normal">347</span>
-<span class="normal">348</span>
-<span class="normal">349</span>
-<span class="normal">350</span>
-<span class="normal">351</span>
-<span class="normal">352</span>
-<span class="normal">353</span>
-<span class="normal">354</span>
-<span class="normal">355</span>
-<span class="normal">356</span>
-<span class="normal">357</span>
-<span class="normal">358</span>
-<span class="normal">359</span>
-<span class="normal">360</span>
-<span class="normal">361</span>
-<span class="normal">362</span>
-<span class="normal">363</span>
-<span class="normal">364</span>
-<span class="normal">365</span>
-<span class="normal">366</span>
-<span class="normal">367</span>
-<span class="normal">368</span>
-<span class="normal">369</span>
-<span class="normal">370</span>
-<span class="normal">371</span>
-<span class="normal">372</span>
-<span class="normal">373</span>
-<span class="normal">374</span>
-<span class="normal">375</span>
-<span class="normal">376</span>
-<span class="normal">377</span>
-<span class="normal">378</span>
-<span class="normal">379</span>
-<span class="normal">380</span>
-<span class="normal">381</span>
-<span class="normal">382</span>
-<span class="normal">383</span>
-<span class="normal">384</span>
-<span class="normal">385</span>
-<span class="normal">386</span>
-<span class="normal">387</span>
-<span class="normal">388</span>
-<span class="normal">389</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">load_lora_adapter</span><span class="p">(</span>
+<span class="normal">338</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">load_lora_adapter</span><span class="p">(</span>
     <span class="bp">self</span><span class="p">,</span> <span class="n">pretrained_model_name_or_path_or_dict</span><span class="p">,</span> <span class="n">prefix</span><span class="o">=</span><span class="s2">&quot;transformer&quot;</span><span class="p">,</span> <span class="n">hotswap</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span>
 <span class="p">):</span>
 <span class="w">    </span><span class="sa">r</span><span class="sd">&quot;&quot;&quot;</span>
@@ -11157,8 +11066,11 @@ https://huggingface.co/docs/peft/main/en/package_reference/hotswap</p>
 <span class="sd">            Note that hotswapping adapters of the text encoder is not yet supported. There are some further</span>
 <span class="sd">            limitations to this technique, which are documented here:</span>
 <span class="sd">            https://huggingface.co/docs/peft/main/en/package_reference/hotswap</span>
+<span class="sd">        metadata:</span>
+<span class="sd">            LoRA adapter metadata. When supplied, the metadata inferred through the state dict isn&#39;t used to</span>
+<span class="sd">            initialize `LoraConfig`.</span>
 <span class="sd">    &quot;&quot;&quot;</span>
-    <span class="kn">from</span><span class="w"> </span><span class="nn">mindone.diffusers._peft</span><span class="w"> </span><span class="kn">import</span> <span class="n">LoraConfig</span><span class="p">,</span> <span class="n">inject_adapter_in_model</span><span class="p">,</span> <span class="n">set_peft_model_state_dict</span>
+    <span class="kn">from</span><span class="w"> </span><span class="nn">mindone.diffusers._peft</span><span class="w"> </span><span class="kn">import</span> <span class="n">inject_adapter_in_model</span><span class="p">,</span> <span class="n">set_peft_model_state_dict</span>
     <span class="kn">from</span><span class="w"> </span><span class="nn">mindone.diffusers._peft.tuners.tuners_utils</span><span class="w"> </span><span class="kn">import</span> <span class="n">BaseTunerLayer</span>
 
     <span class="n">cache_dir</span> <span class="o">=</span> <span class="n">kwargs</span><span class="o">.</span><span class="n">pop</span><span class="p">(</span><span class="s2">&quot;cache_dir&quot;</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span>
@@ -11173,14 +11085,11 @@ https://huggingface.co/docs/peft/main/en/package_reference/hotswap</p>
     <span class="n">adapter_name</span> <span class="o">=</span> <span class="n">kwargs</span><span class="o">.</span><span class="n">pop</span><span class="p">(</span><span class="s2">&quot;adapter_name&quot;</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span>
     <span class="n">network_alphas</span> <span class="o">=</span> <span class="n">kwargs</span><span class="o">.</span><span class="n">pop</span><span class="p">(</span><span class="s2">&quot;network_alphas&quot;</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span>
     <span class="n">_pipeline</span> <span class="o">=</span> <span class="n">kwargs</span><span class="o">.</span><span class="n">pop</span><span class="p">(</span><span class="s2">&quot;_pipeline&quot;</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span>  <span class="c1"># noqa</span>
+    <span class="n">metadata</span> <span class="o">=</span> <span class="n">kwargs</span><span class="o">.</span><span class="n">pop</span><span class="p">(</span><span class="s2">&quot;metadata&quot;</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span>
     <span class="n">allow_pickle</span> <span class="o">=</span> <span class="kc">False</span>
 
-    <span class="n">user_agent</span> <span class="o">=</span> <span class="p">{</span>
-        <span class="s2">&quot;file_type&quot;</span><span class="p">:</span> <span class="s2">&quot;attn_procs_weights&quot;</span><span class="p">,</span>
-        <span class="s2">&quot;framework&quot;</span><span class="p">:</span> <span class="s2">&quot;pytorch&quot;</span><span class="p">,</span>
-    <span class="p">}</span>
-
-    <span class="n">state_dict</span> <span class="o">=</span> <span class="n">_fetch_state_dict</span><span class="p">(</span>
+    <span class="n">user_agent</span> <span class="o">=</span> <span class="p">{</span><span class="s2">&quot;file_type&quot;</span><span class="p">:</span> <span class="s2">&quot;attn_procs_weights&quot;</span><span class="p">,</span> <span class="s2">&quot;framework&quot;</span><span class="p">:</span> <span class="s2">&quot;pytorch&quot;</span><span class="p">}</span>
+    <span class="n">state_dict</span><span class="p">,</span> <span class="n">metadata</span> <span class="o">=</span> <span class="n">_fetch_state_dict</span><span class="p">(</span>
         <span class="n">pretrained_model_name_or_path_or_dict</span><span class="o">=</span><span class="n">pretrained_model_name_or_path_or_dict</span><span class="p">,</span>
         <span class="n">weight_name</span><span class="o">=</span><span class="n">weight_name</span><span class="p">,</span>
         <span class="n">use_safetensors</span><span class="o">=</span><span class="n">use_safetensors</span><span class="p">,</span>
@@ -11193,12 +11102,17 @@ https://huggingface.co/docs/peft/main/en/package_reference/hotswap</p>
         <span class="n">subfolder</span><span class="o">=</span><span class="n">subfolder</span><span class="p">,</span>
         <span class="n">user_agent</span><span class="o">=</span><span class="n">user_agent</span><span class="p">,</span>
         <span class="n">allow_pickle</span><span class="o">=</span><span class="n">allow_pickle</span><span class="p">,</span>
+        <span class="n">metadata</span><span class="o">=</span><span class="n">metadata</span><span class="p">,</span>
     <span class="p">)</span>
     <span class="k">if</span> <span class="n">network_alphas</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="ow">and</span> <span class="n">prefix</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
         <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;`network_alphas` cannot be None when `prefix` is None.&quot;</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">network_alphas</span> <span class="ow">and</span> <span class="n">metadata</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;Both `network_alphas` and `metadata` cannot be specified.&quot;</span><span class="p">)</span>
 
     <span class="k">if</span> <span class="n">prefix</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
-        <span class="n">state_dict</span> <span class="o">=</span> <span class="p">{</span><span class="n">k</span><span class="p">[</span><span class="nb">len</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">prefix</span><span class="si">}</span><span class="s2">.&quot;</span><span class="p">)</span> <span class="p">:]:</span> <span class="n">v</span> <span class="k">for</span> <span class="n">k</span><span class="p">,</span> <span class="n">v</span> <span class="ow">in</span> <span class="n">state_dict</span><span class="o">.</span><span class="n">items</span><span class="p">()</span> <span class="k">if</span> <span class="n">k</span><span class="o">.</span><span class="n">startswith</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">prefix</span><span class="si">}</span><span class="s2">.&quot;</span><span class="p">)}</span>
+        <span class="n">state_dict</span> <span class="o">=</span> <span class="p">{</span><span class="n">k</span><span class="o">.</span><span class="n">removeprefix</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">prefix</span><span class="si">}</span><span class="s2">.&quot;</span><span class="p">):</span> <span class="n">v</span> <span class="k">for</span> <span class="n">k</span><span class="p">,</span> <span class="n">v</span> <span class="ow">in</span> <span class="n">state_dict</span><span class="o">.</span><span class="n">items</span><span class="p">()</span> <span class="k">if</span> <span class="n">k</span><span class="o">.</span><span class="n">startswith</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">prefix</span><span class="si">}</span><span class="s2">.&quot;</span><span class="p">)}</span>
+        <span class="k">if</span> <span class="n">metadata</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">metadata</span> <span class="o">=</span> <span class="p">{</span><span class="n">k</span><span class="o">.</span><span class="n">removeprefix</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">prefix</span><span class="si">}</span><span class="s2">.&quot;</span><span class="p">):</span> <span class="n">v</span> <span class="k">for</span> <span class="n">k</span><span class="p">,</span> <span class="n">v</span> <span class="ow">in</span> <span class="n">metadata</span><span class="o">.</span><span class="n">items</span><span class="p">()</span> <span class="k">if</span> <span class="n">k</span><span class="o">.</span><span class="n">startswith</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">prefix</span><span class="si">}</span><span class="s2">.&quot;</span><span class="p">)}</span>
 
     <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">state_dict</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">:</span>
         <span class="k">if</span> <span class="n">adapter_name</span> <span class="ow">in</span> <span class="nb">getattr</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="s2">&quot;peft_config&quot;</span><span class="p">,</span> <span class="p">{})</span> <span class="ow">and</span> <span class="ow">not</span> <span class="n">hotswap</span><span class="p">:</span>
@@ -11218,7 +11132,7 @@ https://huggingface.co/docs/peft/main/en/package_reference/hotswap</p>
 
         <span class="n">rank</span> <span class="o">=</span> <span class="p">{}</span>
         <span class="k">for</span> <span class="n">key</span><span class="p">,</span> <span class="n">val</span> <span class="ow">in</span> <span class="n">state_dict</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
-            <span class="c1"># Cannot figure out rank from lora layers that don&#39;t have atleast 2 dimensions.</span>
+            <span class="c1"># Cannot figure out rank from lora layers that don&#39;t have at least 2 dimensions.</span>
             <span class="c1"># Bias layers in LoRA only have a single dimension</span>
             <span class="k">if</span> <span class="s2">&quot;lora_B&quot;</span> <span class="ow">in</span> <span class="n">key</span> <span class="ow">and</span> <span class="n">val</span><span class="o">.</span><span class="n">ndim</span> <span class="o">&gt;</span> <span class="mi">1</span><span class="p">:</span>
                 <span class="c1"># Check out https://github.com/huggingface/peft/pull/2419 for the `^` symbol.</span>
@@ -11229,32 +11143,11 @@ https://huggingface.co/docs/peft/main/en/package_reference/hotswap</p>
 
         <span class="k">if</span> <span class="n">network_alphas</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="ow">and</span> <span class="nb">len</span><span class="p">(</span><span class="n">network_alphas</span><span class="p">)</span> <span class="o">&gt;=</span> <span class="mi">1</span><span class="p">:</span>
             <span class="n">alpha_keys</span> <span class="o">=</span> <span class="p">[</span><span class="n">k</span> <span class="k">for</span> <span class="n">k</span> <span class="ow">in</span> <span class="n">network_alphas</span><span class="o">.</span><span class="n">keys</span><span class="p">()</span> <span class="k">if</span> <span class="n">k</span><span class="o">.</span><span class="n">startswith</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">prefix</span><span class="si">}</span><span class="s2">.&quot;</span><span class="p">)]</span>
-            <span class="n">network_alphas</span> <span class="o">=</span> <span class="p">{</span><span class="n">k</span><span class="o">.</span><span class="n">replace</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">prefix</span><span class="si">}</span><span class="s2">.&quot;</span><span class="p">,</span> <span class="s2">&quot;&quot;</span><span class="p">):</span> <span class="n">v</span> <span class="k">for</span> <span class="n">k</span><span class="p">,</span> <span class="n">v</span> <span class="ow">in</span> <span class="n">network_alphas</span><span class="o">.</span><span class="n">items</span><span class="p">()</span> <span class="k">if</span> <span class="n">k</span> <span class="ow">in</span> <span class="n">alpha_keys</span><span class="p">}</span>
+            <span class="n">network_alphas</span> <span class="o">=</span> <span class="p">{</span><span class="n">k</span><span class="o">.</span><span class="n">removeprefix</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">prefix</span><span class="si">}</span><span class="s2">.&quot;</span><span class="p">):</span> <span class="n">v</span> <span class="k">for</span> <span class="n">k</span><span class="p">,</span> <span class="n">v</span> <span class="ow">in</span> <span class="n">network_alphas</span><span class="o">.</span><span class="n">items</span><span class="p">()</span> <span class="k">if</span> <span class="n">k</span> <span class="ow">in</span> <span class="n">alpha_keys</span><span class="p">}</span>
 
-        <span class="n">lora_config_kwargs</span> <span class="o">=</span> <span class="n">get_peft_kwargs</span><span class="p">(</span><span class="n">rank</span><span class="p">,</span> <span class="n">network_alpha_dict</span><span class="o">=</span><span class="n">network_alphas</span><span class="p">,</span> <span class="n">peft_state_dict</span><span class="o">=</span><span class="n">state_dict</span><span class="p">)</span>
-        <span class="n">_maybe_raise_error_for_ambiguity</span><span class="p">(</span><span class="n">lora_config_kwargs</span><span class="p">)</span>
+        <span class="c1"># create LoraConfig</span>
+        <span class="n">lora_config</span> <span class="o">=</span> <span class="n">_create_lora_config</span><span class="p">(</span><span class="n">state_dict</span><span class="p">,</span> <span class="n">network_alphas</span><span class="p">,</span> <span class="n">metadata</span><span class="p">,</span> <span class="n">rank</span><span class="p">)</span>
 
-        <span class="k">if</span> <span class="s2">&quot;use_dora&quot;</span> <span class="ow">in</span> <span class="n">lora_config_kwargs</span><span class="p">:</span>
-            <span class="k">if</span> <span class="n">lora_config_kwargs</span><span class="p">[</span><span class="s2">&quot;use_dora&quot;</span><span class="p">]:</span>
-                <span class="k">if</span> <span class="n">is_peft_version</span><span class="p">(</span><span class="s2">&quot;&lt;&quot;</span><span class="p">,</span> <span class="s2">&quot;0.9.0&quot;</span><span class="p">):</span>
-                    <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
-                        <span class="s2">&quot;You need `peft` 0.9.0 at least to use DoRA-enabled LoRAs. Please upgrade your installation of `peft`.&quot;</span>
-                    <span class="p">)</span>
-            <span class="k">else</span><span class="p">:</span>
-                <span class="k">if</span> <span class="n">is_peft_version</span><span class="p">(</span><span class="s2">&quot;&lt;&quot;</span><span class="p">,</span> <span class="s2">&quot;0.9.0&quot;</span><span class="p">):</span>
-                    <span class="n">lora_config_kwargs</span><span class="o">.</span><span class="n">pop</span><span class="p">(</span><span class="s2">&quot;use_dora&quot;</span><span class="p">)</span>
-
-        <span class="k">if</span> <span class="s2">&quot;lora_bias&quot;</span> <span class="ow">in</span> <span class="n">lora_config_kwargs</span><span class="p">:</span>
-            <span class="k">if</span> <span class="n">lora_config_kwargs</span><span class="p">[</span><span class="s2">&quot;lora_bias&quot;</span><span class="p">]:</span>
-                <span class="k">if</span> <span class="n">is_peft_version</span><span class="p">(</span><span class="s2">&quot;&lt;=&quot;</span><span class="p">,</span> <span class="s2">&quot;0.13.2&quot;</span><span class="p">):</span>
-                    <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
-                        <span class="s2">&quot;You need `peft` 0.14.0 at least to use `lora_bias` in LoRAs. Please upgrade your installation of `peft`.&quot;</span>
-                    <span class="p">)</span>
-            <span class="k">else</span><span class="p">:</span>
-                <span class="k">if</span> <span class="n">is_peft_version</span><span class="p">(</span><span class="s2">&quot;&lt;=&quot;</span><span class="p">,</span> <span class="s2">&quot;0.13.2&quot;</span><span class="p">):</span>
-                    <span class="n">lora_config_kwargs</span><span class="o">.</span><span class="n">pop</span><span class="p">(</span><span class="s2">&quot;lora_bias&quot;</span><span class="p">)</span>
-
-        <span class="n">lora_config</span> <span class="o">=</span> <span class="n">LoraConfig</span><span class="p">(</span><span class="o">**</span><span class="n">lora_config_kwargs</span><span class="p">)</span>
         <span class="c1"># adapter_name</span>
         <span class="k">if</span> <span class="n">adapter_name</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
             <span class="n">adapter_name</span> <span class="o">=</span> <span class="n">get_adapter_name</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span>
@@ -11264,7 +11157,7 @@ https://huggingface.co/docs/peft/main/en/package_reference/hotswap</p>
         <span class="c1"># Now we remove any existing hooks to `_pipeline`.</span>
 
         <span class="c1"># In case the pipeline has been already offloaded to CPU - temporarily remove the hooks</span>
-        <span class="c1"># otherwise loading LoRA weights will lead to an error</span>
+        <span class="c1"># otherwise loading LoRA weights will lead to an error.</span>
         <span class="n">peft_kwargs</span> <span class="o">=</span> <span class="p">{}</span>
 
         <span class="k">if</span> <span class="n">hotswap</span> <span class="ow">or</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_prepare_lora_hotswap_kwargs</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">):</span>
@@ -11294,7 +11187,7 @@ https://huggingface.co/docs/peft/main/en/package_reference/hotswap</p>
                     <span class="n">new_sd</span><span class="p">[</span><span class="n">k</span><span class="p">]</span> <span class="o">=</span> <span class="n">v</span>
                 <span class="k">return</span> <span class="n">new_sd</span>
 
-        <span class="c1"># To handle scenarios where we cannot successfully set state dict. If it&#39;s unsucessful,</span>
+        <span class="c1"># To handle scenarios where we cannot successfully set state dict. If it&#39;s unsuccessful,</span>
         <span class="c1"># we should also delete the `peft_config` associated to the `adapter_name`.</span>
         <span class="k">try</span><span class="p">:</span>
             <span class="k">if</span> <span class="n">hotswap</span><span class="p">:</span>
@@ -11308,7 +11201,7 @@ https://huggingface.co/docs/peft/main/en/package_reference/hotswap</p>
                         <span class="n">config</span><span class="o">=</span><span class="n">lora_config</span><span class="p">,</span>
                     <span class="p">)</span>
                 <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
-                    <span class="n">logger</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Hotswapping </span><span class="si">{</span><span class="n">adapter_name</span><span class="si">}</span><span class="s2"> was unsucessful with the following error: </span><span class="se">\n</span><span class="si">{</span><span class="n">e</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+                    <span class="n">logger</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Hotswapping </span><span class="si">{</span><span class="n">adapter_name</span><span class="si">}</span><span class="s2"> was unsuccessful with the following error: </span><span class="se">\n</span><span class="si">{</span><span class="n">e</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
                     <span class="k">raise</span>
                 <span class="c1"># the hotswap function raises if there are incompatible keys, so if we reach this point we can set</span>
                 <span class="c1"># it to None</span>
@@ -11335,7 +11228,7 @@ https://huggingface.co/docs/peft/main/en/package_reference/hotswap</p>
         <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
             <span class="c1"># In case `inject_adapter_in_model()` was unsuccessful even before injecting the `peft_config`.</span>
             <span class="k">if</span> <span class="nb">hasattr</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="s2">&quot;peft_config&quot;</span><span class="p">):</span>
-                <span class="k">for</span> <span class="n">module</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">modules</span><span class="p">():</span>
+                <span class="k">for</span> <span class="n">_</span><span class="p">,</span> <span class="n">module</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">cells_and_names</span><span class="p">():</span>
                     <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">module</span><span class="p">,</span> <span class="n">BaseTunerLayer</span><span class="p">):</span>
                         <span class="n">active_adapters</span> <span class="o">=</span> <span class="n">module</span><span class="o">.</span><span class="n">active_adapters</span>
                         <span class="k">for</span> <span class="n">active_adapter</span> <span class="ow">in</span> <span class="n">active_adapters</span><span class="p">:</span>
@@ -11343,39 +11236,17 @@ https://huggingface.co/docs/peft/main/en/package_reference/hotswap</p>
                                 <span class="n">module</span><span class="o">.</span><span class="n">delete_adapter</span><span class="p">(</span><span class="n">adapter_name</span><span class="p">)</span>
 
                 <span class="bp">self</span><span class="o">.</span><span class="n">peft_config</span><span class="o">.</span><span class="n">pop</span><span class="p">(</span><span class="n">adapter_name</span><span class="p">)</span>
-            <span class="n">logger</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Loading </span><span class="si">{</span><span class="n">adapter_name</span><span class="si">}</span><span class="s2"> was unsucessful with the following error: </span><span class="se">\n</span><span class="si">{</span><span class="n">e</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+            <span class="n">logger</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Loading </span><span class="si">{</span><span class="n">adapter_name</span><span class="si">}</span><span class="s2"> was unsuccessful with the following error: </span><span class="se">\n</span><span class="si">{</span><span class="n">e</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
             <span class="k">raise</span>
 
-        <span class="n">warn_msg</span> <span class="o">=</span> <span class="s2">&quot;&quot;</span>
-        <span class="k">if</span> <span class="n">incompatible_keys</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
-            <span class="c1"># Check only for unexpected keys.</span>
-            <span class="n">unexpected_keys</span> <span class="o">=</span> <span class="nb">getattr</span><span class="p">(</span><span class="n">incompatible_keys</span><span class="p">,</span> <span class="s2">&quot;unexpected_keys&quot;</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span>
-            <span class="k">if</span> <span class="n">unexpected_keys</span><span class="p">:</span>
-                <span class="n">lora_unexpected_keys</span> <span class="o">=</span> <span class="p">[</span><span class="n">k</span> <span class="k">for</span> <span class="n">k</span> <span class="ow">in</span> <span class="n">unexpected_keys</span> <span class="k">if</span> <span class="s2">&quot;lora_&quot;</span> <span class="ow">in</span> <span class="n">k</span> <span class="ow">and</span> <span class="n">adapter_name</span> <span class="ow">in</span> <span class="n">k</span><span class="p">]</span>
-                <span class="k">if</span> <span class="n">lora_unexpected_keys</span><span class="p">:</span>
-                    <span class="n">warn_msg</span> <span class="o">=</span> <span class="p">(</span>
-                        <span class="sa">f</span><span class="s2">&quot;Loading adapter weights from state_dict led to unexpected keys found in the model:&quot;</span>
-                        <span class="sa">f</span><span class="s2">&quot; </span><span class="si">{</span><span class="s1">&#39;, &#39;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">lora_unexpected_keys</span><span class="p">)</span><span class="si">}</span><span class="s2">. &quot;</span>
-                    <span class="p">)</span>
-
-            <span class="c1"># Filter missing keys specific to the current adapter.</span>
-            <span class="n">missing_keys</span> <span class="o">=</span> <span class="nb">getattr</span><span class="p">(</span><span class="n">incompatible_keys</span><span class="p">,</span> <span class="s2">&quot;missing_keys&quot;</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span>
-            <span class="k">if</span> <span class="n">missing_keys</span><span class="p">:</span>
-                <span class="n">lora_missing_keys</span> <span class="o">=</span> <span class="p">[</span><span class="n">k</span> <span class="k">for</span> <span class="n">k</span> <span class="ow">in</span> <span class="n">missing_keys</span> <span class="k">if</span> <span class="s2">&quot;lora_&quot;</span> <span class="ow">in</span> <span class="n">k</span> <span class="ow">and</span> <span class="n">adapter_name</span> <span class="ow">in</span> <span class="n">k</span><span class="p">]</span>
-                <span class="k">if</span> <span class="n">lora_missing_keys</span><span class="p">:</span>
-                    <span class="n">warn_msg</span> <span class="o">+=</span> <span class="p">(</span>
-                        <span class="sa">f</span><span class="s2">&quot;Loading adapter weights from state_dict led to missing keys in the model:&quot;</span>
-                        <span class="sa">f</span><span class="s2">&quot; </span><span class="si">{</span><span class="s1">&#39;, &#39;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">lora_missing_keys</span><span class="p">)</span><span class="si">}</span><span class="s2">.&quot;</span>
-                    <span class="p">)</span>
-
-        <span class="k">if</span> <span class="n">warn_msg</span><span class="p">:</span>
-            <span class="n">logger</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span><span class="n">warn_msg</span><span class="p">)</span>
+        <span class="n">_maybe_warn_for_unhandled_keys</span><span class="p">(</span><span class="n">incompatible_keys</span><span class="p">,</span> <span class="n">adapter_name</span><span class="p">)</span>
 
     <span class="k">if</span> <span class="n">prefix</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="ow">and</span> <span class="ow">not</span> <span class="n">state_dict</span><span class="p">:</span>
+        <span class="n">model_class_name</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="vm">__class__</span><span class="o">.</span><span class="vm">__name__</span>
         <span class="n">logger</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span>
-            <span class="sa">f</span><span class="s2">&quot;No LoRA keys associated to </span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="vm">__class__</span><span class="o">.</span><span class="vm">__name__</span><span class="si">}</span><span class="s2"> found with the </span><span class="si">{</span><span class="n">prefix</span><span class="si">=}</span><span class="s2">. &quot;</span>
+            <span class="sa">f</span><span class="s2">&quot;No LoRA keys associated to </span><span class="si">{</span><span class="n">model_class_name</span><span class="si">}</span><span class="s2"> found with the </span><span class="si">{</span><span class="n">prefix</span><span class="si">=}</span><span class="s2">. &quot;</span>
             <span class="s2">&quot;This is safe to ignore if LoRA state dict didn&#39;t originally have any &quot;</span>
-            <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="vm">__class__</span><span class="o">.</span><span class="vm">__name__</span><span class="si">}</span><span class="s2"> related params. You can also try specifying `prefix=None` &quot;</span>
+            <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">model_class_name</span><span class="si">}</span><span class="s2"> related params. You can also try specifying `prefix=None` &quot;</span>
             <span class="s2">&quot;to resolve the warning. Otherwise, open an issue if you think it&#39;s unexpected: &quot;</span>
             <span class="s2">&quot;https://github.com/huggingface/diffusers/issues/new&quot;</span>
         <span class="p">)</span>
@@ -11466,24 +11337,6 @@ underlying model has multiple adapters loaded.</p>
           </tr>
           <tr class="doc-section-item">
             <td>
-                <code>save_function</code>
-            </td>
-            <td class="doc-param-details">
-              <div class="doc-md-description">
-                <p>The function to use to save the state dictionary. Useful during distributed training when you need to
-replace <code>torch.save</code> with another method. Can be configured with the environment variable
-<code>DIFFUSERS_SAVE_MODE</code>.</p>
-              </div>
-              <p>
-                  <span class="doc-param-annotation">
-                    <b>TYPE:</b>
-                      <code>`Callable`</code>
-                  </span>
-              </p>
-            </td>
-          </tr>
-          <tr class="doc-section-item">
-            <td>
                 <code>safe_serialization</code>
             </td>
             <td class="doc-param-details">
@@ -11528,7 +11381,58 @@ replace <code>torch.save</code> with another method. Can be configured with the 
 
             <details class="quote">
               <summary>Source code in <code>mindone/diffusers/loaders/peft.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">391</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">340</span>
+<span class="normal">341</span>
+<span class="normal">342</span>
+<span class="normal">343</span>
+<span class="normal">344</span>
+<span class="normal">345</span>
+<span class="normal">346</span>
+<span class="normal">347</span>
+<span class="normal">348</span>
+<span class="normal">349</span>
+<span class="normal">350</span>
+<span class="normal">351</span>
+<span class="normal">352</span>
+<span class="normal">353</span>
+<span class="normal">354</span>
+<span class="normal">355</span>
+<span class="normal">356</span>
+<span class="normal">357</span>
+<span class="normal">358</span>
+<span class="normal">359</span>
+<span class="normal">360</span>
+<span class="normal">361</span>
+<span class="normal">362</span>
+<span class="normal">363</span>
+<span class="normal">364</span>
+<span class="normal">365</span>
+<span class="normal">366</span>
+<span class="normal">367</span>
+<span class="normal">368</span>
+<span class="normal">369</span>
+<span class="normal">370</span>
+<span class="normal">371</span>
+<span class="normal">372</span>
+<span class="normal">373</span>
+<span class="normal">374</span>
+<span class="normal">375</span>
+<span class="normal">376</span>
+<span class="normal">377</span>
+<span class="normal">378</span>
+<span class="normal">379</span>
+<span class="normal">380</span>
+<span class="normal">381</span>
+<span class="normal">382</span>
+<span class="normal">383</span>
+<span class="normal">384</span>
+<span class="normal">385</span>
+<span class="normal">386</span>
+<span class="normal">387</span>
+<span class="normal">388</span>
+<span class="normal">389</span>
+<span class="normal">390</span>
+<span class="normal">391</span>
 <span class="normal">392</span>
 <span class="normal">393</span>
 <span class="normal">394</span>
@@ -11543,53 +11447,7 @@ replace <code>torch.save</code> with another method. Can be configured with the 
 <span class="normal">403</span>
 <span class="normal">404</span>
 <span class="normal">405</span>
-<span class="normal">406</span>
-<span class="normal">407</span>
-<span class="normal">408</span>
-<span class="normal">409</span>
-<span class="normal">410</span>
-<span class="normal">411</span>
-<span class="normal">412</span>
-<span class="normal">413</span>
-<span class="normal">414</span>
-<span class="normal">415</span>
-<span class="normal">416</span>
-<span class="normal">417</span>
-<span class="normal">418</span>
-<span class="normal">419</span>
-<span class="normal">420</span>
-<span class="normal">421</span>
-<span class="normal">422</span>
-<span class="normal">423</span>
-<span class="normal">424</span>
-<span class="normal">425</span>
-<span class="normal">426</span>
-<span class="normal">427</span>
-<span class="normal">428</span>
-<span class="normal">429</span>
-<span class="normal">430</span>
-<span class="normal">431</span>
-<span class="normal">432</span>
-<span class="normal">433</span>
-<span class="normal">434</span>
-<span class="normal">435</span>
-<span class="normal">436</span>
-<span class="normal">437</span>
-<span class="normal">438</span>
-<span class="normal">439</span>
-<span class="normal">440</span>
-<span class="normal">441</span>
-<span class="normal">442</span>
-<span class="normal">443</span>
-<span class="normal">444</span>
-<span class="normal">445</span>
-<span class="normal">446</span>
-<span class="normal">447</span>
-<span class="normal">448</span>
-<span class="normal">449</span>
-<span class="normal">450</span>
-<span class="normal">451</span>
-<span class="normal">452</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">save_lora_adapter</span><span class="p">(</span>
+<span class="normal">406</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">save_lora_adapter</span><span class="p">(</span>
     <span class="bp">self</span><span class="p">,</span>
     <span class="n">save_directory</span><span class="p">,</span>
     <span class="n">adapter_name</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;default&quot;</span><span class="p">,</span>
@@ -11607,23 +11465,21 @@ replace <code>torch.save</code> with another method. Can be configured with the 
 <span class="sd">            underlying model has multiple adapters loaded.</span>
 <span class="sd">        upcast_before_saving (`bool`, defaults to `False`):</span>
 <span class="sd">            Whether to cast the underlying model to `torch.float32` before serialization.</span>
-<span class="sd">        save_function (`Callable`):</span>
-<span class="sd">            The function to use to save the state dictionary. Useful during distributed training when you need to</span>
-<span class="sd">            replace `torch.save` with another method. Can be configured with the environment variable</span>
-<span class="sd">            `DIFFUSERS_SAVE_MODE`.</span>
 <span class="sd">        safe_serialization (`bool`, *optional*, defaults to `True`):</span>
 <span class="sd">            Whether to save the model using `safetensors` or the traditional PyTorch way with `pickle`.</span>
 <span class="sd">        weight_name: (`str`, *optional*, defaults to `None`): Name of the file to serialize the state dict with.</span>
 <span class="sd">    &quot;&quot;&quot;</span>
     <span class="kn">from</span><span class="w"> </span><span class="nn">mindone.diffusers._peft.utils</span><span class="w"> </span><span class="kn">import</span> <span class="n">get_peft_model_state_dict</span>
 
-    <span class="kn">from</span><span class="w"> </span><span class="nn">.lora_base</span><span class="w"> </span><span class="kn">import</span> <span class="n">LORA_WEIGHT_NAME</span><span class="p">,</span> <span class="n">LORA_WEIGHT_NAME_SAFE</span>
+    <span class="kn">from</span><span class="w"> </span><span class="nn">.lora_base</span><span class="w"> </span><span class="kn">import</span> <span class="n">LORA_ADAPTER_METADATA_KEY</span><span class="p">,</span> <span class="n">LORA_WEIGHT_NAME</span><span class="p">,</span> <span class="n">LORA_WEIGHT_NAME_SAFE</span>
 
     <span class="k">if</span> <span class="n">adapter_name</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
         <span class="n">adapter_name</span> <span class="o">=</span> <span class="n">get_adapter_name</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span>
 
     <span class="k">if</span> <span class="n">adapter_name</span> <span class="ow">not</span> <span class="ow">in</span> <span class="nb">getattr</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="s2">&quot;peft_config&quot;</span><span class="p">,</span> <span class="p">{}):</span>
         <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Adapter name </span><span class="si">{</span><span class="n">adapter_name</span><span class="si">}</span><span class="s2"> not found in the model.&quot;</span><span class="p">)</span>
+
+    <span class="n">lora_adapter_metadata</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">peft_config</span><span class="p">[</span><span class="n">adapter_name</span><span class="p">]</span><span class="o">.</span><span class="n">to_dict</span><span class="p">()</span>
 
     <span class="n">lora_layers_to_save</span> <span class="o">=</span> <span class="n">get_peft_model_state_dict</span><span class="p">(</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">to</span><span class="p">(</span><span class="n">dtype</span><span class="o">=</span><span class="n">ms</span><span class="o">.</span><span class="n">float32</span> <span class="k">if</span> <span class="n">upcast_before_saving</span> <span class="k">else</span> <span class="kc">None</span><span class="p">),</span> <span class="n">adapter_name</span><span class="o">=</span><span class="n">adapter_name</span>
@@ -11634,7 +11490,15 @@ replace <code>torch.save</code> with another method. Can be configured with the 
     <span class="k">if</span> <span class="n">safe_serialization</span><span class="p">:</span>
 
         <span class="k">def</span><span class="w"> </span><span class="nf">save_function</span><span class="p">(</span><span class="n">weights</span><span class="p">,</span> <span class="n">filename</span><span class="p">):</span>
-            <span class="k">return</span> <span class="n">save_file</span><span class="p">(</span><span class="n">weights</span><span class="p">,</span> <span class="n">filename</span><span class="p">,</span> <span class="n">metadata</span><span class="o">=</span><span class="p">{</span><span class="s2">&quot;format&quot;</span><span class="p">:</span> <span class="s2">&quot;np&quot;</span><span class="p">})</span>
+            <span class="c1"># Inject framework format.</span>
+            <span class="n">metadata</span> <span class="o">=</span> <span class="p">{</span><span class="s2">&quot;format&quot;</span><span class="p">:</span> <span class="s2">&quot;np&quot;</span><span class="p">}</span>
+            <span class="k">if</span> <span class="n">lora_adapter_metadata</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+                <span class="k">for</span> <span class="n">key</span><span class="p">,</span> <span class="n">value</span> <span class="ow">in</span> <span class="n">lora_adapter_metadata</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+                    <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">value</span><span class="p">,</span> <span class="nb">set</span><span class="p">):</span>
+                        <span class="n">lora_adapter_metadata</span><span class="p">[</span><span class="n">key</span><span class="p">]</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="n">value</span><span class="p">)</span>
+                <span class="n">metadata</span><span class="p">[</span><span class="n">LORA_ADAPTER_METADATA_KEY</span><span class="p">]</span> <span class="o">=</span> <span class="n">json</span><span class="o">.</span><span class="n">dumps</span><span class="p">(</span><span class="n">lora_adapter_metadata</span><span class="p">,</span> <span class="n">indent</span><span class="o">=</span><span class="mi">2</span><span class="p">,</span> <span class="n">sort_keys</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+
+            <span class="k">return</span> <span class="n">save_file</span><span class="p">(</span><span class="n">weights</span><span class="p">,</span> <span class="n">filename</span><span class="p">,</span> <span class="n">metadata</span><span class="o">=</span><span class="n">metadata</span><span class="p">)</span>
 
     <span class="k">else</span><span class="p">:</span>
         <span class="n">save_function</span> <span class="o">=</span> <span class="n">ms</span><span class="o">.</span><span class="n">save_checkpoint</span>
@@ -11647,7 +11511,6 @@ replace <code>torch.save</code> with another method. Can be configured with the 
         <span class="k">else</span><span class="p">:</span>
             <span class="n">weight_name</span> <span class="o">=</span> <span class="n">LORA_WEIGHT_NAME</span>
 
-    <span class="c1"># TODO: we could consider saving the `peft_config` as well.</span>
     <span class="n">save_path</span> <span class="o">=</span> <span class="n">Path</span><span class="p">(</span><span class="n">save_directory</span><span class="p">,</span> <span class="n">weight_name</span><span class="p">)</span><span class="o">.</span><span class="n">as_posix</span><span class="p">()</span>
     <span class="n">save_function</span><span class="p">(</span><span class="n">lora_layers_to_save</span><span class="p">,</span> <span class="n">save_path</span><span class="p">)</span>
     <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Model weights saved in </span><span class="si">{</span><span class="n">save_path</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
@@ -11703,46 +11566,46 @@ replace <code>torch.save</code> with another method. Can be configured with the 
 
             <details class="quote">
               <summary>Source code in <code>mindone/diffusers/loaders/peft.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">538</span>
-<span class="normal">539</span>
-<span class="normal">540</span>
-<span class="normal">541</span>
-<span class="normal">542</span>
-<span class="normal">543</span>
-<span class="normal">544</span>
-<span class="normal">545</span>
-<span class="normal">546</span>
-<span class="normal">547</span>
-<span class="normal">548</span>
-<span class="normal">549</span>
-<span class="normal">550</span>
-<span class="normal">551</span>
-<span class="normal">552</span>
-<span class="normal">553</span>
-<span class="normal">554</span>
-<span class="normal">555</span>
-<span class="normal">556</span>
-<span class="normal">557</span>
-<span class="normal">558</span>
-<span class="normal">559</span>
-<span class="normal">560</span>
-<span class="normal">561</span>
-<span class="normal">562</span>
-<span class="normal">563</span>
-<span class="normal">564</span>
-<span class="normal">565</span>
-<span class="normal">566</span>
-<span class="normal">567</span>
-<span class="normal">568</span>
-<span class="normal">569</span>
-<span class="normal">570</span>
-<span class="normal">571</span>
-<span class="normal">572</span>
-<span class="normal">573</span>
-<span class="normal">574</span>
-<span class="normal">575</span>
-<span class="normal">576</span>
-<span class="normal">577</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">set_adapter</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">adapter_name</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">List</span><span class="p">[</span><span class="nb">str</span><span class="p">]])</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">492</span>
+<span class="normal">493</span>
+<span class="normal">494</span>
+<span class="normal">495</span>
+<span class="normal">496</span>
+<span class="normal">497</span>
+<span class="normal">498</span>
+<span class="normal">499</span>
+<span class="normal">500</span>
+<span class="normal">501</span>
+<span class="normal">502</span>
+<span class="normal">503</span>
+<span class="normal">504</span>
+<span class="normal">505</span>
+<span class="normal">506</span>
+<span class="normal">507</span>
+<span class="normal">508</span>
+<span class="normal">509</span>
+<span class="normal">510</span>
+<span class="normal">511</span>
+<span class="normal">512</span>
+<span class="normal">513</span>
+<span class="normal">514</span>
+<span class="normal">515</span>
+<span class="normal">516</span>
+<span class="normal">517</span>
+<span class="normal">518</span>
+<span class="normal">519</span>
+<span class="normal">520</span>
+<span class="normal">521</span>
+<span class="normal">522</span>
+<span class="normal">523</span>
+<span class="normal">524</span>
+<span class="normal">525</span>
+<span class="normal">526</span>
+<span class="normal">527</span>
+<span class="normal">528</span>
+<span class="normal">529</span>
+<span class="normal">530</span>
+<span class="normal">531</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">set_adapter</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">adapter_name</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">List</span><span class="p">[</span><span class="nb">str</span><span class="p">]])</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    Sets a specific adapter by forcing the model to only use that adapter and disables the other adapters.</span>
 
@@ -11799,7 +11662,7 @@ replace <code>torch.save</code> with another method. Can be configured with the 
 
     <div class="doc doc-contents ">
 
-        <p>Set the currently active adapters for use in the UNet.</p>
+        <p>Set the currently active adapters for use in the diffusion network (e.g. unet, transformer, etc.).</p>
 
 
 <table>
@@ -11855,70 +11718,70 @@ adapters.</p>
     <span class="s2">&quot;jbilcke-hf/sdxl-cinematic-1&quot;</span><span class="p">,</span> <span class="n">weight_name</span><span class="o">=</span><span class="s2">&quot;pytorch_lora_weights.safetensors&quot;</span><span class="p">,</span> <span class="n">adapter_name</span><span class="o">=</span><span class="s2">&quot;cinematic&quot;</span>
 <span class="p">)</span>
 <span class="n">pipeline</span><span class="o">.</span><span class="n">load_lora_weights</span><span class="p">(</span><span class="s2">&quot;nerijs/pixel-art-xl&quot;</span><span class="p">,</span> <span class="n">weight_name</span><span class="o">=</span><span class="s2">&quot;pixel-art-xl.safetensors&quot;</span><span class="p">,</span> <span class="n">adapter_name</span><span class="o">=</span><span class="s2">&quot;pixel&quot;</span><span class="p">)</span>
-<span class="n">pipeline</span><span class="o">.</span><span class="n">set_adapters</span><span class="p">([</span><span class="s2">&quot;cinematic&quot;</span><span class="p">,</span> <span class="s2">&quot;pixel&quot;</span><span class="p">],</span> <span class="n">adapter_weights</span><span class="o">=</span><span class="p">[</span><span class="mf">0.5</span><span class="p">,</span> <span class="mf">0.5</span><span class="p">])</span>
+<span class="n">pipeline</span><span class="o">.</span><span class="n">unet</span><span class="o">.</span><span class="n">set_adapters</span><span class="p">([</span><span class="s2">&quot;cinematic&quot;</span><span class="p">,</span> <span class="s2">&quot;pixel&quot;</span><span class="p">],</span> <span class="n">adapter_weights</span><span class="o">=</span><span class="p">[</span><span class="mf">0.5</span><span class="p">,</span> <span class="mf">0.5</span><span class="p">])</span>
 </code></pre></div>
 
 
             <details class="quote">
               <summary>Source code in <code>mindone/diffusers/loaders/peft.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">454</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">408</span>
+<span class="normal">409</span>
+<span class="normal">410</span>
+<span class="normal">411</span>
+<span class="normal">412</span>
+<span class="normal">413</span>
+<span class="normal">414</span>
+<span class="normal">415</span>
+<span class="normal">416</span>
+<span class="normal">417</span>
+<span class="normal">418</span>
+<span class="normal">419</span>
+<span class="normal">420</span>
+<span class="normal">421</span>
+<span class="normal">422</span>
+<span class="normal">423</span>
+<span class="normal">424</span>
+<span class="normal">425</span>
+<span class="normal">426</span>
+<span class="normal">427</span>
+<span class="normal">428</span>
+<span class="normal">429</span>
+<span class="normal">430</span>
+<span class="normal">431</span>
+<span class="normal">432</span>
+<span class="normal">433</span>
+<span class="normal">434</span>
+<span class="normal">435</span>
+<span class="normal">436</span>
+<span class="normal">437</span>
+<span class="normal">438</span>
+<span class="normal">439</span>
+<span class="normal">440</span>
+<span class="normal">441</span>
+<span class="normal">442</span>
+<span class="normal">443</span>
+<span class="normal">444</span>
+<span class="normal">445</span>
+<span class="normal">446</span>
+<span class="normal">447</span>
+<span class="normal">448</span>
+<span class="normal">449</span>
+<span class="normal">450</span>
+<span class="normal">451</span>
+<span class="normal">452</span>
+<span class="normal">453</span>
+<span class="normal">454</span>
 <span class="normal">455</span>
 <span class="normal">456</span>
 <span class="normal">457</span>
 <span class="normal">458</span>
-<span class="normal">459</span>
-<span class="normal">460</span>
-<span class="normal">461</span>
-<span class="normal">462</span>
-<span class="normal">463</span>
-<span class="normal">464</span>
-<span class="normal">465</span>
-<span class="normal">466</span>
-<span class="normal">467</span>
-<span class="normal">468</span>
-<span class="normal">469</span>
-<span class="normal">470</span>
-<span class="normal">471</span>
-<span class="normal">472</span>
-<span class="normal">473</span>
-<span class="normal">474</span>
-<span class="normal">475</span>
-<span class="normal">476</span>
-<span class="normal">477</span>
-<span class="normal">478</span>
-<span class="normal">479</span>
-<span class="normal">480</span>
-<span class="normal">481</span>
-<span class="normal">482</span>
-<span class="normal">483</span>
-<span class="normal">484</span>
-<span class="normal">485</span>
-<span class="normal">486</span>
-<span class="normal">487</span>
-<span class="normal">488</span>
-<span class="normal">489</span>
-<span class="normal">490</span>
-<span class="normal">491</span>
-<span class="normal">492</span>
-<span class="normal">493</span>
-<span class="normal">494</span>
-<span class="normal">495</span>
-<span class="normal">496</span>
-<span class="normal">497</span>
-<span class="normal">498</span>
-<span class="normal">499</span>
-<span class="normal">500</span>
-<span class="normal">501</span>
-<span class="normal">502</span>
-<span class="normal">503</span>
-<span class="normal">504</span>
-<span class="normal">505</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">set_adapters</span><span class="p">(</span>
+<span class="normal">459</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">set_adapters</span><span class="p">(</span>
     <span class="bp">self</span><span class="p">,</span>
     <span class="n">adapter_names</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="n">List</span><span class="p">[</span><span class="nb">str</span><span class="p">],</span> <span class="nb">str</span><span class="p">],</span>
     <span class="n">weights</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Union</span><span class="p">[</span><span class="nb">float</span><span class="p">,</span> <span class="n">Dict</span><span class="p">,</span> <span class="n">List</span><span class="p">[</span><span class="nb">float</span><span class="p">],</span> <span class="n">List</span><span class="p">[</span><span class="n">Dict</span><span class="p">],</span> <span class="n">List</span><span class="p">[</span><span class="kc">None</span><span class="p">]]]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
 <span class="p">):</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
-<span class="sd">    Set the currently active adapters for use in the UNet.</span>
+<span class="sd">    Set the currently active adapters for use in the diffusion network (e.g. unet, transformer, etc.).</span>
 
 <span class="sd">    Args:</span>
 <span class="sd">        adapter_names (`List[str]` or `str`):</span>
@@ -11940,7 +11803,7 @@ adapters.</p>
 <span class="sd">        &quot;jbilcke-hf/sdxl-cinematic-1&quot;, weight_name=&quot;pytorch_lora_weights.safetensors&quot;, adapter_name=&quot;cinematic&quot;</span>
 <span class="sd">    )</span>
 <span class="sd">    pipeline.load_lora_weights(&quot;nerijs/pixel-art-xl&quot;, weight_name=&quot;pixel-art-xl.safetensors&quot;, adapter_name=&quot;pixel&quot;)</span>
-<span class="sd">    pipeline.set_adapters([&quot;cinematic&quot;, &quot;pixel&quot;], adapter_weights=[0.5, 0.5])</span>
+<span class="sd">    pipeline.unet.set_adapters([&quot;cinematic&quot;, &quot;pixel&quot;], adapter_weights=[0.5, 0.5])</span>
 <span class="sd">    ```</span>
 <span class="sd">    &quot;&quot;&quot;</span>
     <span class="n">adapter_names</span> <span class="o">=</span> <span class="p">[</span><span class="n">adapter_names</span><span class="p">]</span> <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">adapter_names</span><span class="p">,</span> <span class="nb">str</span><span class="p">)</span> <span class="k">else</span> <span class="n">adapter_names</span>

@@ -8653,7 +8653,7 @@ for all models (such as downloading or saving).</p>
 training set. This is used to scale the latent space to have unit variance when training the diffusion
 model. The latents are scaled with the formula <code>z = z * scaling_factor</code> before being passed to the
 diffusion model. When decoding, the latents are scaled back to the original scale with the formula: <code>z = 1
-/ scaling_factor * z</code>. For more details, refer to sections 4.3.2 and D.1 of the <a href="https://arxiv.org/abs/2112.10752">High-Resolution Image
+/ scaling_factor * z</code>. For more details, refer to sections 4.3.2 and D.1 of the <a href="https://huggingface.co/papers/2112.10752">High-Resolution Image
 Synthesis with Latent Diffusion Models</a> paper.</p>
               </div>
               <p>
@@ -8675,8 +8675,8 @@ Synthesis with Latent Diffusion Models</a> paper.</p>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>If enabled it will force the VAE to run in float32 for high image resolution pipelines, such as SD-XL. VAE
-can be fine-tuned / trained to a lower range without loosing too much precision in which case
-<code>force_upcast</code> can be set to <code>False</code> - see: https://huggingface.co/madebyollin/sdxl-vae-fp16-fix</p>
+can be fine-tuned / trained to a lower range without losing too much precision in which case <code>force_upcast</code>
+can be set to <code>False</code> - see: https://huggingface.co/madebyollin/sdxl-vae-fp16-fix</p>
               </div>
               <p>
                   <span class="doc-param-annotation">
@@ -9229,11 +9229,11 @@ mid_block will only have resnet blocks</p>
 <span class="sd">            model. The latents are scaled with the formula `z = z * scaling_factor` before being passed to the</span>
 <span class="sd">            diffusion model. When decoding, the latents are scaled back to the original scale with the formula: `z = 1</span>
 <span class="sd">            / scaling_factor * z`. For more details, refer to sections 4.3.2 and D.1 of the [High-Resolution Image</span>
-<span class="sd">            Synthesis with Latent Diffusion Models](https://arxiv.org/abs/2112.10752) paper.</span>
+<span class="sd">            Synthesis with Latent Diffusion Models](https://huggingface.co/papers/2112.10752) paper.</span>
 <span class="sd">        force_upcast (`bool`, *optional*, default to `True`):</span>
 <span class="sd">            If enabled it will force the VAE to run in float32 for high image resolution pipelines, such as SD-XL. VAE</span>
-<span class="sd">            can be fine-tuned / trained to a lower range without loosing too much precision in which case</span>
-<span class="sd">            `force_upcast` can be set to `False` - see: https://huggingface.co/madebyollin/sdxl-vae-fp16-fix</span>
+<span class="sd">            can be fine-tuned / trained to a lower range without losing too much precision in which case `force_upcast`</span>
+<span class="sd">            can be set to `False` - see: https://huggingface.co/madebyollin/sdxl-vae-fp16-fix</span>
 <span class="sd">        mid_block_add_attention (`bool`, *optional*, default to `True`):</span>
 <span class="sd">            If enabled, the mid_block of the Encoder and Decoder will have attention blocks. If set to false, the</span>
 <span class="sd">            mid_block will only have resnet blocks</span>

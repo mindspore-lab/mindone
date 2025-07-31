@@ -8327,7 +8327,7 @@ specific language governing permissions and limitations under the License.
 
     <div class="doc doc-contents first">
             <p class="doc doc-class-bases">
-              Bases: <code><a class="autorefs autorefs-internal" title="mindone.diffusers.DiffusionPipeline (mindone.diffusers.pipelines.pipeline_utils.DiffusionPipeline)" href="../../overview/#mindone.diffusers.DiffusionPipeline">DiffusionPipeline</a></code>, <code><span title="mindone.diffusers.pipelines.pipeline_utils.StableDiffusionMixin">StableDiffusionMixin</span></code>, <code><a class="autorefs autorefs-internal" title="mindone.diffusers.loaders.textual_inversion.TextualInversionLoaderMixin (mindone.diffusers.loaders.TextualInversionLoaderMixin)" href="../../../loaders/textual_inversion/#mindone.diffusers.loaders.textual_inversion.TextualInversionLoaderMixin">TextualInversionLoaderMixin</a></code>, <code><a class="autorefs autorefs-internal" title="mindone.diffusers.loaders.lora_pipeline.StableDiffusionLoraLoaderMixin (mindone.diffusers.loaders.StableDiffusionLoraLoaderMixin)" href="../../../loaders/lora/#mindone.diffusers.loaders.lora_pipeline.StableDiffusionLoraLoaderMixin">StableDiffusionLoraLoaderMixin</a></code></p>
+              Bases: <code><span title="mindone.diffusers.pipelines.pipeline_utils.DeprecatedPipelineMixin">DeprecatedPipelineMixin</span></code>, <code><a class="autorefs autorefs-internal" title="mindone.diffusers.DiffusionPipeline (mindone.diffusers.pipelines.pipeline_utils.DiffusionPipeline)" href="../../overview/#mindone.diffusers.DiffusionPipeline">DiffusionPipeline</a></code>, <code><span title="mindone.diffusers.pipelines.pipeline_utils.StableDiffusionMixin">StableDiffusionMixin</span></code>, <code><a class="autorefs autorefs-internal" title="mindone.diffusers.loaders.textual_inversion.TextualInversionLoaderMixin (mindone.diffusers.loaders.TextualInversionLoaderMixin)" href="../../../loaders/textual_inversion/#mindone.diffusers.loaders.textual_inversion.TextualInversionLoaderMixin">TextualInversionLoaderMixin</a></code>, <code><a class="autorefs autorefs-internal" title="mindone.diffusers.loaders.lora_pipeline.StableDiffusionLoraLoaderMixin (mindone.diffusers.loaders.StableDiffusionLoraLoaderMixin)" href="../../../loaders/lora/#mindone.diffusers.loaders.lora_pipeline.StableDiffusionLoraLoaderMixin">StableDiffusionLoraLoaderMixin</a></code></p>
 
 
         <p>Pipeline for text-to-image generation using Stable Diffusion.</p>
@@ -9095,8 +9095,18 @@ details.</p>
 <span class="normal">664</span>
 <span class="normal">665</span>
 <span class="normal">666</span>
-<span class="normal">667</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">class</span><span class="w"> </span><span class="nc">StableDiffusionKDiffusionPipeline</span><span class="p">(</span>
-    <span class="n">DiffusionPipeline</span><span class="p">,</span> <span class="n">StableDiffusionMixin</span><span class="p">,</span> <span class="n">TextualInversionLoaderMixin</span><span class="p">,</span> <span class="n">StableDiffusionLoraLoaderMixin</span>
+<span class="normal">667</span>
+<span class="normal">668</span>
+<span class="normal">669</span>
+<span class="normal">670</span>
+<span class="normal">671</span>
+<span class="normal">672</span>
+<span class="normal">673</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">class</span><span class="w"> </span><span class="nc">StableDiffusionKDiffusionPipeline</span><span class="p">(</span>
+    <span class="n">DeprecatedPipelineMixin</span><span class="p">,</span>
+    <span class="n">DiffusionPipeline</span><span class="p">,</span>
+    <span class="n">StableDiffusionMixin</span><span class="p">,</span>
+    <span class="n">TextualInversionLoaderMixin</span><span class="p">,</span>
+    <span class="n">StableDiffusionLoraLoaderMixin</span><span class="p">,</span>
 <span class="p">):</span>
 <span class="w">    </span><span class="sa">r</span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    Pipeline for text-to-image generation using Stable Diffusion.</span>
@@ -9137,6 +9147,8 @@ details.</p>
 <span class="sd">            Model that extracts features from generated images to be used as inputs for the `safety_checker`.</span>
 <span class="sd">    &quot;&quot;&quot;</span>
 
+    <span class="n">_last_supported_version</span> <span class="o">=</span> <span class="s2">&quot;0.33.1&quot;</span>
+
     <span class="n">model_cpu_offload_seq</span> <span class="o">=</span> <span class="s2">&quot;text_encoder-&gt;unet-&gt;vae&quot;</span>
     <span class="n">_optional_components</span> <span class="o">=</span> <span class="p">[</span><span class="s2">&quot;safety_checker&quot;</span><span class="p">,</span> <span class="s2">&quot;feature_extractor&quot;</span><span class="p">]</span>
     <span class="n">_exclude_from_cpu_offload</span> <span class="o">=</span> <span class="p">[</span><span class="s2">&quot;safety_checker&quot;</span><span class="p">]</span>
@@ -9155,7 +9167,7 @@ details.</p>
         <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">()</span>
 
         <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span>
-            <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="vm">__class__</span><span class="si">}</span><span class="s2"> is an experimntal pipeline and is likely to change in the future. We recommend to use&quot;</span>
+            <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="vm">__class__</span><span class="si">}</span><span class="s2"> is an experimental pipeline and is likely to change in the future. We recommend to use&quot;</span>
             <span class="s2">&quot; this pipeline for fast experimentation / iteration if needed, but advice to rely on existing pipelines&quot;</span>
             <span class="s2">&quot; as defined in https://huggingface.co/docs/diffusers/api/schedulers#implemented-schedulers for&quot;</span>
             <span class="s2">&quot; production settings.&quot;</span>
@@ -9541,11 +9553,11 @@ details.</p>
 <span class="sd">                The number of denoising steps. More denoising steps usually lead to a higher quality image at the</span>
 <span class="sd">                expense of slower inference.</span>
 <span class="sd">            guidance_scale (`float`, *optional*, defaults to 7.5):</span>
-<span class="sd">                Guidance scale as defined in [Classifier-Free Diffusion Guidance](https://arxiv.org/abs/2207.12598).</span>
-<span class="sd">                `guidance_scale` is defined as `w` of equation 2. of [Imagen</span>
-<span class="sd">                Paper](https://arxiv.org/pdf/2205.11487.pdf). Guidance scale is enabled by setting `guidance_scale &gt;</span>
-<span class="sd">                1`. Higher guidance scale encourages to generate images that are closely linked to the text `prompt`,</span>
-<span class="sd">                usually at the expense of lower image quality.</span>
+<span class="sd">                Guidance scale as defined in [Classifier-Free Diffusion</span>
+<span class="sd">                Guidance](https://huggingface.co/papers/2207.12598). `guidance_scale` is defined as `w` of equation 2.</span>
+<span class="sd">                of [Imagen Paper](https://huggingface.co/papers/2205.11487). Guidance scale is enabled by setting</span>
+<span class="sd">                `guidance_scale &gt; 1`. Higher guidance scale encourages to generate images that are closely linked to</span>
+<span class="sd">                the text `prompt`, usually at the expense of lower image quality.</span>
 <span class="sd">            negative_prompt (`str` or `List[str]`, *optional*):</span>
 <span class="sd">                The prompt or prompts not to guide the image generation. If not defined, one has to pass</span>
 <span class="sd">                `negative_prompt_embeds`. instead. Ignored when not using guidance (i.e., ignored if `guidance_scale`</span>
@@ -9553,8 +9565,8 @@ details.</p>
 <span class="sd">            num_images_per_prompt (`int`, *optional*, defaults to 1):</span>
 <span class="sd">                The number of images to generate per prompt.</span>
 <span class="sd">            eta (`float`, *optional*, defaults to 0.0):</span>
-<span class="sd">                Corresponds to parameter eta (η) in the DDIM paper: https://arxiv.org/abs/2010.02502. Only applies to</span>
-<span class="sd">                [`schedulers.DDIMScheduler`], will be ignored for others.</span>
+<span class="sd">                Corresponds to parameter eta (η) in the DDIM paper: https://huggingface.co/papers/2010.02502. Only</span>
+<span class="sd">                applies to [`schedulers.DDIMScheduler`], will be ignored for others.</span>
 <span class="sd">            generator (`np.random.Generator` or `List[np.random.Generator]`, *optional*):</span>
 <span class="sd">                A [`np.random.Generator`](https://numpy.org/doc/stable/reference/random/generator.html) to make</span>
 <span class="sd">                generation deterministic.</span>
@@ -9613,7 +9625,7 @@ details.</p>
             <span class="n">batch_size</span> <span class="o">=</span> <span class="n">prompt_embeds</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
 
         <span class="c1"># here `guidance_scale` is defined analog to the guidance weight `w` of equation (2)</span>
-        <span class="c1"># of the Imagen paper: https://arxiv.org/pdf/2205.11487.pdf . `guidance_scale = 1`</span>
+        <span class="c1"># of the Imagen paper: https://huggingface.co/papers/2205.11487 . `guidance_scale = 1`</span>
         <span class="c1"># corresponds to doing no classifier free guidance.</span>
         <span class="n">do_classifier_free_guidance</span> <span class="o">=</span> <span class="kc">True</span>
         <span class="k">if</span> <span class="n">guidance_scale</span> <span class="o">&lt;=</span> <span class="mf">1.0</span><span class="p">:</span>
@@ -9831,11 +9843,11 @@ expense of slower inference.</p>
             </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
-                <p>Guidance scale as defined in <a href="https://arxiv.org/abs/2207.12598">Classifier-Free Diffusion Guidance</a>.
-<code>guidance_scale</code> is defined as <code>w</code> of equation 2. of <a href="https://arxiv.org/pdf/2205.11487.pdf">Imagen
-Paper</a>. Guidance scale is enabled by setting <code>guidance_scale &gt;
-1</code>. Higher guidance scale encourages to generate images that are closely linked to the text <code>prompt</code>,
-usually at the expense of lower image quality.</p>
+                <p>Guidance scale as defined in <a href="https://huggingface.co/papers/2207.12598">Classifier-Free Diffusion
+Guidance</a>. <code>guidance_scale</code> is defined as <code>w</code> of equation 2.
+of <a href="https://huggingface.co/papers/2205.11487">Imagen Paper</a>. Guidance scale is enabled by setting
+<code>guidance_scale &gt; 1</code>. Higher guidance scale encourages to generate images that are closely linked to
+the text <code>prompt</code>, usually at the expense of lower image quality.</p>
               </div>
               <p>
                   <span class="doc-param-annotation">
@@ -9897,8 +9909,8 @@ is less than <code>1</code>).</p>
             </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
-                <p>Corresponds to parameter eta (η) in the DDIM paper: https://arxiv.org/abs/2010.02502. Only applies to
-[<code>schedulers.DDIMScheduler</code>], will be ignored for others.</p>
+                <p>Corresponds to parameter eta (η) in the DDIM paper: https://huggingface.co/papers/2010.02502. Only
+applies to [<code>schedulers.DDIMScheduler</code>], will be ignored for others.</p>
               </div>
               <p>
                   <span class="doc-param-annotation">
@@ -10152,13 +10164,7 @@ the output of the pre-final layer will be used for computing the prompt embeddin
 
             <details class="quote">
               <summary>Source code in <code>mindone/diffusers/pipelines/stable_diffusion_k_diffusion/pipeline_stable_diffusion_k_diffusion.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">466</span>
-<span class="normal">467</span>
-<span class="normal">468</span>
-<span class="normal">469</span>
-<span class="normal">470</span>
-<span class="normal">471</span>
-<span class="normal">472</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">472</span>
 <span class="normal">473</span>
 <span class="normal">474</span>
 <span class="normal">475</span>
@@ -10353,7 +10359,13 @@ the output of the pre-final layer will be used for computing the prompt embeddin
 <span class="normal">664</span>
 <span class="normal">665</span>
 <span class="normal">666</span>
-<span class="normal">667</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="fm">__call__</span><span class="p">(</span>
+<span class="normal">667</span>
+<span class="normal">668</span>
+<span class="normal">669</span>
+<span class="normal">670</span>
+<span class="normal">671</span>
+<span class="normal">672</span>
+<span class="normal">673</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="fm">__call__</span><span class="p">(</span>
     <span class="bp">self</span><span class="p">,</span>
     <span class="n">prompt</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">List</span><span class="p">[</span><span class="nb">str</span><span class="p">]]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
     <span class="n">height</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">int</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
@@ -10390,11 +10402,11 @@ the output of the pre-final layer will be used for computing the prompt embeddin
 <span class="sd">            The number of denoising steps. More denoising steps usually lead to a higher quality image at the</span>
 <span class="sd">            expense of slower inference.</span>
 <span class="sd">        guidance_scale (`float`, *optional*, defaults to 7.5):</span>
-<span class="sd">            Guidance scale as defined in [Classifier-Free Diffusion Guidance](https://arxiv.org/abs/2207.12598).</span>
-<span class="sd">            `guidance_scale` is defined as `w` of equation 2. of [Imagen</span>
-<span class="sd">            Paper](https://arxiv.org/pdf/2205.11487.pdf). Guidance scale is enabled by setting `guidance_scale &gt;</span>
-<span class="sd">            1`. Higher guidance scale encourages to generate images that are closely linked to the text `prompt`,</span>
-<span class="sd">            usually at the expense of lower image quality.</span>
+<span class="sd">            Guidance scale as defined in [Classifier-Free Diffusion</span>
+<span class="sd">            Guidance](https://huggingface.co/papers/2207.12598). `guidance_scale` is defined as `w` of equation 2.</span>
+<span class="sd">            of [Imagen Paper](https://huggingface.co/papers/2205.11487). Guidance scale is enabled by setting</span>
+<span class="sd">            `guidance_scale &gt; 1`. Higher guidance scale encourages to generate images that are closely linked to</span>
+<span class="sd">            the text `prompt`, usually at the expense of lower image quality.</span>
 <span class="sd">        negative_prompt (`str` or `List[str]`, *optional*):</span>
 <span class="sd">            The prompt or prompts not to guide the image generation. If not defined, one has to pass</span>
 <span class="sd">            `negative_prompt_embeds`. instead. Ignored when not using guidance (i.e., ignored if `guidance_scale`</span>
@@ -10402,8 +10414,8 @@ the output of the pre-final layer will be used for computing the prompt embeddin
 <span class="sd">        num_images_per_prompt (`int`, *optional*, defaults to 1):</span>
 <span class="sd">            The number of images to generate per prompt.</span>
 <span class="sd">        eta (`float`, *optional*, defaults to 0.0):</span>
-<span class="sd">            Corresponds to parameter eta (η) in the DDIM paper: https://arxiv.org/abs/2010.02502. Only applies to</span>
-<span class="sd">            [`schedulers.DDIMScheduler`], will be ignored for others.</span>
+<span class="sd">            Corresponds to parameter eta (η) in the DDIM paper: https://huggingface.co/papers/2010.02502. Only</span>
+<span class="sd">            applies to [`schedulers.DDIMScheduler`], will be ignored for others.</span>
 <span class="sd">        generator (`np.random.Generator` or `List[np.random.Generator]`, *optional*):</span>
 <span class="sd">            A [`np.random.Generator`](https://numpy.org/doc/stable/reference/random/generator.html) to make</span>
 <span class="sd">            generation deterministic.</span>
@@ -10462,7 +10474,7 @@ the output of the pre-final layer will be used for computing the prompt embeddin
         <span class="n">batch_size</span> <span class="o">=</span> <span class="n">prompt_embeds</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
 
     <span class="c1"># here `guidance_scale` is defined analog to the guidance weight `w` of equation (2)</span>
-    <span class="c1"># of the Imagen paper: https://arxiv.org/pdf/2205.11487.pdf . `guidance_scale = 1`</span>
+    <span class="c1"># of the Imagen paper: https://huggingface.co/papers/2205.11487 . `guidance_scale = 1`</span>
     <span class="c1"># corresponds to doing no classifier free guidance.</span>
     <span class="n">do_classifier_free_guidance</span> <span class="o">=</span> <span class="kc">True</span>
     <span class="k">if</span> <span class="n">guidance_scale</span> <span class="o">&lt;=</span> <span class="mf">1.0</span><span class="p">:</span>
@@ -10743,13 +10755,7 @@ the output of the pre-final layer will be used for computing the prompt embeddin
 
             <details class="quote">
               <summary>Source code in <code>mindone/diffusers/pipelines/stable_diffusion_k_diffusion/pipeline_stable_diffusion_k_diffusion.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">189</span>
-<span class="normal">190</span>
-<span class="normal">191</span>
-<span class="normal">192</span>
-<span class="normal">193</span>
-<span class="normal">194</span>
-<span class="normal">195</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">195</span>
 <span class="normal">196</span>
 <span class="normal">197</span>
 <span class="normal">198</span>
@@ -10915,7 +10921,13 @@ the output of the pre-final layer will be used for computing the prompt embeddin
 <span class="normal">358</span>
 <span class="normal">359</span>
 <span class="normal">360</span>
-<span class="normal">361</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">encode_prompt</span><span class="p">(</span>
+<span class="normal">361</span>
+<span class="normal">362</span>
+<span class="normal">363</span>
+<span class="normal">364</span>
+<span class="normal">365</span>
+<span class="normal">366</span>
+<span class="normal">367</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">encode_prompt</span><span class="p">(</span>
     <span class="bp">self</span><span class="p">,</span>
     <span class="n">prompt</span><span class="p">,</span>
     <span class="n">num_images_per_prompt</span><span class="p">,</span>
@@ -11116,177 +11128,8 @@ the output of the pre-final layer will be used for computing the prompt embeddin
 
     <div class="doc doc-contents first">
             <p class="doc doc-class-bases">
-              Bases: <code><a class="autorefs autorefs-internal" title="mindone.diffusers.DiffusionPipeline (mindone.diffusers.pipelines.pipeline_utils.DiffusionPipeline)" href="../../overview/#mindone.diffusers.DiffusionPipeline">DiffusionPipeline</a></code>, <code><span title="mindone.diffusers.pipelines.pipeline_utils.StableDiffusionMixin">StableDiffusionMixin</span></code>, <code><a class="autorefs autorefs-internal" title="mindone.diffusers.loaders.single_file.FromSingleFileMixin (mindone.diffusers.loaders.FromSingleFileMixin)" href="../../../loaders/single_file/#mindone.diffusers.loaders.single_file.FromSingleFileMixin">FromSingleFileMixin</a></code>, <code><a class="autorefs autorefs-internal" title="mindone.diffusers.loaders.lora_pipeline.StableDiffusionXLLoraLoaderMixin (mindone.diffusers.loaders.StableDiffusionXLLoraLoaderMixin)" href="../../../loaders/lora/#mindone.diffusers.loaders.lora_pipeline.StableDiffusionXLLoraLoaderMixin">StableDiffusionXLLoraLoaderMixin</a></code>, <code><a class="autorefs autorefs-internal" title="mindone.diffusers.loaders.textual_inversion.TextualInversionLoaderMixin (mindone.diffusers.loaders.TextualInversionLoaderMixin)" href="../../../loaders/textual_inversion/#mindone.diffusers.loaders.textual_inversion.TextualInversionLoaderMixin">TextualInversionLoaderMixin</a></code>, <code><a class="autorefs autorefs-internal" title="mindone.diffusers.loaders.ip_adapter.IPAdapterMixin (mindone.diffusers.loaders.IPAdapterMixin)" href="../../../loaders/ip_adapter/#mindone.diffusers.loaders.ip_adapter.IPAdapterMixin">IPAdapterMixin</a></code></p>
+              Bases: <code><span title="mindone.diffusers.pipelines.pipeline_utils.DeprecatedPipelineMixin">DeprecatedPipelineMixin</span></code>, <code><a class="autorefs autorefs-internal" title="mindone.diffusers.DiffusionPipeline (mindone.diffusers.pipelines.pipeline_utils.DiffusionPipeline)" href="../../overview/#mindone.diffusers.DiffusionPipeline">DiffusionPipeline</a></code>, <code><span title="mindone.diffusers.pipelines.pipeline_utils.StableDiffusionMixin">StableDiffusionMixin</span></code>, <code><a class="autorefs autorefs-internal" title="mindone.diffusers.loaders.single_file.FromSingleFileMixin (mindone.diffusers.loaders.FromSingleFileMixin)" href="../../../loaders/single_file/#mindone.diffusers.loaders.single_file.FromSingleFileMixin">FromSingleFileMixin</a></code>, <code><a class="autorefs autorefs-internal" title="mindone.diffusers.loaders.lora_pipeline.StableDiffusionXLLoraLoaderMixin (mindone.diffusers.loaders.StableDiffusionXLLoraLoaderMixin)" href="../../../loaders/lora/#mindone.diffusers.loaders.lora_pipeline.StableDiffusionXLLoraLoaderMixin">StableDiffusionXLLoraLoaderMixin</a></code>, <code><a class="autorefs autorefs-internal" title="mindone.diffusers.loaders.textual_inversion.TextualInversionLoaderMixin (mindone.diffusers.loaders.TextualInversionLoaderMixin)" href="../../../loaders/textual_inversion/#mindone.diffusers.loaders.textual_inversion.TextualInversionLoaderMixin">TextualInversionLoaderMixin</a></code>, <code><a class="autorefs autorefs-internal" title="mindone.diffusers.loaders.ip_adapter.IPAdapterMixin (mindone.diffusers.loaders.IPAdapterMixin)" href="../../../loaders/ip_adapter/#mindone.diffusers.loaders.ip_adapter.IPAdapterMixin">IPAdapterMixin</a></code></p>
 
-
-        <p>Pipeline for text-to-image generation using Stable Diffusion XL and k-diffusion.</p>
-<p>This model inherits from [<code>DiffusionPipeline</code>]. Check the superclass documentation for the generic methods the
-library implements for all the pipelines (such as downloading or saving, running on a particular device, etc.)</p>
-
-
-<details class="the-pipeline-also-inherits-the-following-loading-methods" open>
-  <summary>The pipeline also inherits the following loading methods</summary>
-  <ul>
-<li>[<code>~loaders.TextualInversionLoaderMixin.load_textual_inversion</code>] for loading textual inversion embeddings</li>
-<li>[<code>~loaders.FromSingleFileMixin.from_single_file</code>] for loading <code>.ckpt</code> files</li>
-<li>[<code>~loaders.StableDiffusionXLLoraLoaderMixin.load_lora_weights</code>] for loading LoRA weights</li>
-<li>[<code>~loaders.StableDiffusionXLLoraLoaderMixin.save_lora_weights</code>] for saving LoRA weights</li>
-<li>[<code>~loaders.IPAdapterMixin.load_ip_adapter</code>] for loading IP Adapters</li>
-</ul>
-</details>
-
-<table>
-      <thead>
-        <tr>
-          <th><span class="doc-section-title">PARAMETER</span></th>
-          <th><span>DESCRIPTION</span></th>
-        </tr>
-      </thead>
-      <tbody>
-          <tr class="doc-section-item">
-            <td>
-                <code>vae</code>
-            </td>
-            <td class="doc-param-details">
-              <div class="doc-md-description">
-                <p>Variational Auto-Encoder (VAE) Model to encode and decode images to and from latent representations.</p>
-              </div>
-              <p>
-                  <span class="doc-param-annotation">
-                    <b>TYPE:</b>
-                      <code>[`AutoencoderKL`]</code>
-                  </span>
-              </p>
-            </td>
-          </tr>
-          <tr class="doc-section-item">
-            <td>
-                <code>text_encoder</code>
-            </td>
-            <td class="doc-param-details">
-              <div class="doc-md-description">
-                <p>Frozen text-encoder. Stable Diffusion XL uses the text portion of
-<a href="https://huggingface.co/docs/transformers/model_doc/clip#transformers.CLIPTextModel">CLIP</a>, specifically
-the <a href="https://huggingface.co/openai/clip-vit-large-patch14">clip-vit-large-patch14</a> variant.</p>
-              </div>
-              <p>
-                  <span class="doc-param-annotation">
-                    <b>TYPE:</b>
-                      <code>[`CLIPTextModel`]</code>
-                  </span>
-              </p>
-            </td>
-          </tr>
-          <tr class="doc-section-item">
-            <td>
-                <code>text_encoder_2</code>
-            </td>
-            <td class="doc-param-details">
-              <div class="doc-md-description">
-                <p>Second frozen text-encoder. Stable Diffusion XL uses the text and pool portion of
-<a href="https://huggingface.co/docs/transformers/model_doc/clip#transformers.CLIPTextModelWithProjection">CLIP</a>,
-specifically the
-<a href="https://huggingface.co/laion/CLIP-ViT-bigG-14-laion2B-39B-b160k">laion/CLIP-ViT-bigG-14-laion2B-39B-b160k</a>
-variant.</p>
-              </div>
-              <p>
-                  <span class="doc-param-annotation">
-                    <b>TYPE:</b>
-                      <code>[` CLIPTextModelWithProjection`]</code>
-                  </span>
-              </p>
-            </td>
-          </tr>
-          <tr class="doc-section-item">
-            <td>
-                <code>tokenizer</code>
-            </td>
-            <td class="doc-param-details">
-              <div class="doc-md-description">
-                <p>Tokenizer of class
-<a href="https://huggingface.co/docs/transformers/v4.21.0/en/model_doc/clip#transformers.CLIPTokenizer">CLIPTokenizer</a>.</p>
-              </div>
-              <p>
-                  <span class="doc-param-annotation">
-                    <b>TYPE:</b>
-                      <code>`CLIPTokenizer`</code>
-                  </span>
-              </p>
-            </td>
-          </tr>
-          <tr class="doc-section-item">
-            <td>
-                <code>tokenizer_2</code>
-            </td>
-            <td class="doc-param-details">
-              <div class="doc-md-description">
-                <p>Second Tokenizer of class
-<a href="https://huggingface.co/docs/transformers/v4.21.0/en/model_doc/clip#transformers.CLIPTokenizer">CLIPTokenizer</a>.</p>
-              </div>
-              <p>
-                  <span class="doc-param-annotation">
-                    <b>TYPE:</b>
-                      <code>`CLIPTokenizer`</code>
-                  </span>
-              </p>
-            </td>
-          </tr>
-          <tr class="doc-section-item">
-            <td>
-                <code>unet</code>
-            </td>
-            <td class="doc-param-details">
-              <div class="doc-md-description">
-                <p>Conditional U-Net architecture to denoise the encoded image latents.</p>
-              </div>
-              <p>
-                  <span class="doc-param-annotation">
-                    <b>TYPE:</b>
-                      <code>[`UNet2DConditionModel`]</code>
-                  </span>
-              </p>
-            </td>
-          </tr>
-          <tr class="doc-section-item">
-            <td>
-                <code>scheduler</code>
-            </td>
-            <td class="doc-param-details">
-              <div class="doc-md-description">
-                <p>A scheduler to be used in combination with <code>unet</code> to denoise the encoded image latents. Can be one of
-[<code>DDIMScheduler</code>], [<code>LMSDiscreteScheduler</code>], or [<code>PNDMScheduler</code>].</p>
-              </div>
-              <p>
-                  <span class="doc-param-annotation">
-                    <b>TYPE:</b>
-                      <code>[`SchedulerMixin`]</code>
-                  </span>
-              </p>
-            </td>
-          </tr>
-          <tr class="doc-section-item">
-            <td>
-                <code>force_zeros_for_empty_prompt</code>
-            </td>
-            <td class="doc-param-details">
-              <div class="doc-md-description">
-                <p>Whether the negative prompt embeddings shall be forced to always be set to 0. Also see the config of
-<code>stabilityai/stable-diffusion-xl-base-1-0</code>.</p>
-              </div>
-              <p>
-                  <span class="doc-param-annotation">
-                    <b>TYPE:</b>
-                      <code>`bool`, *optional*, defaults to `&#34;True&#34;`</code>
-                  </span>
-                  <span class="doc-param-default">
-                    <b>DEFAULT:</b>
-                      <code>True</code>
-                  </span>
-              </p>
-            </td>
-          </tr>
-      </tbody>
-    </table>
 
 
 
@@ -12072,7 +11915,11 @@ variant.</p>
 <span class="normal">852</span>
 <span class="normal">853</span>
 <span class="normal">854</span>
-<span class="normal">855</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">class</span><span class="w"> </span><span class="nc">StableDiffusionXLKDiffusionPipeline</span><span class="p">(</span>
+<span class="normal">855</span>
+<span class="normal">856</span>
+<span class="normal">857</span>
+<span class="normal">858</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">class</span><span class="w"> </span><span class="nc">StableDiffusionXLKDiffusionPipeline</span><span class="p">(</span>
+    <span class="n">DeprecatedPipelineMixin</span><span class="p">,</span>
     <span class="n">DiffusionPipeline</span><span class="p">,</span>
     <span class="n">StableDiffusionMixin</span><span class="p">,</span>
     <span class="n">FromSingleFileMixin</span><span class="p">,</span>
@@ -12080,6 +11927,8 @@ variant.</p>
     <span class="n">TextualInversionLoaderMixin</span><span class="p">,</span>
     <span class="n">IPAdapterMixin</span><span class="p">,</span>
 <span class="p">):</span>
+    <span class="n">_last_supported_version</span> <span class="o">=</span> <span class="s2">&quot;0.33.1&quot;</span>
+
 <span class="w">    </span><span class="sa">r</span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    Pipeline for text-to-image generation using Stable Diffusion XL and k-diffusion.</span>
 
@@ -12527,7 +12376,7 @@ variant.</p>
         <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_clip_skip</span>
 
     <span class="c1"># here `guidance_scale` is defined analog to the guidance weight `w` of equation (2)</span>
-    <span class="c1"># of the Imagen paper: https://arxiv.org/pdf/2205.11487.pdf . `guidance_scale = 1`</span>
+    <span class="c1"># of the Imagen paper: https://huggingface.co/papers/2205.11487 . `guidance_scale = 1`</span>
     <span class="c1"># corresponds to doing no classifier free guidance.</span>
     <span class="nd">@property</span>
     <span class="k">def</span><span class="w"> </span><span class="nf">do_classifier_free_guidance</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
@@ -12586,11 +12435,11 @@ variant.</p>
 <span class="sd">                The number of denoising steps. More denoising steps usually lead to a higher quality image at the</span>
 <span class="sd">                expense of slower inference.</span>
 <span class="sd">            guidance_scale (`float`, *optional*, defaults to 5.0):</span>
-<span class="sd">                Guidance scale as defined in [Classifier-Free Diffusion Guidance](https://arxiv.org/abs/2207.12598).</span>
-<span class="sd">                `guidance_scale` is defined as `w` of equation 2. of [Imagen</span>
-<span class="sd">                Paper](https://arxiv.org/pdf/2205.11487.pdf). Guidance scale is enabled by setting `guidance_scale &gt;</span>
-<span class="sd">                1`. Higher guidance scale encourages to generate images that are closely linked to the text `prompt`,</span>
-<span class="sd">                usually at the expense of lower image quality.</span>
+<span class="sd">                Guidance scale as defined in [Classifier-Free Diffusion</span>
+<span class="sd">                Guidance](https://huggingface.co/papers/2207.12598). `guidance_scale` is defined as `w` of equation 2.</span>
+<span class="sd">                of [Imagen Paper](https://huggingface.co/papers/2205.11487). Guidance scale is enabled by setting</span>
+<span class="sd">                `guidance_scale &gt; 1`. Higher guidance scale encourages to generate images that are closely linked to</span>
+<span class="sd">                the text `prompt`, usually at the expense of lower image quality.</span>
 <span class="sd">            negative_prompt (`str` or `List[str]`, *optional*):</span>
 <span class="sd">                The prompt or prompts not to guide the image generation. If not defined, one has to pass</span>
 <span class="sd">                `negative_prompt_embeds` instead. Ignored when not using guidance (i.e., ignored if `guidance_scale` is</span>
@@ -13001,11 +12850,11 @@ expense of slower inference.</p>
             </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
-                <p>Guidance scale as defined in <a href="https://arxiv.org/abs/2207.12598">Classifier-Free Diffusion Guidance</a>.
-<code>guidance_scale</code> is defined as <code>w</code> of equation 2. of <a href="https://arxiv.org/pdf/2205.11487.pdf">Imagen
-Paper</a>. Guidance scale is enabled by setting <code>guidance_scale &gt;
-1</code>. Higher guidance scale encourages to generate images that are closely linked to the text <code>prompt</code>,
-usually at the expense of lower image quality.</p>
+                <p>Guidance scale as defined in <a href="https://huggingface.co/papers/2207.12598">Classifier-Free Diffusion
+Guidance</a>. <code>guidance_scale</code> is defined as <code>w</code> of equation 2.
+of <a href="https://huggingface.co/papers/2205.11487">Imagen Paper</a>. Guidance scale is enabled by setting
+<code>guidance_scale &gt; 1</code>. Higher guidance scale encourages to generate images that are closely linked to
+the text <code>prompt</code>, usually at the expense of lower image quality.</p>
               </div>
               <p>
                   <span class="doc-param-annotation">
@@ -13436,10 +13285,7 @@ information, refer to this issue thread: https://github.com/huggingface/diffuser
 
             <details class="quote">
               <summary>Source code in <code>mindone/diffusers/pipelines/stable_diffusion_k_diffusion/pipeline_stable_diffusion_xl_k_diffusion.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">540</span>
-<span class="normal">541</span>
-<span class="normal">542</span>
-<span class="normal">543</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">543</span>
 <span class="normal">544</span>
 <span class="normal">545</span>
 <span class="normal">546</span>
@@ -13751,7 +13597,10 @@ information, refer to this issue thread: https://github.com/huggingface/diffuser
 <span class="normal">852</span>
 <span class="normal">853</span>
 <span class="normal">854</span>
-<span class="normal">855</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="fm">__call__</span><span class="p">(</span>
+<span class="normal">855</span>
+<span class="normal">856</span>
+<span class="normal">857</span>
+<span class="normal">858</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="fm">__call__</span><span class="p">(</span>
     <span class="bp">self</span><span class="p">,</span>
     <span class="n">prompt</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">List</span><span class="p">[</span><span class="nb">str</span><span class="p">]]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
     <span class="n">prompt_2</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Union</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">List</span><span class="p">[</span><span class="nb">str</span><span class="p">]]]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
@@ -13804,11 +13653,11 @@ information, refer to this issue thread: https://github.com/huggingface/diffuser
 <span class="sd">            The number of denoising steps. More denoising steps usually lead to a higher quality image at the</span>
 <span class="sd">            expense of slower inference.</span>
 <span class="sd">        guidance_scale (`float`, *optional*, defaults to 5.0):</span>
-<span class="sd">            Guidance scale as defined in [Classifier-Free Diffusion Guidance](https://arxiv.org/abs/2207.12598).</span>
-<span class="sd">            `guidance_scale` is defined as `w` of equation 2. of [Imagen</span>
-<span class="sd">            Paper](https://arxiv.org/pdf/2205.11487.pdf). Guidance scale is enabled by setting `guidance_scale &gt;</span>
-<span class="sd">            1`. Higher guidance scale encourages to generate images that are closely linked to the text `prompt`,</span>
-<span class="sd">            usually at the expense of lower image quality.</span>
+<span class="sd">            Guidance scale as defined in [Classifier-Free Diffusion</span>
+<span class="sd">            Guidance](https://huggingface.co/papers/2207.12598). `guidance_scale` is defined as `w` of equation 2.</span>
+<span class="sd">            of [Imagen Paper](https://huggingface.co/papers/2205.11487). Guidance scale is enabled by setting</span>
+<span class="sd">            `guidance_scale &gt; 1`. Higher guidance scale encourages to generate images that are closely linked to</span>
+<span class="sd">            the text `prompt`, usually at the expense of lower image quality.</span>
 <span class="sd">        negative_prompt (`str` or `List[str]`, *optional*):</span>
 <span class="sd">            The prompt or prompts not to guide the image generation. If not defined, one has to pass</span>
 <span class="sd">            `negative_prompt_embeds` instead. Ignored when not using guidance (i.e., ignored if `guidance_scale` is</span>
@@ -14348,10 +14197,7 @@ the output of the pre-final layer will be used for computing the prompt embeddin
 
             <details class="quote">
               <summary>Source code in <code>mindone/diffusers/pipelines/stable_diffusion_k_diffusion/pipeline_stable_diffusion_xl_k_diffusion.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">192</span>
-<span class="normal">193</span>
-<span class="normal">194</span>
-<span class="normal">195</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">195</span>
 <span class="normal">196</span>
 <span class="normal">197</span>
 <span class="normal">198</span>
@@ -14573,7 +14419,10 @@ the output of the pre-final layer will be used for computing the prompt embeddin
 <span class="normal">414</span>
 <span class="normal">415</span>
 <span class="normal">416</span>
-<span class="normal">417</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">encode_prompt</span><span class="p">(</span>
+<span class="normal">417</span>
+<span class="normal">418</span>
+<span class="normal">419</span>
+<span class="normal">420</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">encode_prompt</span><span class="p">(</span>
     <span class="bp">self</span><span class="p">,</span>
     <span class="n">prompt</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
     <span class="n">prompt_2</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>

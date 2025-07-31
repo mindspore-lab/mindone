@@ -8537,139 +8537,8 @@ You can change these parameters in the pipeline call:
 
     <div class="doc doc-contents first">
             <p class="doc doc-class-bases">
-              Bases: <code><a class="autorefs autorefs-internal" title="mindone.diffusers.DiffusionPipeline (mindone.diffusers.pipelines.pipeline_utils.DiffusionPipeline)" href="../overview/#mindone.diffusers.DiffusionPipeline">DiffusionPipeline</a></code>, <code><span title="mindone.diffusers.pipelines.pipeline_utils.StableDiffusionMixin">StableDiffusionMixin</span></code>, <code><a class="autorefs autorefs-internal" title="mindone.diffusers.loaders.textual_inversion.TextualInversionLoaderMixin (mindone.diffusers.loaders.TextualInversionLoaderMixin)" href="../../loaders/textual_inversion/#mindone.diffusers.loaders.textual_inversion.TextualInversionLoaderMixin">TextualInversionLoaderMixin</a></code>, <code><a class="autorefs autorefs-internal" title="mindone.diffusers.loaders.lora_pipeline.StableDiffusionLoraLoaderMixin (mindone.diffusers.loaders.StableDiffusionLoraLoaderMixin)" href="../../loaders/lora/#mindone.diffusers.loaders.lora_pipeline.StableDiffusionLoraLoaderMixin">StableDiffusionLoraLoaderMixin</a></code>, <code><a class="autorefs autorefs-internal" title="mindone.diffusers.loaders.single_file.FromSingleFileMixin (mindone.diffusers.loaders.FromSingleFileMixin)" href="../../loaders/single_file/#mindone.diffusers.loaders.single_file.FromSingleFileMixin">FromSingleFileMixin</a></code></p>
+              Bases: <code><span title="mindone.diffusers.pipelines.pipeline_utils.DeprecatedPipelineMixin">DeprecatedPipelineMixin</span></code>, <code><a class="autorefs autorefs-internal" title="mindone.diffusers.DiffusionPipeline (mindone.diffusers.pipelines.pipeline_utils.DiffusionPipeline)" href="../overview/#mindone.diffusers.DiffusionPipeline">DiffusionPipeline</a></code>, <code><span title="mindone.diffusers.pipelines.pipeline_utils.StableDiffusionMixin">StableDiffusionMixin</span></code>, <code><a class="autorefs autorefs-internal" title="mindone.diffusers.loaders.textual_inversion.TextualInversionLoaderMixin (mindone.diffusers.loaders.TextualInversionLoaderMixin)" href="../../loaders/textual_inversion/#mindone.diffusers.loaders.textual_inversion.TextualInversionLoaderMixin">TextualInversionLoaderMixin</a></code>, <code><a class="autorefs autorefs-internal" title="mindone.diffusers.loaders.lora_pipeline.StableDiffusionLoraLoaderMixin (mindone.diffusers.loaders.StableDiffusionLoraLoaderMixin)" href="../../loaders/lora/#mindone.diffusers.loaders.lora_pipeline.StableDiffusionLoraLoaderMixin">StableDiffusionLoraLoaderMixin</a></code>, <code><a class="autorefs autorefs-internal" title="mindone.diffusers.loaders.single_file.FromSingleFileMixin (mindone.diffusers.loaders.FromSingleFileMixin)" href="../../loaders/single_file/#mindone.diffusers.loaders.single_file.FromSingleFileMixin">FromSingleFileMixin</a></code></p>
 
-
-        <p>Pipeline for zero-shot text-to-video generation using Stable Diffusion.</p>
-<p>This model inherits from [<code>DiffusionPipeline</code>]. Check the superclass documentation for the generic methods
-implemented for all pipelines (downloading, saving, running on a particular device, etc.).</p>
-
-
-<table>
-      <thead>
-        <tr>
-          <th><span class="doc-section-title">PARAMETER</span></th>
-          <th><span>DESCRIPTION</span></th>
-        </tr>
-      </thead>
-      <tbody>
-          <tr class="doc-section-item">
-            <td>
-                <code>vae</code>
-            </td>
-            <td class="doc-param-details">
-              <div class="doc-md-description">
-                <p>Variational Auto-Encoder (VAE) Model to encode and decode images to and from latent representations.</p>
-              </div>
-              <p>
-                  <span class="doc-param-annotation">
-                    <b>TYPE:</b>
-                      <code>[`AutoencoderKL`]</code>
-                  </span>
-              </p>
-            </td>
-          </tr>
-          <tr class="doc-section-item">
-            <td>
-                <code>text_encoder</code>
-            </td>
-            <td class="doc-param-details">
-              <div class="doc-md-description">
-                <p>Frozen text-encoder (<a href="https://huggingface.co/openai/clip-vit-large-patch14">clip-vit-large-patch14</a>).</p>
-              </div>
-              <p>
-                  <span class="doc-param-annotation">
-                    <b>TYPE:</b>
-                      <code>[`CLIPTextModel`]</code>
-                  </span>
-              </p>
-            </td>
-          </tr>
-          <tr class="doc-section-item">
-            <td>
-                <code>tokenizer</code>
-            </td>
-            <td class="doc-param-details">
-              <div class="doc-md-description">
-                <p>A [<code>~transformers.CLIPTokenizer</code>] to tokenize text.</p>
-              </div>
-              <p>
-                  <span class="doc-param-annotation">
-                    <b>TYPE:</b>
-                      <code>`CLIPTokenizer`</code>
-                  </span>
-              </p>
-            </td>
-          </tr>
-          <tr class="doc-section-item">
-            <td>
-                <code>unet</code>
-            </td>
-            <td class="doc-param-details">
-              <div class="doc-md-description">
-                <p>A [<code>UNet3DConditionModel</code>] to denoise the encoded video latents.</p>
-              </div>
-              <p>
-                  <span class="doc-param-annotation">
-                    <b>TYPE:</b>
-                      <code>[`UNet2DConditionModel`]</code>
-                  </span>
-              </p>
-            </td>
-          </tr>
-          <tr class="doc-section-item">
-            <td>
-                <code>scheduler</code>
-            </td>
-            <td class="doc-param-details">
-              <div class="doc-md-description">
-                <p>A scheduler to be used in combination with <code>unet</code> to denoise the encoded image latents. Can be one of
-[<code>DDIMScheduler</code>], [<code>LMSDiscreteScheduler</code>], or [<code>PNDMScheduler</code>].</p>
-              </div>
-              <p>
-                  <span class="doc-param-annotation">
-                    <b>TYPE:</b>
-                      <code>[`SchedulerMixin`]</code>
-                  </span>
-              </p>
-            </td>
-          </tr>
-          <tr class="doc-section-item">
-            <td>
-                <code>safety_checker</code>
-            </td>
-            <td class="doc-param-details">
-              <div class="doc-md-description">
-                <p>Classification module that estimates whether generated images could be considered offensive or harmful.
-Please refer to the <a href="https://huggingface.co/stable-diffusion-v1-5/stable-diffusion-v1-5">model card</a> for
-more details about a model's potential harms.</p>
-              </div>
-              <p>
-                  <span class="doc-param-annotation">
-                    <b>TYPE:</b>
-                      <code>[`StableDiffusionSafetyChecker`]</code>
-                  </span>
-              </p>
-            </td>
-          </tr>
-          <tr class="doc-section-item">
-            <td>
-                <code>feature_extractor</code>
-            </td>
-            <td class="doc-param-details">
-              <div class="doc-md-description">
-                <p>A [<code>CLIPImageProcessor</code>] to extract features from generated images; used as inputs to the <code>safety_checker</code>.</p>
-              </div>
-              <p>
-                  <span class="doc-param-annotation">
-                    <b>TYPE:</b>
-                      <code>[`CLIPImageProcessor`]</code>
-                  </span>
-              </p>
-            </td>
-          </tr>
-      </tbody>
-    </table>
 
 
 
@@ -9357,13 +9226,17 @@ more details about a model's potential harms.</p>
 <span class="normal">968</span>
 <span class="normal">969</span>
 <span class="normal">970</span>
-<span class="normal">971</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">class</span><span class="w"> </span><span class="nc">TextToVideoZeroPipeline</span><span class="p">(</span>
+<span class="normal">971</span>
+<span class="normal">972</span>
+<span class="normal">973</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">class</span><span class="w"> </span><span class="nc">TextToVideoZeroPipeline</span><span class="p">(</span>
+    <span class="n">DeprecatedPipelineMixin</span><span class="p">,</span>
     <span class="n">DiffusionPipeline</span><span class="p">,</span>
     <span class="n">StableDiffusionMixin</span><span class="p">,</span>
     <span class="n">TextualInversionLoaderMixin</span><span class="p">,</span>
     <span class="n">StableDiffusionLoraLoaderMixin</span><span class="p">,</span>
     <span class="n">FromSingleFileMixin</span><span class="p">,</span>
 <span class="p">):</span>
+    <span class="n">_last_supported_version</span> <span class="o">=</span> <span class="s2">&quot;0.33.1&quot;</span>
 <span class="w">    </span><span class="sa">r</span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    Pipeline for zero-shot text-to-video generation using Stable Diffusion.</span>
 
@@ -9643,8 +9516,8 @@ more details about a model's potential harms.</p>
 <span class="sd">            num_videos_per_prompt (`int`, *optional*, defaults to 1):</span>
 <span class="sd">                The number of videos to generate per prompt.</span>
 <span class="sd">            eta (`float`, *optional*, defaults to 0.0):</span>
-<span class="sd">                Corresponds to parameter eta (η) from the [DDIM](https://arxiv.org/abs/2010.02502) paper. Only applies</span>
-<span class="sd">                to the [`~schedulers.DDIMScheduler`], and is ignored in other schedulers.</span>
+<span class="sd">                Corresponds to parameter eta (η) from the [DDIM](https://huggingface.co/papers/2010.02502) paper. Only</span>
+<span class="sd">                applies to the [`~schedulers.DDIMScheduler`], and is ignored in other schedulers.</span>
 <span class="sd">            generator (`np.random.Generator`, *optional*):</span>
 <span class="sd">                A random number generator.</span>
 <span class="sd">            latents (`ms.Tensor`, *optional*):</span>
@@ -9664,17 +9537,17 @@ more details about a model's potential harms.</p>
 <span class="sd">                The frequency at which the `callback` function is called. If not specified, the callback is called at</span>
 <span class="sd">                every step.</span>
 <span class="sd">            motion_field_strength_x (`float`, *optional*, defaults to 12):</span>
-<span class="sd">                Strength of motion in generated video along x-axis. See the [paper](https://arxiv.org/abs/2303.13439),</span>
-<span class="sd">                Sect. 3.3.1.</span>
+<span class="sd">                Strength of motion in generated video along x-axis. See the</span>
+<span class="sd">                [paper](https://huggingface.co/papers/2303.13439), Sect. 3.3.1.</span>
 <span class="sd">            motion_field_strength_y (`float`, *optional*, defaults to 12):</span>
-<span class="sd">                Strength of motion in generated video along y-axis. See the [paper](https://arxiv.org/abs/2303.13439),</span>
-<span class="sd">                Sect. 3.3.1.</span>
+<span class="sd">                Strength of motion in generated video along y-axis. See the</span>
+<span class="sd">                [paper](https://huggingface.co/papers/2303.13439), Sect. 3.3.1.</span>
 <span class="sd">            t0 (`int`, *optional*, defaults to 44):</span>
 <span class="sd">                Timestep t0. Should be in the range [0, num_inference_steps - 1]. See the</span>
-<span class="sd">                [paper](https://arxiv.org/abs/2303.13439), Sect. 3.3.1.</span>
+<span class="sd">                [paper](https://huggingface.co/papers/2303.13439), Sect. 3.3.1.</span>
 <span class="sd">            t1 (`int`, *optional*, defaults to 47):</span>
 <span class="sd">                Timestep t0. Should be in the range [t0 + 1, num_inference_steps - 1]. See the</span>
-<span class="sd">                [paper](https://arxiv.org/abs/2303.13439), Sect. 3.3.1.</span>
+<span class="sd">                [paper](https://huggingface.co/papers/2303.13439), Sect. 3.3.1.</span>
 <span class="sd">            frame_ids (`List[int]`, *optional*):</span>
 <span class="sd">                Indexes of the frames that are being generated. This is used when generating longer videos</span>
 <span class="sd">                chunk-by-chunk.</span>
@@ -9712,7 +9585,7 @@ more details about a model's potential harms.</p>
         <span class="c1"># Define call parameters</span>
         <span class="n">batch_size</span> <span class="o">=</span> <span class="mi">1</span> <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">prompt</span><span class="p">,</span> <span class="nb">str</span><span class="p">)</span> <span class="k">else</span> <span class="nb">len</span><span class="p">(</span><span class="n">prompt</span><span class="p">)</span>
         <span class="c1"># here `guidance_scale` is defined analog to the guidance weight `w` of equation (2)</span>
-        <span class="c1"># of the Imagen paper: https://arxiv.org/pdf/2205.11487.pdf . `guidance_scale = 1`</span>
+        <span class="c1"># of the Imagen paper: https://huggingface.co/papers/2205.11487 . `guidance_scale = 1`</span>
         <span class="c1"># corresponds to doing no classifier free guidance.</span>
         <span class="n">do_classifier_free_guidance</span> <span class="o">=</span> <span class="n">guidance_scale</span> <span class="o">&gt;</span> <span class="mf">1.0</span>
 
@@ -9842,7 +9715,7 @@ more details about a model's potential harms.</p>
     <span class="k">def</span><span class="w"> </span><span class="nf">prepare_extra_step_kwargs</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">generator</span><span class="p">,</span> <span class="n">eta</span><span class="p">):</span>
         <span class="c1"># prepare extra kwargs for the scheduler step, since not all schedulers have the same signature</span>
         <span class="c1"># eta (η) is only used with the DDIMScheduler, it will be ignored for other schedulers.</span>
-        <span class="c1"># eta corresponds to η in DDIM paper: https://arxiv.org/abs/2010.02502</span>
+        <span class="c1"># eta corresponds to η in DDIM paper: https://huggingface.co/papers/2010.02502</span>
         <span class="c1"># and should be between [0, 1]</span>
 
         <span class="n">accepts_eta</span> <span class="o">=</span> <span class="s2">&quot;eta&quot;</span> <span class="ow">in</span> <span class="nb">set</span><span class="p">(</span><span class="n">inspect</span><span class="o">.</span><span class="n">signature</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">scheduler</span><span class="o">.</span><span class="n">step</span><span class="p">)</span><span class="o">.</span><span class="n">parameters</span><span class="o">.</span><span class="n">keys</span><span class="p">())</span>
@@ -10238,8 +10111,8 @@ pass <code>negative_prompt_embeds</code> instead. Ignored when not using guidanc
             </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
-                <p>Corresponds to parameter eta (η) from the <a href="https://arxiv.org/abs/2010.02502">DDIM</a> paper. Only applies
-to the [<code>~schedulers.DDIMScheduler</code>], and is ignored in other schedulers.</p>
+                <p>Corresponds to parameter eta (η) from the <a href="https://huggingface.co/papers/2010.02502">DDIM</a> paper. Only
+applies to the [<code>~schedulers.DDIMScheduler</code>], and is ignored in other schedulers.</p>
               </div>
               <p>
                   <span class="doc-param-annotation">
@@ -10385,8 +10258,8 @@ every step.</p>
             </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
-                <p>Strength of motion in generated video along x-axis. See the <a href="https://arxiv.org/abs/2303.13439">paper</a>,
-Sect. 3.3.1.</p>
+                <p>Strength of motion in generated video along x-axis. See the
+<a href="https://huggingface.co/papers/2303.13439">paper</a>, Sect. 3.3.1.</p>
               </div>
               <p>
                   <span class="doc-param-annotation">
@@ -10406,8 +10279,8 @@ Sect. 3.3.1.</p>
             </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
-                <p>Strength of motion in generated video along y-axis. See the <a href="https://arxiv.org/abs/2303.13439">paper</a>,
-Sect. 3.3.1.</p>
+                <p>Strength of motion in generated video along y-axis. See the
+<a href="https://huggingface.co/papers/2303.13439">paper</a>, Sect. 3.3.1.</p>
               </div>
               <p>
                   <span class="doc-param-annotation">
@@ -10428,7 +10301,7 @@ Sect. 3.3.1.</p>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Timestep t0. Should be in the range [0, num_inference_steps - 1]. See the
-<a href="https://arxiv.org/abs/2303.13439">paper</a>, Sect. 3.3.1.</p>
+<a href="https://huggingface.co/papers/2303.13439">paper</a>, Sect. 3.3.1.</p>
               </div>
               <p>
                   <span class="doc-param-annotation">
@@ -10449,7 +10322,7 @@ Sect. 3.3.1.</p>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Timestep t0. Should be in the range [t0 + 1, num_inference_steps - 1]. See the
-<a href="https://arxiv.org/abs/2303.13439">paper</a>, Sect. 3.3.1.</p>
+<a href="https://huggingface.co/papers/2303.13439">paper</a>, Sect. 3.3.1.</p>
               </div>
               <p>
                   <span class="doc-param-annotation">
@@ -10514,9 +10387,7 @@ video contains "not-safe-for-work" (nsfw) content..</p>
 
             <details class="quote">
               <summary>Source code in <code>mindone/diffusers/pipelines/text_to_video_synthesis/pipeline_text_to_video_zero.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">532</span>
-<span class="normal">533</span>
-<span class="normal">534</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">534</span>
 <span class="normal">535</span>
 <span class="normal">536</span>
 <span class="normal">537</span>
@@ -10739,7 +10610,9 @@ video contains "not-safe-for-work" (nsfw) content..</p>
 <span class="normal">754</span>
 <span class="normal">755</span>
 <span class="normal">756</span>
-<span class="normal">757</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="fm">__call__</span><span class="p">(</span>
+<span class="normal">757</span>
+<span class="normal">758</span>
+<span class="normal">759</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="fm">__call__</span><span class="p">(</span>
     <span class="bp">self</span><span class="p">,</span>
     <span class="n">prompt</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">List</span><span class="p">[</span><span class="nb">str</span><span class="p">]],</span>
     <span class="n">video_length</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">int</span><span class="p">]</span> <span class="o">=</span> <span class="mi">8</span><span class="p">,</span>
@@ -10786,8 +10659,8 @@ video contains "not-safe-for-work" (nsfw) content..</p>
 <span class="sd">        num_videos_per_prompt (`int`, *optional*, defaults to 1):</span>
 <span class="sd">            The number of videos to generate per prompt.</span>
 <span class="sd">        eta (`float`, *optional*, defaults to 0.0):</span>
-<span class="sd">            Corresponds to parameter eta (η) from the [DDIM](https://arxiv.org/abs/2010.02502) paper. Only applies</span>
-<span class="sd">            to the [`~schedulers.DDIMScheduler`], and is ignored in other schedulers.</span>
+<span class="sd">            Corresponds to parameter eta (η) from the [DDIM](https://huggingface.co/papers/2010.02502) paper. Only</span>
+<span class="sd">            applies to the [`~schedulers.DDIMScheduler`], and is ignored in other schedulers.</span>
 <span class="sd">        generator (`np.random.Generator`, *optional*):</span>
 <span class="sd">            A random number generator.</span>
 <span class="sd">        latents (`ms.Tensor`, *optional*):</span>
@@ -10807,17 +10680,17 @@ video contains "not-safe-for-work" (nsfw) content..</p>
 <span class="sd">            The frequency at which the `callback` function is called. If not specified, the callback is called at</span>
 <span class="sd">            every step.</span>
 <span class="sd">        motion_field_strength_x (`float`, *optional*, defaults to 12):</span>
-<span class="sd">            Strength of motion in generated video along x-axis. See the [paper](https://arxiv.org/abs/2303.13439),</span>
-<span class="sd">            Sect. 3.3.1.</span>
+<span class="sd">            Strength of motion in generated video along x-axis. See the</span>
+<span class="sd">            [paper](https://huggingface.co/papers/2303.13439), Sect. 3.3.1.</span>
 <span class="sd">        motion_field_strength_y (`float`, *optional*, defaults to 12):</span>
-<span class="sd">            Strength of motion in generated video along y-axis. See the [paper](https://arxiv.org/abs/2303.13439),</span>
-<span class="sd">            Sect. 3.3.1.</span>
+<span class="sd">            Strength of motion in generated video along y-axis. See the</span>
+<span class="sd">            [paper](https://huggingface.co/papers/2303.13439), Sect. 3.3.1.</span>
 <span class="sd">        t0 (`int`, *optional*, defaults to 44):</span>
 <span class="sd">            Timestep t0. Should be in the range [0, num_inference_steps - 1]. See the</span>
-<span class="sd">            [paper](https://arxiv.org/abs/2303.13439), Sect. 3.3.1.</span>
+<span class="sd">            [paper](https://huggingface.co/papers/2303.13439), Sect. 3.3.1.</span>
 <span class="sd">        t1 (`int`, *optional*, defaults to 47):</span>
 <span class="sd">            Timestep t0. Should be in the range [t0 + 1, num_inference_steps - 1]. See the</span>
-<span class="sd">            [paper](https://arxiv.org/abs/2303.13439), Sect. 3.3.1.</span>
+<span class="sd">            [paper](https://huggingface.co/papers/2303.13439), Sect. 3.3.1.</span>
 <span class="sd">        frame_ids (`List[int]`, *optional*):</span>
 <span class="sd">            Indexes of the frames that are being generated. This is used when generating longer videos</span>
 <span class="sd">            chunk-by-chunk.</span>
@@ -10855,7 +10728,7 @@ video contains "not-safe-for-work" (nsfw) content..</p>
     <span class="c1"># Define call parameters</span>
     <span class="n">batch_size</span> <span class="o">=</span> <span class="mi">1</span> <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">prompt</span><span class="p">,</span> <span class="nb">str</span><span class="p">)</span> <span class="k">else</span> <span class="nb">len</span><span class="p">(</span><span class="n">prompt</span><span class="p">)</span>
     <span class="c1"># here `guidance_scale` is defined analog to the guidance weight `w` of equation (2)</span>
-    <span class="c1"># of the Imagen paper: https://arxiv.org/pdf/2205.11487.pdf . `guidance_scale = 1`</span>
+    <span class="c1"># of the Imagen paper: https://huggingface.co/papers/2205.11487 . `guidance_scale = 1`</span>
     <span class="c1"># corresponds to doing no classifier free guidance.</span>
     <span class="n">do_classifier_free_guidance</span> <span class="o">=</span> <span class="n">guidance_scale</span> <span class="o">&gt;</span> <span class="mf">1.0</span>
 
@@ -11145,9 +11018,7 @@ every step.</p>
 
             <details class="quote">
               <summary>Source code in <code>mindone/diffusers/pipelines/text_to_video_synthesis/pipeline_text_to_video_zero.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">382</span>
-<span class="normal">383</span>
-<span class="normal">384</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">384</span>
 <span class="normal">385</span>
 <span class="normal">386</span>
 <span class="normal">387</span>
@@ -11218,7 +11089,9 @@ every step.</p>
 <span class="normal">452</span>
 <span class="normal">453</span>
 <span class="normal">454</span>
-<span class="normal">455</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">backward_loop</span><span class="p">(</span>
+<span class="normal">455</span>
+<span class="normal">456</span>
+<span class="normal">457</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">backward_loop</span><span class="p">(</span>
     <span class="bp">self</span><span class="p">,</span>
     <span class="n">latents</span><span class="p">,</span>
     <span class="n">timesteps</span><span class="p">,</span>
@@ -11480,9 +11353,7 @@ the output of the pre-final layer will be used for computing the prompt embeddin
 
             <details class="quote">
               <summary>Source code in <code>mindone/diffusers/pipelines/text_to_video_synthesis/pipeline_text_to_video_zero.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">793</span>
-<span class="normal">794</span>
-<span class="normal">795</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">795</span>
 <span class="normal">796</span>
 <span class="normal">797</span>
 <span class="normal">798</span>
@@ -11650,7 +11521,9 @@ the output of the pre-final layer will be used for computing the prompt embeddin
 <span class="normal">960</span>
 <span class="normal">961</span>
 <span class="normal">962</span>
-<span class="normal">963</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">encode_prompt</span><span class="p">(</span>
+<span class="normal">963</span>
+<span class="normal">964</span>
+<span class="normal">965</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">encode_prompt</span><span class="p">(</span>
     <span class="bp">self</span><span class="p">,</span>
     <span class="n">prompt</span><span class="p">,</span>
     <span class="n">num_images_per_prompt</span><span class="p">,</span>
@@ -11929,9 +11802,7 @@ the output of the pre-final layer will be used for computing the prompt embeddin
 
             <details class="quote">
               <summary>Source code in <code>mindone/diffusers/pipelines/text_to_video_synthesis/pipeline_text_to_video_zero.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">359</span>
-<span class="normal">360</span>
-<span class="normal">361</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">361</span>
 <span class="normal">362</span>
 <span class="normal">363</span>
 <span class="normal">364</span>
@@ -11950,7 +11821,9 @@ the output of the pre-final layer will be used for computing the prompt embeddin
 <span class="normal">377</span>
 <span class="normal">378</span>
 <span class="normal">379</span>
-<span class="normal">380</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">forward_loop</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">x_t0</span><span class="p">,</span> <span class="n">t0</span><span class="p">,</span> <span class="n">t1</span><span class="p">,</span> <span class="n">generator</span><span class="p">):</span>
+<span class="normal">380</span>
+<span class="normal">381</span>
+<span class="normal">382</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">forward_loop</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">x_t0</span><span class="p">,</span> <span class="n">t0</span><span class="p">,</span> <span class="n">t1</span><span class="p">,</span> <span class="n">generator</span><span class="p">):</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    Perform DDPM forward process from time t0 to t1. This is the same as adding noise with corresponding variance.</span>
 

@@ -10335,7 +10335,7 @@ variant.</p>
         <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_clip_skip</span>
 
     <span class="c1"># here `guidance_scale` is defined analog to the guidance weight `w` of equation (2)</span>
-    <span class="c1"># of the Imagen paper: https://arxiv.org/pdf/2205.11487.pdf . `guidance_scale = 1`</span>
+    <span class="c1"># of the Imagen paper: https://huggingface.co/papers/2205.11487 . `guidance_scale = 1`</span>
     <span class="c1"># corresponds to doing no classifier free guidance.</span>
     <span class="nd">@property</span>
     <span class="k">def</span><span class="w"> </span><span class="nf">do_classifier_free_guidance</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
@@ -10474,11 +10474,11 @@ variant.</p>
 <span class="sd">                their `set_timesteps` method. If not defined, the default behavior when `num_inference_steps` is passed</span>
 <span class="sd">                will be used.</span>
 <span class="sd">            guidance_scale (`float`, *optional*, defaults to 7.0):</span>
-<span class="sd">                Guidance scale as defined in [Classifier-Free Diffusion Guidance](https://arxiv.org/abs/2207.12598).</span>
-<span class="sd">                `guidance_scale` is defined as `w` of equation 2. of [Imagen</span>
-<span class="sd">                Paper](https://arxiv.org/pdf/2205.11487.pdf). Guidance scale is enabled by setting `guidance_scale &gt;</span>
-<span class="sd">                1`. Higher guidance scale encourages to generate images that are closely linked to the text `prompt`,</span>
-<span class="sd">                usually at the expense of lower image quality.</span>
+<span class="sd">                Guidance scale as defined in [Classifier-Free Diffusion</span>
+<span class="sd">                Guidance](https://huggingface.co/papers/2207.12598). `guidance_scale` is defined as `w` of equation 2.</span>
+<span class="sd">                of [Imagen Paper](https://huggingface.co/papers/2205.11487). Guidance scale is enabled by setting</span>
+<span class="sd">                `guidance_scale &gt; 1`. Higher guidance scale encourages to generate images that are closely linked to</span>
+<span class="sd">                the text `prompt`, usually at the expense of lower image quality.</span>
 <span class="sd">            negative_prompt (`str` or `List[str]`, *optional*):</span>
 <span class="sd">                The prompt or prompts not to guide the image generation. If not defined, one has to pass</span>
 <span class="sd">                `negative_prompt_embeds` instead. Ignored when not using guidance (i.e., ignored if `guidance_scale` is</span>
@@ -10964,11 +10964,11 @@ will be used.</p>
             </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
-                <p>Guidance scale as defined in <a href="https://arxiv.org/abs/2207.12598">Classifier-Free Diffusion Guidance</a>.
-<code>guidance_scale</code> is defined as <code>w</code> of equation 2. of <a href="https://arxiv.org/pdf/2205.11487.pdf">Imagen
-Paper</a>. Guidance scale is enabled by setting <code>guidance_scale &gt;
-1</code>. Higher guidance scale encourages to generate images that are closely linked to the text <code>prompt</code>,
-usually at the expense of lower image quality.</p>
+                <p>Guidance scale as defined in <a href="https://huggingface.co/papers/2207.12598">Classifier-Free Diffusion
+Guidance</a>. <code>guidance_scale</code> is defined as <code>w</code> of equation 2.
+of <a href="https://huggingface.co/papers/2205.11487">Imagen Paper</a>. Guidance scale is enabled by setting
+<code>guidance_scale &gt; 1</code>. Higher guidance scale encourages to generate images that are closely linked to
+the text <code>prompt</code>, usually at the expense of lower image quality.</p>
               </div>
               <p>
                   <span class="doc-param-annotation">
@@ -11943,11 +11943,11 @@ StabiltyAI for Stable Diffusion 3.5 Medium is 0.01.</p>
 <span class="sd">            their `set_timesteps` method. If not defined, the default behavior when `num_inference_steps` is passed</span>
 <span class="sd">            will be used.</span>
 <span class="sd">        guidance_scale (`float`, *optional*, defaults to 7.0):</span>
-<span class="sd">            Guidance scale as defined in [Classifier-Free Diffusion Guidance](https://arxiv.org/abs/2207.12598).</span>
-<span class="sd">            `guidance_scale` is defined as `w` of equation 2. of [Imagen</span>
-<span class="sd">            Paper](https://arxiv.org/pdf/2205.11487.pdf). Guidance scale is enabled by setting `guidance_scale &gt;</span>
-<span class="sd">            1`. Higher guidance scale encourages to generate images that are closely linked to the text `prompt`,</span>
-<span class="sd">            usually at the expense of lower image quality.</span>
+<span class="sd">            Guidance scale as defined in [Classifier-Free Diffusion</span>
+<span class="sd">            Guidance](https://huggingface.co/papers/2207.12598). `guidance_scale` is defined as `w` of equation 2.</span>
+<span class="sd">            of [Imagen Paper](https://huggingface.co/papers/2205.11487). Guidance scale is enabled by setting</span>
+<span class="sd">            `guidance_scale &gt; 1`. Higher guidance scale encourages to generate images that are closely linked to</span>
+<span class="sd">            the text `prompt`, usually at the expense of lower image quality.</span>
 <span class="sd">        negative_prompt (`str` or `List[str]`, *optional*):</span>
 <span class="sd">            The prompt or prompts not to guide the image generation. If not defined, one has to pass</span>
 <span class="sd">            `negative_prompt_embeds` instead. Ignored when not using guidance (i.e., ignored if `guidance_scale` is</span>

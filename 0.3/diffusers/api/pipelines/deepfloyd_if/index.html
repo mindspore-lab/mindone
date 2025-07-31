@@ -9939,7 +9939,7 @@ A smaller number will vary the image less but run faster.</p>
     <span class="k">def</span><span class="w"> </span><span class="nf">prepare_extra_step_kwargs</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">generator</span><span class="p">,</span> <span class="n">eta</span><span class="p">):</span>
         <span class="c1"># prepare extra kwargs for the scheduler step, since not all schedulers have the same signature</span>
         <span class="c1"># eta (η) is only used with the DDIMScheduler, it will be ignored for other schedulers.</span>
-        <span class="c1"># eta corresponds to η in DDIM paper: https://arxiv.org/abs/2010.02502</span>
+        <span class="c1"># eta corresponds to η in DDIM paper: https://huggingface.co/papers/2010.02502</span>
         <span class="c1"># and should be between [0, 1]</span>
 
         <span class="n">accepts_eta</span> <span class="o">=</span> <span class="s2">&quot;eta&quot;</span> <span class="ow">in</span> <span class="nb">set</span><span class="p">(</span><span class="n">inspect</span><span class="o">.</span><span class="n">signature</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">scheduler</span><span class="o">.</span><span class="n">step</span><span class="p">)</span><span class="o">.</span><span class="n">parameters</span><span class="o">.</span><span class="n">keys</span><span class="p">())</span>
@@ -10087,7 +10087,7 @@ A smaller number will vary the image less but run faster.</p>
         <span class="c1"># &amp;amp</span>
         <span class="n">caption</span> <span class="o">=</span> <span class="n">re</span><span class="o">.</span><span class="n">sub</span><span class="p">(</span><span class="sa">r</span><span class="s2">&quot;&amp;amp&quot;</span><span class="p">,</span> <span class="s2">&quot;&quot;</span><span class="p">,</span> <span class="n">caption</span><span class="p">)</span>
 
-        <span class="c1"># ip adresses:</span>
+        <span class="c1"># ip addresses:</span>
         <span class="n">caption</span> <span class="o">=</span> <span class="n">re</span><span class="o">.</span><span class="n">sub</span><span class="p">(</span><span class="sa">r</span><span class="s2">&quot;\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}&quot;</span><span class="p">,</span> <span class="s2">&quot; &quot;</span><span class="p">,</span> <span class="n">caption</span><span class="p">)</span>
 
         <span class="c1"># article ids:</span>
@@ -10182,11 +10182,11 @@ A smaller number will vary the image less but run faster.</p>
 <span class="sd">                Custom timesteps to use for the denoising process. If not defined, equal spaced `num_inference_steps`</span>
 <span class="sd">                timesteps are used. Must be in descending order.</span>
 <span class="sd">            guidance_scale (`float`, *optional*, defaults to 7.0):</span>
-<span class="sd">                Guidance scale as defined in [Classifier-Free Diffusion Guidance](https://arxiv.org/abs/2207.12598).</span>
-<span class="sd">                `guidance_scale` is defined as `w` of equation 2. of [Imagen</span>
-<span class="sd">                Paper](https://arxiv.org/pdf/2205.11487.pdf). Guidance scale is enabled by setting `guidance_scale &gt;</span>
-<span class="sd">                1`. Higher guidance scale encourages to generate images that are closely linked to the text `prompt`,</span>
-<span class="sd">                usually at the expense of lower image quality.</span>
+<span class="sd">                Guidance scale as defined in [Classifier-Free Diffusion</span>
+<span class="sd">                Guidance](https://huggingface.co/papers/2207.12598). `guidance_scale` is defined as `w` of equation 2.</span>
+<span class="sd">                of [Imagen Paper](https://huggingface.co/papers/2205.11487). Guidance scale is enabled by setting</span>
+<span class="sd">                `guidance_scale &gt; 1`. Higher guidance scale encourages to generate images that are closely linked to</span>
+<span class="sd">                the text `prompt`, usually at the expense of lower image quality.</span>
 <span class="sd">            negative_prompt (`str` or `List[str]`, *optional*):</span>
 <span class="sd">                The prompt or prompts not to guide the image generation. If not defined, one has to pass</span>
 <span class="sd">                `negative_prompt_embeds` instead. Ignored when not using guidance (i.e., ignored if `guidance_scale` is</span>
@@ -10198,8 +10198,8 @@ A smaller number will vary the image less but run faster.</p>
 <span class="sd">            width (`int`, *optional*, defaults to self.unet.config.sample_size):</span>
 <span class="sd">                The width in pixels of the generated image.</span>
 <span class="sd">            eta (`float`, *optional*, defaults to 0.0):</span>
-<span class="sd">                Corresponds to parameter eta (η) in the DDIM paper: https://arxiv.org/abs/2010.02502. Only applies to</span>
-<span class="sd">                [`schedulers.DDIMScheduler`], will be ignored for others.</span>
+<span class="sd">                Corresponds to parameter eta (η) in the DDIM paper: https://huggingface.co/papers/2010.02502. Only</span>
+<span class="sd">                applies to [`schedulers.DDIMScheduler`], will be ignored for others.</span>
 <span class="sd">            generator (`np.random.Generator` or `List[np.random.Generator]`, *optional*):</span>
 <span class="sd">                One or a list of [torch generator(s)](https://pytorch.org/docs/stable/generated/torch.Generator.html)</span>
 <span class="sd">                to make generation deterministic.</span>
@@ -10254,7 +10254,7 @@ A smaller number will vary the image less but run faster.</p>
             <span class="n">batch_size</span> <span class="o">=</span> <span class="n">prompt_embeds</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
 
         <span class="c1"># here `guidance_scale` is defined analog to the guidance weight `w` of equation (2)</span>
-        <span class="c1"># of the Imagen paper: https://arxiv.org/pdf/2205.11487.pdf . `guidance_scale = 1`</span>
+        <span class="c1"># of the Imagen paper: https://huggingface.co/papers/2205.11487 . `guidance_scale = 1`</span>
         <span class="c1"># corresponds to doing no classifier free guidance.</span>
         <span class="n">do_classifier_free_guidance</span> <span class="o">=</span> <span class="n">guidance_scale</span> <span class="o">&gt;</span> <span class="mf">1.0</span>
 
@@ -10474,11 +10474,11 @@ timesteps are used. Must be in descending order.</p>
             </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
-                <p>Guidance scale as defined in <a href="https://arxiv.org/abs/2207.12598">Classifier-Free Diffusion Guidance</a>.
-<code>guidance_scale</code> is defined as <code>w</code> of equation 2. of <a href="https://arxiv.org/pdf/2205.11487.pdf">Imagen
-Paper</a>. Guidance scale is enabled by setting <code>guidance_scale &gt;
-1</code>. Higher guidance scale encourages to generate images that are closely linked to the text <code>prompt</code>,
-usually at the expense of lower image quality.</p>
+                <p>Guidance scale as defined in <a href="https://huggingface.co/papers/2207.12598">Classifier-Free Diffusion
+Guidance</a>. <code>guidance_scale</code> is defined as <code>w</code> of equation 2.
+of <a href="https://huggingface.co/papers/2205.11487">Imagen Paper</a>. Guidance scale is enabled by setting
+<code>guidance_scale &gt; 1</code>. Higher guidance scale encourages to generate images that are closely linked to
+the text <code>prompt</code>, usually at the expense of lower image quality.</p>
               </div>
               <p>
                   <span class="doc-param-annotation">
@@ -10580,8 +10580,8 @@ less than <code>1</code>).</p>
             </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
-                <p>Corresponds to parameter eta (η) in the DDIM paper: https://arxiv.org/abs/2010.02502. Only applies to
-[<code>schedulers.DDIMScheduler</code>], will be ignored for others.</p>
+                <p>Corresponds to parameter eta (η) in the DDIM paper: https://huggingface.co/papers/2010.02502. Only
+applies to [<code>schedulers.DDIMScheduler</code>], will be ignored for others.</p>
               </div>
               <p>
                   <span class="doc-param-annotation">
@@ -11105,11 +11105,11 @@ prompt.</p>
 <span class="sd">            Custom timesteps to use for the denoising process. If not defined, equal spaced `num_inference_steps`</span>
 <span class="sd">            timesteps are used. Must be in descending order.</span>
 <span class="sd">        guidance_scale (`float`, *optional*, defaults to 7.0):</span>
-<span class="sd">            Guidance scale as defined in [Classifier-Free Diffusion Guidance](https://arxiv.org/abs/2207.12598).</span>
-<span class="sd">            `guidance_scale` is defined as `w` of equation 2. of [Imagen</span>
-<span class="sd">            Paper](https://arxiv.org/pdf/2205.11487.pdf). Guidance scale is enabled by setting `guidance_scale &gt;</span>
-<span class="sd">            1`. Higher guidance scale encourages to generate images that are closely linked to the text `prompt`,</span>
-<span class="sd">            usually at the expense of lower image quality.</span>
+<span class="sd">            Guidance scale as defined in [Classifier-Free Diffusion</span>
+<span class="sd">            Guidance](https://huggingface.co/papers/2207.12598). `guidance_scale` is defined as `w` of equation 2.</span>
+<span class="sd">            of [Imagen Paper](https://huggingface.co/papers/2205.11487). Guidance scale is enabled by setting</span>
+<span class="sd">            `guidance_scale &gt; 1`. Higher guidance scale encourages to generate images that are closely linked to</span>
+<span class="sd">            the text `prompt`, usually at the expense of lower image quality.</span>
 <span class="sd">        negative_prompt (`str` or `List[str]`, *optional*):</span>
 <span class="sd">            The prompt or prompts not to guide the image generation. If not defined, one has to pass</span>
 <span class="sd">            `negative_prompt_embeds` instead. Ignored when not using guidance (i.e., ignored if `guidance_scale` is</span>
@@ -11121,8 +11121,8 @@ prompt.</p>
 <span class="sd">        width (`int`, *optional*, defaults to self.unet.config.sample_size):</span>
 <span class="sd">            The width in pixels of the generated image.</span>
 <span class="sd">        eta (`float`, *optional*, defaults to 0.0):</span>
-<span class="sd">            Corresponds to parameter eta (η) in the DDIM paper: https://arxiv.org/abs/2010.02502. Only applies to</span>
-<span class="sd">            [`schedulers.DDIMScheduler`], will be ignored for others.</span>
+<span class="sd">            Corresponds to parameter eta (η) in the DDIM paper: https://huggingface.co/papers/2010.02502. Only</span>
+<span class="sd">            applies to [`schedulers.DDIMScheduler`], will be ignored for others.</span>
 <span class="sd">        generator (`np.random.Generator` or `List[np.random.Generator]`, *optional*):</span>
 <span class="sd">            One or a list of [torch generator(s)](https://pytorch.org/docs/stable/generated/torch.Generator.html)</span>
 <span class="sd">            to make generation deterministic.</span>
@@ -11177,7 +11177,7 @@ prompt.</p>
         <span class="n">batch_size</span> <span class="o">=</span> <span class="n">prompt_embeds</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
 
     <span class="c1"># here `guidance_scale` is defined analog to the guidance weight `w` of equation (2)</span>
-    <span class="c1"># of the Imagen paper: https://arxiv.org/pdf/2205.11487.pdf . `guidance_scale = 1`</span>
+    <span class="c1"># of the Imagen paper: https://huggingface.co/papers/2205.11487 . `guidance_scale = 1`</span>
     <span class="c1"># corresponds to doing no classifier free guidance.</span>
     <span class="n">do_classifier_free_guidance</span> <span class="o">=</span> <span class="n">guidance_scale</span> <span class="o">&gt;</span> <span class="mf">1.0</span>
 
@@ -12730,7 +12730,7 @@ argument.</p>
         <span class="c1"># &amp;amp</span>
         <span class="n">caption</span> <span class="o">=</span> <span class="n">re</span><span class="o">.</span><span class="n">sub</span><span class="p">(</span><span class="sa">r</span><span class="s2">&quot;&amp;amp&quot;</span><span class="p">,</span> <span class="s2">&quot;&quot;</span><span class="p">,</span> <span class="n">caption</span><span class="p">)</span>
 
-        <span class="c1"># ip adresses:</span>
+        <span class="c1"># ip addresses:</span>
         <span class="n">caption</span> <span class="o">=</span> <span class="n">re</span><span class="o">.</span><span class="n">sub</span><span class="p">(</span><span class="sa">r</span><span class="s2">&quot;\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}&quot;</span><span class="p">,</span> <span class="s2">&quot; &quot;</span><span class="p">,</span> <span class="n">caption</span><span class="p">)</span>
 
         <span class="c1"># article ids:</span>
@@ -12956,7 +12956,7 @@ argument.</p>
     <span class="k">def</span><span class="w"> </span><span class="nf">prepare_extra_step_kwargs</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">generator</span><span class="p">,</span> <span class="n">eta</span><span class="p">):</span>
         <span class="c1"># prepare extra kwargs for the scheduler step, since not all schedulers have the same signature</span>
         <span class="c1"># eta (η) is only used with the DDIMScheduler, it will be ignored for other schedulers.</span>
-        <span class="c1"># eta corresponds to η in DDIM paper: https://arxiv.org/abs/2010.02502</span>
+        <span class="c1"># eta corresponds to η in DDIM paper: https://huggingface.co/papers/2010.02502</span>
         <span class="c1"># and should be between [0, 1]</span>
 
         <span class="n">accepts_eta</span> <span class="o">=</span> <span class="s2">&quot;eta&quot;</span> <span class="ow">in</span> <span class="nb">set</span><span class="p">(</span><span class="n">inspect</span><span class="o">.</span><span class="n">signature</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">scheduler</span><span class="o">.</span><span class="n">step</span><span class="p">)</span><span class="o">.</span><span class="n">parameters</span><span class="o">.</span><span class="n">keys</span><span class="p">())</span>
@@ -13138,11 +13138,11 @@ argument.</p>
 <span class="sd">                Custom timesteps to use for the denoising process. If not defined, equal spaced `num_inference_steps`</span>
 <span class="sd">                timesteps are used. Must be in descending order.</span>
 <span class="sd">            guidance_scale (`float`, *optional*, defaults to 4.0):</span>
-<span class="sd">                Guidance scale as defined in [Classifier-Free Diffusion Guidance](https://arxiv.org/abs/2207.12598).</span>
-<span class="sd">                `guidance_scale` is defined as `w` of equation 2. of [Imagen</span>
-<span class="sd">                Paper](https://arxiv.org/pdf/2205.11487.pdf). Guidance scale is enabled by setting `guidance_scale &gt;</span>
-<span class="sd">                1`. Higher guidance scale encourages to generate images that are closely linked to the text `prompt`,</span>
-<span class="sd">                usually at the expense of lower image quality.</span>
+<span class="sd">                Guidance scale as defined in [Classifier-Free Diffusion</span>
+<span class="sd">                Guidance](https://huggingface.co/papers/2207.12598). `guidance_scale` is defined as `w` of equation 2.</span>
+<span class="sd">                of [Imagen Paper](https://huggingface.co/papers/2205.11487). Guidance scale is enabled by setting</span>
+<span class="sd">                `guidance_scale &gt; 1`. Higher guidance scale encourages to generate images that are closely linked to</span>
+<span class="sd">                the text `prompt`, usually at the expense of lower image quality.</span>
 <span class="sd">            negative_prompt (`str` or `List[str]`, *optional*):</span>
 <span class="sd">                The prompt or prompts not to guide the image generation. If not defined, one has to pass</span>
 <span class="sd">                `negative_prompt_embeds` instead. Ignored when not using guidance (i.e., ignored if `guidance_scale` is</span>
@@ -13150,8 +13150,8 @@ argument.</p>
 <span class="sd">            num_images_per_prompt (`int`, *optional*, defaults to 1):</span>
 <span class="sd">                The number of images to generate per prompt.</span>
 <span class="sd">            eta (`float`, *optional*, defaults to 0.0):</span>
-<span class="sd">                Corresponds to parameter eta (η) in the DDIM paper: https://arxiv.org/abs/2010.02502. Only applies to</span>
-<span class="sd">                [`schedulers.DDIMScheduler`], will be ignored for others.</span>
+<span class="sd">                Corresponds to parameter eta (η) in the DDIM paper: https://huggingface.co/papers/2010.02502. Only</span>
+<span class="sd">                applies to [`schedulers.DDIMScheduler`], will be ignored for others.</span>
 <span class="sd">            generator (`np.random.Generator` or `List[np.random.Generator]`, *optional*):</span>
 <span class="sd">                One or a list of [torch generator(s)](https://pytorch.org/docs/stable/generated/torch.Generator.html)</span>
 <span class="sd">                to make generation deterministic.</span>
@@ -13219,7 +13219,7 @@ argument.</p>
         <span class="n">width</span> <span class="o">=</span> <span class="n">width</span> <span class="ow">or</span> <span class="bp">self</span><span class="o">.</span><span class="n">unet</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">sample_size</span>
 
         <span class="c1"># here `guidance_scale` is defined analog to the guidance weight `w` of equation (2)</span>
-        <span class="c1"># of the Imagen paper: https://arxiv.org/pdf/2205.11487.pdf . `guidance_scale = 1`</span>
+        <span class="c1"># of the Imagen paper: https://huggingface.co/papers/2205.11487 . `guidance_scale = 1`</span>
         <span class="c1"># corresponds to doing no classifier free guidance.</span>
         <span class="n">do_classifier_free_guidance</span> <span class="o">=</span> <span class="n">guidance_scale</span> <span class="o">&gt;</span> <span class="mf">1.0</span>
 
@@ -13512,11 +13512,11 @@ timesteps are used. Must be in descending order.</p>
             </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
-                <p>Guidance scale as defined in <a href="https://arxiv.org/abs/2207.12598">Classifier-Free Diffusion Guidance</a>.
-<code>guidance_scale</code> is defined as <code>w</code> of equation 2. of <a href="https://arxiv.org/pdf/2205.11487.pdf">Imagen
-Paper</a>. Guidance scale is enabled by setting <code>guidance_scale &gt;
-1</code>. Higher guidance scale encourages to generate images that are closely linked to the text <code>prompt</code>,
-usually at the expense of lower image quality.</p>
+                <p>Guidance scale as defined in <a href="https://huggingface.co/papers/2207.12598">Classifier-Free Diffusion
+Guidance</a>. <code>guidance_scale</code> is defined as <code>w</code> of equation 2.
+of <a href="https://huggingface.co/papers/2205.11487">Imagen Paper</a>. Guidance scale is enabled by setting
+<code>guidance_scale &gt; 1</code>. Higher guidance scale encourages to generate images that are closely linked to
+the text <code>prompt</code>, usually at the expense of lower image quality.</p>
               </div>
               <p>
                   <span class="doc-param-annotation">
@@ -13578,8 +13578,8 @@ less than <code>1</code>).</p>
             </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
-                <p>Corresponds to parameter eta (η) in the DDIM paper: https://arxiv.org/abs/2010.02502. Only applies to
-[<code>schedulers.DDIMScheduler</code>], will be ignored for others.</p>
+                <p>Corresponds to parameter eta (η) in the DDIM paper: https://huggingface.co/papers/2010.02502. Only
+applies to [<code>schedulers.DDIMScheduler</code>], will be ignored for others.</p>
               </div>
               <p>
                   <span class="doc-param-annotation">
@@ -14161,11 +14161,11 @@ prompt.</p>
 <span class="sd">            Custom timesteps to use for the denoising process. If not defined, equal spaced `num_inference_steps`</span>
 <span class="sd">            timesteps are used. Must be in descending order.</span>
 <span class="sd">        guidance_scale (`float`, *optional*, defaults to 4.0):</span>
-<span class="sd">            Guidance scale as defined in [Classifier-Free Diffusion Guidance](https://arxiv.org/abs/2207.12598).</span>
-<span class="sd">            `guidance_scale` is defined as `w` of equation 2. of [Imagen</span>
-<span class="sd">            Paper](https://arxiv.org/pdf/2205.11487.pdf). Guidance scale is enabled by setting `guidance_scale &gt;</span>
-<span class="sd">            1`. Higher guidance scale encourages to generate images that are closely linked to the text `prompt`,</span>
-<span class="sd">            usually at the expense of lower image quality.</span>
+<span class="sd">            Guidance scale as defined in [Classifier-Free Diffusion</span>
+<span class="sd">            Guidance](https://huggingface.co/papers/2207.12598). `guidance_scale` is defined as `w` of equation 2.</span>
+<span class="sd">            of [Imagen Paper](https://huggingface.co/papers/2205.11487). Guidance scale is enabled by setting</span>
+<span class="sd">            `guidance_scale &gt; 1`. Higher guidance scale encourages to generate images that are closely linked to</span>
+<span class="sd">            the text `prompt`, usually at the expense of lower image quality.</span>
 <span class="sd">        negative_prompt (`str` or `List[str]`, *optional*):</span>
 <span class="sd">            The prompt or prompts not to guide the image generation. If not defined, one has to pass</span>
 <span class="sd">            `negative_prompt_embeds` instead. Ignored when not using guidance (i.e., ignored if `guidance_scale` is</span>
@@ -14173,8 +14173,8 @@ prompt.</p>
 <span class="sd">        num_images_per_prompt (`int`, *optional*, defaults to 1):</span>
 <span class="sd">            The number of images to generate per prompt.</span>
 <span class="sd">        eta (`float`, *optional*, defaults to 0.0):</span>
-<span class="sd">            Corresponds to parameter eta (η) in the DDIM paper: https://arxiv.org/abs/2010.02502. Only applies to</span>
-<span class="sd">            [`schedulers.DDIMScheduler`], will be ignored for others.</span>
+<span class="sd">            Corresponds to parameter eta (η) in the DDIM paper: https://huggingface.co/papers/2010.02502. Only</span>
+<span class="sd">            applies to [`schedulers.DDIMScheduler`], will be ignored for others.</span>
 <span class="sd">        generator (`np.random.Generator` or `List[np.random.Generator]`, *optional*):</span>
 <span class="sd">            One or a list of [torch generator(s)](https://pytorch.org/docs/stable/generated/torch.Generator.html)</span>
 <span class="sd">            to make generation deterministic.</span>
@@ -14242,7 +14242,7 @@ prompt.</p>
     <span class="n">width</span> <span class="o">=</span> <span class="n">width</span> <span class="ow">or</span> <span class="bp">self</span><span class="o">.</span><span class="n">unet</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">sample_size</span>
 
     <span class="c1"># here `guidance_scale` is defined analog to the guidance weight `w` of equation (2)</span>
-    <span class="c1"># of the Imagen paper: https://arxiv.org/pdf/2205.11487.pdf . `guidance_scale = 1`</span>
+    <span class="c1"># of the Imagen paper: https://huggingface.co/papers/2205.11487 . `guidance_scale = 1`</span>
     <span class="c1"># corresponds to doing no classifier free guidance.</span>
     <span class="n">do_classifier_free_guidance</span> <span class="o">=</span> <span class="n">guidance_scale</span> <span class="o">&gt;</span> <span class="mf">1.0</span>
 
@@ -15870,7 +15870,7 @@ argument.</p>
     <span class="k">def</span><span class="w"> </span><span class="nf">prepare_extra_step_kwargs</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">generator</span><span class="p">,</span> <span class="n">eta</span><span class="p">):</span>
         <span class="c1"># prepare extra kwargs for the scheduler step, since not all schedulers have the same signature</span>
         <span class="c1"># eta (η) is only used with the DDIMScheduler, it will be ignored for other schedulers.</span>
-        <span class="c1"># eta corresponds to η in DDIM paper: https://arxiv.org/abs/2010.02502</span>
+        <span class="c1"># eta corresponds to η in DDIM paper: https://huggingface.co/papers/2010.02502</span>
         <span class="c1"># and should be between [0, 1]</span>
 
         <span class="n">accepts_eta</span> <span class="o">=</span> <span class="s2">&quot;eta&quot;</span> <span class="ow">in</span> <span class="nb">set</span><span class="p">(</span><span class="n">inspect</span><span class="o">.</span><span class="n">signature</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">scheduler</span><span class="o">.</span><span class="n">step</span><span class="p">)</span><span class="o">.</span><span class="n">parameters</span><span class="o">.</span><span class="n">keys</span><span class="p">())</span>
@@ -16037,7 +16037,7 @@ argument.</p>
         <span class="c1"># &amp;amp</span>
         <span class="n">caption</span> <span class="o">=</span> <span class="n">re</span><span class="o">.</span><span class="n">sub</span><span class="p">(</span><span class="sa">r</span><span class="s2">&quot;&amp;amp&quot;</span><span class="p">,</span> <span class="s2">&quot;&quot;</span><span class="p">,</span> <span class="n">caption</span><span class="p">)</span>
 
-        <span class="c1"># ip adresses:</span>
+        <span class="c1"># ip addresses:</span>
         <span class="n">caption</span> <span class="o">=</span> <span class="n">re</span><span class="o">.</span><span class="n">sub</span><span class="p">(</span><span class="sa">r</span><span class="s2">&quot;\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}&quot;</span><span class="p">,</span> <span class="s2">&quot; &quot;</span><span class="p">,</span> <span class="n">caption</span><span class="p">)</span>
 
         <span class="c1"># article ids:</span>
@@ -16211,11 +16211,11 @@ argument.</p>
 <span class="sd">                Custom timesteps to use for the denoising process. If not defined, equal spaced `num_inference_steps`</span>
 <span class="sd">                timesteps are used. Must be in descending order.</span>
 <span class="sd">            guidance_scale (`float`, *optional*, defaults to 10.0):</span>
-<span class="sd">                Guidance scale as defined in [Classifier-Free Diffusion Guidance](https://arxiv.org/abs/2207.12598).</span>
-<span class="sd">                `guidance_scale` is defined as `w` of equation 2. of [Imagen</span>
-<span class="sd">                Paper](https://arxiv.org/pdf/2205.11487.pdf). Guidance scale is enabled by setting `guidance_scale &gt;</span>
-<span class="sd">                1`. Higher guidance scale encourages to generate images that are closely linked to the text `prompt`,</span>
-<span class="sd">                usually at the expense of lower image quality.</span>
+<span class="sd">                Guidance scale as defined in [Classifier-Free Diffusion</span>
+<span class="sd">                Guidance](https://huggingface.co/papers/2207.12598). `guidance_scale` is defined as `w` of equation 2.</span>
+<span class="sd">                of [Imagen Paper](https://huggingface.co/papers/2205.11487). Guidance scale is enabled by setting</span>
+<span class="sd">                `guidance_scale &gt; 1`. Higher guidance scale encourages to generate images that are closely linked to</span>
+<span class="sd">                the text `prompt`, usually at the expense of lower image quality.</span>
 <span class="sd">            negative_prompt (`str` or `List[str]`, *optional*):</span>
 <span class="sd">                The prompt or prompts not to guide the image generation. If not defined, one has to pass</span>
 <span class="sd">                `negative_prompt_embeds` instead. Ignored when not using guidance (i.e., ignored if `guidance_scale` is</span>
@@ -16223,8 +16223,8 @@ argument.</p>
 <span class="sd">            num_images_per_prompt (`int`, *optional*, defaults to 1):</span>
 <span class="sd">                The number of images to generate per prompt.</span>
 <span class="sd">            eta (`float`, *optional*, defaults to 0.0):</span>
-<span class="sd">                Corresponds to parameter eta (η) in the DDIM paper: https://arxiv.org/abs/2010.02502. Only applies to</span>
-<span class="sd">                [`schedulers.DDIMScheduler`], will be ignored for others.</span>
+<span class="sd">                Corresponds to parameter eta (η) in the DDIM paper: https://huggingface.co/papers/2010.02502. Only</span>
+<span class="sd">                applies to [`schedulers.DDIMScheduler`], will be ignored for others.</span>
 <span class="sd">            generator (`np.random.Generator` or `List[np.random.Generator]`, *optional*):</span>
 <span class="sd">                One or a list of [torch generator(s)](https://pytorch.org/docs/stable/generated/torch.Generator.html)</span>
 <span class="sd">                to make generation deterministic.</span>
@@ -16278,7 +16278,7 @@ argument.</p>
 
         <span class="c1"># 2. Define call parameters</span>
         <span class="c1"># here `guidance_scale` is defined analog to the guidance weight `w` of equation (2)</span>
-        <span class="c1"># of the Imagen paper: https://arxiv.org/pdf/2205.11487.pdf . `guidance_scale = 1`</span>
+        <span class="c1"># of the Imagen paper: https://huggingface.co/papers/2205.11487 . `guidance_scale = 1`</span>
         <span class="c1"># corresponds to doing no classifier free guidance.</span>
         <span class="n">do_classifier_free_guidance</span> <span class="o">=</span> <span class="n">guidance_scale</span> <span class="o">&gt;</span> <span class="mf">1.0</span>
 
@@ -16545,11 +16545,11 @@ timesteps are used. Must be in descending order.</p>
             </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
-                <p>Guidance scale as defined in <a href="https://arxiv.org/abs/2207.12598">Classifier-Free Diffusion Guidance</a>.
-<code>guidance_scale</code> is defined as <code>w</code> of equation 2. of <a href="https://arxiv.org/pdf/2205.11487.pdf">Imagen
-Paper</a>. Guidance scale is enabled by setting <code>guidance_scale &gt;
-1</code>. Higher guidance scale encourages to generate images that are closely linked to the text <code>prompt</code>,
-usually at the expense of lower image quality.</p>
+                <p>Guidance scale as defined in <a href="https://huggingface.co/papers/2207.12598">Classifier-Free Diffusion
+Guidance</a>. <code>guidance_scale</code> is defined as <code>w</code> of equation 2.
+of <a href="https://huggingface.co/papers/2205.11487">Imagen Paper</a>. Guidance scale is enabled by setting
+<code>guidance_scale &gt; 1</code>. Higher guidance scale encourages to generate images that are closely linked to
+the text <code>prompt</code>, usually at the expense of lower image quality.</p>
               </div>
               <p>
                   <span class="doc-param-annotation">
@@ -16611,8 +16611,8 @@ less than <code>1</code>).</p>
             </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
-                <p>Corresponds to parameter eta (η) in the DDIM paper: https://arxiv.org/abs/2010.02502. Only applies to
-[<code>schedulers.DDIMScheduler</code>], will be ignored for others.</p>
+                <p>Corresponds to parameter eta (η) in the DDIM paper: https://huggingface.co/papers/2010.02502. Only
+applies to [<code>schedulers.DDIMScheduler</code>], will be ignored for others.</p>
               </div>
               <p>
                   <span class="doc-param-annotation">
@@ -17155,11 +17155,11 @@ prompt.</p>
 <span class="sd">            Custom timesteps to use for the denoising process. If not defined, equal spaced `num_inference_steps`</span>
 <span class="sd">            timesteps are used. Must be in descending order.</span>
 <span class="sd">        guidance_scale (`float`, *optional*, defaults to 10.0):</span>
-<span class="sd">            Guidance scale as defined in [Classifier-Free Diffusion Guidance](https://arxiv.org/abs/2207.12598).</span>
-<span class="sd">            `guidance_scale` is defined as `w` of equation 2. of [Imagen</span>
-<span class="sd">            Paper](https://arxiv.org/pdf/2205.11487.pdf). Guidance scale is enabled by setting `guidance_scale &gt;</span>
-<span class="sd">            1`. Higher guidance scale encourages to generate images that are closely linked to the text `prompt`,</span>
-<span class="sd">            usually at the expense of lower image quality.</span>
+<span class="sd">            Guidance scale as defined in [Classifier-Free Diffusion</span>
+<span class="sd">            Guidance](https://huggingface.co/papers/2207.12598). `guidance_scale` is defined as `w` of equation 2.</span>
+<span class="sd">            of [Imagen Paper](https://huggingface.co/papers/2205.11487). Guidance scale is enabled by setting</span>
+<span class="sd">            `guidance_scale &gt; 1`. Higher guidance scale encourages to generate images that are closely linked to</span>
+<span class="sd">            the text `prompt`, usually at the expense of lower image quality.</span>
 <span class="sd">        negative_prompt (`str` or `List[str]`, *optional*):</span>
 <span class="sd">            The prompt or prompts not to guide the image generation. If not defined, one has to pass</span>
 <span class="sd">            `negative_prompt_embeds` instead. Ignored when not using guidance (i.e., ignored if `guidance_scale` is</span>
@@ -17167,8 +17167,8 @@ prompt.</p>
 <span class="sd">        num_images_per_prompt (`int`, *optional*, defaults to 1):</span>
 <span class="sd">            The number of images to generate per prompt.</span>
 <span class="sd">        eta (`float`, *optional*, defaults to 0.0):</span>
-<span class="sd">            Corresponds to parameter eta (η) in the DDIM paper: https://arxiv.org/abs/2010.02502. Only applies to</span>
-<span class="sd">            [`schedulers.DDIMScheduler`], will be ignored for others.</span>
+<span class="sd">            Corresponds to parameter eta (η) in the DDIM paper: https://huggingface.co/papers/2010.02502. Only</span>
+<span class="sd">            applies to [`schedulers.DDIMScheduler`], will be ignored for others.</span>
 <span class="sd">        generator (`np.random.Generator` or `List[np.random.Generator]`, *optional*):</span>
 <span class="sd">            One or a list of [torch generator(s)](https://pytorch.org/docs/stable/generated/torch.Generator.html)</span>
 <span class="sd">            to make generation deterministic.</span>
@@ -17222,7 +17222,7 @@ prompt.</p>
 
     <span class="c1"># 2. Define call parameters</span>
     <span class="c1"># here `guidance_scale` is defined analog to the guidance weight `w` of equation (2)</span>
-    <span class="c1"># of the Imagen paper: https://arxiv.org/pdf/2205.11487.pdf . `guidance_scale = 1`</span>
+    <span class="c1"># of the Imagen paper: https://huggingface.co/papers/2205.11487 . `guidance_scale = 1`</span>
     <span class="c1"># corresponds to doing no classifier free guidance.</span>
     <span class="n">do_classifier_free_guidance</span> <span class="o">=</span> <span class="n">guidance_scale</span> <span class="o">&gt;</span> <span class="mf">1.0</span>
 
@@ -18877,7 +18877,7 @@ argument.</p>
         <span class="c1"># &amp;amp</span>
         <span class="n">caption</span> <span class="o">=</span> <span class="n">re</span><span class="o">.</span><span class="n">sub</span><span class="p">(</span><span class="sa">r</span><span class="s2">&quot;&amp;amp&quot;</span><span class="p">,</span> <span class="s2">&quot;&quot;</span><span class="p">,</span> <span class="n">caption</span><span class="p">)</span>
 
-        <span class="c1"># ip adresses:</span>
+        <span class="c1"># ip addresses:</span>
         <span class="n">caption</span> <span class="o">=</span> <span class="n">re</span><span class="o">.</span><span class="n">sub</span><span class="p">(</span><span class="sa">r</span><span class="s2">&quot;\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}&quot;</span><span class="p">,</span> <span class="s2">&quot; &quot;</span><span class="p">,</span> <span class="n">caption</span><span class="p">)</span>
 
         <span class="c1"># article ids:</span>
@@ -19103,7 +19103,7 @@ argument.</p>
     <span class="k">def</span><span class="w"> </span><span class="nf">prepare_extra_step_kwargs</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">generator</span><span class="p">,</span> <span class="n">eta</span><span class="p">):</span>
         <span class="c1"># prepare extra kwargs for the scheduler step, since not all schedulers have the same signature</span>
         <span class="c1"># eta (η) is only used with the DDIMScheduler, it will be ignored for other schedulers.</span>
-        <span class="c1"># eta corresponds to η in DDIM paper: https://arxiv.org/abs/2010.02502</span>
+        <span class="c1"># eta corresponds to η in DDIM paper: https://huggingface.co/papers/2010.02502</span>
         <span class="c1"># and should be between [0, 1]</span>
 
         <span class="n">accepts_eta</span> <span class="o">=</span> <span class="s2">&quot;eta&quot;</span> <span class="ow">in</span> <span class="nb">set</span><span class="p">(</span><span class="n">inspect</span><span class="o">.</span><span class="n">signature</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">scheduler</span><span class="o">.</span><span class="n">step</span><span class="p">)</span><span class="o">.</span><span class="n">parameters</span><span class="o">.</span><span class="n">keys</span><span class="p">())</span>
@@ -19378,11 +19378,11 @@ argument.</p>
 <span class="sd">                Custom timesteps to use for the denoising process. If not defined, equal spaced `num_inference_steps`</span>
 <span class="sd">                timesteps are used. Must be in descending order.</span>
 <span class="sd">            guidance_scale (`float`, *optional*, defaults to 4.0):</span>
-<span class="sd">                Guidance scale as defined in [Classifier-Free Diffusion Guidance](https://arxiv.org/abs/2207.12598).</span>
-<span class="sd">                `guidance_scale` is defined as `w` of equation 2. of [Imagen</span>
-<span class="sd">                Paper](https://arxiv.org/pdf/2205.11487.pdf). Guidance scale is enabled by setting `guidance_scale &gt;</span>
-<span class="sd">                1`. Higher guidance scale encourages to generate images that are closely linked to the text `prompt`,</span>
-<span class="sd">                usually at the expense of lower image quality.</span>
+<span class="sd">                Guidance scale as defined in [Classifier-Free Diffusion</span>
+<span class="sd">                Guidance](https://huggingface.co/papers/2207.12598). `guidance_scale` is defined as `w` of equation 2.</span>
+<span class="sd">                of [Imagen Paper](https://huggingface.co/papers/2205.11487). Guidance scale is enabled by setting</span>
+<span class="sd">                `guidance_scale &gt; 1`. Higher guidance scale encourages to generate images that are closely linked to</span>
+<span class="sd">                the text `prompt`, usually at the expense of lower image quality.</span>
 <span class="sd">            negative_prompt (`str` or `List[str]`, *optional*):</span>
 <span class="sd">                The prompt or prompts not to guide the image generation. If not defined, one has to pass</span>
 <span class="sd">                `negative_prompt_embeds` instead. Ignored when not using guidance (i.e., ignored if `guidance_scale` is</span>
@@ -19390,8 +19390,8 @@ argument.</p>
 <span class="sd">            num_images_per_prompt (`int`, *optional*, defaults to 1):</span>
 <span class="sd">                The number of images to generate per prompt.</span>
 <span class="sd">            eta (`float`, *optional*, defaults to 0.0):</span>
-<span class="sd">                Corresponds to parameter eta (η) in the DDIM paper: https://arxiv.org/abs/2010.02502. Only applies to</span>
-<span class="sd">                [`schedulers.DDIMScheduler`], will be ignored for others.</span>
+<span class="sd">                Corresponds to parameter eta (η) in the DDIM paper: https://huggingface.co/papers/2010.02502. Only</span>
+<span class="sd">                applies to [`schedulers.DDIMScheduler`], will be ignored for others.</span>
 <span class="sd">            generator (`np.random.Generator` or `List[np.random.Generator]`, *optional*):</span>
 <span class="sd">                One or a list of [torch generator(s)](https://pytorch.org/docs/stable/generated/torch.Generator.html)</span>
 <span class="sd">                to make generation deterministic.</span>
@@ -19455,7 +19455,7 @@ argument.</p>
         <span class="c1"># 2. Define call parameters</span>
 
         <span class="c1"># here `guidance_scale` is defined analog to the guidance weight `w` of equation (2)</span>
-        <span class="c1"># of the Imagen paper: https://arxiv.org/pdf/2205.11487.pdf . `guidance_scale = 1`</span>
+        <span class="c1"># of the Imagen paper: https://huggingface.co/papers/2205.11487 . `guidance_scale = 1`</span>
         <span class="c1"># corresponds to doing no classifier free guidance.</span>
         <span class="n">do_classifier_free_guidance</span> <span class="o">=</span> <span class="n">guidance_scale</span> <span class="o">&gt;</span> <span class="mf">1.0</span>
 
@@ -19760,11 +19760,11 @@ timesteps are used. Must be in descending order.</p>
             </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
-                <p>Guidance scale as defined in <a href="https://arxiv.org/abs/2207.12598">Classifier-Free Diffusion Guidance</a>.
-<code>guidance_scale</code> is defined as <code>w</code> of equation 2. of <a href="https://arxiv.org/pdf/2205.11487.pdf">Imagen
-Paper</a>. Guidance scale is enabled by setting <code>guidance_scale &gt;
-1</code>. Higher guidance scale encourages to generate images that are closely linked to the text <code>prompt</code>,
-usually at the expense of lower image quality.</p>
+                <p>Guidance scale as defined in <a href="https://huggingface.co/papers/2207.12598">Classifier-Free Diffusion
+Guidance</a>. <code>guidance_scale</code> is defined as <code>w</code> of equation 2.
+of <a href="https://huggingface.co/papers/2205.11487">Imagen Paper</a>. Guidance scale is enabled by setting
+<code>guidance_scale &gt; 1</code>. Higher guidance scale encourages to generate images that are closely linked to
+the text <code>prompt</code>, usually at the expense of lower image quality.</p>
               </div>
               <p>
                   <span class="doc-param-annotation">
@@ -19826,8 +19826,8 @@ less than <code>1</code>).</p>
             </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
-                <p>Corresponds to parameter eta (η) in the DDIM paper: https://arxiv.org/abs/2010.02502. Only applies to
-[<code>schedulers.DDIMScheduler</code>], will be ignored for others.</p>
+                <p>Corresponds to parameter eta (η) in the DDIM paper: https://huggingface.co/papers/2010.02502. Only
+applies to [<code>schedulers.DDIMScheduler</code>], will be ignored for others.</p>
               </div>
               <p>
                   <span class="doc-param-annotation">
@@ -20430,11 +20430,11 @@ prompt.</p>
 <span class="sd">            Custom timesteps to use for the denoising process. If not defined, equal spaced `num_inference_steps`</span>
 <span class="sd">            timesteps are used. Must be in descending order.</span>
 <span class="sd">        guidance_scale (`float`, *optional*, defaults to 4.0):</span>
-<span class="sd">            Guidance scale as defined in [Classifier-Free Diffusion Guidance](https://arxiv.org/abs/2207.12598).</span>
-<span class="sd">            `guidance_scale` is defined as `w` of equation 2. of [Imagen</span>
-<span class="sd">            Paper](https://arxiv.org/pdf/2205.11487.pdf). Guidance scale is enabled by setting `guidance_scale &gt;</span>
-<span class="sd">            1`. Higher guidance scale encourages to generate images that are closely linked to the text `prompt`,</span>
-<span class="sd">            usually at the expense of lower image quality.</span>
+<span class="sd">            Guidance scale as defined in [Classifier-Free Diffusion</span>
+<span class="sd">            Guidance](https://huggingface.co/papers/2207.12598). `guidance_scale` is defined as `w` of equation 2.</span>
+<span class="sd">            of [Imagen Paper](https://huggingface.co/papers/2205.11487). Guidance scale is enabled by setting</span>
+<span class="sd">            `guidance_scale &gt; 1`. Higher guidance scale encourages to generate images that are closely linked to</span>
+<span class="sd">            the text `prompt`, usually at the expense of lower image quality.</span>
 <span class="sd">        negative_prompt (`str` or `List[str]`, *optional*):</span>
 <span class="sd">            The prompt or prompts not to guide the image generation. If not defined, one has to pass</span>
 <span class="sd">            `negative_prompt_embeds` instead. Ignored when not using guidance (i.e., ignored if `guidance_scale` is</span>
@@ -20442,8 +20442,8 @@ prompt.</p>
 <span class="sd">        num_images_per_prompt (`int`, *optional*, defaults to 1):</span>
 <span class="sd">            The number of images to generate per prompt.</span>
 <span class="sd">        eta (`float`, *optional*, defaults to 0.0):</span>
-<span class="sd">            Corresponds to parameter eta (η) in the DDIM paper: https://arxiv.org/abs/2010.02502. Only applies to</span>
-<span class="sd">            [`schedulers.DDIMScheduler`], will be ignored for others.</span>
+<span class="sd">            Corresponds to parameter eta (η) in the DDIM paper: https://huggingface.co/papers/2010.02502. Only</span>
+<span class="sd">            applies to [`schedulers.DDIMScheduler`], will be ignored for others.</span>
 <span class="sd">        generator (`np.random.Generator` or `List[np.random.Generator]`, *optional*):</span>
 <span class="sd">            One or a list of [torch generator(s)](https://pytorch.org/docs/stable/generated/torch.Generator.html)</span>
 <span class="sd">            to make generation deterministic.</span>
@@ -20507,7 +20507,7 @@ prompt.</p>
     <span class="c1"># 2. Define call parameters</span>
 
     <span class="c1"># here `guidance_scale` is defined analog to the guidance weight `w` of equation (2)</span>
-    <span class="c1"># of the Imagen paper: https://arxiv.org/pdf/2205.11487.pdf . `guidance_scale = 1`</span>
+    <span class="c1"># of the Imagen paper: https://huggingface.co/papers/2205.11487 . `guidance_scale = 1`</span>
     <span class="c1"># corresponds to doing no classifier free guidance.</span>
     <span class="n">do_classifier_free_guidance</span> <span class="o">=</span> <span class="n">guidance_scale</span> <span class="o">&gt;</span> <span class="mf">1.0</span>
 
@@ -22266,7 +22266,7 @@ argument.</p>
     <span class="k">def</span><span class="w"> </span><span class="nf">prepare_extra_step_kwargs</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">generator</span><span class="p">,</span> <span class="n">eta</span><span class="p">):</span>
         <span class="c1"># prepare extra kwargs for the scheduler step, since not all schedulers have the same signature</span>
         <span class="c1"># eta (η) is only used with the DDIMScheduler, it will be ignored for other schedulers.</span>
-        <span class="c1"># eta corresponds to η in DDIM paper: https://arxiv.org/abs/2010.02502</span>
+        <span class="c1"># eta corresponds to η in DDIM paper: https://huggingface.co/papers/2010.02502</span>
         <span class="c1"># and should be between [0, 1]</span>
 
         <span class="n">accepts_eta</span> <span class="o">=</span> <span class="s2">&quot;eta&quot;</span> <span class="ow">in</span> <span class="nb">set</span><span class="p">(</span><span class="n">inspect</span><span class="o">.</span><span class="n">signature</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">scheduler</span><span class="o">.</span><span class="n">step</span><span class="p">)</span><span class="o">.</span><span class="n">parameters</span><span class="o">.</span><span class="n">keys</span><span class="p">())</span>
@@ -22469,7 +22469,7 @@ argument.</p>
         <span class="c1"># &amp;amp</span>
         <span class="n">caption</span> <span class="o">=</span> <span class="n">re</span><span class="o">.</span><span class="n">sub</span><span class="p">(</span><span class="sa">r</span><span class="s2">&quot;&amp;amp&quot;</span><span class="p">,</span> <span class="s2">&quot;&quot;</span><span class="p">,</span> <span class="n">caption</span><span class="p">)</span>
 
-        <span class="c1"># ip adresses:</span>
+        <span class="c1"># ip addresses:</span>
         <span class="n">caption</span> <span class="o">=</span> <span class="n">re</span><span class="o">.</span><span class="n">sub</span><span class="p">(</span><span class="sa">r</span><span class="s2">&quot;\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}&quot;</span><span class="p">,</span> <span class="s2">&quot; &quot;</span><span class="p">,</span> <span class="n">caption</span><span class="p">)</span>
 
         <span class="c1"># article ids:</span>
@@ -22705,11 +22705,11 @@ argument.</p>
 <span class="sd">                Custom timesteps to use for the denoising process. If not defined, equal spaced `num_inference_steps`</span>
 <span class="sd">                timesteps are used. Must be in descending order.</span>
 <span class="sd">            guidance_scale (`float`, *optional*, defaults to 7.0):</span>
-<span class="sd">                Guidance scale as defined in [Classifier-Free Diffusion Guidance](https://arxiv.org/abs/2207.12598).</span>
-<span class="sd">                `guidance_scale` is defined as `w` of equation 2. of [Imagen</span>
-<span class="sd">                Paper](https://arxiv.org/pdf/2205.11487.pdf). Guidance scale is enabled by setting `guidance_scale &gt;</span>
-<span class="sd">                1`. Higher guidance scale encourages to generate images that are closely linked to the text `prompt`,</span>
-<span class="sd">                usually at the expense of lower image quality.</span>
+<span class="sd">                Guidance scale as defined in [Classifier-Free Diffusion</span>
+<span class="sd">                Guidance](https://huggingface.co/papers/2207.12598). `guidance_scale` is defined as `w` of equation 2.</span>
+<span class="sd">                of [Imagen Paper](https://huggingface.co/papers/2205.11487). Guidance scale is enabled by setting</span>
+<span class="sd">                `guidance_scale &gt; 1`. Higher guidance scale encourages to generate images that are closely linked to</span>
+<span class="sd">                the text `prompt`, usually at the expense of lower image quality.</span>
 <span class="sd">            negative_prompt (`str` or `List[str]`, *optional*):</span>
 <span class="sd">                The prompt or prompts not to guide the image generation. If not defined, one has to pass</span>
 <span class="sd">                `negative_prompt_embeds` instead. Ignored when not using guidance (i.e., ignored if `guidance_scale` is</span>
@@ -22717,8 +22717,8 @@ argument.</p>
 <span class="sd">            num_images_per_prompt (`int`, *optional*, defaults to 1):</span>
 <span class="sd">                The number of images to generate per prompt.</span>
 <span class="sd">            eta (`float`, *optional*, defaults to 0.0):</span>
-<span class="sd">                Corresponds to parameter eta (η) in the DDIM paper: https://arxiv.org/abs/2010.02502. Only applies to</span>
-<span class="sd">                [`schedulers.DDIMScheduler`], will be ignored for others.</span>
+<span class="sd">                Corresponds to parameter eta (η) in the DDIM paper: https://huggingface.co/papers/2010.02502. Only</span>
+<span class="sd">                applies to [`schedulers.DDIMScheduler`], will be ignored for others.</span>
 <span class="sd">            generator (`np.random.Generator` or `List[np.random.Generator]`, *optional*):</span>
 <span class="sd">                One or a list of [torch generator(s)](https://pytorch.org/docs/stable/generated/torch.Generator.html)</span>
 <span class="sd">                to make generation deterministic.</span>
@@ -22780,7 +22780,7 @@ argument.</p>
         <span class="c1"># 2. Define call parameters</span>
 
         <span class="c1"># here `guidance_scale` is defined analog to the guidance weight `w` of equation (2)</span>
-        <span class="c1"># of the Imagen paper: https://arxiv.org/pdf/2205.11487.pdf . `guidance_scale = 1`</span>
+        <span class="c1"># of the Imagen paper: https://huggingface.co/papers/2205.11487 . `guidance_scale = 1`</span>
         <span class="c1"># corresponds to doing no classifier free guidance.</span>
         <span class="n">do_classifier_free_guidance</span> <span class="o">=</span> <span class="n">guidance_scale</span> <span class="o">&gt;</span> <span class="mf">1.0</span>
 
@@ -23082,11 +23082,11 @@ timesteps are used. Must be in descending order.</p>
             </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
-                <p>Guidance scale as defined in <a href="https://arxiv.org/abs/2207.12598">Classifier-Free Diffusion Guidance</a>.
-<code>guidance_scale</code> is defined as <code>w</code> of equation 2. of <a href="https://arxiv.org/pdf/2205.11487.pdf">Imagen
-Paper</a>. Guidance scale is enabled by setting <code>guidance_scale &gt;
-1</code>. Higher guidance scale encourages to generate images that are closely linked to the text <code>prompt</code>,
-usually at the expense of lower image quality.</p>
+                <p>Guidance scale as defined in <a href="https://huggingface.co/papers/2207.12598">Classifier-Free Diffusion
+Guidance</a>. <code>guidance_scale</code> is defined as <code>w</code> of equation 2.
+of <a href="https://huggingface.co/papers/2205.11487">Imagen Paper</a>. Guidance scale is enabled by setting
+<code>guidance_scale &gt; 1</code>. Higher guidance scale encourages to generate images that are closely linked to
+the text <code>prompt</code>, usually at the expense of lower image quality.</p>
               </div>
               <p>
                   <span class="doc-param-annotation">
@@ -23148,8 +23148,8 @@ less than <code>1</code>).</p>
             </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
-                <p>Corresponds to parameter eta (η) in the DDIM paper: https://arxiv.org/abs/2010.02502. Only applies to
-[<code>schedulers.DDIMScheduler</code>], will be ignored for others.</p>
+                <p>Corresponds to parameter eta (η) in the DDIM paper: https://huggingface.co/papers/2010.02502. Only
+applies to [<code>schedulers.DDIMScheduler</code>], will be ignored for others.</p>
               </div>
               <p>
                   <span class="doc-param-annotation">
@@ -23728,11 +23728,11 @@ prompt.</p>
 <span class="sd">            Custom timesteps to use for the denoising process. If not defined, equal spaced `num_inference_steps`</span>
 <span class="sd">            timesteps are used. Must be in descending order.</span>
 <span class="sd">        guidance_scale (`float`, *optional*, defaults to 7.0):</span>
-<span class="sd">            Guidance scale as defined in [Classifier-Free Diffusion Guidance](https://arxiv.org/abs/2207.12598).</span>
-<span class="sd">            `guidance_scale` is defined as `w` of equation 2. of [Imagen</span>
-<span class="sd">            Paper](https://arxiv.org/pdf/2205.11487.pdf). Guidance scale is enabled by setting `guidance_scale &gt;</span>
-<span class="sd">            1`. Higher guidance scale encourages to generate images that are closely linked to the text `prompt`,</span>
-<span class="sd">            usually at the expense of lower image quality.</span>
+<span class="sd">            Guidance scale as defined in [Classifier-Free Diffusion</span>
+<span class="sd">            Guidance](https://huggingface.co/papers/2207.12598). `guidance_scale` is defined as `w` of equation 2.</span>
+<span class="sd">            of [Imagen Paper](https://huggingface.co/papers/2205.11487). Guidance scale is enabled by setting</span>
+<span class="sd">            `guidance_scale &gt; 1`. Higher guidance scale encourages to generate images that are closely linked to</span>
+<span class="sd">            the text `prompt`, usually at the expense of lower image quality.</span>
 <span class="sd">        negative_prompt (`str` or `List[str]`, *optional*):</span>
 <span class="sd">            The prompt or prompts not to guide the image generation. If not defined, one has to pass</span>
 <span class="sd">            `negative_prompt_embeds` instead. Ignored when not using guidance (i.e., ignored if `guidance_scale` is</span>
@@ -23740,8 +23740,8 @@ prompt.</p>
 <span class="sd">        num_images_per_prompt (`int`, *optional*, defaults to 1):</span>
 <span class="sd">            The number of images to generate per prompt.</span>
 <span class="sd">        eta (`float`, *optional*, defaults to 0.0):</span>
-<span class="sd">            Corresponds to parameter eta (η) in the DDIM paper: https://arxiv.org/abs/2010.02502. Only applies to</span>
-<span class="sd">            [`schedulers.DDIMScheduler`], will be ignored for others.</span>
+<span class="sd">            Corresponds to parameter eta (η) in the DDIM paper: https://huggingface.co/papers/2010.02502. Only</span>
+<span class="sd">            applies to [`schedulers.DDIMScheduler`], will be ignored for others.</span>
 <span class="sd">        generator (`np.random.Generator` or `List[np.random.Generator]`, *optional*):</span>
 <span class="sd">            One or a list of [torch generator(s)](https://pytorch.org/docs/stable/generated/torch.Generator.html)</span>
 <span class="sd">            to make generation deterministic.</span>
@@ -23803,7 +23803,7 @@ prompt.</p>
     <span class="c1"># 2. Define call parameters</span>
 
     <span class="c1"># here `guidance_scale` is defined analog to the guidance weight `w` of equation (2)</span>
-    <span class="c1"># of the Imagen paper: https://arxiv.org/pdf/2205.11487.pdf . `guidance_scale = 1`</span>
+    <span class="c1"># of the Imagen paper: https://huggingface.co/papers/2205.11487 . `guidance_scale = 1`</span>
     <span class="c1"># corresponds to doing no classifier free guidance.</span>
     <span class="n">do_classifier_free_guidance</span> <span class="o">=</span> <span class="n">guidance_scale</span> <span class="o">&gt;</span> <span class="mf">1.0</span>
 
@@ -25581,7 +25581,7 @@ argument.</p>
         <span class="c1"># &amp;amp</span>
         <span class="n">caption</span> <span class="o">=</span> <span class="n">re</span><span class="o">.</span><span class="n">sub</span><span class="p">(</span><span class="sa">r</span><span class="s2">&quot;&amp;amp&quot;</span><span class="p">,</span> <span class="s2">&quot;&quot;</span><span class="p">,</span> <span class="n">caption</span><span class="p">)</span>
 
-        <span class="c1"># ip adresses:</span>
+        <span class="c1"># ip addresses:</span>
         <span class="n">caption</span> <span class="o">=</span> <span class="n">re</span><span class="o">.</span><span class="n">sub</span><span class="p">(</span><span class="sa">r</span><span class="s2">&quot;\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}&quot;</span><span class="p">,</span> <span class="s2">&quot; &quot;</span><span class="p">,</span> <span class="n">caption</span><span class="p">)</span>
 
         <span class="c1"># article ids:</span>
@@ -25807,7 +25807,7 @@ argument.</p>
     <span class="k">def</span><span class="w"> </span><span class="nf">prepare_extra_step_kwargs</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">generator</span><span class="p">,</span> <span class="n">eta</span><span class="p">):</span>
         <span class="c1"># prepare extra kwargs for the scheduler step, since not all schedulers have the same signature</span>
         <span class="c1"># eta (η) is only used with the DDIMScheduler, it will be ignored for other schedulers.</span>
-        <span class="c1"># eta corresponds to η in DDIM paper: https://arxiv.org/abs/2010.02502</span>
+        <span class="c1"># eta corresponds to η in DDIM paper: https://huggingface.co/papers/2010.02502</span>
         <span class="c1"># and should be between [0, 1]</span>
 
         <span class="n">accepts_eta</span> <span class="o">=</span> <span class="s2">&quot;eta&quot;</span> <span class="ow">in</span> <span class="nb">set</span><span class="p">(</span><span class="n">inspect</span><span class="o">.</span><span class="n">signature</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">scheduler</span><span class="o">.</span><span class="n">step</span><span class="p">)</span><span class="o">.</span><span class="n">parameters</span><span class="o">.</span><span class="n">keys</span><span class="p">())</span>
@@ -26178,11 +26178,11 @@ argument.</p>
 <span class="sd">                Custom timesteps to use for the denoising process. If not defined, equal spaced `num_inference_steps`</span>
 <span class="sd">                timesteps are used. Must be in descending order.</span>
 <span class="sd">            guidance_scale (`float`, *optional*, defaults to 4.0):</span>
-<span class="sd">                Guidance scale as defined in [Classifier-Free Diffusion Guidance](https://arxiv.org/abs/2207.12598).</span>
-<span class="sd">                `guidance_scale` is defined as `w` of equation 2. of [Imagen</span>
-<span class="sd">                Paper](https://arxiv.org/pdf/2205.11487.pdf). Guidance scale is enabled by setting `guidance_scale &gt;</span>
-<span class="sd">                1`. Higher guidance scale encourages to generate images that are closely linked to the text `prompt`,</span>
-<span class="sd">                usually at the expense of lower image quality.</span>
+<span class="sd">                Guidance scale as defined in [Classifier-Free Diffusion</span>
+<span class="sd">                Guidance](https://huggingface.co/papers/2207.12598). `guidance_scale` is defined as `w` of equation 2.</span>
+<span class="sd">                of [Imagen Paper](https://huggingface.co/papers/2205.11487). Guidance scale is enabled by setting</span>
+<span class="sd">                `guidance_scale &gt; 1`. Higher guidance scale encourages to generate images that are closely linked to</span>
+<span class="sd">                the text `prompt`, usually at the expense of lower image quality.</span>
 <span class="sd">            negative_prompt (`str` or `List[str]`, *optional*):</span>
 <span class="sd">                The prompt or prompts not to guide the image generation. If not defined, one has to pass</span>
 <span class="sd">                `negative_prompt_embeds` instead. Ignored when not using guidance (i.e., ignored if `guidance_scale` is</span>
@@ -26190,8 +26190,8 @@ argument.</p>
 <span class="sd">            num_images_per_prompt (`int`, *optional*, defaults to 1):</span>
 <span class="sd">                The number of images to generate per prompt.</span>
 <span class="sd">            eta (`float`, *optional*, defaults to 0.0):</span>
-<span class="sd">                Corresponds to parameter eta (η) in the DDIM paper: https://arxiv.org/abs/2010.02502. Only applies to</span>
-<span class="sd">                [`schedulers.DDIMScheduler`], will be ignored for others.</span>
+<span class="sd">                Corresponds to parameter eta (η) in the DDIM paper: https://huggingface.co/papers/2010.02502. Only</span>
+<span class="sd">                applies to [`schedulers.DDIMScheduler`], will be ignored for others.</span>
 <span class="sd">            generator (`np.random.Generator` or `List[np.random.Generator]`, *optional*):</span>
 <span class="sd">                One or a list of [torch generator(s)](https://pytorch.org/docs/stable/generated/torch.Generator.html)</span>
 <span class="sd">                to make generation deterministic.</span>
@@ -26256,7 +26256,7 @@ argument.</p>
         <span class="c1"># 2. Define call parameters</span>
 
         <span class="c1"># here `guidance_scale` is defined analog to the guidance weight `w` of equation (2)</span>
-        <span class="c1"># of the Imagen paper: https://arxiv.org/pdf/2205.11487.pdf . `guidance_scale = 1`</span>
+        <span class="c1"># of the Imagen paper: https://huggingface.co/papers/2205.11487 . `guidance_scale = 1`</span>
         <span class="c1"># corresponds to doing no classifier free guidance.</span>
         <span class="n">do_classifier_free_guidance</span> <span class="o">=</span> <span class="n">guidance_scale</span> <span class="o">&gt;</span> <span class="mf">1.0</span>
 
@@ -26598,11 +26598,11 @@ timesteps are used. Must be in descending order.</p>
             </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
-                <p>Guidance scale as defined in <a href="https://arxiv.org/abs/2207.12598">Classifier-Free Diffusion Guidance</a>.
-<code>guidance_scale</code> is defined as <code>w</code> of equation 2. of <a href="https://arxiv.org/pdf/2205.11487.pdf">Imagen
-Paper</a>. Guidance scale is enabled by setting <code>guidance_scale &gt;
-1</code>. Higher guidance scale encourages to generate images that are closely linked to the text <code>prompt</code>,
-usually at the expense of lower image quality.</p>
+                <p>Guidance scale as defined in <a href="https://huggingface.co/papers/2207.12598">Classifier-Free Diffusion
+Guidance</a>. <code>guidance_scale</code> is defined as <code>w</code> of equation 2.
+of <a href="https://huggingface.co/papers/2205.11487">Imagen Paper</a>. Guidance scale is enabled by setting
+<code>guidance_scale &gt; 1</code>. Higher guidance scale encourages to generate images that are closely linked to
+the text <code>prompt</code>, usually at the expense of lower image quality.</p>
               </div>
               <p>
                   <span class="doc-param-annotation">
@@ -26664,8 +26664,8 @@ less than <code>1</code>).</p>
             </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
-                <p>Corresponds to parameter eta (η) in the DDIM paper: https://arxiv.org/abs/2010.02502. Only applies to
-[<code>schedulers.DDIMScheduler</code>], will be ignored for others.</p>
+                <p>Corresponds to parameter eta (η) in the DDIM paper: https://huggingface.co/papers/2010.02502. Only
+applies to [<code>schedulers.DDIMScheduler</code>], will be ignored for others.</p>
               </div>
               <p>
                   <span class="doc-param-annotation">
@@ -27299,11 +27299,11 @@ prompt.</p>
 <span class="sd">            Custom timesteps to use for the denoising process. If not defined, equal spaced `num_inference_steps`</span>
 <span class="sd">            timesteps are used. Must be in descending order.</span>
 <span class="sd">        guidance_scale (`float`, *optional*, defaults to 4.0):</span>
-<span class="sd">            Guidance scale as defined in [Classifier-Free Diffusion Guidance](https://arxiv.org/abs/2207.12598).</span>
-<span class="sd">            `guidance_scale` is defined as `w` of equation 2. of [Imagen</span>
-<span class="sd">            Paper](https://arxiv.org/pdf/2205.11487.pdf). Guidance scale is enabled by setting `guidance_scale &gt;</span>
-<span class="sd">            1`. Higher guidance scale encourages to generate images that are closely linked to the text `prompt`,</span>
-<span class="sd">            usually at the expense of lower image quality.</span>
+<span class="sd">            Guidance scale as defined in [Classifier-Free Diffusion</span>
+<span class="sd">            Guidance](https://huggingface.co/papers/2207.12598). `guidance_scale` is defined as `w` of equation 2.</span>
+<span class="sd">            of [Imagen Paper](https://huggingface.co/papers/2205.11487). Guidance scale is enabled by setting</span>
+<span class="sd">            `guidance_scale &gt; 1`. Higher guidance scale encourages to generate images that are closely linked to</span>
+<span class="sd">            the text `prompt`, usually at the expense of lower image quality.</span>
 <span class="sd">        negative_prompt (`str` or `List[str]`, *optional*):</span>
 <span class="sd">            The prompt or prompts not to guide the image generation. If not defined, one has to pass</span>
 <span class="sd">            `negative_prompt_embeds` instead. Ignored when not using guidance (i.e., ignored if `guidance_scale` is</span>
@@ -27311,8 +27311,8 @@ prompt.</p>
 <span class="sd">        num_images_per_prompt (`int`, *optional*, defaults to 1):</span>
 <span class="sd">            The number of images to generate per prompt.</span>
 <span class="sd">        eta (`float`, *optional*, defaults to 0.0):</span>
-<span class="sd">            Corresponds to parameter eta (η) in the DDIM paper: https://arxiv.org/abs/2010.02502. Only applies to</span>
-<span class="sd">            [`schedulers.DDIMScheduler`], will be ignored for others.</span>
+<span class="sd">            Corresponds to parameter eta (η) in the DDIM paper: https://huggingface.co/papers/2010.02502. Only</span>
+<span class="sd">            applies to [`schedulers.DDIMScheduler`], will be ignored for others.</span>
 <span class="sd">        generator (`np.random.Generator` or `List[np.random.Generator]`, *optional*):</span>
 <span class="sd">            One or a list of [torch generator(s)](https://pytorch.org/docs/stable/generated/torch.Generator.html)</span>
 <span class="sd">            to make generation deterministic.</span>
@@ -27377,7 +27377,7 @@ prompt.</p>
     <span class="c1"># 2. Define call parameters</span>
 
     <span class="c1"># here `guidance_scale` is defined analog to the guidance weight `w` of equation (2)</span>
-    <span class="c1"># of the Imagen paper: https://arxiv.org/pdf/2205.11487.pdf . `guidance_scale = 1`</span>
+    <span class="c1"># of the Imagen paper: https://huggingface.co/papers/2205.11487 . `guidance_scale = 1`</span>
     <span class="c1"># corresponds to doing no classifier free guidance.</span>
     <span class="n">do_classifier_free_guidance</span> <span class="o">=</span> <span class="n">guidance_scale</span> <span class="o">&gt;</span> <span class="mf">1.0</span>
 

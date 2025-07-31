@@ -10006,7 +10006,7 @@ dark samples instead of limiting it to samples with medium brightness. Loosely r
 <span class="sd">            num_inference_steps (`int`):</span>
 <span class="sd">                The number of diffusion steps used when generating samples with a pre-trained model.</span>
 <span class="sd">        &quot;&quot;&quot;</span>
-        <span class="c1"># &quot;linspace&quot;, &quot;leading&quot;, &quot;trailing&quot; corresponds to annotation of Table 2. of https://arxiv.org/abs/2305.08891</span>
+        <span class="c1"># &quot;linspace&quot;, &quot;leading&quot;, &quot;trailing&quot; corresponds to annotation of Table 2. of https://huggingface.co/papers/2305.08891</span>
         <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">timestep_spacing</span> <span class="o">==</span> <span class="s2">&quot;linspace&quot;</span><span class="p">:</span>
             <span class="n">timesteps</span> <span class="o">=</span> <span class="p">(</span>
                 <span class="n">np</span><span class="o">.</span><span class="n">linspace</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">num_train_timesteps</span> <span class="o">-</span> <span class="mi">1</span><span class="p">,</span> <span class="n">num_inference_steps</span> <span class="o">+</span> <span class="mi">1</span><span class="p">)</span>
@@ -10129,7 +10129,7 @@ dark samples instead of limiting it to samples with medium brightness. Loosely r
 <span class="sd">        pixels from saturation at each step. We find that dynamic thresholding results in significantly better</span>
 <span class="sd">        photorealism as well as better image-text alignment, especially when using very large guidance weights.&quot;</span>
 
-<span class="sd">        https://arxiv.org/abs/2205.11487</span>
+<span class="sd">        https://huggingface.co/papers/2205.11487</span>
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="n">dtype</span> <span class="o">=</span> <span class="n">sample</span><span class="o">.</span><span class="n">dtype</span>
         <span class="n">batch_size</span><span class="p">,</span> <span class="n">channels</span><span class="p">,</span> <span class="o">*</span><span class="n">remaining_dims</span> <span class="o">=</span> <span class="n">sample</span><span class="o">.</span><span class="n">shape</span>
@@ -10296,7 +10296,7 @@ dark samples instead of limiting it to samples with medium brightness. Loosely r
             <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">args</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">1</span><span class="p">:</span>
                 <span class="n">sample</span> <span class="o">=</span> <span class="n">args</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span>
             <span class="k">else</span><span class="p">:</span>
-                <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;missing `sample` as a required keyward argument&quot;</span><span class="p">)</span>
+                <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;missing `sample` as a required keyword argument&quot;</span><span class="p">)</span>
         <span class="k">if</span> <span class="n">timestep</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
             <span class="n">deprecate</span><span class="p">(</span>
                 <span class="s2">&quot;timesteps&quot;</span><span class="p">,</span>
@@ -10373,12 +10373,12 @@ dark samples instead of limiting it to samples with medium brightness. Loosely r
             <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">args</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">1</span><span class="p">:</span>
                 <span class="n">sample</span> <span class="o">=</span> <span class="n">args</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span>
             <span class="k">else</span><span class="p">:</span>
-                <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot; missing `sample` as a required keyward argument&quot;</span><span class="p">)</span>
+                <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;missing `sample` as a required keyword argument&quot;</span><span class="p">)</span>
         <span class="k">if</span> <span class="n">order</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
             <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">args</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">2</span><span class="p">:</span>
                 <span class="n">order</span> <span class="o">=</span> <span class="n">args</span><span class="p">[</span><span class="mi">2</span><span class="p">]</span>
             <span class="k">else</span><span class="p">:</span>
-                <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot; missing `order` as a required keyward argument&quot;</span><span class="p">)</span>
+                <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;missing `order` as a required keyword argument&quot;</span><span class="p">)</span>
         <span class="k">if</span> <span class="n">prev_timestep</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
             <span class="n">deprecate</span><span class="p">(</span>
                 <span class="s2">&quot;prev_timestep&quot;</span><span class="p">,</span>
@@ -10504,17 +10504,17 @@ dark samples instead of limiting it to samples with medium brightness. Loosely r
             <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">args</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">1</span><span class="p">:</span>
                 <span class="n">last_sample</span> <span class="o">=</span> <span class="n">args</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span>
             <span class="k">else</span><span class="p">:</span>
-                <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot; missing`last_sample` as a required keyward argument&quot;</span><span class="p">)</span>
+                <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;missing `last_sample` as a required keyword argument&quot;</span><span class="p">)</span>
         <span class="k">if</span> <span class="n">this_sample</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
             <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">args</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">2</span><span class="p">:</span>
                 <span class="n">this_sample</span> <span class="o">=</span> <span class="n">args</span><span class="p">[</span><span class="mi">2</span><span class="p">]</span>
             <span class="k">else</span><span class="p">:</span>
-                <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot; missing`this_sample` as a required keyward argument&quot;</span><span class="p">)</span>
+                <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;missing `this_sample` as a required keyword argument&quot;</span><span class="p">)</span>
         <span class="k">if</span> <span class="n">order</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
             <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">args</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">3</span><span class="p">:</span>
                 <span class="n">order</span> <span class="o">=</span> <span class="n">args</span><span class="p">[</span><span class="mi">3</span><span class="p">]</span>
             <span class="k">else</span><span class="p">:</span>
-                <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot; missing`order` as a required keyward argument&quot;</span><span class="p">)</span>
+                <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;missing `order` as a required keyword argument&quot;</span><span class="p">)</span>
         <span class="k">if</span> <span class="n">this_timestep</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
             <span class="n">deprecate</span><span class="p">(</span>
                 <span class="s2">&quot;this_timestep&quot;</span><span class="p">,</span>
@@ -11032,7 +11032,7 @@ The converted model output.</p>
         <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">args</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">1</span><span class="p">:</span>
             <span class="n">sample</span> <span class="o">=</span> <span class="n">args</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span>
         <span class="k">else</span><span class="p">:</span>
-            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;missing `sample` as a required keyward argument&quot;</span><span class="p">)</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;missing `sample` as a required keyword argument&quot;</span><span class="p">)</span>
     <span class="k">if</span> <span class="n">timestep</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
         <span class="n">deprecate</span><span class="p">(</span>
             <span class="s2">&quot;timesteps&quot;</span><span class="p">,</span>
@@ -11396,17 +11396,17 @@ The corrected sample tensor at the current timestep.</p>
         <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">args</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">1</span><span class="p">:</span>
             <span class="n">last_sample</span> <span class="o">=</span> <span class="n">args</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span>
         <span class="k">else</span><span class="p">:</span>
-            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot; missing`last_sample` as a required keyward argument&quot;</span><span class="p">)</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;missing `last_sample` as a required keyword argument&quot;</span><span class="p">)</span>
     <span class="k">if</span> <span class="n">this_sample</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
         <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">args</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">2</span><span class="p">:</span>
             <span class="n">this_sample</span> <span class="o">=</span> <span class="n">args</span><span class="p">[</span><span class="mi">2</span><span class="p">]</span>
         <span class="k">else</span><span class="p">:</span>
-            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot; missing`this_sample` as a required keyward argument&quot;</span><span class="p">)</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;missing `this_sample` as a required keyword argument&quot;</span><span class="p">)</span>
     <span class="k">if</span> <span class="n">order</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
         <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">args</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">3</span><span class="p">:</span>
             <span class="n">order</span> <span class="o">=</span> <span class="n">args</span><span class="p">[</span><span class="mi">3</span><span class="p">]</span>
         <span class="k">else</span><span class="p">:</span>
-            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot; missing`order` as a required keyward argument&quot;</span><span class="p">)</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;missing `order` as a required keyword argument&quot;</span><span class="p">)</span>
     <span class="k">if</span> <span class="n">this_timestep</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
         <span class="n">deprecate</span><span class="p">(</span>
             <span class="s2">&quot;this_timestep&quot;</span><span class="p">,</span>
@@ -11785,12 +11785,12 @@ The sample tensor at the previous timestep.</p>
         <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">args</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">1</span><span class="p">:</span>
             <span class="n">sample</span> <span class="o">=</span> <span class="n">args</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span>
         <span class="k">else</span><span class="p">:</span>
-            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot; missing `sample` as a required keyward argument&quot;</span><span class="p">)</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;missing `sample` as a required keyword argument&quot;</span><span class="p">)</span>
     <span class="k">if</span> <span class="n">order</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
         <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">args</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">2</span><span class="p">:</span>
             <span class="n">order</span> <span class="o">=</span> <span class="n">args</span><span class="p">[</span><span class="mi">2</span><span class="p">]</span>
         <span class="k">else</span><span class="p">:</span>
-            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot; missing `order` as a required keyward argument&quot;</span><span class="p">)</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;missing `order` as a required keyword argument&quot;</span><span class="p">)</span>
     <span class="k">if</span> <span class="n">prev_timestep</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
         <span class="n">deprecate</span><span class="p">(</span>
             <span class="s2">&quot;prev_timestep&quot;</span><span class="p">,</span>
@@ -12234,7 +12234,7 @@ A scaled input sample.</p>
 <span class="sd">        num_inference_steps (`int`):</span>
 <span class="sd">            The number of diffusion steps used when generating samples with a pre-trained model.</span>
 <span class="sd">    &quot;&quot;&quot;</span>
-    <span class="c1"># &quot;linspace&quot;, &quot;leading&quot;, &quot;trailing&quot; corresponds to annotation of Table 2. of https://arxiv.org/abs/2305.08891</span>
+    <span class="c1"># &quot;linspace&quot;, &quot;leading&quot;, &quot;trailing&quot; corresponds to annotation of Table 2. of https://huggingface.co/papers/2305.08891</span>
     <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">timestep_spacing</span> <span class="o">==</span> <span class="s2">&quot;linspace&quot;</span><span class="p">:</span>
         <span class="n">timesteps</span> <span class="o">=</span> <span class="p">(</span>
             <span class="n">np</span><span class="o">.</span><span class="n">linspace</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">num_train_timesteps</span> <span class="o">-</span> <span class="mi">1</span><span class="p">,</span> <span class="n">num_inference_steps</span> <span class="o">+</span> <span class="mi">1</span><span class="p">)</span>

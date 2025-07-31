@@ -8252,7 +8252,7 @@ specific language governing permissions and limitations under the License.
 
     <div class="doc doc-contents first">
             <p class="doc doc-class-bases">
-              Bases: <code><a class="autorefs autorefs-internal" title="mindone.diffusers.DiffusionPipeline (mindone.diffusers.pipelines.pipeline_utils.DiffusionPipeline)" href="../overview/#mindone.diffusers.DiffusionPipeline">DiffusionPipeline</a></code>, <code><span title="mindone.diffusers.pipelines.pipeline_utils.StableDiffusionMixin">StableDiffusionMixin</span></code>, <code><a class="autorefs autorefs-internal" title="mindone.diffusers.loaders.textual_inversion.TextualInversionLoaderMixin (mindone.diffusers.loaders.TextualInversionLoaderMixin)" href="../../loaders/textual_inversion/#mindone.diffusers.loaders.textual_inversion.TextualInversionLoaderMixin">TextualInversionLoaderMixin</a></code>, <code><span title="mindone.diffusers.loaders.LoraLoaderMixin">LoraLoaderMixin</span></code>, <code><a class="autorefs autorefs-internal" title="mindone.diffusers.loaders.single_file.FromSingleFileMixin (mindone.diffusers.loaders.FromSingleFileMixin)" href="../../loaders/single_file/#mindone.diffusers.loaders.single_file.FromSingleFileMixin">FromSingleFileMixin</a></code></p>
+              Bases: <code><span title="mindone.diffusers.pipelines.pipeline_utils.DeprecatedPipelineMixin">DeprecatedPipelineMixin</span></code>, <code><a class="autorefs autorefs-internal" title="mindone.diffusers.DiffusionPipeline (mindone.diffusers.pipelines.pipeline_utils.DiffusionPipeline)" href="../overview/#mindone.diffusers.DiffusionPipeline">DiffusionPipeline</a></code>, <code><span title="mindone.diffusers.pipelines.pipeline_utils.StableDiffusionMixin">StableDiffusionMixin</span></code>, <code><a class="autorefs autorefs-internal" title="mindone.diffusers.loaders.textual_inversion.TextualInversionLoaderMixin (mindone.diffusers.loaders.TextualInversionLoaderMixin)" href="../../loaders/textual_inversion/#mindone.diffusers.loaders.textual_inversion.TextualInversionLoaderMixin">TextualInversionLoaderMixin</a></code>, <code><a class="autorefs autorefs-internal" title="mindone.diffusers.loaders.lora_pipeline.StableDiffusionLoraLoaderMixin (mindone.diffusers.loaders.StableDiffusionLoraLoaderMixin)" href="../../loaders/lora/#mindone.diffusers.loaders.lora_pipeline.StableDiffusionLoraLoaderMixin">StableDiffusionLoraLoaderMixin</a></code>, <code><a class="autorefs autorefs-internal" title="mindone.diffusers.loaders.single_file.FromSingleFileMixin (mindone.diffusers.loaders.FromSingleFileMixin)" href="../../loaders/single_file/#mindone.diffusers.loaders.single_file.FromSingleFileMixin">FromSingleFileMixin</a></code></p>
 
 
         <p>Pipeline for text-to-image generation using Stable Diffusion with ControlNet-XS guidance.</p>
@@ -8264,8 +8264,8 @@ implemented for all pipelines (downloading, saving, running on a particular devi
   <summary>The pipeline also inherits the following loading methods</summary>
   <ul>
 <li>[<code>~loaders.TextualInversionLoaderMixin.load_textual_inversion</code>] for loading textual inversion embeddings</li>
-<li>[<code>~loaders.LoraLoaderMixin.load_lora_weights</code>] for loading LoRA weights</li>
-<li>[<code>~loaders.LoraLoaderMixin.save_lora_weights</code>] for saving LoRA weights</li>
+<li>[<code>~loaders.StableDiffusionLoraLoaderMixin.load_lora_weights</code>] for loading LoRA weights</li>
+<li>[<code>~loaders.StableDiffusionLoraLoaderMixin.save_lora_weights</code>] for saving LoRA weights</li>
 <li>[<code>loaders.FromSingleFileMixin.from_single_file</code>] for loading <code>.ckpt</code> files</li>
 </ul>
 </details>
@@ -9209,8 +9209,19 @@ about a model's potential harms.</p>
 <span class="normal">875</span>
 <span class="normal">876</span>
 <span class="normal">877</span>
-<span class="normal">878</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">class</span><span class="w"> </span><span class="nc">StableDiffusionControlNetXSPipeline</span><span class="p">(</span>
-    <span class="n">DiffusionPipeline</span><span class="p">,</span> <span class="n">StableDiffusionMixin</span><span class="p">,</span> <span class="n">TextualInversionLoaderMixin</span><span class="p">,</span> <span class="n">LoraLoaderMixin</span><span class="p">,</span> <span class="n">FromSingleFileMixin</span>
+<span class="normal">878</span>
+<span class="normal">879</span>
+<span class="normal">880</span>
+<span class="normal">881</span>
+<span class="normal">882</span>
+<span class="normal">883</span>
+<span class="normal">884</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">class</span><span class="w"> </span><span class="nc">StableDiffusionControlNetXSPipeline</span><span class="p">(</span>
+    <span class="n">DeprecatedPipelineMixin</span><span class="p">,</span>
+    <span class="n">DiffusionPipeline</span><span class="p">,</span>
+    <span class="n">StableDiffusionMixin</span><span class="p">,</span>
+    <span class="n">TextualInversionLoaderMixin</span><span class="p">,</span>
+    <span class="n">StableDiffusionLoraLoaderMixin</span><span class="p">,</span>
+    <span class="n">FromSingleFileMixin</span><span class="p">,</span>
 <span class="p">):</span>
 <span class="w">    </span><span class="sa">r</span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    Pipeline for text-to-image generation using Stable Diffusion with ControlNet-XS guidance.</span>
@@ -9220,8 +9231,8 @@ about a model's potential harms.</p>
 
 <span class="sd">    The pipeline also inherits the following loading methods:</span>
 <span class="sd">        - [`~loaders.TextualInversionLoaderMixin.load_textual_inversion`] for loading textual inversion embeddings</span>
-<span class="sd">        - [`~loaders.LoraLoaderMixin.load_lora_weights`] for loading LoRA weights</span>
-<span class="sd">        - [`~loaders.LoraLoaderMixin.save_lora_weights`] for saving LoRA weights</span>
+<span class="sd">        - [`~loaders.StableDiffusionLoraLoaderMixin.load_lora_weights`] for loading LoRA weights</span>
+<span class="sd">        - [`~loaders.StableDiffusionLoraLoaderMixin.save_lora_weights`] for saving LoRA weights</span>
 <span class="sd">        - [`loaders.FromSingleFileMixin.from_single_file`] for loading `.ckpt` files</span>
 
 <span class="sd">    Args:</span>
@@ -9246,6 +9257,7 @@ about a model's potential harms.</p>
 <span class="sd">            A `CLIPImageProcessor` to extract features from generated images; used as inputs to the `safety_checker`.</span>
 <span class="sd">    &quot;&quot;&quot;</span>
 
+    <span class="n">_last_supported_version</span> <span class="o">=</span> <span class="s2">&quot;0.33.1&quot;</span>
     <span class="n">model_cpu_offload_seq</span> <span class="o">=</span> <span class="s2">&quot;text_encoder-&gt;unet-&gt;vae&quot;</span>
     <span class="n">_optional_components</span> <span class="o">=</span> <span class="p">[</span><span class="s2">&quot;safety_checker&quot;</span><span class="p">,</span> <span class="s2">&quot;feature_extractor&quot;</span><span class="p">]</span>
     <span class="n">_exclude_from_cpu_offload</span> <span class="o">=</span> <span class="p">[</span><span class="s2">&quot;safety_checker&quot;</span><span class="p">]</span>
@@ -9373,7 +9385,7 @@ about a model's potential harms.</p>
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="c1"># set lora scale so that monkey patched LoRA</span>
         <span class="c1"># function of text encoder can correctly access it</span>
-        <span class="k">if</span> <span class="n">lora_scale</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="ow">and</span> <span class="nb">isinstance</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">LoraLoaderMixin</span><span class="p">):</span>
+        <span class="k">if</span> <span class="n">lora_scale</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="ow">and</span> <span class="nb">isinstance</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">StableDiffusionLoraLoaderMixin</span><span class="p">):</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">_lora_scale</span> <span class="o">=</span> <span class="n">lora_scale</span>
 
             <span class="c1"># dynamically adjust the LoRA scale</span>
@@ -9502,7 +9514,7 @@ about a model's potential harms.</p>
             <span class="n">negative_prompt_embeds</span> <span class="o">=</span> <span class="n">negative_prompt_embeds</span><span class="o">.</span><span class="n">view</span><span class="p">(</span><span class="n">batch_size</span> <span class="o">*</span> <span class="n">num_images_per_prompt</span><span class="p">,</span> <span class="n">seq_len</span><span class="p">,</span> <span class="o">-</span><span class="mi">1</span><span class="p">)</span>
 
         <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">text_encoder</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
-            <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">LoraLoaderMixin</span><span class="p">):</span>
+            <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">StableDiffusionLoraLoaderMixin</span><span class="p">):</span>
                 <span class="c1"># Retrieve the original scale by scaling back the LoRA layers</span>
                 <span class="n">unscale_lora_layers</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">text_encoder</span><span class="p">,</span> <span class="n">lora_scale</span><span class="p">)</span>
 
@@ -9547,7 +9559,7 @@ about a model's potential harms.</p>
     <span class="k">def</span><span class="w"> </span><span class="nf">prepare_extra_step_kwargs</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">generator</span><span class="p">,</span> <span class="n">eta</span><span class="p">):</span>
         <span class="c1"># prepare extra kwargs for the scheduler step, since not all schedulers have the same signature</span>
         <span class="c1"># eta (η) is only used with the DDIMScheduler, it will be ignored for other schedulers.</span>
-        <span class="c1"># eta corresponds to η in DDIM paper: https://arxiv.org/abs/2010.02502</span>
+        <span class="c1"># eta corresponds to η in DDIM paper: https://huggingface.co/papers/2010.02502</span>
         <span class="c1"># and should be between [0, 1]</span>
 
         <span class="n">accepts_eta</span> <span class="o">=</span> <span class="s2">&quot;eta&quot;</span> <span class="ow">in</span> <span class="nb">set</span><span class="p">(</span><span class="n">inspect</span><span class="o">.</span><span class="n">signature</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">scheduler</span><span class="o">.</span><span class="n">step</span><span class="p">)</span><span class="o">.</span><span class="n">parameters</span><span class="o">.</span><span class="n">keys</span><span class="p">())</span>
@@ -9796,8 +9808,8 @@ about a model's potential harms.</p>
 <span class="sd">            num_images_per_prompt (`int`, *optional*, defaults to 1):</span>
 <span class="sd">                The number of images to generate per prompt.</span>
 <span class="sd">            eta (`float`, *optional*, defaults to 0.0):</span>
-<span class="sd">                Corresponds to parameter eta (η) from the [DDIM](https://arxiv.org/abs/2010.02502) paper. Only applies</span>
-<span class="sd">                to the [`~schedulers.DDIMScheduler`], and is ignored in other schedulers.</span>
+<span class="sd">                Corresponds to parameter eta (η) from the [DDIM](https://huggingface.co/papers/2010.02502) paper. Only</span>
+<span class="sd">                applies to the [`~schedulers.DDIMScheduler`], and is ignored in other schedulers.</span>
 <span class="sd">            generator (`np.random.Generator` or `List[np.random.Generator]`, *optional*):</span>
 <span class="sd">                A [`np.random.Generator`](https://pytorch.org/docs/stable/generated/torch.Generator.html) to make</span>
 <span class="sd">                generation deterministic.</span>
@@ -9838,7 +9850,7 @@ about a model's potential harms.</p>
 <span class="sd">            callback_on_step_end_tensor_inputs (`List`, *optional*):</span>
 <span class="sd">                The list of tensor inputs for the `callback_on_step_end` function. The tensors specified in the list</span>
 <span class="sd">                will be passed as `callback_kwargs` argument. You will only be able to include variables listed in the</span>
-<span class="sd">                `._callback_tensor_inputs` attribute of your pipeine class.</span>
+<span class="sd">                `._callback_tensor_inputs` attribute of your pipeline class.</span>
 <span class="sd">        Examples:</span>
 
 <span class="sd">        Returns:</span>
@@ -9881,7 +9893,7 @@ about a model's potential harms.</p>
             <span class="n">batch_size</span> <span class="o">=</span> <span class="n">prompt_embeds</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
 
         <span class="c1"># here `guidance_scale` is defined analog to the guidance weight `w` of equation (2)</span>
-        <span class="c1"># of the Imagen paper: https://arxiv.org/pdf/2205.11487.pdf . `guidance_scale = 1`</span>
+        <span class="c1"># of the Imagen paper: https://huggingface.co/papers/2205.11487 . `guidance_scale = 1`</span>
         <span class="c1"># corresponds to doing no classifier free guidance.</span>
         <span class="n">do_classifier_free_guidance</span> <span class="o">=</span> <span class="n">guidance_scale</span> <span class="o">&gt;</span> <span class="mf">1.0</span>
 
@@ -10212,8 +10224,8 @@ pass <code>negative_prompt_embeds</code> instead. Ignored when not using guidanc
             </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
-                <p>Corresponds to parameter eta (η) from the <a href="https://arxiv.org/abs/2010.02502">DDIM</a> paper. Only applies
-to the [<code>~schedulers.DDIMScheduler</code>], and is ignored in other schedulers.</p>
+                <p>Corresponds to parameter eta (η) from the <a href="https://huggingface.co/papers/2010.02502">DDIM</a> paper. Only
+applies to the [<code>~schedulers.DDIMScheduler</code>], and is ignored in other schedulers.</p>
               </div>
               <p>
                   <span class="doc-param-annotation">
@@ -10488,7 +10500,7 @@ list of all tensors as specified by <code>callback_on_step_end_tensor_inputs</co
               <div class="doc-md-description">
                 <p>The list of tensor inputs for the <code>callback_on_step_end</code> function. The tensors specified in the list
 will be passed as <code>callback_kwargs</code> argument. You will only be able to include variables listed in the
-<code>._callback_tensor_inputs</code> attribute of your pipeine class.</p>
+<code>._callback_tensor_inputs</code> attribute of your pipeline class.</p>
               </div>
               <p>
                   <span class="doc-param-annotation">
@@ -10534,13 +10546,7 @@ second element is a list of <code>bool</code>s indicating whether the correspond
 
             <details class="quote">
               <summary>Source code in <code>mindone/diffusers/pipelines/controlnet_xs/pipeline_controlnet_xs.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">619</span>
-<span class="normal">620</span>
-<span class="normal">621</span>
-<span class="normal">622</span>
-<span class="normal">623</span>
-<span class="normal">624</span>
-<span class="normal">625</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">625</span>
 <span class="normal">626</span>
 <span class="normal">627</span>
 <span class="normal">628</span>
@@ -10793,7 +10799,13 @@ second element is a list of <code>bool</code>s indicating whether the correspond
 <span class="normal">875</span>
 <span class="normal">876</span>
 <span class="normal">877</span>
-<span class="normal">878</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="fm">__call__</span><span class="p">(</span>
+<span class="normal">878</span>
+<span class="normal">879</span>
+<span class="normal">880</span>
+<span class="normal">881</span>
+<span class="normal">882</span>
+<span class="normal">883</span>
+<span class="normal">884</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="fm">__call__</span><span class="p">(</span>
     <span class="bp">self</span><span class="p">,</span>
     <span class="n">prompt</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">List</span><span class="p">[</span><span class="nb">str</span><span class="p">]]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
     <span class="n">image</span><span class="p">:</span> <span class="n">PipelineImageInput</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
@@ -10850,8 +10862,8 @@ second element is a list of <code>bool</code>s indicating whether the correspond
 <span class="sd">        num_images_per_prompt (`int`, *optional*, defaults to 1):</span>
 <span class="sd">            The number of images to generate per prompt.</span>
 <span class="sd">        eta (`float`, *optional*, defaults to 0.0):</span>
-<span class="sd">            Corresponds to parameter eta (η) from the [DDIM](https://arxiv.org/abs/2010.02502) paper. Only applies</span>
-<span class="sd">            to the [`~schedulers.DDIMScheduler`], and is ignored in other schedulers.</span>
+<span class="sd">            Corresponds to parameter eta (η) from the [DDIM](https://huggingface.co/papers/2010.02502) paper. Only</span>
+<span class="sd">            applies to the [`~schedulers.DDIMScheduler`], and is ignored in other schedulers.</span>
 <span class="sd">        generator (`np.random.Generator` or `List[np.random.Generator]`, *optional*):</span>
 <span class="sd">            A [`np.random.Generator`](https://pytorch.org/docs/stable/generated/torch.Generator.html) to make</span>
 <span class="sd">            generation deterministic.</span>
@@ -10892,7 +10904,7 @@ second element is a list of <code>bool</code>s indicating whether the correspond
 <span class="sd">        callback_on_step_end_tensor_inputs (`List`, *optional*):</span>
 <span class="sd">            The list of tensor inputs for the `callback_on_step_end` function. The tensors specified in the list</span>
 <span class="sd">            will be passed as `callback_kwargs` argument. You will only be able to include variables listed in the</span>
-<span class="sd">            `._callback_tensor_inputs` attribute of your pipeine class.</span>
+<span class="sd">            `._callback_tensor_inputs` attribute of your pipeline class.</span>
 <span class="sd">    Examples:</span>
 
 <span class="sd">    Returns:</span>
@@ -10935,7 +10947,7 @@ second element is a list of <code>bool</code>s indicating whether the correspond
         <span class="n">batch_size</span> <span class="o">=</span> <span class="n">prompt_embeds</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
 
     <span class="c1"># here `guidance_scale` is defined analog to the guidance weight `w` of equation (2)</span>
-    <span class="c1"># of the Imagen paper: https://arxiv.org/pdf/2205.11487.pdf . `guidance_scale = 1`</span>
+    <span class="c1"># of the Imagen paper: https://huggingface.co/papers/2205.11487 . `guidance_scale = 1`</span>
     <span class="c1"># corresponds to doing no classifier free guidance.</span>
     <span class="n">do_classifier_free_guidance</span> <span class="o">=</span> <span class="n">guidance_scale</span> <span class="o">&gt;</span> <span class="mf">1.0</span>
 
@@ -11241,13 +11253,7 @@ the output of the pre-final layer will be used for computing the prompt embeddin
 
             <details class="quote">
               <summary>Source code in <code>mindone/diffusers/pipelines/controlnet_xs/pipeline_controlnet_xs.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">213</span>
-<span class="normal">214</span>
-<span class="normal">215</span>
-<span class="normal">216</span>
-<span class="normal">217</span>
-<span class="normal">218</span>
-<span class="normal">219</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">219</span>
 <span class="normal">220</span>
 <span class="normal">221</span>
 <span class="normal">222</span>
@@ -11414,7 +11420,13 @@ the output of the pre-final layer will be used for computing the prompt embeddin
 <span class="normal">383</span>
 <span class="normal">384</span>
 <span class="normal">385</span>
-<span class="normal">386</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">encode_prompt</span><span class="p">(</span>
+<span class="normal">386</span>
+<span class="normal">387</span>
+<span class="normal">388</span>
+<span class="normal">389</span>
+<span class="normal">390</span>
+<span class="normal">391</span>
+<span class="normal">392</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">encode_prompt</span><span class="p">(</span>
     <span class="bp">self</span><span class="p">,</span>
     <span class="n">prompt</span><span class="p">,</span>
     <span class="n">num_images_per_prompt</span><span class="p">,</span>
@@ -11454,7 +11466,7 @@ the output of the pre-final layer will be used for computing the prompt embeddin
 <span class="sd">    &quot;&quot;&quot;</span>
     <span class="c1"># set lora scale so that monkey patched LoRA</span>
     <span class="c1"># function of text encoder can correctly access it</span>
-    <span class="k">if</span> <span class="n">lora_scale</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="ow">and</span> <span class="nb">isinstance</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">LoraLoaderMixin</span><span class="p">):</span>
+    <span class="k">if</span> <span class="n">lora_scale</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="ow">and</span> <span class="nb">isinstance</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">StableDiffusionLoraLoaderMixin</span><span class="p">):</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">_lora_scale</span> <span class="o">=</span> <span class="n">lora_scale</span>
 
         <span class="c1"># dynamically adjust the LoRA scale</span>
@@ -11583,7 +11595,7 @@ the output of the pre-final layer will be used for computing the prompt embeddin
         <span class="n">negative_prompt_embeds</span> <span class="o">=</span> <span class="n">negative_prompt_embeds</span><span class="o">.</span><span class="n">view</span><span class="p">(</span><span class="n">batch_size</span> <span class="o">*</span> <span class="n">num_images_per_prompt</span><span class="p">,</span> <span class="n">seq_len</span><span class="p">,</span> <span class="o">-</span><span class="mi">1</span><span class="p">)</span>
 
     <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">text_encoder</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
-        <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">LoraLoaderMixin</span><span class="p">):</span>
+        <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">StableDiffusionLoraLoaderMixin</span><span class="p">):</span>
             <span class="c1"># Retrieve the original scale by scaling back the LoRA layers</span>
             <span class="n">unscale_lora_layers</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">text_encoder</span><span class="p">,</span> <span class="n">lora_scale</span><span class="p">)</span>
 

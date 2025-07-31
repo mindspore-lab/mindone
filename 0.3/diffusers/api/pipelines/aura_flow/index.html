@@ -8226,7 +8226,7 @@ specific language governing permissions and limitations under the License.
 
     <div class="doc doc-contents first">
             <p class="doc doc-class-bases">
-              Bases: <code><a class="autorefs autorefs-internal" title="mindone.diffusers.DiffusionPipeline (mindone.diffusers.pipelines.pipeline_utils.DiffusionPipeline)" href="../overview/#mindone.diffusers.DiffusionPipeline">DiffusionPipeline</a></code></p>
+              Bases: <code><a class="autorefs autorefs-internal" title="mindone.diffusers.DiffusionPipeline (mindone.diffusers.pipelines.pipeline_utils.DiffusionPipeline)" href="../overview/#mindone.diffusers.DiffusionPipeline">DiffusionPipeline</a></code>, <code><span title="mindone.diffusers.loaders.AuraFlowLoraLoaderMixin">AuraFlowLoraLoaderMixin</span></code></p>
 
 
 
@@ -8333,8 +8333,7 @@ specific language governing permissions and limitations under the License.
 
               <details class="quote">
                 <summary>Source code in <code>mindone/diffusers/pipelines/aura_flow/pipeline_aura_flow.py</code></summary>
-                <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">112</span>
-<span class="normal">113</span>
+                <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">113</span>
 <span class="normal">114</span>
 <span class="normal">115</span>
 <span class="normal">116</span>
@@ -8825,7 +8824,39 @@ specific language governing permissions and limitations under the License.
 <span class="normal">601</span>
 <span class="normal">602</span>
 <span class="normal">603</span>
-<span class="normal">604</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">class</span><span class="w"> </span><span class="nc">AuraFlowPipeline</span><span class="p">(</span><span class="n">DiffusionPipeline</span><span class="p">):</span>
+<span class="normal">604</span>
+<span class="normal">605</span>
+<span class="normal">606</span>
+<span class="normal">607</span>
+<span class="normal">608</span>
+<span class="normal">609</span>
+<span class="normal">610</span>
+<span class="normal">611</span>
+<span class="normal">612</span>
+<span class="normal">613</span>
+<span class="normal">614</span>
+<span class="normal">615</span>
+<span class="normal">616</span>
+<span class="normal">617</span>
+<span class="normal">618</span>
+<span class="normal">619</span>
+<span class="normal">620</span>
+<span class="normal">621</span>
+<span class="normal">622</span>
+<span class="normal">623</span>
+<span class="normal">624</span>
+<span class="normal">625</span>
+<span class="normal">626</span>
+<span class="normal">627</span>
+<span class="normal">628</span>
+<span class="normal">629</span>
+<span class="normal">630</span>
+<span class="normal">631</span>
+<span class="normal">632</span>
+<span class="normal">633</span>
+<span class="normal">634</span>
+<span class="normal">635</span>
+<span class="normal">636</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">class</span><span class="w"> </span><span class="nc">AuraFlowPipeline</span><span class="p">(</span><span class="n">DiffusionPipeline</span><span class="p">,</span> <span class="n">AuraFlowLoraLoaderMixin</span><span class="p">):</span>
 <span class="w">    </span><span class="sa">r</span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    Args:</span>
 <span class="sd">        tokenizer (`T5TokenizerFast`):</span>
@@ -8945,6 +8976,7 @@ specific language governing permissions and limitations under the License.
         <span class="n">prompt_attention_mask</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">ms</span><span class="o">.</span><span class="n">Tensor</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
         <span class="n">negative_prompt_attention_mask</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">ms</span><span class="o">.</span><span class="n">Tensor</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
         <span class="n">max_sequence_length</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">256</span><span class="p">,</span>
+        <span class="n">lora_scale</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">float</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
     <span class="p">):</span>
 <span class="w">        </span><span class="sa">r</span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Encodes the prompt into text encoder hidden states.</span>
@@ -8969,7 +9001,18 @@ specific language governing permissions and limitations under the License.
 <span class="sd">            negative_prompt_attention_mask (`ms.Tensor`, *optional*):</span>
 <span class="sd">                Pre-generated attention mask for negative text embeddings.</span>
 <span class="sd">            max_sequence_length (`int`, defaults to 256): Maximum sequence length to use for the prompt.</span>
+<span class="sd">            lora_scale (`float`, *optional*):</span>
+<span class="sd">                A lora scale that will be applied to all LoRA layers of the text encoder if LoRA layers are loaded.</span>
 <span class="sd">        &quot;&quot;&quot;</span>
+        <span class="c1"># set lora scale so that monkey patched LoRA</span>
+        <span class="c1"># function of text encoder can correctly access it</span>
+        <span class="k">if</span> <span class="n">lora_scale</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="ow">and</span> <span class="nb">isinstance</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">AuraFlowLoraLoaderMixin</span><span class="p">):</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_lora_scale</span> <span class="o">=</span> <span class="n">lora_scale</span>
+
+            <span class="c1"># dynamically adjust the LoRA scale</span>
+            <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">text_encoder</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+                <span class="n">scale_lora_layers</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">text_encoder</span><span class="p">,</span> <span class="n">lora_scale</span><span class="p">)</span>
+
         <span class="k">if</span> <span class="n">prompt</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="ow">and</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">prompt</span><span class="p">,</span> <span class="nb">str</span><span class="p">):</span>
             <span class="n">batch_size</span> <span class="o">=</span> <span class="mi">1</span>
         <span class="k">elif</span> <span class="n">prompt</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="ow">and</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">prompt</span><span class="p">,</span> <span class="nb">list</span><span class="p">):</span>
@@ -9054,6 +9097,11 @@ specific language governing permissions and limitations under the License.
             <span class="n">negative_prompt_embeds</span> <span class="o">=</span> <span class="kc">None</span>
             <span class="n">negative_prompt_attention_mask</span> <span class="o">=</span> <span class="kc">None</span>
 
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">text_encoder</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">AuraFlowLoraLoaderMixin</span><span class="p">):</span>
+                <span class="c1"># Retrieve the original scale by scaling back the LoRA layers</span>
+                <span class="n">unscale_lora_layers</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">text_encoder</span><span class="p">,</span> <span class="n">lora_scale</span><span class="p">)</span>
+
         <span class="k">return</span> <span class="n">prompt_embeds</span><span class="p">,</span> <span class="n">prompt_attention_mask</span><span class="p">,</span> <span class="n">negative_prompt_embeds</span><span class="p">,</span> <span class="n">negative_prompt_attention_mask</span>
 
     <span class="c1"># Copied from diffusers.pipelines.stable_diffusion_3.pipeline_stable_diffusion_3.StableDiffusion3Pipeline.prepare_latents</span>
@@ -9096,6 +9144,10 @@ specific language governing permissions and limitations under the License.
         <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_guidance_scale</span>
 
     <span class="nd">@property</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">attention_kwargs</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_attention_kwargs</span>
+
+    <span class="nd">@property</span>
     <span class="k">def</span><span class="w"> </span><span class="nf">num_timesteps</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
         <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_num_timesteps</span>
 
@@ -9118,6 +9170,7 @@ specific language governing permissions and limitations under the License.
         <span class="n">max_sequence_length</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">256</span><span class="p">,</span>
         <span class="n">output_type</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="s2">&quot;pil&quot;</span><span class="p">,</span>
         <span class="n">return_dict</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
+        <span class="n">attention_kwargs</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">]]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
         <span class="n">callback_on_step_end</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span>
             <span class="n">Union</span><span class="p">[</span><span class="n">Callable</span><span class="p">[[</span><span class="nb">int</span><span class="p">,</span> <span class="nb">int</span><span class="p">,</span> <span class="n">Dict</span><span class="p">],</span> <span class="kc">None</span><span class="p">],</span> <span class="n">PipelineCallback</span><span class="p">,</span> <span class="n">MultiPipelineCallbacks</span><span class="p">]</span>
         <span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
@@ -9145,11 +9198,11 @@ specific language governing permissions and limitations under the License.
 <span class="sd">                Custom sigmas used to override the timestep spacing strategy of the scheduler. If `sigmas` is passed,</span>
 <span class="sd">                `num_inference_steps` and `timesteps` must be `None`.</span>
 <span class="sd">            guidance_scale (`float`, *optional*, defaults to 5.0):</span>
-<span class="sd">                Guidance scale as defined in [Classifier-Free Diffusion Guidance](https://arxiv.org/abs/2207.12598).</span>
-<span class="sd">                `guidance_scale` is defined as `w` of equation 2. of [Imagen</span>
-<span class="sd">                Paper](https://arxiv.org/pdf/2205.11487.pdf). Guidance scale is enabled by setting `guidance_scale &gt;</span>
-<span class="sd">                1`. Higher guidance scale encourages to generate images that are closely linked to the text `prompt`,</span>
-<span class="sd">                usually at the expense of lower image quality.</span>
+<span class="sd">                Guidance scale as defined in [Classifier-Free Diffusion</span>
+<span class="sd">                Guidance](https://huggingface.co/papers/2207.12598). `guidance_scale` is defined as `w` of equation 2.</span>
+<span class="sd">                of [Imagen Paper](https://huggingface.co/papers/2205.11487). Guidance scale is enabled by setting</span>
+<span class="sd">                `guidance_scale &gt; 1`. Higher guidance scale encourages to generate images that are closely linked to</span>
+<span class="sd">                the text `prompt`, usually at the expense of lower image quality.</span>
 <span class="sd">            num_images_per_prompt (`int`, *optional*, defaults to 1):</span>
 <span class="sd">                The number of images to generate per prompt.</span>
 <span class="sd">            generator (`np.random.Generator` or `List[np.random.Generator]`, *optional*):</span>
@@ -9176,6 +9229,10 @@ specific language governing permissions and limitations under the License.
 <span class="sd">            return_dict (`bool`, *optional*, defaults to `True`):</span>
 <span class="sd">                Whether or not to return a [`~pipelines.stable_diffusion_xl.StableDiffusionXLPipelineOutput`] instead</span>
 <span class="sd">                of a plain tuple.</span>
+<span class="sd">            attention_kwargs (`dict`, *optional*):</span>
+<span class="sd">                A kwargs dictionary that if specified is passed along to the `AttentionProcessor` as defined under</span>
+<span class="sd">                `self.processor` in</span>
+<span class="sd">                [mindone.diffusers.models.attention_processor](https://github.com/mindspore-lab/mindone/blob/master/mindone/diffusers/models/attention_processor.py).</span>
 <span class="sd">            callback_on_step_end (`Callable`, *optional*):</span>
 <span class="sd">                A function that calls at the end of each denoising steps during the inference. The function is called</span>
 <span class="sd">                with the following arguments: `callback_on_step_end(self: DiffusionPipeline, step: int, timestep: int,</span>
@@ -9210,6 +9267,7 @@ specific language governing permissions and limitations under the License.
         <span class="p">)</span>
 
         <span class="bp">self</span><span class="o">.</span><span class="n">_guidance_scale</span> <span class="o">=</span> <span class="n">guidance_scale</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_attention_kwargs</span> <span class="o">=</span> <span class="n">attention_kwargs</span>
 
         <span class="c1"># 2. Determine batch size.</span>
         <span class="k">if</span> <span class="n">prompt</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="ow">and</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">prompt</span><span class="p">,</span> <span class="nb">str</span><span class="p">):</span>
@@ -9219,8 +9277,10 @@ specific language governing permissions and limitations under the License.
         <span class="k">else</span><span class="p">:</span>
             <span class="n">batch_size</span> <span class="o">=</span> <span class="n">prompt_embeds</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
 
+        <span class="n">lora_scale</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">attention_kwargs</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;scale&quot;</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span> <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">attention_kwargs</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="k">else</span> <span class="kc">None</span>
+
         <span class="c1"># here `guidance_scale` is defined analog to the guidance weight `w` of equation (2)</span>
-        <span class="c1"># of the Imagen paper: https://arxiv.org/pdf/2205.11487.pdf . `guidance_scale = 1`</span>
+        <span class="c1"># of the Imagen paper: https://huggingface.co/papers/2205.11487 . `guidance_scale = 1`</span>
         <span class="c1"># corresponds to doing no classifier free guidance.</span>
         <span class="n">do_classifier_free_guidance</span> <span class="o">=</span> <span class="n">guidance_scale</span> <span class="o">&gt;</span> <span class="mf">1.0</span>
 
@@ -9240,6 +9300,7 @@ specific language governing permissions and limitations under the License.
             <span class="n">prompt_attention_mask</span><span class="o">=</span><span class="n">prompt_attention_mask</span><span class="p">,</span>
             <span class="n">negative_prompt_attention_mask</span><span class="o">=</span><span class="n">negative_prompt_attention_mask</span><span class="p">,</span>
             <span class="n">max_sequence_length</span><span class="o">=</span><span class="n">max_sequence_length</span><span class="p">,</span>
+            <span class="n">lora_scale</span><span class="o">=</span><span class="n">lora_scale</span><span class="p">,</span>
         <span class="p">)</span>
         <span class="k">if</span> <span class="n">do_classifier_free_guidance</span><span class="p">:</span>
             <span class="n">prompt_embeds</span> <span class="o">=</span> <span class="n">mint</span><span class="o">.</span><span class="n">cat</span><span class="p">([</span><span class="n">negative_prompt_embeds</span><span class="p">,</span> <span class="n">prompt_embeds</span><span class="p">],</span> <span class="n">dim</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>
@@ -9280,6 +9341,7 @@ specific language governing permissions and limitations under the License.
                     <span class="n">encoder_hidden_states</span><span class="o">=</span><span class="n">prompt_embeds</span><span class="p">,</span>
                     <span class="n">timestep</span><span class="o">=</span><span class="n">timestep</span><span class="p">,</span>
                     <span class="n">return_dict</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
+                    <span class="n">attention_kwargs</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">attention_kwargs</span><span class="p">,</span>
                 <span class="p">)[</span><span class="mi">0</span><span class="p">]</span>
 
                 <span class="c1"># perform guidance</span>
@@ -9337,7 +9399,7 @@ specific language governing permissions and limitations under the License.
 
 
 <h3 id="mindone.diffusers.pipelines.AuraFlowPipeline.__call__" class="doc doc-heading">
-            <code class="highlight language-python"><span class="n">mindone</span><span class="o">.</span><span class="n">diffusers</span><span class="o">.</span><span class="n">pipelines</span><span class="o">.</span><span class="n">AuraFlowPipeline</span><span class="o">.</span><span class="fm">__call__</span><span class="p">(</span><span class="n">prompt</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">negative_prompt</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">num_inference_steps</span><span class="o">=</span><span class="mi">50</span><span class="p">,</span> <span class="n">sigmas</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">guidance_scale</span><span class="o">=</span><span class="mf">3.5</span><span class="p">,</span> <span class="n">num_images_per_prompt</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span> <span class="n">height</span><span class="o">=</span><span class="mi">1024</span><span class="p">,</span> <span class="n">width</span><span class="o">=</span><span class="mi">1024</span><span class="p">,</span> <span class="n">generator</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">latents</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">prompt_embeds</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">prompt_attention_mask</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">negative_prompt_embeds</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">negative_prompt_attention_mask</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">max_sequence_length</span><span class="o">=</span><span class="mi">256</span><span class="p">,</span> <span class="n">output_type</span><span class="o">=</span><span class="s1">&#39;pil&#39;</span><span class="p">,</span> <span class="n">return_dict</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">callback_on_step_end</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">callback_on_step_end_tensor_inputs</span><span class="o">=</span><span class="p">[</span><span class="s1">&#39;latents&#39;</span><span class="p">])</span></code>
+            <code class="highlight language-python"><span class="n">mindone</span><span class="o">.</span><span class="n">diffusers</span><span class="o">.</span><span class="n">pipelines</span><span class="o">.</span><span class="n">AuraFlowPipeline</span><span class="o">.</span><span class="fm">__call__</span><span class="p">(</span><span class="n">prompt</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">negative_prompt</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">num_inference_steps</span><span class="o">=</span><span class="mi">50</span><span class="p">,</span> <span class="n">sigmas</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">guidance_scale</span><span class="o">=</span><span class="mf">3.5</span><span class="p">,</span> <span class="n">num_images_per_prompt</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span> <span class="n">height</span><span class="o">=</span><span class="mi">1024</span><span class="p">,</span> <span class="n">width</span><span class="o">=</span><span class="mi">1024</span><span class="p">,</span> <span class="n">generator</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">latents</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">prompt_embeds</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">prompt_attention_mask</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">negative_prompt_embeds</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">negative_prompt_attention_mask</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">max_sequence_length</span><span class="o">=</span><span class="mi">256</span><span class="p">,</span> <span class="n">output_type</span><span class="o">=</span><span class="s1">&#39;pil&#39;</span><span class="p">,</span> <span class="n">return_dict</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">attention_kwargs</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">callback_on_step_end</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">callback_on_step_end_tensor_inputs</span><span class="o">=</span><span class="p">[</span><span class="s1">&#39;latents&#39;</span><span class="p">])</span></code>
 
 <a href="#mindone.diffusers.pipelines.AuraFlowPipeline.__call__" class="headerlink" title="Permanent link">&para;</a></h3>
 
@@ -9486,11 +9548,11 @@ expense of slower inference.</p>
             </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
-                <p>Guidance scale as defined in <a href="https://arxiv.org/abs/2207.12598">Classifier-Free Diffusion Guidance</a>.
-<code>guidance_scale</code> is defined as <code>w</code> of equation 2. of <a href="https://arxiv.org/pdf/2205.11487.pdf">Imagen
-Paper</a>. Guidance scale is enabled by setting <code>guidance_scale &gt;
-1</code>. Higher guidance scale encourages to generate images that are closely linked to the text <code>prompt</code>,
-usually at the expense of lower image quality.</p>
+                <p>Guidance scale as defined in <a href="https://huggingface.co/papers/2207.12598">Classifier-Free Diffusion
+Guidance</a>. <code>guidance_scale</code> is defined as <code>w</code> of equation 2.
+of <a href="https://huggingface.co/papers/2205.11487">Imagen Paper</a>. Guidance scale is enabled by setting
+<code>guidance_scale &gt; 1</code>. Higher guidance scale encourages to generate images that are closely linked to
+the text <code>prompt</code>, usually at the expense of lower image quality.</p>
               </div>
               <p>
                   <span class="doc-param-annotation">
@@ -9694,6 +9756,28 @@ of a plain tuple.</p>
           </tr>
           <tr class="doc-section-item">
             <td>
+                <code>attention_kwargs</code>
+            </td>
+            <td class="doc-param-details">
+              <div class="doc-md-description">
+                <p>A kwargs dictionary that if specified is passed along to the <code>AttentionProcessor</code> as defined under
+<code>self.processor</code> in
+<a href="https://github.com/mindspore-lab/mindone/blob/master/mindone/diffusers/models/attention_processor.py">mindone.diffusers.models.attention_processor</a>.</p>
+              </div>
+              <p>
+                  <span class="doc-param-annotation">
+                    <b>TYPE:</b>
+                      <code>`dict`, *optional*</code>
+                  </span>
+                  <span class="doc-param-default">
+                    <b>DEFAULT:</b>
+                      <code>None</code>
+                  </span>
+              </p>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
                 <code>callback_on_step_end</code>
             </td>
             <td class="doc-param-details">
@@ -9810,29 +9894,7 @@ will be passed as <code>callback_kwargs</code> argument. You will only be able t
 
             <details class="quote">
               <summary>Source code in <code>mindone/diffusers/pipelines/aura_flow/pipeline_aura_flow.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">386</span>
-<span class="normal">387</span>
-<span class="normal">388</span>
-<span class="normal">389</span>
-<span class="normal">390</span>
-<span class="normal">391</span>
-<span class="normal">392</span>
-<span class="normal">393</span>
-<span class="normal">394</span>
-<span class="normal">395</span>
-<span class="normal">396</span>
-<span class="normal">397</span>
-<span class="normal">398</span>
-<span class="normal">399</span>
-<span class="normal">400</span>
-<span class="normal">401</span>
-<span class="normal">402</span>
-<span class="normal">403</span>
-<span class="normal">404</span>
-<span class="normal">405</span>
-<span class="normal">406</span>
-<span class="normal">407</span>
-<span class="normal">408</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">408</span>
 <span class="normal">409</span>
 <span class="normal">410</span>
 <span class="normal">411</span>
@@ -10028,7 +10090,39 @@ will be passed as <code>callback_kwargs</code> argument. You will only be able t
 <span class="normal">601</span>
 <span class="normal">602</span>
 <span class="normal">603</span>
-<span class="normal">604</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="fm">__call__</span><span class="p">(</span>
+<span class="normal">604</span>
+<span class="normal">605</span>
+<span class="normal">606</span>
+<span class="normal">607</span>
+<span class="normal">608</span>
+<span class="normal">609</span>
+<span class="normal">610</span>
+<span class="normal">611</span>
+<span class="normal">612</span>
+<span class="normal">613</span>
+<span class="normal">614</span>
+<span class="normal">615</span>
+<span class="normal">616</span>
+<span class="normal">617</span>
+<span class="normal">618</span>
+<span class="normal">619</span>
+<span class="normal">620</span>
+<span class="normal">621</span>
+<span class="normal">622</span>
+<span class="normal">623</span>
+<span class="normal">624</span>
+<span class="normal">625</span>
+<span class="normal">626</span>
+<span class="normal">627</span>
+<span class="normal">628</span>
+<span class="normal">629</span>
+<span class="normal">630</span>
+<span class="normal">631</span>
+<span class="normal">632</span>
+<span class="normal">633</span>
+<span class="normal">634</span>
+<span class="normal">635</span>
+<span class="normal">636</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="fm">__call__</span><span class="p">(</span>
     <span class="bp">self</span><span class="p">,</span>
     <span class="n">prompt</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">List</span><span class="p">[</span><span class="nb">str</span><span class="p">]]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
     <span class="n">negative_prompt</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">List</span><span class="p">[</span><span class="nb">str</span><span class="p">]]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
@@ -10047,6 +10141,7 @@ will be passed as <code>callback_kwargs</code> argument. You will only be able t
     <span class="n">max_sequence_length</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">256</span><span class="p">,</span>
     <span class="n">output_type</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="s2">&quot;pil&quot;</span><span class="p">,</span>
     <span class="n">return_dict</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
+    <span class="n">attention_kwargs</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">]]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
     <span class="n">callback_on_step_end</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span>
         <span class="n">Union</span><span class="p">[</span><span class="n">Callable</span><span class="p">[[</span><span class="nb">int</span><span class="p">,</span> <span class="nb">int</span><span class="p">,</span> <span class="n">Dict</span><span class="p">],</span> <span class="kc">None</span><span class="p">],</span> <span class="n">PipelineCallback</span><span class="p">,</span> <span class="n">MultiPipelineCallbacks</span><span class="p">]</span>
     <span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
@@ -10074,11 +10169,11 @@ will be passed as <code>callback_kwargs</code> argument. You will only be able t
 <span class="sd">            Custom sigmas used to override the timestep spacing strategy of the scheduler. If `sigmas` is passed,</span>
 <span class="sd">            `num_inference_steps` and `timesteps` must be `None`.</span>
 <span class="sd">        guidance_scale (`float`, *optional*, defaults to 5.0):</span>
-<span class="sd">            Guidance scale as defined in [Classifier-Free Diffusion Guidance](https://arxiv.org/abs/2207.12598).</span>
-<span class="sd">            `guidance_scale` is defined as `w` of equation 2. of [Imagen</span>
-<span class="sd">            Paper](https://arxiv.org/pdf/2205.11487.pdf). Guidance scale is enabled by setting `guidance_scale &gt;</span>
-<span class="sd">            1`. Higher guidance scale encourages to generate images that are closely linked to the text `prompt`,</span>
-<span class="sd">            usually at the expense of lower image quality.</span>
+<span class="sd">            Guidance scale as defined in [Classifier-Free Diffusion</span>
+<span class="sd">            Guidance](https://huggingface.co/papers/2207.12598). `guidance_scale` is defined as `w` of equation 2.</span>
+<span class="sd">            of [Imagen Paper](https://huggingface.co/papers/2205.11487). Guidance scale is enabled by setting</span>
+<span class="sd">            `guidance_scale &gt; 1`. Higher guidance scale encourages to generate images that are closely linked to</span>
+<span class="sd">            the text `prompt`, usually at the expense of lower image quality.</span>
 <span class="sd">        num_images_per_prompt (`int`, *optional*, defaults to 1):</span>
 <span class="sd">            The number of images to generate per prompt.</span>
 <span class="sd">        generator (`np.random.Generator` or `List[np.random.Generator]`, *optional*):</span>
@@ -10105,6 +10200,10 @@ will be passed as <code>callback_kwargs</code> argument. You will only be able t
 <span class="sd">        return_dict (`bool`, *optional*, defaults to `True`):</span>
 <span class="sd">            Whether or not to return a [`~pipelines.stable_diffusion_xl.StableDiffusionXLPipelineOutput`] instead</span>
 <span class="sd">            of a plain tuple.</span>
+<span class="sd">        attention_kwargs (`dict`, *optional*):</span>
+<span class="sd">            A kwargs dictionary that if specified is passed along to the `AttentionProcessor` as defined under</span>
+<span class="sd">            `self.processor` in</span>
+<span class="sd">            [mindone.diffusers.models.attention_processor](https://github.com/mindspore-lab/mindone/blob/master/mindone/diffusers/models/attention_processor.py).</span>
 <span class="sd">        callback_on_step_end (`Callable`, *optional*):</span>
 <span class="sd">            A function that calls at the end of each denoising steps during the inference. The function is called</span>
 <span class="sd">            with the following arguments: `callback_on_step_end(self: DiffusionPipeline, step: int, timestep: int,</span>
@@ -10139,6 +10238,7 @@ will be passed as <code>callback_kwargs</code> argument. You will only be able t
     <span class="p">)</span>
 
     <span class="bp">self</span><span class="o">.</span><span class="n">_guidance_scale</span> <span class="o">=</span> <span class="n">guidance_scale</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">_attention_kwargs</span> <span class="o">=</span> <span class="n">attention_kwargs</span>
 
     <span class="c1"># 2. Determine batch size.</span>
     <span class="k">if</span> <span class="n">prompt</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="ow">and</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">prompt</span><span class="p">,</span> <span class="nb">str</span><span class="p">):</span>
@@ -10148,8 +10248,10 @@ will be passed as <code>callback_kwargs</code> argument. You will only be able t
     <span class="k">else</span><span class="p">:</span>
         <span class="n">batch_size</span> <span class="o">=</span> <span class="n">prompt_embeds</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
 
+    <span class="n">lora_scale</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">attention_kwargs</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;scale&quot;</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span> <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">attention_kwargs</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="k">else</span> <span class="kc">None</span>
+
     <span class="c1"># here `guidance_scale` is defined analog to the guidance weight `w` of equation (2)</span>
-    <span class="c1"># of the Imagen paper: https://arxiv.org/pdf/2205.11487.pdf . `guidance_scale = 1`</span>
+    <span class="c1"># of the Imagen paper: https://huggingface.co/papers/2205.11487 . `guidance_scale = 1`</span>
     <span class="c1"># corresponds to doing no classifier free guidance.</span>
     <span class="n">do_classifier_free_guidance</span> <span class="o">=</span> <span class="n">guidance_scale</span> <span class="o">&gt;</span> <span class="mf">1.0</span>
 
@@ -10169,6 +10271,7 @@ will be passed as <code>callback_kwargs</code> argument. You will only be able t
         <span class="n">prompt_attention_mask</span><span class="o">=</span><span class="n">prompt_attention_mask</span><span class="p">,</span>
         <span class="n">negative_prompt_attention_mask</span><span class="o">=</span><span class="n">negative_prompt_attention_mask</span><span class="p">,</span>
         <span class="n">max_sequence_length</span><span class="o">=</span><span class="n">max_sequence_length</span><span class="p">,</span>
+        <span class="n">lora_scale</span><span class="o">=</span><span class="n">lora_scale</span><span class="p">,</span>
     <span class="p">)</span>
     <span class="k">if</span> <span class="n">do_classifier_free_guidance</span><span class="p">:</span>
         <span class="n">prompt_embeds</span> <span class="o">=</span> <span class="n">mint</span><span class="o">.</span><span class="n">cat</span><span class="p">([</span><span class="n">negative_prompt_embeds</span><span class="p">,</span> <span class="n">prompt_embeds</span><span class="p">],</span> <span class="n">dim</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>
@@ -10209,6 +10312,7 @@ will be passed as <code>callback_kwargs</code> argument. You will only be able t
                 <span class="n">encoder_hidden_states</span><span class="o">=</span><span class="n">prompt_embeds</span><span class="p">,</span>
                 <span class="n">timestep</span><span class="o">=</span><span class="n">timestep</span><span class="p">,</span>
                 <span class="n">return_dict</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
+                <span class="n">attention_kwargs</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">attention_kwargs</span><span class="p">,</span>
             <span class="p">)[</span><span class="mi">0</span><span class="p">]</span>
 
             <span class="c1"># perform guidance</span>
@@ -10257,7 +10361,7 @@ will be passed as <code>callback_kwargs</code> argument. You will only be able t
 
 
 <h3 id="mindone.diffusers.pipelines.AuraFlowPipeline.encode_prompt" class="doc doc-heading">
-            <code class="highlight language-python"><span class="n">mindone</span><span class="o">.</span><span class="n">diffusers</span><span class="o">.</span><span class="n">pipelines</span><span class="o">.</span><span class="n">AuraFlowPipeline</span><span class="o">.</span><span class="n">encode_prompt</span><span class="p">(</span><span class="n">prompt</span><span class="p">,</span> <span class="n">negative_prompt</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">do_classifier_free_guidance</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">num_images_per_prompt</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span> <span class="n">prompt_embeds</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">negative_prompt_embeds</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">prompt_attention_mask</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">negative_prompt_attention_mask</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">max_sequence_length</span><span class="o">=</span><span class="mi">256</span><span class="p">)</span></code>
+            <code class="highlight language-python"><span class="n">mindone</span><span class="o">.</span><span class="n">diffusers</span><span class="o">.</span><span class="n">pipelines</span><span class="o">.</span><span class="n">AuraFlowPipeline</span><span class="o">.</span><span class="n">encode_prompt</span><span class="p">(</span><span class="n">prompt</span><span class="p">,</span> <span class="n">negative_prompt</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">do_classifier_free_guidance</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">num_images_per_prompt</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span> <span class="n">prompt_embeds</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">negative_prompt_embeds</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">prompt_attention_mask</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">negative_prompt_attention_mask</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">max_sequence_length</span><span class="o">=</span><span class="mi">256</span><span class="p">,</span> <span class="n">lora_scale</span><span class="o">=</span><span class="kc">None</span><span class="p">)</span></code>
 
 <a href="#mindone.diffusers.pipelines.AuraFlowPipeline.encode_prompt" class="headerlink" title="Permanent link">&para;</a></h3>
 
@@ -10453,14 +10557,33 @@ provided, text embeddings will be generated from <code>prompt</code> input argum
               </p>
             </td>
           </tr>
+          <tr class="doc-section-item">
+            <td>
+                <code>lora_scale</code>
+            </td>
+            <td class="doc-param-details">
+              <div class="doc-md-description">
+                <p>A lora scale that will be applied to all LoRA layers of the text encoder if LoRA layers are loaded.</p>
+              </div>
+              <p>
+                  <span class="doc-param-annotation">
+                    <b>TYPE:</b>
+                      <code>`float`, *optional*</code>
+                  </span>
+                  <span class="doc-param-default">
+                    <b>DEFAULT:</b>
+                      <code>None</code>
+                  </span>
+              </p>
+            </td>
+          </tr>
       </tbody>
     </table>
 
 
             <details class="quote">
               <summary>Source code in <code>mindone/diffusers/pipelines/aura_flow/pipeline_aura_flow.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">221</span>
-<span class="normal">222</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">222</span>
 <span class="normal">223</span>
 <span class="normal">224</span>
 <span class="normal">225</span>
@@ -10579,7 +10702,25 @@ provided, text embeddings will be generated from <code>prompt</code> input argum
 <span class="normal">338</span>
 <span class="normal">339</span>
 <span class="normal">340</span>
-<span class="normal">341</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">encode_prompt</span><span class="p">(</span>
+<span class="normal">341</span>
+<span class="normal">342</span>
+<span class="normal">343</span>
+<span class="normal">344</span>
+<span class="normal">345</span>
+<span class="normal">346</span>
+<span class="normal">347</span>
+<span class="normal">348</span>
+<span class="normal">349</span>
+<span class="normal">350</span>
+<span class="normal">351</span>
+<span class="normal">352</span>
+<span class="normal">353</span>
+<span class="normal">354</span>
+<span class="normal">355</span>
+<span class="normal">356</span>
+<span class="normal">357</span>
+<span class="normal">358</span>
+<span class="normal">359</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">encode_prompt</span><span class="p">(</span>
     <span class="bp">self</span><span class="p">,</span>
     <span class="n">prompt</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">List</span><span class="p">[</span><span class="nb">str</span><span class="p">]],</span>
     <span class="n">negative_prompt</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">List</span><span class="p">[</span><span class="nb">str</span><span class="p">]]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
@@ -10590,6 +10731,7 @@ provided, text embeddings will be generated from <code>prompt</code> input argum
     <span class="n">prompt_attention_mask</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">ms</span><span class="o">.</span><span class="n">Tensor</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
     <span class="n">negative_prompt_attention_mask</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">ms</span><span class="o">.</span><span class="n">Tensor</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
     <span class="n">max_sequence_length</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">256</span><span class="p">,</span>
+    <span class="n">lora_scale</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">float</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
 <span class="p">):</span>
 <span class="w">    </span><span class="sa">r</span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    Encodes the prompt into text encoder hidden states.</span>
@@ -10614,7 +10756,18 @@ provided, text embeddings will be generated from <code>prompt</code> input argum
 <span class="sd">        negative_prompt_attention_mask (`ms.Tensor`, *optional*):</span>
 <span class="sd">            Pre-generated attention mask for negative text embeddings.</span>
 <span class="sd">        max_sequence_length (`int`, defaults to 256): Maximum sequence length to use for the prompt.</span>
+<span class="sd">        lora_scale (`float`, *optional*):</span>
+<span class="sd">            A lora scale that will be applied to all LoRA layers of the text encoder if LoRA layers are loaded.</span>
 <span class="sd">    &quot;&quot;&quot;</span>
+    <span class="c1"># set lora scale so that monkey patched LoRA</span>
+    <span class="c1"># function of text encoder can correctly access it</span>
+    <span class="k">if</span> <span class="n">lora_scale</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="ow">and</span> <span class="nb">isinstance</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">AuraFlowLoraLoaderMixin</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_lora_scale</span> <span class="o">=</span> <span class="n">lora_scale</span>
+
+        <span class="c1"># dynamically adjust the LoRA scale</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">text_encoder</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">scale_lora_layers</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">text_encoder</span><span class="p">,</span> <span class="n">lora_scale</span><span class="p">)</span>
+
     <span class="k">if</span> <span class="n">prompt</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="ow">and</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">prompt</span><span class="p">,</span> <span class="nb">str</span><span class="p">):</span>
         <span class="n">batch_size</span> <span class="o">=</span> <span class="mi">1</span>
     <span class="k">elif</span> <span class="n">prompt</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="ow">and</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">prompt</span><span class="p">,</span> <span class="nb">list</span><span class="p">):</span>
@@ -10698,6 +10851,11 @@ provided, text embeddings will be generated from <code>prompt</code> input argum
     <span class="k">else</span><span class="p">:</span>
         <span class="n">negative_prompt_embeds</span> <span class="o">=</span> <span class="kc">None</span>
         <span class="n">negative_prompt_attention_mask</span> <span class="o">=</span> <span class="kc">None</span>
+
+    <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">text_encoder</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">AuraFlowLoraLoaderMixin</span><span class="p">):</span>
+            <span class="c1"># Retrieve the original scale by scaling back the LoRA layers</span>
+            <span class="n">unscale_lora_layers</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">text_encoder</span><span class="p">,</span> <span class="n">lora_scale</span><span class="p">)</span>
 
     <span class="k">return</span> <span class="n">prompt_embeds</span><span class="p">,</span> <span class="n">prompt_attention_mask</span><span class="p">,</span> <span class="n">negative_prompt_embeds</span><span class="p">,</span> <span class="n">negative_prompt_attention_mask</span>
 </code></pre></div></td></tr></table></div>

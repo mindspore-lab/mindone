@@ -8652,9 +8652,7 @@ watermarker will be used.</p>
 
               <details class="quote">
                 <summary>Source code in <code>mindone/diffusers/pipelines/stable_diffusion_xl/pipeline_stable_diffusion_xl.py</code></summary>
-                <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal"> 148</span>
-<span class="normal"> 149</span>
-<span class="normal"> 150</span>
+                <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal"> 150</span>
 <span class="normal"> 151</span>
 <span class="normal"> 152</span>
 <span class="normal"> 153</span>
@@ -9748,7 +9746,10 @@ watermarker will be used.</p>
 <span class="normal">1241</span>
 <span class="normal">1242</span>
 <span class="normal">1243</span>
-<span class="normal">1244</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">class</span><span class="w"> </span><span class="nc">StableDiffusionXLPipeline</span><span class="p">(</span>
+<span class="normal">1244</span>
+<span class="normal">1245</span>
+<span class="normal">1246</span>
+<span class="normal">1247</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">class</span><span class="w"> </span><span class="nc">StableDiffusionXLPipeline</span><span class="p">(</span>
     <span class="n">DiffusionPipeline</span><span class="p">,</span>
     <span class="n">StableDiffusionMixin</span><span class="p">,</span>
     <span class="n">FromSingleFileMixin</span><span class="p">,</span>
@@ -10161,7 +10162,7 @@ watermarker will be used.</p>
     <span class="k">def</span><span class="w"> </span><span class="nf">prepare_extra_step_kwargs</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">generator</span><span class="p">,</span> <span class="n">eta</span><span class="p">):</span>
         <span class="c1"># prepare extra kwargs for the scheduler step, since not all schedulers have the same signature</span>
         <span class="c1"># eta (η) is only used with the DDIMScheduler, it will be ignored for other schedulers.</span>
-        <span class="c1"># eta corresponds to η in DDIM paper: https://arxiv.org/abs/2010.02502</span>
+        <span class="c1"># eta corresponds to η in DDIM paper: https://huggingface.co/papers/2010.02502</span>
         <span class="c1"># and should be between [0, 1]</span>
 
         <span class="n">accepts_eta</span> <span class="o">=</span> <span class="s2">&quot;eta&quot;</span> <span class="ow">in</span> <span class="nb">set</span><span class="p">(</span><span class="n">inspect</span><span class="o">.</span><span class="n">signature</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">scheduler</span><span class="o">.</span><span class="n">step</span><span class="p">)</span><span class="o">.</span><span class="n">parameters</span><span class="o">.</span><span class="n">keys</span><span class="p">())</span>
@@ -10359,7 +10360,7 @@ watermarker will be used.</p>
         <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_clip_skip</span>
 
     <span class="c1"># here `guidance_scale` is defined analog to the guidance weight `w` of equation (2)</span>
-    <span class="c1"># of the Imagen paper: https://arxiv.org/pdf/2205.11487.pdf . `guidance_scale = 1`</span>
+    <span class="c1"># of the Imagen paper: https://huggingface.co/papers/2205.11487 . `guidance_scale = 1`</span>
     <span class="c1"># corresponds to doing no classifier free guidance.</span>
     <span class="nd">@property</span>
     <span class="k">def</span><span class="w"> </span><span class="nf">do_classifier_free_guidance</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
@@ -10460,11 +10461,11 @@ watermarker will be used.</p>
 <span class="sd">                &quot;Mixture of Denoisers&quot; multi-pipeline setup, as elaborated in [**Refining the Image</span>
 <span class="sd">                Output**](https://huggingface.co/docs/diffusers/api/pipelines/stable_diffusion/stable_diffusion_xl#refining-the-image-output)</span>
 <span class="sd">            guidance_scale (`float`, *optional*, defaults to 5.0):</span>
-<span class="sd">                Guidance scale as defined in [Classifier-Free Diffusion Guidance](https://arxiv.org/abs/2207.12598).</span>
-<span class="sd">                `guidance_scale` is defined as `w` of equation 2. of [Imagen</span>
-<span class="sd">                Paper](https://arxiv.org/pdf/2205.11487.pdf). Guidance scale is enabled by setting `guidance_scale &gt;</span>
-<span class="sd">                1`. Higher guidance scale encourages to generate images that are closely linked to the text `prompt`,</span>
-<span class="sd">                usually at the expense of lower image quality.</span>
+<span class="sd">                Guidance scale as defined in [Classifier-Free Diffusion</span>
+<span class="sd">                Guidance](https://huggingface.co/papers/2207.12598). `guidance_scale` is defined as `w` of equation 2.</span>
+<span class="sd">                of [Imagen Paper](https://huggingface.co/papers/2205.11487). Guidance scale is enabled by setting</span>
+<span class="sd">                `guidance_scale &gt; 1`. Higher guidance scale encourages to generate images that are closely linked to</span>
+<span class="sd">                the text `prompt`, usually at the expense of lower image quality.</span>
 <span class="sd">            negative_prompt (`str` or `List[str]`, *optional*):</span>
 <span class="sd">                The prompt or prompts not to guide the image generation. If not defined, one has to pass</span>
 <span class="sd">                `negative_prompt_embeds` instead. Ignored when not using guidance (i.e., ignored if `guidance_scale` is</span>
@@ -10475,8 +10476,8 @@ watermarker will be used.</p>
 <span class="sd">            num_images_per_prompt (`int`, *optional*, defaults to 1):</span>
 <span class="sd">                The number of images to generate per prompt.</span>
 <span class="sd">            eta (`float`, *optional*, defaults to 0.0):</span>
-<span class="sd">                Corresponds to parameter eta (η) in the DDIM paper: https://arxiv.org/abs/2010.02502. Only applies to</span>
-<span class="sd">                [`schedulers.DDIMScheduler`], will be ignored for others.</span>
+<span class="sd">                Corresponds to parameter eta (η) in the DDIM paper: https://huggingface.co/papers/2010.02502. Only</span>
+<span class="sd">                applies to [`schedulers.DDIMScheduler`], will be ignored for others.</span>
 <span class="sd">            generator (`np.random.Generator` or `List[np.random.Generator]`, *optional*):</span>
 <span class="sd">                One or a list of [numpy generator(s)](https://numpy.org/doc/stable/reference/random/generator.html)</span>
 <span class="sd">                to make generation deterministic.</span>
@@ -10516,9 +10517,10 @@ watermarker will be used.</p>
 <span class="sd">                [diffusers.models.attention_processor](https://github.com/huggingface/diffusers/blob/main/src/diffusers/models/attention_processor.py).</span>
 <span class="sd">            guidance_rescale (`float`, *optional*, defaults to 0.0):</span>
 <span class="sd">                Guidance rescale factor proposed by [Common Diffusion Noise Schedules and Sample Steps are</span>
-<span class="sd">                Flawed](https://arxiv.org/pdf/2305.08891.pdf) `guidance_scale` is defined as `φ` in equation 16. of</span>
-<span class="sd">                [Common Diffusion Noise Schedules and Sample Steps are Flawed](https://arxiv.org/pdf/2305.08891.pdf).</span>
-<span class="sd">                Guidance rescale factor should fix overexposure when using zero terminal SNR.</span>
+<span class="sd">                Flawed](https://huggingface.co/papers/2305.08891) `guidance_scale` is defined as `φ` in equation 16. of</span>
+<span class="sd">                [Common Diffusion Noise Schedules and Sample Steps are</span>
+<span class="sd">                Flawed](https://huggingface.co/papers/2305.08891). Guidance rescale factor should fix overexposure when</span>
+<span class="sd">                using zero terminal SNR.</span>
 <span class="sd">            original_size (`Tuple[int]`, *optional*, defaults to (1024, 1024)):</span>
 <span class="sd">                If `original_size` is not the same as `target_size` the image will appear to be down- or upsampled.</span>
 <span class="sd">                `original_size` defaults to `(height, width)` if not specified. Part of SDXL&#39;s micro-conditioning as</span>
@@ -10775,7 +10777,7 @@ watermarker will be used.</p>
                     <span class="n">noise_pred</span> <span class="o">=</span> <span class="n">noise_pred_uncond</span> <span class="o">+</span> <span class="bp">self</span><span class="o">.</span><span class="n">guidance_scale</span> <span class="o">*</span> <span class="p">(</span><span class="n">noise_pred_text</span> <span class="o">-</span> <span class="n">noise_pred_uncond</span><span class="p">)</span>
 
                 <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">do_classifier_free_guidance</span> <span class="ow">and</span> <span class="bp">self</span><span class="o">.</span><span class="n">guidance_rescale</span> <span class="o">&gt;</span> <span class="mf">0.0</span><span class="p">:</span>
-                    <span class="c1"># Based on 3.4. in https://arxiv.org/pdf/2305.08891.pdf</span>
+                    <span class="c1"># Based on 3.4. in https://huggingface.co/papers/2305.08891</span>
                     <span class="n">noise_pred</span> <span class="o">=</span> <span class="n">rescale_noise_cfg</span><span class="p">(</span><span class="n">noise_pred</span><span class="p">,</span> <span class="n">noise_pred_text</span><span class="p">,</span> <span class="n">guidance_rescale</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">guidance_rescale</span><span class="p">)</span>
 
                 <span class="c1"># compute the previous noisy sample x_t -&gt; x_t-1</span>
@@ -11066,11 +11068,11 @@ Output</strong></a></p>
             </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
-                <p>Guidance scale as defined in <a href="https://arxiv.org/abs/2207.12598">Classifier-Free Diffusion Guidance</a>.
-<code>guidance_scale</code> is defined as <code>w</code> of equation 2. of <a href="https://arxiv.org/pdf/2205.11487.pdf">Imagen
-Paper</a>. Guidance scale is enabled by setting <code>guidance_scale &gt;
-1</code>. Higher guidance scale encourages to generate images that are closely linked to the text <code>prompt</code>,
-usually at the expense of lower image quality.</p>
+                <p>Guidance scale as defined in <a href="https://huggingface.co/papers/2207.12598">Classifier-Free Diffusion
+Guidance</a>. <code>guidance_scale</code> is defined as <code>w</code> of equation 2.
+of <a href="https://huggingface.co/papers/2205.11487">Imagen Paper</a>. Guidance scale is enabled by setting
+<code>guidance_scale &gt; 1</code>. Higher guidance scale encourages to generate images that are closely linked to
+the text <code>prompt</code>, usually at the expense of lower image quality.</p>
               </div>
               <p>
                   <span class="doc-param-annotation">
@@ -11153,8 +11155,8 @@ less than <code>1</code>).</p>
             </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
-                <p>Corresponds to parameter eta (η) in the DDIM paper: https://arxiv.org/abs/2010.02502. Only applies to
-[<code>schedulers.DDIMScheduler</code>], will be ignored for others.</p>
+                <p>Corresponds to parameter eta (η) in the DDIM paper: https://huggingface.co/papers/2010.02502. Only
+applies to [<code>schedulers.DDIMScheduler</code>], will be ignored for others.</p>
               </div>
               <p>
                   <span class="doc-param-annotation">
@@ -11410,10 +11412,11 @@ of a plain tuple.</p>
             </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
-                <p>Guidance rescale factor proposed by <a href="https://arxiv.org/pdf/2305.08891.pdf">Common Diffusion Noise Schedules and Sample Steps are
+                <p>Guidance rescale factor proposed by <a href="https://huggingface.co/papers/2305.08891">Common Diffusion Noise Schedules and Sample Steps are
 Flawed</a> <code>guidance_scale</code> is defined as <code>φ</code> in equation 16. of
-<a href="https://arxiv.org/pdf/2305.08891.pdf">Common Diffusion Noise Schedules and Sample Steps are Flawed</a>.
-Guidance rescale factor should fix overexposure when using zero terminal SNR.</p>
+<a href="https://huggingface.co/papers/2305.08891">Common Diffusion Noise Schedules and Sample Steps are
+Flawed</a>. Guidance rescale factor should fix overexposure when
+using zero terminal SNR.</p>
               </div>
               <p>
                   <span class="doc-param-annotation">
@@ -11655,9 +11658,7 @@ will be passed as <code>callback_kwargs</code> argument. You will only be able t
 
             <details class="quote">
               <summary>Source code in <code>mindone/diffusers/pipelines/stable_diffusion_xl/pipeline_stable_diffusion_xl.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal"> 781</span>
-<span class="normal"> 782</span>
-<span class="normal"> 783</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal"> 783</span>
 <span class="normal"> 784</span>
 <span class="normal"> 785</span>
 <span class="normal"> 786</span>
@@ -12118,7 +12119,10 @@ will be passed as <code>callback_kwargs</code> argument. You will only be able t
 <span class="normal">1241</span>
 <span class="normal">1242</span>
 <span class="normal">1243</span>
-<span class="normal">1244</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="fm">__call__</span><span class="p">(</span>
+<span class="normal">1244</span>
+<span class="normal">1245</span>
+<span class="normal">1246</span>
+<span class="normal">1247</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="fm">__call__</span><span class="p">(</span>
     <span class="bp">self</span><span class="p">,</span>
     <span class="n">prompt</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">List</span><span class="p">[</span><span class="nb">str</span><span class="p">]]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
     <span class="n">prompt_2</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Union</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">List</span><span class="p">[</span><span class="nb">str</span><span class="p">]]]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
@@ -12197,11 +12201,11 @@ will be passed as <code>callback_kwargs</code> argument. You will only be able t
 <span class="sd">            &quot;Mixture of Denoisers&quot; multi-pipeline setup, as elaborated in [**Refining the Image</span>
 <span class="sd">            Output**](https://huggingface.co/docs/diffusers/api/pipelines/stable_diffusion/stable_diffusion_xl#refining-the-image-output)</span>
 <span class="sd">        guidance_scale (`float`, *optional*, defaults to 5.0):</span>
-<span class="sd">            Guidance scale as defined in [Classifier-Free Diffusion Guidance](https://arxiv.org/abs/2207.12598).</span>
-<span class="sd">            `guidance_scale` is defined as `w` of equation 2. of [Imagen</span>
-<span class="sd">            Paper](https://arxiv.org/pdf/2205.11487.pdf). Guidance scale is enabled by setting `guidance_scale &gt;</span>
-<span class="sd">            1`. Higher guidance scale encourages to generate images that are closely linked to the text `prompt`,</span>
-<span class="sd">            usually at the expense of lower image quality.</span>
+<span class="sd">            Guidance scale as defined in [Classifier-Free Diffusion</span>
+<span class="sd">            Guidance](https://huggingface.co/papers/2207.12598). `guidance_scale` is defined as `w` of equation 2.</span>
+<span class="sd">            of [Imagen Paper](https://huggingface.co/papers/2205.11487). Guidance scale is enabled by setting</span>
+<span class="sd">            `guidance_scale &gt; 1`. Higher guidance scale encourages to generate images that are closely linked to</span>
+<span class="sd">            the text `prompt`, usually at the expense of lower image quality.</span>
 <span class="sd">        negative_prompt (`str` or `List[str]`, *optional*):</span>
 <span class="sd">            The prompt or prompts not to guide the image generation. If not defined, one has to pass</span>
 <span class="sd">            `negative_prompt_embeds` instead. Ignored when not using guidance (i.e., ignored if `guidance_scale` is</span>
@@ -12212,8 +12216,8 @@ will be passed as <code>callback_kwargs</code> argument. You will only be able t
 <span class="sd">        num_images_per_prompt (`int`, *optional*, defaults to 1):</span>
 <span class="sd">            The number of images to generate per prompt.</span>
 <span class="sd">        eta (`float`, *optional*, defaults to 0.0):</span>
-<span class="sd">            Corresponds to parameter eta (η) in the DDIM paper: https://arxiv.org/abs/2010.02502. Only applies to</span>
-<span class="sd">            [`schedulers.DDIMScheduler`], will be ignored for others.</span>
+<span class="sd">            Corresponds to parameter eta (η) in the DDIM paper: https://huggingface.co/papers/2010.02502. Only</span>
+<span class="sd">            applies to [`schedulers.DDIMScheduler`], will be ignored for others.</span>
 <span class="sd">        generator (`np.random.Generator` or `List[np.random.Generator]`, *optional*):</span>
 <span class="sd">            One or a list of [numpy generator(s)](https://numpy.org/doc/stable/reference/random/generator.html)</span>
 <span class="sd">            to make generation deterministic.</span>
@@ -12253,9 +12257,10 @@ will be passed as <code>callback_kwargs</code> argument. You will only be able t
 <span class="sd">            [diffusers.models.attention_processor](https://github.com/huggingface/diffusers/blob/main/src/diffusers/models/attention_processor.py).</span>
 <span class="sd">        guidance_rescale (`float`, *optional*, defaults to 0.0):</span>
 <span class="sd">            Guidance rescale factor proposed by [Common Diffusion Noise Schedules and Sample Steps are</span>
-<span class="sd">            Flawed](https://arxiv.org/pdf/2305.08891.pdf) `guidance_scale` is defined as `φ` in equation 16. of</span>
-<span class="sd">            [Common Diffusion Noise Schedules and Sample Steps are Flawed](https://arxiv.org/pdf/2305.08891.pdf).</span>
-<span class="sd">            Guidance rescale factor should fix overexposure when using zero terminal SNR.</span>
+<span class="sd">            Flawed](https://huggingface.co/papers/2305.08891) `guidance_scale` is defined as `φ` in equation 16. of</span>
+<span class="sd">            [Common Diffusion Noise Schedules and Sample Steps are</span>
+<span class="sd">            Flawed](https://huggingface.co/papers/2305.08891). Guidance rescale factor should fix overexposure when</span>
+<span class="sd">            using zero terminal SNR.</span>
 <span class="sd">        original_size (`Tuple[int]`, *optional*, defaults to (1024, 1024)):</span>
 <span class="sd">            If `original_size` is not the same as `target_size` the image will appear to be down- or upsampled.</span>
 <span class="sd">            `original_size` defaults to `(height, width)` if not specified. Part of SDXL&#39;s micro-conditioning as</span>
@@ -12512,7 +12517,7 @@ will be passed as <code>callback_kwargs</code> argument. You will only be able t
                 <span class="n">noise_pred</span> <span class="o">=</span> <span class="n">noise_pred_uncond</span> <span class="o">+</span> <span class="bp">self</span><span class="o">.</span><span class="n">guidance_scale</span> <span class="o">*</span> <span class="p">(</span><span class="n">noise_pred_text</span> <span class="o">-</span> <span class="n">noise_pred_uncond</span><span class="p">)</span>
 
             <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">do_classifier_free_guidance</span> <span class="ow">and</span> <span class="bp">self</span><span class="o">.</span><span class="n">guidance_rescale</span> <span class="o">&gt;</span> <span class="mf">0.0</span><span class="p">:</span>
-                <span class="c1"># Based on 3.4. in https://arxiv.org/pdf/2305.08891.pdf</span>
+                <span class="c1"># Based on 3.4. in https://huggingface.co/papers/2305.08891</span>
                 <span class="n">noise_pred</span> <span class="o">=</span> <span class="n">rescale_noise_cfg</span><span class="p">(</span><span class="n">noise_pred</span><span class="p">,</span> <span class="n">noise_pred_text</span><span class="p">,</span> <span class="n">guidance_rescale</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">guidance_rescale</span><span class="p">)</span>
 
             <span class="c1"># compute the previous noisy sample x_t -&gt; x_t-1</span>
@@ -12863,9 +12868,7 @@ the output of the pre-final layer will be used for computing the prompt embeddin
 
             <details class="quote">
               <summary>Source code in <code>mindone/diffusers/pipelines/stable_diffusion_xl/pipeline_stable_diffusion_xl.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">261</span>
-<span class="normal">262</span>
-<span class="normal">263</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">263</span>
 <span class="normal">264</span>
 <span class="normal">265</span>
 <span class="normal">266</span>
@@ -13082,7 +13085,9 @@ the output of the pre-final layer will be used for computing the prompt embeddin
 <span class="normal">477</span>
 <span class="normal">478</span>
 <span class="normal">479</span>
-<span class="normal">480</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">encode_prompt</span><span class="p">(</span>
+<span class="normal">480</span>
+<span class="normal">481</span>
+<span class="normal">482</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">encode_prompt</span><span class="p">(</span>
     <span class="bp">self</span><span class="p">,</span>
     <span class="n">prompt</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
     <span class="n">prompt_2</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
@@ -13416,9 +13421,7 @@ the output of the pre-final layer will be used for computing the prompt embeddin
 
             <details class="quote">
               <summary>Source code in <code>mindone/diffusers/pipelines/stable_diffusion_xl/pipeline_stable_diffusion_xl.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">716</span>
-<span class="normal">717</span>
-<span class="normal">718</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">718</span>
 <span class="normal">719</span>
 <span class="normal">720</span>
 <span class="normal">721</span>
@@ -13444,7 +13447,9 @@ the output of the pre-final layer will be used for computing the prompt embeddin
 <span class="normal">741</span>
 <span class="normal">742</span>
 <span class="normal">743</span>
-<span class="normal">744</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">get_guidance_scale_embedding</span><span class="p">(</span>
+<span class="normal">744</span>
+<span class="normal">745</span>
+<span class="normal">746</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">get_guidance_scale_embedding</span><span class="p">(</span>
     <span class="bp">self</span><span class="p">,</span> <span class="n">w</span><span class="p">:</span> <span class="n">ms</span><span class="o">.</span><span class="n">Tensor</span><span class="p">,</span> <span class="n">embedding_dim</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">512</span><span class="p">,</span> <span class="n">dtype</span><span class="p">:</span> <span class="n">ms</span><span class="o">.</span><span class="n">Type</span> <span class="o">=</span> <span class="n">ms</span><span class="o">.</span><span class="n">float32</span>
 <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">ms</span><span class="o">.</span><span class="n">Tensor</span><span class="p">:</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
@@ -14984,7 +14989,8 @@ watermarker will be used.</p>
 <span class="normal">1426</span>
 <span class="normal">1427</span>
 <span class="normal">1428</span>
-<span class="normal">1429</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">class</span><span class="w"> </span><span class="nc">StableDiffusionXLImg2ImgPipeline</span><span class="p">(</span>
+<span class="normal">1429</span>
+<span class="normal">1430</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">class</span><span class="w"> </span><span class="nc">StableDiffusionXLImg2ImgPipeline</span><span class="p">(</span>
     <span class="n">DiffusionPipeline</span><span class="p">,</span>
     <span class="n">StableDiffusionMixin</span><span class="p">,</span>
     <span class="n">FromSingleFileMixin</span><span class="p">,</span>
@@ -15326,7 +15332,7 @@ watermarker will be used.</p>
     <span class="k">def</span><span class="w"> </span><span class="nf">prepare_extra_step_kwargs</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">generator</span><span class="p">,</span> <span class="n">eta</span><span class="p">):</span>
         <span class="c1"># prepare extra kwargs for the scheduler step, since not all schedulers have the same signature</span>
         <span class="c1"># eta (η) is only used with the DDIMScheduler, it will be ignored for other schedulers.</span>
-        <span class="c1"># eta corresponds to η in DDIM paper: https://arxiv.org/abs/2010.02502</span>
+        <span class="c1"># eta corresponds to η in DDIM paper: https://huggingface.co/papers/2010.02502</span>
         <span class="c1"># and should be between [0, 1]</span>
 
         <span class="n">accepts_eta</span> <span class="o">=</span> <span class="s2">&quot;eta&quot;</span> <span class="ow">in</span> <span class="nb">set</span><span class="p">(</span><span class="n">inspect</span><span class="o">.</span><span class="n">signature</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">scheduler</span><span class="o">.</span><span class="n">step</span><span class="p">)</span><span class="o">.</span><span class="n">parameters</span><span class="o">.</span><span class="n">keys</span><span class="p">())</span>
@@ -15725,7 +15731,7 @@ watermarker will be used.</p>
         <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_clip_skip</span>
 
     <span class="c1"># here `guidance_scale` is defined analog to the guidance weight `w` of equation (2)</span>
-    <span class="c1"># of the Imagen paper: https://arxiv.org/pdf/2205.11487.pdf . `guidance_scale = 1`</span>
+    <span class="c1"># of the Imagen paper: https://huggingface.co/papers/2205.11487 . `guidance_scale = 1`</span>
     <span class="c1"># corresponds to doing no classifier free guidance.</span>
     <span class="nd">@property</span>
     <span class="k">def</span><span class="w"> </span><span class="nf">do_classifier_free_guidance</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
@@ -15840,11 +15846,11 @@ watermarker will be used.</p>
 <span class="sd">                forms a part of a &quot;Mixture of Denoisers&quot; multi-pipeline setup, as elaborated in [**Refine Image</span>
 <span class="sd">                Quality**](https://huggingface.co/docs/diffusers/using-diffusers/sdxl#refine-image-quality).</span>
 <span class="sd">            guidance_scale (`float`, *optional*, defaults to 7.5):</span>
-<span class="sd">                Guidance scale as defined in [Classifier-Free Diffusion Guidance](https://arxiv.org/abs/2207.12598).</span>
-<span class="sd">                `guidance_scale` is defined as `w` of equation 2. of [Imagen</span>
-<span class="sd">                Paper](https://arxiv.org/pdf/2205.11487.pdf). Guidance scale is enabled by setting `guidance_scale &gt;</span>
-<span class="sd">                1`. Higher guidance scale encourages to generate images that are closely linked to the text `prompt`,</span>
-<span class="sd">                usually at the expense of lower image quality.</span>
+<span class="sd">                Guidance scale as defined in [Classifier-Free Diffusion</span>
+<span class="sd">                Guidance](https://huggingface.co/papers/2207.12598). `guidance_scale` is defined as `w` of equation 2.</span>
+<span class="sd">                of [Imagen Paper](https://huggingface.co/papers/2205.11487). Guidance scale is enabled by setting</span>
+<span class="sd">                `guidance_scale &gt; 1`. Higher guidance scale encourages to generate images that are closely linked to</span>
+<span class="sd">                the text `prompt`, usually at the expense of lower image quality.</span>
 <span class="sd">            negative_prompt (`str` or `List[str]`, *optional*):</span>
 <span class="sd">                The prompt or prompts not to guide the image generation. If not defined, one has to pass</span>
 <span class="sd">                `negative_prompt_embeds` instead. Ignored when not using guidance (i.e., ignored if `guidance_scale` is</span>
@@ -15855,8 +15861,8 @@ watermarker will be used.</p>
 <span class="sd">            num_images_per_prompt (`int`, *optional*, defaults to 1):</span>
 <span class="sd">                The number of images to generate per prompt.</span>
 <span class="sd">            eta (`float`, *optional*, defaults to 0.0):</span>
-<span class="sd">                Corresponds to parameter eta (η) in the DDIM paper: https://arxiv.org/abs/2010.02502. Only applies to</span>
-<span class="sd">                [`schedulers.DDIMScheduler`], will be ignored for others.</span>
+<span class="sd">                Corresponds to parameter eta (η) in the DDIM paper: https://huggingface.co/papers/2010.02502. Only</span>
+<span class="sd">                applies to [`schedulers.DDIMScheduler`], will be ignored for others.</span>
 <span class="sd">            generator (`np.random.Generator` or `List[np.random.Generator]`, *optional*):</span>
 <span class="sd">                One or a list of [numpy generator(s)](https://numpy.org/doc/stable/reference/random/generator.html)</span>
 <span class="sd">                to make generation deterministic.</span>
@@ -15896,9 +15902,10 @@ watermarker will be used.</p>
 <span class="sd">                [diffusers.models.attention_processor](https://github.com/huggingface/diffusers/blob/main/src/diffusers/models/attention_processor.py).</span>
 <span class="sd">            guidance_rescale (`float`, *optional*, defaults to 0.0):</span>
 <span class="sd">                Guidance rescale factor proposed by [Common Diffusion Noise Schedules and Sample Steps are</span>
-<span class="sd">                Flawed](https://arxiv.org/pdf/2305.08891.pdf) `guidance_scale` is defined as `φ` in equation 16. of</span>
-<span class="sd">                [Common Diffusion Noise Schedules and Sample Steps are Flawed](https://arxiv.org/pdf/2305.08891.pdf).</span>
-<span class="sd">                Guidance rescale factor should fix overexposure when using zero terminal SNR.</span>
+<span class="sd">                Flawed](https://huggingface.co/papers/2305.08891) `guidance_scale` is defined as `φ` in equation 16. of</span>
+<span class="sd">                [Common Diffusion Noise Schedules and Sample Steps are</span>
+<span class="sd">                Flawed](https://huggingface.co/papers/2305.08891). Guidance rescale factor should fix overexposure when</span>
+<span class="sd">                using zero terminal SNR.</span>
 <span class="sd">            original_size (`Tuple[int]`, *optional*, defaults to (1024, 1024)):</span>
 <span class="sd">                If `original_size` is not the same as `target_size` the image will appear to be down- or upsampled.</span>
 <span class="sd">                `original_size` defaults to `(height, width)` if not specified. Part of SDXL&#39;s micro-conditioning as</span>
@@ -16181,7 +16188,7 @@ watermarker will be used.</p>
                     <span class="n">noise_pred</span> <span class="o">=</span> <span class="n">noise_pred_uncond</span> <span class="o">+</span> <span class="bp">self</span><span class="o">.</span><span class="n">guidance_scale</span> <span class="o">*</span> <span class="p">(</span><span class="n">noise_pred_text</span> <span class="o">-</span> <span class="n">noise_pred_uncond</span><span class="p">)</span>
 
                 <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">do_classifier_free_guidance</span> <span class="ow">and</span> <span class="bp">self</span><span class="o">.</span><span class="n">guidance_rescale</span> <span class="o">&gt;</span> <span class="mf">0.0</span><span class="p">:</span>
-                    <span class="c1"># Based on 3.4. in https://arxiv.org/pdf/2305.08891.pdf</span>
+                    <span class="c1"># Based on 3.4. in https://huggingface.co/papers/2305.08891</span>
                     <span class="n">noise_pred</span> <span class="o">=</span> <span class="n">rescale_noise_cfg</span><span class="p">(</span><span class="n">noise_pred</span><span class="p">,</span> <span class="n">noise_pred_text</span><span class="p">,</span> <span class="n">guidance_rescale</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">guidance_rescale</span><span class="p">)</span>
 
                 <span class="c1"># compute the previous noisy sample x_t -&gt; x_t-1</span>
@@ -16492,11 +16499,11 @@ Quality</strong></a>.</p>
             </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
-                <p>Guidance scale as defined in <a href="https://arxiv.org/abs/2207.12598">Classifier-Free Diffusion Guidance</a>.
-<code>guidance_scale</code> is defined as <code>w</code> of equation 2. of <a href="https://arxiv.org/pdf/2205.11487.pdf">Imagen
-Paper</a>. Guidance scale is enabled by setting <code>guidance_scale &gt;
-1</code>. Higher guidance scale encourages to generate images that are closely linked to the text <code>prompt</code>,
-usually at the expense of lower image quality.</p>
+                <p>Guidance scale as defined in <a href="https://huggingface.co/papers/2207.12598">Classifier-Free Diffusion
+Guidance</a>. <code>guidance_scale</code> is defined as <code>w</code> of equation 2.
+of <a href="https://huggingface.co/papers/2205.11487">Imagen Paper</a>. Guidance scale is enabled by setting
+<code>guidance_scale &gt; 1</code>. Higher guidance scale encourages to generate images that are closely linked to
+the text <code>prompt</code>, usually at the expense of lower image quality.</p>
               </div>
               <p>
                   <span class="doc-param-annotation">
@@ -16579,8 +16586,8 @@ less than <code>1</code>).</p>
             </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
-                <p>Corresponds to parameter eta (η) in the DDIM paper: https://arxiv.org/abs/2010.02502. Only applies to
-[<code>schedulers.DDIMScheduler</code>], will be ignored for others.</p>
+                <p>Corresponds to parameter eta (η) in the DDIM paper: https://huggingface.co/papers/2010.02502. Only
+applies to [<code>schedulers.DDIMScheduler</code>], will be ignored for others.</p>
               </div>
               <p>
                   <span class="doc-param-annotation">
@@ -16836,10 +16843,11 @@ plain tuple.</p>
             </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
-                <p>Guidance rescale factor proposed by <a href="https://arxiv.org/pdf/2305.08891.pdf">Common Diffusion Noise Schedules and Sample Steps are
+                <p>Guidance rescale factor proposed by <a href="https://huggingface.co/papers/2305.08891">Common Diffusion Noise Schedules and Sample Steps are
 Flawed</a> <code>guidance_scale</code> is defined as <code>φ</code> in equation 16. of
-<a href="https://arxiv.org/pdf/2305.08891.pdf">Common Diffusion Noise Schedules and Sample Steps are Flawed</a>.
-Guidance rescale factor should fix overexposure when using zero terminal SNR.</p>
+<a href="https://huggingface.co/papers/2305.08891">Common Diffusion Noise Schedules and Sample Steps are
+Flawed</a>. Guidance rescale factor should fix overexposure when
+using zero terminal SNR.</p>
               </div>
               <p>
                   <span class="doc-param-annotation">
@@ -17640,7 +17648,8 @@ will be passed as <code>callback_kwargs</code> argument. You will only be able t
 <span class="normal">1426</span>
 <span class="normal">1427</span>
 <span class="normal">1428</span>
-<span class="normal">1429</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="fm">__call__</span><span class="p">(</span>
+<span class="normal">1429</span>
+<span class="normal">1430</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="fm">__call__</span><span class="p">(</span>
     <span class="bp">self</span><span class="p">,</span>
     <span class="n">prompt</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">List</span><span class="p">[</span><span class="nb">str</span><span class="p">]]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
     <span class="n">prompt_2</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Union</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">List</span><span class="p">[</span><span class="nb">str</span><span class="p">]]]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
@@ -17729,11 +17738,11 @@ will be passed as <code>callback_kwargs</code> argument. You will only be able t
 <span class="sd">            forms a part of a &quot;Mixture of Denoisers&quot; multi-pipeline setup, as elaborated in [**Refine Image</span>
 <span class="sd">            Quality**](https://huggingface.co/docs/diffusers/using-diffusers/sdxl#refine-image-quality).</span>
 <span class="sd">        guidance_scale (`float`, *optional*, defaults to 7.5):</span>
-<span class="sd">            Guidance scale as defined in [Classifier-Free Diffusion Guidance](https://arxiv.org/abs/2207.12598).</span>
-<span class="sd">            `guidance_scale` is defined as `w` of equation 2. of [Imagen</span>
-<span class="sd">            Paper](https://arxiv.org/pdf/2205.11487.pdf). Guidance scale is enabled by setting `guidance_scale &gt;</span>
-<span class="sd">            1`. Higher guidance scale encourages to generate images that are closely linked to the text `prompt`,</span>
-<span class="sd">            usually at the expense of lower image quality.</span>
+<span class="sd">            Guidance scale as defined in [Classifier-Free Diffusion</span>
+<span class="sd">            Guidance](https://huggingface.co/papers/2207.12598). `guidance_scale` is defined as `w` of equation 2.</span>
+<span class="sd">            of [Imagen Paper](https://huggingface.co/papers/2205.11487). Guidance scale is enabled by setting</span>
+<span class="sd">            `guidance_scale &gt; 1`. Higher guidance scale encourages to generate images that are closely linked to</span>
+<span class="sd">            the text `prompt`, usually at the expense of lower image quality.</span>
 <span class="sd">        negative_prompt (`str` or `List[str]`, *optional*):</span>
 <span class="sd">            The prompt or prompts not to guide the image generation. If not defined, one has to pass</span>
 <span class="sd">            `negative_prompt_embeds` instead. Ignored when not using guidance (i.e., ignored if `guidance_scale` is</span>
@@ -17744,8 +17753,8 @@ will be passed as <code>callback_kwargs</code> argument. You will only be able t
 <span class="sd">        num_images_per_prompt (`int`, *optional*, defaults to 1):</span>
 <span class="sd">            The number of images to generate per prompt.</span>
 <span class="sd">        eta (`float`, *optional*, defaults to 0.0):</span>
-<span class="sd">            Corresponds to parameter eta (η) in the DDIM paper: https://arxiv.org/abs/2010.02502. Only applies to</span>
-<span class="sd">            [`schedulers.DDIMScheduler`], will be ignored for others.</span>
+<span class="sd">            Corresponds to parameter eta (η) in the DDIM paper: https://huggingface.co/papers/2010.02502. Only</span>
+<span class="sd">            applies to [`schedulers.DDIMScheduler`], will be ignored for others.</span>
 <span class="sd">        generator (`np.random.Generator` or `List[np.random.Generator]`, *optional*):</span>
 <span class="sd">            One or a list of [numpy generator(s)](https://numpy.org/doc/stable/reference/random/generator.html)</span>
 <span class="sd">            to make generation deterministic.</span>
@@ -17785,9 +17794,10 @@ will be passed as <code>callback_kwargs</code> argument. You will only be able t
 <span class="sd">            [diffusers.models.attention_processor](https://github.com/huggingface/diffusers/blob/main/src/diffusers/models/attention_processor.py).</span>
 <span class="sd">        guidance_rescale (`float`, *optional*, defaults to 0.0):</span>
 <span class="sd">            Guidance rescale factor proposed by [Common Diffusion Noise Schedules and Sample Steps are</span>
-<span class="sd">            Flawed](https://arxiv.org/pdf/2305.08891.pdf) `guidance_scale` is defined as `φ` in equation 16. of</span>
-<span class="sd">            [Common Diffusion Noise Schedules and Sample Steps are Flawed](https://arxiv.org/pdf/2305.08891.pdf).</span>
-<span class="sd">            Guidance rescale factor should fix overexposure when using zero terminal SNR.</span>
+<span class="sd">            Flawed](https://huggingface.co/papers/2305.08891) `guidance_scale` is defined as `φ` in equation 16. of</span>
+<span class="sd">            [Common Diffusion Noise Schedules and Sample Steps are</span>
+<span class="sd">            Flawed](https://huggingface.co/papers/2305.08891). Guidance rescale factor should fix overexposure when</span>
+<span class="sd">            using zero terminal SNR.</span>
 <span class="sd">        original_size (`Tuple[int]`, *optional*, defaults to (1024, 1024)):</span>
 <span class="sd">            If `original_size` is not the same as `target_size` the image will appear to be down- or upsampled.</span>
 <span class="sd">            `original_size` defaults to `(height, width)` if not specified. Part of SDXL&#39;s micro-conditioning as</span>
@@ -18070,7 +18080,7 @@ will be passed as <code>callback_kwargs</code> argument. You will only be able t
                 <span class="n">noise_pred</span> <span class="o">=</span> <span class="n">noise_pred_uncond</span> <span class="o">+</span> <span class="bp">self</span><span class="o">.</span><span class="n">guidance_scale</span> <span class="o">*</span> <span class="p">(</span><span class="n">noise_pred_text</span> <span class="o">-</span> <span class="n">noise_pred_uncond</span><span class="p">)</span>
 
             <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">do_classifier_free_guidance</span> <span class="ow">and</span> <span class="bp">self</span><span class="o">.</span><span class="n">guidance_rescale</span> <span class="o">&gt;</span> <span class="mf">0.0</span><span class="p">:</span>
-                <span class="c1"># Based on 3.4. in https://arxiv.org/pdf/2305.08891.pdf</span>
+                <span class="c1"># Based on 3.4. in https://huggingface.co/papers/2305.08891</span>
                 <span class="n">noise_pred</span> <span class="o">=</span> <span class="n">rescale_noise_cfg</span><span class="p">(</span><span class="n">noise_pred</span><span class="p">,</span> <span class="n">noise_pred_text</span><span class="p">,</span> <span class="n">guidance_rescale</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">guidance_rescale</span><span class="p">)</span>
 
             <span class="c1"># compute the previous noisy sample x_t -&gt; x_t-1</span>
@@ -21186,7 +21196,7 @@ watermarker will be used.</p>
     <span class="k">def</span><span class="w"> </span><span class="nf">prepare_extra_step_kwargs</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">generator</span><span class="p">,</span> <span class="n">eta</span><span class="p">):</span>
         <span class="c1"># prepare extra kwargs for the scheduler step, since not all schedulers have the same signature</span>
         <span class="c1"># eta (η) is only used with the DDIMScheduler, it will be ignored for other schedulers.</span>
-        <span class="c1"># eta corresponds to η in DDIM paper: https://arxiv.org/abs/2010.02502</span>
+        <span class="c1"># eta corresponds to η in DDIM paper: https://huggingface.co/papers/2010.02502</span>
         <span class="c1"># and should be between [0, 1]</span>
 
         <span class="n">accepts_eta</span> <span class="o">=</span> <span class="s2">&quot;eta&quot;</span> <span class="ow">in</span> <span class="nb">set</span><span class="p">(</span><span class="n">inspect</span><span class="o">.</span><span class="n">signature</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">scheduler</span><span class="o">.</span><span class="n">step</span><span class="p">)</span><span class="o">.</span><span class="n">parameters</span><span class="o">.</span><span class="n">keys</span><span class="p">())</span>
@@ -21592,7 +21602,7 @@ watermarker will be used.</p>
         <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_clip_skip</span>
 
     <span class="c1"># here `guidance_scale` is defined analog to the guidance weight `w` of equation (2)</span>
-    <span class="c1"># of the Imagen paper: https://arxiv.org/pdf/2205.11487.pdf . `guidance_scale = 1`</span>
+    <span class="c1"># of the Imagen paper: https://huggingface.co/papers/2205.11487 . `guidance_scale = 1`</span>
     <span class="c1"># corresponds to doing no classifier free guidance.</span>
     <span class="nd">@property</span>
     <span class="k">def</span><span class="w"> </span><span class="nf">do_classifier_free_guidance</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
@@ -21736,11 +21746,11 @@ watermarker will be used.</p>
 <span class="sd">                forms a part of a &quot;Mixture of Denoisers&quot; multi-pipeline setup, as elaborated in [**Refining the Image</span>
 <span class="sd">                Output**](https://huggingface.co/docs/diffusers/api/pipelines/stable_diffusion/stable_diffusion_xl#refining-the-image-output).</span>
 <span class="sd">            guidance_scale (`float`, *optional*, defaults to 7.5):</span>
-<span class="sd">                Guidance scale as defined in [Classifier-Free Diffusion Guidance](https://arxiv.org/abs/2207.12598).</span>
-<span class="sd">                `guidance_scale` is defined as `w` of equation 2. of [Imagen</span>
-<span class="sd">                Paper](https://arxiv.org/pdf/2205.11487.pdf). Guidance scale is enabled by setting `guidance_scale &gt;</span>
-<span class="sd">                1`. Higher guidance scale encourages to generate images that are closely linked to the text `prompt`,</span>
-<span class="sd">                usually at the expense of lower image quality.</span>
+<span class="sd">                Guidance scale as defined in [Classifier-Free Diffusion</span>
+<span class="sd">                Guidance](https://huggingface.co/papers/2207.12598). `guidance_scale` is defined as `w` of equation 2.</span>
+<span class="sd">                of [Imagen Paper](https://huggingface.co/papers/2205.11487). Guidance scale is enabled by setting</span>
+<span class="sd">                `guidance_scale &gt; 1`. Higher guidance scale encourages to generate images that are closely linked to</span>
+<span class="sd">                the text `prompt`, usually at the expense of lower image quality.</span>
 <span class="sd">            negative_prompt (`str` or `List[str]`, *optional*):</span>
 <span class="sd">                The prompt or prompts not to guide the image generation. If not defined, one has to pass</span>
 <span class="sd">                `negative_prompt_embeds` instead. Ignored when not using guidance (i.e., ignored if `guidance_scale` is</span>
@@ -21771,8 +21781,8 @@ watermarker will be used.</p>
 <span class="sd">            num_images_per_prompt (`int`, *optional*, defaults to 1):</span>
 <span class="sd">                The number of images to generate per prompt.</span>
 <span class="sd">            eta (`float`, *optional*, defaults to 0.0):</span>
-<span class="sd">                Corresponds to parameter eta (??) in the DDIM paper: https://arxiv.org/abs/2010.02502. Only applies to</span>
-<span class="sd">                [`schedulers.DDIMScheduler`], will be ignored for others.</span>
+<span class="sd">                Corresponds to parameter eta (η) in the DDIM paper: https://huggingface.co/papers/2010.02502. Only</span>
+<span class="sd">                applies to [`schedulers.DDIMScheduler`], will be ignored for others.</span>
 <span class="sd">            generator (`np.random.Generator`, *optional*):</span>
 <span class="sd">                One or a list of [numpy generator(s)](https://numpy.org/doc/stable/reference/random/generator.html)</span>
 <span class="sd">                to make generation deterministic.</span>
@@ -22160,7 +22170,7 @@ watermarker will be used.</p>
                     <span class="n">noise_pred</span> <span class="o">=</span> <span class="n">noise_pred_uncond</span> <span class="o">+</span> <span class="bp">self</span><span class="o">.</span><span class="n">guidance_scale</span> <span class="o">*</span> <span class="p">(</span><span class="n">noise_pred_text</span> <span class="o">-</span> <span class="n">noise_pred_uncond</span><span class="p">)</span>
 
                 <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">do_classifier_free_guidance</span> <span class="ow">and</span> <span class="bp">self</span><span class="o">.</span><span class="n">guidance_rescale</span> <span class="o">&gt;</span> <span class="mf">0.0</span><span class="p">:</span>
-                    <span class="c1"># Based on 3.4. in https://arxiv.org/pdf/2305.08891.pdf</span>
+                    <span class="c1"># Based on 3.4. in https://huggingface.co/papers/2305.08891</span>
                     <span class="n">noise_pred</span> <span class="o">=</span> <span class="n">rescale_noise_cfg</span><span class="p">(</span><span class="n">noise_pred</span><span class="p">,</span> <span class="n">noise_pred_text</span><span class="p">,</span> <span class="n">guidance_rescale</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">guidance_rescale</span><span class="p">)</span>
 
                 <span class="c1"># compute the previous noisy sample x_t -&gt; x_t-1</span>
@@ -22585,11 +22595,11 @@ Output</strong></a>.</p>
             </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
-                <p>Guidance scale as defined in <a href="https://arxiv.org/abs/2207.12598">Classifier-Free Diffusion Guidance</a>.
-<code>guidance_scale</code> is defined as <code>w</code> of equation 2. of <a href="https://arxiv.org/pdf/2205.11487.pdf">Imagen
-Paper</a>. Guidance scale is enabled by setting <code>guidance_scale &gt;
-1</code>. Higher guidance scale encourages to generate images that are closely linked to the text <code>prompt</code>,
-usually at the expense of lower image quality.</p>
+                <p>Guidance scale as defined in <a href="https://huggingface.co/papers/2207.12598">Classifier-Free Diffusion
+Guidance</a>. <code>guidance_scale</code> is defined as <code>w</code> of equation 2.
+of <a href="https://huggingface.co/papers/2205.11487">Imagen Paper</a>. Guidance scale is enabled by setting
+<code>guidance_scale &gt; 1</code>. Higher guidance scale encourages to generate images that are closely linked to
+the text <code>prompt</code>, usually at the expense of lower image quality.</p>
               </div>
               <p>
                   <span class="doc-param-annotation">
@@ -22801,8 +22811,8 @@ provided, embeddings are computed from the <code>ip_adapter_image</code> input a
             </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
-                <p>Corresponds to parameter eta (??) in the DDIM paper: https://arxiv.org/abs/2010.02502. Only applies to
-[<code>schedulers.DDIMScheduler</code>], will be ignored for others.</p>
+                <p>Corresponds to parameter eta (η) in the DDIM paper: https://huggingface.co/papers/2010.02502. Only
+applies to [<code>schedulers.DDIMScheduler</code>], will be ignored for others.</p>
               </div>
               <p>
                   <span class="doc-param-annotation">
@@ -23958,11 +23968,11 @@ will be passed as <code>callback_kwargs</code> argument. You will only be able t
 <span class="sd">            forms a part of a &quot;Mixture of Denoisers&quot; multi-pipeline setup, as elaborated in [**Refining the Image</span>
 <span class="sd">            Output**](https://huggingface.co/docs/diffusers/api/pipelines/stable_diffusion/stable_diffusion_xl#refining-the-image-output).</span>
 <span class="sd">        guidance_scale (`float`, *optional*, defaults to 7.5):</span>
-<span class="sd">            Guidance scale as defined in [Classifier-Free Diffusion Guidance](https://arxiv.org/abs/2207.12598).</span>
-<span class="sd">            `guidance_scale` is defined as `w` of equation 2. of [Imagen</span>
-<span class="sd">            Paper](https://arxiv.org/pdf/2205.11487.pdf). Guidance scale is enabled by setting `guidance_scale &gt;</span>
-<span class="sd">            1`. Higher guidance scale encourages to generate images that are closely linked to the text `prompt`,</span>
-<span class="sd">            usually at the expense of lower image quality.</span>
+<span class="sd">            Guidance scale as defined in [Classifier-Free Diffusion</span>
+<span class="sd">            Guidance](https://huggingface.co/papers/2207.12598). `guidance_scale` is defined as `w` of equation 2.</span>
+<span class="sd">            of [Imagen Paper](https://huggingface.co/papers/2205.11487). Guidance scale is enabled by setting</span>
+<span class="sd">            `guidance_scale &gt; 1`. Higher guidance scale encourages to generate images that are closely linked to</span>
+<span class="sd">            the text `prompt`, usually at the expense of lower image quality.</span>
 <span class="sd">        negative_prompt (`str` or `List[str]`, *optional*):</span>
 <span class="sd">            The prompt or prompts not to guide the image generation. If not defined, one has to pass</span>
 <span class="sd">            `negative_prompt_embeds` instead. Ignored when not using guidance (i.e., ignored if `guidance_scale` is</span>
@@ -23993,8 +24003,8 @@ will be passed as <code>callback_kwargs</code> argument. You will only be able t
 <span class="sd">        num_images_per_prompt (`int`, *optional*, defaults to 1):</span>
 <span class="sd">            The number of images to generate per prompt.</span>
 <span class="sd">        eta (`float`, *optional*, defaults to 0.0):</span>
-<span class="sd">            Corresponds to parameter eta (??) in the DDIM paper: https://arxiv.org/abs/2010.02502. Only applies to</span>
-<span class="sd">            [`schedulers.DDIMScheduler`], will be ignored for others.</span>
+<span class="sd">            Corresponds to parameter eta (η) in the DDIM paper: https://huggingface.co/papers/2010.02502. Only</span>
+<span class="sd">            applies to [`schedulers.DDIMScheduler`], will be ignored for others.</span>
 <span class="sd">        generator (`np.random.Generator`, *optional*):</span>
 <span class="sd">            One or a list of [numpy generator(s)](https://numpy.org/doc/stable/reference/random/generator.html)</span>
 <span class="sd">            to make generation deterministic.</span>
@@ -24382,7 +24392,7 @@ will be passed as <code>callback_kwargs</code> argument. You will only be able t
                 <span class="n">noise_pred</span> <span class="o">=</span> <span class="n">noise_pred_uncond</span> <span class="o">+</span> <span class="bp">self</span><span class="o">.</span><span class="n">guidance_scale</span> <span class="o">*</span> <span class="p">(</span><span class="n">noise_pred_text</span> <span class="o">-</span> <span class="n">noise_pred_uncond</span><span class="p">)</span>
 
             <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">do_classifier_free_guidance</span> <span class="ow">and</span> <span class="bp">self</span><span class="o">.</span><span class="n">guidance_rescale</span> <span class="o">&gt;</span> <span class="mf">0.0</span><span class="p">:</span>
-                <span class="c1"># Based on 3.4. in https://arxiv.org/pdf/2305.08891.pdf</span>
+                <span class="c1"># Based on 3.4. in https://huggingface.co/papers/2305.08891</span>
                 <span class="n">noise_pred</span> <span class="o">=</span> <span class="n">rescale_noise_cfg</span><span class="p">(</span><span class="n">noise_pred</span><span class="p">,</span> <span class="n">noise_pred_text</span><span class="p">,</span> <span class="n">guidance_rescale</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">guidance_rescale</span><span class="p">)</span>
 
             <span class="c1"># compute the previous noisy sample x_t -&gt; x_t-1</span>

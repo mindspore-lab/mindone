@@ -8920,10 +8920,7 @@ specific language governing permissions and limitations under the License.
 <span class="normal">735</span>
 <span class="normal">736</span>
 <span class="normal">737</span>
-<span class="normal">738</span>
-<span class="normal">739</span>
-<span class="normal">740</span>
-<span class="normal">741</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">class</span><span class="w"> </span><span class="nc">UNet2DConditionLoadersMixin</span><span class="p">:</span>
+<span class="normal">738</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">class</span><span class="w"> </span><span class="nc">UNet2DConditionLoadersMixin</span><span class="p">:</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    Load LoRA layers into a [`UNet2DConditionModel`].</span>
 <span class="sd">    &quot;&quot;&quot;</span>
@@ -9019,10 +9016,7 @@ specific language governing permissions and limitations under the License.
             <span class="n">use_safetensors</span> <span class="o">=</span> <span class="kc">True</span>
             <span class="n">allow_pickle</span> <span class="o">=</span> <span class="kc">True</span>
 
-        <span class="n">user_agent</span> <span class="o">=</span> <span class="p">{</span>
-            <span class="s2">&quot;file_type&quot;</span><span class="p">:</span> <span class="s2">&quot;attn_procs_weights&quot;</span><span class="p">,</span>
-            <span class="s2">&quot;framework&quot;</span><span class="p">:</span> <span class="s2">&quot;pytorch&quot;</span><span class="p">,</span>
-        <span class="p">}</span>
+        <span class="n">user_agent</span> <span class="o">=</span> <span class="p">{</span><span class="s2">&quot;file_type&quot;</span><span class="p">:</span> <span class="s2">&quot;attn_procs_weights&quot;</span><span class="p">,</span> <span class="s2">&quot;framework&quot;</span><span class="p">:</span> <span class="s2">&quot;pytorch&quot;</span><span class="p">}</span>
 
         <span class="n">model_file</span> <span class="o">=</span> <span class="kc">None</span>
         <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">pretrained_model_name_or_path_or_dict</span><span class="p">,</span> <span class="nb">dict</span><span class="p">):</span>
@@ -10012,10 +10006,7 @@ link</a>.</p>
 <span class="normal">214</span>
 <span class="normal">215</span>
 <span class="normal">216</span>
-<span class="normal">217</span>
-<span class="normal">218</span>
-<span class="normal">219</span>
-<span class="normal">220</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@validate_hf_hub_args</span>
+<span class="normal">217</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@validate_hf_hub_args</span>
 <span class="k">def</span><span class="w"> </span><span class="nf">load_attn_procs</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">pretrained_model_name_or_path_or_dict</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">ms</span><span class="o">.</span><span class="n">Tensor</span><span class="p">]],</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
 <span class="w">    </span><span class="sa">r</span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    Load pretrained attention processor layers into [`UNet2DConditionModel`]. Attention processor layers have to be</span>
@@ -10103,10 +10094,7 @@ link</a>.</p>
         <span class="n">use_safetensors</span> <span class="o">=</span> <span class="kc">True</span>
         <span class="n">allow_pickle</span> <span class="o">=</span> <span class="kc">True</span>
 
-    <span class="n">user_agent</span> <span class="o">=</span> <span class="p">{</span>
-        <span class="s2">&quot;file_type&quot;</span><span class="p">:</span> <span class="s2">&quot;attn_procs_weights&quot;</span><span class="p">,</span>
-        <span class="s2">&quot;framework&quot;</span><span class="p">:</span> <span class="s2">&quot;pytorch&quot;</span><span class="p">,</span>
-    <span class="p">}</span>
+    <span class="n">user_agent</span> <span class="o">=</span> <span class="p">{</span><span class="s2">&quot;file_type&quot;</span><span class="p">:</span> <span class="s2">&quot;attn_procs_weights&quot;</span><span class="p">,</span> <span class="s2">&quot;framework&quot;</span><span class="p">:</span> <span class="s2">&quot;pytorch&quot;</span><span class="p">}</span>
 
     <span class="n">model_file</span> <span class="o">=</span> <span class="kc">None</span>
     <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">pretrained_model_name_or_path_or_dict</span><span class="p">,</span> <span class="nb">dict</span><span class="p">):</span>
@@ -10298,7 +10286,10 @@ replace <code>MindSpore.save_checkpoint</code> with another method. Can be confi
 
             <details class="quote">
               <summary>Source code in <code>mindone/diffusers/loaders/unet.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">322</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">319</span>
+<span class="normal">320</span>
+<span class="normal">321</span>
+<span class="normal">322</span>
 <span class="normal">323</span>
 <span class="normal">324</span>
 <span class="normal">325</span>
@@ -10374,10 +10365,7 @@ replace <code>MindSpore.save_checkpoint</code> with another method. Can be confi
 <span class="normal">395</span>
 <span class="normal">396</span>
 <span class="normal">397</span>
-<span class="normal">398</span>
-<span class="normal">399</span>
-<span class="normal">400</span>
-<span class="normal">401</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">save_attn_procs</span><span class="p">(</span>
+<span class="normal">398</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">save_attn_procs</span><span class="p">(</span>
     <span class="bp">self</span><span class="p">,</span>
     <span class="n">save_directory</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">os</span><span class="o">.</span><span class="n">PathLike</span><span class="p">],</span>
     <span class="n">is_main_process</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span><span class="p">,</span>

@@ -9914,7 +9914,7 @@ outputs from the two text encoders.</p>
 <span class="sd">                *e.g.* prompt weighting. If not provided, negative_prompt_embeds will be computed from</span>
 <span class="sd">                `negative_prompt` input argument.</span>
 <span class="sd">            generated_prompt_embeds (`mindspore.tensor`, *optional*):</span>
-<span class="sd">                Pre-generated text embeddings from the GPT2 langauge model. Can be used to easily tweak text inputs,</span>
+<span class="sd">                Pre-generated text embeddings from the GPT2 language model. Can be used to easily tweak text inputs,</span>
 <span class="sd">                 *e.g.* prompt weighting. If not provided, text embeddings will be generated from `prompt` input</span>
 <span class="sd">                 argument.</span>
 <span class="sd">            negative_generated_prompt_embeds (`mindspore.tensor`, *optional*):</span>
@@ -9935,7 +9935,7 @@ outputs from the two text encoders.</p>
 <span class="sd">            attention_mask (`mindspore.tensor`):</span>
 <span class="sd">                Attention mask to be applied to the `prompt_embeds`.</span>
 <span class="sd">            generated_prompt_embeds (`mindspore.tensor`):</span>
-<span class="sd">                Text embeddings generated from the GPT2 langauge model.</span>
+<span class="sd">                Text embeddings generated from the GPT2 language model.</span>
 
 <span class="sd">        Example:</span>
 
@@ -10231,7 +10231,7 @@ outputs from the two text encoders.</p>
     <span class="k">def</span><span class="w"> </span><span class="nf">prepare_extra_step_kwargs</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">generator</span><span class="p">,</span> <span class="n">eta</span><span class="p">):</span>
         <span class="c1"># prepare extra kwargs for the scheduler step, since not all schedulers have the same signature</span>
         <span class="c1"># eta (η) is only used with the DDIMScheduler, it will be ignored for other schedulers.</span>
-        <span class="c1"># eta corresponds to η in DDIM paper: https://arxiv.org/abs/2010.02502</span>
+        <span class="c1"># eta corresponds to η in DDIM paper: https://huggingface.co/papers/2010.02502</span>
         <span class="c1"># and should be between [0, 1]</span>
 
         <span class="n">accepts_eta</span> <span class="o">=</span> <span class="s2">&quot;eta&quot;</span> <span class="ow">in</span> <span class="nb">set</span><span class="p">(</span><span class="n">inspect</span><span class="o">.</span><span class="n">signature</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">scheduler</span><span class="o">.</span><span class="n">step</span><span class="p">)</span><span class="o">.</span><span class="n">parameters</span><span class="o">.</span><span class="n">keys</span><span class="p">())</span>
@@ -10415,8 +10415,8 @@ outputs from the two text encoders.</p>
 <span class="sd">                generated waveforms based on their cosine similarity with the text input in the joint text-audio</span>
 <span class="sd">                embedding space.</span>
 <span class="sd">            eta (`float`, *optional*, defaults to 0.0):</span>
-<span class="sd">                Corresponds to parameter eta (η) from the [DDIM](https://arxiv.org/abs/2010.02502) paper. Only applies</span>
-<span class="sd">                to the [`~schedulers.DDIMScheduler`], and is ignored in other schedulers.</span>
+<span class="sd">                Corresponds to parameter eta (η) from the [DDIM](https://huggingface.co/papers/2010.02502) paper. Only</span>
+<span class="sd">                applies to the [`~schedulers.DDIMScheduler`], and is ignored in other schedulers.</span>
 <span class="sd">            generator (`np.random.Generator` or `List[np.random.Generator]`, *optional*):</span>
 <span class="sd">                A [`np.random.Generator`](https://pytorch.org/docs/stable/generated/np.random.Generator.html) to make</span>
 <span class="sd">                generation deterministic.</span>
@@ -10431,7 +10431,7 @@ outputs from the two text encoders.</p>
 <span class="sd">                Pre-generated negative text embeddings. Can be used to easily tweak text inputs (prompt weighting). If</span>
 <span class="sd">                not provided, `negative_prompt_embeds` are generated from the `negative_prompt` input argument.</span>
 <span class="sd">            generated_prompt_embeds (`mindspore.tensor`, *optional*):</span>
-<span class="sd">                Pre-generated text embeddings from the GPT2 langauge model. Can be used to easily tweak text inputs,</span>
+<span class="sd">                Pre-generated text embeddings from the GPT2 language model. Can be used to easily tweak text inputs,</span>
 <span class="sd">                 *e.g.* prompt weighting. If not provided, text embeddings will be generated from `prompt` input</span>
 <span class="sd">                 argument.</span>
 <span class="sd">            negative_generated_prompt_embeds (`mindspore.tensor`, *optional*):</span>
@@ -10513,7 +10513,7 @@ outputs from the two text encoders.</p>
             <span class="n">batch_size</span> <span class="o">=</span> <span class="n">prompt_embeds</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
 
         <span class="c1"># here `guidance_scale` is defined analog to the guidance weight `w` of equation (2)</span>
-        <span class="c1"># of the Imagen paper: https://arxiv.org/pdf/2205.11487.pdf . `guidance_scale = 1`</span>
+        <span class="c1"># of the Imagen paper: https://huggingface.co/papers/2205.11487 . `guidance_scale = 1`</span>
         <span class="c1"># corresponds to doing no classifier free guidance.</span>
         <span class="n">do_classifier_free_guidance</span> <span class="o">=</span> <span class="n">guidance_scale</span> <span class="o">&gt;</span> <span class="mf">1.0</span>
 
@@ -10801,8 +10801,8 @@ embedding space.</p>
             </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
-                <p>Corresponds to parameter eta (η) from the <a href="https://arxiv.org/abs/2010.02502">DDIM</a> paper. Only applies
-to the [<code>~schedulers.DDIMScheduler</code>], and is ignored in other schedulers.</p>
+                <p>Corresponds to parameter eta (η) from the <a href="https://huggingface.co/papers/2010.02502">DDIM</a> paper. Only
+applies to the [<code>~schedulers.DDIMScheduler</code>], and is ignored in other schedulers.</p>
               </div>
               <p>
                   <span class="doc-param-annotation">
@@ -10907,7 +10907,7 @@ not provided, <code>negative_prompt_embeds</code> are generated from the <code>n
             </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
-                <p>Pre-generated text embeddings from the GPT2 langauge model. Can be used to easily tweak text inputs,
+                <p>Pre-generated text embeddings from the GPT2 language model. Can be used to easily tweak text inputs,
  <em>e.g.</em> prompt weighting. If not provided, text embeddings will be generated from <code>prompt</code> input
  argument.</p>
               </div>
@@ -11439,8 +11439,8 @@ otherwise a <code>tuple</code> is returned where the first element is a list wit
 <span class="sd">            generated waveforms based on their cosine similarity with the text input in the joint text-audio</span>
 <span class="sd">            embedding space.</span>
 <span class="sd">        eta (`float`, *optional*, defaults to 0.0):</span>
-<span class="sd">            Corresponds to parameter eta (η) from the [DDIM](https://arxiv.org/abs/2010.02502) paper. Only applies</span>
-<span class="sd">            to the [`~schedulers.DDIMScheduler`], and is ignored in other schedulers.</span>
+<span class="sd">            Corresponds to parameter eta (η) from the [DDIM](https://huggingface.co/papers/2010.02502) paper. Only</span>
+<span class="sd">            applies to the [`~schedulers.DDIMScheduler`], and is ignored in other schedulers.</span>
 <span class="sd">        generator (`np.random.Generator` or `List[np.random.Generator]`, *optional*):</span>
 <span class="sd">            A [`np.random.Generator`](https://pytorch.org/docs/stable/generated/np.random.Generator.html) to make</span>
 <span class="sd">            generation deterministic.</span>
@@ -11455,7 +11455,7 @@ otherwise a <code>tuple</code> is returned where the first element is a list wit
 <span class="sd">            Pre-generated negative text embeddings. Can be used to easily tweak text inputs (prompt weighting). If</span>
 <span class="sd">            not provided, `negative_prompt_embeds` are generated from the `negative_prompt` input argument.</span>
 <span class="sd">        generated_prompt_embeds (`mindspore.tensor`, *optional*):</span>
-<span class="sd">            Pre-generated text embeddings from the GPT2 langauge model. Can be used to easily tweak text inputs,</span>
+<span class="sd">            Pre-generated text embeddings from the GPT2 language model. Can be used to easily tweak text inputs,</span>
 <span class="sd">             *e.g.* prompt weighting. If not provided, text embeddings will be generated from `prompt` input</span>
 <span class="sd">             argument.</span>
 <span class="sd">        negative_generated_prompt_embeds (`mindspore.tensor`, *optional*):</span>
@@ -11537,7 +11537,7 @@ otherwise a <code>tuple</code> is returned where the first element is a list wit
         <span class="n">batch_size</span> <span class="o">=</span> <span class="n">prompt_embeds</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
 
     <span class="c1"># here `guidance_scale` is defined analog to the guidance weight `w` of equation (2)</span>
-    <span class="c1"># of the Imagen paper: https://arxiv.org/pdf/2205.11487.pdf . `guidance_scale = 1`</span>
+    <span class="c1"># of the Imagen paper: https://huggingface.co/papers/2205.11487 . `guidance_scale = 1`</span>
     <span class="c1"># corresponds to doing no classifier free guidance.</span>
     <span class="n">do_classifier_free_guidance</span> <span class="o">=</span> <span class="n">guidance_scale</span> <span class="o">&gt;</span> <span class="mf">1.0</span>
 
@@ -11916,7 +11916,7 @@ prompt weighting. If not provided, text embeddings will be computed from <code>p
             </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
-                <p>Pre-generated text embeddings from the GPT2 langauge model. Can be used to easily tweak text inputs,
+                <p>Pre-generated text embeddings from the GPT2 language model. Can be used to easily tweak text inputs,
  <em>e.g.</em> prompt weighting. If not provided, text embeddings will be generated from <code>prompt</code> input
  argument.</p>
               </div>
@@ -12408,7 +12408,7 @@ mask will be computed from <code>negative_prompt</code> input argument.</p>
 <span class="sd">            *e.g.* prompt weighting. If not provided, negative_prompt_embeds will be computed from</span>
 <span class="sd">            `negative_prompt` input argument.</span>
 <span class="sd">        generated_prompt_embeds (`mindspore.tensor`, *optional*):</span>
-<span class="sd">            Pre-generated text embeddings from the GPT2 langauge model. Can be used to easily tweak text inputs,</span>
+<span class="sd">            Pre-generated text embeddings from the GPT2 language model. Can be used to easily tweak text inputs,</span>
 <span class="sd">             *e.g.* prompt weighting. If not provided, text embeddings will be generated from `prompt` input</span>
 <span class="sd">             argument.</span>
 <span class="sd">        negative_generated_prompt_embeds (`mindspore.tensor`, *optional*):</span>
@@ -12429,7 +12429,7 @@ mask will be computed from <code>negative_prompt</code> input argument.</p>
 <span class="sd">        attention_mask (`mindspore.tensor`):</span>
 <span class="sd">            Attention mask to be applied to the `prompt_embeds`.</span>
 <span class="sd">        generated_prompt_embeds (`mindspore.tensor`):</span>
-<span class="sd">            Text embeddings generated from the GPT2 langauge model.</span>
+<span class="sd">            Text embeddings generated from the GPT2 language model.</span>
 
 <span class="sd">    Example:</span>
 

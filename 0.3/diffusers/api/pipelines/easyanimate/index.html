@@ -9190,7 +9190,7 @@ library implements for all the pipelines (such as downloading or saving, running
     <span class="k">def</span><span class="w"> </span><span class="nf">prepare_extra_step_kwargs</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">generator</span><span class="p">,</span> <span class="n">eta</span><span class="p">):</span>
         <span class="c1"># prepare extra kwargs for the scheduler step, since not all schedulers have the same signature</span>
         <span class="c1"># eta (η) is only used with the DDIMScheduler, it will be ignored for other schedulers.</span>
-        <span class="c1"># eta corresponds to η in DDIM paper: https://arxiv.org/abs/2010.02502</span>
+        <span class="c1"># eta corresponds to η in DDIM paper: https://huggingface.co/papers/2010.02502</span>
         <span class="c1"># and should be between [0, 1]</span>
 
         <span class="n">accepts_eta</span> <span class="o">=</span> <span class="s2">&quot;eta&quot;</span> <span class="ow">in</span> <span class="nb">set</span><span class="p">(</span><span class="n">inspect</span><span class="o">.</span><span class="n">signature</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">scheduler</span><span class="o">.</span><span class="n">step</span><span class="p">)</span><span class="o">.</span><span class="n">parameters</span><span class="o">.</span><span class="n">keys</span><span class="p">())</span>
@@ -9293,7 +9293,7 @@ library implements for all the pipelines (such as downloading or saving, running
         <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_guidance_rescale</span>
 
     <span class="c1"># here `guidance_scale` is defined analog to the guidance weight `w` of equation (2)</span>
-    <span class="c1"># of the Imagen paper: https://arxiv.org/pdf/2205.11487.pdf . `guidance_scale = 1`</span>
+    <span class="c1"># of the Imagen paper: https://huggingface.co/papers/2205.11487 . `guidance_scale = 1`</span>
     <span class="c1"># corresponds to doing no classifier free guidance.</span>
     <span class="nd">@property</span>
     <span class="k">def</span><span class="w"> </span><span class="nf">do_classifier_free_guidance</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
@@ -9506,7 +9506,7 @@ library implements for all the pipelines (such as downloading or saving, running
                     <span class="n">noise_pred</span> <span class="o">=</span> <span class="n">noise_pred_uncond</span> <span class="o">+</span> <span class="n">guidance_scale</span> <span class="o">*</span> <span class="p">(</span><span class="n">noise_pred_text</span> <span class="o">-</span> <span class="n">noise_pred_uncond</span><span class="p">)</span>
 
                 <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">do_classifier_free_guidance</span> <span class="ow">and</span> <span class="n">guidance_rescale</span> <span class="o">&gt;</span> <span class="mf">0.0</span><span class="p">:</span>
-                    <span class="c1"># Based on 3.4. in https://arxiv.org/pdf/2305.08891.pdf</span>
+                    <span class="c1"># Based on 3.4. in https://huggingface.co/papers/2305.08891</span>
                     <span class="n">noise_pred</span> <span class="o">=</span> <span class="n">rescale_noise_cfg</span><span class="p">(</span><span class="n">noise_pred</span><span class="p">,</span> <span class="n">noise_pred_text</span><span class="p">,</span> <span class="n">guidance_rescale</span><span class="o">=</span><span class="n">guidance_rescale</span><span class="p">)</span>
 
                 <span class="c1"># compute the previous noisy sample x_t -&gt; x_t-1</span>
@@ -10073,7 +10073,7 @@ second element is a list of <code>bool</code>s indicating whether the correspond
                 <span class="n">noise_pred</span> <span class="o">=</span> <span class="n">noise_pred_uncond</span> <span class="o">+</span> <span class="n">guidance_scale</span> <span class="o">*</span> <span class="p">(</span><span class="n">noise_pred_text</span> <span class="o">-</span> <span class="n">noise_pred_uncond</span><span class="p">)</span>
 
             <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">do_classifier_free_guidance</span> <span class="ow">and</span> <span class="n">guidance_rescale</span> <span class="o">&gt;</span> <span class="mf">0.0</span><span class="p">:</span>
-                <span class="c1"># Based on 3.4. in https://arxiv.org/pdf/2305.08891.pdf</span>
+                <span class="c1"># Based on 3.4. in https://huggingface.co/papers/2305.08891</span>
                 <span class="n">noise_pred</span> <span class="o">=</span> <span class="n">rescale_noise_cfg</span><span class="p">(</span><span class="n">noise_pred</span><span class="p">,</span> <span class="n">noise_pred_text</span><span class="p">,</span> <span class="n">guidance_rescale</span><span class="o">=</span><span class="n">guidance_rescale</span><span class="p">)</span>
 
             <span class="c1"># compute the previous noisy sample x_t -&gt; x_t-1</span>

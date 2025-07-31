@@ -8613,9 +8613,9 @@ the extent of information preservation.</p>
 training set. This is used to scale the latent space to have unit variance when training the diffusion
 model. The latents are scaled with the formula <code>z = z * scaling_factor</code> before being passed to the
 diffusion model. When decoding, the latents are scaled back to the original scale with the formula: <code>z = 1
-/ scaling_factor * z</code>. For more details, refer to sections 4.3.2 and D.1 of the <a href="https://arxiv.org/abs/2112.10752">High-Resolution Image
-Synthesis with Latent Diffusion Models</a> paper. For this Autoencoder,
-however, no such scaling factor was used, hence the value of 1.0 as the default.</p>
+/ scaling_factor * z</code>. For more details, refer to sections 4.3.2 and D.1 of the <a href="https://huggingface.co/papers/2112.10752">High-Resolution Image
+Synthesis with Latent Diffusion Models</a> paper. For this
+Autoencoder, however, no such scaling factor was used, hence the value of 1.0 as the default.</p>
               </div>
               <p>
                   <span class="doc-param-annotation">
@@ -9011,8 +9011,8 @@ can be fine-tuned / trained to a lower range without losing too much precision, 
 <span class="sd">            model. The latents are scaled with the formula `z = z * scaling_factor` before being passed to the</span>
 <span class="sd">            diffusion model. When decoding, the latents are scaled back to the original scale with the formula: `z = 1</span>
 <span class="sd">            / scaling_factor * z`. For more details, refer to sections 4.3.2 and D.1 of the [High-Resolution Image</span>
-<span class="sd">            Synthesis with Latent Diffusion Models](https://arxiv.org/abs/2112.10752) paper. For this Autoencoder,</span>
-<span class="sd">            however, no such scaling factor was used, hence the value of 1.0 as the default.</span>
+<span class="sd">            Synthesis with Latent Diffusion Models](https://huggingface.co/papers/2112.10752) paper. For this</span>
+<span class="sd">            Autoencoder, however, no such scaling factor was used, hence the value of 1.0 as the default.</span>
 <span class="sd">        force_upcast (`bool`, *optional*, default to `False`):</span>
 <span class="sd">            If enabled it will force the VAE to run in float32 for high image resolution pipelines, such as SD-XL. VAE</span>
 <span class="sd">            can be fine-tuned / trained to a lower range without losing too much precision, in which case</span>

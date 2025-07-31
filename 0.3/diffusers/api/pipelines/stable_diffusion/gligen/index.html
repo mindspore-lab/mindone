@@ -8440,7 +8440,7 @@ specific language governing permissions and limitations under the License.
 
     <div class="doc doc-contents first">
             <p class="doc doc-class-bases">
-              Bases: <code><a class="autorefs autorefs-internal" title="mindone.diffusers.DiffusionPipeline (mindone.diffusers.pipelines.pipeline_utils.DiffusionPipeline)" href="../../overview/#mindone.diffusers.DiffusionPipeline">DiffusionPipeline</a></code>, <code><span title="mindone.diffusers.pipelines.pipeline_utils.StableDiffusionMixin">StableDiffusionMixin</span></code></p>
+              Bases: <code><span title="mindone.diffusers.pipelines.pipeline_utils.DeprecatedPipelineMixin">DeprecatedPipelineMixin</span></code>, <code><a class="autorefs autorefs-internal" title="mindone.diffusers.DiffusionPipeline (mindone.diffusers.pipelines.pipeline_utils.DiffusionPipeline)" href="../../overview/#mindone.diffusers.DiffusionPipeline">DiffusionPipeline</a></code>, <code><span title="mindone.diffusers.pipelines.pipeline_utils.StableDiffusionMixin">StableDiffusionMixin</span></code></p>
 
 
         <p>Pipeline for text-to-image generation using Stable Diffusion with Grounded-Language-to-Image Generation (GLIGEN).</p>
@@ -9342,7 +9342,9 @@ more details about a model's potential harms.</p>
 <span class="normal">858</span>
 <span class="normal">859</span>
 <span class="normal">860</span>
-<span class="normal">861</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">class</span><span class="w"> </span><span class="nc">StableDiffusionGLIGENPipeline</span><span class="p">(</span><span class="n">DiffusionPipeline</span><span class="p">,</span> <span class="n">StableDiffusionMixin</span><span class="p">):</span>
+<span class="normal">861</span>
+<span class="normal">862</span>
+<span class="normal">863</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">class</span><span class="w"> </span><span class="nc">StableDiffusionGLIGENPipeline</span><span class="p">(</span><span class="n">DeprecatedPipelineMixin</span><span class="p">,</span> <span class="n">DiffusionPipeline</span><span class="p">,</span> <span class="n">StableDiffusionMixin</span><span class="p">):</span>
 <span class="w">    </span><span class="sa">r</span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    Pipeline for text-to-image generation using Stable Diffusion with Grounded-Language-to-Image Generation (GLIGEN).</span>
 
@@ -9369,6 +9371,8 @@ more details about a model's potential harms.</p>
 <span class="sd">            A `CLIPImageProcessor` to extract features from generated images; used as inputs to the `safety_checker`.</span>
 <span class="sd">    &quot;&quot;&quot;</span>
 
+    <span class="n">_last_supported_version</span> <span class="o">=</span> <span class="s2">&quot;0.33.1&quot;</span>
+
     <span class="n">_optional_components</span> <span class="o">=</span> <span class="p">[</span><span class="s2">&quot;safety_checker&quot;</span><span class="p">,</span> <span class="s2">&quot;feature_extractor&quot;</span><span class="p">]</span>
     <span class="n">model_cpu_offload_seq</span> <span class="o">=</span> <span class="s2">&quot;text_encoder-&gt;unet-&gt;vae&quot;</span>
     <span class="n">_exclude_from_cpu_offload</span> <span class="o">=</span> <span class="p">[</span><span class="s2">&quot;safety_checker&quot;</span><span class="p">]</span>
@@ -9381,7 +9385,7 @@ more details about a model's potential harms.</p>
         <span class="n">unet</span><span class="p">:</span> <span class="n">UNet2DConditionModel</span><span class="p">,</span>
         <span class="n">scheduler</span><span class="p">:</span> <span class="n">KarrasDiffusionSchedulers</span><span class="p">,</span>
         <span class="n">safety_checker</span><span class="p">:</span> <span class="n">StableDiffusionSafetyChecker</span><span class="p">,</span>
-        <span class="n">feature_extractor</span><span class="p">:</span> <span class="n">CLIPFeatureExtractor</span><span class="p">,</span>
+        <span class="n">feature_extractor</span><span class="p">:</span> <span class="n">CLIPImageProcessor</span><span class="p">,</span>
         <span class="n">requires_safety_checker</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span><span class="p">,</span>
     <span class="p">):</span>
         <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">()</span>
@@ -9487,7 +9491,7 @@ more details about a model's potential harms.</p>
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="c1"># set lora scale so that monkey patched LoRA</span>
         <span class="c1"># function of text encoder can correctly access it</span>
-        <span class="k">if</span> <span class="n">lora_scale</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="ow">and</span> <span class="nb">isinstance</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">LoraLoaderMixin</span><span class="p">):</span>
+        <span class="k">if</span> <span class="n">lora_scale</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="ow">and</span> <span class="nb">isinstance</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">StableDiffusionLoraLoaderMixin</span><span class="p">):</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">_lora_scale</span> <span class="o">=</span> <span class="n">lora_scale</span>
 
             <span class="c1"># dynamically adjust the LoRA scale</span>
@@ -9615,7 +9619,7 @@ more details about a model's potential harms.</p>
             <span class="n">negative_prompt_embeds</span> <span class="o">=</span> <span class="n">negative_prompt_embeds</span><span class="o">.</span><span class="n">view</span><span class="p">(</span><span class="n">batch_size</span> <span class="o">*</span> <span class="n">num_images_per_prompt</span><span class="p">,</span> <span class="n">seq_len</span><span class="p">,</span> <span class="o">-</span><span class="mi">1</span><span class="p">)</span>
 
         <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">text_encoder</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
-            <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">LoraLoaderMixin</span><span class="p">):</span>
+            <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">StableDiffusionLoraLoaderMixin</span><span class="p">):</span>
                 <span class="c1"># Retrieve the original scale by scaling back the LoRA layers</span>
                 <span class="n">unscale_lora_layers</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">text_encoder</span><span class="p">,</span> <span class="n">lora_scale</span><span class="p">)</span>
 
@@ -9646,7 +9650,7 @@ more details about a model's potential harms.</p>
     <span class="k">def</span><span class="w"> </span><span class="nf">prepare_extra_step_kwargs</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">generator</span><span class="p">,</span> <span class="n">eta</span><span class="p">):</span>
         <span class="c1"># prepare extra kwargs for the scheduler step, since not all schedulers have the same signature</span>
         <span class="c1"># eta (η) is only used with the DDIMScheduler, it will be ignored for other schedulers.</span>
-        <span class="c1"># eta corresponds to η in DDIM paper: https://arxiv.org/abs/2010.02502</span>
+        <span class="c1"># eta corresponds to η in DDIM paper: https://huggingface.co/papers/2010.02502</span>
         <span class="c1"># and should be between [0, 1]</span>
 
         <span class="n">accepts_eta</span> <span class="o">=</span> <span class="s2">&quot;eta&quot;</span> <span class="ow">in</span> <span class="nb">set</span><span class="p">(</span><span class="n">inspect</span><span class="o">.</span><span class="n">signature</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">scheduler</span><span class="o">.</span><span class="n">step</span><span class="p">)</span><span class="o">.</span><span class="n">parameters</span><span class="o">.</span><span class="n">keys</span><span class="p">())</span>
@@ -9820,7 +9824,7 @@ more details about a model's potential harms.</p>
 <span class="sd">                `gligen_phrases`. Otherwise, it is treated as a generation task on a blank input image.</span>
 <span class="sd">            gligen_scheduled_sampling_beta (`float`, defaults to 0.3):</span>
 <span class="sd">                Scheduled Sampling factor from [GLIGEN: Open-Set Grounded Text-to-Image</span>
-<span class="sd">                Generation](https://arxiv.org/pdf/2301.07093.pdf). Scheduled Sampling factor is only varied for</span>
+<span class="sd">                Generation](https://huggingface.co/papers/2301.07093). Scheduled Sampling factor is only varied for</span>
 <span class="sd">                scheduled sampling during inference for improved quality and controllability.</span>
 <span class="sd">            negative_prompt (`str` or `List[str]`, *optional*):</span>
 <span class="sd">                The prompt or prompts to guide what to not include in image generation. If not defined, you need to</span>
@@ -9828,8 +9832,8 @@ more details about a model's potential harms.</p>
 <span class="sd">            num_images_per_prompt (`int`, *optional*, defaults to 1):</span>
 <span class="sd">                The number of images to generate per prompt.</span>
 <span class="sd">            eta (`float`, *optional*, defaults to 0.0):</span>
-<span class="sd">                Corresponds to parameter eta (η) from the [DDIM](https://arxiv.org/abs/2010.02502) paper. Only applies</span>
-<span class="sd">                to the [`~schedulers.DDIMScheduler`], and is ignored in other schedulers.</span>
+<span class="sd">                Corresponds to parameter eta (η) from the [DDIM](https://huggingface.co/papers/2010.02502) paper. Only</span>
+<span class="sd">                applies to the [`~schedulers.DDIMScheduler`], and is ignored in other schedulers.</span>
 <span class="sd">            generator (`np.random.Generator` or `List[np.random.Generator]`, *optional*):</span>
 <span class="sd">                A [`np.random.Generator`](https://pytorch.org/docs/stable/generated/torch.Generator.html) to make</span>
 <span class="sd">                generation deterministic.</span>
@@ -9859,7 +9863,7 @@ more details about a model's potential harms.</p>
 <span class="sd">                [`self.processor`](https://github.com/huggingface/diffusers/blob/main/src/diffusers/models/attention_processor.py).</span>
 <span class="sd">            guidance_rescale (`float`, *optional*, defaults to 0.0):</span>
 <span class="sd">                Guidance rescale factor from [Common Diffusion Noise Schedules and Sample Steps are</span>
-<span class="sd">                Flawed](https://arxiv.org/pdf/2305.08891.pdf). Guidance rescale factor should fix overexposure when</span>
+<span class="sd">                Flawed](https://huggingface.co/papers/2305.08891). Guidance rescale factor should fix overexposure when</span>
 <span class="sd">                using zero terminal SNR.</span>
 <span class="sd">            clip_skip (`int`, *optional*):</span>
 <span class="sd">                Number of layers to be skipped from CLIP while computing the prompt embeddings. A value of 1 means that</span>
@@ -9899,7 +9903,7 @@ more details about a model's potential harms.</p>
             <span class="n">batch_size</span> <span class="o">=</span> <span class="n">prompt_embeds</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
 
         <span class="c1"># here `guidance_scale` is defined analog to the guidance weight `w` of equation (2)</span>
-        <span class="c1"># of the Imagen paper: https://arxiv.org/pdf/2205.11487.pdf . `guidance_scale = 1`</span>
+        <span class="c1"># of the Imagen paper: https://huggingface.co/papers/2205.11487 . `guidance_scale = 1`</span>
         <span class="c1"># corresponds to doing no classifier free guidance.</span>
         <span class="n">do_classifier_free_guidance</span> <span class="o">=</span> <span class="n">guidance_scale</span> <span class="o">&gt;</span> <span class="mf">1.0</span>
 
@@ -10312,7 +10316,7 @@ content described by the corresponding <code>gligen_phrases</code>. Each rectang
             </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
-                <p>Scheduled Sampling factor from <a href="https://arxiv.org/pdf/2301.07093.pdf">GLIGEN: Open-Set Grounded Text-to-Image
+                <p>Scheduled Sampling factor from <a href="https://huggingface.co/papers/2301.07093">GLIGEN: Open-Set Grounded Text-to-Image
 Generation</a>. Scheduled Sampling factor is only varied for
 scheduled sampling during inference for improved quality and controllability.</p>
               </div>
@@ -10375,8 +10379,8 @@ pass <code>negative_prompt_embeds</code> instead. Ignored when not using guidanc
             </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
-                <p>Corresponds to parameter eta (η) from the <a href="https://arxiv.org/abs/2010.02502">DDIM</a> paper. Only applies
-to the [<code>~schedulers.DDIMScheduler</code>], and is ignored in other schedulers.</p>
+                <p>Corresponds to parameter eta (η) from the <a href="https://huggingface.co/papers/2010.02502">DDIM</a> paper. Only
+applies to the [<code>~schedulers.DDIMScheduler</code>], and is ignored in other schedulers.</p>
               </div>
               <p>
                   <span class="doc-param-annotation">
@@ -10585,7 +10589,7 @@ every step.</p>
             </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
-                <p>Guidance rescale factor from <a href="https://arxiv.org/pdf/2305.08891.pdf">Common Diffusion Noise Schedules and Sample Steps are
+                <p>Guidance rescale factor from <a href="https://huggingface.co/papers/2305.08891">Common Diffusion Noise Schedules and Sample Steps are
 Flawed</a>. Guidance rescale factor should fix overexposure when
 using zero terminal SNR.</p>
               </div>
@@ -10650,9 +10654,7 @@ second element is a list of <code>bool</code>s indicating whether the correspond
 
             <details class="quote">
               <summary>Source code in <code>mindone/diffusers/pipelines/stable_diffusion_gligen/pipeline_stable_diffusion_gligen.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">526</span>
-<span class="normal">527</span>
-<span class="normal">528</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">528</span>
 <span class="normal">529</span>
 <span class="normal">530</span>
 <span class="normal">531</span>
@@ -10985,7 +10987,9 @@ second element is a list of <code>bool</code>s indicating whether the correspond
 <span class="normal">858</span>
 <span class="normal">859</span>
 <span class="normal">860</span>
-<span class="normal">861</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="fm">__call__</span><span class="p">(</span>
+<span class="normal">861</span>
+<span class="normal">862</span>
+<span class="normal">863</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="fm">__call__</span><span class="p">(</span>
     <span class="bp">self</span><span class="p">,</span>
     <span class="n">prompt</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">List</span><span class="p">[</span><span class="nb">str</span><span class="p">]]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
     <span class="n">height</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">int</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
@@ -11038,7 +11042,7 @@ second element is a list of <code>bool</code>s indicating whether the correspond
 <span class="sd">            `gligen_phrases`. Otherwise, it is treated as a generation task on a blank input image.</span>
 <span class="sd">        gligen_scheduled_sampling_beta (`float`, defaults to 0.3):</span>
 <span class="sd">            Scheduled Sampling factor from [GLIGEN: Open-Set Grounded Text-to-Image</span>
-<span class="sd">            Generation](https://arxiv.org/pdf/2301.07093.pdf). Scheduled Sampling factor is only varied for</span>
+<span class="sd">            Generation](https://huggingface.co/papers/2301.07093). Scheduled Sampling factor is only varied for</span>
 <span class="sd">            scheduled sampling during inference for improved quality and controllability.</span>
 <span class="sd">        negative_prompt (`str` or `List[str]`, *optional*):</span>
 <span class="sd">            The prompt or prompts to guide what to not include in image generation. If not defined, you need to</span>
@@ -11046,8 +11050,8 @@ second element is a list of <code>bool</code>s indicating whether the correspond
 <span class="sd">        num_images_per_prompt (`int`, *optional*, defaults to 1):</span>
 <span class="sd">            The number of images to generate per prompt.</span>
 <span class="sd">        eta (`float`, *optional*, defaults to 0.0):</span>
-<span class="sd">            Corresponds to parameter eta (η) from the [DDIM](https://arxiv.org/abs/2010.02502) paper. Only applies</span>
-<span class="sd">            to the [`~schedulers.DDIMScheduler`], and is ignored in other schedulers.</span>
+<span class="sd">            Corresponds to parameter eta (η) from the [DDIM](https://huggingface.co/papers/2010.02502) paper. Only</span>
+<span class="sd">            applies to the [`~schedulers.DDIMScheduler`], and is ignored in other schedulers.</span>
 <span class="sd">        generator (`np.random.Generator` or `List[np.random.Generator]`, *optional*):</span>
 <span class="sd">            A [`np.random.Generator`](https://pytorch.org/docs/stable/generated/torch.Generator.html) to make</span>
 <span class="sd">            generation deterministic.</span>
@@ -11077,7 +11081,7 @@ second element is a list of <code>bool</code>s indicating whether the correspond
 <span class="sd">            [`self.processor`](https://github.com/huggingface/diffusers/blob/main/src/diffusers/models/attention_processor.py).</span>
 <span class="sd">        guidance_rescale (`float`, *optional*, defaults to 0.0):</span>
 <span class="sd">            Guidance rescale factor from [Common Diffusion Noise Schedules and Sample Steps are</span>
-<span class="sd">            Flawed](https://arxiv.org/pdf/2305.08891.pdf). Guidance rescale factor should fix overexposure when</span>
+<span class="sd">            Flawed](https://huggingface.co/papers/2305.08891). Guidance rescale factor should fix overexposure when</span>
 <span class="sd">            using zero terminal SNR.</span>
 <span class="sd">        clip_skip (`int`, *optional*):</span>
 <span class="sd">            Number of layers to be skipped from CLIP while computing the prompt embeddings. A value of 1 means that</span>
@@ -11117,7 +11121,7 @@ second element is a list of <code>bool</code>s indicating whether the correspond
         <span class="n">batch_size</span> <span class="o">=</span> <span class="n">prompt_embeds</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
 
     <span class="c1"># here `guidance_scale` is defined analog to the guidance weight `w` of equation (2)</span>
-    <span class="c1"># of the Imagen paper: https://arxiv.org/pdf/2205.11487.pdf . `guidance_scale = 1`</span>
+    <span class="c1"># of the Imagen paper: https://huggingface.co/papers/2205.11487 . `guidance_scale = 1`</span>
     <span class="c1"># corresponds to doing no classifier free guidance.</span>
     <span class="n">do_classifier_free_guidance</span> <span class="o">=</span> <span class="n">guidance_scale</span> <span class="o">&gt;</span> <span class="mf">1.0</span>
 
@@ -11509,9 +11513,7 @@ the output of the pre-final layer will be used for computing the prompt embeddin
 
             <details class="quote">
               <summary>Source code in <code>mindone/diffusers/pipelines/stable_diffusion_gligen/pipeline_stable_diffusion_gligen.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">206</span>
-<span class="normal">207</span>
-<span class="normal">208</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">208</span>
 <span class="normal">209</span>
 <span class="normal">210</span>
 <span class="normal">211</span>
@@ -11681,7 +11683,9 @@ the output of the pre-final layer will be used for computing the prompt embeddin
 <span class="normal">375</span>
 <span class="normal">376</span>
 <span class="normal">377</span>
-<span class="normal">378</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">encode_prompt</span><span class="p">(</span>
+<span class="normal">378</span>
+<span class="normal">379</span>
+<span class="normal">380</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">encode_prompt</span><span class="p">(</span>
     <span class="bp">self</span><span class="p">,</span>
     <span class="n">prompt</span><span class="p">,</span>
     <span class="n">num_images_per_prompt</span><span class="p">,</span>
@@ -11721,7 +11725,7 @@ the output of the pre-final layer will be used for computing the prompt embeddin
 <span class="sd">    &quot;&quot;&quot;</span>
     <span class="c1"># set lora scale so that monkey patched LoRA</span>
     <span class="c1"># function of text encoder can correctly access it</span>
-    <span class="k">if</span> <span class="n">lora_scale</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="ow">and</span> <span class="nb">isinstance</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">LoraLoaderMixin</span><span class="p">):</span>
+    <span class="k">if</span> <span class="n">lora_scale</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="ow">and</span> <span class="nb">isinstance</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">StableDiffusionLoraLoaderMixin</span><span class="p">):</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">_lora_scale</span> <span class="o">=</span> <span class="n">lora_scale</span>
 
         <span class="c1"># dynamically adjust the LoRA scale</span>
@@ -11849,7 +11853,7 @@ the output of the pre-final layer will be used for computing the prompt embeddin
         <span class="n">negative_prompt_embeds</span> <span class="o">=</span> <span class="n">negative_prompt_embeds</span><span class="o">.</span><span class="n">view</span><span class="p">(</span><span class="n">batch_size</span> <span class="o">*</span> <span class="n">num_images_per_prompt</span><span class="p">,</span> <span class="n">seq_len</span><span class="p">,</span> <span class="o">-</span><span class="mi">1</span><span class="p">)</span>
 
     <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">text_encoder</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
-        <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">LoraLoaderMixin</span><span class="p">):</span>
+        <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">StableDiffusionLoraLoaderMixin</span><span class="p">):</span>
             <span class="c1"># Retrieve the original scale by scaling back the LoRA layers</span>
             <span class="n">unscale_lora_layers</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">text_encoder</span><span class="p">,</span> <span class="n">lora_scale</span><span class="p">)</span>
 
@@ -11881,7 +11885,7 @@ the output of the pre-final layer will be used for computing the prompt embeddin
 
     <div class="doc doc-contents first">
             <p class="doc doc-class-bases">
-              Bases: <code><a class="autorefs autorefs-internal" title="mindone.diffusers.DiffusionPipeline (mindone.diffusers.pipelines.pipeline_utils.DiffusionPipeline)" href="../../overview/#mindone.diffusers.DiffusionPipeline">DiffusionPipeline</a></code>, <code><span title="mindone.diffusers.pipelines.pipeline_utils.StableDiffusionMixin">StableDiffusionMixin</span></code></p>
+              Bases: <code><span title="mindone.diffusers.pipelines.pipeline_utils.DeprecatedPipelineMixin">DeprecatedPipelineMixin</span></code>, <code><a class="autorefs autorefs-internal" title="mindone.diffusers.DiffusionPipeline (mindone.diffusers.pipelines.pipeline_utils.DiffusionPipeline)" href="../../overview/#mindone.diffusers.DiffusionPipeline">DiffusionPipeline</a></code>, <code><span title="mindone.diffusers.pipelines.pipeline_utils.StableDiffusionMixin">StableDiffusionMixin</span></code></p>
 
 
         <p>Pipeline for text-to-image generation using Stable Diffusion with Grounded-Language-to-Image Generation (GLIGEN).</p>
@@ -11951,7 +11955,7 @@ library implements for all the pipelines (such as downloading or saving, running
             </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
-                <p>A <code>CLIPProcessor</code> to procces reference image.</p>
+                <p>A <code>CLIPProcessor</code> to process reference image.</p>
               </div>
               <p>
                   <span class="doc-param-annotation">
@@ -12971,7 +12975,9 @@ more details about a model's potential harms.</p>
 <span class="normal">1044</span>
 <span class="normal">1045</span>
 <span class="normal">1046</span>
-<span class="normal">1047</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">class</span><span class="w"> </span><span class="nc">StableDiffusionGLIGENTextImagePipeline</span><span class="p">(</span><span class="n">DiffusionPipeline</span><span class="p">,</span> <span class="n">StableDiffusionMixin</span><span class="p">):</span>
+<span class="normal">1047</span>
+<span class="normal">1048</span>
+<span class="normal">1049</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">class</span><span class="w"> </span><span class="nc">StableDiffusionGLIGENTextImagePipeline</span><span class="p">(</span><span class="n">DeprecatedPipelineMixin</span><span class="p">,</span> <span class="n">DiffusionPipeline</span><span class="p">,</span> <span class="n">StableDiffusionMixin</span><span class="p">):</span>
 <span class="w">    </span><span class="sa">r</span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    Pipeline for text-to-image generation using Stable Diffusion with Grounded-Language-to-Image Generation (GLIGEN).</span>
 
@@ -12986,7 +12992,7 @@ more details about a model's potential harms.</p>
 <span class="sd">        tokenizer ([`~transformers.CLIPTokenizer`]):</span>
 <span class="sd">            A `CLIPTokenizer` to tokenize text.</span>
 <span class="sd">        processor ([`~transformers.CLIPProcessor`]):</span>
-<span class="sd">            A `CLIPProcessor` to procces reference image.</span>
+<span class="sd">            A `CLIPProcessor` to process reference image.</span>
 <span class="sd">        image_encoder ([`~transformers.CLIPVisionModelWithProjection`]):</span>
 <span class="sd">            Frozen image-encoder ([clip-vit-large-patch14](https://huggingface.co/openai/clip-vit-large-patch14)).</span>
 <span class="sd">        image_project ([`CLIPImageProjection`]):</span>
@@ -13004,6 +13010,8 @@ more details about a model's potential harms.</p>
 <span class="sd">            A `CLIPImageProcessor` to extract features from generated images; used as inputs to the `safety_checker`.</span>
 <span class="sd">    &quot;&quot;&quot;</span>
 
+    <span class="n">_last_supported_version</span> <span class="o">=</span> <span class="s2">&quot;0.33.1&quot;</span>
+
     <span class="n">model_cpu_offload_seq</span> <span class="o">=</span> <span class="s2">&quot;text_encoder-&gt;unet-&gt;vae&quot;</span>
     <span class="n">_optional_components</span> <span class="o">=</span> <span class="p">[</span><span class="s2">&quot;safety_checker&quot;</span><span class="p">,</span> <span class="s2">&quot;feature_extractor&quot;</span><span class="p">]</span>
     <span class="n">_exclude_from_cpu_offload</span> <span class="o">=</span> <span class="p">[</span><span class="s2">&quot;safety_checker&quot;</span><span class="p">]</span>
@@ -13019,7 +13027,7 @@ more details about a model's potential harms.</p>
         <span class="n">unet</span><span class="p">:</span> <span class="n">UNet2DConditionModel</span><span class="p">,</span>
         <span class="n">scheduler</span><span class="p">:</span> <span class="n">KarrasDiffusionSchedulers</span><span class="p">,</span>
         <span class="n">safety_checker</span><span class="p">:</span> <span class="n">StableDiffusionSafetyChecker</span><span class="p">,</span>
-        <span class="n">feature_extractor</span><span class="p">:</span> <span class="n">CLIPFeatureExtractor</span><span class="p">,</span>
+        <span class="n">feature_extractor</span><span class="p">:</span> <span class="n">CLIPImageProcessor</span><span class="p">,</span>
         <span class="n">requires_safety_checker</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span><span class="p">,</span>
     <span class="p">):</span>
         <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">()</span>
@@ -13097,7 +13105,7 @@ more details about a model's potential harms.</p>
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="c1"># set lora scale so that monkey patched LoRA</span>
         <span class="c1"># function of text encoder can correctly access it</span>
-        <span class="k">if</span> <span class="n">lora_scale</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="ow">and</span> <span class="nb">isinstance</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">LoraLoaderMixin</span><span class="p">):</span>
+        <span class="k">if</span> <span class="n">lora_scale</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="ow">and</span> <span class="nb">isinstance</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">StableDiffusionLoraLoaderMixin</span><span class="p">):</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">_lora_scale</span> <span class="o">=</span> <span class="n">lora_scale</span>
 
             <span class="c1"># dynamically adjust the LoRA scale</span>
@@ -13225,7 +13233,7 @@ more details about a model's potential harms.</p>
             <span class="n">negative_prompt_embeds</span> <span class="o">=</span> <span class="n">negative_prompt_embeds</span><span class="o">.</span><span class="n">view</span><span class="p">(</span><span class="n">batch_size</span> <span class="o">*</span> <span class="n">num_images_per_prompt</span><span class="p">,</span> <span class="n">seq_len</span><span class="p">,</span> <span class="o">-</span><span class="mi">1</span><span class="p">)</span>
 
         <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">text_encoder</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
-            <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">LoraLoaderMixin</span><span class="p">):</span>
+            <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">StableDiffusionLoraLoaderMixin</span><span class="p">):</span>
                 <span class="c1"># Retrieve the original scale by scaling back the LoRA layers</span>
                 <span class="n">unscale_lora_layers</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">text_encoder</span><span class="p">,</span> <span class="n">lora_scale</span><span class="p">)</span>
 
@@ -13257,7 +13265,7 @@ more details about a model's potential harms.</p>
     <span class="k">def</span><span class="w"> </span><span class="nf">prepare_extra_step_kwargs</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">generator</span><span class="p">,</span> <span class="n">eta</span><span class="p">):</span>
         <span class="c1"># prepare extra kwargs for the scheduler step, since not all schedulers have the same signature</span>
         <span class="c1"># eta (η) is only used with the DDIMScheduler, it will be ignored for other schedulers.</span>
-        <span class="c1"># eta corresponds to η in DDIM paper: https://arxiv.org/abs/2010.02502</span>
+        <span class="c1"># eta corresponds to η in DDIM paper: https://huggingface.co/papers/2010.02502</span>
         <span class="c1"># and should be between [0, 1]</span>
 
         <span class="n">accepts_eta</span> <span class="o">=</span> <span class="s2">&quot;eta&quot;</span> <span class="ow">in</span> <span class="nb">set</span><span class="p">(</span><span class="n">inspect</span><span class="o">.</span><span class="n">signature</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">scheduler</span><span class="o">.</span><span class="n">step</span><span class="p">)</span><span class="o">.</span><span class="n">parameters</span><span class="o">.</span><span class="n">keys</span><span class="p">())</span>
@@ -13588,7 +13596,7 @@ more details about a model's potential harms.</p>
 <span class="sd">                `gligen_phrases`. Otherwise, it is treated as a generation task on a blank input image.</span>
 <span class="sd">            gligen_scheduled_sampling_beta (`float`, defaults to 0.3):</span>
 <span class="sd">                Scheduled Sampling factor from [GLIGEN: Open-Set Grounded Text-to-Image</span>
-<span class="sd">                Generation](https://arxiv.org/pdf/2301.07093.pdf). Scheduled Sampling factor is only varied for</span>
+<span class="sd">                Generation](https://huggingface.co/papers/2301.07093). Scheduled Sampling factor is only varied for</span>
 <span class="sd">                scheduled sampling during inference for improved quality and controllability.</span>
 <span class="sd">            negative_prompt (`str` or `List[str]`, *optional*):</span>
 <span class="sd">                The prompt or prompts to guide what to not include in image generation. If not defined, you need to</span>
@@ -13596,8 +13604,8 @@ more details about a model's potential harms.</p>
 <span class="sd">            num_images_per_prompt (`int`, *optional*, defaults to 1):</span>
 <span class="sd">                The number of images to generate per prompt.</span>
 <span class="sd">            eta (`float`, *optional*, defaults to 0.0):</span>
-<span class="sd">                Corresponds to parameter eta (η) from the [DDIM](https://arxiv.org/abs/2010.02502) paper. Only applies</span>
-<span class="sd">                to the [`~schedulers.DDIMScheduler`], and is ignored in other schedulers.</span>
+<span class="sd">                Corresponds to parameter eta (η) from the [DDIM](https://huggingface.co/papers/2010.02502) paper. Only</span>
+<span class="sd">                applies to the [`~schedulers.DDIMScheduler`], and is ignored in other schedulers.</span>
 <span class="sd">            generator (`np.random.Generator` or `List[np.random.Generator]`, *optional*):</span>
 <span class="sd">                A [`np.random.Generator`](https://pytorch.org/docs/stable/generated/torch.Generator.html) to make</span>
 <span class="sd">                generation deterministic.</span>
@@ -13665,7 +13673,7 @@ more details about a model's potential harms.</p>
         <span class="k">else</span><span class="p">:</span>
             <span class="n">batch_size</span> <span class="o">=</span> <span class="n">prompt_embeds</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
         <span class="c1"># here `guidance_scale` is defined analog to the guidance weight `w` of equation (2)</span>
-        <span class="c1"># of the Imagen paper: https://arxiv.org/pdf/2205.11487.pdf . `guidance_scale = 1`</span>
+        <span class="c1"># of the Imagen paper: https://huggingface.co/papers/2205.11487 . `guidance_scale = 1`</span>
         <span class="c1"># corresponds to doing no classifier free guidance.</span>
         <span class="n">do_classifier_free_guidance</span> <span class="o">=</span> <span class="n">guidance_scale</span> <span class="o">&gt;</span> <span class="mf">1.0</span>
 
@@ -14142,7 +14150,7 @@ content described by the corresponding <code>gligen_phrases</code>. Each rectang
             </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
-                <p>Scheduled Sampling factor from <a href="https://arxiv.org/pdf/2301.07093.pdf">GLIGEN: Open-Set Grounded Text-to-Image
+                <p>Scheduled Sampling factor from <a href="https://huggingface.co/papers/2301.07093">GLIGEN: Open-Set Grounded Text-to-Image
 Generation</a>. Scheduled Sampling factor is only varied for
 scheduled sampling during inference for improved quality and controllability.</p>
               </div>
@@ -14205,8 +14213,8 @@ pass <code>negative_prompt_embeds</code> instead. Ignored when not using guidanc
             </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
-                <p>Corresponds to parameter eta (η) from the <a href="https://arxiv.org/abs/2010.02502">DDIM</a> paper. Only applies
-to the [<code>~schedulers.DDIMScheduler</code>], and is ignored in other schedulers.</p>
+                <p>Corresponds to parameter eta (η) from the <a href="https://huggingface.co/papers/2010.02502">DDIM</a> paper. Only
+applies to the [<code>~schedulers.DDIMScheduler</code>], and is ignored in other schedulers.</p>
               </div>
               <p>
                   <span class="doc-param-annotation">
@@ -14482,9 +14490,7 @@ second element is a list of <code>bool</code>s indicating whether the correspond
 
             <details class="quote">
               <summary>Source code in <code>mindone/diffusers/pipelines/stable_diffusion_gligen/pipeline_stable_diffusion_gligen_text_image.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal"> 700</span>
-<span class="normal"> 701</span>
-<span class="normal"> 702</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal"> 702</span>
 <span class="normal"> 703</span>
 <span class="normal"> 704</span>
 <span class="normal"> 705</span>
@@ -14829,7 +14835,9 @@ second element is a list of <code>bool</code>s indicating whether the correspond
 <span class="normal">1044</span>
 <span class="normal">1045</span>
 <span class="normal">1046</span>
-<span class="normal">1047</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="fm">__call__</span><span class="p">(</span>
+<span class="normal">1047</span>
+<span class="normal">1048</span>
+<span class="normal">1049</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="fm">__call__</span><span class="p">(</span>
     <span class="bp">self</span><span class="p">,</span>
     <span class="n">prompt</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">List</span><span class="p">[</span><span class="nb">str</span><span class="p">]]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
     <span class="n">height</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">int</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
@@ -14893,7 +14901,7 @@ second element is a list of <code>bool</code>s indicating whether the correspond
 <span class="sd">            `gligen_phrases`. Otherwise, it is treated as a generation task on a blank input image.</span>
 <span class="sd">        gligen_scheduled_sampling_beta (`float`, defaults to 0.3):</span>
 <span class="sd">            Scheduled Sampling factor from [GLIGEN: Open-Set Grounded Text-to-Image</span>
-<span class="sd">            Generation](https://arxiv.org/pdf/2301.07093.pdf). Scheduled Sampling factor is only varied for</span>
+<span class="sd">            Generation](https://huggingface.co/papers/2301.07093). Scheduled Sampling factor is only varied for</span>
 <span class="sd">            scheduled sampling during inference for improved quality and controllability.</span>
 <span class="sd">        negative_prompt (`str` or `List[str]`, *optional*):</span>
 <span class="sd">            The prompt or prompts to guide what to not include in image generation. If not defined, you need to</span>
@@ -14901,8 +14909,8 @@ second element is a list of <code>bool</code>s indicating whether the correspond
 <span class="sd">        num_images_per_prompt (`int`, *optional*, defaults to 1):</span>
 <span class="sd">            The number of images to generate per prompt.</span>
 <span class="sd">        eta (`float`, *optional*, defaults to 0.0):</span>
-<span class="sd">            Corresponds to parameter eta (η) from the [DDIM](https://arxiv.org/abs/2010.02502) paper. Only applies</span>
-<span class="sd">            to the [`~schedulers.DDIMScheduler`], and is ignored in other schedulers.</span>
+<span class="sd">            Corresponds to parameter eta (η) from the [DDIM](https://huggingface.co/papers/2010.02502) paper. Only</span>
+<span class="sd">            applies to the [`~schedulers.DDIMScheduler`], and is ignored in other schedulers.</span>
 <span class="sd">        generator (`np.random.Generator` or `List[np.random.Generator]`, *optional*):</span>
 <span class="sd">            A [`np.random.Generator`](https://pytorch.org/docs/stable/generated/torch.Generator.html) to make</span>
 <span class="sd">            generation deterministic.</span>
@@ -14970,7 +14978,7 @@ second element is a list of <code>bool</code>s indicating whether the correspond
     <span class="k">else</span><span class="p">:</span>
         <span class="n">batch_size</span> <span class="o">=</span> <span class="n">prompt_embeds</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
     <span class="c1"># here `guidance_scale` is defined analog to the guidance weight `w` of equation (2)</span>
-    <span class="c1"># of the Imagen paper: https://arxiv.org/pdf/2205.11487.pdf . `guidance_scale = 1`</span>
+    <span class="c1"># of the Imagen paper: https://huggingface.co/papers/2205.11487 . `guidance_scale = 1`</span>
     <span class="c1"># corresponds to doing no classifier free guidance.</span>
     <span class="n">do_classifier_free_guidance</span> <span class="o">=</span> <span class="n">guidance_scale</span> <span class="o">&gt;</span> <span class="mf">1.0</span>
 
@@ -15200,9 +15208,7 @@ corresponding to phrases and images.</p>
 
             <details class="quote">
               <summary>Source code in <code>mindone/diffusers/pipelines/stable_diffusion_gligen/pipeline_stable_diffusion_gligen_text_image.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">570</span>
-<span class="normal">571</span>
-<span class="normal">572</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">572</span>
 <span class="normal">573</span>
 <span class="normal">574</span>
 <span class="normal">575</span>
@@ -15214,7 +15220,9 @@ corresponding to phrases and images.</p>
 <span class="normal">581</span>
 <span class="normal">582</span>
 <span class="normal">583</span>
-<span class="normal">584</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">complete_mask</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">has_mask</span><span class="p">,</span> <span class="n">max_objs</span><span class="p">):</span>
+<span class="normal">584</span>
+<span class="normal">585</span>
+<span class="normal">586</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">complete_mask</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">has_mask</span><span class="p">,</span> <span class="n">max_objs</span><span class="p">):</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    Based on the input mask corresponding value `0 or 1` for each phrases and image, mask the features</span>
 <span class="sd">    corresponding to phrases and images.</span>
@@ -15251,16 +15259,16 @@ corresponding to phrases and images.</p>
 
             <details class="quote">
               <summary>Source code in <code>mindone/diffusers/pipelines/stable_diffusion_gligen/pipeline_stable_diffusion_gligen_text_image.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">550</span>
-<span class="normal">551</span>
-<span class="normal">552</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">552</span>
 <span class="normal">553</span>
 <span class="normal">554</span>
 <span class="normal">555</span>
 <span class="normal">556</span>
 <span class="normal">557</span>
 <span class="normal">558</span>
-<span class="normal">559</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">crop</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">im</span><span class="p">,</span> <span class="n">new_width</span><span class="p">,</span> <span class="n">new_height</span><span class="p">):</span>
+<span class="normal">559</span>
+<span class="normal">560</span>
+<span class="normal">561</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">crop</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">im</span><span class="p">,</span> <span class="n">new_width</span><span class="p">,</span> <span class="n">new_height</span><span class="p">):</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    Crop the input image to the specified dimensions.</span>
 <span class="sd">    &quot;&quot;&quot;</span>
@@ -15293,9 +15301,7 @@ boxes to mark regions that need to be inpainted.</p>
 
             <details class="quote">
               <summary>Source code in <code>mindone/diffusers/pipelines/stable_diffusion_gligen/pipeline_stable_diffusion_gligen_text_image.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">538</span>
-<span class="normal">539</span>
-<span class="normal">540</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">540</span>
 <span class="normal">541</span>
 <span class="normal">542</span>
 <span class="normal">543</span>
@@ -15303,7 +15309,9 @@ boxes to mark regions that need to be inpainted.</p>
 <span class="normal">545</span>
 <span class="normal">546</span>
 <span class="normal">547</span>
-<span class="normal">548</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">draw_inpaint_mask_from_boxes</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">boxes</span><span class="p">,</span> <span class="n">size</span><span class="p">):</span>
+<span class="normal">548</span>
+<span class="normal">549</span>
+<span class="normal">550</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">draw_inpaint_mask_from_boxes</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">boxes</span><span class="p">,</span> <span class="n">size</span><span class="p">):</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    Create an inpainting mask based on given boxes. This function generates an inpainting mask using the provided</span>
 <span class="sd">    boxes to mark regions that need to be inpainted.</span>
@@ -15502,9 +15510,7 @@ the output of the pre-final layer will be used for computing the prompt embeddin
 
             <details class="quote">
               <summary>Source code in <code>mindone/diffusers/pipelines/stable_diffusion_gligen/pipeline_stable_diffusion_gligen_text_image.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">233</span>
-<span class="normal">234</span>
-<span class="normal">235</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">235</span>
 <span class="normal">236</span>
 <span class="normal">237</span>
 <span class="normal">238</span>
@@ -15674,7 +15680,9 @@ the output of the pre-final layer will be used for computing the prompt embeddin
 <span class="normal">402</span>
 <span class="normal">403</span>
 <span class="normal">404</span>
-<span class="normal">405</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">encode_prompt</span><span class="p">(</span>
+<span class="normal">405</span>
+<span class="normal">406</span>
+<span class="normal">407</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">encode_prompt</span><span class="p">(</span>
     <span class="bp">self</span><span class="p">,</span>
     <span class="n">prompt</span><span class="p">,</span>
     <span class="n">num_images_per_prompt</span><span class="p">,</span>
@@ -15714,7 +15722,7 @@ the output of the pre-final layer will be used for computing the prompt embeddin
 <span class="sd">    &quot;&quot;&quot;</span>
     <span class="c1"># set lora scale so that monkey patched LoRA</span>
     <span class="c1"># function of text encoder can correctly access it</span>
-    <span class="k">if</span> <span class="n">lora_scale</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="ow">and</span> <span class="nb">isinstance</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">LoraLoaderMixin</span><span class="p">):</span>
+    <span class="k">if</span> <span class="n">lora_scale</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="ow">and</span> <span class="nb">isinstance</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">StableDiffusionLoraLoaderMixin</span><span class="p">):</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">_lora_scale</span> <span class="o">=</span> <span class="n">lora_scale</span>
 
         <span class="c1"># dynamically adjust the LoRA scale</span>
@@ -15842,7 +15850,7 @@ the output of the pre-final layer will be used for computing the prompt embeddin
         <span class="n">negative_prompt_embeds</span> <span class="o">=</span> <span class="n">negative_prompt_embeds</span><span class="o">.</span><span class="n">view</span><span class="p">(</span><span class="n">batch_size</span> <span class="o">*</span> <span class="n">num_images_per_prompt</span><span class="p">,</span> <span class="n">seq_len</span><span class="p">,</span> <span class="o">-</span><span class="mi">1</span><span class="p">)</span>
 
     <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">text_encoder</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
-        <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">LoraLoaderMixin</span><span class="p">):</span>
+        <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">StableDiffusionLoraLoaderMixin</span><span class="p">):</span>
             <span class="c1"># Retrieve the original scale by scaling back the LoRA layers</span>
             <span class="n">unscale_lora_layers</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">text_encoder</span><span class="p">,</span> <span class="n">lora_scale</span><span class="p">)</span>
 
@@ -15870,9 +15878,7 @@ phrases embedding space through a projection.</p>
 
             <details class="quote">
               <summary>Source code in <code>mindone/diffusers/pipelines/stable_diffusion_gligen/pipeline_stable_diffusion_gligen_text_image.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">586</span>
-<span class="normal">587</span>
-<span class="normal">588</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">588</span>
 <span class="normal">589</span>
 <span class="normal">590</span>
 <span class="normal">591</span>
@@ -15896,7 +15902,9 @@ phrases embedding space through a projection.</p>
 <span class="normal">609</span>
 <span class="normal">610</span>
 <span class="normal">611</span>
-<span class="normal">612</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">get_clip_feature</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="nb">input</span><span class="p">,</span> <span class="n">normalize_constant</span><span class="p">,</span> <span class="n">is_image</span><span class="o">=</span><span class="kc">False</span><span class="p">):</span>
+<span class="normal">612</span>
+<span class="normal">613</span>
+<span class="normal">614</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">get_clip_feature</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="nb">input</span><span class="p">,</span> <span class="n">normalize_constant</span><span class="p">,</span> <span class="n">is_image</span><span class="o">=</span><span class="kc">False</span><span class="p">):</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    Get image and phrases embedding by using CLIP pretrain model. The image embedding is transformed into the</span>
 <span class="sd">    phrases embedding space through a projection.</span>
@@ -15946,9 +15954,7 @@ embedding, phrases embedding).</p>
 
             <details class="quote">
               <summary>Source code in <code>mindone/diffusers/pipelines/stable_diffusion_gligen/pipeline_stable_diffusion_gligen_text_image.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">614</span>
-<span class="normal">615</span>
-<span class="normal">616</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">616</span>
 <span class="normal">617</span>
 <span class="normal">618</span>
 <span class="normal">619</span>
@@ -16007,7 +16013,9 @@ embedding, phrases embedding).</p>
 <span class="normal">672</span>
 <span class="normal">673</span>
 <span class="normal">674</span>
-<span class="normal">675</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">get_cross_attention_kwargs_with_grounded</span><span class="p">(</span>
+<span class="normal">675</span>
+<span class="normal">676</span>
+<span class="normal">677</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">get_cross_attention_kwargs_with_grounded</span><span class="p">(</span>
     <span class="bp">self</span><span class="p">,</span>
     <span class="n">hidden_size</span><span class="p">,</span>
     <span class="n">gligen_phrases</span><span class="p">,</span>
@@ -16092,9 +16100,7 @@ phrases embedding) (All are zero tensor).</p>
 
             <details class="quote">
               <summary>Source code in <code>mindone/diffusers/pipelines/stable_diffusion_gligen/pipeline_stable_diffusion_gligen_text_image.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">677</span>
-<span class="normal">678</span>
-<span class="normal">679</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">679</span>
 <span class="normal">680</span>
 <span class="normal">681</span>
 <span class="normal">682</span>
@@ -16113,7 +16119,9 @@ phrases embedding) (All are zero tensor).</p>
 <span class="normal">695</span>
 <span class="normal">696</span>
 <span class="normal">697</span>
-<span class="normal">698</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">get_cross_attention_kwargs_without_grounded</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">hidden_size</span><span class="p">,</span> <span class="n">repeat_batch</span><span class="p">,</span> <span class="n">max_objs</span><span class="p">):</span>
+<span class="normal">698</span>
+<span class="normal">699</span>
+<span class="normal">700</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">get_cross_attention_kwargs_without_grounded</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">hidden_size</span><span class="p">,</span> <span class="n">repeat_batch</span><span class="p">,</span> <span class="n">max_objs</span><span class="p">):</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    Prepare the cross-attention kwargs without information about the grounded input (boxes, mask, image embedding,</span>
 <span class="sd">    phrases embedding) (All are zero tensor).</span>
@@ -16157,14 +16165,14 @@ phrases embedding) (All are zero tensor).</p>
 
             <details class="quote">
               <summary>Source code in <code>mindone/diffusers/pipelines/stable_diffusion_gligen/pipeline_stable_diffusion_gligen_text_image.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">561</span>
-<span class="normal">562</span>
-<span class="normal">563</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">563</span>
 <span class="normal">564</span>
 <span class="normal">565</span>
 <span class="normal">566</span>
 <span class="normal">567</span>
-<span class="normal">568</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">target_size_center_crop</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">im</span><span class="p">,</span> <span class="n">new_hw</span><span class="p">):</span>
+<span class="normal">568</span>
+<span class="normal">569</span>
+<span class="normal">570</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">target_size_center_crop</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">im</span><span class="p">,</span> <span class="n">new_hw</span><span class="p">):</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    Crop and resize the image to the target size while keeping the center.</span>
 <span class="sd">    &quot;&quot;&quot;</span>

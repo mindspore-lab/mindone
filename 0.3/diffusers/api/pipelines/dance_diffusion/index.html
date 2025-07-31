@@ -8226,7 +8226,7 @@ specific language governing permissions and limitations under the License.
 
     <div class="doc doc-contents first">
             <p class="doc doc-class-bases">
-              Bases: <code><a class="autorefs autorefs-internal" title="mindone.diffusers.DiffusionPipeline (mindone.diffusers.pipelines.pipeline_utils.DiffusionPipeline)" href="../overview/#mindone.diffusers.DiffusionPipeline">DiffusionPipeline</a></code></p>
+              Bases: <code><span title="mindone.diffusers.pipelines.pipeline_utils.DeprecatedPipelineMixin">DeprecatedPipelineMixin</span></code>, <code><a class="autorefs autorefs-internal" title="mindone.diffusers.DiffusionPipeline (mindone.diffusers.pipelines.pipeline_utils.DiffusionPipeline)" href="../overview/#mindone.diffusers.DiffusionPipeline">DiffusionPipeline</a></code></p>
 
 
         <p>Pipeline for audio generation.</p>
@@ -8412,7 +8412,7 @@ implemented for all pipelines (downloading, saving, running on a particular devi
 <span class="normal">157</span>
 <span class="normal">158</span>
 <span class="normal">159</span>
-<span class="normal">160</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">class</span><span class="w"> </span><span class="nc">DanceDiffusionPipeline</span><span class="p">(</span><span class="n">DiffusionPipeline</span><span class="p">):</span>
+<span class="normal">160</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">class</span><span class="w"> </span><span class="nc">DanceDiffusionPipeline</span><span class="p">(</span><span class="n">DeprecatedPipelineMixin</span><span class="p">,</span> <span class="n">DiffusionPipeline</span><span class="p">):</span>
 <span class="w">    </span><span class="sa">r</span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    Pipeline for audio generation.</span>
 
@@ -8473,7 +8473,7 @@ implemented for all pipelines (downloading, saving, running on a particular devi
 <span class="sd">        for i, audio in enumerate(audios):</span>
 <span class="sd">            write(f&quot;maestro_test_{i}.wav&quot;, pipe.unet.config.sample_rate, audio.transpose())</span>
 
-<span class="sd">        # To dislay in google colab</span>
+<span class="sd">        # To display in google colab</span>
 <span class="sd">        import IPython.display as ipd</span>
 
 <span class="sd">        for audio in audios:</span>
@@ -8692,7 +8692,7 @@ generation deterministic.</p>
 <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="n">audio</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">audios</span><span class="p">):</span>
     <span class="n">write</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;maestro_test_</span><span class="si">{</span><span class="n">i</span><span class="si">}</span><span class="s2">.wav&quot;</span><span class="p">,</span> <span class="n">pipe</span><span class="o">.</span><span class="n">unet</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">sample_rate</span><span class="p">,</span> <span class="n">audio</span><span class="o">.</span><span class="n">transpose</span><span class="p">())</span>
 
-<span class="c1"># To dislay in google colab</span>
+<span class="c1"># To display in google colab</span>
 <span class="kn">import</span><span class="w"> </span><span class="nn">IPython.display</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">ipd</span>
 
 <span class="k">for</span> <span class="n">audio</span> <span class="ow">in</span> <span class="n">audios</span><span class="p">:</span>
@@ -8878,7 +8878,7 @@ returned where the first element is a list with the generated audio.</p>
 <span class="sd">    for i, audio in enumerate(audios):</span>
 <span class="sd">        write(f&quot;maestro_test_{i}.wav&quot;, pipe.unet.config.sample_rate, audio.transpose())</span>
 
-<span class="sd">    # To dislay in google colab</span>
+<span class="sd">    # To display in google colab</span>
 <span class="sd">    import IPython.display as ipd</span>
 
 <span class="sd">    for audio in audios:</span>
