@@ -50,8 +50,12 @@ else:
             ("beit", ("BeitImageProcessor",)),
             ("blip", ("BlipImageProcessor",)),
             ("blip-2", ("BlipImageProcessor",)),
+            ("chameleon", ("ChameleonImageProcessor",)),
             ("clip", ("CLIPImageProcessor",)),
             ("dpt", ("DPTImageProcessor",)),
+            ("llava_next", ("LlavaNextImageProcessor",)),
+            ("llava_next_video", ("LlavaNextVideoImageProcessor",)),
+            ("llava_onevision", ("LlavaOnevisionImageProcessor",)),
         ]
     )
 
