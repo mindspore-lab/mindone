@@ -3,7 +3,6 @@
 
 import json
 import os
-import pickle
 from itertools import groupby
 from typing import Dict, List, Optional, Set, Tuple, Type, Union
 
@@ -21,9 +20,9 @@ from .utils import _get_submodules
 safetensors_available = True
 
 
-def load_lora_from_pkl(file_path):
-    with open(file_path, "rb") as file:
-        loras = pickle.load(file)
+def load_lora_from_npz(file_path):
+    with np.load(file_path) as data:
+        loras = [data[key] for key in data.files]
 
     loras = [ms.Tensor(lora_weight) if isinstance(lora_weight, np.ndarray) else lora_weight for lora_weight in loras]
     return loras
@@ -338,7 +337,7 @@ def inject_trainable_lora(
     names = []
 
     if loras is not None:
-        loras = load_lora_from_pkl(loras, to_param=True)
+        loras = load_lora_from_npz(loras, to_param=True)
 
     for _module, fullname, name, _child_module in _find_modules(model, target_replace_module, search_class=[nn.Dense]):
         weight = _child_module.weight
@@ -392,7 +391,7 @@ def inject_trainable_lora_extended(
     # target_replace_module = [getattr(model, m) for m in target_replace_module]
 
     if loras is not None:
-        loras = load_lora_from_pkl(loras)
+        loras = load_lora_from_npz(loras)
 
     for _module, fullname, name, _child_module in _find_modules(
         model, target_replace_module, search_class=[nn.Dense, nn.Conv2d, nn.Conv3d]
@@ -510,7 +509,7 @@ def inject_inferable_lora(
                     if is_text_model(f):
                         monkeypatch_or_replace_lora(
                             model.text_encoder,
-                            load_lora_from_pkl(lora_file),
+                            load_lora_from_npz(lora_file),
                             target_replace_module=text_encoder_replace_modules,
                             r=r,
                         )
@@ -520,7 +519,7 @@ def inject_inferable_lora(
                     if is_unet(f):
                         monkeypatch_or_replace_lora_extended(
                             model.unet,
-                            load_lora_from_pkl(lora_file),
+                            load_lora_from_npz(lora_file),
                             target_replace_module=unet_replace_modules,
                             r=r,
                         )
@@ -573,7 +572,7 @@ def extract_lora_as_tensor(model, target_replace_module=DEFAULT_TARGET_REPLACE, 
 
 def save_lora_weight(
     model,
-    path="./lora.ckpt",
+    path="./lora.npz",
     target_replace_module=DEFAULT_TARGET_REPLACE,
 ):
     weights = []
@@ -581,10 +580,8 @@ def save_lora_weight(
         weights.append(_up.weight.value().asnumpy())
         weights.append(_down.weight.value().asnumpy())
 
-    import pickle
-
-    with open(path, "wb") as f:
-        pickle.dump(weights, f)
+    weights_dict = {f"arr_{i}": arr for i, arr in enumerate(weights)}
+    np.savez(path, **weights_dict)
 
 
 def save_lora_as_json(model, path="./lora.json"):
@@ -658,7 +655,7 @@ def convert_loras_to_safeloras_with_embeds(
     for name, (path, target_replace_module, r) in modelmap.items():
         metadata[name] = json.dumps(list(target_replace_module))
 
-        lora = load_lora_from_pkl(path, to_param=True)
+        lora = load_lora_from_npz(path, to_param=True)
         for i, weight in enumerate(lora):
             is_up = i % 2 == 0
             i = i // 2
@@ -1151,7 +1148,7 @@ def patch_pipe(
             print("LoRA : Patching Unet")
             monkeypatch_or_replace_lora(
                 pipe.unet,
-                load_lora_from_pkl(unet_path),
+                load_lora_from_npz(unet_path),
                 r=r,
                 target_replace_module=unet_target_replace_module,
             )

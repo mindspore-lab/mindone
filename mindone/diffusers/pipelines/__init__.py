@@ -96,6 +96,7 @@ _import_structure = {
         "HunyuanVideoPipeline",
         "HunyuanSkyreelsImageToVideoPipeline",
         "HunyuanVideoImageToVideoPipeline",
+        "HunyuanVideoFramepackPipeline",
     ],
     "i2vgen_xl": ["I2VGenXLPipeline"],
     "latent_diffusion": ["LDMSuperResolutionPipeline", "LDMTextToImagePipeline"],
@@ -134,7 +135,7 @@ _import_structure = {
         "LatentConsistencyModelPipeline",
     ],
     "latte": ["LattePipeline"],
-    "ltx": ["LTXPipeline", "LTXImageToVideoPipeline", "LTXConditionPipeline"],
+    "ltx": ["LTXPipeline", "LTXImageToVideoPipeline", "LTXConditionPipeline", "LTXLatentUpsamplePipeline"],
     "lumina": ["LuminaPipeline", "LuminaText2ImgPipeline"],
     "lumina2": ["Lumina2Pipeline", "Lumina2Text2ImgPipeline"],
     "marigold": [
@@ -145,6 +146,7 @@ _import_structure = {
     "mochi": ["MochiPipeline"],
     "musicldm": ["MusicLDMPipeline"],
     "omnigen": ["OmniGenPipeline"],
+    "visualcloze": ["VisualClozePipeline", "VisualClozeGenerationPipeline"],
     "pag": [
         "StableDiffusionControlNetPAGInpaintPipeline",
         "AnimateDiffPAGPipeline",
@@ -170,7 +172,7 @@ _import_structure = {
         "PixArtAlphaPipeline",
         "PixArtSigmaPipeline",
     ],
-    "sana": ["SanaPipeline", "SanaSprintPipeline"],
+    "sana": ["SanaPipeline", "SanaSprintPipeline", "SanaControlNetPipeline", "SanaSprintImg2ImgPipeline"],
     "semantic_stable_diffusion": ["SemanticStableDiffusionPipeline"],
     "shap_e": ["ShapEImg2ImgPipeline", "ShapEPipeline"],
     "stable_audio": ["StableAudioProjectionModel", "StableAudioPipeline"],
@@ -318,6 +320,7 @@ if TYPE_CHECKING:
     )
     from .hunyuan_video import (
         HunyuanSkyreelsImageToVideoPipeline,
+        HunyuanVideoFramepackPipeline,
         HunyuanVideoImageToVideoPipeline,
         HunyuanVideoPipeline,
     )
@@ -355,7 +358,7 @@ if TYPE_CHECKING:
         LEditsPPPipelineStableDiffusion,
         LEditsPPPipelineStableDiffusionXL,
     )
-    from .ltx import LTXConditionPipeline, LTXImageToVideoPipeline, LTXPipeline
+    from .ltx import LTXConditionPipeline, LTXImageToVideoPipeline, LTXLatentUpsamplePipeline, LTXPipeline
     from .lumina import LuminaPipeline, LuminaText2ImgPipeline
     from .lumina2 import Lumina2Pipeline, Lumina2Text2ImgPipeline
     from .marigold import MarigoldDepthPipeline, MarigoldIntrinsicsPipeline, MarigoldNormalsPipeline
@@ -385,7 +388,7 @@ if TYPE_CHECKING:
     from .pia import PIAPipeline
     from .pipeline_utils import AudioPipelineOutput, DiffusionPipeline, ImagePipelineOutput, StableDiffusionMixin
     from .pixart_alpha import PixArtAlphaPipeline, PixArtSigmaPipeline
-    from .sana import SanaPipeline, SanaSprintPipeline
+    from .sana import SanaControlNetPipeline, SanaPipeline, SanaSprintImg2ImgPipeline, SanaSprintPipeline
     from .semantic_stable_diffusion import SemanticStableDiffusionPipeline
     from .shap_e import ShapEImg2ImgPipeline, ShapEPipeline
     from .stable_audio import StableAudioPipeline, StableAudioProjectionModel
@@ -432,6 +435,7 @@ if TYPE_CHECKING:
     )
     from .unclip import UnCLIPImageVariationPipeline, UnCLIPPipeline
     from .unidiffuser import ImageTextPipelineOutput, UniDiffuserModel, UniDiffuserPipeline, UniDiffuserTextDecoder
+    from .visualcloze import VisualClozeGenerationPipeline, VisualClozePipeline
     from .wan import WanImageToVideoPipeline, WanPipeline, WanVideoToVideoPipeline
     from .wuerstchen import WuerstchenCombinedPipeline, WuerstchenDecoderPipeline, WuerstchenPriorPipeline
 else:

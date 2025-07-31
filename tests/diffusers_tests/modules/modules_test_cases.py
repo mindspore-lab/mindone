@@ -999,6 +999,54 @@ HUNYUAN_VIDEO_TRANSFORMER3D_CASES = [
 ]
 
 
+HUNYUAN_VIDEO_FRAMEPACK_TRANSFORMER3D_CASES = [
+    [
+        "HunyuanVideoFramepackTransformer3DModel",
+        "diffusers.models.transformers.transformer_hunyuan_video_framepack.HunyuanVideoFramepackTransformer3DModel",
+        "mindone.diffusers.models.transformers.transformer_hunyuan_video_framepack.HunyuanVideoFramepackTransformer3DModel",
+        (),
+        {
+            "in_channels": 4,
+            "out_channels": 4,
+            "num_attention_heads": 2,
+            "attention_head_dim": 10,
+            "num_layers": 1,
+            "num_single_layers": 1,
+            "num_refiner_layers": 1,
+            "patch_size": 2,
+            "patch_size_t": 1,
+            "guidance_embeds": True,
+            "text_embed_dim": 16,
+            "pooled_projection_dim": 8,
+            "rope_axes_dim": (2, 4, 4),
+            "image_condition_type": None,
+            "has_image_proj": True,
+            "image_proj_dim": 16,
+            "has_clean_x_embedder": True,
+        },
+        (),
+        {
+            "hidden_states": np.random.default_rng(42).standard_normal((1, 4, 3, 4, 4)),
+            "encoder_hidden_states": np.random.default_rng(42).standard_normal((1, 12, 16)),
+            "pooled_projections": np.random.default_rng(42).standard_normal((1, 8)),
+            "encoder_attention_mask": np.ones((1, 12)),
+            "image_embeds": np.random.default_rng(42).standard_normal((1, 12, 16)),
+            "indices_latents": np.ones((3,)),
+            "latents_clean": np.random.default_rng(42).standard_normal((1, 4, 2, 4, 4)),
+            "indices_latents_clean": np.ones((2,)),
+            "latents_history_2x": np.random.default_rng(42).standard_normal((1, 4, 2, 4, 4)),
+            "indices_latents_history_2x": np.ones((2,)),
+            "latents_history_4x": np.random.default_rng(42).standard_normal((1, 4, 8, 4, 4)),
+            "indices_latents_history_4x": np.ones((8,)),
+            "timestep": np.random.default_rng(42).integers(0, 1000, size=(1,)),
+            "guidance": np.random.default_rng(42).integers(0, 1000, size=(1,)),
+        },
+        ("bf16",),  # only bf16 supported
+        (0, 1),
+    ],
+]
+
+
 LTX_VIDEO_TRANSFORMER3D_CASES = [
     [
         "LTXVideoTransformer3DModel",
@@ -1341,6 +1389,7 @@ TRANSFORMERS_CASES = (
     + CONSISID_TRANSFORMER3D_CASES
     + DIT_TRANSFORMER2D_CASES
     + HUNYUAN_VIDEO_TRANSFORMER3D_CASES
+    + HUNYUAN_VIDEO_FRAMEPACK_TRANSFORMER3D_CASES
     + LTX_VIDEO_TRANSFORMER3D_CASES
     + OMNIGEN_TRANSFORMER2D_CASES
     + PIXART_TRANSFORMER2D_CASES

@@ -79,7 +79,7 @@ class Idefics3ModelTester:
         self.torch_dtype = torch_dtype
 
     def get_large_model_config(self):
-        return Idefics3Config.from_pretrained("Qwen/Qwen2.5-Omni-7B")
+        return Idefics3Config.from_pretrained("HuggingFaceM4/Idefics3-8B-Llama3")
 
     def prepare_config_and_inputs(self):
         input_ids = ids_numpy([self.batch_size, self.seq_length], self.vocab_size)
@@ -112,7 +112,7 @@ class Idefics3ModelTester:
             max_position_embeddings=self.max_position_embeddings,
             use_cache=self.use_cache,
             attn_implementation=self.attn_implementation,
-            torch_dtype=self.torch_dtype,  # ??
+            torch_dtype=self.torch_dtype,
         )
         vision_config = Idefics3VisionConfig(
             hidden_size=self.hidden_size,
@@ -123,12 +123,14 @@ class Idefics3ModelTester:
             image_size=64,
             patch_size=32,
             attn_implementation=self.attn_implementation,
+            torch_dtype=self.torch_dtype,
         )
         config = Idefics3Config(
             use_cache=self.use_cache,
             vision_config=vision_config,
             text_config=text_config,
             attn_implementation=self.attn_implementation,
+            torch_dtype=self.torch_dtype,
         )
 
         return config

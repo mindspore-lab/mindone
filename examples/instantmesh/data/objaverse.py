@@ -2,7 +2,6 @@
 import json
 import math
 import os
-import pickle
 import sys
 from pathlib import Path
 
@@ -24,9 +23,14 @@ from mindspore import Tensor
 from mindspore.dataset.vision import Inter, Resize, ToPIL
 
 
-def read_pickle(pkl_path):
-    with open(pkl_path, "rb") as f:
-        return pickle.load(f)
+def read_np(np_path):
+    with np.load(np_path) as data:
+        return [data[key] for key in data.files]
+
+
+def read_json(json_path):
+    with open(json_path, "r") as f:
+        return json.load(f)
 
 
 def read_txt2list(txt_path):
@@ -36,11 +40,6 @@ def read_txt2list(txt_path):
             x = line[:-1]
             list_entry.append(x)
     return list_entry
-
-
-def read_json(json_path):
-    with open(json_path) as f:
-        return json.load(f)
 
 
 def random_crop_return_params(imgs, height, width):
@@ -63,7 +62,7 @@ class ObjaverseDataset:
     def __init__(
         self,
         root_dir="training_examples/",
-        meta_fname="uid_set.pkl",
+        meta_fname="uid_set.json",
         input_image_dir="input",
         target_image_dir="input",
         input_view_num=6,
@@ -95,9 +94,11 @@ class ObjaverseDataset:
         ]
 
         if meta_fname == "uid_set.pkl":
-            self.paths = read_pickle(os.path.join(root_dir, meta_fname))[-3:]
+            raise TypeError("Loading pickle file is unsafe, please use another file type.")
+        elif meta_fname == "uid_set.json":
+            self.paths = read_json(os.path.join(root_dir, meta_fname))[-3:]
             # [:1]  # only takes the first scene for debugging
-            print("dataset read pickle")
+            print("dataset read json")
         elif meta_fname.split(".")[-1] == "txt":
             self.paths = read_txt2list(os.path.join(root_dir, meta_fname))
             print("reading the fixed pose target list as the dataset")
@@ -236,7 +237,7 @@ class ObjaverseDataset:
         alpha_list = []
         pose_list = []
 
-        K, azimuths, elevations, distances, cam_poses = read_pickle(os.path.join(input_image_path, "meta.pkl"))
+        K, azimuths, elevations, distances, cam_poses = read_np(os.path.join(input_image_path, "meta.npz"))
         input_cameras = cam_poses
         for idx in input_indices:
             image, alpha = self.load_im(os.path.join(input_image_path, "%03d.png" % idx), bg_white)

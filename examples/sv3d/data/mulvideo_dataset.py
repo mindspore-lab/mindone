@@ -1,6 +1,6 @@
+import json
 import logging
 import os
-import pickle
 import sys
 from pathlib import Path
 from typing import Any, List, Tuple
@@ -16,9 +16,9 @@ from mindone.data import BaseDataset
 _logger = logging.getLogger("")
 
 
-def read_pickle(pkl_path):
-    with open(pkl_path, "rb") as f:
-        return pickle.load(f)
+def read_json(json_path):
+    with open(json_path, "r") as f:
+        return json.load(f)
 
 
 def load_im(path, color):
@@ -39,7 +39,7 @@ class MulviewVideoDataset(BaseDataset):
         frames: int,
     ):
         self.root_dir = Path(root_dir)
-        self.paths = read_pickle(os.path.join(root_dir, metadata))
+        self.paths = read_json(os.path.join(root_dir, metadata))
         self.image_dir = image_dir
         self._frames = frames
         self._bg_white = [1.0, 1.0, 1.0]

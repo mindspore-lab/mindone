@@ -1,5 +1,4 @@
 import os
-import ssl
 import urllib.request
 from typing import Optional
 
@@ -19,7 +18,9 @@ def get_image(url: str, fname: Optional[str] = None) -> Image.Image:
         fname = os.path.basename(url)
 
     if not os.path.isfile(fname):
-        ssl._create_default_https_context = ssl._create_unverified_context  # disable ssl verify
+        # For security reasons, this repository code does not provide a function to disable SSL.
+        # If necessary, please disable SSL verification yourself.
+        # ssl._create_default_https_context = ssl._create_unverified_context  # disable ssl verify
         urllib.request.urlretrieve(url, fname)
     image = Image.open(fname)
     return image
