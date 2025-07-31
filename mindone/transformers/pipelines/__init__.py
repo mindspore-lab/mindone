@@ -23,8 +23,6 @@ from typing import TYPE_CHECKING, Any, Dict, List, Optional, Tuple, Union
 from huggingface_hub import model_info
 from transformers.configuration_utils import PretrainedConfig
 from transformers.dynamic_module_utils import get_class_from_dynamic_module
-from transformers.models.auto.feature_extraction_auto import FEATURE_EXTRACTOR_MAPPING, AutoFeatureExtractor
-from transformers.models.auto.image_processing_auto import IMAGE_PROCESSOR_MAPPING, AutoImageProcessor
 from transformers.models.auto.tokenization_auto import TOKENIZER_MAPPING, AutoTokenizer
 from transformers.tokenization_utils import PreTrainedTokenizer
 from transformers.utils import (
@@ -37,6 +35,8 @@ from transformers.utils import (
     logging,
 )
 
+from mindone.transformers.models.auto.feature_extraction_auto import FEATURE_EXTRACTOR_MAPPING, AutoFeatureExtractor
+from mindone.transformers.models.auto.image_processing_auto import IMAGE_PROCESSOR_MAPPING, AutoImageProcessor
 from mindone.transformers.models.auto.processing_auto import PROCESSOR_MAPPING, AutoProcessor
 
 from ..feature_extraction_utils import PreTrainedFeatureExtractor
@@ -61,6 +61,7 @@ from .question_answering import QuestionAnsweringArgumentHandler, QuestionAnswer
 from .text2text_generation import Text2TextGenerationPipeline
 from .text_classification import TextClassificationPipeline
 from .text_generation import TextGenerationPipeline
+from .zero_shot_image_classification import ZeroShotImageClassificationPipeline
 
 if is_mindspore_available():
     import mindspore as ms
@@ -72,6 +73,7 @@ if is_mindspore_available():
         AutoModelForSeq2SeqLM,
         AutoModelForSequenceClassification,
         AutoModelForTokenClassification,
+        AutoModelForZeroShotImageClassification,
     )
 
 
@@ -133,6 +135,16 @@ SUPPORTED_TASKS = {
         "ms": (AutoModelForSeq2SeqLM,) if is_mindspore_available() else (),
         "default": {"model": {"ms": ("google-t5/t5-base", "a9723ea")}},
         "type": "text",
+    },
+    "zero-shot-image-classification": {
+        "impl": ZeroShotImageClassificationPipeline,
+        "ms": (AutoModelForZeroShotImageClassification,) if is_mindspore_available() else (),
+        "default": {
+            "model": {
+                "ms": ("openai/clip-vit-base-patch32", "3d74acf"),
+            }
+        },
+        "type": "multimodal",
     },
 }
 

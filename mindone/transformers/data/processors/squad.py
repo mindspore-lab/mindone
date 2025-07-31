@@ -1,5 +1,8 @@
 # Copyright 2020 The HuggingFace Team. All rights reserved.
 #
+# This code is adapted from https://github.com/huggingface/transformers
+# with modifications to run transformers on mindspore.
+#
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -73,8 +76,6 @@ def _check_is_max_context(doc_spans, cur_span_index, position):
 
 def _new_check_is_max_context(doc_spans, cur_span_index, position):
     """Check if this is the 'max context' doc span for the token."""
-    # if len(doc_spans) == 1:
-    # return True
     best_score = None
     best_span_index = None
     for span_index, doc_span in enumerate(doc_spans):
@@ -335,8 +336,8 @@ def squad_convert_examples_to_features(
         max_query_length: The maximum length of the query.
         is_training: whether to create features for model evaluation or model training.
         padding_strategy: Default to "max_length". Which padding strategy to use
-        return_dataset: Default False. Either 'pt' or 'tf'.
-            if 'pt': returns a torch.data.TensorDataset, if 'tf': returns a tf.data.Dataset
+        return_dataset: Default False. could be 'ms'.
+            if 'ms': returns a mindspore.data.Dataset
         threads: multiple processing threads.
 
 
@@ -398,7 +399,7 @@ def squad_convert_examples_to_features(
     del new_features
     if return_dataset == "ms":
         if not is_mindspore_available():
-            raise RuntimeError("PyTorch must be installed to return a PyTorch dataset.")
+            raise RuntimeError("MindSpore must be installed to return a MindSpore dataset.")
 
         # Convert to Tensors and build dataset
         all_input_ids = ms.tensor([f.input_ids for f in features], dtype=ms.int64)

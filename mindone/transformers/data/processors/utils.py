@@ -2,6 +2,9 @@
 # Copyright 2018 The Google AI Language Team Authors and The HuggingFace Inc. team.
 # Copyright (c) 2018, NVIDIA CORPORATION.  All rights reserved.
 #
+# This code is adapted from https://github.com/huggingface/transformers
+# with modifications to run transformers on mindspore.
+#
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -316,7 +319,7 @@ class SingleSentenceClassificationProcessor(DataProcessor):
             return features
         elif return_tensors == "ms":
             if not is_mindspore_available():
-                raise RuntimeError("return_tensors set to 'pt' but PyTorch can't be imported")
+                raise RuntimeError("return_tensors set to 'ms' but MindSpore can't be imported")
             import mindspore as ms
             from mindspore.dataset import Dataset
 

@@ -1,3 +1,6 @@
+# This code is adapted from https://github.com/huggingface/transformers
+# with modifications to run transformers on mindspore.
+
 import types
 import warnings
 from collections.abc import Iterable

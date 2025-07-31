@@ -50,6 +50,7 @@ logger = logging.get_logger(__name__)
 PROCESSOR_MAPPING_NAMES = OrderedDict(
     [
         ("blip", "BlipProcessor"),
+        ("siglip", "SiglipProcessor"),
     ]
 )
 
