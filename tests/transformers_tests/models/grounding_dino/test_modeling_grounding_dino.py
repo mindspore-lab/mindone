@@ -38,7 +38,7 @@ class GroundingDinoModelTester:
     def __init__(
         self,
         batch_size=2,
-        num_queries=10,
+        num_queries=2,
         seq_length=16,
         image_size=224,
         num_channels=3,
@@ -48,7 +48,7 @@ class GroundingDinoModelTester:
         num_labels=3,
         # config parameters
         text_config=None,
-        encoder_layers=6,
+        encoder_layers=1,
         encoder_ffn_dim=24,
         encoder_attention_heads=4,
         decoder_layers=1,
