@@ -169,7 +169,12 @@ class SigLIPEncoder(nn.Cell):
     ) -> None:
         super().__init__()
 
-        checkpoint_dir = snapshot_download(checkpoint_id)
+        # Notes: check if a local path is given
+        if os.path.exists(checkpoint_id):
+            checkpoint_dir = checkpoint_id
+        else:
+            checkpoint_dir = snapshot_download(checkpoint_id)
+
         checkpoint_dir = (pathlib.Path(checkpoint_dir) / "video_content_safety_filter").as_posix()
 
         self.checkpoint_dir = checkpoint_dir
@@ -194,7 +199,12 @@ class Aegis(nn.Cell, ContentSafetyGuardrail):
     ) -> None:
         super().__init__()
 
-        checkpoint_dir = snapshot_download(checkpoint_id)
+        # Notes: check if a local path is given
+        if os.path.exists(checkpoint_id):
+            checkpoint_dir = checkpoint_id
+        else:
+            checkpoint_dir = snapshot_download(checkpoint_id)
+
         checkpoint_dir = (pathlib.Path(checkpoint_dir) / "aegis").as_posix()
 
         self.checkpoint_dir = checkpoint_dir
@@ -203,6 +213,8 @@ class Aegis(nn.Cell, ContentSafetyGuardrail):
 
         self.tokenizer = AutoTokenizer.from_pretrained(base_model_id, cache_dir=self.checkpoint_dir)
         self.model = PeftModel.from_pretrained(base_model, aegis_adapter, cache_dir=self.checkpoint_dir)
+
+        logger.info("Aegis model is loaed.")
 
     def get_moderation_prompt(self, user_prompt: str) -> str:
         """Create the moderation prompt for the Aegis model."""
@@ -278,7 +290,13 @@ class Blocklist(ContentSafetyGuardrail):
         guardrail_partial_match_min_chars: int = 4,
         guardrail_partial_match_letter_count: float = 0.5,
     ) -> None:
-        checkpoint_dir = snapshot_download(checkpoint_id)
+        
+        # Notes: check if a local path is given
+        if os.path.exists(checkpoint_id):
+            checkpoint_dir = checkpoint_id
+        else:
+            checkpoint_dir = snapshot_download(checkpoint_id)
+
         checkpoint_dir = (pathlib.Path(checkpoint_dir) / "blocklist").as_posix()
 
         nltk.data.path.append(os.path.join(checkpoint_dir, "nltk_data"))
@@ -442,7 +460,12 @@ class VideoContentSafetyFilter(nn.Cell, ContentSafetyGuardrail):
     ) -> None:
         super().__init__()
 
-        checkpoint_dir = snapshot_download(checkpoint_id)
+        # Notes: check if a local path is given
+        if os.path.exists(checkpoint_id):
+            checkpoint_dir = checkpoint_id
+        else:
+            checkpoint_dir = snapshot_download(checkpoint_id)
+
         checkpoint_dir = (pathlib.Path(checkpoint_dir) / "video_content_safety_filter").as_posix()
 
         self.encoder = SigLIPEncoder(checkpoint_id=checkpoint_id)
@@ -450,14 +473,19 @@ class VideoContentSafetyFilter(nn.Cell, ContentSafetyGuardrail):
         model_config = ModelConfig(input_size=1152, num_classes=7)
         self.model = VideoSafetyModel(model_config)
 
-        # TODO check here: load & save as safetensor for mindspore ckpt loading here
         safety_filter_local_path = os.path.join(checkpoint_dir, "safety_filter.pt")
-        checkpoint = torch.load(safety_filter_local_path, weights_only=True)
-        save_file(checkpoint["model"], os.path.join(checkpoint_dir, "safety_filter.safetensors"))
-        param_dict = ms.load_checkpoint(os.path.join(checkpoint_dir, "safety_filter.safetensors"), format="safetensors")
-        self.model.load_state_dict(param_dict)
-        self.eval()
+        checkpoint = torch.load(safety_filter_local_path, weights_only=True)["model"]
 
+        # Notes: make conversion for mindspore model
+        param_dict = {}
+        prefix = "model."
+        for pt_name, pt_param in checkpoint.items():
+            # torch tensor -> numpy -> mindspore tensor
+            np_param = pt_param.detach().numpy()
+            param_dict[prefix+pt_name] = ms.Parameter(ms.tensor(np_param))
+        _, _ = ms.load_param_into_net(self.model, param_dict)
+
+        logger.info("VideoSafetyModel is converted and loaded.")
 
     def __infer(self, pil_image: PIL.Image.Image) -> int:
         """Infer the class of the image."""
@@ -569,7 +597,11 @@ class RetinaFaceFilter(nn.Cell, PostprocessingGuardrail):
     ) -> None:
         super().__init__()
 
-        checkpoint_dir = snapshot_download(checkpoint_id)
+        # Notes: check if a local path is given
+        if os.path.exists(checkpoint_id):
+            checkpoint_dir = checkpoint_id
+        else:
+            checkpoint_dir = snapshot_download(checkpoint_id)
         checkpoint = pathlib.Path(checkpoint_dir) / "face_blur_filter/Resnet50_Final.pth"
 
         self.cfg = cfg_re50
@@ -581,10 +613,9 @@ class RetinaFaceFilter(nn.Cell, PostprocessingGuardrail):
         self.net = RetinaFace(cfg=self.cfg, phase="test")
 
         # Load from RetinaFace pretrained checkpoint
-        # TODO load ckpt for mindspore here, should check the parameters and make conversion here
         self.net = load_model(self.net, checkpoint)
+        logger.info("RetinaFace is loaded.")
 
-        self.eval()
 
     def preprocess_frames(self, frames: np.ndarray) -> ms.Tensor:
         """Preprocess a sequence of frames for face detection.
@@ -667,41 +698,50 @@ class RetinaFaceFilter(nn.Cell, PostprocessingGuardrail):
             Processed frames with pixelated faces
         """
         # Create dataset and dataloader
-        # TODO check if minddata loads data in the same way.
-        # torch.utils.data DataLoader -> ms.dataset.GeneratorDataset 
-        # torch.utils.data.TensorDataset -> self-defined TensorDataset
+
         frames_tensor = self.preprocess_frames(frames)
-        dataset = TensorDataset(frames_tensor)
-        dataloader = GeneratorDataset(dataset, column_names=["data"], shuffle=False)
-        dataloader = dataloader.batch(batch_size=self.batch_size)
+
         processed_frames, processed_batches = [], []
         dtype = next(self.net.get_parameters()).dtype
-
         prior_data, scale = None, None
-        for i, batch in enumerate(dataloader):
-            batch = batch[0]
-            h, w = batch.shape[-2:]  # Batch shape: [C, H, W]
 
-            # Generate priors for the video
-            if prior_data is None:
-                priorbox = PriorBox(self.cfg, image_size=(h, w))
-                priors = priorbox.construct()
-                priors = priors.to(dtype=dtype)
-                prior_data = priors.data
 
-            # Get scale for resizing detections
-            if scale is None:
-                scale = ms.tensor([w, h, w, h])
-                scale = scale.to(dtype=dtype)
+        # FIXME original repo use TensorDataset and Dataloader here for processing 
+        # but we have issues in minddata, so we directly process the frames_tensor
+        # torch.utils.data DataLoader -> ms.dataset.GeneratorDataset 
+        # torch.utils.data.TensorDataset -> self-defined TensorDataset
 
-            batch_loc, batch_conf, _ = self.net(batch)
+        # dataset = TensorDataset(frames_tensor)
+        # dataloader = GeneratorDataset(dataset, column_names=["data"], shuffle=False)
+        # dataloader = dataloader.batch(batch_size=self.batch_size)
+        # dataloader = dataloader.create_tuple_iterator()
+        # for i, batch in enumerate(dataloader):
+        #   ...
 
-            # Blur detected faces in each batch of frames
-            start_idx = i * self.batch_size
-            end_idx = min(start_idx + self.batch_size, len(frames))
-            processed_batches.append(
-                self.blur_detected_faces(frames[start_idx:end_idx], batch_loc, batch_conf, prior_data, scale)
-            )
+        assert self.batch_size == 1 and frames_tensor.shape[0] == 1, "FIXME, we currently support single-frame processing"
+        batch = frames_tensor
+        h, w = batch.shape[-2:]  # Batch shape: [C, H, W]
+
+        # Generate priors for the video
+        if prior_data is None:
+            priorbox = PriorBox(self.cfg, image_size=(h, w))
+            priors = priorbox.construct()
+            priors = priors.to(dtype=dtype)
+            prior_data = priors.copy()
+
+        # Get scale for resizing detections
+        if scale is None:
+            scale = ms.tensor([w, h, w, h])
+            scale = scale.to(dtype=dtype)
+
+        batch_loc, batch_conf, _ = self.net(batch)
+
+        # Blur detected faces in each batch of frames
+        start_idx = 0 * self.batch_size
+        end_idx = min(start_idx + self.batch_size, len(frames))
+        processed_batches.append(
+            self.blur_detected_faces(frames[start_idx:end_idx], batch_loc, batch_conf, prior_data, scale)
+        )
 
         processed_frames = [frame for batch in processed_batches for frame in batch]
         return np.array(processed_frames)
@@ -722,10 +762,14 @@ class CosmosSafetyChecker(nn.Cell):
                 Aegis(checkpoint_id, aegis_model_id, aegis_adapter_id),
             ]
         )
+        logger.info("text_guardrail successfully loaded.")
+        
         self.video_guardrail = GuardrailRunner(
             safety_models=[VideoContentSafetyFilter(checkpoint_id)],
             postprocessors=[RetinaFaceFilter(checkpoint_id)],
         )
+        logger.info("video_guardrail successfully loaded.")
+
 
     def check_text_safety(self, prompt: str) -> bool:
         is_safe, message = self.text_guardrail.run_safety_check(prompt)

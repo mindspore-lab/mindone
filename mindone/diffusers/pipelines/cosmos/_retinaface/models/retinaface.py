@@ -7,10 +7,10 @@ from collections import OrderedDict
 
 from .net import FPN as FPN
 from .net import SSH as SSH
+from ._resnet50 import resnet50
 
-# adpated from torchvision.models._utils.IntermediateLayerGetter to support MindSpore
-# TODO check mindspore here
-class IntermediateLayerGetter(nn.CellDict):
+# adpated from torchvision.models._utils.IntermediateLayerGetter
+class IntermediateLayerGetter(nn.Cell):
     """
     Module wrapper that returns intermediate layers from a model
 
@@ -42,35 +42,36 @@ class IntermediateLayerGetter(nn.CellDict):
         >>>      ('feat2', torch.Size([1, 256, 14, 14]))]
     """
 
-    _version = 2
     __annotations__ = {
         "return_layers": Dict[str, str],
     }
 
     def __init__(self, model: nn.Cell, return_layers: Dict[str, str]) -> None:
+        super().__init__()
+
         if not set(return_layers).issubset([name for name, _ in model.name_cells().items()]):
             raise ValueError("return_layers are not present in model")
         orig_return_layers = return_layers
         return_layers = {str(k): str(v) for k, v in return_layers.items()}
-        layers = OrderedDict()
+
         for name, module in model.name_cells().items():
-            layers[name] = module
+            super().__setattr__(name, module)
             if name in return_layers:
                 del return_layers[name]
             if not return_layers:
                 break
 
-        super().__init__(layers)
         self.return_layers = orig_return_layers
 
     def construct(self, x):
         out = OrderedDict()
-        for name, module in self.items():
+        for name, module in self._cells.items():
             x = module(x)
             if name in self.return_layers:
                 out_name = self.return_layers[name]
                 out[out_name] = x
         return out
+
 
 
 class ClassHead(nn.Cell):
@@ -121,12 +122,7 @@ class RetinaFace(nn.Cell):
                                       so we did not implement mobilenet here")
         
         elif cfg['name'] == 'Resnet50':
-            # import torchvision.models as torchvision_models
-            # backbone = torchvision_models.resnet50(pretrained=cfg['pretrain'])
-            
-            # TODO check mindcv here
-            import mindcv.models as models
-            backbone = models.resnet.resnet50(pretrained=cfg['pretrain'])
+            backbone = resnet50()
 
         self.body = IntermediateLayerGetter(backbone, cfg['return_layers'])
         in_channels_stage2 = cfg['in_channel']
@@ -146,7 +142,7 @@ class RetinaFace(nn.Cell):
         self.LandmarkHead = self._make_landmark_head(fpn_num=3, inchannels=cfg['out_channel'])
 
     def _make_class_head(self,fpn_num=3,inchannels=64,anchor_num=2):
-        classhead = []
+        classhead = nn.CellList()
         for i in range(fpn_num):
             classhead.append(ClassHead(inchannels,anchor_num))
         

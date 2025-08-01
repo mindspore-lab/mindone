@@ -85,11 +85,11 @@ class FPN(nn.Cell):
         output2 = self.output2(input[1])
         output3 = self.output3(input[2])
 
-        up3 = mint.functional.interpolate(output3, size=[output2.size(2), output2.size(3)], mode="nearest")
+        up3 = mint.functional.interpolate(output3, size=[output2.shape[2], output2.shape[3]], mode="nearest")
         output2 = output2 + up3
         output2 = self.merge2(output2)
 
-        up2 = mint.functional.interpolate(output2, size=[output1.size(2), output1.size(3)], mode="nearest")
+        up2 = mint.functional.interpolate(output2, size=[output1.shape[2], output1.shape[3]], mode="nearest")
         output1 = output1 + up2
         output1 = self.merge1(output1)
 

@@ -33,15 +33,8 @@ from ...video_processor import VideoProcessor
 from ..pipeline_utils import DiffusionPipeline
 from .pipeline_output import CosmosPipelineOutput
 
-_is_cosmos_guardrail_available = False
 
-if _is_cosmos_guardrail_available:
-    from ._cosmos_guardrail import CosmosSafetyChecker
-else:
-
-    class CosmosSafetyChecker:
-        def __init__(self, *args, **kwargs):
-            raise ImportError("`cosmos_guardrail` not adapted to Mindspore yet. ")
+from ._cosmos_guardrail import CosmosSafetyChecker
 
 
 logger = logging.get_logger(__name__)  # pylint: disable=invalid-name
@@ -200,14 +193,12 @@ class CosmosVideoToWorldPipeline(DiffusionPipeline):
         transformer: CosmosTransformer3DModel,
         vae: AutoencoderKLCosmos,
         scheduler: EDMEulerScheduler,
-        safety_checker=None,  # TODO CosmosSafetyChecker
+        safety_checker: CosmosSafetyChecker,
     ):
         super().__init__()
 
         if safety_checker is None:
-            # TODO
-            # safety_checker = CosmosSafetyChecker()
-            logger.warning("CosmosSafetyChecker not adapred to ms yet")
+            safety_checker = CosmosSafetyChecker()
 
         self.register_modules(
             vae=vae,
@@ -579,14 +570,12 @@ class CosmosVideoToWorldPipeline(DiffusionPipeline):
                 the first element is a list with the generated images and the second element is a list of `bool`s
                 indicating whether the corresponding generated image contains "not-safe-for-work" (nsfw) content.
         """
-        # FIXME
         if self.safety_checker is None:
-            # raise ValueError(
-            #     f"You have disabled the safety checker for {self.__class__}. This is in violation of the "
-            #     "[NVIDIA Open Model License Agreement](https://www.nvidia.com/en-us/agreements/enterprise-software/nvidia-open-model-license). "
-            #     f"Please ensure that you are compliant with the license agreement."
-            # )
-            pass
+            raise ValueError(
+                f"You have disabled the safety checker for {self.__class__}. This is in violation of the "
+                "[NVIDIA Open Model License Agreement](https://www.nvidia.com/en-us/agreements/enterprise-software/nvidia-open-model-license). "
+                f"Please ensure that you are compliant with the license agreement."
+            )
 
         if isinstance(callback_on_step_end, (PipelineCallback, MultiPipelineCallbacks)):
             callback_on_step_end_tensor_inputs = callback_on_step_end.tensor_inputs

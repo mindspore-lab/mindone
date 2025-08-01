@@ -20,6 +20,7 @@ import re
 import numpy as np
 import mindspore as ms
 from mindspore import mint
+import torch
 
 from .utils import get_logger
 
@@ -128,43 +129,51 @@ def decode_batch(loc, priors, variances):
     return boxes
 
 
-# # Adapted from https://github.com/biubug6/Pytorch_Retinaface/blob/master/detect.py
-# def _check_keys(model, pretrained_state_dict):
-#     ckpt_keys = set(pretrained_state_dict.keys())
-#     model_keys = set(model.state_dict().keys())
-#     used_pretrained_keys = model_keys & ckpt_keys
-#     unused_pretrained_keys = ckpt_keys - model_keys
-#     missing_keys = model_keys - ckpt_keys
-#     logger.debug("Missing keys:{}".format(len(missing_keys)))
-#     logger.debug("Unused checkpoint keys:{}".format(len(unused_pretrained_keys)))
-#     logger.debug("Used keys:{}".format(len(used_pretrained_keys)))
-#     assert len(used_pretrained_keys) > 0, "load NONE from pretrained checkpoint"
-#     return True
+# Adapted from https://github.com/biubug6/Pytorch_Retinaface/blob/master/detect.py
+def _check_keys(model, pretrained_state_dict):
+    ckpt_keys = set(pretrained_state_dict.keys())
+    model_keys = set(model.state_dict().keys())
+    used_pretrained_keys = model_keys & ckpt_keys
+    unused_pretrained_keys = ckpt_keys - model_keys
+    missing_keys = model_keys - ckpt_keys
+    logger.debug("Missing keys:{}".format(len(missing_keys)))
+    logger.debug("Unused checkpoint keys:{}".format(len(unused_pretrained_keys)))
+    logger.debug("Used keys:{}".format(len(used_pretrained_keys)))
+    assert len(used_pretrained_keys) > 0, "load NONE from pretrained checkpoint"
+    return True
 
 
-# # Adapted from https://github.com/biubug6/Pytorch_Retinaface/blob/master/detect.py
-# def _remove_prefix(state_dict, prefix):
-#     """Old version of the model is stored with all names of parameters sharing common prefix 'module.'"""
-#     logger.debug("Removing prefix '{}'".format(prefix))
+# Adapted from https://github.com/biubug6/Pytorch_Retinaface/blob/master/detect.py
+def _remove_prefix(state_dict, prefix):
+    """Old version of the model is stored with all names of parameters sharing common prefix 'module.'"""
+    logger.debug("Removing prefix '{}'".format(prefix))
 
-#     def f(x):
-#         return x.split(prefix, 1)[-1] if x.startswith(prefix) else x
+    def f(x):
+        return x.split(prefix, 1)[-1] if x.startswith(prefix) else x
 
-#     return {f(key): value for key, value in state_dict.items()}
+    return {f(key): value for key, value in state_dict.items()}
 
 
 # Adapted from https://github.com/biubug6/Pytorch_Retinaface/blob/master/detect.py
 def load_model(model, pretrained_path):
-    raise NotImplementedError("TODO make conversion for mindspore and load model")
-    # logger.debug("Loading pretrained model from {}".format(pretrained_path))
-    # pretrained_dict = torch.load(pretrained_path, weights_only=True)
-    # if "state_dict" in pretrained_dict.keys():
-    #     pretrained_dict = _remove_prefix(pretrained_dict["state_dict"], "module.")
-    # else:
-    #     pretrained_dict = _remove_prefix(pretrained_dict, "module.")
-    # _check_keys(model, pretrained_dict)
-    # model.load_state_dict(pretrained_dict, strict=False)
-    # return model
+    logger.debug("Loading pretrained model from {}".format(pretrained_path))
+    pretrained_dict = torch.load(pretrained_path, weights_only=True, map_location=torch.device("cpu"))
+
+    if "state_dict" in pretrained_dict.keys():
+        pretrained_dict = _remove_prefix(pretrained_dict["state_dict"], "module.")
+    else:
+        pretrained_dict = _remove_prefix(pretrained_dict, "module.")
+    _check_keys(model, pretrained_dict)
+
+    # online conversion for mindspore
+    ms_param_dict = {}
+    for pt_name, pt_param in pretrained_dict.items():
+        # torch tensor -> numpy -> mindspore tensor
+        np_param = pt_param.detach().numpy()
+        ms_param_dict[pt_name] = ms.Parameter(ms.tensor(np_param))
+
+    model.load_state_dict(ms_param_dict, strict=False)
+    return model
 
 
 VIOLENCE = {

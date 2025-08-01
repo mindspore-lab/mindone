@@ -187,9 +187,7 @@ class Cosmos2TextToImagePipelineSlowTests(PipelineTesterMixin, unittest.TestCase
         image = pipe(
             prompt="dance monkey",
             negative_prompt="bad quality",
-        )[
-            0
-        ][0]
+        )[0][0]
 
         expected_image = load_numpy_from_local_file(
             "mindone-testing-arrays",
