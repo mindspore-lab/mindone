@@ -1,3 +1,5 @@
+"""Adapted from https://github.com/huggingface/diffusers/tree/main/tests//pipelines/stable_unclip/test_stable_unclip_img2img.py."""
+
 import random
 import unittest
 

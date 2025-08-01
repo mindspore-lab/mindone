@@ -1,3 +1,5 @@
+"""Adapted from https://github.com/huggingface/diffusers/tree/main/src/diffusers/utils/export_utils.py."""
+
 import io
 import random
 import struct
@@ -154,7 +156,7 @@ def export_to_video(
     bitrate:
         Set a constant bitrate for the video encoding. Default is None causing `quality` parameter to be used instead.
         Better quality videos with smaller file sizes will result from using the `quality` variable bitrate parameter
-        rather than specifiying a fixed bitrate with this parameter.
+        rather than specifying a fixed bitrate with this parameter.
 
     macro_block_size:
         Size constraint for video. Width and height, must be divisible by this number. If not divisible by this number

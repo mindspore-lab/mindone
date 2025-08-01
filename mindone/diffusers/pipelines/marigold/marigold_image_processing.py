@@ -1,6 +1,9 @@
 # Copyright 2023-2025 Marigold Team, ETH Zürich. All rights reserved.
 # Copyright 2024-2025 The HuggingFace Team. All rights reserved.
 #
+# This code is adapted from https://github.com/huggingface/diffusers
+# with modifications to run diffusers on mindspore.
+#
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -425,7 +428,7 @@ class MarigoldImageProcessor(ConfigMixin):
                 if isinstance(img, np.ndarray):
                     img = ms.Tensor.from_numpy(img)
                 if not ops.is_floating_point(img):
-                    raise ValueError(f"{prefix}: unexected dtype={img.dtype}.")
+                    raise ValueError(f"{prefix}: unexpected dtype={img.dtype}.")
             else:
                 raise ValueError(f"{prefix}: unexpected type={type(img)}.")
             if val_min != 0.0 or val_max != 1.0:
@@ -463,7 +466,7 @@ class MarigoldImageProcessor(ConfigMixin):
             if ops.is_tensor(img):
                 img = img.numpy()
             if not np.issubdtype(img.dtype, np.floating):
-                raise ValueError(f"{prefix}: unexected dtype={img.dtype}.")
+                raise ValueError(f"{prefix}: unexpected dtype={img.dtype}.")
             if val_min != 0.0 or val_max != 1.0:
                 img = (img - val_min) / (val_max - val_min)
             img = (img * (2**16 - 1)).astype(np.uint16)

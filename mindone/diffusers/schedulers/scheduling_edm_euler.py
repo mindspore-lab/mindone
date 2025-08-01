@@ -1,4 +1,7 @@
-# Copyright 2024 Katherine Crowson and The HuggingFace Team. All rights reserved.
+# Copyright 2025 Katherine Crowson and The HuggingFace Team. All rights reserved.
+#
+# This code is adapted from https://github.com/huggingface/diffusers
+# with modifications to run diffusers on mindspore.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -53,7 +56,7 @@ class EDMEulerScheduler(SchedulerMixin, ConfigMixin):
     Implements the Euler scheduler in EDM formulation as presented in Karras et al. 2022 [1].
 
     [1] Karras, Tero, et al. "Elucidating the Design Space of Diffusion-Based Generative Models."
-    https://arxiv.org/abs/2206.00364
+    https://huggingface.co/papers/2206.00364
 
     This model inherits from [`SchedulerMixin`] and [`ConfigMixin`]. Check the superclass documentation for the generic
     methods the library implements for all schedulers such as loading and saving.
@@ -69,8 +72,8 @@ class EDMEulerScheduler(SchedulerMixin, ConfigMixin):
             The standard deviation of the data distribution. This is set to 0.5 in the EDM paper [1].
         sigma_schedule (`str`, *optional*, defaults to `karras`):
             Sigma schedule to compute the `sigmas`. By default, we the schedule introduced in the EDM paper
-            (https://arxiv.org/abs/2206.00364). Other acceptable value is "exponential". The exponential schedule was
-            incorporated in this model: https://huggingface.co/stabilityai/cosxl.
+            (https://huggingface.co/papers/2206.00364). Other acceptable value is "exponential". The exponential
+            schedule was incorporated in this model: https://huggingface.co/stabilityai/cosxl.
         num_train_timesteps (`int`, defaults to 1000):
             The number of diffusion steps to train the model.
         prediction_type (`str`, defaults to `epsilon`, *optional*):
@@ -105,11 +108,13 @@ class EDMEulerScheduler(SchedulerMixin, ConfigMixin):
         # setable values
         self.num_inference_steps = None
 
-        sigmas = mint.arange(num_train_timesteps + 1) / num_train_timesteps
+        sigmas_dtype = ms.float64
+        sigmas = mint.arange(num_train_timesteps + 1, dtype=sigmas_dtype) / num_train_timesteps
         if sigma_schedule == "karras":
             sigmas = self._compute_karras_sigmas(sigmas)
         elif sigma_schedule == "exponential":
             sigmas = self._compute_exponential_sigmas(sigmas)
+        sigmas = sigmas.to(ms.float32)
 
         self.timesteps = self.precondition_noise(sigmas)
 
@@ -229,18 +234,19 @@ class EDMEulerScheduler(SchedulerMixin, ConfigMixin):
         """
         self.num_inference_steps = num_inference_steps
 
+        sigmas_dtype = ms.float64
         if sigmas is None:
-            sigmas = mint.linspace(0, 1, self.num_inference_steps)
+            sigmas = mint.linspace(0, 1, self.num_inference_steps, dtype=sigmas_dtype)
         elif isinstance(sigmas, float):
-            sigmas = ms.tensor(sigmas, dtype=ms.float32)
+            sigmas = ms.tensor(sigmas, dtype=sigmas_dtype)
         else:
-            sigmas = sigmas
+            sigmas = sigmas.to(sigmas_dtype)
         if self.config.sigma_schedule == "karras":
             sigmas = self._compute_karras_sigmas(sigmas)
         elif self.config.sigma_schedule == "exponential":
             sigmas = self._compute_exponential_sigmas(sigmas)
-
         sigmas = sigmas.to(ms.float32)
+
         self.timesteps = self.precondition_noise(sigmas)
 
         if self.config.final_sigmas_type == "sigma_min":

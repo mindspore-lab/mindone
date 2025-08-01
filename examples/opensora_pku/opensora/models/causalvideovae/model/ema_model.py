@@ -1,3 +1,6 @@
+# Adapted from
+# https://github.com/PKU-YuanGroup/Open-Sora-Plan/blob/main/opensora/models/causalvideovae/model/ema_model.py
+
 from mindspore.ops import composite as C
 from mindspore.ops import functional as F
 

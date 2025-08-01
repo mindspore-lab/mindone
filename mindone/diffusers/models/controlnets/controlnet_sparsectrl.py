@@ -1,4 +1,7 @@
-# Copyright 2024 The HuggingFace Team. All rights reserved.
+# Copyright 2025 The HuggingFace Team. All rights reserved.
+#
+# This code is adapted from https://github.com/huggingface/diffusers
+# with modifications to run diffusers on mindspore.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -97,7 +100,7 @@ class SparseControlNetConditioningEmbedding(nn.Cell):
 class SparseControlNetModel(ModelMixin, ConfigMixin, FromOriginalModelMixin):
     """
     A SparseControlNet model as described in [SparseCtrl: Adding Sparse Controls to Text-to-Video Diffusion
-    Models](https://arxiv.org/abs/2311.16933).
+    Models](https://huggingface.co/papers/2311.16933).
 
     Args:
         in_channels (`int`, defaults to 4):

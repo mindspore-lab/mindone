@@ -1,3 +1,5 @@
+"""Adapted from https://github.com/huggingface/diffusers/tree/main/src/diffusers/models/autoencoders/__init__.py."""
+
 from .autoencoder_asym_kl import AsymmetricAutoencoderKL
 from .autoencoder_dc import AutoencoderDC
 from .autoencoder_kl import AutoencoderKL
