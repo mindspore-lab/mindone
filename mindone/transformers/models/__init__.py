@@ -34,6 +34,8 @@ from . import (
     clap,
     clip,
     convbert,
+    depth_anything,
+    dinov2,
     dpt,
     fuyu,
     gemma,
