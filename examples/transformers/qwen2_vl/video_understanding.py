@@ -9,7 +9,6 @@ python video_understanding.py
 
 import time
 
-import numpy as np
 from transformers import AutoProcessor
 
 import mindspore as ms
@@ -82,10 +81,7 @@ for video_path in CLIPS:
     )
     # convert input to Tensor
     for key, value in inputs.items():  # by default input numpy array or list
-        if isinstance(value, np.ndarray):
-            inputs[key] = ms.Tensor(value)
-        elif isinstance(value, list):
-            inputs[key] = ms.Tensor(value)
+        inputs[key] = ms.Tensor(value)
         if inputs[key].dtype == ms.int64:
             inputs[key] = inputs[key].to(ms.int32)  # "input_ids", "attention_mask", "image_grid_thw"
 
