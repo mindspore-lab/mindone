@@ -367,6 +367,14 @@ from .models.mt5 import (
     MT5Model,
     MT5PreTrainedModel,
 )
+from .models.nemotron import (
+    NemotronForCausalLM,
+    NemotronForQuestionAnswering,
+    NemotronForSequenceClassification,
+    NemotronForTokenClassification,
+    NemotronModel,
+    NemotronPreTrainedModel,
+)
 from .models.mvp import (
     MvpForCausalLM,
     MvpForConditionalGeneration,
