@@ -2411,7 +2411,7 @@ class GroundingDinoForObjectDetection(GroundingDinoPreTrainedModel):
     def __init__(self, config: GroundingDinoConfig):
         super().__init__(config)
 
-        self.model = GroundingDinoModel(config)
+        # self.model = GroundingDinoModel(config)
         _class_embed = GroundingDinoContrastiveEmbedding(config)
 
         if config.decoder_bbox_embed_share:
@@ -2435,6 +2435,10 @@ class GroundingDinoForObjectDetection(GroundingDinoPreTrainedModel):
             )
 
         self.class_embed = nn.CellList([_class_embed for _ in range(config.decoder_layers)])
+
+        # FIXME: hack for parameter prefix alignment with torch, may be removed for newer version of mindspore.
+        self.model = GroundingDinoModel(config)
+
         # hack for box-refinement
         self.model.decoder.bbox_embed = self.bbox_embed
         # hack implementation for two-stage
