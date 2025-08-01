@@ -24,7 +24,6 @@ from huggingface_hub import model_info
 from transformers.configuration_utils import PretrainedConfig
 from transformers.dynamic_module_utils import get_class_from_dynamic_module
 from transformers.models.auto.feature_extraction_auto import FEATURE_EXTRACTOR_MAPPING, AutoFeatureExtractor
-from transformers.models.auto.image_processing_auto import IMAGE_PROCESSOR_MAPPING, AutoImageProcessor
 from transformers.models.auto.tokenization_auto import TOKENIZER_MAPPING, AutoTokenizer
 from transformers.tokenization_utils import PreTrainedTokenizer
 from transformers.utils import (
@@ -37,6 +36,7 @@ from transformers.utils import (
     logging,
 )
 
+from mindone.transformers.models.auto.image_processing_auto import IMAGE_PROCESSOR_MAPPING, AutoImageProcessor
 from mindone.transformers.models.auto.processing_auto import PROCESSOR_MAPPING, AutoProcessor
 
 from ..feature_extraction_utils import PreTrainedFeatureExtractor
@@ -57,6 +57,7 @@ from .base import (
     infer_framework_load_model,
 )
 from .image_classification import ImageClassificationPipeline
+from .image_segmentation import ImageSegmentationPipeline
 from .image_text_to_text import ImageTextToTextPipeline
 from .text2text_generation import Text2TextGenerationPipeline
 from .text_classification import TextClassificationPipeline
@@ -68,7 +69,9 @@ if is_mindspore_available():
     from ..models.auto.modeling_auto import (
         AutoModelForCausalLM,
         AutoModelForImageClassification,
+        AutoModelForImageSegmentation,
         AutoModelForImageTextToText,
+        AutoModelForSemanticSegmentation,
         AutoModelForSeq2SeqLM,
         AutoModelForSequenceClassification,
         AutoModelForTokenClassification,
@@ -101,6 +104,12 @@ SUPPORTED_TASKS = {
             }
         },
         "type": "image",
+    },
+    "image-segmentation": {
+        "impl": ImageSegmentationPipeline,
+        "ms": (AutoModelForImageSegmentation, AutoModelForSemanticSegmentation) if is_mindspore_available() else (),
+        "default": {"model": {"ms": ("facebook/detr-resnet-50-panoptic", "d53b52a")}},
+        "type": "multimodal",
     },
     "image-text-to-text": {
         "impl": ImageTextToTextPipeline,
