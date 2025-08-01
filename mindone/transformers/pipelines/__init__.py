@@ -58,9 +58,12 @@ from .base import (
 )
 from .image_classification import ImageClassificationPipeline
 from .image_text_to_text import ImageTextToTextPipeline
+from .image_to_image import ImageToImagePipeline
+from .image_to_text import ImageToTextPipeline
 from .text2text_generation import Text2TextGenerationPipeline
 from .text_classification import TextClassificationPipeline
 from .text_generation import TextGenerationPipeline
+from .visual_question_answering import VisualQuestionAnsweringPipeline
 
 if is_mindspore_available():
     import mindspore as ms
@@ -69,9 +72,12 @@ if is_mindspore_available():
         AutoModelForCausalLM,
         AutoModelForImageClassification,
         AutoModelForImageTextToText,
+        AutoModelForImageToImage,
         AutoModelForSeq2SeqLM,
         AutoModelForSequenceClassification,
         AutoModelForTokenClassification,
+        AutoModelForVision2Seq,
+        AutoModelForVisualQuestionAnswering,
     )
 
 
@@ -102,6 +108,16 @@ SUPPORTED_TASKS = {
         },
         "type": "image",
     },
+    "image-to-text": {
+        "impl": ImageToTextPipeline,
+        "ms": (AutoModelForVision2Seq,) if is_mindspore_available() else (),
+        "default": {
+            "model": {
+                "ms": ("ydshieh/vit-gpt2-coco-en", "5bebf1e"),
+            }
+        },
+        "type": "multimodal",
+    },
     "image-text-to-text": {
         "impl": ImageTextToTextPipeline,
         "ms": (AutoModelForImageTextToText,) if is_mindspore_available() else (),
@@ -109,6 +125,14 @@ SUPPORTED_TASKS = {
             "model": {
                 "ms": ("llava-hf/llava-onevision-qwen2-0.5b-ov-hf", "2c9ba3b"),
             }
+        },
+        "type": "multimodal",
+    },
+    "visual-question-answering": {
+        "impl": VisualQuestionAnsweringPipeline,
+        "ms": (AutoModelForVisualQuestionAnswering,) if is_mindspore_available() else (),
+        "default": {
+            "model": {"ms": ("dandelin/vilt-b32-finetuned-vqa", "d0a1f6a")},
         },
         "type": "multimodal",
     },
@@ -133,6 +157,12 @@ SUPPORTED_TASKS = {
         "ms": (AutoModelForSeq2SeqLM,) if is_mindspore_available() else (),
         "default": {"model": {"ms": ("google-t5/t5-base", "a9723ea")}},
         "type": "text",
+    },
+    "image-to-image": {
+        "impl": ImageToImagePipeline,
+        "ms": (AutoModelForImageToImage,) if is_mindspore_available() else (),
+        "default": {"model": {"ms": ("caidas/swin2SR-classical-sr-x2-64", "cee1c92")}},
+        "type": "image",
     },
 }
 
