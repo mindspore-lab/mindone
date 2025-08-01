@@ -1,4 +1,4 @@
-# Copyright 2024 the Latte Team and The HuggingFace Team. All rights reserved.
+# Copyright 2025 the Latte Team and The HuggingFace Team. All rights reserved.
 #
 # This code is adapted from https://github.com/huggingface/diffusers
 # with modifications to run diffusers on mindspore.
@@ -21,9 +21,8 @@ import mindspore as ms
 from mindspore import mint, nn
 
 from ...configuration_utils import ConfigMixin, register_to_config
-from ...models.embeddings import PixArtAlphaTextProjection, get_1d_sincos_pos_embed_from_grid
 from ..attention import BasicTransformerBlock
-from ..embeddings import PatchEmbed
+from ..embeddings import PatchEmbed, PixArtAlphaTextProjection, get_1d_sincos_pos_embed_from_grid
 from ..modeling_outputs import Transformer2DModelOutput
 from ..modeling_utils import ModelMixin
 from ..normalization import AdaLayerNormSingle
@@ -33,7 +32,7 @@ class LatteTransformer3DModel(ModelMixin, ConfigMixin):
     _supports_gradient_checkpointing = True
 
     """
-    A 3D Transformer model for video-like data, paper: https://arxiv.org/abs/2401.03048, offical code:
+    A 3D Transformer model for video-like data, paper: https://huggingface.co/papers/2401.03048, official code:
     https://github.com/Vchitect/Latte
 
     Parameters:
@@ -220,7 +219,7 @@ class LatteTransformer3DModel(ModelMixin, ConfigMixin):
         )
         num_patches = height * width
 
-        hidden_states = self.pos_embed(hidden_states)  # alrady add positional embeddings
+        hidden_states = self.pos_embed(hidden_states)  # already add positional embeddings
 
         added_cond_kwargs = {"resolution": None, "aspect_ratio": None}
         timestep, embedded_timestep = self.adaln_single(

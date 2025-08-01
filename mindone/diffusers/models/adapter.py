@@ -125,7 +125,7 @@ class MultiAdapter(ModelMixin):
                 for the main process to avoid race conditions.
             save_function (`Callable`):
                 Function used to save the state dictionary. Useful for distributed training (e.g., TPUs) to replace
-                `torch.save` with another method. Can also be configured using`DIFFUSERS_SAVE_MODE` environment
+                `mindspore.save_checkpoint` with another method. Can also be configured using`DIFFUSERS_SAVE_MODE` environment
                 variable.
             safe_serialization (`bool`, optional, defaults=True):
                 If `True`, save the model using `safetensors`. If `False`, save the model with `pickle`.
@@ -163,27 +163,13 @@ class MultiAdapter(ModelMixin):
             pretrained_model_path (`os.PathLike`):
                 A path to a *directory* containing model weights saved using
                 [`~diffusers.models.adapter.MultiAdapter.save_pretrained`], e.g., `./my_model_directory/adapter`.
-            torch_dtype (`str` or `torch.dtype`, *optional*):
-                Override the default `torch.dtype` and load the model under this dtype. If `"auto"` is passed the dtype
-                will be automatically derived from the model's weights.
+            mindspore_dtype (`ms.Type`, *optional*):
+                Override the default `ms.Type` and load the model under this dtype.
             output_loading_info(`bool`, *optional*, defaults to `False`):
                 Whether or not to also return a dictionary containing missing keys, unexpected keys and error messages.
-            device_map (`str` or `Dict[str, Union[int, str, torch.device]]`, *optional*):
-                A map that specifies where each submodule should go. It doesn't need to be refined to each
-                parameter/buffer name, once a given module name is inside, every submodule of it will be sent to the
-                same device.
-
-                To have Accelerate compute the most optimized `device_map` automatically, set `device_map="auto"`. For
-                more information about each option see [designing a device
-                map](https://hf.co/docs/accelerate/main/en/usage_guides/big_modeling#designing-a-device-map).
             max_memory (`Dict`, *optional*):
                 A dictionary mapping device identifiers to their maximum memory. Default to the maximum memory
                 available for each GPU and the available CPU RAM if unset.
-            low_cpu_mem_usage (`bool`, *optional*, defaults to `True` if torch version >= 1.9.0 else `False`):
-                Speed up model loading by not initializing the weights and only loading the pre-trained weights. This
-                also tries to not use more than 1x model size in CPU memory (including peak memory) while loading the
-                model. This is only supported when torch version >= 1.9.0. If you are using an older version of torch,
-                setting this argument to `True` will raise an error.
             variant (`str`, *optional*):
                 If specified, load weights from a `variant` file (*e.g.* pytorch_model.<variant>.bin). `variant` will
                 be ignored when using `from_flax`.

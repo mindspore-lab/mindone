@@ -1,4 +1,4 @@
-# Copyright 2024 The HuggingFace Team. All rights reserved.
+# Copyright 2025 The HuggingFace Team. All rights reserved.
 #
 # This code is adapted from https://github.com/huggingface/diffusers
 # with modifications to run diffusers on mindspore.
@@ -88,7 +88,7 @@ class JointTransformerBlock(nn.Cell):
     r"""
     A Transformer block following the MMDiT architecture, introduced in Stable Diffusion 3.
 
-    Reference: https://arxiv.org/abs/2403.03206
+    Reference: https://huggingface.co/papers/2403.03206
 
     Parameters:
         dim (`int`): The number of channels in the input and output.
@@ -898,8 +898,8 @@ class FreeNoiseTransformerBlock(nn.Cell):
             The number of frames to be skipped before starting to process a new batch of `context_length` frames.
         weighting_scheme (`str`, defaults to `"pyramid"`):
             The weighting scheme to use for weighting averaging of processed latent frames. As described in the
-            Equation 9. of the [FreeNoise](https://arxiv.org/abs/2310.15169) paper, "pyramid" is the default setting
-            used.
+            Equation 9. of the [FreeNoise](https://huggingface.co/papers/2310.15169) paper, "pyramid" is the default
+            setting used.
     """
 
     def __init__(

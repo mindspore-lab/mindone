@@ -1,4 +1,4 @@
-# Copyright 2024 The GLIGEN Authors and HuggingFace Team. All rights reserved.
+# Copyright 2025 The GLIGEN Authors and HuggingFace Team. All rights reserved.
 #
 # This code is adapted from https://github.com/huggingface/diffusers
 # with modifications to run diffusers on mindspore.

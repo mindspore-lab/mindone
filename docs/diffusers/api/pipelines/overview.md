@@ -26,49 +26,67 @@ All pipelines are built from the base [`DiffusionPipeline`](overview.md#mindone.
 
 The table below lists all the pipelines currently available in 🤗 Diffusers and the tasks they support. Click on a pipeline to view its abstract and published paper.
 
-| Pipeline                                                       | Tasks |
-|----------------------------------------------------------------|---|
-| [AnimateDiff](animatediff.md)                                  | text2video |
-| [AuraFlow](auraflow) 											 | text2image |
-| [BLIP Diffusion](blip_diffusion.md)                            | text2image |
-| [CogVideoX](cogvideox) 										 | text2video |
-| [Consistency Models](consistency_models.md)                    | unconditional image generation |
-| [ControlNet](controlnet.md)                                    | text2image, image2image, inpainting |
-| [ControlNet with Flux.1](controlnet_flux) 					 | text2image |
-| [ControlNet with Hunyuan-DiT](controlnet_hunyuandit) 			 | text2image |
-| [ControlNet with Stable Diffusion 3](controlnet_sd3.md)        | text2image |
-| [ControlNet with Stable Diffusion XL](controlnet_sdxl.md)      | text2image |
-| [ControlNet-XS](controlnetxs.md)                               | text2image |
-| [ControlNet-XS with Stable Diffusion XL](controlnetxs_sdxl.md) | text2image |
-| [Dance Diffusion](dance_diffusion.md)                          | unconditional audio generation |
-| [DDIM](ddim.md)                                                | unconditional image generation |
-| [DDPM](ddpm.md)                                                | unconditional image generation |
-| [DeepFloyd IF](deepfloyd_if.md)                                | text2image, image2image, inpainting, super-resolution |
-| [DiffEdit](diffedit.md)                                        | inpainting |
-| [DiT](dit.md)                                                  | text2image |
-| [Flux](flux) 													 | text2image |
-| [Hunyuan-DiT](hunyuandit.md)                                   | text2image |
-| [I2VGen-XL](i2vgenxl.md)                                       | image2video |
-| [InstructPix2Pix](pix2pix.md)                                  | image editing |
-| [Kandinsky 2.1](kandinsky.md)                                  | text2image, image2image, inpainting, interpolation |
-| [Kandinsky 2.2](kandinsky_v22.md)                              | text2image, image2image, inpainting |
-| [Kandinsky 3](kandinsky3.md)                                   | text2image, image2image |
-| [Kolors](kolors) 												 | text2image |
-| [Latent Consistency Models](latent_consistency_models.md)      | text2image |
-| [Latent Diffusion](latent_diffusion.md)                        | text2image, super-resolution |
-| [Latte](latte) 												 | text2image |
-| [Lumina-T2X](lumina) 											 | text2image |
-| [Marigold](marigold.md)                                        | depth-estimation, normals-estimation, intrinsic-decomposition |
-| [PAG](pag) 													 | text2image |
-| [PixArt-α](pixart.md)                                          | text2image |
-| [PixArt-Σ](pixart_sigma.md)                                    | text2image |
-| [Shap-E](shap_e.md)                                            | text-to-3D, image-to-3D |
-| [Stable Cascade](stable_cascade.md)                            | text2image |
-| [Stable Diffusion](stable_diffusion/overview) 				 | text2image, image2image, depth2image, inpainting, image variation, latent upscaler, super-resolution |
-| [Stable Diffusion XL](stable_diffusion/stable_diffusion_xl) 	 | text2image, image2image, inpainting |
-| [T2I-Adapter](stable_diffusion/adapter) 						 | text2image |
-| [unCLIP](unclip.md)                                            | text2image, image variation |
-| [Wuerstchen](wuerstchen.md)                                    | text2image |
+| Pipeline                                                       | Tasks                                                                                                                                                                                                                   |
+|----------------------------------------------------------------|-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| [aMUSEd](amused.md)                                            | text2image                                                                                                                                                                                                              |
+| [AnimateDiff](animatediff.md)                                  | text2video                                                                                                                                                                                                              |
+| [Attend-and-Excite](attend_and_excite.md)                      | text2image                                                                                                                                                                                                              |
+| [AudioLDM](audioldm.md)                                        | text2audio                                                                                                                                                                                                              |
+| [AudioLDM2](audioldm2.md)                                      | text2audio                                                                                                                                                                                                              |
+| [AuraFlow](aura_flow.md)                                       | text2image                                                                                                                                                                                                              |
+| [BLIP Diffusion](blip_diffusion.md)                            | text2image                                                                                                                                                                                                              |
+| [CogVideoX](cogvideox.md)                                      | text2video                                                                                                                                                                                                              |
+| [Consistency Models](consistency_models.md)                    | unconditional image generation                                                                                                                                                                                          |
+| [ControlNet](controlnet.md)                                    | text2image, image2image, inpainting                                                                                                                                                                                     |
+| [ControlNet with Flux.1](controlnet_flux.md)                   | text2image                                                                                                                                                                                                              |
+| [ControlNet with Hunyuan-DiT](controlnet_hunyuandit.md)        | text2image                                                                                                                                                                                                              |
+| [ControlNet with Stable Diffusion 3](controlnet_sd3.md)        | text2image                                                                                                                                                                                                              |
+| [ControlNet with Stable Diffusion XL](controlnet_sdxl.md)      | text2image                                                                                                                                                                                                              |
+| [ControlNet-XS](controlnetxs.md)                               | text2image                                                                                                                                                                                                              |
+| [ControlNet-XS with Stable Diffusion XL](controlnetxs_sdxl.md) | text2image                                                                                                                                                                                                              |
+| [Dance Diffusion](dance_diffusion.md)                          | unconditional audio generation                                                                                                                                                                                          |
+| [DDIM](ddim.md)                                                | unconditional image generation                                                                                                                                                                                          |
+| [DDPM](ddpm.md)                                                | unconditional image generation                                                                                                                                                                                          |
+| [DeepFloyd IF](deepfloyd_if.md)                                | text2image, image2image, inpainting, super-resolution                                                                                                                                                                   |
+| [DiffEdit](diffedit.md)                                        | inpainting                                                                                                                                                                                                              |
+| [DiT](dit.md)                                                  | text2image                                                                                                                                                                                                              |
+| [Flux](flux.md)                                                | text2image                                                                                                                                                                                                              |
+| [Hunyuan-DiT](hunyuandit.md)                                   | text2image                                                                                                                                                                                                              |
+| [I2VGen-XL](i2vgenxl.md)                                       | image2video                                                                                                                                                                                                             |
+| [InstructPix2Pix](pix2pix.md)                                  | image editing                                                                                                                                                                                                           |
+| [Kandinsky 2.1](kandinsky.md)                                  | text2image, image2image, inpainting, interpolation                                                                                                                                                                      |
+| [Kandinsky 2.2](kandinsky_v22.md)                              | text2image, image2image, inpainting                                                                                                                                                                                     |
+| [Kandinsky 3](kandinsky3.md)                                   | text2image, image2image                                                                                                                                                                                                 |
+| [Kolors](kolors.md)                                            | text2image                                                                                                                                                                                                              |
+| [Latent Consistency Models](latent_consistency_models.md)      | text2image                                                                                                                                                                                                              |
+| [Latent Diffusion](latent_diffusion.md)                        | text2image, super-resolution                                                                                                                                                                                            |
+| [Latte](latte.md)                                              | text2image                                                                                                                                                                                                              |
+| [LEDITS++](ledits_pp.md)                                       | image editing                                                                                                                                                                                                           |
+| [Lumina-T2X](lumina.md)                                        | text2image                                                                                                                                                                                                              |
+| [Marigold](marigold.md)                                        | depth-estimation, normals-estimation, intrinsic-decomposition                                                                                                                                                           |
+| [MultiDiffusion](panorama.md)                                  | text2image                                                                                                                                                                                                              |
+| [MusicLDM](musicldm.md)                                        | text2audio                                                                                                                                                                                                              |
+| [PAG](pag.md)                                                  | text2image                                                                                                                                                                                                              |
+| [Paint by Example](paint_by_example.md)                        | inpainting                                                                                                                                                                                                              |
+| [PIA](pia.md)                                                  | image2video                                                                                                                                                                                                             |
+| [PixArt-α](pixart.md)                                          | text2image                                                                                                                                                                                                              |
+| [PixArt-Σ](pixart_sigma.md)                                    | text2image                                                                                                                                                                                                              |
+| [Self-Attention Guidance](self_attention_guidance.md)          | text2image                                                                                                                                                                                                              |
+| [Semantic Guidance](semantic_stable_diffusion.md)              | text2image                                                                                                                                                                                                              |
+| [Shap-E](shap_e.md)                                            | text-to-3D, image-to-3D                                                                                                                                                                                                 |
+| [Stable Audio](stable_audio.md)                                | text2audio                                                                                                                                                                                                              |
+| [Stable Cascade](stable_cascade.md)                            | text2image                                                                                                                                                                                                              |
+| [Stable Diffusion](stable_diffusion/overview.md)               | text2image, image2image, depth2image, inpainting, image variation, latent upscaler, super-resolution                                                                                                                    |
+| [Stable Diffusion XL](stable_diffusion/stable_diffusion_xl.md) | text2image, image2image, inpainting                                                                                                                                                                                     |
+| [Stable Diffusion XL Turbo](stable_diffusion/sdxl_turbo.md)    | text2image, image2image, inpainting                                                                                                                                                                                     |
+| [Stable unCLIP](stable_unclip.md)                              | text2image, image variation                                                                                                                                                                                             |
+| [T2I-Adapter](stable_diffusion/adapter.md)                     | text2image                                                                                                                                                                                                              |
+| [Text2Video](text_to_video.md)                                 | text2video, video2video                                                                                                                                                                                                 |
+| [Text2Video-Zero](text_to_video_zero.md)                       | text2video                                                                                                                                                                                                              |
+| [unCLIP](unclip.md)                                            | text2image, image variation                                                                                                                                                                                             |
+| [UniDiffuser](unidiffuser.md)                                  | text2image, image2text, image variation, text variation, unconditional image generation, unconditional audio generation                                                                                                 |
+| [Wuerstchen](wuerstchen.md)                                    | text2image                                                                                                                                                                                                              |
+| [VisualCloze](visualcloze.md)                                  | text2image, image2image, subject driven generation, inpainting, style transfer, image restoration, image editing, [depth,normal,edge,pose]2image, [depth,normal,edge,pose]-estimation, virtual try-on, image relighting |
 
 ::: mindone.diffusers.DiffusionPipeline
 

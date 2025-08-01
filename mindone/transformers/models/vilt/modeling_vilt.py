@@ -32,7 +32,7 @@ from mindspore import mint, nn
 from mindspore.nn import CrossEntropyLoss
 
 from ...activations import ACT2FN
-from ...mindspore_utils import find_pruneable_heads_and_indices, meshgrid, prune_linear_layer
+from ...mindspore_utils import find_pruneable_heads_and_indices, prune_linear_layer
 from ...modeling_outputs import (
     BaseModelOutput,
     BaseModelOutputWithPooling,

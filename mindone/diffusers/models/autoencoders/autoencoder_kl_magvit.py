@@ -439,7 +439,7 @@ class EasyAnimateMidBlock3d(nn.Cell):
 
 class EasyAnimateEncoder(nn.Cell):
     r"""
-    Causal encoder for 3D video-like data used in [EasyAnimate](https://arxiv.org/abs/2405.18991).
+    Causal encoder for 3D video-like data used in [EasyAnimate](https://huggingface.co/papers/2405.18991).
     """
 
     _supports_gradient_checkpointing = True
@@ -554,7 +554,7 @@ class EasyAnimateEncoder(nn.Cell):
 
 class EasyAnimateDecoder(nn.Cell):
     r"""
-    Causal decoder for 3D video-like data used in [EasyAnimate](https://arxiv.org/abs/2405.18991).
+    Causal decoder for 3D video-like data used in [EasyAnimate](https://huggingface.co/papers/2405.18991).
     """
 
     _supports_gradient_checkpointing = True
@@ -674,7 +674,7 @@ class EasyAnimateDecoder(nn.Cell):
 class AutoencoderKLMagvit(ModelMixin, ConfigMixin):
     r"""
     A VAE model with KL loss for encoding images into latents and decoding latent representations into images. This
-    model is used in [EasyAnimate](https://arxiv.org/abs/2405.18991).
+    model is used in [EasyAnimate](https://huggingface.co/papers/2405.18991).
 
     This model inherits from [`ModelMixin`]. Check the superclass documentation for it's generic methods implemented
     for all models (such as downloading or saving).
@@ -897,7 +897,7 @@ class AutoencoderKLMagvit(ModelMixin, ConfigMixin):
     def _decode(self, z: ms.Tensor, return_dict: bool = False) -> Union[DecoderOutput, ms.Tensor]:
         batch_size, num_channels, num_frames, height, width = z.shape
         tile_latent_min_height = self.tile_sample_min_height // self.spatial_compression_ratio
-        tile_latent_min_width = self.tile_sample_stride_width // self.spatial_compression_ratio
+        tile_latent_min_width = self.tile_sample_min_width // self.spatial_compression_ratio
 
         if self.use_tiling and (z.shape[-1] > tile_latent_min_height or z.shape[-2] > tile_latent_min_width):
             return self.tiled_decode(z, return_dict=return_dict)
