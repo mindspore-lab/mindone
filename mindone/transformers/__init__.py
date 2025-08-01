@@ -177,6 +177,7 @@ from .models.convbert import (
     ConvBertLayer,
     ConvBertModel,
 )
+from .models.ctrl import CTRLForSequenceClassification, CTRLLMHeadModel, CTRLModel, CTRLPreTrainedModel
 from .models.deberta import (
     DebertaForMaskedLM,
     DebertaForQuestionAnswering,
