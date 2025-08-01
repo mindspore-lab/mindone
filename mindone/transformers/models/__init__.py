@@ -80,6 +80,7 @@ from . import (
     persimmon,
     phi,
     phi3,
+    phimoe,
     qwen2,
     qwen2_5_omni,
     qwen2_5_vl,
