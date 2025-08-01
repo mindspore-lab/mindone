@@ -948,6 +948,7 @@ from .models.phi3 import (
     Phi3Model,
     Phi3PreTrainedModel,
 )
+from .models.phimoe import PhimoeForCausalLM, PhimoeForSequenceClassification, PhimoeModel, PhimoePreTrainedModel
 from .models.pix2struct import (
     Pix2StructForConditionalGeneration,
     Pix2StructPreTrainedModel,

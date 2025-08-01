@@ -155,6 +155,7 @@ from . import (
     persimmon,
     phi,
     phi3,
+    phimoe,
     pix2struct,
     pixtral,
     poolformer,
