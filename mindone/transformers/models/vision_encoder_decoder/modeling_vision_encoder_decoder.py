@@ -1,6 +1,9 @@
 # coding=utf-8
 # Copyright 2021 The HuggingFace Inc. team.
 #
+# This code is adapted from https://github.com/huggingface/transformers
+# with modifications to run transformers on mindspore.
+#
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -14,9 +17,6 @@
 # limitations under the License.
 """Classes to support Vision-Encoder-Text-Decoder architectures"""
 
-import gc
-import os
-import tempfile
 from typing import Optional, Tuple, Union
 
 from transformers.configuration_utils import PretrainedConfig
@@ -29,7 +29,7 @@ from transformers.utils import (
 )
 
 import mindspore as ms
-from mindspore import mint, nn
+from mindspore import mint
 
 from ...generation import GenerationMixin
 from ...modeling_outputs import BaseModelOutput, Seq2SeqLMOutput
@@ -120,7 +120,8 @@ VISION_ENCODER_DECODER_INPUTS_DOCSTRING = r"""
             `last_hidden_state` (`ms.Tensor` of shape `(batch_size, sequence_length, hidden_size)`) is a tensor
             of hidden-states at the output of the last layer of the encoder. Used in the cross-attention of the
             decoder.
-        past_key_values (`tuple(tuple(ms.Tensor))` of length `config.n_layers` with each tuple having 4 tensors of shape `(batch_size, num_heads, sequence_length - 1, embed_size_per_head)`):
+        past_key_values (`tuple(tuple(ms.Tensor))` of length `config.n_layers` with each tuple having 4 tensors of shape
+            `(batch_size, num_heads, sequence_length - 1, embed_size_per_head)`):
             Contains precomputed key and value hidden states of the attention blocks. Can be used to speed up decoding.
 
             If `past_key_values` are used, the user can optionally input only the last `decoder_input_ids` (those that
@@ -168,6 +169,7 @@ class VisionEncoderDecoderModel(PreTrainedModel, GenerationMixin):
     _supports_param_buffer_assignment = False
     _supports_flash_attn_2 = True
     _supports_sdpa = True
+    _supports_dynamic_input = True
 
     def __init__(
         self,
@@ -229,7 +231,7 @@ class VisionEncoderDecoderModel(PreTrainedModel, GenerationMixin):
             self.encoder.config.hidden_size != self.decoder.config.hidden_size
             and self.decoder.config.cross_attention_hidden_size is None
         ):
-            self.enc_to_dec_proj = nn.Linear(self.encoder.config.hidden_size, self.decoder.config.hidden_size)
+            self.enc_to_dec_proj = mint.nn.Linear(self.encoder.config.hidden_size, self.decoder.config.hidden_size)
 
         if self.encoder.get_output_embeddings() is not None:
             raise ValueError(

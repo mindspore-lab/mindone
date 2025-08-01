@@ -1,3 +1,5 @@
+"""Adapted from https://github.com/huggingface/transformers/tree/main/src/transformers/pipelines/visual_question_answering.py."""
+
 from typing import List, Union
 
 import numpy as np
@@ -34,7 +36,7 @@ class VisualQuestionAnsweringPipeline(Pipeline):
     >>> oracle = pipeline(model="dandelin/vilt-b32-finetuned-vqa")
     >>> image_url = "https://huggingface.co/datasets/Narsil/image_dummy/raw/main/lena.png"
     >>> oracle(question="What is she wearing ?", image=image_url)
-    [{'score': 0.948, 'answer': 'hat'}, {'score': 0.009, 'answer': 'fedora'}, {'score': 0.003, 'answer': 'clothes'}, {'score': 0.003, 'answer': 'sun hat'}, {'score': 0.002, 'answer': 'nothing'}]
+    [{'score': 0.948, 'answer': 'hat'}, {'score': 0.009, 'answer': 'fedora'}, {'score': 0.003, 'answer': 'clothes'}, {'score': 0.003, 'answer': 'sun hat'}, {'score': 0.002, 'answer': 'nothing'}] # noqa
 
     >>> oracle(question="What is she wearing ?", image=image_url, top_k=1)
     [{'score': 0.948, 'answer': 'hat'}]

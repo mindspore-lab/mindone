@@ -1,4 +1,4 @@
-# Copyright 2024 The HuggingFace Team. All rights reserved.
+# Copyright 2025 The HuggingFace Team. All rights reserved.
 #
 # This code is adapted from https://github.com/huggingface/diffusers
 # with modifications to run diffusers on mindspore.
@@ -76,13 +76,13 @@ class SD3Transformer2DLoadersMixin:
                 key = key.replace(f"layers.{idx}.2.1", f"layers.{idx}.adaln_proj")
             updated_state_dict[key] = value
 
-        # Image projetion parameters
-        embed_dim = state_dict["image_proj"]["proj_in.weight"].shape[1]
-        output_dim = state_dict["image_proj"]["proj_out.weight"].shape[0]
-        hidden_dim = state_dict["image_proj"]["proj_in.weight"].shape[0]
-        heads = state_dict["image_proj"]["layers.0.attn.to_q.weight"].shape[0] // 64
-        num_queries = state_dict["image_proj"]["latents"].shape[1]
-        timestep_in_dim = state_dict["image_proj"]["time_embedding.linear_1.weight"].shape[1]
+        # Image projection parameters
+        embed_dim = updated_state_dict["proj_in.weight"].shape[1]
+        output_dim = updated_state_dict["proj_out.weight"].shape[0]
+        hidden_dim = updated_state_dict["proj_in.weight"].shape[0]
+        heads = updated_state_dict["layers.0.attn.to_q.weight"].shape[0] // 64
+        num_queries = updated_state_dict["latents"].shape[1]
+        timestep_in_dim = updated_state_dict["time_embedding.linear_1.weight"].shape[1]
 
         # Image projection
         image_proj = IPAdapterTimeImageProjection(
@@ -94,7 +94,7 @@ class SD3Transformer2DLoadersMixin:
             timestep_in_dim=timestep_in_dim,
         )
 
-        _load_state_dict_into_model(image_proj, state_dict["image_proj"])
+        _load_state_dict_into_model(image_proj, updated_state_dict)
 
         # Do dtype convertion here at the level of `self(ModelMixins)`, as subcell has no method `to(dtype)`
         self.to(dtype=self.dtype)
