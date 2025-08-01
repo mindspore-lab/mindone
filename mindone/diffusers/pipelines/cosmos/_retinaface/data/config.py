@@ -19,4 +19,3 @@ cfg_re50 = {
     'in_channel': 256,
     'out_channel': 256
 }
-

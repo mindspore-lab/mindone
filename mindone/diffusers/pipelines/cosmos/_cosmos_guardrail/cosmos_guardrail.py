@@ -27,7 +27,7 @@ import numpy as np
 import PIL.Image
 import mindspore as ms
 from mindspore import nn, mint
-import torch # for '.pt' loading
+import torch  # for '.pt' loading
 from safetensors.torch import save_file
 
 from mindspore.dataset import GeneratorDataset
@@ -256,9 +256,9 @@ below categories.
         """Filter the Aegis model output and return the safety status and message."""
         full_prompt = self.get_moderation_prompt(prompt)
         inputs = self.tokenizer([full_prompt], add_special_tokens=False, return_tensors="np")
-        output = self.model.generate(input_ids=ms.tensor(inputs.input_ids), 
+        output = self.model.generate(input_ids=ms.tensor(inputs.input_ids),
                                      attention_mask=ms.tensor(inputs.attention_mask),
-                                     max_new_tokens=100, 
+                                     max_new_tokens=100,
                                      pad_token_id=self.tokenizer.eos_token_id)
         prompt_len = inputs["input_ids"].shape[-1]
         moderation_output = self.tokenizer.decode(output[0][prompt_len:], skip_special_tokens=True)
@@ -276,7 +276,7 @@ below categories.
         except Exception as e:
             logger.error(f"Unexpected error occurred when running Aegis guardrail: {e}")
             return True, "Unexpected error occurred when running Aegis guardrail."
-    
+
     def to(self, dtype: Optional[ms.Type] = None):
         for p in self.get_parameters():
             p.set_dtype(dtype)
@@ -290,7 +290,7 @@ class Blocklist(ContentSafetyGuardrail):
         guardrail_partial_match_min_chars: int = 4,
         guardrail_partial_match_letter_count: float = 0.5,
     ) -> None:
-        
+
         # Notes: check if a local path is given
         if os.path.exists(checkpoint_id):
             checkpoint_dir = checkpoint_id
@@ -368,7 +368,7 @@ class Blocklist(ContentSafetyGuardrail):
 
         for i in range(len(prompt_words) - word_length + 1):
             # Extract a substring from the prompt with the same number of words as the normalized_word
-            substring = " ".join(prompt_words[i : i + word_length])
+            substring = " ".join(prompt_words[i: i + word_length])
             similarity_ratio = SequenceMatcher(None, substring, normalized_word).ratio()
             if similarity_ratio >= max_similarity_ratio:
                 return (
@@ -482,7 +482,7 @@ class VideoContentSafetyFilter(nn.Cell, ContentSafetyGuardrail):
         for pt_name, pt_param in checkpoint.items():
             # torch tensor -> numpy -> mindspore tensor
             np_param = pt_param.detach().numpy()
-            param_dict[prefix+pt_name] = ms.Parameter(ms.tensor(np_param))
+            param_dict[prefix + pt_name] = ms.Parameter(ms.tensor(np_param))
         _, _ = ms.load_param_into_net(self.model, param_dict)
 
         logger.info("VideoSafetyModel is converted and loaded.")
@@ -581,7 +581,7 @@ class VideoContentSafetyFilter(nn.Cell, ContentSafetyGuardrail):
             return is_safe, "safe frames detected" if is_safe else "unsafe frames detected"
         else:
             raise ValueError(f"Input type {type(input)} not supported.")
-        
+
     def to(self, dtype: Optional[ms.Type] = None):
         for p in self.get_parameters():
             p.set_dtype(dtype)
@@ -615,7 +615,6 @@ class RetinaFaceFilter(nn.Cell, PostprocessingGuardrail):
         # Load from RetinaFace pretrained checkpoint
         self.net = load_model(self.net, checkpoint)
         logger.info("RetinaFace is loaded.")
-
 
     def preprocess_frames(self, frames: np.ndarray) -> ms.Tensor:
         """Preprocess a sequence of frames for face detection.
@@ -681,9 +680,9 @@ class RetinaFaceFilter(nn.Cell, PostprocessingGuardrail):
                 if x2 - x1 < min_size[0] or y2 - y1 < min_size[1]:
                     continue
                 max_h, max_w = frame.shape[:2]
-                face_roi = frame[max(y1, 0) : min(y2, max_h), max(x1, 0) : min(x2, max_w)]
+                face_roi = frame[max(y1, 0): min(y2, max_h), max(x1, 0): min(x2, max_w)]
                 blurred_face = pixelate_face(face_roi)
-                frame[max(y1, 0) : min(y2, max_h), max(x1, 0) : min(x2, max_w)] = blurred_face
+                frame[max(y1, 0): min(y2, max_h), max(x1, 0): min(x2, max_w)] = blurred_face
             blurred_frames.append(frame)
 
         return blurred_frames
@@ -705,10 +704,9 @@ class RetinaFaceFilter(nn.Cell, PostprocessingGuardrail):
         dtype = next(self.net.get_parameters()).dtype
         prior_data, scale = None, None
 
-
-        # FIXME original repo use TensorDataset and Dataloader here for processing 
+        # FIXME original repo use TensorDataset and Dataloader here for processing
         # but we have issues in minddata, so we directly process the frames_tensor
-        # torch.utils.data DataLoader -> ms.dataset.GeneratorDataset 
+        # torch.utils.data DataLoader -> ms.dataset.GeneratorDataset
         # torch.utils.data.TensorDataset -> self-defined TensorDataset
 
         # dataset = TensorDataset(frames_tensor)
@@ -763,13 +761,12 @@ class CosmosSafetyChecker(nn.Cell):
             ]
         )
         logger.info("text_guardrail successfully loaded.")
-        
+
         self.video_guardrail = GuardrailRunner(
             safety_models=[VideoContentSafetyFilter(checkpoint_id)],
             postprocessors=[RetinaFaceFilter(checkpoint_id)],
         )
         logger.info("video_guardrail successfully loaded.")
-
 
     def check_text_safety(self, prompt: str) -> bool:
         is_safe, message = self.text_guardrail.run_safety_check(prompt)
@@ -786,9 +783,9 @@ class CosmosSafetyChecker(nn.Cell):
         return frames
 
     def to(self, dtype: ms.Type = None) -> None:
-        self.text_guardrail.safety_models[1].model.to(dtype=dtype) # Aegis
-        self.video_guardrail.safety_models[0].model.to(dtype=dtype) # VideoContentSafetyFilter
-        self.video_guardrail.postprocessors[0].to(dtype=dtype) # RetinaFaceFilter
+        self.text_guardrail.safety_models[1].model.to(dtype=dtype)  # Aegis
+        self.video_guardrail.safety_models[0].model.to(dtype=dtype)  # VideoContentSafetyFilter
+        self.video_guardrail.postprocessors[0].to(dtype=dtype)  # RetinaFaceFilter
 
     @property
     def dtype(self) -> ms.Type:

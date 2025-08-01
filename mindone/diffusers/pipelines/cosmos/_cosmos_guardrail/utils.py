@@ -18,6 +18,7 @@ from typing import (
 )
 T_co = TypeVar('T_co', covariant=True)
 
+
 def get_logger(name):
     """Simple logger function"""
     logger = logging.getLogger(name)
@@ -28,6 +29,7 @@ def get_logger(name):
         logger.addHandler(handler)
         logger.setLevel(logging.INFO)
     return logger
+
 
 def load_video(
     video: str,
@@ -103,7 +105,6 @@ def load_video(
     return pil_images
 
 
-
 # copy/adpated from torch.utils.data.Dataset
 class Dataset(Generic[T_co]):
     r"""An abstract class representing a :class:`Dataset`.
@@ -111,7 +112,7 @@ class Dataset(Generic[T_co]):
 
     def __getitem__(self, index) -> T_co:
         raise NotImplementedError("Subclasses of Dataset should implement __getitem__.")
-    
+
 
 # copy/adpated from torch.utils.data.TensorDataset
 class TensorDataset(Dataset[Tuple[Tensor, ...]]):

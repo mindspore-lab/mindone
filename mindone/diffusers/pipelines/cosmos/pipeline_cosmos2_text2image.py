@@ -210,7 +210,7 @@ class Cosmos2TextToImagePipeline(DiffusionPipeline):
         if untruncated_ids.shape[-1] >= text_input_ids.shape[-1] and not np.array_equal(
             text_input_ids, untruncated_ids
         ):
-            removed_text = self.tokenizer.batch_decode(untruncated_ids[:, max_sequence_length - 1 : -1])
+            removed_text = self.tokenizer.batch_decode(untruncated_ids[:, max_sequence_length - 1: -1])
             logger.warning(
                 "The following part of your input was truncated because `max_sequence_length` is set to "
                 f" {max_sequence_length} tokens: {removed_text}"

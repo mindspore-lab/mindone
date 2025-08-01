@@ -10,6 +10,8 @@ from .net import SSH as SSH
 from ._resnet50 import resnet50
 
 # adpated from torchvision.models._utils.IntermediateLayerGetter
+
+
 class IntermediateLayerGetter(nn.Cell):
     """
     Module wrapper that returns intermediate layers from a model
@@ -73,54 +75,56 @@ class IntermediateLayerGetter(nn.Cell):
         return out
 
 
-
 class ClassHead(nn.Cell):
-    def __init__(self,inchannels=512,num_anchors=3):
-        super(ClassHead,self).__init__()
+    def __init__(self, inchannels=512, num_anchors=3):
+        super(ClassHead, self).__init__()
         self.num_anchors = num_anchors
-        self.conv1x1 = mint.nn.Conv2d(inchannels,self.num_anchors*2,kernel_size=(1,1),stride=1,padding=0)
+        self.conv1x1 = mint.nn.Conv2d(inchannels, self.num_anchors * 2, kernel_size=(1, 1), stride=1, padding=0)
 
-    def construct(self,x):
+    def construct(self, x):
         out = self.conv1x1(x)
-        out = out.permute(0,2,3,1).contiguous()
-        
+        out = out.permute(0, 2, 3, 1).contiguous()
+
         return out.view(out.shape[0], -1, 2)
 
-class BboxHead(nn.Cell):
-    def __init__(self,inchannels=512,num_anchors=3):
-        super(BboxHead,self).__init__()
-        self.conv1x1 = mint.nn.Conv2d(inchannels,num_anchors*4,kernel_size=(1,1),stride=1,padding=0)
 
-    def construct(self,x):
+class BboxHead(nn.Cell):
+    def __init__(self, inchannels=512, num_anchors=3):
+        super(BboxHead, self).__init__()
+        self.conv1x1 = mint.nn.Conv2d(inchannels, num_anchors * 4, kernel_size=(1, 1), stride=1, padding=0)
+
+    def construct(self, x):
         out = self.conv1x1(x)
-        out = out.permute(0,2,3,1).contiguous()
+        out = out.permute(0, 2, 3, 1).contiguous()
 
         return out.view(out.shape[0], -1, 4)
 
-class LandmarkHead(nn.Cell):
-    def __init__(self,inchannels=512,num_anchors=3):
-        super(LandmarkHead,self).__init__()
-        self.conv1x1 = mint.nn.Conv2d(inchannels,num_anchors*10,kernel_size=(1,1),stride=1,padding=0)
 
-    def construct(self,x):
+class LandmarkHead(nn.Cell):
+    def __init__(self, inchannels=512, num_anchors=3):
+        super(LandmarkHead, self).__init__()
+        self.conv1x1 = mint.nn.Conv2d(inchannels, num_anchors * 10, kernel_size=(1, 1), stride=1, padding=0)
+
+    def construct(self, x):
         out = self.conv1x1(x)
-        out = out.permute(0,2,3,1).contiguous()
+        out = out.permute(0, 2, 3, 1).contiguous()
 
         return out.view(out.shape[0], -1, 10)
 
+
 class RetinaFace(nn.Cell):
-    def __init__(self, cfg = None, phase = 'train'):
+    def __init__(self, cfg=None, phase='train'):
         """
         :param cfg:  Network related settings.
         :param phase: train or test.
         """
-        super(RetinaFace,self).__init__()
+        super(RetinaFace, self).__init__()
         self.phase = phase
         backbone = None
         if cfg['name'] == 'mobilenet0.25':
             raise NotImplementedError("`cosmos_guardrail` use Resnet50 as backbone, \
                                       so we did not implement mobilenet here")
-        
+
         elif cfg['name'] == 'Resnet50':
             backbone = resnet50()
 
@@ -132,7 +136,7 @@ class RetinaFace(nn.Cell):
             in_channels_stage2 * 8,
         ]
         out_channels = cfg['out_channel']
-        self.fpn = FPN(in_channels_list,out_channels)
+        self.fpn = FPN(in_channels_list, out_channels)
         self.ssh1 = SSH(out_channels, out_channels)
         self.ssh2 = SSH(out_channels, out_channels)
         self.ssh3 = SSH(out_channels, out_channels)
@@ -141,26 +145,26 @@ class RetinaFace(nn.Cell):
         self.BboxHead = self._make_bbox_head(fpn_num=3, inchannels=cfg['out_channel'])
         self.LandmarkHead = self._make_landmark_head(fpn_num=3, inchannels=cfg['out_channel'])
 
-    def _make_class_head(self,fpn_num=3,inchannels=64,anchor_num=2):
+    def _make_class_head(self, fpn_num=3, inchannels=64, anchor_num=2):
         classhead = nn.CellList()
         for i in range(fpn_num):
-            classhead.append(ClassHead(inchannels,anchor_num))
-        
+            classhead.append(ClassHead(inchannels, anchor_num))
+
         return classhead
-    
-    def _make_bbox_head(self,fpn_num=3,inchannels=64,anchor_num=2):
+
+    def _make_bbox_head(self, fpn_num=3, inchannels=64, anchor_num=2):
         bboxhead = nn.CellList()
         for i in range(fpn_num):
-            bboxhead.append(BboxHead(inchannels,anchor_num))
+            bboxhead.append(BboxHead(inchannels, anchor_num))
         return bboxhead
 
-    def _make_landmark_head(self,fpn_num=3,inchannels=64,anchor_num=2):
+    def _make_landmark_head(self, fpn_num=3, inchannels=64, anchor_num=2):
         landmarkhead = nn.CellList()
         for i in range(fpn_num):
-            landmarkhead.append(LandmarkHead(inchannels,anchor_num))
+            landmarkhead.append(LandmarkHead(inchannels, anchor_num))
         return landmarkhead
 
-    def construct(self,inputs):
+    def construct(self, inputs):
         out = self.body(inputs)
 
         # FPN
@@ -173,7 +177,7 @@ class RetinaFace(nn.Cell):
         features = [feature1, feature2, feature3]
 
         bbox_regressions = mint.cat([self.BboxHead[i](feature) for i, feature in enumerate(features)], dim=1)
-        classifications = mint.cat([self.ClassHead[i](feature) for i, feature in enumerate(features)],dim=1)
+        classifications = mint.cat([self.ClassHead[i](feature) for i, feature in enumerate(features)], dim=1)
         ldm_regressions = mint.cat([self.LandmarkHead[i](feature) for i, feature in enumerate(features)], dim=1)
 
         if self.phase == 'train':

@@ -13,7 +13,7 @@ class PriorBox(object):
         self.steps = cfg['steps']
         self.clip = cfg['clip']
         self.image_size = image_size
-        self.feature_maps = [[ceil(self.image_size[0]/step), ceil(self.image_size[1]/step)] for step in self.steps]
+        self.feature_maps = [[ceil(self.image_size[0] / step), ceil(self.image_size[1] / step)] for step in self.steps]
         self.name = "s"
 
     def construct(self):
