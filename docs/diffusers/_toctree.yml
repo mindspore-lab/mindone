@@ -204,6 +204,8 @@
         title: CogView3PlusTransformer2DModel
       - local: api/models/cogview4_transformer2d
         title: CogView4Transformer2DModel
+      - local: api/models/cosmos_transformer3d
+        title: CosmosTransformer3DModel
       - local: api/models/dit_transformer2d
         title: DiTTransformer2DModel
       - local: api/models/easyanimate_transformer3d
@@ -266,6 +268,8 @@
         title: AutoencoderKLAllegro
       - local: api/models/autoencoderkl_cogvideox
         title: AutoencoderKLCogVideoX
+      - local: api/models/autoencoderkl_cosmos
+        title: AutoencoderKLCosmos
       - local: api/models/autoencoder_kl_hunyuan_video
         title: AutoencoderKLHunyuanVideo
       - local: api/models/autoencoderkl_ltx_video
@@ -340,6 +344,8 @@
       title: ControlNet-XS with Stable Diffusion XL
     - local: api/pipelines/controlnet_union
       title: ControlNetUnion
+    - local: api/pipelines/cosmos
+      title: Cosmos
     - local: api/pipelines/dance_diffusion
       title: Dance Diffusion
     - local: api/pipelines/ddim
