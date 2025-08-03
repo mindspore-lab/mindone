@@ -738,9 +738,9 @@ class CosmosUpBlock3d(nn.Cell):
     def construct(self, hidden_states: ms.tensor) -> ms.tensor:
         for resnet, attention, temp_attention in zip(self.resnets, self.attentions, self.temp_attentions):
             hidden_states = resnet(hidden_states)
-            if isinstance(attention, NoneCell):
+            if not isinstance(attention, NoneCell):
                 hidden_states = attention(hidden_states)
-            if isinstance(temp_attention, NoneCell):
+            if not isinstance(temp_attention, NoneCell):
                 num_frames = hidden_states.shape[2]
                 attention_mask = mint.tril(hidden_states.new_ones((num_frames, num_frames))).bool()
                 hidden_states = temp_attention(hidden_states, attention_mask)

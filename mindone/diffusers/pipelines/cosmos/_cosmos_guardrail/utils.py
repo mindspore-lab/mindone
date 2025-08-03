@@ -1,22 +1,16 @@
 import logging
 import os
 import tempfile
-from typing import Callable, List, Optional, Union
-from urllib.parse import urlparse, unquote
-from mindspore import Tensor
+from typing import Callable, Generic, List, Optional, Tuple, TypeVar
+from urllib.parse import unquote, urlparse
 
-import requests
 import imageio
 import PIL.Image
+import requests
 
-from typing import (
-    Generic,
-    List,
-    Optional,
-    Tuple,
-    TypeVar,
-)
-T_co = TypeVar('T_co', covariant=True)
+from mindspore import Tensor
+
+T_co = TypeVar("T_co", covariant=True)
 
 
 def get_logger(name):
@@ -24,7 +18,7 @@ def get_logger(name):
     logger = logging.getLogger(name)
     if not logger.handlers:
         handler = logging.StreamHandler()
-        formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+        formatter = logging.Formatter("%(asctime)s - %(name)s - %(levelname)s - %(message)s")
         handler.setFormatter(formatter)
         logger.addHandler(handler)
         logger.setLevel(logging.INFO)
@@ -107,8 +101,7 @@ def load_video(
 
 # copy/adpated from torch.utils.data.Dataset
 class Dataset(Generic[T_co]):
-    r"""An abstract class representing a :class:`Dataset`.
-    """
+    r"""An abstract class representing a :class:`Dataset`."""
 
     def __getitem__(self, index) -> T_co:
         raise NotImplementedError("Subclasses of Dataset should implement __getitem__.")

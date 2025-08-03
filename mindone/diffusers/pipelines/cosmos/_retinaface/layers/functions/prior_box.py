@@ -1,17 +1,18 @@
 # MindSpore adaptation from `retinaface.model.retinaface` from retinaface-py pkg
 # This file remains under the original license.
 
-import mindspore as ms
 from itertools import product as product
 from math import ceil
 
+import mindspore as ms
+
 
 class PriorBox(object):
-    def __init__(self, cfg, image_size=None, phase='train'):
+    def __init__(self, cfg, image_size=None, phase="train"):
         super(PriorBox, self).__init__()
-        self.min_sizes = cfg['min_sizes']
-        self.steps = cfg['steps']
-        self.clip = cfg['clip']
+        self.min_sizes = cfg["min_sizes"]
+        self.steps = cfg["steps"]
+        self.clip = cfg["clip"]
         self.image_size = image_size
         self.feature_maps = [[ceil(self.image_size[0] / step), ceil(self.image_size[1] / step)] for step in self.steps]
         self.name = "s"

@@ -187,7 +187,7 @@ class Cosmos2VideoToWorldPipelineSlowTests(PipelineTesterMixin, unittest.TestCas
         ms.set_context(mode=mode)
         ms_dtype = getattr(ms, dtype)
 
-        model_id = "nvidia/Cosmos-Predict2-2B-Text2Image"
+        model_id = "nvidia/Cosmos-Predict2-2B-Video2World"
         pipe = Cosmos2VideoToWorldPipeline.from_pretrained(model_id, mindspore_dtype=ms_dtype)
 
         torch.manual_seed(1)

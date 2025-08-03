@@ -17,17 +17,15 @@
 import os
 import re
 
+import cv2
 import numpy as np
-import mindspore as ms
-from mindspore import mint
 import torch
 
-from .utils import get_logger
-
-import cv2
+import mindspore as ms
+from mindspore import mint
 
 from .._retinaface.utils.nms.py_cpu_nms import py_cpu_nms
-
+from .utils import get_logger
 
 logger = get_logger(__name__)  # pylint: disable=invalid-name
 

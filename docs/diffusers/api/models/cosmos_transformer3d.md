@@ -16,9 +16,10 @@ A Diffusion Transformer model for 3D video-like data was introduced in [Cosmos W
 The model can be loaded with the following code snippet.
 
 ```python
+import mindspore
 from mindone.diffusers import CosmosTransformer3DModel
 
-transformer = CosmosTransformer3DModel.from_pretrained("nvidia/Cosmos-1.0-Diffusion-7B-Text2World", subfolder="transformer", mindspore_dtype=torch.bfloat16)
+transformer = CosmosTransformer3DModel.from_pretrained("nvidia/Cosmos-1.0-Diffusion-7B-Text2World", subfolder="transformer", mindspore_dtype=mindspore.bfloat16)
 ```
 
 ::: mindone.diffusers.CosmosTransformer3DModel

@@ -21,31 +21,27 @@ import re
 import string
 from dataclasses import dataclass
 from difflib import SequenceMatcher
-from typing import Any, Iterable, Tuple, Union, Optional
+from typing import Any, Iterable, Optional, Tuple, Union
 
+import nltk
 import numpy as np
 import PIL.Image
-import mindspore as ms
-from mindspore import nn, mint
 import torch  # for '.pt' loading
-from safetensors.torch import save_file
 
-from mindspore.dataset import GeneratorDataset
-
-from huggingface_hub import snapshot_download
-from transformers import AutoTokenizer, SiglipProcessor
-from mindone.transformers import SiglipModel, AutoModelForCausalLM
-import cv2
 # Direct imports instead of conditional imports
 from better_profanity import profanity
-import nltk
+from huggingface_hub import snapshot_download
+from transformers import AutoTokenizer, SiglipProcessor
+
+import mindspore as ms
+from mindspore import mint, nn
+
 from mindone.diffusers._peft import PeftModel
+from mindone.transformers import AutoModelForCausalLM, SiglipModel
 
 from .._retinaface.data import cfg_re50
 from .._retinaface.layers.functions.prior_box import PriorBox
 from .._retinaface.models.retinaface import RetinaFace
-
-from .utils import get_logger, load_video, TensorDataset
 from .cosmos_utils import (
     CLASS_IDX_TO_NAME,
     KEEP_TOP_K,
@@ -59,7 +55,7 @@ from .cosmos_utils import (
     read_keyword_list_from_dir,
     to_ascii,
 )
-
+from .utils import get_logger, load_video
 
 logger = get_logger(__name__)
 
@@ -256,10 +252,12 @@ below categories.
         """Filter the Aegis model output and return the safety status and message."""
         full_prompt = self.get_moderation_prompt(prompt)
         inputs = self.tokenizer([full_prompt], add_special_tokens=False, return_tensors="np")
-        output = self.model.generate(input_ids=ms.tensor(inputs.input_ids),
-                                     attention_mask=ms.tensor(inputs.attention_mask),
-                                     max_new_tokens=100,
-                                     pad_token_id=self.tokenizer.eos_token_id)
+        output = self.model.generate(
+            input_ids=ms.tensor(inputs.input_ids),
+            attention_mask=ms.tensor(inputs.attention_mask),
+            max_new_tokens=100,
+            pad_token_id=self.tokenizer.eos_token_id,
+        )
         prompt_len = inputs["input_ids"].shape[-1]
         moderation_output = self.tokenizer.decode(output[0][prompt_len:], skip_special_tokens=True)
 
@@ -290,7 +288,6 @@ class Blocklist(ContentSafetyGuardrail):
         guardrail_partial_match_min_chars: int = 4,
         guardrail_partial_match_letter_count: float = 0.5,
     ) -> None:
-
         # Notes: check if a local path is given
         if os.path.exists(checkpoint_id):
             checkpoint_dir = checkpoint_id
@@ -368,7 +365,7 @@ class Blocklist(ContentSafetyGuardrail):
 
         for i in range(len(prompt_words) - word_length + 1):
             # Extract a substring from the prompt with the same number of words as the normalized_word
-            substring = " ".join(prompt_words[i: i + word_length])
+            substring = " ".join(prompt_words[i : i + word_length])
             similarity_ratio = SequenceMatcher(None, substring, normalized_word).ratio()
             if similarity_ratio >= max_similarity_ratio:
                 return (
@@ -680,9 +677,9 @@ class RetinaFaceFilter(nn.Cell, PostprocessingGuardrail):
                 if x2 - x1 < min_size[0] or y2 - y1 < min_size[1]:
                     continue
                 max_h, max_w = frame.shape[:2]
-                face_roi = frame[max(y1, 0): min(y2, max_h), max(x1, 0): min(x2, max_w)]
+                face_roi = frame[max(y1, 0) : min(y2, max_h), max(x1, 0) : min(x2, max_w)]
                 blurred_face = pixelate_face(face_roi)
-                frame[max(y1, 0): min(y2, max_h), max(x1, 0): min(x2, max_w)] = blurred_face
+                frame[max(y1, 0) : min(y2, max_h), max(x1, 0) : min(x2, max_w)] = blurred_face
             blurred_frames.append(frame)
 
         return blurred_frames
@@ -716,7 +713,9 @@ class RetinaFaceFilter(nn.Cell, PostprocessingGuardrail):
         # for i, batch in enumerate(dataloader):
         #   ...
 
-        assert self.batch_size == 1 and frames_tensor.shape[0] == 1, "FIXME, we currently support single-frame processing"
+        assert (
+            self.batch_size == 1 and frames_tensor.shape[0] == 1
+        ), "FIXME, we currently support single-frame processing"
         batch = frames_tensor
         h, w = batch.shape[-2:]  # Batch shape: [C, H, W]
 

@@ -203,7 +203,7 @@ class CosmosTextToWorldPipelineSlowTests(PipelineTesterMixin, unittest.TestCase)
         torch.manual_seed(42)
         image = pipe(
             prompt="A sleek, humanoid robot stands in a vast warehouse filled with neatly stacked cardboard boxes on industrial shelves. The robot's metallic body gleams under the bright, even lighting, highlighting its futuristic design and intricate joints. A glowing blue light emanates from its chest, adding a touch of advanced technology. The background is dominated by rows of boxes, suggesting a highly organized storage system. The floor is lined with wooden pallets, enhancing the industrial setting. The camera remains static, capturing the robot's poised stance amidst the orderly environment, with a shallow depth of field that keeps the focus on the robot while subtly blurring the background for a cinematic effect.",  # noqa E501
-            num_inference_steps = 1,
+            num_inference_steps=1,
         )[0][0][1]
 
         expected_image = load_numpy_from_local_file(
