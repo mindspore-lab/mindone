@@ -1,4 +1,4 @@
-"""Image processor class for Deformable DETR."""
+"""Image processor class for GroundingDINO."""
 
 import io
 import pathlib
@@ -488,7 +488,7 @@ def post_process_panoptic_sample(
     threshold=0.85,
 ) -> Dict:
     """
-    Converts the output of [`DetrForSegmentation`] into panoptic segmentation predictions for a single sample.
+    Converts the output of [`GroundingDinoForSegmentation`] into panoptic segmentation predictions for a single sample.
 
     Args:
         out_logits (`ms.Tensor`):
@@ -537,7 +537,7 @@ def post_process_panoptic_sample(
     area = get_mask_area(cur_masks, processed_size, n_classes=len(cur_scores))
 
     # We filter out any mask that is too small
-    if cur_classes.size() > 0:
+    if cur_classes.size > 0:
         # We know filter empty masks as long as we find some
         filtered_small = np.array([a <= 4 for a in area], dtype=bool)
         while filtered_small.any():
@@ -838,8 +838,8 @@ class GroundingDinoImageProcessor(BaseImageProcessor):
             Standard deviation values to use when normalizing the image. Can be a single value or a list of values, one
             for each channel. Can be overridden by the `image_std` parameter in the `preprocess` method.
         do_convert_annotations (`bool`, *optional*, defaults to `True`):
-            Controls whether to convert the annotations to the format expected by the DETR model. Converts the
-            bounding boxes to the format `(center_x, center_y, width, height)` and in the range `[0, 1]`.
+            Controls whether to convert the annotations to the format expected by the Grounding DINO model. Converts the
+            bounding boxes from the format `(center_x, center_y, width, height)` and in the range `[0, 1]`.
             Can be overridden by the `do_convert_annotations` parameter in the `preprocess` method.
         do_pad (`bool`, *optional*, defaults to `True`):
             Controls whether to pad the image. Can be overridden by the `do_pad` parameter in the `preprocess`
