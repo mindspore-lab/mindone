@@ -287,7 +287,11 @@ MODEL_FOR_VISION_2_SEQ_MAPPING_NAMES = OrderedDict(
         ("qwen2_vl", "Qwen2VLForConditionalGeneration"),
     ]
 )
-
+MODEL_FOR_RETRIEVAL_MAPPING_NAMES = OrderedDict(
+    [
+        # ("colpali", "ColPaliForRetrieval"),
+    ]
+)
 MODEL_FOR_IMAGE_TEXT_TO_TEXT_MAPPING_NAMES = OrderedDict(
     [
         ("aria", "AriaForConditionalGeneration"),
@@ -567,6 +571,7 @@ MODEL_FOR_BACKBONE_MAPPING_NAMES = OrderedDict(
     [
         ("dinov2", "Dinov2Backbone"),
         ("hiera", "HieraBackbone"),
+        ("swin", "SwinBackbone"),
     ]
 )
 
@@ -653,6 +658,7 @@ MODEL_FOR_VISION_2_SEQ_MAPPING = _LazyAutoMapping(CONFIG_MAPPING_NAMES, MODEL_FO
 MODEL_FOR_IMAGE_TEXT_TO_TEXT_MAPPING = _LazyAutoMapping(
     CONFIG_MAPPING_NAMES, MODEL_FOR_IMAGE_TEXT_TO_TEXT_MAPPING_NAMES
 )
+MODEL_FOR_RETRIEVAL_MAPPING = _LazyAutoMapping(CONFIG_MAPPING_NAMES, MODEL_FOR_RETRIEVAL_MAPPING_NAMES)
 MODEL_FOR_VISUAL_QUESTION_ANSWERING_MAPPING = _LazyAutoMapping(
     CONFIG_MAPPING_NAMES, MODEL_FOR_VISUAL_QUESTION_ANSWERING_MAPPING_NAMES
 )
