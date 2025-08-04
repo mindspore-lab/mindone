@@ -233,7 +233,7 @@ class UniDiffuserPipelineFastTests(PipelineTesterMixin, unittest.TestCase):
 
         pt_pipe = pt_pipe.to(pt_dtype)
         ms_pipe = ms_pipe.to(ms_dtype)
-        pt_pipe.text_decoder.transformer.lm_head.weight = pt_pipe.text_decoder.transformer.transformer.wte.weight
+        pt_pipe.text_decoder.transformer.transformer.wte.weight = pt_pipe.text_decoder.transformer.lm_head.weight
         weight = ms.Tensor(pt_pipe.text_decoder.transformer.lm_head.weight.detach().numpy())
         ms_pipe.text_decoder.transformer.lm_head.weight = weight
         ms_pipe.text_decoder.transformer.transformer.wte.embedding_table = weight
@@ -340,7 +340,7 @@ class UniDiffuserPipelineFastTests(PipelineTesterMixin, unittest.TestCase):
         pt_pipe = pt_pipe.to(pt_dtype)
         ms_pipe = ms_pipe.to(ms_dtype)
 
-        pt_pipe.text_decoder.transformer.lm_head.weight = pt_pipe.text_decoder.transformer.transformer.wte.weight
+        pt_pipe.text_decoder.transformer.transformer.wte.weight = pt_pipe.text_decoder.transformer.lm_head.weight
         weight = ms.Tensor(pt_pipe.text_decoder.transformer.lm_head.weight.detach().numpy())
         ms_pipe.text_decoder.transformer.lm_head.weight = weight
         ms_pipe.text_decoder.transformer.transformer.wte.embedding_table = weight

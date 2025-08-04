@@ -26,7 +26,7 @@ from ....transformers import ClapFeatureExtractor, ClapModel, GPT2Model, SpeechT
 from ...models import AutoencoderKL
 from ...schedulers import KarrasDiffusionSchedulers
 from ...utils import logging
-from ...utils.mindspore_utils import randn_tensor
+from ...utils.mindspore_utils import pynative_context, randn_tensor
 from ..pipeline_utils import AudioPipelineOutput, DiffusionPipeline
 from .modeling_audioldm2 import AudioLDM2ProjectionModel, AudioLDM2UNet2DConditionModel
 
@@ -431,12 +431,13 @@ class AudioLDM2Pipeline(DiffusionPipeline):
                 prompt_embeds_list.append(prompt_embeds)
                 attention_mask_list.append(attention_mask)
 
-            projection_output = self.projection_model(
-                hidden_states=prompt_embeds_list[0],
-                hidden_states_1=prompt_embeds_list[1],
-                attention_mask=attention_mask_list[0],
-                attention_mask_1=attention_mask_list[1],
-            )
+            with pynative_context():
+                projection_output = self.projection_model(
+                    hidden_states=prompt_embeds_list[0],
+                    hidden_states_1=prompt_embeds_list[1],
+                    attention_mask=attention_mask_list[0],
+                    attention_mask_1=attention_mask_list[1],
+                )
             projected_prompt_embeds = projection_output.hidden_states
             projected_attention_mask = projection_output.attention_mask
 
@@ -534,12 +535,13 @@ class AudioLDM2Pipeline(DiffusionPipeline):
                 negative_prompt_embeds_list.append(negative_prompt_embeds)
                 negative_attention_mask_list.append(negative_attention_mask)
 
-            projection_output = self.projection_model(
-                hidden_states=negative_prompt_embeds_list[0],
-                hidden_states_1=negative_prompt_embeds_list[1],
-                attention_mask=negative_attention_mask_list[0],
-                attention_mask_1=negative_attention_mask_list[1],
-            )
+            with pynative_context():
+                projection_output = self.projection_model(
+                    hidden_states=negative_prompt_embeds_list[0],
+                    hidden_states_1=negative_prompt_embeds_list[1],
+                    attention_mask=negative_attention_mask_list[0],
+                    attention_mask_1=negative_attention_mask_list[1],
+                )
             negative_projected_prompt_embeds = projection_output.hidden_states
             negative_projected_attention_mask = projection_output.attention_mask
 

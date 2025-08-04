@@ -223,7 +223,10 @@ class LuminaPipeline(DiffusionPipeline):
         prompt_attention_mask = ms.tensor(text_inputs.attention_mask)
         with pynative_context():
             prompt_embeds = self.text_encoder(
-                ms.tensor(text_input_ids), attention_mask=prompt_attention_mask, output_hidden_states=True
+                ms.tensor(text_input_ids),
+                attention_mask=prompt_attention_mask,
+                output_hidden_states=True,
+                return_dict=True,
             )
             prompt_embeds = prompt_embeds.hidden_states[-2]
 
@@ -332,6 +335,7 @@ class LuminaPipeline(DiffusionPipeline):
                     negative_text_input_ids,
                     attention_mask=negative_prompt_attention_mask,
                     output_hidden_states=True,
+                    return_dict=True,
                 )
 
                 negative_dtype = self.text_encoder.dtype

@@ -16,7 +16,7 @@ from ...loaders import StableDiffusionLoraLoaderMixin, TextualInversionLoaderMix
 from ...models import AutoencoderKL
 from ...schedulers import KarrasDiffusionSchedulers
 from ...utils import deprecate, logging, scale_lora_layers, unscale_lora_layers
-from ...utils.mindspore_utils import randn_tensor
+from ...utils.mindspore_utils import pynative_context, randn_tensor
 from ...utils.outputs import BaseOutput
 from ..pipeline_utils import DiffusionPipeline
 from .modeling_text_decoder import UniDiffuserTextDecoder
@@ -744,10 +744,11 @@ class UniDiffuserPipeline(DiffusionPipeline):
         return latents
 
     def decode_text_latents(self, text_latents):
-        output_token_list, seq_lengths = self.text_decoder.generate_captions(
-            text_latents,
-            self.text_tokenizer.eos_token_id,
-        )
+        with pynative_context():
+            output_token_list, seq_lengths = self.text_decoder.generate_captions(
+                text_latents,
+                self.text_tokenizer.eos_token_id,
+            )
         output_list = output_token_list.asnumpy()
         generated_text = [
             self.text_tokenizer.decode(output[: int(length)], skip_special_tokens=True)
