@@ -113,7 +113,7 @@ class GroundingDinoProcessorKwargs(ProcessingKwargs, total=False):
 
 class GroundingDinoProcessor(ProcessorMixin):
     r"""
-    Constructs a Grounding DINO processor which wraps a Deformable DETR image processor and a BERT tokenizer into a
+    Constructs a Grounding DINO processor which wraps a `GroundingDinoProcessor` and a BERT tokenizer into a
     single processor.
 
     [`GroundingDinoProcessor`] offers all the functionalities of [`GroundingDinoImageProcessor`] and
