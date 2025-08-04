@@ -53,7 +53,7 @@ cd checkpoints && \
 cd ..
 ```
 
-### Image Prediction
+### Single Mask Prediction
 
 `predict_image.py` is a script to infer the mask given an input image and a reference point. Please download the images for inference first:
 ```
@@ -63,7 +63,7 @@ wget -P images https://raw.githubusercontent.com/facebookresearch/sam2/main/note
 ```
 Then run `python predict_image.py`.
 
-### Mask Prediction
+### Segmentation Mask Prediction
 
 You can use `predict_mask.py` to get the segmentation mask from a given image. Please download the images for inference first:
 ```bash
