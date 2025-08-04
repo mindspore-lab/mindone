@@ -28,7 +28,7 @@ def get_phrases_from_posmap(posmaps, input_ids):
     """Get token ids of phrases from posmaps and input_ids.
 
     Args:
-        posmaps (`torch.BoolTensor` of shape `(num_boxes, hidden_size)`):
+        posmaps (`ms.Tensor` of shape `(num_boxes, hidden_size)`):
             A boolean tensor of text-thresholded logits related to the detected bounding boxes.
         input_ids (`ms.Tensor`) of shape `(sequence_length, )`):
             A tensor of token ids.
@@ -71,7 +71,7 @@ def _merge_candidate_labels_text(text: List[str]) -> str:
 
 class DictWithDeprecationWarning(dict):
     message = (
-        "The key `labels` is will return integer ids in `GroundingDinoProcessor.post_process_grounded_object_detection` "
+        "The key `labels` will return integer ids in `GroundingDinoProcessor.post_process_grounded_object_detection` "
         "output since v4.51.0. Use `text_labels` instead to retrieve string object names."
     )
 
