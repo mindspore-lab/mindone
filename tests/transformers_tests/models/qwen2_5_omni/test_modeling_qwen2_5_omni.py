@@ -19,14 +19,9 @@ import pytest
 import torch
 from transformers.models.qwen2_5_omni import (
     Qwen2_5OmniConfig,
-    Qwen2_5OmniThinkerConfig,
     Qwen2_5OmniTalkerConfig,
+    Qwen2_5OmniThinkerConfig,
     Qwen2_5OmniToken2WavConfig,
-)
-from transformers.models.qwen2_5_omni.configuration_qwen2_5_omni import (
-    Qwen2_5OmniBigVGANConfig,
-    Qwen2_5OmniDiTConfig,
-    Qwen2_5OmniTextConfig,
 )
 
 import mindspore as ms
@@ -38,9 +33,9 @@ from tests.modeling_test_utils import (
     generalized_parse_args,
     get_modules,
 )
-from tests.transformers_tests.models.modeling_common import ids_numpy, floats_numpy
+from tests.transformers_tests.models.modeling_common import floats_numpy, ids_numpy
 
-DTYPE_AND_THRESHOLDS = {"fp32": 5e-2, "fp16": 5e-4, "bf16": 5e-2}
+DTYPE_AND_THRESHOLDS = {"fp32": 5e-5, "fp16": 5e-3, "bf16": 5e-2}
 MODES = [1]
 
 
@@ -126,12 +121,12 @@ class Qwen2_5_OmniModelTester:
             "enc_se_channels": 8,
         },
         bigvgan_config={
-            "mel_dim":10,
+            "mel_dim": 10,
             "upsample_initial_channel": 24,
-            "resblock_kernel_sizes":[3, 7, 11],
-            "resblock_dilation_sizes":[[1, 3, 5], [1, 3, 5], [1, 3, 5]],
-            "upsample_rates":[5, 3, 2, 2, 2, 2],
-            "upsample_kernel_sizes":[11, 7, 4, 4, 4, 4],
+            "resblock_kernel_sizes": [3, 7, 11],
+            "resblock_dilation_sizes": [[1, 3, 5], [1, 3, 5], [1, 3, 5]],
+            "upsample_rates": [5, 3, 2, 2, 2, 2],
+            "upsample_kernel_sizes": [11, 7, 4, 4, 4, 4],
         },
         audio_token_index=1,
         image_token_index=2,
@@ -182,7 +177,6 @@ class Qwen2_5_OmniModelTester:
 
     def get_large_model_config(self):
         return Qwen2_5OmniConfig.from_pretrained("Qwen/Qwen2.5-Omni-7B")
-
 
     def get_config(self):
         thinker_config = Qwen2_5OmniThinkerConfig(
@@ -245,19 +239,34 @@ class Qwen2_5_OmniModelTester:
                 self.num_channels * (patch_size**2) * temporal_patch_size,
             ]
         )
-        pixel_grid_thw = torch.LongTensor(
-            [[1, self.image_size / patch_size, self.image_size / patch_size]] * self.batch_size
+        pixel_grid_thw = np.array(
+            [[1, self.image_size / patch_size, self.image_size / patch_size]] * self.batch_size,
+            dtype=np.int64,
         )
-        input_features_values = floats_numpy(
-            [self.batch_size, self.audio_config["num_mel_bins"], self.feat_seq_length]
-        )
+        input_features_values = floats_numpy([self.batch_size, self.audio_config["num_mel_bins"], self.feat_seq_length])
         feature_attention_mask = np.ones([self.batch_size, self.feat_seq_length], dtype=np.int64)
 
-        return thinker_config, talker_config, token2wav_config, pixel_values, pixel_grid_thw, input_features_values, feature_attention_mask
+        return (
+            thinker_config,
+            talker_config,
+            token2wav_config,
+            pixel_values,
+            pixel_grid_thw,
+            input_features_values,
+            feature_attention_mask,
+        )
 
     def prepare_config_and_inputs_for_common(self):
         config_and_inputs = self.prepare_config_and_inputs()
-        thinker_config, talker_config, token2wav_config, pixel_values, pixel_grid_thw, input_features_values, feature_attention_mask = config_and_inputs
+        (
+            thinker_config,
+            talker_config,
+            token2wav_config,
+            pixel_values,
+            pixel_grid_thw,
+            input_features_values,
+            feature_attention_mask,
+        ) = config_and_inputs
         input_ids = ids_numpy([self.batch_size, self.seq_length], thinker_config.get_text_config().vocab_size - 3) + 3
         attention_mask = np.ones(input_ids.shape, dtype=np.int64)
 
@@ -301,27 +310,23 @@ class Qwen2_5_OmniModelTester:
         talker_input_text_ids = np.concatenate(
             [
                 input_ids,
-                np.array([[talker_text_bos_token]], dtype=np.int64),
+                np.array([[talker_text_bos_token]] * self.batch_size, dtype=np.int64),
             ],
             axis=-1,
         )
         talker_input_ids = np.concatenate(
             [
                 np.full_like(input_ids, fill_value=talker_config.tts_codec_mask_token_id),
-                np.array([[talker_config.tts_codec_pad_token_id]], dtype=np.int64),
-                np.array([[talker_config.tts_codec_start_token_id]], dtype=np.int64),
+                np.array([[talker_config.tts_codec_pad_token_id]] * self.batch_size, dtype=np.int64),
+                np.array([[talker_config.tts_codec_start_token_id]] * self.batch_size, dtype=np.int64),
             ],
             axis=1,
         )
-        talker_attention_mask = np.ones(talker_input_ids.shape, dtype=np.int64)
-        talker_attention_mask = np.concatenate(
-            [attention_mask, np.ones((1, 2))], axis=1
-        )
+        talker_attention_mask = np.concatenate([attention_mask, np.ones((self.batch_size, 2))], axis=1)
         talker_inputs_dict = {
             "input_ids": talker_input_ids,
             "input_text_ids": talker_input_text_ids,
             "attention_mask": talker_attention_mask,
-            "suppress_tokens": [talker_config.tts_codec_start_token_id],
         }
         return thinker_config, talker_config, token2wav_config, thinker_inputs_dict, talker_inputs_dict
 
@@ -350,44 +355,35 @@ T5_CASES = [
         },
     ],
     [
-        "Qwen2_5OmniTalkerForConditionalGeneration",
-        "transformers.Qwen2_5OmniTalkerForConditionalGeneration",
-        "mindone.transformers.Qwen2_5OmniTalkerForConditionalGeneration",
+        "Qwen2_5OmniThinkerTextModel",
+        "transformers.Qwen2_5OmniThinkerTextModel",
+        "mindone.transformers.Qwen2_5OmniThinkerTextModel",
+        (thinker_config.text_config,),
+        {},
+        (),
+        {
+            "input_ids": thinker_inputs_dict["input_ids"],
+            "attention_mask": thinker_inputs_dict["attention_mask"],
+        },
+        {
+            "last_hidden_state": 0,
+        },
+    ],
+    [
+        "Qwen2_5OmniTalkerModel",
+        "transformers.Qwen2_5OmniTalkerModel",
+        "mindone.transformers.Qwen2_5OmniTalkerModel",
         (talker_config,),
         {},
         (),
-        talker_inputs_dict,
         {
-            "logits": 0,
+            "input_ids": talker_inputs_dict["input_ids"],
+            "attention_mask": talker_inputs_dict["attention_mask"],
+        },
+        {
+            "last_hidden_state": 0,
         },
     ],
-    # [
-    #     "Qwen2_5OmniThinkerTextModel",
-    #     "transformers.models.qwen2_5_omni.Qwen2_5OmniThinkerTextModel",
-    #     "mindone.transformers.Qwen2_5OmniThinkerTextModel",
-    #     (thinker_config.text_config,),
-    #     {},
-    #     (),
-    #     {"input_ids": input_ids, "attention_mask": attention_mask,},
-    #     {
-    #         "last_hidden_state": 0,
-    #     },
-    # ],
-    # [
-    #     "Qwen2_5OmniTalkerModel",
-    #     "transformers.Qwen2_5OmniTalkerModel",
-    #     "mindone.transformers.Qwen2_5OmniTalkerModel",
-    #     (talker_config,),
-    #     {},
-    #     (),
-    #     {
-    #         "input_ids": decoder_input_ids,
-    #         "attention_mask": decoder_attention_mask,
-    #     },
-    #     {
-    #         "last_hidden_state": "last_hidden_state",
-    #     },
-    # ],
     # [
     #     "Qwen2_5OmniToken2WavModel",
     #     "transformers.Qwen2_5OmniToken2WavModel",

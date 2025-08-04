@@ -30,6 +30,17 @@ from dataclasses import dataclass
 from typing import Any, Callable, List, Optional, Union
 
 import numpy as np
+from transformers.models.qwen2_5_omni.configuration_qwen2_5_omni import (
+    Qwen2_5OmniAudioEncoderConfig,
+    Qwen2_5OmniBigVGANConfig,
+    Qwen2_5OmniConfig,
+    Qwen2_5OmniDiTConfig,
+    Qwen2_5OmniTalkerConfig,
+    Qwen2_5OmniTextConfig,
+    Qwen2_5OmniThinkerConfig,
+    Qwen2_5OmniToken2WavConfig,
+    Qwen2_5OmniVisionEncoderConfig,
+)
 from transformers.utils import (
     add_start_docstrings,
     add_start_docstrings_to_model_forward,
@@ -48,7 +59,7 @@ from mindone.models.utils import normal_, ones_, zeros_
 from ...activations import ACT2FN
 from ...cache_utils import Cache, DynamicCache
 from ...generation import GenerationMixin
-from ...masking_utils import create_causal_mask # create_sliding_window_causal_mask
+from ...masking_utils import create_causal_mask, create_sliding_window_causal_mask
 from ...mindspore_adapter import dtype_to_max, dtype_to_min
 from ...mindspore_adapter._conv import Conv1d, ConvTranspose1d, conv1d, conv_transpose1d
 from ...modeling_flash_attention_utils import FlashAttentionKwargs
@@ -56,17 +67,6 @@ from ...modeling_outputs import BaseModelOutput, BaseModelOutputWithPast, Causal
 from ...modeling_rope_utils import ROPE_INIT_FUNCTIONS, dynamic_rope_update
 from ...modeling_utils import ALL_ATTENTION_FUNCTIONS, PreTrainedModel
 from ...processing_utils import Unpack
-from .configuration_qwen2_5_omni import (
-    Qwen2_5OmniAudioEncoderConfig,
-    Qwen2_5OmniBigVGANConfig,
-    Qwen2_5OmniConfig,
-    Qwen2_5OmniDiTConfig,
-    Qwen2_5OmniTalkerConfig,
-    Qwen2_5OmniTextConfig,
-    Qwen2_5OmniThinkerConfig,
-    Qwen2_5OmniToken2WavConfig,
-    Qwen2_5OmniVisionEncoderConfig,
-)
 
 logger = logging.get_logger(__name__)
 
@@ -1372,8 +1372,7 @@ class Qwen2_5OmniAttention(nn.Cell):
         self.k_proj = mint.nn.Linear(self.hidden_size, self.num_key_value_heads * self.head_dim, bias=True)
         self.v_proj = mint.nn.Linear(self.hidden_size, self.num_key_value_heads * self.head_dim, bias=True)
         self.o_proj = mint.nn.Linear(self.num_heads * self.head_dim, self.hidden_size, bias=False)
-        # self.sliding_window = config.sliding_window if config.layer_types[layer_idx] == "sliding_attention" else None # TODO
-        self.sliding_window = None
+        self.sliding_window = config.sliding_window if config.layer_types[layer_idx] == "sliding_attention" else None
 
         self.rotary_emb = Qwen2_5OmniRotaryEmbedding(config=config)
 
@@ -1411,6 +1410,9 @@ class Qwen2_5OmniAttention(nn.Cell):
         attention_interface: Callable = eager_attention_forward
         if self.config._attn_implementation != "eager":
             attention_interface = ALL_ATTENTION_FUNCTIONS[self.config._attn_implementation]
+
+        if (self.config._attn_implementation == "flash_attention_2") and (self.is_causal and q_len > 1):
+            attention_mask = mint.tril(mint.ones((query_states.shape[-2], query_states.shape[-2]), dtype=ms.bool_))
 
         attn_output, attn_weights = attention_interface(
             self,
@@ -1566,7 +1568,7 @@ class Qwen2_5OmniThinkerTextModel(Qwen2_5OmniPreTrainedModel):
         self._attn_implementation = config._attn_implementation
         self.norm = Qwen2RMSNorm(config.hidden_size, eps=config.rms_norm_eps)
         self.rotary_emb = Qwen2_5OmniRotaryEmbedding(config=config)
-        # self.has_sliding_layers = "sliding_attention" in self.config.layer_types # TODO
+        self.has_sliding_layers = "sliding_attention" in self.config.layer_types
 
         self.gradient_checkpointing = False  # TODO
         # Initialize weights and apply final processing
@@ -1641,8 +1643,8 @@ class Qwen2_5OmniThinkerTextModel(Qwen2_5OmniPreTrainedModel):
                 "full_attention": create_causal_mask(**mask_kwargs),
             }
             # The sliding window alternating layers are not always activated depending on the config
-            # if self.has_sliding_layers: # TODO: uncomment this when sliding attention is implemented
-            #     causal_mask_mapping["sliding_attention"] = create_sliding_window_causal_mask(**mask_kwargs)
+            if self.has_sliding_layers:
+                causal_mask_mapping["sliding_attention"] = create_sliding_window_causal_mask(**mask_kwargs)
 
         hidden_states = inputs_embeds
 
@@ -1797,17 +1799,17 @@ class Qwen2_5OmniThinkerForConditionalGeneration(Qwen2_5OmniPreTrainedModelForCo
     def __init__(self, config: Qwen2_5OmniThinkerConfig):
         super().__init__(config)
         # FIXME: currently, the attn_implementation config is not passed to the children class, so we need to set them manually
-        # config.audio_config._attn_implementation = config._attn_implementation
+        config.audio_config._attn_implementation = config._attn_implementation
         self.audio_tower = Qwen2_5OmniAudioEncoder._from_config(
             config.audio_config, attn_implementation=config._attn_implementation
         )
-        # config.vision_config._attn_implementation = config._attn_implementation
+        config.vision_config._attn_implementation = config._attn_implementation
         self.visual = Qwen2_5OmniVisionEncoder._from_config(
             config.vision_config, attn_implementation=config._attn_implementation
         )
 
         self.vocab_size = config.text_config.vocab_size
-        # config.text_config._attn_implementation = config._attn_implementation
+        config.text_config._attn_implementation = config._attn_implementation
         self.model = Qwen2_5OmniThinkerTextModel._from_config(
             config.text_config, attn_implementation=config._attn_implementation
         )
@@ -1939,7 +1941,7 @@ class Qwen2_5OmniThinkerForConditionalGeneration(Qwen2_5OmniPreTrainedModelForCo
             The temporal, height and width of feature shape of each image in LLM.
         video_grid_thw (`ms.Tensor` of shape `(num_videos, 3)`, *optional*):
             The temporal, height and width of feature shape of each video in LLM.
-        feature_attention_mask (`torch.Tensor` of shape `(batch_size, feature_sequence_length)`, *optional*):
+        feature_attention_mask (`ms.Tensor` of shape `(batch_size, feature_sequence_length)`, *optional*):
             Mask to avoid performing attention on padding feature indices. Mask values selected in `[0, 1]`:
 
             - 1 for tokens that are **not masked**,
@@ -2216,7 +2218,7 @@ class Qwen2_5OmniTalkerModel(Qwen2_5OmniPreTrainedModel):
         self._attn_implementation = config._attn_implementation
         self.norm = Qwen2RMSNorm(config.hidden_size, eps=config.rms_norm_eps)
         self.rotary_emb = Qwen2_5OmniRotaryEmbedding(config=config)
-        # self.has_sliding_layers = "sliding_attention" in self.config.layer_types # TODO
+        self.has_sliding_layers = "sliding_attention" in self.config.layer_types
 
         self.gradient_checkpointing = False
         # Initialize weights and apply final processing
@@ -2291,8 +2293,8 @@ class Qwen2_5OmniTalkerModel(Qwen2_5OmniPreTrainedModel):
                 "full_attention": create_causal_mask(**mask_kwargs),
             }
             # The sliding window alternating layers are not always activated depending on the config
-            # if self.has_sliding_layers:
-            #     causal_mask_mapping["sliding_attention"] = create_sliding_window_causal_mask(**mask_kwargs)
+            if self.has_sliding_layers:
+                causal_mask_mapping["sliding_attention"] = create_sliding_window_causal_mask(**mask_kwargs)
 
         hidden_states = inputs_embeds
 
@@ -3754,11 +3756,11 @@ class Qwen2_5OmniToken2WavModel(Qwen2_5OmniPreTrainedModel):
                 "Qwen2_5OmniToken2WavModel does not support eager attention implementation, fall back to sdpa"
             )
             attn_impl = "sdpa"
-        # config.dit_config._attn_implementation = attn_impl # FIXME: remove
+        config.dit_config._attn_implementation = attn_impl
         self.code2wav_dit_model = Qwen2_5OmniToken2WavDiTModel._from_config(
             config.dit_config, attn_implementation=attn_impl
         )
-        # config.bigvgan_config._attn_implementation = attn_impl # FIXME: remove
+        config.bigvgan_config._attn_implementation = attn_impl
         self.code2wav_bigvgan_model = Qwen2_5OmniToken2WavBigVGANModel._from_config(
             config.bigvgan_config, attn_implementation=attn_impl
         )
@@ -3815,8 +3817,8 @@ class Qwen2_5OmniForConditionalGeneration(Qwen2_5OmniPreTrainedModel, Generation
 
     def __init__(self, config):
         super().__init__(config)
-
-        config.thinker_config._attn_implementation = config._attn_implementation  # TODO: double check
+        # FIXME: currently, the attn_implementation config is not passed to the children class, so we need to set them manually
+        config.thinker_config._attn_implementation = config._attn_implementation
         self.thinker = Qwen2_5OmniThinkerForConditionalGeneration(config.thinker_config)
 
         self.has_talker = config.enable_audio_output
@@ -3826,8 +3828,8 @@ class Qwen2_5OmniForConditionalGeneration(Qwen2_5OmniPreTrainedModel, Generation
         self.post_init()
 
     def enable_talker(self):
-        self.config.talker_config._attn_implementation = self.config._attn_implementation  # TODO: double check
-        self.config.token2wav_config._attn_implementation = self.config._attn_implementation  # TODO: double check
+        self.config.talker_config._attn_implementation = self.config._attn_implementation
+        self.config.token2wav_config._attn_implementation = self.config._attn_implementation
         self.talker = Qwen2_5OmniTalkerForConditionalGeneration(self.config.talker_config)
         self.token2wav = Qwen2_5OmniToken2WavModel(self.config.token2wav_config)
         self.token2wav.float()
@@ -4020,7 +4022,7 @@ class Qwen2_5OmniForConditionalGeneration(Qwen2_5OmniPreTrainedModel, Generation
                 [audio_ids_mask.sum().item(), embeds_to_talker.shape[-1]],
                 dtype=embeds_to_talker.dtype,
             )
-            embeds_to_talker.masked_scatter_(audio_mask, audio_mask_tensor)
+            embeds_to_talker.float().masked_scatter(audio_mask, audio_mask_tensor.float()).to(embeds_to_talker.dtype)
         if thinker_kwargs.get("pixel_values", None) is not None:
             image_ids_mask = input_ids == self.config.thinker_config.image_token_index
             image_mask = image_ids_mask.unsqueeze(-1).expand_as(embeds_to_talker)
@@ -4028,7 +4030,7 @@ class Qwen2_5OmniForConditionalGeneration(Qwen2_5OmniPreTrainedModel, Generation
                 [image_ids_mask.sum().item(), embeds_to_talker.shape[-1]],
                 dtype=embeds_to_talker.dtype,
             )
-            embeds_to_talker.masked_scatter_(image_mask, image_mask_tensor)
+            embeds_to_talker.float().masked_scatter(image_mask, image_mask_tensor.float()).to(embeds_to_talker.dtype)
         if thinker_kwargs.get("pixel_values_videos", None) is not None:
             video_ids_mask = input_ids == self.config.thinker_config.video_token_index
             video_mask = video_ids_mask.unsqueeze(-1).expand_as(embeds_to_talker)
@@ -4036,7 +4038,7 @@ class Qwen2_5OmniForConditionalGeneration(Qwen2_5OmniPreTrainedModel, Generation
                 [video_ids_mask.sum().item(), embeds_to_talker.shape[-1]],
                 dtype=embeds_to_talker.dtype,
             )
-            embeds_to_talker.masked_scatter_(video_mask, video_mask_tensor)
+            embeds_to_talker.float().masked_scatter(video_mask, video_mask_tensor.float()).to(embeds_to_talker.dtype)
 
         processed_thinker_hidden = (
             (embeds_to_talker,) + thinker_result.hidden_states[0][1:],
