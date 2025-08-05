@@ -243,6 +243,13 @@ _import_structure = {
         "WuerstchenPriorPipeline",
     ],
     "wan": ["WanPipeline", "WanImageToVideoPipeline", "WanVideoToVideoPipeline"],
+    "skyreels_v2": [
+        "SkyReelsV2DiffusionForcingPipeline",
+        "SkyReelsV2DiffusionForcingImageToVideoPipeline",
+        "SkyReelsV2DiffusionForcingVideoToVideoPipeline",
+        "SkyReelsV2ImageToVideoPipeline",
+        "SkyReelsV2Pipeline",
+    ],
     "pipeline_utils": [
         "AudioPipelineOutput",
         "DiffusionPipeline",
@@ -391,6 +398,13 @@ if TYPE_CHECKING:
     from .sana import SanaControlNetPipeline, SanaPipeline, SanaSprintImg2ImgPipeline, SanaSprintPipeline
     from .semantic_stable_diffusion import SemanticStableDiffusionPipeline
     from .shap_e import ShapEImg2ImgPipeline, ShapEPipeline
+    from .skyreels_v2 import (
+        SkyReelsV2DiffusionForcingImageToVideoPipeline,
+        SkyReelsV2DiffusionForcingPipeline,
+        SkyReelsV2DiffusionForcingVideoToVideoPipeline,
+        SkyReelsV2ImageToVideoPipeline,
+        SkyReelsV2Pipeline,
+    )
     from .stable_audio import StableAudioPipeline, StableAudioProjectionModel
     from .stable_cascade import StableCascadeCombinedPipeline, StableCascadeDecoderPipeline, StableCascadePriorPipeline
     from .stable_diffusion import (
