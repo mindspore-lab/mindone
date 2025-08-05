@@ -26,6 +26,7 @@ from mindone.diffusers.utils.testing_utils import load_numpy_from_local_file, sl
 from ..pipeline_test_utils import (
     THRESHOLD_FP16,
     THRESHOLD_FP32,
+    THRESHOLD_PIXEL,
     PipelineTesterMixin,
     get_module,
     get_pipeline_components,
@@ -198,8 +199,6 @@ class CogVideoXPipelineIntegrationTests(PipelineTesterMixin, unittest.TestCase):
             height=480,
             width=720,
             num_frames=16,
-            num_inference_steps=2,
-            output_type="np",
         )[
             0
         ][0]
@@ -207,7 +206,6 @@ class CogVideoXPipelineIntegrationTests(PipelineTesterMixin, unittest.TestCase):
         expected_video = load_numpy_from_local_file(
             "mindone-testing-arrays",
             f"cogvideo_t2v_{dtype}.npy",
-            subfolder="cogvideo",
+            subfolder="cogvideox",
         )
-        threshold = THRESHOLD_FP32 if dtype == "float32" else THRESHOLD_FP16
-        assert np.max(np.linalg.norm(expected_video - video) / np.linalg.norm(expected_video)) < threshold
+        assert np.mean(np.abs(np.array(video, dtype=np.float32) - expected_video)) < THRESHOLD_PIXEL

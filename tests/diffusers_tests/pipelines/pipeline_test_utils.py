@@ -53,7 +53,10 @@ def convert_state_dict(m, state_dict_pt):
     state_dict_ms = {}
     for name_pt, data_pt in state_dict_pt.items():
         name_ms, data_mapping = mappings.get(name_pt, (name_pt, lambda x: x))
-        data_ms = data_mapping(ms.Tensor.from_numpy(data_pt.numpy()))
+        if data_pt.device.type == "meta":
+            continue
+        else:
+            data_ms = data_mapping(ms.Tensor.from_numpy(data_pt.numpy()))
         if ops.is_floating_point(data_ms) and data_ms.dtype != dtype:
             data_ms = data_ms.to(dtype)
         data_ms = ms.Parameter(data_ms, name=name_ms)
