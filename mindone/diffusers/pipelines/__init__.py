@@ -90,6 +90,7 @@ _import_structure = {
         "FluxPipeline",
         "FluxPriorReduxPipeline",
         "ReduxImageEncoder",
+        "FluxKontextInpaintPipeline",
     ],
     "hunyuandit": ["HunyuanDiTPipeline"],
     "hunyuan_video": [
@@ -314,6 +315,7 @@ if TYPE_CHECKING:
         FluxFillPipeline,
         FluxImg2ImgPipeline,
         FluxInpaintPipeline,
+        FluxKontextInpaintPipeline,
         FluxPipeline,
         FluxPriorReduxPipeline,
         ReduxImageEncoder,
