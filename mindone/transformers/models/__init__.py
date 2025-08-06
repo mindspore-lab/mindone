@@ -34,6 +34,7 @@ from . import (
     clap,
     clip,
     convbert,
+    dpr,
     dpt,
     fuyu,
     gemma,
