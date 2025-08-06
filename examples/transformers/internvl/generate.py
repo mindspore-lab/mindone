@@ -5,6 +5,13 @@ from transformers import InternVLProcessor
 from mindone.transformers import InternVLForConditionalGeneration
 from mindone.transformers.image_utils import load_image
 
+# FIXME: monkey patch to bypass video processor loading
+from transformers.models.auto import video_processing_auto
+def _skip_video_from_pretrained(*args, **kwargs):
+    raise transformers.AutoConfigException()
+
+video_processing_auto.AutoVideoProcessor.from_pretrained = classmethod(_skip_video_from_pretrained)
+
 # Load images (or directly use PIL.Image.open() if preferred)
 image1 = load_image("https://cdn.britannica.com/61/93061-050-99147DCE/Statue-of-Liberty-Island-New-York-Bay.jpg")
 image2 = load_image("https://cdn.britannica.com/59/94459-050-DBA42467/Skyline-Chicago.jpg")
