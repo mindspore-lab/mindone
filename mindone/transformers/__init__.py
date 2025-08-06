@@ -623,6 +623,7 @@ from .models.xlm_roberta_xl import (
 )
 from .pipelines import TextGenerationPipeline, pipeline
 from .processing_utils import ProcessorMixin
+from .trainer import Trainer
 
 if version.parse(transformers.__version__) >= version.parse("4.51.0"):
     from .models.qwen3 import Qwen3ForCausalLM, Qwen3Model, Qwen3PreTrainedModel

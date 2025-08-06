@@ -57,6 +57,62 @@ logger = logging.get_logger(__name__)
 _CONFIG_FOR_DOC = "Qwen2_5_VLConfig"
 
 
+def _flash_attention_forward(
+    query_states: Tensor,
+    key_states: Tensor,
+    value_states: Tensor,
+    attention_mask: Tensor,
+    query_length: int,
+    is_causal: bool,
+    dropout: float = 0.0,
+    position_ids: Optional[Tensor] = None,
+    softmax_scale: Optional[float] = None,
+    sliding_window: Optional[int] = None,
+    use_top_left_mask: bool = False,
+    softcap: Optional[float] = None,
+    deterministic: bool = None,
+    cu_seq_lens_q: Optional[Tensor] = None,
+    cu_seq_lens_k: Optional[Tensor] = None,
+    max_length_q: Optional[int] = None,
+    max_length_k: Optional[int] = None,
+    target_dtype: Optional[ms.Type] = None,
+    **kwargs,
+):
+    bsz, num_heads, _, _ = query_states.shape
+    if is_causal and query_length > 1:
+        causal_mask = mint.triu(mint.ones((bsz, 1, query_length, key_states.shape[2]), dtype=ms.bool_), diagonal=1)
+    else:
+        causal_mask = None
+
+    if attention_mask is not None:
+        attention_mask = ~attention_mask[:, None, None, :].to(ms.bool_)
+        if causal_mask is not None:
+            attention_mask = attention_mask | causal_mask
+        else:
+            attention_mask = mint.tile(attention_mask, (1, 1, query_length, 1))
+    else:
+        attention_mask = causal_mask
+
+    if softmax_scale is None:
+        scalar_value = 1 / math.sqrt(query_states.shape[-1])
+    else:
+        scalar_value = softmax_scale
+
+    attn_output = ops.flash_attention_score(
+        query_states,
+        key_states,
+        value_states,
+        num_heads,
+        attn_mask=attention_mask,
+        keep_prob=1 - dropout,
+        scalar_value=scalar_value,
+        input_layout="BNSD",
+    )
+
+    attn_output = attn_output.transpose(1, 2)
+    return attn_output
+
+
 def rotate_half_flashatt(x, interleaved=False):
     if not interleaved:
         x1, x2 = x.chunk(2, dim=-1)
@@ -790,32 +846,18 @@ class Qwen2_5_VLFlashAttention2(Qwen2_5_VLAttention):
 
         assert sliding_window is None, "sliding_window is not supported yet."
 
-        if self.is_causal and q_len > 1:
-            causal_mask = mint.triu(mint.ones((bsz, 1, q_len, key_states.shape[2]), dtype=ms.bool_), diagonal=1)
-        else:
-            causal_mask = None
-
-        if attention_mask is not None:
-            attention_mask = ~attention_mask[:, None, None, :].to(ms.bool_)
-            if causal_mask is not None:
-                attention_mask = attention_mask | causal_mask
-            else:
-                attention_mask = mint.tile(attention_mask, (1, 1, q_len, 1))
-        else:
-            attention_mask = causal_mask
-
-        attn_output = ops.flash_attention_score(
+        attn_output = _flash_attention_forward(
             query_states,
             key_states,
             value_states,
-            self.num_heads,
-            attn_mask=attention_mask,
-            keep_prob=1 - dropout_rate,
-            scalar_value=1 / math.sqrt(query_states.shape[-1]),
-            input_layout="BNSD",
+            attention_mask,
+            q_len,
+            dropout=dropout_rate,
+            sliding_window=sliding_window,
+            is_causal=self.is_causal,
         )
 
-        attn_output = attn_output.transpose(1, 2).reshape(bsz, q_len, self.hidden_size).contiguous()
+        attn_output = attn_output.reshape(bsz, q_len, self.hidden_size).contiguous()
         attn_output = self.o_proj(attn_output)
 
         if not output_attentions:
