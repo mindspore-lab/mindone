@@ -59,6 +59,7 @@ from mindone.models.utils import normal_, ones_, zeros_
 from ...activations import ACT2FN
 from ...cache_utils import Cache, DynamicCache
 from ...generation import GenerationMixin
+from ...integrations import PeftAdapterMixin
 from ...masking_utils import create_causal_mask, create_sliding_window_causal_mask
 from ...mindspore_adapter import dtype_to_max, dtype_to_min
 from ...mindspore_adapter._conv import Conv1d, ConvTranspose1d, conv1d, conv_transpose1d
@@ -1791,7 +1792,9 @@ QWEN2_5OMNITHINKER_INPUTS_DOCSTRING = r"""
     """The Qwen2.5OmniThinker model which consists of a audio backbone and a language model.""",
     QWEN2_5OMNI_START_DOCSTRING.format(config_class="Qwen2_5OmniThinkerConfig"),
 )
-class Qwen2_5OmniThinkerForConditionalGeneration(Qwen2_5OmniPreTrainedModelForConditionalGeneration, GenerationMixin):
+class Qwen2_5OmniThinkerForConditionalGeneration(
+    Qwen2_5OmniPreTrainedModelForConditionalGeneration, GenerationMixin, PeftAdapterMixin
+):
     config_class = Qwen2_5OmniThinkerConfig
     base_model_prefix = "thinker"
     _no_split_modules = ["Qwen2_5OmniAudioEncoder", "Qwen2_5OmniVisionEncoder"]
@@ -4022,7 +4025,11 @@ class Qwen2_5OmniForConditionalGeneration(Qwen2_5OmniPreTrainedModel, Generation
                 [audio_ids_mask.sum().item(), embeds_to_talker.shape[-1]],
                 dtype=embeds_to_talker.dtype,
             )
-            embeds_to_talker.float().masked_scatter(audio_mask, audio_mask_tensor.float()).to(embeds_to_talker.dtype)
+            embeds_to_talker = (
+                embeds_to_talker.float()
+                .masked_scatter(audio_mask, audio_mask_tensor.float())
+                .to(embeds_to_talker.dtype)
+            )
         if thinker_kwargs.get("pixel_values", None) is not None:
             image_ids_mask = input_ids == self.config.thinker_config.image_token_index
             image_mask = image_ids_mask.unsqueeze(-1).expand_as(embeds_to_talker)
@@ -4030,7 +4037,11 @@ class Qwen2_5OmniForConditionalGeneration(Qwen2_5OmniPreTrainedModel, Generation
                 [image_ids_mask.sum().item(), embeds_to_talker.shape[-1]],
                 dtype=embeds_to_talker.dtype,
             )
-            embeds_to_talker.float().masked_scatter(image_mask, image_mask_tensor.float()).to(embeds_to_talker.dtype)
+            embeds_to_talker = (
+                embeds_to_talker.float()
+                .masked_scatter(image_mask, image_mask_tensor.float())
+                .to(embeds_to_talker.dtype)
+            )
         if thinker_kwargs.get("pixel_values_videos", None) is not None:
             video_ids_mask = input_ids == self.config.thinker_config.video_token_index
             video_mask = video_ids_mask.unsqueeze(-1).expand_as(embeds_to_talker)
@@ -4038,7 +4049,11 @@ class Qwen2_5OmniForConditionalGeneration(Qwen2_5OmniPreTrainedModel, Generation
                 [video_ids_mask.sum().item(), embeds_to_talker.shape[-1]],
                 dtype=embeds_to_talker.dtype,
             )
-            embeds_to_talker.float().masked_scatter(video_mask, video_mask_tensor.float()).to(embeds_to_talker.dtype)
+            embeds_to_talker = (
+                embeds_to_talker.float()
+                .masked_scatter(video_mask, video_mask_tensor.float())
+                .to(embeds_to_talker.dtype)
+            )
 
         processed_thinker_hidden = (
             (embeds_to_talker,) + thinker_result.hidden_states[0][1:],

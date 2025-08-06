@@ -137,11 +137,11 @@ class Qwen2_5OmniProcessor(ProcessorMixin):
                 The sequence or batch of sequences to be encoded. Each sequence can be a string or a list of strings
                 (pretokenized string). If the sequences are provided as list of strings (pretokenized), you must set
                 `is_split_into_words=True` (to lift the ambiguity with a batch of sequences).
-            images (`PIL.Image.Image`, `np.ndarray`, `torch.Tensor`, `list[PIL.Image.Image]`, `list[np.ndarray]`, `list[torch.Tensor]`):
-                The image or batch of images to be prepared. Each image can be a PIL image, NumPy array or PyTorch
+            images (`PIL.Image.Image`, `np.ndarray`, `mindspore.Tensor`, `list[PIL.Image.Image]`, `list[np.ndarray]`, `list[mindspore.Tensor]`):
+                The image or batch of images to be prepared. Each image can be a PIL image, NumPy array or MindSpore
                 tensor. Both channels-first and channels-last formats are supported.
-            videos (`np.ndarray`, `torch.Tensor`, `list[np.ndarray]`, `list[torch.Tensor]`):
-                The image or batch of videos to be prepared. Each video can be a 4D NumPy array or PyTorch
+            videos (`np.ndarray`, `mindspore.Tensor`, `list[np.ndarray]`, `list[mindspore.Tensor]`):
+                The image or batch of videos to be prepared. Each video can be a 4D NumPy array or MindSpore
                 tensor, or a nested list of 3D frames. Both channels-first and channels-last formats are supported.
             audio (`np.ndarray`, `list[np.ndarray]`):
                 The audio or batch of audio to be prepared. Each audio can be a NumPy array.
