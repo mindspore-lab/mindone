@@ -687,7 +687,7 @@ def main():
 
     # Evaluate and save checkpoint at the end of training
     if rank_id == 0:
-        save_checkpoint(model, config, global_step)
+        save_checkpoint(model, config, global_step, uni_prompting)
 
 
 def visualize_predictions(
