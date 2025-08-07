@@ -64,7 +64,7 @@ if TYPE_CHECKING:
 logger = logging.get_logger(__name__)
 
 
-def no_collate_fn(items):
+def no_collate_fn(items, BatchInfo):
     if len(items) != 1:
         raise ValueError("This collate_fn is meant to be used with batch_size=1")
     return items[0]
@@ -123,7 +123,7 @@ def _pad(items, key, padding_value, padding_side):
         return [item[key] for item in items]
 
 
-def pad_collate_fn(tokenizer, feature_extractor):
+def pad_collate_fn(tokenizer, feature_extractor, BatchInfo):
     # Tokenizer
     t_padding_side = None
     # Feature extractor
@@ -1233,8 +1233,13 @@ class Pipeline(_ScikitCompat, PushToHubMixin):
             logger.info("Disabling tokenizer parallelism, we're using DataLoader multithreading already")
             os.environ["TOKENIZERS_PARALLELISM"] = "false"
         # TODO hack by collating feature_extractor and image_processor
-        # fixme add collate_fn/feature_extractor to align with transformers
-        dataloader = GeneratorDataset(dataset, column_names=["example"], num_parallel_workers=num_workers)
+        feature_extractor = self.feature_extractor if self.feature_extractor is not None else self.image_processor
+        collate_fn = no_collate_fn if batch_size == 1 else pad_collate_fn(self.tokenizer, feature_extractor)
+        dataloader = (
+            GeneratorDataset(dataset, column_names=["item"], num_parallel_workers=num_workers)
+            .batch(batch_size, per_batch_map=collate_fn)
+            .create_dict_iterator()
+        )
         model_iterator = PipelineIterator(dataloader, self._construct, forward_params, loader_batch_size=batch_size)
         final_iterator = PipelineIterator(model_iterator, self.postprocess, postprocess_params)
         return final_iterator
@@ -1350,8 +1355,13 @@ class ChunkPipeline(Pipeline):
         dataset = PipelineChunkIterator(inputs, self.preprocess, preprocess_params)
 
         # TODO hack by collating feature_extractor and image_processor
-        # fixme add collate_fn/feature_extractor to align with transformers
-        dataloader = GeneratorDataset(dataset, column_names=["example"], num_parallel_workers=num_workers)
+        feature_extractor = self.feature_extractor if self.feature_extractor is not None else self.image_processor
+        collate_fn = no_collate_fn if batch_size == 1 else pad_collate_fn(self.tokenizer, feature_extractor)
+        dataloader = (
+            GeneratorDataset(dataset, column_names=["item"], num_parallel_workers=num_workers)
+            .batch(batch_size, per_batch_map=collate_fn)
+            .create_dict_iterator()
+        )
         model_iterator = PipelinePackIterator(dataloader, self._construct, forward_params, loader_batch_size=batch_size)
         final_iterator = PipelineIterator(model_iterator, self.postprocess, postprocess_params)
         return final_iterator

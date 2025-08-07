@@ -496,7 +496,9 @@ class QuestionAnsweringPipeline(ChunkPipeline):
             yield {"example": example, "is_last": is_last, **fw_args, **others}
 
     def _forward(self, inputs):
-        inputs = inputs[0]
+        # fixme this is caused by mindspore dataset create_iterator()
+        inputs = inputs["item"]
+
         example = inputs["example"]
         model_inputs = {k: inputs[k] for k in self.tokenizer.model_input_names}
         # `XXXForSequenceClassification` models should not use `use_cache=True` even if it's supported
