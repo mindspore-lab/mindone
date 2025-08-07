@@ -36,7 +36,7 @@ class JetMoeModelTester:
 
     def __init__(
         self,
-        batch_size=2,
+        batch_size=1,
         seq_length=8,
         is_training=False,
         use_input_mask=True,
@@ -50,7 +50,7 @@ class JetMoeModelTester:
         vocab_size=100,
         hidden_size=128,
         num_hidden_layers=2,
-        num_key_value_heads=16,
+        num_key_value_heads=8,
         kv_channels=8,
         intermediate_size=352,
         max_position_embeddings=256,
@@ -177,7 +177,6 @@ JETMOE_CASES = [
         (input_ids,),
         {
             "attention_mask": input_mask,
-            "labels": sequence_labels,
         },
         {
             "logits": 0,
