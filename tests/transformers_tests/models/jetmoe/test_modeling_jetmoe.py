@@ -60,9 +60,8 @@ class JetMoeModelTester:
         use_cache=True,
         bos_token_id=1,
         eos_token_id=2,
-        tie_word_embeddings=True,
+        output_router_logits=False,
         rope_theta=10000,
-        rope_scaling=None,
         attention_dropout=0.0,
         num_local_experts=4,
         num_experts_per_tok=2,
@@ -78,28 +77,29 @@ class JetMoeModelTester:
         self.type_sequence_label_size = type_sequence_label_size
         self.num_labels = num_labels
         self.num_choices = num_choices
+
         self.vocab_size = vocab_size
         self.hidden_size = hidden_size
         self.num_hidden_layers = num_hidden_layers
+        self.num_attention_heads = num_key_value_heads * num_experts_per_tok
         self.num_key_value_heads = num_key_value_heads
         self.kv_channels = kv_channels
         self.intermediate_size = intermediate_size
-        self.activation_function = activation_function
         self.max_position_embeddings = max_position_embeddings
-        self.initializer_range = initializer_range
-        self.rms_norm_eps = rms_norm_eps
-        self.use_cache = use_cache
-        self.bos_token_id = bos_token_id
-        self.eos_token_id = eos_token_id
-        self.tie_word_embeddings = tie_word_embeddings
-        self.rope_theta = rope_theta
-        self.rope_scaling = rope_scaling
-        self.attention_dropout = attention_dropout
+        self.activation_function = activation_function
         self.num_local_experts = num_local_experts
         self.num_experts_per_tok = num_experts_per_tok
+        self.output_router_logits = output_router_logits
         self.aux_loss_coef = aux_loss_coef
+        self.use_cache = use_cache
+        self.initializer_range = initializer_range
+        self.attention_dropout = attention_dropout
 
-        self.head_dim = self.kv_channels
+        self.bos_token_id = bos_token_id
+        self.eos_token_id = eos_token_id
+
+        self.rope_theta = rope_theta
+        self.rms_norm_eps = rms_norm_eps
 
     def prepare_config_and_inputs(self):
         input_ids = ids_numpy([self.batch_size, self.seq_length], self.vocab_size)
@@ -132,6 +132,7 @@ class JetMoeModelTester:
             vocab_size=self.vocab_size,
             hidden_size=self.hidden_size,
             intermediate_size=self.intermediate_size,
+            num_attention_heads=self.num_attention_heads,
             num_hidden_layers=self.num_hidden_layers,
             num_key_value_heads=self.num_key_value_heads,
             kv_channels=self.kv_channels,
@@ -142,13 +143,12 @@ class JetMoeModelTester:
             use_cache=self.use_cache,
             bos_token_id=self.bos_token_id,
             eos_token_id=self.eos_token_id,
-            tie_word_embeddings=self.tie_word_embeddings,
             rope_theta=self.rope_theta,
-            rope_scaling=self.rope_scaling,
             attention_dropout=self.attention_dropout,
             num_local_experts=self.num_local_experts,
             num_experts_per_tok=self.num_experts_per_tok,
             aux_loss_coef=self.aux_loss_coef,
+            output_router_logits=self.output_router_logits,
         )
 
 
