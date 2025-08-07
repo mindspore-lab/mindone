@@ -58,7 +58,6 @@ class JetMoeModelTester:
         initializer_range=0.02,
         rms_norm_eps=1e-6,
         use_cache=True,
-        pad_token_id=0,
         bos_token_id=1,
         eos_token_id=2,
         tie_word_embeddings=True,
@@ -141,7 +140,6 @@ class JetMoeModelTester:
             initializer_range=self.initializer_range,
             rms_norm_eps=self.rms_norm_eps,
             use_cache=self.use_cache,
-            pad_token_id=self.pad_token_id,
             bos_token_id=self.bos_token_id,
             eos_token_id=self.eos_token_id,
             tie_word_embeddings=self.tie_word_embeddings,
@@ -168,17 +166,18 @@ model_tester = JetMoeModelTester()
 
 JETMOE_CASES = [
     [
-        "JetMoeModel",
-        "transformers.JetMoeModel",
-        "mindone.transformers.JetMoeModel",
+        "JetMoeForSequenceClassification",
+        "transformers.JetMoeForSequenceClassification",
+        "mindone.transformers.JetMoeForSequenceClassification",
         (config,),
         {},
         (input_ids,),
         {
             "attention_mask": input_mask,
+            "labels": sequence_labels,
         },
         {
-            "last_hidden_state": 0,
+            "logits": 0,
         },
     ],
 ]
