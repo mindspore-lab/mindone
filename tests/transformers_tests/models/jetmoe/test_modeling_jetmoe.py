@@ -169,6 +169,34 @@ model_tester = JetMoeModelTester()
 
 JETMOE_CASES = [
     [
+        "JetMoeModel",
+        "transformers.JetMoeModel",
+        "mindone.transformers.JetMoeModel",
+        (config,),
+        {},
+        (input_ids,),
+        {
+            "attention_mask": input_mask,
+        },
+        {
+            "last_hidden_state": 0,
+        },
+    ],
+    [
+        "JetMoeForCausalLM",
+        "transformers.JetMoeForCausalLM",
+        "mindone.transformers.JetMoeForCausalLM",
+        (config,),
+        {},
+        (input_ids,),
+        {
+            "attention_mask": input_mask,
+        },
+        {
+            "logits": 0,
+        },
+    ],
+    [
         "JetMoeForSequenceClassification",
         "transformers.JetMoeForSequenceClassification",
         "mindone.transformers.JetMoeForSequenceClassification",
