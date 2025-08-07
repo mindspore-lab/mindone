@@ -622,6 +622,10 @@ if version.parse(transformers.__version__) >= version.parse("4.53.0"):
     MODEL_FOR_QUESTION_ANSWERING_MAPPING_NAMES.update({"minimax": "MiniMaxForQuestionAnswering"})
     MODEL_FOR_TOKEN_CLASSIFICATION_MAPPING_NAMES.update({"minimax": "MiniMaxForTokenClassification"})
 
+if version.parse(transformers.__version__) >= version.parse("4.55.0"):
+    MODEL_MAPPING_NAMES.update({"gpt_oss": "GptOssModel"})
+    MODEL_FOR_CAUSAL_LM_MAPPING_NAMES.update({"gpt_oss": "GptOssForCausalLM"})
+
 MODEL_MAPPING = _LazyAutoMapping(CONFIG_MAPPING_NAMES, MODEL_MAPPING_NAMES)
 MODEL_FOR_PRETRAINING_MAPPING = _LazyAutoMapping(CONFIG_MAPPING_NAMES, MODEL_FOR_PRETRAINING_MAPPING_NAMES)
 MODEL_WITH_LM_HEAD_MAPPING = _LazyAutoMapping(CONFIG_MAPPING_NAMES, MODEL_WITH_LM_HEAD_MAPPING_NAMES)
