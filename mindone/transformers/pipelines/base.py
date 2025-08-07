@@ -1233,9 +1233,7 @@ class Pipeline(_ScikitCompat, PushToHubMixin):
             logger.info("Disabling tokenizer parallelism, we're using DataLoader multithreading already")
             os.environ["TOKENIZERS_PARALLELISM"] = "false"
         # TODO hack by collating feature_extractor and image_processor
-        feature_extractor = self.feature_extractor if self.feature_extractor is not None else self.image_processor
-        collate_fn = no_collate_fn if batch_size == 1 else pad_collate_fn(self.tokenizer, feature_extractor)
-        dataloader = GeneratorDataset(dataset, num_workers=num_workers, batch_size=batch_size, collate_fn=collate_fn)
+        dataloader = GeneratorDataset(dataset, column_names=["example"], num_parallel_workers=num_workers)
         model_iterator = PipelineIterator(dataloader, self._construct, forward_params, loader_batch_size=batch_size)
         final_iterator = PipelineIterator(model_iterator, self.postprocess, postprocess_params)
         return final_iterator
@@ -1246,7 +1244,7 @@ class Pipeline(_ScikitCompat, PushToHubMixin):
 
         if num_workers is None:
             if self._num_workers is None:
-                num_workers = 0
+                num_workers = 1
             else:
                 num_workers = self._num_workers
         if batch_size is None:
@@ -1351,9 +1349,7 @@ class ChunkPipeline(Pipeline):
         dataset = PipelineChunkIterator(inputs, self.preprocess, preprocess_params)
 
         # TODO hack by collating feature_extractor and image_processor
-        feature_extractor = self.feature_extractor if self.feature_extractor is not None else self.image_processor
-        collate_fn = no_collate_fn if batch_size == 1 else pad_collate_fn(self.tokenizer, feature_extractor)
-        dataloader = GeneratorDataset(dataset, num_workers=num_workers, batch_size=batch_size, collate_fn=collate_fn)
+        dataloader = GeneratorDataset(dataset, column_names=["example"], num_parallel_workers=num_workers)
         model_iterator = PipelinePackIterator(dataloader, self._construct, forward_params, loader_batch_size=batch_size)
         final_iterator = PipelineIterator(model_iterator, self.postprocess, postprocess_params)
         return final_iterator
