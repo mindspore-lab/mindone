@@ -1,4 +1,4 @@
-# Copyright 2024 The HuggingFace Team. All rights reserved.
+# Copyright 2025 The HuggingFace Team. All rights reserved.
 #
 # This code is adapted from https://github.com/huggingface/diffusers
 # with modifications to run diffusers on mindspore.
@@ -295,7 +295,7 @@ class KDownsample2D(nn.Cell):
 
 
 class CogVideoXDownsample3D(nn.Cell):
-    # Todo: Wait for paper relase.
+    # Todo: Wait for paper release.
     r"""
     A 3D Downsampling layer using in [CogVideoX]() by Tsinghua University & ZhipuAI
 
