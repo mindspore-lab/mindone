@@ -28,7 +28,6 @@ from typing import List, Optional, Tuple, Union
 from transformers.models.qwen2_moe.configuration_qwen2_moe import Qwen2MoeConfig
 
 import mindspore
-from mindspore import ops
 from mindspore.ops.operations.nn_ops import FlashAttentionScore as MSFlashAttention
 
 from ...activations import ACT2FN
@@ -407,7 +406,7 @@ class Qwen2MoeFlashAttention2(Qwen2MoeAttention):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
 
-        dropout_rate = 0.0 if not self.training else self.dropout
+        dropout_rate = 0.0 if not self.training else self.attention_dropout
         self.flash_attention = MSFlashAttention(
             scale_value=self.head_dim**-0.5,
             head_num=self.num_heads,
@@ -1173,7 +1172,7 @@ class Qwen2MoeModel(Qwen2MoePreTrainedModel):
                     sliding_attend_mask = mindspore.mint.arange(
                         target_length,
                     ) <= (cache_position.reshape(-1, 1) - config.sliding_window)
-                    diagonal_attend_mask = ops.bitwise_or(
+                    diagonal_attend_mask = mindspore.mint.bitwise_or(
                         diagonal_attend_mask.to(mindspore.uint8), sliding_attend_mask.to(mindspore.uint8)
                     ).to(mindspore.bool_)
             causal_mask *= diagonal_attend_mask

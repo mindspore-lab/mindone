@@ -28,7 +28,6 @@ from transformers.models.qwen3_moe.configuration_qwen3_moe import Qwen3MoeConfig
 from transformers.utils import LossKwargs, logging
 
 import mindspore
-from mindspore import ops
 
 from ...activations import ACT2FN
 from ...cache_utils import Cache, DynamicCache, SlidingWindowCache, StaticCache
@@ -796,7 +795,7 @@ class Qwen3MoeModel(Qwen3MoePreTrainedModel):
                     sliding_attend_mask = mindspore.mint.arange(
                         target_length,
                     ) <= (cache_position.reshape(-1, 1) - config.sliding_window)
-                    diagonal_attend_mask = ops.bitwise_or(
+                    diagonal_attend_mask = mindspore.mint.bitwise_or(
                         diagonal_attend_mask.to(mindspore.uint8), sliding_attend_mask.to(mindspore.uint8)
                     ).to(mindspore.bool_)
             causal_mask *= diagonal_attend_mask
