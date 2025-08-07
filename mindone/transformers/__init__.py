@@ -505,6 +505,14 @@ from .models.gpt_bigcode import (
     GPTBigCodeModel,
     GPTBigCodePreTrainedModel,
 )
+from .models.gpt_neo import (
+    GPTNeoForCausalLM,
+    GPTNeoForQuestionAnswering,
+    GPTNeoForSequenceClassification,
+    GPTNeoForTokenClassification,
+    GPTNeoModel,
+    GPTNeoPreTrainedModel,
+)
 from .models.gpt_neox import (
     GPTNeoXForCausalLM,
     GPTNeoXForQuestionAnswering,
@@ -527,14 +535,6 @@ from .models.gptj import (
     GPTJModel,
     GPTJPreTrainedModel,
 )
-from .models.gpt_neo import (
-    GPTNeoForCausalLM,
-    GPTNeoForQuestionAnswering,
-    GPTNeoForSequenceClassification,
-    GPTNeoForTokenClassification,
-    GPTNeoModel,
-    GPTNeoPreTrainedModel,
-)
 from .models.granite import GraniteForCausalLM, GraniteModel, GranitePreTrainedModel
 from .models.granitemoe import GraniteMoeForCausalLM, GraniteMoeModel, GraniteMoePreTrainedModel
 from .models.granitemoeshared import GraniteMoeSharedForCausalLM, GraniteMoeSharedModel, GraniteMoeSharedPreTrainedModel
@@ -545,6 +545,7 @@ from .models.grounding_dino import (
     GroundingDinoPreTrainedModel,
     GroundingDinoProcessor,
 )
+from .models.groupvit import GroupViTModel, GroupViTPreTrainedModel, GroupViTTextModel, GroupViTVisionModel
 from .models.helium import (
     HeliumForCausalLM,
     HeliumForSequenceClassification,
@@ -753,6 +754,7 @@ from .models.mobilenet_v2 import (
     MobileNetV2ImageProcessorFast,
     MobileNetV2Model,
     MobileNetV2PreTrainedModel,
+)
 from .models.modernbert import (
     ModernBertForMaskedLM,
     ModernBertForSequenceClassification,
@@ -1008,6 +1010,13 @@ from .models.swin import (
     SwinPreTrainedModel,
 )
 from .models.swin2sr import Swin2SRForImageSuperResolution, Swin2SRModel, Swin2SRPreTrainedModel
+from .models.swinv2 import (
+    Swinv2Backbone,
+    Swinv2ForImageClassification,
+    Swinv2ForMaskedImageModeling,
+    Swinv2Model,
+    Swinv2PreTrainedModel,
+)
 from .models.switch_transformers import (
     SwitchTransformersEncoderModel,
     SwitchTransformersForConditionalGeneration,
