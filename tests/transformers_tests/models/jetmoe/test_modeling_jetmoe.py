@@ -48,12 +48,12 @@ class JetMoeModelTester:
         num_choices=4,
         # config
         vocab_size=100,
-        hidden_size=32,
+        hidden_size=128,
         num_hidden_layers=2,
         num_key_value_heads=16,
-        kv_channels=4,
-        intermediate_size=64,
-        max_position_embeddings=512,
+        kv_channels=8,
+        intermediate_size=352,
+        max_position_embeddings=256,
         activation_function="silu",
         num_local_experts=8,
         num_experts_per_tok=2,
@@ -62,6 +62,7 @@ class JetMoeModelTester:
         use_cache=True,
         bos_token_id=1,
         eos_token_id=2,
+        tie_word_embeddings=True,
         rope_theta=10000.0,
         rms_norm_eps=1e-6,
         initializer_range=0.01,
@@ -94,6 +95,7 @@ class JetMoeModelTester:
         self.use_cache = use_cache
         self.initializer_range = initializer_range
         self.attention_dropout = attention_dropout
+        self.tie_word_embeddings = tie_word_embeddings
 
         self.bos_token_id = bos_token_id
         self.eos_token_id = eos_token_id
@@ -144,6 +146,7 @@ class JetMoeModelTester:
             bos_token_id=self.bos_token_id,
             eos_token_id=self.eos_token_id,
             rope_theta=self.rope_theta,
+            tie_word_embeddings=self.tie_word_embeddings,
             attention_dropout=self.attention_dropout,
             num_local_experts=self.num_local_experts,
             num_experts_per_tok=self.num_experts_per_tok,
