@@ -110,7 +110,7 @@ class DocumentQuestionAnsweringPipeline(ChunkPipeline):
     ...     image="https://huggingface.co/spaces/impira/docquery/resolve/2359223c1837a7587402bda0f2643382a6eefeab/invoice.png",
     ...     question="What is the invoice number?",
     ... )
-    [{'score': 0.425, 'answer': 'us-001', 'start': 16, 'end': 16}]
+    [{'score': 0.3579, 'answer': 'us-001', 'start': 15, 'end': 15}]
     ```
 
     Learn more about the basics of using a pipeline in the [pipeline tutorial](../pipeline_tutorial)
@@ -489,7 +489,7 @@ class DocumentQuestionAnsweringPipeline(ChunkPipeline):
                 start=output["start_logits"],
                 end=output["end_logits"],
                 p_mask=output["p_mask"],
-                attention_mask=output["attention_mask"].numpy()
+                attention_mask=output["attention_mask"].asnumpy()
                 if output.get("attention_mask", None) is not None
                 else None,
                 min_null_score=min_null_score,

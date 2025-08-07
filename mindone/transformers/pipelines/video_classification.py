@@ -21,8 +21,6 @@ from typing import List, Union
 import requests
 from transformers.utils import add_end_docstrings, is_av_available, logging, requires_backends
 
-import mindspore as ms
-
 from .base import Pipeline, build_pipeline_init_args
 
 if is_av_available():

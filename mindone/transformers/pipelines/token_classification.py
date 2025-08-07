@@ -98,7 +98,8 @@ class TokenClassificationPipeline(ChunkPipeline):
     >>> sentence = "Je m'appelle jean-baptiste et je vis à montréal"
     >>> tokens = token_classifier(sentence)
     >>> tokens
-    [{'entity_group': 'PER', 'score': 0.9931, 'word': 'jean-baptiste', 'start': 12, 'end': 26}, {'entity_group': 'LOC', 'score': 0.998, 'word': 'montréal', 'start': 38, 'end': 47}]
+    [{'entity_group': 'PER', 'score': 0.9931, 'word': 'jean-baptiste', 'start': 12, 'end': 26},
+    {'entity_group': 'LOC', 'score': 0.998, 'word': 'montréal', 'start': 38, 'end': 47}]
 
     >>> token = tokens[0]
     >>> # Start and end provide an easy way to highlight words in the original text.
@@ -108,7 +109,15 @@ class TokenClassificationPipeline(ChunkPipeline):
     >>> # Some models use the same idea to do part of speech.
     >>> syntaxer = pipeline("ner" ,model="vblagoje/bert-english-uncased-finetuned-pos", aggregation_strategy="simple")
     >>> syntaxer("My name is Sarah and I live in London")
-    [{'entity_group': 'PRON', 'score': 0.999, 'word': 'my', 'start': 0, 'end': 2}, {'entity_group': 'NOUN', 'score': 0.997, 'word': 'name', 'start': 3, 'end': 7}, {'entity_group': 'AUX', 'score': 0.994, 'word': 'is', 'start': 8, 'end': 10}, {'entity_group': 'PROPN', 'score': 0.999, 'word': 'sarah', 'start': 11, 'end': 16}, {'entity_group': 'CCONJ', 'score': 0.999, 'word': 'and', 'start': 17, 'end': 20}, {'entity_group': 'PRON', 'score': 0.999, 'word': 'i', 'start': 21, 'end': 22}, {'entity_group': 'VERB', 'score': 0.998, 'word': 'live', 'start': 23, 'end': 27}, {'entity_group': 'ADP', 'score': 0.999, 'word': 'in', 'start': 28, 'end': 30}, {'entity_group': 'PROPN', 'score': 0.999, 'word': 'london', 'start': 31, 'end': 37}]
+    [{'entity_group': 'PRON', 'score': 0.999, 'word': 'my', 'start': 0, 'end': 2},
+     {'entity_group': 'NOUN', 'score': 0.997, 'word': 'name', 'start': 3, 'end': 7},
+     {'entity_group': 'AUX', 'score': 0.994, 'word': 'is', 'start': 8, 'end': 10},
+     {'entity_group': 'PROPN', 'score': 0.999, 'word': 'sarah', 'start': 11, 'end': 16},
+     {'entity_group': 'CCONJ', 'score': 0.999, 'word': 'and', 'start': 17, 'end': 20},
+     {'entity_group': 'PRON', 'score': 0.999, 'word': 'i', 'start': 21, 'end': 22},
+     {'entity_group': 'VERB', 'score': 0.998, 'word': 'live', 'start': 23, 'end': 27},
+     {'entity_group': 'ADP', 'score': 0.999, 'word': 'in', 'start': 28, 'end': 30},
+     {'entity_group': 'PROPN', 'score': 0.999, 'word': 'london', 'start': 31, 'end': 37}]
     ```
 
     Learn more about the basics of using a pipeline in the [pipeline tutorial](../pipeline_tutorial)
@@ -265,11 +274,8 @@ class TokenClassificationPipeline(ChunkPipeline):
         offset_mapping = model_inputs.pop("offset_mapping", None)
         sentence = model_inputs.pop("sentence")
         is_last = model_inputs.pop("is_last")
-        if self.framework == "tf":
-            logits = self.model(**model_inputs)[0]
-        else:
-            output = self.model(**model_inputs)
-            logits = output["logits"] if isinstance(output, dict) else output[0]
+        output = self.model(**model_inputs)
+        logits = output["logits"] if isinstance(output, dict) else output[0]
 
         return {
             "logits": logits,
@@ -367,7 +373,8 @@ class TokenClassificationPipeline(ChunkPipeline):
                     # to fuse tokens
                     is_subword = len(word) != len(word_ref)
                 else:
-                    # This is a fallback heuristic. This will fail most likely on any kind of text + punctuation mixtures that will be considered "words". Non word aware models cannot do better than this unfortunately.
+                    # This is a fallback heuristic. This will fail most likely on any kind of text + punctuation mixtures that will be considered "words".
+                    # Non word aware models cannot do better than this unfortunately.
                     if aggregation_strategy in {
                         AggregationStrategy.FIRST,
                         AggregationStrategy.AVERAGE,

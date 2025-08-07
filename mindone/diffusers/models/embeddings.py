@@ -1,4 +1,4 @@
-# Copyright 2024 The HuggingFace Team. All rights reserved.
+# Copyright 2025 The HuggingFace Team. All rights reserved.
 #
 # This code is adapted from https://github.com/huggingface/diffusers
 # with modifications to run diffusers on mindspore.
@@ -36,7 +36,7 @@ def get_timestep_embedding(
     downscale_freq_shift: float = 1,
     scale: float = 1,
     max_period: int = 10000,
-):
+) -> ms.Tensor:
     """
     This matches the implementation in Denoising Diffusion Probabilistic Models: Create sinusoidal timestep embeddings.
 
@@ -102,7 +102,7 @@ def get_3d_sincos_pos_embed(
             The spatial dimension of positional embeddings. If an integer is provided, the same size is applied to both
             spatial dimensions (height and width).
         temporal_size (`int`):
-            The temporal dimension of postional embeddings (number of frames).
+            The temporal dimension of positional embeddings (number of frames).
         spatial_interpolation_scale (`float`, defaults to 1.0):
             Scale factor for spatial grid interpolation.
         temporal_interpolation_scale (`float`, defaults to 1.0):
@@ -186,7 +186,7 @@ def _get_3d_sincos_pos_embed_np(
             The spatial dimension of positional embeddings. If an integer is provided, the same size is applied to both
             spatial dimensions (height and width).
         temporal_size (`int`):
-            The temporal dimension of postional embeddings (number of frames).
+            The temporal dimension of positional embeddings (number of frames).
         spatial_interpolation_scale (`float`, defaults to 1.0):
             Scale factor for spatial grid interpolation.
         temporal_interpolation_scale (`float`, defaults to 1.0):
@@ -1141,7 +1141,7 @@ def get_1d_rotary_pos_embed(
         pos = ms.Tensor.from_numpy(pos)  # type: ignore  # [S]
 
     theta = theta * ntk_factor
-    freqs = 1.0 / (theta ** (mint.arange(0, dim, 2, dtype=freqs_dtype)[: (dim // 2)] / dim)) / linear_factor  # [D/2]
+    freqs = 1.0 / (theta ** (mint.arange(0, dim, 2, dtype=freqs_dtype) / dim)) / linear_factor  # [D/2]
     freqs = mint.outer(pos, freqs)  # type: ignore   # [S, D/2]
     freqs = freqs.float()
     if use_real and repeat_interleave_real:
@@ -1198,11 +1198,11 @@ def apply_rotary_emb(
 
         if use_real_unbind_dim == -1:
             # Used for flux, cogvideox, hunyuan-dit
-            x_real, x_imag = x.reshape(*x.shape[:-1], -1, 2).unbind(-1)  # [B, S, H, D//2]
+            x_real, x_imag = x.reshape(*x.shape[:-1], -1, 2).unbind(-1)  # [B, H, S, D//2]
             x_rotated = mint.stack([-x_imag, x_real], dim=-1).flatten(start_dim=3)
         elif use_real_unbind_dim == -2:
-            # Used for Stable Audio, OmniGen and CogView4
-            x_real, x_imag = x.reshape(*x.shape[:-1], 2, -1).unbind(-2)  # [B, S, H, D//2]
+            # Used for Stable Audio, OmniGen, CogView4 and Cosmos
+            x_real, x_imag = x.reshape(*x.shape[:-1], 2, -1).unbind(-2)  # [B, H, S, D//2]
             x_rotated = mint.cat([-x_imag, x_real], dim=-1)
         else:
             raise ValueError(f"`use_real_unbind_dim={use_real_unbind_dim}` but should be -1 or -2.")
@@ -1326,7 +1326,7 @@ class Timesteps(nn.Cell):
         self.downscale_freq_shift = downscale_freq_shift
         self.scale = scale
 
-    def construct(self, timesteps):
+    def construct(self, timesteps: ms.Tensor) -> ms.Tensor:
         t_emb = get_timestep_embedding(
             timesteps,
             self.num_channels,
@@ -1383,15 +1383,18 @@ class SinusoidalPositionalEmbedding(nn.Cell):
 
     def __init__(self, embed_dim: int, max_seq_length: int = 32):
         super().__init__()
-        position = np.expand_dims(np.arange(max_seq_length), axis=1)
-        div_term = np.exp(np.arange(0, embed_dim, 2) * (-np.log(10000.0) / embed_dim))
-        pe = np.zeros(shape=(1, max_seq_length, embed_dim))
-        pe[0, :, 0::2] = np.sin(position * div_term)
-        pe[0, :, 1::2] = np.cos(position * div_term)
-        self.pe = ms.Tensor.from_numpy(pe).float()
+        position = mint.arange(max_seq_length).unsqueeze(1)
+        div_term = mint.exp(mint.arange(0, embed_dim, 2) * (-math.log(10000.0) / embed_dim))
+        pe = mint.zeros((1, max_seq_length, embed_dim))
+        pe[0, :, 0::2] = mint.sin(position * div_term)
+        pe[0, :, 1::2] = mint.cos(position * div_term)
+        self.register_buffer("pe", pe)
 
     def construct(self, x):
         _, seq_length, _ = x.shape
+        # In PyTorch, register_buffer allows automatic dtype alignment when using `.to()`.
+        # However, in MindSpore, the `.to()` method only applies to parameters.
+        # Therefore, we need to manually align the dtype of buffers here.
         x = x + self.pe[:, :seq_length].to(x.dtype)
         return x
 
@@ -1401,7 +1404,7 @@ class ImagePositionalEmbeddings(nn.Cell):
     Converts latent image classes into vector embeddings. Sums the vector embeddings with positional embeddings for the
     height and width of the latent space.
 
-    For more details, see figure 10 of the dall-e paper: https://arxiv.org/abs/2102.12092
+    For more details, see figure 10 of the dall-e paper: https://huggingface.co/papers/2102.12092
 
     For VQ-diffusion:
 

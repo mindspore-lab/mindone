@@ -33,7 +33,6 @@ from transformers.utils import (
 )
 
 import mindspore
-from mindspore import nn
 from mindspore.mint.nn import BCEWithLogitsLoss, CrossEntropyLoss, MSELoss
 
 from ...activations import ACT2FN
@@ -860,7 +859,7 @@ class VideoMAEForPreTraining(VideoMAEPreTrainedModel):
         if bool_masked_pos is None:
             raise ValueError("One must provided a boolean mask ")
         expanded_position_embeddings = self.position_embeddings.expand(batch_size, -1, -1).type_as(pixel_values)
-        expanded_position_embeddings = expanded_position_embeddings.detach().to(copy=True)
+        expanded_position_embeddings = expanded_position_embeddings.copy()
         pos_emb_visible = expanded_position_embeddings[~bool_masked_pos].reshape(batch_size, -1, num_channels)
         pos_emb_mask = expanded_position_embeddings[bool_masked_pos].reshape(batch_size, -1, num_channels)
 

@@ -43,6 +43,9 @@ CONFIG_MAPPING_NAMES = OrderedDict(
         ("bit", "BitConfig"),
         ("blip", "BlipConfig"),
         ("blip-2", "Blip2Config"),
+        ("chameleon", "ChameleonConfig"),
+        ("camembert", "CamembertConfig"),
+        ("convbert", "ConvBertConfig"),
         ("clip", "CLIPConfig"),
         ("clip_vision_model", "CLIPVisionConfig"),
         ("deberta", "DebertaConfig"),
@@ -60,8 +63,7 @@ CONFIG_MAPPING_NAMES = OrderedDict(
         ("granitemoeshared", "GraniteMoeSharedConfig"),
         ("helium", "HeliumConfig"),
         ("hiera", "HieraConfig"),
-        ("camembert", "CamembertConfig"),
-        ("convbert", "ConvBertConfig"),
+        ("hubert", "HubertConfig"),
         ("idefics", "IdeficsConfig"),
         ("idefics2", "Idefics2Config"),
         ("idefics3", "Idefics3Config"),
@@ -76,6 +78,9 @@ CONFIG_MAPPING_NAMES = OrderedDict(
         ("persimmon", "PersimmonConfig"),
         ("fuyu", "FuyuConfig"),
         ("llava", "LlavaConfig"),
+        ("llava_next", "LlavaNextConfig"),
+        ("llava_next_video", "LlavaNextVideoConfig"),
+        ("llava_onevision", "LlavaOnevisionConfig"),
         ("mistral", "MistralConfig"),
         ("mobilebert", "MobileBertConfig"),
         ("mpt", "MptConfig"),
@@ -95,11 +100,15 @@ CONFIG_MAPPING_NAMES = OrderedDict(
         ("roberta", "RobertaConfig"),
         ("recurrent_gemma", "RecurrentGemmaConfig"),
         ("rembert", "RemBertConfig"),
+        ("swin", "SwinConfig"),
         ("siglip", "SiglipConfig"),
         ("siglip_vision_model", "SiglipVisionConfig"),
+        ("smolvlm", "SmolVLMConfig"),
+        ("smolvlm_vision", "SmolVLMVisionConfig"),
         ("speecht5", "SpeechT5Config"),
         ("t5", "T5Config"),
         ("umt5", "UMT5Config"),
+        ("vit", "ViTConfig"),
         ("wav2vec2", "Wav2Vec2Config"),
         ("videomae", "VideoMAEConfig"),
         ("mvp", "MvpConfig"),
@@ -151,6 +160,7 @@ MODEL_NAMES_MAPPING = OrderedDict(
         ("qwen2_audio_encoder", "Qwen2AudioEncoder"),
         ("helium", "Helium"),
         ("hiera", "Hiera"),
+        ("hubert", "Hubert"),
         ("idefics", "IDEFICS"),
         ("idefics2", "Idefics2"),
         ("idefics3", "Idefics3"),
@@ -163,6 +173,10 @@ MODEL_NAMES_MAPPING = OrderedDict(
         ("llama2", "Llama2"),
         ("llama3", "Llama3"),
         ("llava", "Llava"),
+        ("llava_next", "LLaVA-NeXT"),
+        ("llava_next_video", "LLaVa-NeXT-Video"),
+        ("llava_onevision", "LLaVA-Onevision"),
+        ("mistral", "Mistral"),
         ("persimmon", "Persimmon"),
         ("fuyu", "Fuyu"),
         ("mobilebert", "MobileBERT"),
@@ -181,13 +195,17 @@ MODEL_NAMES_MAPPING = OrderedDict(
         ("qwen2_vl", "Qwen2VL"),
         ("recurrent_gemma", "RecurrentGemma"),
         ("rembert", "RemBERT"),
+        ("swin", "Swin Transformer"),
         ("siglip", "SigLIP"),
         ("siglip_vision_model", "SiglipVisionModel"),
+        ("smolvlm", "SmolVLM"),
+        ("smolvlm_vision", "SmolVLMVisionTransformer"),
         ("speecht5", "SpeechT5"),
         ("t5", "T5"),
         ("t5v1.1", "T5v1.1"),
         ("umt5", "UMT5"),
         ("videomae", "VideoMAE"),
+        ("vit", "ViT"),
         ("wav2vec2", "Wav2Vec2"),
         ("whisper", "Whisper"),
         ("convbert", "ConvBERT"),
@@ -244,6 +262,7 @@ SPECIAL_MODEL_TYPE_TO_MODULE_NAME = OrderedDict(
         ("clip_text_model", "clip"),
         ("aria_text", "aria"),
         ("siglip_vision_model", "siglip"),
+        ("smolvlm_vision", "smolvlm"),
         ("chinese_clip_vision_model", "chinese_clip"),
         ("rt_detr_resnet", "rt_detr"),
     ]
@@ -258,8 +277,8 @@ if version.parse(transformers.__version__) >= version.parse("4.51.3"):
     MODEL_NAMES_MAPPING.update({"glm4": "glm4"})
 
 if version.parse(transformers.__version__) >= version.parse("4.53.0"):
-    CONFIG_MAPPING_NAMES.update({"vjepa2": "VJEPA2Model"})
-    MODEL_NAMES_MAPPING.update({"vjepa2": "VJEPA2Model"})
+    CONFIG_MAPPING_NAMES.update({"minimax": "MiniMaxConfig", "vjepa2": "VJEPA2Model"})
+    MODEL_NAMES_MAPPING.update({"minimax": "MiniMax", "vjepa2": "VJEPA2Model"})
 
 
 def model_type_to_module_name(key):

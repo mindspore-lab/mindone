@@ -30,6 +30,7 @@ from . import (
     blip_2,
     camembert,
     canine,
+    chameleon,
     clap,
     clip,
     convbert,
@@ -45,12 +46,18 @@ from . import (
     granitemoe,
     granitemoeshared,
     hiera,
+    hubert,
+    idefics,
+    idefics2,
     idefics3,
     ijepa,
     imagegpt,
     levit,
     llama,
     llava,
+    llava_next,
+    llava_next_video,
+    llava_onevision,
     m2m_100,
     megatron_bert,
     minicpm4,
@@ -71,12 +78,14 @@ from . import (
     qwen2_vl,
     roberta,
     siglip,
+    smolvlm,
     speecht5,
     starcoder2,
     switch_transformers,
     t5,
     umt5,
     videomae,
+    vit,
     vits,
     wav2vec2,
     xlm_roberta,
@@ -89,4 +98,4 @@ if version.parse(transformers.__version__) >= version.parse("4.51.3"):
     from . import glm4
 
 if version.parse(transformers.__version__) >= version.parse("4.53.0"):
-    from . import glm4v, vjepa2
+    from . import glm4v, minimax, vjepa2

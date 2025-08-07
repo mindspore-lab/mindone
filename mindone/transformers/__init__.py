@@ -49,12 +49,92 @@ from .models.aria import (
     AriaTextPreTrainedModel,
 )
 from .models.auto import (
+    MODEL_FOR_AUDIO_CLASSIFICATION_MAPPING,
+    MODEL_FOR_AUDIO_FRAME_CLASSIFICATION_MAPPING,
+    MODEL_FOR_AUDIO_XVECTOR_MAPPING,
+    MODEL_FOR_BACKBONE_MAPPING,
+    MODEL_FOR_CAUSAL_IMAGE_MODELING_MAPPING,
+    MODEL_FOR_CAUSAL_LM_MAPPING,
+    MODEL_FOR_CTC_MAPPING,
+    MODEL_FOR_DEPTH_ESTIMATION_MAPPING,
+    MODEL_FOR_DOCUMENT_QUESTION_ANSWERING_MAPPING,
+    MODEL_FOR_IMAGE_CLASSIFICATION_MAPPING,
+    MODEL_FOR_IMAGE_MAPPING,
+    MODEL_FOR_IMAGE_SEGMENTATION_MAPPING,
+    MODEL_FOR_IMAGE_TEXT_TO_TEXT_MAPPING,
+    MODEL_FOR_IMAGE_TO_IMAGE_MAPPING,
+    MODEL_FOR_INSTANCE_SEGMENTATION_MAPPING,
+    MODEL_FOR_KEYPOINT_DETECTION_MAPPING,
+    MODEL_FOR_MASK_GENERATION_MAPPING,
+    MODEL_FOR_MASKED_IMAGE_MODELING_MAPPING,
+    MODEL_FOR_MASKED_LM_MAPPING,
+    MODEL_FOR_MULTIPLE_CHOICE_MAPPING,
+    MODEL_FOR_NEXT_SENTENCE_PREDICTION_MAPPING,
+    MODEL_FOR_OBJECT_DETECTION_MAPPING,
+    MODEL_FOR_PRETRAINING_MAPPING,
+    MODEL_FOR_QUESTION_ANSWERING_MAPPING,
+    MODEL_FOR_RETRIEVAL_MAPPING,
+    MODEL_FOR_SEMANTIC_SEGMENTATION_MAPPING,
+    MODEL_FOR_SEQ_TO_SEQ_CAUSAL_LM_MAPPING,
+    MODEL_FOR_SEQUENCE_CLASSIFICATION_MAPPING,
+    MODEL_FOR_SPEECH_SEQ_2_SEQ_MAPPING,
+    MODEL_FOR_TABLE_QUESTION_ANSWERING_MAPPING,
+    MODEL_FOR_TEXT_ENCODING_MAPPING,
+    MODEL_FOR_TEXT_TO_SPECTROGRAM_MAPPING,
+    MODEL_FOR_TEXT_TO_WAVEFORM_MAPPING,
+    MODEL_FOR_TIME_SERIES_CLASSIFICATION_MAPPING,
+    MODEL_FOR_TIME_SERIES_REGRESSION_MAPPING,
+    MODEL_FOR_TOKEN_CLASSIFICATION_MAPPING,
+    MODEL_FOR_UNIVERSAL_SEGMENTATION_MAPPING,
+    MODEL_FOR_VIDEO_CLASSIFICATION_MAPPING,
+    MODEL_FOR_VISION_2_SEQ_MAPPING,
+    MODEL_FOR_VISUAL_QUESTION_ANSWERING_MAPPING,
+    MODEL_FOR_ZERO_SHOT_IMAGE_CLASSIFICATION_MAPPING,
+    MODEL_FOR_ZERO_SHOT_OBJECT_DETECTION_MAPPING,
+    MODEL_MAPPING,
+    MODEL_WITH_LM_HEAD_MAPPING,
+    AutoBackbone,
     AutoConfig,
     AutoFeatureExtractor,
     AutoImageProcessor,
     AutoModel,
+    AutoModelForAudioClassification,
+    AutoModelForAudioFrameClassification,
+    AutoModelForAudioXVector,
     AutoModelForCausalLM,
+    AutoModelForCTC,
+    AutoModelForDepthEstimation,
+    AutoModelForDocumentQuestionAnswering,
+    AutoModelForImageClassification,
+    AutoModelForImageSegmentation,
+    AutoModelForImageTextToText,
+    AutoModelForImageToImage,
+    AutoModelForInstanceSegmentation,
+    AutoModelForKeypointDetection,
+    AutoModelForMaskedImageModeling,
     AutoModelForMaskedLM,
+    AutoModelForMaskGeneration,
+    AutoModelForMultipleChoice,
+    AutoModelForNextSentencePrediction,
+    AutoModelForObjectDetection,
+    AutoModelForPreTraining,
+    AutoModelForQuestionAnswering,
+    AutoModelForSemanticSegmentation,
+    AutoModelForSeq2SeqLM,
+    AutoModelForSequenceClassification,
+    AutoModelForSpeechSeq2Seq,
+    AutoModelForTableQuestionAnswering,
+    AutoModelForTextEncoding,
+    AutoModelForTextToSpectrogram,
+    AutoModelForTextToWaveform,
+    AutoModelForTokenClassification,
+    AutoModelForUniversalSegmentation,
+    AutoModelForVideoClassification,
+    AutoModelForVision2Seq,
+    AutoModelForVisualQuestionAnswering,
+    AutoModelForZeroShotImageClassification,
+    AutoModelForZeroShotObjectDetection,
+    AutoModelWithLMHead,
     AutoProcessor,
 )
 from .models.bart import (
@@ -141,8 +221,10 @@ from .models.canine import (
 )
 from .models.chameleon import (
     ChameleonForConditionalGeneration,
+    ChameleonImageProcessor,
     ChameleonModel,
     ChameleonPreTrainedModel,
+    ChameleonProcessor,
     ChameleonVQVAE,
 )
 from .models.clap import (
@@ -247,6 +329,15 @@ from .models.hiera import (
     HieraModel,
     HieraPreTrainedModel,
 )
+from .models.hubert import HubertForCTC, HubertForSequenceClassification, HubertModel, HubertPreTrainedModel
+from .models.idefics import (
+    IdeficsForVisionText2Text,
+    IdeficsImageProcessor,
+    IdeficsModel,
+    IdeficsPreTrainedModel,
+    IdeficsProcessor,
+)
+from .models.idefics2 import Idefics2ForConditionalGeneration, Idefics2Model, Idefics2PreTrainedModel
 from .models.idefics3 import (
     Idefics3ForConditionalGeneration,
     Idefics3Model,
@@ -278,6 +369,25 @@ from .models.levit import (
 )
 from .models.llama import LlamaForCausalLM, LlamaForSequenceClassification, LlamaModel, LlamaPreTrainedModel
 from .models.llava import LlavaConfig, LlavaForConditionalGeneration
+from .models.llava_next import (
+    LlavaNextForConditionalGeneration,
+    LlavaNextImageProcessor,
+    LlavaNextPreTrainedModel,
+    LlavaNextProcessor,
+)
+from .models.llava_next_video import (
+    LlavaNextVideoForConditionalGeneration,
+    LlavaNextVideoImageProcessor,
+    LlavaNextVideoPreTrainedModel,
+    LlavaNextVideoProcessor,
+)
+from .models.llava_onevision import (
+    LlavaOnevisionForConditionalGeneration,
+    LlavaOnevisionImageProcessor,
+    LlavaOnevisionPreTrainedModel,
+    LlavaOnevisionProcessor,
+    LlavaOnevisionVideoProcessor,
+)
 from .models.m2m_100 import M2M100ForConditionalGeneration, M2M100Model, M2M100PreTrainedModel
 from .models.megatron_bert import (
     MegatronBertForCausalLM,
@@ -417,6 +527,12 @@ from .models.siglip import (
     SiglipTextModel,
     SiglipVisionModel,
 )
+from .models.smolvlm import (
+    SmolVLMForConditionalGeneration,
+    SmolVLMModel,
+    SmolVLMPreTrainedModel,
+    SmolVLMVisionTransformer,
+)
 from .models.speecht5 import (
     SpeechT5ForSpeechToSpeech,
     SpeechT5ForSpeechToText,
@@ -431,6 +547,13 @@ from .models.starcoder2 import (
     Starcoder2ForTokenClassification,
     Starcoder2Model,
     Starcoder2PreTrainedModel,
+)
+from .models.swin import (
+    SwinBackbone,
+    SwinForImageClassification,
+    SwinForMaskedImageModeling,
+    SwinModel,
+    SwinPreTrainedModel,
 )
 from .models.switch_transformers import (
     SwitchTransformersEncoderModel,
@@ -462,6 +585,7 @@ from .models.videomae import (
     VideoMAEModel,
     VideoMAEPreTrainedModel,
 )
+from .models.vit import ViTForImageClassification, ViTForMaskedImageModeling, ViTModel, ViTPreTrainedModel
 from .models.vits import VitsModel, VitsPreTrainedModel
 from .models.wav2vec2 import (
     Wav2Vec2FeatureExtractor,
@@ -516,5 +640,13 @@ if version.parse(transformers.__version__) >= version.parse("4.53.0"):
         Glm4vPreTrainedModel,
         Glm4vTextModel,
         Glm4vVisionModel,
+    )
+    from .models.minimax import (
+        MiniMaxForCausalLM,
+        MiniMaxForQuestionAnswering,
+        MiniMaxForSequenceClassification,
+        MiniMaxForTokenClassification,
+        MiniMaxModel,
+        MiniMaxPreTrainedModel,
     )
     from .models.vjepa2 import VJEPA2ForVideoClassification, VJEPA2Model, VJEPA2PreTrainedModel
