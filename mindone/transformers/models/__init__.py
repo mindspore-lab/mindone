@@ -75,8 +75,10 @@ from . import (
     qwen2_5_omni,
     qwen2_5_vl,
     qwen2_audio,
+    qwen2_moe,
     qwen2_vl,
     roberta,
+    roberta_prelayernorm,
     siglip,
     smolvlm,
     speecht5,
@@ -91,7 +93,7 @@ from . import (
 )
 
 if version.parse(transformers.__version__) >= version.parse("4.51.0"):
-    from . import qwen3
+    from . import qwen3, qwen3_moe
 
 if version.parse(transformers.__version__) >= version.parse("4.51.3"):
     from . import glm4
