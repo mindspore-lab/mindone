@@ -53,10 +53,12 @@ else:
             ("chameleon", ("ChameleonImageProcessor",)),
             ("clip", ("CLIPImageProcessor",)),
             ("dpt", ("DPTImageProcessor",)),
+            ("groupvit", ("CLIPImageProcessor",)),
             ("llava_next", ("LlavaNextImageProcessor",)),
             ("llava_next_video", ("LlavaNextVideoImageProcessor",)),
             ("llava_onevision", ("LlavaOnevisionImageProcessor",)),
             ("siglip", ("SiglipImageProcessor", "SiglipImageProcessorFast")),
+            ("swinv2", ("ViTImageProcessor",)),
         ]
     )
 
