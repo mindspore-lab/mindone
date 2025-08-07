@@ -1,3 +1,5 @@
+"""Adapted from https://github.com/huggingface/transformers/tree/main/tests//models/jetmoe/test_modeling_jetmoe.py."""
+
 # This module contains test cases that are defined in the `.test_cases.py` file, structured as lists or tuples like
 #     [name, pt_module, ms_module, init_args, init_kwargs, inputs_args, inputs_kwargs, outputs_map].
 #
@@ -24,7 +26,9 @@ from tests.modeling_test_utils import (
 from tests.transformers_tests.models.modeling_common import ids_numpy
 
 DTYPE_AND_THRESHOLDS = {"fp32": 5e-4, "fp16": 5e-3, "bf16": 5e-3}
-MODES = [1]  # Only test in pynative mode initially
+# MODES = [0, 1] # 0: graph mode, 1: pynative mode
+# FIXME: JetMoe does not support graph mode yet, so we only test in pynative mode.
+MODES = [1]
 
 
 class JetMoeModelTester:
@@ -32,8 +36,8 @@ class JetMoeModelTester:
 
     def __init__(
         self,
-        batch_size=13,
-        seq_length=7,
+        batch_size=2,
+        seq_length=8,
         is_training=False,
         use_input_mask=True,
         use_token_type_ids=False,
@@ -43,26 +47,27 @@ class JetMoeModelTester:
         num_labels=3,
         num_choices=4,
         # config
-        vocab_size=99,
+        vocab_size=100,
         hidden_size=32,
+        intermediate_size=64,
         num_hidden_layers=2,
-        num_key_value_heads=2,
-        kv_channels=2,
-        intermediate_size=37,
-        max_position_embeddings=512,
+        num_key_value_heads=4,
+        kv_channels=8,
         activation_function="silu",
-        num_local_experts=2,
-        num_experts_per_tok=2,
-        output_router_logits=False,
-        aux_loss_coef=0.01,
+        max_position_embeddings=512,
+        initializer_range=0.02,
+        rms_norm_eps=1e-6,
         use_cache=True,
+        pad_token_id=0,
         bos_token_id=1,
         eos_token_id=2,
         tie_word_embeddings=True,
-        rope_theta=10000.0,
-        rms_norm_eps=1e-6,
-        initializer_range=0.01,
+        rope_theta=10000,
+        rope_scaling=None,
         attention_dropout=0.0,
+        num_local_experts=4,
+        num_experts_per_tok=2,
+        aux_loss_coef=0.01,
     ):
         self.batch_size = batch_size
         self.seq_length = seq_length
@@ -74,31 +79,28 @@ class JetMoeModelTester:
         self.type_sequence_label_size = type_sequence_label_size
         self.num_labels = num_labels
         self.num_choices = num_choices
-
-        # Model specific config
         self.vocab_size = vocab_size
         self.hidden_size = hidden_size
         self.num_hidden_layers = num_hidden_layers
         self.num_key_value_heads = num_key_value_heads
         self.kv_channels = kv_channels
         self.intermediate_size = intermediate_size
-        self.max_position_embeddings = max_position_embeddings
         self.activation_function = activation_function
-        self.num_local_experts = num_local_experts
-        self.num_experts_per_tok = num_experts_per_tok
-        self.output_router_logits = output_router_logits
-        self.aux_loss_coef = aux_loss_coef
+        self.max_position_embeddings = max_position_embeddings
+        self.initializer_range = initializer_range
+        self.rms_norm_eps = rms_norm_eps
         self.use_cache = use_cache
         self.bos_token_id = bos_token_id
         self.eos_token_id = eos_token_id
         self.tie_word_embeddings = tie_word_embeddings
         self.rope_theta = rope_theta
-        self.rms_norm_eps = rms_norm_eps
-        self.initializer_range = initializer_range
+        self.rope_scaling = rope_scaling
         self.attention_dropout = attention_dropout
+        self.num_local_experts = num_local_experts
+        self.num_experts_per_tok = num_experts_per_tok
+        self.aux_loss_coef = aux_loss_coef
 
-        # Computed attributes
-        self.num_attention_heads = self.num_key_value_heads * self.num_experts_per_tok
+        self.head_dim = self.kv_channels
 
     def prepare_config_and_inputs(self):
         input_ids = ids_numpy([self.batch_size, self.seq_length], self.vocab_size)
@@ -107,37 +109,48 @@ class JetMoeModelTester:
         if self.use_input_mask:
             input_mask = np.tril(np.ones_like(input_ids))
 
+        token_type_ids = None
+        if self.use_token_type_ids:
+            token_type_ids = ids_numpy([self.batch_size, self.seq_length], self.type_vocab_size)
+
+        sequence_labels = None
+        token_labels = None
+        choice_labels = None
+        if self.use_labels:
+            sequence_labels = ids_numpy([self.batch_size], self.type_sequence_label_size)
+            token_labels = ids_numpy([self.batch_size, self.seq_length], self.num_labels)
+            choice_labels = ids_numpy([self.batch_size], self.num_choices)
+
         config = self.get_config()
+
         # set _attn_implementation
         config._attn_implementation = "eager"
 
-        return (
-            config,
-            input_ids,
-            input_mask,
-        )
+        return config, input_ids, token_type_ids, input_mask, sequence_labels, token_labels, choice_labels
+
     def get_config(self):
         return self.config_class(
             vocab_size=self.vocab_size,
             hidden_size=self.hidden_size,
+            intermediate_size=self.intermediate_size,
             num_hidden_layers=self.num_hidden_layers,
             num_key_value_heads=self.num_key_value_heads,
             kv_channels=self.kv_channels,
-            intermediate_size=self.intermediate_size,
-            max_position_embeddings=self.max_position_embeddings,
             activation_function=self.activation_function,
-            num_local_experts=self.num_local_experts,
-            num_experts_per_tok=self.num_experts_per_tok,
-            output_router_logits=self.output_router_logits,
-            aux_loss_coef=self.aux_loss_coef,
+            max_position_embeddings=self.max_position_embeddings,
+            initializer_range=self.initializer_range,
+            rms_norm_eps=self.rms_norm_eps,
             use_cache=self.use_cache,
+            pad_token_id=self.pad_token_id,
             bos_token_id=self.bos_token_id,
             eos_token_id=self.eos_token_id,
             tie_word_embeddings=self.tie_word_embeddings,
             rope_theta=self.rope_theta,
-            rms_norm_eps=self.rms_norm_eps,
-            initializer_range=self.initializer_range,
+            rope_scaling=self.rope_scaling,
             attention_dropout=self.attention_dropout,
+            num_local_experts=self.num_local_experts,
+            num_experts_per_tok=self.num_experts_per_tok,
+            aux_loss_coef=self.aux_loss_coef,
         )
 
 
@@ -145,9 +158,12 @@ model_tester = JetMoeModelTester()
 (
     config,
     input_ids,
+    token_type_ids,
     input_mask,
+    sequence_labels,
+    token_labels,
+    choice_labels,
 ) = model_tester.prepare_config_and_inputs()
-
 
 
 JETMOE_CASES = [
@@ -207,7 +223,6 @@ def test_named_modules(
         pt_dtype, ms_dtype, *inputs_args, **inputs_kwargs
     )
 
-    # Set hidden_dtype if required
     if "hidden_dtype" in inspect.signature(pt_model.forward).parameters:
         pt_inputs_kwargs.update({"hidden_dtype": PT_DTYPE_MAPPING[pt_dtype]})
         ms_inputs_kwargs.update({"hidden_dtype": MS_DTYPE_MAPPING[ms_dtype]})
