@@ -158,7 +158,7 @@ def load_balancing_loss_func(
         # Compute the mask that masks all padding tokens as 0 with the same shape of expert_mask
         expert_attention_mask = (
             attention_mask[None, :, :, None, None]
-            .expand((num_hidden_layers, batch_size, sequence_length, top_k, num_experts))
+            .broadcast_to((num_hidden_layers, batch_size, sequence_length, top_k, num_experts))
             .reshape(-1, top_k, num_experts)
         )
 
@@ -170,7 +170,7 @@ def load_balancing_loss_func(
         # Compute the mask that masks all padding tokens as 0 with the same shape of tokens_per_expert
         router_per_expert_attention_mask = (
             attention_mask[None, :, :, None]
-            .expand((num_hidden_layers, batch_size, sequence_length, num_experts))
+            .broadcast_to((num_hidden_layers, batch_size, sequence_length, num_experts))
             .reshape(-1, num_experts)
         )
 
@@ -262,7 +262,7 @@ class JetMoeTopKGating(mindspore.nn.Cell):
         )  # [num_tokens, num_experts]
         gates = zeros.scatter(1, top_k_indices, 1)  # [num_tokens, num_experts]
         expert_size = gates.long().sum(0)  # [num_experts,]
-        expert_size = expert_size.tolist()
+        expert_size = expert_size.asnumpy().tolist()
 
         # sort and group input tokens according to expert assignment
         top_k_experts = top_k_indices.flatten()  # [num_tokens * top_k]
@@ -1253,7 +1253,7 @@ class JetMoeModel(JetMoePreTrainedModel):
             causal_mask *= mindspore.mint.arange(
                 target_length,
             ) > cache_position.reshape(-1, 1)
-            causal_mask = causal_mask[None, None, :, :].expand(batch_size, 1, -1, -1)
+            causal_mask = causal_mask[None, None, :, :].broadcast_to((batch_size, 1, -1, -1))
             if attention_mask is not None:
                 causal_mask = causal_mask.clone()  # copy to contiguous memory for in-place edit
                 mask_length = attention_mask.shape[-1]
