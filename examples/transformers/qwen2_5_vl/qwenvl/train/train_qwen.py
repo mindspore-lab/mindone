@@ -24,25 +24,18 @@ import transformers
 
 import mindspore as ms
 import mindspore.mint as mint
+import mindspore.nn as nn
 
-import mindone.transformers
-
-project_root = Path(__file__).parent.parent.parent
+project_root = Path(__file__).parent.parent.parent.parent.parent.parent
 sys.path.append(str(project_root))
 
 from qwenvl.data.data_qwen import make_supervised_data_module
 from qwenvl.data.data_qwen_packed import make_supervised_data_module_packed
 from qwenvl.train.argument import DataArguments, ModelArguments, TrainingArguments
+from qwenvl.train.trainer import replace_qwen2_vl_attention_class
 
-from mindone.transformers import (
-    AutoProcessor,
-    Qwen2_5_VLForConditionalGeneration,
-    Qwen2VLForConditionalGeneration,
-    Qwen2VLImageProcessor,
-    Trainer,
-)
-
-from .trainer import replace_qwen2_vl_attention_class
+import mindone.transformers
+from mindone.transformers import AutoProcessor, Qwen2_5_VLForConditionalGeneration, Trainer
 
 local_rank = None
 
@@ -69,25 +62,25 @@ def safe_save_model_for_hf_trainer(trainer: mindone.transformers.Trainer, output
 
 def set_model(model_args, model):
     if model_args.tune_mm_vision:
-        for n, p in model.visual.named_parameters():
+        for n, p in model.visual.parameters_and_names():
             p.requires_grad = True
     else:
-        for n, p in model.visual.named_parameters():
+        for n, p in model.visual.parameters_and_names():
             p.requires_grad = False
 
     if model_args.tune_mm_mlp:
-        for n, p in model.visual.merger.named_parameters():
+        for n, p in model.visual.merger.parameters_and_names():
             p.requires_grad = True
     else:
-        for n, p in model.visual.merger.named_parameters():
+        for n, p in model.visual.merger.parameters_and_names():
             p.requires_grad = False
 
     if model_args.tune_mm_llm:
-        for n, p in model.model.named_parameters():
+        for n, p in model.model.parameters_and_names():
             p.requires_grad = True
         model.lm_head.requires_grad = True
     else:
-        for n, p in model.model.named_parameters():
+        for n, p in model.model.parameters_and_names():
             p.requires_grad = False
         model.lm_head.requires_grad = False
 
@@ -102,27 +95,19 @@ def train(attn_implementation="flash_attention_2"):
     os.makedirs(training_args.output_dir, exist_ok=True)
 
     if "qwen2.5" in model_args.model_name_or_path.lower():
-        model = Qwen2_5_VLForConditionalGeneration.from_pretrained(
-            model_args.model_name_or_path,
-            cache_dir=training_args.cache_dir,
-            attn_implementation=attn_implementation,
-            torch_dtype=(ms.bfloat16 if training_args.bf16 else None),
-        )
+        with nn.no_init_parameters():
+            model = Qwen2_5_VLForConditionalGeneration.from_pretrained(
+                model_args.model_name_or_path,
+                cache_dir=training_args.cache_dir,
+                attn_implementation=attn_implementation,
+                mindspore_dtype=(ms.bfloat16 if training_args.bf16 else None),
+            )
         data_args.image_processor = AutoProcessor.from_pretrained(
             model_args.model_name_or_path,
         ).image_processor
         data_args.model_type = "qwen2.5vl"
     else:
-        model = Qwen2VLForConditionalGeneration.from_pretrained(
-            model_args.model_name_or_path,
-            cache_dir=training_args.cache_dir,
-            attn_implementation=attn_implementation,
-            torch_dtype=(ms.bfloat16 if training_args.bf16 else None),
-        )
-        data_args.image_processor = Qwen2VLImageProcessor.from_pretrained(
-            model_args.model_name_or_path,
-        )
-        data_args.model_type = "qwen2vl"
+        raise NotImplementedError()
 
     if data_args.data_flatten:
         replace_qwen2_vl_attention_class()

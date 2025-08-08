@@ -1261,7 +1261,7 @@ class Qwen2_5_VLForConditionalGeneration(Qwen2_5_VLPreTrainedModel, GenerationMi
         super().__init__(config)
         # TODO: we need this patch here, may fix later
         config.vision_config._attn_implementation = config._attn_implementation
-        config.vision_config.torch_dtype = getattr(config, "mindspore_dtype", None)
+        config.vision_config.mindspore_dtype = getattr(config, "mindspore_dtype", None)
         self.visual = Qwen2_5_VisionTransformerPretrainedModel._from_config(config.vision_config)
         self.model = Qwen2_5_VLModel(config)
         self.vocab_size = config.vocab_size

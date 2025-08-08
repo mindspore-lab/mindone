@@ -32,7 +32,6 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Any, Callable, Dict, Iterable, List, NamedTuple, Optional, Tuple, Union
 
 import numpy as np
-from ezcolorlog import root_logger as logger
 from packaging import version
 from transformers import PreTrainedTokenizerBase
 from transformers.feature_extraction_sequence_utils import SequenceFeatureExtractor
@@ -56,7 +55,7 @@ from transformers.trainer_utils import (
     number_of_arguments,
     speed_metrics,
 )
-from transformers.utils import SAFE_WEIGHTS_NAME, WEIGHTS_NAME, is_datasets_available, logging
+from transformers.utils import SAFE_WEIGHTS_NAME, WEIGHTS_NAME, is_datasets_available
 
 import mindspore as ms
 from mindspore import Tensor, nn, ops
@@ -72,7 +71,7 @@ from .optimization import get_scheduler
 from .trainer_ms_utils import LabelSmoother, LengthGroupedSampler, get_model_param_count, get_parameter_names
 from .trainer_utils import enable_full_determinism, set_seed
 from .training_args import OptimizerNames, TrainingArguments
-from .utils import can_return_loss, find_labels
+from .utils import can_return_loss, find_labels, logging
 
 if is_datasets_available():
     import datasets
@@ -99,6 +98,7 @@ class TrainOutput(NamedTuple):
 PREFIX_CHECKPOINT_DIR = "checkpoint"
 _re_checkpoint = re.compile(r"^" + PREFIX_CHECKPOINT_DIR + r"\-(\d+)$")
 
+logger = logging.get_logger(__name__)
 
 # Name of the files used for checkpointing
 TRAINER_STATE_NAME = "trainer_state.json"
