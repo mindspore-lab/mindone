@@ -16,13 +16,11 @@
 # limitations under the License.
 
 import mindspore as ms
-from mindspore import mint, nn
+from mindspore import mint
 import decimal
 
 import numpy as np
 import mindspore as ms
-from mindspore import nn
-from mindspore.ops import operations as P
 
 from ...utils import logging
 
@@ -631,7 +629,7 @@ def symmetric_linear_quantization_params(num_bits, saturation_min, saturation_ma
     return scale
 
 
-class SymmetricQuantFunction(Function):
+class SymmetricQuantFunction(ms.nn.Cell):
     """
     Class to quantize the given floating-point values using symmetric quantization with given range and bitwidth.
     """
@@ -663,7 +661,7 @@ class SymmetricQuantFunction(Function):
         return new_quant_x
 
     @staticmethod
-    def backward(ctx, grad_output):
+    def bprop(ctx, grad_output):
         scale = ctx.scale
         if len(grad_output.shape) == 4:
             scale = scale.view(-1, 1, 1, 1)
@@ -676,7 +674,7 @@ class SymmetricQuantFunction(Function):
         return grad_output.clone() / scale, None, None, None, None
 
 
-class floor_ste(Function):
+class floor_ste(ms.nn.Cell):
     """
     Straight-through Estimator(STE) for torch.floor()
     """
@@ -686,11 +684,11 @@ class floor_ste(Function):
         return mint.floor(x)
 
     @staticmethod
-    def backward(ctx, grad_output):
+    def bprop(ctx, grad_output):
         return grad_output.clone()
 
 
-class round_ste(Function):
+class round_ste(ms.nn.Cell):
     """
     Straight-through Estimator(STE) for torch.round()
     """
@@ -700,7 +698,7 @@ class round_ste(Function):
         return mint.round(x)
 
     @staticmethod
-    def backward(ctx, grad_output):
+    def bprop(ctx, grad_output):
         return grad_output.clone()
 
 
@@ -738,7 +736,7 @@ def batch_frexp(inputs, max_bit=31):
     )
 
 
-class FixedPointMul(Function):
+class FixedPointMul(ms.nn.Cell):
     """
     Function to perform fixed-point arithmetic that can match integer arithmetic on hardware.
 
@@ -815,7 +813,7 @@ class FixedPointMul(Function):
             return mint.clamp(output.type(ms.float32), -n - 1, n)
 
     @staticmethod
-    def backward(ctx, grad_output):
+    def bprop(ctx, grad_output):
         identity_grad = None
         if ctx.identity is not None:
             identity_grad = grad_output.clone() / ctx.z_scaling_factor
