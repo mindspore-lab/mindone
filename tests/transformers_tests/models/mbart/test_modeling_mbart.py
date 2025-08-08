@@ -154,7 +154,7 @@ model_tester = MBartModelTester()
 ) = model_tester.prepare_config_and_inputs_for_common()
 
 
-Bart_CASES = [
+MBart_CASES = [
     [
         "MBartModel",
         "transformers.MBartModel",
@@ -229,7 +229,7 @@ Bart_CASES = [
         + [
             dtype,
         ]
-        for case in Bart_CASES
+        for case in MBart_CASES
         for dtype in DTYPE_AND_THRESHOLDS.keys()
     ],
 )
