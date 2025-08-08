@@ -49,7 +49,6 @@ from transformers.trainer_callback import (
 )
 from transformers.trainer_utils import (
     EvalPrediction,
-    RemoveColumnsCollator,
     get_last_checkpoint,
     has_length,
     number_of_arguments,
@@ -69,7 +68,7 @@ from .mindspore_utils import ALL_LAYERNORM_LAYERS
 from .modeling_utils import MSPreTrainedModel as PreTrainedModel
 from .optimization import get_scheduler
 from .trainer_ms_utils import LabelSmoother, LengthGroupedSampler, get_model_param_count, get_parameter_names
-from .trainer_utils import enable_full_determinism, set_seed
+from .trainer_utils import RemoveColumnsCollator, enable_full_determinism, set_seed
 from .training_args import OptimizerNames, TrainingArguments
 from .utils import can_return_loss, find_labels, logging
 
@@ -525,6 +524,10 @@ class Trainer:
             optimizer_cls = nn.Adagrad
         elif args.optim == OptimizerNames.RMSPROP:
             optimizer_cls = nn.RMSProp
+        elif args.optim in OptimizerNames.BF16ADAMW:
+            from ..trainers.adamw_bf16 import BF16AdamW
+
+            optimizer_cls = BF16AdamW
         elif args.optim in [OptimizerNames.LOMO, OptimizerNames.ADALOMO]:
             raise NotImplementedError
         else:

@@ -1,5 +1,5 @@
 import math
-from typing import Optional
+from typing import List, Optional, Tuple, Union
 
 import mindspore as ms
 import mindspore.mint as mint
@@ -35,7 +35,7 @@ def _flash_attention_forward(
     target_dtype: Optional[ms.Type] = None,
     **kwargs,
 ):
-    assert query_states.size(0) == key_states.size(0) == value_states.size(0) == 1
+    assert query_states.shape[0] == key_states.shape[0] == value_states.shape[0] == 1
     query_states = query_states.squeeze(0)
     key_states = key_states.squeeze(0)
     value_states = value_states.squeeze(0)
@@ -141,7 +141,7 @@ def print_trainable_parameters(self) -> None:
     print(f"LLM Module - Non-Trainable Layer Indices: {non_trainable_layers if non_trainable_layers else 'None'}")
 
 
-def create_optimizer(self):
+def create_optimizer(self, lr_scheduler: Union[Tuple, List] = None):
     opt_model = self.model
 
     if self.optimizer is None:
@@ -281,7 +281,17 @@ def create_optimizer(self):
             ]
 
         optimizer_cls, optimizer_kwargs = Trainer.get_optimizer_cls_and_kwargs(self.args)
-        self.optimizer = optimizer_cls(optimizer_grouped_parameters, **optimizer_kwargs)
+
+        if lr_scheduler is not None:
+            optimizer_kwargs.update({"learning_rate": lr_scheduler})
+
+        # clean empty groups
+        filtered_optimizer_grouped_parameters = []
+        for group in optimizer_grouped_parameters:
+            if len(group["params"]) > 0:
+                filtered_optimizer_grouped_parameters.append(group)
+
+        self.optimizer = optimizer_cls(filtered_optimizer_grouped_parameters, **optimizer_kwargs)
 
     return self.optimizer
 

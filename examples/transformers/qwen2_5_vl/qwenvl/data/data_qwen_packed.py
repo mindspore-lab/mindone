@@ -12,10 +12,6 @@ import transformers
 from decord import VideoReader
 from PIL import Image
 
-import mindspore as ms
-import mindspore.mint as mint
-import mindspore.mint.nn.functional as F
-
 from . import data_list
 from .rope2d import get_rope_index_25
 
@@ -124,8 +120,8 @@ def preprocess_qwen_2_visual(
         input_ids.append(input_id)
         targets.append(target)
 
-    input_ids = ms.tensor(input_ids, dtype=ms.int64)
-    targets = ms.tensor(targets, dtype=ms.int64)
+    input_ids = np.array(input_ids, dtype=np.int64)
+    targets = np.array(targets, dtype=np.int64)
 
     return dict(
         input_ids=input_ids,
@@ -218,7 +214,7 @@ class LazySupervisedDataset:
         processor = copy.deepcopy(self.data_args.image_processor)
         image = Image.open(image_file).convert("RGB")
 
-        visual_processed = processor.preprocess(image, return_tensors="pt")
+        visual_processed = processor.preprocess(image, return_tensors="np")
         image_tensor = visual_processed["pixel_values"]
         if isinstance(image_tensor, List):
             image_tensor = image_tensor[0]
@@ -264,13 +260,13 @@ class LazySupervisedDataset:
         processor.min_pixels = self.data_args.video_min_frame_pixels
         processor.size["longest_edge"] = processor.max_pixels
         processor.size["shortest_edge"] = processor.min_pixels
-        video_processed = processor.preprocess(images=None, videos=video, return_tensors="pt")
+        video_processed = processor.preprocess(images=None, videos=video, return_tensors="np")
         video_tensor = video_processed["pixel_values_videos"]
         grid_thw = video_processed["video_grid_thw"][0]
         second_per_grid_ts = [self.data_args.image_processor.temporal_patch_size / fps] * len(grid_thw)
         return video_tensor, grid_thw, second_per_grid_ts
 
-    def __getitem__(self, i) -> Dict[str, ms.Tensor]:
+    def __getitem__(self, i) -> Dict[str, np.ndarray]:
         num_base_retries = 3
 
         # try the current sample first
@@ -304,7 +300,7 @@ class LazySupervisedDataset:
         except Exception as e:
             raise e
 
-    def get_data(self, sources) -> Dict[str, ms.Tensor]:
+    def get_data(self, sources) -> Dict[str, np.ndarray]:
         # define some variables
         grid_thw_merged = None
         video_grid_thw_merged = None
@@ -371,34 +367,35 @@ class LazySupervisedDataset:
         position_ids, _ = self.get_rope_index(
             self.data_args.image_processor.merge_size,
             data_dict["input_ids"],
-            image_grid_thw=mint.stack(grid_thw, dim=0) if grid_thw else None,
-            video_grid_thw=(mint.stack(video_grid_thw, dim=0) if video_grid_thw else None),
+            image_grid_thw=np.stack(grid_thw, axis=0) if grid_thw else None,
+            video_grid_thw=(np.stack(video_grid_thw, axis=0) if video_grid_thw else None),
             second_per_grid_ts=second_per_grid_ts if second_per_grid_ts else None,
         )
         if "image" not in sources[0] and "video" not in sources[0]:
             grid_thw_merged = None
             sources = copy.deepcopy([e["conversations"] for e in sources])
             data_dict = preprocess_qwen_2_visual(sources, self.tokenizer, grid_thw=grid_thw_merged)
-            position_ids = mint.arange(0, data_dict["input_ids"].size(1)).view(1, -1).unsqueeze(0).expand(3, -1, -1)
+            position_ids = np.arange(0, data_dict["input_ids"].shape[1]).reshape(1, -1)[None]
+            position_ids = np.tile(position_ids, (3, 1, 1))
 
         data_dict["position_ids"] = position_ids
-        data_dict["attention_mask"] = [data_dict["input_ids"][0].size(0)]
+        data_dict["attention_mask"] = [data_dict["input_ids"][0].shape[0]]
 
         if "image" in sources[0]:
-            data_dict["pixel_values"] = mint.cat(image, dim=0)
-            data_dict["image_grid_thw"] = mint.cat([thw.unsqueeze(0) for thw in grid_thw], dim=0)
+            data_dict["pixel_values"] = np.concatenate(image, axis=0)
+            data_dict["image_grid_thw"] = np.concatenate([thw[None] for thw in grid_thw], axis=0)
         # video exist in the data
         elif "video" in sources[0]:
-            data_dict["pixel_values_videos"] = mint.cat(video, dim=0)
-            data_dict["video_grid_thw"] = mint.cat([thw.unsqueeze(0) for thw in video_grid_thw], dim=0)
+            data_dict["pixel_values_videos"] = np.concatenate(video, axis=0)
+            data_dict["video_grid_thw"] = np.concatenate([thw[None] for thw in video_grid_thw], axis=0)
 
         return data_dict
 
-    def _get_item(self, i) -> Dict[str, ms.Tensor]:
+    def _get_item(self, i) -> Dict[str, np.ndarray]:
         sources = self.list_data_dict[i]
 
         if isinstance(sources, dict):
-            if isinstance(i, int):
+            if isinstance(i, (int, np.integer)):
                 sources = [sources]
             assert len(sources) == 1, "Don't know why it is wrapped to a list"  # FIXME
             return self.get_data(sources)
@@ -407,14 +404,14 @@ class LazySupervisedDataset:
             data_list = []
             new_data_dict = {}
             for source in sources:
-                if isinstance(i, int):
+                if isinstance(i, (int, np.integer)):
                     source = [source]
                 assert len(source) == 1, "Don't know why it is wrapped to a list"  # FIXME
                 data_list.append(self.get_data(source))
 
-            input_ids = mint.cat([d["input_ids"] for d in data_list], dim=1)
-            labels = mint.cat([d["labels"] for d in data_list], dim=1)
-            position_ids = mint.cat([d["position_ids"] for d in data_list], dim=2)
+            input_ids = np.concatenate([d["input_ids"] for d in data_list], axis=1)
+            labels = np.concatenate([d["labels"] for d in data_list], axis=1)
+            position_ids = np.concatenate([d["position_ids"] for d in data_list], axis=2)
             attention_mask = [d["attention_mask"][0] for d in data_list if "attention_mask" in d]
             new_data_dict = {
                 "input_ids": input_ids,
@@ -426,9 +423,11 @@ class LazySupervisedDataset:
             if any("pixel_values" in d for d in data_list):
                 new_data_dict.update(
                     {
-                        "pixel_values": mint.cat([d["pixel_values"] for d in data_list if "pixel_values" in d], dim=0),
-                        "image_grid_thw": mint.cat(
-                            [d["image_grid_thw"] for d in data_list if "image_grid_thw" in d], dim=0
+                        "pixel_values": np.concatenate(
+                            [d["pixel_values"] for d in data_list if "pixel_values" in d], axis=0
+                        ),
+                        "image_grid_thw": np.concatenate(
+                            [d["image_grid_thw"] for d in data_list if "image_grid_thw" in d], axis=0
                         ),
                     }
                 )
@@ -436,11 +435,11 @@ class LazySupervisedDataset:
             if any("pixel_values_videos" in d for d in data_list):
                 new_data_dict.update(
                     {
-                        "pixel_values_videos": mint.cat(
-                            [d["pixel_values_videos"] for d in data_list if "pixel_values_videos" in d], dim=0
+                        "pixel_values_videos": np.concatenate(
+                            [d["pixel_values_videos"] for d in data_list if "pixel_values_videos" in d], axis=0
                         ),
-                        "video_grid_thw": mint.cat(
-                            [d["video_grid_thw"] for d in data_list if "video_grid_thw" in d], dim=0
+                        "video_grid_thw": np.concatenate(
+                            [d["video_grid_thw"] for d in data_list if "video_grid_thw" in d], axis=0
                         ),
                     }
                 )
@@ -453,10 +452,10 @@ def pad_and_cat(tensor_list):
     padded_tensors = []
     for tensor in tensor_list:
         pad_length = max_length - tensor.shape[2]
-        padded_tensor = F.pad(tensor, (0, pad_length), "constant", 1)
+        padded_tensor = np.pad(tensor, ((0, 0), (0, 0), (0, pad_length)), "constant", constant_values=1)
         padded_tensors.append(padded_tensor)
 
-    stacked_tensor = mint.cat(padded_tensors, dim=1)
+    stacked_tensor = np.concatenate(padded_tensors, axis=1)
 
     return stacked_tensor
 
@@ -467,7 +466,7 @@ class PackedDataCollatorForSupervisedDataset:
 
     tokenizer: transformers.PreTrainedTokenizer
 
-    def __call__(self, instances: Sequence[Dict]) -> Dict[str, ms.Tensor]:
+    def __call__(self, instances: Sequence[Dict]) -> Dict[str, np.ndarray]:
         input_ids, labels, position_ids, attention_mask = tuple(
             [instance[key] for instance in instances]
             for key in ("input_ids", "labels", "position_ids", "attention_mask")
@@ -475,11 +474,11 @@ class PackedDataCollatorForSupervisedDataset:
         attention_mask = list(
             itertools.chain(*(instance["attention_mask"] for instance in instances if "attention_mask" in instance))
         )
-        seq_lens = ms.tensor([0] + attention_mask, dtype=ms.int32)
-        cumsum_seq_lens = mint.cumsum(seq_lens, dim=0, dtype=ms.int32)
-        input_ids = mint.cat(input_ids, dim=1)
-        labels = mint.cat(labels, dim=1)
-        position_ids = mint.cat(position_ids, dim=2)
+        seq_lens = np.array([0] + attention_mask, dtype=np.int32)
+        cumsum_seq_lens = np.cumsum(seq_lens, axis=0, dtype=np.int32)
+        input_ids = np.concatenate(input_ids, axis=1)
+        labels = np.concatenate(labels, axis=1)
+        position_ids = np.concatenate(position_ids, axis=2)
 
         batch = dict(
             input_ids=input_ids,
@@ -490,17 +489,17 @@ class PackedDataCollatorForSupervisedDataset:
         images = list(instance["pixel_values"] for instance in instances if "pixel_values" in instance)
         videos = list(instance["pixel_values_videos"] for instance in instances if "pixel_values_videos" in instance)
         if len(images) != 0:
-            concat_images = mint.cat([image for image in images], dim=0)
+            concat_images = np.concatenate([image for image in images], axis=0)
             grid_thw = [instance["image_grid_thw"] for instance in instances if "image_grid_thw" in instance]
-            grid_thw = mint.cat(grid_thw, dim=0)
+            grid_thw = np.concatenate(grid_thw, axis=0)
         else:
             concat_images = None
             grid_thw = None
 
         if len(videos) != 0:
-            concat_videos = mint.cat([video for video in videos], dim=0)
+            concat_videos = np.concatenate([video for video in videos], axis=0)
             video_grid_thw = [instance["video_grid_thw"] for instance in instances if "video_grid_thw" in instance]
-            video_grid_thw = mint.cat(video_grid_thw, dim=0)
+            video_grid_thw = np.concatenate(video_grid_thw, axis=0)
         else:
             concat_videos = None
             video_grid_thw = None

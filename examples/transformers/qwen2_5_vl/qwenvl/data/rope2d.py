@@ -1,18 +1,16 @@
 from typing import Optional, Tuple
 
-import mindspore as ms
-import mindspore.mint as mint
-import mindspore.ops as ops
+import numpy as np
 
 
 def get_rope_index_25(
     spatial_merge_size: Optional[int] = 2,
-    input_ids: Optional[ms.Tensor] = None,
-    image_grid_thw: Optional[ms.Tensor] = None,
-    video_grid_thw: Optional[ms.Tensor] = None,
-    second_per_grid_ts: Optional[ms.Tensor] = None,
-    attention_mask: Optional[ms.Tensor] = None,
-) -> Tuple[ms.Tensor, ms.Tensor]:
+    input_ids: Optional[np.ndarray] = None,
+    image_grid_thw: Optional[np.ndarray] = None,
+    video_grid_thw: Optional[np.ndarray] = None,
+    second_per_grid_ts: Optional[np.ndarray] = None,
+    attention_mask: Optional[np.ndarray] = None,
+) -> Tuple[np.ndarray, np.ndarray]:
     """
     Calculate the 3D rope index based on image and video's temporal, height and width in LLM.
 
@@ -50,24 +48,24 @@ def get_rope_index_25(
             Here we calculate the text start position_ids as the max vision position_ids plus 1.
 
     Args:
-        input_ids (`ms.Tensor` of shape `(batch_size, sequence_length)`):
+        input_ids (`np.ndarray` of shape `(batch_size, sequence_length)`):
             Indices of input sequence tokens in the vocabulary. Padding will be ignored by default should you provide
             it.
-        image_grid_thw (`ms.Tensor` of shape `(num_images, 3)`, *optional*):
+        image_grid_thw (`np.ndarray` of shape `(num_images, 3)`, *optional*):
             The temporal, height and width of feature shape of each image in LLM.
-        video_grid_thw (`ms.Tensor` of shape `(num_videos, 3)`, *optional*):
+        video_grid_thw (`np.ndarray` of shape `(num_videos, 3)`, *optional*):
             The temporal, height and width of feature shape of each video in LLM.
-        second_per_grid_ts (`ms.Tensor` of shape `(num_videos)`, *optional*):
+        second_per_grid_ts (`np.ndarray` of shape `(num_videos)`, *optional*):
             The time interval (in seconds) for each grid along the temporal dimension in the 3D position IDs.
-        attention_mask (`ms.Tensor` of shape `(batch_size, sequence_length)`, *optional*):
+        attention_mask (`np.ndarray` of shape `(batch_size, sequence_length)`, *optional*):
             Mask to avoid performing attention on padding token indices. Mask values selected in `[0, 1]`:
 
             - 1 for tokens that are **not masked**,
             - 0 for tokens that are **masked**.
 
     Returns:
-        position_ids (`ms.Tensor` of shape `(3, batch_size, sequence_length)`)
-        mrope_position_deltas (`ms.Tensor` of shape `(batch_size)`)
+        position_ids (`np.ndarray` of shape `(3, batch_size, sequence_length)`)
+        mrope_position_deltas (`np.ndarray` of shape `(batch_size)`)
     """
     image_token_id = 151655
     video_token_id = 151656
@@ -76,18 +74,13 @@ def get_rope_index_25(
     if input_ids is not None and (image_grid_thw is not None or video_grid_thw is not None):
         total_input_ids = input_ids
         if attention_mask is None:
-            attention_mask = mint.ones_like(total_input_ids)
-        position_ids = mint.ones(
-            3,
-            input_ids.shape[0],
-            input_ids.shape[1],
-            dtype=input_ids.dtype,
-        )
+            attention_mask = np.ones_like(total_input_ids)
+        position_ids = np.ones((3, input_ids.shape[0], input_ids.shape[1]), dtype=input_ids.dtype)
         image_index, video_index = 0, 0
         for i, input_ids in enumerate(total_input_ids):
             input_ids = input_ids[attention_mask[i] == 1]
             image_nums, video_nums = 0, 0
-            vision_start_indices = ops.argwhere(input_ids == vision_start_token_id).squeeze(1)
+            vision_start_indices = np.argwhere(input_ids == vision_start_token_id).squeeze(1)
             vision_tokens = input_ids[vision_start_indices + 1]
             image_nums = (vision_tokens == image_token_id).sum()
             video_nums = (vision_tokens == video_token_id).sum()
@@ -136,44 +129,41 @@ def get_rope_index_25(
                 text_len = ed - st
 
                 st_idx = llm_pos_ids_list[-1].max() + 1 if len(llm_pos_ids_list) > 0 else 0
-                llm_pos_ids_list.append(mint.arange(text_len).view(1, -1).expand(3, -1) + st_idx)
+                llm_pos_ids_list.append(np.tile(np.arange(text_len).reshape(1, -1), (3, 1)) + st_idx)
 
-                range_tensor = mint.arange(llm_grid_t).view(-1, 1)
-                expanded_range = range_tensor.expand(-1, llm_grid_h * llm_grid_w)
+                range_tensor = np.arange(llm_grid_t).reshape(-1, 1)
+                expanded_range = np.tile(range_tensor, (1, llm_grid_h * llm_grid_w))
 
                 time_tensor = expanded_range * second_per_grid_t * 2
 
-                time_tensor_long = time_tensor.long()
+                time_tensor_long = time_tensor.astype(np.int64)
                 t_index = time_tensor_long.flatten()
 
-                h_index = mint.arange(llm_grid_h).view(1, -1, 1).expand(llm_grid_t, -1, llm_grid_w).flatten()
-                w_index = mint.arange(llm_grid_w).view(1, 1, -1).expand(llm_grid_t, llm_grid_h, -1).flatten()
-                llm_pos_ids_list.append(mint.stack([t_index, h_index, w_index]) + text_len + st_idx)
+                h_index = np.tile(np.arange(llm_grid_h).reshape(1, -1, 1), (llm_grid_t, 1, llm_grid_w)).flatten()
+                w_index = np.tile(np.arange(llm_grid_w).reshape(1, 1, -1), (llm_grid_t, llm_grid_h, 1)).flatten()
+                llm_pos_ids_list.append(np.stack([t_index, h_index, w_index]) + text_len + st_idx)
                 st = ed + llm_grid_t * llm_grid_h * llm_grid_w
 
             if st < len(input_tokens):
                 st_idx = llm_pos_ids_list[-1].max() + 1 if len(llm_pos_ids_list) > 0 else 0
                 text_len = len(input_tokens) - st
-                llm_pos_ids_list.append(mint.arange(text_len).view(1, -1).expand(3, -1) + st_idx)
+                llm_pos_ids_list.append(np.tile(np.arange(text_len).reshape(1, -1), (3, 1)) + st_idx)
 
-            llm_positions = mint.cat(llm_pos_ids_list, dim=1).reshape(3, -1)
+            llm_positions = np.concatenate(llm_pos_ids_list, axis=1).reshape(3, -1)
             position_ids[..., i, attention_mask[i] == 1] = llm_positions
 
             mrope_position_deltas.append(llm_positions.max() + 1 - len(total_input_ids[i]))
-        mrope_position_deltas = ms.tensor(mrope_position_deltas).unsqueeze(1)
+        mrope_position_deltas = np.array(mrope_position_deltas)[:, None]
         return position_ids, mrope_position_deltas
     else:
         if attention_mask is not None:
-            position_ids = attention_mask.long().cumsum(-1) - 1
-            position_ids.masked_fill_(attention_mask == 0, 1)
-            position_ids = position_ids.unsqueeze(0).expand(3, -1, -1)
-            max_position_ids = position_ids.max(0, keepdim=False)[0].max(-1, keepdim=True)[0]
+            position_ids = attention_mask.astype(np.int64).cumsum(-1) - 1
+            position_ids[attention_mask == 0] = 1
+            position_ids = np.tile(position_ids[None], (3, 1, 1))
+            max_position_ids = position_ids.max(0, keepdims=False)[0].max(-1, keepdims=True)[0]
             mrope_position_deltas = max_position_ids + 1 - attention_mask.shape[-1]
         else:
-            position_ids = mint.arange(input_ids.shape[1]).view(1, 1, -1).expand(3, input_ids.shape[0], -1)
-            mrope_position_deltas = mint.zeros(
-                [input_ids.shape[0], 1],
-                dtype=input_ids.dtype,
-            )
+            position_ids = np.tile(np.arange(input_ids.shape[1]).reshape(1, 1, -1), (3, input_ids.shape[0], 1))
+            mrope_position_deltas = np.zeros((input_ids.shape[0], 1), dtype=input_ids.dtype)
 
         return position_ids, mrope_position_deltas

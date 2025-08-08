@@ -63,6 +63,7 @@ class OptimizerNames(ExplicitEnum):
     RMSPROP = "rmsprop"
     LOMO = "lomo"
     ADALOMO = "adalomo"
+    BF16ADAMW = "bf16_adamw"
 
 
 # Sometimes users will pass in a `str` repr of a dict in the CLI

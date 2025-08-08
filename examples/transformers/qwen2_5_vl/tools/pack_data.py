@@ -2,6 +2,7 @@ import argparse
 import concurrent.futures
 import json
 import os
+import random
 import sys
 import time
 from copy import deepcopy
@@ -143,6 +144,8 @@ def main():
     parser.add_argument("--pack_length", default=4096, type=int, help="pack length")
     args = parser.parse_args()
 
+    random.seed(0)
+
     data_args = DataArguments()
     tokenizer = AutoTokenizer.from_pretrained(args.model_name)
     tokenizer.chat_template = (
@@ -184,6 +187,7 @@ def main():
 
     # Record the start time of binpacking
     start_time = time.time()
+    random.shuffle(data_with_tokens)
     for i in range(0, len(data_with_tokens), args.batch_size):
         batch_data = data_with_tokens[i : i + args.batch_size]
         batch_packed_result = pack_data(batch_data, args.pack_length)
