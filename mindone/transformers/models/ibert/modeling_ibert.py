@@ -16,17 +16,15 @@
 # limitations under the License.
 
 import mindspore as ms
-from mindspore import mint, nn
+from mindspore import mint
 """MindSpore I-BERT model."""
 
 import math
 from typing import Optional, Tuple, Union
 
 import mindspore as ms
-from mindspore import nn
-from mint.nn import BCEWithLogitsLoss, CrossEntropyLoss, MSELoss
+from mindspore.mint.nn import BCEWithLogitsLoss, CrossEntropyLoss, MSELoss
 
-from ...activations import gelu
 from ...modeling_outputs import (
     BaseModelOutputWithPastAndCrossAttentions,
     BaseModelOutputWithPoolingAndCrossAttentions,
@@ -37,9 +35,10 @@ from ...modeling_outputs import (
     TokenClassifierOutput,
 )
 from ...modeling_utils import PreTrainedModel
-from ...pytorch_utils import find_pruneable_heads_and_indices, prune_linear_layer
-from ...utils import add_code_sample_docstrings, add_start_docstrings, add_start_docstrings_to_model_forward, logging
-from .configuration_ibert import IBertConfig
+from mindone.transformers.activations import ACT2FN
+from mindone.transformers.mindspore_utils import find_pruneable_heads_and_indices, prune_linear_layer
+from transformers.utils import add_code_sample_docstrings, add_start_docstrings, add_start_docstrings_to_model_forward, logging
+from transformers import IBertConfig
 from .quant_modules import IntGELU, IntLayerNorm, IntSoftmax, QuantAct, QuantEmbedding, QuantLinear
 
 
@@ -48,6 +47,7 @@ logger = logging.get_logger(__name__)
 _CHECKPOINT_FOR_DOC = "kssteven/ibert-roberta-base"
 _CONFIG_FOR_DOC = "IBertConfig"
 
+gelu = ACT2FN["gelu"]
 
 class IBertEmbeddings(ms.nn.Cell):
     """
