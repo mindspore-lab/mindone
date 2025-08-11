@@ -27,7 +27,7 @@ VIDEOCHATGPT = {
 }
 
 DOC_VQA_PACK = {
-    "annotation_path": "PATH_TO_DOC_VQA_ANNOTATION_PACKED",
+    "annotation_path": "/home/mikecheung/data/doc_vqa_qwen2_5_vl/doc_vqa_pack.json",
     "data_path": "",
 }
 
