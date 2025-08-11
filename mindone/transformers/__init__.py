@@ -1099,6 +1099,7 @@ from .models.segformer import (
 from .models.seggpt import SegGptForImageSegmentation, SegGptModel, SegGptPreTrainedModel
 from .models.sew import SEWForCTC, SEWForSequenceClassification, SEWModel, SEWPreTrainedModel
 from .models.sew_d import SEWDForCTC, SEWDForSequenceClassification, SEWDModel, SEWDPreTrainedModel
+from .models.shieldgemma2 import ShieldGemma2ForImageClassification
 from .models.siglip import (
     SiglipForImageClassification,
     SiglipImageProcessor,
