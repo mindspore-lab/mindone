@@ -430,6 +430,16 @@ from .models.mobilebert import (
     MobileBertModel,
     MobileBertPreTrainedModel,
 )
+from .models.mpnet import (
+    MPNetForMaskedLM,
+    MPNetForMultipleChoice,
+    MPNetForQuestionAnswering,
+    MPNetForSequenceClassification,
+    MPNetForTokenClassification,
+    MPNetLayer,
+    MPNetModel,
+    MPNetPreTrainedModel,
+)
 from .models.mpt import (
     MptForCausalLM,
     MptForQuestionAnswering,

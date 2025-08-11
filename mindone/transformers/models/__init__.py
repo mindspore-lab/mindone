@@ -64,6 +64,7 @@ from . import (
     mistral,
     mixtral,
     mobilebert,
+    mpnet,
     mpt,
     mvp,
     opt,
