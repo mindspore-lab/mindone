@@ -75,8 +75,9 @@ class IBertEmbeddings(ms.nn.Cell):
         )
 
         # position_ids (1, len position emb) is contiguous in memory and exported when serialized
+        # broadcasting arange to shape (1, max_position_embeddings)
         self.register_buffer(
-            "position_ids", mint.arange(config.max_position_embeddings).expand((1, -1)), persistent=False
+            "position_ids", mint.arange(config.max_position_embeddings).broadcast_to((1, -1)), persistent=False
         )
         self.position_embedding_type = getattr(config, "position_embedding_type", "absolute")
 
@@ -167,7 +168,7 @@ class IBertEmbeddings(ms.nn.Cell):
 
         position_ids = mint.arange(
             self.padding_idx + 1, sequence_length + self.padding_idx + 1, dtype=ms.int64, )
-        return position_ids.unsqueeze(0).expand(input_shape)
+        return position_ids.unsqueeze(0).broadcast_to(input_shape)
 
 
 class IBertSelfAttention(ms.nn.Cell):
@@ -955,11 +956,8 @@ class IBertLMHead(ms.nn.Cell):
 
     def _tie_weights(self) -> None:
         # For accelerate compatibility and to not break backward compatibility
-        if self.decoder.bias.device.type == "meta":
-            self.decoder.bias = self.bias
-        else:
-            # To tie those two weights if they get disconnected (on TPU or when the bias is resized)
-            self.bias = self.decoder.bias
+        # MindSpore does not use device/meta checks; directly ensure shared bias parameter
+        self.decoder.bias = self.bias
 
 
 @add_start_docstrings(

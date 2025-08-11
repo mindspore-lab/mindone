@@ -580,7 +580,7 @@ def symmetric_linear_quantization_params(num_bits, saturation_min, saturation_ma
         *saturation_max*.
     """
     # in this part, we do not need any gradient computation,
-    # in order to enforce this, we put torch.no_grad()
+    # in order to enforce this, we put ms._no_grad()
     with ms._no_grad():
         n = 2 ** (num_bits - 1) - 1
 
@@ -640,7 +640,7 @@ class SymmetricQuantFunction(ms.nn.Cell):
 
 class floor_ste(ms.nn.Cell):
     """
-    Straight-through Estimator(STE) for torch.floor()
+    Straight-through Estimator(STE) for floor()
     """
 
     def construct(ctx, x):
@@ -652,7 +652,7 @@ class floor_ste(ms.nn.Cell):
 
 class round_ste(ms.nn.Cell):
     """
-    Straight-through Estimator(STE) for torch.round()
+    Straight-through Estimator(STE) for round()
     """
 
     def construct(ctx, x):
