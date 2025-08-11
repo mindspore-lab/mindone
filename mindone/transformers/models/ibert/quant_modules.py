@@ -62,6 +62,7 @@ class QuantEmbedding(ms.nn.Cell):
         self.norm_type = norm_type
         self.scale_grad_by_freq = scale_grad_by_freq
         self.sparse = sparse
+        assert self.sparse is False, "sparse is not supported in mindspore.mint.nn.functional.embedding"
 
         self.weight = ms.Parameter(mint.zeros([num_embeddings, embedding_dim]))
         self.register_buffer("weight_scaling_factor", mint.zeros(1))
@@ -83,7 +84,6 @@ class QuantEmbedding(ms.nn.Cell):
                     self.max_norm,
                     self.norm_type,
                     self.scale_grad_by_freq,
-                    self.sparse,
                 ),
                 None,
             )
