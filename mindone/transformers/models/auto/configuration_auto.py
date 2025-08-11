@@ -275,8 +275,20 @@ if version.parse(transformers.__version__) >= version.parse("4.51.3"):
     MODEL_NAMES_MAPPING.update({"glm4": "glm4"})
 
 if version.parse(transformers.__version__) >= version.parse("4.53.0"):
-    CONFIG_MAPPING_NAMES.update({"minimax": "MiniMaxConfig", "vjepa2": "VJEPA2Model"})
-    MODEL_NAMES_MAPPING.update({"minimax": "MiniMax", "vjepa2": "VJEPA2Model"})
+    CONFIG_MAPPING_NAMES.update(
+        {
+            "arcee": "ArceeConfig",
+            "minimax": "MiniMaxConfig",
+            "vjepa2": "VJEPA2Config",
+        }
+    )
+    MODEL_NAMES_MAPPING.update(
+        {
+            "arcee": "Arcee",
+            "minimax": "MiniMax",
+            "vjepa2": "VJEPA2Model",
+        }
+    )
 
 
 def model_type_to_module_name(key):

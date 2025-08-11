@@ -139,4 +139,4 @@ def is_flash_attn_2_available():
 
 
 def is_sdpa_available():
-    return False
+    return True

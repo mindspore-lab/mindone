@@ -65,7 +65,6 @@ class Qwen2_5_VLVisionText2TextModelTester:
             "temporal_patch_size": 2,
         },
         rope_scaling={"type": "mrope", "mrope_section": [2, 1, 1]},
-        attn_implementation="eager",
     ):
         self.ignore_index = ignore_index
         self.bos_token_id = bos_token_id
@@ -94,7 +93,6 @@ class Qwen2_5_VLVisionText2TextModelTester:
         self.vocab_size = vocab_size
         self.num_image_tokens = 32
         self.seq_length = seq_length + self.num_image_tokens
-        self.attn_implementation = attn_implementation
 
     def get_config(self):
         return Qwen2_5_VLConfig(
@@ -117,7 +115,6 @@ class Qwen2_5_VLVisionText2TextModelTester:
             image_token_id=self.image_token_id,
             video_token_id=self.video_token_id,
             vocab_size=self.vocab_size,
-            attn_implementation=self.attn_implementation,
         )
 
     def prepare_config_and_inputs(self):
@@ -160,14 +157,14 @@ config, inputs_dict = model_tester.prepare_config_and_inputs_for_common()
 
 _CASES = [
     [
-        "Qwen2_5_VLForConditionalGeneration",
-        "transformers.Qwen2_5_VLForConditionalGeneration",  # NOTE: name is different from latest version
-        "mindone.transformers.Qwen2_5_VLForConditionalGeneration",
+        "Qwen2_5_VLModel",
+        "transformers.Qwen2_5_VLModel",  # NOTE: name is different from latest version
+        "mindone.transformers.Qwen2_5_VLModel",
         (config,),
         {},
         (),
         inputs_dict,
-        {"logits": "logits"},
+        {"last_hidden_state": "last_hidden_state"},
     ],
 ]
 

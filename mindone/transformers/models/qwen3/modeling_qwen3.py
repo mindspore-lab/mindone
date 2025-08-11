@@ -29,7 +29,6 @@ from typing import Callable, Optional, Tuple, Union
 import numpy as np
 from transformers.models.qwen3.configuration_qwen3 import Qwen3Config
 from transformers.utils import (
-    LossKwargs,
     add_code_sample_docstrings,
     add_start_docstrings,
     add_start_docstrings_to_model_forward,
@@ -59,6 +58,7 @@ from ...modeling_outputs import (
 from ...modeling_rope_utils import ROPE_INIT_FUNCTIONS
 from ...modeling_utils import ALL_ATTENTION_FUNCTIONS, PreTrainedModel
 from ...processing_utils import Unpack
+from ...utils import TransformersKwargs
 
 logger = logging.get_logger(__name__)
 
@@ -156,7 +156,7 @@ def eager_attention_forward(
     attention_mask: Optional[ms.Tensor],
     scaling: float,
     dropout: float = 0.0,
-    **kwargs,
+    **kwargs: Unpack[TransformersKwargs],
 ):
     key_states = repeat_kv(key, module.num_key_value_groups)
     value_states = repeat_kv(value, module.num_key_value_groups)
@@ -379,7 +379,7 @@ class Qwen3DecoderLayer(nn.Cell):
         freqs_cis: Optional[ms.Tensor] = None,
         mask: Optional[ms.Tensor] = None,
         batch_valid_length: Optional[ms.Tensor] = None,
-        **kwargs: Unpack[FlashAttentionKwargs],
+        **kwargs: Unpack[TransformersKwargs],
     ) -> Tuple[ms.Tensor, Optional[Tuple[ms.Tensor, ms.Tensor]]]:
         residual = hidden_states
 
@@ -631,7 +631,7 @@ class Qwen3Model(Qwen3PreTrainedModel):
         freqs_cis: Optional[ms.Tensor] = None,
         mask: Optional[ms.Tensor] = None,
         batch_valid_length: Optional[ms.Tensor] = None,
-        **flash_attn_kwargs: Unpack[FlashAttentionKwargs],
+        **kwargs: Unpack[TransformersKwargs],
     ) -> BaseModelOutputWithPast:
         output_attentions = output_attentions if output_attentions is not None else self.config.output_attentions
         output_hidden_states = (
@@ -686,7 +686,7 @@ class Qwen3Model(Qwen3PreTrainedModel):
             past_key_value = past_key_values[idx] if past_key_values is not None else None
             if self.gradient_checkpointing and self.training:
                 layer_outputs = self._gradient_checkpointing_func(
-                    partial(decoder_layer.__call__, **flash_attn_kwargs),
+                    partial(decoder_layer.__call__, **kwargs),
                     hidden_states,
                     causal_mask,
                     position_ids,
@@ -711,7 +711,7 @@ class Qwen3Model(Qwen3PreTrainedModel):
                     freqs_cis=freqs_cis,
                     mask=mask,
                     batch_valid_length=batch_valid_length,
-                    **flash_attn_kwargs,
+                    **kwargs,
                 )
 
             hidden_states = layer_outputs[0]
@@ -882,10 +882,6 @@ class Qwen3Model(Qwen3PreTrainedModel):
         return causal_mask
 
 
-class KwargsForCausalLM(FlashAttentionKwargs, LossKwargs):
-    ...
-
-
 class Qwen3ForCausalLM(Qwen3PreTrainedModel, GenerationMixin):
     _tied_weights_keys = ["lm_head.weight"]
     _tp_plan = {"lm_head": "colwise_rep"}
@@ -997,7 +993,7 @@ class Qwen3ForCausalLM(Qwen3PreTrainedModel, GenerationMixin):
         slot_mapping: Optional[ms.Tensor] = None,
         batch_valid_length: Optional[ms.Tensor] = None,
         logits_to_keep: Union[int, ms.Tensor] = 0,
-        **kwargs: Unpack[KwargsForCausalLM],
+        **kwargs: Unpack[TransformersKwargs],
     ) -> CausalLMOutputWithPast:
         r"""
             labels (`ms.Tensor` of shape `(batch_size, sequence_length)`, *optional*):

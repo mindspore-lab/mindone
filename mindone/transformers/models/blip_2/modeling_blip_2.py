@@ -316,6 +316,11 @@ class Blip2PreTrainedModel(MSPreTrainedModel):
     config_class = Blip2Config
     base_model_prefix = "blip"
     supports_gradient_checkpointing = True
+    _supports_attention_backend = True
+    _supports_flash_attn = True
+    _supports_sdpa = True
+    _supports_flex_attn = True
+
     _no_split_modules = ["Blip2Attention", "T5Block", "OPTDecoderLayer"]
     # _skip_keys_device_placement = "past_key_values"
     _keep_in_fp32_modules = ["wo"]
@@ -917,6 +922,11 @@ class Blip2QFormerModel(Blip2PreTrainedModel):
     Querying Transformer (Q-Former), used in BLIP-2.
     """
 
+    _supports_attention_backend = False  # adds position on attn weights before last matmul
+    _supports_flash_attn = False
+    _supports_sdpa = False
+    _supports_flex_attn = False
+
     def __init__(self, config: Blip2QFormerConfig):
         super().__init__(config)
         self.config = config
@@ -1102,6 +1112,8 @@ class Blip2QFormerModel(Blip2PreTrainedModel):
 class Blip2Model(Blip2PreTrainedModel):
     config_class = Blip2Config
     main_input_name = "pixel_values"
+    _keep_in_fp32_modules = ["query_tokens", "qformer"]
+    _supports_flash_attn = False  # because self.qformer does not support FA2
 
     def __init__(self, config: Blip2Config):
         super().__init__(config)
@@ -1447,6 +1459,9 @@ class Blip2Model(Blip2PreTrainedModel):
 
 
 class Blip2ForConditionalGeneration(Blip2PreTrainedModel):
+    supports_gradient_checkpointing = False
+    _keep_in_fp32_modules = ["query_tokens", "qformer"]
+    _supports_flash_attn = False  # because self.qformer does not support FA2
     config_class = Blip2Config
     main_input_name = "pixel_values"
 

@@ -26,7 +26,6 @@ from typing import Callable, List, Optional, Tuple, Union
 
 from transformers import Cohere2Config
 from transformers.utils import (
-    LossKwargs,
     add_start_docstrings,
     add_start_docstrings_to_model_forward,
     logging,
@@ -49,6 +48,7 @@ from ...modeling_outputs import BaseModelOutputWithPast, CausalLMOutputWithPast
 from ...modeling_rope_utils import ROPE_INIT_FUNCTIONS
 from ...modeling_utils import ALL_ATTENTION_FUNCTIONS, PreTrainedModel
 from ...processing_utils import Unpack
+from ...utils import TransformersKwargs
 
 logger = logging.get_logger(__name__)
 
@@ -154,7 +154,7 @@ def eager_attention_forward(
     attention_mask: Optional[mint.Tensor],
     scaling: float,
     dropout: float = 0.0,
-    **kwargs,
+    **kwargs: Unpack[TransformersKwargs],
 ):
     key_states = repeat_kv(key, module.num_key_value_groups)
     value_states = repeat_kv(value, module.num_key_value_groups)
@@ -581,7 +581,7 @@ class Cohere2Model(Cohere2PreTrainedModel):
         return_dict: Optional[bool] = None,
         cache_position: Optional[mint.Tensor] = None,
         last_cache_position: Optional[int] = None,
-        **flash_attn_kwargs: Unpack[FlashAttentionKwargs],
+        **kwargs: Unpack[TransformersKwargs],
     ) -> Union[Tuple, BaseModelOutputWithPast]:
         output_attentions = output_attentions if output_attentions is not None else self.config.output_attentions
         output_hidden_states = (
@@ -669,7 +669,7 @@ class Cohere2Model(Cohere2PreTrainedModel):
                     use_cache=use_cache,
                     cache_position=cache_position,
                     last_cache_position=last_cache_position,
-                    **flash_attn_kwargs,
+                    **kwargs,
                 )
 
             hidden_states = layer_outputs[0]
@@ -779,10 +779,6 @@ class Cohere2Model(Cohere2PreTrainedModel):
         return causal_mask
 
 
-class KwargsForCausalLM(FlashAttentionKwargs, LossKwargs):
-    ...
-
-
 class Cohere2ForCausalLM(Cohere2PreTrainedModel, GenerationMixin):
     _tied_weights_keys = ["lm_head.weight"]
     _tp_plan = {"lm_head": "colwise_rep"}
@@ -834,7 +830,7 @@ class Cohere2ForCausalLM(Cohere2PreTrainedModel, GenerationMixin):
         return_dict: Optional[bool] = None,
         cache_position: Optional[mint.Tensor] = None,
         logits_to_keep: Union[int, mint.Tensor] = 0,
-        **kwargs: Unpack[KwargsForCausalLM],
+        **kwargs: Unpack[TransformersKwargs],
     ) -> Union[Tuple, CausalLMOutputWithPast]:
         r"""
             labels (`mint.Tensor` of shape `(batch_size, sequence_length)`, *optional*):

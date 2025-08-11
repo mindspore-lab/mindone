@@ -24,6 +24,7 @@ import re
 import warnings
 from contextlib import contextmanager, nullcontext
 from dataclasses import dataclass
+from functools import partial
 from typing import Any, Callable, Dict, List, MutableMapping, Optional, Tuple, Union
 
 from transformers.configuration_utils import PretrainedConfig
@@ -49,6 +50,7 @@ from transformers.utils import (
     extract_commit_hash,
     find_adapter_config_file,
     has_file,
+    is_kernels_available,
     is_offline_mode,
     is_remote_url,
     is_safetensors_available,
@@ -67,6 +69,7 @@ from .integrations import PeftAdapterMixin
 from .integrations.flash_attention import flash_attention_forward
 from .integrations.sdpa_attention import sdpa_attention_forward
 from .loss.loss_utils import LOSS_MAPPING
+from .masking_utils import ALL_MASK_ATTENTION_FUNCTIONS
 from .mindspore_adapter import dtype_to_str
 from .mindspore_utils import (  # noqa: F401
     Conv1D,
@@ -84,6 +87,11 @@ if is_safetensors_available():
 
     # from mindone.safetensors.mindspore import load_file as safe_load_file
     from mindone.safetensors.mindspore import save_file as safe_save_file
+
+
+if is_kernels_available():
+    from kernels import get_kernel
+
 
 logger = logging.get_logger(__name__)
 
@@ -373,6 +381,84 @@ def _add_variant(weights_name: str, variant: Optional[str] = None) -> str:
     return weights_name
 
 
+def _get_mindspore_dtype(
+    cls,
+    mindspore_dtype: Optional[Union[str, ms.Type, dict]],
+    checkpoint_files: Optional[list[str]],
+    config: PretrainedConfig,
+    sharded_metadata: Optional[dict],
+    state_dict: Optional[dict],
+) -> tuple[PretrainedConfig, Optional[ms.Type], Optional[ms.Type]]:
+    """Find the correct `mindspore_dtype` to use based on provided arguments. Also update the `config` based on the
+    inferred dtype. We do the following:
+    1. If mindspore_dtype is not None, we use that dtype
+    2. If mindspore_dtype is "auto", we auto-detect dtype from the loaded state_dict, by checking its first
+        weights entry that is of a floating type - we assume all floating dtype weights are of the same dtype
+    we also may have config.mindspore_dtype available, but we won't rely on it till v5
+    """
+    is_sharded = sharded_metadata is not None
+
+    if mindspore_dtype is not None:
+        if isinstance(mindspore_dtype, str):
+            if mindspore_dtype == "auto":
+                if hasattr(config, "mindspore_dtype") and config.torch_dtype is not None:
+                    if isinstance(config.torch_dtype, str):
+                        mindspore_dtype = getattr(ms, config.torch_dtype)
+                    else:
+                        mindspore_dtype = config.torch_dtype
+                    logger.info(f"Will use mindspore_dtype={mindspore_dtype} as defined in model's config object")
+                else:
+                    if is_sharded and "dtype" in sharded_metadata:
+                        mindspore_dtype = sharded_metadata["dtype"]
+                    elif state_dict is not None:
+                        mindspore_dtype = get_state_dict_dtype(state_dict)
+                    else:
+                        state_dict = load_state_dict(checkpoint_files[0])
+                        mindspore_dtype = get_state_dict_dtype(state_dict)
+                    logger.info(
+                        "Since the `mindspore_dtype` attribute can't be found in model's config object, "
+                        "will use mindspore_dtype={mindspore_dtype} as derived from model's weights"
+                    )
+            elif hasattr(ms, mindspore_dtype):
+                mindspore_dtype = getattr(ms, mindspore_dtype)
+                config.torch_dtype = mindspore_dtype
+                for sub_config_key in config.sub_configs.keys():
+                    sub_config = getattr(config, sub_config_key)
+                    sub_config.torch_dtype = mindspore_dtype
+        elif isinstance(mindspore_dtype, ms.Type):
+            config.torch_dtype = mindspore_dtype
+            for sub_config_key in config.sub_configs.keys():
+                sub_config = getattr(config, sub_config_key)
+                sub_config.torch_dtype = mindspore_dtype
+        elif isinstance(mindspore_dtype, dict):
+            for key, curr_dtype in mindspore_dtype.items():
+                if hasattr(config, key):
+                    value = getattr(config, key)
+                    curr_dtype = curr_dtype if not isinstance(curr_dtype, str) else getattr(ms, curr_dtype)
+                    value.torch_dtype = curr_dtype
+            # main torch dtype for modules that aren't part of any sub-config
+            mindspore_dtype = mindspore_dtype.get("")
+            mindspore_dtype = mindspore_dtype if not isinstance(mindspore_dtype, str) else getattr(ms, mindspore_dtype)
+            config.torch_dtype = mindspore_dtype
+            if mindspore_dtype is None:
+                mindspore_dtype = ms.float32
+        else:
+            raise ValueError(
+                f"`mindspore_dtype` can be one of: `mindspore.Type`, `'auto'`, a string of a valid `mindspore.Type` or a `dict` with valid `mindspore_dtype` "
+                f"for each sub-config in composite configs, but received {mindspore_dtype}"
+            )
+    else:
+        # set fp32 as the default dtype for BC
+        # default_dtype = torch.get_default_dtype()
+        default_dtype = ms.float32
+        config.torch_dtype = default_dtype
+        for key in config.sub_configs.keys():
+            value = getattr(config, key)
+            value.torch_dtype = default_dtype
+
+    return config, mindspore_dtype
+
+
 class ModuleUtilsMixin:
     """
     A few utilities for `mindspore.nn.Cell`, to be used as a mixin.
@@ -383,17 +469,20 @@ class ModuleUtilsMixin:
 
     def to(self, dtype: Optional[ms.Type] = None):
         for p in self.get_parameters():
-            p.set_dtype(dtype)
+            if ops.is_floating_point(p.data):
+                p.set_dtype(dtype)
         return self
 
     def float(self):
         for p in self.get_parameters():
-            p.set_dtype(ms.float32)
+            if ops.is_floating_point(p.data):
+                p.set_dtype(ms.float32)
         return self
 
     def half(self):
         for p in self.get_parameters():
-            p.set_dtype(ms.float16)
+            if ops.is_floating_point(p.data):
+                p.set_dtype(ms.float16)
         return self
 
     @property
@@ -711,8 +800,25 @@ class PreTrainedModel(nn.Cell, ModuleUtilsMixin, GenerationMixin, PushToHubMixin
                 "`PretrainedConfig`. To create a model from a pretrained model use "
                 f"`model = {self.__class__.__name__}.from_pretrained(PRETRAINED_MODEL_NAME)`"
             )
-        # Save config and origin of the pretrained weights if given in model
         self.config = config
+
+        # Check the attention implementation is supported, or set it if not yet set (on the internal attr, to avoid
+        # setting it recursively)
+        self.config._attn_implementation_internal = self._check_and_adjust_attn_implementation(
+            self.config._attn_implementation, is_init_check=True
+        )
+
+        # for initialization of the loss
+        loss_type = self.__class__.__name__
+        if loss_type not in LOSS_MAPPING:
+            loss_groups = f"({'|'.join(LOSS_MAPPING)})"
+            loss_type = re.findall(loss_groups, self.__class__.__name__)
+            if len(loss_type) > 0:
+                loss_type = loss_type[0]
+            else:
+                loss_type = None
+        self.loss_type = loss_type
+
         self.name_or_path = config.name_or_path
         self.warnings_issued = {}
         self.generation_config = GenerationConfig.from_model_config(config) if self.can_generate() else None
@@ -837,6 +943,104 @@ class PreTrainedModel(nn.Cell, ModuleUtilsMixin, GenerationMixin, PushToHubMixin
         # Otherwise, can't generate
         return False
 
+    def _sdpa_can_dispatch(self, is_init_check: bool = False) -> bool:
+        """
+        Check the availability of SDPA for a given model.
+
+        Args:
+            is_init_check (`bool`, *optional*):
+                Whether this check is performed early, i.e. at __init__ time, or later when the model and its weights are
+                fully instantiated. This is needed as we also check the devices of the weights, and/or if the model uses
+                BetterTransformer, which are only available later after __init__. This allows to raise proper exceptions early
+                before instantiating the full models if we know that the model does not support the requested attention.
+        """
+        if not self._supports_sdpa:
+            raise ValueError(
+                f"{self.__class__.__name__} does not support an attention implementation through scaled_dot_product_attention yet."
+                " Please request the support for this architecture: https://github.com/huggingface/transformers/issues/28005. If you believe"
+                ' this error is a bug, please open an issue in Transformers GitHub repository and load your model with the argument `attn_implementation="eager"` meanwhile. Example: `model = AutoModel.from_pretrained("openai/whisper-tiny", attn_implementation="eager")`'
+            )
+        if not is_sdpa_available():
+            raise ImportError("SDPA requirements in Transformers are not met.")
+
+        return True
+
+    def _check_and_adjust_attn_implementation(
+        self, attn_implementation: Optional[str], is_init_check: bool = False
+    ) -> str:
+        """
+        Check that the `attn_implementation` exists and is supported by the models, and try to get the kernel from hub if
+        it matches hf kernels pattern.
+
+        Args:
+            attn_implementation (`str` or `None`):
+                The attention implementation to check for existence/validity.
+            is_init_check (`bool`, *optional*):
+                Whether this check is performed early, i.e. at __init__ time, or later when the model and its weights are
+                fully instantiated. This is needed as we also check the devices of the weights, and/or if the model uses
+                BetterTransformer, which are only available later after __init__. This allows to raise proper exceptions early
+                before instantiating the full models if we know that the model does not support the requested attention.
+
+        Returns:
+            `str`: The final attention implementation to use, including potential fallbacks from sdpa to eager, or from
+            None to sdpa (to potentially eager).
+        """
+        applicable_attn_implementation = "sdpa" if attn_implementation is None else attn_implementation
+        if re.match(r"^[^/:]+/[^/:]+:?[^/:]+$", applicable_attn_implementation):
+            if not is_kernels_available():
+                raise ValueError("kernels is not installed. Please install it with `pip install kernels`.")
+
+            # Extract repo_id and kernel_name from the string
+            if ":" in applicable_attn_implementation:
+                repo_id, kernel_name = attn_implementation.split(":")
+                kernel_name = kernel_name.strip()
+            else:
+                repo_id = attn_implementation
+                kernel_name = None
+            repo_id = repo_id.strip()
+            try:
+                kernel = get_kernel(repo_id)
+                if hasattr(kernel, "flash_attn_varlen_func"):
+                    kernel_function = partial(flash_attention_forward, implementation=kernel)
+                elif kernel_name is not None:
+                    kernel_function = getattr(kernel, kernel_name)
+                # Register it
+                ALL_ATTENTION_FUNCTIONS.register(repo_id, kernel_function)
+                ALL_MASK_ATTENTION_FUNCTIONS.register(repo_id, ALL_MASK_ATTENTION_FUNCTIONS["flash_attention_2"])
+                applicable_attn_implementation = repo_id
+            except Exception as e:
+                logger.warning_once(
+                    f"Could not find a kernel repository '{repo_id}' compatible with your device in the hub: {e}. Using "
+                    "default attention implementation instead (sdpa if available, eager otherwise)."
+                )
+                applicable_attn_implementation = "sdpa"  # Try to fallback to sdpa in this case
+        if applicable_attn_implementation not in ["eager"] + ALL_ATTENTION_FUNCTIONS.valid_keys():
+            message = (
+                f'Specified `attn_implementation="{attn_implementation}"` is not supported. The only possible arguments are '
+                '`attn_implementation="eager"` (manual attention implementation)'
+            )
+            # check `supports_flash_attn_2` for BC with custom code. TODO: remove after a few releases
+            if self._supports_flash_attn or getattr(self, "_supports_flash_attn_2", False):
+                message += ', `"attn_implementation=flash_attention_2"` (implementation using flash attention 2)'
+            if self._supports_sdpa:
+                message += ', `"attn_implementation=sdpa"` (implementation using scaled_dot_product_attention)'
+            raise ValueError(message + ".")
+
+        # Perform relevant checks
+        if applicable_attn_implementation == "flash_attention_2":
+            self._flash_attn_2_can_dispatch(is_init_check)
+        elif applicable_attn_implementation == "sdpa":
+            # Sdpa is the default, so we try it and fallback to eager otherwise when not possible
+            try:
+                self._sdpa_can_dispatch(is_init_check)
+            except (ValueError, ImportError) as e:
+                # In this case, sdpa was requested explicitly, but we can't use it, so let's raise
+                if attn_implementation == "sdpa":
+                    raise e
+                applicable_attn_implementation = "eager"
+
+        return applicable_attn_implementation
+
     @classmethod
     def _check_and_enable_flash_attn_2(
         cls,
@@ -946,7 +1150,7 @@ class PreTrainedModel(nn.Cell, ModuleUtilsMixin, GenerationMixin, PushToHubMixin
 
         if isinstance(mindspore_dtype, str):
             mindspore_dtype = getattr(ms, mindspore_dtype)
-        elif mindspore_dtype is not None:
+        elif mindspore_dtype is not None and not isinstance(mindspore_dtype, ms.Type):
             TORCH_TO_MINDSPORE_DTYPE_MAP = {
                 "torch.float32": ms.float32,
                 "torch.bfloat16": ms.bfloat16,
@@ -2288,46 +2492,16 @@ class PreTrainedModel(nn.Cell, ModuleUtilsMixin, GenerationMixin, PushToHubMixin
 
         from_pt = not (from_tf | from_flax)
 
-        # load pt weights early so that we know which dtype to init the model under
         if from_pt:
             if not is_sharded and state_dict is None:
                 # Time to load the checkpoint
                 state_dict = load_state_dict(resolved_archive_file)
 
-            # set dtype to instantiate the model under:
-            # 1. If mindspore_dtype is not None, we use that dtype
-            # 2. If mindspore_dtype is "auto", we auto-detect dtype from the loaded state_dict, by checking its first
-            #    weights entry that is of a floating type - we assume all floating dtype weights are of the same dtype
-            # we also may have config.torch_dtype available, but we won't rely on it till v5
-
-            if mindspore_dtype is not None:
-                config.mindspore_dtype = dtype_to_str(mindspore_dtype)
-                for sub_config_key in config.sub_configs.keys():
-                    sub_config = getattr(config, sub_config_key)
-                    sub_config.mindspore_dtype = mindspore_dtype
-                if isinstance(mindspore_dtype, str):
-                    if mindspore_dtype == "auto":
-                        if hasattr(config, "torch_dtype") and config.torch_dtype is not None:
-                            mindspore_dtype = config.torch_dtype
-                            logger.info(f"Will use dtype={mindspore_dtype} as defined in model's config object")
-                        else:
-                            if is_sharded and "dtype" in sharded_metadata:
-                                mindspore_dtype = sharded_metadata["dtype"]
-                            elif not is_sharded:
-                                mindspore_dtype = get_state_dict_dtype(state_dict)
-                            else:
-                                one_state_dict = load_state_dict(resolved_archive_file[0])
-                                mindspore_dtype = get_state_dict_dtype(one_state_dict)
-                                del one_state_dict  # free CPU memory
-                            logger.info(
-                                f"Since the `torch_dtype` attribute can't be found in model's config object, "
-                                f"will use dtype={mindspore_dtype} as derived from model's weights"
-                            )
-                    else:
-                        raise ValueError(
-                            f'`mindspore_dtype` can be either `ms.Type` or `"auto"`, but received {mindspore_dtype}'
-                        )
-                # TODO: We cannot set default mindspore dtype!
+            # Find the correct dtype based on current state
+            # TODO: We cannot set default mindspore dtype!
+            config, mindspore_dtype = _get_mindspore_dtype(
+                cls, mindspore_dtype, resolved_archive_file, config, sharded_metadata, state_dict
+            )
 
             # Check if `_keep_in_fp32_modules` is not None
             use_keep_in_fp32_modules = (cls._keep_in_fp32_modules is not None) and (mindspore_dtype == ms.float16)

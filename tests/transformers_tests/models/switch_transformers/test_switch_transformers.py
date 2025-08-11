@@ -191,7 +191,7 @@ BERT_CASES = [
         {
             "decoder_input_ids": decoder_input_ids,
         },
-        {"last_hidden_state": 0, "past_key_values": 1, "encoder_last_hidden_state": 2},
+        {"last_hidden_state": 0, "encoder_last_hidden_state": 2},
     ],
 ]
 

@@ -56,11 +56,24 @@ def sdpa_attention_forward(
 
     if is_causal:
         if attention_mask is not None:
-            raise ValueError("Causal mode cannot be used with an explicit `attention_mask`")
-        attention_mask = mint.ones((query.shape[-2], key.shape[-2]), dtype=ms.bool_).tril(diagonal=0)
+            if attention_mask.dtype == ms.bool_:
+                attention_mask = mint.logical_and(
+                    attention_mask, mint.ones((query.shape[-2], key.shape[-2]), dtype=ms.bool_).tril(diagonal=0)
+                )
+            else:
+                attention_mask = attention_mask + mint.triu(
+                    mint.full((query.shape[-2], key.shape[-2]), float("-inf"), dtype=attention_mask.dtype), diagonal=1
+                )
+        else:
+            attention_mask = mint.ones((query.shape[-2], key.shape[-2]), dtype=ms.bool_).tril(diagonal=0)
 
     if attention_mask is not None:
-        attention_mask = mint.logical_not(attention_mask)  # in MindSpore, 0 indicates retain, 1 indicates discard
+        if attention_mask.dtype == ms.bool_:
+            attention_mask = mint.logical_not(attention_mask)  # in MindSpore, 0 indicates retain, 1 indicates discard
+        else:
+            attention_mask = (
+                attention_mask.bool()
+            )  # 0 indicates retain, float('-inf') indicates discard -> 0 indicates retain, 1 indicates discard
 
     scaling = 1 / sqrt(query.shape[-1]) if scaling is None else scaling
 

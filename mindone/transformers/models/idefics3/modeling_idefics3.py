@@ -352,12 +352,6 @@ class Idefics3VisionFlashAttention2(Idefics3VisionAttention):
         return attn_output, attn_weights
 
 
-IDEFICS_VISION_ATTENTION_CLASSES = {
-    "eager": Idefics3VisionAttention,
-    "flash_attention_2": Idefics3VisionFlashAttention2,
-}
-
-
 # Copied from transformers.models.siglip.modeling_siglip.SiglipMLP with Siglip->Idefics3Vision
 class Idefics3VisionMLP(nn.Cell):
     def __init__(self, config):
@@ -390,7 +384,7 @@ class Idefics3EncoderLayer(nn.Cell):
     def __init__(self, config: Idefics3VisionConfig):
         super().__init__()
         self.embed_dim = config.hidden_size
-        self.self_attn = IDEFICS_VISION_ATTENTION_CLASSES[config._attn_implementation](config)
+        self.self_attn = Idefics3VisionAttention(config)
         self.layer_norm1 = mint.nn.LayerNorm(self.embed_dim, eps=config.layer_norm_eps)
         self.mlp = Idefics3VisionMLP(config)
         self.layer_norm2 = mint.nn.LayerNorm(self.embed_dim, eps=config.layer_norm_eps)
@@ -647,7 +641,9 @@ IDEFICS3_VISION_START_DOCSTRING = r"""
 )
 class Idefics3VisionTransformer(Idefics3PreTrainedModel):
     config_class = Idefics3VisionConfig
-    _supports_sdpa = False
+    _supports_sdpa = True
+    _supports_flash_attn = True
+    _supports_flex_attn = True
 
     def __init__(self, config: Idefics3VisionConfig):
         super().__init__(config)

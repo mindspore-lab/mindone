@@ -627,6 +627,14 @@ if version.parse(transformers.__version__) >= version.parse("4.51.3"):
     )
 
 if version.parse(transformers.__version__) >= version.parse("4.53.0"):
+    from .models.arcee import (
+        ArceeForCausalLM,
+        ArceeForQuestionAnswering,
+        ArceeForSequenceClassification,
+        ArceeForTokenClassification,
+        ArceeModel,
+        ArceePreTrainedModel,
+    )
     from .models.glm4v import (
         Glm4vForConditionalGeneration,
         Glm4vModel,
