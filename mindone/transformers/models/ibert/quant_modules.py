@@ -622,7 +622,7 @@ class SymmetricQuantFunction(ms.nn.Cell):
         new_quant_x = linear_quantize(x, scale, zero_point, inplace=False)
         new_quant_x = mint.clamp(new_quant_x, -n, n - 1)
 
-        ctx.scale = scale
+        ctx.register_buffer("scale", scale)
         return new_quant_x
 
     def bprop(ctx, x, out, grad_output):
