@@ -35,6 +35,7 @@ from . import (
     clip,
     convbert,
     dpt,
+    fsmt,
     fuyu,
     gemma,
     gemma2,
