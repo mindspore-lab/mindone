@@ -122,14 +122,15 @@ def train(attn_implementation="flash_attention_2"):
     model.config.use_cache = False
 
     if training_args.gradient_checkpointing:
-        if hasattr(model, "enable_input_require_grads"):
-            model.enable_input_require_grads()
-        else:
+        pass
+        # if hasattr(model, "enable_input_require_grads"):
+        #     model.enable_input_require_grads()
+        # else:
 
-            def make_inputs_require_grad(module, input, output):
-                output.requires_grad_(True)
+        #     def make_inputs_require_grad(module, input, output):
+        #         output.requires_grad_(True)
 
-            model.get_input_embeddings().register_forward_hook(make_inputs_require_grad)
+        #     model.get_input_embeddings().register_forward_hook(make_inputs_require_grad)
 
     tokenizer = transformers.AutoTokenizer.from_pretrained(
         model_args.model_name_or_path,
