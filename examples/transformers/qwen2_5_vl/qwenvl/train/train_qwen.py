@@ -62,24 +62,32 @@ def safe_save_model_for_hf_trainer(trainer: mindone.transformers.Trainer, output
 
 def set_model(model_args, model):
     if model_args.tune_mm_vision:
+        model.visual.set_grad(True)
         for n, p in model.visual.parameters_and_names():
             p.requires_grad = True
     else:
+        model.visual.set_grad(False)
         for n, p in model.visual.parameters_and_names():
             p.requires_grad = False
 
     if model_args.tune_mm_mlp:
+        model.visual.merger.set_grad(True)
         for n, p in model.visual.merger.parameters_and_names():
             p.requires_grad = True
     else:
+        model.visual.merger.set_grad(False)
         for n, p in model.visual.merger.parameters_and_names():
             p.requires_grad = False
 
     if model_args.tune_mm_llm:
+        model.model.set_grad(True)
+        model.lm_head.set_grad(True)
         for n, p in model.model.parameters_and_names():
             p.requires_grad = True
         model.lm_head.requires_grad = True
     else:
+        model.model.set_grad(False)
+        model.lm_head.set_grad(False)
         for n, p in model.model.parameters_and_names():
             p.requires_grad = False
         model.lm_head.requires_grad = False

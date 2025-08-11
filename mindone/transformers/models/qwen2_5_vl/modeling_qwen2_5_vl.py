@@ -714,7 +714,7 @@ class Qwen2_5_VLAttention(nn.Cell):
         output_attentions: bool = False,
         use_cache: bool = False,
         cache_position: Optional[Tensor] = None,
-        position_embeddings: Optional[Tuple[Tensor, Tensor]] = None,  # necessary, but kept here for BC
+        position_embeddings: Optional[Tensor] = None,  # necessary, but kept here for BC
     ) -> Tuple[Tensor, Optional[Tensor], Optional[Tuple[Tensor]]]:
         bsz, q_len, _ = hidden_states.shape
 
@@ -726,7 +726,7 @@ class Qwen2_5_VLAttention(nn.Cell):
         key_states = key_states.view(bsz, q_len, -1, self.head_dim).transpose(1, 2)
         value_states = value_states.view(bsz, q_len, -1, self.head_dim).transpose(1, 2)
 
-        cos, sin = position_embeddings
+        cos, sin = mint.unbind(position_embeddings)
         query_states, key_states = apply_multimodal_rotary_pos_emb(
             query_states, key_states, cos, sin, self.rope_scaling["mrope_section"]
         )
@@ -803,7 +803,7 @@ class Qwen2_5_VLFlashAttention2(Qwen2_5_VLAttention):
         value_states = value_states.view(bsz, q_len, -1, self.head_dim).transpose(1, 2)
 
         # Because the input can be padded, the absolute sequence length depends on the max position id.
-        cos, sin = position_embeddings
+        cos, sin = mint.unbind(position_embeddings)
         query_states, key_states = apply_multimodal_rotary_pos_emb(
             query_states, key_states, cos, sin, self.rope_scaling["mrope_section"]
         )
@@ -1039,6 +1039,7 @@ class Qwen2_5_VLModel(Qwen2_5_VLPreTrainedModel):
 
         # create position embeddings to be shared across the decoder layers
         position_embeddings = self.rotary_emb(hidden_states, position_ids)
+        position_embeddings = mint.stack(position_embeddings)
 
         # decoder layers
         all_hidden_states = () if output_hidden_states else None
@@ -1458,6 +1459,10 @@ class Qwen2_5_VLForConditionalGeneration(Qwen2_5_VLPreTrainedModel, GenerationMi
                 mrope_position_deltas = mint.zeros([input_ids.shape[0], 1], dtype=input_ids.dtype)
 
             return position_ids, mrope_position_deltas
+
+    def gradient_checkpointing_enable(self, **kwargs):
+        self.model.gradient_checkpointing = True
+        self.visual.gradient_checkpointing = True
 
     def construct(
         self,

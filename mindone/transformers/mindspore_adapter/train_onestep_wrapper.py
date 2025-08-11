@@ -147,8 +147,8 @@ class TrainOneStepWrapper(nn.Cell):
         # self.network.set_train()
         # self.network.set_grad()
 
-        # self.value_and_grad = ops.value_and_grad(network, grad_position=None, weights=optimizer.parameters)
-        self.grad_fn = ops.GradOperation(get_by_list=True, sens_param=True)(self.network, optimizer.parameters)
+        self.value_and_grad = ops.value_and_grad(network, grad_position=None, weights=optimizer.parameters)
+        # self.grad_fn = ops.GradOperation(get_by_list=True, sens_param=True)(self.network, optimizer.parameters)
 
         self.optimizer = optimizer
         self.ema = ema
@@ -241,9 +241,10 @@ class TrainOneStepWrapper(nn.Cell):
         return loss
 
     def construct(self, *inputs):
-        loss = self.network(*inputs)
-        sens = ops.fill(loss.dtype, loss.shape, self.scaler.scale_value)
-        grads = self.grad_fn(*inputs, sens)
+        # loss = self.network(*inputs)
+        # sens = ops.fill(loss.dtype, loss.shape, self.scaler.scale_value)
+        # grads = self.grad_fn(*inputs, sens)
+        loss, grads = self.value_and_grad(*inputs)
         if self.is_zero:
             grads = self.optimizer.grad_reduce(grads)
         else:
