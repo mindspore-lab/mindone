@@ -561,7 +561,7 @@ class InternVLModel(InternVLPreTrainedModel):
 
     def __init__(self, config: InternVLConfig):
         super().__init__(config)
-        self.vision_tower = AutoModel.from_config(config.vision_config)
+        self.vision_tower = InternVLVisionModel(config.vision_config)
 
         self.multi_modal_projector = InternVLMultiModalProjector(config)
         self.language_model = AutoModel.from_config(config.text_config)
