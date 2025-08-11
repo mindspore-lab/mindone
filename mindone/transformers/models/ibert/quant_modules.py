@@ -93,10 +93,12 @@ class QuantEmbedding(ms.nn.Cell):
         w_min = w_transform.min().unsqueeze(0)
         w_max = w_transform.max().unsqueeze(0)
 
-        self.weight_scaling_factor = symmetric_linear_quantization_params(self.weight_bit, w_min, w_max, False)
-        self.weight_integer = self.weight_function(
-            self.weight, self.weight_bit, self.percentile_mode, self.weight_scaling_factor
+        weight_scaling_factor = symmetric_linear_quantization_params(self.weight_bit, w_min, w_max, False)
+        self.register_buffer("weight_scaling_factor", weight_scaling_factor)
+        weight_integer = self.weight_function(
+            self.weight, self.weight_bit, self.percentile_mode, weight_scaling_factor
         )
+        self.register_buffer("weight_integer", weight_integer)
 
         emb_int = mint.nn.functional.embedding(
             x,
@@ -138,11 +140,9 @@ class QuantAct(ms.nn.Cell):
         self.act_function = SymmetricQuantFunction.apply
 
         if not self.per_channel:
-            self.register_buffer("x_min", mint.zeros(1))
-            self.register_buffer("x_max", mint.zeros(1))
+            self.register_buffer("x_min", mint.zeros(1) - 1e-5)
+            self.register_buffer("x_max", mint.zeros(1) + 1e-5)
             self.register_buffer("act_scaling_factor", mint.zeros(1))
-            self.x_min -= 1e-5
-            self.x_max += 1e-5
         else:
             raise NotImplementedError("per-channel mode is not currently supported for activation.")
 
@@ -194,9 +194,10 @@ class QuantAct(ms.nn.Cell):
         x_min = self.x_min if specified_min is None else specified_min
         x_max = self.x_max if specified_max is None else specified_max
 
-        self.act_scaling_factor = symmetric_linear_quantization_params(
+        act_scaling_factor = symmetric_linear_quantization_params(
             self.activation_bit, x_min, x_max, per_channel=self.per_channel
         )
+        self.register_buffer("act_scaling_factor", act_scaling_factor)
 
         if pre_act_scaling_factor is None:
             # this is for the input quantization
@@ -277,15 +278,18 @@ class QuantLinear(ms.nn.Cell):
             w_min = w_transform.min().unsqueeze(0)
             w_max = w_transform.max().unsqueeze(0)
 
-        self.fc_scaling_factor = symmetric_linear_quantization_params(self.weight_bit, w_min, w_max, self.per_channel)
-        self.weight_integer = self.weight_function(
-            self.weight, self.weight_bit, self.percentile_mode, self.fc_scaling_factor
+        fc_scaling_factor = symmetric_linear_quantization_params(self.weight_bit, w_min, w_max, self.per_channel)
+        self.register_buffer("fc_scaling_factor", fc_scaling_factor)
+        weight_integer = self.weight_function(
+            self.weight, self.weight_bit, self.percentile_mode, fc_scaling_factor
         )
+        self.register_buffer("weight_integer", weight_integer)
 
-        bias_scaling_factor = self.fc_scaling_factor * prev_act_scaling_factor
+        bias_scaling_factor = fc_scaling_factor * prev_act_scaling_factor
 
         if self.bias is not None:
-            self.bias_integer = self.weight_function(self.bias, self.bias_bit, False, bias_scaling_factor)
+            bias_integer = self.weight_function(self.bias, self.bias_bit, False, bias_scaling_factor)
+            self.register_buffer("bias_integer", bias_integer)
 
         prev_act_scaling_factor = prev_act_scaling_factor.view(1, -1)
         x_int = x / prev_act_scaling_factor
