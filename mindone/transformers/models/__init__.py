@@ -35,6 +35,7 @@ from . import (
     clip,
     convbert,
     dpt,
+    electra,
     fuyu,
     gemma,
     gemma2,
