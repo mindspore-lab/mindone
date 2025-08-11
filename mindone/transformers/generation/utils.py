@@ -2334,8 +2334,8 @@ class GenerationMixin:
         )
 
         # This lines will always select the last logits, which is not the right way for static shape
-        # if self._supports_logits_to_keep() and "logits_to_keep" not in model_kwargs:
-        #     model_kwargs["logits_to_keep"] = 1
+        if self._supports_logits_to_keep() and "logits_to_keep" not in model_kwargs:
+            model_kwargs["logits_to_keep"] = 1
 
         self._validate_generated_length(generation_config, input_ids_length, has_default_max_length)
 

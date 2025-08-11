@@ -85,6 +85,7 @@ MODEL_MAPPING_NAMES = OrderedDict(
         ("mistral", "MistralModel"),
         ("mobilebert", "MobileBertModel"),
         ("mpt", "MptModel"),
+        ("stablelm", "StableLmModel"),
         ("mt5", "MT5Model"),
         ("megatron-bert", "MegatronBertModel"),
         ("mixtral", "MixtralModel"),
@@ -181,6 +182,7 @@ MODEL_FOR_CAUSAL_LM_MAPPING_NAMES = OrderedDict(
         ("opt", "OPTForCausalLM"),
         ("bert", "BertLMHeadModel"),
         ("bert-generation", "BertGenerationDecoder"),
+        ("stablelm", "StableLmForCausalLM"),
         ("gemma", "GemmaForCausalLM"),
         ("gemma2", "Gemma2ForCausalLM"),
         ("starcoder2", "Starcoder2ForCausalLM"),
@@ -388,6 +390,7 @@ MODEL_FOR_SEQUENCE_CLASSIFICATION_MAPPING_NAMES = OrderedDict(
     [
         # Model for Sequence Classification mapping
         ("albert", "AlbertForSequenceClassification"),
+        ("stablelm", "StableLmForSequenceClassification"),
         ("bart", "BartForSequenceClassification"),
         ("camembert", "CamembertForSequenceClassification"),
         ("opt", "OPTForSequenceClassification"),
@@ -468,6 +471,7 @@ MODEL_FOR_TOKEN_CLASSIFICATION_MAPPING_NAMES = OrderedDict(
     [
         # Model for Token Classification mapping
         ("albert", "AlbertForTokenClassification"),
+        ("stablelm", "StableLmForTokenClassification"),
         ("bert", "BertForTokenClassification"),
         ("camembert", "CamembertForTokenClassification"),
         ("deberta", "DebertaForTokenClassification"),

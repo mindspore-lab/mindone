@@ -557,6 +557,12 @@ from .models.swin import (
     SwinForMaskedImageModeling,
     SwinModel,
     SwinPreTrainedModel,
+from .models.stablelm import (
+    StableLmForCausalLM,
+    StableLmForSequenceClassification,
+    StableLmForTokenClassification,
+    StableLmModel,
+    StableLmPreTrainedModel,
 )
 from .models.switch_transformers import (
     SwitchTransformersEncoderModel,
