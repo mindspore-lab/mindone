@@ -1,0 +1,1 @@
+from .modeling_shieldgemma2 import ShieldGemma2ForImageClassification
