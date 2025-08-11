@@ -17,13 +17,24 @@
 
 import mindspore as ms
 from mindspore import mint
+
 """MindSpore I-BERT model."""
 
 import math
 from typing import Optional, Tuple, Union
 
-import mindspore as ms
+from transformers import IBertConfig
+from transformers.utils import (
+    add_code_sample_docstrings,
+    add_start_docstrings,
+    add_start_docstrings_to_model_forward,
+    logging,
+)
+
 from mindspore.mint.nn import BCEWithLogitsLoss, CrossEntropyLoss, MSELoss
+
+from mindone.transformers.activations import ACT2FN
+from mindone.transformers.mindspore_utils import find_pruneable_heads_and_indices, prune_linear_layer
 
 from ...modeling_outputs import (
     BaseModelOutputWithPastAndCrossAttentions,
@@ -35,12 +46,7 @@ from ...modeling_outputs import (
     TokenClassifierOutput,
 )
 from ...modeling_utils import PreTrainedModel
-from mindone.transformers.activations import ACT2FN
-from mindone.transformers.mindspore_utils import find_pruneable_heads_and_indices, prune_linear_layer
-from transformers.utils import add_code_sample_docstrings, add_start_docstrings, add_start_docstrings_to_model_forward, logging
-from transformers import IBertConfig
 from .quant_modules import IntGELU, IntLayerNorm, IntSoftmax, QuantAct, QuantEmbedding, QuantLinear
-
 
 logger = logging.get_logger(__name__)
 
@@ -48,6 +54,7 @@ _CHECKPOINT_FOR_DOC = "kssteven/ibert-roberta-base"
 _CONFIG_FOR_DOC = "IBertConfig"
 
 gelu = ACT2FN["gelu"]
+
 
 class IBertEmbeddings(ms.nn.Cell):
     """
@@ -113,9 +120,7 @@ class IBertEmbeddings(ms.nn.Cell):
         if position_ids is None:
             if input_ids is not None:
                 # Create the position ids from the input token ids. Any padded tokens remain padded.
-                position_ids = create_position_ids_from_input_ids(
-                    input_ids, self.padding_idx, past_key_values_length
-                )
+                position_ids = create_position_ids_from_input_ids(input_ids, self.padding_idx, past_key_values_length)
             else:
                 position_ids = self.create_position_ids_from_inputs_embeds(inputs_embeds)
 
@@ -125,7 +130,10 @@ class IBertEmbeddings(ms.nn.Cell):
             input_shape = inputs_embeds.shape[:-1]
 
         if token_type_ids is None:
-            token_type_ids = mint.zeros(input_shape, dtype=ms.int64, )
+            token_type_ids = mint.zeros(
+                input_shape,
+                dtype=ms.int64,
+            )
 
         if inputs_embeds is None:
             inputs_embeds, inputs_embeds_scaling_factor = self.word_embeddings(input_ids)
@@ -167,7 +175,10 @@ class IBertEmbeddings(ms.nn.Cell):
         sequence_length = input_shape[1]
 
         position_ids = mint.arange(
-            self.padding_idx + 1, sequence_length + self.padding_idx + 1, dtype=ms.int64, )
+            self.padding_idx + 1,
+            sequence_length + self.padding_idx + 1,
+            dtype=ms.int64,
+        )
         return position_ids.unsqueeze(0).broadcast_to(input_shape)
 
 
@@ -639,16 +650,20 @@ class IBertPreTrainedModel(PreTrainedModel):
 
     def _init_weights(self, module):
         """Initialize the weights"""
-        from mindspore.common.initializer import Normal, Constant, initializer
-        
+        from mindspore.common.initializer import Constant, Normal, initializer
+
         if isinstance(module, (QuantLinear, mint.nn.Linear)):
             # Slightly different from the TF version which uses truncated_normal for initialization
             # cf https://github.com/pytorch/pytorch/pull/5617
-            module.weight.set_data(initializer(Normal(self.config.initializer_range), module.weight.shape, module.weight.dtype))
+            module.weight.set_data(
+                initializer(Normal(self.config.initializer_range), module.weight.shape, module.weight.dtype)
+            )
             if module.bias is not None:
                 module.bias.set_data(initializer(Constant(0), module.bias.shape, module.bias.dtype))
         elif isinstance(module, (QuantEmbedding, mint.nn.Embedding)):
-            module.weight.set_data(initializer(Normal(self.config.initializer_range), module.weight.shape, module.weight.dtype))
+            module.weight.set_data(
+                initializer(Normal(self.config.initializer_range), module.weight.shape, module.weight.dtype)
+            )
             if module.padding_idx is not None:
                 original_weight = module.weight.data.asnumpy()
                 original_weight[module.padding_idx] = 0
@@ -805,9 +820,14 @@ class IBertModel(IBertPreTrainedModel):
         batch_size, seq_length = input_shape
 
         if attention_mask is None:
-            attention_mask = mint.ones(((batch_size, seq_length)), )
+            attention_mask = mint.ones(
+                ((batch_size, seq_length)),
+            )
         if token_type_ids is None:
-            token_type_ids = mint.zeros(input_shape, dtype=ms.int64, )
+            token_type_ids = mint.zeros(
+                input_shape,
+                dtype=ms.int64,
+            )
 
         # We can provide a self-attention mask of dimensions [batch_size, from_seq_length, to_seq_length]
         # ourselves in which case we just need to make it broadcastable to all heads.
@@ -898,6 +918,20 @@ class IBertForMaskedLM(IBertPreTrainedModel):
             loss is only computed for the tokens with labels in `[0, ..., config.vocab_size]`
         kwargs (`Dict[str, any]`, *optional*, defaults to `{}`):
             Used to hide legacy arguments that have been deprecated.
+
+        Examples:
+        >>> from transformers import AutoTokenizer
+        >>> from mindone.transformers import IBertForMaskedLM
+        >>> import mindspore as ms
+        >>> tokenizer = AutoTokenizer.from_pretrained("kssteven/ibert-roberta-base")
+        >>> model = IBertForMaskedLM.from_pretrained("kssteven/ibert-roberta-base")
+        >>> inputs = tokenizer("The capital of France is <mask>.", return_tensors="np")
+        >>> outputs = model(input_ids=ms.Tensor(inputs["input_ids"])).logits
+        >>> # retrieve index of <mask>
+
+        >>> mask_token_index = (ms.Tensor(inputs["input_ids"]) == tokenizer.mask_token_id)[0].nonzero(as_tuple=True)[0]
+        >>> predicted_token_id = logits[0, mask_token_index].argmax(-1)
+        >>> print(tokenizer.decode(predicted_token_id))
         """
         return_dict = return_dict if return_dict is not None else self.config.use_return_dict
 
