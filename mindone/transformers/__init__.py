@@ -350,6 +350,7 @@ from .models.codegen import CodeGenForCausalLM, CodeGenModel, CodeGenPreTrainedM
 from .models.cohere import CohereForCausalLM, CohereModel, CoherePreTrainedModel
 from .models.cohere2 import Cohere2ForCausalLM, Cohere2Model, Cohere2PreTrainedModel
 from .models.colpali import ColPaliForRetrieval, ColPaliPreTrainedModel, ColPaliProcessor
+from .models.colqwen2 import ColQwen2ForRetrieval, ColQwen2PreTrainedModel
 from .models.convbert import (
     ConvBertForMaskedLM,
     ConvBertForMultipleChoice,
