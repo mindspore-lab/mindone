@@ -58,6 +58,7 @@ MODEL_MAPPING_NAMES = OrderedDict(
         ("m2m_100", "M2M100Model"),
         ("gemma2", "Gemma2Model"),
         ("persimmon", "PersimmonModel"),
+        ("mpnet", "MPNetModel"),
         ("glm", "GlmModel"),
         ("glpn", "GLPNModel"),
         ("gpt2", "GPT2Model"),
@@ -116,6 +117,7 @@ MODEL_FOR_PRETRAINING_MAPPING_NAMES = OrderedDict(
     [
         # Model for pre-training mapping
         ("albert", "AlbertForPreTraining"),
+        ("mpnet", "MPNetForMaskedLM"),
         ("bart", "BartForConditionalGeneration"),
         ("camembert", "CamembertForMaskedLM"),
         ("mvp", "MvpForConditionalGeneration"),
@@ -149,6 +151,7 @@ MODEL_WITH_LM_HEAD_MAPPING_NAMES = OrderedDict(
         # Model with LM heads mapping
         ("albert", "AlbertForMaskedLM"),
         ("mvp", "MvpForConditionalGeneration"),
+        ("mpnet", "MPNetForMaskedLM"),
         ("bart", "BartForConditionalGeneration"),
         ("m2m_100", "M2M100ForConditionalGeneration"),
         ("bert", "BertForMaskedLM"),
@@ -315,6 +318,7 @@ MODEL_FOR_MASKED_LM_MAPPING_NAMES = OrderedDict(
     [
         # Model for Masked LM mapping
         ("mvp", "MvpForConditionalGeneration"),
+        ("mpnet", "MPNetForMaskedLM"),
         ("albert", "AlbertForMaskedLM"),
         ("bart", "BartForConditionalGeneration"),
         ("convbert", "ConvBertForMaskedLM"),
@@ -387,6 +391,7 @@ MODEL_FOR_SPEECH_SEQ_2_SEQ_MAPPING_NAMES = OrderedDict(
 MODEL_FOR_SEQUENCE_CLASSIFICATION_MAPPING_NAMES = OrderedDict(
     [
         # Model for Sequence Classification mapping
+        ("mpnet", "MPNetForSequenceClassification"),
         ("albert", "AlbertForSequenceClassification"),
         ("bart", "BartForSequenceClassification"),
         ("camembert", "CamembertForSequenceClassification"),
@@ -432,6 +437,7 @@ MODEL_FOR_QUESTION_ANSWERING_MAPPING_NAMES = OrderedDict(
         ("bert", "BertForQuestionAnswering"),
         ("camembert", "CamembertForQuestionAnswering"),
         ("mvp", "MvpForQuestionAnswering"),
+        ("mpnet", "MPNetForQuestionAnswering"),
         ("roberta", "RobertaForQuestionAnswering"),
         ("deberta", "DebertaForQuestionAnswering"),
         ("deberta-v2", "DebertaV2ForQuestionAnswering"),
@@ -470,6 +476,7 @@ MODEL_FOR_TOKEN_CLASSIFICATION_MAPPING_NAMES = OrderedDict(
         ("albert", "AlbertForTokenClassification"),
         ("bert", "BertForTokenClassification"),
         ("camembert", "CamembertForTokenClassification"),
+        ("mpnet", "MPNetForTokenClassification"),
         ("deberta", "DebertaForTokenClassification"),
         ("deberta-v2", "DebertaV2ForTokenClassification"),
         ("starcoder2", "Starcoder2ForTokenClassification"),
@@ -503,6 +510,7 @@ MODEL_FOR_MULTIPLE_CHOICE_MAPPING_NAMES = OrderedDict(
         ("albert", "AlbertForMultipleChoice"),
         ("convbert", "ConvBertForMultipleChoice"),
         ("canine", "CanineForMultipleChoice"),
+        ("mpnet", "MPNetForMultipleChoice"),
         ("bert", "BertForMultipleChoice"),
         ("roberta", "RobertaForMultipleChoice"),
         ("deberta-v2", "DebertaV2ForMultipleChoice"),
