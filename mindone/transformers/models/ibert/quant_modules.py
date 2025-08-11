@@ -89,7 +89,7 @@ class QuantEmbedding(ms.nn.Cell):
             )
 
         w = self.weight
-        w_transform = w.values().clone()
+        w_transform = w.value().clone()
         w_min = w_transform.min().unsqueeze(0)
         w_max = w_transform.max().unsqueeze(0)
 
@@ -270,7 +270,7 @@ class QuantLinear(ms.nn.Cell):
         )
 
         w = self.weight
-        w_transform = w.values().clone()
+        w_transform = w.value().clone()
         if self.per_channel:
             w_min, _ = mint.min(w_transform, dim=1)
             w_max, _ = mint.max(w_transform, dim=1)
@@ -519,7 +519,7 @@ class IntLayerNorm(ms.nn.Cell):
         scaling_factor = self.dim_sqrt / 2**30
 
         # scaling and shifting
-        bias = self.bias.values().clone() / (self.weight.values().clone())
+        bias = self.bias.value().clone() / (self.weight.value().clone())
         bias_int = floor_ste()(bias / scaling_factor)
 
         y_int = y_int + bias_int
