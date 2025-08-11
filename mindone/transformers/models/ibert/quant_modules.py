@@ -15,15 +15,14 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import mindspore as ms
-from mindspore import mint
 import decimal
 
 import numpy as np
+
 import mindspore as ms
+from mindspore import mint
 
 from ...utils import logging
-
 
 logger = logging.get_logger(__name__)
 
@@ -90,9 +89,9 @@ class QuantEmbedding(ms.nn.Cell):
             )
 
         w = self.weight
-        w_transform = w.data.detach()
-        w_min = w_transform.min().expand(1)
-        w_max = w_transform.max().expand(1)
+        w_transform = w.values().clone()
+        w_min = w_transform.min().unsqueeze(0)
+        w_max = w_transform.max().unsqueeze(0)
 
         self.weight_scaling_factor = symmetric_linear_quantization_params(self.weight_bit, w_min, w_max, False)
         self.weight_integer = self.weight_function(
@@ -219,7 +218,7 @@ class QuantAct(ms.nn.Cell):
 
 class QuantLinear(ms.nn.Cell):
     """
-    Quantized version of `torch.nn.Linear`. Adds quantization-specific arguments on top of `torch.nn.Linear`.
+    Quantized version of `mindspore.nn.Linear`. Adds quantization-specific arguments on top of `mindspore.nn.Linear`.
 
     Args:
         weight_bit (`int`, *optional*, defaults to `8`):
@@ -270,13 +269,13 @@ class QuantLinear(ms.nn.Cell):
         )
 
         w = self.weight
-        w_transform = w.data.detach()
+        w_transform = w.values().clone()
         if self.per_channel:
-            w_min, _ = mint.min(w_transform, dim=1, out=None)
-            w_max, _ = mint.max(w_transform, dim=1, out=None)
+            w_min, _ = mint.min(w_transform, dim=1)
+            w_max, _ = mint.max(w_transform, dim=1)
         else:
-            w_min = w_transform.min().expand(1)
-            w_max = w_transform.max().expand(1)
+            w_min = w_transform.min().unsqueeze(0)
+            w_max = w_transform.max().unsqueeze(0)
 
         self.fc_scaling_factor = symmetric_linear_quantization_params(self.weight_bit, w_min, w_max, self.per_channel)
         self.weight_integer = self.weight_function(
@@ -299,7 +298,7 @@ class QuantLinear(ms.nn.Cell):
 
 class IntGELU(ms.nn.Cell):
     """
-    Quantized version of `torch.nn.GELU`. Adds quantization-specific arguments on top of `torch.nn.GELU`.
+    Quantized version of `mindspore.nn.GELU`. Adds quantization-specific arguments on top of `mindspore.nn.GELU`.
 
     Args:
         quant_mode (`bool`, *optional*, defaults to `False`):
@@ -356,7 +355,7 @@ class IntGELU(ms.nn.Cell):
 
 class IntSoftmax(ms.nn.Cell):
     """
-    Quantized version of `torch.nn.Softmax`. Adds quantization-specific arguments on top of `torch.nn.Softmax`.
+    Quantized version of `mindspore.nn.Softmax`. Adds quantization-specific arguments on top of `mindspore.nn.Softmax`.
 
     Args:
         output_bit (`int`):
@@ -427,7 +426,7 @@ class IntSoftmax(ms.nn.Cell):
 
 class IntLayerNorm(ms.nn.Cell):
     """
-    Quantized version of `torch.nn.LayerNorm`. Adds quantization-specific arguments on top of `torch.nn.LayerNorm`.
+    Quantized version of `mindspore.nn.LayerNorm`. Adds quantization-specific arguments on top of `mindspore.nn.LayerNorm`.
 
     Args:
         output_bit (`int`, *optional*, defaults to `8`):
@@ -516,7 +515,7 @@ class IntLayerNorm(ms.nn.Cell):
         scaling_factor = self.dim_sqrt / 2**30
 
         # scaling and shifting
-        bias = self.bias.data.detach() / (self.weight.data.detach())
+        bias = self.bias.values().clone() / (self.weight.values().clone())
         bias_int = floor_ste.apply(bias / scaling_factor)
 
         y_int = y_int + bias_int
@@ -531,7 +530,7 @@ def get_percentile_min_max(input, lower_percentile, upper_percentile, output_ten
     Calculate the percentile max and min values in a given tensor
 
     Args:
-        input (`torch.Tensor`):
+        input (`mindspore.Tensor`):
             The target tensor to calculate percentile max and min.
         lower_percentile (`float`):
             If 0.1, means we return the value of the smallest 0.1% value in the tensor as percentile min.
@@ -541,7 +540,7 @@ def get_percentile_min_max(input, lower_percentile, upper_percentile, output_ten
             If True, this function returns tensors, otherwise it returns values.
 
     Returns:
-        `Tuple(torch.Tensor, torch.Tensor)`: Percentile min and max value of *input*
+        `Tuple(mindspore.Tensor, mindspore.Tensor)`: Percentile min and max value of *input*
     """
     input_length = input.shape[0]
 
@@ -567,17 +566,17 @@ def linear_quantize(input, scale, zero_point, inplace=False):
     Quantize single-precision input tensor to integers with the given scaling factor and zeropoint.
 
     Args:
-        input (`torch.Tensor`):
+        input (`mindspore.Tensor`):
             Single-precision input tensor to be quantized.
-        scale (`torch.Tensor`):
+        scale (`mindspore.Tensor`):
             Scaling factor for quantization.
-        zero_pint (`torch.Tensor`):
+        zero_pint (`mindspore.Tensor`):
             Shift for quantization.
         inplace (`bool`, *optional*, defaults to `False`):
             Whether to compute inplace or not.
 
     Returns:
-        `torch.Tensor`: Linearly quantized value of *input* according to *scale* and *zero_point*.
+        `mindspore.Tensor`: Linearly quantized value of *input* according to *scale* and *zero_point*.
     """
     # reshape scale and zeropoint for convolutional weights and activation
     if len(input.shape) == 4:
@@ -602,15 +601,15 @@ def symmetric_linear_quantization_params(num_bits, saturation_min, saturation_ma
     Compute the scaling factor with the given quantization range for symmetric quantization.
 
     Args:
-        saturation_min (`torch.Tensor`):
+        saturation_min (`mindspore.Tensor`):
             Lower bound for quantization range.
-        saturation_max (`torch.Tensor`):
+        saturation_max (`mindspore.Tensor`):
             Upper bound for quantization range.
         per_channel (`bool`, *optional*, defaults to `False`):
             Whether to or not use channel-wise quantization.
 
     Returns:
-        `torch.Tensor`: Scaling factor that linearly quantizes the given range between *saturation_min* and
+        `mindspore.Tensor`: Scaling factor that linearly quantizes the given range between *saturation_min* and
         *saturation_max*.
     """
     # in this part, we do not need any gradient computation,
@@ -638,18 +637,18 @@ class SymmetricQuantFunction(ms.nn.Cell):
     def construct(ctx, x, k, percentile_mode, scale):
         """
         Args:
-            x (`torch.Tensor`):
+            x (`mindspore.Tensor`):
                 Floating point tensor to be quantized.
             k (`int`):
                 Quantization bitwidth.
             percentile_mode (`bool`):
                 Whether or not to use percentile calibration.
-            scale (`torch.Tensor`):
+            scale (`mindspore.Tensor`):
                 Pre-calculated scaling factor for *x*. Note that the current implementation of SymmetricQuantFunction
                 requires pre-calculated scaling factor.
 
         Returns:
-            `torch.Tensor`: Symmetric-quantized value of *input*.
+            `mindspore.Tensor`: Symmetric-quantized value of *input*.
         """
         zero_point = ms.Tensor(0.0)
 
@@ -707,11 +706,11 @@ def batch_frexp(inputs, max_bit=31):
     Decompose the scaling factor into mantissa and twos exponent.
 
     Args:
-        scaling_factor (`torch.Tensor`):
+        scaling_factor (`mindspore.Tensor`):
             Target scaling factor to decompose.
 
     Returns:
-        ``Tuple(torch.Tensor, torch.Tensor)`: mantisa and exponent
+        ``Tuple(mindspore.Tensor, mindspore.Tensor)`: mantisa and exponent
     """
 
     shape_of_input = inputs.shape
@@ -719,7 +718,7 @@ def batch_frexp(inputs, max_bit=31):
     # trans the input to be a 1-d tensor
     inputs = inputs.view(-1)
 
-    output_m, output_e = np.frexp(inputs.cpu().numpy())
+    output_m, output_e = np.frexp(inputs.asnumpy())
     tmp_m = []
     for m in output_m:
         int_m_shifted = int(
@@ -741,21 +740,21 @@ class FixedPointMul(ms.nn.Cell):
     Function to perform fixed-point arithmetic that can match integer arithmetic on hardware.
 
     Args:
-        pre_act (`torch.Tensor`):
+        pre_act (`mindspore.Tensor`):
             Input tensor.
-        pre_act_scaling_factor (`torch.Tensor`):
+        pre_act_scaling_factor (`mindspore.Tensor`):
             Scaling factor of the input tensor *pre_act*.
         bit_num (`int`):
             Quantization bitwidth.
-        z_scaling_factor (`torch.Tensor`):
+        z_scaling_factor (`mindspore.Tensor`):
             Scaling factor of the output tensor.
-        identity (`torch.Tensor`, *optional*):
+        identity (`mindspore.Tensor`, *optional*):
             Identity tensor, if exists.
-        identity_scaling_factor (`torch.Tensor`, *optional*):
+        identity_scaling_factor (`mindspore.Tensor`, *optional*):
             Scaling factor of the identity tensor *identity*, if exists.
 
     Returns:
-        `torch.Tensor`: Output tensor(*pre_act* if *identity* is not given, otherwise the addition of *pre_act* and
+        `mindspore.Tensor`: Output tensor(*pre_act* if *identity* is not given, otherwise the addition of *pre_act* and
         *identity*), whose scale is rescaled to *z_scaling_factor*.
     """
 
