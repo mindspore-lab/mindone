@@ -582,6 +582,13 @@ from .models.swin import (
     SwinModel,
     SwinPreTrainedModel,
 )
+from .models.stablelm import (
+    StableLmForCausalLM,
+    StableLmForSequenceClassification,
+    StableLmForTokenClassification,
+    StableLmModel,
+    StableLmPreTrainedModel,
+)
 from .models.switch_transformers import (
     SwitchTransformersEncoderModel,
     SwitchTransformersForConditionalGeneration,

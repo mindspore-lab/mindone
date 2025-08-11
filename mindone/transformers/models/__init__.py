@@ -86,6 +86,7 @@ from . import (
     smolvlm,
     speecht5,
     starcoder2,
+    stablelm,
     switch_transformers,
     t5,
     umt5,
