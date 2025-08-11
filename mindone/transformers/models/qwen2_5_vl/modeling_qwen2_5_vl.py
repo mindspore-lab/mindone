@@ -78,7 +78,7 @@ def _flash_attention_forward(
     target_dtype: Optional[ms.Type] = None,
     **kwargs,
 ):
-    bsz, num_heads, _, _ = query_states.shape
+    bsz, _, num_heads, _ = query_states.shape
     if is_causal and query_length > 1:
         causal_mask = mint.triu(mint.ones((bsz, 1, query_length, key_states.shape[2]), dtype=ms.bool_), diagonal=1)
     else:
@@ -106,10 +106,9 @@ def _flash_attention_forward(
         attn_mask=attention_mask,
         keep_prob=1 - dropout,
         scalar_value=scalar_value,
-        input_layout="BNSD",
+        input_layout="BSND",
     )
 
-    attn_output = attn_output.transpose(1, 2)
     return attn_output
 
 
@@ -834,6 +833,11 @@ class Qwen2_5_VLFlashAttention2(Qwen2_5_VLAttention):
             query_states = query_states.to(target_dtype)
             key_states = key_states.to(target_dtype)
             value_states = value_states.to(target_dtype)
+
+        # Reashape to the expected shape for Flash Attention
+        query_states = query_states.transpose(1, 2)
+        key_states = key_states.transpose(1, 2)
+        value_states = value_states.transpose(1, 2)
 
         if (
             self.config.use_sliding_window
