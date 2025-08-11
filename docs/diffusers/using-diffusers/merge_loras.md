@@ -12,7 +12,7 @@ specific language governing permissions and limitations under the License.
 
 # Merge LoRAs
 
-It can be fun and creative to use multiple [LoRAs]((https://huggingface.co/docs/peft/conceptual_guides/adapter#low-rank-adaptation-lora)) together to generate something entirely new and unique. This works by merging multiple LoRA weights together to produce images that are a blend of different styles. Diffusers provides a few methods to merge LoRAs depending on *how* you want to merge their weights, which can affect image quality.
+It can be fun and creative to use multiple [LoRAs](https://huggingface.co/docs/peft/conceptual_guides/adapter#low-rank-adaptation-lora) together to generate something entirely new and unique. This works by merging multiple LoRA weights together to produce images that are a blend of different styles. Diffusers provides a few methods to merge LoRAs depending on *how* you want to merge their weights, which can affect image quality.
 
 This guide will show you how to merge LoRAs using the [`set_adapters`](https://mindspore-lab.github.io/mindone/latest/diffusers/api/loaders/peft/#mindone.diffusers.loaders.peft.PeftAdapterMixin.set_adapters) method. To improve inference speed and reduce memory-usage of merged LoRAs, you'll also see how to use the [`fuse_lora`](https://mindspore-lab.github.io/mindone/latest/diffusers/api/loaders/lora/#mindone.diffusers.loaders.lora_pipeline.StableDiffusionLoraLoaderMixin.fuse_lora) method to fuse the LoRA weights with the original weights of the underlying model.
 
