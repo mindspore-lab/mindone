@@ -71,7 +71,7 @@ class QuantEmbedding(ms.nn.Cell):
         self.momentum = momentum
         self.quant_mode = quant_mode
         self.percentile_mode = False
-        self.weight_function = SymmetricQuantFunction.apply
+        self.weight_function = SymmetricQuantFunction()
 
     def construct(self, x, positions=None, incremental_state=None):
         if not self.quant_mode:
@@ -137,7 +137,7 @@ class QuantAct(ms.nn.Cell):
         self.quant_mode = quant_mode
         self.per_channel = per_channel
         self.percentile = False
-        self.act_function = SymmetricQuantFunction.apply
+        self.act_function = SymmetricQuantFunction()
 
         if not self.per_channel:
             self.register_buffer("x_min", mint.zeros(1) - 1e-5)
@@ -203,7 +203,7 @@ class QuantAct(ms.nn.Cell):
             # this is for the input quantization
             quant_act_int = self.act_function(x, self.activation_bit, self.percentile, self.act_scaling_factor)
         else:
-            quant_act_int = FixedPointMul.apply(
+            quant_act_int = FixedPointMul()(
                 x,
                 pre_act_scaling_factor,
                 self.activation_bit,
@@ -252,7 +252,7 @@ class QuantLinear(ms.nn.Cell):
         self.bias_bit = bias_bit
         self.quant_mode = quant_mode
         self.percentile_mode = False
-        self.weight_function = SymmetricQuantFunction.apply
+        self.weight_function = SymmetricQuantFunction()
 
     def __repr__(self):
         s = super().__repr__()
@@ -337,7 +337,7 @@ class IntGELU(ms.nn.Cell):
         scaling_factor = scaling_factor**2 * self.coeff[0]
 
         # avoid overflow
-        y_int = floor_ste.apply(y_int / 2**self.const)
+        y_int = floor_ste()(y_int / 2**self.const)
         scaling_factor = scaling_factor * 2**self.const
 
         return y_int, scaling_factor
@@ -400,10 +400,10 @@ class IntSoftmax(ms.nn.Cell):
             x0_int = mint.floor(self.x0 / scaling_factor)
         x_int = mint.max(x_int, self.const * x0_int)
 
-        q = floor_ste.apply(x_int / x0_int)
+        q = floor_ste()(x_int / x0_int)
         r = x_int - x0_int * q
         exp_int, exp_scaling_factor = self.int_polynomial(r, scaling_factor)
-        exp_int = mint.clamp(floor_ste.apply(exp_int * 2 ** (self.const - q)), min=0)
+        exp_int = mint.clamp(floor_ste()(exp_int * 2 ** (self.const - q)), min=0)
         scaling_factor = exp_scaling_factor / 2**self.const
         return exp_int, scaling_factor
 
@@ -422,8 +422,8 @@ class IntSoftmax(ms.nn.Cell):
         exp_int = exp / exp_scaling_factor
 
         exp_int_sum = exp_int.sum(dim=-1, keepdim=True)
-        factor = floor_ste.apply(2**self.max_bit / exp_int_sum)
-        exp_int = floor_ste.apply(exp_int * factor / 2 ** (self.max_bit - self.output_bit))
+        factor = floor_ste()(2**self.max_bit / exp_int_sum)
+        exp_int = floor_ste()(exp_int * factor / 2 ** (self.max_bit - self.output_bit))
         scaling_factor = 1 / 2**self.output_bit
         return exp_int * scaling_factor, scaling_factor
 
@@ -463,7 +463,7 @@ class IntLayerNorm(ms.nn.Cell):
     def set_shift(self, y_int):
         with ms._no_grad():
             y_sq_int = y_int**2
-            var_int = mint.sum(y_sq_int, axis=2, keepdim=True)
+            var_int = mint.sum(y_sq_int, dim=2, keepdim=True)
             shift = (mint.log2(mint.sqrt(var_int / 2**self.max_bit)).ceil()).max()
             shift_old = self.shift
             self.shift = mint.max(self.shift, shift)
@@ -475,16 +475,16 @@ class IntLayerNorm(ms.nn.Cell):
         to avoid overflow in the subsequent runs.
         """
         self.set_shift(y_int)  # adjusts `self.shift`
-        y_int_shifted = floor_ste.apply(y_int / 2**self.shift)
+        y_int_shifted = floor_ste()(y_int / 2**self.shift)
         y_sq_int = y_int_shifted**2
-        var_int = mint.sum(y_sq_int, axis=2, keepdim=True)
+        var_int = mint.sum(y_sq_int, dim=2, keepdim=True)
         return var_int
 
     def construct(self, x, scaling_factor=None):
         if not self.quant_mode:
-            mean = x.mean(axis=2, keepdim=True)
+            mean = x.mean(dim=2, keepdim=True)
             y = x - mean
-            var = mint.mean(y**2, axis=2, keepdim=True)
+            var = mint.mean(y**2, dim=2, keepdim=True)
             x = y / mint.sqrt(self.eps + var)
             x = x * self.weight + self.bias
             return x, None
@@ -496,11 +496,11 @@ class IntLayerNorm(ms.nn.Cell):
 
         # Normalization: computes mean and variance(std)
         x_int = x / scaling_factor
-        mean_int = round_ste.apply(x_int.mean(axis=2, keepdim=True))
+        mean_int = round_ste()(x_int.mean(dim=2, keepdim=True))
         y_int = x_int - mean_int
-        y_int_shifted = floor_ste.apply(y_int / 2**self.shift)
+        y_int_shifted = floor_ste()(y_int / 2**self.shift)
         y_sq_int = y_int_shifted**2
-        var_int = mint.sum(y_sq_int, axis=2, keepdim=True)
+        var_int = mint.sum(y_sq_int, dim=2, keepdim=True)
 
         # overflow handling in training time
         if self.training:
@@ -513,56 +513,20 @@ class IntLayerNorm(ms.nn.Cell):
                 )
 
         # To be replaced with integer-sqrt kernel that produces the same output
-        std_int = floor_ste.apply(mint.sqrt(var_int)) * 2**self.shift
-        factor = floor_ste.apply(2**31 / std_int)
-        y_int = floor_ste.apply(y_int * factor / 2)
+        std_int = floor_ste()(mint.sqrt(var_int)) * 2**self.shift
+        factor = floor_ste()(2**31 / std_int)
+        y_int = floor_ste()(y_int * factor / 2)
         scaling_factor = self.dim_sqrt / 2**30
 
         # scaling and shifting
         bias = self.bias.values().clone() / (self.weight.values().clone())
-        bias_int = floor_ste.apply(bias / scaling_factor)
+        bias_int = floor_ste()(bias / scaling_factor)
 
         y_int = y_int + bias_int
         scaling_factor = scaling_factor * self.weight
         x = y_int * scaling_factor
 
         return x, scaling_factor
-
-
-def get_percentile_min_max(input, lower_percentile, upper_percentile, output_tensor=False):
-    """
-    Calculate the percentile max and min values in a given tensor
-
-    Args:
-        input (`mindspore.Tensor`):
-            The target tensor to calculate percentile max and min.
-        lower_percentile (`float`):
-            If 0.1, means we return the value of the smallest 0.1% value in the tensor as percentile min.
-        upper_percentile (`float`):
-            If 99.9, means we return the value of the largest 0.1% value in the tensor as percentile max.
-        output_tensor (`bool`, *optional*, defaults to `False`):
-            If True, this function returns tensors, otherwise it returns values.
-
-    Returns:
-        `Tuple(mindspore.Tensor, mindspore.Tensor)`: Percentile min and max value of *input*
-    """
-    input_length = input.shape[0]
-
-    lower_index = round(input_length * (1 - lower_percentile * 0.01))
-    upper_index = round(input_length * upper_percentile * 0.01)
-
-    upper_bound = torch.kthvalue(input, k=upper_index).values
-
-    if lower_percentile == 0:
-        lower_bound = upper_bound * 0
-        # lower_index += 1
-    else:
-        lower_bound = -torch.kthvalue(-input, k=lower_index).values
-
-    if not output_tensor:
-        lower_bound = lower_bound.item()
-        upper_bound = upper_bound.item()
-    return lower_bound, upper_bound
 
 
 def linear_quantize(input, scale, zero_point, inplace=False):
@@ -637,7 +601,6 @@ class SymmetricQuantFunction(ms.nn.Cell):
     Class to quantize the given floating-point values using symmetric quantization with given range and bitwidth.
     """
 
-    @staticmethod
     def construct(ctx, x, k, percentile_mode, scale):
         """
         Args:
@@ -663,8 +626,7 @@ class SymmetricQuantFunction(ms.nn.Cell):
         ctx.scale = scale
         return new_quant_x
 
-    @staticmethod
-    def bprop(ctx, grad_output):
+    def bprop(ctx, x, out, grad_output):
         scale = ctx.scale
         if len(grad_output.shape) == 4:
             scale = scale.view(-1, 1, 1, 1)
@@ -674,7 +636,7 @@ class SymmetricQuantFunction(ms.nn.Cell):
         else:
             scale = scale.view(-1)
 
-        return grad_output.clone() / scale, None, None, None, None
+        return grad_output.clone() / scale,
 
 
 class floor_ste(ms.nn.Cell):
@@ -682,13 +644,11 @@ class floor_ste(ms.nn.Cell):
     Straight-through Estimator(STE) for torch.floor()
     """
 
-    @staticmethod
     def construct(ctx, x):
         return mint.floor(x)
 
-    @staticmethod
-    def bprop(ctx, grad_output):
-        return grad_output.clone()
+    def bprop(ctx, x, out, grad_output):
+        return (grad_output.clone(), )
 
 
 class round_ste(ms.nn.Cell):
@@ -696,13 +656,11 @@ class round_ste(ms.nn.Cell):
     Straight-through Estimator(STE) for torch.round()
     """
 
-    @staticmethod
     def construct(ctx, x):
         return mint.round(x)
 
-    @staticmethod
-    def bprop(ctx, grad_output):
-        return grad_output.clone()
+    def bprop(ctx, x, out, grad_output):
+        return (grad_output.clone(), )
 
 
 def batch_frexp(inputs, max_bit=31):
@@ -762,7 +720,6 @@ class FixedPointMul(ms.nn.Cell):
         *identity*), whose scale is rescaled to *z_scaling_factor*.
     """
 
-    @staticmethod
     def construct(
         ctx,
         pre_act,
@@ -815,9 +772,8 @@ class FixedPointMul(ms.nn.Cell):
 
             return mint.clamp(output.type(ms.float32), -n - 1, n)
 
-    @staticmethod
-    def bprop(ctx, grad_output):
+    def bprop(ctx, x, out, grad_output):
         identity_grad = None
         if ctx.identity is not None:
             identity_grad = grad_output.clone() / ctx.z_scaling_factor
-        return grad_output.clone() / ctx.z_scaling_factor, None, None, None, None, identity_grad, None
+        return grad_output.clone() / ctx.z_scaling_factor,
