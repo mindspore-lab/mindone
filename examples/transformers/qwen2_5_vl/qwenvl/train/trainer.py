@@ -45,7 +45,7 @@ def _flash_attention_forward(
         raise ValueError("`softcap` is not supported.")
 
     if is_causal:
-        max_length = mint.max(mint.diff(cu_seqlens)).max()
+        max_length = mint.max(mint.diff(cu_seqlens)).max().item()
         attn_mask = mint.triu(mint.ones((1, 1, max_length, max_length), dtype=ms.bool_), diagonal=1)
     else:
         attn_mask = None
