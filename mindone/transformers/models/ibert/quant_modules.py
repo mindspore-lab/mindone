@@ -107,7 +107,6 @@ class QuantEmbedding(ms.nn.Cell):
             self.max_norm,
             self.norm_type,
             self.scale_grad_by_freq,
-            self.sparse,
         )
         return emb_int * self.weight_scaling_factor, self.weight_scaling_factor
 
