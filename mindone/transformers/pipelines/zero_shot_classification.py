@@ -72,7 +72,7 @@ class ZeroShotClassificationPipeline(ChunkPipeline):
     Example:
 
     ```python
-    >>> from transformers import pipeline
+    >>> from mindone.transformers import pipeline
 
     >>> oracle = pipeline(model="facebook/bart-large-mnli")
     >>> oracle(
@@ -234,6 +234,9 @@ class ZeroShotClassificationPipeline(ChunkPipeline):
             }
 
     def _forward(self, inputs):
+        # FIXME: this is caused by mindspore dataset create_iterator()
+        inputs = inputs["item"]
+
         candidate_label = inputs["candidate_label"]
         sequence = inputs["sequence"]
         model_inputs = {k: inputs[k] for k in self.tokenizer.model_input_names}

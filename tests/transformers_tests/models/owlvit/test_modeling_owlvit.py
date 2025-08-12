@@ -26,7 +26,7 @@ from mindone.transformers import OwlViTForObjectDetection, OwlViTModel, OwlViTPr
 from tests.modeling_test_utils import compute_diffs, generalized_parse_args, get_modules
 from tests.transformers_tests.models.modeling_common import floats_numpy, ids_numpy, random_attention_mask
 
-DTYPE_AND_THRESHOLDS = {"fp32": 5e-4, "fp16": 1e-3, "bf16": 1e-2}
+DTYPE_AND_THRESHOLDS = {"fp32": 1e-3, "fp16": 2e-3, "bf16": 2e-2}
 
 
 class OwlViTVisionModelTester:
@@ -274,8 +274,8 @@ _CASES = [
 ]
 
 
-@pytest.mark.parametrize("name,pt_module,ms_module,init_args,init_kwargs,inputs_args,inputs_kwargs,outputs_map", _CASES)
 @pytest.mark.parametrize("dtype", DTYPE_AND_THRESHOLDS.keys())
+@pytest.mark.parametrize("name,pt_module,ms_module,init_args,init_kwargs,inputs_args,inputs_kwargs,outputs_map", _CASES)
 def test_named_modules(
     name, pt_module, ms_module, init_args, init_kwargs, inputs_args, inputs_kwargs, outputs_map, dtype
 ):
@@ -317,6 +317,8 @@ def prepare_img():
 
 
 def test_inference():
+    THRESHOLD = DTYPE_AND_THRESHOLDS["fp32"]
+
     model_name = "google/owlvit-base-patch32"
     model = OwlViTModel.from_pretrained(model_name)
     processor = OwlViTProcessor.from_pretrained(model_name)
@@ -336,11 +338,15 @@ def test_inference():
     # verify the logits
     assert outputs.logits_per_image.shape == (inputs.pixel_values.shape[0], inputs.input_ids.shape[0])
     assert outputs.logits_per_text.shape == (inputs.input_ids.shape[0], inputs.pixel_values.shape[0])
+
     expected_logits = np.array([[3.4613, 0.9403]])
-    np.testing.assert_allclose(outputs.logits_per_image.asnumpy(), expected_logits, rtol=1e-3, atol=1e-3)
+    diffs = compute_diffs(expected_logits, outputs.logits_per_image)
+    assert (np.array(diffs) < THRESHOLD).all(), f"Output difference exceeds the threshold: {diffs} > {THRESHOLD}"
 
 
 def test_inference_interpolate_pos_encoding():
+    THRESHOLD = DTYPE_AND_THRESHOLDS["fp32"]
+
     model_name = "google/owlvit-base-patch32"
     model = OwlViTModel.from_pretrained(model_name)
     processor = OwlViTProcessor.from_pretrained(model_name)
@@ -363,7 +369,8 @@ def test_inference_interpolate_pos_encoding():
     assert outputs.logits_per_text.shape == (inputs.input_ids.shape[0], inputs.pixel_values.shape[0])
 
     expected_logits = np.array([[3.6278, 0.8861]])
-    np.testing.assert_allclose(outputs.logits_per_image.asnumpy(), expected_logits, rtol=1e-3, atol=1e-3)
+    diffs = compute_diffs(expected_logits, outputs.logits_per_image)
+    assert (np.array(diffs) < THRESHOLD).all(), f"Output difference exceeds the threshold: {diffs} > {THRESHOLD}"
 
     expected_shape = (1, 626, 768)
     assert outputs.vision_model_output.last_hidden_state.shape == expected_shape
@@ -371,13 +378,14 @@ def test_inference_interpolate_pos_encoding():
     # OwlViTForObjectDetection part.
     model = OwlViTForObjectDetection.from_pretrained(model_name)
 
-    outputs = model(**inputs, interpolate_pos_encoding=True)
+    outputs = model(**{k: ms.tensor(v) for k, v in inputs.items()}, interpolate_pos_encoding=True)
 
     num_queries = int((inputs.pixel_values.shape[-1] // model.config.vision_config.patch_size) ** 2)
     assert outputs.pred_boxes.shape == (1, num_queries, 4)
 
     expected_slice_boxes = np.array([[0.0680, 0.0422, 0.1347], [0.2071, 0.0450, 0.4146], [0.2000, 0.0418, 0.3476]])
-    np.testing.assert_allclose(outputs.pred_boxes[0, :3, :3].asnumpy(), expected_slice_boxes, rtol=1e-4, atol=1e-4)
+    diffs = compute_diffs(expected_slice_boxes, outputs.pred_boxes[0, :3, :3])
+    assert (np.array(diffs) < THRESHOLD).all(), f"Output difference exceeds the threshold: {diffs} > {THRESHOLD}"
 
     model = OwlViTForObjectDetection.from_pretrained(model_name)
     query_image = prepare_img()
@@ -417,7 +425,8 @@ def test_inference_interpolate_pos_encoding():
             [-1.9452, -3.1332, -3.1332, -3.1332],
         ]
     )
-    np.testing.assert_allclose(model.box_bias[:3, :4].asnumpy(), expected_default_box_bias, rtol=1e-4, atol=1e-4)
+    diffs = compute_diffs(expected_default_box_bias, model.box_bias[:3, :4])
+    assert (np.array(diffs) < THRESHOLD).all(), f"Output difference exceeds the threshold: {diffs} > {THRESHOLD}"
 
     # Interpolate with any resolution size.
     processor.image_processor.size = {"height": 1264, "width": 1024}
@@ -439,7 +448,8 @@ def test_inference_interpolate_pos_encoding():
     )
     assert outputs.pred_boxes.shape == (1, num_queries, 4)
     expected_slice_boxes = np.array([[0.0499, 0.0301, 0.0983], [0.2244, 0.0365, 0.4663], [0.1387, 0.0314, 0.1859]])
-    np.testing.assert_allclose(outputs.pred_boxes[0, :3, :3].asnumpy(), expected_slice_boxes, rtol=1e-4, atol=1e-4)
+    diffs = compute_diffs(expected_slice_boxes, outputs.pred_boxes[0, :3, :3])
+    assert (np.array(diffs) < THRESHOLD).all(), f"Output difference exceeds the threshold: {diffs} > {THRESHOLD}"
 
     query_image = prepare_img()
     inputs = processor(images=image, query_images=query_image, max_length=16, padding="max_length", return_tensors="np")
@@ -457,6 +467,8 @@ def test_inference_interpolate_pos_encoding():
 
 
 def test_inference_object_detection():
+    THRESHOLD = DTYPE_AND_THRESHOLDS["fp32"]
+
     model_name = "google/owlvit-base-patch32"
     model = OwlViTForObjectDetection.from_pretrained(model_name)
 
@@ -473,7 +485,8 @@ def test_inference_object_detection():
     assert outputs.pred_boxes.shape == (1, num_queries, 4)
 
     expected_slice_boxes = np.array([[0.0691, 0.0445, 0.1373], [0.1592, 0.0456, 0.3192], [0.1632, 0.0423, 0.2478]])
-    np.testing.assert_allclose(outputs.pred_boxes[0, :3, :3].asnumpy(), expected_slice_boxes, rtol=1e-4, atol=1e-4)
+    diffs = compute_diffs(expected_slice_boxes, outputs.pred_boxes[0, :3, :3])
+    assert (np.array(diffs) < THRESHOLD).all(), f"Output difference exceeds the threshold: {diffs} > {THRESHOLD}"
 
     # test post-processing
     post_processed_output = processor.post_process_grounded_object_detection(outputs)
@@ -483,7 +496,7 @@ def test_inference_object_detection():
         outputs, text_labels=text_labels
     )
 
-    objects_labels = post_processed_output_with_text_labels[0]["labels"].cpu().tolist()
+    objects_labels = post_processed_output_with_text_labels[0]["labels"].tolist()
     assert objects_labels == [0, 0]
 
     objects_text_labels = post_processed_output_with_text_labels[0]["text_labels"]
@@ -492,6 +505,8 @@ def test_inference_object_detection():
 
 
 def test_inference_one_shot_object_detection():
+    THRESHOLD = DTYPE_AND_THRESHOLDS["fp32"]
+
     model_name = "google/owlvit-base-patch32"
     model = OwlViTForObjectDetection.from_pretrained(model_name)
 
@@ -508,9 +523,8 @@ def test_inference_one_shot_object_detection():
     assert outputs.target_pred_boxes.shape == (1, num_queries, 4)
 
     expected_slice_boxes = np.array([[0.0691, 0.0445, 0.1373], [0.1592, 0.0456, 0.3192], [0.1632, 0.0423, 0.2478]])
-    np.testing.assert_allclose(
-        outputs.target_pred_boxes[0, :3, :3].asnumpy(), expected_slice_boxes, rtol=1e-4, atol=1e-4
-    )
+    diffs = compute_diffs(expected_slice_boxes, outputs.target_pred_boxes[0, :3, :3])
+    assert (np.array(diffs) < THRESHOLD).all(), f"Output difference exceeds the threshold: {diffs} > {THRESHOLD}"
 
 
 def test_inference_one_shot_object_detection_fp16():

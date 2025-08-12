@@ -1574,8 +1574,8 @@ class OwlViTForObjectDetection(OwlViTPreTrainedModel):
         >>> for box, score in zip(boxes, scores):
         ...     box = [round(i, 2) for i in box.tolist()]
         ...     print(f"Detected similar object with confidence {round(score.item(), 3)} at location {box}")
-        Detected similar object with confidence 0.856 at location [10.94, 50.4, 315.8, 471.39]
-        Detected similar object with confidence 1.0 at location [334.84, 25.33, 636.16, 374.71]
+        Detected similar object with confidence 0.857 at location [10.94, 50.4, 315.8, 471.39]
+        Detected similar object with confidence 1.0 at location [334.83, 25.33, 636.16, 374.7]
         ```"""
         output_attentions = output_attentions if output_attentions is not None else self.config.output_attentions
         output_hidden_states = (
@@ -1684,8 +1684,8 @@ class OwlViTForObjectDetection(OwlViTPreTrainedModel):
         >>> for box, score, text_label in zip(boxes, scores, text_labels):
         ...     box = [round(i, 2) for i in box.tolist()]
         ...     print(f"Detected {text_label} with confidence {round(score.item(), 3)} at location {box}")
-        Detected a photo of a cat with confidence 0.707 at location [324.97, 20.44, 640.58, 373.29]
-        Detected a photo of a cat with confidence 0.717 at location [1.46, 55.26, 315.55, 472.17]
+        Detected a photo of a cat with confidence 0.707 at location [324.96, 20.44, 640.58, 373.29]
+        Detected a photo of a cat with confidence 0.717 at location [1.47, 55.26, 315.55, 472.17]
         ```"""
         output_attentions = output_attentions if output_attentions is not None else self.config.output_attentions
         output_hidden_states = (

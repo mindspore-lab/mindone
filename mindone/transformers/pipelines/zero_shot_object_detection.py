@@ -40,7 +40,7 @@ class ZeroShotObjectDetectionPipeline(ChunkPipeline):
     Example:
 
     ```python
-    >>> from transformers import pipeline
+    >>> from mindone.transformers import pipeline
 
     >>> detector = pipeline(model="google/owlvit-base-patch32", task="zero-shot-object-detection")
     >>> detector(
@@ -49,7 +49,7 @@ class ZeroShotObjectDetectionPipeline(ChunkPipeline):
     ... )
     [{'score': 0.287, 'label': 'cat', 'box': {'xmin': 324, 'ymin': 20, 'xmax': 640, 'ymax': 373}},
      {'score': 0.254, 'label': 'cat', 'box': {'xmin': 1, 'ymin': 55, 'xmax': 315, 'ymax': 472}},
-     {'score': 0.121, 'label': 'couch', 'box': {'xmin': 4, 'ymin': 0, 'xmax': 642, 'ymax': 476}}]
+     {'score': 0.121, 'label': 'couch', 'box': {'xmin': 4, 'ymin': 0, 'xmax': 642, 'ymax': 477}}]
 
     >>> detector(
     ...     "https://huggingface.co/datasets/Narsil/image_dummy/raw/main/parrots.png",
@@ -102,7 +102,7 @@ class ZeroShotObjectDetectionPipeline(ChunkPipeline):
                 You can use this parameter to send directly a list of images, or a dataset or a generator like so:
 
                 ```python
-                >>> from transformers import pipeline
+                >>> from mindone.transformers import pipeline
 
                 >>> detector = pipeline(model="google/owlvit-base-patch32", task="zero-shot-object-detection")
                 >>> detector(
@@ -119,10 +119,10 @@ class ZeroShotObjectDetectionPipeline(ChunkPipeline):
                 ... )
                 [[{'score': 0.287, 'label': 'cat', 'box': {'xmin': 324, 'ymin': 20, 'xmax': 640, 'ymax': 373}},
                  {'score': 0.25, 'label': 'cat', 'box': {'xmin': 1, 'ymin': 55, 'xmax': 315, 'ymax': 472}},
-                 {'score': 0.121, 'label': 'couch', 'box': {'xmin': 4, 'ymin': 0, 'xmax': 642, 'ymax': 476}}],
+                 {'score': 0.121, 'label': 'couch', 'box': {'xmin': 4, 'ymin': 0, 'xmax': 642, 'ymax': 477}}],
                 [{'score': 0.287, 'label': 'cat', 'box': {'xmin': 324, 'ymin': 20, 'xmax': 640, 'ymax': 373}},
                  {'score': 0.254, 'label': 'cat', 'box': {'xmin': 1, 'ymin': 55, 'xmax': 315, 'ymax': 472}},
-                 {'score': 0.121, 'label': 'couch', 'box': {'xmin': 4, 'ymin': 0, 'xmax': 642, 'ymax': 476}}]]
+                 {'score': 0.121, 'label': 'couch', 'box': {'xmin': 4, 'ymin': 0, 'xmax': 642, 'ymax': 477}}]]
                 ```
 
 
@@ -207,6 +207,9 @@ class ZeroShotObjectDetectionPipeline(ChunkPipeline):
             }
 
     def _forward(self, model_inputs):
+        # FIXME: this is caused by mindspore dataset create_iterator()
+        model_inputs = model_inputs["item"]
+
         target_size = model_inputs.pop("target_size")
         candidate_label = model_inputs.pop("candidate_label")
         is_last = model_inputs.pop("is_last")
