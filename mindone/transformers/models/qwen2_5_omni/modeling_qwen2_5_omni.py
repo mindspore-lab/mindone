@@ -408,7 +408,7 @@ class Qwen2_5OmniPreTrainedModelForConditionalGeneration(Qwen2_5OmniPreTrainedMo
                         llm_pos_ids = self.get_llm_pos_ids_for_vision(
                             st_idx, image_idx, spatial_merge_size, t_index, grid_hs, grid_ws
                         )
-                        image_len = image_grid_thw[image_idx].prod() // (spatial_merge_size**2)
+                        image_len = image_grid_thw[image_idx].prod().item() // (spatial_merge_size**2)
                         llm_pos_ids_list.append(llm_pos_ids)
 
                         st_idx = llm_pos_ids_list[-1].max() + 1 if len(llm_pos_ids_list) > 0 else 0
@@ -439,7 +439,7 @@ class Qwen2_5OmniPreTrainedModelForConditionalGeneration(Qwen2_5OmniPreTrainedMo
                         llm_pos_ids = self.get_llm_pos_ids_for_vision(
                             st_idx, video_idx, spatial_merge_size, t_index, grid_hs, grid_ws
                         )
-                        video_len = video_grid_thw[video_idx].prod() // (spatial_merge_size**2)
+                        video_len = video_grid_thw[video_idx].prod().item() // (spatial_merge_size**2)
                         llm_pos_ids_list.append(llm_pos_ids)
 
                         st_idx = llm_pos_ids_list[-1].max() + 1 if len(llm_pos_ids_list) > 0 else 0
@@ -494,7 +494,7 @@ class Qwen2_5OmniPreTrainedModelForConditionalGeneration(Qwen2_5OmniPreTrainedMo
                                 llm_pos_ids_list.append(
                                     audio_llm_pos_ids[:, audio_chunk_index[0] : audio_chunk_index[1]]
                                 )
-                        video_len = video_grid_thw[video_idx].prod() // (spatial_merge_size**2)
+                        video_len = video_grid_thw[video_idx].prod().item() // (spatial_merge_size**2)
 
                         st_idx = llm_pos_ids_list[-1].max() + 1 if len(llm_pos_ids_list) > 0 else 0
                         eos_len = 1
@@ -511,7 +511,7 @@ class Qwen2_5OmniPreTrainedModelForConditionalGeneration(Qwen2_5OmniPreTrainedMo
                 if st < len(input_tokens):
                     st_idx = llm_pos_ids_list[-1].max() + 1 if len(llm_pos_ids_list) > 0 else 0
                     text_len = len(input_tokens) - st
-                    llm_pos_ids_list.append(mint.arange(text_len.item()).view((1, -1)).broadcast_to((3, -1)) + st_idx)
+                    llm_pos_ids_list.append(mint.arange(text_len).view((1, -1)).broadcast_to((3, -1)) + st_idx)
 
                 llm_positions = mint.cat(llm_pos_ids_list, dim=1).reshape(3, -1).to(position_ids.dtype)
 
@@ -1068,7 +1068,6 @@ class Qwen2_5_VisionPatchEmbed(nn.Cell):
 
         kernel_size = (temporal_patch_size, patch_size, patch_size)
         self.proj = mint.nn.Conv3d(in_channels, embed_dim, kernel_size=kernel_size, stride=kernel_size, bias=False)
-        # .to_float(ms.float16)
 
     def construct(self, hidden_states: ms.Tensor) -> ms.Tensor:
         # origin_dtype = hidden_states.dtype
@@ -1581,6 +1580,32 @@ class Qwen2_5OmniThinkerTextModel(Qwen2_5OmniPreTrainedModel):
     def set_input_embeddings(self, value):
         self.embed_tokens = value
 
+    def recompute(self, cell, **recompute_kwargs):
+        if isinstance(cell, nn.Dropout):
+            return
+        if not cell._has_config_recompute:
+            cell.recompute(**recompute_kwargs)
+        if isinstance(cell, nn.CellList):
+            self.recompute(cell[-1])
+        elif ms.get_context("mode") == ms.GRAPH_MODE:
+            cell.add_flags(output_no_recompute=True)
+
+    def gradient_checkpointing_enable(self, gradient_checkpointing_kwargs=None):
+        self.gradient_checkpointing = True
+        if gradient_checkpointing_kwargs is None:
+            # gradient_checkpointing_kwargs = {"mp_comm_recompute": True, "parallel_optimizer_comm_recompute": True}
+            gradient_checkpointing_kwargs = {}
+
+        # llama layers
+        for decoder_layer in self.layers:
+            assert isinstance(decoder_layer, Qwen2_5OmniDecoderLayer)
+            for name, cell in decoder_layer.name_cells().items():
+                self.recompute(cell, **gradient_checkpointing_kwargs)
+        self.recompute(self.embed_tokens, **gradient_checkpointing_kwargs)
+        self.recompute(self.norm, **gradient_checkpointing_kwargs)
+
+        logger.info(f"{self.__class__.__name__}: enable recompute.")
+
     def construct(
         self,
         input_ids: ms.Tensor = None,
@@ -2024,26 +2049,20 @@ class Qwen2_5OmniThinkerForConditionalGeneration(
                     audio_feature_lengths=audio_feature_lengths,
                 )
                 audio_mask = (input_ids == self.config.audio_token_id).unsqueeze(-1).expand_as(inputs_embeds)
-                audio_features = audio_features.to(inputs_embeds.dtype)
-                inputs_embeds = (
-                    inputs_embeds.float().masked_scatter(audio_mask, audio_features.float()).to(inputs_embeds.dtype)
-                )
+                audio_features = audio_features.float()
+                inputs_embeds = inputs_embeds.float().masked_scatter(audio_mask, audio_features).to(inputs_embeds.dtype)
 
             if pixel_values is not None:
                 image_embeds = self.get_image_features(pixel_values, image_grid_thw)
                 image_mask = (input_ids == self.config.image_token_id).unsqueeze(-1).expand_as(inputs_embeds)
-                image_embeds = image_embeds.to(inputs_embeds.dtype)
-                inputs_embeds = (
-                    inputs_embeds.float().masked_scatter(image_mask, image_embeds.float()).to(inputs_embeds.dtype)
-                )
+                image_embeds = image_embeds.float()
+                inputs_embeds = inputs_embeds.float().masked_scatter(image_mask, image_embeds).to(inputs_embeds.dtype)
 
             if pixel_values_videos is not None:
                 video_embeds = self.get_video_features(pixel_values_videos, video_grid_thw)
                 video_mask = (input_ids == self.config.video_token_id).unsqueeze(-1).expand_as(inputs_embeds)
-                video_embeds = video_embeds.to(inputs_embeds.dtype)
-                inputs_embeds = (
-                    inputs_embeds.float().masked_scatter(video_mask, video_embeds.float()).to(inputs_embeds.dtype)
-                )
+                video_embeds = video_embeds.float()
+                inputs_embeds = inputs_embeds.float().masked_scatter(video_mask, video_embeds).to(inputs_embeds.dtype)
 
         if feature_attention_mask is not None:
             audio_feature_lengths = mint.sum(feature_attention_mask, dim=1)
@@ -2088,7 +2107,7 @@ class Qwen2_5OmniThinkerForConditionalGeneration(
         )
 
         hidden_states = outputs[0]
-        logits = self.lm_head(hidden_states)
+        logits = self.lm_head(hidden_states).float()
 
         loss = None
         if labels is not None:
@@ -2152,6 +2171,9 @@ class Qwen2_5OmniThinkerForConditionalGeneration(
             model_inputs["pixel_values_videos"] = None
 
         return model_inputs
+
+    def gradient_checkpointing_enable(self, gradient_checkpointing_kwargs=None):
+        self.model.gradient_checkpointing_enable(gradient_checkpointing_kwargs)
 
 
 ############################

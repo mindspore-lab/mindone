@@ -4,3 +4,8 @@ librosa
 soundfile
 transformers>=4.53.0
 jinja2
+# Optional for finetuning
+# evaluate
+# datasets
+# ezcolorlog
+# mindcv
