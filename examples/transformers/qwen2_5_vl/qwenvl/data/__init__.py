@@ -26,6 +26,11 @@ VIDEOCHATGPT = {
     "data_path": "PATH_TO_VIDEOCHATGPT_DATA",
 }
 
+DOC_VQA = {
+    "annotation_path": "/home/mikecheung/data/doc_vqa_qwen2_5_vl/doc_vqa.json",
+    "data_path": "",
+}
+
 DOC_VQA_PACK = {
     "annotation_path": "/home/mikecheung/data/doc_vqa_qwen2_5_vl/doc_vqa_pack.json",
     "data_path": "",
@@ -37,6 +42,7 @@ data_dict = {
     "mp_doc": MP_DOC,
     "clevr_mc": CLEVR_MC,
     "videochatgpt": VIDEOCHATGPT,
+    "doc_vqa": DOC_VQA,
     "doc_vqa_pack": DOC_VQA_PACK,
 }
 
