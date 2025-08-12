@@ -485,7 +485,7 @@ class DataCollatorForSupervisedDataset:
         batch = dict(
             input_ids=input_ids,
             labels=labels,
-            attention_mask=input_ids.ne(self.tokenizer.pad_token_id),
+            attention_mask=input_ids != self.tokenizer.pad_token_id,
         )
         images = list(instance["pixel_values"] for instance in instances if "pixel_values" in instance)
         videos = list(instance["pixel_values_videos"] for instance in instances if "pixel_values_videos" in instance)

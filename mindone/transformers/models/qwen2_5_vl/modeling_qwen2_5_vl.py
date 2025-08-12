@@ -80,7 +80,7 @@ def _flash_attention_forward(
 ):
     bsz, _, num_heads, _ = query_states.shape
     if is_causal and query_length > 1:
-        causal_mask = mint.triu(mint.ones((bsz, 1, query_length, key_states.shape[2]), dtype=ms.bool_), diagonal=1)
+        causal_mask = mint.triu(mint.ones((bsz, 1, query_length, key_states.shape[1]), dtype=ms.bool_), diagonal=1)
     else:
         causal_mask = None
 
