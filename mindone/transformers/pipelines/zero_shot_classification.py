@@ -15,11 +15,11 @@ import inspect
 from typing import Union
 
 import numpy as np
+from transformers.tokenization_utils import TruncationStrategy
 from transformers.utils import add_end_docstrings
 
 import mindspore as ms
 
-from ..tokenization_utils import TruncationStrategy
 from ..utils import logging
 from .base import ArgumentHandler, ChunkPipeline, build_pipeline_init_args
 

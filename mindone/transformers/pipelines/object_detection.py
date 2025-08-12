@@ -45,8 +45,8 @@ class ObjectDetectionPipeline(Pipeline):
     ```python
     >>> from transformers import pipeline
 
-    >>> detector = pipeline(model="facebook/detr-resnet-50")
-    >>> detector("https://huggingface.co/datasets/Narsil/image_dummy/raw/main/parrots.png")
+    >>> detector = pipeline(model="hustvl/yolos-tiny")
+    >>> detector("https://hf-mirror.com/datasets/Narsil/image_dummy/raw/main/parrots.png")
     [{'score': 0.997, 'label': 'bird', 'box': {'xmin': 69, 'ymin': 171, 'xmax': 396, 'ymax': 507}},
      {'score': 0.999, 'label': 'bird', 'box': {'xmin': 398, 'ymin': 105, 'xmax': 767, 'ymax': 507}}]
 
