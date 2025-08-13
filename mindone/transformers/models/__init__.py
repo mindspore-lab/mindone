@@ -77,6 +77,7 @@ from . import (
     qwen2_audio,
     qwen2_vl,
     roberta,
+    sam,
     siglip,
     smolvlm,
     speecht5,
