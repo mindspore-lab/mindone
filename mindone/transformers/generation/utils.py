@@ -316,6 +316,28 @@ class GenerateBeamEncoderDecoderOutput(ModelOutput):
     past_key_values: Optional[Tuple[Tuple[Tuple[ms.Tensor]]]] = None
 
 
+# TODO (joao): remove the equivalent classes and typing shortcuts below in v5
+# Equivalent classes (kept for retrocompatibility purposes)
+GreedySearchDecoderOnlyOutput = GenerateDecoderOnlyOutput
+ContrastiveSearchDecoderOnlyOutput = GenerateDecoderOnlyOutput
+SampleDecoderOnlyOutput = GenerateDecoderOnlyOutput
+
+ContrastiveSearchEncoderDecoderOutput = GenerateEncoderDecoderOutput
+GreedySearchEncoderDecoderOutput = GenerateEncoderDecoderOutput
+SampleEncoderDecoderOutput = GenerateEncoderDecoderOutput
+
+BeamSearchDecoderOnlyOutput = GenerateBeamDecoderOnlyOutput
+BeamSampleDecoderOnlyOutput = GenerateBeamDecoderOnlyOutput
+
+BeamSearchEncoderDecoderOutput = GenerateBeamEncoderDecoderOutput
+BeamSampleEncoderDecoderOutput = GenerateBeamEncoderDecoderOutput
+
+GreedySearchOutput = Union[GreedySearchEncoderDecoderOutput, GreedySearchDecoderOnlyOutput]
+SampleOutput = Union[SampleEncoderDecoderOutput, SampleDecoderOnlyOutput]
+BeamSearchOutput = Union[BeamSearchEncoderDecoderOutput, BeamSearchDecoderOnlyOutput]
+BeamSampleOutput = Union[BeamSampleEncoderDecoderOutput, BeamSampleDecoderOnlyOutput]
+ContrastiveSearchOutput = Union[ContrastiveSearchEncoderDecoderOutput, ContrastiveSearchDecoderOnlyOutput]
+
 # Typing shortcuts
 GenerateNonBeamOutput = Union[GenerateDecoderOnlyOutput, GenerateEncoderDecoderOutput]
 GenerateBeamOutput = Union[GenerateBeamDecoderOnlyOutput, GenerateBeamEncoderDecoderOutput]
@@ -2456,14 +2478,14 @@ class GenerationMixin:
             return False
         return True
 
-    def heal_tokens(self, input_ids: ms.Tensor, tokenizer: Optional["PreTrainedTokenizerBase"] = None) -> ms.Tensor:
+    def heal_tokens(self, input_ids: ms.tensor, tokenizer: Optional["PreTrainedTokenizerBase"] = None) -> ms.tensor:
         r"""
         Generates sequences of token ids for models with a language modeling head.
         Parameters:
-            input_ids (`ms.Tensor`): The sequence used as a prompt for the generation.
+            input_ids (`ms.tensor`): The sequence used as a prompt for the generation.
             tokenizer (`PreTrainedTokenizerBase`, *optional*): The tokenizer used to decode the input ids.
         Return:
-            `ms.Tensor` where each sequence has its tail token replaced with its appropriate extension.
+            `ms.tensor` where each sequence has its tail token replaced with its appropriate extension.
         """
         if tokenizer is None:
             raise ValueError(
@@ -2478,7 +2500,7 @@ class GenerationMixin:
         # assumption: leading/trailing whitespace is not meaningful, so the prompts are
         # stripped before re-tokenizing to desensitize generation to whitespace artefacts
         prompts = [p.strip() for p in tokenizer.batch_decode(input_ids, skip_special_tokens=True)]
-        input_ids = ms.Tensor(
+        input_ids = ms.tensor(
             tokenizer(
                 prompts,
                 return_tensors="np",
@@ -2487,7 +2509,14 @@ class GenerationMixin:
         )
 
         # replace bos with pad to not condition healing on it
-        input_ids = ops.where(input_ids == bos_token_id, pad_token_id, input_ids)
+        input_ids = mint.where(input_ids == bos_token_id, pad_token_id, input_ids)
+
+        """
+        the latter code assumes the input_ids is not empty,
+        input_id has to be checked if contains elements
+        """
+        if input_ids.numel() == 0:
+            return input_ids
 
         tail_ids = input_ids[:, -1].tolist()
 
@@ -2498,11 +2527,18 @@ class GenerationMixin:
 
         for batch_idx, (tail_id, tail_tok) in enumerate(zip(tail_ids, tail_toks)):
             batch_ids = input_ids[batch_idx]
-            if ops.all(batch_ids == pad_token_id).item():
+            if mint.all(batch_ids == pad_token_id).item():
                 continue  # skip empty sequences (all pad ids)
 
             # apply bias for alternatives (extensions) to the tail token
-            seq_bias = {(alt_tok,): 10.0 for alt_tok in vocab_trie.values(prefix=tail_tok)}
+            """
+            seq_bias key has to be tuple with int so have to use
+            tokenizer function to convert str to int
+            """
+            seq_bias = {
+                (tokenizer.convert_tokens_to_ids(alt_tok),): 10.0 for alt_tok in vocab_trie.extensions(prefix=tail_tok)
+            }
+
             if len(seq_bias) == 1:
                 continue  # skip if there are no token alternatives to heal with
 
@@ -3301,3 +3337,59 @@ class GenerationMixin:
                 )
         else:
             return sequences
+
+
+def _speculative_sampling(
+    candidate_input_ids,
+    candidate_logits,
+    candidate_length,
+    new_logits,
+    is_done_candidate,
+):
+    """
+    Applies sampling as in the speculative decoding paper (https://arxiv.org/pdf/2211.17192.pdf, algorithm 1). Returns
+    the selected tokens, as well as the number of candidate matches.
+
+    NOTE: Unless otherwise stated, the variable names match those in the paper.
+    """
+    new_candidate_input_ids = candidate_input_ids[:, -candidate_length:]
+    # Gets the probabilities from the logits. q_i and p_i denote the assistant and model probabilities of the tokens
+    # selected by the assistant, respectively.
+    q = mint.nn.functional.softmax(candidate_logits, dim=-1)
+    q_i = q[:, mint.arange(candidate_length), new_candidate_input_ids].squeeze((0, 1))
+    p = mint.nn.functional.softmax(new_logits, dim=-1)
+    p_i = p[:, mint.arange(candidate_length), new_candidate_input_ids].squeeze((0, 1))
+    probability_ratio = p_i / q_i
+
+    # When probability_ratio > 1 (i.e. q_i(x) < p_i(x), or "assistant probability of the candidate token is smaller
+    # than the model probability for the same token"), keep the token. Otherwise reject with p = 1 - probability_ratio
+    # (= keep with p = probability_ratio). Keep all the tokens until the first rejection
+    r_i = mint.rand_like(probability_ratio)
+    is_accepted = r_i <= probability_ratio
+    n_matches = ((~is_accepted).cumsum(dim=-1) < 1).sum()  # this is `n` in algorithm 1
+
+    # Ensure we don't generate beyond max_len or an EOS token (not in algorithm 1, but needed for correct behavior)
+    if is_done_candidate and n_matches == candidate_length:
+        # Output length is assumed to be `n_matches + 1`. Since we won't generate another token with the target model
+        # due to acceptance on EOS we fix `n_matches`
+        n_matches -= 1
+        valid_tokens = new_candidate_input_ids[:, : n_matches + 1]
+    else:
+        # Next token selection: if there is a rejection, adjust the distribution from the main model before sampling.
+        gamma = candidate_logits.shape[1]
+        p_n_plus_1 = p[:, n_matches, :]
+        if n_matches < gamma:
+            q_n_plus_1 = q[:, n_matches, :]
+            p_prime = mint.clamp((p_n_plus_1 - q_n_plus_1), min=0)
+            p_prime.div_(p_prime.sum())
+        else:
+            p_prime = p_n_plus_1
+        t = mint.squeeze(mint.multinomial(p_prime, num_samples=1), dim=1)[None, :]
+
+        # The selected tokens include the matches (if any) plus the next sampled tokens
+        if n_matches > 0:
+            valid_tokens = mint.cat((new_candidate_input_ids[:, :n_matches], t), dim=-1)
+        else:
+            valid_tokens = t
+
+    return valid_tokens, n_matches
