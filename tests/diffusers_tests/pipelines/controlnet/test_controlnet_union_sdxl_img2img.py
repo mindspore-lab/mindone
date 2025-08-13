@@ -1,3 +1,5 @@
+"""Adapted from https://github.com/huggingface/diffusers/tree/main/tests//pipelines/controlnet/test_controlnet_union_sdxl_img2img.py."""
+
 import unittest
 
 import numpy as np

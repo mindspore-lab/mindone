@@ -1,4 +1,7 @@
 # -*- coding: utf-8 -*-
+# Adapted from
+# https://github.com/PKU-YuanGroup/Open-Sora-Plan/blob/main/opensora/models/text_encoder/t5.py
+
 import glob
 import html
 import json

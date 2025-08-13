@@ -1,3 +1,4 @@
+# Copied from https://github.com/idealo/imagededup/blob/master/imagededup/handlers/search/brute_force_cython_ext.pyx
 #cython: boundscheck=False, wraparound=False
 import cython
 

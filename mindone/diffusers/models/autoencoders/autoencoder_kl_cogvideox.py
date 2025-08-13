@@ -1,5 +1,8 @@
-# Copyright 2024 The CogVideoX team, Tsinghua University & ZhipuAI and The HuggingFace Team.
+# Copyright 2025 The CogVideoX team, Tsinghua University & ZhipuAI and The HuggingFace Team.
 # All rights reserved.
+#
+# This code is adapted from https://github.com/huggingface/diffusers
+# with modifications to run diffusers on mindspore.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -28,7 +31,6 @@ from ..downsampling import CogVideoXDownsample3D
 from ..layers_compat import pad, upsample_nearest3d_free_interpolate
 from ..modeling_outputs import AutoencoderKLOutput
 from ..modeling_utils import ModelMixin
-from ..normalization import GroupNorm
 from ..upsampling import CogVideoXUpsample3D
 from .vae import DecoderOutput, DiagonalGaussianDistribution
 
@@ -147,7 +149,7 @@ class CogVideoXCausalConv3d(nn.Cell):
 
 class CogVideoXSpatialNorm3D(nn.Cell):
     r"""
-    Spatially conditioned normalization as defined in https://arxiv.org/abs/2209.09002. This implementation is specific
+    Spatially conditioned normalization as defined in https://huggingface.co/papers/2209.09002. This implementation is specific
     to 3D-video like data.
 
     CogVideoXSafeConv3d is used instead of nn.Conv3d to avoid OOM in CogVideoX Model.
@@ -168,7 +170,7 @@ class CogVideoXSpatialNorm3D(nn.Cell):
         groups: int = 32,
     ):
         super().__init__()
-        self.norm_layer = GroupNorm(num_channels=f_channels, num_groups=groups, eps=1e-6, affine=True)
+        self.norm_layer = mint.nn.GroupNorm(num_channels=f_channels, num_groups=groups, eps=1e-6, affine=True)
         self.conv_y = CogVideoXCausalConv3d(zq_channels, f_channels, kernel_size=1, stride=1)
         self.conv_b = CogVideoXCausalConv3d(zq_channels, f_channels, kernel_size=1, stride=1)
 
@@ -245,8 +247,8 @@ class CogVideoXResnetBlock3D(nn.Cell):
         self.spatial_norm_dim = spatial_norm_dim
 
         if spatial_norm_dim is None:
-            self.norm1 = GroupNorm(num_channels=in_channels, num_groups=groups, eps=eps)
-            self.norm2 = GroupNorm(num_channels=out_channels, num_groups=groups, eps=eps)
+            self.norm1 = mint.nn.GroupNorm(num_channels=in_channels, num_groups=groups, eps=eps)
+            self.norm2 = mint.nn.GroupNorm(num_channels=out_channels, num_groups=groups, eps=eps)
         else:
             self.norm1 = CogVideoXSpatialNorm3D(
                 f_channels=in_channels,
@@ -707,7 +709,7 @@ class CogVideoXEncoder3D(nn.Cell):
             pad_mode=pad_mode,
         )
 
-        self.norm_out = GroupNorm(norm_num_groups, block_out_channels[-1], eps=1e-6)
+        self.norm_out = mint.nn.GroupNorm(norm_num_groups, block_out_channels[-1], eps=1e-6)
         self.conv_act = mint.nn.SiLU()
         self.conv_out = CogVideoXCausalConv3d(
             block_out_channels[-1], 2 * out_channels, kernel_size=3, pad_mode=pad_mode
@@ -914,11 +916,11 @@ class AutoencoderKLCogVideoX(ModelMixin, ConfigMixin, FromOriginalModelMixin):
             model. The latents are scaled with the formula `z = z * scaling_factor` before being passed to the
             diffusion model. When decoding, the latents are scaled back to the original scale with the formula: `z = 1
             / scaling_factor * z`. For more details, refer to sections 4.3.2 and D.1 of the [High-Resolution Image
-            Synthesis with Latent Diffusion Models](https://arxiv.org/abs/2112.10752) paper.
+            Synthesis with Latent Diffusion Models](https://huggingface.co/papers/2112.10752) paper.
         force_upcast (`bool`, *optional*, default to `True`):
             If enabled it will force the VAE to run in float32 for high image resolution pipelines, such as SD-XL. VAE
-            can be fine-tuned / trained to a lower range without loosing too much precision in which case
-            `force_upcast` can be set to `False` - see: https://huggingface.co/madebyollin/sdxl-vae-fp16-fix
+            can be fine-tuned / trained to a lower range without losing too much precision in which case `force_upcast`
+            can be set to `False` - see: https://huggingface.co/madebyollin/sdxl-vae-fp16-fix
     """
 
     _supports_gradient_checkpointing = True

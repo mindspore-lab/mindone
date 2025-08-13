@@ -1,6 +1,9 @@
 # coding=utf-8
 # Copyright 2022 Apple Inc. and The HuggingFace Inc. team. All rights reserved.
 #
+# This code is adapted from https://github.com/huggingface/transformers
+# with modifications to run transformers on mindspore.
+#
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -23,6 +26,7 @@ from transformers.models.mobilevit.configuration_mobilevit import MobileViTConfi
 
 import mindspore
 from mindspore import nn
+from mindspore.common.initializer import Normal, Zero, initializer
 from mindspore.mint.nn import BCEWithLogitsLoss, CrossEntropyLoss, MSELoss
 
 from ...activations import ACT2FN
@@ -623,9 +627,15 @@ class MobileViTPreTrainedModel(PreTrainedModel):
         if isinstance(module, (mindspore.mint.nn.Linear, mindspore.mint.nn.Conv2d)):
             # Slightly different from the TF version which uses truncated_normal for initialization
             # cf https://github.com/pytorch/pytorch/pull/5617
-            module.weight.data.normal_(mean=0.0, std=self.config.initializer_range)
-            if module.bias is not None:
-                module.bias.data.zero_()
+            module.weight.set_data(
+                initializer(
+                    Normal(mean=0.0, sigma=self.config.initializer_range),
+                    shape=module.weight.shape,
+                    dtype=module.weight.dtype,
+                )
+            )
+            if hasattr(module, "bias") and module.bias is not None:
+                module.bias.set_data(initializer(Zero(), shape=module.bias.shape, dtype=module.bias.dtype))
         elif isinstance(module, mindspore.mint.nn.LayerNorm):
             module.bias.data.zero_()
             module.weight.data.fill_(1.0)

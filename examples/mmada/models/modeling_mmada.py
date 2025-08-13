@@ -1,3 +1,5 @@
+# Adapted from https://github.com/Gen-Verse/MMaDA/blob/main/models/modeling_mmada.py
+
 import numpy as np
 from PIL import Image
 from transformers import PretrainedConfig

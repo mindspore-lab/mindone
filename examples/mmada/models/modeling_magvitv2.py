@@ -1,3 +1,5 @@
+# Adapted from https://github.com/Gen-Verse/MMaDA/blob/main/models/modeling_magvitv2.py
+
 import math
 from dataclasses import dataclass, field
 from typing import List

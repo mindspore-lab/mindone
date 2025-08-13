@@ -1,3 +1,5 @@
+# Adapted from https://github.com/ML-GSAI/LLaDA/blob/main/chat.py
+
 from src import LLaDAModelLM
 from transformers import AutoConfig, AutoTokenizer
 

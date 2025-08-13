@@ -1,3 +1,6 @@
+# This code is adapted from https://github.com/stepfun-ai/Step-Video-T2V
+# with modifications to run on MindSpore.
+
 import math
 from typing import Dict, Optional, Tuple
 

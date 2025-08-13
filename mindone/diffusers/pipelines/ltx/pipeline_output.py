@@ -1,3 +1,5 @@
+"""Adapted from https://github.com/huggingface/diffusers/tree/main/src/diffusers/pipelines/ltx/pipeline_output.py."""
+
 from dataclasses import dataclass
 
 import mindspore as ms

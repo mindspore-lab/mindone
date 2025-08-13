@@ -1,3 +1,5 @@
+# Adapted from https://github.com/PKU-YuanGroup/Open-Sora-Plan/blob/main/opensora/utils/dataset_utils.py
+
 import logging
 import math
 import random

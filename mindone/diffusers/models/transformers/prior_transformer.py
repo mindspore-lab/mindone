@@ -1,3 +1,5 @@
+"""Adapted from https://github.com/huggingface/diffusers/tree/main/src/diffusers/models/transformers/prior_transformer.py."""
+
 from dataclasses import dataclass
 from typing import Dict, Optional, Union
 
@@ -54,7 +56,7 @@ class PriorTransformer(ModelMixin, ConfigMixin, UNet2DConditionLoadersMixin, Pef
         added_emb_type (`str`, *optional*, defaults to `prd`): Additional embeddings to condition the model.
             Choose from `prd` or `None`. if choose `prd`, it will prepend a token indicating the (quantized) dot
             product between the text embedding and image embedding as proposed in the unclip paper
-            https://arxiv.org/abs/2204.06125 If it is `None`, no additional embeddings will be prepended.
+            https://huggingface.co/papers/2204.06125 If it is `None`, no additional embeddings will be prepended.
         time_embed_dim (`int, *optional*, defaults to None): The dimension of timestep embeddings.
             If None, will be set to `num_attention_heads * attention_head_dim`
         embedding_proj_dim (`int`, *optional*, default to None):

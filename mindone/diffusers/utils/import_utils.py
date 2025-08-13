@@ -1,4 +1,7 @@
-# Copyright 2024 The HuggingFace Team. All rights reserved.
+# Copyright 2025 The HuggingFace Team. All rights reserved.
+#
+# This code is adapted from https://github.com/huggingface/diffusers
+# with modifications to run diffusers on mindspore.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -16,13 +19,14 @@ Import utilities: Utilities related to imports and our lazy inits.
 """
 
 import importlib.util
+import inspect
 import operator as op
 import os
 import sys
-from collections import OrderedDict
+from collections import OrderedDict, defaultdict
 from itertools import chain
 from types import ModuleType
-from typing import Any, Union
+from typing import Any, Tuple, Union
 
 from huggingface_hub.utils import is_jinja_available  # noqa: F401
 from packaging.version import Version, parse
@@ -34,7 +38,10 @@ if sys.version_info < (3, 8):
     import importlib_metadata
 else:
     import importlib.metadata as importlib_metadata
-
+try:
+    _package_map = importlib_metadata.packages_distributions()  # load-once to avoid expensive calls
+except Exception:
+    _package_map = None
 
 logger = logging.get_logger(__name__)  # pylint: disable=invalid-name
 
@@ -51,12 +58,33 @@ STR_OPERATION_TO_FUNC = {">": op.gt, ">=": op.ge, "==": op.eq, "!=": op.ne, "<="
 _is_google_colab = "google.colab" in sys.modules or any(k.startswith("COLAB_") for k in os.environ)
 
 
-def _is_package_available(pkg_name: str):
+def _is_package_available(pkg_name: str, get_dist_name: bool = False) -> Tuple[bool, str]:
+    global _package_map
     pkg_exists = importlib.util.find_spec(pkg_name) is not None
     pkg_version = "N/A"
 
     if pkg_exists:
+        if _package_map is None:
+            _package_map = defaultdict(list)
+            try:
+                # Fallback for Python < 3.10
+                for dist in importlib_metadata.distributions():
+                    _top_level_declared = (dist.read_text("top_level.txt") or "").split()
+                    _infered_opt_names = {
+                        f.parts[0] if len(f.parts) > 1 else inspect.getmodulename(f) for f in (dist.files or [])
+                    } - {None}
+                    _top_level_inferred = filter(lambda name: "." not in name, _infered_opt_names)
+                    for pkg in _top_level_declared or _top_level_inferred:
+                        _package_map[pkg].append(dist.metadata["Name"])
+            except Exception as _:  # noqa
+                pass
         try:
+            if get_dist_name and pkg_name in _package_map and _package_map[pkg_name]:
+                if len(_package_map[pkg_name]) > 1:
+                    logger.warning(
+                        f"Multiple distributions found for package {pkg_name}. Picked distribution: {_package_map[pkg_name][0]}"
+                    )
+                pkg_name = _package_map[pkg_name][0]
             pkg_version = importlib_metadata.version(pkg_name)
             logger.debug(f"Successfully imported {pkg_name} version {pkg_version}")
         except (ImportError, importlib_metadata.PackageNotFoundError):
@@ -71,6 +99,7 @@ if USE_MINDSPORE in ENV_VARS_TRUE_AND_AUTO_VALUES:
 else:
     logger.info("Disabling MindSpore because USE_MINDSPORE is set")
     _mindspore_available = False
+    _mindspore_version = "N/A"
 
 if USE_SAFETENSORS in ENV_VARS_TRUE_AND_AUTO_VALUES:
     _safetensors_available, _safetensors_version = _is_package_available("safetensors")
@@ -129,6 +158,8 @@ _imageio_available, _imageio_version = _is_package_available("imageio")
 _ftfy_available, _ftfy_version = _is_package_available("ftfy")
 _scipy_available, _scipy_version = _is_package_available("scipy")
 _librosa_available, _librosa_version = _is_package_available("librosa")
+_better_profanity_available, _better_profanity_version = _is_package_available("better_profanity")
+_nltk_available, _nltk_version = _is_package_available("nltk")
 
 
 def is_mindspore_available():
@@ -201,6 +232,14 @@ def is_sentencepiece_available():
 
 def is_imageio_available():
     return _imageio_available
+
+
+def is_better_profanity_available():
+    return _better_profanity_available
+
+
+def is_nltk_available():
+    return _nltk_available
 
 
 # docstyle-ignore
@@ -296,6 +335,17 @@ IMAGEIO_IMPORT_ERROR = """
 {0} requires the imageio library and ffmpeg but it was not found in your environment. You can install it with pip: `pip install imageio imageio-ffmpeg`
 """
 
+# docstyle-ignore
+BETTER_PROFANITY_IMPORT_ERROR = """
+{0} requires the better_profanity library but it was not found in your environment. You can install it with pip: `pip install better_profanity`
+"""
+
+# docstyle-ignore
+NLTK_IMPORT_ERROR = """
+{0} requires the nltk library but it was not found in your environment. You can install it with pip: `pip install nltk`
+"""
+
+
 BACKENDS_MAPPING = OrderedDict(
     [
         ("bs4", (is_bs4_available, BS4_IMPORT_ERROR)),
@@ -313,6 +363,8 @@ BACKENDS_MAPPING = OrderedDict(
         ("safetensors", (is_safetensors_available, SAFETENSORS_IMPORT_ERROR)),
         ("sentencepiece", (is_sentencepiece_available, SENTENCEPIECE_IMPORT_ERROR)),
         ("imageio", (is_imageio_available, IMAGEIO_IMPORT_ERROR)),
+        ("better_profanity", (is_better_profanity_available, BETTER_PROFANITY_IMPORT_ERROR)),
+        ("nltk", (is_nltk_available, NLTK_IMPORT_ERROR)),
     ]
 )
 

@@ -1,4 +1,7 @@
-# Copyright 2024 The HuggingFace Team. All rights reserved.
+# Copyright 2025 The HuggingFace Team. All rights reserved.
+#
+# This code is adapted from https://github.com/huggingface/diffusers
+# with modifications to run diffusers on mindspore.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -245,7 +248,7 @@ class Decoder(nn.Cell):
                 num_layers=self.layers_per_block + 1,
                 in_channels=prev_output_channel,
                 out_channels=output_channel,
-                prev_output_channel=None,
+                prev_output_channel=prev_output_channel,
                 add_upsample=not is_final_block,
                 resnet_eps=1e-6,
                 resnet_act_fn=act_fn,
@@ -720,6 +723,17 @@ class DiagonalGaussianDistribution(object):
     def mode(self, parameters: ms.Tensor) -> ms.Tensor:
         mean, logvar, var, std = self.init(parameters)
         return mean
+
+
+class IdentityDistribution(object):
+    def __init__(self, parameters: ms.Tensor):
+        self.parameters = parameters
+
+    def sample(self, generator: Optional[np.random.Generator] = None) -> ms.Tensor:
+        return self.parameters
+
+    def mode(self) -> ms.Tensor:
+        return self.parameters
 
 
 class EncoderTiny(nn.Cell):

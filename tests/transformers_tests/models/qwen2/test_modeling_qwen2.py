@@ -1,3 +1,5 @@
+"""Adapted from https://github.com/huggingface/transformers/tree/main/tests//models/qwen2/test_modeling_qwen2.py."""
+
 # tests/models/llama/test_modeling_llama.py
 import inspect
 

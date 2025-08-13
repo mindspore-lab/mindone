@@ -67,6 +67,8 @@
 - sections:
   - local: using-diffusers/cogvideox
     title: CogVideoX
+  - local: using-diffusers/consisid
+    title: ConsisID
   - local: using-diffusers/sdxl
     title: Stable Diffusion XL
   - local: using-diffusers/sdxl_turbo
@@ -180,6 +182,8 @@
         title: FluxControlNetModel
       - local: api/models/controlnet_hunyuandit
         title: HunyuanDiT2DControlNetModel
+      - local: api/models/controlnet_sana
+        title: SanaControlNetModel
       - local: api/models/controlnet_sd3
         title: SD3ControlNetModel
       - local: api/models/controlnet_sparsectrl
@@ -194,6 +198,8 @@
         title: AuraFlowTransformer2DModel
       - local: api/models/cogvideox_transformer3d
         title: CogVideoXTransformer3DModel
+      - local: api/models/consisid_transformer3d
+        title: ConsisIDTransformer3DModel
       - local: api/models/cogview3plus_transformer2d
         title: CogView3PlusTransformer2DModel
       - local: api/models/cogview4_transformer2d
@@ -312,6 +318,8 @@
       title: CogView3
     - local: api/pipelines/cogview4
       title: CogView4
+    - local: api/pipelines/consisid
+      title: ConsisID
     - local: api/pipelines/consistency_models
       title: Consistency Models
     - local: api/pipelines/controlnet
@@ -324,6 +332,8 @@
       title: ControlNet with Stable Diffusion 3
     - local: api/pipelines/controlnet_sdxl
       title: ControlNet with Stable Diffusion XL
+    - local: api/pipelines/controlnet_sana
+      title: ControlNet-Sana
     - local: api/pipelines/controlnetxs
       title: ControlNet-XS
     - local: api/pipelines/controlnetxs_sdxl
@@ -348,6 +358,8 @@
       title: Flux
     - local: api/pipelines/control_flux_inpaint
       title: FluxControlInpaint
+    - local: api/pipelines/framepack
+      title: Framepack
     - local: api/pipelines/hunyuandit
       title: Hunyuan-DiT
     - local: api/pipelines/hunyuan_video
@@ -462,6 +474,8 @@
       title: UniDiffuser
     - local: api/pipelines/value_guided_sampling
       title: Value-guided sampling
+    - local: api/pipelines/visualcloze
+      title: VisualCloze
     - local: api/pipelines/wan
       title: Wan
     - local: api/pipelines/wuerstchen

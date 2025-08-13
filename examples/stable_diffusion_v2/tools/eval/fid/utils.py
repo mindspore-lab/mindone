@@ -6,7 +6,9 @@ import logging
 import os
 import pathlib
 import ssl
+import subprocess
 import tarfile
+import time
 import urllib
 import urllib.error
 import urllib.request
@@ -85,6 +87,39 @@ def detect_file_type(filename: str):  # pylint: disable=inconsistent-return-stat
         return suffix, None, suffix
 
 
+def download_weights(url, dest):
+    start = time.time()
+    print("downloading url: ", url)
+    print("downloading to: ", dest)
+    subprocess.check_call(["pget", "-x", url, dest], close_fds=False)
+    print("downloading took: ", time.time() - start)
+
+
+def is_safe_member(member, target_dir):
+    member_path = os.path.join(target_dir, member.name)
+    abs_target_dir = os.path.abspath(target_dir)
+    abs_member_path = os.path.abspath(member_path)
+
+    if not abs_member_path.startswith(abs_target_dir):
+        return False
+
+    if member.name.startswith("/") or ".." in member.name:
+        return False
+
+    if member.islnk() or member.issym():
+        return False
+
+    return True
+
+
+def safe_members(tar, target_dir):
+    for member in tar.getmembers():
+        if is_safe_member(member, target_dir):
+            yield member
+        else:
+            print(f"Discarding unsafe member: {member.name}")
+
+
 class Download:
     """Base utility class for downloading."""
 
@@ -96,7 +131,7 @@ class Download:
     @staticmethod
     def calculate_md5(file_path: str, chunk_size: int = 1024 * 1024) -> str:
         """Calculate md5 value."""
-        md5 = hashlib.md5()
+        md5 = hashlib.md5(usedforsecurity=False)
         with open(file_path, "rb") as fp:
             for chunk in iter(lambda: fp.read(chunk_size), b""):
                 md5.update(chunk)
@@ -111,7 +146,7 @@ class Download:
         """Extract tar format file."""
 
         with tarfile.open(from_path, f"r:{compression[1:]}" if compression else "r") as tar:
-            tar.extractall(to_path)
+            tar.extract_all(tar, members=safe_members(tar, to_path))
 
     @staticmethod
     def extract_zip(from_path: str, to_path: Optional[str] = None, compression: Optional[str] = None) -> None:
@@ -119,7 +154,7 @@ class Download:
 
         compression_mode = zipfile.ZIP_BZIP2 if compression else zipfile.ZIP_STORED
         with zipfile.ZipFile(from_path, "r", compression=compression_mode) as zip_file:
-            zip_file.extractall(to_path)
+            zipfile.extract_all(zip_file, members=safe_members(zip_file, to_path))
 
     def extract_archive(self, from_path: str, to_path: str = None) -> str:
         """Extract and  archive from path to path."""
@@ -152,10 +187,11 @@ class Download:
     def download_file(self, url: str, file_path: str, chunk_size: int = 1024):
         """Download a file."""
 
-        # no check certificate
+        # For security reasons, this repository code does not provide a function to disable SSL.
+        # If necessary, please disable SSL verification yourself.
         ctx = ssl.create_default_context()
-        ctx.check_hostname = False
-        ctx.verify_mode = ssl.CERT_NONE
+        # ctx.check_hostname = False
+        # ctx.verify_mode = ssl.CERT_NONE
 
         # Define request headers.
         headers = {"User-Agent": self.USER_AGENT}
@@ -195,20 +231,22 @@ class Download:
                 return file_path
 
         # Download the file.
+        # For security reasons, this repository code does not provide a function to disable SSL.
+        # If necessary, please disable SSL verification yourself.
         try:
             self.download_file(url, file_path)
         except (urllib.error.URLError, IOError) as e:
-            if url.startswith("https"):
-                url = url.replace("https", "http")
-                try:
-                    self.download_file(url, file_path)
-                except (urllib.error.URLError, IOError):
-                    # pylint: disable=protected-access
-                    ssl._create_default_https_context = ssl._create_unverified_context
-                    self.download_file(url, file_path)
-                    ssl._create_default_https_context = ssl.create_default_context
-            else:
-                raise e
+            # if url.startswith("https"):
+            #     url = url.replace("https", "http")
+            #     try:
+            #         self.download_file(url, file_path)
+            #     except (urllib.error.URLError, IOError):
+            #         # pylint: disable=protected-access
+            #         ssl._create_default_https_context = ssl._create_unverified_context
+            #         self.download_file(url, file_path)
+            #         ssl._create_default_https_context = ssl.create_default_context
+            # else:
+            raise e
 
         return file_path
 

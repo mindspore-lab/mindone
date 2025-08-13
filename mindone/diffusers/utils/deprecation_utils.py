@@ -1,3 +1,5 @@
+"""Adapted from https://github.com/huggingface/diffusers/tree/main/src/diffusers/utils/deprecation_utils.py."""
+
 import inspect
 import warnings
 from typing import Any, Dict, Optional, Union

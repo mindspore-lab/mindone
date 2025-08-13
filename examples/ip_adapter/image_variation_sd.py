@@ -1,4 +1,5 @@
 #!/usr/bin/env python
+# Adapted from https://github.com/tencent-ailab/IP-Adapter to work with MindSpore.
 """
 IPAdapter SD image to image generation (Image variation)
 """

@@ -1,4 +1,7 @@
-# Copyright 2024 The HuggingFace Team. All rights reserved.
+# Copyright 2025 The HuggingFace Team. All rights reserved.
+#
+# This code is adapted from https://github.com/huggingface/diffusers
+# with modifications to run diffusers on mindspore.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -24,9 +27,11 @@ from ...utils.mindspore_utils import get_state_dict
 from ..attention_processor import (
     ADDED_KV_ATTENTION_PROCESSORS,
     CROSS_ATTENTION_PROCESSORS,
+    Attention,
     AttentionProcessor,
     AttnAddedKVProcessor,
     AttnProcessor,
+    FusedAttnProcessor2_0,
 )
 from ..embeddings import TimestepEmbedding, Timesteps
 from ..modeling_utils import ModelMixin
@@ -735,17 +740,17 @@ class UNetControlNetXSModel(ModelMixin, ConfigMixin):
             unet (`UNet2DConditionModel`):
                 The UNet model we want to control.
             controlnet (`ControlNetXSAdapter`):
-                The ConntrolNet-XS adapter with which the UNet will be fused. If none is given, a new ConntrolNet-XS
+                The ControlNet-XS adapter with which the UNet will be fused. If none is given, a new ControlNet-XS
                 adapter will be created.
             size_ratio (float, *optional*, defaults to `None`):
-                Used to contruct the controlnet if none is given. See [`ControlNetXSAdapter.from_unet`] for details.
+                Used to construct the controlnet if none is given. See [`ControlNetXSAdapter.from_unet`] for details.
             ctrl_block_out_channels (`List[int]`, *optional*, defaults to `None`):
-                Used to contruct the controlnet if none is given. See [`ControlNetXSAdapter.from_unet`] for details,
+                Used to construct the controlnet if none is given. See [`ControlNetXSAdapter.from_unet`] for details,
                 where this parameter is called `block_out_channels`.
             time_embedding_mix (`float`, *optional*, defaults to None):
-                Used to contruct the controlnet if none is given. See [`ControlNetXSAdapter.from_unet`] for details.
+                Used to construct the controlnet if none is given. See [`ControlNetXSAdapter.from_unet`] for details.
             ctrl_optional_kwargs (`Dict`, *optional*, defaults to `None`):
-                Passed to the `init` of the new controlent if no controlent was given.
+                Passed to the `init` of the new controlnet if no controlnet was given.
         """
         if controlnet is None:
             controlnet = ControlNetXSAdapter.from_unet(
@@ -878,7 +883,7 @@ class UNetControlNetXSModel(ModelMixin, ConfigMixin):
             u.freeze_base_params()
 
     @property
-    # Copied from diffusers.models.unets.unet_2d_condition.UNet2DConditionModel.attn_processors
+    # Copied from mindone.diffusers.models.unets.unet_2d_condition.UNet2DConditionModel.attn_processors
     def attn_processors(self) -> Dict[str, AttentionProcessor]:
         r"""
         Returns:
@@ -902,7 +907,7 @@ class UNetControlNetXSModel(ModelMixin, ConfigMixin):
 
         return processors
 
-    # Copied from diffusers.models.unets.unet_2d_condition.UNet2DConditionModel.set_attn_processor
+    # Copied from mindone.diffusers.models.unets.unet_2d_condition.UNet2DConditionModel.set_attn_processor
     def set_attn_processor(self, processor: Union[AttentionProcessor, Dict[str, AttentionProcessor]]):
         r"""
         Sets the attention processor to use to compute attention.
@@ -937,7 +942,7 @@ class UNetControlNetXSModel(ModelMixin, ConfigMixin):
         for name, module in self.name_cells().items():
             fn_recursive_attn_processor(name, module, processor)
 
-    # Copied from diffusers.models.unets.unet_2d_condition.UNet2DConditionModel.set_default_attn_processor
+    # Copied from mindone.diffusers.models.unets.unet_2d_condition.UNet2DConditionModel.set_default_attn_processor
     def set_default_attn_processor(self):
         """
         Disables custom attention processors and sets the default attention implementation.
@@ -952,6 +957,80 @@ class UNetControlNetXSModel(ModelMixin, ConfigMixin):
             )
 
         self.set_attn_processor(processor)
+
+    # Copied from mindone.diffusers.models.unets.unet_2d_condition.UNet2DConditionModel.enable_freeu
+    def enable_freeu(self, s1: float, s2: float, b1: float, b2: float):
+        r"""Enables the FreeU mechanism from https://huggingface.co/papers/2309.11497.
+
+        The suffixes after the scaling factors represent the stage blocks where they are being applied.
+
+        Please refer to the [official repository](https://github.com/ChenyangSi/FreeU) for combinations of values that
+        are known to work well for different pipelines such as Stable Diffusion v1, v2, and Stable Diffusion XL.
+
+        Args:
+            s1 (`float`):
+                Scaling factor for stage 1 to attenuate the contributions of the skip features. This is done to
+                mitigate the "oversmoothing effect" in the enhanced denoising process.
+            s2 (`float`):
+                Scaling factor for stage 2 to attenuate the contributions of the skip features. This is done to
+                mitigate the "oversmoothing effect" in the enhanced denoising process.
+            b1 (`float`): Scaling factor for stage 1 to amplify the contributions of backbone features.
+            b2 (`float`): Scaling factor for stage 2 to amplify the contributions of backbone features.
+        """
+        for i, upsample_block in enumerate(self.up_blocks):
+            setattr(upsample_block, "s1", s1)
+            setattr(upsample_block, "s2", s2)
+            setattr(upsample_block, "b1", b1)
+            setattr(upsample_block, "b2", b2)
+
+    # Copied from mindone.diffusers.models.unets.unet_2d_condition.UNet2DConditionModel.disable_freeu
+    def disable_freeu(self):
+        """Disables the FreeU mechanism."""
+        freeu_keys = {"s1", "s2", "b1", "b2"}
+        for i, upsample_block in enumerate(self.up_blocks):
+            for k in freeu_keys:
+                if hasattr(upsample_block, k) or getattr(upsample_block, k, None) is not None:
+                    setattr(upsample_block, k, None)
+
+    # Copied from mindone.diffusers.models.unets.unet_2d_condition.UNet2DConditionModel.fuse_qkv_projections
+    def fuse_qkv_projections(self):
+        """
+        Enables fused QKV projections. For self-attention modules, all projection matrices (i.e., query, key, value)
+        are fused. For cross-attention modules, key and value projection matrices are fused.
+
+        <Tip warning={true}>
+
+        This API is 🧪 experimental.
+
+        </Tip>
+        """
+        self.original_attn_processors = None
+
+        for _, attn_processor in self.attn_processors.items():
+            if "Added" in str(attn_processor.__class__.__name__):
+                raise ValueError("`fuse_qkv_projections()` is not supported for models having added KV projections.")
+
+        self.original_attn_processors = self.attn_processors
+
+        for _, module in self.cells_and_names():
+            if isinstance(module, Attention):
+                module.fuse_projections(fuse=True)
+
+        self.set_attn_processor(FusedAttnProcessor2_0())
+
+    # Copied from mindone.diffusers.models.unets.unet_2d_condition.UNet2DConditionModel.unfuse_qkv_projections
+    def unfuse_qkv_projections(self):
+        """Disables the fused QKV projection if enabled.
+
+        <Tip warning={true}>
+
+        This API is 🧪 experimental.
+
+        </Tip>
+
+        """
+        if self.original_attn_processors is not None:
+            self.set_attn_processor(self.original_attn_processors)
 
     def construct(
         self,

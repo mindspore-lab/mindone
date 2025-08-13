@@ -1,5 +1,8 @@
+"""Adapted from https://github.com/huggingface/diffusers/tree/main/src/diffusers/models/transformers/__init__.py."""
+
 from .auraflow_transformer_2d import AuraFlowTransformer2DModel
 from .cogvideox_transformer_3d import CogVideoXTransformer3DModel
+from .consisid_transformer_3d import ConsisIDTransformer3DModel
 from .dit_transformer_2d import DiTTransformer2DModel
 from .dual_transformer_2d import DualTransformer2DModel
 from .hunyuan_transformer_2d import HunyuanDiT2DModel
@@ -17,6 +20,7 @@ from .transformer_cogview4 import CogView4Transformer2DModel
 from .transformer_easyanimate import EasyAnimateTransformer3DModel
 from .transformer_flux import FluxTransformer2DModel
 from .transformer_hunyuan_video import HunyuanVideoTransformer3DModel
+from .transformer_hunyuan_video_framepack import HunyuanVideoFramepackTransformer3DModel
 from .transformer_ltx import LTXVideoTransformer3DModel
 from .transformer_lumina2 import Lumina2Transformer2DModel
 from .transformer_mochi import MochiTransformer3DModel

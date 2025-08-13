@@ -2,6 +2,9 @@
 # Copyright 2025 The HuggingFace Inc. team.
 # Copyright (c) 2022, NVIDIA CORPORATION.  All rights reserved.
 #
+# This code is adapted from https://github.com/huggingface/diffusers
+# with modifications to run diffusers on mindspore.
+#
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -579,9 +582,8 @@ class ModelMixin(nn.Cell, PushToHubMixin):
             cache_dir (`Union[str, os.PathLike]`, *optional*):
                 Path to a directory where a downloaded pretrained model configuration is cached if the standard cache
                 is not used.
-            mindspore_dtype (`str` or `mindspore.Type`, *optional*):
-                Override the default `mindspore.Type` and load the model with another dtype. If `"auto"` is passed, the
-                dtype is automatically derived from the model's weights.
+            mindspore_dtype (`mindspore.Type`, *optional*):
+                Override the default `mindspore.Type` and load the model with another dtype.
             force_download (`bool`, *optional*, defaults to `False`):
                 Whether or not to force the (re-)download of the model weights and configuration files, overriding the
                 cached versions if they exist.
@@ -704,7 +706,7 @@ class ModelMixin(nn.Cell, PushToHubMixin):
         # use_keep_in_fp32_modules = cls._keep_in_fp32_modules is not None and (
         #     hf_quantizer is None or getattr(hf_quantizer, "use_keep_in_fp32_modules", False)
         # )
-        use_keep_in_fp32_modules = (cls._keep_in_fp32_modules is not None) and (mindspore_dtype == ms.float16)
+        use_keep_in_fp32_modules = cls._keep_in_fp32_modules is not None
 
         if use_keep_in_fp32_modules:
             keep_in_fp32_modules = cls._keep_in_fp32_modules
@@ -857,7 +859,7 @@ class ModelMixin(nn.Cell, PushToHubMixin):
             "error_msgs": error_msgs,
         }
 
-        if mindspore_dtype is not None and not use_keep_in_fp32_modules:
+        if mindspore_dtype is not None:
             model = model.to(mindspore_dtype)
 
         model.register_to_config(_name_or_path=pretrained_model_name_or_path)
@@ -1180,12 +1182,13 @@ class ModelMixin(nn.Cell, PushToHubMixin):
                 state_dict[f"{path}.to_out.0.weight"] = state_dict.pop(f"{path}.proj_attn.weight")
             if f"{path}.proj_attn.bias" in state_dict:
                 state_dict[f"{path}.to_out.0.bias"] = state_dict.pop(f"{path}.proj_attn.bias")
-        return state_dict
 
         # TODO : MindSpore 2.6 share weight bug. Unable to load WTE and LM-Head layer weights properly. It will be
         #  deleted until fixed load_state_dict_into_model and parameters_and_names。
         if hasattr(self, "wte_lm_share") and self.wte_lm_share:
-            self.text_decoder.transformer.transformer.wte.embedding_table = self.text_decoder.transformer.lm_head.weight
+            state_dict["transformer.transformer.wte.embedding_table"] = state_dict["transformer.lm_head.weight"]
+
+        return state_dict
 
     def get_submodule(self, target: str) -> nn.Cell:
         """Return the submodule given by ``target`` if it exists, otherwise throw an error.

@@ -8,6 +8,7 @@
 # without an express license agreement from NVIDIA CORPORATION or
 # its affiliates is strictly prohibited.
 
+# Adapted from https://github.com/TencentARC/InstantMesh/blob/main/src/models/renderer/utils/__init__.py
 import mindspore as ms
 from mindspore import mint, nn, ops
 

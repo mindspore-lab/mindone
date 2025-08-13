@@ -1,3 +1,10 @@
+# Copyright (c) 2022 Katherine Crowson
+# Licensed under the MIT License.
+# Source: https://github.com/crowsonkb/k-diffusion
+
+# Adapted from https://github.com/crowsonkb/k-diffusion/blob/master/k_diffusion/sampling.py to work with MindSpore.
+# This file is part of a derivative work and is also licensed under the MIT License.
+
 import math
 
 import numpy as np
