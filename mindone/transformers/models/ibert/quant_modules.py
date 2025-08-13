@@ -253,7 +253,7 @@ class QuantLinear(ms.nn.Cell):
         self.quant_mode = quant_mode
         self.per_channel = per_channel
         self.bias_bit = bias_bit
-        self.quant_mode = quant_mode
+
         self.percentile_mode = False
         self.weight_function = SymmetricQuantFunction()
 
