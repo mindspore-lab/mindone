@@ -64,6 +64,8 @@ from . import (
     mistral,
     mixtral,
     mobilebert,
+    mobilevit,
+    mobilevitv2,
     mpt,
     mvp,
     opt,
@@ -88,10 +90,11 @@ from . import (
     vits,
     wav2vec2,
     xlm_roberta,
+    xlnet,
 )
 
 if version.parse(transformers.__version__) >= version.parse("4.51.0"):
-    from . import qwen3
+    from . import deepseek_v3, qwen3
 
 if version.parse(transformers.__version__) >= version.parse("4.51.3"):
     from . import glm4
