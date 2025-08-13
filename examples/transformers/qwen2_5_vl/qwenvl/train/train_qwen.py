@@ -97,6 +97,7 @@ def set_model(model_args, model):
 def train(attn_implementation="flash_attention_2"):
     global local_rank
     dist.init_process_group()
+    ms.set_auto_parallel_context(parallel_mode=ms.ParallelMode.DATA_PARALLEL)
 
     parser = transformers.HfArgumentParser((ModelArguments, DataArguments, TrainingArguments))
     model_args, data_args, training_args = parser.parse_args_into_dataclasses()

@@ -206,7 +206,7 @@ class TrainOneStepWrapper(nn.Cell):
         self.zero_helper = zero_helper
         self.zero_stage = zero_helper.zero_stage if zero_helper is not None else 0
         self.run_optimizer = zero_helper.run_optimizer if zero_helper is not None else self.optimizer
-        self.grad_reducer = self.grad_reducer if self.zero_stage == 0 else nn.Identity()
+        self.reducer = self.reducer if self.zero_stage == 0 else nn.Identity()
         if self.zero_stage != 0:
             self.zero_helper.split_params()
             if gradient_accumulation_steps > 1:
