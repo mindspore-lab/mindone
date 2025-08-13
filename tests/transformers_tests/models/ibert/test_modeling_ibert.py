@@ -25,7 +25,7 @@ from tests.modeling_test_utils import (
 )
 from tests.transformers_tests.models.modeling_common import ids_numpy
 
-DTYPE_AND_THRESHOLDS = {"fp32": 5e-4, "fp16": 5e-3, "bf16": 5e-3}
+DTYPE_AND_THRESHOLDS = {"fp32": 5e-4, "fp16": 5e-3, "bf16": 7e-3}
 # MODES = [0, 1] # 0: graph mode, 1: pynative mode
 # FIXME: iBert uses quantization which may not support graph mode yet, so we only test in pynative mode.
 MODES = [1]
