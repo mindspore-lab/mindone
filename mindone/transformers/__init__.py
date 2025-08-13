@@ -180,6 +180,13 @@ from .models.bigbird_pegasus import (
     BigBirdPegasusModel,
     BigBirdPegasusPreTrainedModel,
 )
+from .models.biogpt import (
+    BioGptModel,
+    BioGptForCausalLM,
+    BioGptPreTrainedModel,
+    BioGptForSequenceClassification,
+    BioGptForTokenClassification,
+)
 from .models.bit import BitBackbone
 from .models.blip import (
     BlipForConditionalGeneration,
@@ -273,6 +280,25 @@ from .models.deberta_v2 import (
     DebertaV2PreTrainedModel,
 )
 from .models.dpt import DPTForDepthEstimation
+from .models.esm import (
+    EsmForMaskedLM,
+    EsmForSequenceClassification,
+    EsmForTokenClassification,
+    EsmModel,
+    EsmPreTrainedModel,
+)
+from .models.fnet import (
+    FNetForMaskedLM,
+    FNetForMultipleChoice,
+    FNetForNextSentencePrediction,
+    FNetForPreTraining,
+    FNetForQuestionAnswering,
+    FNetForSequenceClassification,
+    FNetForTokenClassification,
+    FNetLayer,
+    FNetModel,
+    FNetPreTrainedModel,
+)
 from .models.fuyu import FuyuForCausalLM, FuyuPreTrainedModel
 from .models.gemma import (
     GemmaForCausalLM,
@@ -499,6 +525,16 @@ from .models.qwen2_5_vl import Qwen2_5_VLForConditionalGeneration, Qwen2_5_VLMod
 from .models.qwen2_audio import Qwen2AudioEncoder, Qwen2AudioForConditionalGeneration, Qwen2AudioPreTrainedModel
 from .models.qwen2_vl import Qwen2VLForConditionalGeneration, Qwen2VLModel, Qwen2VLPreTrainedModel
 from .models.recurrent_gemma import RecurrentGemmaForCausalLM, RecurrentGemmaModel, RecurrentGemmaPreTrainedModel
+from .models.reformer import (
+    ReformerAttention,
+    ReformerForMaskedLM,
+    ReformerForQuestionAnswering,
+    ReformerForSequenceClassification,
+    ReformerLayer,
+    ReformerModel,
+    ReformerModelWithLMHead,
+    ReformerPreTrainedModel,
+)
 from .models.rembert import (
     RemBertForCausalLM,
     RemBertForMaskedLM,
@@ -519,6 +555,17 @@ from .models.roberta import (
     RobertaForTokenClassification,
     RobertaModel,
     RobertaPreTrainedModel,
+)
+from .models.roformer import (
+    RoFormerForCausalLM,
+    RoFormerForMaskedLM,
+    RoFormerForMultipleChoice,
+    RoFormerForQuestionAnswering,
+    RoFormerForSequenceClassification,
+    RoFormerForTokenClassification,
+    RoFormerLayer,
+    RoFormerModel,
+    RoFormerPreTrainedModel,
 )
 from .models.siglip import (
     SiglipForImageClassification,
@@ -613,6 +660,16 @@ from .models.xlm_roberta_xl import (
     XLMRobertaXLForTokenClassification,
     XLMRobertaXLModel,
     XLMRobertaXLPreTrainedModel,
+)
+from .models.yoso import (
+    YosoForMaskedLM,
+    YosoForMultipleChoice,
+    YosoForQuestionAnswering,
+    YosoForSequenceClassification,
+    YosoForTokenClassification,
+    YosoLayer,
+    YosoModel,
+    YosoPreTrainedModel,
 )
 from .pipelines import TextGenerationPipeline, pipeline
 from .processing_utils import ProcessorMixin

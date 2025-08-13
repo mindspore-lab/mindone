@@ -25,6 +25,7 @@ from . import (
     bert,
     big_bird,
     bigbird_pegasus,
+    biogpt,
     bit,
     blip,
     blip_2,
@@ -35,6 +36,8 @@ from . import (
     clip,
     convbert,
     dpt,
+    esm,
+    fnet,
     fuyu,
     gemma,
     gemma2,
@@ -76,7 +79,9 @@ from . import (
     qwen2_5_vl,
     qwen2_audio,
     qwen2_vl,
+    reformer,
     roberta,
+    roformer,
     siglip,
     smolvlm,
     speecht5,
@@ -88,6 +93,7 @@ from . import (
     vits,
     wav2vec2,
     xlm_roberta,
+    yoso,
 )
 
 if version.parse(transformers.__version__) >= version.parse("4.51.0"):
