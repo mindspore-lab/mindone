@@ -1,4 +1,3 @@
-
 """
 Qwen2.5-Omni model fine-tuning script using LoRA.
 
@@ -17,54 +16,36 @@ DEVICE_ID=0 python finetune_lora_in_native_mindspore.py \
     --lora_alpha 16 \
     --dataset_path linxy/LaTex_OCR \
     --output_dir ./outputs/lora \
-    --num_train_epochs 1 \
-    --do_eval True \
-    --per_device_train_batch_size 1 \
-    --gradient_accumulation_steps 1 \
-    --learning_rate 1e-4 \
-    --eval_steps 50 \
-    --save_steps 50 \
-    --logging_steps 5 \
-    --save_total_limit 1 \
-    --download_num_workers 4
-    
-    --model_path Qwen/Qwen2.5-Omni-3B \
-    --lora_rank 8 \
-    --lora_alpha 16 \
-    --dataset_path linxy/LaTex_OCR \
-    --output_dir ./outputs/lora \
-    --num_train_epochs 1 \
-    --eval_strategy no \
-    --per_device_train_batch_size 1 \
-    --gradient_accumulation_steps 1 \
-    --learning_rate 1e-5 \
-    --save_steps 500 \
-    --logging_steps 1 \
-    --save_total_limit 1 \
-    --download_num_workers 4
+    --num_train_epochs 1
 
 ```
 """
 
 import argparse
+import ast
 import os
+import time
+
 import numpy as np
 from datasets import load_dataset
-from transformers import AutoTokenizer
+from qwen_omni_utils import process_mm_info
 
 import mindspore as ms
 from mindspore import nn
 
-from mindone.transformers.mindspore_adapter import HF2MSDataset, TrainOneStepWrapper
-from mindone.transformers import Qwen2_5OmniForConditionalGeneration
-from mindone.transformers.models.qwen2_5_omni import Qwen2_5OmniProcessor
+from mindone.diffusers._peft import LoraConfig, get_peft_model
 from mindone.diffusers.training_utils import cast_training_params
+from mindone.transformers import Qwen2_5OmniForConditionalGeneration
+from mindone.transformers.mindspore_adapter import HF2MSDataset, TrainOneStepWrapper
+from mindone.transformers.models.qwen2_5_omni import Qwen2_5OmniProcessor
 
 IGNORE_INDEX = -100
+
 
 def freeze_params(m: nn.Cell):
     for p in m.get_parameters():
         p.requires_grad = False
+
 
 def main():
     parser = argparse.ArgumentParser()
@@ -74,7 +55,10 @@ def main():
     parser.add_argument("--per_device_train_batch_size", type=int, default=1, help="batch size per device for training")
     parser.add_argument("--num_train_epochs", type=int, default=1, help="number of training epochs")
     parser.add_argument("--save_steps", type=int, default=500, help="save checkpoint every X steps")
-    parser.add_argument("--do_eval", action="store_true", default=False, help="whether to run evaluation after training")
+    parser.add_argument(
+        "--do_eval", action="store_true", default=False, help="whether to run evaluation after training"
+    )
+    parser.add_argument("--max_length", type=int, default=4096, help="fixed token length for training")
     parser.add_argument("--enable_flash_attention", action="store_true", default=False, help="enable flash attention")
     parser.add_argument(
         "--zero_stage", type=int, default=0, choices=[0, 1, 2], help="stage of ZeRO optimizer parallelism"
@@ -92,18 +76,25 @@ def main():
     parser.add_argument("--lora_rank", type=int, default=8, help="The dimension of the LoRA update matrices")
     parser.add_argument("--lora_alpha", type=int, default=16, help="The scaling factor alpha of the LoRA")
     parser.add_argument("--learning_rate", type=float, default=1e-5, help="learning rate for training")
-    parser.add_argument("--system_prompt", type=str, default="You are Qwen, a virtual human developed by the Qwen Team, Alibaba Group, capable of perceiving auditory and visual inputs, as well as generating text and speech.")
+    parser.add_argument(
+        "--system_prompt",
+        type=str,
+        default="You are Qwen, a virtual human developed by the Qwen Team, Alibaba Group, "
+        "capable of perceiving auditory and visual inputs, as well as generating text and speech.",
+    )
     parser.add_argument("--prompt", type=str, default="Please convert the image content into LaTex")
     args = parser.parse_args()
 
     # 0. set mindspore context
-    ms.set_context(mode=ms.PYNATIVE_MODE, jit_config={"jit_level": "O0"}) # not support graph mode yet
+    ms.set_context(mode=ms.PYNATIVE_MODE, jit_config={"jit_level": "O0"})  # not support graph mode yet
+    rank = 0
+    rank_size = 1
     if args.is_distribute:
         from mindspore.communication import get_group_size, get_rank, init
 
         init()
-        args.rank = get_rank()
-        args.rank_size = get_group_size()
+        rank = get_rank()
+        rank_size = get_group_size()
         ms.reset_auto_parallel_context()
         ms.set_auto_parallel_context(
             parallel_mode=ms.ParallelMode.DATA_PARALLEL,
@@ -113,11 +104,11 @@ def main():
 
     # 1. create dataset
     if os.path.isdir(args.dataset_path):
-        datasets = load_dataset("barquet", data_dir=args.dataset_path)
+        dataset = load_dataset("barquet", data_dir=args.dataset_path)
     else:
         dataset = load_dataset(args.dataset_path, name="human_handwrite")
-    dataset["train"] = dataset["train"].shuffle(seed=42) # 1,200
-    dataset["test"] = dataset["test"]   # 70
+    dataset["train"] = dataset["train"].shuffle(seed=42)  # 1,200
+    dataset["test"] = dataset["test"]  # 70
 
     system_prompt = args.system_prompt
     prompt = args.prompt
@@ -127,17 +118,17 @@ def main():
         answer = examples["text"]
         image = examples["image"].convert("RGB")
         if args.per_device_train_batch_size > 1:
-            image = image.resize((512, 128)) # use homogeneous size for training batch
+            image = image.resize((512, 128))  # use homogeneous size for training batch
         conversations = [
-            {'role': 'system', 'content': [{'type': 'text', 'text': system_prompt}]},
+            {"role": "system", "content": [{"type": "text", "text": system_prompt}]},
             {
-                'role': 'user',
-                'content': [
-                    {'type': 'image', 'image': image},
-                    {'type': 'text', 'text': prompt},
+                "role": "user",
+                "content": [
+                    {"type": "image", "image": image},
+                    {"type": "text", "text": prompt},
                 ],
             },
-            {'role': 'assistant', 'content': [{'type': 'text', 'text': answer}]},
+            {"role": "assistant", "content": [{"type": "text", "text": answer}]},
         ]
         input_padding = "max_length" if args.per_device_train_batch_size > 1 else True
         # for batched training, use homogeneous token length, padding side is left
@@ -149,9 +140,9 @@ def main():
             return_tensors="np",
             # kwargs to be passed to `Qwen2_5OmniProcessor`
             padding=input_padding,
-            max_length=data_args.max_length,
+            max_length=args.max_length,
             use_audio_in_video=False,
-        ) # input_ids, attention_mask, pixel_values, image_grid_thw
+        )  # input_ids, attention_mask, pixel_values, image_grid_thw
 
         # Prepare the labels, keep response part as labels
         if input_padding == "max_length":
@@ -162,7 +153,9 @@ def main():
                 return_dict=False,
                 return_tensors="np",
                 padding=True,
-            )[0] # only ids
+            )[
+                0
+            ]  # only ids
         else:
             input_full_ids = inputs["input_ids"][0]
         prompt_ids = processor.apply_chat_template(
@@ -172,19 +165,22 @@ def main():
             return_dict=False,
             return_tensors="np",
             padding=True,
-        )[0] # only ids
+        )[
+            0
+        ]  # only ids
         labels = np.ones_like(inputs["input_ids"]) * IGNORE_INDEX
         response_start_id = inputs["input_ids"].shape[1] - len(input_full_ids) + len(prompt_ids)
-        labels[..., response_start_id :] = inputs["input_ids"][..., response_start_id :]
+        labels[..., response_start_id:] = inputs["input_ids"][..., response_start_id:]
 
         for k, v in inputs.items():
             if v.shape[0] == 1:
                 examples[k] = v[0]  # remove batch dimension
             else:
-                examples[k] = v # pixel_values
+                examples[k] = v  # pixel_values
         examples["labels"] = labels[0]
-        examples.pop("text")  # remove text from examples
-        examples.pop("image")  # remove image from examples
+        if args.do_eval:
+            examples.pop("text")  # remove text from examples
+            examples.pop("image")  # remove image from examples
 
         return examples
 
@@ -200,13 +196,13 @@ def main():
             )
         return batch
 
-    batch_size = args.per_device_train_batch_size * args.rank_size
+    batch_size = args.per_device_train_batch_size * rank_size
     num_epochs = args.num_train_epochs
     train_dataloader = ms.dataset.GeneratorDataset(
         HF2MSDataset(small_train_dataset),
         column_names="item",
-        num_shards= args.rank_size,
-        shard_id=args.rank,
+        num_shards=rank_size,
+        shard_id=rank,
         python_multiprocessing=False,
         shuffle=True,
     )
@@ -220,7 +216,7 @@ def main():
         args.model_path,
         attn_implementation="flash_attention_2" if args.enable_flash_attention else "eager",
         mindspore_dtype=ms.bfloat16 if args.bf16 else (ms.float16 if args.fp16 else None),
-    ) # TODO: only load thinker state dicts
+    )  # TODO: only load thinker state dicts
     model = parent_model.thinker
     model.config.use_cache = False
     freeze_params(model)
@@ -255,9 +251,11 @@ def main():
         optimizer = nn.AdamWeightDecay(model.trainable_params(), learning_rate=args.learning_rate)
     elif args.zero_stage == 1:
         from mindone.transformers.mindspore_adapter import AdamWeightDecayZeRO1
+
         optimizer = AdamWeightDecayZeRO1(model.trainable_params(), learning_rate=args.learning_rate)
     elif args.zero_stage == 2:
         from mindone.transformers.mindspore_adapter import AdamWeightDecayZeRO2
+
         optimizer = AdamWeightDecayZeRO2(model.trainable_params(), learning_rate=args.learning_rate)
     else:
         raise ValueError
@@ -276,27 +274,43 @@ def main():
     train_model = TrainOneStepWrapper(ReturnLoss(model), optimizer)
 
     # 3. training
-    dataset_len = len(small_train_dataset)
-    num_update_steps_per_epoch = max(1, dataset_len // args.gradient_accumulation_steps)
-    num_training_steps = math.ceil(args.num_train_epochs * num_update_steps_per_epoch)
-
-    start_epoch, global_step = 0, 0
-
     train_model.set_train()
+    total_time = 0.0
     for step, batch in enumerate(train_dataloader):
+        start_time = time.time()
+
         batch = batch["item"]
 
-        # inputs dict
-        for k, v in batch.items():
-                batch[k] = ms.Tensor(v)
-            if batch[k].dtype == ms.int64:
-                batch[k] = batch[k].to(ms.int32)
+        # convert dict to tuple
+        tuple_inputs = (
+            ms.Tensor(batch["input_ids"], ms.int32),
+            None,
+            ms.Tensor(batch["pixel_values"], parent_model.dtype),
+            None,
+            ms.Tensor(batch["image_grid_thw"], ms.int32),
+            None,
+            ms.Tensor(batch["attention_mask"], ms.int32),
+            None,
+            None,
+            None,
+            None,
+            None,
+            None,
+            ms.Tensor(batch["labels"], ms.int32),
+        )
 
-        loss, _, overflow = train_model(**batch)
+        loss, _, overflow = train_model(*tuple_inputs)
 
-        print(f"step: {step}, loss: {loss}")
+        if step > 1:
+            step_time = time.time() - start_time
+            total_time += step_time
+            print(
+                f"step: {step}, loss: {loss}, step time: {step_time:.5f}s, avg speed: {total_time/(step+1):.5f}s/step"
+            )
+        else:
+            print(f"step: {step}, loss: {loss}")
 
-        if (step+1) % args.save_steps == 0:
+        if (step + 1) % args.save_steps == 0:
             output_dir = os.path.join(args.output_dir, f"checkpoint-{step}")
             if not os.path.exists(output_dir):
                 os.makedirs(output_dir)
@@ -311,73 +325,77 @@ def main():
     print(f"Final LoRA model saved to {output_dir}")
 
     # 4. inference and evaluation
-    model.merge_and_unload()  # merge LoRA weights into the base model
-    parant_model.thinker = model.get_base_model()  # replace thinker with LoRA-enhanced model
-    parant_model.set_train(False)
+    if args.do_eval:  # FIXME: bf16 not supported yet
+        model.merge_and_unload()  # merge LoRA weights into the base model
+        parent_model.thinker = model.get_base_model()  # replace thinker with LoRA-enhanced model
+        parent_model.set_train(False)
 
-    # inference function
-    def inference(medium_path, prompt, medium_type="image", use_audio_in_video=False):
-        messages = [
-            {"role": "system", "content": [{"type": "text", "text": system_prompt}]},
-            {
-                "role": "user",
-                "content": [
-                    {"type": "text", "text": prompt},
-                ],
-            },
-        ]
-        medium = None
-        if medium_type == "image":
-            medium = {
-                "type": medium_type,
-                "image": medium_path,
-                "max_pixels": 360 * 420,
-            }
-        if medium is not None:
-            messages[1]["content"].append(medium)
+        # inference function
+        def inference(medium_path, prompt, medium_type="image", use_audio_in_video=False):
+            messages = [
+                {"role": "system", "content": [{"type": "text", "text": system_prompt}]},
+                {
+                    "role": "user",
+                    "content": [
+                        {"type": "text", "text": prompt},
+                    ],
+                },
+            ]
+            medium = None
+            if medium_type == "image":
+                medium = {
+                    "type": medium_type,
+                    "image": medium_path,
+                    "max_pixels": 360 * 420,
+                }
+            if medium is not None:
+                messages[1]["content"].append(medium)
 
-        text = processor.apply_chat_template(messages, tokenize=False, add_generation_prompt=True)
-        audios, images, videos = process_mm_info(messages, use_audio_in_video=use_audio_in_video)
-        inputs = processor(
-            text=text,
-            audio=audios,
-            images=images,
-            videos=videos,
-            return_tensors="np",
-            padding=True,
-            use_audio_in_video=use_audio_in_video,
-        )
+            text = processor.apply_chat_template(messages, tokenize=False, add_generation_prompt=True)
+            audios, images, videos = process_mm_info(messages, use_audio_in_video=use_audio_in_video)
+            inputs = processor(
+                text=text,
+                audio=audios,
+                images=images,
+                videos=videos,
+                return_tensors="np",
+                padding=True,
+                use_audio_in_video=use_audio_in_video,
+            )
 
-        # convert input to Tensor
-        for key, value in inputs.items():  # by default input numpy array or list
-            inputs[key] = ms.Tensor(value)
-            if inputs[key].dtype == ms.int64:
-                inputs[key] = inputs[key].to(ms.int32)
-            else:
-                inputs[key] = inputs[key].to(parent_model.dtype)
+            # convert input to Tensor
+            for key, value in inputs.items():  # by default input numpy array or list
+                inputs[key] = ms.Tensor(value)
+                if inputs[key].dtype == ms.int64:
+                    inputs[key] = inputs[key].to(ms.int32)
+                else:
+                    inputs[key] = inputs[key].to(parent_model.dtype)
 
-        text_ids = parent_model.generate(**inputs, use_audio_in_video=use_audio_in_video, return_audio=False)
-        text_ids = [output_ids[len(input_ids) :] for input_ids, output_ids in zip(inputs.input_ids, text_ids)]
-        text = processor.batch_decode(text_ids, skip_special_tokens=True, clean_up_tokenization_spaces=False)[0]
-        return text
+            text_ids = parent_model.generate(**inputs, use_audio_in_video=use_audio_in_video, return_audio=False)
+            text_ids = [output_ids[len(input_ids) :] for input_ids, output_ids in zip(inputs.input_ids, text_ids)]
+            text = processor.batch_decode(text_ids, skip_special_tokens=True, clean_up_tokenization_spaces=False)[0]
+            return text
 
-    correct = 0
-    file_path = os.path.join(args.output_dir, "inference_lora_eval.txt")
-    for idx, example in enumerate(small_eval_dataset):
-        medium = example["image"].convert("RGB")
-        answer = example["text"]
-        response = inference(medium, prompt, medium_type="image", use_audio_in_video=False)
-        print(f"Response #{idx}: {response}\n")
+        correct = 0
+        file_path = os.path.join(args.output_dir, "inference_lora_eval.txt")
+        for idx, example in enumerate(small_eval_dataset):
+            medium = example["image"].convert("RGB")
+            answer = example["text"]
+            response = inference(medium, prompt, medium_type="image", use_audio_in_video=False)
+            print(f"Response #{idx}: {response}\n")
 
+            with open(file_path, "a") as f:
+                f.write(f"Response #{idx}: {response}\n")
+                if response != answer:
+                    f.write(f"WRONG! GT #{idx}: {answer}\n")
+                else:
+                    correct += 1
         with open(file_path, "a") as f:
-            f.write(f"Response #{idx}: {response}\n")
-            if response != answer:
-                f.write(f"WRONG! GT #{idx}: {answer}\n")
-            else:
-                correct += 1
-    with open(file_path, "a") as f:
-        f.write(f"Correctness: {correct}/{len(small_eval_dataset)} = {correct/len(small_eval_dataset):.2%}\n")
-        print(f"Test Set Correctness: {correct}/{len(small_eval_dataset)} = {correct/len(small_eval_dataset):.2%}\n")
+            f.write(f"Correctness: {correct}/{len(small_eval_dataset)} = {correct/len(small_eval_dataset):.2%}\n")
+            print(
+                f"Test Set Correctness: {correct}/{len(small_eval_dataset)} = {correct/len(small_eval_dataset):.2%}\n"
+            )
+
 
 if __name__ == "__main__":
     main()

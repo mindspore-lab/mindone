@@ -20,10 +20,31 @@ DEVICE_ID=0 python finetune_lora_with_mindspore_trainer.py \
     --per_device_train_batch_size 1 \
     --gradient_accumulation_steps 1 \
     --learning_rate 1e-5 \
+    --save_strategy steps \
     --save_steps 500 \
     --logging_steps 1 \
     --save_total_limit 1 \
     --download_num_workers 4
+```
+
+with multi-cards:
+```
+DEVICE_ID=0 python finetune_lora_with_mindspore_trainer.py \
+    --num_train_epochs 1 \
+    --learning_rate 1e-5 \
+    --per_device_train_batch_size 1 \
+    --save_strategy no \
+    --is_distribute True
+```
+
+bf16 requires mindspore>=2.7.0:
+```
+DEVICE_ID=0 python finetune_lora_with_mindspore_trainer.py \
+    --num_train_epochs 1 \
+    --learning_rate 1e-5 \
+    --save_strategy no \
+    --bf16
+
 ```
 """
 
@@ -66,6 +87,8 @@ class MyArguments(MindSporeArguments, TrainingArguments):
     enable_flash_attention: bool = field(default=True)
     gradient_checkpointing: bool = field(default=False)  # LoRA does not support
     is_distribute: bool = field(default=False)
+    do_eval: bool = field(default=False)
+    save_strategy: str = field(default="no", metadata={"help": "Save strategy, no, steps or epoch"})
     lora_rank: int = field(default=8, metadata={"help": "The dimension of the LoRA update matrices."})
     lora_alpha: int = field(default=16, metadata={"help": "The scaling factor alpha of the LoRA."})
     per_device_train_batch_size: int = field(default=1, metadata={"help": "Batch size per device for training."})
@@ -96,7 +119,7 @@ def main():
 
     # 1. Load the dataset
     if os.path.isdir(args.dataset_path):
-        dataset = load_dataset("parquet", args.dataset_path)
+        dataset = load_dataset("parquet", data_dir=args.dataset_path)
     else:
         dataset = load_dataset(args.dataset_path, name="human_handwrite")
     dataset["train"] = dataset["train"].shuffle(seed=42)  # 1.2k
@@ -170,8 +193,9 @@ def main():
             else:
                 examples[k] = v  # pixel_values
         examples["labels"] = labels[0]
-        examples.pop("text")  # remove text from examples
-        examples.pop("image")  # remove image from examples
+        if not args.do_eval:
+            examples.pop("text")  # remove text from examples
+            examples.pop("image")  # remove image from examples
 
         return examples
 
@@ -258,7 +282,7 @@ def main():
         train_dataset=small_train_dataset,
         eval_dataset=small_eval_dataset,
         compute_metrics=compute_metrics,
-        optimziers=(optimizer, lr_scheduler),  # for LoRA
+        optimizers=(optimizer, lr_scheduler),  # for LoRA
     )
 
     # trainer.train(resume_from_checkpoint=args.resume) # FIXME: do not support resume training yet
@@ -284,73 +308,76 @@ def main():
         model.save_pretrained(os.path.join(args.output_dir, "lora"))
 
     # 5. Inference and evaluation
-    model.merge_and_unload()  # merge LoRA weights into the base model
-    parent_model.thinker = model.get_base_model()  # replace thinker with LoRA-enhanced model
-    parent_model.set_train(False)
+    if args.do_eval:  # FIXME: bf16 not supported yet
+        model.merge_and_unload()  # merge LoRA weights into the base model
+        parent_model.thinker = model.get_base_model()  # replace thinker with LoRA-enhanced model
+        parent_model.set_train(False)
 
-    # inference function
-    def inference(medium_path, prompt, medium_type="image", use_audio_in_video=False):
-        messages = [
-            {"role": "system", "content": [{"type": "text", "text": system_prompt}]},
-            {
-                "role": "user",
-                "content": [
-                    {"type": "text", "text": prompt},
-                ],
-            },
-        ]
-        medium = None
-        if medium_type == "image":
-            medium = {
-                "type": medium_type,
-                "image": medium_path,
-                "max_pixels": 360 * 420,
-            }
-        if medium is not None:
-            messages[1]["content"].append(medium)
+        # inference function
+        def inference(medium_path, prompt, medium_type="image", use_audio_in_video=False):
+            messages = [
+                {"role": "system", "content": [{"type": "text", "text": system_prompt}]},
+                {
+                    "role": "user",
+                    "content": [
+                        {"type": "text", "text": prompt},
+                    ],
+                },
+            ]
+            medium = None
+            if medium_type == "image":
+                medium = {
+                    "type": medium_type,
+                    "image": medium_path,
+                    "max_pixels": 360 * 420,
+                }
+            if medium is not None:
+                messages[1]["content"].append(medium)
 
-        text = processor.apply_chat_template(messages, tokenize=False, add_generation_prompt=True)
-        audios, images, videos = process_mm_info(messages, use_audio_in_video=use_audio_in_video)
-        inputs = processor(
-            text=text,
-            audio=audios,
-            images=images,
-            videos=videos,
-            return_tensors="np",
-            padding=True,
-            use_audio_in_video=use_audio_in_video,
-        )
+            text = processor.apply_chat_template(messages, tokenize=False, add_generation_prompt=True)
+            audios, images, videos = process_mm_info(messages, use_audio_in_video=use_audio_in_video)
+            inputs = processor(
+                text=text,
+                audio=audios,
+                images=images,
+                videos=videos,
+                return_tensors="np",
+                padding=True,
+                use_audio_in_video=use_audio_in_video,
+            )
 
-        # convert input to Tensor
-        for key, value in inputs.items():  # by default input numpy array or list
-            inputs[key] = ms.Tensor(value)
-            if inputs[key].dtype == ms.int64:
-                inputs[key] = inputs[key].to(ms.int32)
-            else:
-                inputs[key] = inputs[key].to(parent_model.dtype)
+            # convert input to Tensor
+            for key, value in inputs.items():  # by default input numpy array or list
+                inputs[key] = ms.Tensor(value)
+                if inputs[key].dtype == ms.int64:
+                    inputs[key] = inputs[key].to(ms.int32)
+                else:
+                    inputs[key] = inputs[key].to(parent_model.dtype)
 
-        text_ids = parent_model.generate(**inputs, use_audio_in_video=use_audio_in_video, return_audio=False)
-        text_ids = [output_ids[len(input_ids) :] for input_ids, output_ids in zip(inputs.input_ids, text_ids)]
-        text = processor.batch_decode(text_ids, skip_special_tokens=True, clean_up_tokenization_spaces=False)[0]
-        return text
+            text_ids = parent_model.generate(**inputs, use_audio_in_video=use_audio_in_video, return_audio=False)
+            text_ids = [output_ids[len(input_ids) :] for input_ids, output_ids in zip(inputs.input_ids, text_ids)]
+            text = processor.batch_decode(text_ids, skip_special_tokens=True, clean_up_tokenization_spaces=False)[0]
+            return text
 
-    correct = 0
-    file_path = os.path.join(args.output_dir, "inference_lora_eval.txt")
-    for idx, example in enumerate(small_eval_dataset):
-        medium = example["image"].convert("RGB")
-        answer = example["text"]
-        response = inference(medium, prompt, medium_type="image", use_audio_in_video=False)
-        print(f"Response #{idx}: {response}\n")
+        correct = 0
+        file_path = os.path.join(args.output_dir, "inference_lora_eval.txt")
+        for idx, example in enumerate(small_eval_dataset):
+            medium = example["image"].convert("RGB")
+            answer = example["text"]
+            response = inference(medium, prompt, medium_type="image", use_audio_in_video=False)
+            print(f"Response #{idx}: {response}\n")
 
+            with open(file_path, "a") as f:
+                f.write(f"Response #{idx}: {response}\n")
+                if response != answer:
+                    f.write(f"WRONG! GT #{idx}: {answer}\n")
+                else:
+                    correct += 1
         with open(file_path, "a") as f:
-            f.write(f"Response #{idx}: {response}\n")
-            if response != answer:
-                f.write(f"WRONG! GT #{idx}: {answer}\n")
-            else:
-                correct += 1
-    with open(file_path, "a") as f:
-        f.write(f"Correctness: {correct}/{len(small_eval_dataset)} = {correct/len(small_eval_dataset):.2%}\n")
-        print(f"Test Set Correctness: {correct}/{len(small_eval_dataset)} = {correct/len(small_eval_dataset):.2%}\n")
+            f.write(f"Correctness: {correct}/{len(small_eval_dataset)} = {correct/len(small_eval_dataset):.2%}\n")
+            print(
+                f"Test Set Correctness: {correct}/{len(small_eval_dataset)} = {correct/len(small_eval_dataset):.2%}\n"
+            )
 
 
 if __name__ == "__main__":

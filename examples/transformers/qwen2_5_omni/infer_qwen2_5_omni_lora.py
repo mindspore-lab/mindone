@@ -25,7 +25,7 @@ DEVICE_ID=0 python examples/transformers/qwen2_5_omni/infer_qwen2_5_omni_lora.py
 from argparse import ArgumentParser
 
 from datasets import load_dataset
-from qwwen2_5_omni.utils import process_mm_info
+from qwen_omni_utils import process_mm_info
 
 import mindspore as ms
 

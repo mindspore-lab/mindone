@@ -31,7 +31,7 @@ python mindone\transformers\models\qwen2_5_omni\convert_spk_dict_pt2np.py \
     --spk_path "Qwen/Qwen2.5-Omni-7B/spk_dict.pt" \
     --zip_spk_path"Qwen/Qwen2.5-Omni-7B/spk_dict.zip"
 ```
-### Usage Examples
+### Inference Usage Examples
 
 
 Here are some usage chat examples and scripts with `mindone.transformers`:
@@ -355,12 +355,40 @@ model = Qwen2_5OmniForConditionalGeneration.from_pretrained(
 )
 ```
 
+### Finetuning
+
+There are example scripts `finetune_lora_with_mindspore_trainer.py` and `finetune_lora_in_native_mindspore.py` for finetuning the model for OCR task with LoRA.
+Here's an example code for finetuning:
+```
+DEVICE_ID=0 python finetune_lora_with_mindspore_trainer.py \
+    --model_path Qwen/Qwen2.5-Omni-3B \
+    --lora_rank 8 \
+    --lora_alpha 16 \
+    --dataset_path linxy/LaTex_OCR \
+    --output_dir ./outputs/lora \
+    --num_train_epochs 1 \
+    --learning_rate 1e-5 \
+    --save_total_limit 1
+```
+or
+```
+DEVICE_ID=0 python finetune_lora_in_native_mindspore.py \
+    --model_path Qwen/Qwen2.5-Omni-3B \
+    --dataset_path linxy/LaTex_OCR \
+    --enable_flash_attention \
+    --lora_rank 8 \
+    --lora_alpha 16 \
+    --output_dir ./outputs/lora \
+    --num_train_epochs 1
+```
+
+
 # Peformance
 
 ## Inference
 Experiments are tested on ascend 910* with mindspore 2.6.0 pynative mode.
 
-|model| precision | task | resolution| FA | tokens/s | steps|
+|model| precision | task | resolution| fa | tokens/s | steps|
 |---|---|---|---|---|---|---|
 |Qwen2.5-Omni-7B| fp32 | pure text Q&A | N.A. | OFF | 1.88 | 22 |
 |Qwen2.5-Omni-7B| fp32 | video VQA w/ audio| 20x280x504 | OFF | 2.18 | 48 |
@@ -372,5 +400,15 @@ Experiments are tested on ascend 910* with mindspore 2.6.0 pynative mode.
 |Qwen2.5-Omni-7B| bf16 | video VQA w/ audio| 20x280x504 | ON | 5.93 | 48 |
 |Qwen2.5-Omni-7B| fp16 | pure text Q&A | N.A. | ON | 5.13 | 22 |
 |Qwen2.5-Omni-7B| fp16 | video VQA w/ audio| 20x280x504 | ON | 4.43 | 48 |
+
+*note：apply mixed precision, `AvgPool1d` uses fp32.
+
+## Finetuning
+Experiments are tested on ascend 910* with mindspore 2.6.0 pynative mode.
+
+|model| precision |amp\*| task | resolution| fa |card| batch size| max token| recompute |  s/step |
+|---|---|---|---|---|---|---|---|---|---|---|
+|Qwen2.5-Omni-3B| fp32 |0| image VQA | 128x512 | ON | 1 | 1 | 4096 |OFF | 6.61 |
+|Qwen2.5-Omni-3B| fp32 |0| image VQA | 128x512 | ON | 2 | 1 | 4096 |OFF | 5.32 |
 
 *note：apply mixed precision, `AvgPool1d` uses fp32.
