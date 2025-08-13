@@ -756,8 +756,11 @@ class Trainer:
 
             model_ = ReturnLoss(model)
 
-        model_ = prepare_network(model_, 3, optimizer_parallel_group=GlobalComm.WORLD_COMM_GROUP)
-        zero_helper = ZeroHelper(self.optimizer, 3, optimizer_parallel_group=GlobalComm.WORLD_COMM_GROUP)
+        if os.environ.get("USE_ZERO3", None) == "1":
+            model_ = prepare_network(model_, 3, optimizer_parallel_group=GlobalComm.WORLD_COMM_GROUP)
+            zero_helper = ZeroHelper(self.optimizer, 3, optimizer_parallel_group=GlobalComm.WORLD_COMM_GROUP)
+        else:
+            zero_helper = None
 
         # Note: unlike the original transformers, we will define train step process
         # that include auto mix precision, forward process, loss compute and optimizer step on `train_model`
