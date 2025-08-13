@@ -24,6 +24,7 @@ import transformers
 
 import mindspore as ms
 import mindspore.mint as mint
+import mindspore.mint.distributed as dist
 import mindspore.nn as nn
 
 project_root = Path(__file__).parent.parent.parent.parent.parent.parent
@@ -95,11 +96,12 @@ def set_model(model_args, model):
 
 def train(attn_implementation="flash_attention_2"):
     global local_rank
+    dist.init_process_group()
 
     parser = transformers.HfArgumentParser((ModelArguments, DataArguments, TrainingArguments))
     model_args, data_args, training_args = parser.parse_args_into_dataclasses()
 
-    local_rank = training_args.local_rank
+    local_rank = dist.get_rank()
     os.makedirs(training_args.output_dir, exist_ok=True)
 
     if "qwen2.5" in model_args.model_name_or_path.lower():
