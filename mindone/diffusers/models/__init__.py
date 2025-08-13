@@ -1,5 +1,8 @@
 # Copyright 2024 The HuggingFace Team. All rights reserved.
 #
+# This code is adapted from https://github.com/huggingface/diffusers
+# with modifications to run diffusers on mindspore.
+#
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -40,6 +43,7 @@ _import_structure = {
         "HunyuanDiT2DControlNetModel",
         "HunyuanDiT2DMultiControlNetModel",
     ],
+    "controlnets.controlnet_sana": ["SanaControlNetModel"],
     "controlnets.controlnet_sd3": ["SD3ControlNetModel", "SD3MultiControlNetModel"],
     "controlnets.controlnet_sparsectrl": ["SparseControlNetModel"],
     "controlnets.controlnet_union": ["ControlNetUnionModel"],
@@ -50,6 +54,7 @@ _import_structure = {
     "modeling_utils": ["ModelMixin"],
     "transformers.auraflow_transformer_2d": ["AuraFlowTransformer2DModel"],
     "transformers.cogvideox_transformer_3d": ["CogVideoXTransformer3DModel"],
+    "transformers.consisid_transformer_3d": ["ConsisIDTransformer3DModel"],
     "transformers.dit_transformer_2d": ["DiTTransformer2DModel"],
     "transformers.dual_transformer_2d": ["DualTransformer2DModel"],
     "transformers.hunyuan_transformer_2d": ["HunyuanDiT2DModel"],
@@ -67,6 +72,7 @@ _import_structure = {
     "transformers.transformer_easyanimate": ["EasyAnimateTransformer3DModel"],
     "transformers.transformer_flux": ["FluxTransformer2DModel"],
     "transformers.transformer_hunyuan_video": ["HunyuanVideoTransformer3DModel"],
+    "transformers.transformer_hunyuan_video_framepack": ["HunyuanVideoFramepackTransformer3DModel"],
     "transformers.transformer_ltx": ["LTXVideoTransformer3DModel"],
     "transformers.transformer_lumina2": ["Lumina2Transformer2DModel"],
     "transformers.transformer_mochi": ["MochiTransformer3DModel"],
@@ -116,6 +122,7 @@ if TYPE_CHECKING:
         HunyuanDiT2DMultiControlNetModel,
         MultiControlNetModel,
         MultiControlNetUnionModel,
+        SanaControlNetModel,
         SD3ControlNetModel,
         SD3MultiControlNetModel,
         SparseControlNetModel,
@@ -129,11 +136,13 @@ if TYPE_CHECKING:
         CogVideoXTransformer3DModel,
         CogView3PlusTransformer2DModel,
         CogView4Transformer2DModel,
+        ConsisIDTransformer3DModel,
         DiTTransformer2DModel,
         DualTransformer2DModel,
         EasyAnimateTransformer3DModel,
         FluxTransformer2DModel,
         HunyuanDiT2DModel,
+        HunyuanVideoFramepackTransformer3DModel,
         HunyuanVideoTransformer3DModel,
         LatteTransformer3DModel,
         LTXVideoTransformer3DModel,

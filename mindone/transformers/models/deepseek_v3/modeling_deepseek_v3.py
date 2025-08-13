@@ -7,12 +7,14 @@
 # This code is adapted from https://github.com/huggingface/transformers
 # with modifications to run transformers on mindspore.
 #
+# with modifications to run transformers on mindspore.
+#
 import math
 from typing import Callable, Optional, Union
 
+from transformers.models.deepseek_v3.configuration_deepseek_v3 import DeepseekV3Config
+
 import mindspore
-import mindspore.mint.nn.functional as F
-from mindspore import nn
 
 from ...activations import ACT2FN
 from ...cache_utils import Cache, DynamicCache
@@ -25,8 +27,6 @@ from ...modeling_rope_utils import ROPE_INIT_FUNCTIONS, dynamic_rope_update
 from ...modeling_utils import ALL_ATTENTION_FUNCTIONS, PreTrainedModel
 from ...processing_utils import Unpack
 from ...utils import TransformersKwargs
-from transformers.utils import auto_docstring, can_return_tuple
-from transformers.models.deepseek_v3.configuration_deepseek_v3 import DeepseekV3Config
 
 
 class DeepseekV3RMSNorm(mindspore.nn.Cell):
@@ -69,7 +69,7 @@ class DeepseekV3RotaryEmbedding(mindspore.nn.Cell):
 
     @dynamic_rope_update  # power user: used with advanced RoPE types (e.g. dynamic rope)
     def construct(self, x, position_ids):
-        inv_freq_expanded = self.inv_freq[None, :, None].float().expand(position_ids.shape[0], -1, 1)
+        inv_freq_expanded = self.inv_freq[None, :, None].float().expand((position_ids.shape[0], -1, 1))
         position_ids_expanded = position_ids[:, None, :].float()
 
         freqs = (inv_freq_expanded.float() @ position_ids_expanded.float()).transpose(1, 2)
@@ -123,7 +123,7 @@ class DeepseekV3TopkRouter(mindspore.nn.Cell):
         group_mask.scatter_(1, group_idx, 1)
         score_mask = (
             group_mask.unsqueeze(-1)
-            .expand(-1, self.n_group, self.n_routed_experts // self.n_group)
+            .expand((-1, self.n_group, self.n_routed_experts // self.n_group))
             .reshape(-1, self.n_routed_experts)
         )
         scores_for_choice = scores_for_choice.masked_fill(~score_mask.bool(), 0.0)
@@ -132,7 +132,9 @@ class DeepseekV3TopkRouter(mindspore.nn.Cell):
 
     def construct(self, hidden_states):
         hidden_states = hidden_states.view(-1, self.config.hidden_size)
-        router_logits = mindspore.mint.nn.functional.linear(hidden_states.type(mindspore.float32), self.weight.type(mindspore.float32))
+        router_logits = mindspore.mint.nn.functional.linear(
+            hidden_states.type(mindspore.float32), self.weight.type(mindspore.float32)
+        )
         scores = router_logits.sigmoid()
         topk_indices = self.get_topk_indices(scores)
         topk_weights = scores.gather(1, topk_indices)
@@ -240,7 +242,7 @@ def repeat_kv(hidden_states: mindspore.Tensor, n_rep: int) -> mindspore.Tensor:
     batch, num_key_value_heads, slen, head_dim = hidden_states.shape
     if n_rep == 1:
         return hidden_states
-    hidden_states = hidden_states[:, :, None, :, :].expand(batch, num_key_value_heads, n_rep, slen, head_dim)
+    hidden_states = hidden_states[:, :, None, :, :].expand((batch, num_key_value_heads, n_rep, slen, head_dim))
     return hidden_states.reshape(batch, num_key_value_heads * n_rep, slen, head_dim)
 
 
@@ -399,7 +401,7 @@ class DeepseekV3Attention(mindspore.nn.Cell):
             q_rot, k_rot = apply_rotary_pos_emb_interleave(q_rot, k_rot, cos, sin)
         else:
             q_rot, k_rot = apply_rotary_pos_emb(q_rot, k_rot, cos, sin)
-        k_rot = k_rot.expand(*k_pass.shape[:-1], -1)
+        k_rot = k_rot.expand((*k_pass.shape[:-1], -1))
 
         query_states = mindspore.mint.cat((q_pass, q_rot), dim=-1)
         key_states = mindspore.mint.cat((k_pass, k_rot), dim=-1)
@@ -458,7 +460,9 @@ class DeepseekV3DecoderLayer(GradientCheckpointingLayer):
         past_key_value: Optional[Cache] = None,
         use_cache: Optional[bool] = False,
         cache_position: Optional[mindspore.Tensor] = None,
-        position_embeddings: Optional[tuple[mindspore.Tensor, mindspore.Tensor]] = None,  # necessary, but kept here for BC
+        position_embeddings: Optional[
+            tuple[mindspore.Tensor, mindspore.Tensor]
+        ] = None,  # necessary, but kept here for BC
         **kwargs: Unpack[TransformersKwargs],
     ) -> tuple[mindspore.Tensor]:
         residual = hidden_states
@@ -484,9 +488,8 @@ class DeepseekV3DecoderLayer(GradientCheckpointingLayer):
         return hidden_states
 
 
-@auto_docstring
 class DeepseekV3PreTrainedModel(PreTrainedModel):
-    config: DeepseekV3Config
+    config_class = DeepseekV3Config
     base_model_prefix = "model"
     supports_gradient_checkpointing = True
     _no_split_modules = ["DeepseekV3DecoderLayer"]
@@ -494,6 +497,7 @@ class DeepseekV3PreTrainedModel(PreTrainedModel):
     _supports_flash_attn = True
     _supports_sdpa = True
     _supports_flex_attn = True
+    _supports_dynamic_input = True
 
     _can_compile_fullgraph = True
     _supports_attention_backend = True
@@ -508,7 +512,6 @@ class DeepseekV3PreTrainedModel(PreTrainedModel):
             module.weight.data.normal_(mean=0.0, std=self.config.initializer_range)
 
 
-@auto_docstring
 class DeepseekV3Model(DeepseekV3PreTrainedModel):
     _keys_to_ignore_on_load_unexpected = [r"model\.layers\.61.*"]
 
@@ -528,7 +531,6 @@ class DeepseekV3Model(DeepseekV3PreTrainedModel):
         # Initialize weights and apply final processing
         self.post_init()
 
-    @auto_docstring
     def construct(
         self,
         input_ids: Optional[mindspore.Tensor] = None,
@@ -552,7 +554,9 @@ class DeepseekV3Model(DeepseekV3PreTrainedModel):
         if cache_position is None:
             past_seen_tokens = past_key_values.get_seq_length() if past_key_values is not None else 0
             cache_position: mindspore.Tensor = mindspore.mint.arange(
-                past_seen_tokens, past_seen_tokens + inputs_embeds.shape[1], )
+                past_seen_tokens,
+                past_seen_tokens + inputs_embeds.shape[1],
+            )
 
         if position_ids is None:
             position_ids = cache_position.unsqueeze(0)
@@ -563,7 +567,6 @@ class DeepseekV3Model(DeepseekV3PreTrainedModel):
             attention_mask=attention_mask,
             cache_position=cache_position,
             past_key_values=past_key_values,
-            position_ids=position_ids,
         )
 
         hidden_states = inputs_embeds
@@ -587,7 +590,6 @@ class DeepseekV3Model(DeepseekV3PreTrainedModel):
         )
 
 
-@auto_docstring
 class DeepseekV3ForCausalLM(DeepseekV3PreTrainedModel, GenerationMixin):
     _tied_weights_keys = ["lm_head.weight"]
     _tp_plan = {"lm_head": "colwise_rep"}
@@ -608,8 +610,6 @@ class DeepseekV3ForCausalLM(DeepseekV3PreTrainedModel, GenerationMixin):
     def get_decoder(self):
         return self.model
 
-    @can_return_tuple
-    @auto_docstring
     def construct(
         self,
         input_ids: Optional[mindspore.Tensor] = None,
@@ -627,16 +627,18 @@ class DeepseekV3ForCausalLM(DeepseekV3PreTrainedModel, GenerationMixin):
         Example:
 
         ```python
-        >>> from transformers import AutoTokenizer, DeepseekV3ForCausalLM
+        >>> from transformers import AutoTokenizer
+        >>> from mindone.transformers import DeepseekV3ForCausalLM
+        >>> import mindspore as ms
 
         >>> model = DeepseekV3ForCausalLM.from_pretrained("meta-deepseek_v3/DeepseekV3-2-7b-hf")
         >>> tokenizer = AutoTokenizer.from_pretrained("meta-deepseek_v3/DeepseekV3-2-7b-hf")
 
         >>> prompt = "Hey, are you conscious? Can you talk to me?"
-        >>> inputs = tokenizer(prompt, return_tensors="pt")
+        >>> inputs = tokenizer(prompt, return_tensors="np")
 
         >>> # Generate
-        >>> generate_ids = model.generate(inputs.input_ids, max_length=30)
+        >>> generate_ids = model.generate(ms.tensor(inputs.input_ids), max_length=30)
         >>> tokenizer.batch_decode(generate_ids, skip_special_tokens=True, clean_up_tokenization_spaces=False)[0]
         "Hey, are you conscious? Can you talk to me?\nI'm not conscious, but I can talk to you."
         ```"""

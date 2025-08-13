@@ -1,3 +1,4 @@
+# Adapted from https://github.com/kohya-ss/sd-scripts/blob/main/networks/lora.py
 # LoRA network module
 # reference:
 # https://github.com/microsoft/LoRA/blob/main/loralib/layers.py

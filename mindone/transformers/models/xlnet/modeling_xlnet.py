@@ -2,6 +2,9 @@
 # Copyright 2018 Google AI, Google Brain and Carnegie Mellon University Authors and the HuggingFace Inc. team.
 # Copyright (c) 2018, NVIDIA CORPORATION.  All rights reserved.
 #
+# This code is adapted from https://github.com/huggingface/transformers
+# with modifications to run transformers on mindspore.
+#
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -21,17 +24,17 @@ import warnings
 from dataclasses import dataclass
 from typing import Callable, Optional, Union
 
+from transformers.models.xlnet.configuration_xlnet import XLNetConfig
+from transformers.utils import ModelOutput, logging
+
 import mindspore as ms
-from mindspore import nn, mint
+from mindspore import mint, nn
 from mindspore.nn import BCEWithLogitsLoss, CrossEntropyLoss, MSELoss
 
 from ...activations import ACT2FN, get_activation
 from ...generation import GenerationMixin
-from ...modeling_utils import PreTrainedModel
 from ...mindspore_utils import apply_chunking_to_forward
-from transformers.utils import ModelOutput, logging
-from transformers.models.xlnet.configuration_xlnet import XLNetConfig
-
+from ...modeling_utils import PreTrainedModel
 
 logger = logging.get_logger(__name__)
 
@@ -383,9 +386,7 @@ class XLNetPoolerStartLogits(nn.Cell):
         super().__init__()
         self.dense = mint.nn.Linear(config.hidden_size, 1)
 
-    def construct(
-        self, hidden_states: ms.Tensor, p_mask: Optional[ms.Tensor] = None
-    ) -> ms.Tensor:
+    def construct(self, hidden_states: ms.Tensor, p_mask: Optional[ms.Tensor] = None) -> ms.Tensor:
         """
         Args:
             hidden_states (`ms.Tensor` of shape `(batch_size, seq_len, hidden_size)`):
@@ -455,9 +456,9 @@ class XLNetPoolerEndLogits(nn.Cell):
         Returns:
             `ms.Tensor`: The end logits for SQuAD.
         """
-        assert start_states is not None or start_positions is not None, (
-            "One of start_states, start_positions should be not None"
-        )
+        assert (
+            start_states is not None or start_positions is not None
+        ), "One of start_states, start_positions should be not None"
         if start_positions is not None:
             slen, hsz = hidden_states.shape[-2:]
             start_positions = start_positions[:, None, None].broadcast_to((-1, -1, hsz))  # shape (bsz, 1, hsz)
@@ -524,9 +525,9 @@ class XLNetPoolerAnswerClass(nn.Cell):
         """
         # No dependency on end_feature so that we can obtain one single `cls_logits` for each sample.
         hsz = hidden_states.shape[-1]
-        assert start_states is not None or start_positions is not None, (
-            "One of start_states, start_positions should be not None"
-        )
+        assert (
+            start_states is not None or start_positions is not None
+        ), "One of start_states, start_positions should be not None"
         if start_positions is not None:
             start_positions = start_positions[:, None, None].broadcast_to((-1, -1, hsz))  # shape (bsz, 1, hsz)
             start_states = hidden_states.gather(-2, start_positions).squeeze(-2)  # shape (bsz, hsz)
@@ -600,9 +601,7 @@ class XLNetSequenceSummary(nn.Cell):
         if hasattr(config, "summary_last_dropout") and config.summary_last_dropout > 0:
             self.last_dropout = mint.nn.Dropout(p=config.summary_last_dropout)
 
-    def construct(
-        self, hidden_states: ms.Tensor, cls_index: Optional[ms.Tensor] = None
-    ) -> ms.Tensor:
+    def construct(self, hidden_states: ms.Tensor, cls_index: Optional[ms.Tensor] = None) -> ms.Tensor:
         """
         Compute a single vector summary of a sequence hidden states.
 
@@ -642,7 +641,6 @@ class XLNetSequenceSummary(nn.Cell):
         output = self.last_dropout(output)
 
         return output
-
 
 
 class XLNetPreTrainedModel(PreTrainedModel):
@@ -902,14 +900,17 @@ class XLNetForQuestionAnsweringOutput(ModelOutput):
         loss (`ms.Tensor` of shape `(1,)`, *optional*, returned if both `start_positions` and `end_positions` are provided):
             Classification loss as the sum of start token, end token (and is_impossible if provided) classification
             losses.
-        start_top_log_probs (`ms.Tensor` of shape `(batch_size, config.start_n_top)`, *optional*, returned if `start_positions` or `end_positions` is not provided):
+        start_top_log_probs (`ms.Tensor` of shape `(batch_size, config.start_n_top)`, *optional*, returned if `start_positions` or
+         `end_positions` is not provided):
             Log probabilities for the top config.start_n_top start token possibilities (beam-search).
         start_top_index (`ms.Tensor` of shape `(batch_size, config.start_n_top)`, *optional*, returned if `start_positions` or `end_positions` is not provided):
             Indices for the top config.start_n_top start token possibilities (beam-search).
-        end_top_log_probs (`ms.Tensor` of shape `(batch_size, config.start_n_top * config.end_n_top)`, *optional*, returned if `start_positions` or `end_positions` is not provided):
+        end_top_log_probs (`ms.Tensor` of shape `(batch_size, config.start_n_top * config.end_n_top)`, *optional*, returned if `start_positions` or
+         `end_positions` is not provided):
             Log probabilities for the top `config.start_n_top * config.end_n_top` end token possibilities
             (beam-search).
-        end_top_index (`ms.Tensor` of shape `(batch_size, config.start_n_top * config.end_n_top)`, *optional*, returned if `start_positions` or `end_positions` is not provided):
+        end_top_index (`ms.Tensor` of shape `(batch_size, config.start_n_top * config.end_n_top)`, *optional*, returned if `start_positions` or
+         `end_positions` is not provided):
             Indices for the top `config.start_n_top * config.end_n_top` end token possibilities (beam-search).
         cls_logits (`ms.Tensor` of shape `(batch_size,)`, *optional*, returned if `start_positions` or `end_positions` is not provided):
             Log probabilities for the `is_impossible` label of the answers.
@@ -939,7 +940,6 @@ class XLNetForQuestionAnsweringOutput(ModelOutput):
     mems: Optional[list[ms.Tensor]] = None
     hidden_states: Optional[tuple[ms.Tensor, ...]] = None
     attentions: Optional[tuple[ms.Tensor, ...]] = None
-
 
 
 class XLNetModel(XLNetPreTrainedModel):
@@ -1070,7 +1070,6 @@ class XLNetModel(XLNetPreTrainedModel):
 
         return pos_emb
 
-    
     def construct(
         self,
         input_ids: Optional[ms.Tensor] = None,
@@ -1326,6 +1325,7 @@ class XLNetModel(XLNetPreTrainedModel):
             last_hidden_state=output, mems=new_mems, hidden_states=hidden_states, attentions=attentions
         )
 
+
 class XLNetLMHeadModel(XLNetPreTrainedModel, GenerationMixin):
     _tied_weights_keys = ["lm_loss.weight"]
 
@@ -1366,15 +1366,11 @@ class XLNetLMHeadModel(XLNetPreTrainedModel, GenerationMixin):
 
         # Build permutation mask so that previous tokens don't see last token
         sequence_length = input_ids.shape[1]
-        perm_mask = mint.zeros(
-            (effective_batch_size, sequence_length, sequence_length), dtype=ms.float32
-        )
+        perm_mask = mint.zeros((effective_batch_size, sequence_length, sequence_length), dtype=ms.float32)
         perm_mask[:, :, -1] = 1.0
 
         # We'll only predict the last token
-        target_mapping = mint.zeros(
-            (effective_batch_size, 1, sequence_length), dtype=ms.float32
-        )
+        target_mapping = mint.zeros((effective_batch_size, 1, sequence_length), dtype=ms.float32)
         target_mapping[:, 0, -1] = 1.0
 
         inputs = {
@@ -1390,7 +1386,6 @@ class XLNetLMHeadModel(XLNetPreTrainedModel, GenerationMixin):
 
         return inputs
 
-    
     def construct(
         self,
         input_ids: Optional[ms.Tensor] = None,
@@ -1456,7 +1451,8 @@ class XLNetLMHeadModel(XLNetPreTrainedModel, GenerationMixin):
         Examples:
 
         ```python
-        >>> from transformers import AutoTokenizer, XLNetLMHeadModel
+        >>> from transformers import AutoTokenizer
+        >>> from mindone.transformers import XLNetLMHeadModel
         >>> import mindspore as ms
 
         >>> tokenizer = AutoTokenizer.from_pretrained("xlnet/xlnet-large-cased")
@@ -1468,10 +1464,10 @@ class XLNetLMHeadModel(XLNetPreTrainedModel, GenerationMixin):
         ... ).unsqueeze(
         ...     0
         ... )  # We will predict the masked token
-        >>> perm_mask = mint.zeros((1, input_ids.shape[1], input_ids.shape[1]), dtype=torch.float)
+        >>> perm_mask = mint.zeros((1, input_ids.shape[1], input_ids.shape[1]), dtype=ms.float32)
         >>> perm_mask[:, :, -1] = 1.0  # Previous tokens don't see last token
         >>> target_mapping = mint.zeros(
-        ...     (1, 1, input_ids.shape[1]), dtype=torch.float
+        ...     (1, 1, input_ids.shape[1]), dtype=ms.float32
         ... )  # Shape [1, 1, seq_length] => let's predict one token
         >>> target_mapping[
         ...     0, 0, -1
@@ -1490,12 +1486,12 @@ class XLNetLMHeadModel(XLNetPreTrainedModel, GenerationMixin):
         ... )  # We will predict the masked token
         >>> labels = ms.tensor(tokenizer.encode("cute", add_special_tokens=False)).unsqueeze(0)
         >>> assert labels.shape[0] == 1, "only one word will be predicted"
-        >>> perm_mask = mint.zeros((1, input_ids.shape[1], input_ids.shape[1]), dtype=torch.float)
+        >>> perm_mask = mint.zeros((1, input_ids.shape[1], input_ids.shape[1]), dtype=ms.float32)
         >>> perm_mask[
         ...     :, :, -1
         ... ] = 1.0  # Previous tokens don't see last token as is done in standard auto-regressive lm training
         >>> target_mapping = mint.zeros(
-        ...     (1, 1, input_ids.shape[1]), dtype=torch.float
+        ...     (1, 1, input_ids.shape[1]), dtype=ms.float32
         ... )  # Shape [1, 1, seq_length] => let's predict one token
         >>> target_mapping[
         ...     0, 0, -1
@@ -1555,6 +1551,7 @@ class XLNetLMHeadModel(XLNetPreTrainedModel, GenerationMixin):
         """
         return [layer_past.index_select(1, beam_idx) for layer_past in mems]
 
+
 class XLNetForSequenceClassification(XLNetPreTrainedModel):
     def __init__(self, config):
         super().__init__(config)
@@ -1568,7 +1565,6 @@ class XLNetForSequenceClassification(XLNetPreTrainedModel):
         # Initialize weights and apply final processing
         self.post_init()
 
-    
     def construct(
         self,
         input_ids: Optional[ms.Tensor] = None,
@@ -1684,7 +1680,6 @@ class XLNetForSequenceClassification(XLNetPreTrainedModel):
         )
 
 
-
 class XLNetForTokenClassification(XLNetPreTrainedModel):
     def __init__(self, config):
         super().__init__(config)
@@ -1696,7 +1691,6 @@ class XLNetForTokenClassification(XLNetPreTrainedModel):
         # Initialize weights and apply final processing
         self.post_init()
 
-    
     def construct(
         self,
         input_ids: Optional[ms.Tensor] = None,
@@ -1794,7 +1788,6 @@ class XLNetForTokenClassification(XLNetPreTrainedModel):
         )
 
 
-
 class XLNetForMultipleChoice(XLNetPreTrainedModel):
     def __init__(self, config):
         super().__init__(config)
@@ -1806,7 +1799,6 @@ class XLNetForMultipleChoice(XLNetPreTrainedModel):
         # Initialize weights and apply final processing
         self.post_init()
 
-    
     def construct(
         self,
         input_ids: Optional[ms.Tensor] = None,
@@ -1934,6 +1926,7 @@ class XLNetForMultipleChoice(XLNetPreTrainedModel):
             attentions=transformer_outputs.attentions,
         )
 
+
 class XLNetForQuestionAnsweringSimple(XLNetPreTrainedModel):
     def __init__(self, config):
         super().__init__(config)
@@ -1945,7 +1938,6 @@ class XLNetForQuestionAnsweringSimple(XLNetPreTrainedModel):
         # Initialize weights and apply final processing
         self.post_init()
 
-    
     def construct(
         self,
         input_ids: Optional[ms.Tensor] = None,
@@ -2056,7 +2048,6 @@ class XLNetForQuestionAnsweringSimple(XLNetPreTrainedModel):
         )
 
 
-
 class XLNetForQuestionAnswering(XLNetPreTrainedModel):
     def __init__(self, config):
         super().__init__(config)
@@ -2071,7 +2062,6 @@ class XLNetForQuestionAnswering(XLNetPreTrainedModel):
         # Initialize weights and apply final processing
         self.post_init()
 
-    
     def construct(
         self,
         input_ids: Optional[ms.Tensor] = None,
@@ -2218,9 +2208,13 @@ class XLNetForQuestionAnswering(XLNetPreTrainedModel):
             start_top_log_probs, start_top_index = mint.topk(
                 start_log_probs, self.start_n_top, dim=-1
             )  # shape (bsz, start_n_top)
-            start_top_index_exp = start_top_index.unsqueeze(-1).broadcast_to((-1, -1, hsz))  # shape (bsz, start_n_top, hsz)
+            start_top_index_exp = start_top_index.unsqueeze(-1).broadcast_to(
+                (-1, -1, hsz)
+            )  # shape (bsz, start_n_top, hsz)
             start_states = mint.gather(hidden_states, -2, start_top_index_exp)  # shape (bsz, start_n_top, hsz)
-            start_states = start_states.unsqueeze(1).broadcast_to((-1, slen, -1, -1))  # shape (bsz, slen, start_n_top, hsz)
+            start_states = start_states.unsqueeze(1).broadcast_to(
+                (-1, slen, -1, -1)
+            )  # shape (bsz, slen, start_n_top, hsz)
 
             hidden_states_expanded = hidden_states.unsqueeze(2).expand_as(
                 start_states

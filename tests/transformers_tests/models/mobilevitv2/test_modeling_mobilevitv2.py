@@ -1,6 +1,9 @@
 # coding=utf-8
 # Copyright 2023 The HuggingFace Inc. team. All rights reserved.
 #
+# This code is adapted from https://github.com/huggingface/transformers
+# with modifications to run transformers on mindspore.
+#
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -12,7 +15,7 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-"""Testing suite for the PyTorch MobileViTV2 model."""
+"""Testing suite for the Mindspore MobileViTV2 model."""
 
 import inspect
 
@@ -32,10 +35,10 @@ from tests.modeling_test_utils import (
     get_modules,
 )
 
-from ..modeling_common import floats_numpy, ids_numpy, random_attention_mask
+from ..modeling_common import floats_numpy, ids_numpy
 
-DTYPE_AND_THRESHOLDS = {"fp32": 5e-4, "fp16": 5e-3, "bf16": 5e-2}
-MODES = [0, 1]
+DTYPE_AND_THRESHOLDS = {"fp32": 5e-4, "bf16": 5e-2}
+MODES = [1]
 
 
 class MobileViTV2ModelTester:

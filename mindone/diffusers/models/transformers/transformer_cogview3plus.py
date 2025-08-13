@@ -1,4 +1,7 @@
-# Copyright 2024 The CogView team, Tsinghua University & ZhipuAI and The HuggingFace Team. All rights reserved.
+# Copyright 2025 The CogView team, Tsinghua University & ZhipuAI and The HuggingFace Team. All rights reserved.
+#
+# This code is adapted from https://github.com/huggingface/diffusers
+# with modifications to run diffusers on mindspore.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -19,14 +22,13 @@ import mindspore as ms
 from mindspore import mint, nn
 
 from ...configuration_utils import ConfigMixin, register_to_config
-from ...models.attention import FeedForward
-from ...models.attention_processor import Attention, AttentionProcessor, CogVideoXAttnProcessor2_0
-from ...models.modeling_utils import ModelMixin
-from ...models.normalization import AdaLayerNormContinuous
 from ...utils import logging
+from ..attention import FeedForward
+from ..attention_processor import Attention, AttentionProcessor, CogVideoXAttnProcessor2_0
 from ..embeddings import CogView3CombinedTimestepSizeEmbeddings, CogView3PlusPatchEmbed
 from ..modeling_outputs import Transformer2DModelOutput
-from ..normalization import CogView3PlusAdaLayerNormZeroTextImage
+from ..modeling_utils import ModelMixin
+from ..normalization import AdaLayerNormContinuous, CogView3PlusAdaLayerNormZeroTextImage
 
 logger = logging.get_logger(__name__)  # pylint: disable=invalid-name
 

@@ -1,6 +1,9 @@
 # coding=utf-8
 # Copyright 2022 Apple Inc. and The HuggingFace Inc. team. All rights reserved.
 #
+# This code is adapted from https://github.com/huggingface/transformers
+# with modifications to run transformers on mindspore.
+#
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -22,7 +25,7 @@ from typing import Optional, Union
 from transformers.models.mobilevit.configuration_mobilevit import MobileViTConfig
 
 import mindspore
-from mindspore import nn
+from mindspore.common.initializer import Normal, Zero, initializer
 from mindspore.mint.nn import BCEWithLogitsLoss, CrossEntropyLoss, MSELoss
 
 from ...activations import ACT2FN
@@ -623,9 +626,15 @@ class MobileViTPreTrainedModel(PreTrainedModel):
         if isinstance(module, (mindspore.mint.nn.Linear, mindspore.mint.nn.Conv2d)):
             # Slightly different from the TF version which uses truncated_normal for initialization
             # cf https://github.com/pytorch/pytorch/pull/5617
-            module.weight.data.normal_(mean=0.0, std=self.config.initializer_range)
-            if module.bias is not None:
-                module.bias.data.zero_()
+            module.weight.set_data(
+                initializer(
+                    Normal(mean=0.0, sigma=self.config.initializer_range),
+                    shape=module.weight.shape,
+                    dtype=module.weight.dtype,
+                )
+            )
+            if hasattr(module, "bias") and module.bias is not None:
+                module.bias.set_data(initializer(Zero(), shape=module.bias.shape, dtype=module.bias.dtype))
         elif isinstance(module, mindspore.mint.nn.LayerNorm):
             module.bias.data.zero_()
             module.weight.data.fill_(1.0)
@@ -930,7 +939,10 @@ class MobileViTForSemanticSegmentation(MobileViTPreTrainedModel):
         >>> import requests
         >>> import torch
         >>> from PIL import Image
-        >>> from transformers import AutoImageProcessor, MobileViTForSemanticSegmentation
+        >>> from transformers import AutoImageProcessor
+        >>> from mindone.transformers import MobileViTForSemanticSegmentation
+        >>> import numpy as np
+        >>> import mindspore as ms
 
         >>> url = "http://images.cocodataset.org/val2017/000000039769.jpg"
         >>> image = Image.open(requests.get(url, stream=True).raw)
@@ -938,10 +950,15 @@ class MobileViTForSemanticSegmentation(MobileViTPreTrainedModel):
         >>> image_processor = AutoImageProcessor.from_pretrained("apple/deeplabv3-mobilevit-small")
         >>> model = MobileViTForSemanticSegmentation.from_pretrained("apple/deeplabv3-mobilevit-small")
 
-        >>> inputs = image_processor(images=image, return_tensors="pt")
-
-        >>> with torch.no_grad():
-        ...     outputs = model(**inputs)
+        >>> inputs = image_processor(images=image, return_tensors="np")
+        >>> for key,value in inputs.items():
+        >>>     if isinstance(value, np.ndarray):
+        >>>         inputs[key] = ms.tensor(value)
+        >>>     elif isinstance(value, list):
+        >>>         inputs[key] = ms.tensor(value)
+        >>>     if key == "pixel_values":
+        >>>         inputs[key] = inputs[key].to(ms.float32)
+        >>> outputs = model(**inputs)
 
         >>> # logits are of shape (batch_size, num_labels, height, width)
         >>> logits = outputs.logits

@@ -1,3 +1,5 @@
+"""Adapted from https://github.com/huggingface/transformers/tree/main/src/transformers/pipelines/pt_utils.py."""
+
 import numpy as np
 from transformers.utils.generic import ModelOutput
 
@@ -6,7 +8,7 @@ from mindspore.dataset import Dataset
 
 
 # fixme
-# how to deal with different processing???
+# consider general methods for various processor
 class PipelineDataset(Dataset):
     def __init__(self, dataset, process, params):
         self.dataset = dataset
@@ -24,7 +26,7 @@ class PipelineDataset(Dataset):
 
 # It is like dataloader --> batch --> create_dict_iterator
 class PipelineIterator:
-    def __init__(self, loader, infer, params, loader_batch_size=None):
+    def __init__(self, loader, infer, params, loader_batch_size=None, collate_fn=None):
         """
         Roughly equivalent to
 
@@ -34,7 +36,7 @@ class PipelineIterator:
         ```
 
                 Arguments:
-                    loader (`torch.utils.data.DataLoader` or `Iterable`):
+                    loader (`mindspore.dataset.Generatordataset` or `Iterable`):
                         The iterator that will be used to apply `infer` on.
                     infer (any function):
                         The function to apply of each element of `loader`.
@@ -63,13 +65,13 @@ class PipelineIterator:
         self._loader_batch_index = None
         self._loader_batch_data = None
 
+        self.collate_fn = collate_fn
+
     def __len__(self):
         return len(self.loader)
 
     def __iter__(self):
-        # modification
-        # self.iterator = iter(self.loader)
-        self.iterator = iter(self.loader.batch(batch_size=1).create_dict_iterator())
+        self.iterator = iter(self.loader)
         return self
 
     def loader_batch_item(self):
@@ -157,7 +159,7 @@ class PipelineIterator:
 
 
 class PipelineChunkIterator(PipelineIterator):
-    def __init__(self, loader, infer, params, loader_batch_size=None):
+    def __init__(self, loader, infer, params, loader_batch_size=None, collate_fn=None):
         """
         Roughly equivalent to
 
@@ -168,7 +170,7 @@ class PipelineChunkIterator(PipelineIterator):
         ```
 
                 Arguments:
-                    loader (`torch.utils.data.DataLoader` or `Iterable`):
+                    loader (`Mindspore.dataset.dataset` or `Iterable`):
                         The iterator that will be used to apply `infer` on.
                     infer (any function):
                         The function to apply of each element of `loader`.
@@ -178,7 +180,7 @@ class PipelineChunkIterator(PipelineIterator):
         super().__init__(loader, infer, params)
 
     def __iter__(self):
-        self.iterator = iter(self.loader.batch(batch_size=1).create_dict_iterator())
+        self.iterator = iter(self.loader)
         self.subiterator = None
         return self
 
@@ -229,7 +231,7 @@ class PipelinePackIterator(PipelineIterator):
     ```
 
         Arguments:
-            loader (`torch.utils.data.DataLoader` or `Iterable`):
+            loader (`Mindspore.dataset.GeneratorDataset` or `Iterable`):
                 The iterator that will be used to apply `infer` on.
             infer (any function):
                 The function to apply of each element of `loader`.

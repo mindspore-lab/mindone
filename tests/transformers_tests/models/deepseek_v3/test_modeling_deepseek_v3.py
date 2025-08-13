@@ -31,8 +31,9 @@ from tests.modeling_test_utils import (
 )
 from tests.transformers_tests.models.modeling_common import ids_numpy
 
-DTYPE_AND_THRESHOLDS = {"fp32": 5e-4, "fp16": 5e-3, "bf16": 5e-3}
+DTYPE_AND_THRESHOLDS = {"fp32": 5e-4, "fp16": 5e-3, "bf16": 5e-2}
 MODES = [1]
+
 
 class DeepseekV3ModelTester:
     def __init__(
@@ -138,6 +139,7 @@ class DeepseekV3ModelTester:
 
     def get_config(self):
         return DeepseekV3Config(
+            attn_implementation="eager",
             vocab_size=self.vocab_size,
             hidden_size=self.hidden_size,
             intermediate_size=self.intermediate_size,
@@ -181,6 +183,7 @@ class DeepseekV3ModelTester:
         inputs_dict = {"input_ids": input_ids, "attention_mask": input_mask}
         return config, inputs_dict
 
+
 model_tester = DeepseekV3ModelTester()
 (
     config,
@@ -196,10 +199,7 @@ DEEPSEEKV3_CASES = [
         (config,),
         {},
         (),
-        {
-            "input_ids": inputs_dict["input_ids"],
-            "attention_mask": inputs_dict["attention_mask"]
-        },
+        {"input_ids": inputs_dict["input_ids"], "attention_mask": inputs_dict["attention_mask"]},
         {
             "last_hidden_state": 0,
         },

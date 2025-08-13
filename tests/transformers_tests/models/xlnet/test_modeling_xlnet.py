@@ -34,6 +34,7 @@ from tests.transformers_tests.models.modeling_common import floats_numpy, ids_nu
 DTYPE_AND_THRESHOLDS = {"fp32": 5e-4, "fp16": 5e-3, "bf16": 5e-2}
 MODES = [1]
 
+
 class XLNetModelTester:
     def __init__(
         self,
@@ -96,15 +97,11 @@ class XLNetModelTester:
 
         input_ids_q = ids_numpy([self.batch_size, self.seq_length + 1], self.vocab_size)
         perm_mask = np.zeros(
-            (self.batch_size,
-            self.seq_length + 1,
-            self.seq_length + 1),
+            (self.batch_size, self.seq_length + 1, self.seq_length + 1),
         )
         perm_mask[:, :, -1] = 1.0  # Previous tokens don't see last token
         target_mapping = np.zeros(
-            (self.batch_size,
-            1,
-            self.seq_length + 1),
+            (self.batch_size, 1, self.seq_length + 1),
         )
         target_mapping[:, 0, -1] = 1.0  # predict last token
 
@@ -176,10 +173,7 @@ class XLNetModelTester:
 
 
 model_tester = XLNetModelTester()
-(
-    config,
-    inputs_dict
-) = model_tester.prepare_config_and_inputs_for_common()
+(config, inputs_dict) = model_tester.prepare_config_and_inputs_for_common()
 
 
 XLNET_CASES = [

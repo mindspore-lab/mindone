@@ -1,3 +1,4 @@
+# Adapted from https://github.com/kohya-ss/sd-scripts/blob/main/library/sdxl_original_unet.py
 # Diffusersのコードをベースとした sd_xl_baseのU-Net
 # state dictの形式をSDXLに合わせてある
 

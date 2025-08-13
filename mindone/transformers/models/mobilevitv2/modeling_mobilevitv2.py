@@ -1,6 +1,9 @@
 # coding=utf-8
 # Copyright 2023 Apple Inc. and The HuggingFace Inc. team. All rights reserved.
 #
+# This code is adapted from https://github.com/huggingface/transformers
+# with modifications to run transformers on mindspore.
+#
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -21,7 +24,6 @@ from typing import Optional, Union
 from transformers.models.mobilevitv2.configuration_mobilevitv2 import MobileViTV2Config
 
 import mindspore
-from mindspore import nn
 from mindspore.mint.nn import BCEWithLogitsLoss, CrossEntropyLoss, MSELoss
 
 from ...activations import ACT2FN
@@ -246,13 +248,15 @@ class MobileViTV2LinearSelfAttention(mindspore.nn.Cell):
         context_scores = self.attn_dropout(context_scores)
 
         # Compute context vector
-        # [batch_size, embed_dim, num_pixels_in_patch, num_patches] x [batch_size, 1, num_pixels_in_patch, num_patches] -> [batch_size, embed_dim, num_pixels_in_patch, num_patches]
+        # [batch_size, embed_dim, num_pixels_in_patch, num_patches] x [batch_size, 1, num_pixels_in_patch, num_patches]
+        # -> [batch_size, embed_dim, num_pixels_in_patch, num_patches]
         context_vector = key * context_scores
         # [batch_size, embed_dim, num_pixels_in_patch, num_patches] --> [batch_size, embed_dim, num_pixels_in_patch, 1]
         context_vector = mindspore.mint.sum(context_vector, dim=-1, keepdim=True)
 
         # combine context vector with values
-        # [batch_size, embed_dim, num_pixels_in_patch, num_patches] * [batch_size, embed_dim, num_pixels_in_patch, 1] --> [batch_size, embed_dim, num_pixels_in_patch, num_patches]
+        # [batch_size, embed_dim, num_pixels_in_patch, num_patches] * [batch_size, embed_dim, num_pixels_in_patch, 1]
+        # --> [batch_size, embed_dim, num_pixels_in_patch, num_patches]
         out = mindspore.mint.nn.functional.relu(value) * context_vector.expand_as(value)
         out = self.out_proj(out)
         return out
@@ -900,7 +904,10 @@ class MobileViTV2ForSemanticSegmentation(MobileViTV2PreTrainedModel):
         >>> import requests
         >>> import torch
         >>> from PIL import Image
-        >>> from transformers import AutoImageProcessor, MobileViTV2ForSemanticSegmentation
+        >>> from transformers import AutoImageProcessor
+        >>> from mindone.transformers import MobileViTV2ForSemanticSegmentation
+        >>> import numpy as np
+        >>> import mindspore as ms
 
         >>> url = "http://images.cocodataset.org/val2017/000000039769.jpg"
         >>> image = Image.open(requests.get(url, stream=True).raw)
@@ -908,10 +915,16 @@ class MobileViTV2ForSemanticSegmentation(MobileViTV2PreTrainedModel):
         >>> image_processor = AutoImageProcessor.from_pretrained("apple/mobilevitv2-1.0-imagenet1k-256")
         >>> model = MobileViTV2ForSemanticSegmentation.from_pretrained("apple/mobilevitv2-1.0-imagenet1k-256")
 
-        >>> inputs = image_processor(images=image, return_tensors="pt")
+        >>> inputs = image_processor(images=image, return_tensors="np")
+        >>> for key,value in inputs.items():
+        >>>     if isinstance(value, np.ndarray):
+        >>>         inputs[key] = ms.tensor(value)
+        >>>     elif isinstance(value, list):
+        >>>         inputs[key] = ms.tensor(value)
+        >>>     if key == "pixel_values":
+        >>>         inputs[key] = inputs[key].to(ms.float32)
 
-        >>> with torch.no_grad():
-        ...     outputs = model(**inputs)
+        >>> outputs = model(**inputs)
 
         >>> # logits are of shape (batch_size, num_labels, height, width)
         >>> logits = outputs.logits
