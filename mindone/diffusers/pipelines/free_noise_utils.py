@@ -1,4 +1,4 @@
-# Copyright 2024 The HuggingFace Team. All rights reserved.
+# Copyright 2025 The HuggingFace Team. All rights reserved.
 #
 # This code is adapted from https://github.com/huggingface/diffusers
 # with modifications to run diffusers on mindspore.
@@ -147,7 +147,7 @@ class SplitInferenceModule(nn.Cell):
 
 
 class AnimateDiffFreeNoiseMixin:
-    r"""Mixin class for [FreeNoise](https://arxiv.org/abs/2310.15169)."""
+    r"""Mixin class for [FreeNoise](https://huggingface.co/papers/2310.15169)."""
 
     def _enable_free_noise_in_block(self, block: Union[CrossAttnDownBlockMotion, DownBlockMotion, UpBlockMotion]):
         r"""Helper function to enable FreeNoise in transformer blocks."""
@@ -481,7 +481,7 @@ class AnimateDiffFreeNoiseMixin:
                 Must be one of ["shuffle_context", "repeat_context", "random"].
                     - "shuffle_context"
                         Shuffles a fixed batch of `context_length` latents to create a final latent of size
-                        `num_frames`. This is usually the best setting for most generation scenarious. However, there
+                        `num_frames`. This is usually the best setting for most generation scenarios. However, there
                         might be visible repetition noticeable in the kinds of motion/animation generated.
                     - "repeated_context"
                         Repeats a fixed batch of `context_length` latents to create a final latent of size

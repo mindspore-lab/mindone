@@ -23,8 +23,6 @@ from typing import TYPE_CHECKING, Any, Dict, List, Optional, Tuple, Union
 from huggingface_hub import model_info
 from transformers.configuration_utils import PretrainedConfig
 from transformers.dynamic_module_utils import get_class_from_dynamic_module
-from transformers.models.auto.feature_extraction_auto import FEATURE_EXTRACTOR_MAPPING, AutoFeatureExtractor
-from transformers.models.auto.image_processing_auto import IMAGE_PROCESSOR_MAPPING, AutoImageProcessor
 from transformers.models.auto.tokenization_auto import TOKENIZER_MAPPING, AutoTokenizer
 from transformers.tokenization_utils import PreTrainedTokenizer
 from transformers.utils import (
@@ -37,6 +35,8 @@ from transformers.utils import (
     logging,
 )
 
+from mindone.transformers.models.auto.feature_extraction_auto import FEATURE_EXTRACTOR_MAPPING, AutoFeatureExtractor
+from mindone.transformers.models.auto.image_processing_auto import IMAGE_PROCESSOR_MAPPING, AutoImageProcessor
 from mindone.transformers.models.auto.processing_auto import PROCESSOR_MAPPING, AutoProcessor
 
 from ..feature_extraction_utils import PreTrainedFeatureExtractor
@@ -59,10 +59,12 @@ from .base import (
 from .image_classification import ImageClassificationPipeline
 from .image_text_to_text import ImageTextToTextPipeline
 from .object_detection import ObjectDetectionPipeline
+from .question_answering import QuestionAnsweringArgumentHandler, QuestionAnsweringPipeline
 from .text2text_generation import Text2TextGenerationPipeline
 from .text_classification import TextClassificationPipeline
 from .text_generation import TextGenerationPipeline
 from .zero_shot_classification import ZeroShotClassificationArgumentHandler, ZeroShotClassificationPipeline
+from .zero_shot_image_classification import ZeroShotImageClassificationPipeline
 from .zero_shot_object_detection import ZeroShotObjectDetectionPipeline
 
 if is_mindspore_available():
@@ -73,9 +75,11 @@ if is_mindspore_available():
         AutoModelForImageClassification,
         AutoModelForImageTextToText,
         AutoModelForObjectDetection,
+        AutoModelForQuestionAnswering,
         AutoModelForSeq2SeqLM,
         AutoModelForSequenceClassification,
         AutoModelForTokenClassification,
+        AutoModelForZeroShotImageClassification,
         AutoModelForZeroShotObjectDetection,
     )
 
@@ -103,6 +107,12 @@ SUPPORTED_TASKS = {
         "default": {"model": {"ms": ("distilbert/distilbert-base-uncased-finetuned-sst-2-english", "714eb0f")}},
         "type": "text",
     },
+    "question-answering": {
+        "impl": QuestionAnsweringPipeline,
+        "ms": (AutoModelForQuestionAnswering,) if is_mindspore_available() else (),
+        "default": {"model": {"ms": ("distilbert/distilbert-base-cased-distilled-squad", "564e9b5")}},
+        "type": "text",
+    },
     "text2text-generation": {
         "impl": Text2TextGenerationPipeline,
         "ms": (AutoModelForSeq2SeqLM,) if is_mindspore_available() else (),
@@ -123,6 +133,12 @@ SUPPORTED_TASKS = {
             "config": {"ms": ("facebook/bart-large-mnli", "d7645e1")},
         },
         "type": "text",
+    },
+    "zero-shot-image-classification": {
+        "impl": ZeroShotImageClassificationPipeline,
+        "ms": (AutoModelForZeroShotImageClassification,) if is_mindspore_available() else (),
+        "default": {"model": {"ms": ("openai/clip-vit-base-patch32", "3d74acf")}},
+        "type": "multimodal",
     },
     "image-classification": {
         "impl": ImageClassificationPipeline,
