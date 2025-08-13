@@ -1,0 +1,4 @@
+supervision
+matplotlib
+hydra-core
+iopath
