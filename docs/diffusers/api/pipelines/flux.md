@@ -30,6 +30,7 @@ Flux comes in the following variants:
 | Canny Control (Guidance-distilled) | [`black-forest-labs/FLUX.1-Canny-dev`](https://huggingface.co/black-forest-labs/FLUX.1-Canny-dev) |
 | Depth Control (Guidance-distilled) | [`black-forest-labs/FLUX.1-Depth-dev`](https://huggingface.co/black-forest-labs/FLUX.1-Depth-dev) |
 | Redux (Adapter) | [`black-forest-labs/FLUX.1-Redux-dev`](https://huggingface.co/black-forest-labs/FLUX.1-Redux-dev) |
+| Kontext | [`black-forest-labs/FLUX.1-kontext`](https://huggingface.co/black-forest-labs/FLUX.1-kontext) |
 
 All checkpoints have different usage which we detail below.
 
@@ -213,6 +214,32 @@ images = pipe(
     pooled_prompt_embeds=pooled_prompt_embeds,
 )[0]
 images[0].save("flux-redux.png")
+```
+
+
+### Kontext
+
+Flux Kontext is a model that allows in-context control of the image generation process, allowing for editing, refinement, relighting, style transfer, character customization, and more.
+
+```python
+import mindspore as ms
+from mindone.diffusers import FluxKontextPipeline
+from mindone.diffusers.utils import load_image
+import numpy as np
+
+pipe = FluxKontextPipeline.from_pretrained(
+    "black-forest-labs/FLUX.1-Kontext-dev", mindspore_dtype=ms.bfloat16
+)
+
+image = load_image("https://huggingface.co/datasets/huggingface/documentation-images/resolve/main/diffusers/yarn-art-pikachu.png").convert("RGB")
+prompt = "Make Pikachu hold a sign that says 'Black Forest Labs is awesome', yarn art style, detailed, vibrant colors"
+image = pipe(
+    image=image,
+    prompt=prompt,
+    guidance_scale=2.5,
+    generator=np.random.default_rng(42),
+)[0][0]
+image.save("flux-kontext.png")
 ```
 
 ## Note about `unload_lora_weights()` when using Flux LoRAs
