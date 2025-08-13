@@ -95,9 +95,7 @@ class QuantEmbedding(ms.nn.Cell):
 
         weight_scaling_factor = symmetric_linear_quantization_params(self.weight_bit, w_min, w_max, False)
         self.register_buffer("weight_scaling_factor", weight_scaling_factor)
-        weight_integer = self.weight_function(
-            self.weight, self.weight_bit, self.percentile_mode, weight_scaling_factor
-        )
+        weight_integer = self.weight_function(self.weight, self.weight_bit, self.percentile_mode, weight_scaling_factor)
         self.register_buffer("weight_integer", weight_integer)
 
         emb_int = mint.nn.functional.embedding(
@@ -175,17 +173,23 @@ class QuantAct(ms.nn.Cell):
 
             # Initialization
             if self.x_min.min() > -1.1e-5 and self.x_max.max() < 1.1e-5:
-                self.x_min = self.x_min + x_min
-                self.x_max = self.x_max + x_max
+                x_min = self.x_min + x_min
+                self.register_buffer("x_min", x_min)
+                x_max = self.x_max + x_max
+                self.register_buffer("x_max", x_max)
 
             # exponential moving average (EMA)
             # use momentum to prevent the quantized values change greatly every iteration
             elif self.act_range_momentum == -1:
-                self.x_min = mint.min(self.x_min, x_min)
-                self.x_max = mint.max(self.x_max, x_max)
+                x_min = mint.min(self.x_min, x_min)
+                self.register_buffer("x_min", x_min)
+                x_max = mint.max(self.x_max, x_max)
+                self.register_buffer("x_max", x_max)
             else:
-                self.x_min = self.x_min * self.act_range_momentum + x_min * (1 - self.act_range_momentum)
-                self.x_max = self.x_max * self.act_range_momentum + x_max * (1 - self.act_range_momentum)
+                x_min = self.x_min * self.act_range_momentum + x_min * (1 - self.act_range_momentum)
+                self.register_buffer("x_min", x_min)
+                x_max = self.x_max * self.act_range_momentum + x_max * (1 - self.act_range_momentum)
+                self.register_buffer("x_max", x_max)
 
         if not self.quant_mode:
             return x_act, None
@@ -279,9 +283,7 @@ class QuantLinear(ms.nn.Cell):
 
         fc_scaling_factor = symmetric_linear_quantization_params(self.weight_bit, w_min, w_max, self.per_channel)
         self.register_buffer("fc_scaling_factor", fc_scaling_factor)
-        weight_integer = self.weight_function(
-            self.weight, self.weight_bit, self.percentile_mode, fc_scaling_factor
-        )
+        weight_integer = self.weight_function(self.weight, self.weight_bit, self.percentile_mode, fc_scaling_factor)
         self.register_buffer("weight_integer", weight_integer)
 
         bias_scaling_factor = fc_scaling_factor * prev_act_scaling_factor
@@ -635,7 +637,7 @@ class SymmetricQuantFunction(ms.nn.Cell):
         else:
             scale = scale.view(-1)
 
-        return grad_output.clone() / scale,
+        return (grad_output.clone() / scale,)
 
 
 class floor_ste(ms.nn.Cell):
@@ -647,7 +649,7 @@ class floor_ste(ms.nn.Cell):
         return mint.floor(x)
 
     def bprop(ctx, x, out, grad_output):
-        return (grad_output.clone(), )
+        return (grad_output.clone(),)
 
 
 class round_ste(ms.nn.Cell):
@@ -659,7 +661,7 @@ class round_ste(ms.nn.Cell):
         return mint.round(x)
 
     def bprop(ctx, x, out, grad_output):
-        return (grad_output.clone(), )
+        return (grad_output.clone(),)
 
 
 def batch_frexp(inputs, max_bit=31):
@@ -775,4 +777,4 @@ class FixedPointMul(ms.nn.Cell):
         identity_grad = None
         if ctx.identity is not None:
             identity_grad = grad_output.clone() / ctx.z_scaling_factor
-        return grad_output.clone() / ctx.z_scaling_factor,
+        return (grad_output.clone() / ctx.z_scaling_factor,)
