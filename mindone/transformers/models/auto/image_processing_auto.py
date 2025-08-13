@@ -57,6 +57,7 @@ else:
             ("llava_next_video", ("LlavaNextVideoImageProcessor",)),
             ("llava_onevision", ("LlavaOnevisionImageProcessor",)),
             ("segformer", ("SegformerImageProcessor",)),
+            ("siglip", ("SiglipImageProcessor", "SiglipImageProcessorFast")),
         ]
     )
 
