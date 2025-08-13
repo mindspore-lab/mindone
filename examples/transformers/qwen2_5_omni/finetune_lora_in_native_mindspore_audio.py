@@ -1,7 +1,7 @@
 """
 Qwen2.5-Omni model fine-tuning script using LoRA.
 
-This script with default values fine-tunes a pretrained Thinker model from  Qwen2.5-Omni-3B/Qwen2.5-Omni-7B,
+This script with default values fine-tunes a pretrained Talker model from  Qwen2.5-Omni-3B/Qwen2.5-Omni-7B,
 on the `linxy/LaTex_OCR` dataset ,
 
 reference lora config: https://github.com/modelscope/ms-swift/pull/3613
@@ -9,12 +9,12 @@ reference data processing: https://github.com/QwenLM/Qwen2.5-VL/blob/main/qwen-v
 
 Usage:
 ```
-DEVICE_ID=0 python finetune_lora_in_native_mindspore.py \
+DEVICE_ID=0 python finetune_lora_in_native_mindspore_audio.py \
     --model_path Qwen/Qwen2.5-Omni-3B \
     --enable_flash_attention \
     --lora_rank 8 \
     --lora_alpha 16 \
-    --dataset_path linxy/LaTex_OCR \
+    --dataset_path mozilla-foundation/common_voice_11_0 \
     --output_dir ./outputs/lora \
     --num_train_epochs 1
 
@@ -50,7 +50,7 @@ def freeze_params(m: nn.Cell):
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--model_path", type=str, default="Qwen/Qwen2.5-Omni-3B", help="pretrained model name")
-    parser.add_argument("--dataset_path", type=str, default="linxy/LaTex_OCR", help="dataset path.")
+    parser.add_argument("--dataset_path", type=str, default="mozilla-foundation/common_voice_11_0", help="dataset path.")
     parser.add_argument("--output_dir", type=str, default="./outputs/lora", help="output directory for checkpoints")
     parser.add_argument("--per_device_train_batch_size", type=int, default=1, help="batch size per device for training")
     parser.add_argument("--num_train_epochs", type=int, default=1, help="number of training epochs")
@@ -82,7 +82,7 @@ def main():
         default="You are Qwen, a virtual human developed by the Qwen Team, Alibaba Group, "
         "capable of perceiving auditory and visual inputs, as well as generating text and speech.",
     )
-    parser.add_argument("--prompt", type=str, default="Please convert the image content into LaTex")
+    parser.add_argument("--prompt", type=str, default="Please convert the audio to text")
     args = parser.parse_args()
 
     # 0. set mindspore context
@@ -103,28 +103,24 @@ def main():
         )
 
     # 1. create dataset
-    if os.path.isdir(args.dataset_path):
-        dataset = load_dataset("barquet", data_dir=args.dataset_path)
-    else:
-        dataset = load_dataset(args.dataset_path, name="human_handwrite")
-    dataset["train"] = dataset["train"].shuffle(seed=42)  # 1,200
-    dataset["test"] = dataset["test"]  # 70
+    dataset = load_dataset(args.dataset_path, name="yue", trust_remote_code=True)
+    dataset["train"] = dataset["train"].shuffle(seed=42).select(range(1000))
+    dataset["test"] = dataset["test"].select(range(1000))
 
     system_prompt = args.system_prompt
     prompt = args.prompt
     processor = Qwen2_5OmniProcessor.from_pretrained(args.model_path)
 
     def process_function(examples):
-        answer = examples["text"]
-        image = examples["image"].convert("RGB")
-        if args.per_device_train_batch_size > 1:
-            image = image.resize((512, 128))  # use homogeneous size for training batch
+        answer = examples["sentence"]
+        # audio = examples["audio"]
+        audio_path = examples["path"]
         conversations = [
             {"role": "system", "content": [{"type": "text", "text": system_prompt}]},
             {
                 "role": "user",
                 "content": [
-                    {"type": "image", "image": image},
+                    {"type": "audio", "audio": audio_path},
                     {"type": "text", "text": prompt},
                 ],
             },
@@ -153,9 +149,7 @@ def main():
                 return_dict=False,
                 return_tensors="np",
                 padding=True,
-            )[
-                0
-            ]  # only ids
+            )[0] # only ids
         else:
             input_full_ids = inputs["input_ids"][0]
         prompt_ids = processor.apply_chat_template(
@@ -165,9 +159,7 @@ def main():
             return_dict=False,
             return_tensors="np",
             padding=True,
-        )[
-            0
-        ]  # only ids
+        )[0] # only ids
         labels = np.ones_like(inputs["input_ids"]) * IGNORE_INDEX
         response_start_id = inputs["input_ids"].shape[1] - len(input_full_ids) + len(prompt_ids)
         labels[..., response_start_id:] = inputs["input_ids"][..., response_start_id:]
@@ -222,22 +214,12 @@ def main():
     freeze_params(model)
 
     # 2.2. prepare the LoRA config
-    # all attn linear layers
-    vision_enc_modules = ["q", "k", "v", "attn.proj"]
-    # audio_enc_modules = ["k_proj", "v_proj", "q_proj", "out_proj", "o_proj"] # shared same names with text model
-    audio_enc_modules = []
-    qwen25omni_attn_modules = []
-    for i in range(model.config.text_config.num_hidden_layers):
-        qwen25omni_attn_modules.append(f"model.layers.{i}.self_attn.q_proj")
-        qwen25omni_attn_modules.append(f"model.layers.{i}.self_attn.k_proj")
-        qwen25omni_attn_modules.append(f"model.layers.{i}.self_attn.v_proj")
-        qwen25omni_attn_modules.append(f"model.layers.{i}.self_attn.o_proj")
-    target_modules = vision_enc_modules + audio_enc_modules + qwen25omni_attn_modules
+    # all attn linear layers in audio_tower and text model
     lora_config = LoraConfig(
         r=args.lora_rank,
         lora_alpha=args.lora_rank,
         init_lora_weights="gaussian",
-        target_modules=target_modules,
+        target_modules=["k_proj", "v_proj", "q_proj", "out_proj", "o_proj"],
     )
     model.is_gradient_checkpointing = False
     model = get_peft_model(model, lora_config)
@@ -284,14 +266,14 @@ def main():
         # convert dict to tuple
         tuple_inputs = (
             ms.Tensor(batch["input_ids"], ms.int32),
+            ms.Tensor(batch["input_features"],  parent_model.dtype),
             None,
-            ms.Tensor(batch["pixel_values"], parent_model.dtype),
             None,
-            ms.Tensor(batch["image_grid_thw"], ms.int32),
+            None,
             None,
             ms.Tensor(batch["attention_mask"], ms.int32),
-            None,
-            None,
+            ms.Tensor(batch["feature_attention_mask"], ms.int32),
+            ms.Tensor(batch["audio_feature_lengths"], ms.int32),
             None,
             None,
             None,
@@ -331,7 +313,7 @@ def main():
         parent_model.set_train(False)
 
         # inference function
-        def inference(medium_path, prompt, medium_type="image", use_audio_in_video=False):
+        def inference(medium_path, prompt, medium_type="audio", use_audio_in_video=True):
             messages = [
                 {"role": "system", "content": [{"type": "text", "text": system_prompt}]},
                 {
@@ -342,11 +324,10 @@ def main():
                 },
             ]
             medium = None
-            if medium_type == "image":
+            if medium_type == "audio":
                 medium = {
                     "type": medium_type,
-                    "image": medium_path,
-                    "max_pixels": 360 * 420,
+                    "audio": medium_path,
                 }
             if medium is not None:
                 messages[1]["content"].append(medium)
@@ -379,9 +360,9 @@ def main():
         correct = 0
         file_path = os.path.join(args.output_dir, "inference_lora_eval.txt")
         for idx, example in enumerate(small_eval_dataset):
-            medium = example["image"].convert("RGB")
-            answer = example["text"]
-            response = inference(medium, prompt, medium_type="image", use_audio_in_video=False)
+            medium = example["path"]
+            answer = example["sentence"]
+            response = inference(medium, prompt, medium_type="audio", use_audio_in_video=False)
             print(f"Response #{idx}: {response}\n")
 
             with open(file_path, "a") as f:

@@ -39,7 +39,13 @@ DEVICE_ID=0 python finetune_lora_with_mindspore_trainer.py \
 
 bf16 requires mindspore>=2.7.0:
 ```
+export ASCEND_RT_VISIBLE_DEVICES=0,1,2,3
+NPUS=4
+MASTER_PORT=9000
+LOG_DIR=outputs/lora
+msrun --bind_core=True --worker_num=${NPUS} --local_worker_num=${NPUS} --master_port=${MASTER_PORT} --log_dir=${LOG_DIR}/parallel_logs \
 DEVICE_ID=0 python finetune_lora_with_mindspore_trainer.py \
+    --output_dir ${LOG_DIR} \
     --num_train_epochs 1 \
     --learning_rate 1e-5 \
     --save_strategy no \
