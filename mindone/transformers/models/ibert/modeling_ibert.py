@@ -925,10 +925,10 @@ class IBertForMaskedLM(IBertPreTrainedModel):
         >>> import mindspore as ms
         >>> tokenizer = AutoTokenizer.from_pretrained("kssteven/ibert-roberta-base")
         >>> model = IBertForMaskedLM.from_pretrained("kssteven/ibert-roberta-base")
+        >>> model.set_train(False)
         >>> inputs = tokenizer("The capital of France is <mask>.", return_tensors="np")
         >>> outputs = model(input_ids=ms.Tensor(inputs["input_ids"])).logits
         >>> # retrieve index of <mask>
-
         >>> mask_token_index = (ms.Tensor(inputs["input_ids"]) == tokenizer.mask_token_id)[0].nonzero(as_tuple=True)[0]
         >>> predicted_token_id = logits[0, mask_token_index].argmax(-1)
         >>> print(tokenizer.decode(predicted_token_id))
