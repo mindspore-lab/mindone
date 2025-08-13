@@ -55,12 +55,12 @@ class IBertModelTester:
         max_position_embeddings=512,
         initializer_range=0.02,
         layer_norm_eps=1e-12,
-        use_cache=True,
         pad_token_id=1,
         bos_token_id=0,
         eos_token_id=2,
-        type_vocab_size=16,
-        quant_mode=True,
+        type_vocab_size=2,
+        position_embedding_type="absolute",
+        quant_mode=False,
         force_dequant="none",
     ):
         self.batch_size = batch_size
@@ -82,7 +82,7 @@ class IBertModelTester:
         self.max_position_embeddings = max_position_embeddings
         self.initializer_range = initializer_range
         self.layer_norm_eps = layer_norm_eps
-        self.use_cache = use_cache
+        self.position_embedding_type = position_embedding_type
         self.bos_token_id = bos_token_id
         self.eos_token_id = eos_token_id
         self.pad_token_id = pad_token_id
@@ -127,7 +127,7 @@ class IBertModelTester:
             max_position_embeddings=self.max_position_embeddings,
             initializer_range=self.initializer_range,
             layer_norm_eps=self.layer_norm_eps,
-            use_cache=self.use_cache,
+            position_embedding_type=self.position_embedding_type,
             bos_token_id=self.bos_token_id,
             eos_token_id=self.eos_token_id,
             pad_token_id=self.pad_token_id,
