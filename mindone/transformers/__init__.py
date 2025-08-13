@@ -255,6 +255,20 @@ from .models.convbert import (
     ConvBertLayer,
     ConvBertModel,
 )
+from .models.convnext import (
+    ConvNextBackbone,
+    ConvNextFeatureExtractor,
+    ConvNextForImageClassification,
+    ConvNextImageProcessor,
+    ConvNextModel,
+    ConvNextPreTrainedModel,
+)
+from .models.convnextv2 import (
+    ConvNextV2Backbone,
+    ConvNextV2ForImageClassification,
+    ConvNextV2Model,
+    ConvNextV2PreTrainedModel,
+)
 from .models.deberta import (
     DebertaForMaskedLM,
     DebertaForQuestionAnswering,
