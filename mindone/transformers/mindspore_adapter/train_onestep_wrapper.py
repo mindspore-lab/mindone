@@ -1,10 +1,12 @@
-from typing import Dict
+from typing import Dict, Optional
 
 import mindspore as ms
 from mindspore import ParallelMode, Tensor, context, nn, ops
 from mindspore.boost.grad_accumulation import gradient_clear_op as _grad_clear_op
 from mindspore.ops import composite as C
 from mindspore.ops import operations as P
+
+from mindone.trainers.zero import ZeroHelper
 
 try:
     from .adamw_zero import AdamWeightDecayZeRO1, AdamWeightDecayZeRO2
@@ -101,6 +103,7 @@ class TrainOneStepWrapper(nn.Cell):
         gradient_accumulation_steps: int = 1,
         clip_grad: str = "none",
         clip_value: float = 1.0,
+        zero_helper: Optional[ZeroHelper] = None,
     ):
         super().__init__(auto_prefix=False)
 
@@ -198,6 +201,16 @@ class TrainOneStepWrapper(nn.Cell):
         else:
             raise NotImplementedError
         self.clip_grad_fn = clip_grad_fn
+
+        # zero init
+        self.zero_helper = zero_helper
+        self.zero_stage = zero_helper.zero_stage if zero_helper is not None else 0
+        self.run_optimizer = zero_helper.run_optimizer if zero_helper is not None else self.optimizer
+        self.grad_reducer = self.grad_reducer if self.zero_stage == 0 else nn.Identity()
+        if self.zero_stage != 0:
+            self.zero_helper.split_params()
+            if gradient_accumulation_steps > 1:
+                self.accumulated_grads = optimizer.parameters.clone(prefix="grad_accumulated_", init="zeros")
 
     def do_optim(self, loss, grads):
         if self.accum_steps == 1:

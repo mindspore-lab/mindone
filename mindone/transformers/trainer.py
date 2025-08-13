@@ -58,7 +58,10 @@ from transformers.utils import SAFE_WEIGHTS_NAME, WEIGHTS_NAME, is_datasets_avai
 
 import mindspore as ms
 from mindspore import Tensor, nn, ops
+from mindspore.communication import GlobalComm
 from mindspore.communication.management import get_group_size
+
+from mindone.trainers.zero import ZeroHelper, prepare_network
 
 from ..safetensors.mindspore import save_file
 from .data.data_collator import DataCollator, DataCollatorWithPadding, default_data_collator
@@ -753,6 +756,9 @@ class Trainer:
 
             model_ = ReturnLoss(model)
 
+        model_ = prepare_network(model_, 3, optimizer_parallel_group=GlobalComm.WORLD_COMM_GROUP)
+        zero_helper = ZeroHelper(self.optimizer, 3, optimizer_parallel_group=GlobalComm.WORLD_COMM_GROUP)
+
         # Note: unlike the original transformers, we will define train step process
         # that include auto mix precision, forward process, loss compute and optimizer step on `train_model`
         train_model = TrainOneStepWrapper(
@@ -765,6 +771,7 @@ class Trainer:
             gradient_accumulation_steps=self.args.gradient_accumulation_steps,
             clip_grad="global_norm",
             clip_value=self.args.max_grad_norm,
+            zero_helper=zero_helper,
         )
 
         return model, train_model
