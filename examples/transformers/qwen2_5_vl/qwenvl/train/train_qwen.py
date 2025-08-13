@@ -103,6 +103,8 @@ def train(attn_implementation="flash_attention_2"):
     model_args, data_args, training_args = parser.parse_args_into_dataclasses()
 
     local_rank = dist.get_rank()
+    training_args.rank_size = dist.get_world_size()
+    training_args.rank = local_rank
     os.makedirs(training_args.output_dir, exist_ok=True)
 
     if "qwen2.5" in model_args.model_name_or_path.lower():
