@@ -774,7 +774,7 @@ class FixedPointMul(ms.nn.Cell):
             return mint.clamp(output.type(ms.float32), -n - 1, n)
 
     def bprop(ctx, x, out, grad_output):
-        identity_grad = None
-        if ctx.identity is not None:
-            identity_grad = grad_output.clone() / ctx.z_scaling_factor
+        # identity_grad = None
+        # if ctx.identity is not None:
+        #     identity_grad = grad_output.clone() / ctx.z_scaling_factor
         return (grad_output.clone() / ctx.z_scaling_factor,)
