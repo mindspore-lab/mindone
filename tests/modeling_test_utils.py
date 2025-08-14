@@ -2,6 +2,7 @@ import importlib
 import itertools
 import logging
 import random
+from typing import Union
 
 import numpy as np
 import torch
@@ -326,7 +327,7 @@ def generalized_parse_args(pt_dtype, ms_dtype, *args, **kwargs):
     return pt_inputs_args, pt_inputs_kwargs, ms_inputs_args, ms_inputs_kwargs
 
 
-def compute_diffs(pt_outputs: torch.Tensor, ms_outputs: ms.Tensor):
+def compute_diffs(pt_outputs: Union[torch.Tensor, np.ndarray], ms_outputs: Union[ms.Tensor, np.ndarray]):
     if isinstance(pt_outputs, BaseOutput):
         pt_outputs = tuple(pt_outputs.values())
     elif not isinstance(pt_outputs, (tuple, list)):
@@ -346,8 +347,10 @@ def compute_diffs(pt_outputs: torch.Tensor, ms_outputs: ms.Tensor):
                 d = np.linalg.norm(p - m) / np.linalg.norm(p)
                 diffs.append(d)
         else:
-            p = p.detach().cpu().numpy()
-            m = m.asnumpy()
+            if isinstance(p, torch.Tensor):
+                p = p.detach().cpu().numpy()
+            if isinstance(m, ms.Tensor):
+                m = m.asnumpy()
             # relative error defined by Frobenius norm
             # dist(x, y) := ||x - y|| / ||y||, where ||·|| means Frobenius norm
             d = np.linalg.norm(p - m) / np.linalg.norm(p)

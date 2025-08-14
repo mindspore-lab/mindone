@@ -67,6 +67,7 @@ from . import (
     mpt,
     mvp,
     opt,
+    owlvit,
     paligemma,
     persimmon,
     phi,
@@ -88,6 +89,7 @@ from . import (
     vits,
     wav2vec2,
     xlm_roberta,
+    yolos,
 )
 
 if version.parse(transformers.__version__) >= version.parse("4.51.0"):
