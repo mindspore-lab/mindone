@@ -219,7 +219,7 @@ class TrainOneStepWrapper(nn.Cell):
                     grads = self.clip_grad_fn(grads, self.clip_value, self.reduce_op_for_clip_grad)
                 else:
                     grads = self.clip_grad_fn(grads, self.clip_value)
-            loss = ops.depend(loss, self.optimizer(grads))
+            loss = ops.depend(loss, self.run_optimizer(grads))
             if self.ema is not None:
                 self.ema.ema_update()
         else:
@@ -234,9 +234,9 @@ class TrainOneStepWrapper(nn.Cell):
                     else:
                         clipped_grads = self.clip_grad_fn(self.accumulated_grads, self.clip_value)
 
-                    loss = ops.depend(loss, self.optimizer(clipped_grads))
+                    loss = ops.depend(loss, self.run_optimizer(clipped_grads))
                 else:
-                    loss = ops.depend(loss, self.optimizer(self.accumulated_grads))
+                    loss = ops.depend(loss, self.run_optimizer(self.accumulated_grads))
 
                 loss = ops.depend(loss, self.hyper_map(ops.partial(_grad_clear_op), self.accumulated_grads))
                 loss = ops.depend(loss, ops.assign(self.cur_accum_step, ms.Tensor(0, ms.int32)))
