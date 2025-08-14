@@ -2,7 +2,7 @@ from __future__ import absolute_import
 
 import mindspore as ms
 from mindspore import _checkparam as validator
-from mindspore import ops
+from mindspore import mint, ops
 from mindspore.nn import Optimizer
 from mindspore.ops import auto_generate as gen
 
@@ -30,7 +30,7 @@ def _run_optim_adamw_opt(
 ):
     """Apply adamw optimizer to the weight parameter."""
     success = True
-    max_exp_avg_sq = ops.zeros_like(exp_avg)
+    max_exp_avg_sq = mint.zeros_like(exp_avg)
     learning_rate = float(learning_rate)
     weight_decay = float(weight_decay)
     opt(

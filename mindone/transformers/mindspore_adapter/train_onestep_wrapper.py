@@ -258,6 +258,10 @@ class TrainOneStepWrapper(nn.Cell):
         # sens = ops.fill(loss.dtype, loss.shape, self.scaler.scale_value)
         # grads = self.grad_fn(*inputs, sens)
         loss, grads = self.value_and_grad(*inputs)
+
+        if self.zero_helper is not None:
+            grads = self.zero_helper.cal_gradients(grads)
+
         if self.is_zero:
             grads = self.optimizer.grad_reduce(grads)
         else:
