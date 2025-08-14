@@ -645,6 +645,8 @@ class PreTrainedModel(nn.Cell, ModuleUtilsMixin, GenerationMixin, PushToHubMixin
     main_input_name = "input_ids"
     model_tags = None
 
+    _checkpoint_conversion_mapping = {}
+
     _auto_class = None
     _no_split_modules = None
     _skip_keys_device_placement = None
@@ -1893,6 +1895,7 @@ class PreTrainedModel(nn.Cell, ModuleUtilsMixin, GenerationMixin, PushToHubMixin
         use_flash_attention_2 = kwargs.pop("use_flash_attention_2", False)
         adapter_kwargs = kwargs.pop("adapter_kwargs", {})
         adapter_name = kwargs.pop("adapter_name", "default")
+        key_mapping = kwargs.pop("key_mapping", None)
 
         if use_auth_token is not None:
             warnings.warn(
@@ -2361,6 +2364,11 @@ class PreTrainedModel(nn.Cell, ModuleUtilsMixin, GenerationMixin, PushToHubMixin
                 sharded_metadata=sharded_metadata,
                 dtype=mindspore_dtype,
                 keep_in_fp32_modules=keep_in_fp32_modules,
+                key_mapping=(
+                    key_mapping
+                    if key_mapping is not None
+                    else (getattr(cls, "_checkpoint_conversion_mapping", None) or None)
+                ),
             )
 
         if _adapter_model_path is not None:
@@ -2412,6 +2420,62 @@ class PreTrainedModel(nn.Cell, ModuleUtilsMixin, GenerationMixin, PushToHubMixin
 
         return model
 
+    @staticmethod
+    def _fix_state_dict_key_on_load(key: str) -> tuple[str, bool]:
+        return key, False
+
+    def _get_key_renaming_mapping(  # NEW (HF parity)
+            self,
+            checkpoint_keys: list[str],
+            key_mapping: dict[str, str] | None = None,
+            loading_base_model_from_task_state_dict: bool = False,
+            loading_task_model_from_base_state_dict: bool = False,
+    ) -> dict[str, str]:
+        prefix = self.base_model_prefix
+        _prefix = f"{prefix}."
+
+        renamed_keys_for_log: dict[str, tuple[str, str]] = {}
+        key_renaming_mapping: dict[str, str] = {}
+
+        for key in checkpoint_keys:
+            new_key, has_changed = self._fix_state_dict_key_on_load(key)
+
+            # 2) optional regex key mapping
+            if key_mapping is not None:
+                for pattern, replacement in key_mapping.items():
+                    new_key, n_replace = re.subn(pattern, replacement, new_key)
+                    if n_replace > 0:
+                        has_changed = True
+                        break
+
+            if loading_task_model_from_base_state_dict:
+                new_key = ".".join([prefix, new_key])
+            elif loading_base_model_from_task_state_dict:
+                if not new_key.startswith(_prefix):
+                    continue
+                new_key = new_key[len(_prefix):]
+
+            key_renaming_mapping[key] = new_key
+
+            if has_changed:
+                if key.endswith("LayerNorm.gamma"):
+                    renamed_keys_for_log["LayerNorm.gamma"] = (key, new_key)
+                elif key.endswith("LayerNorm.beta"):
+                    renamed_keys_for_log["LayerNorm.beta"] = (key, new_key)
+
+        if renamed_keys_for_log:
+            msg = (
+                f"A pretrained model of type `{self.__class__.__name__}` "
+                "contains parameters that have been renamed internally (a few are listed):\n"
+            )
+            for old_key, new_key in renamed_keys_for_log.values():
+                msg += f"* `{old_key}` -> `{new_key}`\n"
+            # optional: encourage upstream PRs as HF does
+            msg += "If you loaded from the Hub, consider submitting a PR to adjust these weights."
+            logger.info(msg)
+
+        return key_renaming_mapping
+
     @classmethod
     def _load_pretrained_model(
         cls,
@@ -2424,6 +2488,7 @@ class PreTrainedModel(nn.Cell, ModuleUtilsMixin, GenerationMixin, PushToHubMixin
         sharded_metadata=None,
         dtype=None,
         keep_in_fp32_modules=None,
+        key_mapping: dict[str, str] | None = None,
     ):
         model.tie_weights()
 
@@ -2439,6 +2504,17 @@ class PreTrainedModel(nn.Cell, ModuleUtilsMixin, GenerationMixin, PushToHubMixin
         else:
             has_prefix_module = False
             expects_prefix_module = False
+
+        loading_task_model_from_base_state_dict = (not has_prefix_module) and expects_prefix_module
+        loading_base_model_from_task_state_dict = has_prefix_module and (not expects_prefix_module)
+
+        key_renaming_mapping = model._get_key_renaming_mapping(
+            original_loaded_keys,
+            key_mapping = key_mapping,
+            loading_base_model_from_task_state_dict = loading_base_model_from_task_state_dict,
+            loading_task_model_from_base_state_dict = loading_task_model_from_base_state_dict,
+        )
+        loaded_keys = list(key_renaming_mapping.values())
 
         # Mapping loaded_keys from pt to ms
         pt2ms_mappings = _get_pt2ms_mappings(model)
