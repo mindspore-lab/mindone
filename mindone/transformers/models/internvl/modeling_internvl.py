@@ -42,7 +42,7 @@ from ...modeling_outputs import (
 )
 from ...modeling_utils import ALL_ATTENTION_FUNCTIONS, MSPreTrainedModel
 from ...processing_utils import Unpack
-from ..auto import AutoModel
+from ..qwen2 import Qwen2Model
 
 class InternVLVisionRMSNorm(nn.Cell):
     def __init__(self, hidden_size, eps=1e-6):
@@ -168,7 +168,7 @@ class InternVLVisionAttention(nn.Cell):
 
 @auto_docstring
 class InternVLVisionPreTrainedModel(MSPreTrainedModel):
-    config: InternVLVisionConfig
+    config_class = InternVLVisionConfig
     base_model_prefix = "internvl_vision"
     main_input_name = "pixel_values"
     supports_gradient_checkpointing = True
@@ -216,7 +216,7 @@ class InternVLVisionPatchEmbeddings(nn.Cell):
 
     def __init__(self, config):
         super().__init__()
-        image_size, patch_size = config.image_size, config.patch_size
+        image_size, patch_size = config.image_size, tuple(config.patch_size)
         num_channels, hidden_size = config.num_channels, config.hidden_size
 
         num_patches = (image_size[1] // patch_size[1]) * (image_size[0] // patch_size[0])
@@ -323,12 +323,12 @@ class InternVLVisionEmbeddings(nn.Cell):
         batch_size, seq_len, _ = embeddings.shape
 
         if bool_masked_pos is not None:
-            mask_tokens = self.mask_token.expand(batch_size, seq_len, -1)
+            mask_tokens = self.mask_token.expand((batch_size, seq_len, -1))
             # replace the masked visual tokens by mask_tokens
             w = bool_masked_pos.unsqueeze(-1).type_as(mask_tokens)
             embeddings = embeddings * (1 - w) + mask_tokens * w
 
-        cls_tokens = self.cls_token.expand(batch_size, -1, -1)
+        cls_tokens = self.cls_token.expand((batch_size, -1, -1))
         embeddings = mint.cat((cls_tokens, embeddings), dim=1)
 
         if self.position_embeddings is not None:
@@ -498,7 +498,7 @@ class InternVLVisionModel(InternVLVisionPreTrainedModel):
 
 @auto_docstring
 class InternVLPreTrainedModel(MSPreTrainedModel):
-    config: InternVLConfig
+    config_class = InternVLConfig
     base_model_prefix = ""
     supports_gradient_checkpointing = True
     _skip_keys_device_placement = "past_key_values"
@@ -561,10 +561,10 @@ class InternVLModel(InternVLPreTrainedModel):
 
     def __init__(self, config: InternVLConfig):
         super().__init__(config)
-        self.vision_tower = InternVLVisionModel(config.vision_config)
+        self.vision_tower = InternVLVisionModel._from_config(config.vision_config)
 
         self.multi_modal_projector = InternVLMultiModalProjector(config)
-        self.language_model = AutoModel.from_config(config.text_config)
+        self.language_model = Qwen2Model(config.text_config)
         self.post_init()
 
     def get_input_embeddings(self):
@@ -610,7 +610,7 @@ class InternVLModel(InternVLPreTrainedModel):
         if vision_feature_layer == -1:
             vision_features = self.vision_tower(pixel_values=pixel_values).last_hidden_state
         else:
-            vision_features = self.vision_model(pixel_values=pixel_values).hidden_states[vision_feature_layer]
+            vision_features = self.vision_tower(pixel_values=pixel_values).hidden_states[vision_feature_layer]
         if vision_feature_select_strategy == "default":
             vision_features = vision_features[:, 1:, :]
 
@@ -694,7 +694,10 @@ class InternVLModel(InternVLPreTrainedModel):
                     f"Image features and image tokens do not match: tokens: {n_image_tokens}, features {n_image_features}"
                 )
             image_features = image_features.to(inputs_embeds.dtype)
-            inputs_embeds = inputs_embeds.masked_scatter(special_image_mask, image_features)
+            # masked_scatter does not support bfloat16
+            inputs_embeds = inputs_embeds.to(ms.float32)
+            inputs_embeds = inputs_embeds.masked_scatter(special_image_mask, image_features.to(ms.float32))
+            inputs_embeds = inputs_embeds.to(ms.bfloat16)
 
         outputs = self.language_model(
             attention_mask=attention_mask,
@@ -817,7 +820,7 @@ class InternVLForConditionalGeneration(InternVLPreTrainedModel, GenerationMixin)
         self.model.set_decoder(decoder)
 
     def get_decoder(self):
-        return self.model.get_decoder
+        return self.model.get_decoder()
 
     def get_image_features(
         self,
@@ -934,6 +937,8 @@ class InternVLForConditionalGeneration(InternVLPreTrainedModel, GenerationMixin)
         )
 
         hidden_states = outputs[0]
+        if logits_to_keep is None:
+            logits_to_keep = 1
         # Only compute necessary logits, and do not upcast them to float if we are not computing the loss
         slice_indices = slice(-logits_to_keep, None) if isinstance(logits_to_keep, int) else logits_to_keep
         logits = self.lm_head(hidden_states[:, slice_indices, :])
