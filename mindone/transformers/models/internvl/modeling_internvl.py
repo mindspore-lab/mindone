@@ -874,37 +874,55 @@ class InternVLForConditionalGeneration(InternVLPreTrainedModel, GenerationMixin)
         Example:
 
         ```python
-        # FIXME: update examples
-        >>> import torch
-        >>> from transformers import AutoProcessor, AutoModelForImageTextToText
-
+        >>> import mindspore as ms
+        >>> from transformers import InternVLProcessor, GotOcr2ImageProcessor
+        >>> from mindone.transformers import InternVLForConditionalGeneration
+        >>> from PIL import Image
         >>>
-        >>> processor = AutoProcessor.from_pretrained("OpenGVLab/InternVL3-1B-hf")
-        >>> model = AutoModelForImageTextToText.from_pretrained(
-        ...     "OpenGVLab/InternVL3-1B-hf", torch_dtype=torch.bfloat16
+        >>> MODEL_HUB = "OpenGVLab/InternVL3-1B-hf"
+        >>> image_path = "demo.jpeg"
+        >>>
+        >>> processor = InternVLProcessor.from_pretrained(MODEL_HUB)
+        >>> # GotOcr2ImageProcessorFast does not support return_tensors="np"; use GotOcr2ImageProcessor instead
+        >>> image_processor = GotOcr2ImageProcessor.from_pretrained(MODEL_HUB)
+        >>> processor.image_processor = image_processor
+        >>>
+        >>> model = InternVLForConditionalGeneration.from_pretrained(
+        ...     MODEL_HUB,
+        ...     mindspore_dtype=ms.bfloat16,
+        ...     attn_implementation="eager",
         ... )
-
+        >>>
+        >>> image = Image.open(image_path)
+        >>>
         >>> messages = [
         ...     {
         ...         "role": "user",
         ...         "content": [
-        ...             {
-        ...                 "type": "image",
-        ...                 "url": "https://cdn.britannica.com/61/93061-050-99147DCE/Statue-of-Liberty-Island-New-York-Bay.jpg",
-        ...             },
-        ...             {
-        ...                 "type": "image",
-        ...                 "url": "https://thumbs.dreamstime.com/b/golden-gate-bridge-san-francisco-purple-flowers-california-echium-candicans-36805947.jpg",
-        ...             },
-        ...             {"type": "text", "text": "These images depict two different landmarks. Can you identify them?"},
+        ...             {"type": "image", "image": image},
+        ...             {"type": "text", "text": "Describe this image."},
         ...         ],
         ...     },
         ... ]
-
-        >>> inputs = processor.apply_chat_template(messages, add_generation_prompt=True, tokenize=True, return_dict=True, return_tensors="pt")
-        >>> generate_ids = model.generate(**inputs, max_new_tokens=200)
-        >>> print(processor.decode(generate_ids[0, inputs["input_ids"].shape[1] :], skip_special_tokens=True))
-        The images depict the Statue of Liberty and the Golden Gate Bridge.
+        >>>
+        >>> prompt = processor.apply_chat_template(messages, add_generation_prompt=True)
+        >>>
+        >>> inputs = processor(text=prompt, images=[image], return_tensors="np")
+        >>>
+        >>> for k, v in list(inputs.items()):
+        ...     t = ms.Tensor(v)
+        ...     if t.dtype == ms.int64:
+        ...         t = t.astype(ms.int32)
+        ...     else:
+        ...         t = t.astype(model.dtype)
+        ...     inputs[k] = t
+        >>> start = time.time()
+        >>> generated_ids = model.generate(**inputs, max_new_tokens=500)
+        >>>
+        >>> # Decode
+        >>> texts = processor.batch_decode(generated_ids, skip_special_tokens=True)
+        >>> print(texts)
+        A woman and a dog are sitting on a beach during sunset. The woman is smiling and giving a treat to the dog, which is wearing a harness. The dog is sitting patiently, and the ocean waves are visible in the background. The scene is warm and serene.
         ```"""
         output_attentions = output_attentions if output_attentions is not None else self.config.output_attentions
         output_hidden_states = (
