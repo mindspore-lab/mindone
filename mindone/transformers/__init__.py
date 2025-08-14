@@ -438,6 +438,16 @@ from .models.mpt import (
     MptModel,
     MptPreTrainedModel,
 )
+from .models.mpnet import (
+    MPNetForMaskedLM,
+    MPNetForMultipleChoice,
+    MPNetForQuestionAnswering,
+    MPNetForSequenceClassification,
+    MPNetForTokenClassification,
+    MPNetLayer,
+    MPNetModel,
+    MPNetPreTrainedModel,
+)
 from .models.mt5 import (
     MT5_PRETRAINED_MODEL_ARCHIVE_LIST,
     MT5EncoderModel,

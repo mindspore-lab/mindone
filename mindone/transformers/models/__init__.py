@@ -67,6 +67,7 @@ from . import (
     mpt,
     mvp,
     opt,
+    mpnet,
     paligemma,
     persimmon,
     phi,
