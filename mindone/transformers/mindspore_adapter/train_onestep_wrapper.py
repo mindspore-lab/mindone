@@ -210,7 +210,7 @@ class TrainOneStepWrapper(nn.Cell):
         if self.zero_stage != 0:
             self.zero_helper.split_params()
             if gradient_accumulation_steps > 1:
-                self.accumulated_grads = optimizer.parameters.clone(prefix="grad_accumulated_", init="zeros")
+                self.accumulated_grads = optimizer.parameters.clone(prefix="accum_grad", init="zeros")
 
     def do_optim(self, loss, grads):
         if self.accum_steps == 1:
