@@ -665,9 +665,7 @@ class IBertPreTrainedModel(PreTrainedModel):
                 initializer(Normal(self.config.initializer_range), module.weight.shape, module.weight.dtype)
             )
             if module.padding_idx is not None:
-                original_weight = module.weight.data.asnumpy()
-                original_weight[module.padding_idx] = 0
-                module.weight.set_data(ms.Tensor(original_weight))
+                module.weight[module.padding_idx] = 0
         elif isinstance(module, (IntLayerNorm, mint.nn.LayerNorm)):
             module.bias.set_data(initializer(Constant(0), module.bias.shape, module.bias.dtype))
             module.weight.set_data(initializer(Constant(1.0), module.weight.shape, module.weight.dtype))
@@ -930,7 +928,7 @@ class IBertForMaskedLM(IBertPreTrainedModel):
         >>> outputs = model(input_ids=ms.Tensor(inputs["input_ids"])).logits
         >>> # retrieve index of <mask>
         >>> mask_token_index = (ms.Tensor(inputs["input_ids"]) == tokenizer.mask_token_id)[0].nonzero(as_tuple=True)[0]
-        >>> predicted_token_id = logits[0, mask_token_index].argmax(-1)
+        >>> predicted_token_id = outputs[0, mask_token_index].argmax(-1)
         >>> print(tokenizer.decode(predicted_token_id))
         """
         return_dict = return_dict if return_dict is not None else self.config.use_return_dict

@@ -1,7 +1,7 @@
 # coding=utf-8
 # Copyright 2021 The I-BERT Authors (Sehoon Kim, Amir Gholami, Zhewei Yao,
 # Michael Mahoney, Kurt Keutzer - UC Berkeley) and The HuggingFace Inc. team.
-# Copyright (c) 20121, NVIDIA CORPORATION.  All rights reserved.
+# Copyright (c) 2021, NVIDIA CORPORATION.  All rights reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -520,7 +520,7 @@ class IntLayerNorm(ms.nn.Cell):
         scaling_factor = self.dim_sqrt / 2**30
 
         # scaling and shifting
-        bias = self.bias.value().clone() / (self.weight.value().clone())
+        bias = self.bias.value().clone() / (self.weight.value().clone() + self.eps)
         bias_int = floor_ste()(bias / scaling_factor)
 
         y_int = y_int + bias_int
