@@ -794,6 +794,7 @@ class InternVLCausalLMOutputWithPast(ModelOutput):
 )
 class InternVLForConditionalGeneration(InternVLPreTrainedModel, GenerationMixin):
     _checkpoint_conversion_mapping = {
+        "embed_tokens.weight$": "embed_tokens.embedding_table",
         "^language_model.model": "model.language_model",
         "^vision_tower": "model.vision_tower",
         "^multi_modal_projector": "model.multi_modal_projector",

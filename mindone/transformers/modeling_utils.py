@@ -2443,10 +2443,10 @@ class PreTrainedModel(nn.Cell, ModuleUtilsMixin, GenerationMixin, PushToHubMixin
             # 2) optional regex key mapping
             if key_mapping is not None:
                 for pattern, replacement in key_mapping.items():
-                    new_key, n_replace = re.subn(pattern, replacement, new_key)
+                    updated_key, n_replace = re.subn(pattern, replacement, new_key)
                     if n_replace > 0:
                         has_changed = True
-                        break
+                        new_key = updated_key
 
             if loading_task_model_from_base_state_dict:
                 new_key = ".".join([prefix, new_key])
