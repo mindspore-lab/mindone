@@ -5,7 +5,7 @@ from transformers import InternVLProcessor, GotOcr2ImageProcessor
 from mindone.transformers import InternVLForConditionalGeneration
 from PIL import Image
 
-MODEL_HUB = "OpenGVLab/InternVL3-1B"
+MODEL_HUB = "OpenGVLab/InternVL3-1B-hf"
 image = "demo.jpeg"
 
 # Load processor

@@ -2609,6 +2609,13 @@ class PreTrainedModel(nn.Cell, ModuleUtilsMixin, GenerationMixin, PushToHubMixin
             # Whole checkpoint
             state_dict = _convert_state_dict(model, state_dict, prefix)
 
+            if key_renaming_mapping:
+                state_dict = {
+                    key_renaming_mapping[k]: v
+                    for k, v in state_dict.items()
+                    if k in key_renaming_mapping
+                }
+
             mismatched_keys = _find_mismatched_keys(
                 state_dict,
                 model_state_dict,
@@ -2635,6 +2642,13 @@ class PreTrainedModel(nn.Cell, ModuleUtilsMixin, GenerationMixin, PushToHubMixin
             for shard_file in resolved_archive_file:
                 state_dict = load_state_dict(shard_file)
                 state_dict = _convert_state_dict(model, state_dict, prefix)
+
+                if key_renaming_mapping:
+                    state_dict = {
+                        key_renaming_mapping[k]: v
+                        for k, v in state_dict.items()
+                        if k in key_renaming_mapping
+                    }
 
                 # Mismatched keys contains tuples key/shape1/shape2 of weights in the checkpoint that have a shape not
                 # matching the weights in the model.
