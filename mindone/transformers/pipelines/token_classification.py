@@ -269,7 +269,8 @@ class TokenClassificationPipeline(ChunkPipeline):
 
     def _forward(self, model_inputs):
         # Forward
-        model_inputs = model_inputs[0]
+        # fixme this is caused by mindspore dataset create_iterator()
+        model_inputs = model_inputs["item"]
         special_tokens_mask = model_inputs.pop("special_tokens_mask")
         offset_mapping = model_inputs.pop("offset_mapping", None)
         sentence = model_inputs.pop("sentence")

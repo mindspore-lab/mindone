@@ -522,8 +522,11 @@ from .models.roberta import (
 )
 from .models.siglip import (
     SiglipForImageClassification,
+    SiglipImageProcessor,
+    SiglipImageProcessorFast,
     SiglipModel,
     SiglipPreTrainedModel,
+    SiglipProcessor,
     SiglipTextModel,
     SiglipVisionModel,
 )

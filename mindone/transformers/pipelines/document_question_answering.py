@@ -424,6 +424,8 @@ class DocumentQuestionAnsweringPipeline(ChunkPipeline):
                 }
 
     def _forward(self, model_inputs, **generate_kwargs):
+        # fixme this is caused by mindspore dataset create_iterator()
+        model_inputs = model_inputs["item"]
         model_inputs = model_inputs[0]
         p_mask = model_inputs.pop("p_mask", None)
         word_ids = model_inputs.pop("word_ids", None)
