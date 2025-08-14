@@ -1,7 +1,7 @@
 import time
 import mindspore as ms
 
-from transformers import InternVLProcessor
+from transformers import InternVLProcessor, GotOcr2ImageProcessor
 from mindone.transformers import InternVLForConditionalGeneration
 from PIL import Image
 
@@ -11,6 +11,9 @@ image = "demo.jpeg"
 # Load processor
 start = time.time()
 processor = InternVLProcessor.from_pretrained(MODEL_HUB)
+# GotOcr2ImageProcessorFast does not support return_tensors="np", use GotOcr2ImageProcessor instead
+image_processor = GotOcr2ImageProcessor.from_pretrained(MODEL_HUB)
+processor.image_processor = image_processor
 print(f"Loaded InternVLProcessor in {time.time()-start:.4f}s")
 
 # Load model with bfloat16 and eager attention
