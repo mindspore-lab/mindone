@@ -4,7 +4,7 @@ import numpy as np
 from opensora.acceleration.parallel_states import create_parallel_group
 from opensora.models.vae.vae import OpenSoraVAE_V1_2
 from opensora.utils.amp import auto_mixed_precision
-from opensora.utils.model_utils import WHITELIST_OPS
+from opensora.utils.model_utils import BLACKLIST_OPS
 
 import mindspore as ms
 import mindspore.nn as nn
@@ -58,7 +58,7 @@ def run_model(mode: int = 0, model_dtype: ms.dtype = ms.float16):
             non_dist_model,
             amp_level="O2",
             dtype=model_dtype,
-            custom_fp32_cells=WHITELIST_OPS,
+            custom_fp32_cells=BLACKLIST_OPS,
         )
     non_dist_model.set_train(False)
 
@@ -72,7 +72,7 @@ def run_model(mode: int = 0, model_dtype: ms.dtype = ms.float16):
             dist_model,
             amp_level="O2",
             dtype=model_dtype,
-            custom_fp32_cells=WHITELIST_OPS,
+            custom_fp32_cells=BLACKLIST_OPS,
         )
     dist_model.set_train(False)
 
