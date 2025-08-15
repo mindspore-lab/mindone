@@ -44,6 +44,24 @@ from ...modeling_utils import ALL_ATTENTION_FUNCTIONS, MSPreTrainedModel
 from ...processing_utils import Unpack
 from ..qwen2 import Qwen2Model
 
+def _infer_ms_dtype_from_config(config):
+    ms_dtype = getattr(config, "mindspore_dtype", None)
+    if ms_dtype is not None:
+        return ms_dtype
+
+    torch_dtype = getattr(config, "torch_dtype", None)
+    if torch_dtype is None:
+        return ms.float32
+    if isinstance(torch_dtype, str):
+        torch_dtype = torch_dtype.lower()
+        if torch_dtype in ("bfloat16", "bf16"):
+            return ms.bfloat16
+        if torch_dtype in ("float16", "fp16", "half"):
+            return ms.float16
+        if torch_dtype in ("float32", "fp32", "float"):
+            return ms.float32
+    return ms.float32
+
 class InternVLVisionRMSNorm(nn.Cell):
     def __init__(self, hidden_size, eps=1e-6):
         """
@@ -447,6 +465,7 @@ class InternVLVisionModel(InternVLVisionPreTrainedModel):
     def __init__(self, config: InternVLVisionConfig) -> None:
         super().__init__(config)
         self.config = config
+        self.param_dtype = _infer_ms_dtype_from_config(config)
 
         self.embeddings = InternVLVisionEmbeddings(config)
         self.encoder = InternVLVisionEncoder(config)
@@ -457,6 +476,9 @@ class InternVLVisionModel(InternVLVisionPreTrainedModel):
 
         # Initialize weights and apply final processing
         self.post_init()
+        for p in self.get_parameters():
+            if p.dtype != self.param_dtype:
+                p.set_dtype(self.param_dtype)
 
     def get_input_embeddings(self):
         return self.embeddings.patch_embeddings
@@ -561,11 +583,15 @@ class InternVLModel(InternVLPreTrainedModel):
 
     def __init__(self, config: InternVLConfig):
         super().__init__(config)
+        self.param_dtype = _infer_ms_dtype_from_config(config)
         self.vision_tower = InternVLVisionModel(config.vision_config)
 
         self.multi_modal_projector = InternVLMultiModalProjector(config)
         self.language_model = Qwen2Model(config.text_config)
         self.post_init()
+        for p in self.get_parameters():
+            if p.dtype != self.param_dtype:
+                p.set_dtype(self.param_dtype)
 
     def get_input_embeddings(self):
         return self.language_model.get_input_embeddings()
@@ -695,9 +721,10 @@ class InternVLModel(InternVLPreTrainedModel):
                 )
             image_features = image_features.to(inputs_embeds.dtype)
             # masked_scatter does not support bfloat16
+            inputs_embeds_dtype = inputs_embeds.dtype
             inputs_embeds = inputs_embeds.to(ms.float32)
             inputs_embeds = inputs_embeds.masked_scatter(special_image_mask, image_features.to(ms.float32))
-            inputs_embeds = inputs_embeds.to(ms.bfloat16)
+            inputs_embeds = inputs_embeds.to(inputs_embeds_dtype)
 
         outputs = self.language_model(
             attention_mask=attention_mask,
@@ -804,9 +831,13 @@ class InternVLForConditionalGeneration(InternVLPreTrainedModel, GenerationMixin)
 
     def __init__(self, config: InternVLConfig):
         super().__init__(config)
+        self.param_dtype = _infer_ms_dtype_from_config(config)
         self.model = InternVLModel(config)
         self.lm_head = mint.nn.Linear(config.text_config.hidden_size, config.text_config.vocab_size, bias=False)
         self.post_init()
+        for p in self.get_parameters():
+            if p.dtype != self.param_dtype:
+                p.set_dtype(self.param_dtype)
 
     def get_input_embeddings(self):
         return self.model.get_input_embeddings()
