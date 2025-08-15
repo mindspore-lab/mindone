@@ -14,6 +14,7 @@ The abstract from the [Qwen2.5-Omni Technical Report](https://arxiv.org/abs/2503
 |mindspore |	ascend driver | firmware | cann tookit/kernel|
 |--- | --- | --- | --- |
 |2.6.0 | 24.1.RC3 | 7.5.T11.0 | 8.1.RC1|
+|2.7.0 | 24.1.RC3 | 7.5.T11.0 | 8.1.RC1|
 
 ### Installation
 ```
@@ -404,11 +405,22 @@ Experiments are tested on ascend 910* with mindspore 2.6.0 pynative mode.
 *note：apply mixed precision, `AvgPool1d` uses fp32.
 
 ## Finetuning
-Experiments are tested on ascend 910* with mindspore 2.6.0 pynative mode.
+Experiments are tested on ascend 910* with pynative mode.
 
-|model| precision |amp\*| task | resolution| fa |card| batch size| max token| recompute |  s/step |
+- mindspore 2.6.0
+
+|model| precision |amp| task | resolution| fa |card| batch size| max token| recompute |  s/step |
 |---|---|---|---|---|---|---|---|---|---|---|
 |Qwen2.5-Omni-3B| fp32 |0| image VQA | 128x512 | ON | 1 | 1 | 4096 |OFF | 6.61 |
 |Qwen2.5-Omni-3B| fp32 |0| image VQA | 128x512 | ON | 2 | 1 | 4096 |OFF | 5.32 |
 
 *note：apply mixed precision, `AvgPool1d` uses fp32.
+
+- mindspore 2.7.0
+
+|model| precision |amp| task | resolution| fa |card| batch size| max token| recompute |  s/step |
+|---|---|---|---|---|---|---|---|---|---|---|
+|Qwen2.5-Omni-3B| bf16 |0| image VQA | 128x512 | ON | 1 | 1 | 4096 |OFF | 6.32 |
+
+
+*note：only mindspore >=2.7.0 supports bf16; apply mixed precision, `AvgPool1d` uses fp32.

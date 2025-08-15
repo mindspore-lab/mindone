@@ -2,7 +2,7 @@
 Qwen2.5-Omni model fine-tuning script using LoRA.
 
 This script with default values fine-tunes a pretrained Thinker model from  Qwen2.5-Omni-3B/Qwen2.5-Omni-7B,
-on the `linxy/LaTex_OCR` dataset ,
+on the `linxy/LaTex_OCR` dataset for handwritten LaTex image OCR.
 
 reference lora config: https://github.com/modelscope/ms-swift/pull/3613
 reference data processing: https://github.com/QwenLM/Qwen2.5-VL/blob/main/qwen-vl-finetune/qwenvl/data/data_qwen.py
@@ -33,8 +33,8 @@ from qwen_omni_utils import process_mm_info
 import mindspore as ms
 from mindspore import nn
 
-from mindone.diffusers._peft import LoraConfig, get_peft_model
 from mindone.diffusers.training_utils import cast_training_params
+from mindone.peft import LoraConfig, get_peft_model
 from mindone.transformers import Qwen2_5OmniForConditionalGeneration
 from mindone.transformers.mindspore_adapter import HF2MSDataset, TrainOneStepWrapper
 from mindone.transformers.models.qwen2_5_omni import Qwen2_5OmniProcessor
@@ -153,9 +153,8 @@ def main():
                 return_dict=False,
                 return_tensors="np",
                 padding=True,
-            )[
-                0
-            ]  # only ids
+            )[0]
+            # only ids
         else:
             input_full_ids = inputs["input_ids"][0]
         prompt_ids = processor.apply_chat_template(
@@ -165,9 +164,8 @@ def main():
             return_dict=False,
             return_tensors="np",
             padding=True,
-        )[
-            0
-        ]  # only ids
+        )[0]
+        # only ids
         labels = np.ones_like(inputs["input_ids"]) * IGNORE_INDEX
         response_start_id = inputs["input_ids"].shape[1] - len(input_full_ids) + len(prompt_ids)
         labels[..., response_start_id:] = inputs["input_ids"][..., response_start_id:]
@@ -244,7 +242,7 @@ def main():
     if args.fp16 or args.bf16:
         cast_training_params(model, dtype=ms.float32)
     model.print_trainable_parameters()
-    # print(model.target_module_names)
+    # print(model.targeted_module_names)
 
     # 2.3. optimizer
     if args.zero_stage == 0:

@@ -1,11 +1,8 @@
 """
 Qwen2.5-Omni model fine-tuning script using LoRA.
 
-This script with default values fine-tunes a pretrained Talker model from  Qwen2.5-Omni-3B/Qwen2.5-Omni-7B,
-on the `linxy/LaTex_OCR` dataset ,
-
-reference lora config: https://github.com/modelscope/ms-swift/pull/3613
-reference data processing: https://github.com/QwenLM/Qwen2.5-VL/blob/main/qwen-vl-finetune/qwenvl/data/data_qwen.py
+This script with default values fine-tunes a pretrained Thinker model from  Qwen2.5-Omni-3B/Qwen2.5-Omni-7B,
+on the `mozilla-foundation/common_voice_11_0` dataset for audio-to-text conversion.
 
 Usage:
 ```
@@ -33,8 +30,8 @@ from qwen_omni_utils import process_mm_info
 import mindspore as ms
 from mindspore import nn
 
-from mindone.diffusers._peft import LoraConfig, get_peft_model
 from mindone.diffusers.training_utils import cast_training_params
+from mindone.peft import LoraConfig, get_peft_model
 from mindone.transformers import Qwen2_5OmniForConditionalGeneration
 from mindone.transformers.mindspore_adapter import HF2MSDataset, TrainOneStepWrapper
 from mindone.transformers.models.qwen2_5_omni import Qwen2_5OmniProcessor
@@ -50,7 +47,9 @@ def freeze_params(m: nn.Cell):
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--model_path", type=str, default="Qwen/Qwen2.5-Omni-3B", help="pretrained model name")
-    parser.add_argument("--dataset_path", type=str, default="mozilla-foundation/common_voice_11_0", help="dataset path.")
+    parser.add_argument(
+        "--dataset_path", type=str, default="mozilla-foundation/common_voice_11_0", help="dataset path."
+    )
     parser.add_argument("--output_dir", type=str, default="./outputs/lora", help="output directory for checkpoints")
     parser.add_argument("--per_device_train_batch_size", type=int, default=1, help="batch size per device for training")
     parser.add_argument("--num_train_epochs", type=int, default=1, help="number of training epochs")
@@ -58,7 +57,6 @@ def main():
     parser.add_argument(
         "--do_eval", action="store_true", default=False, help="whether to run evaluation after training"
     )
-    parser.add_argument("--max_length", type=int, default=4096, help="fixed token length for training")
     parser.add_argument("--enable_flash_attention", action="store_true", default=False, help="enable flash attention")
     parser.add_argument(
         "--zero_stage", type=int, default=0, choices=[0, 1, 2], help="stage of ZeRO optimizer parallelism"
@@ -72,7 +70,6 @@ def main():
     parser.add_argument(
         "--is_distribute", type=ast.literal_eval, default=False, help="whether or not to run distribute"
     )
-    parser.add_argument("--resume", type=str, default=None, help="lora path to resume training from a checkpoint")
     parser.add_argument("--lora_rank", type=int, default=8, help="The dimension of the LoRA update matrices")
     parser.add_argument("--lora_alpha", type=int, default=16, help="The scaling factor alpha of the LoRA")
     parser.add_argument("--learning_rate", type=float, default=1e-5, help="learning rate for training")
@@ -82,7 +79,7 @@ def main():
         default="You are Qwen, a virtual human developed by the Qwen Team, Alibaba Group, "
         "capable of perceiving auditory and visual inputs, as well as generating text and speech.",
     )
-    parser.add_argument("--prompt", type=str, default="Please convert the audio to text")
+    parser.add_argument("--prompt", type=str, default="Please convert the audio to traditional Chinese text")
     args = parser.parse_args()
 
     # 0. set mindspore context
@@ -104,16 +101,19 @@ def main():
 
     # 1. create dataset
     dataset = load_dataset(args.dataset_path, name="yue", trust_remote_code=True)
-    dataset["train"] = dataset["train"].shuffle(seed=42).select(range(1000))
-    dataset["test"] = dataset["test"].select(range(1000))
+    dataset.pop("validation")
+    dataset.pop("other")
+    dataset.pop("invalidated")
+    dataset["train"] = dataset["train"].shuffle(seed=42).select(range(100))
+    dataset["test"] = dataset["test"].select(range(100))
 
     system_prompt = args.system_prompt
     prompt = args.prompt
     processor = Qwen2_5OmniProcessor.from_pretrained(args.model_path)
 
     def process_function(examples):
+        examples.pop("audio")
         answer = examples["sentence"]
-        # audio = examples["audio"]
         audio_path = examples["path"]
         conversations = [
             {"role": "system", "content": [{"type": "text", "text": system_prompt}]},
@@ -136,9 +136,8 @@ def main():
             return_tensors="np",
             # kwargs to be passed to `Qwen2_5OmniProcessor`
             padding=input_padding,
-            max_length=args.max_length,
             use_audio_in_video=False,
-        )  # input_ids, attention_mask, pixel_values, image_grid_thw
+        )  # input_ids, attention_mask, feature_attention_mask, input_features
 
         # Prepare the labels, keep response part as labels
         if input_padding == "max_length":
@@ -149,7 +148,8 @@ def main():
                 return_dict=False,
                 return_tensors="np",
                 padding=True,
-            )[0] # only ids
+            )[0]
+            # only ids
         else:
             input_full_ids = inputs["input_ids"][0]
         prompt_ids = processor.apply_chat_template(
@@ -159,7 +159,8 @@ def main():
             return_dict=False,
             return_tensors="np",
             padding=True,
-        )[0] # only ids
+        )[0]
+        # only ids
         labels = np.ones_like(inputs["input_ids"]) * IGNORE_INDEX
         response_start_id = inputs["input_ids"].shape[1] - len(input_full_ids) + len(prompt_ids)
         labels[..., response_start_id:] = inputs["input_ids"][..., response_start_id:]
@@ -170,9 +171,6 @@ def main():
             else:
                 examples[k] = v  # pixel_values
         examples["labels"] = labels[0]
-        if not args.do_eval:
-            examples.pop("text")  # remove text from examples
-            examples.pop("image")  # remove image from examples
 
         return examples
 
@@ -226,7 +224,7 @@ def main():
     if args.fp16 or args.bf16:
         cast_training_params(model, dtype=ms.float32)
     model.print_trainable_parameters()
-    # print(model.target_module_names)
+    # print(model.targeted_module_names)
 
     # 2.3. optimizer
     if args.zero_stage == 0:
@@ -266,14 +264,14 @@ def main():
         # convert dict to tuple
         tuple_inputs = (
             ms.Tensor(batch["input_ids"], ms.int32),
-            ms.Tensor(batch["input_features"],  parent_model.dtype),
+            ms.Tensor(batch["input_features"], parent_model.dtype),
             None,
             None,
             None,
             None,
             ms.Tensor(batch["attention_mask"], ms.int32),
             ms.Tensor(batch["feature_attention_mask"], ms.int32),
-            ms.Tensor(batch["audio_feature_lengths"], ms.int32),
+            None,
             None,
             None,
             None,

@@ -55,6 +55,12 @@ def parse_args():
         help="Vision prompt for VQA",
     )
     parser.add_argument(
+        "--audio_path",
+        type=str,
+        default=None,
+        help="Audio prompt for QA",
+    )
+    parser.add_argument(
         "--prompt",
         type=str,
         default="Please convert the image content into LaTex",
@@ -114,6 +120,11 @@ def main():
                 "image": medium_path,
                 "max_pixels": 360 * 420,
             }
+        elif medium_type == "audio":
+            medium = {
+                "type": medium_type,
+                "audio": medium_path,
+            }
         if medium is not None:
             messages[1]["content"].append(medium)
 
@@ -142,34 +153,68 @@ def main():
         text = processor.batch_decode(text_ids, skip_special_tokens=True, clean_up_tokenization_spaces=False)[0]
         return text
 
-    if args.image_path is None:
-        with open("latex_ocr_lora_res.txt", "a") as f:
-            f.write("*" * 50 + "\n")
-            f.write(f"Evaluate finetuned model with LoRA from {args.lora_path}\n")
-
-        dataset = load_dataset(args.dataset_path, name="human_handwrite", split="test")
-        prompt = args.prompt
-        correct = 0
-        for idx, example in enumerate(dataset):
-            medium = example["image"].convert("RGB")  # PIL
-            answer = example["text"]
-            response = inference(medium, prompt, medium_type="image", use_audio_in_video=False)
-            print(f"Response #{idx}: {response}\n")
-
+    if (args.image_path is None) and (args.audio_path is None):
+        if args.dataset_path.endswith("Latex_OCR"):
             with open("latex_ocr_lora_res.txt", "a") as f:
-                f.write(f"Response #{idx}: {response}\n")
-                if response != answer:
-                    f.write(f"WRONG! GT #{idx}: {answer}\n")
-                else:
-                    correct += 1
-        with open("latex_ocr_lora_res.txt", "a") as f:
-            f.write(f"Accuracy: {correct}/{len(dataset)} = {correct/len(dataset):.2%}\n")
-            print(f"Accuracy: {correct}/{len(dataset)} = {correct/len(dataset):.2%}\n")
+                f.write("*" * 50 + "\n")
+                f.write(f"Evaluate finetuned model with LoRA from {args.lora_path}\n")
+
+            dataset = load_dataset(args.dataset_path, name="human_handwrite", split="test")
+            prompt = args.prompt
+            correct = 0
+            for idx, example in enumerate(dataset):
+                medium = example["image"].convert("RGB")  # PIL
+                answer = example["text"]
+                response = inference(medium, prompt, medium_type="image", use_audio_in_video=False)
+                print(f"Response #{idx}: {response}\n")
+
+                with open("latex_ocr_lora_res.txt", "a") as f:
+                    f.write(f"Response #{idx}: {response}\n")
+                    if response != answer:
+                        f.write(f"WRONG! GT #{idx}: {answer}\n")
+                    else:
+                        correct += 1
+            with open("latex_ocr_lora_res.txt", "a") as f:
+                f.write(f"Accuracy: {correct}/{len(dataset)} = {correct/len(dataset):.2%}\n")
+                print(f"Accuracy: {correct}/{len(dataset)} = {correct/len(dataset):.2%}\n")
+
+        elif args.dataset_path.endswith("common_voice_11_0"):
+            with open("asr_lora_res.txt", "a") as f:
+                f.write("*" * 50 + "\n")
+                f.write(f"Evaluate finetuned model with LoRA from {args.lora_path}\n")
+
+            dataset = load_dataset(args.dataset_path, name="yue", split="test", trust_remote_code=True)
+            dataset = dataset.select(range(100))  # limit to 100 samples for quick testing
+            prompt = "Please convert the audio to traditional Chinese text"
+            correct = 0
+            for idx, example in enumerate(dataset):
+                medium = example["image"].convert("RGB")  # PIL
+                answer = example["text"]
+                response = inference(medium, prompt, medium_type="image", use_audio_in_video=False)
+                print(f"Response #{idx}: {response}\n")
+
+                with open("asr_lora_res.txt", "a") as f:
+                    f.write(f"Response #{idx}: {response}\n")
+                    if response != answer:
+                        f.write(f"WRONG! GT #{idx}: {answer}\n")
+                    else:
+                        correct += 1
+            with open("asr_lora_res.txt", "a") as f:
+                f.write(f"Accuracy: {correct}/{len(dataset)} = {correct/len(dataset):.2%}\n")
+                print(f"Accuracy: {correct}/{len(dataset)} = {correct/len(dataset):.2%}\n")
+        else:
+            raise ValueError(f"Unsupported dataset {args.dataset_path} for inference.")
     else:
-        medium_path = args.image_path
-        prompt = args.prompt
-        response = inference(medium_path, prompt, medium_type="image", use_audio_in_video=False)
-        print(f"Response: {response}\n")
+        if args.image_path is not None:
+            medium_path = args.image_path
+            prompt = args.prompt
+            response = inference(medium_path, prompt, medium_type="image", use_audio_in_video=False)
+            print(f"Response: {response}\n")
+        else:
+            medium_path = args.audio_path
+            prompt = args.prompt
+            response = inference(medium_path, prompt, medium_type="audio", use_audio_in_video=True)
+            print(f"Response: {response}\n")
 
 
 if __name__ == "__main__":
