@@ -1,5 +1,8 @@
 # Copyright 2025 The Qwen-Image Team, Wan Team and The HuggingFace Team. All rights reserved.
 #
+# This code is adapted from https://github.com/huggingface/diffusers
+# with modifications to run diffusers on mindspore.
+#
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -20,15 +23,19 @@
 
 from typing import List, Optional, Tuple, Union
 
-import torch
-import torch.nn as nn
-import torch.nn.functional as F
-import torch.utils.checkpoint
+import numpy as np
+
+import mindspore as ms
+from mindspore import mint, nn, ops
+# import torch
+# import torch.nn as nn
+# import torch.nn.functional as F
+# import torch.utils.checkpoint
 
 from ...configuration_utils import ConfigMixin, register_to_config
 from ...loaders import FromOriginalModelMixin
 from ...utils import logging
-from ...utils.accelerate_utils import apply_forward_hook
+# from ...utils.accelerate_utils import apply_forward_hook
 from ..activations import get_activation
 from ..modeling_outputs import AutoencoderKLOutput
 from ..modeling_utils import ModelMixin
@@ -40,7 +47,7 @@ logger = logging.get_logger(__name__)  # pylint: disable=invalid-name
 CACHE_T = 2
 
 
-class QwenImageCausalConv3d(nn.Conv3d):
+class QwenImageCausalConv3d(mint.nn.Conv3d):
     r"""
     A custom 3D causal convolution layer with feature caching support.
 
@@ -75,17 +82,17 @@ class QwenImageCausalConv3d(nn.Conv3d):
         self._padding = (self.padding[2], self.padding[2], self.padding[1], self.padding[1], 2 * self.padding[0], 0)
         self.padding = (0, 0, 0)
 
-    def forward(self, x, cache_x=None):
+    def construct(self, x, cache_x=None):
         padding = list(self._padding)
         if cache_x is not None and self._padding[4] > 0:
             cache_x = cache_x.to(x.device)
-            x = torch.cat([cache_x, x], dim=2)
+            x = mint.cat([cache_x, x], dim=2)
             padding[4] -= cache_x.shape[2]
-        x = F.pad(x, padding)
-        return super().forward(x)
+        x = mint.nn.functional.pad(x, padding)
+        return super().construct(x)
 
 
-class QwenImageRMS_norm(nn.Module):
+class QwenImageRMS_norm(nn.Cell):
     r"""
     A custom RMS normalization layer.
 
@@ -104,11 +111,11 @@ class QwenImageRMS_norm(nn.Module):
 
         self.channel_first = channel_first
         self.scale = dim**0.5
-        self.gamma = nn.Parameter(torch.ones(shape))
-        self.bias = nn.Parameter(torch.zeros(shape)) if bias else 0.0
+        self.gamma = nn.Parameter(mint.ones(shape))
+        self.bias = nn.Parameter(mint.zeros(shape)) if bias else 0.0
 
-    def forward(self, x):
-        return F.normalize(x, dim=(1 if self.channel_first else -1)) * self.scale * self.gamma + self.bias
+    def construct(self, x):
+        return mint.nn.functional.normalize(x, dim=(1 if self.channel_first else -1)) * self.scale * self.gamma + self.bias
 
 
 class QwenImageUpsample(nn.Upsample):
@@ -116,17 +123,17 @@ class QwenImageUpsample(nn.Upsample):
     Perform upsampling while ensuring the output tensor has the same data type as the input.
 
     Args:
-        x (torch.Tensor): Input tensor to be upsampled.
+        x (ms.Tensor): Input tensor to be upsampled.
 
     Returns:
-        torch.Tensor: Upsampled tensor with the same data type as the input.
+        ms.Tensor: Upsampled tensor with the same data type as the input.
     """
 
-    def forward(self, x):
-        return super().forward(x.float()).type_as(x)
+    def construct(self, x):
+        return super().construct(x.float()).type_as(x)
 
 
-class QwenImageResample(nn.Module):
+class QwenImageResample(nn.Cell):
     r"""
     A custom resampling module for 2D and 3D data.
 
@@ -149,25 +156,25 @@ class QwenImageResample(nn.Module):
         if mode == "upsample2d":
             self.resample = nn.Sequential(
                 QwenImageUpsample(scale_factor=(2.0, 2.0), mode="nearest-exact"),
-                nn.Conv2d(dim, dim // 2, 3, padding=1),
+                mint.nn.Conv2d(dim, dim // 2, 3, padding=1),
             )
         elif mode == "upsample3d":
             self.resample = nn.Sequential(
                 QwenImageUpsample(scale_factor=(2.0, 2.0), mode="nearest-exact"),
-                nn.Conv2d(dim, dim // 2, 3, padding=1),
+                mint.nn.Conv2d(dim, dim // 2, 3, padding=1),
             )
             self.time_conv = QwenImageCausalConv3d(dim, dim * 2, (3, 1, 1), padding=(1, 0, 0))
 
         elif mode == "downsample2d":
-            self.resample = nn.Sequential(nn.ZeroPad2d((0, 1, 0, 1)), nn.Conv2d(dim, dim, 3, stride=(2, 2)))
+            self.resample = nn.Sequential(mint.nn.ZeroPad2d((0, 1, 0, 1)), mint.nn.Conv2d(dim, dim, 3, stride=(2, 2)))
         elif mode == "downsample3d":
-            self.resample = nn.Sequential(nn.ZeroPad2d((0, 1, 0, 1)), nn.Conv2d(dim, dim, 3, stride=(2, 2)))
+            self.resample = nn.Sequential(mint.nn.ZeroPad2d((0, 1, 0, 1)), mint.nn.Conv2d(dim, dim, 3, stride=(2, 2)))
             self.time_conv = QwenImageCausalConv3d(dim, dim, (3, 1, 1), stride=(2, 1, 1), padding=(0, 0, 0))
 
         else:
-            self.resample = nn.Identity()
+            self.resample = mint.nn.Identity()
 
-    def forward(self, x, feat_cache=None, feat_idx=[0]):
+    def construct(self, x, feat_cache=None, feat_idx=[0]):
         b, c, t, h, w = x.size()
         if self.mode == "upsample3d":
             if feat_cache is not None:
@@ -179,11 +186,11 @@ class QwenImageResample(nn.Module):
                     cache_x = x[:, :, -CACHE_T:, :, :].clone()
                     if cache_x.shape[2] < 2 and feat_cache[idx] is not None and feat_cache[idx] != "Rep":
                         # cache last frame of last two chunk
-                        cache_x = torch.cat(
+                        cache_x = mint.cat(
                             [feat_cache[idx][:, :, -1, :, :].unsqueeze(2).to(cache_x.device), cache_x], dim=2
                         )
                     if cache_x.shape[2] < 2 and feat_cache[idx] is not None and feat_cache[idx] == "Rep":
-                        cache_x = torch.cat([torch.zeros_like(cache_x).to(cache_x.device), cache_x], dim=2)
+                        cache_x = mint.cat([mint.zeros_like(cache_x).to(cache_x.device), cache_x], dim=2)
                     if feat_cache[idx] == "Rep":
                         x = self.time_conv(x)
                     else:
@@ -192,7 +199,7 @@ class QwenImageResample(nn.Module):
                     feat_idx[0] += 1
 
                     x = x.reshape(b, 2, c, t, h, w)
-                    x = torch.stack((x[:, 0, :, :, :, :], x[:, 1, :, :, :, :]), 3)
+                    x = mint.stack((x[:, 0, :, :, :, :], x[:, 1, :, :, :, :]), 3)
                     x = x.reshape(b, c, t * 2, h, w)
         t = x.shape[2]
         x = x.permute(0, 2, 1, 3, 4).reshape(b * t, c, h, w)
@@ -207,13 +214,13 @@ class QwenImageResample(nn.Module):
                     feat_idx[0] += 1
                 else:
                     cache_x = x[:, :, -1:, :, :].clone()
-                    x = self.time_conv(torch.cat([feat_cache[idx][:, :, -1:, :, :], x], 2))
+                    x = self.time_conv(mint.cat([feat_cache[idx][:, :, -1:, :, :], x], 2))
                     feat_cache[idx] = cache_x
                     feat_idx[0] += 1
         return x
 
 
-class QwenImageResidualBlock(nn.Module):
+class QwenImageResidualBlock(nn.Cell):
     r"""
     A custom residual block module.
 
@@ -242,9 +249,9 @@ class QwenImageResidualBlock(nn.Module):
         self.norm2 = QwenImageRMS_norm(out_dim, images=False)
         self.dropout = nn.Dropout(dropout)
         self.conv2 = QwenImageCausalConv3d(out_dim, out_dim, 3, padding=1)
-        self.conv_shortcut = QwenImageCausalConv3d(in_dim, out_dim, 1) if in_dim != out_dim else nn.Identity()
+        self.conv_shortcut = QwenImageCausalConv3d(in_dim, out_dim, 1) if in_dim != out_dim else mint.nn.Identity()
 
-    def forward(self, x, feat_cache=None, feat_idx=[0]):
+    def construct(self, x, feat_cache=None, feat_idx=[0]):
         # Apply shortcut connection
         h = self.conv_shortcut(x)
 
@@ -256,7 +263,7 @@ class QwenImageResidualBlock(nn.Module):
             idx = feat_idx[0]
             cache_x = x[:, :, -CACHE_T:, :, :].clone()
             if cache_x.shape[2] < 2 and feat_cache[idx] is not None:
-                cache_x = torch.cat([feat_cache[idx][:, :, -1, :, :].unsqueeze(2).to(cache_x.device), cache_x], dim=2)
+                cache_x = mint.cat([feat_cache[idx][:, :, -1, :, :].unsqueeze(2), cache_x], dim=2)
 
             x = self.conv1(x, feat_cache[idx])
             feat_cache[idx] = cache_x
@@ -275,7 +282,7 @@ class QwenImageResidualBlock(nn.Module):
             idx = feat_idx[0]
             cache_x = x[:, :, -CACHE_T:, :, :].clone()
             if cache_x.shape[2] < 2 and feat_cache[idx] is not None:
-                cache_x = torch.cat([feat_cache[idx][:, :, -1, :, :].unsqueeze(2).to(cache_x.device), cache_x], dim=2)
+                cache_x = mint.cat([feat_cache[idx][:, :, -1, :, :].unsqueeze(2), cache_x], dim=2)
 
             x = self.conv2(x, feat_cache[idx])
             feat_cache[idx] = cache_x
@@ -287,7 +294,7 @@ class QwenImageResidualBlock(nn.Module):
         return x + h
 
 
-class QwenImageAttentionBlock(nn.Module):
+class QwenImageAttentionBlock(nn.Cell):
     r"""
     Causal self-attention with a single head.
 
@@ -301,10 +308,10 @@ class QwenImageAttentionBlock(nn.Module):
 
         # layers
         self.norm = QwenImageRMS_norm(dim)
-        self.to_qkv = nn.Conv2d(dim, dim * 3, 1)
-        self.proj = nn.Conv2d(dim, dim, 1)
+        self.to_qkv = mint.nn.Conv2d(dim, dim * 3, 1)
+        self.proj = mint.nn.Conv2d(dim, dim, 1)
 
-    def forward(self, x):
+    def construct(self, x):
         identity = x
         batch_size, channels, time, height, width = x.size()
 
@@ -318,7 +325,10 @@ class QwenImageAttentionBlock(nn.Module):
         q, k, v = qkv.chunk(3, dim=-1)
 
         # apply attention
-        x = F.scaled_dot_product_attention(q, k, v)
+        # x = F.scaled_dot_product_attention(q, k, v)
+        x = ops.operation.nn_ops.FlashAttentionScore(1, input_layout="BNSD")(
+            q.to(ms.float16), k.to(ms.float16), v.to(ms.float16), None, None, None, None
+        )[3].to(q.dtype)
 
         x = x.squeeze(1).permute(0, 2, 1).reshape(batch_size * time, channels, height, width)
 
@@ -332,7 +342,7 @@ class QwenImageAttentionBlock(nn.Module):
         return x + identity
 
 
-class QwenImageMidBlock(nn.Module):
+class QwenImageMidBlock(nn.Cell):
     """
     Middle block for QwenImageVAE encoder and decoder.
 
@@ -352,12 +362,12 @@ class QwenImageMidBlock(nn.Module):
         for _ in range(num_layers):
             attentions.append(QwenImageAttentionBlock(dim))
             resnets.append(QwenImageResidualBlock(dim, dim, dropout, non_linearity))
-        self.attentions = nn.ModuleList(attentions)
-        self.resnets = nn.ModuleList(resnets)
+        self.attentions = nn.CellList(attentions)
+        self.resnets = nn.CellList(resnets)
 
         self.gradient_checkpointing = False
 
-    def forward(self, x, feat_cache=None, feat_idx=[0]):
+    def construct(self, x, feat_cache=None, feat_idx=[0]):
         # First residual block
         x = self.resnets[0](x, feat_cache, feat_idx)
 
@@ -371,7 +381,7 @@ class QwenImageMidBlock(nn.Module):
         return x
 
 
-class QwenImageEncoder3d(nn.Module):
+class QwenImageEncoder3d(nn.Cell):
     r"""
     A 3D encoder module.
 
@@ -414,7 +424,7 @@ class QwenImageEncoder3d(nn.Module):
         self.conv_in = QwenImageCausalConv3d(3, dims[0], 3, padding=1)
 
         # downsample blocks
-        self.down_blocks = nn.ModuleList([])
+        self.down_blocks = nn.CellList([])
         for i, (in_dim, out_dim) in enumerate(zip(dims[:-1], dims[1:])):
             # residual (+attention) blocks
             for _ in range(num_res_blocks):
@@ -438,13 +448,13 @@ class QwenImageEncoder3d(nn.Module):
 
         self.gradient_checkpointing = False
 
-    def forward(self, x, feat_cache=None, feat_idx=[0]):
+    def construct(self, x, feat_cache=None, feat_idx=[0]):
         if feat_cache is not None:
             idx = feat_idx[0]
             cache_x = x[:, :, -CACHE_T:, :, :].clone()
             if cache_x.shape[2] < 2 and feat_cache[idx] is not None:
                 # cache last frame of last two chunk
-                cache_x = torch.cat([feat_cache[idx][:, :, -1, :, :].unsqueeze(2).to(cache_x.device), cache_x], dim=2)
+                cache_x = mint.cat([feat_cache[idx][:, :, -1, :, :].unsqueeze(2).to(cache_x.device), cache_x], dim=2)
             x = self.conv_in(x, feat_cache[idx])
             feat_cache[idx] = cache_x
             feat_idx[0] += 1
@@ -469,7 +479,7 @@ class QwenImageEncoder3d(nn.Module):
             cache_x = x[:, :, -CACHE_T:, :, :].clone()
             if cache_x.shape[2] < 2 and feat_cache[idx] is not None:
                 # cache last frame of last two chunk
-                cache_x = torch.cat([feat_cache[idx][:, :, -1, :, :].unsqueeze(2).to(cache_x.device), cache_x], dim=2)
+                cache_x = mint.cat([feat_cache[idx][:, :, -1, :, :].unsqueeze(2), cache_x], dim=2)
             x = self.conv_out(x, feat_cache[idx])
             feat_cache[idx] = cache_x
             feat_idx[0] += 1
@@ -478,7 +488,7 @@ class QwenImageEncoder3d(nn.Module):
         return x
 
 
-class QwenImageUpBlock(nn.Module):
+class QwenImageUpBlock(nn.Cell):
     """
     A block that handles upsampling for the QwenImageVAE decoder.
 
@@ -512,26 +522,26 @@ class QwenImageUpBlock(nn.Module):
             resnets.append(QwenImageResidualBlock(current_dim, out_dim, dropout, non_linearity))
             current_dim = out_dim
 
-        self.resnets = nn.ModuleList(resnets)
+        self.resnets = nn.CellList(resnets)
 
         # Add upsampling layer if needed
         self.upsamplers = None
         if upsample_mode is not None:
-            self.upsamplers = nn.ModuleList([QwenImageResample(out_dim, mode=upsample_mode)])
+            self.upsamplers = nn.CellList([QwenImageResample(out_dim, mode=upsample_mode)])
 
         self.gradient_checkpointing = False
 
-    def forward(self, x, feat_cache=None, feat_idx=[0]):
+    def construct(self, x, feat_cache=None, feat_idx=[0]):
         """
         Forward pass through the upsampling block.
 
         Args:
-            x (torch.Tensor): Input tensor
+            x (ms.Tensor): Input tensor
             feat_cache (list, optional): Feature cache for causal convolutions
             feat_idx (list, optional): Feature index for cache management
 
         Returns:
-            torch.Tensor: Output tensor
+            ms.Tensor: Output tensor
         """
         for resnet in self.resnets:
             if feat_cache is not None:
@@ -547,7 +557,7 @@ class QwenImageUpBlock(nn.Module):
         return x
 
 
-class QwenImageDecoder3d(nn.Module):
+class QwenImageDecoder3d(nn.Cell):
     r"""
     A 3D decoder module.
 
@@ -594,7 +604,7 @@ class QwenImageDecoder3d(nn.Module):
         self.mid_block = QwenImageMidBlock(dims[0], dropout, non_linearity, num_layers=1)
 
         # upsample blocks
-        self.up_blocks = nn.ModuleList([])
+        self.up_blocks = nn.CellList([])
         for i, (in_dim, out_dim) in enumerate(zip(dims[:-1], dims[1:])):
             # residual (+attention) blocks
             if i > 0:
@@ -626,14 +636,14 @@ class QwenImageDecoder3d(nn.Module):
 
         self.gradient_checkpointing = False
 
-    def forward(self, x, feat_cache=None, feat_idx=[0]):
+    def construct(self, x, feat_cache=None, feat_idx=[0]):
         ## conv1
         if feat_cache is not None:
             idx = feat_idx[0]
             cache_x = x[:, :, -CACHE_T:, :, :].clone()
             if cache_x.shape[2] < 2 and feat_cache[idx] is not None:
                 # cache last frame of last two chunk
-                cache_x = torch.cat([feat_cache[idx][:, :, -1, :, :].unsqueeze(2).to(cache_x.device), cache_x], dim=2)
+                cache_x = mint.cat([feat_cache[idx][:, :, -1, :, :].unsqueeze(2), cache_x], dim=2)
             x = self.conv_in(x, feat_cache[idx])
             feat_cache[idx] = cache_x
             feat_idx[0] += 1
@@ -655,7 +665,7 @@ class QwenImageDecoder3d(nn.Module):
             cache_x = x[:, :, -CACHE_T:, :, :].clone()
             if cache_x.shape[2] < 2 and feat_cache[idx] is not None:
                 # cache last frame of last two chunk
-                cache_x = torch.cat([feat_cache[idx][:, :, -1, :, :].unsqueeze(2).to(cache_x.device), cache_x], dim=2)
+                cache_x = mint.cat([feat_cache[idx][:, :, -1, :, :].unsqueeze(2), cache_x], dim=2)
             x = self.conv_out(x, feat_cache[idx])
             feat_cache[idx] = cache_x
             feat_idx[0] += 1
@@ -801,7 +811,7 @@ class AutoencoderKLQwenImage(ModelMixin, ConfigMixin, FromOriginalModelMixin):
         self._enc_conv_idx = [0]
         self._enc_feat_map = [None] * self._enc_conv_num
 
-    def _encode(self, x: torch.Tensor):
+    def _encode(self, x: ms.Tensor):
         _, _, num_frame, height, width = x.shape
 
         if self.use_tiling and (width > self.tile_sample_min_width or height > self.tile_sample_min_height):
@@ -819,21 +829,21 @@ class AutoencoderKLQwenImage(ModelMixin, ConfigMixin, FromOriginalModelMixin):
                     feat_cache=self._enc_feat_map,
                     feat_idx=self._enc_conv_idx,
                 )
-                out = torch.cat([out, out_], 2)
+                out = mint.cat([out, out_], 2)
 
         enc = self.quant_conv(out)
         self.clear_cache()
         return enc
 
-    @apply_forward_hook
+    # @apply_forward_hook
     def encode(
-        self, x: torch.Tensor, return_dict: bool = True
+        self, x: ms.Tensor, return_dict: bool = True
     ) -> Union[AutoencoderKLOutput, Tuple[DiagonalGaussianDistribution]]:
         r"""
         Encode a batch of images into latents.
 
         Args:
-            x (`torch.Tensor`): Input batch of images.
+            x (`ms.Tensor`): Input batch of images.
             return_dict (`bool`, *optional*, defaults to `True`):
                 Whether to return a [`~models.autoencoder_kl.AutoencoderKLOutput`] instead of a plain tuple.
 
@@ -843,7 +853,7 @@ class AutoencoderKLQwenImage(ModelMixin, ConfigMixin, FromOriginalModelMixin):
         """
         if self.use_slicing and x.shape[0] > 1:
             encoded_slices = [self._encode(x_slice) for x_slice in x.split(1)]
-            h = torch.cat(encoded_slices)
+            h = mint.cat(encoded_slices)
         else:
             h = self._encode(x)
         posterior = DiagonalGaussianDistribution(h)
@@ -852,7 +862,7 @@ class AutoencoderKLQwenImage(ModelMixin, ConfigMixin, FromOriginalModelMixin):
             return (posterior,)
         return AutoencoderKLOutput(latent_dist=posterior)
 
-    def _decode(self, z: torch.Tensor, return_dict: bool = True):
+    def _decode(self, z: ms.Tensor, return_dict: bool = True):
         _, _, num_frame, height, width = z.shape
         tile_latent_min_height = self.tile_sample_min_height // self.spatial_compression_ratio
         tile_latent_min_width = self.tile_sample_min_width // self.spatial_compression_ratio
@@ -868,22 +878,22 @@ class AutoencoderKLQwenImage(ModelMixin, ConfigMixin, FromOriginalModelMixin):
                 out = self.decoder(x[:, :, i : i + 1, :, :], feat_cache=self._feat_map, feat_idx=self._conv_idx)
             else:
                 out_ = self.decoder(x[:, :, i : i + 1, :, :], feat_cache=self._feat_map, feat_idx=self._conv_idx)
-                out = torch.cat([out, out_], 2)
+                out = mint.cat([out, out_], 2)
 
-        out = torch.clamp(out, min=-1.0, max=1.0)
+        out = mint.clamp(out, min=-1.0, max=1.0)
         self.clear_cache()
         if not return_dict:
             return (out,)
 
         return DecoderOutput(sample=out)
 
-    @apply_forward_hook
-    def decode(self, z: torch.Tensor, return_dict: bool = True) -> Union[DecoderOutput, torch.Tensor]:
+    # @apply_forward_hook
+    def decode(self, z: ms.Tensor, return_dict: bool = True) -> Union[DecoderOutput, ms.Tensor]:
         r"""
         Decode a batch of images.
 
         Args:
-            z (`torch.Tensor`): Input batch of latent vectors.
+            z (`ms.Tensor`): Input batch of latent vectors.
             return_dict (`bool`, *optional*, defaults to `True`):
                 Whether to return a [`~models.vae.DecoderOutput`] instead of a plain tuple.
 
@@ -894,7 +904,7 @@ class AutoencoderKLQwenImage(ModelMixin, ConfigMixin, FromOriginalModelMixin):
         """
         if self.use_slicing and z.shape[0] > 1:
             decoded_slices = [self._decode(z_slice).sample for z_slice in z.split(1)]
-            decoded = torch.cat(decoded_slices)
+            decoded = mint.cat(decoded_slices)
         else:
             decoded = self._decode(z).sample
 
@@ -902,7 +912,7 @@ class AutoencoderKLQwenImage(ModelMixin, ConfigMixin, FromOriginalModelMixin):
             return (decoded,)
         return DecoderOutput(sample=decoded)
 
-    def blend_v(self, a: torch.Tensor, b: torch.Tensor, blend_extent: int) -> torch.Tensor:
+    def blend_v(self, a: ms.Tensor, b: ms.Tensor, blend_extent: int) -> ms.Tensor:
         blend_extent = min(a.shape[-2], b.shape[-2], blend_extent)
         for y in range(blend_extent):
             b[:, :, :, y, :] = a[:, :, :, -blend_extent + y, :] * (1 - y / blend_extent) + b[:, :, :, y, :] * (
@@ -910,7 +920,7 @@ class AutoencoderKLQwenImage(ModelMixin, ConfigMixin, FromOriginalModelMixin):
             )
         return b
 
-    def blend_h(self, a: torch.Tensor, b: torch.Tensor, blend_extent: int) -> torch.Tensor:
+    def blend_h(self, a: ms.Tensor, b: ms.Tensor, blend_extent: int) -> ms.Tensor:
         blend_extent = min(a.shape[-1], b.shape[-1], blend_extent)
         for x in range(blend_extent):
             b[:, :, :, :, x] = a[:, :, :, :, -blend_extent + x] * (1 - x / blend_extent) + b[:, :, :, :, x] * (
@@ -918,14 +928,14 @@ class AutoencoderKLQwenImage(ModelMixin, ConfigMixin, FromOriginalModelMixin):
             )
         return b
 
-    def tiled_encode(self, x: torch.Tensor) -> AutoencoderKLOutput:
+    def tiled_encode(self, x: ms.Tensor) -> AutoencoderKLOutput:
         r"""Encode a batch of images using a tiled encoder.
 
         Args:
-            x (`torch.Tensor`): Input batch of videos.
+            x (`ms.Tensor`): Input batch of videos.
 
         Returns:
-            `torch.Tensor`:
+            `ms.Tensor`:
                 The latent representation of the encoded videos.
         """
         _, _, num_frames, height, width = x.shape
@@ -964,7 +974,7 @@ class AutoencoderKLQwenImage(ModelMixin, ConfigMixin, FromOriginalModelMixin):
                     tile = self.encoder(tile, feat_cache=self._enc_feat_map, feat_idx=self._enc_conv_idx)
                     tile = self.quant_conv(tile)
                     time.append(tile)
-                row.append(torch.cat(time, dim=2))
+                row.append(mint.cat(time, dim=2))
             rows.append(row)
         self.clear_cache()
 
@@ -979,17 +989,17 @@ class AutoencoderKLQwenImage(ModelMixin, ConfigMixin, FromOriginalModelMixin):
                 if j > 0:
                     tile = self.blend_h(row[j - 1], tile, blend_width)
                 result_row.append(tile[:, :, :, :tile_latent_stride_height, :tile_latent_stride_width])
-            result_rows.append(torch.cat(result_row, dim=-1))
+            result_rows.append(mint.cat(result_row, dim=-1))
 
-        enc = torch.cat(result_rows, dim=3)[:, :, :, :latent_height, :latent_width]
+        enc = mint.cat(result_rows, dim=3)[:, :, :, :latent_height, :latent_width]
         return enc
 
-    def tiled_decode(self, z: torch.Tensor, return_dict: bool = True) -> Union[DecoderOutput, torch.Tensor]:
+    def tiled_decode(self, z: ms.Tensor, return_dict: bool = True) -> Union[DecoderOutput, ms.Tensor]:
         r"""
         Decode a batch of images using a tiled decoder.
 
         Args:
-            z (`torch.Tensor`): Input batch of latent vectors.
+            z (`ms.Tensor`): Input batch of latent vectors.
             return_dict (`bool`, *optional*, defaults to `True`):
                 Whether or not to return a [`~models.vae.DecoderOutput`] instead of a plain tuple.
 
@@ -1024,7 +1034,7 @@ class AutoencoderKLQwenImage(ModelMixin, ConfigMixin, FromOriginalModelMixin):
                     tile = self.post_quant_conv(tile)
                     decoded = self.decoder(tile, feat_cache=self._feat_map, feat_idx=self._conv_idx)
                     time.append(decoded)
-                row.append(torch.cat(time, dim=2))
+                row.append(mint.cat(time, dim=2))
             rows.append(row)
         self.clear_cache()
 
@@ -1039,24 +1049,24 @@ class AutoencoderKLQwenImage(ModelMixin, ConfigMixin, FromOriginalModelMixin):
                 if j > 0:
                     tile = self.blend_h(row[j - 1], tile, blend_width)
                 result_row.append(tile[:, :, :, : self.tile_sample_stride_height, : self.tile_sample_stride_width])
-            result_rows.append(torch.cat(result_row, dim=-1))
+            result_rows.append(mint.cat(result_row, dim=-1))
 
-        dec = torch.cat(result_rows, dim=3)[:, :, :, :sample_height, :sample_width]
+        dec = mint.cat(result_rows, dim=3)[:, :, :, :sample_height, :sample_width]
 
         if not return_dict:
             return (dec,)
         return DecoderOutput(sample=dec)
 
-    def forward(
+    def construct(
         self,
-        sample: torch.Tensor,
+        sample: ms.Tensor,
         sample_posterior: bool = False,
         return_dict: bool = True,
-        generator: Optional[torch.Generator] = None,
-    ) -> Union[DecoderOutput, torch.Tensor]:
+        generator: Optional[np.random.Generator] = None,
+    ) -> Union[DecoderOutput, ms.Tensor]:
         """
         Args:
-            sample (`torch.Tensor`): Input sample.
+            sample (`ms.Tensor`): Input sample.
             return_dict (`bool`, *optional*, defaults to `True`):
                 Whether or not to return a [`DecoderOutput`] instead of a plain tuple.
         """

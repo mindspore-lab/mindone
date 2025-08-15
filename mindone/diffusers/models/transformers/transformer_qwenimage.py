@@ -21,7 +21,6 @@ import math
 from typing import Any, Dict, List, Optional, Tuple, Union
 
 import mindspore as ms
-import mindspore.mint.nn.functional as F
 from mindspore import mint, nn, ops
 # import torch
 # import torch.nn as nn
@@ -77,7 +76,7 @@ def get_timestep_embedding(
 
     half_dim = embedding_dim // 2
     exponent = -math.log(max_period) * mint.arange(
-        start=0, end=half_dim, dtype=ms.float32, device=timesteps.device
+        start=0, end=half_dim, dtype=ms.float32
     )
     exponent = exponent / (half_dim - downscale_freq_shift)
 
@@ -124,7 +123,7 @@ def apply_rotary_emb_qwen(
         cos, sin = freqs_cis  # [S, D]
         cos = cos[None, None]
         sin = sin[None, None]
-        cos, sin = cos.to(x.device), sin.to(x.device)
+        # cos, sin = cos.to(x.device), sin.to(x.device)
 
         if use_real_unbind_dim == -1:
             # Used for flux, cogvideox, hunyuan-dit
@@ -204,7 +203,7 @@ class QwenEmbedRope(nn.Cell):
         freqs = mint.polar(mint.ones_like(freqs), freqs)
         return freqs
 
-    def construct(self, video_fhw, txt_seq_lens, device):
+    def construct(self, video_fhw, txt_seq_lens):
         """
         Args: video_fhw: [frame, height, width] a list of 3 integers representing the shape of the video Args:
         txt_length: [bs] a list of 1 integers representing the length of the text
@@ -388,17 +387,17 @@ class QwenImageTransformerBlock(nn.Cell):
             qk_norm=qk_norm,
             eps=eps,
         )
-        self.img_norm2 = nn.LayerNorm(dim, elementwise_affine=False, eps=eps)
+        self.img_norm2 = mint.nn.LayerNorm(dim, elementwise_affine=False, eps=eps)
         self.img_mlp = FeedForward(dim=dim, dim_out=dim, activation_fn="gelu-approximate")
 
         # Text processing modules
         self.txt_mod = nn.Sequential(
-            nn.SiLU(),
-            nn.Linear(dim, 6 * dim, bias=True),  # For scale, shift, gate for norm1 and norm2
+            mint.nn.SiLU(),
+            mint.nn.Linear(dim, 6 * dim, bias=True),  # For scale, shift, gate for norm1 and norm2
         )
-        self.txt_norm1 = nn.LayerNorm(dim, elementwise_affine=False, eps=eps)
+        self.txt_norm1 = mint.nn.LayerNorm(dim, elementwise_affine=False, eps=eps)
         # Text doesn't need separate attention - it's handled by img_attn joint computation
-        self.txt_norm2 = nn.LayerNorm(dim, elementwise_affine=False, eps=eps)
+        self.txt_norm2 = mint.nn.LayerNorm(dim, elementwise_affine=False, eps=eps)
         self.txt_mlp = FeedForward(dim=dim, dim_out=dim, activation_fn="gelu-approximate")
 
     def _modulate(self, x, mod_params):
@@ -528,8 +527,8 @@ class QwenImageTransformer2DModel(ModelMixin, ConfigMixin, PeftAdapterMixin, Fro
 
         self.txt_norm = RMSNorm(joint_attention_dim, eps=1e-6)
 
-        self.img_in = nn.Linear(in_channels, self.inner_dim)
-        self.txt_in = nn.Linear(joint_attention_dim, self.inner_dim)
+        self.img_in = mint.nn.Linear(in_channels, self.inner_dim)
+        self.txt_in = mint.nn.Linear(joint_attention_dim, self.inner_dim)
 
         self.transformer_blocks = nn.CellList(
             [
@@ -543,7 +542,7 @@ class QwenImageTransformer2DModel(ModelMixin, ConfigMixin, PeftAdapterMixin, Fro
         )
 
         self.norm_out = AdaLayerNormContinuous(self.inner_dim, self.inner_dim, elementwise_affine=False, eps=1e-6)
-        self.proj_out = nn.Linear(self.inner_dim, patch_size * patch_size * self.out_channels, bias=True)
+        self.proj_out = mint.nn.Linear(self.inner_dim, patch_size * patch_size * self.out_channels, bias=True)
 
         self.gradient_checkpointing = False
 
@@ -610,7 +609,7 @@ class QwenImageTransformer2DModel(ModelMixin, ConfigMixin, PeftAdapterMixin, Fro
             else self.time_text_embed(timestep, guidance, hidden_states)
         )
 
-        image_rotary_emb = self.pos_embed(img_shapes, txt_seq_lens, device=hidden_states.device)
+        image_rotary_emb = self.pos_embed(img_shapes, txt_seq_lens)
 
         # for index_block, block in enumerate(self.transformer_blocks):
         #     if torch.is_grad_enabled() and self.gradient_checkpointing:

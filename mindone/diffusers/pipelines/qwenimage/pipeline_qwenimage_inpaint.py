@@ -1,3 +1,5 @@
+"""Adapted from https://github.com/huggingface/diffusers/tree/main/src/diffusers/pipelines/qwenimage/pipeline_qwenimage_inpaint.py."""
+
 import inspect
 from typing import Any, Callable, Dict, List, Optional, Union
 

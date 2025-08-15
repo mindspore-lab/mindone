@@ -1,27 +1,24 @@
+"""Adapted from https://github.com/huggingface/diffusers/tree/main/src/diffusers/pipelines/qwenimage/pipeline_qwenimage_img2img.py."""
+
 import inspect
 from typing import Any, Callable, Dict, List, Optional, Union
 
 import numpy as np
-import torch
-from transformers import Qwen2_5_VLForConditionalGeneration, Qwen2Tokenizer
+import mindspore as ms
+from mindspore import mint
+from transformers import Qwen2Tokenizer
 
+from ....transformers import Qwen2_5_VLForConditionalGeneration
 from ...image_processor import PipelineImageInput, VaeImageProcessor
 from ...loaders import QwenImageLoraLoaderMixin
 from ...models import AutoencoderKLQwenImage, QwenImageTransformer2DModel
 from ...schedulers import FlowMatchEulerDiscreteScheduler
-from ...utils import is_torch_xla_available, logging, replace_example_docstring
-from ...utils.torch_utils import randn_tensor
+from ...utils import logging #, scale_lora_layers, unscale_lora_layers
+from ...utils.mindspore_utils import randn_tensor #, pynative_context
 from ..pipeline_utils import DiffusionPipeline
 from .pipeline_output import QwenImagePipelineOutput
 
-
-if is_torch_xla_available():
-    import torch_xla.core.xla_model as xm
-
-    XLA_AVAILABLE = True
-else:
-    XLA_AVAILABLE = False
-
+XLA_AVAILABLE = False
 
 logger = logging.get_logger(__name__)  # pylint: disable=invalid-name
 
@@ -45,7 +42,7 @@ EXAMPLE_DOC_STRING = """
 
 # Copied from diffusers.pipelines.stable_diffusion.pipeline_stable_diffusion_img2img.retrieve_latents
 def retrieve_latents(
-    encoder_output: torch.Tensor, generator: Optional[torch.Generator] = None, sample_mode: str = "sample"
+    encoder_output: ms.Tensor, generator: Optional[np.random.Generator] = None, sample_mode: str = "sample"
 ):
     if hasattr(encoder_output, "latent_dist") and sample_mode == "sample":
         return encoder_output.latent_dist.sample(generator)
@@ -75,7 +72,6 @@ def calculate_shift(
 def retrieve_timesteps(
     scheduler,
     num_inference_steps: Optional[int] = None,
-    device: Optional[Union[str, torch.device]] = None,
     timesteps: Optional[List[int]] = None,
     sigmas: Optional[List[float]] = None,
     **kwargs,
@@ -90,8 +86,6 @@ def retrieve_timesteps(
         num_inference_steps (`int`):
             The number of diffusion steps used when generating samples with a pre-trained model. If used, `timesteps`
             must be `None`.
-        device (`str` or `torch.device`, *optional*):
-            The device to which the timesteps should be moved to. If `None`, the timesteps are not moved.
         timesteps (`List[int]`, *optional*):
             Custom timesteps used to override the timestep spacing strategy of the scheduler. If `timesteps` is passed,
             `num_inference_steps` and `sigmas` must be `None`.
@@ -100,7 +94,7 @@ def retrieve_timesteps(
             `num_inference_steps` and `timesteps` must be `None`.
 
     Returns:
-        `Tuple[torch.Tensor, int]`: A tuple where the first element is the timestep schedule from the scheduler and the
+        `Tuple[ms.Tensor, int]`: A tuple where the first element is the timestep schedule from the scheduler and the
         second element is the number of inference steps.
     """
     if timesteps is not None and sigmas is not None:
@@ -112,7 +106,7 @@ def retrieve_timesteps(
                 f"The current scheduler class {scheduler.__class__}'s `set_timesteps` does not support custom"
                 f" timestep schedules. Please check whether you are using the correct scheduler."
             )
-        scheduler.set_timesteps(timesteps=timesteps, device=device, **kwargs)
+        scheduler.set_timesteps(timesteps=timesteps, **kwargs)
         timesteps = scheduler.timesteps
         num_inference_steps = len(timesteps)
     elif sigmas is not None:
@@ -122,11 +116,11 @@ def retrieve_timesteps(
                 f"The current scheduler class {scheduler.__class__}'s `set_timesteps` does not support custom"
                 f" sigmas schedules. Please check whether you are using the correct scheduler."
             )
-        scheduler.set_timesteps(sigmas=sigmas, device=device, **kwargs)
+        scheduler.set_timesteps(sigmas=sigmas, **kwargs)
         timesteps = scheduler.timesteps
         num_inference_steps = len(timesteps)
     else:
-        scheduler.set_timesteps(num_inference_steps, device=device, **kwargs)
+        scheduler.set_timesteps(num_inference_steps, **kwargs)
         timesteps = scheduler.timesteps
     return timesteps, num_inference_steps
 
@@ -183,11 +177,11 @@ class QwenImageImg2ImgPipeline(DiffusionPipeline, QwenImageLoraLoaderMixin):
         self.default_sample_size = 128
 
     # Copied from diffusers.pipelines.qwenimage.pipeline_qwenimage.QwenImagePipeline._extract_masked_hidden
-    def _extract_masked_hidden(self, hidden_states: torch.Tensor, mask: torch.Tensor):
+    def _extract_masked_hidden(self, hidden_states: ms.Tensor, mask: ms.Tensor):
         bool_mask = mask.bool()
         valid_lengths = bool_mask.sum(dim=1)
         selected = hidden_states[bool_mask]
-        split_result = torch.split(selected, valid_lengths.tolist(), dim=0)
+        split_result = mint.split(selected, valid_lengths.tolist(), dim=0)
 
         return split_result
 
@@ -195,10 +189,8 @@ class QwenImageImg2ImgPipeline(DiffusionPipeline, QwenImageLoraLoaderMixin):
     def _get_qwen_prompt_embeds(
         self,
         prompt: Union[str, List[str]] = None,
-        device: Optional[torch.device] = None,
-        dtype: Optional[torch.dtype] = None,
+        dtype: Optional[ms.dtype] = None,
     ):
-        device = device or self._execution_device
         dtype = dtype or self.text_encoder.dtype
 
         prompt = [prompt] if isinstance(prompt, str) else prompt
@@ -208,7 +200,7 @@ class QwenImageImg2ImgPipeline(DiffusionPipeline, QwenImageLoraLoaderMixin):
         txt = [template.format(e) for e in prompt]
         txt_tokens = self.tokenizer(
             txt, max_length=self.tokenizer_max_length + drop_idx, padding=True, truncation=True, return_tensors="pt"
-        ).to(device)
+        )
         encoder_hidden_states = self.text_encoder(
             input_ids=txt_tokens.input_ids,
             attention_mask=txt_tokens.attention_mask,
@@ -217,36 +209,36 @@ class QwenImageImg2ImgPipeline(DiffusionPipeline, QwenImageLoraLoaderMixin):
         hidden_states = encoder_hidden_states.hidden_states[-1]
         split_hidden_states = self._extract_masked_hidden(hidden_states, txt_tokens.attention_mask)
         split_hidden_states = [e[drop_idx:] for e in split_hidden_states]
-        attn_mask_list = [torch.ones(e.size(0), dtype=torch.long, device=e.device) for e in split_hidden_states]
+        attn_mask_list = [mint.ones(e.size(0), dtype=ms.int64) for e in split_hidden_states]
         max_seq_len = max([e.size(0) for e in split_hidden_states])
-        prompt_embeds = torch.stack(
-            [torch.cat([u, u.new_zeros(max_seq_len - u.size(0), u.size(1))]) for u in split_hidden_states]
+        prompt_embeds = mint.stack(
+            [mint.cat([u, u.new_zeros(max_seq_len - u.size(0), u.size(1))]) for u in split_hidden_states]
         )
-        encoder_attention_mask = torch.stack(
-            [torch.cat([u, u.new_zeros(max_seq_len - u.size(0))]) for u in attn_mask_list]
+        encoder_attention_mask = mint.stack(
+            [mint.cat([u, u.new_zeros(max_seq_len - u.size(0))]) for u in attn_mask_list]
         )
 
-        prompt_embeds = prompt_embeds.to(dtype=dtype, device=device)
+        prompt_embeds = prompt_embeds.to(dtype=dtype)
 
         return prompt_embeds, encoder_attention_mask
 
-    def _encode_vae_image(self, image: torch.Tensor, generator: torch.Generator):
+    def _encode_vae_image(self, image: ms.Tensor, generator: np.random.Generator):
         if isinstance(generator, list):
             image_latents = [
                 retrieve_latents(self.vae.encode(image[i : i + 1]), generator=generator[i])
                 for i in range(image.shape[0])
             ]
-            image_latents = torch.cat(image_latents, dim=0)
+            image_latents = mint.cat(image_latents, dim=0)
         else:
             image_latents = retrieve_latents(self.vae.encode(image), generator=generator)
 
         latents_mean = (
-            torch.tensor(self.vae.config.latents_mean)
+            ms.Tensor(self.vae.config.latents_mean)
             .view(1, self.vae.config.z_dim, 1, 1, 1)
-            .to(image_latents.device, image_latents.dtype)
+            .to(image_latents.dtype)
         )
-        latents_std = 1.0 / torch.tensor(self.vae.config.latents_std).view(1, self.vae.config.z_dim, 1, 1, 1).to(
-            image_latents.device, image_latents.dtype
+        latents_std = 1.0 / ms.Tensor(self.vae.config.latents_std).view(1, self.vae.config.z_dim, 1, 1, 1).to(
+            image_latents.dtype
         )
 
         image_latents = (image_latents - latents_mean) * latents_std
@@ -254,7 +246,7 @@ class QwenImageImg2ImgPipeline(DiffusionPipeline, QwenImageLoraLoaderMixin):
         return image_latents
 
     # Copied from diffusers.pipelines.stable_diffusion_3.pipeline_stable_diffusion_3_img2img.StableDiffusion3Img2ImgPipeline.get_timesteps
-    def get_timesteps(self, num_inference_steps, strength, device):
+    def get_timesteps(self, num_inference_steps, strength):
         # get the original timestep using init_timestep
         init_timestep = min(num_inference_steps * strength, num_inference_steps)
 
@@ -269,10 +261,9 @@ class QwenImageImg2ImgPipeline(DiffusionPipeline, QwenImageLoraLoaderMixin):
     def encode_prompt(
         self,
         prompt: Union[str, List[str]],
-        device: Optional[torch.device] = None,
         num_images_per_prompt: int = 1,
-        prompt_embeds: Optional[torch.Tensor] = None,
-        prompt_embeds_mask: Optional[torch.Tensor] = None,
+        prompt_embeds: Optional[ms.Tensor] = None,
+        prompt_embeds_mask: Optional[ms.Tensor] = None,
         max_sequence_length: int = 1024,
     ):
         r"""
@@ -280,21 +271,17 @@ class QwenImageImg2ImgPipeline(DiffusionPipeline, QwenImageLoraLoaderMixin):
         Args:
             prompt (`str` or `List[str]`, *optional*):
                 prompt to be encoded
-            device: (`torch.device`):
-                torch device
             num_images_per_prompt (`int`):
                 number of images that should be generated per prompt
-            prompt_embeds (`torch.Tensor`, *optional*):
+            prompt_embeds (`ms.Tensor`, *optional*):
                 Pre-generated text embeddings. Can be used to easily tweak text inputs, *e.g.* prompt weighting. If not
                 provided, text embeddings will be generated from `prompt` input argument.
         """
-        device = device or self._execution_device
-
         prompt = [prompt] if isinstance(prompt, str) else prompt
         batch_size = len(prompt) if prompt_embeds is None else prompt_embeds.shape[0]
 
         if prompt_embeds is None:
-            prompt_embeds, prompt_embeds_mask = self._get_qwen_prompt_embeds(prompt, device)
+            prompt_embeds, prompt_embeds_mask = self._get_qwen_prompt_embeds(prompt)
 
         _, seq_len, _ = prompt_embeds.shape
         prompt_embeds = prompt_embeds.repeat(1, num_images_per_prompt, 1)
@@ -365,10 +352,10 @@ class QwenImageImg2ImgPipeline(DiffusionPipeline, QwenImageLoraLoaderMixin):
 
     @staticmethod
     # Copied from diffusers.pipelines.qwenimage.pipeline_qwenimage.QwenImagePipeline._prepare_latent_image_ids
-    def _prepare_latent_image_ids(batch_size, height, width, device, dtype):
-        latent_image_ids = torch.zeros(height, width, 3)
-        latent_image_ids[..., 1] = latent_image_ids[..., 1] + torch.arange(height)[:, None]
-        latent_image_ids[..., 2] = latent_image_ids[..., 2] + torch.arange(width)[None, :]
+    def _prepare_latent_image_ids(batch_size, height, width, dtype):
+        latent_image_ids = mint.zeros(height, width, 3)
+        latent_image_ids[..., 1] = latent_image_ids[..., 1] + mint.arange(height)[:, None]
+        latent_image_ids[..., 2] = latent_image_ids[..., 2] + mint.arange(width)[None, :]
 
         latent_image_id_height, latent_image_id_width, latent_image_id_channels = latent_image_ids.shape
 
@@ -376,7 +363,7 @@ class QwenImageImg2ImgPipeline(DiffusionPipeline, QwenImageLoraLoaderMixin):
             latent_image_id_height * latent_image_id_width, latent_image_id_channels
         )
 
-        return latent_image_ids.to(device=device, dtype=dtype)
+        return latent_image_ids.to(dtype=dtype)
 
     @staticmethod
     # Copied from diffusers.pipelines.qwenimage.pipeline_qwenimage.QwenImagePipeline._pack_latents
@@ -442,7 +429,6 @@ class QwenImageImg2ImgPipeline(DiffusionPipeline, QwenImageLoraLoaderMixin):
         height,
         width,
         dtype,
-        device,
         generator,
         latents=None,
     ):
@@ -465,10 +451,10 @@ class QwenImageImg2ImgPipeline(DiffusionPipeline, QwenImageLoraLoaderMixin):
             raise ValueError(f"Expected image dims 4 or 5, got {image.dim()}.")
 
         if latents is not None:
-            latent_image_ids = self._prepare_latent_image_ids(batch_size, height // 2, width // 2, device, dtype)
-            return latents.to(device=device, dtype=dtype), latent_image_ids
+            latent_image_ids = self._prepare_latent_image_ids(batch_size, height // 2, width // 2, dtype)
+            return latents.to(dtype=dtype), latent_image_ids
 
-        image = image.to(device=device, dtype=dtype)
+        image = image.to(dtype=dtype)
         if image.shape[1] != self.latent_channels:
             image_latents = self._encode_vae_image(image=image, generator=generator)  # [B,z,1,H',W']
         else:
@@ -476,20 +462,20 @@ class QwenImageImg2ImgPipeline(DiffusionPipeline, QwenImageLoraLoaderMixin):
         if batch_size > image_latents.shape[0] and batch_size % image_latents.shape[0] == 0:
             # expand init_latents for batch_size
             additional_image_per_prompt = batch_size // image_latents.shape[0]
-            image_latents = torch.cat([image_latents] * additional_image_per_prompt, dim=0)
+            image_latents = mint.cat([image_latents] * additional_image_per_prompt, dim=0)
         elif batch_size > image_latents.shape[0] and batch_size % image_latents.shape[0] != 0:
             raise ValueError(
                 f"Cannot duplicate `image` of batch size {image_latents.shape[0]} to {batch_size} text prompts."
             )
         else:
-            image_latents = torch.cat([image_latents], dim=0)
+            image_latents = mint.cat([image_latents], dim=0)
 
         image_latents = image_latents.transpose(1, 2)  # [B,1,z,H',W']
-        noise = randn_tensor(shape, generator=generator, device=device, dtype=dtype)
+        noise = randn_tensor(shape, generator=generator, dtype=dtype)
         latents = self.scheduler.scale_noise(image_latents, timestep, noise)
         latents = self._pack_latents(latents, batch_size, num_channels_latents, height, width)
 
-        latent_image_ids = self._prepare_latent_image_ids(batch_size, height // 2, width // 2, device, dtype)
+        latent_image_ids = self._prepare_latent_image_ids(batch_size, height // 2, width // 2, dtype)
 
         return latents, latent_image_ids
 
@@ -513,8 +499,6 @@ class QwenImageImg2ImgPipeline(DiffusionPipeline, QwenImageLoraLoaderMixin):
     def interrupt(self):
         return self._interrupt
 
-    @torch.no_grad()
-    @replace_example_docstring(EXAMPLE_DOC_STRING)
     def __call__(
         self,
         prompt: Union[str, List[str]] = None,
@@ -528,12 +512,12 @@ class QwenImageImg2ImgPipeline(DiffusionPipeline, QwenImageLoraLoaderMixin):
         sigmas: Optional[List[float]] = None,
         guidance_scale: float = 1.0,
         num_images_per_prompt: int = 1,
-        generator: Optional[Union[torch.Generator, List[torch.Generator]]] = None,
-        latents: Optional[torch.Tensor] = None,
-        prompt_embeds: Optional[torch.Tensor] = None,
-        prompt_embeds_mask: Optional[torch.Tensor] = None,
-        negative_prompt_embeds: Optional[torch.Tensor] = None,
-        negative_prompt_embeds_mask: Optional[torch.Tensor] = None,
+        generator: Optional[Union[np.random.Generator, List[np.random.Generator]]] = None,
+        latents: Optional[ms.Tensor] = None,
+        prompt_embeds: Optional[ms.Tensor] = None,
+        prompt_embeds_mask: Optional[ms.Tensor] = None,
+        negative_prompt_embeds: Optional[ms.Tensor] = None,
+        negative_prompt_embeds_mask: Optional[ms.Tensor] = None,
         output_type: Optional[str] = "pil",
         return_dict: bool = True,
         attention_kwargs: Optional[Dict[str, Any]] = None,
@@ -552,7 +536,7 @@ class QwenImageImg2ImgPipeline(DiffusionPipeline, QwenImageLoraLoaderMixin):
                 The prompt or prompts not to guide the image generation. If not defined, one has to pass
                 `negative_prompt_embeds` instead. Ignored when not using guidance (i.e., ignored if `true_cfg_scale` is
                 not greater than `1`).
-            image (`torch.Tensor`, `PIL.Image.Image`, `np.ndarray`, `List[torch.Tensor]`, `List[PIL.Image.Image]`, or `List[np.ndarray]`):
+            image (`ms.Tensor`, `PIL.Image.Image`, `np.ndarray`, `List[ms.Tensor]`, `List[PIL.Image.Image]`, or `List[np.ndarray]`):
                 `Image`, numpy array or tensor representing an image batch to be used as the starting point. For both
                 numpy array and pytorch tensor, the expected value range is between `[0, 1]` If it's a tensor or a list
                 or tensors, the expected shape should be `(B, C, H, W)` or `(C, H, W)`. If it is a numpy array or a
@@ -585,17 +569,17 @@ class QwenImageImg2ImgPipeline(DiffusionPipeline, QwenImageLoraLoaderMixin):
                 the text `prompt`, usually at the expense of lower image quality.
             num_images_per_prompt (`int`, *optional*, defaults to 1):
                 The number of images to generate per prompt.
-            generator (`torch.Generator` or `List[torch.Generator]`, *optional*):
-                One or a list of [torch generator(s)](https://pytorch.org/docs/stable/generated/torch.Generator.html)
+            generator (`np.random.Generator` or `List[np.random.Generator]`, *optional*):
+                One or a list of [torch generator(s)](https://pytorch.org/docs/stable/generated/np.random.Generator.html)
                 to make generation deterministic.
-            latents (`torch.Tensor`, *optional*):
+            latents (`ms.Tensor`, *optional*):
                 Pre-generated noisy latents, sampled from a Gaussian distribution, to be used as inputs for image
                 generation. Can be used to tweak the same generation with different prompts. If not provided, a latents
                 tensor will be generated by sampling using the supplied random `generator`.
-            prompt_embeds (`torch.Tensor`, *optional*):
+            prompt_embeds (`ms.Tensor`, *optional*):
                 Pre-generated text embeddings. Can be used to easily tweak text inputs, *e.g.* prompt weighting. If not
                 provided, text embeddings will be generated from `prompt` input argument.
-            negative_prompt_embeds (`torch.Tensor`, *optional*):
+            negative_prompt_embeds (`ms.Tensor`, *optional*):
                 Pre-generated negative text embeddings. Can be used to easily tweak text inputs, *e.g.* prompt
                 weighting. If not provided, negative_prompt_embeds will be generated from `negative_prompt` input
                 argument.
@@ -652,7 +636,7 @@ class QwenImageImg2ImgPipeline(DiffusionPipeline, QwenImageLoraLoaderMixin):
 
         # 2. Preprocess image
         init_image = self.image_processor.preprocess(image, height=height, width=width)
-        init_image = init_image.to(dtype=torch.float32)
+        init_image = init_image.to(dtype=ms.float32)
 
         # 3. Define call parameters
         if prompt is not None and isinstance(prompt, str):
@@ -662,8 +646,6 @@ class QwenImageImg2ImgPipeline(DiffusionPipeline, QwenImageLoraLoaderMixin):
         else:
             batch_size = prompt_embeds.shape[0]
 
-        device = self._execution_device
-
         has_neg_prompt = negative_prompt is not None or (
             negative_prompt_embeds is not None and negative_prompt_embeds_mask is not None
         )
@@ -672,7 +654,6 @@ class QwenImageImg2ImgPipeline(DiffusionPipeline, QwenImageLoraLoaderMixin):
             prompt=prompt,
             prompt_embeds=prompt_embeds,
             prompt_embeds_mask=prompt_embeds_mask,
-            device=device,
             num_images_per_prompt=num_images_per_prompt,
             max_sequence_length=max_sequence_length,
         )
@@ -681,7 +662,6 @@ class QwenImageImg2ImgPipeline(DiffusionPipeline, QwenImageLoraLoaderMixin):
                 prompt=negative_prompt,
                 prompt_embeds=negative_prompt_embeds,
                 prompt_embeds_mask=negative_prompt_embeds_mask,
-                device=device,
                 num_images_per_prompt=num_images_per_prompt,
                 max_sequence_length=max_sequence_length,
             )
@@ -699,11 +679,10 @@ class QwenImageImg2ImgPipeline(DiffusionPipeline, QwenImageLoraLoaderMixin):
         timesteps, num_inference_steps = retrieve_timesteps(
             self.scheduler,
             num_inference_steps,
-            device,
             sigmas=sigmas,
             mu=mu,
         )
-        timesteps, num_inference_steps = self.get_timesteps(num_inference_steps, strength, device)
+        timesteps, num_inference_steps = self.get_timesteps(num_inference_steps, strength)
         if num_inference_steps < 1:
             raise ValueError(
                 f"After adjusting the num_inference_steps by strength parameter: {strength}, the number of pipeline"
@@ -721,7 +700,6 @@ class QwenImageImg2ImgPipeline(DiffusionPipeline, QwenImageLoraLoaderMixin):
             height,
             width,
             prompt_embeds.dtype,
-            device,
             generator,
             latents,
         )
@@ -732,7 +710,7 @@ class QwenImageImg2ImgPipeline(DiffusionPipeline, QwenImageLoraLoaderMixin):
 
         # handle guidance
         if self.transformer.config.guidance_embeds:
-            guidance = torch.full([1], guidance_scale, device=device, dtype=torch.float32)
+            guidance = mint.full([1], guidance_scale, dtype=ms.float32)
             guidance = guidance.expand(latents.shape[0])
         else:
             guidance = None
@@ -782,8 +760,8 @@ class QwenImageImg2ImgPipeline(DiffusionPipeline, QwenImageLoraLoaderMixin):
                         )[0]
                     comb_pred = neg_noise_pred + true_cfg_scale * (noise_pred - neg_noise_pred)
 
-                    cond_norm = torch.norm(noise_pred, dim=-1, keepdim=True)
-                    noise_norm = torch.norm(comb_pred, dim=-1, keepdim=True)
+                    cond_norm = mint.norm(noise_pred, dim=-1, keepdim=True)
+                    noise_norm = mint.norm(comb_pred, dim=-1, keepdim=True)
                     noise_pred = comb_pred * (cond_norm / noise_norm)
 
                 # compute the previous noisy sample x_t -> x_t-1
@@ -791,9 +769,7 @@ class QwenImageImg2ImgPipeline(DiffusionPipeline, QwenImageLoraLoaderMixin):
                 latents = self.scheduler.step(noise_pred, t, latents, return_dict=False)[0]
 
                 if latents.dtype != latents_dtype:
-                    if torch.backends.mps.is_available():
-                        # some platforms (eg. apple mps) misbehave due to a pytorch bug: https://github.com/pytorch/pytorch/pull/99272
-                        latents = latents.to(latents_dtype)
+                    latents = latents.to(latents_dtype)
 
                 if callback_on_step_end is not None:
                     callback_kwargs = {}
@@ -808,9 +784,6 @@ class QwenImageImg2ImgPipeline(DiffusionPipeline, QwenImageLoraLoaderMixin):
                 if i == len(timesteps) - 1 or ((i + 1) > num_warmup_steps and (i + 1) % self.scheduler.order == 0):
                     progress_bar.update()
 
-                if XLA_AVAILABLE:
-                    xm.mark_step()
-
         self._current_timestep = None
         if output_type == "latent":
             image = latents
@@ -818,12 +791,12 @@ class QwenImageImg2ImgPipeline(DiffusionPipeline, QwenImageLoraLoaderMixin):
             latents = self._unpack_latents(latents, height, width, self.vae_scale_factor)
             latents = latents.to(self.vae.dtype)
             latents_mean = (
-                torch.tensor(self.vae.config.latents_mean)
+                ms.Tensor(self.vae.config.latents_mean)
                 .view(1, self.vae.config.z_dim, 1, 1, 1)
-                .to(latents.device, latents.dtype)
+                .to(latents.dtype)
             )
-            latents_std = 1.0 / torch.tensor(self.vae.config.latents_std).view(1, self.vae.config.z_dim, 1, 1, 1).to(
-                latents.device, latents.dtype
+            latents_std = 1.0 / ms.Tensor(self.vae.config.latents_std).view(1, self.vae.config.z_dim, 1, 1, 1).to(
+                latents.dtype
             )
 
             latents = latents / latents_std + latents_mean
