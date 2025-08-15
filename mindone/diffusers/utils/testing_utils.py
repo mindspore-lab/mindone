@@ -766,3 +766,23 @@ def load_numpy_from_local_file(repo_id, filename, subfolder=None):
 
     ndarray = np.load(file_path)
     return ndarray
+
+
+def load_image_from_local_file(repo_id, filename, subfolder=None):
+    file_path = os.path.join(".", repo_id, subfolder, filename)
+
+    if not os.path.exists(file_path):
+        raise FileNotFoundError(f"Test result not found: {file_path}")
+
+    img = load_image(file_path)
+    return img
+
+
+def load_video_from_local_file(repo_id, filename, subfolder=None):
+    file_path = os.path.join(".", repo_id, subfolder, filename)
+
+    if not os.path.exists(file_path):
+        raise FileNotFoundError(f"Test result not found: {file_path}")
+
+    video = load_video(file_path)
+    return video
