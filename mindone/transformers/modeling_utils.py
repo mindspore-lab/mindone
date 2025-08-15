@@ -2690,8 +2690,10 @@ class PreTrainedModel(nn.Cell, ModuleUtilsMixin, GenerationMixin, PushToHubMixin
             # Whole checkpoint
             state_dict = _convert_state_dict(model, state_dict, prefix)
 
-            # Fix the key names
-            state_dict = {key_renaming_mapping[k]: v for k, v in state_dict.items() if k in key_renaming_mapping}
+            matching = [s for s in key_renaming_mapping.keys() if "LayerNorm.gamma" in s]
+            if matching:
+                # Fix the key names when model weight names contain LayerNorm.gamma/LayerNorm.beta
+                state_dict = {key_renaming_mapping[k]: v for k, v in state_dict.items() if k in key_renaming_mapping}
 
             mismatched_keys = _find_mismatched_keys(
                 state_dict,
@@ -2720,8 +2722,12 @@ class PreTrainedModel(nn.Cell, ModuleUtilsMixin, GenerationMixin, PushToHubMixin
                 state_dict = load_state_dict(shard_file)
                 state_dict = _convert_state_dict(model, state_dict, prefix)
 
-                # Fix the key names
-                state_dict = {key_renaming_mapping[k]: v for k, v in state_dict.items() if k in key_renaming_mapping}
+                matching = [s for s in key_renaming_mapping.keys() if "LayerNorm.gamma" in s]
+                if matching:
+                    # Fix the key names when model weight names contain LayerNorm.gamma/LayerNorm.beta
+                    state_dict = {
+                        key_renaming_mapping[k]: v for k, v in state_dict.items() if k in key_renaming_mapping
+                    }
 
                 # Mismatched keys contains tuples key/shape1/shape2 of weights in the checkpoint that have a shape not
                 # matching the weights in the model.
