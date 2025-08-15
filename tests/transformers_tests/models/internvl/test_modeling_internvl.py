@@ -17,24 +17,16 @@ from tests.modeling_test_utils import (
 )
 from tests.transformers_tests.models.modeling_common import ids_numpy
 
-# Numeric tolerances kept consistent with your Idefics3 test
 DTYPE_AND_THRESHOLDS = {"fp32": 5e-2, "fp16": 5e-3, "bf16": 5e-2}
-# Keep to PyNative (mode=1), which is what your Idefics3 test uses
 MODES = [1]
 
 
 class InternVLModelTester:
-    """
-    Builds a tiny InternVL config + toy inputs that:
-    - keep compute small,
-    - ensure exactly 1 image feature per image (so we can place 1 <image> token).
-    """
-
     def __init__(
         self,
         batch_size=1,
         seq_length=7,
-        # common toggles
+        # common
         is_training=False,
         use_attention_mask=True,
         use_cache=False,
@@ -55,8 +47,7 @@ class InternVLModelTester:
         # run-time impl
         attn_implementation="eager",
         torch_dtype="bfloat16",
-        # special tokens
-        image_token_id=5,
+        image_token_id=5
     ):
         self.batch_size = batch_size
         self.seq_length = seq_length
@@ -85,12 +76,9 @@ class InternVLModelTester:
         # impl & dtype
         self.attn_implementation = attn_implementation
         self.torch_dtype = torch_dtype
-
-        # tokens
         self.image_token_id = image_token_id
 
     def get_config(self):
-        # Text (Qwen2) config
         text_config = Qwen2Config(
             vocab_size=self.vocab_size,
             hidden_size=self.hidden_size,
@@ -105,7 +93,6 @@ class InternVLModelTester:
             torch_dtype=self.torch_dtype,
         )
 
-        # Vision config tuned to yield exactly 1 projected image token per image
         vision_config = InternVLVisionConfig(
             hidden_size=self.hidden_size,
             intermediate_size=self.intermediate_size,
@@ -114,36 +101,22 @@ class InternVLModelTester:
             num_channels=3,
             image_size=list(self.image_size),
             patch_size=list(self.patch_size),
-            use_absolute_position_embeddings=True,
-            use_qk_norm=False,
-            use_mask_token=False,
-            attention_dropout=0.0,
-            projection_dropout=0.0,
-            layer_scale_init_value=1.0,
-            norm_type="layer_norm",
-            use_mean_pooling=False,
             attn_implementation=self.attn_implementation,
             torch_dtype=self.torch_dtype,
         )
 
-        # Full InternVL config
         config = InternVLConfig(
             use_cache=self.use_cache,
             vision_config=vision_config,
             text_config=text_config,
-            attn_implementation=self.attn_implementation,
-            torch_dtype=self.torch_dtype,
             image_token_id=self.image_token_id,
-            downsample_ratio=self.downsample_ratio,          # critical for matching image token count
-            vision_feature_layer=-1,                          # use last layer by default
-            vision_feature_select_strategy="default",         # drop CLS => 4 tokens at 32x32/16x16
+            attn_implementation=self.attn_implementation,
+            downsample_ratio=self.downsample_ratio,
         )
         return config
 
     def prepare_config_and_inputs(self):
         config = self.get_config()
-
-        # text ids
         input_ids = ids_numpy([self.batch_size, self.seq_length], self.vocab_size)
 
         # place exactly one <image> token per sample so it matches the 1 image feature vector produced
@@ -237,8 +210,6 @@ def test_named_modules(
         pt_dtype, ms_dtype, *inputs_args, **inputs_kwargs
     )
 
-    # Some forward functions accept hidden_dtype; InternVLModel/forward doesn't need it,
-    # but keep parity with your pattern if future ref adds it.
     if "hidden_dtype" in inspect.signature(pt_model.forward).parameters:
         pt_inputs_kwargs.update({"hidden_dtype": PT_DTYPE_MAPPING[pt_dtype]})
         ms_inputs_kwargs.update({"hidden_dtype": MS_DTYPE_MAPPING[ms_dtype]})
