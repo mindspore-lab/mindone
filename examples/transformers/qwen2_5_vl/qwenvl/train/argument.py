@@ -10,6 +10,9 @@ class ModelArguments:
     tune_mm_llm: bool = field(default=False)
     tune_mm_mlp: bool = field(default=False)
     tune_mm_vision: bool = field(default=False)
+    tune_mm_lora: bool = field(default=False)
+    lora_r: int = field(default=32)
+    lora_alpha: float = field(default=64.0)
 
 
 @dataclass

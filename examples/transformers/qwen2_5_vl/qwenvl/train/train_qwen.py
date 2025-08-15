@@ -36,6 +36,7 @@ from qwenvl.train.argument import DataArguments, ModelArguments, TrainingArgumen
 from qwenvl.train.trainer import replace_qwen2_vl_attention_class
 
 import mindone.transformers
+from mindone.diffusers._peft import LoraConfig
 from mindone.transformers import AutoProcessor, Qwen2_5_VLForConditionalGeneration, Trainer
 
 local_rank = None
@@ -64,46 +65,78 @@ def safe_save_model_for_hf_trainer(trainer: mindone.transformers.Trainer, output
 def set_model(model_args, model):
     if model_args.tune_mm_vision:
         model.visual.set_grad(True)
-        for n, p in model.visual.parameters_and_names():
+        for _, p in model.visual.parameters_and_names():
             p.requires_grad = True
     else:
         model.visual.set_grad(False)
-        for n, p in model.visual.parameters_and_names():
+        for _, p in model.visual.parameters_and_names():
             p.requires_grad = False
 
     if model_args.tune_mm_mlp:
         model.visual.merger.set_grad(True)
-        for n, p in model.visual.merger.parameters_and_names():
+        for _, p in model.visual.merger.parameters_and_names():
             p.requires_grad = True
     else:
         model.visual.merger.set_grad(False)
-        for n, p in model.visual.merger.parameters_and_names():
+        for _, p in model.visual.merger.parameters_and_names():
             p.requires_grad = False
 
-    if model_args.tune_mm_llm:
+    if model_args.tune_mm_llm and not model_args.tune_mm_lora:
         model.model.set_grad(True)
         model.lm_head.set_grad(True)
-        for n, p in model.model.parameters_and_names():
+        for _, p in model.model.parameters_and_names():
             p.requires_grad = True
-        model.lm_head.requires_grad = True
+        for _, p in model.lm_head.parameters_and_names():
+            p.requires_grad = True
+    elif model_args.tune_mm_lora:
+        model.model.set_grad(True)
+        model.lm_head.set_grad(False)
+        for _, p in model.model.parameters_and_names():
+            p.requires_grad = False
+        for _, p in model.lm_head.parameters_and_names():
+            p.requires_grad = False
     else:
         model.model.set_grad(False)
         model.lm_head.set_grad(False)
-        for n, p in model.model.parameters_and_names():
+        for _, p in model.model.parameters_and_names():
             p.requires_grad = False
-        model.lm_head.requires_grad = False
+        for _, p in model.lm_head.parameters_and_names():
+            p.requires_grad = False
+
+
+def add_lora(model_args, model):
+    target_modules = [
+        "self_attn.q_proj",
+        "self_attn.k_proj",
+        "self_attn.v_proj",
+        "self_attn.o_proj",
+    ]
+    lora_config = LoraConfig(
+        r=model_args.lora_r,
+        lora_alpha=model_args.lora_alpha,
+        init_lora_weights="gaussian",
+        target_modules=target_modules,
+    )
+    model.add_adapter(lora_config)
 
 
 def train(attn_implementation="flash_attention_2"):
     global local_rank
-    dist.init_process_group()
-    ms.set_auto_parallel_context(parallel_mode=ms.ParallelMode.DATA_PARALLEL)
+
+    try:
+        dist.init_process_group()
+        ms.set_auto_parallel_context(parallel_mode=ms.ParallelMode.DATA_PARALLEL)
+        local_rank = dist.get_rank()
+        world_size = dist.get_world_size()
+    except RuntimeError as e:
+        print(f"Cannot start distribution training. {repr(e)}")
+        local_rank = 0
+        world_size = 1
 
     parser = transformers.HfArgumentParser((ModelArguments, DataArguments, TrainingArguments))
     model_args, data_args, training_args = parser.parse_args_into_dataclasses()
 
-    local_rank = dist.get_rank()
-    training_args.rank_size = dist.get_world_size()
+    training_args.rank_size = world_size
     training_args.rank = local_rank
     os.makedirs(training_args.output_dir, exist_ok=True)
 
@@ -145,6 +178,11 @@ def train(attn_implementation="flash_attention_2"):
         use_fast=False,
     )
     set_model(model_args, model)
+
+    if model_args.tune_mm_lora:
+        add_lora(model_args, model)
+        if training_args.bf16:
+            model.to(ms.bfloat16)
 
     if mint.distributed.get_rank() == 0:
         model.visual.print_trainable_parameters()
