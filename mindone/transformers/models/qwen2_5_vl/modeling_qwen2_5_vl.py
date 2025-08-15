@@ -1516,7 +1516,7 @@ class Qwen2_5_VLForConditionalGeneration(Qwen2_5_VLPreTrainedModel, GenerationMi
         >>> image = Image.open(requests.get(url, stream=True).raw)
 
         >>> text = processor.apply_chat_template(messages, tokenize=False, add_generation_prompt=True)
-        >>> inputs = processor(text=[text], images=[image], return_tensors="ms)
+        >>> inputs = processor(text=[text], images=[image], return_tensors="ms")
 
         >>> # Generate
         >>> generate_ids = model.generate(inputs.input_ids, max_new_tokens=30)

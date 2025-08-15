@@ -1,6 +1,6 @@
 # QwenVL Training Framework
 
-This repository provides a training framework for Qwen VL models. The are two steps to use our repo:
+This repository provides a training framework for Qwen VL models. There are two steps to use our repo:
 
 1. Customize your dataset: downloading data, implement the config
 2. Modify training scripts:
@@ -22,14 +22,14 @@ The `qwenvl` directory contains the following components:
 
 ## Requirements
 
-You could use follow version of packages:
+You could use the following versions of packages:
 
-- `mindspore==2.6.0`
+- `mindspore==2.7.0`
 - `transformers==4.50.0`
 
 ## Custom Dataset Configuration
 
-The customized data should have the format like:
+The customized data should have a format like this:
 
 ### JSON Data Structure
 
@@ -104,7 +104,7 @@ The customized data should have the format like:
         },
         {
             "from": "gpt",
-            "value": "{\n"bbox_2d": [135, 114, 1016, 672]\n}"
+            "value": "{\n\"bbox_2d\": [135, 114, 1016, 672]\n}"
         }
     ]
 }
@@ -296,5 +296,5 @@ The script accepts arguments in three categories:
    - `data_packing` requires preprocess with `tools/pack_data.py`
    - Training hyperparameters, the suggested learning rate is from 1e-6 to 2e-7
    - Training resolution is critical for the model performances, hence `--max_pixels` and `--min_pixels` should be properly set
-   - Training with Qwen2.5-VL-32B model, you should have 8 80G GPU refering to `scripts/sft_32b.sh`
-   - `"_attn_implementation": "flash_attention_2",` could be add in the config.json of the model to use flash attention.
+   - Training with Qwen2.5-VL-32B model, you should have 8 80G GPU referring to `scripts/sft_32b.sh`
+   - `"_attn_implementation": "flash_attention_2",` could be added in the config.json of the model to use flash attention.

@@ -372,9 +372,8 @@ class LazySupervisedDataset:
             second_per_grid_ts=second_per_grid_ts if second_per_grid_ts else None,
         )
         if "image" not in sources[0] and "video" not in sources[0]:
-            grid_thw_merged = None
             sources = copy.deepcopy([e["conversations"] for e in sources])
-            data_dict = preprocess_qwen_2_visual(sources, self.tokenizer, grid_thw=grid_thw_merged)
+            data_dict = preprocess_qwen_2_visual(sources, self.tokenizer)
             position_ids = np.arange(0, data_dict["input_ids"].shape[1]).reshape(1, -1)[None]
             position_ids = np.tile(position_ids, (3, 1, 1))
 
