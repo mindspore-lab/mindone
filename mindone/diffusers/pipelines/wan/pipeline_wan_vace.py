@@ -1,4 +1,7 @@
-# Copyright 2025 The Wan Team and The HuggingFace Team. All rights reserved.
+# Copyright 2025 The HuggingFace Team. All rights reserved.
+#
+# This code is adapted from https://github.com/huggingface/diffusers
+# with modifications to run diffusers on mindspore.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -94,7 +97,7 @@ EXAMPLE_DOC_STRING = """
         ...     num_frames=num_frames,
         ...     num_inference_steps=30,
         ...     guidance_scale=5.0,
-        ... ).frames[0]
+        ... ).[0][0]
         >>> export_to_video(output, "output.mp4", fps=16)
         ```
 """
@@ -561,7 +564,7 @@ class WanVACEPipeline(DiffusionPipeline, WanLoraLoaderMixin):
                  generator: np.random.Generator = None,
                  latents: Optional[ms.Tensor] = None, prompt_embeds: Optional[ms.Tensor] = None,
                  negative_prompt_embeds: Optional[ms.Tensor] = None, output_type: Optional[str] = "np",
-                 return_dict: bool = True, attention_kwargs: Optional[Dict[str, Any]] = None,
+                 return_dict: bool = False, attention_kwargs: Optional[Dict[str, Any]] = None,
                  callback_on_step_end: Optional[
                      Union[Callable[[int, int, Dict], None], PipelineCallback, MultiPipelineCallbacks]] = None,
                  callback_on_step_end_tensor_inputs: List[str] = ["latents"], max_sequence_length: int = 512, ):
@@ -626,7 +629,7 @@ class WanVACEPipeline(DiffusionPipeline, WanLoraLoaderMixin):
                 provided, text embeddings are generated from the `prompt` input argument.
             output_type (`str`, *optional*, defaults to `"np"`):
                 The output format of the generated image. Choose between `PIL.Image` or `np.array`.
-            return_dict (`bool`, *optional*, defaults to `True`):
+            return_dict (`bool`, *optional*, defaults to `False`):
                 Whether or not to return a [`WanPipelineOutput`] instead of a plain tuple.
             attention_kwargs (`dict`, *optional*):
                 A kwargs dictionary that if specified is passed along to the `AttentionProcessor` as defined under
@@ -649,7 +652,7 @@ class WanVACEPipeline(DiffusionPipeline, WanLoraLoaderMixin):
 
         Returns:
             [`~WanPipelineOutput`] or `tuple`:
-                If `return_dict` is `True`, [`WanPipelineOutput`] is returned, otherwise a `tuple` is returned where
+                If `return_dict` is `False`, [`WanPipelineOutput`] is returned, otherwise a `tuple` is returned where
                 the first element is a list with the generated images and the second element is a list of `bool`s
                 indicating whether the corresponding generated image contains "not-safe-for-work" (nsfw) content.
         """

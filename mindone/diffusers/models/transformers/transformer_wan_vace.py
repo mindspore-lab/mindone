@@ -1,4 +1,7 @@
-# Copyright 2025 The Wan Team and The HuggingFace Team. All rights reserved.
+# Copyright 2025 The HuggingFace Team. All rights reserved.
+#
+# This code is adapted from https://github.com/huggingface/diffusers
+# with modifications to run diffusers on mindspore.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -237,6 +240,7 @@ class WanVACETransformer3DModel(ModelMixin, ConfigMixin, PeftAdapterMixin, FromO
         temb, timestep_proj, encoder_hidden_states, encoder_hidden_states_image = self.condition_embedder(timestep,
                                                                                                           encoder_hidden_states,
                                                                                                           encoder_hidden_states_image)
+        # timestep_proj = self.unflatten(timestep_proj)
         timestep_proj = unflatten(timestep_proj, 1, (6, -1))
 
         # 4. Image embedding
@@ -244,40 +248,41 @@ class WanVACETransformer3DModel(ModelMixin, ConfigMixin, PeftAdapterMixin, FromO
             encoder_hidden_states = mint.concat([encoder_hidden_states_image, encoder_hidden_states], dim=1)
 
         # 5. Transformer blocks
-        if self.gradient_checkpointing:
-            # Prepare VACE hints
-            control_hidden_states_list = []
-            for i, block in enumerate(self.vace_blocks):
-                conditioning_states, control_hidden_states = self._gradient_checkpointing_func(block, hidden_states,
-                                                                                               encoder_hidden_states,
-                                                                                               control_hidden_states,
-                                                                                               timestep_proj,
-                                                                                               rotary_emb)
-                control_hidden_states_list.append((conditioning_states, control_hidden_states_scale[i]))
-            control_hidden_states_list = control_hidden_states_list[::-1]
+        # mindspore not support gradient_checkpointing
+        # if self.gradient_checkpointing:
+        #     # Prepare VACE hints
+        #     control_hidden_states_list = []
+        #     for i, block in enumerate(self.vace_blocks):
+        #         conditioning_states, control_hidden_states = self._gradient_checkpointing_func(block, hidden_states,
+        #                                                                                        encoder_hidden_states,
+        #                                                                                        control_hidden_states,
+        #                                                                                        timestep_proj,
+        #                                                                                        rotary_emb)
+        #         control_hidden_states_list.append((conditioning_states, control_hidden_states_scale[i]))
+        #     control_hidden_states_list = control_hidden_states_list[::-1]
+        #
+        #     for i, block in enumerate(self.blocks):
+        #         hidden_states = self._gradient_checkpointing_func(block, hidden_states, encoder_hidden_states,
+        #                                                           timestep_proj, rotary_emb)
+        #         if i in self.config.vace_layers:
+        #             control_hint, scale = control_hidden_states_list[-1]
+        #             hidden_states = hidden_states + control_hint * scale
+        #             control_hidden_states_list = control_hidden_states_list[:-1]
+        #else:
+        # Prepare VACE hints
+        control_hidden_states_list = []
+        for i, block in enumerate(self.vace_blocks):
+            conditioning_states, control_hidden_states = block(hidden_states, encoder_hidden_states,
+                                                                control_hidden_states, timestep_proj, rotary_emb)
+            control_hidden_states_list.append((conditioning_states, control_hidden_states_scale[i]))
+        control_hidden_states_list = control_hidden_states_list[::-1]
 
-            for i, block in enumerate(self.blocks):
-                hidden_states = self._gradient_checkpointing_func(block, hidden_states, encoder_hidden_states,
-                                                                  timestep_proj, rotary_emb)
-                if i in self.config.vace_layers:
-                    control_hint, scale = control_hidden_states_list[-1]
-                    hidden_states = hidden_states + control_hint * scale
-                    control_hidden_states_list = control_hidden_states_list[:-1]
-        else:
-            # Prepare VACE hints
-            control_hidden_states_list = []
-            for i, block in enumerate(self.vace_blocks):
-                conditioning_states, control_hidden_states = block(hidden_states, encoder_hidden_states,
-                                                                   control_hidden_states, timestep_proj, rotary_emb)
-                control_hidden_states_list.append((conditioning_states, control_hidden_states_scale[i]))
-            control_hidden_states_list = control_hidden_states_list[::-1]
-
-            for i, block in enumerate(self.blocks):
-                hidden_states = block(hidden_states, encoder_hidden_states, timestep_proj, rotary_emb)
-                if i in self.config.vace_layers:
-                    control_hint, scale = control_hidden_states_list[-1]
-                    hidden_states = hidden_states + control_hint * scale
-                    control_hidden_states_list = control_hidden_states_list[:-1]
+        for i, block in enumerate(self.blocks):
+            hidden_states = block(hidden_states, encoder_hidden_states, timestep_proj, rotary_emb)
+            if i in self.config.vace_layers:
+                control_hint, scale = control_hidden_states_list[-1]
+                hidden_states = hidden_states + control_hint * scale
+                control_hidden_states_list = control_hidden_states_list[:-1]
 
         # 6. Output norm, projection & unpatchify
         shift, scale = (self.scale_shift_table + temb.unsqueeze(1)).chunk(2, dim=1)

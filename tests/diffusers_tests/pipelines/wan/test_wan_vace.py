@@ -308,7 +308,7 @@ class WanVACEPipelineIntegrationTests(PipelineTesterMixin, unittest.TestCase):
             num_frames=num_frames,
             num_inference_steps=30,
             guidance_scale=5.0,
-        ).frames[0]
+        )[0][0]
 
         expected_video = load_numpy_from_local_file(
             "mindone-testing-arrays",
