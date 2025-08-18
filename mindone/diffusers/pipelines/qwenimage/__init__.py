@@ -9,10 +9,12 @@ _import_structure = {
     "pipeline_qwenimage": ["QwenImagePipeline"],
     "pipeline_qwenimage_img2img": ["QwenImageImg2ImgPipeline"],
     "pipeline_qwenimage_inpaint": ["QwenImageInpaintPipeline"],
+    "pipeline_qwenimage_edit": ["QwenImageEditPipeline"],
     }
 
 if TYPE_CHECKING:
     from .pipeline_qwenimage import QwenImagePipeline
+    from .pipeline_qwenimage_edit import QwenImageEditPipeline
     from .pipeline_qwenimage_img2img import QwenImageImg2ImgPipeline
     from .pipeline_qwenimage_inpaint import QwenImageInpaintPipeline
 else:

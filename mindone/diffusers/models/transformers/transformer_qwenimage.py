@@ -168,9 +168,9 @@ class QwenEmbedRope(nn.Cell):
         super().__init__()
         self.theta = theta
         self.axes_dim = axes_dim
-        pos_index = mint.arange(1024)
-        neg_index = mint.arange(1024).flip(0) * -1 - 1
-        pos_freqs = mint.cat(
+        pos_index = mint.arange(4096)
+        neg_index = mint.arange(4096).flip(0) * -1 - 1
+        self.pos_freqs = mint.cat(
             [
                 self.rope_params(pos_index, self.axes_dim[0], self.theta),
                 self.rope_params(pos_index, self.axes_dim[1], self.theta),
@@ -178,7 +178,7 @@ class QwenEmbedRope(nn.Cell):
             ],
             dim=1,
         )
-        neg_freqs = mint.cat(
+        self.neg_freqs = mint.cat(
             [
                 self.rope_params(neg_index, self.axes_dim[0], self.theta),
                 self.rope_params(neg_index, self.axes_dim[1], self.theta),
@@ -187,10 +187,8 @@ class QwenEmbedRope(nn.Cell):
             dim=1,
         )
         self.rope_cache = {}
-        self.register_buffer("pos_freqs", pos_freqs, persistent=False)
-        self.register_buffer("neg_freqs", neg_freqs, persistent=False)
 
-        # 是否使用 scale rope
+        # DO NOT USING REGISTER BUFFER HERE, IT WILL CAUSE COMPLEX NUMBERS LOSE ITS IMAGINARY PART
         self.scale_rope = scale_rope
 
     def rope_params(self, index, dim, theta=10000):
@@ -210,34 +208,44 @@ class QwenEmbedRope(nn.Cell):
         """
         if isinstance(video_fhw, list):
             video_fhw = video_fhw[0]
-        frame, height, width = video_fhw
-        # rope_key = f"{frame}_{height}_{width}"
 
-        # if not torch.compiler.is_compiling(): # 未匹配
-        #     if rope_key not in self.rope_cache:
-        #         self.rope_cache[rope_key] = self._compute_video_freqs(frame, height, width)
-        #     vid_freqs = self.rope_cache[rope_key]
-        # else:
-        #     vid_freqs = self._compute_video_freqs(frame, height, width)
-        vid_freqs = self._compute_video_freqs(frame, height, width)
-        
-        if self.scale_rope:
-            max_vid_index = max(height // 2, width // 2)
-        else:
-            max_vid_index = max(height, width)
+        if not isinstance(video_fhw, list):
+            video_fhw = [video_fhw]
+
+        vid_freqs = []
+        max_vid_index = 0
+        for idx, fhw in enumerate(video_fhw):
+            frame, height, width = fhw
+            rope_key = f"{idx}_{height}_{width}"
+            # jit-related, 25/8/18. Remain to fix.
+            # if not torch.compiler.is_compiling():
+            #     if rope_key not in self.rope_cache:
+            #         self.rope_cache[rope_key] = self._compute_video_freqs(frame, height, width, idx)
+            #     video_freq = self.rope_cache[rope_key]
+            # else:
+            #     video_freq = self._compute_video_freqs(frame, height, width)
+            # vid_freqs.append(video_freq)
+            video_freq = self._compute_video_freqs(frame, height, width)
+            vid_freqs.append(video_freq)
+
+            if self.scale_rope:
+                max_vid_index = max(height // 2, width // 2, max_vid_index)
+            else:
+                max_vid_index = max(height, width, max_vid_index)
 
         max_len = max(txt_seq_lens)
         txt_freqs = self.pos_freqs[max_vid_index : max_vid_index + max_len, ...]
+        vid_freqs = mint.cat(vid_freqs, dim=0)
 
         return vid_freqs, txt_freqs
 
     @functools.lru_cache(maxsize=None)
-    def _compute_video_freqs(self, frame, height, width):
+    def _compute_video_freqs(self, frame, height, width, idx=0):
         seq_lens = frame * height * width
         freqs_pos = self.pos_freqs.split([x // 2 for x in self.axes_dim], dim=1)
         freqs_neg = self.neg_freqs.split([x // 2 for x in self.axes_dim], dim=1)
 
-        freqs_frame = freqs_pos[0][:frame].view(frame, 1, 1, -1).expand(frame, height, width, -1)
+        freqs_frame = freqs_pos[0][idx : idx + frame].view(frame, 1, 1, -1).expand(frame, height, width, -1)
         if self.scale_rope:
             freqs_height = mint.cat([freqs_neg[1][-(height - height // 2) :], freqs_pos[1][: height // 2]], dim=0)
             freqs_height = freqs_height.view(1, height, 1, -1).expand(frame, height, width, -1)
@@ -329,14 +337,18 @@ class QwenDoubleStreamAttnProcessor2_0:
         joint_value = mint.cat([txt_value, img_value], dim=1)
 
         # Compute joint attention
-        joint_hidden_states = dispatch_attention_fn(
-            joint_query,
-            joint_key,
-            joint_value,
-            attn_mask=attention_mask,
-            dropout_p=0.0,
-            is_causal=False,
-            backend=self._attention_backend,
+        # NOTICE! 2025/8/18. Replace in the present version.
+        # joint_hidden_states = dispatch_attention_fn(
+        #     joint_query,
+        #     joint_key,
+        #     joint_value,
+        #     attn_mask=attention_mask,
+        #     dropout_p=0.0,
+        #     is_causal=False,
+        #     backend=self._attention_backend,
+        # )
+        joint_hidden_states = attn.scaled_dot_product_attention(
+            joint_query, joint_key, joint_value, attn_mask=attention_mask, dropout_p=0.0, is_causal=False
         )
 
         # Reshape back
