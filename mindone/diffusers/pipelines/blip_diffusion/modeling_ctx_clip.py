@@ -1,5 +1,5 @@
-# Copyright 2024 Salesforce.com, inc.
-# Copyright 2024 The HuggingFace Team. All rights reserved.
+# Copyright 2025 Salesforce.com, inc.
+# Copyright 2025 The HuggingFace Team. All rights reserved.
 #
 # This code is adapted from https://github.com/huggingface/diffusers
 # with modifications to run diffusers on mindspore.
