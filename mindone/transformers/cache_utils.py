@@ -232,9 +232,14 @@ class StaticCache(Cache):
 
     is_compileable = True
 
-    def __init__(self, config: PretrainedConfig, max_batch_size: int, max_cache_len: int, dtype=None) -> None:
+    def __init__(self, config: PretrainedConfig,
+                    batch_size: int = None,
+                    max_cache_len: int = None,
+                    dtype: ms.Type = ms.float32,
+                    max_batch_size: Optional[int] = None,
+                 ) -> None:
         super().__init__()
-        self.max_batch_size = max_batch_size
+        self.max_batch_size = batch_size or max_batch_size
         self.max_cache_len = config.max_position_embeddings if max_cache_len is None else max_cache_len
         # Some model define a custom `head_dim` != config.hidden_size // config.num_attention_heads
         self.head_dim = (
@@ -250,7 +255,7 @@ class StaticCache(Cache):
 
         key_cache: List[ms.Parameter] = []
         value_cache: List[ms.Parameter] = []
-        cache_shape = (max_batch_size, self.num_key_value_heads, self.max_cache_len, self.head_dim)
+        cache_shape = (self.max_batch_size, self.num_key_value_heads, self.max_cache_len, self.head_dim)
         for _layer_index in range(config.num_hidden_layers):
             # Note: `mark_static_address` is used to tag the cache as an fixed data pointer, preventing cuda graph
             # breaks when updating the cache.
