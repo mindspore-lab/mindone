@@ -104,7 +104,7 @@ def main():
 
     # 1. create dataset
     if os.path.isdir(args.dataset_path):
-        dataset = load_dataset("barquet", data_dir=args.dataset_path)
+        dataset = load_dataset("parquet", data_dir=args.dataset_path)
     else:
         dataset = load_dataset(args.dataset_path, name="human_handwrite")
     dataset["train"] = dataset["train"].shuffle(seed=42)  # 1,200
@@ -233,7 +233,7 @@ def main():
     target_modules = vision_enc_modules + audio_enc_modules + qwen25omni_attn_modules
     lora_config = LoraConfig(
         r=args.lora_rank,
-        lora_alpha=args.lora_rank,
+        lora_alpha=args.lora_alpha,
         init_lora_weights="gaussian",
         target_modules=target_modules,
     )

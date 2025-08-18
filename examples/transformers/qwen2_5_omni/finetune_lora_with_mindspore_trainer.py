@@ -233,7 +233,7 @@ def main():
     target_modules = vision_enc_modules + audio_enc_modules + qwen25omni_attn_modules
     lora_config = LoraConfig(
         r=args.lora_rank,
-        lora_alpha=args.lora_rank,
+        lora_alpha=args.lora_alpha,
         init_lora_weights="gaussian",
         target_modules=target_modules,
     )

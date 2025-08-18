@@ -24,13 +24,13 @@ pip install -r requirements.txt
 ```
 ### Model Checkpoints
 
-`Qwen2.5-Omni-7B`, `Qwen2.5-Omni-3B` chekpoints can be found on the [Huggingface Hub](https://huggingface.co/collections/Qwen/qwen25-omni-67de1e5f0f9464dc6314b36e).
+`Qwen2.5-Omni-7B`, `Qwen2.5-Omni-3B` checkpoints can be found on the [Huggingface Hub](https://huggingface.co/collections/Qwen/qwen25-omni-67de1e5f0f9464dc6314b36e).
 
 The speakers checkpoint need to be converted before use:
 ```python
 python mindone\transformers\models\qwen2_5_omni\convert_spk_dict_pt2np.py \
     --spk_path "Qwen/Qwen2.5-Omni-7B/spk_dict.pt" \
-    --zip_spk_path"Qwen/Qwen2.5-Omni-7B/spk_dict.zip"
+    --zip_spk_path "Qwen/Qwen2.5-Omni-7B/spk_dict.zip"
 ```
 ### Inference Usage Examples
 
@@ -42,7 +42,7 @@ Here are some usage chat examples and scripts with `mindone.transformers`:
 |[Universal Audio Understanding](universal_audio_understanding.py)|	Speech recongnition, speech-to-text translation and audio analysis.	|
 |[Voice Chatting](voice_chatting.py)	| Chatting with Qwen2.5-Omni by voice input and output.	|
 |[Video Information Extracting](video_information_extracting.py)	| Obtaining information from the video stream. |
-[Multi Round Omni Chatting](multi_round_omni_chatting.py)	|Conducted multiple rounds of audio and video dialogues with Qwen2.5-Omni to provide the most comprehensive ability demonstration.|
+|[Multi Round Omni Chatting](multi_round_omni_chatting.py)	|Conducted multiple rounds of audio and video dialogues with Qwen2.5-Omni to provide the most comprehensive ability demonstration.|
 |[Screen Recording Interaction](screen_recording_interaction.py)	| Get the information and content you want to know by asking questions in real time on the recording screen.	|
 |[Omni Chatting for Music](omni_chatting_for_music.py)	| Chat with Qwen2.5-Omni about music content in a audio and video stream.|
 | [Omni Chatting for Math](omni_chatting_for_math.py)	|Chat with Qwen2.5-Omni about math content in a audio and video stream.|
@@ -141,8 +141,8 @@ conversation = [
         "content": [
             {
                 "type": "video",
-                "video": "/path/to/video.mp4"
-                         "max_pixels": 360 * 420,
+                "video": "/path/to/video.mp4",
+                "max_pixels": 360 * 420,
             },
             {"type": "text", "text": "What cant you hear and see in this video?"},
         ],

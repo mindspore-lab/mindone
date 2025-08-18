@@ -215,7 +215,7 @@ def main():
     # all attn linear layers in audio_tower and text model
     lora_config = LoraConfig(
         r=args.lora_rank,
-        lora_alpha=args.lora_rank,
+        lora_alpha=args.lora_alpha,
         init_lora_weights="gaussian",
         target_modules=["k_proj", "v_proj", "q_proj", "out_proj", "o_proj"],
     )
