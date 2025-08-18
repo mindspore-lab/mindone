@@ -44,23 +44,29 @@ from ...modeling_utils import ALL_ATTENTION_FUNCTIONS, MSPreTrainedModel
 from ...processing_utils import Unpack
 from ..qwen2 import Qwen2Model
 
-def _infer_ms_dtype_from_config(config):
-    ms_dtype = getattr(config, "mindspore_dtype", None)
-    if ms_dtype is not None:
-        return ms_dtype
+_STR_TO_MS_DTYPE = {
+    "float32": ms.float32, "fp32": ms.float32, "f32": ms.float32,
+    "float16": ms.float16, "fp16": ms.float16, "f16": ms.float16,
+    "bfloat16": ms.bfloat16, "bf16": ms.bfloat16,
+}
 
-    torch_dtype = getattr(config, "torch_dtype", None)
-    if torch_dtype is None:
-        return ms.float32
-    if isinstance(torch_dtype, str):
-        torch_dtype = torch_dtype.lower()
-        if torch_dtype in ("bfloat16", "bf16"):
-            return ms.bfloat16
-        if torch_dtype in ("float16", "fp16", "half"):
-            return ms.float16
-        if torch_dtype in ("float32", "fp32", "float"):
-            return ms.float32
-    return ms.float32
+def _resolve_ms_dtype_from_config(cfg) -> Optional[ms.dtype]:
+    mindspore_dtype = getattr(cfg, "mindspore_dtype", None)
+    if mindspore_dtype is None:
+        mindspore_dtype = getattr(cfg, "torch_dtype", None)
+    if mindspore_dtype is None:
+        return None
+    if isinstance(mindspore_dtype, str):
+        mindspore_dtype = mindspore_dtype.lower()
+        return _STR_TO_MS_DTYPE.get(mindspore_dtype, None)
+    if isinstance(mindspore_dtype, ms.dtype):
+        return mindspore_dtype
+    return None
+
+def _maybe_cast_module_dtype(module: nn.Cell, cfg) -> None:
+    ms_dtype = _resolve_ms_dtype_from_config(cfg)
+    if ms_dtype is not None:
+        module.to_float(ms_dtype)
 
 class InternVLVisionRMSNorm(nn.Cell):
     def __init__(self, hidden_size, eps=1e-6):
@@ -465,7 +471,6 @@ class InternVLVisionModel(InternVLVisionPreTrainedModel):
     def __init__(self, config: InternVLVisionConfig) -> None:
         super().__init__(config)
         self.config = config
-        self.param_dtype = _infer_ms_dtype_from_config(config)
 
         self.embeddings = InternVLVisionEmbeddings(config)
         self.encoder = InternVLVisionEncoder(config)
@@ -474,11 +479,10 @@ class InternVLVisionModel(InternVLVisionPreTrainedModel):
             mint.nn.Identity() if config.use_mean_pooling else mint.nn.LayerNorm(config.hidden_size, eps=config.layer_norm_eps)
         )
 
+        _maybe_cast_module_dtype(self, self.config)
+
         # Initialize weights and apply final processing
         self.post_init()
-        for p in self.get_parameters():
-            if p.dtype != self.param_dtype:
-                p.set_dtype(self.param_dtype)
 
     def get_input_embeddings(self):
         return self.embeddings.patch_embeddings
@@ -583,15 +587,11 @@ class InternVLModel(InternVLPreTrainedModel):
 
     def __init__(self, config: InternVLConfig):
         super().__init__(config)
-        self.param_dtype = _infer_ms_dtype_from_config(config)
         self.vision_tower = InternVLVisionModel(config.vision_config)
-
         self.multi_modal_projector = InternVLMultiModalProjector(config)
         self.language_model = Qwen2Model(config.text_config)
+        _maybe_cast_module_dtype(self, self.config)
         self.post_init()
-        for p in self.get_parameters():
-            if p.dtype != self.param_dtype:
-                p.set_dtype(self.param_dtype)
 
     def get_input_embeddings(self):
         return self.language_model.get_input_embeddings()
@@ -831,13 +831,10 @@ class InternVLForConditionalGeneration(InternVLPreTrainedModel, GenerationMixin)
 
     def __init__(self, config: InternVLConfig):
         super().__init__(config)
-        self.param_dtype = _infer_ms_dtype_from_config(config)
         self.model = InternVLModel(config)
         self.lm_head = mint.nn.Linear(config.text_config.hidden_size, config.text_config.vocab_size, bias=False)
+        _maybe_cast_module_dtype(self, self.config)
         self.post_init()
-        for p in self.get_parameters():
-            if p.dtype != self.param_dtype:
-                p.set_dtype(self.param_dtype)
 
     def get_input_embeddings(self):
         return self.model.get_input_embeddings()

@@ -112,6 +112,7 @@ class InternVLModelTester:
             image_token_id=self.image_token_id,
             attn_implementation=self.attn_implementation,
             downsample_ratio=self.downsample_ratio,
+            torch_dtype=self.torch_dtype,
         )
         return config
 
