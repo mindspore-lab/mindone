@@ -3,7 +3,6 @@ from typing import Dict, Optional
 import mindspore as ms
 from mindspore import ParallelMode, Tensor, context, mint, nn, ops
 from mindspore.ops import composite as C
-from mindspore.ops import operations as P
 
 from mindone.trainers.zero import ZeroHelper
 
@@ -18,11 +17,10 @@ except ImportError:
 _grad_accum_op = C.MultitypeFuncGraph("gradient_accumulation_op")
 
 
-@_grad_accum_op.register("Int64", "Tensor", "Tensor")
+@_grad_accum_op.register("Tensor", "Tensor")
 def cumulative_grad_process(cumulative_grad, grad):
     """Apply gradient accumulation to cumulative grad."""
-    P.AssignAdd()(cumulative_grad, grad)
-    return cumulative_grad
+    cumulative_grad.add_(grad)
 
 
 _grad_clear_op = C.MultitypeFuncGraph("gradient_clear_op")
@@ -32,7 +30,7 @@ _grad_clear_op = C.MultitypeFuncGraph("gradient_clear_op")
 def clear_grad(cumulative_grad):
     """Clear grad."""
     zero_grad = mint.zeros_like(cumulative_grad)
-    return ops.assign(cumulative_grad, zero_grad)
+    ops.assign(cumulative_grad, zero_grad)
 
 
 def _is_pynative_parallel():
@@ -233,7 +231,7 @@ class TrainOneStepWrapper(nn.Cell):
                 self.ema.ema_update()
         else:
             loss = ops.depend(loss, self.hyper_map(_grad_accum_op, self.accumulated_grads, grads))
-            loss = ops.depend(loss, ops.assign_add(self.cur_accum_step, ms.Tensor(1, ms.int32)))
+            loss = ops.depend(loss, self.cur_accum_step.add_(1))
             if self.cur_accum_step % self.accum_steps == 0:
                 if self.clip_grad_fn is not None:
                     if self.is_zero and self.is_clip_norm:
@@ -253,9 +251,7 @@ class TrainOneStepWrapper(nn.Cell):
                     self.ema.ema_update()
             else:
                 # update the optimizer global step and learning rate, do not update the parameter
-                loss = ops.depend(
-                    loss, ops.assign_add(self.optimizer.global_step, self.optimizer.global_step_increase_tensor)
-                )
+                loss = ops.depend(loss, self.optimizer.global_step.add_(self.optimizer.global_step_increase_tensor))
 
             # unscaling loss for grad accum
             loss = loss * self.accum_steps

@@ -11,8 +11,8 @@ class ModelArguments:
     tune_mm_mlp: bool = field(default=False)
     tune_mm_vision: bool = field(default=False)
     tune_mm_lora: bool = field(default=False)
-    lora_r: int = field(default=32)
-    lora_alpha: float = field(default=64.0)
+    lora_r: int = field(default=4)
+    lora_alpha: float = field(default=16.0)
 
 
 @dataclass
@@ -32,7 +32,7 @@ class DataArguments:
 @dataclass
 class TrainingArguments(mindone.transformers.TrainingArguments):
     cache_dir: Optional[str] = field(default=None)
-    optim: str = field(default="adamw_torch")
+    optim: str = field(default="adamw_mindspore")
     model_max_length: int = field(
         default=512,
         metadata={"help": "Maximum sequence length. Sequences will be right padded (and possibly truncated)."},

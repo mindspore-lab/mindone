@@ -57,9 +57,7 @@ def safe_save_model_for_hf_trainer(trainer: mindone.transformers.Trainer, output
 
     state_dict = trainer.model.state_dict()
     if trainer.args.should_save:
-        cpu_state_dict = {key: value.cpu() for key, value in state_dict.items()}
-        del state_dict
-        trainer._save(output_dir, state_dict=cpu_state_dict)  # noqa
+        trainer._save(output_dir, state_dict=state_dict)
 
 
 def set_model(model_args, model):
@@ -90,7 +88,7 @@ def set_model(model_args, model):
             p.requires_grad = True
     elif model_args.tune_mm_lora:
         model.model.set_grad(True)
-        model.lm_head.set_grad(False)
+        model.lm_head.set_grad(True)
         for _, p in model.model.parameters_and_names():
             p.requires_grad = False
         for _, p in model.lm_head.parameters_and_names():
@@ -181,7 +179,7 @@ def train(attn_implementation="flash_attention_2"):
 
     if model_args.tune_mm_lora:
         add_lora(model_args, model)
-        if training_args.bf16:
+        if training_args.bf16 and training_args.optim == "bf16_adamw":
             model.to(ms.bfloat16)
 
     if mint.distributed.get_rank() == 0:

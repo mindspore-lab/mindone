@@ -20,6 +20,7 @@ The Trainer class, to easily train a 🤗 Transformers from scratch or finetune 
 
 import functools
 import inspect
+import json
 import math
 import os
 import re
@@ -143,6 +144,18 @@ class Trainer:
         self.hp_name = None
         self.deepspeed = None
         self.is_in_train = False
+
+        # TODO: this is just a temporaily implementation to support zero-3 based on deepspeed config.
+        if self.args.deepspeed:
+            with open(self.args.deepspeed) as f:
+                deepspeed_config = json.load(f)
+                try:
+                    if deepspeed_config["zero_optimization"]["stage"] == 3:
+                        self.use_zero3 = True
+                except KeyError:
+                    self.use_zero3 = False
+        else:
+            self.use_zero3 = False
 
         # self.create_accelerator_and_postprocess()
 
@@ -756,7 +769,7 @@ class Trainer:
 
             model_ = ReturnLoss(model)
 
-        if os.environ.get("USE_ZERO3", None) == "1":
+        if self.use_zero3:
             model_ = prepare_network(model_, 3, optimizer_parallel_group=GlobalComm.WORLD_COMM_GROUP)
             zero_helper = ZeroHelper(self.optimizer, 3, optimizer_parallel_group=GlobalComm.WORLD_COMM_GROUP)
         else:

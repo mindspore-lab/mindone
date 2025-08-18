@@ -43,7 +43,6 @@ def preprocess_qwen_2_visual(
     roles = {"human": "user", "gpt": "assistant"}
     system_message = "You are a helpful assistant."
 
-    tokenizer = copy.deepcopy(tokenizer)
     chat_template = (
         "{% for message in messages %}{{'<|im_start|>' + message['role'] + '\n' + message['content'] + '<|im_end|>' + '\n'}}{% endfor %}"
         "{% if add_generation_prompt %}{{ '<|im_start|>assistant\n' }}{% endif %}"
