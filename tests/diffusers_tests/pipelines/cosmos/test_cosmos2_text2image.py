@@ -184,12 +184,7 @@ class Cosmos2TextToImagePipelineSlowTests(PipelineTesterMixin, unittest.TestCase
         pipe = Cosmos2TextToImagePipeline.from_pretrained(model_id, mindspore_dtype=ms_dtype)
 
         torch.manual_seed(1)
-        image = pipe(
-            prompt="dance monkey",
-            negative_prompt="bad quality",
-        )[
-            0
-        ][0]
+        image = pipe(prompt="dance monkey", negative_prompt="bad quality")[0][0]
 
         expected_image = load_numpy_from_local_file(
             "mindone-testing-arrays",

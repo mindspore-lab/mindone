@@ -16,16 +16,19 @@ import unittest
 
 import numpy as np
 import PIL.Image
+import pytest
 import torch
 from ddt import data, ddt, unpack
 
 import mindspore as ms
 
-from mindone.diffusers.utils.testing_utils import load_numpy_from_local_file, slow  # noqa F401
+from mindone.diffusers import CosmosVideoToWorldPipeline
+from mindone.diffusers.utils.testing_utils import load_image, load_numpy_from_local_file, slow  # noqa F401
 
 from ..pipeline_test_utils import (
     THRESHOLD_FP16,
     THRESHOLD_FP32,
+    THRESHOLD_PIXEL,
     PipelineTesterMixin,
     get_module,
     get_pipeline_components,
@@ -39,7 +42,7 @@ test_cases = [
 
 
 @ddt
-class CosmosTextToWorldPipelineFastTests(PipelineTesterMixin, unittest.TestCase):
+class CosmosVideoToWorldPipelineFastTests(PipelineTesterMixin, unittest.TestCase):
     pipeline_config = [
         [
             "transformer",
@@ -186,3 +189,33 @@ class CosmosTextToWorldPipelineFastTests(PipelineTesterMixin, unittest.TestCase)
             np.max(np.linalg.norm(pt_generated_video - ms_generated_video) / np.linalg.norm(pt_generated_video))
             < threshold
         )
+
+
+@slow
+@ddt
+class CosmosVideoToWorldPipelineSlowTests(PipelineTesterMixin, unittest.TestCase):
+    @data(*test_cases)
+    @unpack
+    def test_inference(self, mode, dtype):
+        if dtype == "float16":
+            pytest.skip("FP16 runs black results on both torch and mindspore")
+
+        ms.set_context(mode=mode)
+        ms_dtype = getattr(ms, dtype)
+
+        model_id = "nvidia/Cosmos-1.0-Diffusion-7B-Video2World"
+        prompt = "The video depicts a long, straight highway stretching into the distance, flanked by metal guardrails. The road is divided into multiple lanes, with a few vehicles visible in the far distance. The surrounding landscape features dry, grassy fields on one side and rolling hills on the other. The sky is mostly clear with a few scattered clouds, suggesting a bright, sunny day."  # noqa E501
+        image = load_image(
+            "https://huggingface.co/datasets/huggingface/documentation-images/resolve/main/diffusers/cosmos/cosmos-video2world-input.jpg"
+        )
+        pipe = CosmosVideoToWorldPipeline.from_pretrained(model_id, mindspore_dtype=ms_dtype)
+
+        torch.manual_seed(0)
+        frame = pipe(prompt=prompt, image=image)[0][0][0]
+
+        expected_frame = load_numpy_from_local_file(
+            "mindone-testing-arrays",
+            f"cosmos_t2w_{dtype}.npy",
+            subfolder="cosmos",
+        )
+        assert np.mean(np.abs(np.array(frame, dtype=np.float32) - expected_frame)) < THRESHOLD_PIXEL

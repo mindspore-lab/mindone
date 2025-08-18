@@ -146,6 +146,11 @@ class CosmosAdaLayerNormZero(nn.Cell):
 
 
 class CosmosAttnProcessor2_0:
+    def _init__(self):
+        from ..embeddings import apply_rotary_emb
+
+        self.apply_rotary_emb = apply_rotary_emb
+
     def __call__(
         self,
         attn: Attention,
@@ -162,9 +167,9 @@ class CosmosAttnProcessor2_0:
         key = attn.to_k(encoder_hidden_states)
         value = attn.to_v(encoder_hidden_states)
 
-        query = unflatten(query, 2, (attn.heads, -1)).transpose(1, 2)
-        key = unflatten(key, 2, (attn.heads, -1)).transpose(1, 2)
-        value = unflatten(value, 2, (attn.heads, -1)).transpose(1, 2)
+        query = unflatten(query, 2, (attn.heads, -1)).swapaxes(1, 2)
+        key = unflatten(key, 2, (attn.heads, -1)).swapaxes(1, 2)
+        value = unflatten(value, 2, (attn.heads, -1)).swapaxes(1, 2)
 
         # 2. QK normalization
         query = attn.norm_q(query)
@@ -172,23 +177,21 @@ class CosmosAttnProcessor2_0:
 
         # 3. Apply RoPE
         if image_rotary_emb is not None:
-            from ..embeddings import apply_rotary_emb
-
-            query = apply_rotary_emb(query, image_rotary_emb, use_real=True, use_real_unbind_dim=-2)
-            key = apply_rotary_emb(key, image_rotary_emb, use_real=True, use_real_unbind_dim=-2)
+            query = self.apply_rotary_emb(query, image_rotary_emb, use_real=True, use_real_unbind_dim=-2)
+            key = self.apply_rotary_emb(key, image_rotary_emb, use_real=True, use_real_unbind_dim=-2)
 
         # 4. Prepare for GQA
         query_idx = ms.tensor(query.shape[3])
         key_idx = ms.tensor(key.shape[3])
         value_idx = ms.tensor(value.shape[3])
-        key = key.repeat_interleave(query_idx // key_idx, dim=3)
-        value = value.repeat_interleave(query_idx // value_idx, dim=3)
+        key = mint.repeat_interleave(key, repeats=(query_idx // key_idx), dim=3)
+        value = mint.repeat_interleave(value, repeats=(query_idx // value_idx), dim=3)
 
         # 5. Attention
         hidden_states = attn.scaled_dot_product_attention(
             query, key, value, attn_mask=attention_mask, dropout_p=0.0, is_causal=False
         )
-        hidden_states = hidden_states.transpose(1, 2).flatten(2, 3).type_as(query)
+        hidden_states = hidden_states.swapaxes(1, 2).flatten(2, 3).type_as(query)
 
         # 6. Output projection
         hidden_states = attn.to_out[0](hidden_states)
@@ -465,6 +468,10 @@ class CosmosTransformer3DModel(ModelMixin, ConfigMixin):
 
         self.gradient_checkpointing = False
 
+        self.p_t, self.p_h, self.p_w = self.config.patch_size
+        self.concat_padding_mask = self.config.concat_padding_mask
+        self.extra_pos_embed_type = self.config.extra_pos_embed_type
+
     def construct(
         self,
         hidden_states: ms.tensor,
@@ -482,7 +489,7 @@ class CosmosTransformer3DModel(ModelMixin, ConfigMixin):
         if condition_mask is not None:
             hidden_states = mint.cat([hidden_states, condition_mask], dim=1)
 
-        if self.config.concat_padding_mask:
+        if self.concat_padding_mask:
             # padding_mask = transforms.functional.resize(
             #     padding_mask, list(hidden_states.shape[-2:]), interpolation=transforms.InterpolationMode.NEAREST
             # )
@@ -498,17 +505,17 @@ class CosmosTransformer3DModel(ModelMixin, ConfigMixin):
 
         # 2. Generate positional embeddings
         image_rotary_emb = self.rope(hidden_states, fps=fps)
-        extra_pos_emb = self.learnable_pos_embed(hidden_states) if self.config.extra_pos_embed_type else None
+        extra_pos_emb = self.learnable_pos_embed(hidden_states) if self.extra_pos_embed_type else None
 
         # 3. Patchify input
-        p_t, p_h, p_w = self.config.patch_size
-        post_patch_num_frames = num_frames // p_t
-        post_patch_height = height // p_h
-        post_patch_width = width // p_w
+        post_patch_num_frames = num_frames // self.p_t
+        post_patch_height = height // self.p_h
+        post_patch_width = width // self.p_w
         hidden_states = self.patch_embed(hidden_states)
         hidden_states = hidden_states.flatten(1, 3)  # [B, T, H, W, C] -> [B, THW, C]
 
         # 4. Timestep embeddings
+        temb, embedded_timestep = None, None
         if timestep.ndim == 1:
             temb, embedded_timestep = self.time_embed(hidden_states, timestep)
         elif timestep.ndim == 5:
@@ -546,7 +553,7 @@ class CosmosTransformer3DModel(ModelMixin, ConfigMixin):
         # 6. Output norm & projection & unpatchify
         hidden_states = self.norm_out(hidden_states, embedded_timestep, temb)
         hidden_states = self.proj_out(hidden_states)
-        hidden_states = unflatten(hidden_states, 2, (p_h, p_w, p_t, -1))
+        hidden_states = unflatten(hidden_states, 2, (self.p_h, self.p_w, self.p_t, -1))
         hidden_states = unflatten(hidden_states, 1, (post_patch_num_frames, post_patch_height, post_patch_width))
         # Please just kill me at this point. What even is this permutation order and why is it different from the patching order?
         # Another few hours of sanity lost to the void.
