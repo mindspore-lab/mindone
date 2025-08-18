@@ -25,16 +25,15 @@ logger = logging.get_logger(__name__)  # pylint: disable=invalid-name
 EXAMPLE_DOC_STRING = """
     Examples:
         ```py
-        >>> import torch
-        >>> from diffusers import QwenImageImg2ImgPipeline
-        >>> from diffusers.utils import load_image
+        >>> import mindspore
+        >>> from mindone.diffusers import QwenImageImg2ImgPipeline
+        >>> from mindone.diffusers.utils import load_image
 
-        >>> pipe = QwenImageImg2ImgPipeline.from_pretrained("Qwen/Qwen-Image", torch_dtype=torch.bfloat16)
-        >>> pipe = pipe.to("cuda")
+        >>> pipe = QwenImageImg2ImgPipeline.from_pretrained("Qwen/Qwen-Image", mindspore_dtype=mindspore.bfloat16)
         >>> url = "https://raw.githubusercontent.com/CompVis/stable-diffusion/main/assets/stable-samples/img2img/sketch-mountains-input.jpg"
         >>> init_image = load_image(url).resize((1024, 1024))
         >>> prompt = "cat wizard, gandalf, lord of the rings, detailed, fantasy, cute, adorable, Pixar, Disney"
-        >>> images = pipe(prompt=prompt, negative_prompt=" ", image=init_image, strength=0.95).images[0]
+        >>> images = pipe(prompt=prompt, negative_prompt=" ", image=init_image, strength=0.95)[0][0]
         >>> images.save("qwenimage_img2img.png")
         ```
 """
