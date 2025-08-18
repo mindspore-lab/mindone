@@ -701,7 +701,7 @@ class HeliumModel(HeliumPreTrainedModel):
             causal_mask = attention_mask
         else:
             min_dtype = _DTYPE_2_MIN[dtype]
-            causal_mask = mint.full(
+            causal_mask = ms.ops.full(
                 (sequence_length, target_length),
                 fill_value=min_dtype,
                 dtype=dtype,
