@@ -76,6 +76,7 @@ _import_structure = {
         "Lumina2LoraLoaderMixin",
         "WanLoraLoaderMixin",
         "HiDreamImageLoraLoaderMixin",
+        "QwenImageLoraLoaderMixin"
     ],
     "peft": ["PeftAdapterMixin"],
     "single_file": ["FromSingleFileMixin"],
@@ -98,6 +99,7 @@ if TYPE_CHECKING:
         LTXVideoLoraLoaderMixin,
         Lumina2LoraLoaderMixin,
         Mochi1LoraLoaderMixin,
+        QwenImageLoraLoaderMixin,
         SanaLoraLoaderMixin,
         SD3LoraLoaderMixin,
         StableDiffusionLoraLoaderMixin,

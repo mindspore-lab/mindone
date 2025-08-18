@@ -32,7 +32,7 @@ from ...loaders import FromOriginalModelMixin, PeftAdapterMixin
 # from ...utils.torch_utils import maybe_allow_in_graph
 from ...utils import logging
 from ..attention import FeedForward
-from ..attention_dispatch import dispatch_attention_fn
+# from ..attention_dispatch import dispatch_attention_fn
 from ..attention_processor import Attention
 # from ..cache_utils import CacheMixin
 from ..embeddings import TimestepEmbedding, Timesteps
