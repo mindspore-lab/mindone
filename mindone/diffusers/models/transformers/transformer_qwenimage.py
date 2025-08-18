@@ -169,7 +169,7 @@ class QwenEmbedRope(nn.Cell):
         self.theta = theta
         self.axes_dim = axes_dim
         pos_index = mint.arange(4096)
-        neg_index = mint.arange(4096).flip(0) * -1 - 1
+        neg_index = mint.arange(4096).flip(dims=[0]) * -1 - 1
         self.pos_freqs = mint.cat(
             [
                 self.rope_params(pos_index, self.axes_dim[0], self.theta),
