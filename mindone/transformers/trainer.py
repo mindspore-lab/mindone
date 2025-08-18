@@ -166,6 +166,7 @@ class Trainer:
         # set the correct log level depending on the node
         log_level = args.get_process_log_level()
         logging.set_verbosity(log_level)
+        logger.setLevel(log_level)
 
         if model is None:
             if model_init is not None:
