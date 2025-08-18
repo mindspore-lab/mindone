@@ -50,7 +50,9 @@ _STR_TO_MS_DTYPE = {
     "bfloat16": ms.bfloat16, "bf16": ms.bfloat16,
 }
 
-def _resolve_ms_dtype_from_config(cfg) -> Optional[ms.dtype]:
+_MS_FLOAT_DTYPES = {ms.float32, ms.float16, ms.bfloat16}
+
+def _resolve_ms_dtype_from_config(cfg):
     mindspore_dtype = getattr(cfg, "mindspore_dtype", None)
     if mindspore_dtype is None:
         mindspore_dtype = getattr(cfg, "torch_dtype", None)
@@ -59,14 +61,15 @@ def _resolve_ms_dtype_from_config(cfg) -> Optional[ms.dtype]:
     if isinstance(mindspore_dtype, str):
         mindspore_dtype = mindspore_dtype.lower()
         return _STR_TO_MS_DTYPE.get(mindspore_dtype, None)
-    if isinstance(mindspore_dtype, ms.dtype):
+    if mindspore_dtype in _MS_FLOAT_DTYPES:
         return mindspore_dtype
     return None
 
-def _maybe_cast_module_dtype(module: nn.Cell, cfg) -> None:
-    ms_dtype = _resolve_ms_dtype_from_config(cfg)
-    if ms_dtype is not None:
-        module.to_float(ms_dtype)
+def _force_cast_all_float_params(cell: nn.Cell, dtype: ms.dtype):
+    for name, p in cell.parameters_and_names():
+        if isinstance(p, ms.Parameter) and p.dtype in _MS_FLOAT_DTYPES and p.dtype != dtype:
+            p.set_data(p.data.astype(dtype))
+
 
 class InternVLVisionRMSNorm(nn.Cell):
     def __init__(self, hidden_size, eps=1e-6):
@@ -238,7 +241,7 @@ class InternVLVisionPatchEmbeddings(nn.Cell):
     Transformer.
     """
 
-    def __init__(self, config):
+    def __init__(self, config, dtype = None):
         super().__init__()
         image_size, patch_size = config.image_size, tuple(config.patch_size)
         num_channels, hidden_size = config.num_channels, config.hidden_size
@@ -251,7 +254,7 @@ class InternVLVisionPatchEmbeddings(nn.Cell):
         self.num_patches = num_patches
         self.patch_shape = patch_shape
 
-        self.projection = mint.nn.Conv2d(num_channels, hidden_size, kernel_size=patch_size, stride=patch_size)
+        self.projection = mint.nn.Conv2d(num_channels, hidden_size, kernel_size=patch_size, stride=patch_size, dtype=dtype)
 
     def construct(self, pixel_values: ms.Tensor) -> ms.Tensor:
         batch_size, num_channels, height, width = pixel_values.shape
@@ -275,15 +278,16 @@ class InternVLVisionEmbeddings(nn.Cell):
 
     """
 
-    def __init__(self, config: InternVLVisionConfig) -> None:
+    def __init__(self, config: InternVLVisionConfig, dtype = None) -> None:
         super().__init__()
+        self._dtype = dtype or _resolve_ms_dtype_from_config(config) or ms.float32
 
-        self.cls_token = ms.Parameter(mint.zeros((1, 1, config.hidden_size)))
+        self.cls_token = ms.Parameter(mint.zeros((1, 1, config.hidden_size), dtype=self._dtype))
         if config.use_mask_token:
-            self.mask_token = ms.Parameter(mint.zeros((1, 1, config.hidden_size)))
+            self.mask_token = ms.Parameter(mint.zeros((1, 1, config.hidden_size), dtype=self._dtype))
         else:
             self.mask_token = None
-        self.patch_embeddings = InternVLVisionPatchEmbeddings(config)
+        self.patch_embeddings = InternVLVisionPatchEmbeddings(config, dtype=self._dtype)
         self.patch_size = config.patch_size
         self.image_size = (
             config.image_size
@@ -292,7 +296,7 @@ class InternVLVisionEmbeddings(nn.Cell):
         )
         num_patches = self.patch_embeddings.num_patches
         if config.use_absolute_position_embeddings:
-            self.position_embeddings = ms.Parameter(mint.zeros((1, num_patches + 1, config.hidden_size)))
+            self.position_embeddings = ms.Parameter(mint.zeros((1, num_patches + 1, config.hidden_size), dtype=self._dtype))
         else:
             self.position_embeddings = None
         self.dropout = mint.nn.Dropout(config.hidden_dropout_prob)
@@ -471,15 +475,17 @@ class InternVLVisionModel(InternVLVisionPreTrainedModel):
     def __init__(self, config: InternVLVisionConfig) -> None:
         super().__init__(config)
         self.config = config
+        _dtype = _resolve_ms_dtype_from_config(self.config)
 
-        self.embeddings = InternVLVisionEmbeddings(config)
+        self.embeddings = InternVLVisionEmbeddings(config, dtype=_dtype)
         self.encoder = InternVLVisionEncoder(config)
 
         self.layernorm = (
             mint.nn.Identity() if config.use_mean_pooling else mint.nn.LayerNorm(config.hidden_size, eps=config.layer_norm_eps)
         )
 
-        _maybe_cast_module_dtype(self, self.config)
+        if _dtype is not None:
+            _force_cast_all_float_params(self, _dtype)
 
         # Initialize weights and apply final processing
         self.post_init()
@@ -590,7 +596,9 @@ class InternVLModel(InternVLPreTrainedModel):
         self.vision_tower = InternVLVisionModel(config.vision_config)
         self.multi_modal_projector = InternVLMultiModalProjector(config)
         self.language_model = Qwen2Model(config.text_config)
-        _maybe_cast_module_dtype(self, self.config)
+        _dtype = _resolve_ms_dtype_from_config(self.config)
+        if _dtype is not None:
+            _force_cast_all_float_params(self, _dtype)
         self.post_init()
 
     def get_input_embeddings(self):
@@ -833,7 +841,9 @@ class InternVLForConditionalGeneration(InternVLPreTrainedModel, GenerationMixin)
         super().__init__(config)
         self.model = InternVLModel(config)
         self.lm_head = mint.nn.Linear(config.text_config.hidden_size, config.text_config.vocab_size, bias=False)
-        _maybe_cast_module_dtype(self, self.config)
+        _dtype = _resolve_ms_dtype_from_config(self.config)
+        if _dtype is not None:
+            _force_cast_all_float_params(self, _dtype)
         self.post_init()
 
     def get_input_embeddings(self):
