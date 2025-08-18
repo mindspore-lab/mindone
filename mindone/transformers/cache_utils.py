@@ -232,12 +232,14 @@ class StaticCache(Cache):
 
     is_compileable = True
 
-    def __init__(self, config: PretrainedConfig,
-                    batch_size: int = None,
-                    max_cache_len: int = None,
-                    dtype: ms.Type = ms.float32,
-                    max_batch_size: Optional[int] = None,
-                 ) -> None:
+    def __init__(
+        self,
+        config: PretrainedConfig,
+        batch_size: int = None,
+        max_cache_len: int = None,
+        dtype: ms.Type = ms.float32,
+        max_batch_size: Optional[int] = None,
+    ) -> None:
         super().__init__()
         self.max_batch_size = batch_size or max_batch_size
         self.max_cache_len = config.max_position_embeddings if max_cache_len is None else max_cache_len

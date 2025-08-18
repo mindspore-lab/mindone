@@ -327,6 +327,7 @@ def load_state_dict(checkpoint_file: Union[str, os.PathLike]):
                 f"Unable to load weights from checkpoint file for '{checkpoint_file}' " f"at '{checkpoint_file}'. "
             )
 
+
 def _end_ptr(tensor: ms.Tensor) -> int:
     # extract the end of the pointer if the tensor is a slice of a bigger tensor
     if tensor.nelement():
@@ -334,6 +335,7 @@ def _end_ptr(tensor: ms.Tensor) -> int:
     else:
         stop = tensor.data_ptr()
     return stop
+
 
 def _find_disjoint(tensors: List[Set[str]], state_dict: Dict[str, ms.Tensor]) -> Tuple[List[Set[str]], List[str]]:
     filtered_tensors = []
@@ -384,6 +386,7 @@ def _find_identical(tensors: List[Set[str]], state_dict: Dict[str, ms.Tensor]) -
             shared_tensors.append(shared)
     return shared_tensors, identical
 
+
 def _load_state_dict_into_model(model_to_load, state_dict, start_prefix, is_sharded=False):
     # # add prefix to the name of parameters
     # if len(start_prefix) > 0:
@@ -429,6 +432,7 @@ def _add_variant(weights_name: str, variant: Optional[str] = None) -> str:
 
     return weights_name
 
+
 def _find_missing_and_unexpected_keys(
     cls,
     model: "PreTrainedModel",
@@ -473,7 +477,6 @@ def _find_missing_and_unexpected_keys(
             unexpected_keys = [k for k in unexpected_keys if re.search(pattern, k) is None]
 
     return missing_keys, unexpected_keys
-
 
 
 class ModuleUtilsMixin:
@@ -2638,9 +2641,7 @@ class PreTrainedModel(nn.Cell, ModuleUtilsMixin, GenerationMixin, PushToHubMixin
         elif state_dict is not None:
             original_checkpoint_keys = list(state_dict.keys())
         else:
-            original_checkpoint_keys = list(
-                load_state_dict(pretrained_model_name_or_path).keys()
-            )
+            original_checkpoint_keys = list(load_state_dict(pretrained_model_name_or_path).keys())
 
         # Check if we are in a special state, i.e. loading from a state dict coming from a different architecture
         prefix = model.base_model_prefix
@@ -2681,14 +2682,13 @@ class PreTrainedModel(nn.Cell, ModuleUtilsMixin, GenerationMixin, PushToHubMixin
             model_to_load = getattr(model, prefix)
             # Here we need to remove the prefix we added to correctly find missing/unexpected keys, as we will load
             # in the submodule
-            key_renaming_mapping = {k: v[len(_prefix):] for k, v in key_renaming_mapping.items()}
+            key_renaming_mapping = {k: v[len(_prefix) :] for k, v in key_renaming_mapping.items()}
             checkpoint_keys = list(key_renaming_mapping.values())
             # small sanity check: the base model should not contain task-specific head keys
             task_specific_expected_keys = [s for s in model.state_dict().keys() if not s.startswith(_prefix)]
             base_model_expected_keys = list(model_to_load.state_dict().keys())
             if any(
-                    key in task_specific_expected_keys and key not in base_model_expected_keys for key in
-                    checkpoint_keys
+                key in task_specific_expected_keys and key not in base_model_expected_keys for key in checkpoint_keys
             ):
                 raise ValueError(
                     "The state dictionary of the model you are trying to load is corrupted. Are you sure it was "

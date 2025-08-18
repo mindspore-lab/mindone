@@ -29,17 +29,7 @@ from huggingface_hub import HfApi, HfFolder
 from parameterized import parameterized
 from pytest import mark
 from requests.exceptions import HTTPError
-
-from transformers import (
-    PretrainedConfig,
-    logging,
-)
-from mindone.transformers import (
-    AutoConfig,
-    AutoModelForImageClassification,
-    AutoModelForSequenceClassification,
-)
-from mindone.transformers.utils import is_mindspore_available
+from transformers import PretrainedConfig, logging
 from transformers.testing_utils import (
     TOKEN,
     CaptureLogger,
@@ -54,32 +44,23 @@ from transformers.testing_utils import (
     require_usr_bin_time,
     slow,
 )
-from mindone.transformers.testing_utils import (
-    require_mindspore
-)
 
+from mindone.transformers import AutoConfig, AutoModelForImageClassification, AutoModelForSequenceClassification
+from mindone.transformers.testing_utils import require_mindspore
+from mindone.transformers.utils import is_mindspore_available
 
 sys.path.append(str(Path(__file__).parent.parent.parent / "utils"))
 
 if is_mindspore_available():
-    import mindspore as ms
-    from mindone.safetensors.mindspore import save_file as safe_save_file
-    from mindspore import mint, nn, Parameter
+    from transformers import BertConfig
 
-    from transformers import (
-        AutoTokenizer,
-        BertConfig,
-        T5Config,
-    )
+    import mindspore as ms
+    from mindspore import Parameter, mint, nn
+
     from mindone.transformers import (
         AutoModelForCausalLM,
         BertModel,
-        CLIPTextModel,
-        GenerationMixin,
         T5ForConditionalGeneration,
-    )
-    from mindone.transformers.modeling_utils import (
-        PreTrainedModel,
     )
     from mindone.transformers.modeling_attn_mask_utils import (
         AttentionMaskConverter,
@@ -88,11 +69,7 @@ if is_mindspore_available():
         _prepare_4d_causal_attention_mask,
         dtype_to_min,
     )
-    from mindone.transformers.modeling_utils import (
-        _find_disjoint,
-        _find_identical,
-        dtype_byte_size,
-    )
+    from mindone.transformers.modeling_utils import PreTrainedModel, dtype_byte_size
 
     # Fake pretrained models for tests
     class BaseModel(PreTrainedModel):
@@ -186,7 +163,6 @@ if is_mindspore_available():
         def test_offline(self):
             # Ugly setup with monkeypatches, amending env vars here is too late as libs have already been imported
             from huggingface_hub import constants
-
             from transformers.utils import hub
 
             offlfine_env = hub._is_offline_mode
@@ -234,7 +210,6 @@ if is_mindspore_available():
         def test_local_files_only(self):
             # Ugly setup with monkeypatches, amending env vars here is too late as libs have already been imported
             from huggingface_hub import constants
-
             from transformers.utils import hub
 
             hub_cache_env = constants.HF_HUB_CACHE
@@ -460,7 +435,6 @@ class ModelUtilsTest(TestCasePlus):
 
         for mindspore_dtype, bytes_per_element in mindspore_dtypes_and_bytes:
             self.assertEqual(dtype_byte_size(mindspore_dtype), bytes_per_element)
-
 
     @require_safetensors
     def test_checkpoint_variant_hub_safe(self):
@@ -1015,9 +989,7 @@ class AttentionMaskTester(unittest.TestCase):
                 self.check_non_causal(bsz, q_len, kv_len, mask_2d, mask_4d)
 
     def check_to_causal(self, mask_converter, q_len, kv_len, bsz=3):
-        mask_4d = mask_converter.to_causal_4d(
-            bsz, query_length=q_len, key_value_length=kv_len, dtype=ms.float32
-        )
+        mask_4d = mask_converter.to_causal_4d(bsz, query_length=q_len, key_value_length=kv_len, dtype=ms.float32)
 
         if q_len == 1 and mask_converter.sliding_window is None:
             # no causal mask if q_len is 1

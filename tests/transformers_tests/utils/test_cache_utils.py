@@ -15,25 +15,15 @@
 
 import unittest
 
-from mindone.transformers.testing_utils import (
-    is_mindspore_available,
-    require_mindspore,
-)
-
+from mindone.transformers.testing_utils import is_mindspore_available, require_mindspore
 
 if is_mindspore_available():
+    from transformers import LlamaConfig
+
     from mindspore import mint
 
-    from mindone.transformers import (
-        GPT2LMHeadModel,
-    )
-    from mindone.transformers.cache_utils import (
-        DynamicCache,
-        StaticCache,
-    )
-    from transformers import (
-        LlamaConfig,
-    )
+    from mindone.transformers import GPT2LMHeadModel
+    from mindone.transformers.cache_utils import DynamicCache, StaticCache
 
 
 @require_mindspore
@@ -82,9 +72,7 @@ class CacheTest(unittest.TestCase):
         to_legacy = new_cache.to_legacy_cache()
         for layer_idx in range(10):
             for key_value_idx in range(2):
-                self.assertTrue(
-                    mint.allclose(to_legacy[layer_idx][key_value_idx], new_cache[layer_idx][key_value_idx])
-                )
+                self.assertTrue(mint.allclose(to_legacy[layer_idx][key_value_idx], new_cache[layer_idx][key_value_idx]))
 
     def test_reorder_cache_retrocompatibility(self):
         """Tests that Cache.reorder_cache is retrocompatible with the legacy code path"""
@@ -111,9 +99,7 @@ class CacheTest(unittest.TestCase):
         for layer_idx in range(10):
             for key_value_idx in range(2):
                 self.assertTrue(
-                    mint.allclose(
-                        new_cache[layer_idx][key_value_idx], legacy_cache_reordered[layer_idx][key_value_idx]
-                    )
+                    mint.allclose(new_cache[layer_idx][key_value_idx], legacy_cache_reordered[layer_idx][key_value_idx])
                 )
 
     def test_static_cache_mha_mqa_gqa(self):

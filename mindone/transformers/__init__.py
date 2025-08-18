@@ -26,12 +26,13 @@ import transformers
 from packaging import version
 
 from .cache_utils import *
+
 # Feature Extractor
 from .feature_extraction_utils import BatchFeature, FeatureExtractionMixin
+from .generation import GenerationMixin
 from .image_processing_base import ImageProcessingMixin
 from .image_processing_utils import BaseImageProcessor
 from .image_utils import ImageFeatureExtractionMixin
-from .generation import GenerationMixin
 from .modeling_utils import MSPreTrainedModel
 from .models.albert import (
     AlbertForMaskedLM,
