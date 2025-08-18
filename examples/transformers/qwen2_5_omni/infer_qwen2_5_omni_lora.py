@@ -29,7 +29,7 @@ from qwen_omni_utils import process_mm_info
 
 import mindspore as ms
 
-from mindone.diffusers._peft import PeftModel
+from mindone.peft import PeftModel
 from mindone.transformers import Qwen2_5OmniForConditionalGeneration
 from mindone.transformers.models.qwen2_5_omni import Qwen2_5OmniProcessor
 
@@ -154,7 +154,7 @@ def main():
         return text
 
     if (args.image_path is None) and (args.audio_path is None):
-        if args.dataset_path.endswith("Latex_OCR"):
+        if args.dataset_path.endswith("LaTex_OCR"):
             with open("latex_ocr_lora_res.txt", "a") as f:
                 f.write("*" * 50 + "\n")
                 f.write(f"Evaluate finetuned model with LoRA from {args.lora_path}\n")
@@ -188,9 +188,9 @@ def main():
             prompt = "Please convert the audio to traditional Chinese text"
             correct = 0
             for idx, example in enumerate(dataset):
-                medium = example["image"].convert("RGB")  # PIL
-                answer = example["text"]
-                response = inference(medium, prompt, medium_type="image", use_audio_in_video=False)
+                medium = example["path"]
+                answer = example["sentence"]
+                response = inference(medium, prompt, medium_type="audio", use_audio_in_video=True)
                 print(f"Response #{idx}: {response}\n")
 
                 with open("asr_lora_res.txt", "a") as f:

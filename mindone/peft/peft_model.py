@@ -428,7 +428,7 @@ class PeftModel(PushToHubMixin, nn.Cell):
         # 1. Remove VB-LoRA vector bank, since it's a shared parameter set via the VBLoRAModel
         # 2. Remove the prompt encoder, as it does not need to be part of the checkpoint
         missing_keys = [
-            k for k in load_result.missing_keys if "vblora_vector_bank" not in k and "prompt_encoder" not in k
+            k for k in load_result["missing_keys"] if "vblora_vector_bank" not in k and "prompt_encoder" not in k
         ]
         if missing_keys:
             # Let's warn here since (in contrast to load_adapter) we don't return the load result, so it could be quite
@@ -952,12 +952,12 @@ class PeftModel(PushToHubMixin, nn.Cell):
         adapter_missing_keys = []
 
         # Filter missing keys specific to the current adapter and tuner prefix.
-        for key in load_result.missing_keys:
+        for key in load_result["missing_keys"]:
             if tuner_prefix in key and adapter_name in key:
                 adapter_missing_keys.append(key)
 
-        load_result.missing_keys.clear()
-        load_result.missing_keys.extend(adapter_missing_keys)
+        load_result["missing_keys"].clear()
+        load_result["missing_keys"].extend(adapter_missing_keys)
 
         if (
             (getattr(self, "hf_device_map", None) is not None)
