@@ -1,4 +1,7 @@
-# Copyright 2025 The Wan Team and The HuggingFace Team. All rights reserved.
+# Copyright 2025 The HuggingFace Team. All rights reserved.
+#
+# This code is adapted from https://github.com/huggingface/diffusers
+# with modifications to run diffusers on mindspore.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -17,23 +20,27 @@ from typing import Any, Callable, Dict, List, Optional, Union
 
 import numpy as np
 import PIL.Image
-import mindspore as ms
+
 import regex as re
-from mindspore import mint
 from transformers import AutoTokenizer
 
+import mindspore as ms
+from mindspore import mint
+
+from mindone.diffusers.models.transformers.transformer_wan_vace import WanVACETransformer3DModel
+
 from mindone.transformers import UMT5EncoderModel
-from .pipeline_output import WanPipelineOutput
-from ..pipeline_utils import DiffusionPipeline
+
 from ...callbacks import MultiPipelineCallbacks, PipelineCallback
 from ...image_processor import PipelineImageInput
 from ...loaders import WanLoraLoaderMixin
 from ...models import AutoencoderKLWan
-from mindone.diffusers.models.transformers.transformer_wan_vace import WanVACETransformer3DModel
 from ...schedulers import FlowMatchEulerDiscreteScheduler
 from ...utils import is_ftfy_available, logging
 from ...utils.mindspore_utils import pynative_context, randn_tensor
 from ...video_processor import VideoProcessor
+from ..pipeline_utils import DiffusionPipeline
+from .pipeline_output import WanPipelineOutput
 
 logger = logging.get_logger(__name__)  # pylint: disable=invalid-name
 
@@ -94,7 +101,7 @@ EXAMPLE_DOC_STRING = """
         ...     num_frames=num_frames,
         ...     num_inference_steps=30,
         ...     guidance_scale=5.0,
-        ... ).frames[0]
+        ... ).[0][0]
         >>> export_to_video(output, "output.mp4", fps=16)
         ```
 """
@@ -157,20 +164,36 @@ class WanVACEPipeline(DiffusionPipeline, WanLoraLoaderMixin):
     model_cpu_offload_seq = "text_encoder->transformer->vae"
     _callback_tensor_inputs = ["latents", "prompt_embeds", "negative_prompt_embeds"]
 
-    def __init__(self, tokenizer: AutoTokenizer, text_encoder: UMT5EncoderModel, transformer: WanVACETransformer3DModel,
-                 vae: AutoencoderKLWan, scheduler: FlowMatchEulerDiscreteScheduler, ):
+    def __init__(
+        self,
+        tokenizer: AutoTokenizer,
+        text_encoder: UMT5EncoderModel,
+        transformer: WanVACETransformer3DModel,
+        vae: AutoencoderKLWan,
+        scheduler: FlowMatchEulerDiscreteScheduler,
+    ):
         super().__init__()
 
-        self.register_modules(vae=vae, text_encoder=text_encoder, tokenizer=tokenizer, transformer=transformer,
-                              scheduler=scheduler, )
+        self.register_modules(
+            vae=vae,
+            text_encoder=text_encoder,
+            tokenizer=tokenizer,
+            transformer=transformer,
+            scheduler=scheduler,
+        )
 
         self.vae_scale_factor_temporal = 2 ** sum(self.vae.temperal_downsample) if getattr(self, "vae", None) else 4
         self.vae_scale_factor_spatial = 2 ** len(self.vae.temperal_downsample) if getattr(self, "vae", None) else 8
         self.video_processor = VideoProcessor(vae_scale_factor=self.vae_scale_factor_spatial)
 
     # Copied from diffusers.pipelines.wan.pipeline_wan.WanPipeline._get_t5_prompt_embeds
-    def _get_t5_prompt_embeds(self, prompt: Union[str, List[str]] = None, num_videos_per_prompt: int = 1,
-                              max_sequence_length: int = 226, dtype: Optional[ms.Type] = None, ):
+    def _get_t5_prompt_embeds(
+        self,
+        prompt: Union[str, List[str]] = None,
+        num_videos_per_prompt: int = 1,
+        max_sequence_length: int = 226,
+        dtype: Optional[ms.Type] = None,
+    ):
         dtype = dtype or self.text_encoder.dtype
 
         prompt = [prompt] if isinstance(prompt, str) else prompt
@@ -206,16 +229,16 @@ class WanVACEPipeline(DiffusionPipeline, WanLoraLoaderMixin):
 
     # Copied from diffusers.pipelines.wan.pipeline_wan.WanPipeline.encode_prompt
     def encode_prompt(
-            self,
-            prompt: Union[str, List[str]],
-            negative_prompt: Optional[Union[str, List[str]]] = None,
-            do_classifier_free_guidance: bool = True,
-            num_videos_per_prompt: int = 1,
-            prompt_embeds: Optional[ms.Tensor] = None,
-            negative_prompt_embeds: Optional[ms.Tensor] = None,
-            max_sequence_length: int = 226,
-            dtype: Optional[ms.Type] = None,
-        ):
+        self,
+        prompt: Union[str, List[str]],
+        negative_prompt: Optional[Union[str, List[str]]] = None,
+        do_classifier_free_guidance: bool = True,
+        num_videos_per_prompt: int = 1,
+        prompt_embeds: Optional[ms.Tensor] = None,
+        negative_prompt_embeds: Optional[ms.Tensor] = None,
+        max_sequence_length: int = 226,
+        dtype: Optional[ms.Type] = None,
+    ):
         r"""
         Encodes the prompt into text encoder hidden states.
 
@@ -247,8 +270,12 @@ class WanVACEPipeline(DiffusionPipeline, WanLoraLoaderMixin):
             batch_size = prompt_embeds.shape[0]
 
         if prompt_embeds is None:
-            prompt_embeds = self._get_t5_prompt_embeds(prompt=prompt, num_videos_per_prompt=num_videos_per_prompt,
-                                                       max_sequence_length=max_sequence_length, dtype=dtype, )
+            prompt_embeds = self._get_t5_prompt_embeds(
+                prompt=prompt,
+                num_videos_per_prompt=num_videos_per_prompt,
+                max_sequence_length=max_sequence_length,
+                dtype=dtype,
+            )
 
         if do_classifier_free_guidance and negative_prompt_embeds is None:
             negative_prompt = negative_prompt or ""
@@ -257,45 +284,69 @@ class WanVACEPipeline(DiffusionPipeline, WanLoraLoaderMixin):
             if prompt is not None and type(prompt) is not type(negative_prompt):
                 raise TypeError(
                     f"`negative_prompt` should be the same type to `prompt`, but got {type(negative_prompt)} !="
-                    f" {type(prompt)}.")
+                    f" {type(prompt)}."
+                )
             elif batch_size != len(negative_prompt):
                 raise ValueError(
                     f"`negative_prompt`: {negative_prompt} has batch size {len(negative_prompt)}, but `prompt`:"
                     f" {prompt} has batch size {batch_size}. Please make sure that passed `negative_prompt` matches"
-                    " the batch size of `prompt`.")
+                    " the batch size of `prompt`."
+                )
 
-            negative_prompt_embeds = self._get_t5_prompt_embeds(prompt=negative_prompt,
-                                                                num_videos_per_prompt=num_videos_per_prompt,
-                                                                max_sequence_length=max_sequence_length, dtype=dtype, )
+            negative_prompt_embeds = self._get_t5_prompt_embeds(
+                prompt=negative_prompt,
+                num_videos_per_prompt=num_videos_per_prompt,
+                max_sequence_length=max_sequence_length,
+                dtype=dtype,
+            )
 
         return prompt_embeds, negative_prompt_embeds
 
-    def check_inputs(self, prompt, negative_prompt, height, width, prompt_embeds=None, negative_prompt_embeds=None,
-                     callback_on_step_end_tensor_inputs=None, video=None, mask=None, reference_images=None, ):
+    def check_inputs(
+        self,
+        prompt,
+        negative_prompt,
+        height,
+        width,
+        prompt_embeds=None,
+        negative_prompt_embeds=None,
+        callback_on_step_end_tensor_inputs=None,
+        video=None,
+        mask=None,
+        reference_images=None,
+    ):
         base = self.vae_scale_factor_spatial * self.transformer.config.patch_size[1]
         if height % base != 0 or width % base != 0:
             raise ValueError(f"`height` and `width` have to be divisible by {base} but are {height} and {width}.")
 
         if callback_on_step_end_tensor_inputs is not None and not all(
-                k in self._callback_tensor_inputs for k in callback_on_step_end_tensor_inputs):
+            k in self._callback_tensor_inputs for k in callback_on_step_end_tensor_inputs
+        ):
             raise ValueError(
-                f"`callback_on_step_end_tensor_inputs` has to be in {self._callback_tensor_inputs}, but found {[k for k in callback_on_step_end_tensor_inputs if k not in self._callback_tensor_inputs]}")
+                f"`callback_on_step_end_tensor_inputs` has to be in "
+                f"{self._callback_tensor_inputs}, but found "
+                f"{[k for k in callback_on_step_end_tensor_inputs if k not in self._callback_tensor_inputs]}"
+            )
 
         if prompt is not None and prompt_embeds is not None:
             raise ValueError(
                 f"Cannot forward both `prompt`: {prompt} and `prompt_embeds`: {prompt_embeds}. Please make sure to"
-                " only forward one of the two.")
+                " only forward one of the two."
+            )
         elif negative_prompt is not None and negative_prompt_embeds is not None:
             raise ValueError(
                 f"Cannot forward both `negative_prompt`: {negative_prompt} and `negative_prompt_embeds`: {negative_prompt_embeds}. Please make sure to"
-                " only forward one of the two.")
+                " only forward one of the two."
+            )
         elif prompt is None and prompt_embeds is None:
             raise ValueError(
-                "Provide either `prompt` or `prompt_embeds`. Cannot leave both `prompt` and `prompt_embeds` undefined.")
+                "Provide either `prompt` or `prompt_embeds`. Cannot leave both `prompt` and `prompt_embeds` undefined."
+            )
         elif prompt is not None and (not isinstance(prompt, str) and not isinstance(prompt, list)):
             raise ValueError(f"`prompt` has to be of type `str` or `list` but is {type(prompt)}")
         elif negative_prompt is not None and (
-                not isinstance(negative_prompt, str) and not isinstance(negative_prompt, list)):
+            not isinstance(negative_prompt, str) and not isinstance(negative_prompt, list)
+        ):
             raise ValueError(f"`negative_prompt` has to be of type `str` or `list` but is {type(negative_prompt)}")
 
         if video is not None:
@@ -303,38 +354,42 @@ class WanVACEPipeline(DiffusionPipeline, WanLoraLoaderMixin):
                 if len(video) != len(mask):
                     raise ValueError(
                         f"Length of `video` {len(video)} and `mask` {len(mask)} do not match. Please make sure that"
-                        " they have the same length.")
+                        " they have the same length."
+                    )
             if reference_images is not None:
                 is_pil_image = isinstance(reference_images, PIL.Image.Image)
                 is_list_of_pil_images = isinstance(reference_images, list) and all(
-                    isinstance(ref_img, PIL.Image.Image) for ref_img in reference_images)
+                    isinstance(ref_img, PIL.Image.Image) for ref_img in reference_images
+                )
                 is_list_of_list_of_pil_images = isinstance(reference_images, list) and all(
-                    isinstance(ref_img, list) and all(isinstance(ref_img_, PIL.Image.Image) for ref_img_ in ref_img) for
-                    ref_img in reference_images)
+                    isinstance(ref_img, list) and all(isinstance(ref_img_, PIL.Image.Image) for ref_img_ in ref_img)
+                    for ref_img in reference_images
+                )
                 if not (is_pil_image or is_list_of_pil_images or is_list_of_list_of_pil_images):
                     raise ValueError(
                         "`reference_images` has to be of type `PIL.Image.Image` or `list` of `PIL.Image.Image`, or "
-                        "`list` of `list` of `PIL.Image.Image`, but is {type(reference_images)}")
+                        "`list` of `list` of `PIL.Image.Image`, but is {type(reference_images)}"
+                    )
                 if is_list_of_list_of_pil_images and len(reference_images) != 1:
                     raise ValueError(
                         "The pipeline only supports generating one video at a time at the moment. When passing a list "
                         "of list of reference images, where the outer list corresponds to the batch size and the inner "
                         "list corresponds to list of conditioning images per video, please make sure to only pass "
-                        "one inner list of reference images (i.e., `[[<image1>, <image2>, ...]]`")
+                        "one inner list of reference images (i.e., `[[<image1>, <image2>, ...]]`"
+                    )
         elif mask is not None:
             raise ValueError("`mask` can only be passed if `video` is passed as well.")
 
     def preprocess_conditions(
-            self,
-            video: Optional[List[PipelineImageInput]] = None,
-            mask: Optional[List[PipelineImageInput]] = None,
-            reference_images: Optional[
-                Union[PIL.Image.Image, List[PIL.Image.Image], List[List[PIL.Image.Image]]]] = None,
-            batch_size: int = 1,
-            height: int = 480,
-            width: int = 832,
-            num_frames: int = 81,
-            dtype: Optional[ms.Type] = None,
+        self,
+        video: Optional[List[PipelineImageInput]] = None,
+        mask: Optional[List[PipelineImageInput]] = None,
+        reference_images: Optional[Union[PIL.Image.Image, List[PIL.Image.Image], List[List[PIL.Image.Image]]]] = None,
+        batch_size: int = 1,
+        height: int = 480,
+        width: int = 832,
+        num_frames: int = 81,
+        dtype: Optional[ms.Type] = None,
     ):
         if video is not None:
             base = self.vae_scale_factor_spatial * self.transformer.config.patch_size[1]
@@ -346,7 +401,8 @@ class WanVACEPipeline(DiffusionPipeline, WanLoraLoaderMixin):
 
             if video_height % base != 0 or video_width % base != 0:
                 logger.warning(
-                    f"Video height and width should be divisible by {base}, but got {video_height} and {video_width}. ")
+                    f"Video height and width should be divisible by {base}, but got {video_height} and {video_width}. "
+                )
                 video_height = (video_height // base) * base
                 video_width = (video_width // base) * base
 
@@ -373,24 +429,30 @@ class WanVACEPipeline(DiffusionPipeline, WanLoraLoaderMixin):
             reference_images = [[reference_images] for _ in range(video.shape[0])]
         elif isinstance(reference_images, (list, tuple)) and isinstance(next(iter(reference_images)), PIL.Image.Image):
             reference_images = [reference_images]
-        elif (isinstance(reference_images, (list, tuple)) and isinstance(next(iter(reference_images)),
-                                                                         list) and isinstance(
-            next(iter(reference_images[0])), PIL.Image.Image)):
+        elif (
+            isinstance(reference_images, (list, tuple))
+            and isinstance(next(iter(reference_images)), list)
+            and isinstance(next(iter(reference_images[0])), PIL.Image.Image)
+        ):
             reference_images = reference_images
         else:
             raise ValueError(
                 "`reference_images` has to be of type `PIL.Image.Image` or `list` of `PIL.Image.Image`, or "
-                "`list` of `list` of `PIL.Image.Image`, but is {type(reference_images)}")
+                "`list` of `list` of `PIL.Image.Image`, but is {type(reference_images)}"
+            )
 
         if video.shape[0] != len(reference_images):
             raise ValueError(
-                f"Batch size of `video` {video.shape[0]} and length of `reference_images` {len(reference_images)} does not match.")
+                f"Batch size of `video` {video.shape[0]} and length of `reference_images` {len(reference_images)} "
+                f"does not match."
+            )
 
         ref_images_lengths = [len(reference_images_batch) for reference_images_batch in reference_images]
         if any(l != ref_images_lengths[0] for l in ref_images_lengths):
             raise ValueError(
                 f"All batches of `reference_images` should have the same length, but got {ref_images_lengths}. Support for this "
-                "may be added in the future.")
+                "may be added in the future."
+            )
 
         reference_images_preprocessed = []
         for i, reference_images_batch in enumerate(reference_images):
@@ -402,20 +464,28 @@ class WanVACEPipeline(DiffusionPipeline, WanLoraLoaderMixin):
                 img_height, img_width = image.shape[-2:]
                 scale = min(image_size[0] / img_height, image_size[1] / img_width)
                 new_height, new_width = int(img_height * scale), int(img_width * scale)
-                resized_image = mint.nn.functional.interpolate(image, size=(new_height, new_width), mode="bilinear",
-                                                               align_corners=False).squeeze(0)  # [C, H, W]
+                resized_image = mint.nn.functional.interpolate(
+                    image, size=(new_height, new_width), mode="bilinear", align_corners=False
+
+                ).squeeze(
+                    0
+                )  # [C, H, W]
                 top = (image_size[0] - new_height) // 2
                 left = (image_size[1] - new_width) // 2
                 canvas = mint.ones((3, *image_size), dtype=dtype)
-                canvas[:, top: top + new_height, left: left + new_width] = resized_image
+                canvas[:, top : top + new_height, left : left + new_width] = resized_image
                 preprocessed_images.append(canvas)
             reference_images_preprocessed.append(preprocessed_images)
 
         return video, mask, reference_images_preprocessed
 
-    def prepare_video_latents(self, video: ms.Tensor, mask: ms.Tensor,
-                              reference_images: Optional[List[List[ms.Tensor]]] = None,
-                              generator: Optional[Union[ms.Generator, List[ms.Generator]]] = None, ) -> ms.Tensor:
+    def prepare_video_latents(
+        self,
+        video: ms.Tensor,
+        mask: ms.Tensor,
+        reference_images: Optional[List[List[ms.Tensor]]] = None,
+        generator: Optional[Union[ms.Generator, List[ms.Generator]]] = None,
+    ) -> ms.Tensor:
         if isinstance(generator, list):
             # TODO: support this
             raise ValueError("Passing a list of generators is not yet supported. This may be supported in the future.")
@@ -427,19 +497,23 @@ class WanVACEPipeline(DiffusionPipeline, WanLoraLoaderMixin):
         else:
             if video.shape[0] != len(reference_images):
                 raise ValueError(
-                    f"Batch size of `video` {video.shape[0]} and length of `reference_images` {len(reference_images)} does not match.")
+                    f"Batch size of `video` {video.shape[0]} and length of `reference_images` {len(reference_images)} "
+                    f"does not match."
+                )
 
         if video.shape[0] != 1:
             # TODO: support this
             raise ValueError(
-                "Generating with more than one video is not yet supported. This may be supported in the future.")
+                "Generating with more than one video is not yet supported. This may be supported in the future."
+            )
 
         vae_dtype = self.vae.dtype
         video = video.to(dtype=vae_dtype)
 
         latents_mean = ms.tensor(self.vae.config.latents_mean, dtype=ms.float32).view(1, self.vae.config.z_dim, 1, 1, 1)
-        latents_std = 1.0 / ms.tensor(self.vae.config.latents_std, dtype=ms.float32).view(1, self.vae.config.z_dim, 1,
-                                                                                          1, 1)
+        latents_std = 1.0 / ms.tensor(self.vae.config.latents_std, dtype=ms.float32).view(
+            1, self.vae.config.z_dim, 1, 1, 1
+        )
 
         if mask is None:
             latents = retrieve_latents(self.vae.encode(video), generator, sample_mode="argmax").unbind(0)
@@ -470,8 +544,12 @@ class WanVACEPipeline(DiffusionPipeline, WanLoraLoaderMixin):
             latent_list.append(latent)
         return mint.stack(latent_list)
 
-    def prepare_masks(self, mask: ms.Tensor, reference_images: Optional[List[ms.Tensor]] = None,
-                      generator: Optional[Union[ms.Generator, List[ms.Generator]]] = None, ) -> ms.Tensor:
+    def prepare_masks(
+        self,
+        mask: ms.Tensor,
+        reference_images: Optional[List[ms.Tensor]] = None,
+        generator: Optional[Union[ms.Generator, List[ms.Generator]]] = None,
+    ) -> ms.Tensor:
         if isinstance(generator, list):
             # TODO: support this
             raise ValueError("Passing a list of generators is not yet supported. This may be supported in the future.")
@@ -482,12 +560,15 @@ class WanVACEPipeline(DiffusionPipeline, WanLoraLoaderMixin):
         else:
             if mask.shape[0] != len(reference_images):
                 raise ValueError(
-                    f"Batch size of `mask` {mask.shape[0]} and length of `reference_images` {len(reference_images)} does not match.")
+                    f"Batch size of `mask` {mask.shape[0]} and length of `reference_images` {len(reference_images)} "
+                    f"does not match."
+                )
 
         if mask.shape[0] != 1:
             # TODO: support this
             raise ValueError(
-                "Generating with more than one video is not yet supported. This may be supported in the future.")
+                "Generating with more than one video is not yet supported. This may be supported in the future."
+            )
 
         transformer_patch_size = self.transformer.config.patch_size[1]
 
@@ -498,11 +579,13 @@ class WanVACEPipeline(DiffusionPipeline, WanLoraLoaderMixin):
             new_height = height // (self.vae_scale_factor_spatial * transformer_patch_size) * transformer_patch_size
             new_width = width // (self.vae_scale_factor_spatial * transformer_patch_size) * transformer_patch_size
             mask_ = mask_[0, :, :, :]
-            mask_ = mask_.view(num_frames, new_height, self.vae_scale_factor_spatial, new_width,
-                               self.vae_scale_factor_spatial)
+            mask_ = mask_.view(
+                num_frames, new_height, self.vae_scale_factor_spatial, new_width, self.vae_scale_factor_spatial
+            )
             mask_ = mask_.permute(2, 4, 0, 1, 3).flatten(0, 1)  # [8x8, num_frames, new_height, new_width]
-            mask_ = mint.nn.functional.interpolate(mask_.unsqueeze(0), size=(new_num_frames, new_height, new_width),
-                                                   mode="nearest").squeeze(0)
+            mask_ = mint.nn.functional.interpolate(
+                mask_.unsqueeze(0), size=(new_num_frames, new_height, new_width), mode="nearest"
+            ).squeeze(0)
             num_ref_images = len(reference_images_batch)
             if num_ref_images > 0:
                 mask_padding = mint.zeros_like(mask_[:, :num_ref_images, :, :])
@@ -510,20 +593,33 @@ class WanVACEPipeline(DiffusionPipeline, WanLoraLoaderMixin):
             mask_list.append(mask_)
         return mint.stack(mask_list)
 
-    def prepare_latents(self, batch_size: int, num_channels_latents: int = 16, height: int = 480, width: int = 832,
-                        num_frames: int = 81, dtype: Optional[ms.Type] = None,
-                        generator: Optional[Union[ms.Generator, List[ms.Generator]]] = None,
-                        latents: Optional[ms.Tensor] = None, ) -> ms.Tensor:
+    def prepare_latents(
+        self,
+        batch_size: int,
+        num_channels_latents: int = 16,
+        height: int = 480,
+        width: int = 832,
+        num_frames: int = 81,
+        dtype: Optional[ms.Type] = None,
+        generator: Optional[Union[ms.Generator, List[ms.Generator]]] = None,
+        latents: Optional[ms.Tensor] = None,
+    ) -> ms.Tensor:
         if latents is not None:
             return latents.to(dtype=dtype)
 
         num_latent_frames = (num_frames - 1) // self.vae_scale_factor_temporal + 1
-        shape = (batch_size, num_channels_latents, num_latent_frames, int(height) // self.vae_scale_factor_spatial,
-                 int(width) // self.vae_scale_factor_spatial,)
+        shape = (
+            batch_size,
+            num_channels_latents,
+            num_latent_frames,
+            int(height) // self.vae_scale_factor_spatial,
+            int(width) // self.vae_scale_factor_spatial,
+        )
         if isinstance(generator, list) and len(generator) != batch_size:
             raise ValueError(
                 f"You have passed a list of generators of length {len(generator)}, but requested an effective batch"
-                f" size of {batch_size}. Make sure the batch size matches the length of the generators.")
+                f" size of {batch_size}. Make sure the batch size matches the length of the generators."
+            )
 
         latents = randn_tensor(shape, generator=generator, dtype=dtype)
         return latents
@@ -552,19 +648,33 @@ class WanVACEPipeline(DiffusionPipeline, WanLoraLoaderMixin):
     def attention_kwargs(self):
         return self._attention_kwargs
 
-    def __call__(self, prompt: Union[str, List[str]] = None, negative_prompt: Union[str, List[str]] = None,
-                 video: Optional[List[PipelineImageInput]] = None, mask: Optional[List[PipelineImageInput]] = None,
-                 reference_images: Optional[List[PipelineImageInput]] = None,
-                 conditioning_scale: Union[float, List[float], ms.Tensor] = 1.0, height: int = 480, width: int = 832,
-                 num_frames: int = 81, num_inference_steps: int = 50, guidance_scale: float = 5.0,
-                 num_videos_per_prompt: Optional[int] = 1,
-                 generator: np.random.Generator = None,
-                 latents: Optional[ms.Tensor] = None, prompt_embeds: Optional[ms.Tensor] = None,
-                 negative_prompt_embeds: Optional[ms.Tensor] = None, output_type: Optional[str] = "np",
-                 return_dict: bool = True, attention_kwargs: Optional[Dict[str, Any]] = None,
-                 callback_on_step_end: Optional[
-                     Union[Callable[[int, int, Dict], None], PipelineCallback, MultiPipelineCallbacks]] = None,
-                 callback_on_step_end_tensor_inputs: List[str] = ["latents"], max_sequence_length: int = 512, ):
+    def __call__(
+        self,
+        prompt: Union[str, List[str]] = None,
+        negative_prompt: Union[str, List[str]] = None,
+        video: Optional[List[PipelineImageInput]] = None,
+        mask: Optional[List[PipelineImageInput]] = None,
+        reference_images: Optional[List[PipelineImageInput]] = None,
+        conditioning_scale: Union[float, List[float], ms.Tensor] = 1.0,
+        height: int = 480,
+        width: int = 832,
+        num_frames: int = 81,
+        num_inference_steps: int = 50,
+        guidance_scale: float = 5.0,
+        num_videos_per_prompt: Optional[int] = 1,
+        generator: np.random.Generator = None,
+        latents: Optional[ms.Tensor] = None,
+        prompt_embeds: Optional[ms.Tensor] = None,
+        negative_prompt_embeds: Optional[ms.Tensor] = None,
+        output_type: Optional[str] = "np",
+        return_dict: bool = False,
+        attention_kwargs: Optional[Dict[str, Any]] = None,
+        callback_on_step_end: Optional[
+            Union[Callable[[int, int, Dict], None], PipelineCallback, MultiPipelineCallbacks]
+        ] = None,
+        callback_on_step_end_tensor_inputs: List[str] = ["latents"],
+        max_sequence_length: int = 512,
+    ):
         r"""
         The call function to the pipeline for generation.
 
@@ -626,7 +736,7 @@ class WanVACEPipeline(DiffusionPipeline, WanLoraLoaderMixin):
                 provided, text embeddings are generated from the `prompt` input argument.
             output_type (`str`, *optional*, defaults to `"np"`):
                 The output format of the generated image. Choose between `PIL.Image` or `np.array`.
-            return_dict (`bool`, *optional*, defaults to `True`):
+            return_dict (`bool`, *optional*, defaults to `False`):
                 Whether or not to return a [`WanPipelineOutput`] instead of a plain tuple.
             attention_kwargs (`dict`, *optional*):
                 A kwargs dictionary that if specified is passed along to the `AttentionProcessor` as defined under
@@ -649,7 +759,7 @@ class WanVACEPipeline(DiffusionPipeline, WanLoraLoaderMixin):
 
         Returns:
             [`~WanPipelineOutput`] or `tuple`:
-                If `return_dict` is `True`, [`WanPipelineOutput`] is returned, otherwise a `tuple` is returned where
+                If `return_dict` is `False`, [`WanPipelineOutput`] is returned, otherwise a `tuple` is returned where
                 the first element is a list with the generated images and the second element is a list of `bool`s
                 indicating whether the corresponding generated image contains "not-safe-for-work" (nsfw) content.
         """
@@ -662,15 +772,28 @@ class WanVACEPipeline(DiffusionPipeline, WanLoraLoaderMixin):
             raise ValueError("Passing a list of prompts is not yet supported. This may be supported in the future.")
         if num_videos_per_prompt != 1:
             raise ValueError(
-                "Generating multiple videos per prompt is not yet supported. This may be supported in the future.")
+                "Generating multiple videos per prompt is not yet supported. This may be supported in the future."
+            )
 
         # 1. Check inputs. Raise error if not correct
-        self.check_inputs(prompt, negative_prompt, height, width, prompt_embeds, negative_prompt_embeds,
-                          callback_on_step_end_tensor_inputs, video, mask, reference_images, )
+        self.check_inputs(
+            prompt,
+            negative_prompt,
+            height,
+            width,
+            prompt_embeds,
+            negative_prompt_embeds,
+            callback_on_step_end_tensor_inputs,
+            video,
+            mask,
+            reference_images,
+        )
 
         if num_frames % self.vae_scale_factor_temporal != 1:
             logger.warning(
-                f"`num_frames - 1` has to be divisible by {self.vae_scale_factor_temporal}. Rounding to the nearest number.")
+                f"`num_frames - 1` has to be divisible by {self.vae_scale_factor_temporal}. "
+                f"Rounding to the nearest number."
+            )
             num_frames = num_frames // self.vae_scale_factor_temporal * self.vae_scale_factor_temporal + 1
         num_frames = max(num_frames, 1)
 
@@ -695,21 +818,28 @@ class WanVACEPipeline(DiffusionPipeline, WanLoraLoaderMixin):
         if isinstance(conditioning_scale, list):
             if len(conditioning_scale) != len(self.transformer.config.vace_layers):
                 raise ValueError(
-                    f"Length of `conditioning_scale` {len(conditioning_scale)} does not match number of layers {len(self.transformer.config.vace_layers)}.")
+                    f"Length of `conditioning_scale` {len(conditioning_scale)} does not match number of layers "
+                    f"{len(self.transformer.config.vace_layers)}."
+                )
             conditioning_scale = ms.tensor(conditioning_scale)
         if isinstance(conditioning_scale, ms.Tensor):
             if conditioning_scale.shape[0] != len(self.transformer.config.vace_layers):
                 raise ValueError(
-                    f"Length of `conditioning_scale` {conditioning_scale.shape[0]} does not match number of layers {len(self.transformer.config.vace_layers)}.")
+                    f"Length of `conditioning_scale` {conditioning_scale.shape[0]} does not match number of layers "
+                    f"{len(self.transformer.config.vace_layers)}."
+                )
             conditioning_scale = conditioning_scale.to(dtype=transformer_dtype)
 
         # 3. Encode input prompt
-        prompt_embeds, negative_prompt_embeds = self.encode_prompt(prompt=prompt, negative_prompt=negative_prompt,
-                                                                   do_classifier_free_guidance=self.do_classifier_free_guidance,
-                                                                   num_videos_per_prompt=num_videos_per_prompt,
-                                                                   prompt_embeds=prompt_embeds,
-                                                                   negative_prompt_embeds=negative_prompt_embeds,
-                                                                   max_sequence_length=max_sequence_length, )
+        prompt_embeds, negative_prompt_embeds = self.encode_prompt(
+            prompt=prompt,
+            negative_prompt=negative_prompt,
+            do_classifier_free_guidance=self.do_classifier_free_guidance,
+            num_videos_per_prompt=num_videos_per_prompt,
+            prompt_embeds=prompt_embeds,
+            negative_prompt_embeds=negative_prompt_embeds,
+            max_sequence_length=max_sequence_length,
+        )
 
         prompt_embeds = prompt_embeds.to(transformer_dtype)
         if negative_prompt_embeds is not None:
@@ -720,8 +850,16 @@ class WanVACEPipeline(DiffusionPipeline, WanLoraLoaderMixin):
         timesteps = self.scheduler.timesteps
 
         # 5. Prepare latent variables
-        video, mask, reference_images = self.preprocess_conditions(video, mask, reference_images, batch_size, height,
-                                                                   width, num_frames, ms.float32, )
+        video, mask, reference_images = self.preprocess_conditions(
+            video,
+            mask,
+            reference_images,
+            batch_size,
+            height,
+            width,
+            num_frames,
+            ms.float32,
+        )
         num_reference_images = len(reference_images[0])
 
         conditioning_latents = self.prepare_video_latents(video, mask, reference_images, generator)
@@ -730,13 +868,22 @@ class WanVACEPipeline(DiffusionPipeline, WanLoraLoaderMixin):
         conditioning_latents = conditioning_latents.to(transformer_dtype)
 
         num_channels_latents = self.transformer.config.in_channels
-        latents = self.prepare_latents(batch_size * num_videos_per_prompt, num_channels_latents, height, width,
-                                       num_frames + num_reference_images * self.vae_scale_factor_temporal, ms.float32,
-                                       generator, latents, )
+        latents = self.prepare_latents(
+            batch_size * num_videos_per_prompt,
+            num_channels_latents,
+            height,
+            width,
+            num_frames + num_reference_images * self.vae_scale_factor_temporal,
+            ms.float32,
+            generator,
+            latents,
+        )
 
         if conditioning_latents.shape[2] != latents.shape[2]:
             logger.warning(
-                "The number of frames in the conditioning latents does not match the number of frames to be generated. Generation quality may be affected.")
+                "The number of frames in the conditioning latents does not match the number of frames to be generated. "
+                "Generation quality may be affected."
+            )
 
         # 6. Denoising loop
         num_warmup_steps = len(timesteps) - num_inference_steps * self.scheduler.order
@@ -751,18 +898,26 @@ class WanVACEPipeline(DiffusionPipeline, WanLoraLoaderMixin):
                 latent_model_input = latents.to(transformer_dtype)
                 timestep = t.expand([latents.shape[0]])
 
-                noise_pred = self.transformer(hidden_states=latent_model_input, timestep=timestep,
-                                              encoder_hidden_states=prompt_embeds,
-                                              control_hidden_states=conditioning_latents,
-                                              control_hidden_states_scale=conditioning_scale,
-                                              attention_kwargs=attention_kwargs, return_dict=False, )[0]
+                noise_pred = self.transformer(
+                    hidden_states=latent_model_input,
+                    timestep=timestep,
+                    encoder_hidden_states=prompt_embeds,
+                    control_hidden_states=conditioning_latents,
+                    control_hidden_states_scale=conditioning_scale,
+                    attention_kwargs=attention_kwargs,
+                    return_dict=False,
+                )[0]
 
                 if self.do_classifier_free_guidance:
-                    noise_uncond = self.transformer(hidden_states=latent_model_input, timestep=timestep,
-                                                    encoder_hidden_states=negative_prompt_embeds,
-                                                    control_hidden_states=conditioning_latents,
-                                                    control_hidden_states_scale=conditioning_scale,
-                                                    attention_kwargs=attention_kwargs, return_dict=False, )[0]
+                    noise_uncond = self.transformer(
+                        hidden_states=latent_model_input,
+                        timestep=timestep,
+                        encoder_hidden_states=negative_prompt_embeds,
+                        control_hidden_states=conditioning_latents,
+                        control_hidden_states_scale=conditioning_scale,
+                        attention_kwargs=attention_kwargs,
+                        return_dict=False,
+                    )[0]
                     noise_pred = noise_uncond + guidance_scale * (noise_pred - noise_uncond)
 
                 # compute the previous noisy sample x_t -> x_t-1
@@ -788,9 +943,11 @@ class WanVACEPipeline(DiffusionPipeline, WanLoraLoaderMixin):
             latents = latents[:, :, num_reference_images:]
             latents = latents.to(vae_dtype)
             latents_mean = (
-                ms.tensor(self.vae.config.latents_mean).view(1, self.vae.config.z_dim, 1, 1, 1).to(latents.dtype))
-            latents_std = 1.0 / ms.tensor(self.vae.config.latents_std).view(1, self.vae.config.z_dim, 1, 1, 1).to(
-                latents.dtype)
+                ms.tensor(self.vae.config.latents_mean).view(1, self.vae.config.z_dim, 1, 1, 1).to(latents.dtype)
+            )
+            latents_std = 1.0 / ms.tensor(self.vae.config.latents_std, dtype=ms.float32).view(
+                1, self.vae.config.z_dim, 1, 1, 1
+            )
             latents = latents / latents_std + latents_mean
             with pynative_context():
                 video = self.vae.decode(latents, return_dict=False)[0]

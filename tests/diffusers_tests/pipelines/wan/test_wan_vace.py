@@ -13,15 +13,16 @@
 # limitations under the License.
 import unittest
 
-import mindspore as ms
 import numpy as np
-import pytest
 import torch
-from PIL import Image
 from ddt import data, ddt, unpack
+from PIL import Image
+
+import mindspore as ms
 
 from mindone.diffusers import AutoencoderKLWan, UniPCMultistepScheduler, WanVACEPipeline
 from mindone.diffusers.utils.testing_utils import load_downloaded_image_from_hf_hub, load_numpy_from_local_file, slow
+
 from ..pipeline_test_utils import (
     THRESHOLD_FP16,
     THRESHOLD_FP32,
@@ -247,8 +248,7 @@ class WanVACEPipelineFastTests(PipelineTesterMixin, unittest.TestCase):
         assert np.linalg.norm(pt_frame_slice - ms_frame_slice) / np.linalg.norm(pt_frame_slice) < threshold
 
 
-def prepare_video_and_mask(first_img: Image.Image, last_img: Image.Image, height: int, width: int,
-                           num_frames: int):
+def prepare_video_and_mask(first_img: Image.Image, last_img: Image.Image, height: int, width: int, num_frames: int):
     first_img = first_img.resize((width, height))
     last_img = last_img.resize((width, height))
     frames = [first_img]
@@ -266,7 +266,6 @@ def prepare_video_and_mask(first_img: Image.Image, last_img: Image.Image, height
 @slow
 @ddt
 class WanVACEPipelineIntegrationTests(PipelineTesterMixin, unittest.TestCase):
-
     @data(*test_cases)
     @unpack
     def test_inference(self, mode, dtype):
@@ -308,7 +307,7 @@ class WanVACEPipelineIntegrationTests(PipelineTesterMixin, unittest.TestCase):
             num_frames=num_frames,
             num_inference_steps=30,
             guidance_scale=5.0,
-        ).frames[0]
+        )[0][0]
 
         expected_video = load_numpy_from_local_file(
             "mindone-testing-arrays",

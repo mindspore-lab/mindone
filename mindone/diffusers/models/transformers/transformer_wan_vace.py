@@ -1,4 +1,7 @@
-# Copyright 2025 The Wan Team and The HuggingFace Team. All rights reserved.
+# Copyright 2025 The HuggingFace Team. All rights reserved.
+#
+# This code is adapted from https://github.com/huggingface/diffusers
+# with modifications to run diffusers on mindspore.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -16,26 +19,35 @@ import math
 from typing import Any, Dict, List, Optional, Tuple, Union
 
 import mindspore as ms
-from mindspore import nn, mint
+from mindspore import mint, nn
 
 from ...configuration_utils import ConfigMixin, register_to_config
 from ...loaders import FromOriginalModelMixin, PeftAdapterMixin
 from ...utils import logging
 from ..attention import FeedForward
 from ..attention_processor import Attention
+from ..layers_compat import unflatten
 from ..modeling_outputs import Transformer2DModelOutput
 from ..modeling_utils import ModelMixin
 from ..normalization import FP32LayerNorm
 from .transformer_wan import WanAttnProcessor2_0, WanRotaryPosEmbed, WanTimeTextImageEmbedding, WanTransformerBlock
-from ..layers_compat import unflatten
 
 logger = logging.get_logger(__name__)  # pylint: disable=invalid-name
 
 
 class WanVACETransformerBlock(nn.Cell):
-    def __init__(self, dim: int, ffn_dim: int, num_heads: int, qk_norm: str = "rms_norm_across_heads",
-                 cross_attn_norm: bool = False, eps: float = 1e-6, added_kv_proj_dim: Optional[int] = None,
-                 apply_input_projection: bool = False, apply_output_projection: bool = False, ):
+    def __init__(
+        self,
+        dim: int,
+        ffn_dim: int,
+        num_heads: int,
+        qk_norm: str = "rms_norm_across_heads",
+        cross_attn_norm: bool = False,
+        eps: float = 1e-6,
+        added_kv_proj_dim: Optional[int] = None,
+        apply_input_projection: bool = False,
+        apply_output_projection: bool = False,
+    ):
         super().__init__()
 
         # 1. Input projection
@@ -45,15 +57,34 @@ class WanVACETransformerBlock(nn.Cell):
 
         # 2. Self-attention
         self.norm1 = FP32LayerNorm(dim, eps, elementwise_affine=False)
-        self.attn1 = Attention(query_dim=dim, heads=num_heads, kv_heads=num_heads, dim_head=dim // num_heads,
-                               qk_norm=qk_norm, eps=eps, bias=True, cross_attention_dim=None, out_bias=True,
-                               processor=WanAttnProcessor2_0(), )
+        self.attn1 = Attention(
+            query_dim=dim,
+            heads=num_heads,
+            kv_heads=num_heads,
+            dim_head=dim // num_heads,
+            qk_norm=qk_norm,
+            eps=eps,
+            bias=True,
+            cross_attention_dim=None,
+            out_bias=True,
+            processor=WanAttnProcessor2_0(),
+        )
 
         # 3. Cross-attention
-        self.attn2 = Attention(query_dim=dim, heads=num_heads, kv_heads=num_heads, dim_head=dim // num_heads,
-                               qk_norm=qk_norm, eps=eps, bias=True, cross_attention_dim=None, out_bias=True,
-                               added_kv_proj_dim=added_kv_proj_dim, added_proj_bias=True,
-                               processor=WanAttnProcessor2_0(), )
+        self.attn2 = Attention(
+            query_dim=dim,
+            heads=num_heads,
+            kv_heads=num_heads,
+            dim_head=dim // num_heads,
+            qk_norm=qk_norm,
+            eps=eps,
+            bias=True,
+            cross_attention_dim=None,
+            out_bias=True,
+            added_kv_proj_dim=added_kv_proj_dim,
+            added_proj_bias=True,
+            processor=WanAttnProcessor2_0(),
+        )
         self.norm2 = FP32LayerNorm(dim, eps, elementwise_affine=True) if cross_attn_norm else mint.nn.Identity()
 
         # 4. Feed-forward
@@ -65,20 +96,27 @@ class WanVACETransformerBlock(nn.Cell):
         if apply_output_projection:
             self.proj_out = mint.nn.Linear(dim, dim)
 
-        self.scale_shift_table = ms.Parameter(mint.randn(1, 6, dim) / dim ** 0.5, name="scale_shift_table")
+        self.scale_shift_table = ms.Parameter(mint.randn(1, 6, dim) / dim**0.5, name="scale_shift_table")
 
-    def construct(self, hidden_states: ms.Tensor, encoder_hidden_states: ms.Tensor, control_hidden_states: ms.Tensor,
-                  temb: ms.Tensor, rotary_emb: ms.Tensor, ) -> ms.Tensor:
+    def construct(
+        self,
+        hidden_states: ms.Tensor,
+        encoder_hidden_states: ms.Tensor,
+        control_hidden_states: ms.Tensor,
+        temb: ms.Tensor, rotary_emb: ms.Tensor,
+    ) -> ms.Tensor:
         if self.proj_in is not None:
             control_hidden_states = self.proj_in(control_hidden_states)
             control_hidden_states = control_hidden_states + hidden_states
 
         shift_msa, scale_msa, gate_msa, c_shift_msa, c_scale_msa, c_gate_msa = (
-                self.scale_shift_table + temb.float()).chunk(6, dim=1)
+            self.scale_shift_table + temb.float()
+        ).chunk(6, dim=1)
 
         # 1. Self-attention
         norm_hidden_states = (self.norm1(control_hidden_states.float()) * (1 + scale_msa) + shift_msa).type_as(
-            control_hidden_states)
+            control_hidden_states
+        )
         attn_output = self.attn1(hidden_states=norm_hidden_states, rotary_emb=rotary_emb)
         control_hidden_states = (control_hidden_states.float() + attn_output * gate_msa).type_as(control_hidden_states)
 
@@ -89,10 +127,12 @@ class WanVACETransformerBlock(nn.Cell):
 
         # 3. Feed-forward
         norm_hidden_states = (self.norm3(control_hidden_states.float()) * (1 + c_scale_msa) + c_shift_msa).type_as(
-            control_hidden_states)
+            control_hidden_states
+        )
         ff_output = self.ffn(norm_hidden_states)
         control_hidden_states = (control_hidden_states.float() + ff_output.float() * c_gate_msa).type_as(
-            control_hidden_states)
+            control_hidden_states
+        )
 
         conditioning_states = None
         if self.proj_out is not None:
@@ -145,13 +185,27 @@ class WanVACETransformer3DModel(ModelMixin, ConfigMixin, PeftAdapterMixin, FromO
     _keys_to_ignore_on_load_unexpected = ["norm_added_q"]
 
     @register_to_config
-    def __init__(self, patch_size: Tuple[int] = (1, 2, 2), num_attention_heads: int = 40, attention_head_dim: int = 128,
-                 in_channels: int = 16, out_channels: int = 16, text_dim: int = 4096, freq_dim: int = 256,
-                 ffn_dim: int = 13824, num_layers: int = 40, cross_attn_norm: bool = True,
-                 qk_norm: Optional[str] = "rms_norm_across_heads", eps: float = 1e-6, image_dim: Optional[int] = None,
-                 added_kv_proj_dim: Optional[int] = None, rope_max_seq_len: int = 1024,
-                 pos_embed_seq_len: Optional[int] = None, vace_layers: List[int] = [0, 5, 10, 15, 20, 25, 30, 35],
-                 vace_in_channels: int = 96, ) -> None:
+    def __init__(
+        self,
+        patch_size: Tuple[int] = (1, 2, 2),
+        num_attention_heads: int = 40,
+        attention_head_dim: int = 128,
+        in_channels: int = 16,
+        out_channels: int = 16,
+        text_dim: int = 4096,
+        freq_dim: int = 256,
+        ffn_dim: int = 13824,
+        num_layers: int = 40,
+        cross_attn_norm: bool = True,
+        qk_norm: Optional[str] = "rms_norm_across_heads",
+        eps: float = 1e-6,
+        image_dim: Optional[int] = None,
+        added_kv_proj_dim: Optional[int] = None,
+        rope_max_seq_len: int = 1024,
+        pos_embed_seq_len: Optional[int] = None,
+        vace_layers: List[int] = [0, 5, 10, 15, 20, 25, 30, 35],
+        vace_in_channels: int = 96,
+    ) -> None:
         super().__init__()
 
         inner_dim = num_attention_heads * attention_head_dim
@@ -164,42 +218,72 @@ class WanVACETransformer3DModel(ModelMixin, ConfigMixin, PeftAdapterMixin, FromO
 
         # 1. Patch & position embedding
         self.rope = WanRotaryPosEmbed(attention_head_dim, patch_size, rope_max_seq_len)
-        self.patch_embedding = mint.nn.Conv3d(in_channels, inner_dim, kernel_size=tuple(patch_size),
-                                              stride=tuple(patch_size))
-        self.vace_patch_embedding = mint.nn.Conv3d(vace_in_channels, inner_dim, kernel_size=tuple(patch_size),
-                                                   stride=tuple(patch_size))
+        self.patch_embedding = mint.nn.Conv3d(
+            in_channels, inner_dim, kernel_size=tuple(patch_size), stride=tuple(patch_size)
+        )
+        self.vace_patch_embedding = mint.nn.Conv3d(
+            vace_in_channels, inner_dim, kernel_size=tuple(patch_size), stride=tuple(patch_size)
+        )
 
         # 2. Condition embeddings
         # image_embedding_dim=1280 for I2V model
-        self.condition_embedder = WanTimeTextImageEmbedding(dim=inner_dim, time_freq_dim=freq_dim,
-                                                            time_proj_dim=inner_dim * 6, text_embed_dim=text_dim,
-                                                            image_embed_dim=image_dim,
-                                                            pos_embed_seq_len=pos_embed_seq_len, )
+        self.condition_embedder = WanTimeTextImageEmbedding(
+            dim=inner_dim,
+            time_freq_dim=freq_dim,
+            time_proj_dim=inner_dim * 6,
+            text_embed_dim=text_dim,
+            image_embed_dim=image_dim,
+            pos_embed_seq_len=pos_embed_seq_len,
+        )
 
         # 3. Transformer blocks
-        self.blocks = nn.CellList([
-            WanTransformerBlock(inner_dim, ffn_dim, num_attention_heads, qk_norm, cross_attn_norm, eps,
-                                added_kv_proj_dim) for _ in range(num_layers)])
+        self.blocks = nn.CellList(
+            [
+                WanTransformerBlock(
+                    inner_dim, ffn_dim, num_attention_heads, qk_norm, cross_attn_norm, eps, added_kv_proj_dim
+                )
+                for _ in range(num_layers)
+            ]
+        )
 
-        self.vace_blocks = nn.CellList([
-            WanVACETransformerBlock(inner_dim, ffn_dim, num_attention_heads, qk_norm, cross_attn_norm, eps,
-                                    added_kv_proj_dim, apply_input_projection=i == 0,
-                                    # Layer 0 always has input projection and is in vace_layers
-                                    apply_output_projection=True, ) for i in range(len(vace_layers))])
+        self.vace_blocks = nn.CellList(
+            [
+                WanVACETransformerBlock(
+                    inner_dim,
+                    ffn_dim,
+                    num_attention_heads,
+                    qk_norm,
+                    cross_attn_norm,
+                    eps,
+                    added_kv_proj_dim,
+                    apply_input_projection=i == 0,
+                    # Layer 0 always has input projection and is in vace_layers
+                    apply_output_projection=True,
+                )
+                for i in range(len(vace_layers))
+            ]
+        )
 
         # 4. Output norm & projection
         self.norm_out = FP32LayerNorm(inner_dim, eps, elementwise_affine=False)
         self.proj_out = mint.nn.Linear(inner_dim, out_channels * math.prod(patch_size))
-        self.scale_shift_table = ms.Parameter(mint.randn(1, 2, inner_dim) / inner_dim ** 0.5)
+        self.scale_shift_table = ms.Parameter(mint.randn(1, 2, inner_dim) / inner_dim**0.5)
 
         self.gradient_checkpointing = False
 
         self.p_t, self.p_h, self.p_w = self.config.patch_size
 
-    def construct(self, hidden_states: ms.Tensor, timestep: ms.Tensor, encoder_hidden_states: ms.Tensor,
-                  encoder_hidden_states_image: Optional[ms.Tensor] = None, control_hidden_states: ms.Tensor = None,
-                  control_hidden_states_scale: ms.Tensor = None, return_dict: bool = True,
-                  attention_kwargs: Optional[Dict[str, Any]] = None) -> Union[ms.Tensor, Dict[str, ms.Tensor]]:
+    def construct(
+        self,
+        hidden_states: ms.Tensor,
+        timestep: ms.Tensor,
+        encoder_hidden_states: ms.Tensor,
+        encoder_hidden_states_image: Optional[ms.Tensor] = None,
+        control_hidden_states: ms.Tensor = None,
+        control_hidden_states_scale: ms.Tensor = None,
+        return_dict: bool = True,
+        attention_kwargs: Optional[Dict[str, Any]] = None,
+    ) -> Union[ms.Tensor, Dict[str, ms.Tensor]]:
         if attention_kwargs is not None:
             attention_kwargs = attention_kwargs.copy()
             lora_scale = attention_kwargs.pop("scale", 1.0)
@@ -216,8 +300,10 @@ class WanVACETransformer3DModel(ModelMixin, ConfigMixin, PeftAdapterMixin, FromO
             control_hidden_states_scale = control_hidden_states.new_ones(len(self.config.vace_layers))
         control_hidden_states_scale = mint.unbind(control_hidden_states_scale)
         if len(control_hidden_states_scale) != len(self.config.vace_layers):
-            raise ValueError(f"Length of `control_hidden_states_scale` {len(control_hidden_states_scale)} should be "
-                             f"equal to {len(self.config.vace_layers)}.")
+            raise ValueError(
+                f"Length of `control_hidden_states_scale` {len(control_hidden_states_scale)} should be "
+                f"equal to {len(self.config.vace_layers)}."
+            )
 
         # 1. Rotary position embedding
         rotary_emb = self.rope(hidden_states)
@@ -228,15 +314,16 @@ class WanVACETransformer3DModel(ModelMixin, ConfigMixin, PeftAdapterMixin, FromO
 
         control_hidden_states = self.vace_patch_embedding(control_hidden_states)
         control_hidden_states = mint.transpose(control_hidden_states.flatten(2), 1, 2)
-        control_hidden_states_padding = control_hidden_states.new_zeros((batch_size, hidden_states.shape[1] -
-                                                                         control_hidden_states.shape[1],
-                                                                         control_hidden_states.shape[2]))
+        control_hidden_states_padding = control_hidden_states.new_zeros(
+            (batch_size, hidden_states.shape[1] - control_hidden_states.shape[1], control_hidden_states.shape[2])
+        )
         control_hidden_states = mint.cat([control_hidden_states, control_hidden_states_padding], dim=1)
 
         # 3. Time embedding
-        temb, timestep_proj, encoder_hidden_states, encoder_hidden_states_image = self.condition_embedder(timestep,
-                                                                                                          encoder_hidden_states,
-                                                                                                          encoder_hidden_states_image)
+        temb, timestep_proj, encoder_hidden_states, encoder_hidden_states_image = self.condition_embedder(
+            timestep, encoder_hidden_states, encoder_hidden_states_image
+        )
+        # timestep_proj = self.unflatten(timestep_proj)
         timestep_proj = unflatten(timestep_proj, 1, (6, -1))
 
         # 4. Image embedding
@@ -244,40 +331,42 @@ class WanVACETransformer3DModel(ModelMixin, ConfigMixin, PeftAdapterMixin, FromO
             encoder_hidden_states = mint.concat([encoder_hidden_states_image, encoder_hidden_states], dim=1)
 
         # 5. Transformer blocks
-        if self.gradient_checkpointing:
-            # Prepare VACE hints
-            control_hidden_states_list = []
-            for i, block in enumerate(self.vace_blocks):
-                conditioning_states, control_hidden_states = self._gradient_checkpointing_func(block, hidden_states,
-                                                                                               encoder_hidden_states,
-                                                                                               control_hidden_states,
-                                                                                               timestep_proj,
-                                                                                               rotary_emb)
-                control_hidden_states_list.append((conditioning_states, control_hidden_states_scale[i]))
-            control_hidden_states_list = control_hidden_states_list[::-1]
+        # mindspore not support gradient_checkpointing
+        # if self.gradient_checkpointing:
+        #     # Prepare VACE hints
+        #     control_hidden_states_list = []
+        #     for i, block in enumerate(self.vace_blocks):
+        #         conditioning_states, control_hidden_states = self._gradient_checkpointing_func(block, hidden_states,
+        #                                                                                        encoder_hidden_states,
+        #                                                                                        control_hidden_states,
+        #                                                                                        timestep_proj,
+        #                                                                                        rotary_emb)
+        #         control_hidden_states_list.append((conditioning_states, control_hidden_states_scale[i]))
+        #     control_hidden_states_list = control_hidden_states_list[::-1]
+        #
+        #     for i, block in enumerate(self.blocks):
+        #         hidden_states = self._gradient_checkpointing_func(block, hidden_states, encoder_hidden_states,
+        #                                                           timestep_proj, rotary_emb)
+        #         if i in self.config.vace_layers:
+        #             control_hint, scale = control_hidden_states_list[-1]
+        #             hidden_states = hidden_states + control_hint * scale
+        #             control_hidden_states_list = control_hidden_states_list[:-1]
+        # else:
+        # Prepare VACE hints
+        control_hidden_states_list = []
+        for i, block in enumerate(self.vace_blocks):
+            conditioning_states, control_hidden_states = block(
+                hidden_states, encoder_hidden_states, control_hidden_states, timestep_proj, rotary_emb
+            )
+            control_hidden_states_list.append((conditioning_states, control_hidden_states_scale[i]))
+        control_hidden_states_list = control_hidden_states_list[::-1]
 
-            for i, block in enumerate(self.blocks):
-                hidden_states = self._gradient_checkpointing_func(block, hidden_states, encoder_hidden_states,
-                                                                  timestep_proj, rotary_emb)
-                if i in self.config.vace_layers:
-                    control_hint, scale = control_hidden_states_list[-1]
-                    hidden_states = hidden_states + control_hint * scale
-                    control_hidden_states_list = control_hidden_states_list[:-1]
-        else:
-            # Prepare VACE hints
-            control_hidden_states_list = []
-            for i, block in enumerate(self.vace_blocks):
-                conditioning_states, control_hidden_states = block(hidden_states, encoder_hidden_states,
-                                                                   control_hidden_states, timestep_proj, rotary_emb)
-                control_hidden_states_list.append((conditioning_states, control_hidden_states_scale[i]))
-            control_hidden_states_list = control_hidden_states_list[::-1]
-
-            for i, block in enumerate(self.blocks):
-                hidden_states = block(hidden_states, encoder_hidden_states, timestep_proj, rotary_emb)
-                if i in self.config.vace_layers:
-                    control_hint, scale = control_hidden_states_list[-1]
-                    hidden_states = hidden_states + control_hint * scale
-                    control_hidden_states_list = control_hidden_states_list[:-1]
+        for i, block in enumerate(self.blocks):
+            hidden_states = block(hidden_states, encoder_hidden_states, timestep_proj, rotary_emb)
+            if i in self.config.vace_layers:
+                control_hint, scale = control_hidden_states_list[-1]
+                hidden_states = hidden_states + control_hint * scale
+                control_hidden_states_list = control_hidden_states_list[:-1]
 
         # 6. Output norm, projection & unpatchify
         shift, scale = (self.scale_shift_table + temb.unsqueeze(1)).chunk(2, dim=1)
@@ -285,8 +374,9 @@ class WanVACETransformer3DModel(ModelMixin, ConfigMixin, PeftAdapterMixin, FromO
         hidden_states = (self.norm_out(hidden_states.float()) * (1 + scale) + shift).type_as(hidden_states)
         hidden_states = self.proj_out(hidden_states)
 
-        hidden_states = hidden_states.reshape(batch_size, post_patch_num_frames, post_patch_height, post_patch_width,
-                                              self.p_t, self.p_h, self.p_w, -1)
+        hidden_states = hidden_states.reshape(
+            batch_size, post_patch_num_frames, post_patch_height, post_patch_width, self.p_t, self.p_h, self.p_w, -1
+        )
         hidden_states = hidden_states.permute(0, 7, 1, 4, 2, 5, 3, 6)
         output = hidden_states.flatten(6, 7).flatten(4, 5).flatten(2, 3)
 

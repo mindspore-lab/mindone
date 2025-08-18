@@ -1175,20 +1175,20 @@ LATTE_TRANSORMER3D_CASES = [
         "mindone.diffusers.models.transformers.transformer_wan_vace.WanVACETransformer3DModel",
         (),
         {
-            'patch_size': (1, 2, 2),
-            'num_attention_heads': 2,
-            'attention_head_dim': 12,
-            'in_channels': 16,
-            'out_channels': 16,
-            'text_dim': 32,
-            'freq_dim': 256,
-            'ffn_dim': 32,
-            'num_layers': 3,
-            'cross_attn_norm': True,
-            'qk_norm': "rms_norm_across_heads",
-            'rope_max_seq_len': 32,
-            'vace_layers': [0, 2],
-            'vace_in_channels': 96,
+            "patch_size": (1, 2, 2),
+            "num_attention_heads": 2,
+            "attention_head_dim": 12,
+            "in_channels": 16,
+            "out_channels": 16,
+            "text_dim": 32,
+            "freq_dim": 256,
+            "ffn_dim": 32,
+            "num_layers": 3,
+            "cross_attn_norm": True,
+            "qk_norm": "rms_norm_across_heads",
+            "rope_max_seq_len": 32,
+            "vace_layers": [0, 2],
+            "vace_in_channels": 96,
         },
         (),
         {
@@ -1199,7 +1199,7 @@ LATTE_TRANSORMER3D_CASES = [
             "control_hidden_states_scale": np.random.randint(0, 1000, size=(2,)),
             "return_dict": False,
         },
-    ]
+    ],
 ]
 
 
