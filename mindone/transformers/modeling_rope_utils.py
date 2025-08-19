@@ -83,7 +83,7 @@ def dynamic_rope_update(rope_forward):
 
 
 def _compute_default_rope_parameters(
-    config: Optional[PretrainedConfig] = None, seq_len: Optional[int] = None, **rope_kwargs
+    config: Optional[PretrainedConfig] = None, seq_len: Optional[int] = None
 ) -> tuple[Tensor, float]:
     """
     Computes the inverse frequencies according to the original RoPE implementation
@@ -92,25 +92,14 @@ def _compute_default_rope_parameters(
             The model configuration.
         seq_len (`int`, *optional*):
             The current sequence length. Unused for this type of RoPE.
-        rope_kwargs (`Dict`, *optional*):
-            BC compatibility with the previous RoPE class instantiation, will be removed in v4.45.
     Returns:
         Tuple of (`Tensor`, `float`), containing the inverse frequencies for the RoPE embeddings and the
         post-processing scaling factor applied to the computed cos/sin (unused in this type of RoPE).
     """
-    if config is not None and len(rope_kwargs) > 0:
-        raise ValueError(
-            "Unexpected arguments: `**rope_kwargs` and `config` are mutually exclusive in "
-            f"`_compute_default_rope_parameters`, got `rope_kwargs`={rope_kwargs} and `config`={config}"
-        )
-    if len(rope_kwargs) > 0:
-        base = rope_kwargs["base"]
-        dim = rope_kwargs["dim"]
-    elif config is not None:
-        base = config.rope_theta
-        partial_rotary_factor = config.partial_rotary_factor if hasattr(config, "partial_rotary_factor") else 1.0
-        head_dim = getattr(config, "head_dim", None) or config.hidden_size // config.num_attention_heads
-        dim = int(head_dim * partial_rotary_factor)
+    base = config.rope_theta
+    partial_rotary_factor = config.partial_rotary_factor if hasattr(config, "partial_rotary_factor") else 1.0
+    head_dim = getattr(config, "head_dim", config.hidden_size // config.num_attention_heads)
+    dim = int(head_dim * partial_rotary_factor)
 
     attention_factor = 1.0  # Unused in this type of RoPE
 
@@ -122,7 +111,6 @@ def _compute_default_rope_parameters(
 def _compute_linear_scaling_rope_parameters(
     config: Optional[PretrainedConfig] = None,
     seq_len: Optional[int] = None,
-    **rope_kwargs,
 ) -> tuple["ms.Tensor", float]:
     """
     Computes the inverse frequencies with linear scaling. Credits to the Reddit user /u/kaiokendev
@@ -131,24 +119,14 @@ def _compute_linear_scaling_rope_parameters(
             The model configuration.
         seq_len (`int`, *optional*):
             The current sequence length. Unused for this type of RoPE.
-        rope_kwargs (`Dict`, *optional*):
-            BC compatibility with the previous RoPE class instantiation, will be removed in v4.45.
     Returns:
         Tuple of (`mindspore.Tensor`, `float`), containing the inverse frequencies for the RoPE embeddings and the
         post-processing scaling factor applied to the computed cos/sin (unused in this type of RoPE).
     """
-    if config is not None and len(rope_kwargs) > 0:
-        raise ValueError(
-            "Unexpected arguments: `**rope_kwargs` and `config` are mutually exclusive in "
-            f"`_compute_linear_scaling_rope_parameters`, got `rope_kwargs`={rope_kwargs} and `config`={config}"
-        )
-    if len(rope_kwargs) > 0:
-        factor = rope_kwargs["factor"]
-    elif config is not None:
-        factor = config.rope_scaling["factor"]
+    factor = config.rope_scaling["factor"]
 
     # Gets the default RoPE parameters
-    inv_freq, attention_factor = _compute_default_rope_parameters(config, seq_len, **rope_kwargs)
+    inv_freq, attention_factor = _compute_default_rope_parameters(config, seq_len)
 
     # Then applies linear scaling to the frequencies.
     # NOTE: originally, scaling was applied to the position_ids. However, we get `embs = inv_freq @ position_ids`, so
@@ -160,7 +138,6 @@ def _compute_linear_scaling_rope_parameters(
 def _compute_dynamic_ntk_parameters(
     config: Optional[PretrainedConfig] = None,
     seq_len: Optional[int] = None,
-    **rope_kwargs,
 ) -> tuple["ms.Tensor", float]:
     """
     Computes the inverse frequencies with NTK scaling. Credits to the Reddit users /u/bloc97 and /u/emozilla
@@ -169,35 +146,30 @@ def _compute_dynamic_ntk_parameters(
             The model configuration.
         seq_len (`int`, *optional*):
             The current sequence length, used to update the dynamic RoPE at inference time.
-        rope_kwargs (`Dict`, *optional*):
-            BC compatibility with the previous RoPE class instantiation, will be removed in v4.45.
     Returns:
         Tuple of (`mindspore.Tensor`, `float`), containing the inverse frequencies for the RoPE embeddings and the
         post-processing scaling factor applied to the computed cos/sin (unused in this type of RoPE).
     """
     # TODO (joao): use the new `original_max_position_embeddings` from rope_scaling
-    if config is not None and len(rope_kwargs) > 0:
-        raise ValueError(
-            "Unexpected arguments: `**rope_kwargs` and `config` are mutually exclusive in "
-            f"`_compute_dynamic_ntk_parameters`, got `rope_kwargs`={rope_kwargs} and `config`={config}"
-        )
-    if len(rope_kwargs) > 0:
-        base = rope_kwargs["base"]
-        dim = rope_kwargs["dim"]
-        max_position_embeddings = rope_kwargs["max_position_embeddings"]
-        factor = rope_kwargs["factor"]
-    elif config is not None:
-        base = config.rope_theta
-        partial_rotary_factor = config.partial_rotary_factor if hasattr(config, "partial_rotary_factor") else 1.0
-        head_dim = getattr(config, "head_dim", config.hidden_size // config.num_attention_heads)
-        dim = int(head_dim * partial_rotary_factor)
-        max_position_embeddings = config.max_position_embeddings
-        factor = config.rope_scaling["factor"]
+    base = config.rope_theta
+    partial_rotary_factor = config.partial_rotary_factor if hasattr(config, "partial_rotary_factor") else 1.0
+    head_dim = getattr(config, "head_dim", config.hidden_size // config.num_attention_heads)
+    dim = int(head_dim * partial_rotary_factor)
+    max_position_embeddings = config.max_position_embeddings
+    factor = config.rope_scaling["factor"]
 
     attention_factor = 1.0  # Unused in this type of RoPE
 
     # seq_len: default to max_position_embeddings, e.g. at init time
-    seq_len = seq_len if seq_len is not None and seq_len > max_position_embeddings else max_position_embeddings
+    if seq_len is None:
+        seq_len = max_position_embeddings
+    elif isinstance(seq_len, ms.Tensor):
+        seq_len = mint.maximum(
+            seq_len,
+            ms.tensor(max_position_embeddings, dtype=seq_len.dtype),
+        )
+    else:
+        seq_len = max(seq_len, max_position_embeddings)
 
     # Compute the inverse frequencies
     base = base * ((factor * seq_len / max_position_embeddings) - (factor - 1)) ** (dim / (dim - 2))
@@ -206,39 +178,49 @@ def _compute_dynamic_ntk_parameters(
 
 
 def _compute_yarn_parameters(
-    config: PretrainedConfig, seq_len: Optional[int] = None, **rope_kwargs
+    config: PretrainedConfig, seq_len: Optional[int] = None
 ) -> tuple["ms.Tensor", float]:
     """
     Computes the inverse frequencies with NTK scaling. Please refer to the
-    [original paper](https://arxiv.org/abs/2309.00071)
+    [original paper](https://huggingface.co/papers/2309.00071)
     Args:
         config ([`~transformers.PretrainedConfig`]):
             The model configuration.
         seq_len (`int`, *optional*):
             The current sequence length. Unused for this type of RoPE.
-        rope_kwargs (`Dict`, *optional*):
-            BC compatibility with the previous RoPE class instantiation, will be removed in v4.45.
     Returns:
         Tuple of (`mindspore.Tensor`, `float`), containing the inverse frequencies for the RoPE embeddings and the
         post-processing scaling factor applied to the computed cos/sin.
     """
-    # No need to keep BC with yarn, unreleased when this new pattern was created.
-    if len(rope_kwargs) > 0:
-        raise ValueError(
-            f"Unexpected arguments: `**rope_kwargs` should be unset in `_compute_yarn_parameters`, got {rope_kwargs}"
-        )
-
     base = config.rope_theta
     partial_rotary_factor = config.partial_rotary_factor if hasattr(config, "partial_rotary_factor") else 1.0
     head_dim = getattr(config, "head_dim", config.hidden_size // config.num_attention_heads)
     dim = int(head_dim * partial_rotary_factor)
-    max_position_embeddings = config.max_position_embeddings
     factor = config.rope_scaling["factor"]
+    attention_factor = config.rope_scaling.get("attention_factor")
+    mscale = config.rope_scaling.get("mscale")
+    mscale_all_dim = config.rope_scaling.get("mscale_all_dim")
+
+    # NOTE: DeekSeek-V3 (and potentially other models) modify `max_position_embeddings` and have a
+    # `original_max_position_embeddings` field containing the pretrained value. They use the ratio between these two
+    # values to compute the default attention scaling factor, instead of using `factor`.
+    if "original_max_position_embeddings" in config.rope_scaling:
+        original_max_position_embeddings = config.rope_scaling["original_max_position_embeddings"]
+        factor = config.max_position_embeddings / original_max_position_embeddings
+    else:
+        original_max_position_embeddings = config.max_position_embeddings
+
+    def get_mscale(scale, mscale=1):
+        if scale <= 1:
+            return 1.0
+        return 0.1 * mscale * math.log(scale) + 1.0
 
     # Sets the attention factor as suggested in the paper
-    attention_factor = config.rope_scaling.get("attention_factor")
     if attention_factor is None:
-        attention_factor = 0.1 * math.log(factor) + 1.0
+        if mscale and mscale_all_dim:
+            attention_factor = float(get_mscale(factor, mscale) / get_mscale(factor, mscale_all_dim))
+        else:
+            attention_factor = get_mscale(factor)
 
     # Optional config options
     # beta_fast/beta_slow: as suggested in the paper, default to 32/1 (correspondingly)
@@ -270,7 +252,7 @@ def _compute_yarn_parameters(
     inv_freq_extrapolation = 1.0 / pos_freqs
     inv_freq_interpolation = 1.0 / (factor * pos_freqs)
 
-    low, high = find_correction_range(beta_fast, beta_slow, dim, base, max_position_embeddings)
+    low, high = find_correction_range(beta_fast, beta_slow, dim, base, original_max_position_embeddings)
 
     # Get n-dimensional rotational scaling corrected for extrapolation
     inv_freq_extrapolation_factor = 1 - linear_ramp_factor(low, high, dim // 2).float()
@@ -283,7 +265,7 @@ def _compute_yarn_parameters(
 
 
 def _compute_longrope_parameters(
-    config: PretrainedConfig, seq_len: Optional[int] = None, **rope_kwargs
+    config: PretrainedConfig, seq_len: Optional[int] = None
 ) -> tuple["ms.Tensor", float]:
     """
     Computes the inverse frequencies with LongRoPE scaling. Please refer to the
@@ -293,19 +275,11 @@ def _compute_longrope_parameters(
             The model configuration.
         seq_len (`int`, *optional*):
             The current sequence length.
-        rope_kwargs (`Dict`, *optional*):
-            BC compatibility with the previous RoPE class instantiation, will be removed in v4.45.
     Returns:
         Tuple of (`mindspore.Tensor`, `float`), containing the inverse frequencies for the RoPE embeddings and the
         post-processing scaling factor applied to the computed cos/sin.
     """
     # TODO (joao): use the new `original_max_position_embeddings` from rope_scaling
-    # No need to keep BC with longrope, unreleased when this new pattern was created.
-    if len(rope_kwargs) > 0:
-        raise ValueError(
-            "Unexpected arguments: `**rope_kwargs` should be unset in `_compute_longrope_parameters`, got "
-            f"{rope_kwargs}"
-        )
 
     base = config.rope_theta
     partial_rotary_factor = config.partial_rotary_factor if hasattr(config, "partial_rotary_factor") else 1.0
@@ -344,7 +318,7 @@ def _compute_longrope_parameters(
 
 
 def _compute_llama3_parameters(
-    config: PretrainedConfig, seq_len: Optional[int] = None, **rope_kwargs
+    config: PretrainedConfig, seq_len: Optional[int] = None
 ) -> tuple["ms.Tensor", float]:
     """
     Computes the inverse frequencies for llama 3.1.
@@ -354,14 +328,12 @@ def _compute_llama3_parameters(
             The model configuration.
         seq_len (`int`, *optional*):
             The current sequence length. Unused for this type of RoPE.
-        rope_kwargs (`Dict`, *optional*):
-            BC compatibility with the previous RoPE class instantiation, will be removed in v4.45.
     Returns:
         Tuple of (`mindspore.Tensor`, `float`), containing the inverse frequencies for the RoPE embeddings and the
         post-processing scaling factor applied to the computed cos/sin.
     """
     # Gets the default RoPE parameters
-    inv_freq, attention_factor = _compute_default_rope_parameters(config, seq_len, **rope_kwargs)
+    inv_freq, attention_factor = _compute_default_rope_parameters(config, seq_len)
 
     factor = config.rope_scaling["factor"]  # `8` in the original implementation
     low_freq_factor = config.rope_scaling["low_freq_factor"]  # `1` in the original implementation
@@ -464,7 +436,14 @@ def _validate_yarn_parameters(config: PretrainedConfig, ignore_keys: Optional[se
     rope_scaling = config.rope_scaling
     rope_type = rope_scaling.get("rope_type", rope_scaling.get("type", None))  # BC: "rope_type" was originally "type"
     required_keys = {"rope_type", "factor"}
-    optional_keys = {"attention_factor", "beta_fast", "beta_slow"}
+    optional_keys = {
+        "attention_factor",
+        "beta_fast",
+        "beta_slow",
+        "original_max_position_embeddings",
+        "mscale",
+        "mscale_all_dim",
+    }
     received_keys = set(rope_scaling.keys())
     _check_received_keys(rope_type, received_keys, required_keys, optional_keys, ignore_keys=ignore_keys)
 
