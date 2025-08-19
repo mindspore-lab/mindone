@@ -522,10 +522,21 @@ from .models.roberta import (
     RobertaModel,
     RobertaPreTrainedModel,
 )
+from .models.segformer import (
+    SegformerDecodeHead,
+    SegformerForImageClassification,
+    SegformerForSemanticSegmentation,
+    SegformerImageProcessor,
+    SegformerModel,
+    SegformerPreTrainedModel,
+)
 from .models.siglip import (
     SiglipForImageClassification,
+    SiglipImageProcessor,
+    SiglipImageProcessorFast,
     SiglipModel,
     SiglipPreTrainedModel,
+    SiglipProcessor,
     SiglipTextModel,
     SiglipVisionModel,
 )

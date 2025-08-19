@@ -64,7 +64,7 @@ if TYPE_CHECKING:
 logger = logging.get_logger(__name__)
 
 
-def no_collate_fn(items):
+def no_collate_fn(items, BatchInfo):
     if len(items) != 1:
         raise ValueError("This collate_fn is meant to be used with batch_size=1")
     return items[0]
@@ -123,7 +123,7 @@ def _pad(items, key, padding_value, padding_side):
         return [item[key] for item in items]
 
 
-def pad_collate_fn(tokenizer, feature_extractor):
+def pad_collate_fn(tokenizer, feature_extractor, BatchInfo):
     # Tokenizer
     t_padding_side = None
     # Feature extractor
@@ -1242,7 +1242,11 @@ class Pipeline(_ScikitCompat, PushToHubMixin):
         # TODO hack by collating feature_extractor and image_processor
         feature_extractor = self.feature_extractor if self.feature_extractor is not None else self.image_processor
         collate_fn = no_collate_fn if batch_size == 1 else pad_collate_fn(self.tokenizer, feature_extractor)
-        dataloader = GeneratorDataset(dataset, num_workers=num_workers, batch_size=batch_size, collate_fn=collate_fn)
+        dataloader = (
+            GeneratorDataset(dataset, column_names=["item"], num_parallel_workers=num_workers)
+            .batch(batch_size, per_batch_map=collate_fn)
+            .create_dict_iterator()
+        )
         model_iterator = PipelineIterator(dataloader, self._construct, forward_params, loader_batch_size=batch_size)
         final_iterator = PipelineIterator(model_iterator, self.postprocess, postprocess_params)
         return final_iterator
@@ -1253,7 +1257,7 @@ class Pipeline(_ScikitCompat, PushToHubMixin):
 
         if num_workers is None:
             if self._num_workers is None:
-                num_workers = 0
+                num_workers = 1
             else:
                 num_workers = self._num_workers
         if batch_size is None:
@@ -1360,7 +1364,11 @@ class ChunkPipeline(Pipeline):
         # TODO hack by collating feature_extractor and image_processor
         feature_extractor = self.feature_extractor if self.feature_extractor is not None else self.image_processor
         collate_fn = no_collate_fn if batch_size == 1 else pad_collate_fn(self.tokenizer, feature_extractor)
-        dataloader = GeneratorDataset(dataset, num_workers=num_workers, batch_size=batch_size, collate_fn=collate_fn)
+        dataloader = (
+            GeneratorDataset(dataset, column_names=["item"], num_parallel_workers=num_workers)
+            .batch(batch_size, per_batch_map=collate_fn)
+            .create_dict_iterator()
+        )
         model_iterator = PipelinePackIterator(dataloader, self._construct, forward_params, loader_batch_size=batch_size)
         final_iterator = PipelineIterator(model_iterator, self.postprocess, postprocess_params)
         return final_iterator
