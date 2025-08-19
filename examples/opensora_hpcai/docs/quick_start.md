@@ -28,6 +28,9 @@ Required MindSpore version: 2.5.0. Please refer to the [requirements](../README.
 After installing MindSpore, run the following command to complete the setup:
 
 ```shell
+# Install MindONE
+pip install -e .[training]
+# Install project requirements
 pip install -r requirements.txt
 ```
 
@@ -152,10 +155,10 @@ Then, you can generate videos by running the following command:
 
 ```shell
 python scripts/v2.0/inference_v2.py --config=configs/opensora-v2-0/inference/256px.yaml \
-text_emb.t5_dir=assets/texts/t5_512 \
-text_emb.neg_t5_dir=assets/texts/t5_512_neg \
-text_emb.clip_dir=assets/texts/clip_77 \
-text_emb.neg_clip_dir=assets/texts/clip_77_neg
+prompts.t5_dir=assets/texts/t5_512 \
+prompts.neg_t5_dir=assets/texts/t5_512_neg \
+prompts.clip_dir=assets/texts/clip_77 \
+prompts.neg_clip_dir=assets/texts/clip_77_neg
 ```
 
 ### OpenSora 1.2 and below

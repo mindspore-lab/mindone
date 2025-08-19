@@ -7,7 +7,7 @@ import mindspore as ms
 from mindspore import mint, nn, ops
 from mindspore.communication import get_group_size
 
-from ...acceleration.communications import GatherFowardSplitBackward, SplitFowardGatherBackward
+from ...acceleration.communications import GatherForwardSplitBackward, SplitForwardGatherBackward
 from ...acceleration.parallel_states import get_sequence_parallel_group
 from ...utils.model_utils import load_state_dict
 from ..layers.operation_selector import get_split_op
@@ -102,8 +102,8 @@ class VideoAutoencoderKL(nn.Cell):
             sp_group = get_sequence_parallel_group()
             _logger.info(f"Initialize Spatial VAE model with parallel group `{sp_group}`.")
             self.sp_size = get_group_size(sp_group)
-            self.split_forward_gather_backward = SplitFowardGatherBackward(dim=0, grad_scale="down", group=sp_group)
-            self.gather_forward_split_backward = GatherFowardSplitBackward(dim=0, grad_scale="up", group=sp_group)
+            self.split_forward_gather_backward = SplitForwardGatherBackward(dim=0, grad_scale="down", group=sp_group)
+            self.gather_forward_split_backward = GatherForwardSplitBackward(dim=0, grad_scale="up", group=sp_group)
             # TODO: drop the assertion once conv3d support fp32, test with test suites
             assert self.micro_batch_size == 1
 
@@ -117,12 +117,11 @@ class VideoAutoencoderKL(nn.Cell):
         self.scale_factor = 0.18215
 
     @staticmethod
-    def rearrange_in(x):
-        B, C, T, H, W = x.shape
-        # (b c t h w) -> (b t c h w)
-        x = ops.transpose(x, (0, 2, 1, 3, 4))
+    def rearrange_in(x, transpose: bool = True):
+        if transpose:  # (b c t h w) -> (b t c h w)
+            x = ops.transpose(x, (0, 2, 1, 3, 4))
+        B, T, C, H, W = x.shape
         x = ops.reshape(x, (B * T, C, H, W))
-
         return x
 
     @staticmethod
@@ -147,8 +146,8 @@ class VideoAutoencoderKL(nn.Cell):
         # is_video = (x.ndim == 5)
 
         B = x.shape[0]
-        # B C T H W -> (B T) C H W
-        x = self.rearrange_in(x)
+        # B T C H W -> (B T) C H W
+        x = self.rearrange_in(x, transpose=False)
 
         pad_num = None
         if self.micro_batch_parallel:
@@ -304,8 +303,8 @@ class VideoAutoencoderPipeline(nn.Cell):
             sp_group = get_sequence_parallel_group()
             _logger.info(f"Initialize Temporal VAE model with parallel group `{sp_group}`.")
             self.sp_size = get_group_size(sp_group)
-            self.split_forward_gather_backward = SplitFowardGatherBackward(dim=2, grad_scale="down", group=sp_group)
-            self.gather_forward_split_backward = GatherFowardSplitBackward(dim=2, grad_scale="up", group=sp_group)
+            self.split_forward_gather_backward = SplitForwardGatherBackward(dim=2, grad_scale="down", group=sp_group)
+            self.gather_forward_split_backward = GatherForwardSplitBackward(dim=2, grad_scale="up", group=sp_group)
             if self.cal_loss:
                 raise NotImplementedError("Not Supported yet.")
 
