@@ -445,6 +445,27 @@ def mindspore_float(x):
 
     return x.to(ms.float32) if isinstance(x, ms.Tensor) else int(x)
 
+class TransformersKwargs(TypedDict, total=False):
+    """
+    Keyword arguments to be passed to the loss function
+
+    Attributes:
+        num_items_in_batch (`Optional[ms.Tensor]`, *optional*):
+            Number of items in the batch. It is recommended to pass it when
+            you are doing gradient accumulation.
+        output_hidden_states (`Optional[bool]`, *optional*):
+            Most of the models support outputing all hidden states computed during the forward pass.
+        output_attentions (`Optional[bool]`, *optional*):
+            Turn this on to return the intermediary attention scores.
+        output_router_logits (`Optional[bool]`, *optional*):
+            For MoE models, this allows returning the router logits to compute the loss.
+    """
+
+    num_items_in_batch: Optional["ms.Tensor"]
+    output_hidden_states: Optional[bool]
+    output_attentions: Optional[bool]
+    output_router_logits: Optional[bool]
+
 
 def filter_out_non_signature_kwargs(extra: Optional[list] = None):
     """
