@@ -385,7 +385,7 @@ class QwenImageTransformerBlock(nn.Cell):
             nn.SiLU(),
             nn.Linear(dim, 6 * dim, bias=True),  # For scale, shift, gate for norm1 and norm2
         )
-        self.img_norm1 = nn.LayerNorm(dim, elementwise_affine=False, eps=eps)
+        self.img_norm1 = mint.nn.LayerNorm(dim, elementwise_affine=False, eps=eps)
         self.attn = Attention(
             query_dim=dim,
             cross_attention_dim=None,  # Enable cross attention for joint computation
