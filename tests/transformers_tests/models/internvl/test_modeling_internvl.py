@@ -46,7 +46,7 @@ class InternVLModelTester:
         downsample_ratio=0.5,    # pixel_shuffle(0.5) => (2,2) -> (1,1) and channels x4 => exactly 1 image feature vector
         # run-time impl
         attn_implementation="eager",
-        torch_dtype="bfloat16",
+        torch_dtype="float32",
         image_token_id=5
     ):
         self.batch_size = batch_size
@@ -154,7 +154,7 @@ TEST_CASES = [
             "attention_mask": attention_mask,
         },
         {
-            "last_hidden_state": 0,  # text_model, i.e., Qwen2Model output
+            "last_hidden_state": 0,  # text_model, i.e., Qwen2Model
         },
     ],
     [  # VQA (multimodal)
@@ -170,8 +170,8 @@ TEST_CASES = [
             "pixel_values": pixel_values,  # (B, C, H, W) for InternVL
         },
         {
-            "last_hidden_state": 0,     # text stream (Qwen2Model)
-            "image_hidden_states": -1,  # projected vision features
+            "last_hidden_state": 0,     # Qwen2Model
+            "image_hidden_states": -1,  # Vision Transformer
         },
     ],
 ]

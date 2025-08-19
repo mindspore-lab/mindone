@@ -44,33 +44,6 @@ from ...modeling_utils import ALL_ATTENTION_FUNCTIONS, MSPreTrainedModel
 from ...processing_utils import Unpack
 from ..qwen2 import Qwen2Model
 
-_STR_TO_MS_DTYPE = {
-    "float32": ms.float32, "fp32": ms.float32, "f32": ms.float32,
-    "float16": ms.float16, "fp16": ms.float16, "f16": ms.float16,
-    "bfloat16": ms.bfloat16, "bf16": ms.bfloat16,
-}
-
-_MS_FLOAT_DTYPES = {ms.float32, ms.float16, ms.bfloat16}
-
-def _resolve_ms_dtype_from_config(cfg):
-    mindspore_dtype = getattr(cfg, "mindspore_dtype", None)
-    if mindspore_dtype is None:
-        mindspore_dtype = getattr(cfg, "torch_dtype", None)
-    if mindspore_dtype is None:
-        return None
-    if isinstance(mindspore_dtype, str):
-        mindspore_dtype = mindspore_dtype.lower()
-        return _STR_TO_MS_DTYPE.get(mindspore_dtype, None)
-    if mindspore_dtype in _MS_FLOAT_DTYPES:
-        return mindspore_dtype
-    return None
-
-def _force_cast_all_float_params(cell: nn.Cell, dtype: ms.dtype):
-    for name, p in cell.parameters_and_names():
-        if isinstance(p, ms.Parameter) and p.dtype in _MS_FLOAT_DTYPES and p.dtype != dtype:
-            p.set_data(p.data.astype(dtype))
-
-
 class InternVLVisionRMSNorm(nn.Cell):
     def __init__(self, hidden_size, eps=1e-6):
         """
@@ -89,7 +62,6 @@ class InternVLVisionRMSNorm(nn.Cell):
 
     def extra_repr(self):
         return f"{tuple(self.weight.shape)}, eps={self.variance_epsilon}"
-
 
 def eager_attention_forward(
     module: nn.Cell,
@@ -116,7 +88,6 @@ def eager_attention_forward(
     attn_output = attn_output.transpose(1, 2).contiguous()
 
     return attn_output, attn_weights
-
 
 class InternVLVisionAttention(nn.Cell):
     """Attention Class for InternVL Vision Encoder"""
@@ -192,7 +163,6 @@ class InternVLVisionAttention(nn.Cell):
         outputs = (output, attn_weights) if output_attentions else (output, None)
         return outputs
 
-
 @auto_docstring
 class InternVLVisionPreTrainedModel(MSPreTrainedModel):
     config_class = InternVLVisionConfig
@@ -218,7 +188,6 @@ class InternVLVisionPreTrainedModel(MSPreTrainedModel):
             module.lambda_1.data.fill_(self.config.layer_scale_init_value)
             module.lambda_2.data.fill_(self.config.layer_scale_init_value)
 
-
 @dataclass
 @auto_docstring(
     custom_intro="""
@@ -233,7 +202,6 @@ class InternVLVisionModelOutputWithPooling(BaseModelOutputWithPooling):
         will be returned.
     """
 
-
 class InternVLVisionPatchEmbeddings(nn.Cell):
     """
     This class turns `pixel_values` of shape `(batch_size, num_channels, height, width)` into the initial
@@ -241,7 +209,7 @@ class InternVLVisionPatchEmbeddings(nn.Cell):
     Transformer.
     """
 
-    def __init__(self, config, dtype = None):
+    def __init__(self, config):
         super().__init__()
         image_size, patch_size = config.image_size, tuple(config.patch_size)
         num_channels, hidden_size = config.num_channels, config.hidden_size
@@ -254,7 +222,7 @@ class InternVLVisionPatchEmbeddings(nn.Cell):
         self.num_patches = num_patches
         self.patch_shape = patch_shape
 
-        self.projection = mint.nn.Conv2d(num_channels, hidden_size, kernel_size=patch_size, stride=patch_size, dtype=dtype)
+        self.projection = mint.nn.Conv2d(num_channels, hidden_size, kernel_size=patch_size, stride=patch_size)
 
     def construct(self, pixel_values: ms.Tensor) -> ms.Tensor:
         batch_size, num_channels, height, width = pixel_values.shape
@@ -269,7 +237,6 @@ class InternVLVisionPatchEmbeddings(nn.Cell):
 
         return embeddings, (patch_height, patch_width)
 
-
 # Based on timm implementation, which can be found here:
 # https://github.com/rwightman/pytorch-image-models/blob/master/timm/models/vision_transformer.py
 class InternVLVisionEmbeddings(nn.Cell):
@@ -278,16 +245,14 @@ class InternVLVisionEmbeddings(nn.Cell):
 
     """
 
-    def __init__(self, config: InternVLVisionConfig, dtype = None) -> None:
+    def __init__(self, config: InternVLVisionConfig) -> None:
         super().__init__()
-        self._dtype = dtype or _resolve_ms_dtype_from_config(config) or ms.float32
-
-        self.cls_token = ms.Parameter(mint.zeros((1, 1, config.hidden_size), dtype=self._dtype))
+        self.cls_token = ms.Parameter(mint.zeros((1, 1, config.hidden_size)))
         if config.use_mask_token:
-            self.mask_token = ms.Parameter(mint.zeros((1, 1, config.hidden_size), dtype=self._dtype))
+            self.mask_token = ms.Parameter(mint.zeros((1, 1, config.hidden_size)))
         else:
             self.mask_token = None
-        self.patch_embeddings = InternVLVisionPatchEmbeddings(config, dtype=self._dtype)
+        self.patch_embeddings = InternVLVisionPatchEmbeddings(config)
         self.patch_size = config.patch_size
         self.image_size = (
             config.image_size
@@ -296,7 +261,7 @@ class InternVLVisionEmbeddings(nn.Cell):
         )
         num_patches = self.patch_embeddings.num_patches
         if config.use_absolute_position_embeddings:
-            self.position_embeddings = ms.Parameter(mint.zeros((1, num_patches + 1, config.hidden_size), dtype=self._dtype))
+            self.position_embeddings = ms.Parameter(mint.zeros((1, num_patches + 1, config.hidden_size)))
         else:
             self.position_embeddings = None
         self.dropout = mint.nn.Dropout(config.hidden_dropout_prob)
@@ -366,7 +331,6 @@ class InternVLVisionEmbeddings(nn.Cell):
 
         return embeddings, (patch_height, patch_width)
 
-
 class InternVLVisionMLP(nn.Cell):
     def __init__(self, config):
         super().__init__()
@@ -383,7 +347,6 @@ class InternVLVisionMLP(nn.Cell):
 
 
 NORM2FN = {"layer_norm": mint.nn.LayerNorm, "rms_norm": InternVLVisionRMSNorm}
-
 
 class InternVLVisionLayer(nn.Cell):
     """This corresponds to the Block class in the timm implementation."""
@@ -432,7 +395,6 @@ class InternVLVisionLayer(nn.Cell):
 
         return layer_output, attention_weights
 
-
 class InternVLVisionEncoder(nn.Cell):
     def __init__(self, config: InternVLVisionConfig) -> None:
         super().__init__()
@@ -475,17 +437,13 @@ class InternVLVisionModel(InternVLVisionPreTrainedModel):
     def __init__(self, config: InternVLVisionConfig) -> None:
         super().__init__(config)
         self.config = config
-        _dtype = _resolve_ms_dtype_from_config(self.config)
 
-        self.embeddings = InternVLVisionEmbeddings(config, dtype=_dtype)
+        self.embeddings = InternVLVisionEmbeddings(config)
         self.encoder = InternVLVisionEncoder(config)
 
         self.layernorm = (
             mint.nn.Identity() if config.use_mean_pooling else mint.nn.LayerNorm(config.hidden_size, eps=config.layer_norm_eps)
         )
-
-        if _dtype is not None:
-            _force_cast_all_float_params(self, _dtype)
 
         # Initialize weights and apply final processing
         self.post_init()
@@ -526,7 +484,6 @@ class InternVLVisionModel(InternVLVisionPreTrainedModel):
             hidden_states=encoder_outputs.hidden_states,
             attentions=encoder_outputs.attentions,
         )
-
 
 @auto_docstring
 class InternVLPreTrainedModel(MSPreTrainedModel):
@@ -582,7 +539,6 @@ class InternVLModelOutputWithPast(BaseModelOutputWithPast):
 
     image_hidden_states: Optional[ms.Tensor] = None
 
-
 @auto_docstring(
     custom_intro="""
     The InternVL model which consists of a vision backbone and a language model, without a language modeling head.
@@ -596,9 +552,6 @@ class InternVLModel(InternVLPreTrainedModel):
         self.vision_tower = InternVLVisionModel(config.vision_config)
         self.multi_modal_projector = InternVLMultiModalProjector(config)
         self.language_model = Qwen2Model(config.text_config)
-        _dtype = _resolve_ms_dtype_from_config(self.config)
-        if _dtype is not None:
-            _force_cast_all_float_params(self, _dtype)
         self.post_init()
 
     def get_input_embeddings(self):
@@ -790,7 +743,6 @@ class InternVLModel(InternVLPreTrainedModel):
 
         return vision_features
 
-
 @dataclass
 @auto_docstring(
     custom_intro="""
@@ -821,7 +773,6 @@ class InternVLCausalLMOutputWithPast(ModelOutput):
     attentions: Optional[tuple[ms.Tensor]] = None
     image_hidden_states: Optional[ms.Tensor] = None
 
-
 @auto_docstring(
     custom_intro="""
     The INTERNVL model which consists of a vision backbone and a language model.
@@ -841,9 +792,6 @@ class InternVLForConditionalGeneration(InternVLPreTrainedModel, GenerationMixin)
         super().__init__(config)
         self.model = InternVLModel(config)
         self.lm_head = mint.nn.Linear(config.text_config.hidden_size, config.text_config.vocab_size, bias=False)
-        _dtype = _resolve_ms_dtype_from_config(self.config)
-        if _dtype is not None:
-            _force_cast_all_float_params(self, _dtype)
         self.post_init()
 
     def get_input_embeddings(self):
