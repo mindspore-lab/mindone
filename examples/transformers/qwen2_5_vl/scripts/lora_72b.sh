@@ -13,7 +13,7 @@ llm=Qwen/Qwen2.5-VL-72B-Instruct  # Using HuggingFace model ID
 
 # Training hyperparameters
 lr=1e-5
-batch_size=4
+batch_size=3
 grad_accum_steps=4
 
 # Training entry point
@@ -44,7 +44,7 @@ args="
     --gradient_accumulation_steps ${grad_accum_steps} \
     --max_pixels 451584 \
     --min_pixels 12544 \
-    --save_steps 500 \
+    --save_steps 100 \
     --save_total_limit 3 \
     --learning_rate ${lr} \
     --optim bf16_adamw \

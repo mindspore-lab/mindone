@@ -88,6 +88,17 @@ def create_grad_reducer(trainable_parameters):
     return grad_reducer
 
 
+class LossWithScaleSense(nn.Cell):
+    def __init__(self, network: nn.Cell) -> None:
+        super().__init__(auto_prefix=False)
+        self.network = network
+
+    def construct(self, *args, scale_sense: float = 1.0, **kwargs) -> Tensor:
+        loss = self.network(*args, **kwargs)
+        loss = loss * scale_sense.to(loss.dtype)
+        return loss
+
+
 class TrainOneStepWrapper(nn.Cell):
     """TrainStep with ema and clip grad.
 
@@ -126,6 +137,9 @@ class TrainOneStepWrapper(nn.Cell):
             reducer = create_grad_reducer(network.trainable_params())
             is_zero = False
 
+        # wrap network with scale sense
+        network = LossWithScaleSense(network)
+
         # grad accumulation
         assert gradient_accumulation_steps >= 1
         self.accum_steps = gradient_accumulation_steps
@@ -158,7 +172,6 @@ class TrainOneStepWrapper(nn.Cell):
         # self.network.set_grad()
 
         self.value_and_grad = ops.value_and_grad(network, grad_position=None, weights=optimizer.parameters)
-        # self.grad_fn = ops.GradOperation(get_by_list=True, sens_param=True)(self.network, optimizer.parameters)
 
         self.optimizer = optimizer
         self.ema = ema
@@ -259,10 +272,8 @@ class TrainOneStepWrapper(nn.Cell):
         return loss
 
     def construct(self, *inputs):
-        # loss = self.network(*inputs)
-        # sens = ops.fill(loss.dtype, loss.shape, self.scaler.scale_value)
-        # grads = self.grad_fn(*inputs, sens)
-        loss, grads = self.value_and_grad(*inputs)
+        loss, grads = self.value_and_grad(*inputs, scale_sense=self.scaler.scale_value)
+        loss = self.scaler.unscale(loss)
 
         if self.zero_helper is not None:
             grads = self.zero_helper.cal_gradients(grads)
