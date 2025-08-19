@@ -65,6 +65,7 @@ from . import (
     mixtral,
     mobilebert,
     mpt,
+    nemotron,
     mvp,
     opt,
     paligemma,
