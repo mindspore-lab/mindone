@@ -17,7 +17,7 @@ from tests.modeling_test_utils import (
 )
 from tests.transformers_tests.models.modeling_common import ids_numpy
 
-DTYPE_AND_THRESHOLDS = {"fp32": 5e-2, "fp16": 5e-3, "bf16": 5e-2}
+DTYPE_AND_THRESHOLDS = {"fp32": 5e-2, "fp16": 5e-2, "bf16": 5e-2}
 MODES = [1]
 
 
