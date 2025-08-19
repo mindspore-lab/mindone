@@ -1,0 +1,1 @@
+from .modeling_qwen2 import FastInferQwen2ForCausalLM, FastInferQwen2Model
