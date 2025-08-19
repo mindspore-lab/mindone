@@ -617,7 +617,7 @@ class SamPositionalEmbedding(nn.Cell):
         super().__init__()
         self.scale = config.hidden_size // 2
         # self.register_buffer("positional_embedding", self.scale * mint.randn((2, config.num_pos_feats))) # FIXME: load from checkpoint
-        self.positional_embedding = self.scale * mint.randn((2, config.num_pos_feats))
+        self.positional_embedding = ms.Parameter(self.scale * mint.randn((2, config.num_pos_feats)))
 
     def construct(self, input_coords, input_shape=None):
         """Positionally encode points that are normalized to [0,1]."""
