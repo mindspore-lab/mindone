@@ -56,6 +56,7 @@ from .base import (
     get_default_model_and_revision,
     infer_framework_load_model,
 )
+from .document_question_answering import DocumentQuestionAnsweringPipeline
 from .image_classification import ImageClassificationPipeline
 from .image_segmentation import ImageSegmentationPipeline
 from .image_text_to_text import ImageTextToTextPipeline
@@ -63,6 +64,8 @@ from .question_answering import QuestionAnsweringArgumentHandler, QuestionAnswer
 from .text2text_generation import Text2TextGenerationPipeline
 from .text_classification import TextClassificationPipeline
 from .text_generation import TextGenerationPipeline
+from .token_classification import TokenClassificationPipeline
+from .video_classification import VideoClassificationPipeline
 from .zero_shot_image_classification import ZeroShotImageClassificationPipeline
 
 if is_mindspore_available():
@@ -70,6 +73,7 @@ if is_mindspore_available():
 
     from ..models.auto.modeling_auto import (
         AutoModelForCausalLM,
+        AutoModelForDocumentQuestionAnswering,
         AutoModelForImageClassification,
         AutoModelForImageSegmentation,
         AutoModelForImageTextToText,
@@ -78,6 +82,7 @@ if is_mindspore_available():
         AutoModelForSeq2SeqLM,
         AutoModelForSequenceClassification,
         AutoModelForTokenClassification,
+        AutoModelForVideoClassification,
         AutoModelForZeroShotImageClassification,
     )
 
@@ -156,6 +161,30 @@ SUPPORTED_TASKS = {
         "ms": (AutoModelForSeq2SeqLM,) if is_mindspore_available() else (),
         "default": {"model": {"ms": ("google-t5/t5-base", "a9723ea")}},
         "type": "text",
+    },
+    "token-classification": {
+        "impl": TokenClassificationPipeline,
+        "ms": (AutoModelForTokenClassification,) if is_mindspore_available() else (),
+        "default": {
+            "model": {
+                "ms": ("dbmdz/bert-large-cased-finetuned-conll03-english", "4c53496"),
+            },
+        },
+        "type": "text",
+    },
+    "video-classification": {
+        "impl": VideoClassificationPipeline,
+        "ms": (AutoModelForVideoClassification,) if is_mindspore_available() else (),
+        "default": {"model": {"ms": ("MCG-NJU/videomae-base-finetuned-kinetics", "488eb9a")}},
+        "type": "video",
+    },
+    "document-question-answering": {
+        "impl": DocumentQuestionAnsweringPipeline,
+        "ms": (AutoModelForDocumentQuestionAnswering,) if is_mindspore_available() else (),
+        "default": {
+            "model": {"ms": ("impira/layoutlm-document-qa", "beed3c4")},
+        },
+        "type": "multimodal",
     },
     "zero-shot-image-classification": {
         "impl": ZeroShotImageClassificationPipeline,
