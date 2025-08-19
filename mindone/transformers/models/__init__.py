@@ -34,6 +34,7 @@ from . import (
     clap,
     clip,
     convbert,
+    deprecated,
     dpt,
     fuyu,
     gemma,
@@ -88,6 +89,7 @@ from . import (
     vit,
     vits,
     wav2vec2,
+    xlm,
     xlm_roberta,
 )
 
