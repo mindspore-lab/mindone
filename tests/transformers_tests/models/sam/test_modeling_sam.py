@@ -25,7 +25,7 @@ from transformers import SamConfig, SamMaskDecoderConfig, SamPromptEncoderConfig
 import mindspore as ms
 
 from tests.modeling_test_utils import compute_diffs, generalized_parse_args, get_modules
-from tests.transformers_tests.models.modeling_common import floats_numpy, ids_numpy
+from tests.transformers_tests.models.modeling_common import floats_numpy
 
 DTYPE_AND_THRESHOLDS = {"fp32": 5e-4, "fp16": 5e-3, "bf16": 5e-2}
 MODES = [1]
@@ -225,6 +225,7 @@ class SamModelTester:
         config, pixel_values = config_and_inputs
         inputs_dict = {"pixel_values": pixel_values}
         return config, inputs_dict
+
 
 model_tester = SamModelTester()
 config, inputs_dict = model_tester.prepare_config_and_inputs_for_common()

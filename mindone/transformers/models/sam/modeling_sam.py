@@ -17,24 +17,24 @@
 # limitations under the License.
 """MindSpore SAM model."""
 
-import math
 import collections
 from dataclasses import dataclass
 from typing import Dict, List, Optional, Tuple, Union
 
 import numpy as np
+from transformers import SamConfig, SamMaskDecoderConfig, SamPromptEncoderConfig, SamVisionConfig
+from transformers.utils import ModelOutput, add_start_docstrings, add_start_docstrings_to_model_forward, logging
+
 import mindspore as ms
 import mindspore.mint as mint
 import mindspore.mint.nn.functional as F
 from mindspore import Tensor, nn, ops
 
 from mindone.models.utils import normal_, zeros_
+
 from ...activations import ACT2FN
 from ...modeling_outputs import BaseModelOutput
 from ...modeling_utils import PreTrainedModel
-from transformers.utils import ModelOutput, add_start_docstrings, add_start_docstrings_to_model_forward, logging
-from transformers import SamConfig, SamMaskDecoderConfig, SamPromptEncoderConfig, SamVisionConfig
-
 
 logger = logging.get_logger(__name__)
 
@@ -463,9 +463,7 @@ class SamTwoWayTransformer(nn.Cell):
 
 
 class SamFeedForward(nn.Cell):
-    def __init__(
-        self, input_dim: int, hidden_dim: int, output_dim: int, num_layers: int, sigmoid_output: bool = False
-    ):
+    def __init__(self, input_dim: int, hidden_dim: int, output_dim: int, num_layers: int, sigmoid_output: bool = False):
         super().__init__()
         self.num_layers = num_layers
         self.activation = mint.nn.ReLU()
@@ -502,7 +500,9 @@ class SamMaskDecoder(nn.Cell):
 
         # should we create a new class for this?
         self.upscale_conv1 = mint.nn.ConvTranspose2d(self.hidden_size, self.hidden_size // 4, kernel_size=2, stride=2)
-        self.upscale_conv2 = mint.nn.ConvTranspose2d(self.hidden_size // 4, self.hidden_size // 8, kernel_size=2, stride=2)
+        self.upscale_conv2 = mint.nn.ConvTranspose2d(
+            self.hidden_size // 4, self.hidden_size // 8, kernel_size=2, stride=2
+        )
         self.upscale_layer_norm = SamLayerNorm(self.hidden_size // 4, data_format="channels_first")
         self.activation = mint.nn.GELU()
 
@@ -1090,7 +1090,9 @@ class SamVisionNeck(nn.Cell):
 
         self.conv1 = mint.nn.Conv2d(config.hidden_size, config.output_channels, kernel_size=1, bias=False)
         self.layer_norm1 = SamLayerNorm(config.output_channels, data_format="channels_first")
-        self.conv2 = mint.nn.Conv2d(config.output_channels, config.output_channels, kernel_size=3, padding=1, bias=False)
+        self.conv2 = mint.nn.Conv2d(
+            config.output_channels, config.output_channels, kernel_size=3, padding=1, bias=False
+        )
         self.layer_norm2 = SamLayerNorm(config.output_channels, data_format="channels_first")
 
     def construct(self, hidden_states):
@@ -1218,6 +1220,7 @@ class SamPreTrainedModel(PreTrainedModel):
             normal_(module.weight, mean=0.0, std=std)
             if module.padding_idx is not None:
                 module.weight[module.padding_idx] = 0
+
 
 SAM_START_DOCSTRING = r"""
     This model inherits from [`PreTrainedModel`]. Check the superclass documentation for the generic methods the

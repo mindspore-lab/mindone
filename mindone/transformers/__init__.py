@@ -520,7 +520,7 @@ from .models.roberta import (
     RobertaModel,
     RobertaPreTrainedModel,
 )
-from .models.sam import SamModel, SamPreTrainedModel
+from .models.sam import SamImageProcessor, SamModel, SamPreTrainedModel, SamProcessor
 from .models.siglip import (
     SiglipForImageClassification,
     SiglipImageProcessor,
