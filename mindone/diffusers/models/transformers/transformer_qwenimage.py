@@ -381,7 +381,7 @@ class QwenImageTransformerBlock(nn.Cell):
         self.attention_head_dim = attention_head_dim
 
         # Image processing modules
-        self.img_mod = nn.Sequential(
+        self.img_mod = nn.SequentialCell(
             nn.SiLU(),
             nn.Linear(dim, 6 * dim, bias=True),  # For scale, shift, gate for norm1 and norm2
         )
@@ -403,7 +403,7 @@ class QwenImageTransformerBlock(nn.Cell):
         self.img_mlp = FeedForward(dim=dim, dim_out=dim, activation_fn="gelu-approximate")
 
         # Text processing modules
-        self.txt_mod = nn.Sequential(
+        self.txt_mod = nn.SequentialCell(
             mint.nn.SiLU(),
             mint.nn.Linear(dim, 6 * dim, bias=True),  # For scale, shift, gate for norm1 and norm2
         )

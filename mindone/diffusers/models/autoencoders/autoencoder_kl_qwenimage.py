@@ -111,8 +111,8 @@ class QwenImageRMS_norm(nn.Cell):
 
         self.channel_first = channel_first
         self.scale = dim**0.5
-        self.gamma = nn.Parameter(mint.ones(shape))
-        self.bias = nn.Parameter(mint.zeros(shape)) if bias else 0.0
+        self.gamma = ms.Parameter(mint.ones(shape))
+        self.bias = ms.Parameter(mint.zeros(shape)) if bias else 0.0
 
     def construct(self, x):
         return mint.nn.functional.normalize(x, dim=(1 if self.channel_first else -1)) * self.scale * self.gamma + self.bias
@@ -154,21 +154,21 @@ class QwenImageResample(nn.Cell):
 
         # layers
         if mode == "upsample2d":
-            self.resample = nn.Sequential(
+            self.resample = ms.SequentialCell(
                 QwenImageUpsample(scale_factor=(2.0, 2.0), mode="nearest-exact"),
                 mint.nn.Conv2d(dim, dim // 2, 3, padding=1),
             )
         elif mode == "upsample3d":
-            self.resample = nn.Sequential(
+            self.resample = ms.SequentialCell(
                 QwenImageUpsample(scale_factor=(2.0, 2.0), mode="nearest-exact"),
                 mint.nn.Conv2d(dim, dim // 2, 3, padding=1),
             )
             self.time_conv = QwenImageCausalConv3d(dim, dim * 2, (3, 1, 1), padding=(1, 0, 0))
 
         elif mode == "downsample2d":
-            self.resample = nn.Sequential(mint.nn.ZeroPad2d((0, 1, 0, 1)), mint.nn.Conv2d(dim, dim, 3, stride=(2, 2)))
+            self.resample = ms.SequentialCell(mint.nn.ZeroPad2d((0, 1, 0, 1)), mint.nn.Conv2d(dim, dim, 3, stride=(2, 2)))
         elif mode == "downsample3d":
-            self.resample = nn.Sequential(mint.nn.ZeroPad2d((0, 1, 0, 1)), mint.nn.Conv2d(dim, dim, 3, stride=(2, 2)))
+            self.resample = ms.SequentialCell(mint.nn.ZeroPad2d((0, 1, 0, 1)), mint.nn.Conv2d(dim, dim, 3, stride=(2, 2)))
             self.time_conv = QwenImageCausalConv3d(dim, dim, (3, 1, 1), stride=(2, 1, 1), padding=(0, 0, 0))
 
         else:
@@ -247,7 +247,7 @@ class QwenImageResidualBlock(nn.Cell):
         self.norm1 = QwenImageRMS_norm(in_dim, images=False)
         self.conv1 = QwenImageCausalConv3d(in_dim, out_dim, 3, padding=1)
         self.norm2 = QwenImageRMS_norm(out_dim, images=False)
-        self.dropout = nn.Dropout(dropout)
+        self.dropout = mint.nn.Dropout(dropout)
         self.conv2 = QwenImageCausalConv3d(out_dim, out_dim, 3, padding=1)
         self.conv_shortcut = QwenImageCausalConv3d(in_dim, out_dim, 1) if in_dim != out_dim else mint.nn.Identity()
 
