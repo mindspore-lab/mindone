@@ -154,21 +154,21 @@ class QwenImageResample(nn.Cell):
 
         # layers
         if mode == "upsample2d":
-            self.resample = ms.SequentialCell(
+            self.resample = nn.SequentialCell(
                 QwenImageUpsample(scale_factor=(2.0, 2.0), mode="nearest-exact"),
                 mint.nn.Conv2d(dim, dim // 2, 3, padding=1),
             )
         elif mode == "upsample3d":
-            self.resample = ms.SequentialCell(
+            self.resample = nn.SequentialCell(
                 QwenImageUpsample(scale_factor=(2.0, 2.0), mode="nearest-exact"),
                 mint.nn.Conv2d(dim, dim // 2, 3, padding=1),
             )
             self.time_conv = QwenImageCausalConv3d(dim, dim * 2, (3, 1, 1), padding=(1, 0, 0))
 
         elif mode == "downsample2d":
-            self.resample = ms.SequentialCell(mint.nn.ZeroPad2d((0, 1, 0, 1)), mint.nn.Conv2d(dim, dim, 3, stride=(2, 2)))
+            self.resample = nn.SequentialCell(mint.nn.ZeroPad2d((0, 1, 0, 1)), mint.nn.Conv2d(dim, dim, 3, stride=(2, 2)))
         elif mode == "downsample3d":
-            self.resample = ms.SequentialCell(mint.nn.ZeroPad2d((0, 1, 0, 1)), mint.nn.Conv2d(dim, dim, 3, stride=(2, 2)))
+            self.resample = nn.SequentialCell(mint.nn.ZeroPad2d((0, 1, 0, 1)), mint.nn.Conv2d(dim, dim, 3, stride=(2, 2)))
             self.time_conv = QwenImageCausalConv3d(dim, dim, (3, 1, 1), stride=(2, 1, 1), padding=(0, 0, 0))
 
         else:
