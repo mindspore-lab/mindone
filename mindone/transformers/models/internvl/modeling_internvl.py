@@ -853,7 +853,7 @@ class InternVLForConditionalGeneration(InternVLPreTrainedModel, GenerationMixin)
         output_hidden_states: Optional[bool] = None,
         return_dict: Optional[bool] = None,
         cache_position: Optional[ms.Tensor] = None,
-        logits_to_keep: Union[int, ms.Tensor] = 0,
+        logits_to_keep: Optional[Union[int, ms.Tensor]] = None,
         image_sizes: Optional[ms.Tensor] = None,
     ) -> Union[tuple, InternVLCausalLMOutputWithPast]:
         r"""
