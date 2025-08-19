@@ -227,6 +227,15 @@ from .models.chameleon import (
     ChameleonProcessor,
     ChameleonVQVAE,
 )
+from .models.chinese_clip import (
+    ChineseCLIPFeatureExtractor,
+    ChineseCLIPImageProcessor,
+    ChineseCLIPModel,
+    ChineseCLIPPreTrainedModel,
+    ChineseCLIPProcessor,
+    ChineseCLIPTextModel,
+    ChineseCLIPVisionModel,
+)
 from .models.clap import (
     ClapAudioModel,
     ClapAudioModelWithProjection,

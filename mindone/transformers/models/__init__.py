@@ -31,6 +31,7 @@ from . import (
     camembert,
     canine,
     chameleon,
+    chinese_clip,
     clap,
     clip,
     convbert,

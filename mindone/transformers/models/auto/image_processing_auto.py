@@ -51,6 +51,7 @@ else:
             ("blip", ("BlipImageProcessor",)),
             ("blip-2", ("BlipImageProcessor",)),
             ("chameleon", ("ChameleonImageProcessor",)),
+            ("chinese_clip", ("ChineseCLIPImageProcessor",)),
             ("clip", ("CLIPImageProcessor",)),
             ("convnext", ("ConvNextImageProcessor",)),
             ("convnextv2", ("ConvNextImageProcessor",)),

@@ -46,6 +46,8 @@ MODEL_MAPPING_NAMES = OrderedDict(
         ("starcoder2", "Starcoder2Model"),
         ("canine", "CanineModel"),
         ("chameleon", "ChameleonModel"),
+        ("chinese_clip", "ChineseCLIPModel"),
+        ("chinese_clip_vision_model", "ChineseCLIPVisionModel"),
         ("clap", "ClapModel"),
         ("clip", "CLIPModel"),
         ("clip_text_model", "CLIPTextModel"),
@@ -604,6 +606,7 @@ MODEL_FOR_ZERO_SHOT_IMAGE_CLASSIFICATION_MAPPING_NAMES = OrderedDict(
         # Model for Zero Shot Image Classification mapping
         ("blip", "BlipModel"),
         ("siglip", "SiglipModel"),
+        ("chinese_clip", "ChineseCLIPModel"),
     ]
 )
 
