@@ -3,16 +3,16 @@
 # Distributed training configuration
 MASTER_ADDR=${MASTER_ADDR:-"127.0.0.1"}
 MASTER_PORT=${MASTER_PORT:-$(shuf -i 20001-29999 -n 1)}
-NPROC_PER_NODE=${WORLD_SIZE:-2}
+NPROC_PER_NODE=${WORLD_SIZE:-4}
 
 # DeepSpeed configuration
 deepspeed=./scripts/zero3.json
 
 # Model configuration
-llm=Qwen/Qwen2.5-VL-3B-Instruct  # Using HuggingFace model ID
+llm=Qwen/Qwen2.5-VL-72B-Instruct  # Using HuggingFace model ID
 
 # Training hyperparameters
-lr=2e-7
+lr=1e-5
 batch_size=4
 grad_accum_steps=4
 
@@ -35,8 +35,8 @@ args="
     --data_packing True \
     --tune_mm_vision False \
     --tune_mm_mlp False \
-    --tune_mm_llm True \
-    --tune_mm_lora False \
+    --tune_mm_llm False \
+    --tune_mm_lora True \
     --bf16 \
     --output_dir ${output_dir} \
     --num_train_epochs 3 \
