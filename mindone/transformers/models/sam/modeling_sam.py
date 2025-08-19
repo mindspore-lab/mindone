@@ -272,12 +272,10 @@ class SamSdpaAttention(SamAttention):
         key = self._separate_heads(key, self.num_attention_heads)
         value = self._separate_heads(value, self.num_attention_heads)
 
-        # Scaled dot product attention
+        # Scaled dot product attention (use speed_fusion_attention)
         attn_mask = None
         if attention_similarity is not None:
             attn_mask = attention_similarity.unsqueeze(1).broadcast_to((-1, self.num_attention_heads, -1, -1))
-
-        if attn_mask is not None:
             attn_mask = mint.logical_not(attn_mask)  # in MindSpore, 0 indicates retain, 1 indicates discard
         out = ops.speed_fusion_attention(
             query,
@@ -285,6 +283,7 @@ class SamSdpaAttention(SamAttention):
             value,
             head_num=query.shape[1],
             input_layout="BNSD",
+            scale=query.shape[-1] ** -0.5,
             atten_mask=attn_mask,
         )[0]
 
@@ -559,6 +558,7 @@ class SamMaskDecoder(nn.Cell):
         image_embeddings = image_embeddings + dense_prompt_embeddings
         image_embeddings = image_embeddings.repeat_interleave(point_batch_size, 0)
         image_positional_embeddings = image_positional_embeddings.repeat_interleave(point_batch_size, 0)
+        image_positional_embeddings = image_positional_embeddings.to(self.iou_token.weight.dtype)
 
         # Run the transformer, image_positional_embedding are consumed
         point_embedding, image_embeddings, attentions = self.transformer(
@@ -616,7 +616,8 @@ class SamPositionalEmbedding(nn.Cell):
     def __init__(self, config):
         super().__init__()
         self.scale = config.hidden_size // 2
-        self.register_buffer("positional_embedding", self.scale * mint.randn((2, config.num_pos_feats)))
+        # self.register_buffer("positional_embedding", self.scale * mint.randn((2, config.num_pos_feats))) # FIXME: load from checkpoint
+        self.positional_embedding = self.scale * mint.randn((2, config.num_pos_feats))
 
     def construct(self, input_coords, input_shape=None):
         """Positionally encode points that are normalized to [0,1]."""
@@ -684,8 +685,8 @@ class SamPromptEncoder(nn.Cell):
         if pad:
             target_point_shape = (points.shape[0], points.shape[1], 1, points.shape[-1])
             target_labels_shape = (points.shape[0], points.shape[1], 1)
-            padding_point = mint.zeros(target_point_shape)
-            padding_label = -mint.ones(target_labels_shape)
+            padding_point = mint.zeros(target_point_shape, dtype=points.dtype)
+            padding_label = -mint.ones(target_labels_shape, dtype=labels.dtype)
             points = mint.cat([points, padding_point], dim=2)
             labels = mint.cat([labels, padding_label], dim=2)
         input_shape = (self.input_image_size, self.input_image_size)
@@ -912,79 +913,9 @@ class SamVisionAttention(nn.Cell):
         return outputs
 
 
-class SamVisionSdpaAttention(SamVisionAttention):
-    """
-    Multi-head Attention block with relative position embeddings.
-    Using SDPA instead of the default attention.
-    """
-
-    def __init__(self, config, window_size):
-        super().__init__(config, window_size)
-
-    def construct(self, hidden_states: ms.Tensor, output_attentions=False) -> ms.Tensor:
-        if output_attentions:
-            logger.warning_once(
-                "`SamVisionSdpaAttention` is used but `mindspore.mint.nn.functional.scaled_dot_product_attention` does not support "
-                "`output_attentions=True`. Falling back to the manual attention implementation, but "
-                "specifying the manual implementation will be required from Transformers version v5.0.0 onwards. "
-                'This warning can be removed using the argument `attn_implementation="eager"` when loading the model.'
-            )
-            return super().construct(
-                hidden_states=hidden_states,
-                output_attentions=output_attentions,
-            )
-
-        batch_size, height, width, _ = hidden_states.shape
-        # qkv with shape (3, B, nHead, H * W, C)
-        qkv = (
-            self.qkv(hidden_states)
-            .reshape(batch_size, height * width, 3, self.num_attention_heads, -1)
-            .permute(2, 0, 3, 1, 4)
-        )
-        # q, k, v with shape (B * nHead, H * W, C)
-        query, key, value = qkv.reshape(3, batch_size * self.num_attention_heads, height * width, -1).unbind(0)
-
-        attn_bias = None
-        if self.use_rel_pos:
-            decomposed_rel_pos = self.get_decomposed_rel_pos(
-                query, self.rel_pos_h, self.rel_pos_w, (height, width), (height, width)
-            )
-            decomposed_rel_pos = decomposed_rel_pos.reshape(
-                batch_size, self.num_attention_heads, height * width, height * width
-            )
-            attn_bias = decomposed_rel_pos
-
-        query = query.view(batch_size, self.num_attention_heads, height * width, -1)
-        key = key.view(batch_size, self.num_attention_heads, height * width, -1)
-        value = value.view(batch_size, self.num_attention_heads, height * width, -1)
-
-        if attn_bias is not None:
-            attn_bias = mint.logical_not(attn_bias)  # in MindSpore, 0 indicates retain, 1 indicates discard
-        attn_output = ops.speed_fusion_attention(
-            query,
-            key,
-            value,
-            head_num=query.shape[1],
-            input_layout="BNSD",
-            atten_mask=attn_bias,
-            scale=self.scale,
-            keep_prob=1 - self.dropout,
-        )[0]
-
-        attn_output = (
-            attn_output.view(batch_size, self.num_attention_heads, height, width, -1)
-            .permute(0, 2, 3, 1, 4)
-            .reshape(batch_size, height, width, -1)
-        )
-
-        attn_output = self.proj(attn_output)
-
-        return attn_output, None
-
-
 SAM_VISION_ATTENTION_CLASSES = {
     "eager": SamVisionAttention,
-    "sdpa": SamVisionSdpaAttention,
+    "sdpa": SamVisionAttention,  # not supported yet
 }
 
 
@@ -1108,6 +1039,13 @@ class SamVisionNeck(nn.Cell):
 class SamVisionEncoder(nn.Cell):
     def __init__(self, config: SamVisionConfig):
         super().__init__()
+        if config._attn_implementation == "sdpa":
+            logger.warning(
+                "SamVisionEncoder attention applies non-zero attention bias, "
+                "which MindSpore SDPA implementation (speed_fusion_attention) does not support yet. "
+                "Attention implementation of SamVisionEncoder will fallback to eager instead."
+            )
+            config._attn_implementation = "eager"
         self.config = config
         self.image_size = config.image_size
 
@@ -1318,6 +1256,11 @@ class SamModel(SamPreTrainedModel):
 
     def __init__(self, config):
         super().__init__(config)
+
+        # Fix bug in the original implementation which does not assign the attention implementation
+        config.vision_config._attn_implementation = config._attn_implementation
+        config.mask_decoder_config._attn_implementation = config._attn_implementation
+
         self.shared_image_embedding = SamPositionalEmbedding(config.vision_config)
 
         self.vision_encoder = SamVisionEncoder(config.vision_config)
@@ -1437,9 +1380,9 @@ class SamModel(SamPreTrainedModel):
         >>> img_url = "https://huggingface.co/datasets/huggingface/documentation-images/resolve/main/transformers/model_doc/sam-car.png"
         >>> raw_image = Image.open(requests.get(img_url, stream=True).raw).convert("RGB")
         >>> input_points = [[[400, 650]]]  # 2D location of a window on the car
-        >>> inputs = processor(images=raw_image, input_points=input_points, return_tensors="np")
+        >>> inputs = processor(images=raw_image, input_points=input_points, return_tensors="ms")
+        >>> # pixel_values [B, C, H, W], original_sizes [B, 2], reshape_input_sizes [B, 2], input_points [B, point_batch_size, num_points_per_image, 2]
         >>> for k, v in inputs.items():
-        ...     inputs[k] = ms.Tensor(v)
         ...     if inputs[k].dtype == ms.int64:
         ...         inputs[k] = inputs[k].to(ms.int32)
         ...     else:
@@ -1450,8 +1393,8 @@ class SamModel(SamPreTrainedModel):
 
         >>> # Postprocess masks
         >>> masks = processor.post_process_masks(
-        ...     outputs.pred_masks, inputs["original_sizes"], inputs["reshaped_input_sizes"]
-        ... )
+        ...     outputs.pred_masks, inputs["original_sizes"], inputs["reshaped_input_sizes"], return_tensors="ms"
+        ... ) # [img_batch_size, num_masks, height, width]
         ```
         """
         output_attentions = output_attentions if output_attentions is not None else self.config.output_attentions

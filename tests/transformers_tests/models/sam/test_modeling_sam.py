@@ -117,7 +117,6 @@ class SamMaskDecoderTester:
 class SamModelTester:
     def __init__(
         self,
-        parent,
         hidden_size=36,
         intermediate_size=72,
         projection_dim=62,
@@ -144,7 +143,6 @@ class SamModelTester:
         mlp_dim=None,
         batch_size=2,
     ):
-        self.parent = parent
         self.image_size = image_size
         self.patch_size = patch_size
         self.output_channels = output_channels
@@ -240,7 +238,7 @@ _CASES = [
         {},
         (),
         inputs_dict,
-        {"logits": 0},
+        {"iou_scores": 0},
     ],
 ]
 

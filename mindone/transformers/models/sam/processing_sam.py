@@ -23,14 +23,13 @@ from copy import deepcopy
 from typing import List, Optional, Union
 
 import numpy as np
+from transformers.tokenization_utils_base import AudioInput, BatchEncoding, PreTokenizedInput, TextInput
+
+import mindspore as ms
 
 from ...image_utils import ImageInput, VideoInput
 from ...processing_utils import ImagesKwargs, ProcessingKwargs, ProcessorMixin
-from ...tokenization_utils_base import AudioInput, BatchEncoding, PreTokenizedInput, TextInput
-from ...utils import is_tf_available, is_torch_available
 
-import mindspore as ms
-import mindspore.mint as mint
 
 class SamImagesKwargs(ImagesKwargs):
     segmentation_maps: Optional[ImageInput]
@@ -187,7 +186,7 @@ class SamProcessor(ProcessorMixin):
                 input_boxes = input_boxes.unsqueeze(1) if len(input_boxes.shape) != 3 else input_boxes
             elif return_tensors == "np":
                 # boxes batch size of 1 by default
-                input_boxes = input_boxes.unsqueeze(1) if len(input_boxes.shape) != 3 else input_boxes
+                input_boxes = input_boxes[:, np.newaxis, :, :] if len(input_boxes.shape) != 3 else input_boxes
             encoding_image_processor.update({"input_boxes": input_boxes})
         if input_points is not None:
             if return_tensors == "ms":
@@ -196,16 +195,16 @@ class SamProcessor(ProcessorMixin):
                 input_points = input_points.unsqueeze(1) if len(input_points.shape) != 4 else input_points
             elif return_tensors == "np":
                 # point batch size of 1 by default
-                input_points = input_points.unsqueeze(1) if len(input_points.shape) != 4 else input_points
+                input_points = input_points[:, np.newaxis, :, :] if len(input_points.shape) != 4 else input_points
             encoding_image_processor.update({"input_points": input_points})
         if input_labels is not None:
-            if return_tensors == "md":
+            if return_tensors == "ms":
                 input_labels = ms.Tensor(input_labels)
                 # point batch size of 1 by default
                 input_labels = input_labels.unsqueeze(1) if len(input_labels.shape) != 3 else input_labels
             elif return_tensors == "np":
                 # point batch size of 1 by default
-                input_labels = input_labels.unsqueeze(1) if len(input_labels.shape) != 3 else input_labels
+                input_labels = input_labels[:, np.newaxis, :, :] if len(input_labels.shape) != 3 else input_labels
             encoding_image_processor.update({"input_labels": input_labels})
 
         return encoding_image_processor
