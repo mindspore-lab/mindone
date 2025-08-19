@@ -9,7 +9,7 @@ from diffusers.utils import BaseOutput
 from ml_dtypes import bfloat16
 
 import mindspore as ms
-from mindspore import mint, nn, ops
+from mindspore import nn, ops
 
 logger = logging.getLogger("ModelingsUnitTest")
 
@@ -150,10 +150,6 @@ def get_pt2ms_mappings(m):
                 mappings[f"{name}.running_mean"] = f"{name}.moving_mean", lambda x: x
                 mappings[f"{name}.running_var"] = f"{name}.moving_variance", lambda x: x
                 mappings[f"{name}.num_batches_tracked"] = None, lambda x: x
-        elif isinstance(cell, (mint.nn.BatchNorm1d, mint.nn.BatchNorm2d, mint.nn.BatchNorm3d)):
-            # TODO: for mint.nn, the dtype for each param should expected to be same among torch and mindspore
-            # this is a temporary fix, delete this branch in future.
-            mappings[f"{name}.num_batches_tracked"] = f"{name}.num_batches_tracked", lambda x: x.to(ms.float32)
     return mappings
 
 
