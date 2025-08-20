@@ -277,11 +277,11 @@ class TrainOneStepWrapper(nn.Cell):
 
         if self.zero_helper is not None:
             grads = self.zero_helper.cal_gradients(grads)
-
-        if self.is_zero:
+        elif self.is_zero:
             grads = self.optimizer.grad_reduce(grads)
         else:
             grads = self.reducer(grads)
+
         unscaled_grads = self.scaler.unscale(grads)
 
         finite = self.all_finite(unscaled_grads)

@@ -1071,6 +1071,8 @@ class TrainingArguments:
         # see https://github.com/huggingface/transformers/issues/10628
         if self.output_dir is not None:
             self.output_dir = os.path.expanduser(self.output_dir)
+            if self.deepspeed:
+                self.output_dir = os.path.join(self.output_dir, f"rank_{self.local_process_index}")
         if self.logging_dir is None and self.output_dir is not None:
             self.logging_dir = os.path.join(self.output_dir, default_logdir())
         if self.logging_dir is not None:
@@ -1373,6 +1375,10 @@ class TrainingArguments:
         """
         Whether or not the current process should write to disk, e.g., to save models and checkpoints.
         """
+        # for ZeRO3, save shard for each rank
+        if self.deepspeed:
+            return True
+
         if self.save_on_each_node:
             return self.local_process_index == 0
         else:
