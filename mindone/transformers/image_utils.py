@@ -36,7 +36,14 @@ from .utils import (
     requires_backends,
     to_numpy,
 )
-
+from .utils.constants import (  # noqa: F401
+    IMAGENET_DEFAULT_MEAN,
+    IMAGENET_DEFAULT_STD,
+    IMAGENET_STANDARD_MEAN,
+    IMAGENET_STANDARD_STD,
+    OPENAI_CLIP_MEAN,
+    OPENAI_CLIP_STD,
+)
 if is_vision_available():
     import PIL.Image
     import PIL.ImageOps
