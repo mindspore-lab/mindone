@@ -146,16 +146,17 @@ class Trainer:
         self.is_in_train = False
 
         # TODO: this is just a temporaily implementation to support zero-3 based on deepspeed config.
+        self.use_zero3 = False
         if self.args.deepspeed:
             with open(self.args.deepspeed) as f:
                 deepspeed_config = json.load(f)
                 try:
                     if deepspeed_config["zero_optimization"]["stage"] == 3:
                         self.use_zero3 = True
-                except KeyError:
-                    self.use_zero3 = False
-        else:
-            self.use_zero3 = False
+                    else:
+                        raise NotImplementedError("we support deepspeed config with zero stage == 3 only.")
+                except KeyError as e:
+                    raise RuntimeError("Parsing deepspeed config failed") from e
 
         # self.create_accelerator_and_postprocess()
 
