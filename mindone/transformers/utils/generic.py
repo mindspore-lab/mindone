@@ -20,11 +20,12 @@ Generic utilities
 
 import inspect
 import json
+import logging
 import os
 import tempfile
 import warnings
 from collections import OrderedDict, UserDict, defaultdict
-from collections.abc import  MutableMapping
+from collections.abc import MutableMapping
 from contextlib import ExitStack, contextmanager
 from dataclasses import dataclass, fields, is_dataclass
 from enum import Enum
@@ -32,8 +33,6 @@ from functools import wraps
 from typing import Any, Callable, ContextManager, Optional, TypedDict
 
 import numpy as np
-
-import logging
 
 from .import_utils import is_mindspore_available
 
@@ -244,10 +243,8 @@ class ModelOutput(OrderedDict):
     """
 
     def __init_subclass__(cls) -> None:
-        """No need to register subclasses as pytree nodes, mindspore does not support pytree.
-        """
+        """No need to register subclasses as pytree nodes, mindspore does not support pytree."""
         pass
-
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -363,7 +360,6 @@ class ModelOutput(OrderedDict):
         Convert self to a tuple containing all the attributes/keys that are not `None`.
         """
         return tuple(self[k] for k in self.keys())
-
 
 
 class ExplicitEnum(str, Enum):
@@ -535,20 +531,8 @@ def tensor_size(array):
     else:
         raise ValueError(f"Type not supported for tensor_size: {type(array)}.")
 
-#TODO: remove this function in v4.54.1
-def add_model_info_to_auto_map(auto_map, repo_id):
-    """
-    Adds the information of the repo_id to a given auto map.
-    """
-    for key, value in auto_map.items():
-        if isinstance(value, (tuple, list)):
-            auto_map[key] = [f"{repo_id}--{v}" if (v is not None and "--" not in v) else v for v in value]
-        elif value is not None and "--" not in value:
-            auto_map[key] = f"{repo_id}--{value}"
 
-    return auto_map
-
-#TODO: remove this function in v4.54.1
+# TODO: remove this function in v4.54.1
 def add_model_info_to_custom_pipelines(custom_pipeline, repo_id):
     """
     Adds the information of the repo_id to a given custom pipeline.
@@ -715,6 +699,7 @@ def filter_out_non_signature_kwargs(extra: Optional[list] = None):
 
     return decorator
 
+
 class TransformersKwargs(TypedDict, total=False):
     """
     Keyword arguments to be passed to the loss function
@@ -747,6 +732,7 @@ class TransformersKwargs(TypedDict, total=False):
     cumulative_seqlens_k: Optional["mindspore.Tensor"]
     max_length_q: Optional[int]
     max_length_k: Optional[int]
+
 
 def is_timm_config_dict(config_dict: dict[str, Any]) -> bool:
     """Checks whether a config dict is a timm config dict."""
@@ -825,7 +811,6 @@ def can_return_tuple(func):
     return wrapper
 
 
-
 @dataclass
 class OutputRecorder:
     """
@@ -870,7 +855,7 @@ def check_model_inputs(func):
             for k, v in all_args["kwargs"].items():
                 all_args[k] = v
 
-        capture_flags = _CAN_RECORD_REGISTRY.get(str(self.__class__), {}) 
+        capture_flags = _CAN_RECORD_REGISTRY.get(str(self.__class__), {})
         recordable_keys = {
             f"output_{k}": all_args.get(
                 f"output_{k}",
@@ -951,6 +936,7 @@ def check_model_inputs(func):
 
     return wrapper
 
+
 class GeneralInterface(MutableMapping):
     """
     Dict-like object keeping track of a class-wide mapping, as well as a local one. Allows to have library-wide
@@ -990,6 +976,7 @@ class GeneralInterface(MutableMapping):
 
     def valid_keys(self) -> list[str]:
         return list(self.keys())
+
 
 # TODO: remove this class in v4.54.1
 class LossKwargs(TypedDict, total=False):
