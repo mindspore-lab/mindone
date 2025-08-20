@@ -29,7 +29,7 @@ test_cases = [
 
 
 @ddt
-class LuminaText2ImgPipelineFastTests(PipelineTesterMixin, unittest.TestCase):
+class LuminaPipelineFastTests(PipelineTesterMixin, unittest.TestCase):
     pipeline_config = [
         [
             "transformer",
@@ -128,8 +128,8 @@ class LuminaText2ImgPipelineFastTests(PipelineTesterMixin, unittest.TestCase):
         ms.set_context(mode=mode)
 
         pt_components, ms_components = self.get_dummy_components()
-        pt_pipe_cls = get_module("diffusers.pipelines.lumina.pipeline_lumina.LuminaText2ImgPipeline")
-        ms_pipe_cls = get_module("mindone.diffusers.pipelines.lumina.pipeline_lumina.LuminaText2ImgPipeline")
+        pt_pipe_cls = get_module("diffusers.pipelines.lumina.pipeline_lumina.LuminaPipeline")
+        ms_pipe_cls = get_module("mindone.diffusers.pipelines.lumina.pipeline_lumina.LuminaPipeline")
 
         pt_pipe = pt_pipe_cls(**pt_components)
         ms_pipe = ms_pipe_cls(**ms_components)
@@ -157,14 +157,14 @@ class LuminaText2ImgPipelineFastTests(PipelineTesterMixin, unittest.TestCase):
 
 @slow
 @ddt
-class LuminaText2ImgPipelineSlowTests(PipelineTesterMixin, unittest.TestCase):
+class LuminaPipelineSlowTests(PipelineTesterMixin, unittest.TestCase):
     @data(*test_cases)
     @unpack
     def test_lumina_inference(self, mode, dtype):
         ms.set_context(mode=mode)
         ms_dtype = getattr(ms, dtype)
 
-        pipe_cls = get_module("mindone.diffusers.pipelines.lumina.pipeline_lumina.LuminaText2ImgPipeline")
+        pipe_cls = get_module("mindone.diffusers.pipelines.lumina.pipeline_lumina.LuminaPipeline")
         pipe = pipe_cls.from_pretrained("Alpha-VLLM/Lumina-Next-SFT-diffusers", mindspore_dtype=ms_dtype)
 
         prompt = "A photo of a cat"

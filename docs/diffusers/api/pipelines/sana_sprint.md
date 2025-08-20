@@ -46,6 +46,35 @@ Note: The recommended dtype mentioned is for the transformer weights. The text e
 
 Users can tweak the `max_timesteps` value for experimenting with the visual quality of the generated outputs. The default `max_timesteps` value was obtained with an inference-time search process. For more details about it, check out the paper.
 
+## Image to Image
+
+The [`SanaSprintImg2ImgPipeline`](https://mindspore-lab.github.io/mindone/latest/diffusers/api/pipelines/sana_sprint/#mindone.diffusers.SanaSprintImg2ImgPipeline) is a pipeline for image-to-image generation. It takes an input image and a prompt, and generates a new image based on the input image and the prompt.
+
+```py
+import mindspore as ms
+from mindone.diffusers import SanaSprintImg2ImgPipeline
+from mindone.diffusers.utils.loading_utils import load_image
+
+image = load_image(
+    "https://huggingface.co/datasets/huggingface/documentation-images/resolve/main/diffusers/penguin.png"
+)
+
+pipe = SanaSprintImg2ImgPipeline.from_pretrained(
+    "Efficient-Large-Model/Sana_Sprint_1.6B_1024px_diffusers",
+    mindspore_dtype=ms.bfloat16)
+
+image = pipe(
+    prompt="a cute pink bear",
+    image=image,
+    strength=0.5,
+    height=832,
+    width=480
+)[0][0]
+image.save("output.png")
+```
+
 ::: mindone.diffusers.SanaSprintPipeline
+
+::: mindone.diffusers.SanaSprintImg2ImgPipeline
 
 ::: mindone.diffusers.pipelines.sana.pipeline_output.SanaPipelineOutput

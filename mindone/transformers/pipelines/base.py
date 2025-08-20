@@ -64,7 +64,7 @@ if TYPE_CHECKING:
 logger = logging.get_logger(__name__)
 
 
-def no_collate_fn(items):
+def no_collate_fn(items, BatchInfo):
     if len(items) != 1:
         raise ValueError("This collate_fn is meant to be used with batch_size=1")
     return items[0]
@@ -77,7 +77,7 @@ def _pad(items, key, padding_value, padding_side):
         shape = items[0][key].shape
         dim = len(shape)
         if dim == 1:
-            # We have a list of 1-dim torch tensors, which can be stacked without padding
+            # We have a list of 1-dim mindspore tensors, which can be stacked without padding
             return ops.cat([item[key] for item in items], axis=0)
         if key in ["pixel_values", "image"]:
             # This is probable image so padding shouldn't be necessary
@@ -123,7 +123,7 @@ def _pad(items, key, padding_value, padding_side):
         return [item[key] for item in items]
 
 
-def pad_collate_fn(tokenizer, feature_extractor):
+def pad_collate_fn(tokenizer, feature_extractor, BatchInfo):
     # Tokenizer
     t_padding_side = None
     # Feature extractor
@@ -195,16 +195,16 @@ def infer_framework_load_model(
     **model_kwargs,
 ):
     """
-    Select framework (TensorFlow or PyTorch) to use from the `model` passed. Returns a tuple (framework, model).
+    Select framework (MindSpore) to use from the `model` passed. Returns a tuple (framework, model).
 
     If `model` is instantiated, this function will just infer the framework from the model class. Otherwise `model` is
     actually a checkpoint name and this method will try to instantiate it using `model_classes`. Since we don't want to
     instantiate the model twice, this model is returned for use by the pipeline.
 
-    If both frameworks are installed and available for `model`, PyTorch is selected.
+    If both frameworks are installed and available for `model`, MindSpore is selected.
 
     Args:
-        model (`str`, [`PreTrainedModel`] or [`TFPreTrainedModel]`):
+        model (`str`, [`PreTrainedModel`]):
             The model to infer the framework from. If `str`, a checkpoint name. The model to infer the framewrok from.
         config ([`AutoConfig`]):
             The config associated with the model to help using the correct class
@@ -221,9 +221,8 @@ def infer_framework_load_model(
     """
     if not is_mindspore_available():
         raise RuntimeError(
-            "At least one of TensorFlow 2.0 or PyTorch should be installed. "
-            "To install TensorFlow 2.0, read the instructions at https://www.tensorflow.org/install/ "
-            "To install PyTorch, read the instructions at https://pytorch.org/."
+            "At least MindSpore should be installed. "
+            "To install MindSpore, read the instructions at https://www.mindspore.cn."
         )
     if isinstance(model, str):
         model_kwargs["_from_pipeline"] = task
@@ -251,17 +250,9 @@ def infer_framework_load_model(
         for model_class in class_tuple:
             kwargs = model_kwargs.copy()
             if framework == "ms" and model.endswith(".h5"):
-                kwargs["from_tf"] = True
-                logger.warning(
-                    "Model might be a TensorFlow model (ending with `.h5`) but TensorFlow is not available. "
-                    "Trying to load the model with PyTorch."
-                )
+                raise NotImplementedError
             elif framework == "tf" and model.endswith(".bin"):
-                kwargs["from_pt"] = True
-                logger.warning(
-                    "Model might be a PyTorch model (ending with `.bin`) but PyTorch is not available. "
-                    "Trying to load the model with Tensorflow."
-                )
+                raise NotImplementedError
 
             try:
                 model = model_class.from_pretrained(model, **kwargs)
@@ -294,16 +285,16 @@ def infer_framework_from_model(
     **model_kwargs,
 ):
     """
-    Select framework (TensorFlow or PyTorch) to use from the `model` passed. Returns a tuple (framework, model).
+    Select framework (MindSpore) to use from the `model` passed. Returns a tuple (framework, model).
 
     If `model` is instantiated, this function will just infer the framework from the model class. Otherwise `model` is
     actually a checkpoint name and this method will try to instantiate it using `model_classes`. Since we don't want to
     instantiate the model twice, this model is returned for use by the pipeline.
 
-    If both frameworks are installed and available for `model`, PyTorch is selected.
+    If both frameworks are installed and available for `model`, MindSpore is selected.
 
     Args:
-        model (`str`, [`PreTrainedModel`] or [`TFPreTrainedModel]`):
+        model (`str`, [`PreTrainedModel`]):
             The model to infer the framework from. If `str`, a checkpoint name. The model to infer the framewrok from.
         model_classes (dictionary `str` to `type`, *optional*):
             A mapping framework to class.
@@ -327,12 +318,12 @@ def infer_framework_from_model(
 
 def get_framework(model, revision: Optional[str] = None):
     """
-    Select framework (TensorFlow or PyTorch) to use.
+    Select framework (MindSpore) to use.
 
     Args:
-        model (`str`, [`PreTrainedModel`] or [`TFPreTrainedModel]`):
+        model (`str`, [`PreTrainedModel`]):
             If both frameworks are installed, picks the one corresponding to the model passed (either a model class or
-            the model name). If no specific model is provided, defaults to using PyTorch.
+            the model name). If no specific model is provided, defaults to using MindSpore.
     """
     warnings.warn(
         "`get_framework` is deprecated and will be removed in v5, use `infer_framework_from_model` instead.",
@@ -340,9 +331,8 @@ def get_framework(model, revision: Optional[str] = None):
     )
     if not is_mindspore_available():
         raise RuntimeError(
-            "At least one of TensorFlow 2.0 or PyTorch should be installed. "
-            "To install TensorFlow 2.0, read the instructions at https://www.tensorflow.org/install/ "
-            "To install PyTorch, read the instructions at https://pytorch.org/."
+            "At least MindSpore should be installed. "
+            "To install MindSpore, read the instructions at https://mindspore.cn/."
         )
     if isinstance(model, str):
         model = AutoModel.from_pretrained(model, revision=revision)
@@ -794,7 +784,7 @@ def build_pipeline_init_args(
         device (`int`, *optional*, defaults to -1):
             Device ordinal for CPU/GPU supports. Setting this to -1 will leverage CPU, a positive will run the model on
             the associated CUDA device id. You can pass native `torch.device` or a `str` too
-        torch_dtype (`str` or `torch.dtype`, *optional*):
+        mindspore_dtype (`str` or `torch.dtype`, *optional*):
             Sent directly as `model_kwargs` (just a simpler shortcut) to use the available precision for this model
             (`torch.float16`, `torch.bfloat16`, ... or `"auto"`)"""
     if supports_binary_output:
@@ -1076,7 +1066,7 @@ class Pipeline(_ScikitCompat, PushToHubMixin):
         return self(X)
 
     @property
-    def torch_dtype(self) -> Optional["ms.dtype"]:
+    def mindspore_dtype(self) -> Optional["ms.dtype"]:
         """
         Torch dtype of the model (if it's Pytorch model), `None` otherwise.
         """
@@ -1245,7 +1235,11 @@ class Pipeline(_ScikitCompat, PushToHubMixin):
         # TODO hack by collating feature_extractor and image_processor
         feature_extractor = self.feature_extractor if self.feature_extractor is not None else self.image_processor
         collate_fn = no_collate_fn if batch_size == 1 else pad_collate_fn(self.tokenizer, feature_extractor)
-        dataloader = GeneratorDataset(dataset, num_workers=num_workers, batch_size=batch_size, collate_fn=collate_fn)
+        dataloader = (
+            GeneratorDataset(dataset, column_names=["item"], num_parallel_workers=num_workers)
+            .batch(batch_size, per_batch_map=collate_fn)
+            .create_dict_iterator()
+        )
         model_iterator = PipelineIterator(dataloader, self._construct, forward_params, loader_batch_size=batch_size)
         final_iterator = PipelineIterator(model_iterator, self.postprocess, postprocess_params)
         return final_iterator
@@ -1256,7 +1250,7 @@ class Pipeline(_ScikitCompat, PushToHubMixin):
 
         if num_workers is None:
             if self._num_workers is None:
-                num_workers = 0
+                num_workers = 1
             else:
                 num_workers = self._num_workers
         if batch_size is None:
@@ -1363,7 +1357,11 @@ class ChunkPipeline(Pipeline):
         # TODO hack by collating feature_extractor and image_processor
         feature_extractor = self.feature_extractor if self.feature_extractor is not None else self.image_processor
         collate_fn = no_collate_fn if batch_size == 1 else pad_collate_fn(self.tokenizer, feature_extractor)
-        dataloader = GeneratorDataset(dataset, num_workers=num_workers, batch_size=batch_size, collate_fn=collate_fn)
+        dataloader = (
+            GeneratorDataset(dataset, column_names=["item"], num_parallel_workers=num_workers)
+            .batch(batch_size, per_batch_map=collate_fn)
+            .create_dict_iterator()
+        )
         model_iterator = PipelinePackIterator(dataloader, self._construct, forward_params, loader_batch_size=batch_size)
         final_iterator = PipelineIterator(model_iterator, self.postprocess, postprocess_params)
         return final_iterator
