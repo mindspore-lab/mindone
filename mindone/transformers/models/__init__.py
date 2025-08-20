@@ -78,6 +78,7 @@ from . import (
     qwen2_vl,
     roberta,
     sam,
+    segformer,
     siglip,
     smolvlm,
     speecht5,

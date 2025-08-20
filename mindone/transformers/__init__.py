@@ -521,6 +521,14 @@ from .models.roberta import (
     RobertaPreTrainedModel,
 )
 from .models.sam import SamImageProcessor, SamModel, SamPreTrainedModel, SamProcessor
+from .models.segformer import (
+    SegformerDecodeHead,
+    SegformerForImageClassification,
+    SegformerForSemanticSegmentation,
+    SegformerImageProcessor,
+    SegformerModel,
+    SegformerPreTrainedModel,
+)
 from .models.siglip import (
     SiglipForImageClassification,
     SiglipImageProcessor,
