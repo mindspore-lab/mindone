@@ -532,19 +532,6 @@ def tensor_size(array):
         raise ValueError(f"Type not supported for tensor_size: {type(array)}.")
 
 
-# TODO: remove this function in v4.54.1
-def add_model_info_to_custom_pipelines(custom_pipeline, repo_id):
-    """
-    Adds the information of the repo_id to a given custom pipeline.
-    """
-    # {custom_pipelines : {task: {"impl": "path.to.task"},...} }
-    for task in custom_pipeline.keys():
-        if "impl" in custom_pipeline[task]:
-            module = custom_pipeline[task]["impl"]
-            if "--" not in module:
-                custom_pipeline[task]["impl"] = f"{repo_id}--{module}"
-    return custom_pipeline
-
 
 def infer_framework(model_class):
     """
