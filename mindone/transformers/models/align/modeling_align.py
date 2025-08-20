@@ -32,6 +32,7 @@ from transformers.utils import (
 
 from ...activations import ACT2FN
 from ...mindspore_utils import apply_chunking_to_forward, find_pruneable_heads_and_indices, prune_linear_layer
+from mindone.models.utils import constant_, normal_, xavier_uniform_
 from ...modeling_outputs import (
     BaseModelOutputWithNoAttention,
     BaseModelOutputWithPastAndCrossAttentions,
@@ -1173,20 +1174,20 @@ class AlignPreTrainedModel(PreTrainedModel):
     def _init_weights(self, module):
         """Initialize the weights"""
         if isinstance(module, (mint.nn.Linear, mint.nn.Conv2d)):
-            module.weight.data.normal_(mean=0.0, std=self.config.initializer_range)
+            normal_(module.weight, mean=0.0, std=self.config.initializer_range)
             if module.bias is not None:
-                module.bias.data.zero_()
+                constant_(module.bias, 0.0)
         elif isinstance(module, AlignModel):
-            nn.init.xavier_uniform_(module.text_projection.weight)
-            module.text_projection.bias.data.zero_()
+            xavier_uniform_(module.text_projection.weight)
+            constant_(module.text_projection.bias, 0.0)
             module.text_projection._is_hf_initialized = True
         elif isinstance(module, mint.nn.Embedding):
-            module.weight.data.normal_(mean=0.0, std=self.config.initializer_range)
+            normal_(module.weight, mean=0.0, std=self.config.initializer_range)
             if module.padding_idx is not None:
-                module.weight.data[module.padding_idx].zero_()
+                module.weight.data[module.padding_idx] = 0.0
         if isinstance(module, mint.nn.LayerNorm):
-            module.bias.data.zero_()
-            module.weight.data.fill_(1.0)
+            constant_(module.bias, 0.0)
+            constant_(module.weight, 1.0)
 
 
 @add_start_docstrings(

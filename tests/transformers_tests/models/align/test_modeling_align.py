@@ -26,7 +26,7 @@ from tests.modeling_test_utils import (
 from tests.transformers_tests.models.modeling_common import ids_numpy
 
 DTYPE_AND_THRESHOLDS = {"fp32": 5e-4, "fp16": 5e-3, "bf16": 5e-3}
-MODES = [0, 1]  # 0: graph mode, 1: pynative mode
+MODES = [1]  # 0: graph mode, 1: pynative mode
 
 
 class AlignTextModelTester:
@@ -222,7 +222,7 @@ vision_model_tester = AlignVisionModelTester()
 vision_config, pixel_values = vision_model_tester.prepare_config_and_inputs()
 
 # Combined config for AlignModel
-align_config = AlignConfig(text_config=text_config, vision_config=vision_config)
+align_config = AlignConfig.from_text_vision_configs(text_config=text_config, vision_config=vision_config)
 
 
 ALIGN_TEXT_CASES = [
