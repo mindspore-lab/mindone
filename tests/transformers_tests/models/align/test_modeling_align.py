@@ -273,8 +273,8 @@ ALIGN_CASES = [
             "token_type_ids": token_type_ids,
         },
         {
-            "text_embeds": 0,
-            "image_embeds": 1,
+            "text_embeds": 2,
+            "image_embeds": 3,
         },
     ],
 ]
