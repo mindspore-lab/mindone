@@ -11,8 +11,8 @@ class ModelArguments:
     tune_mm_mlp: bool = field(default=False)
     tune_mm_vision: bool = field(default=False)
     tune_mm_lora: bool = field(default=False)
-    lora_r: int = field(default=4)
-    lora_alpha: float = field(default=16.0)
+    lora_r: int = field(default=8)
+    lora_alpha: float = field(default=32.0)
 
 
 @dataclass

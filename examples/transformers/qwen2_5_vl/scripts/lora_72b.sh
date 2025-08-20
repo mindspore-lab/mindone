@@ -29,7 +29,7 @@ output_dir=./output
 # Training arguments
 args="
     --deepspeed ${deepspeed} \
-    --model_name_or_path "${llm}" \
+    --model_name_or_path ${llm} \
     --dataset_use ${datasets} \
     --data_flatten True \
     --data_packing True \
@@ -61,4 +61,5 @@ msrun --worker_num=${NPROC_PER_NODE} \
     --local_worker_num=${NPROC_PER_NODE} \
     --master_addr=${MASTER_ADDR} \
     --master_port=${MASTER_PORT} \
+    --log_dir="logs/train" \
     ${entry_file} ${args}
