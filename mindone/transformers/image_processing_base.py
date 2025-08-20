@@ -40,7 +40,7 @@ from transformers.utils import (
 )
 
 from .feature_extraction_utils import BatchFeature as BaseBatchFeature
-from .utils import add_model_info_to_auto_map, add_model_info_to_custom_pipelines, is_vision_available
+from .utils import is_vision_available
 
 if is_vision_available():
     from PIL import Image
@@ -136,7 +136,7 @@ class ImageProcessingMixin(PushToHubMixin):
                 'http://hostname': 'foo.bar:4012'}.` The proxies are used on each request.
             token (`str` or `bool`, *optional*):
                 The token to use as HTTP bearer authorization for remote files. If `True`, or not specified, will use
-                the token generated when running `huggingface-cli login` (stored in `~/.huggingface`).
+                the token generated when running `hf auth login` (stored in `~/.huggingface`).
             revision (`str`, *optional*, defaults to `"main"`):
                 The specific model version to use. It can be a branch name, a tag name, or a commit id, since we use a
                 git-based system for storing models and other artifacts on huggingface.co, so `revision` can be any
@@ -352,13 +352,13 @@ class ImageProcessingMixin(PushToHubMixin):
                     revision=revision,
                     subfolder=subfolder,
                 )
-            except EnvironmentError:
+            except OSError:
                 # Raise any environment error raise by `cached_file`. It will have a helpful error message adapted to
                 # the original exception.
                 raise
             except Exception:
                 # For any other exception, we throw a generic error.
-                raise EnvironmentError(
+                raise OSError(
                     f"Can't load image processor for '{pretrained_model_name_or_path}'. If you were trying to load"
                     " it from 'https://huggingface.co/models', make sure you don't have a local directory with the"
                     f" same name. Otherwise, make sure '{pretrained_model_name_or_path}' is the correct path to a"
@@ -367,12 +367,12 @@ class ImageProcessingMixin(PushToHubMixin):
 
         try:
             # Load image_processor dict
-            with open(resolved_image_processor_file, "r", encoding="utf-8") as reader:
+            with open(resolved_image_processor_file, encoding="utf-8") as reader:
                 text = reader.read()
             image_processor_dict = json.loads(text)
 
         except json.JSONDecodeError:
-            raise EnvironmentError(
+            raise OSError(
                 f"It looks like the config file at '{resolved_image_processor_file}' is not a valid JSON file."
             )
 
@@ -382,14 +382,7 @@ class ImageProcessingMixin(PushToHubMixin):
             logger.info(
                 f"loading configuration file {image_processor_file} from cache at {resolved_image_processor_file}"
             )
-            if "auto_map" in image_processor_dict:
-                image_processor_dict["auto_map"] = add_model_info_to_auto_map(
-                    image_processor_dict["auto_map"], pretrained_model_name_or_path
-                )
-            if "custom_pipelines" in image_processor_dict:
-                image_processor_dict["custom_pipelines"] = add_model_info_to_custom_pipelines(
-                    image_processor_dict["custom_pipelines"], pretrained_model_name_or_path
-                )
+
 
         return image_processor_dict, kwargs
 
@@ -464,7 +457,7 @@ class ImageProcessingMixin(PushToHubMixin):
             A image processor of type [`~image_processing_utils.ImageProcessingMixin`]: The image_processor object
             instantiated from that JSON file.
         """
-        with open(json_file, "r", encoding="utf-8") as reader:
+        with open(json_file, encoding="utf-8") as reader:
             text = reader.read()
         image_processor_dict = json.loads(text)
         return cls(**image_processor_dict)
@@ -510,11 +503,6 @@ class ImageProcessingMixin(PushToHubMixin):
         Register this class with a given auto class. This should only be used for custom image processors as the ones
         in the library are already mapped with `AutoImageProcessor `.
 
-        <Tip warning={true}>
-
-        This API is experimental and may have some slight breaking changes in the next releases.
-
-        </Tip>
 
         Args:
             auto_class (`str` or `type`, *optional*, defaults to `"AutoImageProcessor "`):
