@@ -15,7 +15,7 @@
 """PyTorch NLLB-MoE model."""
 
 import math
-from typing import Callable, Optional, Union
+from typing import Callable, Optional, Union, Tuple
 
 import numpy as np
 import mindspore
@@ -23,8 +23,8 @@ from mindspore.mint.nn import CrossEntropyLoss
 
 from ...activations import ACT2FN
 from ...generation import GenerationMixin
-from ...integrations.deepspeed import is_deepspeed_zero3_enabled
-from ...integrations.fsdp import is_fsdp_managed_module
+# from ...integrations.deepspeed import is_deepspeed_zero3_enabled
+# from ...integrations.fsdp import is_fsdp_managed_module
 from ...modeling_attn_mask_utils import (
     _prepare_4d_attention_mask,
     _prepare_4d_attention_mask_for_sdpa,
@@ -182,7 +182,6 @@ class NllbMoeSinusoidalPositionalEmbedding(mindspore.nn.Cell):
 
         return emb
 
-    @mindspore._no_grad()
     def construct(
             self,
             input_ids: Optional[mindspore.Tensor] = None,
@@ -202,7 +201,7 @@ class NllbMoeSinusoidalPositionalEmbedding(mindspore.nn.Cell):
         if max_pos > self.weights.shape[0]:
             self.make_weights(max_pos + self.offset, self.embedding_dim, self.padding_idx)
 
-        return self.weights.index_select(0, position_ids.view(-1)).view(bsz, seq_len, self.weights.shape[-1]).detach()
+        return self.weights.index_select(0, position_ids.view(-1)).view(bsz, seq_len, self.weights.shape[-1])
 
     def create_position_ids_from_inputs_embeds(self, inputs_embeds, past_key_values_length):
         """
@@ -252,13 +251,13 @@ class NllbMoeTop2Router(mindspore.nn.Cell):
         instance of the `Linear8bitLt` class by checking special attributes.
         """
         if not (hasattr(self.classifier, "SCB") or hasattr(self.classifier, "CB")):
-            self.classifier = self.classifier.to(self.dtype)
+            self.classifier = self.classifier.to_float(self.dtype)
 
     def normalize_router_probabilities(self, router_probs, top_1_mask, top_2_mask):
         top_1_max_probs = (router_probs * top_1_mask).sum(dim=1)
         top_2_max_probs = (router_probs * top_2_mask).sum(dim=1)
         denom_s = mindspore.mint.clamp(top_1_max_probs + top_2_max_probs,
-                                       min=mindspore.numpy.finfo(router_probs.dtype).eps)
+                                       min=mindspore.tensor(np.finfo(router_probs.asnumpy().dtype).eps))
         top_1_max_probs = top_1_max_probs / denom_s
         top_2_max_probs = top_2_max_probs / denom_s
         return top_1_max_probs, top_2_max_probs
@@ -1275,7 +1274,7 @@ class NllbMoeDecoder(NllbMoePreTrainedModel):
             dropout_probability = mindspore.mint.rand([])
 
             skip_the_layer = True if self.training and (dropout_probability < self.layerdrop) else False
-            if not skip_the_layer or synced_gpus:
+            if not skip_the_layer:
                 layer_head_mask = head_mask[idx] if head_mask is not None else None
                 cross_attn_layer_head_mask = cross_attn_head_mask[idx] if cross_attn_head_mask is not None else None
 
@@ -1342,7 +1341,7 @@ class NllbMoeDecoder(NllbMoePreTrainedModel):
     def _update_causal_mask(
             self,
             attention_mask: Union[mindspore.Tensor, None],
-            input_shape: mindspore.shape,
+            input_shape: Tuple,
             inputs_embeds: mindspore.Tensor,
             past_key_values_length: int,
     ):
@@ -1383,7 +1382,7 @@ class NllbMoeDecoder(NllbMoePreTrainedModel):
             self,
             encoder_hidden_states: Union[mindspore.Tensor, None],
             encoder_attention_mask: Union[mindspore.Tensor, None],
-            input_shape: mindspore.shape,
+            input_shape: Tuple,
             inputs_embeds: mindspore.Tensor,
     ):
         # expand encoder attention mask
@@ -1568,6 +1567,7 @@ class NllbMoeModel(NllbMoePreTrainedModel):
 
 
 class NllbMoeForConditionalGeneration(NllbMoePreTrainedModel, GenerationMixin):
+    _supports_dynamic_input = True
     base_model_prefix = "model"
     _tied_weights_keys = ["encoder.embed_tokens.weight", "decoder.embed_tokens.weight", "lm_head.weight"]
 
@@ -1612,6 +1612,7 @@ class NllbMoeForConditionalGeneration(NllbMoePreTrainedModel, GenerationMixin):
             output_hidden_states: Optional[bool] = None,
             output_router_logits: Optional[bool] = None,
             return_dict: Optional[bool] = None,
+            cache_position: Optional[mindspore.Tensor] = None,
     ) -> Union[tuple[mindspore.Tensor], Seq2SeqMoEOutput]:
         r"""
         decoder_input_ids (`mindspore.Tensor` of shape `(batch_size, target_sequence_length)`, *optional*):

@@ -19,15 +19,11 @@ from typing import Optional
 
 from tokenizers import processors
 
-from ...tokenization_utils import AddedToken, BatchEncoding
-from ...tokenization_utils_fast import PreTrainedTokenizerFast
-from ...utils import is_sentencepiece_available, logging
+from transformers.tokenization_utils import AddedToken, BatchEncoding
+from transformers.tokenization_utils_fast import PreTrainedTokenizerFast
+from ...utils import logging
 
-
-if is_sentencepiece_available():
-    from .tokenization_nllb import NllbTokenizer
-else:
-    NllbTokenizer = None
+from .tokenization_nllb import NllbTokenizer
 
 
 logger = logging.get_logger(__name__)
