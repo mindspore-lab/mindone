@@ -245,15 +245,15 @@ class QwenEmbedRope(nn.Cell):
         freqs_pos = self.pos_freqs.split([x // 2 for x in self.axes_dim], dim=1)
         freqs_neg = self.neg_freqs.split([x // 2 for x in self.axes_dim], dim=1)
 
-        freqs_frame = freqs_pos[0][idx : idx + frame].view(frame, 1, 1, -1).expand(frame, height, width, -1)
+        freqs_frame = freqs_pos[0][idx : idx + frame].view(frame, 1, 1, -1).expand((frame, height, width, -1),)
         if self.scale_rope:
             freqs_height = mint.cat([freqs_neg[1][-(height - height // 2) :], freqs_pos[1][: height // 2]], dim=0)
-            freqs_height = freqs_height.view(1, height, 1, -1).expand(frame, height, width, -1)
+            freqs_height = freqs_height.view(1, height, 1, -1).expand((frame, height, width, -1),)
             freqs_width = mint.cat([freqs_neg[2][-(width - width // 2) :], freqs_pos[2][: width // 2]], dim=0)
-            freqs_width = freqs_width.view(1, 1, width, -1).expand(frame, height, width, -1)
+            freqs_width = freqs_width.view(1, 1, width, -1).expand((frame, height, width, -1),)
         else:
-            freqs_height = freqs_pos[1][:height].view(1, height, 1, -1).expand(frame, height, width, -1)
-            freqs_width = freqs_pos[2][:width].view(1, 1, width, -1).expand(frame, height, width, -1)
+            freqs_height = freqs_pos[1][:height].view(1, height, 1, -1).expand((frame, height, width, -1),)
+            freqs_width = freqs_pos[2][:width].view(1, 1, width, -1).expand((frame, height, width, -1),)
 
         freqs = mint.cat([freqs_frame, freqs_height, freqs_width], dim=-1).reshape(seq_lens, -1)
         return freqs.clone().contiguous()
@@ -398,6 +398,7 @@ class QwenImageTransformerBlock(nn.Cell):
             processor=QwenDoubleStreamAttnProcessor2_0(),
             qk_norm=qk_norm,
             eps=eps,
+
         )
         self.img_norm2 = mint.nn.LayerNorm(dim, elementwise_affine=False, eps=eps)
         self.img_mlp = FeedForward(dim=dim, dim_out=dim, activation_fn="gelu-approximate")
