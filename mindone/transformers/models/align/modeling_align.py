@@ -1618,6 +1618,7 @@ class AlignModel(AlignPreTrainedModel):
         image_embeds = vision_outputs[1]
         text_embeds = text_outputs[0][:, 0, :]
         text_embeds = self.text_projection(text_embeds)
+        image_embeds = image_embeds.to(text_embeds.dtype)  # FIXME: this is a temporary fix for dtype mismatch between text and image
 
         # normalized features
         image_embeds = image_embeds / mint.linalg.norm(image_embeds, ord=2, dim=-1, keepdim=True)
