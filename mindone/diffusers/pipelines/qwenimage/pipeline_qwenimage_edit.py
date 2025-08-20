@@ -259,15 +259,15 @@ class QwenImageEditPipeline(DiffusionPipeline, QwenImageLoraLoaderMixin):
         )
 
         outputs = self.text_encoder(
-            input_ids=model_inputs.input_ids,
-            attention_mask=model_inputs.attention_mask,
+            input_ids=ms.Tensor(model_inputs.input_ids),
+            attention_mask=ms.Tensor(model_inputs.attention_mask),
             pixel_values=model_inputs.pixel_values,
             image_grid_thw=model_inputs.image_grid_thw,
             output_hidden_states=True,
         )
 
         hidden_states = outputs.hidden_states[-1]
-        split_hidden_states = self._extract_masked_hidden(hidden_states, model_inputs.attention_mask)
+        split_hidden_states = self._extract_masked_hidden(hidden_states, ms.Tensor(model_inputs.attention_mask))
         split_hidden_states = [e[drop_idx:] for e in split_hidden_states]
         attn_mask_list = [mint.ones(e.size(0), dtype=ms.int64) for e in split_hidden_states]
         max_seq_len = max([e.size(0) for e in split_hidden_states])

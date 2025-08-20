@@ -211,12 +211,12 @@ class QwenImageInpaintPipeline(DiffusionPipeline, QwenImageLoraLoaderMixin):
             txt, max_length=self.tokenizer_max_length + drop_idx, padding=True, truncation=True, return_tensors="np"
         )
         encoder_hidden_states = self.text_encoder(
-            input_ids=txt_tokens.input_ids,
-            attention_mask=txt_tokens.attention_mask,
+            input_ids=ms.Tensor(txt_tokens.input_ids),
+            attention_mask=ms.Tensor(txt_tokens.attention_mask),
             output_hidden_states=True,
         )
         hidden_states = encoder_hidden_states.hidden_states[-1]
-        split_hidden_states = self._extract_masked_hidden(hidden_states, txt_tokens.attention_mask)
+        split_hidden_states = self._extract_masked_hidden(hidden_states, ms.Tensor(txt_tokens.attention_mask))
         split_hidden_states = [e[drop_idx:] for e in split_hidden_states]
         attn_mask_list = [mint.ones(e.size(0), dtype=ms.int64) for e in split_hidden_states]
         max_seq_len = max([e.size(0) for e in split_hidden_states])
