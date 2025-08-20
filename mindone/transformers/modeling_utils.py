@@ -247,7 +247,7 @@ def dtype_byte_size(dtype):
 
 
 def shard_checkpoint(
-    state_dict: Dict[str, Tensor], max_shard_size: Union[int, str] = "10GB", weights_name: str = WEIGHTS_NAME
+    state_dict: dict[str, Tensor], max_shard_size: Union[int, str] = "10GB", weights_name: str = WEIGHTS_NAME
 ):
     """
     Splits a model state dictionary in sub-checkpoints so that the final size of each sub-checkpoint does not exceed a
@@ -266,7 +266,7 @@ def shard_checkpoint(
     </Tip>
 
     Args:
-        state_dict (`Dict[str, Tensor]`): The state dictionary of a model to save.
+        state_dict (`dict[str, Tensor]`): The state dictionary of a model to save.
         max_shard_size (`int` or `str`, *optional*, defaults to `"10GB"`):
             The maximum size of each sub-checkpoint. If expressed as a string, needs to be digits followed by a unit
             (like `"5MB"`).
@@ -445,10 +445,10 @@ def _get_mindspore_dtype(
 def _find_missing_and_unexpected_keys(
     cls,
     model: "PreTrainedModel",
-    original_checkpoint_keys: List[str],
-    checkpoint_keys: List[str],
+    original_checkpoint_keys: list[str],
+    checkpoint_keys: list[str],
     loading_base_model_from_task_state_dict: bool,
-) -> Tuple[List[str], List[str]]:
+) -> tuple[list[str], list[str]]:
     """Find missing keys (keys that are part of the model parameters but were NOT found in the loaded state dict keys) and unexpected keys
     (keys found in the loaded state dict keys, but that are NOT part of the model parameters)
     """
@@ -566,7 +566,7 @@ class ModuleUtilsMixin:
         return extended_attention_mask
 
     def get_extended_attention_mask(
-        self, attention_mask: Tensor, input_shape: Tuple[int], dtype: ms.float32 = None
+        self, attention_mask: Tensor, input_shape: tuple[int], dtype: ms.float32 = None
     ) -> Tensor:
         """
         Makes broadcastable attention and causal masks so that future and masked tokens are ignored.
@@ -574,7 +574,7 @@ class ModuleUtilsMixin:
         Arguments:
             attention_mask (`Tensor`):
                 Mask with ones indicating tokens to attend to, zeros for tokens to ignore.
-            input_shape (`Tuple[int]`):
+            input_shape (`tuple[int]`):
                 The shape of the input to the model.
 
         Returns:
@@ -683,7 +683,7 @@ class ModuleUtilsMixin:
 
         return sum(total_numel)
 
-    def estimate_tokens(self, input_dict: Dict[str, Union[ms.Tensor, Any]]) -> int:
+    def estimate_tokens(self, input_dict: dict[str, Union[ms.Tensor, Any]]) -> int:
         """
         Helper function to estimate the total number of tokens from the model inputs.
 
@@ -704,7 +704,7 @@ class ModuleUtilsMixin:
             self.warnings_issued["estimate_tokens"] = True
         return 0
 
-    def floating_point_ops(self, input_dict: Dict[str, Union[ms.Tensor, Any]], exclude_embeddings: bool = True) -> int:
+    def floating_point_ops(self, input_dict: dict[str, Union[ms.Tensor, Any]], exclude_embeddings: bool = True) -> int:
         """
         Get number of (optionally, non-embeddings) floating-point operations for the forward and backward passes of a
         batch with this transformer model. Default approximation neglects the quadratic dependency on the number of
@@ -883,6 +883,8 @@ class PreTrainedModel(nn.Cell, EmbeddingAccessMixin, ModuleUtilsMixin, Generatio
     # SDPA support
     _supports_sdpa = False
 
+    _can_compile_fullgraph = False
+
     # Has support for a `Cache` instance as `past_key_values`? Does it support a `StaticCache`?
     _supports_cache_class = False
     _supports_static_cache = False
@@ -942,9 +944,9 @@ class PreTrainedModel(nn.Cell, EmbeddingAccessMixin, ModuleUtilsMixin, Generatio
         return self._can_record_outputs or {}
 
     @property
-    def dummy_inputs(self) -> Dict[str, Tensor]:
+    def dummy_inputs(self) -> dict[str, Tensor]:
         """
-        `Dict[str, Tensor]`: Dummy inputs to do a forward pass in the network.
+        `dict[str, Tensor]`: Dummy inputs to do a forward pass in the network.
         """
         return {"input_ids": Tensor(DUMMY_INPUTS)}
 
@@ -1532,8 +1534,8 @@ class PreTrainedModel(nn.Cell, EmbeddingAccessMixin, ModuleUtilsMixin, Generatio
     def _tie_encoder_decoder_weights(
         encoder: nn.Cell, decoder: nn.Cell, base_model_prefix: str, base_encoder_name: str
     ):
-        uninitialized_encoder_weights: List[str] = []
-        tied_weights: List[str] = []
+        uninitialized_encoder_weights: list[str] = []
+        tied_weights: list[str] = []
         if decoder.__class__ != encoder.__class__:
             logger.info(
                 f"{decoder.__class__} and {encoder.__class__} are not equal. In this case make sure that all encoder"
@@ -1545,7 +1547,7 @@ class PreTrainedModel(nn.Cell, EmbeddingAccessMixin, ModuleUtilsMixin, Generatio
             encoder_pointer: nn.Cell,
             module_name: str,
             base_encoder_name: str,
-            uninitialized_encoder_weights: List[str],
+            uninitialized_encoder_weights: list[str],
             depth=0,
             total_decoder_name="",
             total_encoder_name="",
@@ -1910,7 +1912,7 @@ class PreTrainedModel(nn.Cell, EmbeddingAccessMixin, ModuleUtilsMixin, Generatio
             f"overwrite this method in the class {self.__class__} in `modeling_{self.__class__.__module__}.py`"
         )
 
-    def get_position_embeddings(self) -> Union[nn.Embedding, Tuple[nn.Embedding]]:
+    def get_position_embeddings(self) -> Union[nn.Embedding, tuple[nn.Embedding]]:
         raise NotImplementedError(
             f"`get_position_embeddings` is not implemented for {self.__class__}`. To implement it, you should "
             f"overwrite this method in the class {self.__class__} in `modeling_{self.__class__.__module__}.py`"
@@ -1993,7 +1995,7 @@ class PreTrainedModel(nn.Cell, EmbeddingAccessMixin, ModuleUtilsMixin, Generatio
                 For backward compatibility with PEFT library, in case adapter weights are attached to the model, all
                 keys of the state dict of adapters needs to be pre-pended with `base_model.model`. Advanced users can
                 disable this behaviours by setting `save_peft_format` to `False`.
-            kwargs (`Dict[str, Any]`, *optional*):
+            kwargs (`dict[str, Any]`, *optional*):
                 Additional key word arguments passed along to the [`~utils.PushToHubMixin.push_to_hub`] method.
         """
         use_auth_token = kwargs.pop("use_auth_token", None)
@@ -2224,7 +2226,7 @@ class PreTrainedModel(nn.Cell, EmbeddingAccessMixin, ModuleUtilsMixin, Generatio
                       save directory.
                     - The model is loaded by supplying a local directory as `pretrained_model_name_or_path` and a
                       configuration JSON file named *config.json* is found in the directory.
-            state_dict (`Dict[str, Tensor]`, *optional*):
+            state_dict (`dict[str, Tensor]`, *optional*):
                 A state dictionary to use instead of a state dictionary loaded from saved weights file.
 
                 This option can be used if you want to create a model from a pretrained configuration but load your own
@@ -2249,7 +2251,7 @@ class PreTrainedModel(nn.Cell, EmbeddingAccessMixin, ModuleUtilsMixin, Generatio
             resume_download (`bool`, *optional*, defaults to `False`):
                 Whether or not to delete incompletely received files. Will attempt to resume the download if such a
                 file exists.
-            proxies (`Dict[str, str]`, *optional*):
+            proxies (`dict[str, str]`, *optional*):
                 A dictionary of proxy servers to use by protocol or endpoint, e.g., `{'http': 'foo.bar:3128',
                 'http://hostname': 'foo.bar:4012'}`. The proxies are used on each request.
             output_loading_info(`bool`, *optional*, defaults to `False`):
@@ -2869,7 +2871,7 @@ class PreTrainedModel(nn.Cell, EmbeddingAccessMixin, ModuleUtilsMixin, Generatio
         return model
 
     @staticmethod
-    def _fix_state_dict_key_on_load(key: str) -> Tuple[str, bool]:
+    def _fix_state_dict_key_on_load(key: str) -> tuple[str, bool]:
         """Replace legacy parameter names with their modern equivalents. E.g. beta -> bias, gamma -> weight."""
         # Rename LayerNorm beta & gamma params for some early models ported from Tensorflow (e.g. Bert)
         # This rename is logged.
@@ -2882,8 +2884,8 @@ class PreTrainedModel(nn.Cell, EmbeddingAccessMixin, ModuleUtilsMixin, Generatio
 
     def _get_key_renaming_mapping(
         self,
-        checkpoint_keys: List[str],
-        key_mapping: Optional[Dict[str, str]] = None,
+        checkpoint_keys: list[str],
+        key_mapping: Optional[dict[str, str]] = None,
         loading_base_model_from_task_state_dict: bool = False,
         loading_task_model_from_base_state_dict: bool = False,
     ):
@@ -2957,7 +2959,7 @@ class PreTrainedModel(nn.Cell, EmbeddingAccessMixin, ModuleUtilsMixin, Generatio
         sharded_metadata=None,
         dtype=None,
         keep_in_fp32_modules=None,
-        key_mapping: Optional[Dict[str, str]] = None,
+        key_mapping: Optional[dict[str, str]] = None,
         weights_only: bool = True,
     ):
         model_state_dict = {k: v for k, v in model.parameters_and_names()}
@@ -3181,10 +3183,24 @@ class PreTrainedModel(nn.Cell, EmbeddingAccessMixin, ModuleUtilsMixin, Generatio
 
         return model, missing_keys, unexpected_keys, mismatched_keys, error_msgs
 
+    def get_compiled_call(self) -> Callable:
+        """Return a `mindspore.jit`'d version of `self.__call__`. This is useful to dynamically choose between
+        non-compiled/compiled `forward` during inference, especially to switch between prefill (where we don't
+        want to use compiled version to avoid recomputing the graph with new shapes) and iterative decoding
+        (where we want the speed-ups of compiled version with static shapes)."""
+        # Only reset it if not present or different from previous config
+        if "llama4" in self.config.model_type:  # TODO try to enable for FULL COMPILE HYBRID CACHE SUPPORT
+            return self.__call__
+        if (
+            not hasattr(self, "_compiled_call")
+        ):
+            self._compiled_call = ms.jit(self.__call__)
+        return self._compiled_call
+
     def retrieve_modules_from_names(self, names, add_prefix=False, remove_prefix=False):
         module_keys = {".".join(key.split(".")[:-1]) for key in names}
 
-        # torch.nn.ParameterList is a special case where two parameter keywords
+        # torch.nn.Parameterlist is a special case where two parameter keywords
         # are appended to the module name, *e.g.* bert.special_embeddings.0
         module_keys = module_keys.union(
             {".".join(key.split(".")[:-2]) for key in names if len(key) > 0 and key[-1].isdigit()}
@@ -3496,7 +3512,7 @@ class SQuADHead(nn.Cell):
         is_impossible: Optional[ms.Tensor] = None,
         p_mask: Optional[ms.Tensor] = None,
         return_dict: bool = False,
-    ) -> Union[SquadHeadOutput, Tuple[ms.Tensor]]:
+    ) -> Union[SquadHeadOutput, tuple[ms.Tensor]]:
         """
         Args:
             hidden_states (`mindspore.Tensor` of shape `(batch_size, seq_len, hidden_size)`):
@@ -3722,7 +3738,7 @@ class AttentionInterface(MutableMapping):
     def register(cls, key: str, value: Callable):
         cls._global_mapping.update({key: value})
 
-    def valid_keys(self) -> List[str]:
+    def valid_keys(self) -> list[str]:
         return list(self.keys())
 
 
