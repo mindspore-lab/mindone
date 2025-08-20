@@ -64,9 +64,11 @@ def _is_package_available(pkg_name: str, return_version: bool = False) -> Union[
     else:
         return package_exists
 
-
+_av_available = importlib.util.find_spec("av") is not None
+_decord_available = importlib.util.find_spec("decord") is not None
 _scipy_available = _is_package_available("scipy")
-
+_cv2_available = importlib.util.find_spec("cv2") is not None
+_yt_dlp_available = importlib.util.find_spec("yt_dlp") is not None
 
 def is_mindspore_available():
     _mindspore_available, _mindspore_version = _is_package_available("mindspore", return_version=True)
@@ -81,6 +83,20 @@ def get_mindspore_version():
 def is_scipy_available():
     return _scipy_available
 
+
+def is_av_available():
+    return _av_available
+
+
+def is_decord_available():
+    return _decord_available
+
+def is_cv2_available():
+    return _cv2_available
+
+
+def is_yt_dlp_available():
+    return _yt_dlp_available
 
 @lru_cache
 def is_vision_available():
