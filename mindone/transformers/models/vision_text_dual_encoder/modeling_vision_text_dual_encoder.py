@@ -19,17 +19,21 @@
 
 from typing import Optional, Tuple, Union
 
+from transformers import VisionTextDualEncoderConfig
+from transformers.utils import (
+    add_start_docstrings,
+    add_start_docstrings_to_model_forward,
+    logging,
+    replace_return_docstrings,
+)
+
 import mindspore as ms
 import mindspore.mint as mint
-from mindspore import nn
 
 from ...modeling_utils import PreTrainedModel
-from transformers.utils import add_start_docstrings, add_start_docstrings_to_model_construct, logging, replace_return_docstrings
 from ..auto.configuration_auto import AutoConfig
 from ..auto.modeling_auto import AutoModel
 from ..clip.modeling_clip import CLIPOutput, CLIPVisionConfig, CLIPVisionModel
-from transformers import VisionTextDualEncoderConfig
-
 
 logger = logging.get_logger(__name__)
 
@@ -190,10 +194,10 @@ class VisionTextDualEncoderModel(PreTrainedModel):
             if isinstance(config.vision_config, CLIPVisionConfig):
                 vision_model = CLIPVisionModel(config.vision_config)
             else:
-                vision_model = AutoModel.from_config(config.vision_config) # e.g. ViT, DeiT, etc.
+                vision_model = AutoModel.from_config(config.vision_config)  # e.g. CLIP, ViT, DeiT, etc.
 
         if text_model is None:
-            text_model = AutoModel.from_config(config.text_config) # e.g. BERT, RoBERTa, etc.
+            text_model = AutoModel.from_config(config.text_config)  # e.g. BERT, RoBERTa, etc.
 
         self.vision_model = vision_model
         self.text_model = text_model
@@ -213,7 +217,7 @@ class VisionTextDualEncoderModel(PreTrainedModel):
         self.text_projection = mint.nn.Linear(self.text_embed_dim, self.projection_dim, bias=False)
         self.logit_scale = ms.Parameter(ms.tensor(self.config.logit_scale_init_value))
 
-    @add_start_docstrings_to_model_construct(VISION_TEXT_DUAL_ENCODER_TEXT_INPUTS_DOCSTRING)
+    @add_start_docstrings_to_model_forward(VISION_TEXT_DUAL_ENCODER_TEXT_INPUTS_DOCSTRING)
     def get_text_features(
         self,
         input_ids=None,
@@ -232,7 +236,8 @@ class VisionTextDualEncoderModel(PreTrainedModel):
         Examples:
 
         ```python
-        >>> from mindone.transformers import VisionTextDualEncoderModel, AutoTokenizer
+        >>> from mindone.transformers import VisionTextDualEncoderModel
+        >>> from transformers import AutoTokenizer
         >>> import mindspore as ms
 
         >>> model = VisionTextDualEncoderModel.from_pretrained("clip-italian/clip-italian")
@@ -262,7 +267,7 @@ class VisionTextDualEncoderModel(PreTrainedModel):
 
         return text_features
 
-    @add_start_docstrings_to_model_construct(VISION_TEXT_DUAL_ENCODER_VISION_INPUTS_DOCSTRING)
+    @add_start_docstrings_to_model_forward(VISION_TEXT_DUAL_ENCODER_VISION_INPUTS_DOCSTRING)
     def get_image_features(
         self,
         pixel_values=None,
@@ -281,7 +286,8 @@ class VisionTextDualEncoderModel(PreTrainedModel):
         >>> from PIL import Image
         >>> import requests
         >>> import mindspore as ms
-        >>> from mindone.transformers import VisionTextDualEncoderModel, AutoImageProcessor
+        >>> from mindone.transformers import VisionTextDualEncoderModel
+        >>> from transformers import AutoImageProcessor
 
         >>> model = VisionTextDualEncoderModel.from_pretrained("clip-italian/clip-italian")
         >>> image_processor = AutoImageProcessor.from_pretrained("google/vit-base-patch16-224")
@@ -311,7 +317,7 @@ class VisionTextDualEncoderModel(PreTrainedModel):
 
         return image_features
 
-    @add_start_docstrings_to_model_construct(VISION_TEXT_DUAL_ENCODER_INPUTS_DOCSTRING)
+    @add_start_docstrings_to_model_forward(VISION_TEXT_DUAL_ENCODER_INPUTS_DOCSTRING)
     @replace_return_docstrings(output_type=CLIPOutput, config_class=_CONFIG_FOR_DOC)
     def construct(
         self,
@@ -334,8 +340,8 @@ class VisionTextDualEncoderModel(PreTrainedModel):
         >>> from PIL import Image
         >>> import requests
         >>> import mindspore as ms
-        >>> from mindone.transformers import (
-        ...     VisionTextDualEncoderModel,
+        >>> from mindone.transformers import VisionTextDualEncoderModel
+        >>> from transformers import (
         ...     VisionTextDualEncoderProcessor,
         ...     AutoImageProcessor,
         ...     AutoTokenizer,
@@ -378,7 +384,7 @@ class VisionTextDualEncoderModel(PreTrainedModel):
         >>> # inference
         >>> outputs = model(**inputs)
         >>> logits_per_image = outputs.logits_per_image  # this is the image-text similarity score
-        >>> probs = logits_per_image.softmax(dim=1)  # we can take the softmax to get the label probabilities
+        >>> probs = logits_per_image.softmax(1)  # we can take the softmax to get the label probabilities
         ```"""
         return_dict = return_dict if return_dict is not None else self.config.return_dict
 
@@ -434,9 +440,6 @@ class VisionTextDualEncoderModel(PreTrainedModel):
 
     @classmethod
     def from_pretrained(cls, *args, **kwargs):
-        # At the moment fast initialization is not supported
-        # for composite models
-        kwargs["_fast_init"] = False
         return super().from_pretrained(*args, **kwargs)
 
     @classmethod

@@ -20,22 +20,19 @@
 import numpy as np
 import pytest
 import torch
+from transformers import BertConfig, CLIPVisionConfig, VisionTextDualEncoderConfig, ViTConfig
 
 import mindspore as ms
+
 from tests.modeling_test_utils import compute_diffs, generalized_parse_args, get_modules
-from tests.transformers_tests.models.modeling_common import floats_numpy, ids_numpy
+from tests.transformers_tests.models.modeling_common import floats_numpy, ids_numpy, random_attention_mask
 
 from ..bert.test_modeling_bert import BertModelTester
 from ..clip.test_modeling_clip import CLIPVisionModelTester
+
 # from ..deit.test_modeling_deit import DeiTModelTester  # TODO
 # from ..roberta.test_modeling_roberta import RobertaModelTester
 from ..vit.test_modeling_vit import ViTModelTester
-from transformers import (
-    CLIPVisionConfig,
-    BertConfig,
-    ViTConfig,
-    VisionTextDualEncoderConfig,
-)
 
 DTYPE_AND_THRESHOLDS = {"fp32": 5e-4, "fp16": 5e-3, "bf16": 5e-2}
 MODES = [1]
@@ -56,14 +53,14 @@ class ViTBertModelTest:
             ]
         )
         input_ids = ids_numpy([batch_size, 4], text_config.vocab_size)
-        attention_mask = ids_numpy([batch_size, 4], 2)
+        attention_mask = random_attention_mask([batch_size, 4])
         inputs = {"pixel_values": pixel_values, "input_ids": input_ids, "attention_mask": attention_mask}
 
         return config, inputs
 
     def prepare_config_and_inputs(self):
-        vit_model_tester = ViTModelTester(self)
-        bert_model_tester = BertModelTester(self)
+        vit_model_tester = ViTModelTester()
+        bert_model_tester = BertModelTester()
         vision_config_and_inputs = vit_model_tester.prepare_config_and_inputs()
         text_config_and_inputs = bert_model_tester.prepare_config_and_inputs()
 
@@ -79,6 +76,9 @@ class ViTBertModelTest:
             choice_labels,
         ) = text_config_and_inputs
 
+        vision_config.__attn_implementation_internal = "eager"
+        vision_config.__attn_implementation_internal = "eager"
+
         return {
             "text_config": text_config,
             "vision_config": vision_config,
@@ -93,9 +93,11 @@ class ViTBertModelTest:
 
     def prepare_config_and_inputs_for_common(self):
         config_and_inputs = self.prepare_config_and_inputs()
-        vision_config = config_and_inputs["text_config"]
-        text_config = config_and_inputs["vision_config"]
+        vision_config = config_and_inputs["vision_config"]
+        text_config = config_and_inputs["text_config"]
         config = VisionTextDualEncoderConfig.from_vision_text_configs(vision_config, text_config)
+        config.__attn_implementation_internal = "eager"
+
         inputs_dict = {
             "pixel_values": config_and_inputs["pixel_values"],
             "attention_mask": config_and_inputs["attention_mask"],
@@ -103,6 +105,7 @@ class ViTBertModelTest:
             "token_type_ids": config_and_inputs["text_token_type_ids"],
         }
         return config, inputs_dict
+
 
 class CLIPVisionBertModelTest:
     def get_pretrained_config_and_inputs(self):
@@ -119,14 +122,14 @@ class CLIPVisionBertModelTest:
             ]
         )
         input_ids = ids_numpy([batch_size, 4], text_config.vocab_size)
-        attention_mask = ids_numpy([batch_size, 4], 2)
+        attention_mask = random_attention_mask([batch_size, 4])
         inputs = {"pixel_values": pixel_values, "input_ids": input_ids, "attention_mask": attention_mask}
 
         return config, inputs
 
     def prepare_config_and_inputs(self):
-        clip_model_tester = CLIPVisionModelTester(self)
-        bert_model_tester = BertModelTester(self)
+        clip_model_tester = CLIPVisionModelTester()
+        bert_model_tester = BertModelTester()
         vision_config_and_inputs = clip_model_tester.prepare_config_and_inputs()
         text_config_and_inputs = bert_model_tester.prepare_config_and_inputs()
 
@@ -142,6 +145,9 @@ class CLIPVisionBertModelTest:
             choice_labels,
         ) = text_config_and_inputs
 
+        vision_config.__attn_implementation_internal = "eager"
+        vision_config.__attn_implementation_internal = "eager"
+
         return {
             "text_config": text_config,
             "vision_config": vision_config,
@@ -156,9 +162,10 @@ class CLIPVisionBertModelTest:
 
     def prepare_config_and_inputs_for_common(self):
         config_and_inputs = self.prepare_config_and_inputs()
-        vision_config = config_and_inputs["text_config"]
-        text_config = config_and_inputs["vision_config"]
+        vision_config = config_and_inputs["vision_config"]
+        text_config = config_and_inputs["text_config"]
         config = VisionTextDualEncoderConfig.from_vision_text_configs(vision_config, text_config)
+        config.__attn_implementation_internal = "eager"
         inputs_dict = {
             "pixel_values": config_and_inputs["pixel_values"],
             "attention_mask": config_and_inputs["attention_mask"],
@@ -170,7 +177,7 @@ class CLIPVisionBertModelTest:
 
 clip_bert_model_tester = CLIPVisionBertModelTest()
 clip_bert_config, clip_bert_inputs_dict = clip_bert_model_tester.prepare_config_and_inputs_for_common()
-vit_bert_model_tester = CLIPVisionBertModelTest()
+vit_bert_model_tester = ViTBertModelTest()
 vit_bert_config, vit_bert_inputs_dict = vit_bert_model_tester.prepare_config_and_inputs_for_common()
 
 
@@ -203,6 +210,7 @@ _CASES = [
     ],
 ]
 
+
 @pytest.mark.parametrize(
     "name,pt_module,ms_module,init_args,init_kwargs,inputs_args,inputs_kwargs,outputs_map,dtype,mode",
     [case + [dtype] + [mode] for case in _CASES for dtype in DTYPE_AND_THRESHOLDS.keys() for mode in MODES],
@@ -225,7 +233,7 @@ def test_named_modules(
         ms_outputs_n = []
         for pt_key, ms_idx in outputs_map.items():
             pt_output = getattr(pt_outputs, pt_key)
-            ms_output = getattr(ms_outputs, ms_idx)
+            ms_output = ms_outputs[ms_idx]
             if isinstance(pt_output, (list, tuple)):
                 pt_outputs_n += list(pt_output)
                 ms_outputs_n += list(ms_output)
