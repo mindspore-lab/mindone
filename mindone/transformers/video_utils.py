@@ -397,12 +397,59 @@ def read_video_pyav(
     return video, metadata
 
 
+def read_video_mindspore(
+    video_path: str,
+    sample_indices_fn: Callable,
+    **kwargs,
+):
+    """
+    Decode the video with mindspore.dataset decoder.
+
+    Args:
+        video_path (`str`):
+            Path to the video file.
+        sample_indices_fn (`Callable`, *optional*):
+            A callable function that will return indices at which the video should be sampled. If the video has to be loaded using
+            by a different sampling technique than provided by `num_frames` or `fps` arguments, one should provide their own `sample_indices_fn`.
+            If not provided, simple uniform sampling with fps is performed.
+            Example:
+            def sample_indices_fn(metadata, **kwargs):
+                return np.linspace(0, metadata.total_num_frames - 1, num_frames, dtype=int)
+
+    Returns:
+        tuple[`np.array`, `VideoMetadata`]: A tuple containing:
+            - Numpy array of frames in RGB (shape: [num_frames, height, width, 3]).
+            - `VideoMetadata` object.
+    """
+    video, _, info = ms.dataset.vision.read_video(
+        video_path,
+        start_pts=0.0,
+        end_pts=None,
+        pts_unit="sec",
+    )
+    video_fps = info["video_fps"]
+    total_num_frames = video.size(0)
+    duration = total_num_frames / video_fps if video_fps else 0
+    metadata = VideoMetadata(
+        total_num_frames=int(total_num_frames),
+        fps=float(video_fps),
+        duration=float(duration),
+        video_backend="mindspore",
+    )
+
+    indices = sample_indices_fn(metadata=metadata, **kwargs)
+
+    video = video[indices].contiguous().numpy()
+    metadata.frames_indices = indices
+    return video, metadata
 
 
 VIDEO_DECODERS = {
     "decord": read_video_decord,
     "opencv": read_video_opencv,
     "pyav": read_video_pyav,
+    "torchvision": read_video_mindspore,
+    "mindspore": read_video_mindspore,
 }
 
 
