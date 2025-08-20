@@ -233,9 +233,10 @@ if version.parse(transformers.__version__) >= version.parse("4.51.3"):
 if version.parse(transformers.__version__) >= version.parse("4.52.0"):
     CONFIG_MAPPING_NAMES.update({"internvl": "InternVLConfig"})
     CONFIG_MAPPING_NAMES.update({"internvl_vision": "InternVLVisionConfig"})
-    MODEL_NAMES_MAPPING.update({"internvl": "InternVLModel"}) # TODO: InternVL
-    MODEL_NAMES_MAPPING.update({"internvl_vision": "InternVLVisionModel"}) # TODO: InternVLVision
+    MODEL_NAMES_MAPPING.update({"internvl": "InternVLModel"})  # TODO: InternVL
+    MODEL_NAMES_MAPPING.update({"internvl_vision": "InternVLVisionModel"})  # TODO: InternVLVision
     SPECIAL_MODEL_TYPE_TO_MODULE_NAME.update({"internvl_vision": "internvl"})
+
 
 def model_type_to_module_name(key):
     """Converts a config key to the corresponding module."""

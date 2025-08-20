@@ -3,7 +3,6 @@ import inspect
 import numpy as np
 import pytest
 import torch
-
 from transformers import InternVLConfig, InternVLVisionConfig, Qwen2Config
 
 import mindspore as ms
@@ -41,13 +40,13 @@ class InternVLModelTester:
         hidden_act="silu",
         max_position_embeddings=512,
         # vision model
-        image_size=(32, 32),     # 32x32 with 16x16 patches -> 2x2 patches -> 4 tokens
-        patch_size=(16, 16),     # removing CLS => 4 -> reshape (2,2)
-        downsample_ratio=0.5,    # pixel_shuffle(0.5) => (2,2) -> (1,1) and channels x4 => exactly 1 image feature vector
+        image_size=(32, 32),  # 32x32 with 16x16 patches -> 2x2 patches -> 4 tokens
+        patch_size=(16, 16),  # removing CLS => 4 -> reshape (2,2)
+        downsample_ratio=0.5,  # pixel_shuffle(0.5) => (2,2) -> (1,1) and channels x4 => exactly 1 image feature vector
         # run-time impl
         attn_implementation="eager",
         torch_dtype="float32",
-        image_token_id=5
+        image_token_id=5,
     ):
         self.batch_size = batch_size
         self.seq_length = seq_length
@@ -170,7 +169,7 @@ TEST_CASES = [
             "pixel_values": pixel_values,  # (B, C, H, W) for InternVL
         },
         {
-            "last_hidden_state": 0,     # Qwen2Model
+            "last_hidden_state": 0,  # Qwen2Model
             "image_hidden_states": -1,  # Vision Transformer
         },
     ],
@@ -179,12 +178,7 @@ TEST_CASES = [
 
 @pytest.mark.parametrize(
     "name,pt_module,ms_module,init_args,init_kwargs,inputs_args,inputs_kwargs,outputs_map,dtype,mode",
-    [
-        case + [dtype] + [mode]
-        for case in TEST_CASES
-        for dtype in DTYPE_AND_THRESHOLDS.keys()
-        for mode in MODES
-    ],
+    [case + [dtype] + [mode] for case in TEST_CASES for dtype in DTYPE_AND_THRESHOLDS.keys() for mode in MODES],
 )
 def test_named_modules(
     name,

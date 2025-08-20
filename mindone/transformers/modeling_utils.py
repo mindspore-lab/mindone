@@ -2425,11 +2425,11 @@ class PreTrainedModel(nn.Cell, ModuleUtilsMixin, GenerationMixin, PushToHubMixin
         return key, False
 
     def _get_key_renaming_mapping(  # NEW (HF parity)
-            self,
-            checkpoint_keys: list[str],
-            key_mapping: dict[str, str] | None = None,
-            loading_base_model_from_task_state_dict: bool = False,
-            loading_task_model_from_base_state_dict: bool = False,
+        self,
+        checkpoint_keys: list[str],
+        key_mapping: dict[str, str] | None = None,
+        loading_base_model_from_task_state_dict: bool = False,
+        loading_task_model_from_base_state_dict: bool = False,
     ) -> dict[str, str]:
         prefix = self.base_model_prefix
         _prefix = f"{prefix}."
@@ -2453,7 +2453,7 @@ class PreTrainedModel(nn.Cell, ModuleUtilsMixin, GenerationMixin, PushToHubMixin
             elif loading_base_model_from_task_state_dict:
                 if not new_key.startswith(_prefix):
                     continue
-                new_key = new_key[len(_prefix):]
+                new_key = new_key[len(_prefix) :]
 
             key_renaming_mapping[key] = new_key
 
@@ -2510,9 +2510,9 @@ class PreTrainedModel(nn.Cell, ModuleUtilsMixin, GenerationMixin, PushToHubMixin
 
         key_renaming_mapping = model._get_key_renaming_mapping(
             original_loaded_keys,
-            key_mapping = key_mapping,
-            loading_base_model_from_task_state_dict = loading_base_model_from_task_state_dict,
-            loading_task_model_from_base_state_dict = loading_task_model_from_base_state_dict,
+            key_mapping=key_mapping,
+            loading_base_model_from_task_state_dict=loading_base_model_from_task_state_dict,
+            loading_task_model_from_base_state_dict=loading_task_model_from_base_state_dict,
         )
         loaded_keys = list(key_renaming_mapping.values())
 
@@ -2610,11 +2610,7 @@ class PreTrainedModel(nn.Cell, ModuleUtilsMixin, GenerationMixin, PushToHubMixin
             state_dict = _convert_state_dict(model, state_dict, prefix)
 
             if key_renaming_mapping:
-                state_dict = {
-                    key_renaming_mapping[k]: v
-                    for k, v in state_dict.items()
-                    if k in key_renaming_mapping
-                }
+                state_dict = {key_renaming_mapping[k]: v for k, v in state_dict.items() if k in key_renaming_mapping}
 
             mismatched_keys = _find_mismatched_keys(
                 state_dict,
@@ -2645,9 +2641,7 @@ class PreTrainedModel(nn.Cell, ModuleUtilsMixin, GenerationMixin, PushToHubMixin
 
                 if key_renaming_mapping:
                     state_dict = {
-                        key_renaming_mapping[k]: v
-                        for k, v in state_dict.items()
-                        if k in key_renaming_mapping
+                        key_renaming_mapping[k]: v for k, v in state_dict.items() if k in key_renaming_mapping
                     }
 
                 # Mismatched keys contains tuples key/shape1/shape2 of weights in the checkpoint that have a shape not

@@ -13,9 +13,9 @@
 # limitations under the License.
 
 from .modeling_internvl import (
-    InternVLVisionPreTrainedModel,
-    InternVLVisionModel,
-    InternVLPreTrainedModel,
-    InternVLModel,
     InternVLForConditionalGeneration,
+    InternVLModel,
+    InternVLPreTrainedModel,
+    InternVLVisionModel,
+    InternVLVisionPreTrainedModel,
 )

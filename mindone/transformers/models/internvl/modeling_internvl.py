@@ -35,14 +35,11 @@ from ...activations import ACT2FN
 from ...cache_utils import Cache
 from ...generation import GenerationMixin
 from ...modeling_flash_attention_utils import FlashAttentionKwargs
-from ...modeling_outputs import (
-    BaseModelOutput,
-    BaseModelOutputWithPast,
-    BaseModelOutputWithPooling,
-)
+from ...modeling_outputs import BaseModelOutput, BaseModelOutputWithPast, BaseModelOutputWithPooling
 from ...modeling_utils import ALL_ATTENTION_FUNCTIONS, MSPreTrainedModel
 from ...processing_utils import Unpack
 from ..qwen2 import Qwen2Model
+
 
 class InternVLVisionRMSNorm(nn.Cell):
     def __init__(self, hidden_size, eps=1e-6):
@@ -62,6 +59,7 @@ class InternVLVisionRMSNorm(nn.Cell):
 
     def extra_repr(self):
         return f"{tuple(self.weight.shape)}, eps={self.variance_epsilon}"
+
 
 def eager_attention_forward(
     module: nn.Cell,
@@ -88,6 +86,7 @@ def eager_attention_forward(
     attn_output = attn_output.transpose(1, 2).contiguous()
 
     return attn_output, attn_weights
+
 
 class InternVLVisionAttention(nn.Cell):
     """Attention Class for InternVL Vision Encoder"""
@@ -163,6 +162,7 @@ class InternVLVisionAttention(nn.Cell):
         outputs = (output, attn_weights) if output_attentions else (output, None)
         return outputs
 
+
 @auto_docstring
 class InternVLVisionPreTrainedModel(MSPreTrainedModel):
     config_class = InternVLVisionConfig
@@ -188,6 +188,7 @@ class InternVLVisionPreTrainedModel(MSPreTrainedModel):
             module.lambda_1.data.fill_(self.config.layer_scale_init_value)
             module.lambda_2.data.fill_(self.config.layer_scale_init_value)
 
+
 @dataclass
 @auto_docstring(
     custom_intro="""
@@ -201,6 +202,7 @@ class InternVLVisionModelOutputWithPooling(BaseModelOutputWithPooling):
         *config.use_mean_pooling* is set to True. If set to False, then the final hidden state of the *[CLS]* token
         will be returned.
     """
+
 
 class InternVLVisionPatchEmbeddings(nn.Cell):
     """
@@ -236,6 +238,7 @@ class InternVLVisionPatchEmbeddings(nn.Cell):
         embeddings = embeddings.flatten(2).transpose(1, 2)
 
         return embeddings, (patch_height, patch_width)
+
 
 # Based on timm implementation, which can be found here:
 # https://github.com/rwightman/pytorch-image-models/blob/master/timm/models/vision_transformer.py
@@ -331,6 +334,7 @@ class InternVLVisionEmbeddings(nn.Cell):
 
         return embeddings, (patch_height, patch_width)
 
+
 class InternVLVisionMLP(nn.Cell):
     def __init__(self, config):
         super().__init__()
@@ -347,6 +351,7 @@ class InternVLVisionMLP(nn.Cell):
 
 
 NORM2FN = {"layer_norm": mint.nn.LayerNorm, "rms_norm": InternVLVisionRMSNorm}
+
 
 class InternVLVisionLayer(nn.Cell):
     """This corresponds to the Block class in the timm implementation."""
@@ -395,6 +400,7 @@ class InternVLVisionLayer(nn.Cell):
 
         return layer_output, attention_weights
 
+
 class InternVLVisionEncoder(nn.Cell):
     def __init__(self, config: InternVLVisionConfig) -> None:
         super().__init__()
@@ -442,7 +448,9 @@ class InternVLVisionModel(InternVLVisionPreTrainedModel):
         self.encoder = InternVLVisionEncoder(config)
 
         self.layernorm = (
-            mint.nn.Identity() if config.use_mean_pooling else mint.nn.LayerNorm(config.hidden_size, eps=config.layer_norm_eps)
+            mint.nn.Identity()
+            if config.use_mean_pooling
+            else mint.nn.LayerNorm(config.hidden_size, eps=config.layer_norm_eps)
         )
 
         # Initialize weights and apply final processing
@@ -484,6 +492,7 @@ class InternVLVisionModel(InternVLVisionPreTrainedModel):
             hidden_states=encoder_outputs.hidden_states,
             attentions=encoder_outputs.attentions,
         )
+
 
 @auto_docstring
 class InternVLPreTrainedModel(MSPreTrainedModel):
@@ -538,6 +547,7 @@ class InternVLModelOutputWithPast(BaseModelOutputWithPast):
     """
 
     image_hidden_states: Optional[ms.Tensor] = None
+
 
 @auto_docstring(
     custom_intro="""
@@ -743,6 +753,7 @@ class InternVLModel(InternVLPreTrainedModel):
 
         return vision_features
 
+
 @dataclass
 @auto_docstring(
     custom_intro="""
@@ -772,6 +783,7 @@ class InternVLCausalLMOutputWithPast(ModelOutput):
     hidden_states: Optional[tuple[ms.Tensor]] = None
     attentions: Optional[tuple[ms.Tensor]] = None
     image_hidden_states: Optional[ms.Tensor] = None
+
 
 @auto_docstring(
     custom_intro="""
@@ -950,9 +962,7 @@ class InternVLForConditionalGeneration(InternVLPreTrainedModel, GenerationMixin)
 
         loss = None
         if labels is not None:
-            loss = self.loss_function(
-                logits=logits, labels=labels, vocab_size=self.config.text_config.vocab_size
-            )
+            loss = self.loss_function(logits=logits, labels=labels, vocab_size=self.config.text_config.vocab_size)
 
         return InternVLCausalLMOutputWithPast(
             loss=loss,

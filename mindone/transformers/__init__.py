@@ -429,11 +429,11 @@ if version.parse(transformers.__version__) >= version.parse("4.51.3"):
 
 if version.parse(transformers.__version__) >= version.parse("4.52.0"):
     from .models.internvl import (
-        InternVLVisionPreTrainedModel,
-        InternVLVisionModel,
-        InternVLPreTrainedModel,
-        InternVLModel,
         InternVLForConditionalGeneration,
+        InternVLModel,
+        InternVLPreTrainedModel,
+        InternVLVisionModel,
+        InternVLVisionPreTrainedModel,
     )
 
 if version.parse(transformers.__version__) >= version.parse("4.53.0"):
