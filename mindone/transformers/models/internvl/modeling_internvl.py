@@ -29,7 +29,7 @@ from transformers.utils import ModelOutput, auto_docstring, can_return_tuple
 
 import mindspore as ms
 import mindspore.mint.nn.functional as F
-from mindspore import mint, nn, ops
+from mindspore import mint, nn
 
 from ...activations import ACT2FN
 from ...cache_utils import Cache
@@ -920,7 +920,10 @@ class InternVLForConditionalGeneration(InternVLPreTrainedModel, GenerationMixin)
         >>> # Decode
         >>> texts = processor.batch_decode(generated_ids, skip_special_tokens=True)
         >>> print(texts)
-        A woman and a dog are sitting on a beach during sunset. The woman is smiling and giving a treat to the dog, which is wearing a harness. The dog is sitting patiently, and the ocean waves are visible in the background. The scene is warm and serene.
+        A woman and a dog are sitting on a beach during sunset. 
+        The woman is smiling and giving a treat to the dog, which is wearing a harness.
+        The dog is sitting patiently, and the ocean waves are visible in the background.
+        The scene is warm and serene.
         ```"""
         output_attentions = output_attentions if output_attentions is not None else self.config.output_attentions
         output_hidden_states = (
