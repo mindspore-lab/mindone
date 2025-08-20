@@ -22,6 +22,7 @@ import mindspore as ms
 from mindspore import Tensor, mint
 
 from mindone.transformers.mindspore_adapter.utils import _DTYPE_2_MIN
+from mindone.models.utils import constant_, normal_
 
 from ...activations import ACT2FN
 from ...cache_utils import Cache, DynamicCache
@@ -29,14 +30,15 @@ from ...generation import GenerationMixin
 from ...integrations import use_kernel_forward_from_hub
 from ...masking_utils import create_causal_mask
 from ...modeling_flash_attention_utils import flash_attn_supports_top_left_mask, is_flash_attn_available
-from ...modeling_layers import GradientCheckpointingLayer
+
 from ...modeling_outputs import (
     BaseModelOutputWithCrossAttentions,
     BaseModelOutputWithPast,
     BaseModelOutputWithPoolingAndCrossAttentions,
     CausalLMOutputWithPast,
-    ModelOutput,
 )
+
+from transformers.utils import ModelOutput
 from ...modeling_rope_utils import ROPE_INIT_FUNCTIONS, dynamic_rope_update
 from ...modeling_utils import (
     ALL_ATTENTION_FUNCTIONS,
@@ -47,9 +49,9 @@ from ...modeling_utils import (
     prune_linear_layer,
 )
 from ...processing_utils import Unpack
-from ...utils import TransformersKwargs, auto_docstring, can_return_tuple, logging
-from ...utils.generic import check_model_inputs
-from .configuration_evolla import EvollaConfig, SaProtConfig
+from transformers.utils import TransformersKwargs, auto_docstring, can_return_tuple, logging
+from transformers.utils.generic import check_model_inputs
+from transformers import EvollaConfig, SaProtConfig
 
 if is_flash_attn_available():
     from ...modeling_flash_attention_utils import _flash_attention_forward
@@ -556,7 +558,7 @@ class EvollaSaProtOutput(ms.nn.Cell):
         return hidden_states
 
 
-class EvollaSaProtLayer(GradientCheckpointingLayer):
+class EvollaSaProtLayer(ms.nn.Cell):
     def __init__(self, config):
         super().__init__()
         self.chunk_size_feed_forward = config.chunk_size_feed_forward
@@ -715,16 +717,16 @@ class EvollaSaProtPreTrainedModel(PreTrainedModel):
         """Initialize the weights"""
         std = self.config.initializer_range
         if isinstance(module, mint.nn.Linear):
-            module.weight.data.normal_(mean=0.0, std=std)
+            normal_(module.weight, mean=0.0, std=std)
             if module.bias is not None:
-                module.bias.data.zero_()
+                constant_(module.bias, 0.0)
         elif isinstance(module, mint.nn.Embedding):
-            module.weight.data.normal_(mean=0.0, std=std)
+            normal_(module.weight, mean=0.0, std=std)
             if module.padding_idx is not None:
-                module.weight.data[module.padding_idx].zero_()
+                module.weight.data[module.padding_idx] = 0.0
         elif isinstance(module, mint.nn.LayerNorm):
-            module.bias.data.zero_()
-            module.weight.data.fill_(1.0)
+            constant_(module.bias, 0.0)
+            constant_(module.weight, 1.0)
 
 
 class EvollaSaProtProteinEncoder(EvollaSaProtPreTrainedModel):
@@ -1411,7 +1413,7 @@ class EvollaAttention(ms.nn.Cell):
         return attn_output, attn_weights
 
 
-class EvollaDecoderLayer(GradientCheckpointingLayer):
+class EvollaDecoderLayer(ms.nn.Cell):
     def __init__(self, config: EvollaConfig, layer_idx: int):
         super().__init__()
         self.hidden_size = config.hidden_size
@@ -1509,11 +1511,11 @@ class EvollaPreTrainedModel(PreTrainedModel):
         std = self.config.initializer_range
         super()._init_weights(module)
         if isinstance(module, EvollaSequenceAlignerCrossAttention):
-            module.gate_attention.zero_()
-            module.gate_ffw.zero_()
-            module.attention_norm.weight.data.fill_(1.0)
+            constant_(module.gate_attention, 0.0)
+            constant_(module.gate_ffw, 0.0)
+            constant_(module.attention_norm.weight, 1.0)
         elif isinstance(module, EvollaSequenceCompressorResampler):
-            module.latents.data.normal_(mean=0.0, std=std)
+            normal_(module.latents, mean=0.0, std=std)
 
 
 class EvollaModel(EvollaPreTrainedModel):
