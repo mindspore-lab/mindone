@@ -206,10 +206,10 @@ class QwenImagePipeline(DiffusionPipeline, QwenImageLoraLoaderMixin):
         attn_mask_list = [mint.ones(e.shape[0], dtype=ms.int64) for e in split_hidden_states]
         max_seq_len = max([e.shape[0] for e in split_hidden_states])
         prompt_embeds = mint.stack(
-            [mint.cat([u, u.new_zeros(max_seq_len - u.shape[0], u.shape[1])]) for u in split_hidden_states]
+            [mint.cat([u, u.new_zeros((max_seq_len - u.shape[0], u.shape[1]))]) for u in split_hidden_states]
         )
         encoder_attention_mask = mint.stack(
-            [mint.cat([u, u.new_zeros(max_seq_len - u.shape[0])]) for u in attn_mask_list]
+            [mint.cat([u, u.new_zeros((max_seq_len - u.shape[0]))]) for u in attn_mask_list]
         )
 
         prompt_embeds = prompt_embeds.to(dtype=dtype)
