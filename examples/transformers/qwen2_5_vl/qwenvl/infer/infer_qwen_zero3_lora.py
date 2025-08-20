@@ -24,8 +24,8 @@ def main():
     ms.set_auto_parallel_context(parallel_mode=ms.ParallelMode.DATA_PARALLEL)
 
     parser = argparse.ArgumentParser(description="inference the checkpoint from zero-3")
-    parser.add_argument("--model_name_or_path", default="Qwen2.5-VL-3B-Instruct", help="model name")
-    parser.add_argument("--lora_root", help="LoRA checkpoint path")
+    parser.add_argument("--model_name_or_path", default="Qwen2.5-VL-72B-Instruct", help="model name")
+    parser.add_argument("--lora_root", help="LoRA checkpoint root path")
     parser.add_argument("--image_path", required=True, help="image path")
     parser.add_argument("--prompt", required=True, nargs="+", help="prompt input")
     parser.add_argument("--max_pixels", default=578 * 28 * 28, type=int, help="max pixel numbers")

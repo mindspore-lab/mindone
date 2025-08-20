@@ -29,7 +29,7 @@ output_dir=./output
 # Training arguments
 args="
     --deepspeed ${deepspeed} \
-    --model_name_or_path ${llm} \
+    --model_name_or_path "${llm}" \
     --dataset_use ${datasets} \
     --data_flatten True \
     --data_packing True \
@@ -44,7 +44,7 @@ args="
     --gradient_accumulation_steps ${grad_accum_steps} \
     --max_pixels 451584 \
     --min_pixels 12544 \
-    --save_steps 100 \
+    --save_steps 50 \
     --save_total_limit 3 \
     --learning_rate ${lr} \
     --optim bf16_adamw \
@@ -61,5 +61,4 @@ msrun --worker_num=${NPROC_PER_NODE} \
     --local_worker_num=${NPROC_PER_NODE} \
     --master_addr=${MASTER_ADDR} \
     --master_port=${MASTER_PORT} \
-    --log_dir="logs/train" \
     ${entry_file} ${args}
