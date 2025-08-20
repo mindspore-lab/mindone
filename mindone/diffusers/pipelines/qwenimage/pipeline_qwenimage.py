@@ -201,7 +201,7 @@ class QwenImagePipeline(DiffusionPipeline, QwenImageLoraLoaderMixin):
             output_hidden_states=True,
         )
         hidden_states = encoder_hidden_states.hidden_states[-1]
-        split_hidden_states = self._extract_masked_hidden(hidden_states, txt_tokens.attention_mask)
+        split_hidden_states = self._extract_masked_hidden(hidden_states, ms.Tensor(txt_tokens.attention_mask))
         split_hidden_states = [e[drop_idx:] for e in split_hidden_states]
         attn_mask_list = [mint.ones(e.size(0), dtype=ms.int64) for e in split_hidden_states]
         max_seq_len = max([e.size(0) for e in split_hidden_states])
