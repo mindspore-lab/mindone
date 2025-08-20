@@ -177,7 +177,7 @@ class AlignVisionModelTester:
         self.drop_connect_rate = drop_connect_rate
 
     def prepare_config_and_inputs(self):
-        pixel_values = ids_numpy([self.batch_size, self.num_channels, self.image_size, self.image_size], 128)
+        pixel_values = np.random.randn(self.batch_size, self.num_channels, self.image_size, self.image_size)
         config = self.get_config()
         return config, pixel_values
 
