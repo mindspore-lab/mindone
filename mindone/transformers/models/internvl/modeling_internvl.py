@@ -920,7 +920,7 @@ class InternVLForConditionalGeneration(InternVLPreTrainedModel, GenerationMixin)
         >>> # Decode
         >>> texts = processor.batch_decode(generated_ids, skip_special_tokens=True)
         >>> print(texts)
-        A woman and a dog are sitting on a beach during sunset. 
+        A woman and a dog are sitting on a beach during sunset.
         The woman is smiling and giving a treat to the dog, which is wearing a harness.
         The dog is sitting patiently, and the ocean waves are visible in the background.
         The scene is warm and serene.
