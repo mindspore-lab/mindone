@@ -1236,12 +1236,15 @@ class AlignTextModel(AlignPreTrainedModel):
         Examples:
 
         ```python
-        >>> from transformers import AutoTokenizer, AlignTextModel
+        >>> from transformers import AutoTokenizer
+        >>> from mindone.transformers import AlignTextModel
+        >>> import mindspore as ms
 
         >>> model = AlignTextModel.from_pretrained("kakaobrain/align-base")
-        >>> tokenizer = AutoTokenizer.from_pretrained("kakaobrain/align-base")
+        >>> tokenizer = AutoTokenizer.from_pretrained("kakaobrain/align-base", use_safetensors=True)
 
         >>> inputs = tokenizer(["a photo of a cat", "a photo of a dog"], padding=True, return_tensors="np")
+        >>> inputs = {k: ms.Tensor(v) for k, v in inputs.items()}
 
         >>> outputs = model(**inputs)
         >>> last_hidden_state = outputs.last_hidden_state
@@ -1365,15 +1368,18 @@ class AlignVisionModel(AlignPreTrainedModel):
         ```python
         >>> from PIL import Image
         >>> import requests
-        >>> from transformers import AutoProcessor, AlignVisionModel
+        >>> from transformers import AutoProcessor
+        >>> from mindone.transformers import AlignVisionModel
+        >>> import mindspore as ms
 
         >>> model = AlignVisionModel.from_pretrained("kakaobrain/align-base")
-        >>> processor = AutoProcessor.from_pretrained("kakaobrain/align-base")
+        >>> processor = AutoProcessor.from_pretrained("kakaobrain/align-base", use_safetensors=True)
 
         >>> url = "http://images.cocodataset.org/val2017/000000039769.jpg"
         >>> image = Image.open(requests.get(url, stream=True).raw)
 
         >>> inputs = processor(images=image, return_tensors="np")
+        >>> inputs = {k: ms.Tensor(v) for k, v in inputs.items()}
 
         >>> outputs = model(**inputs)
         >>> last_hidden_state = outputs.last_hidden_state
@@ -1565,10 +1571,12 @@ class AlignModel(AlignPreTrainedModel):
         ```python
         >>> from PIL import Image
         >>> import requests
-        >>> from transformers import AutoProcessor, AlignModel
+        >>> from transformers import AutoProcessor
+        >>> from mindone.transformers import AlignModel
+        >>> import mindspore as ms
 
         >>> model = AlignModel.from_pretrained("kakaobrain/align-base")
-        >>> processor = AutoProcessor.from_pretrained("kakaobrain/align-base")
+        >>> processor = AutoProcessor.from_pretrained("kakaobrain/align-base", use_safetensors=True)
 
         >>> url = "http://images.cocodataset.org/val2017/000000039769.jpg"
         >>> image = Image.open(requests.get(url, stream=True).raw)
@@ -1576,6 +1584,7 @@ class AlignModel(AlignPreTrainedModel):
         >>> inputs = processor(
         ...     images=image, text=["a photo of a cat", "a photo of a dog"], return_tensors="np", padding=True
         ... )
+        >>> inputs = {k: ms.Tensor(v) for k, v in inputs.items()}
 
         >>> outputs = model(**inputs)
         >>> logits_per_image = outputs.logits_per_image  # this is the image-text similarity score
