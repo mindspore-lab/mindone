@@ -255,7 +255,7 @@ class QwenImageEditPipeline(DiffusionPipeline, QwenImageLoraLoaderMixin):
             text=txt,
             images=image,
             padding=True,
-            return_tensors="pt",
+            return_tensors="ms",
         )
 
         outputs = self.text_encoder(

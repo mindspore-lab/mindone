@@ -198,7 +198,7 @@ class QwenImageImg2ImgPipeline(DiffusionPipeline, QwenImageLoraLoaderMixin):
         drop_idx = self.prompt_template_encode_start_idx
         txt = [template.format(e) for e in prompt]
         txt_tokens = self.tokenizer(
-            txt, max_length=self.tokenizer_max_length + drop_idx, padding=True, truncation=True, return_tensors="pt"
+            txt, max_length=self.tokenizer_max_length + drop_idx, padding=True, truncation=True, return_tensors="ms"
         )
         encoder_hidden_states = self.text_encoder(
             input_ids=txt_tokens.input_ids,
