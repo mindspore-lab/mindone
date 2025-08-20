@@ -34,6 +34,7 @@ from mindspore import Tensor
 
 from .import_utils import is_mindspore_available
 
+_CAN_RECORD_REGISTRY = {}
 
 class cached_property(property):
     """
@@ -465,6 +466,21 @@ class TransformersKwargs(TypedDict, total=False):
     output_hidden_states: Optional[bool]
     output_attentions: Optional[bool]
     output_router_logits: Optional[bool]
+
+
+class OutputRecorder:
+    """
+    Configuration for recording outputs from a model via hooks.
+
+    Attributes:
+        target_class (Type): The class (e.g., nn.Cell) to which the hook will be attached.
+        index (Optional[int]): If the output is a tuple/list, optionally record only at a specific index.
+        layer_name (Optional[str]): Name of the submodule to target (if needed), e.g., "transformer.layer.3.attn".
+    """
+
+    target_class: "type[ms.nn.Cell]"
+    index: Optional[int] = 0
+    layer_name: Optional[str] = None
 
 
 def filter_out_non_signature_kwargs(extra: Optional[list] = None):
