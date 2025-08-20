@@ -14,7 +14,5 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-from .image_processing_siglip import *
-from .image_processing_siglip_fast import *
-from .modeling_siglip import *
-from .processing_siglip import *
+from .image_processing_segformer import *
+from .modeling_segformer import *
