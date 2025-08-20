@@ -57,6 +57,7 @@ from .base import (
     infer_framework_load_model,
 )
 from .image_classification import ImageClassificationPipeline
+from .image_segmentation import ImageSegmentationPipeline
 from .image_text_to_text import ImageTextToTextPipeline
 from .object_detection import ObjectDetectionPipeline
 from .question_answering import QuestionAnsweringArgumentHandler, QuestionAnsweringPipeline
@@ -73,9 +74,11 @@ if is_mindspore_available():
     from ..models.auto.modeling_auto import (
         AutoModelForCausalLM,
         AutoModelForImageClassification,
+        AutoModelForImageSegmentation,
         AutoModelForImageTextToText,
         AutoModelForObjectDetection,
         AutoModelForQuestionAnswering,
+        AutoModelForSemanticSegmentation,
         AutoModelForSeq2SeqLM,
         AutoModelForSequenceClassification,
         AutoModelForTokenClassification,
@@ -138,6 +141,12 @@ SUPPORTED_TASKS = {
         "impl": ZeroShotImageClassificationPipeline,
         "ms": (AutoModelForZeroShotImageClassification,) if is_mindspore_available() else (),
         "default": {"model": {"ms": ("openai/clip-vit-base-patch32", "3d74acf")}},
+        "type": "multimodal",
+    },
+    "image-segmentation": {
+        "impl": ImageSegmentationPipeline,
+        "ms": (AutoModelForImageSegmentation, AutoModelForSemanticSegmentation) if is_mindspore_available() else (),
+        "default": {"model": {"ms": ("facebook/detr-resnet-50-panoptic", "d53b52a")}},
         "type": "multimodal",
     },
     "image-classification": {
