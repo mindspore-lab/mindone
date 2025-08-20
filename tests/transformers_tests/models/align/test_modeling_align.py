@@ -34,7 +34,7 @@ class AlignTextModelTester:
 
     def __init__(
         self,
-        batch_size=13,
+        batch_size=2,
         seq_length=7,
         is_training=False,
         use_input_mask=True,
@@ -133,7 +133,7 @@ class AlignVisionModelTester:
 
     def __init__(
         self,
-        batch_size=13,
+        batch_size=2,
         # config
         num_channels=3,
         image_size=224,
@@ -222,7 +222,7 @@ vision_model_tester = AlignVisionModelTester()
 vision_config, pixel_values = vision_model_tester.prepare_config_and_inputs()
 
 # Combined config for AlignModel
-align_config = AlignConfig.from_text_vision_configs(text_config=text_config, vision_config=vision_config)
+align_config = AlignConfig.from_text_vision_configs(text_config=text_config, vision_config=vision_config, projection_dim=40)
 
 
 ALIGN_TEXT_CASES = [
