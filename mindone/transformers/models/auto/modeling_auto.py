@@ -56,6 +56,7 @@ MODEL_MAPPING_NAMES = OrderedDict(
         ("opt", "OPTModel"),
         ("deberta-v2", "DebertaV2Model"),
         ("detr", "DetrModel"),
+        ("dinov2", "Dinov2Model"),
         ("dpt", "DPTModel"),
         ("gemma", "GemmaModel"),
         ("m2m_100", "M2M100Model"),
@@ -223,6 +224,7 @@ MODEL_FOR_IMAGE_MAPPING_NAMES = OrderedDict(
         ("convnext", "ConvNextModel"),
         ("convnextv2", "ConvNextV2Model"),
         ("detr", "DetrModel"),
+        ("dinov2", "Dinov2Model"),
         ("dpt", "DPTModel"),
         ("glpn", "GLPNModel"),
         ("hiera", "HieraModel"),
@@ -256,6 +258,7 @@ MODEL_FOR_IMAGE_CLASSIFICATION_MAPPING_NAMES = OrderedDict(
         ("clip", "CLIPForImageClassification"),
         ("convnext", "ConvNextForImageClassification"),
         ("convnextv2", "ConvNextV2ForImageClassification"),
+        ("dinov2", "Dinov2ForImageClassification"),
         ("hiera", "HieraForImageClassification"),
         ("ijepa", "IJepaForImageClassification"),
         ("imagegpt", "ImageGPTForImageClassification"),
@@ -606,6 +609,7 @@ MODEL_FOR_BACKBONE_MAPPING_NAMES = OrderedDict(
     [
         ("convnext", "ConvNextBackbone"),
         ("convnextv2", "ConvNextV2Backbone"),
+        ("dinov2", "Dinov2Backbone"),
         ("hiera", "HieraBackbone"),
         ("swin", "SwinBackbone"),
     ]

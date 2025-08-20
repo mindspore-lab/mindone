@@ -36,6 +36,8 @@ from . import (
     convbert,
     convnext,
     convnextv2,
+    depth_anything,
+    dinov2,
     dpt,
     fuyu,
     gemma,
