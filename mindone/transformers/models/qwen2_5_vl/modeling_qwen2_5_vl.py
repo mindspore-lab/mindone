@@ -1519,7 +1519,7 @@ class Qwen2_5_VLForConditionalGeneration(Qwen2_5_VLPreTrainedModel, GenerationMi
         >>> inputs = processor(text=[text], images=[image], return_tensors="ms")
 
         >>> # Generate
-        >>> generate_ids = model.generate(inputs.input_ids, max_new_tokens=30)
+        >>> generate_ids = model.generate(**inputs, max_new_tokens=30)
         >>> processor.batch_decode(generate_ids, skip_special_tokens=True, clean_up_tokenization_spaces=False)[0]
         "The image shows a street scene with a red stop sign in the foreground. In the background, there is a large red gate with Chinese characters ..."
         ```"""

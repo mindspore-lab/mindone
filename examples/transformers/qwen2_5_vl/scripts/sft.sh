@@ -34,7 +34,7 @@ args="
     --data_flatten True \
     --data_packing True \
     --tune_mm_vision False \
-    --tune_mm_mlp False \
+    --tune_mm_mlp True \
     --tune_mm_llm True \
     --tune_mm_lora False \
     --bf16 \
@@ -44,7 +44,7 @@ args="
     --gradient_accumulation_steps ${grad_accum_steps} \
     --max_pixels 451584 \
     --min_pixels 12544 \
-    --save_steps 500 \
+    --save_steps 50 \
     --save_total_limit 3 \
     --learning_rate ${lr} \
     --optim bf16_adamw \

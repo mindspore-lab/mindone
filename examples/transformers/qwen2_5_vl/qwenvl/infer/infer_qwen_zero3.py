@@ -6,7 +6,6 @@ from pathlib import Path
 from PIL import Image
 
 import mindspore as ms
-import mindspore.mint as mint
 import mindspore.mint.distributed as dist
 import mindspore.nn as nn
 from mindspore.communication import GlobalComm
@@ -14,7 +13,6 @@ from mindspore.communication import GlobalComm
 project_root = Path(__file__).parent.parent.parent.parent.parent.parent
 sys.path.append(str(project_root))
 
-from mindone.diffusers._peft import PeftConfig, PeftModel, load_peft_weights, set_peft_model_state_dict
 from mindone.trainers.zero import prepare_network
 from mindone.transformers import AutoProcessor, Qwen2_5_VLForConditionalGeneration
 
@@ -24,8 +22,8 @@ def main():
     ms.set_auto_parallel_context(parallel_mode=ms.ParallelMode.DATA_PARALLEL)
 
     parser = argparse.ArgumentParser(description="inference the checkpoint from zero-3")
-    parser.add_argument("--model_name_or_path", default="Qwen2.5-VL-72B-Instruct", help="model name")
-    parser.add_argument("--lora_root", help="LoRA checkpoint root path")
+    parser.add_argument("--model_name_or_path", default="Qwen2.5-VL-3B-Instruct", help="model name")
+    parser.add_argument("--ckpt_root", help="trained checkpoint root path")
     parser.add_argument("--image_path", required=True, help="image path")
     parser.add_argument("--prompt", required=True, nargs="+", help="prompt input")
     parser.add_argument("--max_pixels", default=578 * 28 * 28, type=int, help="max pixel numbers")
@@ -34,7 +32,6 @@ def main():
     args.prompt = " ".join(args.prompt)
 
     local_rank = dist.get_rank()
-    world_size = dist.get_world_size()
 
     if local_rank == 0:
         print("USER:", args.prompt)
@@ -47,37 +44,25 @@ def main():
         args.model_name_or_path, min_pixels=args.min_pixels, max_pixels=args.max_pixels
     )
 
-    # add lora
-    if args.lora_root:
-        lora_root_rank = os.path.join(args.lora_root, f"rank_{local_rank}")
-        latest_checkpoint_dir = sorted(os.listdir(lora_root_rank))[-1]
-        latest_checkpoint_dir = os.path.join(lora_root_rank, latest_checkpoint_dir)
-        sharded_peft_weight = load_peft_weights(latest_checkpoint_dir)
-
-        # combine the sharded lora weight
-        # FIXME: we simply assume the lora weight is fully sharded. May not be true in case lora_rank < word size during training.
-        full_peft_weight = dict()
-        peft_weight_names = sorted(sharded_peft_weight.keys())
-        for name in peft_weight_names:
-            sharded_weight = sharded_peft_weight[name]
-            full_tensor = mint.zeros(
-                (sharded_weight.shape[0] * world_size, *sharded_weight.shape[1:]), dtype=sharded_weight.dtype
-            )
-            dist.all_gather_into_tensor(full_tensor, sharded_weight, group=GlobalComm.WORLD_COMM_GROUP)
-            # FIXME: fix the name inconsistency
-            name = name.replace(".net.weight", ".weight")
-            full_peft_weight[name] = ms.Parameter(full_tensor)
-
-        # load lora weight into net
-        peft_config = PeftConfig.from_pretrained(latest_checkpoint_dir)
-        model.is_gradient_checkpointing = False
-        model = PeftModel(model, peft_config)
-        result = set_peft_model_state_dict(model, full_peft_weight)
-        assert len(result["unexpected_keys"]) == 0, result
-
     # shard across devices
     model = prepare_network(model, zero_stage=3, optimizer_parallel_group=GlobalComm.WORLD_COMM_GROUP)
     dist.barrier()
+
+    # loaded the sharded checkpoint
+    if args.ckpt_root:
+        checkpoint_root_rank = os.path.join(args.ckpt_root, f"rank_{local_rank}")
+        latest_checkpoint_dir = sorted(os.listdir(checkpoint_root_rank))[-1]
+        latest_checkpoint_dir = os.path.join(checkpoint_root_rank, latest_checkpoint_dir)
+        latest_checkpoint_path = os.path.join(latest_checkpoint_dir, "model.safetensors")
+
+        trained_param_dict = ms.load_checkpoint(latest_checkpoint_path, format="safetensors")
+        # FIXME: fix the name inconsistency
+        fixed_trained_param_dict = dict()
+        for k, v in trained_param_dict.items():
+            k = k.replace(".net.weight", ".weight").replace(".net.bias", ".bias")
+            fixed_trained_param_dict[k] = v
+        _, ckpt_not_load = ms.load_param_into_net(model, fixed_trained_param_dict, strict_load=True)
+        assert len(ckpt_not_load) == 0, ckpt_not_load
 
     messages = [
         {
