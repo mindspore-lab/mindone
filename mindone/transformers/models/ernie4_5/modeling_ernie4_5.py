@@ -299,8 +299,7 @@ class Ernie4_5DecoderLayer(GradientCheckpointingLayer):
 
 @auto_docstring
 class Ernie4_5PreTrainedModel(PreTrainedModel):
-    # fixme check with PretrainedModel.__init__subclass__
-    config_class = Ernie4_5Config
+    config : Ernie4_5Config
     base_model_prefix = "model"
     supports_gradient_checkpointing = False
     _no_split_modules = ["Ernie4_5DecoderLayer"]
