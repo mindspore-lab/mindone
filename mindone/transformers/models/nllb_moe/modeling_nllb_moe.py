@@ -1264,7 +1264,7 @@ class NllbMoeDecoder(NllbMoePreTrainedModel):
                         f"The `{mask_name}` should be specified for {len(self.layers)} layers, but it is for"
                         f" {head_mask.shape[0]}."
                     )
-        synced_gpus = is_deepspeed_zero3_enabled() or is_fsdp_managed_module(self)
+        # synced_gpus = is_deepspeed_zero3_enabled() or is_fsdp_managed_module(self)
 
         for idx, decoder_layer in enumerate(self.layers):
             if output_hidden_states:

@@ -66,6 +66,8 @@ from . import (
     mobilebert,
     mpt,
     mvp,
+    nllb,
+    nllb_moe,
     opt,
     paligemma,
     persimmon,
