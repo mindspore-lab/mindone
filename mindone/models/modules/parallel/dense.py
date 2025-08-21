@@ -42,13 +42,17 @@ class Dense(nn.Cell):
             self.param_wrapper_w = ZeroParamWrapper(self.net.weight, zero_stage, optimizer_parallel_group, cell_type)
             if self.param_wrapper_w.need_rewrite:
                 self.net.weight.assign_value(
-                    Tensor(self.net.weight.numpy().reshape(op_group_size, -1, *self.net.weight.shape[1:])[op_rank_id])
+                    Tensor.from_numpy(
+                        self.net.weight.numpy().reshape(op_group_size, -1, *self.net.weight.shape[1:])[op_rank_id]
+                    )
                 )
             if self.net.has_bias:
                 self.param_wrapper_b = ZeroParamWrapper(self.net.bias, zero_stage, optimizer_parallel_group, cell_type)
                 if self.param_wrapper_b.need_rewrite:
                     self.net.bias.assign_value(
-                        Tensor(self.net.bias.numpy().reshape(op_group_size, -1, *self.net.bias.shape[1:])[op_rank_id])
+                        Tensor.from_numpy(
+                            self.net.bias.numpy().reshape(op_group_size, -1, *self.net.bias.shape[1:])[op_rank_id]
+                        )
                     )
 
     def construct(self, x):
