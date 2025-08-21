@@ -365,13 +365,13 @@ class Ernie4_5Model(Ernie4_5PreTrainedModel):
         if position_ids is None:
             position_ids = cache_position.unsqueeze(0)
 
+        # fixme to add position_ids, masking_utils should be aligned with transformers
         causal_mask = create_causal_mask(
             config=self.config,
             input_embeds=inputs_embeds,
             attention_mask=attention_mask,
             cache_position=cache_position,
             past_key_values=past_key_values,
-            position_ids=position_ids,
         )
 
         hidden_states = inputs_embeds
