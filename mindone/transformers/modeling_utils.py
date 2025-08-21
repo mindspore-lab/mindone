@@ -1182,41 +1182,6 @@ class PreTrainedModel(nn.Cell, EmbeddingAccessMixin, ModuleUtilsMixin, Generatio
 
         return model
 
-    def get_input_embeddings(self) -> nn.Cell:
-        """
-        Returns the model's input embeddings.
-
-        Returns:
-            `nn.Cell`: A mindspore cell mapping vocabulary to hidden states.
-        """
-        base_model = getattr(self, self.base_model_prefix, self)
-        if base_model is not self:
-            return base_model.get_input_embeddings()
-        else:
-            raise NotImplementedError
-
-    def set_input_embeddings(self, value: nn.Cell):
-        """
-        Set model's input embeddings.
-
-        Args:
-            value (`nn.Cell`): A cell mapping vocabulary to hidden states.
-        """
-        base_model = getattr(self, self.base_model_prefix, self)
-        if base_model is not self:
-            base_model.set_input_embeddings(value)
-        else:
-            raise NotImplementedError
-
-    def get_output_embeddings(self) -> nn.Cell:
-        """
-        Returns the model's output embeddings.
-
-        Returns:
-            `nn.Cell`: A mindspore cell mapping hidden states to vocabulary.
-        """
-        return None  # Overwrite for models with output embeddings
-
     def _flash_attn_2_can_dispatch(self, is_init_check: bool = False) -> bool:
         """
         Check the availability of Flash Attention 2 for a given model.

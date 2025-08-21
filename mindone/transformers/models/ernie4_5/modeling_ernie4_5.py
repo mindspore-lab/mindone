@@ -302,7 +302,7 @@ class Ernie4_5PreTrainedModel(PreTrainedModel):
     # fixme check with PretrainedModel.__init__subclass__
     config_class = Ernie4_5Config
     base_model_prefix = "model"
-    supports_gradient_checkpointing = True
+    supports_gradient_checkpointing = False
     _no_split_modules = ["Ernie4_5DecoderLayer"]
     _skip_keys_device_placement = ["past_key_values"]
     _supports_flash_attn = True
