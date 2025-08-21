@@ -25,7 +25,7 @@
 from typing import Callable, List, Optional, Tuple, Union
 
 from transformers.models.gemma.configuration_gemma import GemmaConfig
-from transformers.utils import LossKwargs, logging
+from ...utils import LossKwargs, logging
 
 import mindspore as ms
 from mindspore import mint, nn, ops

@@ -15,7 +15,7 @@ import math
 from typing import Callable, List, Optional, Tuple, Union
 
 from transformers import Qwen2Config, logging
-from transformers.utils import LossKwargs
+from ...utils import LossKwargs
 
 import mindspore as ms
 from mindspore import Parameter, Tensor, mint, nn, ops

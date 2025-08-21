@@ -26,7 +26,8 @@ import itertools
 from dataclasses import dataclass
 from typing import Any, Callable, Dict, List, Optional, Tuple, Union
 
-from transformers.utils import LossKwargs, logging
+from transformers.utils import logging
+from ...utils import LossKwargs
 
 import mindspore as ms
 import mindspore.mint.nn.functional as F

@@ -31,13 +31,13 @@ from typing import Callable, List, Optional, Tuple, Union
 
 from transformers.models.starcoder2.configuration_starcoder2 import Starcoder2Config
 from transformers.utils import (  # can_return_tuple,
-    LossKwargs,
     add_code_sample_docstrings,
     add_start_docstrings,
     add_start_docstrings_to_model_forward,
     logging,
     replace_return_docstrings,
 )
+from ...utils import LossKwargs
 from transformers.utils.deprecation import deprecate_kwarg
 
 import mindspore as ms

@@ -31,13 +31,13 @@ from typing import Callable, List, Optional, Tuple, Union
 
 from transformers.models.mixtral.configuration_mixtral import MixtralConfig
 from transformers.utils import (
-    LossKwargs,
     add_code_sample_docstrings,
     add_start_docstrings,
     add_start_docstrings_to_model_forward,
     logging,
     replace_return_docstrings,
 )
+from ...utils import LossKwargs
 
 import mindspore as ms
 from mindspore import mint, nn, ops

@@ -21,7 +21,7 @@
 # to defer the actual importing for when the objects are requested. This way `import transformers` provides the names
 # in the namespace without actually importing anything (and especially none of the backends).
 
-__version__ = "4.54.0"
+__version__ = "4.54.1"
 import transformers
 from packaging import version
 
@@ -274,6 +274,11 @@ from .models.deberta_v2 import (
     DebertaV2PreTrainedModel,
 )
 from .models.dpt import DPTForDepthEstimation
+from .models.ernie4_5 import (
+    Ernie4_5PreTrainedModel,
+    Ernie4_5Model,
+    Ernie4_5ForCausalLM
+)
 from .models.fuyu import FuyuForCausalLM, FuyuPreTrainedModel
 from .models.gemma import (
     GemmaForCausalLM,

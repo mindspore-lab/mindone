@@ -25,7 +25,7 @@
 from typing import Callable, Optional, Tuple, Union
 
 from transformers.models.glm4.configuration_glm4 import Glm4Config
-from transformers.utils import LossKwargs
+from ...utils import LossKwargs
 
 import mindspore as ms
 from mindspore import mint, nn, ops

@@ -29,13 +29,13 @@ from typing import Callable, Optional, Tuple, Union
 import numpy as np
 from transformers.models.qwen3.configuration_qwen3 import Qwen3Config
 from transformers.utils import (
-    LossKwargs,
     add_code_sample_docstrings,
     add_start_docstrings,
     add_start_docstrings_to_model_forward,
     logging,
     replace_return_docstrings,
 )
+from ...utils import LossKwargs
 
 import mindspore as ms
 from mindspore import Tensor, mint, nn

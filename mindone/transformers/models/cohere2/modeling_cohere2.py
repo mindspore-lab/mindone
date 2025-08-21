@@ -26,12 +26,12 @@ from typing import Callable, List, Optional, Tuple, Union
 
 from transformers import Cohere2Config
 from transformers.utils import (
-    LossKwargs,
     add_start_docstrings,
     add_start_docstrings_to_model_forward,
     logging,
     replace_return_docstrings,
 )
+from ...utils import LossKwargs
 from transformers.utils.deprecation import deprecate_kwarg
 
 import mindspore as ms

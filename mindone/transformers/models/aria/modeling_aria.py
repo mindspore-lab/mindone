@@ -26,12 +26,12 @@ from typing import Callable, List, Optional, Tuple, Union
 
 from transformers import AriaConfig, AriaTextConfig
 from transformers.utils import (
-    LossKwargs,
     add_start_docstrings,
     add_start_docstrings_to_model_forward,
     logging,
     replace_return_docstrings,
 )
+from ...utils import LossKwargs
 
 import mindspore as ms
 import mindspore.mint as mint
