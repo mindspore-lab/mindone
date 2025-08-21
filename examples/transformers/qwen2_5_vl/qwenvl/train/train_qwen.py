@@ -1,3 +1,4 @@
+# Adapted from https://github.com/QwenLM/Qwen2.5-VL to work with MindSpore.
 # Adopted from https://github.com/lm-sys/FastChat. Below is the original copyright:
 # Adopted from tatsu-lab@stanford_alpaca. Below is the original copyright:
 #    Copyright 2023 Rohan Taori, Ishaan Gulrajani, Tianyi Zhang, Yann Dubois, Xuechen Li

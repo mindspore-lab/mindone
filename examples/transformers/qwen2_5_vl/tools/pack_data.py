@@ -1,3 +1,4 @@
+# Adapted from https://github.com/QwenLM/Qwen2.5-VL to work with MindSpore.
 import argparse
 import concurrent.futures
 import json

@@ -1,3 +1,5 @@
+# Adapted from https://github.com/QwenLM/Qwen2.5-VL to work with MindSpore.
+
 import re
 
 # Define placeholders for dataset paths

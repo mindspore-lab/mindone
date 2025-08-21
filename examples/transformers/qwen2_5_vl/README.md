@@ -1,6 +1,6 @@
-# QwenVL Training Framework
+# QwenVL Training Framework (Mindspore)
 
-This repository provides a training framework for Qwen VL models. There are two steps to use our repo:
+This repository provides a training framework for Qwen VL models, adapted from [Qwen2.5-VL](https://github.com/QwenLM/Qwen2.5-VL/tree/main/qwen-vl-finetune) to support MindSpore.
 
 1. Customize your dataset: downloading data, implement the config
 2. Modify training scripts:
@@ -142,8 +142,6 @@ The customized data should have a format like this:
 ]
 ```
 
-Some examples are shown in `demo/single_images.json` and `demo/video.json` and these json files could be used for training.
-
 ### Dataset config for training
 
 To add or modify datasets for training, follow these steps:
@@ -202,8 +200,6 @@ configs = data_list(dataset_names)
   - One `<image>` tag in the question must correspond to exactly one image file  
   - Similarly, `<video>` tags must correspond to video files  
   - These special tokens should not appear in the answer text  
-- For open source data that might have missing images or other issues, you can verify data completeness using `tools/check_image.py`.  
-
 
 ## Usage
 
@@ -296,5 +292,4 @@ The script accepts arguments in three categories:
    - `data_packing` requires preprocess with `tools/pack_data.py`
    - Training hyperparameters, the suggested learning rate is from 1e-6 to 2e-7
    - Training resolution is critical for the model performances, hence `--max_pixels` and `--min_pixels` should be properly set
-   - Training with Qwen2.5-VL-32B model, you should have 8 80G GPU referring to `scripts/sft_32b.sh`
    - `"_attn_implementation": "flash_attention_2",` could be added in the config.json of the model to use flash attention.
