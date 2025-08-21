@@ -798,7 +798,7 @@ class AutoencoderKLQwenImage(ModelMixin, ConfigMixin, FromOriginalModelMixin):
     def clear_cache(self):
         def _count_conv3d(model):
             count = 0
-            for m in model.modules():
+            for m in model.cells_and_names():
                 if isinstance(m, QwenImageCausalConv3d):
                     count += 1
             return count
