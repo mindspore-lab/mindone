@@ -56,7 +56,10 @@ from .base import (
     get_default_model_and_revision,
     infer_framework_load_model,
 )
+from .depth_estimation import DepthEstimationPipeline
+from .feature_extraction import FeatureExtractionPipeline
 from .image_classification import ImageClassificationPipeline
+from .image_feature_extraction import ImageFeatureExtractionPipeline
 from .image_segmentation import ImageSegmentationPipeline
 from .image_text_to_text import ImageTextToTextPipeline
 from .object_detection import ObjectDetectionPipeline
@@ -72,7 +75,9 @@ if is_mindspore_available():
     import mindspore as ms
 
     from ..models.auto.modeling_auto import (
+        AutoModel,
         AutoModelForCausalLM,
+        AutoModelForDepthEstimation,
         AutoModelForImageClassification,
         AutoModelForImageSegmentation,
         AutoModelForImageTextToText,
@@ -104,6 +109,12 @@ TASK_ALIASES = {
     "text-to-speech": "text-to-audio",
 }
 SUPPORTED_TASKS = {
+    "feature-extraction": {
+        "impl": FeatureExtractionPipeline,
+        "ms": (AutoModel,) if is_mindspore_available() else (),
+        "default": {"model": {"ms": ("distilbert/distilbert-base-cased", "6ea8117")}},
+        "type": "multimodal",
+    },
     "text-classification": {
         "impl": TextClassificationPipeline,
         "ms": (AutoModelForSequenceClassification,) if is_mindspore_available() else (),
@@ -143,17 +154,23 @@ SUPPORTED_TASKS = {
         "default": {"model": {"ms": ("openai/clip-vit-base-patch32", "3d74acf")}},
         "type": "multimodal",
     },
-    "image-segmentation": {
-        "impl": ImageSegmentationPipeline,
-        "ms": (AutoModelForImageSegmentation, AutoModelForSemanticSegmentation) if is_mindspore_available() else (),
-        "default": {"model": {"ms": ("facebook/detr-resnet-50-panoptic", "d53b52a")}},
-        "type": "multimodal",
-    },
     "image-classification": {
         "impl": ImageClassificationPipeline,
         "ms": (AutoModelForImageClassification,) if is_mindspore_available() else (),
         "default": {"model": {"ms": ("google/vit-base-patch16-224", "3f49326")}},
         "type": "image",
+    },
+    "image-feature-extraction": {
+        "impl": ImageFeatureExtractionPipeline,
+        "ms": (AutoModel,) if is_mindspore_available() else (),
+        "default": {"model": {"ms": ("google/vit-base-patch16-224", "3f49326")}},
+        "type": "image",
+    },
+    "image-segmentation": {
+        "impl": ImageSegmentationPipeline,
+        "ms": (AutoModelForImageSegmentation, AutoModelForSemanticSegmentation) if is_mindspore_available() else (),
+        "default": {"model": {"ms": ("facebook/detr-resnet-50-panoptic", "d53b52a")}},
+        "type": "multimodal",
     },
     "image-text-to-text": {
         "impl": ImageTextToTextPipeline,
@@ -172,6 +189,12 @@ SUPPORTED_TASKS = {
         "ms": (AutoModelForZeroShotObjectDetection,) if is_mindspore_available() else (),
         "default": {"model": {"ms": ("google/owlvit-base-patch32", "cbc355f")}},
         "type": "multimodal",
+    },
+    "depth-estimation": {
+        "impl": DepthEstimationPipeline,
+        "ms": (AutoModelForDepthEstimation,) if is_mindspore_available() else (),
+        "default": {"model": {"ms": ("Intel/dpt-large", "bc15f29")}},
+        "type": "image",
     },
 }
 

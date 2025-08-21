@@ -14,5 +14,6 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-from .image_processing_dpt import *
-from .modeling_dpt import *
+from .feature_extraction_convnext import *
+from .image_processing_convnext import *
+from .modeling_convnext import *
