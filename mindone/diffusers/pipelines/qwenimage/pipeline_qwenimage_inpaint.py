@@ -970,9 +970,6 @@ class QwenImageInpaintPipeline(DiffusionPipeline, QwenImageLoraLoaderMixin):
                     self.image_processor.apply_overlay(mask_image, original_image, i, crops_coords) for i in image
                 ]
 
-        # Offload all models
-        self.maybe_free_model_hooks()
-
         if not return_dict:
             return (image,)
 

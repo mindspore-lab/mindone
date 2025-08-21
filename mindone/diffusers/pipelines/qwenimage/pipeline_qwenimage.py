@@ -686,9 +686,6 @@ class QwenImagePipeline(DiffusionPipeline, QwenImageLoraLoaderMixin):
             image = self.vae.decode(latents, return_dict=False)[0][:, :, 0]
             image = self.image_processor.postprocess(image, output_type=output_type)
 
-        # Offload all models
-        self.maybe_free_model_hooks()
-
         if not return_dict:
             return (image,)
 
