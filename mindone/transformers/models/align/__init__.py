@@ -1,1 +1,1 @@
-from .modeling_align import AlignPreTrainedModel, AlignTextModel, AlignVisionModel, AlignModel
+from .modeling_align import AlignModel, AlignPreTrainedModel, AlignTextModel, AlignVisionModel
