@@ -175,7 +175,7 @@ class QwenImageResample(nn.Cell):
             self.resample = mint.nn.Identity()
 
     def construct(self, x, feat_cache=None, feat_idx=[0]):
-        b, c, t, h, w = x.size()
+        b, c, t, h, w = x.shape
         if self.mode == "upsample3d":
             if feat_cache is not None:
                 idx = feat_idx[0]
@@ -204,7 +204,7 @@ class QwenImageResample(nn.Cell):
         t = x.shape[2]
         x = x.permute(0, 2, 1, 3, 4).reshape(b * t, c, h, w)
         x = self.resample(x)
-        x = x.view(b, t, x.size(1), x.size(2), x.size(3)).permute(0, 2, 1, 3, 4)
+        x = x.view(b, t, x.shape[1], x.shape[2], x.shape[3]).permute(0, 2, 1, 3, 4)
 
         if self.mode == "downsample3d":
             if feat_cache is not None:
@@ -313,7 +313,7 @@ class QwenImageAttentionBlock(nn.Cell):
 
     def construct(self, x):
         identity = x
-        batch_size, channels, time, height, width = x.size()
+        batch_size, channels, time, height, width = x.shape
 
         x = x.permute(0, 2, 1, 3, 4).reshape(batch_size * time, channels, height, width)
         x = self.norm(x)
@@ -736,10 +736,10 @@ class AutoencoderKLQwenImage(ModelMixin, ConfigMixin, FromOriginalModelMixin):
 
         # Precompute and cache conv counts for encoder and decoder for clear_cache speedup
         self._cached_conv_counts = {
-            "decoder": sum(isinstance(m, QwenImageCausalConv3d) for m in self.decoder.cells_and_names())
+            "decoder": sum(isinstance(m, QwenImageCausalConv3d) for _, m in self.decoder.cells_and_names())
             if self.decoder is not None
             else 0,
-            "encoder": sum(isinstance(m, QwenImageCausalConv3d) for m in self.encoder.cells_and_names())
+            "encoder": sum(isinstance(m, QwenImageCausalConv3d) for _, m in self.encoder.cells_and_names())
             if self.encoder is not None
             else 0,
         }
@@ -798,7 +798,7 @@ class AutoencoderKLQwenImage(ModelMixin, ConfigMixin, FromOriginalModelMixin):
     def clear_cache(self):
         def _count_conv3d(model):
             count = 0
-            for m in model.cells_and_names():
+            for _, m in model.cells_and_names():
                 if isinstance(m, QwenImageCausalConv3d):
                     count += 1
             return count
