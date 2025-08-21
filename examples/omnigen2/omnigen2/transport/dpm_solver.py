@@ -202,7 +202,7 @@ def model_wrapper(
             _, sigma_t = noise_schedule.marginal_alpha(t_continuous), noise_schedule.marginal_std(t_continuous)
             try:
                 noise = (1 - expand_dims(sigma_t, x.dim()).to(x.dtype)) * output + x
-            except:
+            except Exception:
                 noise = (1 - expand_dims(sigma_t, x.dim()).to(x.dtype)) * output[0] + x
             return noise
 
@@ -243,7 +243,7 @@ def model_wrapper(
                 c_in = mint.cat([unconditional_condition, condition])
                 try:
                     noise_uncond, noise = noise_pred_fn(x_in, t_in, cond=c_in).chunk(2)
-                except:
+                except Exception:
                     noise_uncond, noise = noise_pred_fn(x_in, t_in, cond=c_in)[0].chunk(2)
                 return noise_uncond + guidance_scale * (noise - noise_uncond)
 
@@ -352,7 +352,7 @@ class DPM_Solver:
         if hasattr(self, "progress_fn"):
             try:
                 self.progress_fn(step / total_steps, desc=f"Generating {step}/{total_steps}")
-            except:
+            except Exception:
                 self.progress_fn(step, total_steps)
 
         else:
