@@ -85,7 +85,6 @@ class QwenImageCausalConv3d(mint.nn.Conv3d):
     def construct(self, x, cache_x=None):
         padding = list(self._padding)
         if cache_x is not None and self._padding[4] > 0:
-            cache_x = cache_x.to(x.device)
             x = mint.cat([cache_x, x], dim=2)
             padding[4] -= cache_x.shape[2]
         x = mint.nn.functional.pad(x, padding)
@@ -111,8 +110,9 @@ class QwenImageRMS_norm(nn.Cell):
 
         self.channel_first = channel_first
         self.scale = dim**0.5
-        self.gamma = ms.Parameter(mint.ones(shape))
-        self.bias = ms.Parameter(mint.zeros(shape)) if bias else 0.0
+        self.gamma = ms.Parameter(mint.ones(shape), name="gamma")
+        self.bias = ms.Parameter(mint.zeros(shape), name="bias" \
+        "") if bias else 0.0
 
     def construct(self, x):
         return mint.nn.functional.normalize(x, dim=(1 if self.channel_first else -1)) * self.scale * self.gamma + self.bias
@@ -155,12 +155,12 @@ class QwenImageResample(nn.Cell):
         # layers
         if mode == "upsample2d":
             self.resample = nn.SequentialCell(
-                QwenImageUpsample(scale_factor=(2.0, 2.0), mode="nearest-exact"),
+                QwenImageUpsample(scale_factor=(2.0, 2.0), mode="nearest-exact", recompute_scale_factor = True),
                 mint.nn.Conv2d(dim, dim // 2, 3, padding=1),
             )
         elif mode == "upsample3d":
             self.resample = nn.SequentialCell(
-                QwenImageUpsample(scale_factor=(2.0, 2.0), mode="nearest-exact"),
+                QwenImageUpsample(scale_factor=(2.0, 2.0), mode="nearest-exact", recompute_scale_factor = True),
                 mint.nn.Conv2d(dim, dim // 2, 3, padding=1),
             )
             self.time_conv = QwenImageCausalConv3d(dim, dim * 2, (3, 1, 1), padding=(1, 0, 0))
@@ -182,15 +182,16 @@ class QwenImageResample(nn.Cell):
                 if feat_cache[idx] is None:
                     feat_cache[idx] = "Rep"
                     feat_idx[0] += 1
+
                 else:
                     cache_x = x[:, :, -CACHE_T:, :, :].clone()
                     if cache_x.shape[2] < 2 and feat_cache[idx] is not None and feat_cache[idx] != "Rep":
                         # cache last frame of last two chunk
                         cache_x = mint.cat(
-                            [feat_cache[idx][:, :, -1, :, :].unsqueeze(2).to(cache_x.device), cache_x], dim=2
+                            [feat_cache[idx][:, :, -1, :, :].unsqueeze(2), cache_x], dim=2
                         )
                     if cache_x.shape[2] < 2 and feat_cache[idx] is not None and feat_cache[idx] == "Rep":
-                        cache_x = mint.cat([mint.zeros_like(cache_x).to(cache_x.device), cache_x], dim=2)
+                        cache_x = mint.cat([mint.zeros_like(cache_x), cache_x], dim=2)
                     if feat_cache[idx] == "Rep":
                         x = self.time_conv(x)
                     else:
@@ -326,7 +327,7 @@ class QwenImageAttentionBlock(nn.Cell):
 
         # apply attention
         # x = F.scaled_dot_product_attention(q, k, v)
-        x = ops.operation.nn_ops.FlashAttentionScore(1, input_layout="BNSD")(
+        x = ops.operations.nn_ops.FlashAttentionScore(1, input_layout="BNSD")(
             q.to(ms.float16), k.to(ms.float16), v.to(ms.float16), None, None, None, None
         )[3].to(q.dtype)
 
@@ -454,7 +455,7 @@ class QwenImageEncoder3d(nn.Cell):
             cache_x = x[:, :, -CACHE_T:, :, :].clone()
             if cache_x.shape[2] < 2 and feat_cache[idx] is not None:
                 # cache last frame of last two chunk
-                cache_x = mint.cat([feat_cache[idx][:, :, -1, :, :].unsqueeze(2).to(cache_x.device), cache_x], dim=2)
+                cache_x = mint.cat([feat_cache[idx][:, :, -1, :, :].unsqueeze(2), cache_x], dim=2)
             x = self.conv_in(x, feat_cache[idx])
             feat_cache[idx] = cache_x
             feat_idx[0] += 1
@@ -715,6 +716,8 @@ class AutoencoderKLQwenImage(ModelMixin, ConfigMixin, FromOriginalModelMixin):
             base_dim, z_dim, dim_mult, num_res_blocks, attn_scales, self.temperal_upsample, dropout
         )
 
+        self.diag_gauss_dist = DiagonalGaussianDistribution()
+
         self.spatial_compression_ratio = 2 ** len(self.temperal_downsample)
 
         # When decoding a batch of video latents at a time, one can save memory by slicing across the batch dimension
@@ -903,10 +906,10 @@ class AutoencoderKLQwenImage(ModelMixin, ConfigMixin, FromOriginalModelMixin):
                 returned.
         """
         if self.use_slicing and z.shape[0] > 1:
-            decoded_slices = [self._decode(z_slice).sample for z_slice in z.split(1)]
+            decoded_slices = [self._decode(z_slice)[0] for z_slice in z.split(1)]
             decoded = mint.cat(decoded_slices)
         else:
-            decoded = self._decode(z).sample
+            decoded = self._decode(z)[0]
 
         if not return_dict:
             return (decoded,)
@@ -1071,10 +1074,10 @@ class AutoencoderKLQwenImage(ModelMixin, ConfigMixin, FromOriginalModelMixin):
                 Whether or not to return a [`DecoderOutput`] instead of a plain tuple.
         """
         x = sample
-        posterior = self.encode(x).latent_dist
+        posterior = self.encode(x)[0]
         if sample_posterior:
-            z = posterior.sample(generator=generator)
+            z = posterior.diag_gauss_dist.sample(posterior, generator=generator)
         else:
-            z = posterior.mode()
+            z = posterior.diag_gauss_dist.mode(posterior)
         dec = self.decode(z, return_dict=return_dict)
         return dec
