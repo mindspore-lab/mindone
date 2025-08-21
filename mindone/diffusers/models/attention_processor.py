@@ -789,7 +789,8 @@ class Attention(nn.Cell):
     ):
         # For most scenarios, qkv has been processed into a BNSD layout before sdp
         input_layout = "BNSD"
-        head_num = self.heads
+        # head_num = self.heads
+        head_num = query.shape[1]
 
         # In case qkv is 3-dim after `head_to_batch_dim`
         if query.ndim == 3:
