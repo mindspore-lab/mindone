@@ -169,9 +169,7 @@ def get_examples(examples: list[Example]) -> list[list]:
     def _parse(example: Example) -> list:
         for field in ["input_image", "input_image2", "input_image3"]:
             if (img := example.__getattribute__(field)) is not None:
-                if img.relative == "None":  # FIXME: jsonargparse bug
-                    example.__setattr__(field, None)
-                elif isinstance(img, Path_fr):
+                if isinstance(img, Path_fr):
                     example.__setattr__(field, os.path.abspath(img))
                 elif isinstance(img, Path_u):
                     example.__setattr__(field, Image.open(BytesIO(img.get_content())))

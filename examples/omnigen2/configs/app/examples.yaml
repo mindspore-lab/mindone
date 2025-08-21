@@ -73,8 +73,8 @@ examples:
     scheduler: "euler"
     num_inference_steps: 50
     input_image: "https://raw.githubusercontent.com/VectorSpaceLab/OmniGen2/32399044e5d280fe5b2782443e72690ffad242eb/example_images/d8f8f44c64106e7715c61b5dfa9d9ca0974314c5d4a4a50418acf7ff373432bb.png"
-    input_image2: None
-    input_image3: None
+    input_image2: null
+    input_image3: null
     text_guidance_scale: 5.0
     image_guidance_scale: 2.0
     cfg_range_start: 0.0
@@ -90,8 +90,8 @@ examples:
     scheduler: "euler"
     num_inference_steps: 50
     input_image: "https://raw.githubusercontent.com/VectorSpaceLab/OmniGen2/32399044e5d280fe5b2782443e72690ffad242eb/example_images/46e79704-c88e-4e68-97b4-b4c40cd29826.png"
-    input_image2: None
-    input_image3: None
+    input_image2: null
+    input_image3: null
     text_guidance_scale: 5.0
     image_guidance_scale: 2.0
     cfg_range_start: 0.0
@@ -107,8 +107,8 @@ examples:
     scheduler: "euler"
     num_inference_steps: 50
     input_image: "https://raw.githubusercontent.com/VectorSpaceLab/OmniGen2/32399044e5d280fe5b2782443e72690ffad242eb/example_images/vicky-hladynets-C8Ta0gwPbQg-unsplash.jpg"
-    input_image2: None
-    input_image3: None
+    input_image2: null
+    input_image3: null
     text_guidance_scale: 5.0
     image_guidance_scale: 2.0
     cfg_range_start: 0.0
@@ -124,8 +124,8 @@ examples:
     scheduler: "euler"
     num_inference_steps: 50
     input_image: "https://raw.githubusercontent.com/VectorSpaceLab/OmniGen2/32399044e5d280fe5b2782443e72690ffad242eb/example_images/ComfyUI_temp_mllvz_00071_.png"
-    input_image2: None
-    input_image3: None
+    input_image2: null
+    input_image3: null
     text_guidance_scale: 5.0
     image_guidance_scale: 2.0
     cfg_range_start: 0.0
@@ -141,8 +141,8 @@ examples:
     scheduler: "euler"
     num_inference_steps: 50
     input_image: "https://raw.githubusercontent.com/VectorSpaceLab/OmniGen2/32399044e5d280fe5b2782443e72690ffad242eb/example_images/289089159-a6d7abc142419e63cab0a566eb38e0fb6acb217b340f054c6172139b316f6596.png"
-    input_image2: None
-    input_image3: None
+    input_image2: null
+    input_image3: null
     text_guidance_scale: 5.0
     image_guidance_scale: 2.0
     cfg_range_start: 0.0
@@ -158,8 +158,8 @@ examples:
     scheduler: "euler"
     num_inference_steps: 50
     input_image: "https://raw.githubusercontent.com/VectorSpaceLab/OmniGen2/32399044e5d280fe5b2782443e72690ffad242eb/example_images/RAL_0315.JPG"
-    input_image2: None
-    input_image3: None
+    input_image2: null
+    input_image3: null
     text_guidance_scale: 5.0
     image_guidance_scale: 2.0
     cfg_range_start: 0.0
@@ -175,8 +175,8 @@ examples:
     scheduler: "euler"
     num_inference_steps: 50
     input_image: "https://raw.githubusercontent.com/VectorSpaceLab/OmniGen2/32399044e5d280fe5b2782443e72690ffad242eb/example_images/1.png"
-    input_image2: None
-    input_image3: None
+    input_image2: null
+    input_image3: null
     text_guidance_scale: 5.0
     image_guidance_scale: 2.0
     cfg_range_start: 0.0
@@ -192,8 +192,8 @@ examples:
     scheduler: "euler"
     num_inference_steps: 50
     input_image: "https://raw.githubusercontent.com/VectorSpaceLab/OmniGen2/32399044e5d280fe5b2782443e72690ffad242eb/example_images/386724677-589d19050d4ea0603aee6831459aede29a24f4d8668c62c049f413db31508a54.png"
-    input_image2: None
-    input_image3: None
+    input_image2: null
+    input_image3: null
     text_guidance_scale: 5.0
     image_guidance_scale: 2.0
     cfg_range_start: 0.0
@@ -209,8 +209,8 @@ examples:
     scheduler: "euler"
     num_inference_steps: 50
     input_image: "https://raw.githubusercontent.com/VectorSpaceLab/OmniGen2/32399044e5d280fe5b2782443e72690ffad242eb/example_images/ComfyUI_00254_.png"
-    input_image2: None
-    input_image3: None
+    input_image2: null
+    input_image3: null
     text_guidance_scale: 5.0
     image_guidance_scale: 2.0
     cfg_range_start: 0.0
@@ -226,8 +226,8 @@ examples:
     scheduler: "euler"
     num_inference_steps: 50
     input_image: "https://raw.githubusercontent.com/VectorSpaceLab/OmniGen2/32399044e5d280fe5b2782443e72690ffad242eb/example_images/girl.png"
-    input_image2: None
-    input_image3: None
+    input_image2: null
+    input_image3: null
     text_guidance_scale: 5.0
     image_guidance_scale: 2.0
     cfg_range_start: 0.0
@@ -243,8 +243,8 @@ examples:
     scheduler: "euler"
     num_inference_steps: 50
     input_image: "https://raw.githubusercontent.com/VectorSpaceLab/OmniGen2/32399044e5d280fe5b2782443e72690ffad242eb/example_images/girl.png"
-    input_image2: None
-    input_image3: None
+    input_image2: null
+    input_image3: null
     text_guidance_scale: 5.0
     image_guidance_scale: 2.0
     cfg_range_start: 0.0
@@ -260,8 +260,8 @@ examples:
     scheduler: "euler"
     num_inference_steps: 50
     input_image: "https://raw.githubusercontent.com/VectorSpaceLab/OmniGen2/32399044e5d280fe5b2782443e72690ffad242eb/example_images/nezha.png"
-    input_image2: None
-    input_image3: None
+    input_image2: null
+    input_image3: null
     text_guidance_scale: 5.0
     image_guidance_scale: 2.0
     cfg_range_start: 0.0
@@ -277,8 +277,8 @@ examples:
     scheduler: "euler"
     num_inference_steps: 50
     input_image: "https://raw.githubusercontent.com/VectorSpaceLab/OmniGen2/32399044e5d280fe5b2782443e72690ffad242eb/example_images/blv.png"
-    input_image2: None
-    input_image3: None
+    input_image2: null
+    input_image3: null
     text_guidance_scale: 5.0
     image_guidance_scale: 2.0
     cfg_range_start: 0.0
@@ -294,8 +294,8 @@ examples:
     scheduler: "euler"
     num_inference_steps: 50
     input_image: "https://raw.githubusercontent.com/VectorSpaceLab/OmniGen2/32399044e5d280fe5b2782443e72690ffad242eb/example_images/toy.png"
-    input_image2: None
-    input_image3: None
+    input_image2: null
+    input_image3: null
     text_guidance_scale: 5.0
     image_guidance_scale: 2.0
     cfg_range_start: 0.0
@@ -311,8 +311,8 @@ examples:
     scheduler: "euler"
     num_inference_steps: 50
     input_image: "https://raw.githubusercontent.com/VectorSpaceLab/OmniGen2/32399044e5d280fe5b2782443e72690ffad242eb/example_images/doll1.jpg"
-    input_image2: None
-    input_image3: None
+    input_image2: null
+    input_image3: null
     text_guidance_scale: 5.0
     image_guidance_scale: 2.0
     cfg_range_start: 0.0
@@ -328,8 +328,8 @@ examples:
     scheduler: "euler"
     num_inference_steps: 50
     input_image: "https://raw.githubusercontent.com/VectorSpaceLab/OmniGen2/32399044e5d280fe5b2782443e72690ffad242eb/example_images/doll1.jpg"
-    input_image2: None
-    input_image3: None
+    input_image2: null
+    input_image3: null
     text_guidance_scale: 5.0
     image_guidance_scale: 2.0
     cfg_range_start: 0.0
@@ -345,8 +345,8 @@ examples:
     scheduler: "euler"
     num_inference_steps: 50
     input_image: "https://raw.githubusercontent.com/VectorSpaceLab/OmniGen2/32399044e5d280fe5b2782443e72690ffad242eb/example_images/doll2.jpg"
-    input_image2: None
-    input_image3: None
+    input_image2: null
+    input_image3: null
     text_guidance_scale: 5.0
     image_guidance_scale: 2.0
     cfg_range_start: 0.0
@@ -363,7 +363,7 @@ examples:
     num_inference_steps: 50
     input_image: "https://raw.githubusercontent.com/VectorSpaceLab/OmniGen2/32399044e5d280fe5b2782443e72690ffad242eb/example_images/woman_kitchen.webp"
     input_image2: "https://raw.githubusercontent.com/VectorSpaceLab/OmniGen2/32399044e5d280fe5b2782443e72690ffad242eb/example_images/a_man.webp"
-    input_image3: None
+    input_image3: null
     text_guidance_scale: 5.0
     image_guidance_scale: 2.0
     cfg_range_start: 0.0
@@ -380,7 +380,7 @@ examples:
     num_inference_steps: 50
     input_image: "https://raw.githubusercontent.com/VectorSpaceLab/OmniGen2/32399044e5d280fe5b2782443e72690ffad242eb/example_images/woman_kitchen.webp"
     input_image2: "https://raw.githubusercontent.com/VectorSpaceLab/OmniGen2/32399044e5d280fe5b2782443e72690ffad242eb/example_images/a_man.webp"
-    input_image3: None
+    input_image3: null
     text_guidance_scale: 5.0
     image_guidance_scale: 2.0
     cfg_range_start: 0.0
@@ -397,7 +397,7 @@ examples:
     num_inference_steps: 50
     input_image: "https://raw.githubusercontent.com/VectorSpaceLab/OmniGen2/32399044e5d280fe5b2782443e72690ffad242eb/example_images/apple.png"
     input_image2: "https://raw.githubusercontent.com/VectorSpaceLab/OmniGen2/32399044e5d280fe5b2782443e72690ffad242eb/example_images/468404374-d52ec1a44aa7e0dc9c2807ce09d303a111c78f34da3da2401b83ce10815ff872.png"
-    input_image3: None
+    input_image3: null
     text_guidance_scale: 5.0
     image_guidance_scale: 2.0
     cfg_range_start: 0.0
@@ -413,8 +413,8 @@ examples:
     scheduler: "euler"
     num_inference_steps: 50
     input_image: "https://raw.githubusercontent.com/VectorSpaceLab/OmniGen2/32399044e5d280fe5b2782443e72690ffad242eb/example_images/woman1.webp"
-    input_image2: None
-    input_image3: None
+    input_image2: null
+    input_image3: null
     text_guidance_scale: 5.0
     image_guidance_scale: 2.0
     cfg_range_start: 0.0
@@ -430,8 +430,8 @@ examples:
     scheduler: "euler"
     num_inference_steps: 50
     input_image: "https://raw.githubusercontent.com/VectorSpaceLab/OmniGen2/32399044e5d280fe5b2782443e72690ffad242eb/example_images/woman1.webp"
-    input_image2: None
-    input_image3: None
+    input_image2: null
+    input_image3: null
     text_guidance_scale: 5.0
     image_guidance_scale: 3.0
     cfg_range_start: 0.0
@@ -447,8 +447,8 @@ examples:
     scheduler: "euler"
     num_inference_steps: 50
     input_image: "https://raw.githubusercontent.com/VectorSpaceLab/OmniGen2/32399044e5d280fe5b2782443e72690ffad242eb/example_images/woman1.webp"
-    input_image2: None
-    input_image3: None
+    input_image2: null
+    input_image3: null
     text_guidance_scale: 5.0
     image_guidance_scale: 2.0
     cfg_range_start: 0.0
@@ -465,7 +465,7 @@ examples:
     num_inference_steps: 50
     input_image: "https://raw.githubusercontent.com/VectorSpaceLab/OmniGen2/32399044e5d280fe5b2782443e72690ffad242eb/example_images/man1.webp"
     input_image2: "https://raw.githubusercontent.com/VectorSpaceLab/OmniGen2/32399044e5d280fe5b2782443e72690ffad242eb/example_images/woman1.webp"
-    input_image3: None
+    input_image3: null
     text_guidance_scale: 5.0
     image_guidance_scale: 3.0
     cfg_range_start: 0.0
@@ -482,7 +482,7 @@ examples:
     num_inference_steps: 50
     input_image: "https://raw.githubusercontent.com/VectorSpaceLab/OmniGen2/32399044e5d280fe5b2782443e72690ffad242eb/example_images/saml-altman-openai-ceo.webp"
     input_image2: "https://raw.githubusercontent.com/VectorSpaceLab/OmniGen2/32399044e5d280fe5b2782443e72690ffad242eb/example_images/elon-twitter-new-ceo.webp"
-    input_image3: None
+    input_image3: null
     text_guidance_scale: 5.0
     image_guidance_scale: 3.0
     cfg_range_start: 0.0
@@ -499,7 +499,7 @@ examples:
     num_inference_steps: 50
     input_image: "https://raw.githubusercontent.com/VectorSpaceLab/OmniGen2/32399044e5d280fe5b2782443e72690ffad242eb/example_images/man1.webp"
     input_image2: "https://raw.githubusercontent.com/VectorSpaceLab/OmniGen2/32399044e5d280fe5b2782443e72690ffad242eb/example_images/woman1.webp"
-    input_image3: None
+    input_image3: null
     text_guidance_scale: 5.0
     image_guidance_scale: 3.0
     cfg_range_start: 0.0
@@ -516,7 +516,7 @@ examples:
     num_inference_steps: 50
     input_image: "https://raw.githubusercontent.com/VectorSpaceLab/OmniGen2/32399044e5d280fe5b2782443e72690ffad242eb/example_images/saml-altman-openai-ceo.webp"
     input_image2: "https://raw.githubusercontent.com/VectorSpaceLab/OmniGen2/32399044e5d280fe5b2782443e72690ffad242eb/example_images/elon-twitter-new-ceo.webp"
-    input_image3: None
+    input_image3: null
     text_guidance_scale: 5.0
     image_guidance_scale: 3.0
     cfg_range_start: 0.0
@@ -533,7 +533,7 @@ examples:
     num_inference_steps: 50
     input_image: "https://raw.githubusercontent.com/VectorSpaceLab/OmniGen2/32399044e5d280fe5b2782443e72690ffad242eb/example_images/1_20241127203215.png"
     input_image2: "https://raw.githubusercontent.com/VectorSpaceLab/OmniGen2/32399044e5d280fe5b2782443e72690ffad242eb/example_images/000050281.jpg"
-    input_image3: None
+    input_image3: null
     text_guidance_scale: 5.0
     image_guidance_scale: 3.0
     cfg_range_start: 0.0
@@ -550,7 +550,7 @@ examples:
     num_inference_steps: 50
     input_image: "https://raw.githubusercontent.com/VectorSpaceLab/OmniGen2/32399044e5d280fe5b2782443e72690ffad242eb/example_images/8FtFUxRzXqaguVRGzkHvN.png"
     input_image2: "https://raw.githubusercontent.com/VectorSpaceLab/OmniGen2/32399044e5d280fe5b2782443e72690ffad242eb/example_images/01194-20240127001056_1024x1536.png"
-    input_image3: None
+    input_image3: null
     text_guidance_scale: 5.0
     image_guidance_scale: 3.0
     cfg_range_start: 0.0
@@ -567,7 +567,7 @@ examples:
     num_inference_steps: 50
     input_image: "https://raw.githubusercontent.com/VectorSpaceLab/OmniGen2/32399044e5d280fe5b2782443e72690ffad242eb/example_images/1280X1280.png"
     input_image2: "https://raw.githubusercontent.com/VectorSpaceLab/OmniGen2/32399044e5d280fe5b2782443e72690ffad242eb/example_images/000077066.jpg"
-    input_image3: None
+    input_image3: null
     text_guidance_scale: 5.0
     image_guidance_scale: 2.0
     cfg_range_start: 0.0
@@ -584,7 +584,7 @@ examples:
     num_inference_steps: 50
     input_image: "https://raw.githubusercontent.com/VectorSpaceLab/OmniGen2/32399044e5d280fe5b2782443e72690ffad242eb/example_images/04.jpg"
     input_image2: "https://raw.githubusercontent.com/VectorSpaceLab/OmniGen2/32399044e5d280fe5b2782443e72690ffad242eb/example_images/000365954.jpg"
-    input_image3: None
+    input_image3: null
     text_guidance_scale: 5.0
     image_guidance_scale: 2.0
     cfg_range_start: 0.0
@@ -601,7 +601,7 @@ examples:
     num_inference_steps: 50
     input_image: "https://raw.githubusercontent.com/VectorSpaceLab/OmniGen2/32399044e5d280fe5b2782443e72690ffad242eb/example_images/000440817.jpg"
     input_image2: "https://raw.githubusercontent.com/VectorSpaceLab/OmniGen2/32399044e5d280fe5b2782443e72690ffad242eb/example_images/000119733.jpg"
-    input_image3: None
+    input_image3: null
     text_guidance_scale: 5.0
     image_guidance_scale: 2.0
     cfg_range_start: 0.0
