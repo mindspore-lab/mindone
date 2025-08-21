@@ -1,5 +1,8 @@
 # Copyright 2024 The HuggingFace Inc. team.
 #
+# This code is adapted from https://github.com/huggingface/transformers
+# with modifications to run transformers on mindspore.
+#
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -17,6 +20,7 @@ from functools import lru_cache, partial
 from typing import Any, Optional, TypedDict, Union
 
 import numpy as np
+from PIL import Image
 from transformers.utils import add_start_docstrings, logging
 
 from mindspore import mint
@@ -44,7 +48,7 @@ from .image_utils import (
     validate_preprocess_arguments,
 )
 from .processing_utils import Unpack
-from .utils import TensorType, is_mindspore_available, is_vision_available
+from .utils import TensorType, is_mindspore_available, is_mindspore_tensor, is_vision_available
 
 if is_vision_available():
     from .image_utils import PILImageResampling
@@ -95,9 +99,6 @@ def validate_fast_preprocess_arguments(
         size=size,
         resample=resample,
     )
-    # Extra checks for ImageProcessorFast
-    if return_tensors is not None and return_tensors != "ms":
-        raise ValueError("Only returning MindSpore tensors is currently supported.")
 
     if data_format != ChannelDimension.FIRST:
         raise ValueError("Only channel first data format is currently supported.")
@@ -323,7 +324,7 @@ class BaseImageProcessorFast(BaseImageProcessor):
         Resize an image to `(size["height"], size["width"])`.
 
         Args:
-            image (`torch.Tensor`):
+            image (`ms.tensor`):
                 Image to resize.
             size (`SizeDict`):
                 Dictionary in the format `{"height": int, "width": int}` specifying the size of the output image.
@@ -331,7 +332,7 @@ class BaseImageProcessorFast(BaseImageProcessor):
                 `InterpolationMode` filter to use when resizing the image e.g. `InterpolationMode.BICUBIC`.
 
         Returns:
-            `torch.Tensor`: The resized image.
+            `ms.tensor`: The resized image.
         """
         interpolation = interpolation if interpolation is not None else InterpolationMode.BILINEAR
         if size.shortest_edge and size.longest_edge:
@@ -360,7 +361,11 @@ class BaseImageProcessorFast(BaseImageProcessor):
             )
         # Fixme different with torchvision resize, which has inout `antialias`
         resize = vision.Resize(new_size, interpolation=interpolation)
-        return resize(image)
+        # image ms.tensor-->numpy-->PIL
+        image = image.permute(1, 2, 0).asnumpy()
+        image = (image * 255).clip(0, 255).astype(np.uint8)
+        image = Image.fromarray(image)
+        return ms.tensor(np.array(resize(image))).permute(2, 0, 1)
 
     def rescale(
         self,
@@ -393,21 +398,24 @@ class BaseImageProcessorFast(BaseImageProcessor):
         Normalize an image. image = (image - image_mean) / image_std.
 
         Args:
-            image (`torch.Tensor`):
+            image (`ms.Tensor`):
                 Image to normalize.
-            mean (`torch.Tensor`, `float` or `Iterable[float]`):
+            mean (`ms.tensor`, `float` or `Iterable[float]`):
                 Image mean to use for normalization.
-            std (`torch.Tensor`, `float` or `Iterable[float]`):
+            std (`ms.tensor`, `float` or `Iterable[float]`):
                 Image standard deviation to use for normalization.
 
         Returns:
-            `torch.Tensor`: The normalized image.
+            `ms.tensor`: The normalized image.
         """
+        mean = [float(mean[0]), float(mean[1]), float(mean[2])]
+        std = [float(std[0]), float(std[1]), float(std[2])]
+        image = image.squeeze(0).permute(1, 2, 0).asnumpy()
         normalize = vision.Normalize(
             mean=mean,
             std=std,
         )
-        return normalize(image)
+        return ms.tensor(normalize(image)).permute(2, 0, 1).unsqueeze(0)
 
     @lru_cache(maxsize=10)
     def _fuse_mean_std_and_rescale_factor(
@@ -463,13 +471,13 @@ class BaseImageProcessorFast(BaseImageProcessor):
         any edge, the image is padded with 0's and then center cropped.
 
         Args:
-            image (`"torch.Tensor"`):
+            image (`"ms.tensor"`):
                 Image to center crop.
             size (`Dict[str, int]`):
                 Size of the output image.
 
         Returns:
-            `ms.Tensor`: The center cropped image.
+            `ms.tensor`: The center cropped image.
         """
         if size.height is None or size.width is None:
             raise ValueError(f"The size dictionary must have keys 'height' and 'width'. Got {size.keys()}")
@@ -645,6 +653,7 @@ class BaseImageProcessorFast(BaseImageProcessor):
 
     @add_start_docstrings(BASE_IMAGE_PROCESSOR_FAST_DOCSTRING_PREPROCESS)
     def preprocess(self, images: ImageInput, **kwargs: Unpack[DefaultFastImageProcessorKwargs]) -> BatchFeature:
+        logger.warning("Please use FastImageProcessor cautiously. It may not have better inference performance!")
         validate_kwargs(captured_kwargs=kwargs.keys(), valid_processor_keys=self.valid_kwargs.__annotations__.keys())
         # Set default kwargs from self. This ensures that if a kwarg is not provided
         # by the user, it gets its default value from the instance, or is set to None.
@@ -700,8 +709,12 @@ class BaseImageProcessorFast(BaseImageProcessor):
         resized_images_grouped = {}
         for shape, stacked_images in grouped_images.items():
             if do_resize:
-                stacked_images = self.resize(image=stacked_images, size=size, interpolation=interpolation)
-            resized_images_grouped[shape] = stacked_images
+                stacked_images_updated = []
+                for i in range(len(stacked_images)):
+                    stacked_images_updated.append(
+                        self.resize(image=stacked_images[i], size=size, interpolation=interpolation)
+                    )
+            resized_images_grouped[shape] = stacked_images_updated
         resized_images = reorder_images(resized_images_grouped, grouped_images_index)
 
         # Group images by size for further processing
@@ -743,7 +756,7 @@ class SemanticSegmentationMixin:
         Returns:
             semantic_segmentation: `List[ms.Tensor]` of length `batch_size`, where each item is a semantic
             segmentation map of shape (height, width) corresponding to the target_sizes entry (if `target_sizes` is
-            specified). Each entry of each `torch.Tensor` correspond to a semantic class id.
+            specified). Each entry of each `ms.tensor` correspond to a semantic class id.
         """
         logits = outputs.logits
 
@@ -752,8 +765,8 @@ class SemanticSegmentationMixin:
             if len(logits) != len(target_sizes):
                 raise ValueError("Make sure that you pass in as many target sizes as the batch dimension of the logits")
 
-            # if is_torch_tensor(target_sizes):
-            #     target_sizes = target_sizes.numpy()
+            if is_mindspore_tensor(target_sizes):
+                target_sizes = target_sizes.asnumpy()
 
             semantic_segmentation = []
 
