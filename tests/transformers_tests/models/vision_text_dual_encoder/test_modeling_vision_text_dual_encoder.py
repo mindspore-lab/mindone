@@ -76,8 +76,8 @@ class ViTBertModelTest:
             choice_labels,
         ) = text_config_and_inputs
 
-        vision_config.__attn_implementation_internal = "eager"
-        vision_config.__attn_implementation_internal = "eager"
+        vision_config._attn_implementation_internal = "eager"
+        text_config._attn_implementation_internal = "eager"
 
         return {
             "text_config": text_config,
@@ -96,7 +96,7 @@ class ViTBertModelTest:
         vision_config = config_and_inputs["vision_config"]
         text_config = config_and_inputs["text_config"]
         config = VisionTextDualEncoderConfig.from_vision_text_configs(vision_config, text_config)
-        config.__attn_implementation_internal = "eager"
+        config._attn_implementation_internal = "eager"
 
         inputs_dict = {
             "pixel_values": config_and_inputs["pixel_values"],
@@ -145,8 +145,8 @@ class CLIPVisionBertModelTest:
             choice_labels,
         ) = text_config_and_inputs
 
-        vision_config.__attn_implementation_internal = "eager"
-        vision_config.__attn_implementation_internal = "eager"
+        vision_config._attn_implementation_internal = "eager"
+        text_config._attn_implementation_internal = "eager"
 
         return {
             "text_config": text_config,
@@ -165,7 +165,7 @@ class CLIPVisionBertModelTest:
         vision_config = config_and_inputs["vision_config"]
         text_config = config_and_inputs["text_config"]
         config = VisionTextDualEncoderConfig.from_vision_text_configs(vision_config, text_config)
-        config.__attn_implementation_internal = "eager"
+        config._attn_implementation_internal = "eager"
         inputs_dict = {
             "pixel_values": config_and_inputs["pixel_values"],
             "attention_mask": config_and_inputs["attention_mask"],
