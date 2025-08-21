@@ -12,11 +12,7 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-import mindspore as ms
-from mindspore import mint, nn
-
 """ALIGN model."""
-
 import math
 from dataclasses import dataclass
 from typing import Any, Optional, Tuple, Union
@@ -30,9 +26,13 @@ from transformers.utils import (
     replace_return_docstrings,
 )
 
+import mindspore as ms
+from mindspore import mint, nn
+
+from mindone.models.utils import constant_, normal_, xavier_uniform_
+
 from ...activations import ACT2FN
 from ...mindspore_utils import apply_chunking_to_forward, find_pruneable_heads_and_indices, prune_linear_layer
-from mindone.models.utils import constant_, normal_, xavier_uniform_
 from ...modeling_outputs import (
     BaseModelOutputWithNoAttention,
     BaseModelOutputWithPastAndCrossAttentions,
@@ -1618,7 +1618,9 @@ class AlignModel(AlignPreTrainedModel):
         image_embeds = vision_outputs[1]
         text_embeds = text_outputs[0][:, 0, :]
         text_embeds = self.text_projection(text_embeds)
-        image_embeds = image_embeds.to(text_embeds.dtype)  # FIXME: this is a temporary fix for dtype mismatch between text and image
+        image_embeds = image_embeds.to(
+            text_embeds.dtype
+        )  # FIXME: this is a temporary fix for dtype mismatch between text and image
 
         # normalized features
         image_embeds = image_embeds / mint.linalg.norm(image_embeds, ord=2, dim=-1, keepdim=True)
