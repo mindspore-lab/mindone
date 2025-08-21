@@ -2719,7 +2719,9 @@ class PreTrainedModel(nn.Cell, EmbeddingAccessMixin, ModuleUtilsMixin, Generatio
             with safe_open(resolved_archive_file, framework="np") as f:
                 metadata = f.metadata()
 
-            if metadata.get("format") in ("np", "pt"):
+            if metadata is None:
+                pass
+            elif metadata.get("format") in ("np", "pt"):
                 pass
             elif metadata.get("format") == "tf":
                 from_tf = True
