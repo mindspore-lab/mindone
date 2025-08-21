@@ -311,6 +311,9 @@ class Ernie4_5PreTrainedModel(PreTrainedModel):
 
     _can_compile_fullgraph = False
     _supports_attention_backend = True
+
+    # fixme generation uitls generate cache logic should be considered again
+    _supports_dynamic_input = True
     _can_record_outputs = {
         "hidden_states": Ernie4_5DecoderLayer,
         "attentions": Ernie4_5Attention,
