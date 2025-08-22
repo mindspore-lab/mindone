@@ -859,11 +859,13 @@ class AutoencoderKLQwenImage(ModelMixin, ConfigMixin, FromOriginalModelMixin):
             h = mint.cat(encoded_slices)
         else:
             h = self._encode(x)
-        posterior = DiagonalGaussianDistribution(h)
+
+        # we cannot use class in grapha mode, even for jit_class or subclass of Tensor. :-(    
+        # posterior = DiagonalGaussianDistribution(h)
 
         if not return_dict:
-            return (posterior,)
-        return AutoencoderKLOutput(latent_dist=posterior)
+            return (h,)
+        return AutoencoderKLOutput(latent_dist=h)
 
     def _decode(self, z: ms.Tensor, return_dict: bool = True):
         _, _, num_frame, height, width = z.shape

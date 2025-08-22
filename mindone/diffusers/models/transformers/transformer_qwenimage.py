@@ -301,16 +301,10 @@ class QwenDoubleStreamAttnProcessor2_0:
         img_query = unflatten(img_query, -1, (attn.heads, -1))
         img_key = unflatten(img_key, -1, (attn.heads, -1))
         img_value = unflatten(img_value, -1, (attn.heads, -1))
-        # img_query = img_query.unflatten(-1, (attn.heads, -1))
-        # img_key = img_key.unflatten(-1, (attn.heads, -1))
-        # img_value = img_value.unflatten(-1, (attn.heads, -1))
 
         txt_query = unflatten(txt_query, -1, (attn.heads, -1))
         txt_key = unflatten(txt_key, -1, (attn.heads, -1))
         txt_value = unflatten(txt_value, -1, (attn.heads, -1))
-        # txt_query = txt_query.unflatten(-1, (attn.heads, -1))
-        # txt_key = txt_key.unflatten(-1, (attn.heads, -1))
-        # txt_value = txt_value.unflatten(-1, (attn.heads, -1))
 
         # Apply QK normalization
         if attn.norm_q is not None:
