@@ -1,6 +1,6 @@
 """
 Adapted from https://github.com/pytorch/vision/blob/release/0.21/torchvision/transforms/functional.py
-and https://github.com/VectorSpaceLab/OmniGen2
+and https://github.com/VectorSpaceLab/OmniGen2/blob/main/omnigen2/utils/img_util.py
 """
 
 import sys

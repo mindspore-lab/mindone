@@ -1,3 +1,4 @@
+# Adapted from https://github.com/VectorSpaceLab/OmniGen2/blob/main/app.py
 import os
 import random
 from concurrent.futures import ThreadPoolExecutor
@@ -92,6 +93,7 @@ def run(
     max_input_image_side_length,
     max_pixels,
     seed_input,
+    chat_mode: bool = False,
     progress=gr.Progress(),
 ):
     input_images = [image_input_1, image_input_2, image_input_3]
@@ -137,7 +139,7 @@ def run(
 
     progress(1.0)
 
-    if results.text.startswith("<|img|>"):
+    if not chat_mode or results.text.startswith("<|img|>"):
         vis_images = [np.array(image, dtype=np.float32) / 127.5 - 1 for image in results.images]
         output_image = create_collage(vis_images)
 
@@ -223,6 +225,7 @@ def run_for_examples(
     max_input_image_side_length,
     max_pixels,
     seed_input,
+    chat_mode: bool = False,
 ):
     return run(
         instruction,
@@ -242,6 +245,7 @@ def run_for_examples(
         max_input_image_side_length,
         max_pixels,
         seed_input,
+        chat_mode,
     )
 
 
@@ -432,6 +436,7 @@ def main(args):
                 max_input_image_side_length,
                 max_pixels,
                 seed_input,
+                args.chat_mode,
             ],
             outputs=[output_image, output_text],
         )
@@ -457,6 +462,7 @@ def main(args):
                 max_input_image_side_length,
                 max_pixels,
                 seed_input,
+                args.chat_mode,
             ],
             outputs=[output_image, output_text],
         )

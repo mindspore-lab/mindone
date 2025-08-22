@@ -1,3 +1,4 @@
+# Adapted from https://github.com/VectorSpaceLab/OmniGen2/blob/main/omnigen2/models/transformers/block_lumina2.py
 # Copyright 2024 Alpha-VLLM Authors and The HuggingFace Team. All rights reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");

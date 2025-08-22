@@ -1,3 +1,4 @@
+# Adapted from https://github.com/VectorSpaceLab/OmniGen2/blob/main/omnigen2/utils/reproducibility.py
 import random
 
 import numpy as np

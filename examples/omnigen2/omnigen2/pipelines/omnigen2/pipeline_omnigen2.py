@@ -1,3 +1,4 @@
+# Adapted from https://github.com/VectorSpaceLab/OmniGen2/blob/main/omnigen2/pipelines/omnigen2/pipeline_omnigen2.py
 """
 OmniGen2 Diffusion Pipeline
 

@@ -1,3 +1,4 @@
+# Adapted from https://github.com/VectorSpaceLab/OmniGen2/blob/main/inference.py
 import argparse
 import os
 from typing import Union

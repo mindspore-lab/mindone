@@ -1,3 +1,4 @@
+# Adapted from https://github.com/VectorSpaceLab/OmniGen2/blob/main/omnigen2/transport/utils.py
 import math
 
 import mindspore as ms

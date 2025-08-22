@@ -1,3 +1,4 @@
+# Adapted from https://github.com/VectorSpaceLab/OmniGen2/blob/main/omnigen2/transport/__init__.py
 from .transport import ModelType, PathType, Transport, WeightType
 
 

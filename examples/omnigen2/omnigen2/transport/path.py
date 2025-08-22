@@ -1,3 +1,4 @@
+# Adapted from https://github.com/VectorSpaceLab/OmniGen2/blob/main/omnigen2/transport/path.py
 import numpy as np
 
 from mindspore import mint

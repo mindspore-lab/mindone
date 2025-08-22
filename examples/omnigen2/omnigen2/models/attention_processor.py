@@ -1,3 +1,4 @@
+# Adapted from https://github.com/VectorSpaceLab/OmniGen2/blob/main/omnigen2/models/attention_processor.py
 """
 OmniGen2 Attention Processor Module
 

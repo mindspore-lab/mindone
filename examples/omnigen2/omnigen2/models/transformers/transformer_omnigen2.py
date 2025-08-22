@@ -1,3 +1,4 @@
+# Adapted from https://github.com/VectorSpaceLab/OmniGen2/blob/main/omnigen2/models/transformers/transformer_omnigen2.py
 import itertools
 from typing import Any, Optional, Union
 

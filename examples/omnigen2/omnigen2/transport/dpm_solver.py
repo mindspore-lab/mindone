@@ -1,3 +1,4 @@
+# Adapted from https://github.com/VectorSpaceLab/OmniGen2/blob/main/omnigen2/transport/dpm_solver.py
 # Copyright 2024 NVIDIA CORPORATION & AFFILIATES
 #
 # Licensed under the Apache License, Version 2.0 (the "License");

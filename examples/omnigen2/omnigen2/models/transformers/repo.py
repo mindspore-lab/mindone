@@ -1,3 +1,4 @@
+# Adapted from https://github.com/VectorSpaceLab/OmniGen2/blob/main/omnigen2/models/transformers/repo.py
 from einops import repeat
 
 import mindspore as ms
