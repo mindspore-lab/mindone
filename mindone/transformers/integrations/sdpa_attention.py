@@ -21,6 +21,10 @@ def repeat_kv(hidden_states: ms.Tensor, n_rep: int) -> ms.Tensor:
     hidden_states = hidden_states[:, :, None, :, :].expand((batch, num_key_value_heads, n_rep, slen, head_dim))
     return hidden_states.reshape(batch, num_key_value_heads * n_rep, slen, head_dim)
 
+def use_gqa_in_sdpa(attention_mask: Optional[ms.Tensor], key: ms.Tensor) -> bool:
+    # GQA is not supported yet.
+    return False
+
 
 def sdpa_attention_forward(
     module: nn.Cell,
@@ -38,10 +42,13 @@ def sdpa_attention_forward(
             "`sdpa` attention does not support `output_attentions=True` or `head_mask`."
             " Please set your attention to `eager` if you want any of these features."
         )
-
+    sdpa_kwargs = {}
     if hasattr(module, "num_key_value_groups"):
-        key = repeat_kv(key, module.num_key_value_groups)
-        value = repeat_kv(value, module.num_key_value_groups)
+        if not use_gqa_in_sdpa(attention_mask, key):
+            key = repeat_kv(key, module.num_key_value_groups)
+            value = repeat_kv(value, module.num_key_value_groups)
+        else:
+            sdpa_kwargs = {"enable_gqa": True}
 
     if attention_mask is not None and attention_mask.ndim == 4:
         attention_mask = attention_mask[:, :, :, : key.shape[-2]]
@@ -73,6 +80,7 @@ def sdpa_attention_forward(
         atten_mask=attention_mask,
         scale=scaling,
         keep_prob=1 - dropout,
+        **sdpa_kwargs,
     )[0]
     attn_output = mint.transpose(attn_output, 1, 2).contiguous()
 
