@@ -37,7 +37,7 @@ import numpy as np
 from .import_utils import is_mindspore_available
 
 if is_mindspore_available():
-    import mindspore as ms # noqa: F401
+    import mindspore as ms  # noqa: F401
 
 _CAN_RECORD_REGISTRY = {}
 
@@ -139,7 +139,7 @@ def is_numpy_array(x):
 
 
 def _is_mindspore(x):
-    import mindspore
+    import mindspore as ms
 
     return isinstance(x, ms.Tensor)
 
@@ -753,7 +753,7 @@ def is_timm_local_checkpoint(pretrained_model_path: str) -> bool:
     return False
 
 
-def set_attribute_for_modules(module: "mindspore.nn.Cell", key: str, value: Any):
+def set_attribute_for_modules(module: "ms.nn.Cell", key: str, value: Any):
     """
     Set a value to a module and all submodules.
     """
@@ -762,7 +762,7 @@ def set_attribute_for_modules(module: "mindspore.nn.Cell", key: str, value: Any)
         set_attribute_for_modules(submodule, key, value)
 
 
-def del_attribute_from_modules(module: "mindspore.nn.Cell", key: str):
+def del_attribute_from_modules(module: "ms.nn.Cell", key: str):
     """
     Delete a value from a module and all submodules.
     """
@@ -808,7 +808,7 @@ class OutputRecorder:
         layer_name (Optional[str]): Name of the submodule to target (if needed), e.g., "transformer.layer.3.attn".
     """
 
-    target_class: "type[mindspore.nn.Cell]"
+    target_class: "type[ms.nn.Cell]"
     index: Optional[int] = 0
     layer_name: Optional[str] = None
 

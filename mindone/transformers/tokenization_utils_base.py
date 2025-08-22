@@ -1623,7 +1623,9 @@ class PreTrainedTokenizerBase(SpecialTokensMixin, PushToHubMixin):
         if continue_final_message:
             if add_generation_prompt:
                 raise ValueError(
-                    "continue_final_message and add_generation_prompt are not compatible. Use continue_final_message when you want the model to continue the final message, and add_generation_prompt when you want to add a header that will prompt it to start a new assistant message instead."
+                    "continue_final_message and add_generation_prompt are not compatible. \
+                    Use continue_final_message when you want the model to continue the final message, \
+                        and add_generation_prompt when you want to add a header that will prompt it to start a new assistant message instead."
                 )
             if return_assistant_tokens_mask:
                 raise ValueError("continue_final_message is not compatible with return_assistant_tokens_mask.")
@@ -2164,7 +2166,7 @@ class PreTrainedTokenizerBase(SpecialTokensMixin, PushToHubMixin):
             init_kwargs["__slow_tokenizer"] = slow_tokenizer
         init_kwargs["name_or_path"] = pretrained_model_name_or_path
 
-        #### Handle tokenizer serialization of added and special tokens
+        # Handle tokenizer serialization of added and special tokens
         added_tokens_decoder: dict[int, AddedToken] = {}
         added_tokens_map: dict[str, AddedToken] = {}
         # if we have info on the slow added tokens
@@ -2927,7 +2929,7 @@ class PreTrainedTokenizerBase(SpecialTokensMixin, PushToHubMixin):
                 )
             if text_pair is not None and len(text) != len(text_pair):
                 raise ValueError(
-                    f"batch length of `text`: {len(text)} does not match batch length of `text_pair`:"
+                    f"batch length of `text`: {len(text)} does not match batch length of `text_pair`: "
                     f" {len(text_pair)}."
                 )
             batch_text_or_text_pairs = list(zip(text, text_pair)) if text_pair is not None else text
@@ -3116,7 +3118,8 @@ class PreTrainedTokenizerBase(SpecialTokensMixin, PushToHubMixin):
         </Tip>
 
         Args:
-            batch_text_or_text_pairs (`list[str]`, `list[tuple[str, str]]`, `list[list[str]]`, `list[tuple[list[str], list[str]]]`, and for not-fast tokenizers, also `list[list[int]]`, `list[tuple[list[int], list[int]]]`):
+            batch_text_or_text_pairs (`list[str]`, `list[tuple[str, str]]`, `list[list[str]]`, \
+                `list[tuple[list[str], list[str]]]`, and for not-fast tokenizers, also `list[list[int]]`, `list[tuple[list[int], list[int]]]`):
                 Batch of sequences or pair of sequences to be encoded. This can be a list of
                 string/string-sequences/int-sequences or a list of pair of string/string-sequences/int-sequence (see
                 details in `encode_plus`).
@@ -3645,7 +3648,7 @@ class PreTrainedTokenizerBase(SpecialTokensMixin, PushToHubMixin):
                 ids = ids[ids_to_move:]
                 pair_ids = pair_ids[pair_ids_to_move:] if pair_ids is not None else None
             else:
-                raise ValueError(f"invalid truncation strategy:{self.truncation_side}")
+                raise ValueError(f"invalid truncation strategy: {self.truncation_side}")
 
         elif truncation_strategy == TruncationStrategy.ONLY_SECOND and pair_ids is not None:
             if len(pair_ids) > num_tokens_to_remove:
@@ -3657,7 +3660,7 @@ class PreTrainedTokenizerBase(SpecialTokensMixin, PushToHubMixin):
                     overflowing_tokens = pair_ids[:window_len]
                     pair_ids = pair_ids[num_tokens_to_remove:]
                 else:
-                    raise ValueError(f"invalid truncation strategy:{self.truncation_side}")
+                    raise ValueError(f"invalid truncation strategy: {self.truncation_side}")
             else:
                 logger.error(
                     f"We need to remove {num_tokens_to_remove} to truncate the input "
@@ -3746,7 +3749,7 @@ class PreTrainedTokenizerBase(SpecialTokensMixin, PushToHubMixin):
                     encoded_inputs["special_tokens_mask"] = [1] * difference + encoded_inputs["special_tokens_mask"]
                 encoded_inputs[self.model_input_names[0]] = [self.pad_token_id] * difference + required_input
             else:
-                raise ValueError(f"Invalid padding strategy:{padding_side}")
+                raise ValueError(f"Invalid padding strategy: {padding_side}")
 
         return encoded_inputs
 

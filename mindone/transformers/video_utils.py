@@ -53,12 +53,12 @@ logger = logging.get_logger(__name__)
 VideoInput = Union[
     list["PIL.Image.Image"],
     "np.ndarray",
-    "mindspore.Tensor",
+    "ms.Tensor",
     list["np.ndarray"],
-    list["mindspore.Tensor"],
+    list["ms.Tensor"],
     list[list["PIL.Image.Image"]],
     list[list["np.ndarrray"]],
-    list[list["mindspore.Tensor"]],
+    list[list["ms.Tensor"]],
 ]  # noqa
 
 
@@ -113,7 +113,7 @@ def is_scaled_video(video: np.ndarray) -> bool:
     return np.min(video) >= 0 and np.max(video) <= 1
 
 
-def convert_pil_frames_to_video(videos: list[VideoInput]) -> list[Union["np.ndarray", "mindspore.Tensor"]]:
+def convert_pil_frames_to_video(videos: list[VideoInput]) -> list[Union["np.ndarray", "ms.Tensor"]]:
     """
     Given a batch of videos, converts each video to a 4D array. If video is already in array type,
     it is simply returned. We assume that all inputs in the list are in the same format, based on the type of the first element.
@@ -134,7 +134,7 @@ def convert_pil_frames_to_video(videos: list[VideoInput]) -> list[Union["np.ndar
     return video_converted
 
 
-def make_batched_videos(videos) -> list[Union["np.ndarray", "mindspore.Tensor"]]:
+def make_batched_videos(videos) -> list[Union["np.ndarray", "ms.Tensor"]]:
     """
     Ensure that the input is a list of videos. If the input is a single video, it is converted to a list of length 1.
     If the input is a batch of videos, it is converted to a list of 4D video arrays. Videos passed as list `PIL.Image`
@@ -681,8 +681,8 @@ def pad(
 
 
 def group_videos_by_shape(
-    videos: list["mindspore.Tensor"],
-) -> tuple[dict[tuple[int, int], list["mindspore.Tensor"]], dict[int, tuple[tuple[int, int], int]]]:
+    videos: list["ms.Tensor"],
+) -> tuple[dict[tuple[int, int], list["ms.Tensor"]], dict[int, tuple[tuple[int, int], int]]]:
     """
     Groups videos by shape.
     Returns a dictionary with the shape as key and a list of videos with that shape as value,
@@ -704,8 +704,8 @@ def group_videos_by_shape(
 
 
 def reorder_videos(
-    processed_videos: dict[tuple[int, int], "mindspore.Tensor"], grouped_videos_index: dict[int, tuple[int, int]]
-) -> list["mindspore.Tensor"]:
+    processed_videos: dict[tuple[int, int], "ms.Tensor"], grouped_videos_index: dict[int, tuple[int, int]]
+) -> list["ms.Tensor"]:
     """
     Reconstructs a list of videos in the original order.
     """

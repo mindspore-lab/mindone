@@ -21,8 +21,9 @@ from typing import Callable, Optional, Union
 from transformers.configuration_utils import PretrainedConfig
 
 import mindspore as ms
-from mindspore import mint
 import mindspore.mint.functional as F
+from mindspore import mint
+
 from .cache_utils import Cache
 from .modeling_attn_mask_utils import dtype_to_min
 from .utils.generic import GeneralInterface

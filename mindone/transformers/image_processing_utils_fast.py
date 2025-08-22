@@ -24,7 +24,6 @@ import numpy as np
 from PIL import Image
 from transformers.utils import auto_docstring, logging
 
-
 from .image_processing_utils import BaseImageProcessor, BatchFeature, get_size_dict
 from .image_transforms import (
     convert_to_rgb,
@@ -55,8 +54,8 @@ if is_vision_available():
 
 if is_mindspore_available():
     import mindspore as ms
-    from mindspore import mint
     import mindspore.mint.functional as F
+    from mindspore import mint
     from mindspore.dataset import vision
     from mindspore.dataset.vision import Inter as InterpolationMode
 
