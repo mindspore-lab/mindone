@@ -568,6 +568,13 @@ from .models.speecht5 import (
     SpeechT5Model,
     SpeechT5PreTrainedModel,
 )
+from .models.stablelm import (
+    StableLmForCausalLM,
+    StableLmForSequenceClassification,
+    StableLmForTokenClassification,
+    StableLmModel,
+    StableLmPreTrainedModel,
+)
 from .models.starcoder2 import (
     Starcoder2ForCausalLM,
     Starcoder2ForSequenceClassification,
@@ -581,13 +588,6 @@ from .models.swin import (
     SwinForMaskedImageModeling,
     SwinModel,
     SwinPreTrainedModel,
-)
-from .models.stablelm import (
-    StableLmForCausalLM,
-    StableLmForSequenceClassification,
-    StableLmForTokenClassification,
-    StableLmModel,
-    StableLmPreTrainedModel,
 )
 from .models.switch_transformers import (
     SwitchTransformersEncoderModel,
