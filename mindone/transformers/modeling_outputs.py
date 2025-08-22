@@ -20,6 +20,7 @@ from typing import Optional, Tuple
 
 from transformers.utils import ModelOutput
 
+from .cache_utils import Cache, EncoderDecoderCache
 import mindspore as ms
 
 
@@ -44,7 +45,7 @@ class BaseModelOutput(ModelOutput):
             heads.
     """
 
-    last_hidden_state: ms.Tensor = None
+    last_hidden_state: Optional[ms.Tensor] = None
     hidden_states: Optional[Tuple[ms.Tensor, ...]] = None
     attentions: Optional[Tuple[ms.Tensor, ...]] = None
 
@@ -64,7 +65,7 @@ class BaseModelOutputWithNoAttention(ModelOutput):
             Hidden-states of the model at the output of each layer plus the optional initial embedding outputs.
     """
 
-    last_hidden_state: ms.Tensor = None
+    last_hidden_state: Optional[ms.Tensor] = None
     hidden_states: Optional[Tuple[ms.Tensor, ...]] = None
 
 
@@ -94,8 +95,8 @@ class BaseModelOutputWithPooling(ModelOutput):
             heads.
     """
 
-    last_hidden_state: ms.Tensor = None
-    pooler_output: ms.Tensor = None
+    last_hidden_state: Optional[ms.Tensor] = None
+    pooler_output: Optional[ms.Tensor] = None
     hidden_states: Optional[Tuple[ms.Tensor, ...]] = None
     attentions: Optional[Tuple[ms.Tensor, ...]] = None
 
@@ -117,8 +118,8 @@ class BaseModelOutputWithPoolingAndNoAttention(ModelOutput):
             Hidden-states of the model at the output of each layer plus the optional initial embedding outputs.
     """
 
-    last_hidden_state: ms.Tensor = None
-    pooler_output: ms.Tensor = None
+    last_hidden_state: Optional[ms.Tensor] = None
+    pooler_output: Optional[ms.Tensor] = None
     hidden_states: Optional[Tuple[ms.Tensor, ...]] = None
 
 
@@ -133,11 +134,8 @@ class BaseModelOutputWithPast(ModelOutput):
 
             If `past_key_values` is used only the last hidden-state of the sequences of shape `(batch_size, 1,
             hidden_size)` is output.
-        past_key_values (`tuple(tuple(ms.Tensor))`, *optional*, returned when `use_cache=True` is passed or when `config.use_cache=True`):
-            Tuple of `tuple(ms.Tensor)` of length `config.n_layers`, with each tuple having 2 tensors of shape
-            `(batch_size, num_heads, sequence_length, embed_size_per_head)`) and optionally if
-            `config.is_encoder_decoder=True` 2 additional tensors of shape `(batch_size, num_heads,
-            encoder_sequence_length, embed_size_per_head)`.
+        past_key_values (`Cache`, *optional*, returned when `use_cache=True` is passed or when `config.use_cache=True`):
+            It is a [`~cache_utils.Cache`] instance. For more details, see our [kv cache guide](https://huggingface.co/docs/transformers/en/kv_cache).
 
             Contains pre-computed hidden-states (key and values in the self-attention blocks and optionally if
             `config.is_encoder_decoder=True` in the cross-attention blocks) that can be used (see `past_key_values`
@@ -155,8 +153,8 @@ class BaseModelOutputWithPast(ModelOutput):
             heads.
     """
 
-    last_hidden_state: ms.Tensor = None
-    past_key_values: Optional[Tuple[Tuple[ms.Tensor]]] = None
+    last_hidden_state: Optional[ms.Tensor] = None
+    past_key_values: Optional[Cache] = None
     hidden_states: Optional[Tuple[ms.Tensor, ...]] = None
     attentions: Optional[Tuple[ms.Tensor, ...]] = None
 
@@ -189,7 +187,7 @@ class BaseModelOutputWithCrossAttentions(ModelOutput):
             weighted average in the cross-attention heads.
     """
 
-    last_hidden_state: ms.Tensor = None
+    last_hidden_state: Optional[ms.Tensor] = None
     hidden_states: Optional[Tuple[ms.Tensor, ...]] = None
     attentions: Optional[Tuple[ms.Tensor, ...]] = None
     cross_attentions: Optional[Tuple[ms.Tensor, ...]] = None
@@ -226,21 +224,18 @@ class BaseModelOutputWithPoolingAndCrossAttentions(ModelOutput):
 
             Attentions weights of the decoder's cross-attention layer, after the attention softmax, used to compute the
             weighted average in the cross-attention heads.
-        past_key_values (`tuple(tuple(ms.Tensor))`, *optional*, returned when `use_cache=True` is passed or when `config.use_cache=True`):
-            Tuple of `tuple(ms.Tensor)` of length `config.n_layers`, with each tuple having 2 tensors of shape
-            `(batch_size, num_heads, sequence_length, embed_size_per_head)`) and optionally if
-            `config.is_encoder_decoder=True` 2 additional tensors of shape `(batch_size, num_heads,
-            encoder_sequence_length, embed_size_per_head)`.
+        past_key_values (`Cache`, *optional*, returned when `use_cache=True` is passed or when `config.use_cache=True`):
+            It is a [`~cache_utils.Cache`] instance. For more details, see our [kv cache guide](https://huggingface.co/docs/transformers/en/kv_cache).
 
             Contains pre-computed hidden-states (key and values in the self-attention blocks and optionally if
             `config.is_encoder_decoder=True` in the cross-attention blocks) that can be used (see `past_key_values`
             input) to speed up sequential decoding.
     """
 
-    last_hidden_state: ms.Tensor = None
-    pooler_output: ms.Tensor = None
+    last_hidden_state: Optional[ms.Tensor] = None
+    pooler_output: Optional[ms.Tensor] = None
     hidden_states: Optional[Tuple[ms.Tensor, ...]] = None
-    past_key_values: Optional[Tuple[Tuple[ms.Tensor]]] = None
+    past_key_values: Optional[Cache] = None
     attentions: Optional[Tuple[ms.Tensor, ...]] = None
     cross_attentions: Optional[Tuple[ms.Tensor, ...]] = None
 
@@ -256,11 +251,8 @@ class BaseModelOutputWithPastAndCrossAttentions(ModelOutput):
 
             If `past_key_values` is used only the last hidden-state of the sequences of shape `(batch_size, 1,
             hidden_size)` is output.
-        past_key_values (`tuple(tuple(ms.Tensor))`, *optional*, returned when `use_cache=True` is passed or when `config.use_cache=True`):
-            Tuple of `tuple(ms.Tensor)` of length `config.n_layers`, with each tuple having 2 tensors of shape
-            `(batch_size, num_heads, sequence_length, embed_size_per_head)`) and optionally if
-            `config.is_encoder_decoder=True` 2 additional tensors of shape `(batch_size, num_heads,
-            encoder_sequence_length, embed_size_per_head)`.
+        past_key_values (`Cache`, *optional*, returned when `use_cache=True` is passed or when `config.use_cache=True`):
+            It is a [`~cache_utils.Cache`] instance. For more details, see our [kv cache guide](https://huggingface.co/docs/transformers/en/kv_cache).
 
             Contains pre-computed hidden-states (key and values in the self-attention blocks and optionally if
             `config.is_encoder_decoder=True` in the cross-attention blocks) that can be used (see `past_key_values`
@@ -302,9 +294,8 @@ class MoECausalLMOutputWithPast(ModelOutput):
             Language modeling loss (for next-token prediction).
         logits (`ms.Tensor` of shape `(batch_size, sequence_length, config.vocab_size)`):
             Prediction scores of the language modeling head (scores for each vocabulary token before SoftMax).
-        past_key_values (`tuple(tuple(ms.Tensor))`, *optional*, returned when `use_cache=True` is passed or when `config.use_cache=True`):
-            Tuple of `tuple(ms.Tensor)` of length `config.n_layers`, with each tuple having 2 tensors of shape
-            `(batch_size, num_heads, sequence_length, embed_size_per_head)`)
+        past_key_values (`Cache`, *optional*, returned when `use_cache=True` is passed or when `config.use_cache=True`):
+            It is a [`~cache_utils.Cache`] instance. For more details, see our [kv cache guide](https://huggingface.co/docs/transformers/en/kv_cache).
 
             Contains pre-computed hidden-states (key and values in the self-attention blocks) that can be used (see
             `past_key_values` input) to speed up sequential decoding.
@@ -331,12 +322,12 @@ class MoECausalLMOutputWithPast(ModelOutput):
     """
 
     loss: Optional[ms.Tensor] = None
-    logits: ms.Tensor = None
-    past_key_values: Optional[Tuple[Tuple[ms.Tensor]]] = None
+    logits: Optional[ms.Tensor] = None
+    past_key_values: Optional[Cache] = None
     hidden_states: Optional[Tuple[ms.Tensor, ...]] = None
     attentions: Optional[Tuple[ms.Tensor, ...]] = None
-    z_loss: ms.Tensor = None
-    aux_loss: ms.Tensor = None
+    z_loss: Optional[ms.Tensor] = None
+    aux_loss: Optional[ms.Tensor] = None
     router_logits: Optional[Tuple[ms.Tensor]] = None
 
 
@@ -367,7 +358,7 @@ class MoEModelOutput(ModelOutput):
             loss and the z_loss for Mixture of Experts models.
     """
 
-    last_hidden_state: ms.Tensor = None
+    last_hidden_state: Optional[ms.Tensor] = None
     hidden_states: Optional[Tuple[ms.Tensor, ...]] = None
     attentions: Optional[Tuple[ms.Tensor, ...]] = None
     router_probs: Optional[Tuple[ms.Tensor]] = None
@@ -381,11 +372,8 @@ class MoeModelOutputWithPast(ModelOutput):
     Args:
         last_hidden_state (`ms.Tensor` of shape `(batch_size, sequence_length, hidden_size)`):
             Sequence of hidden-states at the output of the last layer of the model.
-        past_key_values (`tuple(tuple(ms.Tensor))`, *optional*, returned when `use_cache=True` is passed or when `config.use_cache=True`):
-            Tuple of `tuple(ms.Tensor)` of length `config.n_layers`, with each tuple having 2 tensors of shape
-            `(batch_size, num_heads, sequence_length, embed_size_per_head)`) and optionally if
-            `config.is_encoder_decoder=True` 2 additional tensors of shape `(batch_size, num_heads,
-            encoder_sequence_length, embed_size_per_head)`.
+        past_key_values (`Cache`, *optional*, returned when `use_cache=True` is passed or when `config.use_cache=True`):
+            It is a [`~cache_utils.Cache`] instance. For more details, see our [kv cache guide](https://huggingface.co/docs/transformers/en/kv_cache).
 
             Contains pre-computed hidden-states (key and values in the self-attention blocks and optionally if
             `config.is_encoder_decoder=True` in the cross-attention blocks) that can be used (see `past_key_values`
@@ -409,8 +397,8 @@ class MoeModelOutputWithPast(ModelOutput):
             loss for Mixture of Experts models.
     """
 
-    last_hidden_state: ms.Tensor = None
-    past_key_values: Optional[Tuple[Tuple[ms.Tensor]]] = None
+    last_hidden_state: Optional[ms.Tensor] = None
+    past_key_values: Optional[Cache] = None
     hidden_states: Optional[Tuple[ms.Tensor, ...]] = None
     attentions: Optional[Tuple[ms.Tensor, ...]] = None
     router_logits: Optional[Tuple[ms.Tensor]] = None
@@ -438,9 +426,8 @@ class MoeCausalLMOutputWithPast(ModelOutput):
             Raw router logtis (post-softmax) that are computed by MoE routers, these terms are used to compute the auxiliary
             loss for Mixture of Experts models.
 
-        past_key_values (`tuple(tuple(ms.Tensor))`, *optional*, returned when `use_cache=True` is passed or when `config.use_cache=True`):
-            Tuple of `tuple(ms.Tensor)` of length `config.n_layers`, with each tuple having 2 tensors of shape
-            `(batch_size, num_heads, sequence_length, embed_size_per_head)`)
+        past_key_values (`Cache`, *optional*, returned when `use_cache=True` is passed or when `config.use_cache=True`):
+            It is a [`~cache_utils.Cache`] instance. For more details, see our [kv cache guide](https://huggingface.co/docs/transformers/en/kv_cache).
 
             Contains pre-computed hidden-states (key and values in the self-attention blocks) that can be used (see
             `past_key_values` input) to speed up sequential decoding.
@@ -459,8 +446,8 @@ class MoeCausalLMOutputWithPast(ModelOutput):
 
     loss: Optional[ms.Tensor] = None
     aux_loss: Optional[ms.Tensor] = None
-    logits: ms.Tensor = None
-    past_key_values: Optional[Tuple[Tuple[ms.Tensor]]] = None
+    logits: Optional[ms.Tensor] = None
+    past_key_values: Optional[Cache] = None
     hidden_states: Optional[Tuple[ms.Tensor, ...]] = None
     attentions: Optional[Tuple[ms.Tensor, ...]] = None
     router_logits: Optional[Tuple[ms.Tensor]] = None
@@ -478,11 +465,8 @@ class MoEModelOutputWithPastAndCrossAttentions(ModelOutput):
 
             If `past_key_values` is used only the last hidden-state of the sequences of shape `(batch_size, 1,
             hidden_size)` is output.
-        past_key_values (`tuple(tuple(ms.Tensor))`, *optional*, returned when `use_cache=True` is passed or when `config.use_cache=True`):
-            Tuple of `tuple(ms.Tensor)` of length `config.n_layers`, with each tuple having 2 tensors of shape
-            `(batch_size, num_heads, sequence_length, embed_size_per_head)`) and optionally if
-            `config.is_encoder_decoder=True` 2 additional tensors of shape `(batch_size, num_heads,
-            encoder_sequence_length, embed_size_per_head)`.
+        past_key_values (`Cache`, *optional*, returned when `use_cache=True` is passed or when `config.use_cache=True`):
+            It is a [`~cache_utils.Cache`] instance. For more details, see our [kv cache guide](https://huggingface.co/docs/transformers/en/kv_cache).
 
             Contains pre-computed hidden-states (key and values in the self-attention blocks and optionally if
             `config.is_encoder_decoder=True` in the cross-attention blocks) that can be used (see `past_key_values`
@@ -572,8 +556,8 @@ class Seq2SeqModelOutput(ModelOutput):
             self-attention heads.
     """
 
-    last_hidden_state: ms.Tensor = None
-    past_key_values: Optional[Tuple[Tuple[ms.Tensor]]] = None
+    last_hidden_state: Optional[ms.Tensor] = None
+    past_key_values: Optional[Cache] = None
     decoder_hidden_states: Optional[Tuple[ms.Tensor, ...]] = None
     decoder_attentions: Optional[Tuple[ms.Tensor, ...]] = None
     cross_attentions: Optional[Tuple[ms.Tensor, ...]] = None
@@ -594,10 +578,8 @@ class Seq2SeqMoEModelOutput(ModelOutput):
 
             If `past_key_values` is used only the last hidden-state of the sequences of shape `(batch_size, 1,
             hidden_size)` is output.
-        past_key_values (`tuple(tuple(ms.Tensor))`, *optional*, returned when `use_cache=True` is passed or when `config.use_cache=True`):
-            Tuple of `tuple(ms.Tensor)` of length `config.n_layers`, with each tuple having 2 tensors of shape
-            `(batch_size, num_heads, sequence_length, embed_size_per_head)`) and 2 additional tensors of shape
-            `(batch_size, num_heads, encoder_sequence_length, embed_size_per_head)`.
+        past_key_values (`EncoderDecoderCache`, *optional*, returned when `use_cache=True` is passed or when `config.use_cache=True`):
+            It is a [`~cache_utils.EncoderDecoderCache`] instance. For more details, see our [kv cache guide](https://huggingface.co/docs/transformers/en/kv_cache).
 
             Contains pre-computed hidden-states (key and values in the self-attention blocks and in the cross-attention
             blocks) that can be used (see `past_key_values` input) to speed up sequential decoding.
@@ -642,8 +624,8 @@ class Seq2SeqMoEModelOutput(ModelOutput):
             modules.
     """
 
-    last_hidden_state: ms.Tensor = None
-    past_key_values: Optional[Tuple[Tuple[ms.Tensor]]] = None
+    last_hidden_state: Optional[ms.Tensor] = None
+    past_key_values: Optional[EncoderDecoderCache] = None
     decoder_hidden_states: Optional[Tuple[ms.Tensor, ...]] = None
     decoder_attentions: Optional[Tuple[ms.Tensor, ...]] = None
     decoder_router_logits: Optional[Tuple[ms.Tensor]] = None
@@ -678,7 +660,7 @@ class CausalLMOutput(ModelOutput):
     """
 
     loss: Optional[ms.Tensor] = None
-    logits: ms.Tensor = None
+    logits: Optional[ms.Tensor] = None
     hidden_states: Optional[Tuple[ms.Tensor, ...]] = None
     attentions: Optional[Tuple[ms.Tensor, ...]] = None
 
@@ -693,9 +675,8 @@ class CausalLMOutputWithPast(ModelOutput):
             Language modeling loss (for next-token prediction).
         logits (`ms.Tensor` of shape `(batch_size, sequence_length, config.vocab_size)`):
             Prediction scores of the language modeling head (scores for each vocabulary token before SoftMax).
-        past_key_values (`tuple(tuple(ms.Tensor))`, *optional*, returned when `use_cache=True` is passed or when `config.use_cache=True`):
-            Tuple of `tuple(ms.Tensor)` of length `config.n_layers`, with each tuple having 2 tensors of shape
-            `(batch_size, num_heads, sequence_length, embed_size_per_head)`)
+        past_key_values (`Cache`, *optional*, returned when `use_cache=True` is passed or when `config.use_cache=True`):
+            It is a [`~cache_utils.Cache`] instance. For more details, see our [kv cache guide](https://huggingface.co/docs/transformers/en/kv_cache).
 
             Contains pre-computed hidden-states (key and values in the self-attention blocks) that can be used (see
             `past_key_values` input) to speed up sequential decoding.
@@ -713,8 +694,8 @@ class CausalLMOutputWithPast(ModelOutput):
     """
 
     loss: Optional[ms.Tensor] = None
-    logits: ms.Tensor = None
-    past_key_values: Optional[Tuple[Tuple[ms.Tensor]]] = None
+    logits: Optional[ms.Tensor] = None
+    past_key_values: Optional[Cache] = None
     hidden_states: Optional[Tuple[ms.Tensor, ...]] = None
     attentions: Optional[Tuple[ms.Tensor, ...]] = None
 
@@ -746,18 +727,16 @@ class CausalLMOutputWithCrossAttentions(ModelOutput):
 
             Cross attentions weights after the attention softmax, used to compute the weighted average in the
             cross-attention heads.
-        past_key_values (`tuple(tuple(ms.Tensor))`, *optional*, returned when `use_cache=True` is passed or when `config.use_cache=True`):
-            Tuple of `ms.Tensor` tuples of length `config.n_layers`, with each tuple containing the cached key,
-            value states of the self-attention and the cross-attention layers if model is used in encoder-decoder
-            setting. Only relevant if `config.is_decoder = True`.
+        past_key_values (`Cache`, *optional*, returned when `use_cache=True` is passed or when `config.use_cache=True`):
+            It is a [`~cache_utils.Cache`] instance. For more details, see our [kv cache guide](https://huggingface.co/docs/transformers/en/kv_cache).
 
             Contains pre-computed hidden-states (key and values in the attention blocks) that can be used (see
             `past_key_values` input) to speed up sequential decoding.
     """
 
     loss: Optional[ms.Tensor] = None
-    logits: ms.Tensor = None
-    past_key_values: Optional[Tuple[Tuple[ms.Tensor]]] = None
+    logits: Optional[ms.Tensor] = None
+    past_key_values: Optional[Cache] = None
     hidden_states: Optional[Tuple[ms.Tensor, ...]] = None
     attentions: Optional[Tuple[ms.Tensor, ...]] = None
     cross_attentions: Optional[Tuple[ms.Tensor, ...]] = None
@@ -773,9 +752,8 @@ class SequenceClassifierOutputWithPast(ModelOutput):
             Classification (or regression if config.num_labels==1) loss.
         logits (`ms.Tensor` of shape `(batch_size, config.num_labels)`):
             Classification (or regression if config.num_labels==1) scores (before SoftMax).
-        past_key_values (`tuple(tuple(ms.Tensor))`, *optional*, returned when `use_cache=True` is passed or when `config.use_cache=True`):
-            Tuple of `tuple(ms.Tensor)` of length `config.n_layers`, with each tuple having 2 tensors of shape
-            `(batch_size, num_heads, sequence_length, embed_size_per_head)`)
+        past_key_values (`Cache`, *optional*, returned when `use_cache=True` is passed or when `config.use_cache=True`):
+            It is a [`~cache_utils.Cache`] instance. For more details, see our [kv cache guide](https://huggingface.co/docs/transformers/en/kv_cache).
 
             Contains pre-computed hidden-states (key and values in the self-attention blocks) that can be used (see
             `past_key_values` input) to speed up sequential decoding.
@@ -793,8 +771,8 @@ class SequenceClassifierOutputWithPast(ModelOutput):
     """
 
     loss: Optional[ms.Tensor] = None
-    logits: ms.Tensor = None
-    past_key_values: Optional[Tuple[Tuple[ms.Tensor]]] = None
+    logits: Optional[ms.Tensor] = None
+    past_key_values: Optional[Cache] = None
     hidden_states: Optional[Tuple[ms.Tensor, ...]] = None
     attentions: Optional[Tuple[ms.Tensor, ...]] = None
 
@@ -823,7 +801,7 @@ class MaskedLMOutput(ModelOutput):
     """
 
     loss: Optional[ms.Tensor] = None
-    logits: ms.Tensor = None
+    logits: Optional[ms.Tensor] = None
     hidden_states: Optional[Tuple[ms.Tensor, ...]] = None
     attentions: Optional[Tuple[ms.Tensor, ...]] = None
 
@@ -838,10 +816,8 @@ class Seq2SeqLMOutput(ModelOutput):
             Language modeling loss.
         logits (`ms.Tensor` of shape `(batch_size, sequence_length, config.vocab_size)`):
             Prediction scores of the language modeling head (scores for each vocabulary token before SoftMax).
-        past_key_values (`tuple(tuple(ms.Tensor))`, *optional*, returned when `use_cache=True` is passed or when `config.use_cache=True`):
-            Tuple of `tuple(ms.Tensor)` of length `config.n_layers`, with each tuple having 2 tensors of shape
-            `(batch_size, num_heads, sequence_length, embed_size_per_head)`) and 2 additional tensors of shape
-            `(batch_size, num_heads, encoder_sequence_length, embed_size_per_head)`.
+        past_key_values (`EncoderDecoderCache`, *optional*, returned when `use_cache=True` is passed or when `config.use_cache=True`):
+            It is a [`~cache_utils.EncoderDecoderCache`] instance. For more details, see our [kv cache guide](https://huggingface.co/docs/transformers/en/kv_cache).
 
             Contains pre-computed hidden-states (key and values in the self-attention blocks and in the cross-attention
             blocks) that can be used (see `past_key_values` input) to speed up sequential decoding.
@@ -878,8 +854,8 @@ class Seq2SeqLMOutput(ModelOutput):
     """
 
     loss: Optional[ms.Tensor] = None
-    logits: ms.Tensor = None
-    past_key_values: Optional[Tuple[Tuple[ms.Tensor]]] = None
+    logits: Optional[ms.Tensor] = None
+    past_key_values: Optional[EncoderDecoderCache] = None
     decoder_hidden_states: Optional[Tuple[ms.Tensor, ...]] = None
     decoder_attentions: Optional[Tuple[ms.Tensor, ...]] = None
     cross_attentions: Optional[Tuple[ms.Tensor, ...]] = None
@@ -898,10 +874,8 @@ class Seq2SeqMoEOutput(ModelOutput):
             Language modeling loss.
         logits (`ms.Tensor` of shape `(batch_size, sequence_length, config.vocab_size)`):
             Prediction scores of the language modeling head (scores for each vocabulary token before SoftMax).
-        past_key_values (`tuple(tuple(ms.Tensor))`, *optional*, returned when `use_cache=True` is passed or when `config.use_cache=True`):
-            Tuple of `tuple(ms.Tensor)` of length `config.n_layers`, with each tuple having 2 tensors of shape
-            `(batch_size, num_heads, sequence_length, embed_size_per_head)`) and 2 additional tensors of shape
-            `(batch_size, num_heads, encoder_sequence_length, embed_size_per_head)`.
+        past_key_values (`EncoderDecoderCache`, *optional*, returned when `use_cache=True` is passed or when `config.use_cache=True`):
+            It is a [`~cache_utils.EncoderDecoderCache`] instance. For more details, see our [kv cache guide](https://huggingface.co/docs/transformers/en/kv_cache).
 
             Contains pre-computed hidden-states (key and values in the self-attention blocks and in the cross-attention
             blocks) that can be used (see `past_key_values` input) to speed up sequential decoding.
@@ -947,12 +921,12 @@ class Seq2SeqMoEOutput(ModelOutput):
     """
 
     loss: Optional[ms.Tensor] = None
-    logits: ms.Tensor = None
-    encoder_z_loss: ms.Tensor = None
-    decoder_z_loss: ms.Tensor = None
-    encoder_aux_loss: ms.Tensor = None
-    decoder_aux_loss: ms.Tensor = None
-    past_key_values: Optional[Tuple[Tuple[ms.Tensor]]] = None
+    logits: Optional[ms.Tensor] = None
+    encoder_z_loss: Optional[ms.Tensor] = None
+    decoder_z_loss: Optional[ms.Tensor] = None
+    encoder_aux_loss: Optional[ms.Tensor] = None
+    decoder_aux_loss: Optional[ms.Tensor] = None
+    past_key_values: Optional[EncoderDecoderCache] = None
     decoder_hidden_states: Optional[Tuple[ms.Tensor, ...]] = None
     decoder_attentions: Optional[Tuple[ms.Tensor, ...]] = None
     decoder_router_logits: Optional[Tuple[ms.Tensor]] = None
@@ -988,7 +962,7 @@ class NextSentencePredictorOutput(ModelOutput):
     """
 
     loss: Optional[ms.Tensor] = None
-    logits: ms.Tensor = None
+    logits: Optional[ms.Tensor] = None
     hidden_states: Optional[Tuple[ms.Tensor, ...]] = None
     attentions: Optional[Tuple[ms.Tensor, ...]] = None
 
@@ -1017,7 +991,7 @@ class SequenceClassifierOutput(ModelOutput):
     """
 
     loss: Optional[ms.Tensor] = None
-    logits: ms.Tensor = None
+    logits: Optional[ms.Tensor] = None
     hidden_states: Optional[Tuple[ms.Tensor, ...]] = None
     attentions: Optional[Tuple[ms.Tensor, ...]] = None
 
@@ -1032,10 +1006,8 @@ class Seq2SeqSequenceClassifierOutput(ModelOutput):
             Classification (or regression if config.num_labels==1) loss.
         logits (`ms.Tensor` of shape `(batch_size, config.num_labels)`):
             Classification (or regression if config.num_labels==1) scores (before SoftMax).
-        past_key_values (`tuple(tuple(ms.Tensor))`, *optional*, returned when `use_cache=True` is passed or when `config.use_cache=True`):
-            Tuple of `tuple(ms.Tensor)` of length `config.n_layers`, with each tuple having 2 tensors of shape
-            `(batch_size, num_heads, sequence_length, embed_size_per_head)`) and 2 additional tensors of shape
-            `(batch_size, num_heads, encoder_sequence_length, embed_size_per_head)`.
+        past_key_values (`EncoderDecoderCache`, *optional*, returned when `use_cache=True` is passed or when `config.use_cache=True`):
+            It is a [`~cache_utils.EncoderDecoderCache`] instance. For more details, see our [kv cache guide](https://huggingface.co/docs/transformers/en/kv_cache).
 
             Contains pre-computed hidden-states (key and values in the self-attention blocks and in the cross-attention
             blocks) that can be used (see `past_key_values` input) to speed up sequential decoding.
@@ -1072,8 +1044,8 @@ class Seq2SeqSequenceClassifierOutput(ModelOutput):
     """
 
     loss: Optional[ms.Tensor] = None
-    logits: ms.Tensor = None
-    past_key_values: Optional[Tuple[Tuple[ms.Tensor]]] = None
+    logits: Optional[ms.Tensor] = None
+    past_key_values: Optional[EncoderDecoderCache] = None
     decoder_hidden_states: Optional[Tuple[ms.Tensor, ...]] = None
     decoder_attentions: Optional[Tuple[ms.Tensor, ...]] = None
     cross_attentions: Optional[Tuple[ms.Tensor, ...]] = None
@@ -1108,7 +1080,7 @@ class MultipleChoiceModelOutput(ModelOutput):
     """
 
     loss: Optional[ms.Tensor] = None
-    logits: ms.Tensor = None
+    logits: Optional[ms.Tensor] = None
     hidden_states: Optional[Tuple[ms.Tensor, ...]] = None
     attentions: Optional[Tuple[ms.Tensor, ...]] = None
 
@@ -1137,7 +1109,7 @@ class TokenClassifierOutput(ModelOutput):
     """
 
     loss: Optional[ms.Tensor] = None
-    logits: ms.Tensor = None
+    logits: Optional[ms.Tensor] = None
     hidden_states: Optional[Tuple[ms.Tensor, ...]] = None
     attentions: Optional[Tuple[ms.Tensor, ...]] = None
 
@@ -1168,8 +1140,8 @@ class QuestionAnsweringModelOutput(ModelOutput):
     """
 
     loss: Optional[ms.Tensor] = None
-    start_logits: ms.Tensor = None
-    end_logits: ms.Tensor = None
+    start_logits: Optional[ms.Tensor] = None
+    end_logits: Optional[ms.Tensor] = None
     hidden_states: Optional[Tuple[ms.Tensor, ...]] = None
     attentions: Optional[Tuple[ms.Tensor, ...]] = None
 
@@ -1186,10 +1158,8 @@ class Seq2SeqQuestionAnsweringModelOutput(ModelOutput):
             Span-start scores (before SoftMax).
         end_logits (`ms.Tensor` of shape `(batch_size, sequence_length)`):
             Span-end scores (before SoftMax).
-        past_key_values (`tuple(tuple(ms.Tensor))`, *optional*, returned when `use_cache=True` is passed or when `config.use_cache=True`):
-            Tuple of `tuple(ms.Tensor)` of length `config.n_layers`, with each tuple having 2 tensors of shape
-            `(batch_size, num_heads, sequence_length, embed_size_per_head)`) and 2 additional tensors of shape
-            `(batch_size, num_heads, encoder_sequence_length, embed_size_per_head)`.
+        past_key_values (`EncoderDecoderCache`, *optional*, returned when `use_cache=True` is passed or when `config.use_cache=True`):
+            It is a [`~cache_utils.EncoderDecoderCache`] instance. For more details, see our [kv cache guide](https://huggingface.co/docs/transformers/en/kv_cache).
 
             Contains pre-computed hidden-states (key and values in the self-attention blocks and in the cross-attention
             blocks) that can be used (see `past_key_values` input) to speed up sequential decoding.
@@ -1226,9 +1196,9 @@ class Seq2SeqQuestionAnsweringModelOutput(ModelOutput):
     """
 
     loss: Optional[ms.Tensor] = None
-    start_logits: ms.Tensor = None
-    end_logits: ms.Tensor = None
-    past_key_values: Optional[Tuple[Tuple[ms.Tensor]]] = None
+    start_logits: Optional[ms.Tensor] = None
+    end_logits: Optional[ms.Tensor] = None
+    past_key_values: Optional[EncoderDecoderCache] = None
     decoder_hidden_states: Optional[Tuple[ms.Tensor, ...]] = None
     decoder_attentions: Optional[Tuple[ms.Tensor, ...]] = None
     cross_attentions: Optional[Tuple[ms.Tensor, ...]] = None
@@ -1270,7 +1240,7 @@ class SemanticSegmenterOutput(ModelOutput):
     """
 
     loss: Optional[ms.Tensor] = None
-    logits: ms.Tensor = None
+    logits: Optional[ms.Tensor] = None
     hidden_states: Optional[Tuple[ms.Tensor, ...]] = None
     attentions: Optional[Tuple[ms.Tensor, ...]] = None
 
@@ -1349,7 +1319,7 @@ class DepthEstimatorOutput(ModelOutput):
     """
 
     loss: Optional[ms.Tensor] = None
-    predicted_depth: ms.Tensor = None
+    predicted_depth: Optional[ms.Tensor] = None
     hidden_states: Optional[Tuple[ms.Tensor, ...]] = None
     attentions: Optional[Tuple[ms.Tensor, ...]] = None
 
@@ -1377,7 +1347,7 @@ class ImageSuperResolutionOutput(ModelOutput):
     """
 
     loss: Optional[ms.Tensor] = None
-    reconstruction: ms.Tensor = None
+    reconstruction: Optional[ms.Tensor] = None
     hidden_states: Optional[Tuple[ms.Tensor, ...]] = None
     attentions: Optional[Tuple[ms.Tensor, ...]] = None
 
@@ -1405,8 +1375,8 @@ class Wav2Vec2BaseModelOutput(ModelOutput):
             heads.
     """
 
-    last_hidden_state: ms.Tensor = None
-    extract_features: ms.Tensor = None
+    last_hidden_state: Optional[ms.Tensor] = None
+    extract_features: Optional[ms.Tensor] = None
     hidden_states: Optional[Tuple[ms.Tensor, ...]] = None
     attentions: Optional[Tuple[ms.Tensor, ...]] = None
 
@@ -1437,8 +1407,8 @@ class XVectorOutput(ModelOutput):
     """
 
     loss: Optional[ms.Tensor] = None
-    logits: ms.Tensor = None
-    embeddings: ms.Tensor = None
+    logits: Optional[ms.Tensor] = None
+    embeddings: Optional[ms.Tensor] = None
     hidden_states: Optional[Tuple[ms.Tensor, ...]] = None
     attentions: Optional[Tuple[ms.Tensor, ...]] = None
 
@@ -1465,7 +1435,7 @@ class BackboneOutput(ModelOutput):
             heads.
     """
 
-    feature_maps: Tuple[ms.Tensor] = None
+    feature_maps: Optional[Tuple[ms.Tensor]] = None
     hidden_states: Optional[Tuple[ms.Tensor, ...]] = None
     attentions: Optional[Tuple[ms.Tensor, ...]] = None
 
@@ -1500,8 +1470,8 @@ class BaseModelOutputWithPoolingAndProjection(ModelOutput):
             Text embeddings before the projection layer, used to mimic the last hidden state of the teacher encoder.
     """
 
-    last_hidden_state: ms.Tensor = None
-    pooler_output: ms.Tensor = None
+    last_hidden_state: Optional[ms.Tensor] = None
+    pooler_output: Optional[ms.Tensor] = None
     hidden_states: Optional[Tuple[ms.Tensor, ...]] = None
     attentions: Optional[Tuple[ms.Tensor, ...]] = None
     projection_state: Optional[Tuple[ms.Tensor]] = None
@@ -1517,10 +1487,8 @@ class Seq2SeqSpectrogramOutput(ModelOutput):
             Spectrogram generation loss.
         spectrogram (`ms.Tensor` of shape `(batch_size, sequence_length, num_bins)`):
             The predicted spectrogram.
-        past_key_values (`tuple(tuple(ms.Tensor))`, *optional*, returned when `use_cache=True` is passed or when `config.use_cache=True`):
-            Tuple of `tuple(ms.Tensor)` of length `config.n_layers`, with each tuple having 2 tensors of shape
-            `(batch_size, num_heads, sequence_length, embed_size_per_head)`) and 2 additional tensors of shape
-            `(batch_size, num_heads, encoder_sequence_length, embed_size_per_head)`.
+        past_key_values (`EncoderDecoderCache`, *optional*, returned when `use_cache=True` is passed or when `config.use_cache=True`):
+            It is a [`~cache_utils.EncoderDecoderCache`] instance. For more details, see our [kv cache guide](https://huggingface.co/docs/transformers/en/kv_cache).
 
             Contains pre-computed hidden-states (key and values in the self-attention blocks and in the cross-attention
             blocks) that can be used (see `past_key_values` input) to speed up sequential decoding.
@@ -1557,8 +1525,8 @@ class Seq2SeqSpectrogramOutput(ModelOutput):
     """
 
     loss: Optional[ms.Tensor] = None
-    spectrogram: ms.Tensor = None
-    past_key_values: Optional[Tuple[Tuple[ms.Tensor]]] = None
+    spectrogram: Optional[ms.Tensor] = None
+    past_key_values: Optional[EncoderDecoderCache] = None
     decoder_hidden_states: Optional[Tuple[ms.Tensor, ...]] = None
     decoder_attentions: Optional[Tuple[ms.Tensor, ...]] = None
     cross_attentions: Optional[Tuple[ms.Tensor, ...]] = None
@@ -1579,10 +1547,8 @@ class Seq2SeqTSModelOutput(ModelOutput):
 
             If `past_key_values` is used only the last hidden-state of the sequences of shape `(batch_size, 1,
             hidden_size)` is output.
-        past_key_values (`tuple(tuple(ms.Tensor))`, *optional*, returned when `use_cache=True` is passed or when `config.use_cache=True`):
-            Tuple of `tuple(ms.Tensor)` of length `config.n_layers`, with each tuple having 2 tensors of shape
-            `(batch_size, num_heads, sequence_length, embed_size_per_head)`) and 2 additional tensors of shape
-            `(batch_size, num_heads, encoder_sequence_length, embed_size_per_head)`.
+        past_key_values (`EncoderDecoderCache`, *optional*, returned when `use_cache=True` is passed or when `config.use_cache=True`):
+            It is a [`~cache_utils.EncoderDecoderCache`] instance. For more details, see our [kv cache guide](https://huggingface.co/docs/transformers/en/kv_cache).
 
             Contains pre-computed hidden-states (key and values in the self-attention blocks and in the cross-attention
             blocks) that can be used (see `past_key_values` input) to speed up sequential decoding.
@@ -1626,8 +1592,8 @@ class Seq2SeqTSModelOutput(ModelOutput):
             Static features of each time series' in a batch which are copied to the covariates at inference time.
     """
 
-    last_hidden_state: ms.Tensor = None
-    past_key_values: Optional[Tuple[Tuple[ms.Tensor]]] = None
+    last_hidden_state: Optional[ms.Tensor] = None
+    past_key_values: Optional[EncoderDecoderCache] = None
     decoder_hidden_states: Optional[Tuple[ms.Tensor, ...]] = None
     decoder_attentions: Optional[Tuple[ms.Tensor, ...]] = None
     cross_attentions: Optional[Tuple[ms.Tensor, ...]] = None
@@ -1650,10 +1616,8 @@ class Seq2SeqTSPredictionOutput(ModelOutput):
             Distributional loss.
         params (`ms.Tensor` of shape `(batch_size, num_samples, num_params)`):
             Parameters of the chosen distribution.
-        past_key_values (`tuple(tuple(ms.Tensor))`, *optional*, returned when `use_cache=True` is passed or when `config.use_cache=True`):
-            Tuple of `tuple(ms.Tensor)` of length `config.n_layers`, with each tuple having 2 tensors of shape
-            `(batch_size, num_heads, sequence_length, embed_size_per_head)`) and 2 additional tensors of shape
-            `(batch_size, num_heads, encoder_sequence_length, embed_size_per_head)`.
+        past_key_values (`EncoderDecoderCache`, *optional*, returned when `use_cache=True` is passed or when `config.use_cache=True`):
+            It is a [`~cache_utils.EncoderDecoderCache`] instance. For more details, see our [kv cache guide](https://huggingface.co/docs/transformers/en/kv_cache).
 
             Contains pre-computed hidden-states (key and values in the self-attention blocks and in the cross-attention
             blocks) that can be used (see `past_key_values` input) to speed up sequential decoding.
@@ -1699,7 +1663,7 @@ class Seq2SeqTSPredictionOutput(ModelOutput):
 
     loss: Optional[ms.Tensor] = None
     params: Optional[Tuple[ms.Tensor]] = None
-    past_key_values: Optional[Tuple[Tuple[ms.Tensor]]] = None
+    past_key_values: Optional[EncoderDecoderCache] = None
     decoder_hidden_states: Optional[Tuple[ms.Tensor, ...]] = None
     decoder_attentions: Optional[Tuple[ms.Tensor, ...]] = None
     cross_attentions: Optional[Tuple[ms.Tensor, ...]] = None
@@ -1722,7 +1686,7 @@ class SampleTSPredictionOutput(ModelOutput):
             Sampled values from the chosen distribution.
     """
 
-    sequences: ms.Tensor = None
+    sequences: Optional[ms.Tensor] = None
 
 
 @dataclass
@@ -1748,7 +1712,7 @@ class MaskedImageModelingOutput(ModelOutput):
     """
 
     loss: Optional[ms.Tensor] = None
-    reconstruction: ms.Tensor = None
+    reconstruction: Optional[ms.Tensor] = None
     hidden_states: Optional[Tuple[ms.Tensor, ...]] = None
     attentions: Optional[Tuple[ms.Tensor, ...]] = None
 
