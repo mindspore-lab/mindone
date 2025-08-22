@@ -2,9 +2,11 @@
 # It is adapted from torchvision's NMS implementation to work with MindSpore tensors.
 # Ref: https://docs.pytorch.org/vision/main/generated/torchvision.ops.batched_nms.html
 
+import numpy as np
+
 import mindspore as ms
 from mindspore import mint, ops
-import numpy as np
+
 
 def batched_nms(
     boxes: ms.Tensor,
