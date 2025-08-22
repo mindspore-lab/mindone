@@ -618,27 +618,6 @@ class QwenImageTransformer2DModel(ModelMixin, ConfigMixin, PeftAdapterMixin, Fro
 
         image_rotary_emb = self.pos_embed(img_shapes, txt_seq_lens)
 
-        # for index_block, block in enumerate(self.transformer_blocks):
-        #     if torch.is_grad_enabled() and self.gradient_checkpointing:
-        #         encoder_hidden_states, hidden_states = self._gradient_checkpointing_func(
-        #             block,
-        #             hidden_states,
-        #             encoder_hidden_states,
-        #             encoder_hidden_states_mask,
-        #             temb,
-        #             image_rotary_emb,
-        #         )
-
-        #     else:
-        #         encoder_hidden_states, hidden_states = block(
-        #             hidden_states=hidden_states,
-        #             encoder_hidden_states=encoder_hidden_states,
-        #             encoder_hidden_states_mask=encoder_hidden_states_mask,
-        #             temb=temb,
-        #             image_rotary_emb=image_rotary_emb,
-        #             joint_attention_kwargs=attention_kwargs,
-        #         )
-
         for index_block, block in enumerate(self.transformer_blocks):
             encoder_hidden_states, hidden_states = block(
                 hidden_states=hidden_states,

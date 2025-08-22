@@ -22,7 +22,7 @@
 # - arXiv: https://arxiv.org/abs/2503.20314
 
 from typing import List, Optional, Tuple, Union
-
+import math
 import numpy as np
 
 import mindspore as ms
@@ -326,10 +326,10 @@ class QwenImageAttentionBlock(nn.Cell):
         q, k, v = qkv.chunk(3, dim=-1)
 
         # apply attention
-        # x = F.scaled_dot_product_attention(q, k, v)
-        x = ops.operations.nn_ops.FlashAttentionScore(1, input_layout="BNSD")(
-            q.to(ms.float16), k.to(ms.float16), v.to(ms.float16), None, None, None, None
-        )[3].to(q.dtype)
+        x = ops.flash_attention_score(q, k, v, 1, scalar_value=1/math.sqrt(q.shape[-1]), input_layout="BNSD")
+        # x = ops.operations.nn_ops.FlashAttentionScore(1, input_layout="BNSD")(
+        #     q.to(ms.float16), k.to(ms.float16), v.to(ms.float16), None, None, None, None
+        # )[3].to(q.dtype)
 
         x = x.squeeze(1).permute(0, 2, 1).reshape(batch_size * time, channels, height, width)
 
