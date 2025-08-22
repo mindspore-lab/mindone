@@ -14,7 +14,6 @@
 # limitations under the License.
 
 import os
-import warnings
 from collections.abc import Iterable
 from contextlib import redirect_stdout
 from dataclasses import dataclass
@@ -24,6 +23,7 @@ from urllib.parse import urlparse
 
 import numpy as np
 import requests
+from transformers.utils import logging
 
 from .image_transforms import PaddingMode, to_channel_dimension_format
 from .image_utils import ChannelDimension, infer_channel_dimension_format, is_valid_image
@@ -31,22 +31,21 @@ from .utils import (
     is_av_available,
     is_cv2_available,
     is_decord_available,
+    is_mindspore_available,
+    is_mindspore_tensor,
     is_numpy_array,
     is_vision_available,
     is_yt_dlp_available,
     requires_backends,
-    is_mindspore_available,
-    is_mindspore_tensor,
 )
-from transformers.utils import logging
-
 
 if is_vision_available():
     import PIL.Image
     import PIL.ImageOps
 
 if is_mindspore_available():
-    import mindspore 
+    import mindspore as ms
+    from mindspore import mint
 
 logger = logging.get_logger(__name__)
 
@@ -656,9 +655,7 @@ def pad(
             raise ValueError(f"Unsupported format: {values}")
 
         # add 0 for channel dimension
-        values = (
-            ((0, 0), (0, 0), *values) if input_data_format == ChannelDimension.FIRST else ((0, 0), *values, (0, 0))
-        )
+        values = ((0, 0), (0, 0), *values) if input_data_format == ChannelDimension.FIRST else ((0, 0), *values, (0, 0))
 
         # Add additional padding if there's a batch dimension
         values = (0, *values) if video.ndim == 5 else values

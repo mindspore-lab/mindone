@@ -469,7 +469,6 @@ def center_crop(
     """
     requires_backends(center_crop, ["vision"])
 
-
     if not isinstance(image, np.ndarray):
         raise TypeError(f"Input image must be of type np.ndarray, got {type(image)}")
 
@@ -520,7 +519,6 @@ def center_crop(
 
     new_image = new_image[..., max(0, top) : min(new_height, bottom), max(0, left) : min(new_width, right)]
     new_image = to_channel_dimension_format(new_image, output_data_format, ChannelDimension.FIRST)
-
 
     return new_image
 
@@ -802,6 +800,7 @@ def _cast_tensor_to_float(x):
         return x
     return x.float()
 
+
 def _group_images_by_shape(nested_images, is_nested: bool = False):
     """Helper function to flatten a single level of nested image structures and group by shape."""
     grouped_images = defaultdict(list)
@@ -842,13 +841,12 @@ def _reconstruct_nested_structure(indices, processed_images):
 
     return result
 
+
 def group_images_by_shape(
     images: Union[list["ms.Tensor"], "ms.Tensor"],
     disable_grouping: bool,
     is_nested: bool = False,
-) -> tuple[
-    dict[tuple[int, int], list["ms.Tensor"]], dict[Union[int, tuple[int, int]], tuple[tuple[int, int], int]]
-]:
+) -> tuple[dict[tuple[int, int], list["ms.Tensor"]], dict[Union[int, tuple[int, int]], tuple[tuple[int, int], int]]]:
     """
     Groups images by shape.
     Returns a dictionary with the shape as key and a list of images with that shape as value,

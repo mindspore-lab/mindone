@@ -20,8 +20,9 @@ from typing import Optional, Tuple
 
 from transformers.utils import ModelOutput
 
-from .cache_utils import Cache, EncoderDecoderCache
 import mindspore as ms
+
+from .cache_utils import Cache, EncoderDecoderCache
 
 
 @dataclass

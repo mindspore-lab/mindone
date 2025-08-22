@@ -43,7 +43,6 @@ from .tokenization_utils_base import (
 )
 from .utils import PaddingStrategy, TensorType, add_end_docstrings, logging
 
-
 logger = logging.get_logger(__name__)
 
 # Slow tokenizers are saved in a vocabulary plus three separated files
@@ -559,9 +558,7 @@ class PreTrainedTokenizer(PreTrainedTokenizerBase):
                 else:
                     # very important for fast and slow equivalence!
                     is_special = token in self.all_special_tokens or special_tokens
-                    token = AddedToken(
-                        token, rstrip=False, lstrip=False, normalized=not is_special, special=is_special
-                    )
+                    token = AddedToken(token, rstrip=False, lstrip=False, normalized=not is_special, special=is_special)
             elif special_tokens:
                 # doing token.special=True changes the normalization! will fix in rust
                 # this is important and the only reason why the AddedTokens in each class are normalized by default
@@ -1037,10 +1034,12 @@ class PreTrainedTokenizer(PreTrainedTokenizerBase):
         return [0] * ((len(token_ids_1) if token_ids_1 else 0) + len(token_ids_0))
 
     @overload
-    def convert_ids_to_tokens(self, ids: int, skip_special_tokens: bool = False) -> str: ...
+    def convert_ids_to_tokens(self, ids: int, skip_special_tokens: bool = False) -> str:
+        ...
 
     @overload
-    def convert_ids_to_tokens(self, ids: list[int], skip_special_tokens: bool = False) -> list[str]: ...
+    def convert_ids_to_tokens(self, ids: list[int], skip_special_tokens: bool = False) -> list[str]:
+        ...
 
     def convert_ids_to_tokens(
         self, ids: Union[int, list[int]], skip_special_tokens: bool = False

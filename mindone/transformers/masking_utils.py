@@ -22,7 +22,7 @@ from transformers.configuration_utils import PretrainedConfig
 
 import mindspore as ms
 from mindspore import mint
-
+import mindspore.mint.functional as F
 from .cache_utils import Cache
 from .modeling_attn_mask_utils import dtype_to_min
 from .utils.generic import GeneralInterface
@@ -76,6 +76,7 @@ def sliding_window_overlay(sliding_window: int) -> Callable:
 
     return inner_mask
 
+
 def chunked_overlay(chunk_size: int) -> Callable:
     """
     This is an overlay depicting a chuned attention pattern. Add it on top of a causal mask for a proper chunked
@@ -87,11 +88,13 @@ def chunked_overlay(chunk_size: int) -> Callable:
 
     return inner_mask
 
+
 def sliding_window_causal_mask_function(sliding_window: int) -> Callable:
     """
     This return the mask_function function to create a sliding window mask.
     """
     return and_masks(sliding_window_overlay(sliding_window), causal_mask_function)
+
 
 def chunked_causal_mask_function(chunk_size: int) -> Callable:
     """
@@ -135,6 +138,7 @@ def add_offsets_to_mask_function(mask_function: Callable, q_offset: int, kv_offs
         return mask_function(batch_idx, head_idx, q_idx + q_offset, kv_idx + kv_offset)
 
     return inner_mask
+
 
 def _vmap_for_bhqkv(mask_function: Callable, bh_indices: bool = True) -> Callable:
     """
@@ -183,6 +187,7 @@ def prepare_padding_mask(
             mask_indices += kv_offset
             local_padding_mask = local_padding_mask[:, mask_indices]
     return local_padding_mask
+
 
 def sdpa_mask_recent_torch(
     batch_size: int,
@@ -548,6 +553,7 @@ class AttentionMaskInterface(GeneralInterface):
 # Global AttentionMaskInterface shared by all models which do not need to overwrite any of the existing ones
 ALL_MASK_ATTENTION_FUNCTIONS: AttentionMaskInterface = AttentionMaskInterface()
 
+
 def find_packed_sequence_indices(position_ids: ms.Tensor) -> ms.Tensor:
     """
     Find the indices of the sequence to which each new query token in the sequence belongs when using packed
@@ -567,7 +573,7 @@ def find_packed_sequence_indices(position_ids: ms.Tensor) -> ms.Tensor:
     # Note that we assume that a single sequence cannot span several batch dimensions, i.e. 1 single sequence
     # cannot be part of the end of the first batch dim and the start of the 2nd one for example
     first_dummy_value = position_ids[:, :1] - 1  # We just need the diff on this first value to be 1
-    position_diff = torch.diff(position_ids, prepend=first_dummy_value, dim=-1)
+    position_diff = mint.diff(position_ids, prepend=first_dummy_value, dim=-1)
     packed_sequence_mask = (position_diff != 1).cumsum(-1)
 
     # Here it would be nice to return None if we did not detect packed sequence format, i.e. if `packed_sequence_mask[:, -1] == 0`
@@ -812,7 +818,6 @@ def create_sliding_window_causal_mask(
         mask_factory_function = and_masks(mask_factory_function, and_mask_function)
         allow_is_causal_skip = False
 
-
     # We now create the mask
     causal_mask = mask_interface(
         batch_size=batch_size,
@@ -827,6 +832,7 @@ def create_sliding_window_causal_mask(
         config=config,  # Pass the config as well, in case someone wants to easily have their own mask_interface
     )
     return causal_mask
+
 
 def create_chunked_causal_mask(
     config: PretrainedConfig,
@@ -931,6 +937,7 @@ LAYER_PATTERN_TO_MASK_FUNCTION_MAPPING = {
     "sliding_attention": create_sliding_window_causal_mask,
     "chunked_attention": create_chunked_causal_mask,
 }
+
 
 def create_masks_for_generate(
     config: PretrainedConfig,

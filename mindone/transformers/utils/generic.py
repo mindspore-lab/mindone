@@ -37,7 +37,7 @@ import numpy as np
 from .import_utils import is_mindspore_available
 
 if is_mindspore_available():
-    import mindspore  # noqa: F401
+    import mindspore as ms # noqa: F401
 
 _CAN_RECORD_REGISTRY = {}
 
@@ -115,7 +115,7 @@ def _get_frameworks_and_test_func(x):
 
 def is_tensor(x):
     """
-    Tests if `x` is a `mindspore.Tensor`, `tf.Tensor`, `jaxlib.xla_extension.DeviceArray`, `np.ndarray` or `mlx.array`
+    Tests if `x` is a `ms.Tensor`, `tf.Tensor`, `jaxlib.xla_extension.DeviceArray`, `np.ndarray` or `mlx.array`
     in the order defined by `infer_framework_from_repr`
     """
     # This gives us a smart order to test the frameworks with the corresponding tests.
@@ -141,7 +141,7 @@ def is_numpy_array(x):
 def _is_mindspore(x):
     import mindspore
 
-    return isinstance(x, mindspore.Tensor)
+    return isinstance(x, ms.Tensor)
 
 
 def is_mindspore_tensor(x):
@@ -532,7 +532,6 @@ def tensor_size(array):
         raise ValueError(f"Type not supported for tensor_size: {type(array)}.")
 
 
-
 def infer_framework(model_class):
     """
     Infers the framework of a given model without using isinstance(), because we cannot guarantee that the relevant
@@ -692,7 +691,7 @@ class TransformersKwargs(TypedDict, total=False):
     Keyword arguments to be passed to the loss function
 
     Attributes:
-        num_items_in_batch (`Optional[mindspore.Tensor]`, *optional*):
+        num_items_in_batch (`Optional[ms.Tensor]`, *optional*):
             Number of items in the batch. It is recommended to pass it when
             you are doing gradient accumulation.
         output_hidden_states (`Optional[bool]`, *optional*):
@@ -701,9 +700,9 @@ class TransformersKwargs(TypedDict, total=False):
             Turn this on to return the intermediary attention scores.
         output_router_logits (`Optional[bool]`, *optional*):
             For MoE models, this allows returning the router logits to compute the loss.
-        cumulative_seqlens_q (`mindspore.Tensor`, *optional*)
+        cumulative_seqlens_q (`ms.Tensor`, *optional*)
             Gets cumulative sequence length for query state.
-        cumulative_seqlens_k (`mindspore.Tensor`, *optional*)
+        cumulative_seqlens_k (`ms.Tensor`, *optional*)
             Gets cumulative sequence length for key state.
         max_length_q (`int`, *optional*):
             Maximum sequence length for query state.
@@ -711,12 +710,12 @@ class TransformersKwargs(TypedDict, total=False):
             Maximum sequence length for key state.
     """
 
-    num_items_in_batch: Optional["mindspore.Tensor"]
+    num_items_in_batch: Optional["ms.Tensor"]
     output_hidden_states: Optional[bool]
     output_attentions: Optional[bool]
     output_router_logits: Optional[bool]
-    cumulative_seqlens_q: Optional["mindspore.Tensor"]
-    cumulative_seqlens_k: Optional["mindspore.Tensor"]
+    cumulative_seqlens_q: Optional["ms.Tensor"]
+    cumulative_seqlens_k: Optional["ms.Tensor"]
     max_length_q: Optional[int]
     max_length_k: Optional[int]
 
@@ -976,4 +975,4 @@ class LossKwargs(TypedDict, total=False):
             you are doing gradient accumulation.
     """
 
-    num_items_in_batch: Optional[mindspore.Tensor]
+    num_items_in_batch: Optional[ms.Tensor]

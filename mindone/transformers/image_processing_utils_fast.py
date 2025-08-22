@@ -16,14 +16,14 @@
 # limitations under the License.
 
 from collections.abc import Iterable
+from copy import deepcopy
 from functools import lru_cache, partial
 from typing import Any, Optional, TypedDict, Union
-from copy import deepcopy
+
 import numpy as np
 from PIL import Image
+from transformers.utils import auto_docstring, logging
 
-from mindspore import mint
-import mindspore as ms
 
 from .image_processing_utils import BaseImageProcessor, BatchFeature, get_size_dict
 from .image_transforms import (
@@ -49,14 +49,14 @@ from .image_utils import (
 )
 from .processing_utils import Unpack
 from .utils import TensorType, is_mindspore_available, is_mindspore_tensor, is_vision_available
-from transformers.utils import auto_docstring, logging
-
 
 if is_vision_available():
     from .image_utils import PILImageResampling
 
 if is_mindspore_available():
     import mindspore as ms
+    from mindspore import mint
+    import mindspore.mint.functional as F
     from mindspore.dataset import vision
     from mindspore.dataset.vision import Inter as InterpolationMode
 
@@ -176,7 +176,6 @@ class DefaultFastImageProcessorKwargs(TypedDict, total=False):
     input_data_format: Optional[Union[str, ChannelDimension]]
 
 
-
 @auto_docstring
 class BaseImageProcessorFast(BaseImageProcessor):
     resample = None
@@ -221,7 +220,6 @@ class BaseImageProcessorFast(BaseImageProcessor):
 
         # get valid kwargs names
         self._valid_kwargs_names = list(self.valid_kwargs.__annotations__.keys())
-
 
     def resize(
         self,
@@ -289,7 +287,7 @@ class BaseImageProcessorFast(BaseImageProcessor):
         A wrapper around `F.resize` so that it is compatible with torch.compile when the image is a uint8 tensor.
         """
         raise NotImplementedError("This method is not implemented for mindspore")
-    
+
     def rescale(
         self,
         image: "ms.Tensor",
@@ -526,7 +524,7 @@ class BaseImageProcessorFast(BaseImageProcessor):
             processed_images = [process_image_partial(img) for img in images]
 
         return processed_images
-    
+
     def _further_process_kwargs(
         self,
         size: Optional[SizeDict] = None,
@@ -626,7 +624,9 @@ class BaseImageProcessorFast(BaseImageProcessor):
         # because if pillow < 9.1.0, resample is an int and PILImageResampling is a module.
         # Checking PILImageResampling will fail with error `TypeError: isinstance() arg 2 must be a type or tuple of types`.
         kwargs["interpolation"] = (
-            pil_mindspore_interpolation_mapping[resample] if isinstance(resample, (int, PILImageResampling)) else resample
+            pil_mindspore_interpolation_mapping[resample]
+            if isinstance(resample, (int, PILImageResampling))
+            else resample
         )
 
         # Pop kwargs that are not needed in _preprocess
@@ -705,6 +705,7 @@ class BaseImageProcessorFast(BaseImageProcessor):
         encoder_dict.pop("_valid_processor_keys", None)
         encoder_dict.pop("_valid_kwargs_names", None)
         return encoder_dict
+
 
 class SemanticSegmentationMixin:
     def post_process_semantic_segmentation(self, outputs, target_sizes: list[tuple] = None):

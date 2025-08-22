@@ -15,15 +15,16 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 import inspect
-import warnings
 import os
+import warnings
 from typing import Optional, TypedDict
 
 from transformers.utils import logging
 
 import mindspore as ms
-from mindspore import mint
 import mindspore.mint.functional as F
+from mindspore import mint
+
 logger = logging.get_logger(__name__)
 
 
@@ -173,7 +174,8 @@ def _upad_input(
     elif query_length == 1:
         max_seqlen_in_batch_q = 1
         cu_seqlens_q = mint.arange(
-            batch_size + 1, dtype=ms.int32,
+            batch_size + 1,
+            dtype=ms.int32,
         )  # There is a memcpy here, that is very bad.
         indices_q = cu_seqlens_q[:-1]
         query_layer = query_layer.squeeze(1)
@@ -260,7 +262,8 @@ def fa_peft_integration_check(q, k, v, target_dtype: Optional[ms.Type] = None):
         q, k, v = q.to(target_dtype), k.to(target_dtype), v.to(target_dtype)
     return q, k, v
 
-#TODO: fix this flash attention 2 and 3
+
+# TODO: fix this flash attention 2 and 3
 def _lazy_imports(impl: Optional[str]):
     # returns funcs and pad/unpad based on impl
     is_fa2 = is_flash_attn_2_available() or is_torch_npu_available()
@@ -283,20 +286,7 @@ def _lazy_imports(impl: Optional[str]):
                 )
                 globals()["use_remote_fa2"] = use_remote_fa2 in {"yes", "y", "1"}
             if globals()["use_remote_fa2"]:
-                if not is_kernels_available():
-                    raise ImportError("You need to install kernels: `pip install kernels`")
-                from kernels import get_kernel
-
-                impl = get_kernel("kernels-community/flash-attn")
-                pad_input, unpad_input = _fa3_pad_input, _fa3_unpad_input
-                return (
-                    getattr(impl, "flash_attn_func", None),
-                    getattr(impl, "flash_attn_varlen_func"),
-                    pad_input,
-                    unpad_input,
-                    True,
-                )
-
+                raise NotImplementedError("Remote flash attention 2 is not supported yet.")
             else:
                 raise ImportError(
                     "Failed to import flash attention 2, please install it or use another implementation."
@@ -326,15 +316,7 @@ def is_flash_attn_available():
 
 
 def flash_attn_supports_top_left_mask():
-    if is_flash_attn_3_available():
-        return False
-    if is_flash_attn_2_available():
-        return not is_flash_attn_greater_or_equal_2_10()
-
-    from .integrations.npu_flash_attention import is_npu_fa2_top_left_aligned_causal_mask
-
-    return is_npu_fa2_top_left_aligned_causal_mask()
-
+    raise NotImplementedError("flash_attn_supports_top_left_mask is not supported yet.")
 
 class FlashAttentionKwargs(TypedDict, total=False):
     cumulative_seqlens_q: Optional[ms.Tensor]
@@ -387,9 +369,9 @@ def _flash_attention_forward(
     flash_kwargs = {"window_size": (sliding_window, sliding_window)} if use_sw else {}
     if not is_fa3:
         flash_kwargs["dropout_p"] = dropout
-    if is_flash_attn_greater_or_equal("2.4.1"):
-        det = deterministic if deterministic is not None else os.getenv("FLASH_ATTENTION_DETERMINISTIC", "0") == "1"
-        flash_kwargs["deterministic"] = det
+    # if is_flash_attn_greater_or_equal("2.4.1"):
+    #     det = deterministic if deterministic is not None else os.getenv("FLASH_ATTENTION_DETERMINISTIC", "0") == "1"
+    #     flash_kwargs["deterministic"] = det
     if softcap is not None:
         flash_kwargs["softcap"] = softcap
 
@@ -456,5 +438,3 @@ def _flash_attention_forward(
         )
 
     return out[0] if isinstance(out, tuple) else out
-
-

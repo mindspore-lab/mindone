@@ -34,12 +34,13 @@ import numpy as np
 import typing_extensions
 from huggingface_hub.errors import EntryNotFoundError
 from transformers.dynamic_module_utils import custom_object_save
+from transformers.utils.chat_template_utils import render_jinja_template
 
 from .audio_utils import load_audio
 from .feature_extraction_utils import BatchFeature
 from .image_utils import ChannelDimension, is_vision_available, load_image
-from transformers.utils.chat_template_utils import render_jinja_template
 from .video_utils import VideoMetadata, load_video
+
 if is_vision_available():
     from .image_utils import PILImageResampling
 
@@ -68,9 +69,9 @@ from transformers.utils import (
     list_repo_templates,
     logging,
 )
+from transformers.utils.deprecation import deprecate_kwarg
 
 from .utils import TensorType
-from transformers.utils.deprecation import deprecate_kwarg
 
 logger = logging.get_logger(__name__)
 
@@ -417,6 +418,7 @@ class TokenizerChatTemplateKwargs(TypedDict, total=False):
     continue_final_message: Optional[bool] = False
     return_assistant_tokens_mask: Optional[bool] = False
 
+
 class ChatTemplateLoadKwargs(TypedDict, total=False):
     """
     Keyword arguments used to load multimodal data in processor chat templates.
@@ -443,6 +445,7 @@ class ChatTemplateLoadKwargs(TypedDict, total=False):
     sampling_rate: Optional[int] = 16_000
     load_audio_from_video: Optional[bool] = False
 
+
 class ProcessorChatTemplateKwargs(ChatTemplateLoadKwargs, TokenizerChatTemplateKwargs, total=False):
     """
     Keyword arguments for processor's `apply_chat_template`.
@@ -455,6 +458,7 @@ class ProcessorChatTemplateKwargs(ChatTemplateLoadKwargs, TokenizerChatTemplateK
 
     tokenize: Optional[bool] = False
     return_dict: Optional[bool] = False
+
 
 class AllKwargsForChatTemplate(
     TextKwargs, ImagesKwargs, VideosKwargs, AudioKwargs, CommonKwargs, ProcessorChatTemplateKwargs
@@ -521,7 +525,6 @@ class ProcessorMixin(PushToHubMixin):
             # Check audio tokenizer for its class but do not treat it as attr to avoid saving weights
             if optional_attribute == "audio_tokenizer" and optional_attribute_value is not None:
                 proper_class = self.check_argument_for_proper_class(optional_attribute, optional_attribute_value)
-                
 
         # Sanitize args and kwargs
         for key in kwargs:
@@ -1441,9 +1444,7 @@ class ProcessorMixin(PushToHubMixin):
             elif self.chat_template is not None:
                 chat_template = self.chat_template
             else:
-                raise ValueError(
-                    "Cannot use apply_chat_template because this processor does not have a chat template."
-                )
+                raise ValueError("Cannot use apply_chat_template because this processor does not have a chat template.")
         else:
             if isinstance(self.chat_template, dict) and chat_template in self.chat_template:
                 # It's the name of a template, not a full template string
@@ -1615,8 +1616,7 @@ class ProcessorMixin(PushToHubMixin):
                             end_pos = bisect.bisect_left(offset_starts, assistant_end_char)
 
                             if not (
-                                start_pos >= 0
-                                and offsets[start_pos][0] <= assistant_start_char < offsets[start_pos][1]
+                                start_pos >= 0 and offsets[start_pos][0] <= assistant_start_char < offsets[start_pos][1]
                             ):
                                 # start_token is out of bounds maybe due to truncation.
                                 continue
@@ -1648,7 +1648,6 @@ class ProcessorMixin(PushToHubMixin):
         """
         return self.tokenizer.batch_decode(generated_outputs, skip_special_tokens=skip_special_tokens, **kwargs)
 
-
     def _check_special_mm_tokens(self, text: list[str], text_inputs: "BatchFeature", modalities: list[str]):
         """
         Checks that number of special tokens in text and processed text is same. The count can be different
@@ -1665,6 +1664,7 @@ class ProcessorMixin(PushToHubMixin):
                     f"Mismatch in `{modality}` token count between text and `input_ids`. Got ids={ids_count} and text={text_count}. "
                     "Likely due to `truncation='max_length'`. Please disable truncation or increase `max_length`."
                 )
+
 
 ProcessorMixin.push_to_hub = copy_func(ProcessorMixin.push_to_hub)
 if ProcessorMixin.push_to_hub.__doc__ is not None:

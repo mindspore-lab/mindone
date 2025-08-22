@@ -21,6 +21,7 @@ def repeat_kv(hidden_states: ms.Tensor, n_rep: int) -> ms.Tensor:
     hidden_states = hidden_states[:, :, None, :, :].expand((batch, num_key_value_heads, n_rep, slen, head_dim))
     return hidden_states.reshape(batch, num_key_value_heads * n_rep, slen, head_dim)
 
+
 def use_gqa_in_sdpa(attention_mask: Optional[ms.Tensor], key: ms.Tensor) -> bool:
     # GQA is not supported yet.
     return False

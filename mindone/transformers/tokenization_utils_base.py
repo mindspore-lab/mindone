@@ -35,18 +35,7 @@ from typing import TYPE_CHECKING, Any, Callable, NamedTuple, Optional, Union
 
 import numpy as np
 from packaging import version
-
-from . import __version__
 from transformers.dynamic_module_utils import custom_object_save
-from .utils import (
-    ExplicitEnum,
-    PaddingStrategy,
-    TensorType,
-    is_numpy_array,
-    requires_backends,
-    to_py_obj,
-)
-
 from transformers.utils import (
     CHAT_TEMPLATE_DIR,
     CHAT_TEMPLATE_FILE,
@@ -70,11 +59,12 @@ from transformers.utils import (
     is_torch_tensor,
     list_repo_templates,
     logging,
-
 )
 from transformers.utils.chat_template_utils import render_jinja_template
 from transformers.utils.import_utils import PROTOBUF_IMPORT_ERROR
 
+from . import __version__
+from .utils import ExplicitEnum, PaddingStrategy, TensorType, is_numpy_array, requires_backends, to_py_obj
 
 if TYPE_CHECKING:
     if is_torch_available():
@@ -109,9 +99,7 @@ else:
         `tokenizers`.
         """
 
-        def __init__(
-            self, content: str, single_word=False, lstrip=False, rstrip=False, special=False, normalized=None
-        ):
+        def __init__(self, content: str, single_word=False, lstrip=False, rstrip=False, special=False, normalized=None):
             self.content = content
             self.single_word = single_word
             self.lstrip = lstrip
@@ -567,9 +555,7 @@ class BatchEncoding(UserDict):
 
         return CharSpan(*span_indices) if span_indices is not None else None
 
-    def char_to_token(
-        self, batch_or_char_index: int, char_index: Optional[int] = None, sequence_index: int = 0
-    ) -> int:
+    def char_to_token(self, batch_or_char_index: int, char_index: Optional[int] = None, sequence_index: int = 0) -> int:
         """
         Get the index of the token in the encoded output comprising a character in the original string for a sequence
         of the batch.
@@ -716,9 +702,7 @@ class BatchEncoding(UserDict):
         # Get a function reference for the correct framework
         if tensor_type == TensorType.TENSORFLOW:
             if not is_tf_available():
-                raise ImportError(
-                    "Unable to convert output to TensorFlow tensors format, TensorFlow is not installed."
-                )
+                raise ImportError("Unable to convert output to TensorFlow tensors format, TensorFlow is not installed.")
             import tensorflow as tf
 
             as_tensor = tf.constant
@@ -752,6 +736,7 @@ class BatchEncoding(UserDict):
 
             def is_tensor(obj):
                 return isinstance(obj, mx.array)
+
         else:
 
             def as_tensor(value, dtype=None):
@@ -877,9 +862,9 @@ class SpecialTokensMixin:
             if key in self.SPECIAL_TOKENS_ATTRIBUTES:
                 if key == "additional_special_tokens":
                     assert isinstance(value, (list, tuple)), f"Value {value} is not a list or tuple"
-                    assert all(isinstance(t, (str, AddedToken)) for t in value), (
-                        "One of the tokens is not a string or an AddedToken"
-                    )
+                    assert all(
+                        isinstance(t, (str, AddedToken)) for t in value
+                    ), "One of the tokens is not a string or an AddedToken"
                     setattr(self, key, value)
                 elif isinstance(value, (str, AddedToken)):
                     setattr(self, key, value)
@@ -965,9 +950,9 @@ class SpecialTokensMixin:
                 logger.info(f"Assigning {value} to the {key} key of the tokenizer")
 
             if key == "additional_special_tokens":
-                assert isinstance(value, (list, tuple)) and all(isinstance(t, (str, AddedToken)) for t in value), (
-                    f"Tokens {value} for key {key} should all be str or AddedToken instances"
-                )
+                assert isinstance(value, (list, tuple)) and all(
+                    isinstance(t, (str, AddedToken)) for t in value
+                ), f"Tokens {value} for key {key} should all be str or AddedToken instances"
 
                 to_add = []
                 for token in value:
@@ -1434,7 +1419,9 @@ class PreTrainedTokenizerBase(SpecialTokensMixin, PushToHubMixin):
         # By default, do not split special tokens for both fast and slow tokenizers
         self.split_special_tokens = kwargs.pop("split_special_tokens", False)
 
-        self.deprecation_warnings = {}  # Use to store when we have already noticed a deprecation warning (avoid overlogging).
+        self.deprecation_warnings = (
+            {}
+        )  # Use to store when we have already noticed a deprecation warning (avoid overlogging).
         self._in_target_context_manager = False
 
         # Stores a Jinja template that formats chat histories into tokenizable strings
@@ -1473,9 +1460,7 @@ class PreTrainedTokenizerBase(SpecialTokensMixin, PushToHubMixin):
                 )
             self.deprecation_warnings["max_len_single_sentence"] = True
         else:
-            raise ValueError(
-                "Setting 'max_len_single_sentence' is now deprecated. This value is automatically set up."
-            )
+            raise ValueError("Setting 'max_len_single_sentence' is now deprecated. This value is automatically set up.")
 
     @max_len_sentences_pair.setter
     def max_len_sentences_pair(self, value) -> int:
@@ -1956,9 +1941,9 @@ class PreTrainedTokenizerBase(SpecialTokensMixin, PushToHubMixin):
                         if template_dir.is_dir():
                             for template_file in template_dir.glob("*.jinja"):
                                 template_name = template_file.name.removesuffix(".jinja")
-                                vocab_files[f"chat_template_{template_name}"] = (
-                                    f"{CHAT_TEMPLATE_DIR}/{template_file.name}"
-                                )
+                                vocab_files[
+                                    f"chat_template_{template_name}"
+                                ] = f"{CHAT_TEMPLATE_DIR}/{template_file.name}"
                     else:
                         for template in list_repo_templates(
                             pretrained_model_name_or_path,
@@ -3352,9 +3337,9 @@ class PreTrainedTokenizerBase(SpecialTokensMixin, PushToHubMixin):
             return BatchEncoding(encoded_inputs, tensor_type=return_tensors)
 
         batch_size = len(required_input)
-        assert all(len(v) == batch_size for v in encoded_inputs.values()), (
-            "Some items in the output dictionary have a different batch size than others."
-        )
+        assert all(
+            len(v) == batch_size for v in encoded_inputs.values()
+        ), "Some items in the output dictionary have a different batch size than others."
 
         if padding_strategy == PaddingStrategy.LONGEST:
             max_length = max(len(inputs) for inputs in required_input)
@@ -3555,9 +3540,7 @@ class PreTrainedTokenizerBase(SpecialTokensMixin, PushToHubMixin):
         if return_length:
             encoded_inputs["length"] = len(encoded_inputs["input_ids"])
 
-        batch_outputs = BatchEncoding(
-            encoded_inputs, tensor_type=return_tensors, prepend_batch_axis=prepend_batch_axis
-        )
+        batch_outputs = BatchEncoding(encoded_inputs, tensor_type=return_tensors, prepend_batch_axis=prepend_batch_axis)
 
         return batch_outputs
 

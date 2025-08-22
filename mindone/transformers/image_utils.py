@@ -21,11 +21,13 @@ from collections.abc import Iterable
 from dataclasses import dataclass
 from io import BytesIO
 from typing import TYPE_CHECKING, Optional, Union
-from mindspore import mint
+
 import numpy as np
 import requests
 from packaging import version
 from transformers.utils import logging
+
+from mindspore import mint
 
 from .utils import (
     ExplicitEnum,
@@ -44,6 +46,7 @@ from .utils.constants import (  # noqa: F401
     OPENAI_CLIP_MEAN,
     OPENAI_CLIP_STD,
 )
+
 if is_vision_available():
     import PIL.Image
     import PIL.ImageOps
@@ -97,7 +100,6 @@ class AnnotionFormat(ExplicitEnum):
     COCO_PANOPTIC = AnnotationFormat.COCO_PANOPTIC.value
 
 
-
 AnnotationType = dict[str, Union[int, str, list[dict]]]
 
 
@@ -130,6 +132,7 @@ def is_valid_image(img):
 def is_valid_list_of_images(images: list):
     return images and all(is_valid_image(image) for image in images)
 
+
 def concatenate_list(input_list):
     if isinstance(input_list[0], list):
         return [item for sublist in input_list for item in sublist]
@@ -137,6 +140,7 @@ def concatenate_list(input_list):
         return np.concatenate(input_list, axis=0)
     elif isinstance(input_list[0], mint.Tensor):
         return mint.cat(input_list, dim=0)
+
 
 def valid_images(imgs):
     # If we have an list of images, make sure every image is valid
@@ -291,6 +295,7 @@ def to_numpy_array(img) -> np.ndarray:
         return np.array(img)
     return to_numpy(img)
 
+
 def pil_to_tensor(image, is_normalize=True):
     """
     Pillow image to mindspore tensor
@@ -348,6 +353,7 @@ def infer_channel_dimension_format(
     elif image.shape[last_dim] in num_channels:
         return ChannelDimension.LAST
     raise ValueError("Unable to infer channel dimension format")
+
 
 def get_channel_dimension_axis(
     image: np.ndarray, input_data_format: Optional[Union[ChannelDimension, str]] = None
