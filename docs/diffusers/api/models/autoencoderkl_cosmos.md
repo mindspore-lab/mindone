@@ -24,7 +24,7 @@ from mindone.diffusers import AutoencoderKLCosmos
 vae = AutoencoderKLCosmos.from_pretrained("nvidia/Cosmos-1.0-Tokenizer-CV8x8x8", subfolder="vae")
 ```
 
-::: mindone.diffusers.models.autoencoders.autoencoderkl_cosmos.AutoencoderKLCosmos
+::: mindone.diffusers.models.autoencoders.autoencoder_kl_cosmos.AutoencoderKLCosmos
 
 ::: mindone.diffusers.models.autoencoders.autoencoder_kl.AutoencoderKLOutput
 
