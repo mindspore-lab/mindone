@@ -24,14 +24,14 @@ STOP_STRING_EMBEDDING_CACHE = OrderedDict()
 
 STOPPING_CRITERIA_INPUTS_DOCSTRING = r"""
     Args:
-        input_ids (`Union[ms.Tensor, numpy.ndarray]` of shape `(batch_size, sequence_length)`):
+        input_ids (`ms.Tensor` of shape `(batch_size, sequence_length)`):
             Indices of input sequence tokens in the vocabulary.
 
             Indices can be obtained using [`AutoTokenizer`]. See [`PreTrainedTokenizer.encode`] and
             [`PreTrainedTokenizer.__call__`] for details.
 
             [What are input IDs?](../glossary#input-ids)
-        scores (`Union[ms.Tensor, numpy.ndarray]` of shape `(batch_size, config.vocab_size)`):
+        scores (`ms.Tensor` of shape `(batch_size, config.vocab_size)`):
             Prediction scores of a language modeling head. These can be scores for each vocabulary token before SoftMax
             or scores for each vocabulary token after SoftMax. If this stopping criteria depends on the `scores` input,
             make sure you pass `return_dict_in_generate=True, output_scores=True` to `generate`.
@@ -39,8 +39,9 @@ STOPPING_CRITERIA_INPUTS_DOCSTRING = r"""
             Additional stopping criteria specific kwargs.
 
     Return:
-        `Union[ms.Tensor, numpy.ndarray]`. (`Union[ms.Tensor, numpy.ndarray]` of shape `(batch_size, 1)`), where `True` indicates we stop generation
-            for a particular row, `True` indicates we should continue.
+        `ms.Tensor`. (`torch.BoolTensor` of shape `(batch_size, 1)`):
+            `True` indicates we stop generation for a particular row.
+            `False` indicates we should continue.
 
 """
 
@@ -77,7 +78,7 @@ class MaxLengthCriteria(StoppingCriteria):
     def __call__(
         self, input_ids: Union[ms.Tensor, np.ndarray], scores: Union[ms.Tensor, np.ndarray], **kwargs
     ) -> Union[ms.Tensor, np.ndarray]:
-        cur_len = input_ids.shape[-1]
+        cur_len = input_ids.shape[1]
         is_done = cur_len >= self.max_length
         if self.max_position_embeddings is not None and not is_done and cur_len >= self.max_position_embeddings:
             logger.warning_once(
@@ -226,7 +227,7 @@ class StopStringCriteria(StoppingCriteria):
     Args:
         tokenizer (`PreTrainedTokenizer`):
             The model's associated tokenizer (necessary to extract vocab and tokenize the termination sequences)
-        stop_strings (`Union[str, List[str]]`):
+        stop_strings (`Union[str, list[str]]`):
             A list of strings that should end generation. If a string is passed, it will be treated like a
             list with a single element.
 
@@ -256,7 +257,7 @@ class StopStringCriteria(StoppingCriteria):
     ```
     """
 
-    def __init__(self, tokenizer: PreTrainedTokenizerBase, stop_strings: Union[str, List[str]]):
+    def __init__(self, tokenizer: PreTrainedTokenizerBase, stop_strings: Union[str, list[str]]):
         if isinstance(stop_strings, str):
             stop_strings = [stop_strings]
         self.stop_strings: tuple[str, ...] = tuple(stop_strings)
@@ -315,7 +316,7 @@ class StopStringCriteria(StoppingCriteria):
     @staticmethod
     def _stop_string_get_matching_positions(
         token_list, token_indices, stop_strings
-    ) -> tuple[dict[str, dict[str, List[int]]], dict[str, dict[str, List[int]]]]:
+    ) -> tuple[dict[str, dict[str, list[int]]], dict[str, dict[str, list[int]]]]:
         """This function preprocesses stop strings and the tokenizer vocabulary to determine where tokens can
         validly appear in the stop strings. For each token, it computes a list of positions in the stop string where the
         token appears, as well as a list of the possible "end overlaps" for that token - that is, the number of characters
@@ -470,11 +471,11 @@ class EosTokenCriteria(StoppingCriteria):
     By default, it uses the `model.generation_config.eos_token_id`.
 
     Args:
-        eos_token_id (`Union[int, List[int], ms.Tensor]`):
+        eos_token_id (`Union[int, list[int], ms.Tensor]`):
             The id(s) of the *end-of-sequence* token.
     """
 
-    def __init__(self, eos_token_id: Union[int, List[int], ms.Tensor]):
+    def __init__(self, eos_token_id: Union[int, list[int], ms.Tensor]):
         # to list
         if not isinstance(eos_token_id, ms.Tensor):
             if isinstance(eos_token_id, int):
