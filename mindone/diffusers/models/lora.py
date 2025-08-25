@@ -1,4 +1,4 @@
-# Copyright 2024 The HuggingFace Team. All rights reserved.
+# Copyright 2025 The HuggingFace Team. All rights reserved.
 #
 # This code is adapted from https://github.com/huggingface/diffusers
 # with modifications to run diffusers on mindspore.
@@ -37,7 +37,7 @@ from ..utils import deprecate, logging
 logger = logging.get_logger(__name__)  # pylint: disable=invalid-name
 
 
-def text_encoder_attn_modules(text_encoder):
+def text_encoder_attn_modules(text_encoder: nn.Cell):
     attn_modules = []
 
     if isinstance(text_encoder, (CLIPTextModel, CLIPTextModelWithProjection)):
@@ -51,7 +51,7 @@ def text_encoder_attn_modules(text_encoder):
     return attn_modules
 
 
-def text_encoder_mlp_modules(text_encoder):
+def text_encoder_mlp_modules(text_encoder: nn.Cell):
     mlp_modules = []
 
     if isinstance(text_encoder, (CLIPTextModel, CLIPTextModelWithProjection)):

@@ -50,8 +50,20 @@ else:
             ("beit", ("BeitImageProcessor",)),
             ("blip", ("BlipImageProcessor",)),
             ("blip-2", ("BlipImageProcessor",)),
+            ("chameleon", ("ChameleonImageProcessor",)),
             ("clip", ("CLIPImageProcessor",)),
+            ("convnext", ("ConvNextImageProcessor",)),
+            ("convnextv2", ("ConvNextImageProcessor",)),
+            ("depth_anything", ("DPTImageProcessor",)),
+            ("dinov2", ("BitImageProcessor",)),
             ("dpt", ("DPTImageProcessor",)),
+            ("llava_next", ("LlavaNextImageProcessor",)),
+            ("llava_next_video", ("LlavaNextVideoImageProcessor",)),
+            ("llava_onevision", ("LlavaOnevisionImageProcessor",)),
+            ("owlvit", ("OwlViTImageProcessor",)),
+            ("segformer", ("SegformerImageProcessor",)),
+            ("siglip", ("SiglipImageProcessor", "SiglipImageProcessorFast")),
+            ("yolos", ("YolosImageProcessor",)),
         ]
     )
 

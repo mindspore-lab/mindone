@@ -7,6 +7,7 @@ from mindone.diffusers.models.autoencoders.vae import Encoder as Encoder_
 
 from ..unets.unet_2d_blocks import get_down_block
 
+
 # Adapted from https://github.com/huggingface/diffusers/blob/main/src/diffusers/models/autoencoders/vae.py
 class Encoder(Encoder_):
     def __init__(

@@ -2,6 +2,7 @@ import importlib
 import itertools
 import logging
 import random
+from typing import Union
 
 import numpy as np
 import torch
@@ -114,6 +115,25 @@ def get_pt2ms_mappings(m):
             mappings[f"{name}.weight"] = f"{name}.weight", lambda x: ms.Parameter(
                 ops.expand_dims(x, axis=-2), name=f"{name}.weight"
             )
+            if "weight_norm_cell" in name:
+                ori_name = name.replace(".weight_norm_cell", "")
+                mappings[f"{ori_name}.weight_g"] = f"{ori_name}.weight_g", lambda x: ms.Parameter(
+                    ops.expand_dims(x, axis=-2), name=f"{ori_name}.weight_g"
+                )
+                mappings[f"{ori_name}.weight_v"] = f"{ori_name}.weight_v", lambda x: ms.Parameter(
+                    ops.expand_dims(x, axis=-2), name=f"{ori_name}.weight_v"
+                )
+                mappings[f"{ori_name}.bias"] = f"{name}.bias", lambda x: x
+                mappings[
+                    f"{ori_name}.parametrizations.weight.original0"
+                ] = f"{ori_name}.weight_g", lambda x: ms.Parameter(
+                    ops.expand_dims(x, axis=-2), name=f"{ori_name}.weight_g"
+                )
+                mappings[
+                    f"{ori_name}.parametrizations.weight.original1"
+                ] = f"{ori_name}.weight_v", lambda x: ms.Parameter(
+                    ops.expand_dims(x, axis=-2), name=f"{ori_name}.weight_v"
+                )
         elif isinstance(cell, (nn.Embedding,)):
             mappings[f"{name}.weight"] = f"{name}.embedding_table", lambda x: x
         elif isinstance(
@@ -307,7 +327,7 @@ def generalized_parse_args(pt_dtype, ms_dtype, *args, **kwargs):
     return pt_inputs_args, pt_inputs_kwargs, ms_inputs_args, ms_inputs_kwargs
 
 
-def compute_diffs(pt_outputs: torch.Tensor, ms_outputs: ms.Tensor):
+def compute_diffs(pt_outputs: Union[torch.Tensor, np.ndarray], ms_outputs: Union[ms.Tensor, np.ndarray]):
     if isinstance(pt_outputs, BaseOutput):
         pt_outputs = tuple(pt_outputs.values())
     elif not isinstance(pt_outputs, (tuple, list)):
@@ -327,8 +347,10 @@ def compute_diffs(pt_outputs: torch.Tensor, ms_outputs: ms.Tensor):
                 d = np.linalg.norm(p - m) / np.linalg.norm(p)
                 diffs.append(d)
         else:
-            p = p.detach().cpu().numpy()
-            m = m.asnumpy()
+            if isinstance(p, torch.Tensor):
+                p = p.detach().cpu().numpy()
+            if isinstance(m, ms.Tensor):
+                m = m.asnumpy()
             # relative error defined by Frobenius norm
             # dist(x, y) := ||x - y|| / ||y||, where ||·|| means Frobenius norm
             d = np.linalg.norm(p - m) / np.linalg.norm(p)
