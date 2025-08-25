@@ -1009,6 +1009,9 @@ class PreTrainedModel(
 
         # Check the attention implementation is supported, or set it if not yet set (on the internal attr, to avoid
         # setting it recursively)
+        # TODO set default implementation to "eager" because of immature sdpa attention
+        if self.config._attn_implementation == "sdpa":
+            self.config._attn_implementation == "eager"
         self.config._attn_implementation_internal = self._check_and_adjust_attn_implementation(
             self.config._attn_implementation, is_init_check=True
         )
@@ -1078,46 +1081,6 @@ class PreTrainedModel(
         # Otherwise, can't generate
         return False
 
-    @classmethod
-    def _check_and_enable_flash_attn_2(
-        cls,
-        config,
-        mindspore_dtype=None,
-        hard_check_only: bool = False,
-    ) -> PretrainedConfig:
-        """
-        Checks the availability of Flash Attention 2 and compatibility with the current model.
-
-        If all checks pass and `hard_check_only` is False, the method will set the config attribute
-        `attn_implementation` to "flash_attention_2" so that the model can initialize the correct attention module.
-        """
-        if not cls._supports_flash_attn_2:
-            raise ValueError(
-                f"{cls.__name__} does not support Flash Attention 2.0 yet. Please request to add support where"
-                f" the model is hosted, on its model hub page: https://huggingface.co/{config._name_or_path}/discussions/new"
-                " or in the Transformers GitHub repo: https://github.com/huggingface/transformers/issues/new"
-            )
-
-        if not is_flash_attn_2_available():
-            raise ImportError("FlashAttention2 has been toggled on, but it cannot be used due to some error")
-
-        if mindspore_dtype is None:
-            logger.warning_once(
-                "You are attempting to use Flash Attention 2.0 without specifying a MindSpore dtype. This might lead to unexpected behaviour"
-            )
-        elif mindspore_dtype is not None and mindspore_dtype not in [ms.float16, ms.bfloat16]:
-            logger.warning_once(
-                "Flash Attention 2.0 only supports ms.float16 and ms.bfloat16 dtypes, but"
-                f" the current dype in {cls.__name__} is {mindspore_dtype}. You should run training or inference using "
-                f"Automatic Mixed-Precision via the `network=auto_mix_precision(network, ...)` decorator,"
-                " or load the model with the `mindspore_dtype` argument. Example: `model = "
-                'AutoModel.from_pretrained("openai/whisper-tiny", attn_implementation="flash_attention_2", mindspore_dtype=ms.float16)`'
-            )
-
-        if not hard_check_only:
-            config._attn_implementation = "flash_attention_2"
-        return config
-
     @property
     def loss_function(self):
         if hasattr(self, "_loss_function"):
@@ -1140,33 +1103,6 @@ class PreTrainedModel(
     @classmethod
     def is_backend_compatible(cls):
         return cls._supports_attention_backend
-
-    @classmethod
-    def _check_and_enable_sdpa(cls, config, hard_check_only: bool = False) -> PretrainedConfig:
-        """
-        Checks the availability of SDPA for a given model.
-
-        If all checks pass and `hard_check_only` is False, the method will set the config attribute `_attn_implementation`
-        to "flash_attention_2" so that the model can initialize the correct attention module.
-        """
-        if hard_check_only:
-            if not cls._supports_sdpa:
-                raise ValueError(
-                    f"{cls.__name__} does not support an attention implementation through `scaled_dot_product_attention` yet."
-                    " Please request the support for this architecture: https://github.com/huggingface/transformers/issues/28005. "
-                    "If you believe this error is a bug, please open an issue in Transformers GitHub repository and "
-                    'load your model with the argument `attn_implementation="eager"` meanwhile. Example: '
-                    '`model = AutoModel.from_pretrained("openai/whisper-tiny", attn_implementation="eager")`'
-                )
-            if not is_sdpa_available():
-                raise ImportError("SDPA requirements in Transformers are not met.")
-
-        if not is_sdpa_available() or not cls._supports_sdpa:
-            return config
-
-        if not hard_check_only:
-            config._attn_implementation = "sdpa"
-        return config
 
     @classmethod
     def _from_config(cls, config, **kwargs):
@@ -1318,7 +1254,7 @@ class PreTrainedModel(
             `str`: The final attention implementation to use, including potential fallbacks from sdpa to eager, or from
             None to sdpa (to potentially eager).
         """
-        applicable_attn_implementation = "sdpa" if attn_implementation is None else attn_implementation
+        applicable_attn_implementation = "eager" if attn_implementation is None else attn_implementation
         if re.match(r"^[^/:]+/[^/:]+:?[^/:]+$", applicable_attn_implementation):
             # Extract repo_id and kernel_name from the string
             if ":" in applicable_attn_implementation:
@@ -1359,9 +1295,9 @@ class PreTrainedModel(
         if applicable_attn_implementation == "flash_attention_2":
             self._flash_attn_2_can_dispatch(is_init_check)
         elif applicable_attn_implementation == "flash_attention_3":
-            self._flash_attn_3_can_dispatch(is_init_check)
+            raise NotImplementedError("mindone.transformers does not support fa3 yet. Please use eager attention instead!")
         elif applicable_attn_implementation == "flex_attention":
-            self._flex_attn_can_dispatch(is_init_check)
+            raise NotImplementedError("mindone.transformers does not support flex attention yet. Please use eager attention instead!")
         elif applicable_attn_implementation == "sdpa":
             # Sdpa is the default, so we try it and fallback to eager otherwise when not possible
             try:
