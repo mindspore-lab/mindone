@@ -2,6 +2,7 @@ import argparse
 import json
 import os
 import re
+import shlex
 import subprocess
 import sys
 
@@ -63,7 +64,7 @@ def load_config(config_path):
 
 def run_command(command):
     print(f"Running: {command}")
-    subprocess.run(command, shell=True, check=True)
+    subprocess.run(shlex.split(command), shell=False, check=True)
 
 
 def sanitize_filename(s):

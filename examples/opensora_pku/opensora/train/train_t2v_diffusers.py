@@ -1,3 +1,5 @@
+# Adapted from https://github.com/PKU-YuanGroup/Open-Sora-Plan/blob/main/opensora/train/train_t2v_diffusers.py
+
 import logging
 import math
 import os

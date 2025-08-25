@@ -2,6 +2,9 @@
 # Copyright 2025 The Qwen team, Alibaba Group and the HuggingFace Inc. team. All rights reserved.
 #
 #
+# This code is adapted from https://github.com/huggingface/transformers
+# with modifications to run transformers on mindspore.
+#
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -21,11 +24,12 @@ import logging
 import re
 from typing import List, Optional, Union
 
-from transformers.image_utils import ImageInput, VideoInput, make_batched_videos  # TODO?
 from transformers.processing_utils import ImagesKwargs, ProcessingKwargs, ProcessorMixin, Unpack, VideosKwargs  # TODO?
 from transformers.tokenization_utils_base import AudioInput, PreTokenizedInput, TextInput  # TODO?
 
 from mindspore import mint
+
+from mindone.transformers.image_utils import ImageInput, VideoInput, make_batched_videos  # TODO?
 
 from ...feature_extraction_utils import BatchFeature
 

@@ -1,3 +1,20 @@
+# coding=utf-8
+# Copyright 2018 The HuggingFace Inc. team.
+#
+# This code is adapted from https://github.com/huggingface/transformers
+# with modifications to run transformers on mindspore.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
 import collections
 import copy
 import csv
@@ -15,7 +32,7 @@ from os.path import abspath, exists
 from typing import TYPE_CHECKING, Any, Dict, List, Optional, Tuple, Union
 
 from transformers.dynamic_module_utils import custom_object_save
-from transformers.models.auto.configuration_auto import AutoConfig
+from transformers.models.auto import AutoConfig, AutoTokenizer
 from transformers.tokenization_utils import PreTrainedTokenizer
 from transformers.utils import ModelOutput, PushToHubMixin, add_end_docstrings, copy_func, logging
 
@@ -47,7 +64,7 @@ if TYPE_CHECKING:
 logger = logging.get_logger(__name__)
 
 
-def no_collate_fn(items):
+def no_collate_fn(items, BatchInfo):
     if len(items) != 1:
         raise ValueError("This collate_fn is meant to be used with batch_size=1")
     return items[0]
@@ -60,7 +77,7 @@ def _pad(items, key, padding_value, padding_side):
         shape = items[0][key].shape
         dim = len(shape)
         if dim == 1:
-            # We have a list of 1-dim torch tensors, which can be stacked without padding
+            # We have a list of 1-dim mindspore tensors, which can be stacked without padding
             return ops.cat([item[key] for item in items], axis=0)
         if key in ["pixel_values", "image"]:
             # This is probable image so padding shouldn't be necessary
@@ -106,7 +123,7 @@ def _pad(items, key, padding_value, padding_side):
         return [item[key] for item in items]
 
 
-def pad_collate_fn(tokenizer, feature_extractor):
+def pad_collate_fn(tokenizer, feature_extractor, BatchInfo):
     # Tokenizer
     t_padding_side = None
     # Feature extractor
@@ -178,16 +195,16 @@ def infer_framework_load_model(
     **model_kwargs,
 ):
     """
-    Select framework (TensorFlow or PyTorch) to use from the `model` passed. Returns a tuple (framework, model).
+    Select framework (MindSpore) to use from the `model` passed. Returns a tuple (framework, model).
 
     If `model` is instantiated, this function will just infer the framework from the model class. Otherwise `model` is
     actually a checkpoint name and this method will try to instantiate it using `model_classes`. Since we don't want to
     instantiate the model twice, this model is returned for use by the pipeline.
 
-    If both frameworks are installed and available for `model`, PyTorch is selected.
+    If both frameworks are installed and available for `model`, MindSpore is selected.
 
     Args:
-        model (`str`, [`PreTrainedModel`] or [`TFPreTrainedModel]`):
+        model (`str`, [`PreTrainedModel`]):
             The model to infer the framework from. If `str`, a checkpoint name. The model to infer the framewrok from.
         config ([`AutoConfig`]):
             The config associated with the model to help using the correct class
@@ -204,9 +221,8 @@ def infer_framework_load_model(
     """
     if not is_mindspore_available():
         raise RuntimeError(
-            "At least one of TensorFlow 2.0 or PyTorch should be installed. "
-            "To install TensorFlow 2.0, read the instructions at https://www.tensorflow.org/install/ "
-            "To install PyTorch, read the instructions at https://pytorch.org/."
+            "At least MindSpore should be installed. "
+            "To install MindSpore, read the instructions at https://www.mindspore.cn."
         )
     if isinstance(model, str):
         model_kwargs["_from_pipeline"] = task
@@ -234,17 +250,9 @@ def infer_framework_load_model(
         for model_class in class_tuple:
             kwargs = model_kwargs.copy()
             if framework == "ms" and model.endswith(".h5"):
-                kwargs["from_tf"] = True
-                logger.warning(
-                    "Model might be a TensorFlow model (ending with `.h5`) but TensorFlow is not available. "
-                    "Trying to load the model with PyTorch."
-                )
+                raise NotImplementedError
             elif framework == "tf" and model.endswith(".bin"):
-                kwargs["from_pt"] = True
-                logger.warning(
-                    "Model might be a PyTorch model (ending with `.bin`) but PyTorch is not available. "
-                    "Trying to load the model with Tensorflow."
-                )
+                raise NotImplementedError
 
             try:
                 model = model_class.from_pretrained(model, **kwargs)
@@ -277,16 +285,16 @@ def infer_framework_from_model(
     **model_kwargs,
 ):
     """
-    Select framework (TensorFlow or PyTorch) to use from the `model` passed. Returns a tuple (framework, model).
+    Select framework (MindSpore) to use from the `model` passed. Returns a tuple (framework, model).
 
     If `model` is instantiated, this function will just infer the framework from the model class. Otherwise `model` is
     actually a checkpoint name and this method will try to instantiate it using `model_classes`. Since we don't want to
     instantiate the model twice, this model is returned for use by the pipeline.
 
-    If both frameworks are installed and available for `model`, PyTorch is selected.
+    If both frameworks are installed and available for `model`, MindSpore is selected.
 
     Args:
-        model (`str`, [`PreTrainedModel`] or [`TFPreTrainedModel]`):
+        model (`str`, [`PreTrainedModel`]):
             The model to infer the framework from. If `str`, a checkpoint name. The model to infer the framewrok from.
         model_classes (dictionary `str` to `type`, *optional*):
             A mapping framework to class.
@@ -310,12 +318,12 @@ def infer_framework_from_model(
 
 def get_framework(model, revision: Optional[str] = None):
     """
-    Select framework (TensorFlow or PyTorch) to use.
+    Select framework (MindSpore) to use.
 
     Args:
-        model (`str`, [`PreTrainedModel`] or [`TFPreTrainedModel]`):
+        model (`str`, [`PreTrainedModel`]):
             If both frameworks are installed, picks the one corresponding to the model passed (either a model class or
-            the model name). If no specific model is provided, defaults to using PyTorch.
+            the model name). If no specific model is provided, defaults to using MindSpore.
     """
     warnings.warn(
         "`get_framework` is deprecated and will be removed in v5, use `infer_framework_from_model` instead.",
@@ -323,9 +331,8 @@ def get_framework(model, revision: Optional[str] = None):
     )
     if not is_mindspore_available():
         raise RuntimeError(
-            "At least one of TensorFlow 2.0 or PyTorch should be installed. "
-            "To install TensorFlow 2.0, read the instructions at https://www.tensorflow.org/install/ "
-            "To install PyTorch, read the instructions at https://pytorch.org/."
+            "At least MindSpore should be installed. "
+            "To install MindSpore, read the instructions at https://mindspore.cn/."
         )
     if isinstance(model, str):
         model = AutoModel.from_pretrained(model, revision=revision)
@@ -374,6 +381,62 @@ def get_default_model_and_revision(
         framework = "ms"
 
     return default_models[framework]
+
+
+def load_assistant_model(
+    model: "MSPreTrainedModel",
+    assistant_model: Optional[Union[str, "MSPreTrainedModel"]],
+    assistant_tokenizer: Optional[PreTrainedTokenizer],
+) -> Tuple[Optional["MSPreTrainedModel"], Optional[PreTrainedTokenizer]]:
+    """
+    Prepares the assistant model and the assistant tokenizer for a pipeline whose model that can call `generate`.
+
+    Args:
+        model ([`PreTrainedModel`]):
+            The main model that will be used by the pipeline to make predictions.
+        assistant_model (`str` or [`PreTrainedModel`], *optional*):
+            The assistant model that will be used by the pipeline to make predictions.
+        assistant_tokenizer ([`PreTrainedTokenizer`], *optional*):
+            The assistant tokenizer that will be used by the pipeline to encode data for the model.
+
+    Returns:
+        Tuple: The loaded assistant model and (optionally) the loaded tokenizer.
+    """
+    if not model.can_generate() or assistant_model is None:
+        return None, None
+
+    if getattr(model, "framework") != "ms" or not isinstance(model, MSPreTrainedModel):
+        raise ValueError(
+            "Assisted generation, triggered by the `assistant_model` argument, is only available for "
+            "`PreTrainedModel` model instances. For instance, TF or JAX models are not supported."
+        )
+
+    # If the model is passed as a string, load the model and the corresponding tokenizer
+    if isinstance(assistant_model, str):
+        assistant_config = AutoConfig.from_pretrained(assistant_model)
+        _, loaded_assistant_model = infer_framework_load_model(assistant_model, config=assistant_config)
+        loaded_assistant_model = loaded_assistant_model.to(model.dtype)
+        loaded_assistant_tokenizer = AutoTokenizer.from_pretrained(assistant_model)
+    else:
+        loaded_assistant_model = assistant_model
+        loaded_assistant_tokenizer = assistant_tokenizer
+
+    # Finally, let's check the tokenizers: if the two models have different tokenizers, we need to keep the assistant
+    # tokenizer
+    same_vocab_size = model.config.vocab_size == loaded_assistant_model.config.vocab_size
+    same_special_tokens = all(
+        getattr(model.config, token) == getattr(loaded_assistant_model.config, token)
+        for token in ("eos_token_id", "pad_token_id", "bos_token_id")
+    )
+    if same_vocab_size and same_special_tokens:
+        loaded_assistant_tokenizer = None
+    elif loaded_assistant_tokenizer is None:
+        raise ValueError(
+            "The assistant model has a different tokenizer than the main model. You should pass the assistant "
+            "tokenizer."
+        )
+
+    return loaded_assistant_model, loaded_assistant_tokenizer
 
 
 class PipelineException(Exception):
@@ -721,7 +784,7 @@ def build_pipeline_init_args(
         device (`int`, *optional*, defaults to -1):
             Device ordinal for CPU/GPU supports. Setting this to -1 will leverage CPU, a positive will run the model on
             the associated CUDA device id. You can pass native `torch.device` or a `str` too
-        torch_dtype (`str` or `torch.dtype`, *optional*):
+        mindspore_dtype (`str` or `torch.dtype`, *optional*):
             Sent directly as `model_kwargs` (just a simpler shortcut) to use the available precision for this model
             (`torch.float16`, `torch.bfloat16`, ... or `"auto"`)"""
     if supports_binary_output:
@@ -881,8 +944,13 @@ class Pipeline(_ScikitCompat, PushToHubMixin):
         # ):
         #     self.model.to(self.device)
 
-        # If the model can generate, create a local generation config. This is done to avoid side-effects on the model
-        # as we apply local tweaks to the generation config.
+        # If the model can generate:
+        # 1 - create a local generation config. This is done to avoid side-effects on the model as we apply local
+        # tweaks to the generation config.
+        # 2 - load the assistant model if it is passed.
+        self.assistant_model, self.assistant_tokenizer = load_assistant_model(
+            self.model, kwargs.pop("assistant_model", None), kwargs.pop("assistant_tokenizer", None)
+        )
         if self.model.can_generate():
             self.prefix = self.model.config.prefix if hasattr(self.model.config, "prefix") else None
             self.generation_config = copy.deepcopy(self.model.generation_config)
@@ -913,6 +981,13 @@ class Pipeline(_ScikitCompat, PushToHubMixin):
                 # ImageSegmentationPipeline(.., feature_extractor=MyFeatureExtractor())
                 # then we should keep working
                 self.image_processor = self.feature_extractor
+            else:
+                # check if the processor is imported from transformers instead of mindone.transformers
+                # FIXME: consider to drop this branch if all processors are migrated to mindone.transformers in future
+                from transformers import BaseImageProcessor as BaseImageProcessor_
+
+                if isinstance(self.feature_extractor, BaseImageProcessor_):
+                    self.image_processor = self.feature_extractor
 
     def save_pretrained(
         self,
@@ -998,7 +1073,7 @@ class Pipeline(_ScikitCompat, PushToHubMixin):
         return self(X)
 
     @property
-    def torch_dtype(self) -> Optional["ms.dtype"]:
+    def mindspore_dtype(self) -> Optional["ms.dtype"]:
         """
         Torch dtype of the model (if it's Pytorch model), `None` otherwise.
         """
@@ -1167,7 +1242,11 @@ class Pipeline(_ScikitCompat, PushToHubMixin):
         # TODO hack by collating feature_extractor and image_processor
         feature_extractor = self.feature_extractor if self.feature_extractor is not None else self.image_processor
         collate_fn = no_collate_fn if batch_size == 1 else pad_collate_fn(self.tokenizer, feature_extractor)
-        dataloader = GeneratorDataset(dataset, num_workers=num_workers, batch_size=batch_size, collate_fn=collate_fn)
+        dataloader = (
+            GeneratorDataset(dataset, column_names=["item"], num_parallel_workers=num_workers)
+            .batch(batch_size, per_batch_map=collate_fn)
+            .create_dict_iterator()
+        )
         model_iterator = PipelineIterator(dataloader, self._construct, forward_params, loader_batch_size=batch_size)
         final_iterator = PipelineIterator(model_iterator, self.postprocess, postprocess_params)
         return final_iterator
@@ -1178,7 +1257,7 @@ class Pipeline(_ScikitCompat, PushToHubMixin):
 
         if num_workers is None:
             if self._num_workers is None:
-                num_workers = 0
+                num_workers = 1
             else:
                 num_workers = self._num_workers
         if batch_size is None:
@@ -1285,7 +1364,11 @@ class ChunkPipeline(Pipeline):
         # TODO hack by collating feature_extractor and image_processor
         feature_extractor = self.feature_extractor if self.feature_extractor is not None else self.image_processor
         collate_fn = no_collate_fn if batch_size == 1 else pad_collate_fn(self.tokenizer, feature_extractor)
-        dataloader = GeneratorDataset(dataset, num_workers=num_workers, batch_size=batch_size, collate_fn=collate_fn)
+        dataloader = (
+            GeneratorDataset(dataset, column_names=["item"], num_parallel_workers=num_workers)
+            .batch(batch_size, per_batch_map=collate_fn)
+            .create_dict_iterator()
+        )
         model_iterator = PipelinePackIterator(dataloader, self._construct, forward_params, loader_batch_size=batch_size)
         final_iterator = PipelineIterator(model_iterator, self.postprocess, postprocess_params)
         return final_iterator

@@ -1,4 +1,7 @@
-# Copyright 2024 The HuggingFace Team. All rights reserved.
+# Copyright 2025 The HuggingFace Team. All rights reserved.
+#
+# This code is adapted from https://github.com/huggingface/diffusers
+# with modifications to run diffusers on mindspore.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -17,7 +20,7 @@ import mindspore as ms
 from mindspore import mint, nn
 
 from .layers_compat import conv_transpose2d, pad, upsample_nearest3d_free_interpolate
-from .normalization import LayerNorm, RMSNorm
+from .normalization import RMSNorm
 
 
 class Upsample1D(nn.Cell):
@@ -112,7 +115,7 @@ class Upsample2D(nn.Cell):
         self.interpolate = interpolate
 
         if norm_type == "ln_norm":
-            self.norm = LayerNorm(channels, eps, elementwise_affine)
+            self.norm = mint.nn.LayerNorm(channels, eps, elementwise_affine)
         elif norm_type == "rms_norm":
             self.norm = RMSNorm(channels, eps, elementwise_affine)
         elif norm_type is None:
@@ -259,7 +262,7 @@ class FirUpsample2D(nn.Cell):
             kernel = [1] * factor
 
         # setup kernel
-        kernel = ms.Tensor(kernel, dtype=ms.float32)
+        kernel = ms.tensor(kernel, dtype=ms.float32)
         if kernel.ndim == 1:
             kernel = mint.outer(kernel, kernel)
         kernel /= mint.sum(kernel)
@@ -335,7 +338,7 @@ class KUpsample2D(nn.Cell):
     def __init__(self, pad_mode: str = "reflect"):
         super().__init__()
         self.pad_mode = pad_mode
-        kernel_1d = ms.Tensor([[1 / 8, 3 / 8, 3 / 8, 1 / 8]]) * 2
+        kernel_1d = ms.tensor([[1 / 8, 3 / 8, 3 / 8, 1 / 8]]) * 2
         self.pad = kernel_1d.shape[1] // 2 - 1
         self.kernel = kernel_1d.T @ kernel_1d
 
@@ -358,7 +361,7 @@ class KUpsample2D(nn.Cell):
 
 class CogVideoXUpsample3D(nn.Cell):
     r"""
-    A 3D Upsample layer using in CogVideoX by Tsinghua University & ZhipuAI # Todo: Wait for paper relase.
+    A 3D Upsample layer using in CogVideoX by Tsinghua University & ZhipuAI # Todo: Wait for paper release.
 
     Args:
         in_channels (`int`):
@@ -507,7 +510,7 @@ def upsample_2d(
     if kernel is None:
         kernel = [1] * factor
 
-    kernel = ms.Tensor(kernel, dtype=ms.float32)
+    kernel = ms.tensor(kernel, dtype=ms.float32)
     if kernel.ndim == 1:
         kernel = mint.outer(kernel, kernel)
     kernel /= mint.sum(kernel)

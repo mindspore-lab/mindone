@@ -1,4 +1,7 @@
-# Copyright 2024 The HuggingFace Team. All rights reserved.
+# Copyright 2025 The HuggingFace Team. All rights reserved.
+#
+# This code is adapted from https://github.com/huggingface/diffusers
+# with modifications to run diffusers on mindspore.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -14,14 +17,16 @@
 """
 Import utilities: Utilities related to imports and our lazy inits.
 """
+
 import importlib.util
+import inspect
 import operator as op
 import os
 import sys
-from collections import OrderedDict
+from collections import OrderedDict, defaultdict
 from itertools import chain
 from types import ModuleType
-from typing import Any, Union
+from typing import Any, Tuple, Union
 
 from huggingface_hub.utils import is_jinja_available  # noqa: F401
 from packaging.version import Version, parse
@@ -33,28 +38,75 @@ if sys.version_info < (3, 8):
     import importlib_metadata
 else:
     import importlib.metadata as importlib_metadata
-
+try:
+    _package_map = importlib_metadata.packages_distributions()  # load-once to avoid expensive calls
+except Exception:
+    _package_map = None
 
 logger = logging.get_logger(__name__)  # pylint: disable=invalid-name
 
+ENV_VARS_TRUE_VALUES = {"1", "ON", "YES", "TRUE"}
+ENV_VARS_TRUE_AND_AUTO_VALUES = ENV_VARS_TRUE_VALUES.union({"AUTO"})
+
+USE_MINDSPORE = os.environ.get("USE_MINDSPORE", "AUTO").upper()
+USE_SAFETENSORS = os.environ.get("USE_SAFETENSORS", "AUTO").upper()
+DIFFUSERS_SLOW_IMPORT = os.environ.get("DIFFUSERS_SLOW_IMPORT", "FALSE").upper()
+DIFFUSERS_SLOW_IMPORT = DIFFUSERS_SLOW_IMPORT in ENV_VARS_TRUE_VALUES
+
 STR_OPERATION_TO_FUNC = {">": op.gt, ">=": op.ge, "==": op.eq, "!=": op.ne, "<=": op.le, "<": op.lt}
 
-_mindspore_version = "N/A"
-_mindspore_available = importlib.util.find_spec("mindspore") is not None
-if _mindspore_available:
-    try:
-        _mindspore_version = importlib_metadata.version("mindspore")
-        logger.info(f"MindSpore version {_mindspore_version} available.")
-    except importlib_metadata.PackageNotFoundError:
-        _mindspore_available = False
+_is_google_colab = "google.colab" in sys.modules or any(k.startswith("COLAB_") for k in os.environ)
 
 
-_transformers_available = importlib.util.find_spec("transformers") is not None
-try:
-    _transformers_version = importlib_metadata.version("transformers")
-    logger.debug(f"Successfully imported transformers version {_transformers_version}")
-except importlib_metadata.PackageNotFoundError:
-    _transformers_available = False
+def _is_package_available(pkg_name: str, get_dist_name: bool = False) -> Tuple[bool, str]:
+    global _package_map
+    pkg_exists = importlib.util.find_spec(pkg_name) is not None
+    pkg_version = "N/A"
+
+    if pkg_exists:
+        if _package_map is None:
+            _package_map = defaultdict(list)
+            try:
+                # Fallback for Python < 3.10
+                for dist in importlib_metadata.distributions():
+                    _top_level_declared = (dist.read_text("top_level.txt") or "").split()
+                    _infered_opt_names = {
+                        f.parts[0] if len(f.parts) > 1 else inspect.getmodulename(f) for f in (dist.files or [])
+                    } - {None}
+                    _top_level_inferred = filter(lambda name: "." not in name, _infered_opt_names)
+                    for pkg in _top_level_declared or _top_level_inferred:
+                        _package_map[pkg].append(dist.metadata["Name"])
+            except Exception as _:  # noqa
+                pass
+        try:
+            if get_dist_name and pkg_name in _package_map and _package_map[pkg_name]:
+                if len(_package_map[pkg_name]) > 1:
+                    logger.warning(
+                        f"Multiple distributions found for package {pkg_name}. Picked distribution: {_package_map[pkg_name][0]}"
+                    )
+                pkg_name = _package_map[pkg_name][0]
+            pkg_version = importlib_metadata.version(pkg_name)
+            logger.debug(f"Successfully imported {pkg_name} version {pkg_version}")
+        except (ImportError, importlib_metadata.PackageNotFoundError):
+            pkg_exists = False
+
+    return pkg_exists, pkg_version
+
+
+if USE_MINDSPORE in ENV_VARS_TRUE_AND_AUTO_VALUES:
+    _mindspore_available, _mindspore_version = _is_package_available("mindspore")
+
+else:
+    logger.info("Disabling MindSpore because USE_MINDSPORE is set")
+    _mindspore_available = False
+    _mindspore_version = "N/A"
+
+if USE_SAFETENSORS in ENV_VARS_TRUE_AND_AUTO_VALUES:
+    _safetensors_available, _safetensors_version = _is_package_available("safetensors")
+
+else:
+    logger.info("Disabling Safetensors because USE_SAFETENSORS is set")
+    _safetensors_available = False
 
 # (sayakpaul): importlib.util.find_spec("opencv-python") returns None even when it's installed.
 # _opencv_available = importlib.util.find_spec("opencv-python") is not None
@@ -78,23 +130,6 @@ try:
 except importlib_metadata.PackageNotFoundError:
     _opencv_available = False
 
-
-_scipy_available = importlib.util.find_spec("scipy") is not None
-try:
-    _scipy_version = importlib_metadata.version("scipy")
-    logger.debug(f"Successfully imported scipy version {_scipy_version}")
-except importlib_metadata.PackageNotFoundError:
-    _scipy_available = False
-
-
-_ftfy_available = importlib.util.find_spec("ftfy") is not None
-try:
-    _ftfy_version = importlib_metadata.version("ftfy")
-    logger.debug(f"Successfully imported ftfy version {_ftfy_version}")
-except importlib_metadata.PackageNotFoundError:
-    _ftfy_available = False
-
-
 _bs4_available = importlib.util.find_spec("bs4") is not None
 try:
     # importlib metadata under different name
@@ -103,7 +138,6 @@ try:
 except importlib_metadata.PackageNotFoundError:
     _bs4_available = False
 
-
 _invisible_watermark_available = importlib.util.find_spec("imwatermark") is not None
 try:
     _invisible_watermark_version = importlib_metadata.version("invisible-watermark")
@@ -111,35 +145,37 @@ try:
 except importlib_metadata.PackageNotFoundError:
     _invisible_watermark_available = False
 
+_transformers_available, _transformers_version = _is_package_available("transformers")
+_hf_hub_available, _hf_hub_version = _is_package_available("huggingface_hub")
+_inflect_available, _inflect_version = _is_package_available("inflect")
+_unidecode_available, _unidecode_version = _is_package_available("unidecode")
+_note_seq_available, _note_seq_version = _is_package_available("note_seq")
+_wandb_available, _wandb_version = _is_package_available("wandb")
+_tensorboard_available, _tensorboard_version = _is_package_available("tensorboard")
+_sentencepiece_available, _sentencepiece_version = _is_package_available("sentencepiece")
+_matplotlib_available, _matplotlib_version = _is_package_available("matplotlib")
+_imageio_available, _imageio_version = _is_package_available("imageio")
+_ftfy_available, _ftfy_version = _is_package_available("ftfy")
+_scipy_available, _scipy_version = _is_package_available("scipy")
+_librosa_available, _librosa_version = _is_package_available("librosa")
+_better_profanity_available, _better_profanity_version = _is_package_available("better_profanity")
+_nltk_available, _nltk_version = _is_package_available("nltk")
 
-_sentencepiece_available = importlib.util.find_spec("sentencepiece") is not None
-try:
-    _sentencepiece_version = importlib_metadata.version("sentencepiece")
-    logger.info(f"Successfully imported sentencepiece version {_sentencepiece_version}")
-except importlib_metadata.PackageNotFoundError:
-    _sentencepiece_available = False
 
-
-_matplotlib_available = importlib.util.find_spec("matplotlib") is not None
-try:
-    _matplotlib_version = importlib_metadata.version("matplotlib")
-    logger.debug(f"Successfully imported matplotlib version {_matplotlib_version}")
-except importlib_metadata.PackageNotFoundError:
-    _matplotlib_available = False
-
-
-_imageio_available = importlib.util.find_spec("imageio") is not None
-if _imageio_available:
-    try:
-        _imageio_version = importlib_metadata.version("imageio")
-        logger.debug(f"Successfully imported imageio version {_imageio_version}")
-
-    except importlib_metadata.PackageNotFoundError:
-        _imageio_available = False
+def is_mindspore_available():
+    return _mindspore_available
 
 
 def is_transformers_available():
     return _transformers_available
+
+
+def is_inflect_available():
+    return _inflect_available
+
+
+def is_unidecode_available():
+    return _unidecode_available
 
 
 def is_opencv_available():
@@ -150,6 +186,22 @@ def is_scipy_available():
     return _scipy_available
 
 
+def is_librosa_available():
+    return _librosa_available
+
+
+def is_note_seq_available():
+    return _note_seq_available
+
+
+def is_wandb_available():
+    return _wandb_available
+
+
+def is_tensorboard_available():
+    return _tensorboard_available
+
+
 def is_ftfy_available():
     return _ftfy_available
 
@@ -158,21 +210,49 @@ def is_bs4_available():
     return _bs4_available
 
 
+def is_invisible_watermark_available():
+    return _invisible_watermark_available
+
+
 def is_matplotlib_available():
     return _matplotlib_available
+
+
+def is_safetensors_available():
+    return _safetensors_available
+
+
+def is_google_colab():
+    return _is_google_colab
+
+
+def is_sentencepiece_available():
+    return _sentencepiece_available
 
 
 def is_imageio_available():
     return _imageio_available
 
 
-def is_invisible_watermark_available():
-    return _invisible_watermark_available
+def is_better_profanity_available():
+    return _better_profanity_available
 
 
-def is_sentencepiece_available():
-    return _sentencepiece_available
+def is_nltk_available():
+    return _nltk_available
 
+
+# docstyle-ignore
+INFLECT_IMPORT_ERROR = """
+{0} requires the inflect library but it was not found in your environment. You can install it with pip: `pip install
+inflect`
+"""
+
+# docstyle-ignore
+MINDSPORE_IMPORT_ERROR = """
+{0} requires the MindSpore library but it was not found in your environment. Checkout the instructions on the
+installation page: https://www.mindspore.cn/install/ and follow the ones that match your environment.
+"""
 
 # docstyle-ignore
 OPENCV_IMPORT_ERROR = """
@@ -180,13 +260,17 @@ OPENCV_IMPORT_ERROR = """
 install opencv-python`
 """
 
-
 # docstyle-ignore
 SCIPY_IMPORT_ERROR = """
 {0} requires the scipy library but it was not found in your environment. You can install it with pip: `pip install
 scipy`
 """
 
+# docstyle-ignore
+LIBROSA_IMPORT_ERROR = """
+{0} requires the librosa library but it was not found in your environment.  Checkout the instructions on the
+installation page: https://librosa.org/doc/latest/install.html and follow the ones that match your environment.
+"""
 
 # docstyle-ignore
 TRANSFORMERS_IMPORT_ERROR = """
@@ -194,6 +278,29 @@ TRANSFORMERS_IMPORT_ERROR = """
 install transformers`
 """
 
+# docstyle-ignore
+UNIDECODE_IMPORT_ERROR = """
+{0} requires the unidecode library but it was not found in your environment. You can install it with pip: `pip install
+Unidecode`
+"""
+
+# docstyle-ignore
+NOTE_SEQ_IMPORT_ERROR = """
+{0} requires the note-seq library but it was not found in your environment. You can install it with pip: `pip
+install note-seq`
+"""
+
+# docstyle-ignore
+WANDB_IMPORT_ERROR = """
+{0} requires the wandb library but it was not found in your environment. You can install it with pip: `pip
+install wandb`
+"""
+
+# docstyle-ignore
+TENSORBOARD_IMPORT_ERROR = """
+{0} requires the tensorboard library but it was not found in your environment. You can install it with pip: `pip
+install tensorboard`
+"""
 
 # docstyle-ignore
 BS4_IMPORT_ERROR = """
@@ -208,15 +315,14 @@ installation section: https://github.com/rspeer/python-ftfy/tree/master#installi
 that match your environment. Please note that you may need to restart your runtime after installation.
 """
 
-
-# docstyle-ignore
-IMAGEIO_IMPORT_ERROR = """
-{0} requires the imageio library and ffmpeg but it was not found in your environment. You can install it with pip: `pip install imageio imageio-ffmpeg`
-"""
-
 # docstyle-ignore
 INVISIBLE_WATERMARK_IMPORT_ERROR = """
 {0} requires the invisible-watermark library but it was not found in your environment. You can install it with pip: `pip install invisible-watermark>=0.2.0`
+"""
+
+# docstyle-ignore
+SAFETENSORS_IMPORT_ERROR = """
+{0} requires the safetensors library but it was not found in your environment. You can install it with pip: `pip install safetensors`
 """
 
 # docstyle-ignore
@@ -224,17 +330,41 @@ SENTENCEPIECE_IMPORT_ERROR = """
 {0} requires the sentencepiece library but it was not found in your environment. You can install it with pip: `pip install sentencepiece`
 """
 
+# docstyle-ignore
+IMAGEIO_IMPORT_ERROR = """
+{0} requires the imageio library and ffmpeg but it was not found in your environment. You can install it with pip: `pip install imageio imageio-ffmpeg`
+"""
+
+# docstyle-ignore
+BETTER_PROFANITY_IMPORT_ERROR = """
+{0} requires the better_profanity library but it was not found in your environment. You can install it with pip: `pip install better_profanity`
+"""
+
+# docstyle-ignore
+NLTK_IMPORT_ERROR = """
+{0} requires the nltk library but it was not found in your environment. You can install it with pip: `pip install nltk`
+"""
+
 
 BACKENDS_MAPPING = OrderedDict(
     [
         ("bs4", (is_bs4_available, BS4_IMPORT_ERROR)),
+        ("inflect", (is_inflect_available, INFLECT_IMPORT_ERROR)),
         ("opencv", (is_opencv_available, OPENCV_IMPORT_ERROR)),
         ("scipy", (is_scipy_available, SCIPY_IMPORT_ERROR)),
         ("transformers", (is_transformers_available, TRANSFORMERS_IMPORT_ERROR)),
+        ("unidecode", (is_unidecode_available, UNIDECODE_IMPORT_ERROR)),
+        ("librosa", (is_librosa_available, LIBROSA_IMPORT_ERROR)),
+        ("note_seq", (is_note_seq_available, NOTE_SEQ_IMPORT_ERROR)),
+        ("wandb", (is_wandb_available, WANDB_IMPORT_ERROR)),
+        ("tensorboard", (is_tensorboard_available, TENSORBOARD_IMPORT_ERROR)),
         ("ftfy", (is_ftfy_available, FTFY_IMPORT_ERROR)),
-        ("imageio", (is_imageio_available, IMAGEIO_IMPORT_ERROR)),
         ("invisible_watermark", (is_invisible_watermark_available, INVISIBLE_WATERMARK_IMPORT_ERROR)),
+        ("safetensors", (is_safetensors_available, SAFETENSORS_IMPORT_ERROR)),
         ("sentencepiece", (is_sentencepiece_available, SENTENCEPIECE_IMPORT_ERROR)),
+        ("imageio", (is_imageio_available, IMAGEIO_IMPORT_ERROR)),
+        ("better_profanity", (is_better_profanity_available, BETTER_PROFANITY_IMPORT_ERROR)),
+        ("nltk", (is_nltk_available, NLTK_IMPORT_ERROR)),
     ]
 )
 
@@ -271,6 +401,21 @@ def is_mindspore_version(operation: str, version: str):
             A string version of MindSpore
     """
     return compare_versions(parse(_mindspore_version), operation, version)
+
+
+def is_hf_hub_version(operation: str, version: str):
+    """
+    Compares the current Hugging Face Hub version to a given reference with an operation.
+
+    Args:
+        operation (`str`):
+            A string representation of an operator, such as `">"` or `"<="`
+        version (`str`):
+            A version string
+    """
+    if not _hf_hub_available:
+        return False
+    return compare_versions(parse(_hf_hub_version), operation, version)
 
 
 def is_peft_version(operation: str, version: str):

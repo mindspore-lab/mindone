@@ -1,4 +1,7 @@
-# Copyright 2024 CVSSP, ByteDance and The HuggingFace Team. All rights reserved.
+# Copyright 2025 CVSSP, ByteDance and The HuggingFace Team. All rights reserved.
+#
+# This code is adapted from https://github.com/huggingface/diffusers
+# with modifications to run diffusers on mindspore.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -190,7 +193,7 @@ class AudioLDM2Pipeline(DiffusionPipeline):
         )
         self.vae_scale_factor = 2 ** (len(self.vae.config.block_out_channels) - 1)
 
-    # Copied from mindone.diffusers.pipelines.pipeline_utils.StableDiffusionMixin.enable_vae_slicing
+    # Copied from diffusers.pipelines.pipeline_utils.StableDiffusionMixin.enable_vae_slicing
     def enable_vae_slicing(self):
         r"""
         Enable sliced VAE decoding. When this option is enabled, the VAE will split the input tensor in slices to
@@ -198,7 +201,7 @@ class AudioLDM2Pipeline(DiffusionPipeline):
         """
         self.vae.enable_slicing()
 
-    # Copied from mindone.diffusers.pipelines.pipeline_utils.StableDiffusionMixin.disable_vae_slicing
+    # Copied from diffusers.pipelines.pipeline_utils.StableDiffusionMixin.disable_vae_slicing
     def disable_vae_slicing(self):
         r"""
         Disable sliced VAE decoding. If `enable_vae_slicing` was previously enabled, this method will go back to
@@ -300,7 +303,7 @@ class AudioLDM2Pipeline(DiffusionPipeline):
                 *e.g.* prompt weighting. If not provided, negative_prompt_embeds will be computed from
                 `negative_prompt` input argument.
             generated_prompt_embeds (`mindspore.tensor`, *optional*):
-                Pre-generated text embeddings from the GPT2 langauge model. Can be used to easily tweak text inputs,
+                Pre-generated text embeddings from the GPT2 language model. Can be used to easily tweak text inputs,
                  *e.g.* prompt weighting. If not provided, text embeddings will be generated from `prompt` input
                  argument.
             negative_generated_prompt_embeds (`mindspore.tensor`, *optional*):
@@ -321,7 +324,7 @@ class AudioLDM2Pipeline(DiffusionPipeline):
             attention_mask (`mindspore.tensor`):
                 Attention mask to be applied to the `prompt_embeds`.
             generated_prompt_embeds (`mindspore.tensor`):
-                Text embeddings generated from the GPT2 langauge model.
+                Text embeddings generated from the GPT2 language model.
 
         Example:
 
@@ -584,7 +587,7 @@ class AudioLDM2Pipeline(DiffusionPipeline):
 
         return prompt_embeds, attention_mask, generated_prompt_embeds
 
-    # Copied from mindone.diffusers.pipelines.audioldm.pipeline_audioldm.AudioLDMPipeline.mel_spectrogram_to_waveform
+    # Copied from diffusers.pipelines.audioldm.pipeline_audioldm.AudioLDMPipeline.mel_spectrogram_to_waveform
     def mel_spectrogram_to_waveform(self, mel_spectrogram):
         if mel_spectrogram.dim() == 4:
             mel_spectrogram = mel_spectrogram.squeeze(1)
@@ -613,11 +616,11 @@ class AudioLDM2Pipeline(DiffusionPipeline):
         audio = mint.index_select(audio, 0, indices.reshape(-1))
         return audio
 
-    # Copied from mindone.diffusers.pipelines.stable_diffusion.pipeline_stable_diffusion.StableDiffusionPipeline.prepare_extra_step_kwargs
+    # Copied from diffusers.pipelines.stable_diffusion.pipeline_stable_diffusion.StableDiffusionPipeline.prepare_extra_step_kwargs
     def prepare_extra_step_kwargs(self, generator, eta):
         # prepare extra kwargs for the scheduler step, since not all schedulers have the same signature
         # eta (η) is only used with the DDIMScheduler, it will be ignored for other schedulers.
-        # eta corresponds to η in DDIM paper: https://arxiv.org/abs/2010.02502
+        # eta corresponds to η in DDIM paper: https://huggingface.co/papers/2010.02502
         # and should be between [0, 1]
 
         accepts_eta = "eta" in set(inspect.signature(self.scheduler.step).parameters.keys())
@@ -727,7 +730,7 @@ class AudioLDM2Pipeline(DiffusionPipeline):
                     f"`attention_mask: {negative_attention_mask.shape} != `prompt_embeds` {negative_prompt_embeds.shape}"
                 )
 
-    # Copied from mindone.diffusers.pipelines.stable_diffusion.pipeline_stable_diffusion.StableDiffusionPipeline.prepare_latents \
+    # Copied from diffusers.pipelines.stable_diffusion.pipeline_stable_diffusion.StableDiffusionPipeline.prepare_latents \
     # with width->self.vocoder.config.model_in_dim
     def prepare_latents(self, batch_size, num_channels_latents, height, dtype, generator, latents=None):
         shape = (
@@ -801,8 +804,8 @@ class AudioLDM2Pipeline(DiffusionPipeline):
                 generated waveforms based on their cosine similarity with the text input in the joint text-audio
                 embedding space.
             eta (`float`, *optional*, defaults to 0.0):
-                Corresponds to parameter eta (η) from the [DDIM](https://arxiv.org/abs/2010.02502) paper. Only applies
-                to the [`~schedulers.DDIMScheduler`], and is ignored in other schedulers.
+                Corresponds to parameter eta (η) from the [DDIM](https://huggingface.co/papers/2010.02502) paper. Only
+                applies to the [`~schedulers.DDIMScheduler`], and is ignored in other schedulers.
             generator (`np.random.Generator` or `List[np.random.Generator]`, *optional*):
                 A [`np.random.Generator`](https://pytorch.org/docs/stable/generated/np.random.Generator.html) to make
                 generation deterministic.
@@ -817,7 +820,7 @@ class AudioLDM2Pipeline(DiffusionPipeline):
                 Pre-generated negative text embeddings. Can be used to easily tweak text inputs (prompt weighting). If
                 not provided, `negative_prompt_embeds` are generated from the `negative_prompt` input argument.
             generated_prompt_embeds (`mindspore.tensor`, *optional*):
-                Pre-generated text embeddings from the GPT2 langauge model. Can be used to easily tweak text inputs,
+                Pre-generated text embeddings from the GPT2 language model. Can be used to easily tweak text inputs,
                  *e.g.* prompt weighting. If not provided, text embeddings will be generated from `prompt` input
                  argument.
             negative_generated_prompt_embeds (`mindspore.tensor`, *optional*):
@@ -899,7 +902,7 @@ class AudioLDM2Pipeline(DiffusionPipeline):
             batch_size = prompt_embeds.shape[0]
 
         # here `guidance_scale` is defined analog to the guidance weight `w` of equation (2)
-        # of the Imagen paper: https://arxiv.org/pdf/2205.11487.pdf . `guidance_scale = 1`
+        # of the Imagen paper: https://huggingface.co/papers/2205.11487 . `guidance_scale = 1`
         # corresponds to doing no classifier free guidance.
         do_classifier_free_guidance = guidance_scale > 1.0
 

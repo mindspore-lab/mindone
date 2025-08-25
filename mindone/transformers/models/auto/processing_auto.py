@@ -1,6 +1,9 @@
 # coding=utf-8
 # Copyright 2021 The HuggingFace Inc. team.
 #
+# This code is adapted from https://github.com/huggingface/transformers
+# with modifications to run transformers on mindspore.
+#
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -44,7 +47,18 @@ from .image_processing_auto import AutoImageProcessor
 
 logger = logging.get_logger(__name__)
 
-PROCESSOR_MAPPING_NAMES = OrderedDict()
+PROCESSOR_MAPPING_NAMES = OrderedDict(
+    [
+        ("blip", "BlipProcessor"),
+        ("chameleon", "ChameleonProcessor"),
+        ("idefics", "IdeficsProcessor"),
+        ("llava_next", "LlavaNextProcessor"),
+        ("llava_next_video", "LlavaNextVideoProcessor"),
+        ("llava_onevision", "LlavaOnevisionProcessor"),
+        ("owlvit", "OwlViTProcessor"),
+        ("siglip", "SiglipProcessor"),
+    ]
+)
 
 PROCESSOR_MAPPING = _LazyAutoMapping(CONFIG_MAPPING_NAMES, PROCESSOR_MAPPING_NAMES)
 

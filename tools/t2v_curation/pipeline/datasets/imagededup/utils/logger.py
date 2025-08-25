@@ -1,3 +1,5 @@
+# Copied from https://github.com/idealo/imagededup/blob/master/imagededup/utils/logger.py
+
 import logging
 
 
