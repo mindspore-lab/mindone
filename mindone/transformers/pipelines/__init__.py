@@ -121,42 +121,10 @@ SUPPORTED_TASKS = {
         "default": {"model": {"ms": ("distilbert/distilbert-base-cased", "6ea8117")}},
         "type": "multimodal",
     },
-    "image-classification": {
-        "impl": ImageClassificationPipeline,
-        "ms": (AutoModelForImageClassification,) if is_mindspore_available() else (),
-        "default": {
-            "model": {
-                "ms": ("google/vit-base-patch16-224", "3f49326"),
-            }
-        },
-        "type": "image",
-    },
-    "image-to-text": {
-        "impl": ImageToTextPipeline,
-        "ms": (AutoModelForVision2Seq,) if is_mindspore_available() else (),
-        "default": {
-            "model": {
-                "ms": ("ydshieh/vit-gpt2-coco-en", "5bebf1e"),
-            }
-        },
-        "type": "multimodal",
-    },
-    "image-text-to-text": {
-        "impl": ImageTextToTextPipeline,
-        "ms": (AutoModelForImageTextToText,) if is_mindspore_available() else (),
-        "default": {
-            "model": {
-                "ms": ("llava-hf/llava-onevision-qwen2-0.5b-ov-hf", "2c9ba3b"),
-            }
-        },
-        "type": "multimodal",
-    },
     "visual-question-answering": {
         "impl": VisualQuestionAnsweringPipeline,
         "ms": (AutoModelForVisualQuestionAnswering,) if is_mindspore_available() else (),
-        "default": {
-            "model": {"ms": ("dandelin/vilt-b32-finetuned-vqa", "d0a1f6a")},
-        },
+        "default": {"model": {"ms": ("dandelin/vilt-b32-finetuned-vqa", "d0a1f6a")}},
         "type": "multimodal",
     },
     "text-classification": {
@@ -214,6 +182,12 @@ SUPPORTED_TASKS = {
         "impl": ImageSegmentationPipeline,
         "ms": (AutoModelForImageSegmentation, AutoModelForSemanticSegmentation) if is_mindspore_available() else (),
         "default": {"model": {"ms": ("facebook/detr-resnet-50-panoptic", "d53b52a")}},
+        "type": "multimodal",
+    },
+    "image-to-text": {
+        "impl": ImageToTextPipeline,
+        "ms": (AutoModelForVision2Seq,) if is_mindspore_available() else (),
+        "default": {"model": {"ms": ("ydshieh/vit-gpt2-coco-en", "5bebf1e")}},
         "type": "multimodal",
     },
     "image-text-to-text": {
