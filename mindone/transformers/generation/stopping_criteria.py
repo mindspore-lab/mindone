@@ -5,7 +5,7 @@ import warnings
 from abc import ABC
 from collections import OrderedDict
 from copy import deepcopy
-from typing import List, Optional, Union
+from typing import Optional, Union
 
 import numpy as np
 from transformers import PreTrainedTokenizerBase

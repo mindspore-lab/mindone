@@ -25,7 +25,6 @@
 from typing import Callable, Optional, Tuple, Union
 
 from transformers.models.glm4.configuration_glm4 import Glm4Config
-from ...utils import LossKwargs
 
 import mindspore as ms
 from mindspore import mint, nn, ops
@@ -44,7 +43,7 @@ from ...modeling_outputs import (
 from ...modeling_rope_utils import ROPE_INIT_FUNCTIONS
 from ...modeling_utils import ALL_ATTENTION_FUNCTIONS, PreTrainedModel
 from ...processing_utils import Unpack
-from ...utils import logging
+from ...utils import LossKwargs, logging
 
 logger = logging.get_logger(__name__)
 

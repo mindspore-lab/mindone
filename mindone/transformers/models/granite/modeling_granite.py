@@ -31,7 +31,6 @@ from transformers.utils import (
     logging,
     replace_return_docstrings,
 )
-from ...utils import LossKwargs
 
 import mindspore as ms
 from mindspore import mint, nn, ops
@@ -46,6 +45,7 @@ from ...modeling_outputs import BaseModelOutputWithPast, CausalLMOutputWithPast
 from ...modeling_rope_utils import ROPE_INIT_FUNCTIONS
 from ...modeling_utils import ALL_ATTENTION_FUNCTIONS, PreTrainedModel
 from ...processing_utils import Unpack
+from ...utils import LossKwargs
 
 logger = logging.get_logger(__name__)
 _CONFIG_FOR_DOC = "GraniteConfig"

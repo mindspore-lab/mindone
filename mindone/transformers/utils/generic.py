@@ -30,11 +30,13 @@ from typing import Callable, ContextManager, List, Optional, TypedDict
 
 import numpy as np
 
-from mindspore import Tensor
+import mindspore as ms
+from mindspore import nn, Tensor
 
 from .import_utils import is_mindspore_available
 
 _CAN_RECORD_REGISTRY = {}
+
 
 class cached_property(property):
     """
@@ -446,6 +448,7 @@ def mindspore_float(x):
 
     return x.to(ms.float32) if isinstance(x, ms.Tensor) else int(x)
 
+
 class TransformersKwargs(TypedDict, total=False):
     """
     Keyword arguments to be passed to the loss function
@@ -478,7 +481,7 @@ class OutputRecorder:
         layer_name (Optional[str]): Name of the submodule to target (if needed), e.g., "transformer.layer.3.attn".
     """
 
-    target_class: "type[ms.nn.Cell]"
+    target_class: "type[nn.Cell]"
     index: Optional[int] = 0
     layer_name: Optional[str] = None
 

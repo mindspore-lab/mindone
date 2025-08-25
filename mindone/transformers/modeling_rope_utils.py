@@ -177,9 +177,7 @@ def _compute_dynamic_ntk_parameters(
     return inv_freq, attention_factor
 
 
-def _compute_yarn_parameters(
-    config: PretrainedConfig, seq_len: Optional[int] = None
-) -> tuple["ms.Tensor", float]:
+def _compute_yarn_parameters(config: PretrainedConfig, seq_len: Optional[int] = None) -> tuple["ms.Tensor", float]:
     """
     Computes the inverse frequencies with NTK scaling. Please refer to the
     [original paper](https://huggingface.co/papers/2309.00071)
@@ -264,9 +262,7 @@ def _compute_yarn_parameters(
     return inv_freq, attention_factor
 
 
-def _compute_longrope_parameters(
-    config: PretrainedConfig, seq_len: Optional[int] = None
-) -> tuple["ms.Tensor", float]:
+def _compute_longrope_parameters(config: PretrainedConfig, seq_len: Optional[int] = None) -> tuple["ms.Tensor", float]:
     """
     Computes the inverse frequencies with LongRoPE scaling. Please refer to the
     [original implementation](https://github.com/microsoft/LongRoPE)
@@ -317,9 +313,7 @@ def _compute_longrope_parameters(
     return inv_freq, attention_factor
 
 
-def _compute_llama3_parameters(
-    config: PretrainedConfig, seq_len: Optional[int] = None
-) -> tuple["ms.Tensor", float]:
+def _compute_llama3_parameters(config: PretrainedConfig, seq_len: Optional[int] = None) -> tuple["ms.Tensor", float]:
     """
     Computes the inverse frequencies for llama 3.1.
 

@@ -27,7 +27,6 @@ from dataclasses import dataclass
 from typing import Any, Callable, Dict, List, Optional, Tuple, Union
 
 from transformers.utils import logging
-from ...utils import LossKwargs
 
 import mindspore as ms
 import mindspore.mint.nn.functional as F
@@ -45,6 +44,7 @@ from ...modeling_outputs import BaseModelOutputWithPast, ModelOutput
 from ...modeling_rope_utils import ROPE_INIT_FUNCTIONS
 from ...modeling_utils import ALL_ATTENTION_FUNCTIONS, PreTrainedModel
 from ...processing_utils import Unpack
+from ...utils import LossKwargs
 from .configuration_glm4v import Glm4vConfig, Glm4vTextConfig, Glm4vVisionConfig
 
 logger = logging.get_logger(__name__)

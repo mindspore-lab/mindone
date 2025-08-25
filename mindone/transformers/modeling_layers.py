@@ -17,6 +17,8 @@
 from abc import ABC
 from typing import Optional
 
+from transformers.utils import auto_docstring, can_return_tuple
+
 import mindspore as ms
 import mindspore.nn as nn
 from mindspore import mint
@@ -31,7 +33,6 @@ from .modeling_outputs import (
 from .models.auto import AutoModel
 from .processing_utils import Unpack
 from .utils import TransformersKwargs, logging
-from transformers.utils import auto_docstring, can_return_tuple
 
 logger = logging.get_logger(__name__)
 

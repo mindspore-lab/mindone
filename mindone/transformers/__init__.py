@@ -26,6 +26,7 @@ import transformers
 from packaging import version
 
 from .cache_utils import *
+
 # Feature Extractor
 from .feature_extraction_utils import BatchFeature, FeatureExtractionMixin
 from .image_processing_base import ImageProcessingMixin
@@ -274,11 +275,7 @@ from .models.deberta_v2 import (
     DebertaV2PreTrainedModel,
 )
 from .models.dpt import DPTForDepthEstimation
-from .models.ernie4_5 import (
-    Ernie4_5PreTrainedModel,
-    Ernie4_5Model,
-    Ernie4_5ForCausalLM
-)
+from .models.ernie4_5 import Ernie4_5ForCausalLM, Ernie4_5Model, Ernie4_5PreTrainedModel
 from .models.fuyu import FuyuForCausalLM, FuyuPreTrainedModel
 from .models.gemma import (
     GemmaForCausalLM,

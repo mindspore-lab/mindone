@@ -18,7 +18,7 @@
 
 import inspect
 import math
-from typing import Callable, Iterable, List, Optional, Union
+from typing import Callable, Iterable, Optional, Union
 
 import numpy as np
 from transformers.utils import add_start_docstrings
@@ -289,9 +289,7 @@ class RepetitionPenaltyLogitsProcessor(LogitsProcessor):
         if not isinstance(penalty, float) or not (penalty > 0):
             raise ValueError(f"`penalty` has to be a strictly positive float, but is {penalty}")
 
-        if prompt_ignore_length is not None and (
-                not isinstance(prompt_ignore_length, int) or prompt_ignore_length < 0
-        ):
+        if prompt_ignore_length is not None and (not isinstance(prompt_ignore_length, int) or prompt_ignore_length < 0):
             raise ValueError(f"`prompt_ignore_length` has to be a positive integer, but is {prompt_ignore_length}")
 
         self.penalty = penalty
@@ -306,7 +304,7 @@ class RepetitionPenaltyLogitsProcessor(LogitsProcessor):
     @add_start_docstrings(LOGITS_PROCESSOR_INPUTS_DOCSTRING)
     def __call__(self, input_ids: ms.Tensor, scores: ms.Tensor) -> ms.Tensor:
         if self.prompt_ignore_length:
-            input_ids = input_ids[:, self.prompt_ignore_length:]
+            input_ids = input_ids[:, self.prompt_ignore_length :]
 
         if scores.dim() == 3:
             if self.logits_indices is not None and self.cumulative_seqlens_q is not None:

@@ -19,7 +19,7 @@ import math
 from collections import OrderedDict
 
 import mindspore as ms
-from mindspore import Tensor, nn, mint
+from mindspore import Tensor, mint, nn
 
 
 class PytorchGELUTanh(nn.Cell):
@@ -43,7 +43,9 @@ class NewGELUActivation(nn.Cell):
 
     def construct(self, input: Tensor) -> Tensor:
         return (
-            0.5 * input * (1.0 + mint.tanh(mint.sqrt(Tensor(2.0 / math.pi)) * (input + 0.044715 * mint.pow(input, 3.0))))
+            0.5
+            * input
+            * (1.0 + mint.tanh(mint.sqrt(Tensor(2.0 / math.pi)) * (input + 0.044715 * mint.pow(input, 3.0))))
         ).to(input.dtype)
 
 

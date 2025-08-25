@@ -28,7 +28,6 @@ from typing import Callable, List, Optional, Tuple, Union
 
 from transformers.models.phi3.configuration_phi3 import Phi3Config
 from transformers.utils import logging
-from ...utils import LossKwargs
 
 import mindspore as ms
 from mindspore import mint, nn, ops
@@ -48,6 +47,7 @@ from ...modeling_outputs import (
 from ...modeling_rope_utils import ROPE_INIT_FUNCTIONS
 from ...modeling_utils import ALL_ATTENTION_FUNCTIONS, MSPreTrainedModel
 from ...processing_utils import Unpack
+from ...utils import LossKwargs
 
 logger = logging.get_logger(__name__)
 
