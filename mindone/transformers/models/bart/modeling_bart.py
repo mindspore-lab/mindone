@@ -708,7 +708,9 @@ BART_GENERATION_EXAMPLE = r"""
     Summarization example:
 
     ```python
-    >>> from transformers import AutoTokenizer, BartForConditionalGeneration
+    >>> from transformers import AutoTokenizer
+    >>> from mindone.transformers import BartForConditionalGeneration
+    >>> import mindspore as ms
 
     >>> model = BartForConditionalGeneration.from_pretrained("facebook/bart-large-cnn")
     >>> tokenizer = AutoTokenizer.from_pretrained("facebook/bart-large-cnn")
@@ -718,10 +720,10 @@ BART_GENERATION_EXAMPLE = r"""
     ...     "amid dry conditions. The aim is to reduce the risk of wildfires. Nearly 800 thousand customers were "
     ...     "scheduled to be affected by the shutoffs which were expected to last through at least midday tomorrow."
     ... )
-    >>> inputs = tokenizer([ARTICLE_TO_SUMMARIZE], max_length=1024, return_tensors="pt")
+    >>> inputs = tokenizer([ARTICLE_TO_SUMMARIZE], max_length=1024, return_tensors="np")
 
     >>> # Generate Summary
-    >>> summary_ids = model.generate(inputs["input_ids"], num_beams=2, min_length=0, max_length=20)
+    >>> summary_ids = model.generate(ms.tensor(inputs["input_ids"]), num_beams=2, min_length=0, max_length=20)
     >>> tokenizer.batch_decode(summary_ids, skip_special_tokens=True, clean_up_tokenization_spaces=False)[0]
     'PG&E scheduled the blackouts in response to forecasts for high winds amid dry conditions'
     ```
@@ -729,13 +731,15 @@ BART_GENERATION_EXAMPLE = r"""
     Mask filling example:
 
     ```python
-    >>> from transformers import AutoTokenizer, BartForConditionalGeneration
+    >>> from transformers import AutoTokenizer
+    >>> from mindone.transformers import BartForConditionalGeneration
+    >>> import mindspore as ms
 
     >>> tokenizer = AutoTokenizer.from_pretrained("facebook/bart-base")
     >>> model = BartForConditionalGeneration.from_pretrained("facebook/bart-base")
 
     >>> TXT = "My friends are <mask> but they eat too many carbs."
-    >>> input_ids = tokenizer([TXT], return_tensors="pt")["input_ids"]
+    >>> input_ids = ms.tensor(tokenizer([TXT], return_tensors="np")["input_ids"])
     >>> logits = model(input_ids).logits
 
     >>> masked_index = (input_ids[0] == tokenizer.mask_token_id).nonzero().item()
@@ -1972,12 +1976,19 @@ class BartForCausalLM(BartPreTrainedModel, GenerationMixin):
         Example:
 
         ```python
-        >>> from transformers import AutoTokenizer, BartForCausalLM
+        >>> from transformers import AutoTokenizer
+        >>> from mindone.transformers import BartForCausalLM
+        >>> import mindspore as ms
 
         >>> tokenizer = AutoTokenizer.from_pretrained("facebook/bart-base")
         >>> model = BartForCausalLM.from_pretrained("facebook/bart-base", add_cross_attention=False)
         >>> assert model.config.is_decoder, f"{model.__class__} has to be configured as a decoder."
-        >>> inputs = tokenizer("Hello, my dog is cute", return_tensors="pt")
+        >>> inputs = tokenizer("Hello, my dog is cute", return_tensors="np")
+        >>> for key, value in inputs.items():
+        >>>     if isinstance(value, np.ndarray):
+        >>>         inputs[key] = ms.Tensor(value)
+        >>>     if isinstance(value, list):
+        >>>         inputs[key] = ms.Tensor(value)
         >>> outputs = model(**inputs)
 
         >>> logits = outputs.logits

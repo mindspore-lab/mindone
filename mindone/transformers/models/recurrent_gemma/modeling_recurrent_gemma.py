@@ -725,13 +725,21 @@ class RecurrentGemmaForCausalLM(RecurrentGemmaPreTrainedModel, GenerationMixin):
         Example:
 
         ```python
-        >>> from transformers import AutoTokenizer, RecurrentGemmaForCausalLM
+        >>> from transformers import AutoTokenizer
+        >>> from mindone.transformers import RecurrentGemmaForCausalLM
+        >>> import mindspore as ms
+        >>> import numpy as np
 
         >>> model = RecurrentGemmaForCausalLM.from_pretrained("google/recurrentgemma-2b")
         >>> tokenizer = AutoTokenizer.from_pretrained("google/recurrentgemma-2b")
 
         >>> prompt = "What is your favorite condiment?"
-        >>> inputs = tokenizer(prompt, return_tensors="pt")
+        >>> inputs = tokenizer(prompt, return_tensors="np")
+        >>> for key, value in inputs.items():
+        >>>     if isinstance(value, np.ndarray):
+        >>>         inputs[key] = ms.tensor(value)
+        >>>     elif isinstance(value, list):
+        >>>         inputs[key] = ms.tensor(value)
 
         >>> # Generate
         >>> generate_ids = model.generate(inputs.input_ids, max_length=30)
