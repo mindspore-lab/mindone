@@ -12,6 +12,4 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from .configuration_gpt_neox import *
 from .modeling_gpt_neox import *
-from .tokenization_gpt_neox_fast import *

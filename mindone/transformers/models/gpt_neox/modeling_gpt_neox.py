@@ -6,6 +6,7 @@
 #                🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨
 from typing import Callable, Optional, Tuple, Union
 
+from transformers.models.gpt_neox.configuration_gpt_neox import GPTNeoXConfig
 from transformers.utils import LossKwargs
 
 import mindspore as ms
@@ -27,7 +28,6 @@ from ...modeling_rope_utils import ROPE_INIT_FUNCTIONS
 from ...modeling_utils import ALL_ATTENTION_FUNCTIONS, PreTrainedModel
 from ...processing_utils import Unpack
 from ...utils import logging
-from .configuration_gpt_neox import GPTNeoXConfig
 
 logger = logging.get_logger(__name__)
 
