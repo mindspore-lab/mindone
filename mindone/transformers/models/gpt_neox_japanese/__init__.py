@@ -13,6 +13,4 @@
 # limitations under the License.
 from typing import TYPE_CHECKING
 
-from .configuration_gpt_neox_japanese import *
 from .modeling_gpt_neox_japanese import *
-from .tokenization_gpt_neox_japanese import *

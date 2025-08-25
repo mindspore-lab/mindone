@@ -17,6 +17,8 @@
 import math
 from typing import Optional, Tuple, Union
 
+from transformers.models.gpt_neox_japanese.configuration_gpt_neox_japanese import GPTNeoXJapaneseConfig
+
 import mindspore as ms
 from mindspore import Tensor, mint, nn
 
@@ -28,7 +30,6 @@ from ...modeling_outputs import BaseModelOutputWithPast, CausalLMOutputWithPast
 from ...modeling_rope_utils import ROPE_INIT_FUNCTIONS
 from ...modeling_utils import PreTrainedModel
 from ...utils import logging
-from .configuration_gpt_neox_japanese import GPTNeoXJapaneseConfig
 
 logger = logging.get_logger(__name__)
 
@@ -418,12 +419,16 @@ class GPTNeoXJapaneseModel(GPTNeoXJapanesePreTrainedModel):
 
         ```python
         >>> from transformers import AutoTokenizer, GPTNeoXJapaneseModel
-        >>> import ms
+        >>> import mindspore as ms
 
         >>> tokenizer = AutoTokenizer.from_pretrained("abeja/gpt-neox-japanese-2.7b")
         >>> model = GPTNeoXJapaneseModel.from_pretrained("abeja/gpt-neox-japanese-2.7b")
 
-        >>> inputs = tokenizer("日本語のGPT-neoxがHugging Faceで使えます😀", return_tensors="pt")
+        >>> inputs = tokenizer("日本語のGPT-neoxがHugging Faceで使えます😀", return_tensors="np")
+
+        >>> inputs['input_ids'] = ms.tensor(inputs['input_ids'])
+        >>> inputs['attention_mask'] = ms.tensor(inputs['attention_mask'])
+
         >>> outputs = model(**inputs)
 
         >>> last_hidden_states = outputs.last_hidden_state
