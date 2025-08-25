@@ -1,3 +1,5 @@
+# Adapted from https://github.com/ShareGPT4Omni/ShareGPT4V/blob/master/share4v/model/multimodal_projector/builder.py
+
 import re
 
 import mindspore.nn as nn

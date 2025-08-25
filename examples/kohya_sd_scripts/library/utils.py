@@ -1,3 +1,5 @@
+# Adapted from https://github.com/kohya-ss/sd-scripts/blob/main/library/utils.py
+
 import logging
 import sys
 

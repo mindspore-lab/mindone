@@ -1,3 +1,16 @@
+# Copyright (c) Meta Platforms, Inc. and affiliates.
+# All rights reserved.
+#
+# This code is adapted from https://github.com/PixArt-alpha/PixArt-sigma
+# with modifications to run PixArt-sigma on mindspore.
+#
+# This source code is licensed under the license found in the
+# LICENSE file in the root directory of this source tree.
+# --------------------------------------------------------
+# References:
+# GLIDE: https://github.com/openai/glide-text2im
+# MAE: https://github.com/facebookresearch/mae/blob/main/models_mae.py
+# --------------------------------------------------------
 from typing import Any, Dict, List, Literal, Optional, Tuple, Union
 
 import numpy as np
@@ -170,7 +183,7 @@ class PixArt(nn.Cell):
         # Initialize patch_embed like nn.Linear (instead of nn.Conv2d):
         w = self.x_embedder.proj.weight.data
         w_flatted = w.view(w.shape[0], -1)
-        w.set_data(initializer(XavierUniform(), w_flatted.shape, w_flatted.dtype).reshape(w.shape))
+        w.set_data(initializer(XavierUniform(), w_flatted.shape, w_flatted.dtype).init_data().reshape(w.shape))
         constant_(self.x_embedder.proj.bias, 0)
 
         # Initialize timestep embedding MLP:
@@ -345,7 +358,7 @@ class PixArtMS(PixArt):
         # Initialize patch_embed like nn.Linear (instead of nn.Conv2d):
         w = self.x_embedder.proj.weight.data
         w_flatted = w.view(w.shape[0], -1)
-        w.set_data(initializer(XavierUniform(), w_flatted.shape, w_flatted.dtype).reshape(w.shape))
+        w.set_data(initializer(XavierUniform(), w_flatted.shape, w_flatted.dtype).init_data().reshape(w.shape))
         constant_(self.x_embedder.proj.bias, 0)
 
         # Initialize timestep embedding MLP:

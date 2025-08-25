@@ -1,6 +1,9 @@
 # Copyright 2025 The EasyAnimate team and The HuggingFace Team.
 # All rights reserved.
 #
+# This code is adapted from https://github.com/huggingface/diffusers
+# with modifications to run diffusers on mindspore.
+#
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -171,7 +174,7 @@ class EasyAnimateResidualBlock3D(nn.Cell):
             eps=norm_eps,
             affine=True,
         )
-        self.nonlinearity = get_activation(non_linearity)()
+        self.nonlinearity = get_activation(non_linearity)
         self.conv1 = EasyAnimateCausalConv3d(in_channels, out_channels, kernel_size=3)
 
         self.norm2 = mint.nn.GroupNorm(num_groups=norm_num_groups, num_channels=out_channels, eps=norm_eps, affine=True)
@@ -436,7 +439,7 @@ class EasyAnimateMidBlock3d(nn.Cell):
 
 class EasyAnimateEncoder(nn.Cell):
     r"""
-    Causal encoder for 3D video-like data used in [EasyAnimate](https://arxiv.org/abs/2405.18991).
+    Causal encoder for 3D video-like data used in [EasyAnimate](https://huggingface.co/papers/2405.18991).
     """
 
     _supports_gradient_checkpointing = True
@@ -518,7 +521,7 @@ class EasyAnimateEncoder(nn.Cell):
             num_groups=norm_num_groups,
             eps=1e-6,
         )
-        self.conv_act = get_activation(act_fn)()
+        self.conv_act = get_activation(act_fn)
 
         # Initialize the output convolution layer
         conv_out_channels = 2 * out_channels if double_z else out_channels
@@ -551,7 +554,7 @@ class EasyAnimateEncoder(nn.Cell):
 
 class EasyAnimateDecoder(nn.Cell):
     r"""
-    Causal decoder for 3D video-like data used in [EasyAnimate](https://arxiv.org/abs/2405.18991).
+    Causal decoder for 3D video-like data used in [EasyAnimate](https://huggingface.co/papers/2405.18991).
     """
 
     _supports_gradient_checkpointing = True
@@ -634,7 +637,7 @@ class EasyAnimateDecoder(nn.Cell):
             num_groups=norm_num_groups,
             eps=1e-6,
         )
-        self.conv_act = get_activation(act_fn)()
+        self.conv_act = get_activation(act_fn)
 
         # Output convolution layer
         self.conv_out = EasyAnimateCausalConv3d(block_out_channels[0], out_channels, kernel_size=3)
@@ -671,7 +674,7 @@ class EasyAnimateDecoder(nn.Cell):
 class AutoencoderKLMagvit(ModelMixin, ConfigMixin):
     r"""
     A VAE model with KL loss for encoding images into latents and decoding latent representations into images. This
-    model is used in [EasyAnimate](https://arxiv.org/abs/2405.18991).
+    model is used in [EasyAnimate](https://huggingface.co/papers/2405.18991).
 
     This model inherits from [`ModelMixin`]. Check the superclass documentation for it's generic methods implemented
     for all models (such as downloading or saving).
@@ -894,7 +897,7 @@ class AutoencoderKLMagvit(ModelMixin, ConfigMixin):
     def _decode(self, z: ms.Tensor, return_dict: bool = False) -> Union[DecoderOutput, ms.Tensor]:
         batch_size, num_channels, num_frames, height, width = z.shape
         tile_latent_min_height = self.tile_sample_min_height // self.spatial_compression_ratio
-        tile_latent_min_width = self.tile_sample_stride_width // self.spatial_compression_ratio
+        tile_latent_min_width = self.tile_sample_min_width // self.spatial_compression_ratio
 
         if self.use_tiling and (z.shape[-1] > tile_latent_min_height or z.shape[-2] > tile_latent_min_width):
             return self.tiled_decode(z, return_dict=return_dict)
