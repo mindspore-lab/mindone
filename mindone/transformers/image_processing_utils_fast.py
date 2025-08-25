@@ -677,8 +677,12 @@ class BaseImageProcessorFast(BaseImageProcessor):
         resized_images_grouped = {}
         for shape, stacked_images in grouped_images.items():
             if do_resize:
-                stacked_images = self.resize(image=stacked_images, size=size, interpolation=interpolation)
-            resized_images_grouped[shape] = stacked_images
+                stacked_images_updated = []
+                for i in range(len(stacked_images)):
+                    stacked_images_updated.append(
+                        self.resize(image=stacked_images[i], size=size, interpolation=interpolation)
+                    )
+            resized_images_grouped[shape] = stacked_images_updated
         resized_images = reorder_images(resized_images_grouped, grouped_images_index)
 
         # Group images by size for further processing
