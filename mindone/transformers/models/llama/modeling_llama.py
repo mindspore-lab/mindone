@@ -25,7 +25,6 @@ from typing import Callable, Optional, Tuple, Union
 import numpy as np
 from transformers import LlamaConfig
 from transformers.utils import add_start_docstrings, add_start_docstrings_to_model_forward, logging
-from ...utils import LossKwargs
 
 import mindspore as ms
 from mindspore import Parameter, Tensor, mint, nn, ops
@@ -42,6 +41,7 @@ from ...modeling_outputs import BaseModelOutputWithPast, CausalLMOutputWithPast,
 from ...modeling_rope_utils import ROPE_INIT_FUNCTIONS
 from ...modeling_utils import ALL_ATTENTION_FUNCTIONS, PreTrainedModel
 from ...processing_utils import Unpack
+from ...utils import LossKwargs
 
 logger = logging.get_logger(__name__)
 

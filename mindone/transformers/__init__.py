@@ -261,6 +261,20 @@ from .models.convbert import (
     ConvBertLayer,
     ConvBertModel,
 )
+from .models.convnext import (
+    ConvNextBackbone,
+    ConvNextFeatureExtractor,
+    ConvNextForImageClassification,
+    ConvNextImageProcessor,
+    ConvNextModel,
+    ConvNextPreTrainedModel,
+)
+from .models.convnextv2 import (
+    ConvNextV2Backbone,
+    ConvNextV2ForImageClassification,
+    ConvNextV2Model,
+    ConvNextV2PreTrainedModel,
+)
 from .models.deberta import (
     DebertaForMaskedLM,
     DebertaForQuestionAnswering,
@@ -278,12 +292,11 @@ from .models.deberta_v2 import (
     DebertaV2Model,
     DebertaV2PreTrainedModel,
 )
+from .models.depth_anything import DepthAnythingForDepthEstimation, DepthAnythingPreTrainedModel
+from .models.dinov2 import Dinov2Backbone, Dinov2ForImageClassification, Dinov2Model, Dinov2PreTrainedModel
+from .models.dpt import DPTForDepthEstimation, DPTImageProcessor, DPTModel, DPTPreTrainedModel
 from .models.dpt import DPTForDepthEstimation
-from .models.ernie4_5 import (
-    Ernie4_5PreTrainedModel,
-    Ernie4_5Model,
-    Ernie4_5ForCausalLM
-)
+from .models.ernie4_5 import Ernie4_5ForCausalLM, Ernie4_5Model, Ernie4_5PreTrainedModel
 from .models.fuyu import FuyuForCausalLM, FuyuPreTrainedModel
 from .models.gemma import (
     GemmaForCausalLM,
@@ -530,6 +543,14 @@ from .models.roberta import (
     RobertaForTokenClassification,
     RobertaModel,
     RobertaPreTrainedModel,
+)
+from .models.segformer import (
+    SegformerDecodeHead,
+    SegformerForImageClassification,
+    SegformerForSemanticSegmentation,
+    SegformerImageProcessor,
+    SegformerModel,
+    SegformerPreTrainedModel,
 )
 from .models.siglip import (
     SiglipForImageClassification,

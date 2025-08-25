@@ -16,27 +16,27 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-import os
 import copy
 import inspect
+import os
 import time
 import warnings
 from dataclasses import dataclass
-from typing import TYPE_CHECKING, Any, Callable, Dict, List, Optional, Tuple, Union
+from typing import TYPE_CHECKING, Any, Callable, Optional, Union
 
 import numpy as np
 from huggingface_hub import file_exists
 from packaging import version
 from transformers import logging
-from transformers.generation.configuration_utils import CompileConfig, GenerationConfig, GenerationMode
-from transformers.tokenization_utils import ExtensionsTrie
-from transformers.utils.generic import ModelOutput
 from transformers.dynamic_module_utils import (
     check_python_requirements,
     get_cached_module_file,
     get_class_in_module,
     resolve_trust_remote_code,
 )
+from transformers.generation.configuration_utils import CompileConfig, GenerationConfig, GenerationMode
+from transformers.tokenization_utils import ExtensionsTrie
+from transformers.utils.generic import ModelOutput
 
 import mindspore as ms
 import mindspore.numpy as mnp
@@ -361,6 +361,7 @@ class GenerationMixin:
 
     To learn more about decoding strategies refer to the [text generation strategies guide](../generation_strategies).
     """
+
     def load_custom_generate(
         self,
         pretrained_model_name_or_path: Optional[Union[str, os.PathLike]] = None,
@@ -452,10 +453,7 @@ class GenerationMixin:
         # fixme there is no implementation for torch dynamo exporting
         if inputs_embeds is not None and input_ids.shape[1] == 0:  # Exception 4
             inputs_embeds = inputs_embeds[:, -cache_position.shape[0] :]
-        elif (
-            inputs_embeds is not None  # Exception 1
-            or (cache_position[-1] >= input_ids.shape[1])  # Exception 3
-        ):
+        elif inputs_embeds is not None or (cache_position[-1] >= input_ids.shape[1]):  # Exception 1  # Exception 3
             input_ids = input_ids[:, -cache_position.shape[0] :]
         elif input_ids.shape[1] != cache_position.shape[0]:  # Default case (the "else", a no op, is Exception 2)
             input_ids = input_ids[:, cache_position]
@@ -1397,9 +1395,7 @@ class GenerationMixin:
         # Watermarking should be after all logits processing is finished (see #34630)
         if generation_config.watermarking_config is not None:
             processors.append(
-                generation_config.watermarking_config.construct_processor(
-                    self.config.get_text_config().vocab_size
-                )
+                generation_config.watermarking_config.construct_processor(self.config.get_text_config().vocab_size)
             )
 
         # `LogitNormalization` should always be the last logit processor, when present
@@ -1857,7 +1853,7 @@ class GenerationMixin:
             # - otherwise: legacy behavior, let's just make sure we have the tokens defined
             model_base_version = version.parse(version.parse(self.generation_config.transformers_version).base_version)
             if use_model_defaults is True or (
-                    use_model_defaults is None and model_base_version >= version.parse("4.50.0")
+                use_model_defaults is None and model_base_version >= version.parse("4.50.0")
             ):
                 modified_values = {}
                 global_default_generation_config = GenerationConfig()
@@ -1869,8 +1865,8 @@ class GenerationMixin:
                     global_default_value = getattr(global_default_generation_config, key, None)
                     custom_gen_config_value = getattr(generation_config, key, None)
                     if (
-                            custom_gen_config_value == global_default_value
-                            and model_gen_config_value != global_default_value
+                        custom_gen_config_value == global_default_value
+                        and model_gen_config_value != global_default_value
                     ):
                         modified_values[key] = model_gen_config_value
                         setattr(generation_config, key, model_gen_config_value)
@@ -1986,7 +1982,7 @@ class GenerationMixin:
             }
             if cache_implementation in ["static", "hybrid", "offloaded_static"]:
                 cache_kwargs.update({"tp_size": self.tp_size})
-            
+
             self._cache = cache_cls(**cache_kwargs)
             if requires_cross_attention_cache:
                 encoder_kwargs = cache_kwargs.copy()
@@ -1995,7 +1991,7 @@ class GenerationMixin:
         else:
             self._cache.reset()
         return self._cache
-    
+
     def _supports_default_dynamic_cache(self) -> bool:
         """
         Return `True` if current model can use a `DynamicCache` instance when initializing the `past_key_values`.
@@ -2074,10 +2070,10 @@ class GenerationMixin:
         Prepares the cache for generation (if applicable), given `generate`'s parameterization. If a cache is
         instantiated, writes it to `model_kwargs`, under the name expected by the model.
         """
-        
-        is_hybrid_cache = any(class_name in self.__class__.__name__.lower() for class_name in ["mamba", "falconh1"])
+        # fixme is_hybrid_cache is never used
+        # is_hybrid_cache = any(class_name in self.__class__.__name__.lower() for class_name in ["mamba", "falconh1"])
         cache_name = "past_key_values" if "mamba" not in self.__class__.__name__.lower() else "cache_params"
-        
+
         requires_cross_attention_cache = (
             self.config.is_encoder_decoder or model_kwargs.get("encoder_outputs") is not None
         )
@@ -2327,7 +2323,7 @@ class GenerationMixin:
             return False
 
         # Base logic
-        valid_hardware = ms.get_context("mode")==0 or bool(
+        valid_hardware = ms.get_context("mode") == 0 or bool(
             generation_config.compile_config is not None and generation_config.compile_config._compile_all_devices
         )
         using_compilable_cache = (
@@ -2867,7 +2863,7 @@ class GenerationMixin:
             os.environ["TOKENIZERS_PARALLELISM"] = "0"
             # If we use FA2 and a static cache, we cannot compile with fullgraph
             if self.config._attn_implementation == "flash_attention_2" and getattr(
-                    model_kwargs.get("past_key_values"), "is_compileable", False
+                model_kwargs.get("past_key_values"), "is_compileable", False
             ):
                 if generation_config.compile_config is None:
                     generation_config.compile_config = CompileConfig(fullgraph=False)
@@ -3603,9 +3599,7 @@ class GenerationMixin:
             # Prepare inputs
             if attention_mask is not None:
                 model_kwargs["attention_mask"] = attention_mask[:, :current_length]
-            model_kwargs["cache_position"] = mint.arange(
-                past_length, current_length, dtype=ms.int64
-            )
+            model_kwargs["cache_position"] = mint.arange(past_length, current_length, dtype=ms.int64)
             model_kwargs["position_ids"] = model_kwargs["cache_position"].unsqueeze(0)
             model_inputs = self.prepare_inputs_for_generation(input_chunk, **model_kwargs)
 

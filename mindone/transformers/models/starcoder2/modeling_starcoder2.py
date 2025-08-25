@@ -37,7 +37,6 @@ from transformers.utils import (  # can_return_tuple,
     logging,
     replace_return_docstrings,
 )
-from ...utils import LossKwargs
 from transformers.utils.deprecation import deprecate_kwarg
 
 import mindspore as ms
@@ -58,6 +57,7 @@ from ...modeling_outputs import (
 from ...modeling_rope_utils import ROPE_INIT_FUNCTIONS
 from ...modeling_utils import ALL_ATTENTION_FUNCTIONS, PreTrainedModel
 from ...processing_utils import Unpack
+from ...utils import LossKwargs
 
 logger = logging.get_logger(__name__)
 _CHECKPOINT_FOR_DOC = "bigcode/starcoder2-7b"

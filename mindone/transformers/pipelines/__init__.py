@@ -56,7 +56,11 @@ from .base import (
     get_default_model_and_revision,
     infer_framework_load_model,
 )
+from .depth_estimation import DepthEstimationPipeline
+from .feature_extraction import FeatureExtractionPipeline
 from .image_classification import ImageClassificationPipeline
+from .image_feature_extraction import ImageFeatureExtractionPipeline
+from .image_segmentation import ImageSegmentationPipeline
 from .image_text_to_text import ImageTextToTextPipeline
 from .question_answering import QuestionAnsweringArgumentHandler, QuestionAnsweringPipeline
 from .text2text_generation import Text2TextGenerationPipeline
@@ -68,10 +72,14 @@ if is_mindspore_available():
     import mindspore as ms
 
     from ..models.auto.modeling_auto import (
+        AutoModel,
         AutoModelForCausalLM,
+        AutoModelForDepthEstimation,
         AutoModelForImageClassification,
+        AutoModelForImageSegmentation,
         AutoModelForImageTextToText,
         AutoModelForQuestionAnswering,
+        AutoModelForSemanticSegmentation,
         AutoModelForSeq2SeqLM,
         AutoModelForSequenceClassification,
         AutoModelForTokenClassification,
@@ -105,6 +113,12 @@ SUPPORTED_TASKS = {
             }
         },
         "type": "image",
+    },
+    "image-segmentation": {
+        "impl": ImageSegmentationPipeline,
+        "ms": (AutoModelForImageSegmentation, AutoModelForSemanticSegmentation) if is_mindspore_available() else (),
+        "default": {"model": {"ms": ("facebook/detr-resnet-50-panoptic", "d53b52a")}},
+        "type": "multimodal",
     },
     "image-text-to-text": {
         "impl": ImageTextToTextPipeline,
@@ -147,6 +161,24 @@ SUPPORTED_TASKS = {
         "ms": (AutoModelForSeq2SeqLM,) if is_mindspore_available() else (),
         "default": {"model": {"ms": ("google-t5/t5-base", "a9723ea")}},
         "type": "text",
+    },
+    "depth-estimation": {
+        "impl": DepthEstimationPipeline,
+        "ms": (AutoModelForDepthEstimation,) if is_mindspore_available() else (),
+        "default": {"model": {"ms": ("Intel/dpt-large", "bc15f29")}},
+        "type": "image",
+    },
+    "feature-extraction": {
+        "impl": FeatureExtractionPipeline,
+        "ms": (AutoModel,) if is_mindspore_available() else (),
+        "default": {"model": {"ms": ("distilbert/distilbert-base-cased", "6ea8117")}},
+        "type": "multimodal",
+    },
+    "image-feature-extraction": {
+        "impl": ImageFeatureExtractionPipeline,
+        "ms": (AutoModel,) if is_mindspore_available() else (),
+        "default": {"model": {"ms": ("google/vit-base-patch16-224", "3f49326")}},
+        "type": "image",
     },
     "zero-shot-image-classification": {
         "impl": ZeroShotImageClassificationPipeline,

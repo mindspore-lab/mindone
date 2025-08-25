@@ -15,7 +15,6 @@ import math
 from typing import Callable, List, Optional, Tuple, Union
 
 from transformers import Qwen2Config, logging
-from ...utils import LossKwargs
 
 import mindspore as ms
 from mindspore import Parameter, Tensor, mint, nn, ops
@@ -40,6 +39,8 @@ from mindone.transformers.modeling_outputs import (
 from mindone.transformers.modeling_rope_utils import ROPE_INIT_FUNCTIONS
 from mindone.transformers.modeling_utils import ALL_ATTENTION_FUNCTIONS, MSPreTrainedModel
 from mindone.transformers.processing_utils import Unpack
+
+from ...utils import LossKwargs
 
 logger = logging.get_logger(__name__)
 

@@ -286,7 +286,9 @@ class AssistedCandidateGenerator(CandidateGenerator):
         has_past_key_values = self.assistant_kwargs.get("past_key_values", None) is not None
         if has_past_key_values:
             new_cache_size = input_ids.shape[-1] - 1 - remove_from_pkv
-            self.assistant_kwargs["past_key_values"] = self.assistant_kwargs["past_key_values"].crop(new_cache_size - num_added_tokens)
+            self.assistant_kwargs["past_key_values"] = self.assistant_kwargs["past_key_values"].crop(
+                new_cache_size - num_added_tokens
+            )
             self.assistant_kwargs = _prepare_attention_mask(
                 self.assistant_kwargs, input_ids.shape[-1], self.assistant_model.config.is_encoder_decoder
             )
@@ -601,6 +603,7 @@ class AssistedCandidateGeneratorDifferentTokenizers(AssistedCandidateGenerator):
 
         return new_target_ids
 
+
 class _PruneReindexingLMHead(nn.Cell):
     """
     A class to prune and reindex the language model head.
@@ -657,6 +660,7 @@ class _MapInputEmbedding(nn.Cell):
 
         return self.original_embedding(my_input_ids)
 
+
 class AssistantToTargetTranslator:
     """
     Translates token ids and logits between assistant and target model vocabularies. This class is used to handle
@@ -692,9 +696,10 @@ class AssistantToTargetTranslator:
         self._target_tokenizer: PreTrainedTokenizerBase = target_tokenizer
         self._assistant_tokenizer: PreTrainedTokenizerBase = assistant_tokenizer
         self.target_vocab_size: int = target_vocab_size
-        self._assistant_to_target_input_ids, self.target_to_assistant_input_ids = (
-            self._get_assistant_to_target_input_ids()
-        )
+        (
+            self._assistant_to_target_input_ids,
+            self.target_to_assistant_input_ids,
+        ) = self._get_assistant_to_target_input_ids()
         self._suppress_input_ids: list[int] = self._get_suppress_input_ids()
         self.logits_processors: Optional[LogitsProcessorList] = None
         self.assistant_prune_lm_head = assistant_prune_lm_head and assistant_model is not None
@@ -724,7 +729,8 @@ class AssistantToTargetTranslator:
         """
         Disables the mapping of input ids despite the assistant pruning for the language model head being enabled.
 
-        This method is required for the first forward pass of `_MapInputEmbedding` where input ids are already in the assistant vocabulary space. By disabling the mapping, it ensures that the input ids are processed correctly without remapping.
+        This method is required for the first forward pass of `_MapInputEmbedding` where input ids are already in the assistant vocabulary space.
+        By disabling the mapping, it ensures that the input ids are processed correctly without remapping.
 
         """
         if self.assistant_prune_lm_head:

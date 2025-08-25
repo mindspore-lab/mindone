@@ -25,7 +25,7 @@ import sys
 import warnings
 from contextlib import contextmanager, nullcontext
 from dataclasses import dataclass
-from typing import Any, Callable, Dict, List, MutableMapping, Optional, Tuple, Union, get_type_hints
+from typing import Any, Callable, MutableMapping, Optional, Union
 
 from transformers.configuration_utils import PretrainedConfig
 from transformers.dynamic_module_utils import custom_object_save
@@ -79,8 +79,8 @@ from .mindspore_utils import (  # noqa: F401
     prune_linear_layer,
 )
 from .modeling_attn_mask_utils import dtype_to_min
-from .utils.import_utils import is_flash_attn_2_available, is_sdpa_available
 from .utils.generic import _CAN_RECORD_REGISTRY, OutputRecorder
+from .utils.import_utils import is_flash_attn_2_available, is_sdpa_available
 
 if is_safetensors_available():
     from safetensors import safe_open
@@ -396,6 +396,7 @@ def _add_variant(weights_name: str, variant: Optional[str] = None) -> str:
 
     return weights_name
 
+
 def _get_mindspore_dtype(
     cls,
     mindspore_dtype: Optional[Union[str, ms.Type, dict]],
@@ -441,6 +442,7 @@ def _get_mindspore_dtype(
                 )
         # TODO: We cannot set default mindspore dtype!
     return config, mindspore_dtype
+
 
 def _find_missing_and_unexpected_keys(
     cls,
@@ -728,6 +730,7 @@ class ModuleUtilsMixin:
 
         return 6 * self.estimate_tokens(input_dict) * self.num_parameters(exclude_embeddings=exclude_embeddings)
 
+
 class EmbeddingAccessMixin:
     """
     Base utilities to regroup getters and setters for embeddings.
@@ -817,7 +820,10 @@ class EmbeddingAccessMixin:
         if getattr(self, "lm_head"):
             self.lm_head = new_embeddings
 
-class PreTrainedModel(nn.Cell, EmbeddingAccessMixin, ModuleUtilsMixin, GenerationMixin, PushToHubMixin, PeftAdapterMixin):
+
+class PreTrainedModel(
+    nn.Cell, EmbeddingAccessMixin, ModuleUtilsMixin, GenerationMixin, PushToHubMixin, PeftAdapterMixin
+):
     r"""
     Base class for all models.
 
@@ -1181,8 +1187,6 @@ class PreTrainedModel(nn.Cell, EmbeddingAccessMixin, ModuleUtilsMixin, Generatio
             mindspore_dtype = str(mindspore_dtype)
             mindspore_dtype = TORCH_TO_MINDSPORE_DTYPE_MAP[mindspore_dtype]
 
-        use_flash_attention_2 = kwargs.pop("use_flash_attention_2", False)
-
         config = copy.deepcopy(config)  # We do not want to modify the config inplace in _from_config.
 
         # If passing `attn_implementation` as kwargs, respect it (it will be applied recursively on subconfigs)
@@ -1232,9 +1236,11 @@ class PreTrainedModel(nn.Cell, EmbeddingAccessMixin, ModuleUtilsMixin, Generatio
                 " or in the Transformers GitHub repo: https://github.com/huggingface/transformers/issues/new"
             )
 
-        if not is_flash_attn_2_available():
-            preface = "FlashAttention2 has been toggled on, but it cannot be used due to the following error:"
-            install_message = "Please refer to the documentation of https://huggingface.co/docs/transformers/perf_infer_gpu_one#flashattention-2 to install Flash Attention 2."
+        # fixme variable is assigned but never used
+        # if not is_flash_attn_2_available():
+        #     preface = "FlashAttention2 has been toggled on, but it cannot be used due to the following error:"
+        #     install_message = "Please refer to the documentation of
+        #           https://huggingface.co/docs/transformers/perf_infer_gpu_one#flashattention-2 to install Flash Attention 2."
 
         if mindspore_dtype is None:
             logger.warning_once(
@@ -1243,15 +1249,17 @@ class PreTrainedModel(nn.Cell, EmbeddingAccessMixin, ModuleUtilsMixin, Generatio
         elif mindspore_dtype is not None and mindspore_dtype not in [ms.float16, ms.bfloat16]:
             logger.warning_once(
                 "Flash Attention 2 only supports ms.float16 and ms.bfloat16 dtypes, but"
-                f" the current dype in {self.__class__.__name__} is {mindspore_dtype}. You should run training or inference using Automatic Mixed-Precision via the `with torch.autocast(device_type='torch_device'):` decorator,"
-                ' or load the model with the `torch_dtype` argument. Example: `model = AutoModel.from_pretrained("openai/whisper-tiny", attn_implementation="flash_attention_2", torch_dtype=torch.float16)`'
+                f" the current dype in {self.__class__.__name__} is {mindspore_dtype}. You should run training or inference using Automatic Mixed-Precision,"
+                " or load the model with the `torch_dtype` argument. "
+                'Example: `model = AutoModel.from_pretrained("openai/whisper-tiny", attn_implementation="flash_attention_2", mindspore_dtype=ms.float16)`'
             )
 
         # With the early check, the parameters are not yet initalized correctly
         if not is_init_check:
             if getattr(self, "use_bettertransformer", False):
                 raise ValueError(
-                    "Flash Attention 2 and BetterTransformer API are not compatible. Please make sure to disable BetterTransformers by doing model.reverse_bettertransformer()"
+                    "Flash Attention 2 and BetterTransformer API are not compatible. Please make sure to disable BetterTransformers "
+                    "by doing model.reverse_bettertransformer()"
                 )
 
         # If no error raise by this point, we can return `True`
@@ -1272,7 +1280,9 @@ class PreTrainedModel(nn.Cell, EmbeddingAccessMixin, ModuleUtilsMixin, Generatio
             raise ValueError(
                 f"{self.__class__.__name__} does not support an attention implementation through torch.nn.functional.scaled_dot_product_attention yet."
                 " Please request the support for this architecture: https://github.com/huggingface/transformers/issues/28005. If you believe"
-                ' this error is a bug, please open an issue in Transformers GitHub repository and load your model with the argument `attn_implementation="eager"` meanwhile. Example: `model = AutoModel.from_pretrained("openai/whisper-tiny", attn_implementation="eager")`'
+                " this error is a bug, please open an issue in Transformers GitHub repository and "
+                'load your model with the argument `attn_implementation="eager"` meanwhile. '
+                'Example: `model = AutoModel.from_pretrained("openai/whisper-tiny", attn_implementation="eager")`'
             )
         if not is_sdpa_available():
             raise ImportError("MindSpore SDPA requirements in Transformers are not met.")
@@ -1301,7 +1311,6 @@ class PreTrainedModel(nn.Cell, EmbeddingAccessMixin, ModuleUtilsMixin, Generatio
         """
         applicable_attn_implementation = "sdpa" if attn_implementation is None else attn_implementation
         if re.match(r"^[^/:]+/[^/:]+:?[^/:]+$", applicable_attn_implementation):
-
             # Extract repo_id and kernel_name from the string
             if ":" in applicable_attn_implementation:
                 repo_id, kernel_name = attn_implementation.split(":")
@@ -1365,9 +1374,7 @@ class PreTrainedModel(nn.Cell, EmbeddingAccessMixin, ModuleUtilsMixin, Generatio
         with open(class_file, "r") as f:
             code = f.read()
         # heuristic -> if we find those patterns, the model uses the correct interface
-        return (
-            "eager_attention_forward" in code and "ALL_ATTENTION_FUNCTIONS[self.config._attn_implementation]" in code
-        )
+        return "eager_attention_forward" in code and "ALL_ATTENTION_FUNCTIONS[self.config._attn_implementation]" in code
 
     def set_attn_implementation(self, attn_implementation: Union[str, dict]):
         """
@@ -2343,14 +2350,13 @@ class PreTrainedModel(nn.Cell, EmbeddingAccessMixin, ModuleUtilsMixin, Generatio
         subfolder = kwargs.pop("subfolder", "")
         commit_hash = kwargs.pop("_commit_hash", None)
         variant = kwargs.pop("variant", None)
-        use_flash_attention_2 = kwargs.pop("use_flash_attention_2", False)
         adapter_kwargs = kwargs.pop("adapter_kwargs", {})
         adapter_name = kwargs.pop("adapter_name", "default")
 
         key_mapping = kwargs.pop("key_mapping", None)
         # Load models with hardcoded key mapping on class for VLMs only, to keep BC and standardize model
         if key_mapping is None and any(
-                allowed_name in class_name.__name__.lower() for class_name in cls.__mro__[:-1] for allowed_name in VLMS
+            allowed_name in class_name.__name__.lower() for class_name in cls.__mro__[:-1] for allowed_name in VLMS
         ):
             key_mapping = cls._checkpoint_conversion_mapping
 
@@ -2735,7 +2741,14 @@ class PreTrainedModel(nn.Cell, EmbeddingAccessMixin, ModuleUtilsMixin, Generatio
 
             # Find the correct dtype based on current state
             config, mindspore_dtype = _get_mindspore_dtype(
-                cls, mindspore_dtype, resolved_archive_file, config, sharded_metadata, state_dict, weights_only, is_sharded
+                cls,
+                mindspore_dtype,
+                resolved_archive_file,
+                config,
+                sharded_metadata,
+                state_dict,
+                weights_only,
+                is_sharded,
             )
 
             # Check if `_keep_in_fp32_modules` is not None
@@ -3166,9 +3179,7 @@ class PreTrainedModel(nn.Cell, EmbeddingAccessMixin, ModuleUtilsMixin, Generatio
         # Only reset it if not present or different from previous config
         if "llama4" in self.config.model_type:  # TODO try to enable for FULL COMPILE HYBRID CACHE SUPPORT
             return self.__call__
-        if (
-            not hasattr(self, "_compiled_call")
-        ):
+        if not hasattr(self, "_compiled_call"):
             self._compiled_call = ms.jit(self.__call__)
         return self._compiled_call
 

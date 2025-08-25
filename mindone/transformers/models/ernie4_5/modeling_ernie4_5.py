@@ -20,8 +20,11 @@
 
 from typing import Callable, Optional, Union
 
+from transformers.models.ernie4_5.configuration_ernie4_5 import Ernie4_5Config
+from transformers.utils import auto_docstring, can_return_tuple
+
 import mindspore as ms
-from mindspore import mint, nn, Parameter
+from mindspore import Parameter, mint, nn
 
 from ...activations import ACT2FN
 from ...cache_utils import Cache, DynamicCache
@@ -33,8 +36,6 @@ from ...modeling_rope_utils import ROPE_INIT_FUNCTIONS, dynamic_rope_update
 from ...modeling_utils import ALL_ATTENTION_FUNCTIONS, PreTrainedModel
 from ...processing_utils import Unpack
 from ...utils import TransformersKwargs
-from transformers.utils import auto_docstring, can_return_tuple
-from transformers.models.ernie4_5.configuration_ernie4_5 import Ernie4_5Config
 
 
 class Ernie4_5RotaryEmbedding(nn.Cell):
@@ -60,7 +61,7 @@ class Ernie4_5RotaryEmbedding(nn.Cell):
     def construct(self, x, position_ids):
         inv_freq_expanded = self.inv_freq[None, :, None].float().broadcast_to((position_ids.shape[0], -1, 1))
         position_ids_expanded = position_ids[:, None, :].float()
-        
+
         # fixme there is not implementation for torch.autocast
         freqs = (inv_freq_expanded.float() @ position_ids_expanded.float()).swapaxes(1, 2)
         emb = mint.cat((freqs, freqs), dim=-1)
@@ -183,10 +184,18 @@ class Ernie4_5Attention(nn.Cell):
         self.attention_dropout = 0.0
         self.is_causal = True
 
-        self.q_proj = mint.nn.Linear(config.hidden_size, config.num_attention_heads * self.head_dim, bias=config.use_bias)
-        self.k_proj = mint.nn.Linear(config.hidden_size, config.num_key_value_heads * self.head_dim, bias=config.use_bias)
-        self.v_proj = mint.nn.Linear(config.hidden_size, config.num_key_value_heads * self.head_dim, bias=config.use_bias)
-        self.o_proj = mint.nn.Linear(config.num_attention_heads * self.head_dim, config.hidden_size, bias=config.use_bias)
+        self.q_proj = mint.nn.Linear(
+            config.hidden_size, config.num_attention_heads * self.head_dim, bias=config.use_bias
+        )
+        self.k_proj = mint.nn.Linear(
+            config.hidden_size, config.num_key_value_heads * self.head_dim, bias=config.use_bias
+        )
+        self.v_proj = mint.nn.Linear(
+            config.hidden_size, config.num_key_value_heads * self.head_dim, bias=config.use_bias
+        )
+        self.o_proj = mint.nn.Linear(
+            config.num_attention_heads * self.head_dim, config.hidden_size, bias=config.use_bias
+        )
 
     def construct(
         self,
@@ -299,7 +308,7 @@ class Ernie4_5DecoderLayer(GradientCheckpointingLayer):
 
 @auto_docstring
 class Ernie4_5PreTrainedModel(PreTrainedModel):
-    config : Ernie4_5Config
+    config: Ernie4_5Config
     base_model_prefix = "model"
     supports_gradient_checkpointing = False
     _no_split_modules = ["Ernie4_5DecoderLayer"]
@@ -336,7 +345,7 @@ class Ernie4_5Model(Ernie4_5PreTrainedModel):
 
         # Initialize weights and apply final processing
         self.post_init()
-    
+
     @auto_docstring
     def construct(
         self,
@@ -360,9 +369,7 @@ class Ernie4_5Model(Ernie4_5PreTrainedModel):
 
         if cache_position is None:
             past_seen_tokens = past_key_values.get_seq_length() if past_key_values is not None else 0
-            cache_position: ms.Tensor = mint.arange(
-                past_seen_tokens, past_seen_tokens + inputs_embeds.shape[1]
-            )
+            cache_position: ms.Tensor = mint.arange(past_seen_tokens, past_seen_tokens + inputs_embeds.shape[1])
 
         if position_ids is None:
             position_ids = cache_position.unsqueeze(0)

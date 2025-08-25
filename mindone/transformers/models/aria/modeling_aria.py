@@ -31,7 +31,6 @@ from transformers.utils import (
     logging,
     replace_return_docstrings,
 )
-from ...utils import LossKwargs
 
 import mindspore as ms
 import mindspore.mint as mint
@@ -50,6 +49,7 @@ from ...modeling_outputs import BaseModelOutputWithPast, CausalLMOutputWithPast,
 from ...modeling_rope_utils import ROPE_INIT_FUNCTIONS
 from ...modeling_utils import ALL_ATTENTION_FUNCTIONS, MSPreTrainedModel
 from ...processing_utils import Unpack
+from ...utils import LossKwargs
 
 # from ..auto import AutoModelForCausalLM, AutoModel
 from ..idefics3 import Idefics3VisionTransformer
