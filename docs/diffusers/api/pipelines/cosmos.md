@@ -47,6 +47,6 @@ output.save("output.png")
 
 ::: mindone.diffusers.Cosmos2VideoToWorldPipeline
 
-::: mindone.diffusers.pipelines.cosmos.CosmosPipelineOutput
+::: mindone.diffusers.pipelines.cosmos.pipeline_output.CosmosPipelineOutput
 
-::: mindone.diffusers.pipelines.cosmos.CosmosImagePipelineOutput
+::: mindone.diffusers.pipelines.cosmos.pipeline_output.CosmosImagePipelineOutput
