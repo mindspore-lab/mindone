@@ -58,9 +58,7 @@ class MobileNetV2ImageProcessorFast(BaseImageProcessorFast):
         # Resize logits and compute semantic segmentation maps
         if target_sizes is not None:
             if len(logits) != len(target_sizes):
-                raise ValueError(
-                    "Make sure that you pass in as many target sizes as the batch dimension of the logits"
-                )
+                raise ValueError("Make sure that you pass in as many target sizes as the batch dimension of the logits")
 
             if is_mindspore_tensor(target_sizes):
                 target_sizes = target_sizes.asnumpy()

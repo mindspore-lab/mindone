@@ -26,7 +26,6 @@ from ...modeling_outputs import BaseModelOutputWithPoolingAndNoAttention, ImageC
 from ...modeling_utils import PreTrainedModel
 from ...utils import logging
 
-
 logger = logging.get_logger(__name__)
 
 
@@ -252,8 +251,11 @@ class MobileNetV1ForImageClassification(MobileNetV1PreTrainedModel):
 
         # Classifier head
         self.dropout = mindspore.mint.nn.Dropout(config.classifier_dropout_prob, inplace=True)
-        self.classifier = mindspore.mint.nn.Linear(last_hidden_size, config.num_labels) if config.num_labels > 0 else mindspore.mint.nn.Identity()
-
+        self.classifier = (
+            mindspore.mint.nn.Linear(last_hidden_size, config.num_labels)
+            if config.num_labels > 0
+            else mindspore.mint.nn.Identity()
+        )
         # Initialize weights and apply final processing
         self.post_init()
 

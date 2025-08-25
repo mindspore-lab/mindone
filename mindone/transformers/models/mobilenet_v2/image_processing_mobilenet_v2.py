@@ -17,14 +17,11 @@
 from typing import Dict, List, Optional, Tuple, Union
 
 import numpy as np
+
 import mindspore
 
 from ...image_processing_utils import BaseImageProcessor, BatchFeature, get_size_dict
-from ...image_transforms import (
-    get_resize_output_image_size,
-    resize,
-    to_channel_dimension_format,
-)
+from ...image_transforms import get_resize_output_image_size, resize, to_channel_dimension_format
 from ...image_utils import (
     IMAGENET_STANDARD_MEAN,
     IMAGENET_STANDARD_STD,
@@ -38,8 +35,7 @@ from ...image_utils import (
     valid_images,
     validate_preprocess_arguments,
 )
-from ...utils import TensorType, filter_out_non_signature_kwargs, logging, is_mindspore_tensor
-
+from ...utils import TensorType, filter_out_non_signature_kwargs, is_mindspore_tensor, logging
 
 logger = logging.get_logger(__name__)
 
@@ -288,14 +284,11 @@ class MobileNetV2ImageProcessor(BaseImageProcessor):
                 image = self.rescale(image=image, scale=rescale_factor, input_data_format=input_data_format)
 
             if do_normalize:
-                image = self.normalize(
-                    image=image, mean=image_mean, std=image_std, input_data_format=input_data_format
-                )
+                image = self.normalize(image=image, mean=image_mean, std=image_std, input_data_format=input_data_format)
 
             all_images.append(image)
         images = [
-            to_channel_dimension_format(image, data_format, input_channel_dim=input_data_format)
-            for image in all_images
+            to_channel_dimension_format(image, data_format, input_channel_dim=input_data_format) for image in all_images
         ]
 
         data = {"pixel_values": images}
@@ -324,9 +317,7 @@ class MobileNetV2ImageProcessor(BaseImageProcessor):
         # Resize logits and compute semantic segmentation maps
         if target_sizes is not None:
             if len(logits) != len(target_sizes):
-                raise ValueError(
-                    "Make sure that you pass in as many target sizes as the batch dimension of the logits"
-                )
+                raise ValueError("Make sure that you pass in as many target sizes as the batch dimension of the logits")
 
             if is_mindspore_tensor(target_sizes):
                 target_sizes = target_sizes.asnumpy()

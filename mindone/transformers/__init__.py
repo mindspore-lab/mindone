@@ -252,19 +252,26 @@ from .models.mobilebert import (
 )
 from .models.mobilenet_v1 import (
     MobileNetV1ForImageClassification,
-    MobileNetV1Model,
-    MobileNetV1PreTrainedModel,
     MobileNetV1ImageProcessor,
     MobileNetV1ImageProcessorFast,
-
+    MobileNetV1Model,
+    MobileNetV1PreTrainedModel,
 )
 from .models.mobilenet_v2 import (
     MobileNetV2ForImageClassification,
     MobileNetV2ForSemanticSegmentation,
-    MobileNetV2Model,
-    MobileNetV2PreTrainedModel,
     MobileNetV2ImageProcessor,
     MobileNetV2ImageProcessorFast,
+    MobileNetV2Model,
+    MobileNetV2PreTrainedModel,
+)
+from .models.mpt import (
+    MptForCausalLM,
+    MptForQuestionAnswering,
+    MptForSequenceClassification,
+    MptForTokenClassification,
+    MptModel,
+    MptPreTrainedModel,
 )
 from .models.mt5 import (
     MT5_PRETRAINED_MODEL_ARCHIVE_LIST,

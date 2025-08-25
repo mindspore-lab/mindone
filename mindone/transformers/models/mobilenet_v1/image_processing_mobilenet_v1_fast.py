@@ -14,11 +14,7 @@
 # limitations under the License.
 """Fast Image processor class for MobileNetV1."""
 
-from ...image_processing_utils_fast import (
-    BaseImageProcessorFast,
-    DefaultFastImageProcessorKwargs,
-    Unpack,
-)
+from ...image_processing_utils_fast import BaseImageProcessorFast, DefaultFastImageProcessorKwargs, Unpack
 from ...image_utils import IMAGENET_STANDARD_MEAN, IMAGENET_STANDARD_STD, PILImageResampling
 
 

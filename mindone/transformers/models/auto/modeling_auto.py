@@ -92,6 +92,8 @@ MODEL_MAPPING_NAMES = OrderedDict(
         ("xlm-roberta-xl", "XLMRobertaXLModel"),
         ("mobilenet_v1", "MobileNetV1Model"),
         ("mobilenet_v2", "MobileNetV2Model"),
+        ("yolos", "YolosModel"),
+        ("cohere2", "Cohere2Model"),
     ]
 )
 
@@ -211,6 +213,7 @@ MODEL_FOR_IMAGE_CLASSIFICATION_MAPPING_NAMES = OrderedDict(
         ("siglip", "SiglipForImageClassification"),
         ("mobilenet_v1", "MobileNetV1ForImageClassification"),
         ("mobilenet_v2", "MobileNetV2ForImageClassification"),
+        ("vit", "ViTForImageClassification"),
     ]
 )
 

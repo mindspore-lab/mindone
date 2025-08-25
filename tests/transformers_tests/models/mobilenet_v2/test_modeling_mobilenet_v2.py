@@ -27,7 +27,7 @@ from tests.modeling_test_utils import (
     generalized_parse_args,
     get_modules,
 )
-from tests.transformers_tests.models.modeling_common import ids_numpy, random_attention_mask, floats_numpy
+from tests.transformers_tests.models.modeling_common import floats_numpy, ids_numpy
 
 # CrossEntropyLoss not support bf16
 DTYPE_AND_THRESHOLDS = {"fp32": 5e-4, "fp16": 5e-3}
@@ -109,12 +109,7 @@ class MobileNetV2ModelTester:
 
 
 model_tester = MobileNetV2ModelTester()
-(
-    config,
-    pixel_values,
-    labels,
-    pixel_labels
-) = model_tester.prepare_config_and_inputs()
+config, pixel_values, labels, pixel_labels = model_tester.prepare_config_and_inputs()
 config_has_num_labels = copy.deepcopy(config)
 config_has_num_labels.num_labels = model_tester.num_labels
 
@@ -131,26 +126,26 @@ MOBILEBERT_CASES = [
             "last_hidden_state": 0,
         },
     ],
-[
+    [
         "MobileNetV2ForImageClassification",
         "transformers.MobileNetV2ForImageClassification",
         "mindone.transformers.MobileNetV2ForImageClassification",
         (config_has_num_labels,),
         {},
         (pixel_values,),
-        {'labels': labels},
+        {"labels": labels},
         {
             "logits": 1,
         },
     ],
-[
+    [
         "MobileNetV2ForSemanticSegmentation",
         "transformers.MobileNetV2ForSemanticSegmentation",
         "mindone.transformers.MobileNetV2ForSemanticSegmentation",
         (config_has_num_labels,),
         {},
         (pixel_values,),
-        {'labels': pixel_labels},
+        {"labels": pixel_labels},
         {
             "logits": 1,
         },
