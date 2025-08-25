@@ -92,6 +92,7 @@ MODEL_MAPPING_NAMES = OrderedDict(
         ("mt5", "MT5Model"),
         ("megatron-bert", "MegatronBertModel"),
         ("mixtral", "MixtralModel"),
+        ("owlvit", "OwlViTModel"),
         ("phi", "PhiModel"),
         ("phi3", "Phi3Model"),
         ("qwen2", "Qwen2Model"),
@@ -114,6 +115,7 @@ MODEL_MAPPING_NAMES = OrderedDict(
         ("whisper", "WhisperModel"),
         ("xlm-roberta", "XLMRobertaModel"),
         ("xlm-roberta-xl", "XLMRobertaXLModel"),
+        ("yolos", "YolosModel"),
         ("cohere2", "Cohere2Model"),
     ]
 )
@@ -235,6 +237,7 @@ MODEL_FOR_IMAGE_MAPPING_NAMES = OrderedDict(
         ("segformer", "SegformerModel"),
         ("siglip_vision_model", "SiglipVisionModel"),
         ("vit", "ViTModel"),
+        ("yolos", "YolosModel"),
     ]
 )
 

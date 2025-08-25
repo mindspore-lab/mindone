@@ -476,6 +476,15 @@ from .models.opt import (
     OPTModel,
     OPTPreTrainedModel,
 )
+from .models.owlvit import (
+    OwlViTForObjectDetection,
+    OwlViTImageProcessor,
+    OwlViTModel,
+    OwlViTPreTrainedModel,
+    OwlViTProcessor,
+    OwlViTTextModel,
+    OwlViTVisionModel,
+)
 from .models.paligemma import PaliGemmaForConditionalGeneration, PaliGemmaPreTrainedModel
 from .models.persimmon import (
     PersimmonForCausalLM,
@@ -638,6 +647,7 @@ from .models.xlm_roberta_xl import (
     XLMRobertaXLModel,
     XLMRobertaXLPreTrainedModel,
 )
+from .models.yolos import YolosForObjectDetection, YolosImageProcessor, YolosModel, YolosPreTrainedModel
 from .pipelines import TextGenerationPipeline, pipeline
 from .processing_utils import ProcessorMixin
 
