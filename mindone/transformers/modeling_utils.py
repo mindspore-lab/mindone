@@ -1250,7 +1250,7 @@ class PreTrainedModel(
             logger.warning_once(
                 "Flash Attention 2 only supports ms.float16 and ms.bfloat16 dtypes, but"
                 f" the current dype in {self.__class__.__name__} is {mindspore_dtype}. You should run training or inference using Automatic Mixed-Precision,"
-                ' or load the model with the `torch_dtype` argument. '
+                " or load the model with the `torch_dtype` argument. "
                 'Example: `model = AutoModel.from_pretrained("openai/whisper-tiny", attn_implementation="flash_attention_2", mindspore_dtype=ms.float16)`'
             )
 
@@ -1258,7 +1258,8 @@ class PreTrainedModel(
         if not is_init_check:
             if getattr(self, "use_bettertransformer", False):
                 raise ValueError(
-                    "Flash Attention 2 and BetterTransformer API are not compatible. Please make sure to disable BetterTransformers by doing model.reverse_bettertransformer()"
+                    "Flash Attention 2 and BetterTransformer API are not compatible. Please make sure to disable BetterTransformers "
+                    "by doing model.reverse_bettertransformer()"
                 )
 
         # If no error raise by this point, we can return `True`
@@ -1279,8 +1280,9 @@ class PreTrainedModel(
             raise ValueError(
                 f"{self.__class__.__name__} does not support an attention implementation through torch.nn.functional.scaled_dot_product_attention yet."
                 " Please request the support for this architecture: https://github.com/huggingface/transformers/issues/28005. If you believe"
-                ' this error is a bug, please open an issue in Transformers GitHub repository and '
-                'load your model with the argument `attn_implementation="eager"` meanwhile. Example: `model = AutoModel.from_pretrained("openai/whisper-tiny", attn_implementation="eager")`'
+                " this error is a bug, please open an issue in Transformers GitHub repository and "
+                'load your model with the argument `attn_implementation="eager"` meanwhile. '
+                'Example: `model = AutoModel.from_pretrained("openai/whisper-tiny", attn_implementation="eager")`'
             )
         if not is_sdpa_available():
             raise ImportError("MindSpore SDPA requirements in Transformers are not met.")

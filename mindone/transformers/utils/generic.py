@@ -31,7 +31,7 @@ from typing import Callable, ContextManager, List, Optional, TypedDict
 import numpy as np
 
 import mindspore as ms
-from mindspore import nn, Tensor
+from mindspore import Tensor, nn
 
 from .import_utils import is_mindspore_available
 
