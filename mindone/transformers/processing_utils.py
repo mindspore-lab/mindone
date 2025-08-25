@@ -1368,7 +1368,7 @@ class ProcessorMixin(PushToHubMixin):
                 raise ValueError(f"Expect to have `{module_name}` registered in `mindone.transformers`, but failed to load it!")
             return getattr(mindone_transformers_module, module_name)
         else:
-            if hasattr(transformers_module, module_name)
+            if hasattr(transformers_module, module_name):
                 return getattr(transformers_module, module_name)
             else:
                 raise ValueError(f"Expect to have `{module_name}` registered in `transformers`, but failed to load it!")

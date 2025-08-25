@@ -39,7 +39,6 @@ from . import (
     depth_anything,
     dinov2,
     dpt,
-    ernie4_5,
     fuyu,
     gemma,
     gemma2,

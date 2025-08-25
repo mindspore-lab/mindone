@@ -70,6 +70,8 @@ _decord_available = importlib.util.find_spec("decord") is not None
 _scipy_available = _is_package_available("scipy")
 _cv2_available = importlib.util.find_spec("cv2") is not None
 _yt_dlp_available = importlib.util.find_spec("yt_dlp") is not None
+_soundfile_available = _is_package_available("soundfile")
+_librosa_available = _is_package_available("librosa")
 
 
 def is_mindspore_available():
@@ -160,3 +162,9 @@ def is_flash_attn_2_available():
 
 def is_sdpa_available():
     return False
+
+def is_soundfile_available():
+    return _soundfile_available
+
+def is_librosa_available():
+    return _librosa_available

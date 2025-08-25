@@ -20,7 +20,7 @@ Generic utilities
 
 import inspect
 import json
-import logging
+from transformers.utils import logging
 import os
 import tempfile
 import warnings
@@ -35,7 +35,7 @@ from typing import Any, Callable, ContextManager, Optional, TypedDict
 import numpy as np
 
 import mindspore as ms
-from mindspore import Tensor, nn
+from mindspore import nn
 
 _CAN_RECORD_REGISTRY = {}
 

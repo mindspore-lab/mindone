@@ -54,7 +54,7 @@ if is_vision_available():
 
 if is_mindspore_available():
     import mindspore as ms
-    import mindspore.mint.functional as F
+    import mindspore.mint.nn.functional as F
     from mindspore import mint
     from mindspore.dataset import vision
     from mindspore.dataset.vision import Inter as InterpolationMode

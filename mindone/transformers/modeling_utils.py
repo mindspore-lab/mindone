@@ -1294,7 +1294,7 @@ class PreTrainedModel(
                 'Example: `model = AutoModel.from_pretrained("openai/whisper-tiny", attn_implementation="eager")`'
             )
         if not is_sdpa_available():
-            raise ImportError("MindSpore SDPA requirements in Transformers are not met.")
+            raise ImportError("MindSpore SDPA requirements in Transformers are not met. Use `attn_implementation='eager'` instead.")
 
         return True
 

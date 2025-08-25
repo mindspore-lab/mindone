@@ -14,15 +14,14 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-import inspect
-import os
+
 import warnings
 from typing import Optional, TypedDict
 
 from transformers.utils import logging
 
 import mindspore as ms
-import mindspore.mint.functional as F
+import mindspore.mint.nn.functional as F
 from mindspore import mint
 
 logger = logging.get_logger(__name__)
@@ -268,11 +267,6 @@ def fa_peft_integration_check(q, k, v, target_dtype: Optional[ms.Type] = None):
 _flash_supports_window = None
 
 
-def is_flash_attn_available():
-    # return is_flash_attn_3_available() or is_flash_attn_2_available() or is_torch_npu_available()
-    return True
-
-
 def flash_attn_supports_top_left_mask():
     raise NotImplementedError("flash_attn_supports_top_left_mask is not supported yet.")
 
@@ -304,4 +298,6 @@ def _flash_attention_forward(
     implementation: Optional[str] = None,
     **kwargs,
 ):
-    raise NotImplementedError("`_flash_attention_forward` is not supported yet. Use `mindone.transformers.integrations.flash_attention.flash_attention_forward instead!`")
+    raise NotImplementedError(
+        "`_flash_attention_forward` is not supported yet. Use `mindone.transformers.integrations.flash_attention.flash_attention_forward instead!`"
+    )
