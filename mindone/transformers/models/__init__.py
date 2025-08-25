@@ -34,6 +34,10 @@ from . import (
     clap,
     clip,
     convbert,
+    convnext,
+    convnextv2,
+    depth_anything,
+    dinov2,
     dpt,
     fuyu,
     gemma,
@@ -67,6 +71,7 @@ from . import (
     mpt,
     mvp,
     opt,
+    owlvit,
     paligemma,
     persimmon,
     phi,
@@ -77,6 +82,7 @@ from . import (
     qwen2_audio,
     qwen2_vl,
     roberta,
+    segformer,
     siglip,
     smolvlm,
     speecht5,
@@ -91,6 +97,7 @@ from . import (
     vits,
     wav2vec2,
     xlm_roberta,
+    yolos,
 )
 
 if version.parse(transformers.__version__) >= version.parse("4.51.0"):
