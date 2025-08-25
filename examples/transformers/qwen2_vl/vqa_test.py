@@ -73,14 +73,12 @@ inputs = processor(
     padding=True,
     return_tensors="np",
 )
+
 # convert input to Tensor
-for key, value in inputs.items():  # by default input numpy array or list
-    if isinstance(value, np.ndarray):
-        inputs[key] = ms.Tensor(value)
-    elif isinstance(value, list):
-        inputs[key] = ms.Tensor(value)
+for key, value in inputs.items():  # "input_ids", "attention_mask", "image_grid_thw"
+    inputs[key] = ms.Tensor(value)
     if inputs[key].dtype == ms.int64:
-        inputs[key] = inputs[key].to(ms.int32)  # "input_ids", "attention_mask", "image_grid_thw"
+        inputs[key] = inputs[key].to(ms.int32)
 
 print("Processed input, time elapsed: %.4fs" % (time.time() - start_time))
 
