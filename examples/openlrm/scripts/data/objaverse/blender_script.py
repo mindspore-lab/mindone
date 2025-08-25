@@ -1,3 +1,4 @@
+# Adapted from https://github.com/3DTopia/OpenLRM/blob/main/scripts/data/objaverse/blender_script.py
 """
 Blender script to render images of 3D models.
 This script is designed to render data used in the [OpenLRM project](https://github.com/3DTopia/OpenLRM).

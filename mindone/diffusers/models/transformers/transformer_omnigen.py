@@ -1,4 +1,7 @@
-# Copyright 2024 OmniGen team and The HuggingFace Team. All rights reserved.
+# Copyright 2025 OmniGen team and The HuggingFace Team. All rights reserved.
+#
+# This code is adapted from https://github.com/huggingface/diffusers
+# with modifications to run diffusers on mindspore.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -54,8 +57,8 @@ class OmniGenFeedForward(nn.Cell):
     def __init__(self, hidden_size: int, intermediate_size: int):
         super().__init__()
 
-        self.gate_up_proj = nn.Dense(hidden_size, 2 * intermediate_size, has_bias=False)
-        self.down_proj = nn.Dense(intermediate_size, hidden_size, has_bias=False)
+        self.gate_up_proj = mint.nn.Linear(hidden_size, 2 * intermediate_size, bias=False)
+        self.down_proj = mint.nn.Linear(intermediate_size, hidden_size, bias=False)
         self.activation_fn = mint.nn.SiLU()
 
     def construct(self, hidden_states: ms.Tensor) -> ms.Tensor:
@@ -139,7 +142,7 @@ class OmniGenPatchEmbed(nn.Cell):
                 pos_embed = self._cropped_pos_embed(height, width)
                 sub_latent = sub_latent + pos_embed
                 if padding is not None:
-                    sub_latent = mint.cat([sub_latent, padding.to(sub_latent.device)], dim=-2)
+                    sub_latent = mint.cat([sub_latent, padding], dim=-2)
                 patched_latents.append(sub_latent)
         else:
             height, width = hidden_states.shape[-2:]
@@ -170,9 +173,9 @@ class OmniGenSuScaledRotaryEmbedding(nn.Cell):
     def construct(self, hidden_states, position_ids):
         seq_len = mint.max(position_ids) + 1
         if seq_len > self.original_max_position_embeddings:
-            ext_factors = ms.Tensor(self.long_factor, dtype=ms.float32)
+            ext_factors = ms.tensor(self.long_factor, dtype=ms.float32)
         else:
-            ext_factors = ms.Tensor(self.short_factor, dtype=ms.float32)
+            ext_factors = ms.tensor(self.short_factor, dtype=ms.float32)
 
         inv_freq_shape = mint.arange(0, self.dim, 2, dtype=ms.int64).float() / self.dim
 
@@ -294,7 +297,7 @@ class OmniGenBlock(nn.Cell):
 
 class OmniGenTransformer2DModel(ModelMixin, ConfigMixin):
     """
-    The Transformer model introduced in OmniGen (https://arxiv.org/pdf/2409.11340).
+    The Transformer model introduced in OmniGen (https://huggingface.co/papers/2409.11340).
 
     Parameters:
         in_channels (`int`, defaults to `4`):
@@ -393,7 +396,7 @@ class OmniGenTransformer2DModel(ModelMixin, ConfigMixin):
 
         self.norm = RMSNorm(hidden_size, eps=rms_norm_eps)
         self.norm_out = AdaLayerNorm(hidden_size, norm_elementwise_affine=False, norm_eps=1e-6, chunk_dim=1)
-        self.proj_out = nn.Dense(hidden_size, patch_size * patch_size * self.out_channels, has_bias=True)
+        self.proj_out = mint.nn.Linear(hidden_size, patch_size * patch_size * self.out_channels, bias=True)
         self.p = self.config.patch_size
 
         self.gradient_checkpointing = False

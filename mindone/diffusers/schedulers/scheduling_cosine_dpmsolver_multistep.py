@@ -1,4 +1,7 @@
-# Copyright 2024 TSAIL Team and The HuggingFace Team. All rights reserved.
+# Copyright 2025 TSAIL Team and The HuggingFace Team. All rights reserved.
+#
+# This code is adapted from https://github.com/huggingface/diffusers
+# with modifications to run diffusers on mindspore.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -32,7 +35,7 @@ class CosineDPMSolverMultistepScheduler(SchedulerMixin, ConfigMixin):
     Implements a variant of `DPMSolverMultistepScheduler` with cosine schedule, proposed by Nichol and Dhariwal (2021).
     This scheduler was used in Stable Audio Open [1].
 
-    [1] Evans, Parker, et al. "Stable Audio Open" https://arxiv.org/abs/2407.14358
+    [1] Evans, Parker, et al. "Stable Audio Open" https://huggingface.co/papers/2407.14358
 
     This model inherits from [`SchedulerMixin`] and [`ConfigMixin`]. Check the superclass documentation for the generic
     methods the library implements for all schedulers such as loading and saving.
@@ -46,8 +49,8 @@ class CosineDPMSolverMultistepScheduler(SchedulerMixin, ConfigMixin):
             The standard deviation of the data distribution. This is set to 1.0 in Stable Audio Open [1].
         sigma_schedule (`str`, *optional*, defaults to `exponential`):
             Sigma schedule to compute the `sigmas`. By default, we the schedule introduced in the EDM paper
-            (https://arxiv.org/abs/2206.00364). Other acceptable value is "exponential". The exponential schedule was
-            incorporated in this model: https://huggingface.co/stabilityai/cosxl.
+            (https://huggingface.co/papers/2206.00364). Other acceptable value is "exponential". The exponential
+            schedule was incorporated in this model: https://huggingface.co/stabilityai/cosxl.
         num_train_timesteps (`int`, defaults to 1000):
             The number of diffusion steps to train the model.
         solver_order (`int`, defaults to 2):
@@ -96,7 +99,7 @@ class CosineDPMSolverMultistepScheduler(SchedulerMixin, ConfigMixin):
             else:
                 raise NotImplementedError(f"{solver_type} is not implemented for {self.__class__}")
 
-        ramp = ms.Tensor(np.linspace(0, 1, num_train_timesteps))
+        ramp = ms.tensor(np.linspace(0, 1, num_train_timesteps))
         if sigma_schedule == "karras":
             sigmas = self._compute_karras_sigmas(ramp)
         elif sigma_schedule == "exponential":
@@ -145,7 +148,7 @@ class CosineDPMSolverMultistepScheduler(SchedulerMixin, ConfigMixin):
 
     # Copied from diffusers.schedulers.scheduling_edm_euler.EDMEulerScheduler.precondition_inputs
     def precondition_inputs(self, sample, sigma):
-        c_in = 1 / ((sigma**2 + self.config.sigma_data**2) ** 0.5)
+        c_in = self._get_conditioning_c_in(sigma)
         scaled_sample = sample * c_in
         # ms.Tensor keeping dtype
         scaled_sample = scaled_sample.to(sample.dtype)
@@ -153,7 +156,7 @@ class CosineDPMSolverMultistepScheduler(SchedulerMixin, ConfigMixin):
 
     def precondition_noise(self, sigma):
         if not isinstance(sigma, ms.Tensor):
-            sigma = ms.Tensor([sigma])
+            sigma = ms.tensor([sigma])
 
         return sigma.atan() / math.pi * 2
 
@@ -209,7 +212,7 @@ class CosineDPMSolverMultistepScheduler(SchedulerMixin, ConfigMixin):
 
         self.num_inference_steps = num_inference_steps
 
-        ramp = ms.Tensor(np.linspace(0, 1, self.num_inference_steps))
+        ramp = ms.tensor(np.linspace(0, 1, self.num_inference_steps))
         if self.config.sigma_schedule == "karras":
             sigmas = self._compute_karras_sigmas(ramp)
         elif self.config.sigma_schedule == "exponential":
@@ -290,7 +293,7 @@ class CosineDPMSolverMultistepScheduler(SchedulerMixin, ConfigMixin):
         return t
 
     def _sigma_to_alpha_sigma_t(self, sigma):
-        alpha_t = ms.Tensor(1)  # Inputs are pre-scaled before going into unet, so alpha_t = 1
+        alpha_t = ms.tensor(1)  # Inputs are pre-scaled before going into unet, so alpha_t = 1
         sigma_t = sigma
 
         return alpha_t, sigma_t
@@ -560,6 +563,11 @@ class CosineDPMSolverMultistepScheduler(SchedulerMixin, ConfigMixin):
 
         noisy_samples = original_samples + noise * sigma
         return noisy_samples
+
+    # Copied from diffusers.schedulers.scheduling_edm_euler.EDMEulerScheduler._get_conditioning_c_in
+    def _get_conditioning_c_in(self, sigma):
+        c_in = 1 / ((sigma**2 + self.config.sigma_data**2) ** 0.5)
+        return c_in
 
     def __len__(self):
         return self.config.num_train_timesteps

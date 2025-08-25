@@ -1,5 +1,8 @@
 # coding=utf-8
-# Copyright 2024 Harutatsu Akiyama and HuggingFace Inc.
+# Copyright 2025 Harutatsu Akiyama and HuggingFace Inc.
+#
+# This code is adapted from https://github.com/huggingface/diffusers
+# with modifications to run diffusers on mindspore.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -23,11 +26,7 @@ from transformers import CLIPTextConfig
 
 import mindspore as ms
 
-from mindone.diffusers.utils.testing_utils import (
-    load_downloaded_image_from_hf_hub,
-    load_downloaded_numpy_from_hf_hub,
-    slow,
-)
+from mindone.diffusers.utils.testing_utils import load_downloaded_image_from_hf_hub, load_numpy_from_local_file, slow
 
 from ..pipeline_test_utils import (
     THRESHOLD_FP16,
@@ -267,8 +266,8 @@ class StableDiffusionXLInstructPix2PixPipelineIntegrationTests(PipelineTesterMix
             num_inference_steps=30,
         )[0][0]
 
-        expected_image = load_downloaded_numpy_from_hf_hub(
-            "The-truth/mindone-testing-arrays",
+        expected_image = load_numpy_from_local_file(
+            "mindone-testing-arrays",
             f"pix2pix_{dtype}.npy",
             subfolder="stable_diffusion_xl",
         )
