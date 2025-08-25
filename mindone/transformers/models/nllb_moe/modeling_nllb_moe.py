@@ -15,16 +15,15 @@
 """PyTorch NLLB-MoE model."""
 
 import math
-from typing import Callable, Optional, Union, Tuple
+from typing import Callable, Optional, Tuple, Union
 
 import numpy as np
+from transformers import NllbMoeConfig
+
 import mindspore
-from mindspore.mint.nn import CrossEntropyLoss
 
 from ...activations import ACT2FN
 from ...generation import GenerationMixin
-# from ...integrations.deepspeed import is_deepspeed_zero3_enabled
-# from ...integrations.fsdp import is_fsdp_managed_module
 from ...modeling_attn_mask_utils import (
     _prepare_4d_attention_mask,
     _prepare_4d_attention_mask_for_sdpa,
@@ -41,7 +40,6 @@ from ...modeling_outputs import (
 from ...modeling_utils import ALL_ATTENTION_FUNCTIONS, PreTrainedModel
 from ...processing_utils import Unpack
 from ...utils import logging
-from .configuration_nllb_moe import NllbMoeConfig
 
 logger = logging.get_logger(__name__)
 
@@ -50,6 +48,22 @@ logger = logging.get_logger(__name__)
 # This dict contains ids and associated url
 # for the pretrained weights provided with the models
 ####################################################
+
+_EPS_FP16 = mindspore.tensor(np.finfo(np.float16).eps, dtype=mindspore.float16)
+_EPS_FP32 = mindspore.tensor(np.finfo(np.float32).eps, dtype=mindspore.float32)
+_EPS_FP64 = mindspore.tensor(np.finfo(np.float64).eps, dtype=mindspore.float64)
+_EPS_BP16 = mindspore.tensor(np.finfo(np.float32).eps, dtype=mindspore.bfloat16)
+
+
+def dtype_to_eps(dtype):
+    if dtype == mindspore.float16:
+        return _EPS_FP16
+    if dtype == mindspore.float32:
+        return _EPS_FP32
+    if dtype == mindspore.float64:
+        return _EPS_FP64
+    if dtype == mindspore.bfloat16:
+        return _EPS_BP16
 
 
 # Copied from transformers.models.bart.modeling_bart.shift_tokens_right
@@ -90,8 +104,8 @@ def load_balancing_loss_func(router_probs: mindspore.Tensor, expert_indices: min
     r"""
     Computes auxiliary load balancing loss as in Switch Transformer - implemented in Pytorch.
 
-    See Switch Transformer (https://huggingface.co/papers/2101.03961) for more details. This function implements the loss
-    function presented in equations (4) - (6) of the paper. It aims at penalizing cases where the routing between
+    See Switch Transformer (https://huggingface.co/papers/2101.03961) for more details. This function implements the
+    loss function presented in equations (4) - (6) of the paper. It aims at penalizing cases where the routing between
     experts is too unbalanced.
 
     Args:
@@ -125,7 +139,7 @@ def load_balancing_loss_func(router_probs: mindspore.Tensor, expert_indices: min
     tokens_per_group_and_expert = mindspore.mint.mean(expert_mask, axis=-2)
 
     router_prob_per_group_and_expert = mindspore.mint.mean(router_probs, axis=-2)
-    return mindspore.mint.mean(tokens_per_group_and_expert * router_prob_per_group_and_expert) * (num_experts ** 2)
+    return mindspore.mint.mean(tokens_per_group_and_expert * router_prob_per_group_and_expert) * (num_experts**2)
 
 
 # Copied from transformers.models.m2m_100.modeling_m2m_100.M2M100ScaledWordEmbedding with M2M100->NllbMoe
@@ -157,7 +171,7 @@ class NllbMoeSinusoidalPositionalEmbedding(mindspore.nn.Cell):
         emb_weights = self.get_embedding(num_embeddings, embedding_dim, padding_idx)
         if hasattr(self, "weights"):
             # in forward put the weights on the correct dtype and device of the param
-            emb_weights = emb_weights.to(dtype=self.weights.dtype, )
+            emb_weights = emb_weights.to(dtype=self.weights.dtype)
 
         self.register_buffer("weights", emb_weights, persistent=False)
 
@@ -183,10 +197,10 @@ class NllbMoeSinusoidalPositionalEmbedding(mindspore.nn.Cell):
         return emb
 
     def construct(
-            self,
-            input_ids: Optional[mindspore.Tensor] = None,
-            inputs_embeds: Optional[mindspore.Tensor] = None,
-            past_key_values_length: int = 0,
+        self,
+        input_ids: Optional[mindspore.Tensor] = None,
+        inputs_embeds: Optional[mindspore.Tensor] = None,
+        past_key_values_length: int = 0,
     ):
         if input_ids is not None:
             bsz, seq_len = input_ids.shape
@@ -216,7 +230,10 @@ class NllbMoeSinusoidalPositionalEmbedding(mindspore.nn.Cell):
         sequence_length = input_shape[1]
 
         position_ids = mindspore.mint.arange(
-            self.padding_idx + 1, sequence_length + self.padding_idx + 1, dtype=mindspore.int64, )
+            self.padding_idx + 1,
+            sequence_length + self.padding_idx + 1,
+            dtype=mindspore.int64,
+        )
         return position_ids.unsqueeze(0).expand(input_shape).contiguous() + past_key_values_length
 
 
@@ -256,17 +273,16 @@ class NllbMoeTop2Router(mindspore.nn.Cell):
     def normalize_router_probabilities(self, router_probs, top_1_mask, top_2_mask):
         top_1_max_probs = (router_probs * top_1_mask).sum(dim=1)
         top_2_max_probs = (router_probs * top_2_mask).sum(dim=1)
-        denom_s = mindspore.mint.clamp(top_1_max_probs + top_2_max_probs,
-                                       min=mindspore.tensor(np.finfo(router_probs.asnumpy().dtype).eps))
+        denom_s = mindspore.mint.clamp(top_1_max_probs + top_2_max_probs, min=dtype_to_eps(router_probs.dtype))
         top_1_max_probs = top_1_max_probs / denom_s
         top_2_max_probs = top_2_max_probs / denom_s
         return top_1_max_probs, top_2_max_probs
 
     def route_tokens(
-            self,
-            router_logits: mindspore.Tensor,
-            input_dtype: mindspore.dtype = mindspore.float32,
-            padding_mask: Optional[mindspore.Tensor] = None,
+        self,
+        router_logits: mindspore.Tensor,
+        input_dtype: mindspore.dtype = mindspore.float32,
+        padding_mask: Optional[mindspore.Tensor] = None,
     ) -> tuple:
         """
         Computes the `dispatch_mask` and the `dispatch_weights` for each experts. The masks are adapted to the expert
@@ -280,10 +296,10 @@ class NllbMoeTop2Router(mindspore.nn.Cell):
 
         if self.second_expert_policy == "sampling":
             # gumbel = torch.distributions.gumbel.Gumbel(0, 1).rsample
-            gumbel = (mindspore.nn.probability.distribution.Gumbel(loc=mindspore.tensor(0.0, mindspore.float32),
-                                                                   scale=mindspore.tensor(1.0, mindspore.float32))
-                      .sample())
-            router_logits += gumbel(router_logits.shape)
+            gumbel_dist = mindspore.nn.probability.distribution.Gumbel(
+                loc=mindspore.tensor(0.0, mindspore.float32), scale=mindspore.tensor(1.0, mindspore.float32)
+            )
+            router_logits += gumbel_dist.sample(router_logits.shape)
 
         # replace top_1_expert_index with min values
         logits_except_top_1 = router_logits.masked_fill(top_1_mask.bool(), float("-inf"))
@@ -291,9 +307,7 @@ class NllbMoeTop2Router(mindspore.nn.Cell):
         top_2_mask = mindspore.mint.nn.functional.one_hot(top_2_expert_index, num_classes=self.num_experts)
 
         if self.normalize_router_prob_before_dropping:
-            top_1_max_probs, top_2_max_probs = self.normalize_router_probabilities(
-                router_probs, top_1_mask, top_2_mask
-            )
+            top_1_max_probs, top_2_max_probs = self.normalize_router_probabilities(router_probs, top_1_mask, top_2_mask)
 
         if self.second_expert_policy == "random":
             top_2_max_probs = (router_probs * top_2_mask).sum(dim=1)
@@ -339,9 +353,7 @@ class NllbMoeTop2Router(mindspore.nn.Cell):
         top_2_mask = top_2_mask * mindspore.mint.lt(locations2, self.expert_capacity)
 
         if not self.normalize_router_prob_before_dropping:
-            top_1_max_probs, top_2_max_probs = self.normalize_router_probabilities(
-                router_probs, top_1_mask, top_2_mask
-            )
+            top_1_max_probs, top_2_max_probs = self.normalize_router_probabilities(router_probs, top_1_mask, top_2_mask)
 
         # Calculate combine_weights and dispatch_mask
         gates1 = top_1_max_probs[:, None] * top_1_mask
@@ -392,9 +404,9 @@ class NllbMoeDenseActDense(mindspore.nn.Cell):
         hidden_states = self.act(hidden_states)
         hidden_states = self.dropout(hidden_states)
         if (
-                isinstance(self.fc2.weight, mindspore.Tensor)
-                and hidden_states.dtype != self.fc2.weight.dtype
-                and (self.fc2.weight.dtype != mindspore.int8 and self.fc2.weight.dtype != mindspore.uint8)
+            isinstance(self.fc2.weight, mindspore.Tensor)
+            and hidden_states.dtype != self.fc2.weight.dtype
+            and (self.fc2.weight.dtype != mindspore.int8 and self.fc2.weight.dtype != mindspore.uint8)
         ):
             hidden_states = hidden_states.to(self.fc2.weight.dtype)
         hidden_states = self.fc2(hidden_states)
@@ -459,8 +471,9 @@ class NllbMoeSparseMLP(mindspore.nn.Cell):
                     expert_output = self.token_dropout(expert_output)
                 else:
                     expert_output *= 1 - self.moe_token_dropout
-            masked_hidden_states[idx, token_indices] = mindspore.mint.einsum("b,be->be", combining_weights,
-                                                                             expert_output)
+            masked_hidden_states[idx, token_indices] = mindspore.mint.einsum(
+                "b,be->be", combining_weights, expert_output
+            )
         hidden_states = masked_hidden_states.sum(dim=0).reshape(batch_size, sequence_length, hidden_dim)
 
         top_1_expert_index = mindspore.mint.argmax(top_1_mask, dim=-1)
@@ -469,15 +482,15 @@ class NllbMoeSparseMLP(mindspore.nn.Cell):
 
 # Copied from transformers.models.bart.modeling_bart.eager_attention_forward
 def eager_attention_forward(
-        module: mindspore.nn.Cell,
-        query: mindspore.Tensor,
-        key: mindspore.Tensor,
-        value: mindspore.Tensor,
-        attention_mask: Optional[mindspore.Tensor],
-        scaling: Optional[float] = None,
-        dropout: float = 0.0,
-        head_mask: Optional[mindspore.Tensor] = None,
-        **kwargs,
+    module: mindspore.nn.Cell,
+    query: mindspore.Tensor,
+    key: mindspore.Tensor,
+    value: mindspore.Tensor,
+    attention_mask: Optional[mindspore.Tensor],
+    scaling: Optional[float] = None,
+    dropout: float = 0.0,
+    head_mask: Optional[mindspore.Tensor] = None,
+    **kwargs,
 ):
     if scaling is None:
         scaling = query.shape[-1] ** -0.5
@@ -498,19 +511,20 @@ def eager_attention_forward(
     return attn_output, attn_weights
 
 
-# Copied from transformers.models.wav2vec2.modeling_wav2vec2.Wav2Vec2Attention with Wav2Vec2->NllbMoe,key_value_states->encoder_hidden_states
+# Copied from transformers.models.wav2vec2.modeling_wav2vec2.Wav2Vec2Attention with
+# Wav2Vec2->NllbMoe,key_value_states->encoder_hidden_states
 class NllbMoeAttention(mindspore.nn.Cell):
     """Multi-headed attention from 'Attention Is All You Need' paper"""
 
     def __init__(
-            self,
-            embed_dim: int,
-            num_heads: int,
-            dropout: float = 0.0,
-            is_decoder: bool = False,
-            bias: bool = True,
-            is_causal: bool = False,
-            config: Optional[NllbMoeConfig] = None,
+        self,
+        embed_dim: int,
+        num_heads: int,
+        dropout: float = 0.0,
+        is_decoder: bool = False,
+        bias: bool = True,
+        is_causal: bool = False,
+        config: Optional[NllbMoeConfig] = None,
     ):
         super().__init__()
         self.embed_dim = embed_dim
@@ -524,7 +538,7 @@ class NllbMoeAttention(mindspore.nn.Cell):
                 f"embed_dim must be divisible by num_heads (got `embed_dim`: {self.embed_dim}"
                 f" and `num_heads`: {num_heads})."
             )
-        self.scaling = self.head_dim ** -0.5
+        self.scaling = self.head_dim**-0.5
         self.is_decoder = is_decoder
         self.is_causal = is_causal
 
@@ -534,16 +548,16 @@ class NllbMoeAttention(mindspore.nn.Cell):
         self.out_proj = mindspore.mint.nn.Linear(embed_dim, embed_dim, bias=bias)
 
     def construct(
-            self,
-            hidden_states: mindspore.Tensor,
-            encoder_hidden_states: Optional[mindspore.Tensor] = None,
-            past_key_value: Optional[tuple[mindspore.Tensor]] = None,
-            attention_mask: Optional[mindspore.Tensor] = None,
-            layer_head_mask: Optional[mindspore.Tensor] = None,
-            output_attentions: bool = False,
-            # TODO: we need a refactor so that the different attention modules can get their specific kwargs
-            # ATM, we have mixed things encoder, decoder, and encoder-decoder attn
-            **kwargs: Unpack[FlashAttentionKwargs],
+        self,
+        hidden_states: mindspore.Tensor,
+        encoder_hidden_states: Optional[mindspore.Tensor] = None,
+        past_key_value: Optional[tuple[mindspore.Tensor]] = None,
+        attention_mask: Optional[mindspore.Tensor] = None,
+        layer_head_mask: Optional[mindspore.Tensor] = None,
+        output_attentions: bool = False,
+        # TODO: we need a refactor so that the different attention modules can get their specific kwargs
+        # ATM, we have mixed things encoder, decoder, and encoder-decoder attn
+        **kwargs: Unpack[FlashAttentionKwargs],
     ) -> tuple[mindspore.Tensor, Optional[mindspore.Tensor], Optional[tuple[mindspore.Tensor]]]:
         """Input shape: Batch x Time x Channel"""
 
@@ -566,9 +580,9 @@ class NllbMoeAttention(mindspore.nn.Cell):
         # is checking that the `sequence_length` of the `past_key_value` is the same as
         # the provided `encoder_hidden_states` to support prefix tuning
         if (
-                is_cross_attention
-                and past_key_value is not None
-                and past_key_value[0].shape[2] == encoder_hidden_states.shape[1]
+            is_cross_attention
+            and past_key_value is not None
+            and past_key_value[0].shape[2] == encoder_hidden_states.shape[1]
         ):
             # reuse k,v, cross_attentions
             key_states = past_key_value[0]
@@ -642,12 +656,12 @@ class NllbMoeEncoderLayer(mindspore.nn.Cell):  # TODO: GradientCheckpointingLaye
         self.ff_dropout = mindspore.mint.nn.Dropout(config.activation_dropout)
 
     def construct(
-            self,
-            hidden_states: mindspore.Tensor,
-            attention_mask: mindspore.Tensor,
-            layer_head_mask: mindspore.Tensor,
-            output_attentions: bool = False,
-            output_router_logits: bool = False,
+        self,
+        hidden_states: mindspore.Tensor,
+        attention_mask: mindspore.Tensor,
+        layer_head_mask: mindspore.Tensor,
+        output_attentions: bool = False,
+        output_router_logits: bool = False,
     ) -> mindspore.Tensor:
         """
         Args:
@@ -687,7 +701,7 @@ class NllbMoeEncoderLayer(mindspore.nn.Cell):  # TODO: GradientCheckpointingLaye
         hidden_states = residual + hidden_states
 
         if hidden_states.dtype == mindspore.float16 and (
-                mindspore.mint.isinf(hidden_states).any() or mindspore.mint.isnan(hidden_states).any()
+            mindspore.mint.isinf(hidden_states).any() or mindspore.mint.isnan(hidden_states).any()
         ):
             clamp_value = mindspore.tensor(np.finfo(np.float32).max, dtype=hidden_states.dtype) - 1000
             hidden_states = mindspore.mint.clamp(hidden_states, min=-clamp_value, max=clamp_value)
@@ -736,17 +750,17 @@ class NllbMoeDecoderLayer(mindspore.nn.Cell):  # TODO: GradientCheckpointingLaye
         self.ff_dropout = mindspore.mint.nn.Dropout(config.activation_dropout)
 
     def construct(
-            self,
-            hidden_states: mindspore.Tensor,
-            attention_mask: Optional[mindspore.Tensor] = None,
-            encoder_hidden_states: Optional[mindspore.Tensor] = None,
-            encoder_attention_mask: Optional[mindspore.Tensor] = None,
-            layer_head_mask: Optional[mindspore.Tensor] = None,
-            cross_attn_layer_head_mask: Optional[mindspore.Tensor] = None,
-            past_key_value: Optional[tuple[mindspore.Tensor]] = None,
-            output_attentions: Optional[bool] = False,
-            output_router_logits: Optional[bool] = False,
-            use_cache: Optional[bool] = True,
+        self,
+        hidden_states: mindspore.Tensor,
+        attention_mask: Optional[mindspore.Tensor] = None,
+        encoder_hidden_states: Optional[mindspore.Tensor] = None,
+        encoder_attention_mask: Optional[mindspore.Tensor] = None,
+        layer_head_mask: Optional[mindspore.Tensor] = None,
+        cross_attn_layer_head_mask: Optional[mindspore.Tensor] = None,
+        past_key_value: Optional[tuple[mindspore.Tensor]] = None,
+        output_attentions: Optional[bool] = False,
+        output_router_logits: Optional[bool] = False,
+        use_cache: Optional[bool] = True,
     ) -> mindspore.Tensor:
         """
         Args:
@@ -912,15 +926,15 @@ class NllbMoeEncoder(NllbMoePreTrainedModel):
         self.post_init()
 
     def construct(
-            self,
-            input_ids: Optional[mindspore.Tensor] = None,
-            attention_mask: Optional[mindspore.Tensor] = None,
-            head_mask: Optional[mindspore.Tensor] = None,
-            inputs_embeds: Optional[mindspore.Tensor] = None,
-            output_attentions: Optional[bool] = None,
-            output_hidden_states: Optional[bool] = None,
-            output_router_logits: Optional[bool] = None,
-            return_dict: Optional[bool] = None,
+        self,
+        input_ids: Optional[mindspore.Tensor] = None,
+        attention_mask: Optional[mindspore.Tensor] = None,
+        head_mask: Optional[mindspore.Tensor] = None,
+        inputs_embeds: Optional[mindspore.Tensor] = None,
+        output_attentions: Optional[bool] = None,
+        output_hidden_states: Optional[bool] = None,
+        output_router_logits: Optional[bool] = None,
+        return_dict: Optional[bool] = None,
     ):
         r"""
         Args:
@@ -947,8 +961,8 @@ class NllbMoeEncoder(NllbMoePreTrainedModel):
 
             inputs_embeds (`mindspore.Tensor` of shape `(batch_size, sequence_length, hidden_size)`, *optional*):
                 Optionally, instead of passing `input_ids` you can choose to directly pass an embedded representation.
-                This is useful if you want more control over how to convert `input_ids` indices into associated vectors
-                than the model's internal embedding lookup matrix.
+                This is useful if you want more control over how to convert `input_ids` indices into associated
+                vectors than the model's internal embedding lookup matrix.
             output_attentions (`bool`, *optional*):
                 Whether or not to return the attentions tensors of all attention layers. See `attentions` under
                 returned tensors for more detail.
@@ -984,7 +998,7 @@ class NllbMoeEncoder(NllbMoePreTrainedModel):
 
         embed_pos = self.embed_positions(input_ids, inputs_embeds)
 
-        hidden_states = inputs_embeds + embed_pos
+        hidden_states = inputs_embeds + embed_pos.to(inputs_embeds.dtype)
         hidden_states = mindspore.mint.nn.functional.dropout(hidden_states, p=self.dropout, training=self.training)
 
         attention_mask = self._update_full_mask(
@@ -1047,9 +1061,9 @@ class NllbMoeEncoder(NllbMoePreTrainedModel):
 
     # Copied from transformers.models.bart.modeling_bart.BartPreTrainedModel._update_full_mask
     def _update_full_mask(
-            self,
-            attention_mask: Union[mindspore.Tensor, None],
-            inputs_embeds: mindspore.Tensor,
+        self,
+        attention_mask: Union[mindspore.Tensor, None],
+        inputs_embeds: mindspore.Tensor,
     ):
         if attention_mask is not None:
             if self.config._attn_implementation == "flash_attention_2":
@@ -1115,20 +1129,20 @@ class NllbMoeDecoder(NllbMoePreTrainedModel):
         self.post_init()
 
     def construct(
-            self,
-            input_ids: Optional[mindspore.Tensor] = None,
-            attention_mask: Optional[mindspore.Tensor] = None,
-            encoder_hidden_states: Optional[mindspore.Tensor] = None,
-            encoder_attention_mask: Optional[mindspore.Tensor] = None,
-            head_mask: Optional[mindspore.Tensor] = None,
-            cross_attn_head_mask: Optional[mindspore.Tensor] = None,
-            past_key_values: Optional[list[mindspore.Tensor]] = None,
-            inputs_embeds: Optional[mindspore.Tensor] = None,
-            use_cache: Optional[bool] = None,
-            output_attentions: Optional[bool] = None,
-            output_hidden_states: Optional[bool] = None,
-            output_router_logits: Optional[bool] = None,
-            return_dict: Optional[bool] = None,
+        self,
+        input_ids: Optional[mindspore.Tensor] = None,
+        attention_mask: Optional[mindspore.Tensor] = None,
+        encoder_hidden_states: Optional[mindspore.Tensor] = None,
+        encoder_attention_mask: Optional[mindspore.Tensor] = None,
+        head_mask: Optional[mindspore.Tensor] = None,
+        cross_attn_head_mask: Optional[mindspore.Tensor] = None,
+        past_key_values: Optional[list[mindspore.Tensor]] = None,
+        inputs_embeds: Optional[mindspore.Tensor] = None,
+        use_cache: Optional[bool] = None,
+        output_attentions: Optional[bool] = None,
+        output_hidden_states: Optional[bool] = None,
+        output_router_logits: Optional[bool] = None,
+        return_dict: Optional[bool] = None,
     ):
         r"""
         Args:
@@ -1147,7 +1161,8 @@ class NllbMoeDecoder(NllbMoePreTrainedModel):
                 - 0 for tokens that are **masked**.
 
                 [What are attention masks?](../glossary#attention-mask)
-            encoder_hidden_states (`mindspore.Tensor` of shape `(batch_size, encoder_sequence_length, hidden_size)`, *optional*):
+            encoder_hidden_states (`mindspore.Tensor` of shape `(batch_size, encoder_sequence_length, hidden_size)`,
+            *optional*):
                 Sequence of hidden-states at the output of the last layer of the encoder. Used in the cross-attention
                 of the decoder.
             encoder_attention_mask (`mindspore.Tensor` of shape `(batch_size, encoder_sequence_length)`, *optional*):
@@ -1164,28 +1179,31 @@ class NllbMoeDecoder(NllbMoePreTrainedModel):
                 - 1 indicates the head is **not masked**,
                 - 0 indicates the head is **masked**.
 
-            cross_attn_head_mask (`mindspore.Tensor` of shape `(decoder_layers, decoder_attention_heads)`, *optional*):
+            cross_attn_head_mask (`mindspore.Tensor` of shape `(decoder_layers, decoder_attention_heads)`,
+            *optional*):
                 Mask to nullify selected heads of the cross-attention modules in the decoder to avoid performing
                 cross-attention on hidden heads. Mask values selected in `[0, 1]`:
 
                 - 1 indicates the head is **not masked**,
                 - 0 indicates the head is **masked**.
 
-            past_key_values (`tuple(tuple(mindspore.Tensor))`, *optional*, returned when `use_cache=True` is passed or when `config.use_cache=True`):
+            past_key_values (`tuple(tuple(mindspore.Tensor))`, *optional*, returned when `use_cache=True` is passed or
+            when `config.use_cache=True`):
                 Tuple of `tuple(mindspore.Tensor)` of length `config.n_layers`, with each tuple having 2 tensors of
                 shape `(batch_size, num_heads, sequence_length, embed_size_per_head)`) and 2 additional tensors of
                 shape `(batch_size, num_heads, encoder_sequence_length, embed_size_per_head)`.
 
                 Contains pre-computed hidden-states (key and values in the self-attention blocks and in the
-                cross-attention blocks) that can be used (see `past_key_values` input) to speed up sequential decoding.
+                cross-attention blocks) that can be used (see `past_key_values` input) to speed up sequential
+                decoding.
 
                 If `past_key_values` are used, the user can optionally input only the last `decoder_input_ids` (those
                 that don't have their past key value states given to this model) of shape `(batch_size, 1)` instead of
                 all `decoder_input_ids` of shape `(batch_size, sequence_length)`.
             inputs_embeds (`mindspore.Tensor` of shape `(batch_size, sequence_length, hidden_size)`, *optional*):
                 Optionally, instead of passing `input_ids` you can choose to directly pass an embedded representation.
-                This is useful if you want more control over how to convert `input_ids` indices into associated vectors
-                than the model's internal embedding lookup matrix.
+                This is useful if you want more control over how to convert `input_ids` indices into associated
+                vectors than the model's internal embedding lookup matrix.
             output_attentions (`bool`, *optional*):
                 Whether or not to return the attentions tensors of all attention layers. See `attentions` under
                 returned tensors for more detail.
@@ -1238,7 +1256,7 @@ class NllbMoeDecoder(NllbMoePreTrainedModel):
         # embed positions
         positions = self.embed_positions(input_ids, inputs_embeds, past_key_values_length)
 
-        hidden_states = inputs_embeds + positions
+        hidden_states = inputs_embeds + positions.to(inputs_embeds.dtype)
 
         hidden_states = mindspore.mint.nn.functional.dropout(hidden_states, p=self.dropout, training=self.training)
 
@@ -1339,11 +1357,11 @@ class NllbMoeDecoder(NllbMoePreTrainedModel):
 
     # Copied from transformers.models.musicgen.modeling_musicgen.MusicgenDecoder._update_causal_mask
     def _update_causal_mask(
-            self,
-            attention_mask: Union[mindspore.Tensor, None],
-            input_shape: Tuple,
-            inputs_embeds: mindspore.Tensor,
-            past_key_values_length: int,
+        self,
+        attention_mask: Union[mindspore.Tensor, None],
+        input_shape: Tuple,
+        inputs_embeds: mindspore.Tensor,
+        past_key_values_length: int,
     ):
         if self.config._attn_implementation == "flash_attention_2":
             # 2d mask is passed through the layers
@@ -1379,19 +1397,19 @@ class NllbMoeDecoder(NllbMoePreTrainedModel):
 
     # Copied from transformers.models.musicgen.modeling_musicgen.MusicgenDecoder._update_cross_attn_mask
     def _update_cross_attn_mask(
-            self,
-            encoder_hidden_states: Union[mindspore.Tensor, None],
-            encoder_attention_mask: Union[mindspore.Tensor, None],
-            input_shape: Tuple,
-            inputs_embeds: mindspore.Tensor,
+        self,
+        encoder_hidden_states: Union[mindspore.Tensor, None],
+        encoder_attention_mask: Union[mindspore.Tensor, None],
+        input_shape: Tuple,
+        inputs_embeds: mindspore.Tensor,
     ):
         # expand encoder attention mask
         if encoder_hidden_states is not None and encoder_attention_mask is not None:
             if self.config._attn_implementation == "flash_attention_2":
                 encoder_attention_mask = encoder_attention_mask if 0 in encoder_attention_mask else None
             elif self.config._attn_implementation == "sdpa":
-                # output_attentions=True & cross_attn_head_mask can not be supported when using SDPA, and we fall back on
-                # the manual implementation that requires a 4D causal mask in all cases.
+                # output_attentions=True & cross_attn_head_mask can not be supported when using SDPA, and we fall back
+                # on the manual implementation that requires a 4D causal mask in all cases.
                 # [bsz, seq_len] -> [bsz, 1, tgt_seq_len, src_seq_len]
                 encoder_attention_mask = _prepare_4d_attention_mask_for_sdpa(
                     encoder_attention_mask,
@@ -1451,23 +1469,23 @@ class NllbMoeModel(NllbMoePreTrainedModel):
         return self.decoder
 
     def construct(
-            self,
-            input_ids: Optional[mindspore.Tensor] = None,
-            attention_mask: Optional[mindspore.Tensor] = None,
-            decoder_input_ids: Optional[mindspore.Tensor] = None,
-            decoder_attention_mask: Optional[mindspore.Tensor] = None,
-            head_mask: Optional[mindspore.Tensor] = None,
-            decoder_head_mask: Optional[mindspore.Tensor] = None,
-            cross_attn_head_mask: Optional[mindspore.Tensor] = None,
-            encoder_outputs: Optional[tuple[tuple[mindspore.Tensor]]] = None,
-            past_key_values: Optional[tuple[tuple[mindspore.Tensor]]] = None,
-            inputs_embeds: Optional[mindspore.Tensor] = None,
-            decoder_inputs_embeds: Optional[mindspore.Tensor] = None,
-            use_cache: Optional[bool] = None,
-            output_attentions: Optional[bool] = None,
-            output_hidden_states: Optional[bool] = None,
-            output_router_logits: Optional[bool] = None,
-            return_dict: Optional[bool] = None,
+        self,
+        input_ids: Optional[mindspore.Tensor] = None,
+        attention_mask: Optional[mindspore.Tensor] = None,
+        decoder_input_ids: Optional[mindspore.Tensor] = None,
+        decoder_attention_mask: Optional[mindspore.Tensor] = None,
+        head_mask: Optional[mindspore.Tensor] = None,
+        decoder_head_mask: Optional[mindspore.Tensor] = None,
+        cross_attn_head_mask: Optional[mindspore.Tensor] = None,
+        encoder_outputs: Optional[tuple[tuple[mindspore.Tensor]]] = None,
+        past_key_values: Optional[tuple[tuple[mindspore.Tensor]]] = None,
+        inputs_embeds: Optional[mindspore.Tensor] = None,
+        decoder_inputs_embeds: Optional[mindspore.Tensor] = None,
+        use_cache: Optional[bool] = None,
+        output_attentions: Optional[bool] = None,
+        output_hidden_states: Optional[bool] = None,
+        output_router_logits: Optional[bool] = None,
+        return_dict: Optional[bool] = None,
     ) -> Union[tuple[mindspore.Tensor], Seq2SeqMoEModelOutput]:
         r"""
         decoder_input_ids (`mindspore.Tensor` of shape `(batch_size, target_sequence_length)`, *optional*):
@@ -1594,25 +1612,25 @@ class NllbMoeForConditionalGeneration(NllbMoePreTrainedModel, GenerationMixin):
         self.lm_head = new_embeddings
 
     def construct(
-            self,
-            input_ids: Optional[mindspore.Tensor] = None,
-            attention_mask: Optional[mindspore.Tensor] = None,
-            decoder_input_ids: Optional[mindspore.Tensor] = None,
-            decoder_attention_mask: Optional[mindspore.Tensor] = None,
-            head_mask: Optional[mindspore.Tensor] = None,
-            decoder_head_mask: Optional[mindspore.Tensor] = None,
-            cross_attn_head_mask: Optional[mindspore.Tensor] = None,
-            encoder_outputs: Optional[tuple[tuple[mindspore.Tensor]]] = None,
-            past_key_values: Optional[tuple[tuple[mindspore.Tensor]]] = None,
-            inputs_embeds: Optional[mindspore.Tensor] = None,
-            decoder_inputs_embeds: Optional[mindspore.Tensor] = None,
-            labels: Optional[mindspore.Tensor] = None,
-            use_cache: Optional[bool] = None,
-            output_attentions: Optional[bool] = None,
-            output_hidden_states: Optional[bool] = None,
-            output_router_logits: Optional[bool] = None,
-            return_dict: Optional[bool] = None,
-            cache_position: Optional[mindspore.Tensor] = None,
+        self,
+        input_ids: Optional[mindspore.Tensor] = None,
+        attention_mask: Optional[mindspore.Tensor] = None,
+        decoder_input_ids: Optional[mindspore.Tensor] = None,
+        decoder_attention_mask: Optional[mindspore.Tensor] = None,
+        head_mask: Optional[mindspore.Tensor] = None,
+        decoder_head_mask: Optional[mindspore.Tensor] = None,
+        cross_attn_head_mask: Optional[mindspore.Tensor] = None,
+        encoder_outputs: Optional[tuple[tuple[mindspore.Tensor]]] = None,
+        past_key_values: Optional[tuple[tuple[mindspore.Tensor]]] = None,
+        inputs_embeds: Optional[mindspore.Tensor] = None,
+        decoder_inputs_embeds: Optional[mindspore.Tensor] = None,
+        labels: Optional[mindspore.Tensor] = None,
+        use_cache: Optional[bool] = None,
+        output_attentions: Optional[bool] = None,
+        output_hidden_states: Optional[bool] = None,
+        output_router_logits: Optional[bool] = None,
+        return_dict: Optional[bool] = None,
+        cache_position: Optional[mindspore.Tensor] = None,
     ) -> Union[tuple[mindspore.Tensor], Seq2SeqMoEOutput]:
         r"""
         decoder_input_ids (`mindspore.Tensor` of shape `(batch_size, target_sequence_length)`, *optional*):
@@ -1692,8 +1710,7 @@ class NllbMoeForConditionalGeneration(NllbMoePreTrainedModel, GenerationMixin):
         decoder_aux_loss = None
 
         if labels is not None:
-            loss_fct = CrossEntropyLoss(ignore_index=-100)
-            # todo check in the config if router loss enables
+            loss_fct = mindspore.mint.nn.CrossEntropyLoss(ignore_index=-100)
 
             if output_router_logits:
                 encoder_router_logits = outputs[-1]
@@ -1752,17 +1769,16 @@ class NllbMoeForConditionalGeneration(NllbMoePreTrainedModel, GenerationMixin):
                 total_expert_indexes.append(expert_indexes)
 
         total_router_logits = mindspore.mint.cat(total_router_logits, dim=1) if len(total_router_logits) > 0 else None
-        total_expert_indexes = mindspore.mint.stack(total_expert_indexes, dim=1) if len(
-            total_expert_indexes) > 0 else None
+        total_expert_indexes = (
+            mindspore.mint.stack(total_expert_indexes, dim=1) if len(total_expert_indexes) > 0 else None
+        )
         return total_router_logits, total_expert_indexes
 
     @staticmethod
     def _reorder_cache(past_key_values, beam_idx):
         reordered_past = ()
         for layer_past in past_key_values:
-            reordered_past += (
-                tuple(past_state.index_select(0, beam_idx) for past_state in layer_past),
-            )
+            reordered_past += (tuple(past_state.index_select(0, beam_idx) for past_state in layer_past),)
         return reordered_past
 
 

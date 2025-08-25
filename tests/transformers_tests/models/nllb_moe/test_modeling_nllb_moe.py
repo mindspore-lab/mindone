@@ -15,18 +15,12 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 """Testing suite for the Mindspore Nllb Moe model."""
-import inspect
-
 import numpy as np
 import pytest
 import torch
 from transformers import NllbMoeConfig
 
-import mindspore as ms
-
 from tests.modeling_test_utils import (
-    MS_DTYPE_MAPPING,
-    PT_DTYPE_MAPPING,
     compute_diffs,
     generalized_parse_args,
     get_modules,
@@ -39,14 +33,14 @@ MODES = [0, 1]
 
 
 def prepare_nllb_moe_inputs_dict(
-        config,
-        input_ids,
-        decoder_input_ids,
-        attention_mask=None,
-        decoder_attention_mask=None,
-        head_mask=None,
-        decoder_head_mask=None,
-        cross_attn_head_mask=None,
+    config,
+    input_ids,
+    decoder_input_ids,
+    attention_mask=None,
+    decoder_attention_mask=None,
+    head_mask=None,
+    decoder_head_mask=None,
+    cross_attn_head_mask=None,
 ):
     if attention_mask is None:
         attention_mask = np.not_equal(input_ids, config.pad_token_id)
@@ -67,32 +61,32 @@ def prepare_nllb_moe_inputs_dict(
     }
 
 
-class MBartModelTester:
+class NllbModelTester:
     def __init__(
         self,
-            batch_size=13,
-            seq_length=7,
-            is_training=True,
-            use_labels=False,
-            vocab_size=99,
-            hidden_size=16,
-            num_hidden_layers=2,
-            num_attention_heads=4,
-            intermediate_size=4,
-            hidden_act="relu",
-            hidden_dropout_prob=0.1,
-            attention_probs_dropout_prob=0.1,
-            encoder_layerdrop=0.0,
-            decoder_layerdrop=0.0,
-            max_position_embeddings=20,
-            eos_token_id=2,
-            pad_token_id=1,
-            bos_token_id=0,
-            num_experts=4,
-            encoder_sparse_step=2,
-            decoder_sparse_step=1,
-            expert_capacity=100,
-            router_jitter_noise=0.0,
+        batch_size=13,
+        seq_length=7,
+        is_training=True,
+        use_labels=False,
+        vocab_size=99,
+        hidden_size=16,
+        num_hidden_layers=2,
+        num_attention_heads=4,
+        intermediate_size=4,
+        hidden_act="relu",
+        hidden_dropout_prob=0.1,
+        attention_probs_dropout_prob=0.1,
+        encoder_layerdrop=0.0,
+        decoder_layerdrop=0.0,
+        max_position_embeddings=20,
+        eos_token_id=2,
+        pad_token_id=1,
+        bos_token_id=0,
+        num_experts=4,
+        encoder_sparse_step=2,
+        decoder_sparse_step=1,
+        expert_capacity=100,
+        router_jitter_noise=0.0,
     ):
         self.batch_size = batch_size
         self.seq_length = seq_length
@@ -131,8 +125,6 @@ class MBartModelTester:
         # but when using past, there is no way of knowing if the past input ids had
         # pad tokens in them, which results in incorrect seq_lenth and which in turn results in
         # position_ids being off by num_pad_tokens in past input
-        input_ids = input_ids.clamp(self.pad_token_id + 1)
-        decoder_input_ids = decoder_input_ids.clamp(self.pad_token_id + 1)
 
         config = self.get_config()
         inputs_dict = prepare_nllb_moe_inputs_dict(config, input_ids, decoder_input_ids)
@@ -172,23 +164,35 @@ class MBartModelTester:
         return config, inputs_dict
 
 
-model_tester = MBartModelTester()
-(
-    config,
-    input_ids
-) = model_tester.prepare_config_and_inputs_for_common()
+model_tester = NllbModelTester()
+(config, inputs_dict) = model_tester.prepare_config_and_inputs_for_common()
 
 
-Bart_CASES = [
+NLLB_MOE_CASES = [
     [
-        "MBartModel",
-        "transformers.MBartModel",
-        "mindone.transformers.MBartModel",
+        "NllbMoeModel",
+        "transformers.NllbMoeModel",
+        "mindone.transformers.NllbMoeModel",
         (config,),
         {},
-        (input_ids,),
+        (),
+        {**inputs_dict},
         {
             "last_hidden_state": 0,
+        },
+    ],
+    [
+        "NllbMoeForConditionalGeneration",
+        "transformers.NllbMoeForConditionalGeneration",
+        "mindone.transformers.NllbMoeForConditionalGeneration",
+        (config,),
+        {},
+        (),
+        {**inputs_dict},
+        {
+            "logits": 0,
+            "past_key_values": 1,
+            "encoder_last_hidden_state": 2,
         },
     ],
 ]
@@ -202,7 +206,7 @@ Bart_CASES = [
         + [
             dtype,
         ]
-        for case in Bart_CASES
+        for case in NLLB_MOE_CASES
         for dtype in DTYPE_AND_THRESHOLDS.keys()
     ],
 )
