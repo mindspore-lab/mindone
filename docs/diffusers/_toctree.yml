@@ -23,8 +23,6 @@
     title: Load LoRAs for inference
   title: Tutorials
 - sections:
-  - local: using-diffusers/loading_overview
-    title: Overview
   - local: using-diffusers/loading
     title: Load pipelines
   - local: using-diffusers/schedulers
@@ -63,8 +61,14 @@
     title: Reproducible pipelines
   title: Inference techniques
 - sections:
+  - local: advanced_inference/outpaint
+    title: Outpainting
+  title: Advanced inference
+- sections:
   - local: using-diffusers/cogvideox
     title: CogVideoX
+  - local: using-diffusers/consisid
+    title: ConsisID
   - local: using-diffusers/sdxl
     title: Stable Diffusion XL
   - local: using-diffusers/sdxl_turbo
@@ -160,6 +164,8 @@
       title: Textual Inversion
     - local: api/loaders/unet
       title: UNet
+    - local: api/loaders/transformer_sd3
+      title: SD3Transformer2D
     - local: api/loaders/peft
       title: PEFT
     title: Loaders
@@ -167,6 +173,8 @@
     sections:
     - local: api/models/overview
       title: Overview
+    - local: api/models/auto_model
+      title: AutoModel
     - sections:
       - local: api/models/controlnet
         title: ControlNetModel
@@ -174,6 +182,8 @@
         title: FluxControlNetModel
       - local: api/models/controlnet_hunyuandit
         title: HunyuanDiT2DControlNetModel
+      - local: api/models/controlnet_sana
+        title: SanaControlNetModel
       - local: api/models/controlnet_sd3
         title: SD3ControlNetModel
       - local: api/models/controlnet_sparsectrl
@@ -188,10 +198,14 @@
         title: AuraFlowTransformer2DModel
       - local: api/models/cogvideox_transformer3d
         title: CogVideoXTransformer3DModel
+      - local: api/models/consisid_transformer3d
+        title: ConsisIDTransformer3DModel
       - local: api/models/cogview3plus_transformer2d
         title: CogView3PlusTransformer2DModel
       - local: api/models/cogview4_transformer2d
         title: CogView4Transformer2DModel
+      - local: api/models/cosmos_transformer3d
+        title: CosmosTransformer3DModel
       - local: api/models/dit_transformer2d
         title: DiTTransformer2DModel
       - local: api/models/easyanimate_transformer3d
@@ -228,6 +242,8 @@
         title: Transformer2DModel
       - local: api/models/transformer_temporal
         title: TransformerTemporalModel
+      - local: api/models/wan_transformer_3d
+        title: WanTransformer3DModel
       title: Transformers
     - sections:
       - local: api/models/stable_cascade_unet
@@ -252,6 +268,8 @@
         title: AutoencoderKLAllegro
       - local: api/models/autoencoderkl_cogvideox
         title: AutoencoderKLCogVideoX
+      - local: api/models/autoencoderkl_cosmos
+        title: AutoencoderKLCosmos
       - local: api/models/autoencoder_kl_hunyuan_video
         title: AutoencoderKLHunyuanVideo
       - local: api/models/autoencoderkl_ltx_video
@@ -260,8 +278,12 @@
         title: AutoencoderKLMagvit
       - local: api/models/autoencoderkl_mochi
         title: AutoencoderKLMochi
+      - local: api/models/autoencoder_kl_wan
+        title: AutoencoderKLWan
       - local: api/models/asymmetricautoencoderkl
         title: AsymmetricAutoencoderKL
+      - local: api/models/autoencoder_dc
+        title: AutoencoderDC
       - local: api/models/consistency_decoder_vae
         title: ConsistencyDecoderVAE
       - local: api/models/autoencoder_oobleck
@@ -278,10 +300,16 @@
       title: Overview
     - local: api/pipelines/allegro
       title: Allegro
+    - local: api/pipelines/amused
+      title: aMUSEd
     - local: api/pipelines/animatediff
       title: AnimateDiff
+    - local: api/pipelines/attend_and_excite
+      title: Attend-and-Excite
     - local: api/pipelines/audioldm
       title: AudioLDM
+    - local: api/pipelines/audioldm2
+      title: AudioLDM 2
     - local: api/pipelines/aura_flow
       title: AuraFlow
     - local: api/pipelines/auto_pipeline
@@ -294,30 +322,30 @@
       title: CogView3
     - local: api/pipelines/cogview4
       title: CogView4
+    - local: api/pipelines/consisid
+      title: ConsisID
     - local: api/pipelines/consistency_models
       title: Consistency Models
     - local: api/pipelines/controlnet
       title: ControlNet
     - local: api/pipelines/controlnet_flux
       title: ControlNet with Flux.1
-    - local: api/pipelines/easyanimate
-      title: EasyAnimate
-    - local: api/pipelines/flux
-      title: Flux
-    - local: api/pipelines/control_flux_inpaint
-      title: FluxControlInpaint
     - local: api/pipelines/controlnet_hunyuandit
       title: ControlNet with Hunyuan-DiT
     - local: api/pipelines/controlnet_sd3
       title: ControlNet with Stable Diffusion 3
     - local: api/pipelines/controlnet_sdxl
       title: ControlNet with Stable Diffusion XL
+    - local: api/pipelines/controlnet_sana
+      title: ControlNet-Sana
     - local: api/pipelines/controlnetxs
       title: ControlNet-XS
     - local: api/pipelines/controlnetxs_sdxl
       title: ControlNet-XS with Stable Diffusion XL
     - local: api/pipelines/controlnet_union
       title: ControlNetUnion
+    - local: api/pipelines/cosmos
+      title: Cosmos
     - local: api/pipelines/dance_diffusion
       title: Dance Diffusion
     - local: api/pipelines/ddim
@@ -330,8 +358,14 @@
       title: DiffEdit
     - local: api/pipelines/dit
       title: DiT
+    - local: api/pipelines/easyanimate
+      title: EasyAnimate
     - local: api/pipelines/flux
       title: Flux
+    - local: api/pipelines/control_flux_inpaint
+      title: FluxControlInpaint
+    - local: api/pipelines/framepack
+      title: Framepack
     - local: api/pipelines/hunyuandit
       title: Hunyuan-DiT
     - local: api/pipelines/hunyuan_video
@@ -354,6 +388,8 @@
       title: Latent Diffusion
     - local: api/pipelines/latte
       title: Latte
+    - local: api/pipelines/ledits_pp
+      title: LEDITS++
     - local: api/pipelines/ltx_video
       title: LTXVideo
     - local: api/pipelines/lumina2
@@ -364,6 +400,8 @@
       title: Marigold
     - local: api/pipelines/mochi
       title: Mochi
+    - local: api/pipelines/panorama
+      title: MultiDiffusion
     - local: api/pipelines/musicldm
       title: MusicLDM
     - local: api/pipelines/omnigen
@@ -388,6 +426,8 @@
       title: Semantic Guidance
     - local: api/pipelines/shap_e
       title: Shap-E
+    - local: api/pipelines/stable_audio
+      title: Stable Audio
     - local: api/pipelines/stable_cascade
       title: Stable Cascade
     - sections:
@@ -405,6 +445,8 @@
         title: Depth-to-image
       - local: api/pipelines/stable_diffusion/image_variation
         title: Image variation
+      - local: api/pipelines/stable_diffusion/stable_diffusion_safe
+        title: Safe Stable Diffusion
       - local: api/pipelines/stable_diffusion/stable_diffusion_2
         title: Stable Diffusion 2
       - local: api/pipelines/stable_diffusion/stable_diffusion_3
@@ -434,6 +476,14 @@
       title: Text2Video-Zero
     - local: api/pipelines/unclip
       title: unCLIP
+    - local: api/pipelines/unidiffuser
+      title: UniDiffuser
+    - local: api/pipelines/value_guided_sampling
+      title: Value-guided sampling
+    - local: api/pipelines/visualcloze
+      title: VisualCloze
+    - local: api/pipelines/wan
+      title: Wan
     - local: api/pipelines/wuerstchen
       title: Wuerstchen
     title: Pipelines
@@ -443,8 +493,14 @@
       title: Overview
     - local: api/schedulers/cm_stochastic_iterative
       title: CMStochasticIterativeScheduler
+    - local: api/schedulers/ddim_cogvideox
+      title: CogVideoXDDIMScheduler
+    - local: api/schedulers/multistep_dpm_solver_cogvideox
+      title: CogVideoXDPMScheduler
     - local: api/schedulers/consistency_decoder
       title: ConsistencyDecoderScheduler
+    - local: api/schedulers/cosine_dpm
+      title: CosineDPMSolverMultistepScheduler
     - local: api/schedulers/ddim_inverse
       title: DDIMInverseScheduler
     - local: api/schedulers/ddim
@@ -457,6 +513,8 @@
       title: DPMSolverMultistepInverse
     - local: api/schedulers/multistep_dpm_solver
       title: DPMSolverMultistepScheduler
+    - local: api/schedulers/dpm_sde
+      title: DPMSolverSDEScheduler
     - local: api/schedulers/singlestep_dpm_solver
       title: DPMSolverSinglestepScheduler
     - local: api/schedulers/edm_multistep_dpm_solver
@@ -475,6 +533,8 @@
       title: HeunDiscreteScheduler
     - local: api/schedulers/ipndm
       title: IPNDMScheduler
+    - local: api/schedulers/stochastic_karras_ve
+      title: KarrasVeScheduler
     - local: api/schedulers/dpm_discrete_ancestral
       title: KDPM2AncestralDiscreteScheduler
     - local: api/schedulers/dpm_discrete

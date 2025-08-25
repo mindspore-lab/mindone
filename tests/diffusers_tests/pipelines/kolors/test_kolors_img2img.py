@@ -1,5 +1,8 @@
 # coding=utf-8
-# Copyright 2024 HuggingFace Inc.
+# Copyright 2025 HuggingFace Inc.
+#
+# This code is adapted from https://github.com/huggingface/diffusers
+# with modifications to run diffusers on mindspore.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -28,7 +31,7 @@ from mindone.diffusers import KolorsImg2ImgPipeline
 from mindone.diffusers.utils.testing_utils import (
     fast,
     load_downloaded_image_from_hf_hub,
-    load_downloaded_numpy_from_hf_hub,
+    load_numpy_from_local_file,
     slow,
 )
 
@@ -240,8 +243,8 @@ class KolorsPipelineImg2ImgIntegrationTests(unittest.TestCase):
         torch.manual_seed(0)
         image = pipe(prompt, image=init_image)[0][0]
 
-        expected_image = load_downloaded_numpy_from_hf_hub(
-            "The-truth/mindone-testing-arrays",
+        expected_image = load_numpy_from_local_file(
+            "mindone-testing-arrays",
             f"kolors_i2i_{dtype}.npy",
             subfolder="kolors",
         )

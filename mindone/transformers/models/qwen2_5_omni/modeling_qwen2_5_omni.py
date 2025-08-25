@@ -8,6 +8,9 @@
 # Copyright 2025 The Qwen team, Alibaba Group and the HuggingFace Inc. team. All rights reserved.
 #
 #
+# This code is adapted from https://github.com/huggingface/transformers
+# with modifications to run transformers on mindspore.
+#
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -20,7 +23,9 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import json
 import math
+import zipfile
 from dataclasses import dataclass
 from typing import Any, Dict, List, Optional, Tuple, Union
 
@@ -601,12 +606,11 @@ class Qwen2_5OmniAudioFlashAttention2(Qwen2_5OmniAudioAttention):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
 
-        self.fa_dtype = ms.float16
         self.flash_attention = MSFlashAttention(
             scale_value=self.head_dim**-0.5,
             head_num=self.num_heads,
             keep_prob=1 - 0.0,
-            input_layout="BNSD",
+            input_layout="TND",
         )
 
     def construct(
@@ -615,7 +619,6 @@ class Qwen2_5OmniAudioFlashAttention2(Qwen2_5OmniAudioAttention):
         cu_seqlens: Optional[ms.Tensor] = None,
     ) -> Tuple[ms.Tensor, Optional[ms.Tensor], Optional[Tuple[ms.Tensor]]]:
         seq_length, all_dim = hidden_states.shape
-        target_dtype = hidden_states.dtype
         query_states = self.q_proj(hidden_states)
         query_states = query_states.reshape(seq_length, self.num_heads, -1)
 
@@ -624,14 +627,15 @@ class Qwen2_5OmniAudioFlashAttention2(Qwen2_5OmniAudioAttention):
         value_states = self.v_proj(hidden_states)
         value_states = value_states.reshape(seq_length, self.num_heads, -1)
 
-        # SND => BNSD
-        query_states = query_states.unsqueeze(0).swapaxes(1, 2)
-        key_states = key_states.unsqueeze(0).swapaxes(1, 2)
-        value_states = value_states.unsqueeze(0).swapaxes(1, 2)
         attn_output = self.flash_attention(
-            query_states.to(self.fa_dtype), key_states.to(self.fa_dtype), value_states.to(self.fa_dtype)
-        )[3]
-        attn_output = attn_output.to(target_dtype).swapaxes(1, 2).unsqueeze(0)  # BNSD => SND
+            query_states,
+            key_states,
+            value_states,
+            actual_seq_qlen=cu_seqlens,
+            actual_seq_kvlen=cu_seqlens,
+        )[
+            3
+        ]  # SND
         attn_output = attn_output.reshape(seq_length, all_dim)
         attn_output = self.out_proj(attn_output)
         return attn_output
@@ -982,29 +986,32 @@ class Qwen2_5OmniVisionFlashAttention2(nn.Cell):
         self.v = mint.nn.Linear(dim, dim, bias=True)
         self.proj = mint.nn.Linear(dim, dim)
 
-        self.fa_dtype = ms.float16
         self.flash_attention = MSFlashAttention(
             scale_value=self.head_dim**-0.5,
             head_num=self.num_heads,
-            input_layout="BNSD",
+            input_layout="TND",
         )
 
     def construct(self, hidden_states: ms.Tensor, cu_seqlens: ms.Tensor, rotary_pos_emb: ms.Tensor = None) -> ms.Tensor:
         seq_length = hidden_states.shape[0]
-        target_dtype = hidden_states.dtype
         q = self.q(hidden_states).reshape(seq_length, self.num_heads, -1)
         k = self.k(hidden_states).reshape(seq_length, self.num_heads, -1)
         v = self.v(hidden_states).reshape(seq_length, self.num_heads, -1)
         q = apply_rotary_pos_emb_vision(q.unsqueeze(0), rotary_pos_emb)
         k = apply_rotary_pos_emb_vision(k.unsqueeze(0), rotary_pos_emb)
 
-        q = q.swapaxes(1, 2)
-        k = k.swapaxes(1, 2)
-        v = v.unsqueeze(0).swapaxes(1, 2)
-        attn_output = self.flash_attention(q.to(self.fa_dtype), k.to(self.fa_dtype), v.to(self.fa_dtype))[3].to(
-            target_dtype
-        )
-        attn_output = attn_output.swapaxes(1, 2).squeeze(0).reshape(seq_length, -1)  # BNSD => SND
+        # prepare layout. (B S N D) -> (T N D)
+        q = q.squeeze(0)
+        k = k.squeeze(0)
+        attn_output = self.flash_attention(
+            q,
+            k,
+            v,
+            actual_seq_qlen=cu_seqlens,
+            actual_seq_kvlen=cu_seqlens,
+        )[3]
+        # (T N D) -> (S N*D)
+        attn_output = attn_output.reshape(seq_length, -1)  # SxN*D
         attn_output = self.proj(attn_output)
         return attn_output
 
@@ -1550,7 +1557,6 @@ class Qwen2_5OmniFlashAttention2(Qwen2_5OmniAttention):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         dropout_rate = 0.0 if not self.training else self.attention_dropout
-        self.fa_dtype = ms.float16
         self.flash_attention = MSFlashAttention(
             scale_value=self.head_dim**-0.5,
             head_num=self.num_heads,
@@ -1586,7 +1592,6 @@ class Qwen2_5OmniFlashAttention2(Qwen2_5OmniAttention):
         position_embeddings: Optional[Tuple[ms.Tensor, ms.Tensor]] = None,  # necessary, but kept here for BC
     ):
         bsz, q_len, _ = hidden_states.shape
-        target_dtype = hidden_states.dtype
 
         query_states = self.q_proj(hidden_states)
         key_states = self.k_proj(hidden_states)
@@ -1594,7 +1599,7 @@ class Qwen2_5OmniFlashAttention2(Qwen2_5OmniAttention):
 
         query_states = query_states.view((bsz, q_len, -1, self.head_dim)).swapaxes(1, 2)
         key_states = key_states.view((bsz, q_len, -1, self.head_dim)).swapaxes(1, 2)
-        value_states = value_states.view((bsz, q_len, -1, self.head_dim)).swapaxes(1, 2)
+        value_states = value_states.view((bsz, q_len, -1, self.head_dim)).swapaxes(1, 2)  # BNSD
 
         # Because the input can be padded, the absolute sequence length depends on the max position id.
         cos, sin = position_embeddings
@@ -1632,18 +1637,16 @@ class Qwen2_5OmniFlashAttention2(Qwen2_5OmniAttention):
         #     use_top_left_mask=self._flash_attn_uses_top_left_mask,
         # )
         attention_mask = self.convert_mask_to_fa_format(attention_mask)
-        attn_output = (
-            self.flash_attention(
-                query_states.to(self.fa_dtype),
-                key_states.to(self.fa_dtype),
-                value_states.to(self.fa_dtype),
-                None,
-                None,
-                None,
-                attention_mask,
-            )[3]
-            .to(target_dtype)
-            .swapaxes(1, 2)
+        attn_output = self.flash_attention(
+            query_states,
+            key_states,
+            value_states,
+            None,
+            None,
+            None,
+            attention_mask,
+        )[3].swapaxes(
+            1, 2
         )  # BNSD
         attn_output = attn_output.reshape(bsz, q_len, -1).contiguous()
         attn_output = self.o_proj(attn_output)
@@ -2396,7 +2399,6 @@ class Qwen2_5OmniThinkerForConditionalGeneration(Qwen2_5OmniPreTrainedModelForCo
                 if audio_features.shape[0] != sum(audio_output_lengths.tolist()):
                     raise ValueError("length of audio_features should match audio_output_lengths")
                 audio_mask = (input_ids == self.config.audio_token_index).unsqueeze(-1).expand_as(inputs_embeds)
-                # audio_features = audio_features.to(inputs_embeds.dtype)
                 inputs_embeds = (
                     inputs_embeds.float().masked_scatter(audio_mask, audio_features.float()).to(inputs_embeds.dtype)
                 )
@@ -2405,7 +2407,6 @@ class Qwen2_5OmniThinkerForConditionalGeneration(Qwen2_5OmniPreTrainedModelForCo
                 pixel_values = pixel_values.type(self.visual.dtype)
                 image_embeds = self.visual(pixel_values, grid_thw=image_grid_thw)
                 image_mask = (input_ids == self.config.image_token_index).unsqueeze(-1).expand_as(inputs_embeds)
-                image_embeds = image_embeds.to(inputs_embeds.dtype)
                 inputs_embeds = (
                     inputs_embeds.float().masked_scatter(image_mask, image_embeds.float()).to(inputs_embeds.dtype)
                 )
@@ -2414,7 +2415,6 @@ class Qwen2_5OmniThinkerForConditionalGeneration(Qwen2_5OmniPreTrainedModelForCo
                 pixel_values_videos = pixel_values_videos.type(self.visual.dtype)
                 video_embeds = self.visual(pixel_values_videos, grid_thw=video_grid_thw)
                 video_mask = (input_ids == self.config.video_token_index).unsqueeze(-1).expand_as(inputs_embeds)
-                video_embeds = video_embeds.to(inputs_embeds.dtype)
                 inputs_embeds = (
                     inputs_embeds.float().masked_scatter(video_mask, video_embeds.float()).to(inputs_embeds.dtype)
                 )
@@ -3533,7 +3533,6 @@ class DiTAttention(nn.Cell):
         self.to_out = nn.CellList([mint.nn.Linear(self.inner_dim, config.hidden_size), mint.nn.Dropout(config.dropout)])
 
         if self._attn_implementation == "flash_attention_2":
-            self.fa_dtype = ms.float16
             self.attention_interface = MSFlashAttention(
                 scale_value=config.head_dim**-0.5,
                 head_num=self.heads,
@@ -3571,14 +3570,14 @@ class DiTAttention(nn.Cell):
 
         if self._attn_implementation == "flash_attention_2":
             attention_weights = self.attention_interface(
-                query.to(self.fa_dtype),
-                key.to(self.fa_dtype),
-                value.to(self.fa_dtype),
+                query,
+                key,
+                value,
                 None,
                 None,
                 None,
                 attention_mask,
-            )[3].to(hidden_states.dtype)
+            )[3]
         else:
             attention_weights = self.attention_interface(
                 query,
@@ -4200,8 +4199,8 @@ class Qwen2_5OmniToken2WavDiTModel(Qwen2_5OmniPreTrainedModel):
 
 
 @add_start_docstrings(
-    "The full Qwen2.5Omni Token2Wav model. Consists a DiT model take speech tokens as input and predict mel spectrogram "
-    "and a BigVGAN vocoder take mel spectrogram as input and predict waveform.",
+    "The full Qwen2.5Omni Token2Wav model. "
+    "Consists a DiT model take speech tokens as input and predict mel spectrogram and a BigVGAN vocoder take mel spectrogram as input and predict waveform.",
     QWEN2_5OMNI_START_DOCSTRING.format(config_class="Qwen2_5OmniToken2WavConfig"),
 )
 class Qwen2_5OmniToken2WavModel(Qwen2_5OmniPreTrainedModel):
@@ -4290,16 +4289,16 @@ class Qwen2_5OmniForConditionalGeneration(Qwen2_5OmniPreTrainedModel, Generation
             self.enable_talker()
 
     def enable_talker(self):
-        self.config.thinker_config._attn_implementation = self.config._attn_implementation
-        self.config.token2wav_config._attn_implementation = self.token2wav_config._attn_implementation
+        self.config.talker_config._attn_implementation = self.config._attn_implementation
+        self.config.token2wav_config._attn_implementation = self.config._attn_implementation
         self.talker = Qwen2_5OmniTalkerForConditionalGeneration(self.config.talker_config)
         self.token2wav = Qwen2_5OmniToken2WavModel(self.config.token2wav_config)
         self.token2wav.float()
         self.has_talker = True
 
     def load_speakers(self, path):
-        np_dict = np.load(path, allow_pickle=True).item()
-        for key, value in np_dict.items():
+        data_dict = _load_from_zip_file(path)
+        for key, value in data_dict.items():
             if isinstance(value, dict):
                 value_ms_dict = {}
                 for k, v in value.items():
@@ -4309,7 +4308,7 @@ class Qwen2_5OmniForConditionalGeneration(Qwen2_5OmniPreTrainedModel, Generation
                         value_ms_dict[k] = v
                 self.speaker_map[key] = value_ms_dict
             else:
-                if isinstance(v, np.ndarray):
+                if isinstance(value, np.ndarray):
                     self.speaker_map[key] = ms.tensor(value)
                 else:
                     self.speaker_map[key] = value
@@ -4354,7 +4353,7 @@ class Qwen2_5OmniForConditionalGeneration(Qwen2_5OmniPreTrainedModel, Generation
         )
         spk_path = cached_file(
             pretrained_model_name_or_path,
-            "spk_dict.npy",
+            "spk_dict.zip",
             subfolder=kwargs.pop("subfolder", None),
             cache_dir=kwargs.pop("cache_dir", None),
             force_download=kwargs.pop("force_download", False),
@@ -4555,6 +4554,33 @@ class Qwen2_5OmniForConditionalGeneration(Qwen2_5OmniPreTrainedModel, Generation
         )
 
         return thinker_result.sequences, wav.float()
+
+
+def _load_from_zip_file(filepath: str) -> dict:
+    result = {}
+    with zipfile.ZipFile(filepath, "r") as zf:
+        # load numpy data
+        if "arrays.npz" in zf.namelist():
+            with zf.open("arrays.npz") as f:
+                npz_data = np.load(f)
+                for key in npz_data.files:
+                    *path, final_key = key.split("/")
+                    current = result
+                    for p in path:
+                        current = current.setdefault(p, {})
+                    current[final_key] = npz_data[key]
+
+        # load json data
+        if "meta.json" in zf.namelist():
+            with zf.open("meta.json") as f:
+                json_data = json.load(f)
+                for key, value in json_data.items():
+                    *path, final_key = key.split("/")
+                    current = result
+                    for p in path:
+                        current = current.setdefault(p, {})
+                    current[final_key] = value
+    return result
 
 
 __all__ = [

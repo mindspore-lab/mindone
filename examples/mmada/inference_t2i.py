@@ -1,6 +1,9 @@
 # coding=utf-8
 # Copyright 2025 MMaDA Team
 #
+# This code is adapted from https://github.com/Gen-Verse/MMaDA
+# with the modifications to run MMaDA on mindspore.
+#
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -96,7 +99,7 @@ if __name__ == "__main__":
     )
 
     vq_model = get_vq_model_class(config.model.vq_model.type)
-    vq_model = vq_model.from_pretrained(config.model.vq_model.vq_model_name)
+    vq_model = vq_model.from_pretrained(config.model.vq_model.vq_model_name, use_safetensors=True)
     vq_model.set_train(False)
     for param in vq_model.get_parameters():
         param.requires_grad = False

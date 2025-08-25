@@ -1,3 +1,5 @@
+# Copied from https://github.com/Tencent-Hunyuan/HunyuanDiT
+
 import os
 import random
 

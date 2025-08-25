@@ -1,4 +1,7 @@
-# Copyright 2024 The HuggingFace Team. All rights reserved.
+# Copyright 2025 The HuggingFace Team. All rights reserved.
+#
+# This code is adapted from https://github.com/huggingface/diffusers
+# with modifications to run diffusers on mindspore.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -22,7 +25,6 @@ from ...configuration_utils import ConfigMixin, register_to_config
 from ..attention_processor import CROSS_ATTENTION_PROCESSORS, AttentionProcessor, AttnProcessor
 from ..modeling_outputs import AutoencoderKLOutput
 from ..modeling_utils import ModelMixin
-from ..normalization import GroupNorm
 from ..unets.unet_3d_blocks import MidBlockTemporalDecoder, UpBlockTemporalDecoder
 from .vae import DecoderOutput, DiagonalGaussianDistribution, Encoder
 
@@ -65,7 +67,7 @@ class TemporalDecoder(nn.Cell):
             prev_output_channel = output_channel
         self.up_blocks = nn.CellList(self.up_blocks)
 
-        self.conv_norm_out = GroupNorm(num_channels=block_out_channels[0], num_groups=32, eps=1e-6)
+        self.conv_norm_out = mint.nn.GroupNorm(num_channels=block_out_channels[0], num_groups=32, eps=1e-6)
 
         self.conv_act = mint.nn.SiLU()
         self.conv_out = mint.nn.Conv2d(
@@ -141,11 +143,11 @@ class AutoencoderKLTemporalDecoder(ModelMixin, ConfigMixin):
             model. The latents are scaled with the formula `z = z * scaling_factor` before being passed to the
             diffusion model. When decoding, the latents are scaled back to the original scale with the formula: `z = 1
             / scaling_factor * z`. For more details, refer to sections 4.3.2 and D.1 of the [High-Resolution Image
-            Synthesis with Latent Diffusion Models](https://arxiv.org/abs/2112.10752) paper.
+            Synthesis with Latent Diffusion Models](https://huggingface.co/papers/2112.10752) paper.
         force_upcast (`bool`, *optional*, default to `True`):
             If enabled it will force the VAE to run in float32 for high image resolution pipelines, such as SD-XL. VAE
-            can be fine-tuned / trained to a lower range without loosing too much precision in which case
-            `force_upcast` can be set to `False` - see: https://huggingface.co/madebyollin/sdxl-vae-fp16-fix
+            can be fine-tuned / trained to a lower range without losing too much precision in which case `force_upcast`
+            can be set to `False` - see: https://huggingface.co/madebyollin/sdxl-vae-fp16-fix
     """
 
     _supports_gradient_checkpointing = True
@@ -185,10 +187,6 @@ class AutoencoderKLTemporalDecoder(ModelMixin, ConfigMixin):
 
         self.quant_conv = mint.nn.Conv2d(2 * latent_channels, 2 * latent_channels, 1)
         self.diag_gauss_dist = DiagonalGaussianDistribution()
-
-    def _set_gradient_checkpointing(self, module, value=False):
-        if isinstance(module, (Encoder, TemporalDecoder)):
-            module.gradient_checkpointing = value
 
     @property
     # Copied from diffusers.models.unets.unet_2d_condition.UNet2DConditionModel.attn_processors
