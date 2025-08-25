@@ -13,6 +13,7 @@
 import numpy as np
 import pytest
 import torch
+import transformers
 
 import mindspore as ms
 
@@ -176,6 +177,7 @@ _CASES = [
     "name,pt_module,ms_module,init_args,init_kwargs,inputs_args,inputs_kwargs,outputs_map,dtype,mode",
     [case + [dtype] + [mode] for case in _CASES for dtype in DTYPE_AND_THRESHOLDS.keys() for mode in MODES],
 )
+@pytest.mark.skipif(transformers.__version__ < "4.53.0", reason="need to set specific transformers version")
 def test_named_modules(
     name, pt_module, ms_module, init_args, init_kwargs, inputs_args, inputs_kwargs, outputs_map, dtype, mode
 ):
