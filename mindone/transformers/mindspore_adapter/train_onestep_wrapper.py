@@ -1,7 +1,7 @@
 from typing import Dict, Optional
 
 import mindspore as ms
-from mindspore import ParallelMode, Tensor, context, mint, nn, ops
+from mindspore import ParallelMode, Tensor, context, nn, ops
 from mindspore.ops import composite as C
 
 from mindone.trainers.zero import ZeroHelper
@@ -29,8 +29,7 @@ _grad_clear_op = C.MultitypeFuncGraph("gradient_clear_op")
 @_grad_clear_op.register("Tensor")
 def clear_grad(cumulative_grad):
     """Clear grad."""
-    zero_grad = mint.zeros_like(cumulative_grad)
-    ops.assign(cumulative_grad, zero_grad)
+    cumulative_grad.mul_(0.0)
 
 
 def _is_pynative_parallel():
@@ -149,7 +148,7 @@ class TrainOneStepWrapper(nn.Cell):
 
             if is_zero:
                 self.accumulated_grads = optimizer.moments1.clone(prefix="accum_grad", init="zeros")  # split grads
-            else:
+            elif zero_helper is not None:
                 self.accumulated_grads = optimizer.parameters.clone(prefix="accum_grad", init="zeros")
 
             class ScalingLossForGradAccum(nn.Cell):
@@ -274,6 +273,7 @@ class TrainOneStepWrapper(nn.Cell):
     def construct(self, *inputs):
         loss, grads = self.value_and_grad(*inputs, scale_sense=self.scaler.scale_value)
         loss = self.scaler.unscale(loss)
+        loss = loss * self.accum_steps
 
         if self.zero_helper is not None:
             grads = self.zero_helper.cal_gradients(grads)

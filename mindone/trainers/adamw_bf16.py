@@ -1,5 +1,7 @@
 import logging
 
+import numpy as np
+
 import mindspore as ms
 from mindspore import Parameter, ParameterTuple, Tensor
 from mindspore import _checkparam as validator
@@ -49,9 +51,15 @@ class BF16AdamW(AdamW):
         )
 
         # maintain a copy of parameters in fp32 for the optimiser update
-        self._master_parameters = ParameterTuple(
-            [Parameter(x.to(ms.float32), name="master." + x.name) for x in self._parameters]
-        )
+        self._master_parameters = []
+        for param in self._parameters:
+            self._master_parameters.append(
+                Parameter(
+                    Tensor.from_numpy(param.numpy().astype(np.float32)),
+                    name="master." + param.name,
+                )
+            )
+        self._master_parameters = ParameterTuple(self._master_parameters)
 
     def _check_param_value(self, beta1, beta2, eps, prim_name):
         """Check the type of inputs."""
