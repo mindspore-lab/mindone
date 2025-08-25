@@ -22,10 +22,10 @@ The `qwenvl` directory contains the following components:
 
 ## Requirements
 
-You could use the following versions of packages:
-
-- `mindspore==2.7.0`
-- `transformers==4.50.0`
+## Requirements:
+|mindspore |	ascend driver | firmware | cann tookit/kernel|
+|--- | --- | --- | --- |
+|2.7.0 | 24.1RC3 | 7.3.0.1.231 | 8.2.RC1 |
 
 ## Custom Dataset Configuration
 
