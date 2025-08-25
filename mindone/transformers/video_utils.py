@@ -447,7 +447,6 @@ VIDEO_DECODERS = {
     "decord": read_video_decord,
     "opencv": read_video_opencv,
     "pyav": read_video_pyav,
-    "torchvision": read_video_mindspore,
     "mindspore": read_video_mindspore,
 }
 
