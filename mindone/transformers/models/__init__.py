@@ -89,6 +89,8 @@ from . import (
     switch_transformers,
     t5,
     umt5,
+    video_llava,
+    vipllava,
     vit,
     vits,
     wav2vec2,
