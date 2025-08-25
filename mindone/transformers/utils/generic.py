@@ -19,24 +19,27 @@ Generic utilities
 """
 
 import inspect
+import json
+import logging
+import os
 import tempfile
 import warnings
-from collections import UserDict
+from collections import OrderedDict, UserDict, defaultdict
 from collections.abc import MutableMapping
 from contextlib import ExitStack, contextmanager
+from dataclasses import dataclass, fields, is_dataclass
 from enum import Enum
 from functools import wraps
-from typing import Callable, ContextManager, List, Optional, TypedDict
+from typing import Any, Callable, ContextManager, Optional, TypedDict
 
 import numpy as np
 
 import mindspore as ms
 from mindspore import Tensor, nn
 
-from .import_utils import is_mindspore_available
-
 _CAN_RECORD_REGISTRY = {}
 
+logger = logging.get_logger(__name__)
 
 class cached_property(property):
     """
@@ -108,7 +111,7 @@ def _get_frameworks_and_test_func(x):
 
 def is_tensor(x):
     """
-    Tests if `x` is a `mindspore.Tensor`, `tf.Tensor`, `jaxlib.xla_extension.DeviceArray`, `np.ndarray` or `mlx.array`
+    Tests if `x` is a `ms.Tensor`, `tf.Tensor`, `jaxlib.xla_extension.DeviceArray`, `np.ndarray` or `mlx.array`
     in the order defined by `infer_framework_from_repr`
     """
     # This gives us a smart order to test the frameworks with the corresponding tests.
@@ -132,9 +135,9 @@ def is_numpy_array(x):
 
 
 def _is_mindspore(x):
-    import mindspore
+    import mindspore as ms
 
-    return isinstance(x, mindspore.Tensor)
+    return isinstance(x, ms.Tensor)
 
 
 def is_mindspore_tensor(x):
@@ -171,10 +174,17 @@ def to_py_obj(obj):
         "ms": lambda obj: obj.tolist(),
         "np": lambda obj: obj.tolist(),
     }
-
-    if isinstance(obj, (dict, UserDict)):
+    if isinstance(obj, (int, float)):
+        return obj
+    elif isinstance(obj, (dict, UserDict)):
         return {k: to_py_obj(v) for k, v in obj.items()}
     elif isinstance(obj, (list, tuple)):
+        try:
+            arr = np.array(obj)
+            if np.issubdtype(arr.dtype, np.integer) or np.issubdtype(arr.dtype, np.floating):
+                return arr.tolist()
+        except Exception:
+            pass
         return [to_py_obj(o) for o in obj]
 
     # This gives us a smart order to test the frameworks with the corresponding tests.
@@ -212,6 +222,140 @@ def to_numpy(obj):
             return framework_to_numpy[framework](obj)
 
     return obj
+
+
+class ModelOutput(OrderedDict):
+    """
+    Base class for all model outputs as dataclass. Has a `__getitem__` that allows indexing by integer or slice (like a
+    tuple) or strings (like a dictionary) that will ignore the `None` attributes. Otherwise behaves like a regular
+    python dictionary.
+
+    <Tip warning={true}>
+
+    You can't unpack a `ModelOutput` directly. Use the [`~utils.ModelOutput.to_tuple`] method to convert it to a tuple
+    before.
+
+    </Tip>
+    """
+
+    def __init_subclass__(cls) -> None:
+        """No need to register subclasses as pytree nodes, mindspore does not support pytree."""
+        pass
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+
+        # Subclasses of ModelOutput must use the @dataclass decorator
+        # This check is done in __init__ because the @dataclass decorator operates after __init_subclass__
+        # issubclass() would return True for issubclass(ModelOutput, ModelOutput) when False is needed
+        # Just need to check that the current class is not ModelOutput
+        is_modeloutput_subclass = self.__class__ != ModelOutput
+
+        if is_modeloutput_subclass and not is_dataclass(self):
+            raise TypeError(
+                f"{self.__module__}.{self.__class__.__name__} is not a dataclass."
+                " This is a subclass of ModelOutput and so must use the @dataclass decorator."
+            )
+
+    def __post_init__(self):
+        """Check the ModelOutput dataclass.
+
+        Only occurs if @dataclass decorator has been used.
+        """
+        class_fields = fields(self)
+
+        # Safety and consistency checks
+        if not len(class_fields):
+            raise ValueError(f"{self.__class__.__name__} has no fields.")
+        if not all(field.default is None for field in class_fields[1:]):
+            raise ValueError(f"{self.__class__.__name__} should not have more than one required field.")
+
+        first_field = getattr(self, class_fields[0].name)
+        other_fields_are_none = all(getattr(self, field.name) is None for field in class_fields[1:])
+
+        if other_fields_are_none and not is_tensor(first_field):
+            if isinstance(first_field, dict):
+                iterator = first_field.items()
+                first_field_iterator = True
+            else:
+                try:
+                    iterator = iter(first_field)
+                    first_field_iterator = True
+                except TypeError:
+                    first_field_iterator = False
+
+            # if we provided an iterator as first field and the iterator is a (key, value) iterator
+            # set the associated fields
+            if first_field_iterator:
+                for idx, element in enumerate(iterator):
+                    if (
+                        not isinstance(element, (list, tuple))
+                        or not len(element) == 2
+                        or not isinstance(element[0], str)
+                    ):
+                        if idx == 0:
+                            # If we do not have an iterator of key/values, set it as attribute
+                            self[class_fields[0].name] = first_field
+                        else:
+                            # If we have a mixed iterator, raise an error
+                            raise ValueError(
+                                f"Cannot set key/value for {element}. It needs to be a tuple (key, value)."
+                            )
+                        break
+                    setattr(self, element[0], element[1])
+                    if element[1] is not None:
+                        self[element[0]] = element[1]
+            elif first_field is not None:
+                self[class_fields[0].name] = first_field
+        else:
+            for field in class_fields:
+                v = getattr(self, field.name)
+                if v is not None:
+                    self[field.name] = v
+
+    def __delitem__(self, *args, **kwargs):
+        raise Exception(f"You cannot use ``__delitem__`` on a {self.__class__.__name__} instance.")
+
+    def setdefault(self, *args, **kwargs):
+        raise Exception(f"You cannot use ``setdefault`` on a {self.__class__.__name__} instance.")
+
+    def pop(self, *args, **kwargs):
+        raise Exception(f"You cannot use ``pop`` on a {self.__class__.__name__} instance.")
+
+    def update(self, *args, **kwargs):
+        raise Exception(f"You cannot use ``update`` on a {self.__class__.__name__} instance.")
+
+    def __getitem__(self, k):
+        if isinstance(k, str):
+            inner_dict = dict(self.items())
+            return inner_dict[k]
+        else:
+            return self.to_tuple()[k]
+
+    def __setattr__(self, name, value):
+        if name in self.keys() and value is not None:
+            # Don't call self.__setitem__ to avoid recursion errors
+            super().__setitem__(name, value)
+        super().__setattr__(name, value)
+
+    def __setitem__(self, key, value):
+        # Will raise a KeyException if needed
+        super().__setitem__(key, value)
+        # Don't call self.__setattr__ to avoid recursion errors
+        super().__setattr__(key, value)
+
+    def __reduce__(self):
+        if not is_dataclass(self):
+            return super().__reduce__()
+        callable, _args, *remaining = super().__reduce__()
+        args = tuple(getattr(self, field.name) for field in fields(self))
+        return callable, args, *remaining
+
+    def to_tuple(self) -> tuple[Any]:
+        """
+        Convert self to a tuple containing all the attributes/keys that are not `None`.
+        """
+        return tuple(self[k] for k in self.keys())
 
 
 class ExplicitEnum(str, Enum):
@@ -253,7 +397,7 @@ class ContextManagers:
     in the `fastcore` library.
     """
 
-    def __init__(self, context_managers: List[ContextManager]):
+    def __init__(self, context_managers: list[ContextManager]):
         self.context_managers = context_managers
         self.stack = ExitStack()
 
@@ -382,32 +526,6 @@ def tensor_size(array):
         return array.numel()
     else:
         raise ValueError(f"Type not supported for tensor_size: {type(array)}.")
-
-
-def add_model_info_to_auto_map(auto_map, repo_id):
-    """
-    Adds the information of the repo_id to a given auto map.
-    """
-    for key, value in auto_map.items():
-        if isinstance(value, (tuple, list)):
-            auto_map[key] = [f"{repo_id}--{v}" if (v is not None and "--" not in v) else v for v in value]
-        elif value is not None and "--" not in value:
-            auto_map[key] = f"{repo_id}--{value}"
-
-    return auto_map
-
-
-def add_model_info_to_custom_pipelines(custom_pipeline, repo_id):
-    """
-    Adds the information of the repo_id to a given custom pipeline.
-    """
-    # {custom_pipelines : {task: {"impl": "path.to.task"},...} }
-    for task in custom_pipeline.keys():
-        if "impl" in custom_pipeline[task]:
-            module = custom_pipeline[task]["impl"]
-            if "--" not in module:
-                custom_pipeline[task]["impl"] = f"{repo_id}--{module}"
-    return custom_pipeline
 
 
 def infer_framework(model_class):
@@ -565,6 +683,243 @@ def filter_out_non_signature_kwargs(extra: Optional[list] = None):
     return decorator
 
 
+class TransformersKwargs(TypedDict, total=False):
+    """
+    Keyword arguments to be passed to the loss function
+
+    Attributes:
+        num_items_in_batch (`Optional[ms.Tensor]`, *optional*):
+            Number of items in the batch. It is recommended to pass it when
+            you are doing gradient accumulation.
+        output_hidden_states (`Optional[bool]`, *optional*):
+            Most of the models support outputing all hidden states computed during the forward pass.
+        output_attentions (`Optional[bool]`, *optional*):
+            Turn this on to return the intermediary attention scores.
+        output_router_logits (`Optional[bool]`, *optional*):
+            For MoE models, this allows returning the router logits to compute the loss.
+        cumulative_seqlens_q (`ms.Tensor`, *optional*)
+            Gets cumulative sequence length for query state.
+        cumulative_seqlens_k (`ms.Tensor`, *optional*)
+            Gets cumulative sequence length for key state.
+        max_length_q (`int`, *optional*):
+            Maximum sequence length for query state.
+        max_length_k (`int`, *optional*):
+            Maximum sequence length for key state.
+    """
+
+    num_items_in_batch: Optional["ms.Tensor"]
+    output_hidden_states: Optional[bool]
+    output_attentions: Optional[bool]
+    output_router_logits: Optional[bool]
+    cumulative_seqlens_q: Optional["ms.Tensor"]
+    cumulative_seqlens_k: Optional["ms.Tensor"]
+    max_length_q: Optional[int]
+    max_length_k: Optional[int]
+
+
+def is_timm_config_dict(config_dict: dict[str, Any]) -> bool:
+    """Checks whether a config dict is a timm config dict."""
+    return "pretrained_cfg" in config_dict
+
+
+def is_timm_local_checkpoint(pretrained_model_path: str) -> bool:
+    """
+    Checks whether a checkpoint is a timm model checkpoint.
+    """
+    if pretrained_model_path is None:
+        return False
+
+    # in case it's Path, not str
+    pretrained_model_path = str(pretrained_model_path)
+
+    is_file = os.path.isfile(pretrained_model_path)
+    is_dir = os.path.isdir(pretrained_model_path)
+
+    # pretrained_model_path is a file
+    if is_file and pretrained_model_path.endswith(".json"):
+        with open(pretrained_model_path) as f:
+            config_dict = json.load(f)
+        return is_timm_config_dict(config_dict)
+
+    # pretrained_model_path is a directory with a config.json
+    if is_dir and os.path.exists(os.path.join(pretrained_model_path, "config.json")):
+        with open(os.path.join(pretrained_model_path, "config.json")) as f:
+            config_dict = json.load(f)
+        return is_timm_config_dict(config_dict)
+
+    return False
+
+
+def set_attribute_for_modules(module: "ms.nn.Cell", key: str, value: Any):
+    """
+    Set a value to a module and all submodules.
+    """
+    setattr(module, key, value)
+    for submodule in module.children():
+        set_attribute_for_modules(submodule, key, value)
+
+
+def del_attribute_from_modules(module: "ms.nn.Cell", key: str):
+    """
+    Delete a value from a module and all submodules.
+    """
+    # because we might remove it previously in case it's a shared module, e.g. activation function
+    if hasattr(module, key):
+        delattr(module, key)
+
+    for submodule in module.children():
+        del_attribute_from_modules(submodule, key)
+
+
+def can_return_tuple(func):
+    """
+    Decorator to wrap model method, to call output.to_tuple() if return_dict=False passed as a kwarg or
+    use_return_dict=False is set in the config.
+
+    Note:
+        output.to_tuple() convert output to tuple skipping all `None` values.
+    """
+
+    @wraps(func)
+    def wrapper(self, *args, **kwargs):
+        return_dict = self.config.return_dict if hasattr(self, "config") else True
+        return_dict_passed = kwargs.pop("return_dict", return_dict)
+        if return_dict_passed is not None:
+            return_dict = return_dict_passed
+        output = func(self, *args, **kwargs)
+        if not return_dict and not isinstance(output, tuple):
+            output = output.to_tuple()
+        return output
+
+    return wrapper
+
+
+@dataclass
+class OutputRecorder:
+    """
+    Configuration for recording outputs from a model via hooks.
+
+    Attributes:
+        target_class (Type): The class (e.g., nn.Module) to which the hook will be attached.
+        index (Optional[int]): If the output is a tuple/list, optionally record only at a specific index.
+        layer_name (Optional[str]): Name of the submodule to target (if needed), e.g., "transformer.layer.3.attn".
+    """
+
+    target_class: "type[ms.nn.Cell]"
+    index: Optional[int] = 0
+    layer_name: Optional[str] = None
+
+
+def check_model_inputs(func):
+    """
+    Decorator to intercept specific layer outputs without using hooks.
+    """
+
+    @wraps(func)
+    def wrapper(self, *args, **kwargs):
+        use_cache = kwargs.get("use_cache", None)
+        if use_cache is None:
+            use_cache = getattr(self.config, "use_cache", False)
+
+        return_dict = kwargs.pop("return_dict", None)
+        if return_dict is None:
+            return_dict = getattr(self.config, "return_dict", True)
+
+        if getattr(self, "gradient_checkpointing", False) and self.training and use_cache:
+            logger.warning_once(
+                "`use_cache=True` is incompatible with gradient checkpointing. Setting `use_cache=False`."
+            )
+            use_cache = False
+
+        kwargs["use_cache"] = use_cache
+
+        all_args = kwargs.copy()
+        if "kwargs" in all_args:
+            for k, v in all_args["kwargs"].items():
+                all_args[k] = v
+
+        capture_flags = _CAN_RECORD_REGISTRY.get(str(self.__class__), {})
+        recordable_keys = {
+            f"output_{k}": all_args.get(
+                f"output_{k}",
+                getattr(
+                    self.config,
+                    f"output_{k}",
+                    all_args.get("output_attentions", getattr(self.config, "output_attentions", False)),
+                ),
+            )
+            for k in capture_flags
+        }
+        collected_outputs = defaultdict(tuple)
+        monkey_patched_layers = []
+
+        def make_capture_wrapper(module, orig_forward, key, index):
+            @wraps(orig_forward)
+            def wrapped_forward(*args, **kwargs):
+                if key == "hidden_states" and len(collected_outputs[key]) == 0:
+                    collected_outputs[key] += (args[0],)
+                output = orig_forward(*args, **kwargs)
+                if not isinstance(output, tuple):
+                    collected_outputs[key] += (output,)
+                elif output[index] is not None:
+                    collected_outputs[key] += (output[index],)
+                return output
+
+            return wrapped_forward
+
+        if any(recordable_keys.values()):
+            capture_tasks = []
+            for key, layer_specs in capture_flags.items():
+                if not recordable_keys.get(f"output_{key}", False):
+                    continue
+                if not isinstance(layer_specs, list):
+                    layer_specs = [layer_specs]
+                for specs in layer_specs:
+                    if not isinstance(specs, OutputRecorder):
+                        index = 0 if "hidden_states" in key else 1
+                        specs = OutputRecorder(target_class=specs, index=index)
+                    capture_tasks.append((key, specs))
+
+            for name, module in self.named_modules():
+                for key, specs in capture_tasks:
+                    if isinstance(module, specs.target_class):
+                        if specs.layer_name is not None and specs.layer_name not in name:
+                            continue
+                        # Monkey patch forward
+                        original_forward = module.forward
+                        module.forward = make_capture_wrapper(module, original_forward, key, specs.index)
+                        monkey_patched_layers.append((module, original_forward))
+
+        outputs = func(self, *args, **kwargs)
+        # Restore original forward methods
+        for module, original_forward in monkey_patched_layers:
+            module.forward = original_forward
+
+        # Inject collected outputs into model output
+        for key in collected_outputs:
+            if key == "hidden_states":
+                collected_outputs[key] = collected_outputs[key][:-1]
+                if hasattr(outputs, "vision_hidden_states"):
+                    collected_outputs[key] += (outputs.vision_hidden_states,)
+                elif hasattr(outputs, "last_hidden_state"):
+                    collected_outputs[key] += (outputs.last_hidden_state,)
+
+                outputs[key] = collected_outputs[key]
+            elif key == "attentions":
+                if isinstance(capture_flags[key], list) and len(capture_flags[key]) == 2:
+                    outputs[key] = collected_outputs[key][0::2]
+                    outputs["cross_" + key] = collected_outputs[key][1::2]
+                else:
+                    outputs[key] = collected_outputs[key]
+            else:
+                outputs[key] = collected_outputs[key]
+        if return_dict is False:
+            outputs = outputs.to_tuple()
+        return outputs
+
+    return wrapper
+
+
 class GeneralInterface(MutableMapping):
     """
     Dict-like object keeping track of a class-wide mapping, as well as a local one. Allows to have library-wide
@@ -602,10 +957,11 @@ class GeneralInterface(MutableMapping):
     def register(cls, key: str, value: Callable):
         cls._global_mapping.update({key: value})
 
-    def valid_keys(self) -> List[str]:
+    def valid_keys(self) -> list[str]:
         return list(self.keys())
 
 
+# TODO: remove this class in v4.54.1
 class LossKwargs(TypedDict, total=False):
     """
     Keyword arguments to be passed to the loss function
@@ -616,4 +972,4 @@ class LossKwargs(TypedDict, total=False):
             you are doing gradient accumulation.
     """
 
-    num_items_in_batch: Optional[Tensor]
+    num_items_in_batch: Optional[ms.Tensor]
