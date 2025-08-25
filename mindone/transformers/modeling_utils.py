@@ -441,6 +441,15 @@ def _get_mindspore_dtype(
                     f'`mindspore_dtype` can be either `ms.Type` or `"auto"`, but received {mindspore_dtype}'
                 )
         # TODO: We cannot set default mindspore dtype!
+    else:
+        # set fp32 as the default dtype for BC
+        # TODO: We cannot get default mindspore dtype! Therefore, we set default dtype to ms.float32
+        default_dtype = dtype_to_str(ms.float32)
+        config.mindspore_dtype = default_dtype
+        for key in config.sub_configs.keys():
+            value = getattr(config, key)
+            value.mindspore_dtype = default_dtype
+
     return config, mindspore_dtype
 
 
