@@ -149,13 +149,6 @@ from .models.bart import (
     BartPreTrainedModel,
     PretrainedBartModel,
 )
-from .models.barthez import (
-    BarthezTokenizer,
-    BarthezTokenizerFast,
-)
-from .models.bartpho import (
-    BartphoTokenizer,
-)
 from .models.bert import (
     BertForMaskedLM,
     BertForMultipleChoice,
