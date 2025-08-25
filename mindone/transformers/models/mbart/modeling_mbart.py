@@ -19,6 +19,8 @@ import math
 from typing import List, Optional, Tuple, Union
 
 import numpy as np
+from transformers.models.mbart.configuration_mbart import MBartConfig
+
 import mindspore
 
 from mindspore.mint.nn import BCEWithLogitsLoss, CrossEntropyLoss, MSELoss
@@ -41,16 +43,10 @@ from ...modeling_outputs import (
     Seq2SeqSequenceClassifierOutput,
 )
 from ...modeling_utils import PreTrainedModel
-from ...utils import (
-    is_flash_attn_2_available,
-    logging,
-)
-from .configuration_mbart import MBartConfig
-
+from ...utils import is_flash_attn_2_available, logging
 
 if is_flash_attn_2_available():
     from mindspore.ops.operations.nn_ops import FlashAttentionScore as MSFlashAttention
-
 
 logger = logging.get_logger(__name__)
 
@@ -92,7 +88,10 @@ class MBartLearnedPositionalEmbedding(mindspore.mint.nn.Embedding):
 
         bsz, seq_len = input_ids.shape[:2]
         positions = mindspore.mint.arange(
-            past_key_values_length, past_key_values_length + seq_len, dtype=mindspore.int64, ).expand(bsz, -1)
+            past_key_values_length,
+            past_key_values_length + seq_len,
+            dtype=mindspore.int64,
+        ).expand(bsz, -1)
 
         return super().construct(positions + self.offset)
 
@@ -261,8 +260,8 @@ class MBartAttention(mindspore.nn.Cell):
         attn_output = attn_output.view(bsz, self.num_heads, tgt_len, self.head_dim)
         attn_output = attn_output.transpose(1, 2)
 
-        # Use the `embed_dim` from the config (stored in the class) rather than `hidden_state` because `attn_output` can be
-        # partitioned across GPUs when using tensor-parallelism.
+        # Use the `embed_dim` from the config (stored in the class) rather than `hidden_state` because `attn_output`
+        # can be partitioned across GPUs when using tensor-parallelism.
         attn_output = attn_output.reshape(bsz, tgt_len, self.embed_dim)
 
         attn_output = self.out_proj(attn_output)
@@ -283,7 +282,7 @@ class MBartFlashAttention2(MBartAttention):
 
         self.flash_attention = MSFlashAttention(
             head_num=self.num_heads,
-            keep_prob=1-self.dropout,
+            keep_prob=1 - self.dropout,
             scale_value=1.0 / math.sqrt(self.head_dim),
             input_layout="BSND",
         )
@@ -377,15 +376,9 @@ class MBartFlashAttention2(MBartAttention):
             key_states = key_states.to(target_dtype)
             value_states = value_states.to(target_dtype)
 
-        attn_output = self.flash_attention(
-            query_states,
-            key_states,
-            value_states,
-            None,
-            None,
-            None,
-            attention_mask
-        )[-1].to(input_dtype)
+        attn_output = self.flash_attention(query_states, key_states, value_states, None, None, None, attention_mask)[
+            -1
+        ].to(input_dtype)
 
         attn_output = attn_output.reshape(bsz, q_len, -1)
         attn_output = self.out_proj(attn_output)
@@ -411,8 +404,11 @@ class MBartSdpaAttention(MBartAttention):
         if output_attentions or layer_head_mask is not None:
             # TODO: Improve this warning with e.g. `model.config._attn_implementation = "manual"` once this is implemented.
             logger.warning_once(
-                "MBartModel is using MBartSdpaAttention, but `ms.nn.functional.scaled_dot_product_attention` does not support `output_attentions=True` or `layer_head_mask` not None. Falling back to the manual attention"
-                ' implementation, but specifying the manual implementation will be required from Transformers version v5.0.0 onwards. This warning can be removed using the argument `attn_implementation="eager"` when loading the model.'
+                "MBartModel is using MBartSdpaAttention, but `ms.nn.functional.scaled_dot_product_attention` does not "
+                "support `output_attentions=True` or `layer_head_mask` not None. Falling back to the manual attention"
+                " implementation, but specifying the manual implementation will be required from Transformers version "
+                "v5.0.0 onwards. This warning can be removed using the argument `attn_implementation='eager'` when "
+                "loading the model."
             )
             return super().construct(
                 hidden_states,
@@ -561,7 +557,9 @@ class MBartEncoderLayer(mindspore.nn.Cell):
         residual = hidden_states
         hidden_states = self.final_layer_norm(hidden_states)
         hidden_states = self.activation_fn(self.fc1(hidden_states))
-        hidden_states = mindspore.mint.nn.functional.dropout(hidden_states, p=self.activation_dropout, training=self.training)
+        hidden_states = mindspore.mint.nn.functional.dropout(
+            hidden_states, p=self.activation_dropout, training=self.training
+        )
         hidden_states = self.fc2(hidden_states)
         hidden_states = mindspore.mint.nn.functional.dropout(hidden_states, p=self.dropout, training=self.training)
         hidden_states = residual + hidden_states
@@ -684,7 +682,9 @@ class MBartDecoderLayer(mindspore.nn.Cell):
         residual = hidden_states
         hidden_states = self.final_layer_norm(hidden_states)
         hidden_states = self.activation_fn(self.fc1(hidden_states))
-        hidden_states = mindspore.mint.nn.functional.dropout(hidden_states, p=self.activation_dropout, training=self.training)
+        hidden_states = mindspore.mint.nn.functional.dropout(
+            hidden_states, p=self.activation_dropout, training=self.training
+        )
         hidden_states = self.fc2(hidden_states)
         hidden_states = mindspore.mint.nn.functional.dropout(hidden_states, p=self.dropout, training=self.training)
         hidden_states = residual + hidden_states
@@ -747,7 +747,9 @@ class MBartPreTrainedModel(PreTrainedModel):
     @property
     def dummy_inputs(self):
         pad_token = self.config.pad_token_id
-        input_ids = mindspore.Tensor([[0, 6, 10, 4, 2], [0, 8, 12, 2, pad_token]], )
+        input_ids = mindspore.Tensor(
+            [[0, 6, 10, 4, 2], [0, 8, 12, 2, pad_token]],
+                                     )
         dummy_inputs = {
             "attention_mask": input_ids.ne(pad_token),
             "input_ids": input_ids,
@@ -938,9 +940,7 @@ class MBartEncoder(MBartPreTrainedModel):
 
         if not return_dict:
             return tuple(v for v in [hidden_states, encoder_states, all_attentions] if v is not None)
-        return BaseModelOutput(
-            last_hidden_state=hidden_states, hidden_states=encoder_states, attentions=all_attentions
-        )
+        return BaseModelOutput(last_hidden_state=hidden_states, hidden_states=encoder_states, attentions=all_attentions)
 
 
 class MBartDecoder(MBartPreTrainedModel):
@@ -1377,7 +1377,9 @@ class MBartForConditionalGeneration(MBartPreTrainedModel, GenerationMixin):
         if new_num_tokens <= old_num_tokens:
             new_bias = self.final_logits_bias[:, :new_num_tokens]
         else:
-            extra_bias = mindspore.mint.zeros((1, new_num_tokens - old_num_tokens), )
+            extra_bias = mindspore.mint.zeros(
+                (1, new_num_tokens - old_num_tokens),
+            )
             new_bias = mindspore.mint.cat([self.final_logits_bias, extra_bias], dim=1)
         self.register_buffer("final_logits_bias", new_bias)
 
@@ -1473,8 +1475,7 @@ class MBartForConditionalGeneration(MBartPreTrainedModel, GenerationMixin):
         for layer_past in past_key_values:
             # cached cross_attention states don't have to be reordered -> they are always the same
             reordered_past += (
-                tuple(past_state.index_select(0, beam_idx) for past_state in layer_past[:2])
-                + layer_past[2:],
+                tuple(past_state.index_select(0, beam_idx) for past_state in layer_past[:2]) + layer_past[2:],
             )
         return reordered_past
 
@@ -1560,7 +1561,9 @@ class MBartForSequenceClassification(MBartPreTrainedModel):
             if self.config.problem_type is None:
                 if self.config.num_labels == 1:
                     self.config.problem_type = "regression"
-                elif self.config.num_labels > 1 and (labels.dtype == mindspore.int64 or labels.dtype == mindspore.int32):
+                elif self.config.num_labels > 1 and (
+                    labels.dtype == mindspore.int64 or labels.dtype == mindspore.int32
+                ):
                     self.config.problem_type = "single_label_classification"
                 else:
                     self.config.problem_type = "multi_label_classification"
@@ -1904,9 +1907,7 @@ class MBartForCausalLM(MBartPreTrainedModel, GenerationMixin):
     def _reorder_cache(past_key_values, beam_idx):
         reordered_past = ()
         for layer_past in past_key_values:
-            reordered_past += (
-                tuple(past_state.index_select(0, beam_idx) for past_state in layer_past),
-            )
+            reordered_past += (tuple(past_state.index_select(0, beam_idx) for past_state in layer_past),)
         return reordered_past
 
 

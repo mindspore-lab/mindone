@@ -15,22 +15,12 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 """Testing suite for the Mindspore BART model."""
-import inspect
-
 import numpy as np
 import pytest
 import torch
 from transformers import MBartConfig
 
-import mindspore as ms
-
-from tests.modeling_test_utils import (
-    MS_DTYPE_MAPPING,
-    PT_DTYPE_MAPPING,
-    compute_diffs,
-    generalized_parse_args,
-    get_modules,
-)
+from tests.modeling_test_utils import compute_diffs, generalized_parse_args, get_modules
 
 from ..modeling_common import ids_numpy, random_attention_mask
 
@@ -109,7 +99,7 @@ class MBartModelTester:
         decoder_input_ids = ids_numpy([self.batch_size, self.seq_length], self.vocab_size)
 
         config = self.get_config()
-        config._attn_implementation = 'eager'
+        config._attn_implementation = "eager"
         inputs_dict = prepare_mbart_inputs_dict(config, input_ids, decoder_input_ids)
         return config, inputs_dict
 
@@ -178,7 +168,6 @@ MBart_CASES = [
         {},
         (input_ids,),
         {
-
             "attention_mask": attention_mask,
             "head_mask": head_mask,
         },
