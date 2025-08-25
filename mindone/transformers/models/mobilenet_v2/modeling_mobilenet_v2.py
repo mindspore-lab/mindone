@@ -16,6 +16,8 @@
 
 from typing import Optional, Union
 
+from transformers.models.mobilenet_v2.configuration_mobilenet_v2 import MobileNetV2Config
+
 import mindspore
 from mindspore.mint.nn import BCEWithLogitsLoss, CrossEntropyLoss, MSELoss
 
@@ -27,7 +29,6 @@ from ...modeling_outputs import (
 )
 from ...modeling_utils import PreTrainedModel
 from transformers.utils import logging
-from .configuration_mobilenet_v2 import MobileNetV2Config
 
 
 logger = logging.get_logger(__name__)

@@ -16,6 +16,8 @@
 
 from typing import Optional, Union
 
+from transformers.models.mobilenet_v1.configuration_mobilenet_v1 import MobileNetV1Config
+
 import mindspore
 from mindspore.mint.nn import BCEWithLogitsLoss, CrossEntropyLoss, MSELoss
 
@@ -23,7 +25,6 @@ from ...activations import ACT2FN
 from ...modeling_outputs import BaseModelOutputWithPoolingAndNoAttention, ImageClassifierOutputWithNoAttention
 from ...modeling_utils import PreTrainedModel
 from ...utils import logging
-from .configuration_mobilenet_v1 import MobileNetV1Config
 
 
 logger = logging.get_logger(__name__)
