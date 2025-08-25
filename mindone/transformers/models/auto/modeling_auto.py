@@ -86,6 +86,8 @@ MODEL_MAPPING_NAMES = OrderedDict(
         ("gptj", "GPTJModel"),
         ("xlm-roberta-xl", "XLMRobertaXLModel"),
         ("gpt_neox_japanese", "GPTNeoXJapaneseModel"),
+        ("yolos", "YolosModel"),
+        ("cohere2", "Cohere2Model"),
     ]
 )
 
@@ -166,6 +168,7 @@ MODEL_FOR_CAUSAL_LM_MAPPING_NAMES = OrderedDict(
         ("gpt_neox", "GPTNeoXForCausalLM"),
         ("gpt_neox_japanese", "GPTNeoXJapaneseForCausalLM"),
         ("gptj", "GPTJForCausalLM"),
+        ("cohere2", "Cohere2ForCausalLM"),
     ]
 )
 

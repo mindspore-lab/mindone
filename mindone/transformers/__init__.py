@@ -160,7 +160,6 @@ from .models.gpt2 import (
 from .models.gpt_bigcode import (
     GPTBigCodeForCausalLM,
     GPTBigCodeForSequenceClassification,
-    GPTBigCodeForTokenClassification,
     GPTBigCodeModel,
     GPTBigCodePreTrainedModel,
 )
@@ -168,7 +167,6 @@ from .models.gpt_neox import (
     GPTNeoXForCausalLM,
     GPTNeoXForQuestionAnswering,
     GPTNeoXForSequenceClassification,
-    GPTNeoXForTokenClassification,
     GPTNeoXLayer,
     GPTNeoXModel,
     GPTNeoXPreTrainedModel,
@@ -178,7 +176,6 @@ from .models.gpt_neox_japanese import (
     GPTNeoXJapaneseLayer,
     GPTNeoXJapaneseModel,
     GPTNeoXJapanesePreTrainedModel,
-    GPTNeoXJapaneseTokenizer,
 )
 from .models.gptj import (
     GPTJForCausalLM,

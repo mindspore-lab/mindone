@@ -16,6 +16,8 @@
 
 from typing import Optional, Tuple, Union
 
+from transformers.models.gptj.configuration_gptj import GPTJConfig
+
 import mindspore as ms
 from mindspore import mint, nn
 from mindspore.nn import BCEWithLogitsLoss, CrossEntropyLoss, MSELoss
@@ -35,7 +37,6 @@ from ...modeling_outputs import (
 )
 from ...modeling_utils import PreTrainedModel
 from ...utils import logging
-from .configuration_gptj import GPTJConfig
 
 if is_flash_attn_available():
     from mindspore.ops.operations.nn_ops import FlashAttentionScore as MSFlashAttention

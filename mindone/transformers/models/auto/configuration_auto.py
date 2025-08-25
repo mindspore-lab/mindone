@@ -87,6 +87,8 @@ CONFIG_MAPPING_NAMES = OrderedDict(
         ("gptj", "GPTJConfig"),
         ("xlm-roberta-xl", "XLMRobertaXLConfig"),
         ("gpt_neox_japanese", "GPTNeoXJapaneseConfig"),
+        ("yolos", "YolosConfig"),
+        ("cohere2", "Cohere2Config"),
     ]
 )
 
@@ -159,6 +161,8 @@ MODEL_NAMES_MAPPING = OrderedDict(
         ("gpt_neox", "GPTNeoX"),
         ("gpt_neox_japanese", "GPTNeoXJapaneseModel"),
         ("gptj", "GPTJ"),
+        ("yolos", "YolosModel"),
+        ("cohere2", "Cohere2Model"),
     ]
 )
 
