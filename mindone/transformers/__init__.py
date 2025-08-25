@@ -536,6 +536,7 @@ from .models.roberta import (
     RobertaModel,
     RobertaPreTrainedModel,
 )
+from .models.sam import SamImageProcessor, SamModel, SamPreTrainedModel, SamProcessor
 from .models.segformer import (
     SegformerDecodeHead,
     SegformerForImageClassification,
