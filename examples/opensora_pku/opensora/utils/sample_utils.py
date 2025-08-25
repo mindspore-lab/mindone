@@ -1,3 +1,5 @@
+# Adapted from https://github.com/PKU-YuanGroup/Open-Sora-Plan/blob/main/opensora/utils/sample_utils.py
+
 import argparse
 import glob
 import logging

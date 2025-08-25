@@ -1,3 +1,5 @@
+"""Adapted from https://github.com/huggingface/diffusers/tree/main/src/diffusers/pipelines/musicldm/__init__.py."""
+
 from typing import TYPE_CHECKING
 
 from ...utils import _LazyModule

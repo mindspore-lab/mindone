@@ -1,4 +1,7 @@
-# Copyright 2024 Kakao Brain and The HuggingFace Team. All rights reserved.
+# Copyright 2025 Kakao Brain and The HuggingFace Team. All rights reserved.
+#
+# This code is adapted from https://github.com/huggingface/diffusers
+# with modifications to run diffusers on mindspore.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -26,13 +29,15 @@ from ...models import PriorTransformer, UNet2DConditionModel, UNet2DModel
 from ...schedulers import UnCLIPScheduler
 from ...utils import logging
 from ...utils.mindspore_utils import randn_tensor
-from ..pipeline_utils import DiffusionPipeline, ImagePipelineOutput
+from ..pipeline_utils import DeprecatedPipelineMixin, DiffusionPipeline, ImagePipelineOutput
 from .text_proj import UnCLIPTextProjModel
+
+XLA_AVAILABLE = False
 
 logger = logging.get_logger(__name__)  # pylint: disable=invalid-name
 
 
-class UnCLIPPipeline(DiffusionPipeline):
+class UnCLIPPipeline(DeprecatedPipelineMixin, DiffusionPipeline):
     """
     Pipeline for text-to-image generation using unCLIP.
 
@@ -63,6 +68,7 @@ class UnCLIPPipeline(DiffusionPipeline):
 
     """
 
+    _last_supported_version = "0.33.1"
     _exclude_from_cpu_offload = ["prior"]
 
     prior: PriorTransformer
@@ -150,7 +156,7 @@ class UnCLIPPipeline(DiffusionPipeline):
                 )
                 text_input_ids = text_input_ids[:, : self.tokenizer.model_max_length]
 
-            text_encoder_output = self.text_encoder(ms.Tensor(text_input_ids))
+            text_encoder_output = self.text_encoder(ms.tensor(text_input_ids))
 
             prompt_embeds = text_encoder_output[0]
             text_enc_hid_states = text_encoder_output[1]

@@ -1,3 +1,5 @@
+# Adapted from https://github.com/kohya-ss/sd-scripts/blob/main/library/custom_train_functions.py
+
 import argparse
 import random
 import re

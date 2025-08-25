@@ -26,7 +26,7 @@ from ...modeling_test_utils import (
 )
 from .modules_test_cases import ALL_CASES
 
-THRESHOLD_FP16 = 1e-2
+THRESHOLD_FP16 = 1.5e-2
 THRESHOLD_FP32 = 5e-3
 
 

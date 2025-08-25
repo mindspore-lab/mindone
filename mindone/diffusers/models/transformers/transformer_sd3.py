@@ -1,4 +1,7 @@
-# Copyright 2024 Stability AI, The HuggingFace Team and The InstantX Team. All rights reserved.
+# Copyright 2025 Stability AI, The HuggingFace Team and The InstantX Team. All rights reserved.
+#
+# This code is adapted from https://github.com/huggingface/diffusers
+# with modifications to run diffusers on mindspore.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -18,35 +21,18 @@ from mindspore import mint, nn
 
 from ...configuration_utils import ConfigMixin, register_to_config
 from ...loaders import FromOriginalModelMixin, PeftAdapterMixin, SD3Transformer2DLoadersMixin
-from ...models.attention import FeedForward, JointTransformerBlock
-from ...models.attention_processor import (
-    Attention,
-    AttentionProcessor,
-    FusedJointAttnProcessor2_0,
-    JointAttnProcessor2_0,
-)
-from ...models.modeling_utils import ModelMixin
-from ...models.normalization import AdaLayerNormContinuous, AdaLayerNormZero
 from ...utils import logging
+from ..attention import FeedForward, JointTransformerBlock
+from ..attention_processor import Attention, AttentionProcessor, FusedJointAttnProcessor2_0, JointAttnProcessor2_0
 from ..embeddings import CombinedTimestepTextProjEmbeddings, PatchEmbed
 from ..modeling_outputs import Transformer2DModelOutput
-from ..normalization import LayerNorm
+from ..modeling_utils import ModelMixin
+from ..normalization import AdaLayerNormContinuous, AdaLayerNormZero
 
 logger = logging.get_logger(__name__)  # pylint: disable=invalid-name
 
 
 class SD3SingleTransformerBlock(nn.Cell):
-    r"""
-    A Single Transformer block as part of the MMDiT architecture, used in Stable Diffusion 3 ControlNet.
-
-    Reference: https://arxiv.org/abs/2403.03206
-
-    Parameters:
-        dim (`int`): The number of channels in the input and output.
-        num_attention_heads (`int`): The number of heads to use for multi-head attention.
-        attention_head_dim (`int`): The number of channels in each head.
-    """
-
     def __init__(
         self,
         dim: int,
@@ -56,40 +42,31 @@ class SD3SingleTransformerBlock(nn.Cell):
         super().__init__()
 
         self.norm1 = AdaLayerNormZero(dim)
-
-        processor = JointAttnProcessor2_0()
-
         self.attn = Attention(
             query_dim=dim,
             dim_head=attention_head_dim,
             heads=num_attention_heads,
             out_dim=dim,
             bias=True,
-            processor=processor,
+            processor=JointAttnProcessor2_0(),
             eps=1e-6,
         )
 
-        self.norm2 = LayerNorm(dim, elementwise_affine=False, eps=1e-6)
+        self.norm2 = mint.nn.LayerNorm(dim, elementwise_affine=False, eps=1e-6)
         self.ff = FeedForward(dim=dim, dim_out=dim, activation_fn="gelu-approximate")
 
     def construct(self, hidden_states: ms.Tensor, temb: ms.Tensor):
+        # 1. Attention
         norm_hidden_states, gate_msa, shift_mlp, scale_mlp, gate_mlp = self.norm1(hidden_states, emb=temb)
-        # Attention.
-        attn_output = self.attn(
-            hidden_states=norm_hidden_states,
-            encoder_hidden_states=None,
-        )
-
-        # Process attention outputs for the `hidden_states`.
+        attn_output = self.attn(hidden_states=norm_hidden_states, encoder_hidden_states=None)
         attn_output = gate_msa.unsqueeze(1) * attn_output
         hidden_states = hidden_states + attn_output
 
+        # 2. Feed Forward
         norm_hidden_states = self.norm2(hidden_states)
-        norm_hidden_states = norm_hidden_states * (1 + scale_mlp[:, None]) + shift_mlp[:, None]
-
+        norm_hidden_states = norm_hidden_states * (1 + scale_mlp.unsqueeze(1)) + shift_mlp.unsqueeze(1)
         ff_output = self.ff(norm_hidden_states)
         ff_output = gate_mlp.unsqueeze(1) * ff_output
-
         hidden_states = hidden_states + ff_output
 
         return hidden_states
@@ -99,26 +76,41 @@ class SD3Transformer2DModel(
     ModelMixin, ConfigMixin, PeftAdapterMixin, FromOriginalModelMixin, SD3Transformer2DLoadersMixin
 ):
     """
-    The Transformer model introduced in Stable Diffusion 3.
-
-    Reference: https://arxiv.org/abs/2403.03206
+    The Transformer model introduced in [Stable Diffusion 3](https://huggingface.co/papers/2403.03206).
 
     Parameters:
-        sample_size (`int`): The width of the latent images. This is fixed during training since
-            it is used to learn a number of position embeddings.
-        patch_size (`int`): Patch size to turn the input data into small patches.
-        in_channels (`int`, *optional*, defaults to 16): The number of channels in the input.
-        num_layers (`int`, *optional*, defaults to 18): The number of layers of Transformer blocks to use.
-        attention_head_dim (`int`, *optional*, defaults to 64): The number of channels in each head.
-        num_attention_heads (`int`, *optional*, defaults to 18): The number of heads to use for multi-head attention.
-        cross_attention_dim (`int`, *optional*): The number of `encoder_hidden_states` dimensions to use.
-        caption_projection_dim (`int`): Number of dimensions to use when projecting the `encoder_hidden_states`.
-        pooled_projection_dim (`int`): Number of dimensions to use when projecting the `pooled_projections`.
-        out_channels (`int`, defaults to 16): Number of output channels.
-
+        sample_size (`int`, defaults to `128`):
+            The width/height of the latents. This is fixed during training since it is used to learn a number of
+            position embeddings.
+        patch_size (`int`, defaults to `2`):
+            Patch size to turn the input data into small patches.
+        in_channels (`int`, defaults to `16`):
+            The number of latent channels in the input.
+        num_layers (`int`, defaults to `18`):
+            The number of layers of transformer blocks to use.
+        attention_head_dim (`int`, defaults to `64`):
+            The number of channels in each head.
+        num_attention_heads (`int`, defaults to `18`):
+            The number of heads to use for multi-head attention.
+        joint_attention_dim (`int`, defaults to `4096`):
+            The embedding dimension to use for joint text-image attention.
+        caption_projection_dim (`int`, defaults to `1152`):
+            The embedding dimension of caption embeddings.
+        pooled_projection_dim (`int`, defaults to `2048`):
+            The embedding dimension of pooled text projections.
+        out_channels (`int`, defaults to `16`):
+            The number of latent channels in the output.
+        pos_embed_max_size (`int`, defaults to `96`):
+            The maximum latent height/width of positional embeddings.
+        dual_attention_layers (`Tuple[int, ...]`, defaults to `()`):
+            The number of dual-stream transformer blocks to use.
+        qk_norm (`str`, *optional*, defaults to `None`):
+            The normalization to use for query and key in the attention layer. If `None`, no normalization is used.
     """
 
     _supports_gradient_checkpointing = True
+    _no_split_modules = ["JointTransformerBlock"]
+    _skip_layerwise_casting_patterns = ["pos_embed", "norm"]
 
     @register_to_config
     def __init__(
@@ -140,43 +132,40 @@ class SD3Transformer2DModel(
         qk_norm: Optional[str] = None,
     ):
         super().__init__()
-        default_out_channels = in_channels
-        self.out_channels = out_channels if out_channels is not None else default_out_channels
-        self.inner_dim = self.config.num_attention_heads * self.config.attention_head_dim
+        self.out_channels = out_channels if out_channels is not None else in_channels
+        self.inner_dim = num_attention_heads * attention_head_dim
 
         self.pos_embed = PatchEmbed(
-            height=self.config.sample_size,
-            width=self.config.sample_size,
-            patch_size=self.config.patch_size,
-            in_channels=self.config.in_channels,
+            height=sample_size,
+            width=sample_size,
+            patch_size=patch_size,
+            in_channels=in_channels,
             embed_dim=self.inner_dim,
             pos_embed_max_size=pos_embed_max_size,  # hard-code for now.
         )
         self.time_text_embed = CombinedTimestepTextProjEmbeddings(
-            embedding_dim=self.inner_dim, pooled_projection_dim=self.config.pooled_projection_dim
+            embedding_dim=self.inner_dim, pooled_projection_dim=pooled_projection_dim
         )
-        self.context_embedder = mint.nn.Linear(self.config.joint_attention_dim, self.config.caption_projection_dim)
+        self.context_embedder = mint.nn.Linear(joint_attention_dim, caption_projection_dim)
 
-        # `attention_head_dim` is doubled to account for the mixing.
-        # It needs to crafted when we get the actual checkpoints.
         self.transformer_blocks = nn.CellList(
             [
                 JointTransformerBlock(
                     dim=self.inner_dim,
-                    num_attention_heads=self.config.num_attention_heads,
-                    attention_head_dim=self.config.attention_head_dim,
+                    num_attention_heads=num_attention_heads,
+                    attention_head_dim=attention_head_dim,
                     context_pre_only=i == num_layers - 1,
                     qk_norm=qk_norm,
                     use_dual_attention=True if i in dual_attention_layers else False,
                 )
-                for i in range(self.config.num_layers)
+                for i in range(num_layers)
             ]
         )
 
         self.norm_out = AdaLayerNormContinuous(self.inner_dim, self.inner_dim, elementwise_affine=False, eps=1e-6)
         self.proj_out = mint.nn.Linear(self.inner_dim, patch_size * patch_size * self.out_channels, bias=True)
 
-        self._gradient_checkpointing = False
+        self.gradient_checkpointing = False
 
     @property
     # Copied from diffusers.models.unets.unet_2d_condition.UNet2DConditionModel.attn_processors
@@ -277,21 +266,6 @@ class SD3Transformer2DModel(
         """
         if self.original_attn_processors is not None:
             self.set_attn_processor(self.original_attn_processors)
-
-    def _set_gradient_checkpointing(self, module, value=False):
-        if hasattr(module, "gradient_checkpointing"):
-            module.gradient_checkpointing = value
-
-    @property
-    def gradient_checkpointing(self):
-        return self._gradient_checkpointing
-
-    @gradient_checkpointing.setter
-    def gradient_checkpointing(self, value):
-        assert value, "You can only set SD3Transformer2DModel.gradient_checkpointing to `True`."
-        self._gradient_checkpointing = value
-        for block in self.transformer_blocks:
-            block.recompute()
 
     def construct(
         self,
