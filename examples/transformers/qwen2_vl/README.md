@@ -11,29 +11,21 @@
 ## Requirements:
 |mindspore |	ascend driver | firmware | cann tookit/kernel|
 |--- | --- | --- | --- |
-|2.5.0 | 24.1RC3 | 7.3.0.1.231 | 8.0.RC3.beta1|
-|2.4.1 | 24.1RC3 | 7.3.0.1.231 | 8.0.RC3.beta1|
+|2.6.0 | 24.1.RC3 | 7.5.T11.0 | 8.0.0.beta1|
+|2.5.0 | 24.1.RC3 | 7.3.0.1.231 | 8.0.RC3.beta1|
 
 ### Installation:
 ```
 cd examples/transformers/qwen2-vl
 pip install requirements.txt
-# NOTE: transformers requires >=4.45.0
 ```
-
-Tested with:
-- python==3.10.16
-- mindspore==2.4.1
-- transformers=4.46.3
-- tokenizers==0.20.0
-- mindone
 
 Pretrained weights from huggingface hub: [Qwen2-VL-7B-Instruct](https://huggingface.co/Qwen/Qwen2-VL-2B-Instruct)
 
 ## Quick Start
 
 
-`test_vqa.py` and `video_understanding.py` provides examples of image and video VQA. Here is an usage example of image understanding:
+`vqa_test.py` and `video_understanding.py` provides examples of image and video VQA. Here is an usage example of image understanding:
 
 ```python
 from transformers import AutoProcessor
@@ -71,10 +63,7 @@ inputs = processor(
 )
 # convert input to Tensor
 for key, value in inputs.items():
-    if isinstance(value, np.ndarray):
-        inputs[key] = ms.Tensor(value)
-    elif isinstance(value, list):
-        inputs[key] = ms.Tensor(value)
+    inputs[key] = ms.Tensor(value)
     if inputs[key].dtype == ms.int64:
         inputs[key] = inputs[key].to(ms.int32)
 generated_ids = model.generate(**inputs, max_new_tokens=128)
@@ -94,30 +83,29 @@ Experiments are tested on ascend 910* pynative mode.
 
 Input an image or a list of video frames, and a text prompt, output textual response.
 
+- mindspore 2.6.0
+
+|model name	| precision* | cards	| batch size| resolution | flash attn |	tokens/s| step  | weight |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| Qwen2-VL-7B-Instruct |  fp16 | 1 | 1 | 1372x2044 (image) | OFF | 4.17 | 128| [weight](https://huggingface.co/Qwen/Qwen2-VL-2B-Instruct)
+| Qwen2-VL-7B-Instruct |  fp16 | 1 | 1 | 12x308x476(video) | OFF | 4.35 | 115 | [weight](https://huggingface.co/Qwen/Qwen2-VL-2B-Instruct)
+| Qwen2-VL-7B-Instruct |  fp16 | 1 | 1 | 1372x2044 (image) | ON  | 5.26 | 128 | [weight](https://huggingface.co/Qwen/Qwen2-VL-2B-Instruct)
+| Qwen2-VL-7B-Instruct |  fp16 | 1 | 1 | 12x308x476(video) | ON  | 4.55 | 63 |  [weight](https://huggingface.co/Qwen/Qwen2-VL-2B-Instruct)
+| Qwen2-VL-7B-Instruct | bf16 | 1 | 1 | 1372x2044 (image) | ON  | 4.76 | 128 | [weight](https://huggingface.co/Qwen/Qwen2-VL-2B-Instruct)
+| Qwen2-VL-7B-Instruct | bf16 | 1 | 1 | 12x308x476(video) | ON  | 4.76 | 63 |  [weight](https://huggingface.co/Qwen/Qwen2-VL-2B-Instruct)
 
 - mindspore 2.5.0
 
-|model name	| precision* | cards	| batch size| resolution | flash attn |	s/step	| step | response/s | weight |
-| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| Qwen2-VL-7B-Instruct |  fp16 | 1 | 1 | 1372x2044 (image) | OFF | 0.40 | 128 | 0.02 | [weight](https://huggingface.co/Qwen/Qwen2-VL-2B-Instruct)
-| Qwen2-VL-7B-Instruct |  fp16 | 1 | 1 | 12x308x476(video) | OFF | 0.36 | 128 | 0.02 | [weight](https://huggingface.co/Qwen/Qwen2-VL-2B-Instruct)
-| Qwen2-VL-7B-Instruct |  fp16 | 1 | 1 | 1372x2044 (image) | ON  | 0.34 | 127 | 0.02 | [weight](https://huggingface.co/Qwen/Qwen2-VL-2B-Instruct)
-| Qwen2-VL-7B-Instruct |  fp16 | 1 | 1 | 12x308x476(video) | ON  | 0.30 | 128 | 0.03 | [weight](https://huggingface.co/Qwen/Qwen2-VL-2B-Instruct)
-| Qwen2-VL-7B-Instruct | bf16 | 1 | 1 | 1372x2044 (image) | ON  | 0.32| 121 | 0.03 | [weight](https://huggingface.co/Qwen/Qwen2-VL-2B-Instruct)
-| Qwen2-VL-7B-Instruct | bf16 | 1 | 1 | 12x308x476(video) | ON  | 0.30| 128| 0.03 | [weight](https://huggingface.co/Qwen/Qwen2-VL-2B-Instruct)
+|model name	| precision* | cards	| batch size| resolution | flash attn |	tokens/s| step | weight |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| Qwen2-VL-7B-Instruct |  fp16 | 1 | 1 | 1372x2044 (image) | OFF | 2.50 | 128 |  [weight](https://huggingface.co/Qwen/Qwen2-VL-2B-Instruct)
+| Qwen2-VL-7B-Instruct |  fp16 | 1 | 1 | 12x308x476(video) | OFF | 2.78 | 128 |  [weight](https://huggingface.co/Qwen/Qwen2-VL-2B-Instruct)
+| Qwen2-VL-7B-Instruct |  fp16 | 1 | 1 | 1372x2044 (image) | ON  | 2.94 | 127 |  [weight](https://huggingface.co/Qwen/Qwen2-VL-2B-Instruct)
+| Qwen2-VL-7B-Instruct |  fp16 | 1 | 1 | 12x308x476(video) | ON  | 3.33 | 128 |  [weight](https://huggingface.co/Qwen/Qwen2-VL-2B-Instruct)
+| Qwen2-VL-7B-Instruct | bf16 | 1 | 1 | 1372x2044 (image) | ON  | 3.13| 121 |  [weight](https://huggingface.co/Qwen/Qwen2-VL-2B-Instruct)
+| Qwen2-VL-7B-Instruct | bf16 | 1 | 1 | 12x308x476(video) | ON  | 3.33| 128|   [weight](https://huggingface.co/Qwen/Qwen2-VL-2B-Instruct)
 
-- mindspore 2.4.1
-
-|model name	| precision* | cards	| batch size| resolution | flash attn |	s/step	| step | response/s | weight |
-| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| Qwen2-VL-7B-Instruct |  fp16 | 1 | 1 | 1372x2044 (image) | OFF | 0.80 | 128 | 0.01 | [weight](https://huggingface.co/Qwen/Qwen2-VL-2B-Instruct)
-| Qwen2-VL-7B-Instruct |  fp16 | 1 | 1 | 12x308x476(video) | OFF | 0.67 | 97  | 0.02 | [weight](https://huggingface.co/Qwen/Qwen2-VL-2B-Instruct)
-| Qwen2-VL-7B-Instruct |  fp16 | 1 | 1 | 1372x2044 (image) | ON  | 0.35 | 127 | 0.02 | [weight](https://huggingface.co/Qwen/Qwen2-VL-2B-Instruct)
-| Qwen2-VL-7B-Instruct |  fp16 | 1 | 1 | 12x308x476(video) | ON  | 0.25 | 128 | 0.03 | [weight](https://huggingface.co/Qwen/Qwen2-VL-2B-Instruct)
-| Qwen2-VL-7B-Instruct | bf16 | 1 | 1 | 1372x2044 (image) | ON  | 0.35 | 121 | 0.02 | [weight](https://huggingface.co/Qwen/Qwen2-VL-2B-Instruct)
-| Qwen2-VL-7B-Instruct | bf16 | 1 | 1 | 12x308x476(video) | ON  | 0.29 | 128 | 0.03 | [weight](https://huggingface.co/Qwen/Qwen2-VL-2B-Instruct)
-
-*note: use mixed precision, `Conv3d` uses bf16, `flash attention` fp16, `LayerNorm` fp32.
+*note: use mixed precision, `LayerNorm` fp32.
 
 ### Inference Results
 
@@ -148,6 +136,3 @@ Response: 'The video shows a computer screen with a web browser open to a search
 
 text prompt: `请描述该视频。`<br>
 Response: "视频中显示了一个电脑屏幕，上面有两个窗口。左边的窗口显示了一个网页，上面有一个搜索框和一些搜索建议。右边的窗口显示了一个命令行界面，显示了一些文本。"
-
-<!-- # Tutorial of Qwen2-VL
-[Qwen2-VL Implementation Tutorial (MindSpore Version)](tutorial.md) -->

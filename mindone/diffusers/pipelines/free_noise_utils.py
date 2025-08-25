@@ -1,4 +1,7 @@
-# Copyright 2024 The HuggingFace Team. All rights reserved.
+# Copyright 2025 The HuggingFace Team. All rights reserved.
+#
+# This code is adapted from https://github.com/huggingface/diffusers
+# with modifications to run diffusers on mindspore.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -144,7 +147,7 @@ class SplitInferenceModule(nn.Cell):
 
 
 class AnimateDiffFreeNoiseMixin:
-    r"""Mixin class for [FreeNoise](https://arxiv.org/abs/2310.15169)."""
+    r"""Mixin class for [FreeNoise](https://huggingface.co/papers/2310.15169)."""
 
     def _enable_free_noise_in_block(self, block: Union[CrossAttnDownBlockMotion, DownBlockMotion, UpBlockMotion]):
         r"""Helper function to enable FreeNoise in transformer blocks."""
@@ -406,10 +409,10 @@ class AnimateDiffFreeNoiseMixin:
                 if window_length == 0:
                     break
 
-                indices = ms.Tensor(list(range(window_start, window_end)), dtype=ms.int64)
+                indices = ms.tensor(list(range(window_start, window_end)), dtype=ms.int64)
                 if generator is None:
                     generator = np.random.default_rng()
-                shuffled_indices = indices[ms.Tensor(generator.permutation(window_length))]
+                shuffled_indices = indices[ms.tensor(generator.permutation(window_length))]
 
                 current_start = i
                 current_end = min(num_frames, current_start + window_length)
@@ -478,7 +481,7 @@ class AnimateDiffFreeNoiseMixin:
                 Must be one of ["shuffle_context", "repeat_context", "random"].
                     - "shuffle_context"
                         Shuffles a fixed batch of `context_length` latents to create a final latent of size
-                        `num_frames`. This is usually the best setting for most generation scenarious. However, there
+                        `num_frames`. This is usually the best setting for most generation scenarios. However, there
                         might be visible repetition noticeable in the kinds of motion/animation generated.
                     - "repeated_context"
                         Repeats a fixed batch of `context_length` latents to create a final latent of size

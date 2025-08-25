@@ -1,3 +1,5 @@
+# Adapted from https://github.com/VectorSpaceLab/OmniGen/blob/main/OmniGen/pipeline.py
+
 from typing import List, Union
 
 import numpy as np

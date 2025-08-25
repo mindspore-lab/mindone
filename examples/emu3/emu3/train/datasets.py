@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-
+# Adapted from https://github.com/baaivision/Emu3 to work with MindSpore.
 import json
 import os.path as osp
 import random

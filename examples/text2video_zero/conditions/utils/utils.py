@@ -1,3 +1,6 @@
+# This code is adapted from https://github.com/Picsart-AI-Research/Text2Video-zero
+# with modifications to run on MindSpore.
+
 import os
 
 import cv2

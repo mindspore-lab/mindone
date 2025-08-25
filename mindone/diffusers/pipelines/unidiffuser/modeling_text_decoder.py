@@ -1,3 +1,5 @@
+"""Adapted from https://github.com/huggingface/diffusers/tree/main/src/diffusers/pipelines/unidiffuser/modeling_text_decoder.py."""
+
 from typing import Optional
 
 import numpy as np
@@ -16,7 +18,7 @@ from ...models import ModelMixin
 # Modified from ClipCaptionModel in https://github.com/thu-ml/unidiffuser/blob/main/libs/caption_decoder.py
 class UniDiffuserTextDecoder(ModelMixin, ConfigMixin, ModuleUtilsMixin):
     """
-    Text decoder model for a image-text [UniDiffuser](https://arxiv.org/pdf/2303.06555.pdf) model. This is used to
+    Text decoder model for a image-text [UniDiffuser](https://huggingface.co/papers/2303.06555) model. This is used to
     generate text from the UniDiffuser image-text embedding.
 
     Parameters:
@@ -91,7 +93,7 @@ class UniDiffuserTextDecoder(ModelMixin, ConfigMixin, ModuleUtilsMixin):
     ):
         super().__init__()
 
-        self.wte_lm_share = False
+        self.wte_lm_share = True
         self.prefix_length = prefix_length
 
         if prefix_inner_dim != n_embd and prefix_hidden_dim is None:
@@ -144,7 +146,7 @@ class UniDiffuserTextDecoder(ModelMixin, ConfigMixin, ModuleUtilsMixin):
             input_ids (`ms.Tensor` of shape `(N, max_seq_len)`):
                 Text tokens to use for inference.
             prefix_embeds (`ms.Tensor` of shape `(N, prefix_length, 768)`):
-                Prefix embedding to preprend to the embedded tokens.
+                Prefix embedding to prepend to the embedded tokens.
             attention_mask (`ms.Tensor` of shape `(N, prefix_length + max_seq_len, 768)`, *optional*):
                 Attention mask for the prefix embedding.
             labels (`ms.Tensor`, *optional*):
@@ -196,9 +198,6 @@ class UniDiffuserTextDecoder(ModelMixin, ConfigMixin, ModuleUtilsMixin):
         generated_tokens = mint.stack(generated_tokens)
         generated_seq_lengths = mint.stack(generated_seq_lengths)
         return generated_tokens, generated_seq_lengths
-
-    def set_share_weight(self, flag):
-        self.wte_lm_share = flag
 
     def generate_beam(
         self,

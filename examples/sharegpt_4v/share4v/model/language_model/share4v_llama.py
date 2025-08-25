@@ -1,3 +1,5 @@
+# Adapted from https://github.com/ShareGPT4Omni/ShareGPT4V/blob/master/share4v/model/language_model/share4v_llama.py
+
 from typing import Tuple
 
 from share4v.transformers.models.llama import LlamaForCausalLM, LlamaModel

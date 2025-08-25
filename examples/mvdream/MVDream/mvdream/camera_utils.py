@@ -1,3 +1,4 @@
+# Adapted from https://github.com/bytedance/MVDream/blob/main/mvdream/camera_utils.py
 import numpy as np
 
 import mindspore as ms

@@ -1,4 +1,7 @@
-# Copyright 2024 The HuggingFace Team. All rights reserved.
+# Copyright 2025 The HuggingFace Team. All rights reserved.
+#
+# This code is adapted from https://github.com/huggingface/diffusers
+# with modifications to run diffusers on mindspore.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -14,6 +17,7 @@
 from typing import Any, Dict, Optional
 
 import mindspore as ms
+import mindspore.mint.nn.functional as F
 from mindspore import mint, nn
 
 from ...configuration_utils import LegacyConfigMixin, register_to_config
@@ -22,7 +26,7 @@ from ..attention import BasicTransformerBlock
 from ..embeddings import ImagePositionalEmbeddings, PatchEmbed, PixArtAlphaTextProjection
 from ..modeling_outputs import Transformer2DModelOutput
 from ..modeling_utils import LegacyModelMixin
-from ..normalization import AdaLayerNormSingle, GroupNorm, LayerNorm
+from ..normalization import AdaLayerNormSingle
 
 logger = logging.get_logger(__name__)  # pylint: disable=invalid-name
 
@@ -64,6 +68,7 @@ class Transformer2DModel(LegacyModelMixin, LegacyConfigMixin):
 
     _supports_gradient_checkpointing = True
     _no_split_modules = ["BasicTransformerBlock"]
+    _skip_layerwise_casting_patterns = ["latent_image_embedding", "norm"]
 
     @register_to_config
     def __init__(
@@ -168,11 +173,8 @@ class Transformer2DModel(LegacyModelMixin, LegacyConfigMixin):
         elif self.is_input_patches:
             self._init_patched_inputs(norm_type=norm_type)
 
-        # Move here to call `gradient_checkpointing.setter` after self.transformer_blocks initiated
-        self._gradient_checkpointing = False
-
     def _init_continuous_input(self, norm_type):
-        self.norm = GroupNorm(
+        self.norm = mint.nn.GroupNorm(
             num_groups=self.config.norm_num_groups, num_channels=self.in_channels, eps=1e-6, affine=True
         )
         if self.use_linear_projection:
@@ -245,7 +247,7 @@ class Transformer2DModel(LegacyModelMixin, LegacyConfigMixin):
             ]
         )
 
-        self.norm_out = LayerNorm(self.inner_dim)
+        self.norm_out = mint.nn.LayerNorm(self.inner_dim)
         self.out = mint.nn.Linear(self.inner_dim, self.config.num_vector_embeds - 1)
 
     def _init_patched_inputs(self, norm_type):
@@ -293,13 +295,13 @@ class Transformer2DModel(LegacyModelMixin, LegacyConfigMixin):
         )
 
         if self.config.norm_type != "ada_norm_single":
-            self.norm_out = LayerNorm(self.inner_dim, elementwise_affine=False, eps=1e-6)
+            self.norm_out = mint.nn.LayerNorm(self.inner_dim, elementwise_affine=False, eps=1e-6)
             self.proj_out_1 = mint.nn.Linear(self.inner_dim, 2 * self.inner_dim)
             self.proj_out_2 = mint.nn.Linear(
                 self.inner_dim, self.config.patch_size * self.config.patch_size * self.out_channels
             )
         elif self.config.norm_type == "ada_norm_single":
-            self.norm_out = LayerNorm(self.inner_dim, elementwise_affine=False, eps=1e-6)
+            self.norm_out = mint.nn.LayerNorm(self.inner_dim, elementwise_affine=False, eps=1e-6)
             self.scale_shift_table = ms.Parameter(
                 mint.randn(2, self.inner_dim) / self.inner_dim**0.5, name="scale_shift_table"
             )
@@ -321,20 +323,6 @@ class Transformer2DModel(LegacyModelMixin, LegacyConfigMixin):
             self.caption_projection = PixArtAlphaTextProjection(
                 in_features=self.caption_channels, hidden_size=self.inner_dim
             )
-
-    def _set_gradient_checkpointing(self, module, value=False):
-        if hasattr(module, "gradient_checkpointing"):
-            module.gradient_checkpointing = value
-
-    @property
-    def gradient_checkpointing(self):
-        return self._gradient_checkpointing
-
-    @gradient_checkpointing.setter
-    def gradient_checkpointing(self, value):
-        self._gradient_checkpointing = value
-        for block in self.transformer_blocks:
-            block._recompute(value)
 
     def construct(
         self,
@@ -502,12 +490,12 @@ class Transformer2DModel(LegacyModelMixin, LegacyConfigMixin):
 
     def _get_output_for_continuous_inputs(self, hidden_states, residual, batch_size, height, width, inner_dim):
         if not self.use_linear_projection:
-            hidden_states = hidden_states.reshape(batch_size, height, width, inner_dim).permute(0, 3, 1, 2)
+            hidden_states = hidden_states.reshape(batch_size, height, width, inner_dim).permute(0, 3, 1, 2).contiguous()
 
             hidden_states = self.proj_out(hidden_states)
         else:
             hidden_states = self.proj_out(hidden_states)
-            hidden_states = hidden_states.reshape(batch_size, height, width, inner_dim).permute(0, 3, 1, 2)
+            hidden_states = hidden_states.reshape(batch_size, height, width, inner_dim).permute(0, 3, 1, 2).contiguous()
 
         output = hidden_states + residual
         return output
@@ -518,7 +506,7 @@ class Transformer2DModel(LegacyModelMixin, LegacyConfigMixin):
         # (batch, self.num_vector_embeds - 1, self.num_latent_pixels)
         logits = mint.permute(logits, (0, 2, 1))
         # log(p(x_0))
-        output = mint.nn.functional.log_softmax(logits.float(), dim=1).to(hidden_states.dtype)
+        output = F.log_softmax(logits.double(), dim=1).float()
         return output
 
     def _get_output_for_patched_inputs(
@@ -528,7 +516,7 @@ class Transformer2DModel(LegacyModelMixin, LegacyConfigMixin):
             conditioning = self.transformer_blocks[0].norm1.emb(
                 timestep, class_labels, hidden_dtype=hidden_states.dtype
             )
-            shift, scale = self.proj_out_1(mint.nn.functional.silu(conditioning)).chunk(2, dim=1)
+            shift, scale = self.proj_out_1(F.silu(conditioning)).chunk(2, dim=1)
             hidden_states = self.norm_out(hidden_states) * (1 + scale[:, None]) + shift[:, None]
             hidden_states = self.proj_out_2(hidden_states)
         elif self.config.norm_type == "ada_norm_single":
