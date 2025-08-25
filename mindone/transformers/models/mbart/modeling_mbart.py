@@ -18,6 +18,8 @@ import copy
 import math
 from typing import List, Optional, Tuple, Union
 
+from transformers.models.mbart.configuration_mbart import MBartConfig
+
 import numpy as np
 import mindspore
 
@@ -45,12 +47,9 @@ from ...utils import (
     is_flash_attn_2_available,
     logging,
 )
-from .configuration_mbart import MBartConfig
-
 
 if is_flash_attn_2_available():
     from mindspore.ops.operations.nn_ops import FlashAttentionScore as MSFlashAttention
-
 
 logger = logging.get_logger(__name__)
 
