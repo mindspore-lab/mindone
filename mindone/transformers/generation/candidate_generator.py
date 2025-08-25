@@ -24,10 +24,10 @@ import numpy as np
 from transformers import is_sklearn_available
 
 import mindspore as ms
-from mindspore import mint
+from mindspore import mint, nn
 from mindspore import numpy as mnp
 
-from ..cache_utils import DynamicCache
+from ..mindspore_utils import prune_linear_layer
 
 if is_sklearn_available():
     from sklearn.metrics import roc_curve
@@ -286,9 +286,7 @@ class AssistedCandidateGenerator(CandidateGenerator):
         has_past_key_values = self.assistant_kwargs.get("past_key_values", None) is not None
         if has_past_key_values:
             new_cache_size = input_ids.shape[-1] - 1 - remove_from_pkv
-            self.assistant_kwargs["past_key_values"] = _crop_past_key_values(
-                self.assistant_model, self.assistant_kwargs["past_key_values"], new_cache_size - num_added_tokens
-            )
+            self.assistant_kwargs["past_key_values"] = self.assistant_kwargs["past_key_values"].crop(new_cache_size - num_added_tokens)
             self.assistant_kwargs = _prepare_attention_mask(
                 self.assistant_kwargs, input_ids.shape[-1], self.assistant_model.config.is_encoder_decoder
             )
@@ -603,13 +601,68 @@ class AssistedCandidateGeneratorDifferentTokenizers(AssistedCandidateGenerator):
 
         return new_target_ids
 
+class _PruneReindexingLMHead(nn.Cell):
+    """
+    A class to prune and reindex the language model head.
+
+    This class prunes the language model head to only include the specified token IDs and reindexes the logits
+    to map back to the original vocabulary.
+
+    Args:
+        original_lm_head (nn.Module): The original language model head.
+        token_ids (list[int]): The list of token IDs to keep.
+    """
+
+    def __init__(self, original_lm_head, assistant_overlap_token_ids):
+        super().__init__()
+        self.pruned_lm_head = prune_linear_layer(original_lm_head, assistant_overlap_token_ids).to(
+            original_lm_head.weight.dtype
+        )
+
+    def construct(self, hidden_states):
+        pruned_logits = self.pruned_lm_head(hidden_states)
+        return pruned_logits
+
+
+class _MapInputEmbedding(nn.Cell):
+    def __init__(self, original_embedding: mint.nn.Embedding, assistant_overlap_token_ids):
+        """
+        Wraps an existing embedding layer and remaps token IDs before lookup.
+
+        Args:
+            original_embedding (mint.nn.Embedding): Pre-trained or existing embedding layer.
+            assistant_overlap_token_ids (dict): Mapping from original token IDs to new token IDs.
+                          Example: {old_id: new_id}
+        """
+        super().__init__()
+        self.original_embedding = original_embedding
+        self.weight = original_embedding.weight
+        self.assistant_overlap_token_ids = assistant_overlap_token_ids
+        self.map = False
+
+    def construct(self, input_ids: ms.Tensor) -> ms.Tensor:
+        """
+        Args:
+            input_ids (ms.Tensor): Tensor of token IDs (batch_size, seq_len).
+
+        Returns:
+            ms.Tensor: Corresponding input embeddings.
+        """
+        if self.map:
+            # Get the last item from input_ids
+            my_input_ids = self.assistant_overlap_token_ids[input_ids[0, -1]].unsqueeze(0).unsqueeze(0)
+        else:
+            self.map = True
+            my_input_ids = input_ids
+
+        return self.original_embedding(my_input_ids)
 
 class AssistantToTargetTranslator:
     """
     Translates token ids and logits between assistant and target model vocabularies. This class is used to handle
     vocabulary mismatches when using different tokenizers for the assistant and target models in speculative decoding,
     as introduced in the paper "Lossless Speculative Decoding Algorithms for Heterogeneous Vocabularies"
-    (https://www.arxiv.org/abs/2502.05202).
+    (https://huggingface.co/papers/2502.05202).
     It maintains mappings between the two vocabularies and handles token/logit conversion.
 
     Args:
@@ -617,8 +670,12 @@ class AssistantToTargetTranslator:
             The tokenizer used by the target (main) model.
         assistant_tokenizer (`PreTrainedTokenizerBase`):
             The tokenizer used by the assistant model.
-        target_vocab_size (`int`, *optional*):
+        target_vocab_size (`int`):
             The size of the target model's vocabulary. If not provided, will be inferred from the target tokenizer.
+        assistant_model (Optional[PreTrainedModel], optional): The assistant model to be used. Defaults to None for backward compatibility.
+        assistant_prune_lm_head (bool): Whether to prune the assistant model's language model
+            head to match the target vocabulary. This is only applicable if `assistant_model` is provided.
+            Defaults to False for backward compatibility.
     """
 
     FILTER_VALUE: float = -float("Inf")  # The value used to filter out unmapped tokens in the logits.
@@ -629,56 +686,49 @@ class AssistantToTargetTranslator:
         target_tokenizer: "PreTrainedTokenizerBase",
         assistant_tokenizer: "PreTrainedTokenizerBase",
         target_vocab_size: int,  # required since target_vocab_size can be different from the length of target_tokenizer.get_vocab()
+        assistant_model: Optional["PreTrainedModel"] = None,
+        assistant_prune_lm_head: bool = False,
     ):
-        self._target_tokenizer: "PreTrainedTokenizerBase" = target_tokenizer
-        self._assistant_tokenizer: "PreTrainedTokenizerBase" = assistant_tokenizer
+        self._target_tokenizer: PreTrainedTokenizerBase = target_tokenizer
+        self._assistant_tokenizer: PreTrainedTokenizerBase = assistant_tokenizer
         self.target_vocab_size: int = target_vocab_size
-        (
-            self._assistant_to_target_input_ids,
-            self.target_to_assistant_input_ids,
-        ) = self._get_assistant_to_target_input_ids()
+        self._assistant_to_target_input_ids, self.target_to_assistant_input_ids = (
+            self._get_assistant_to_target_input_ids()
+        )
         self._suppress_input_ids: list[int] = self._get_suppress_input_ids()
         self.logits_processors: Optional[LogitsProcessorList] = None
+        self.assistant_prune_lm_head = assistant_prune_lm_head and assistant_model is not None
         if len(self._suppress_input_ids) > 0:
-            # len(self._suppress_input_ids) = 0 if the assistant vocab is a subset of the target vocab
-            self.logits_processors = LogitsProcessorList(
-                [SuppressTokensLogitsProcessor(self._get_suppress_input_ids())]
-            )
+            # the assistant vocab is not a subset of the target vocab
+            if self.assistant_prune_lm_head:
+                self.assistant_overlap_token_ids = ms.tensor(
+                    list(self.target_to_assistant_input_ids.values()),
+                    dtype=ms.int64,
+                )
+                original_lm_head = assistant_model.get_output_embeddings()
+                pruned_lm_head = _PruneReindexingLMHead(original_lm_head, self.assistant_overlap_token_ids)
+                del original_lm_head
+                assistant_model.set_output_embeddings(pruned_lm_head)
 
-    def _get_assistant_to_target_input_ids(self):
-        target_vocab = self._target_tokenizer.get_vocab()
-        assistant_vocab = self._assistant_tokenizer.get_vocab()
+                original_input_embeddings = assistant_model.get_input_embeddings()
+                map_input_embeddings = _MapInputEmbedding(original_input_embeddings, self.assistant_overlap_token_ids)
+                del original_input_embeddings
+                assistant_model.set_input_embeddings(map_input_embeddings)
+                self.map_input_embeddings = map_input_embeddings
+            else:
+                self.logits_processors = LogitsProcessorList(
+                    [SuppressTokensLogitsProcessor(self._get_suppress_input_ids())]
+                )
 
-        space_str = " "
-        target_space_ids = self._target_tokenizer(space_str, add_special_tokens=False)["input_ids"]
-        if len(target_space_ids) > 0:
-            target_space_sign = self._target_tokenizer.convert_ids_to_tokens(target_space_ids)[0][0]
+    def unmap_input_ids(self):
+        """
+        Disables the mapping of input ids despite the assistant pruning for the language model head being enabled.
 
-            assistant_space_ids = self._assistant_tokenizer(space_str, add_special_tokens=False)["input_ids"]
-            if len(assistant_space_ids) > 0:
-                assistant_space_sign = self._assistant_tokenizer.convert_ids_to_tokens(assistant_space_ids)[0][0]
+        This method is required for the first forward pass of `_MapInputEmbedding` where input ids are already in the assistant vocabulary space. By disabling the mapping, it ensures that the input ids are processed correctly without remapping.
 
-                if target_space_sign != assistant_space_sign:
-                    # If the assistant tokenizer has a different space sign than the target tokenizer,
-                    # we need to replace the assistant space sign with the target space sign in the assistant_vocab.
-                    assistant_vocab = {
-                        (
-                            tok.replace(assistant_space_sign, target_space_sign, 1)
-                            if tok.startswith(assistant_space_sign)
-                            else tok
-                        ): idx
-                        for tok, idx in assistant_vocab.items()
-                    }
-
-        max_assistant_index = max(assistant_vocab.values())
-        assistant_to_target_input_ids = mint.full((max_assistant_index + 1,), self.SUPPRESS_TOKEN_ID, dtype=int)
-        target_to_assistant_input_ids: dict[int, int] = {}
-        for tok, assistant_id in assistant_vocab.items():
-            target_id = target_vocab.get(tok)
-            if target_id is not None:
-                assistant_to_target_input_ids[assistant_id] = target_id
-                target_to_assistant_input_ids[target_id] = assistant_id
-        return assistant_to_target_input_ids.to(self._assistant_model_device), target_to_assistant_input_ids
+        """
+        if self.assistant_prune_lm_head:
+            self.map_input_embeddings.map = False
 
     def _get_suppress_input_ids(self) -> list[int]:
         """
@@ -697,7 +747,12 @@ class AssistantToTargetTranslator:
         if num_new_tokens == 0:
             return target_input_ids
         else:
-            transformed_slice = self._assistant_to_target_input_ids[assistant_candidate_ids[0, -num_new_tokens:]]
+            # Get last `num_new_tokens` candidate IDs
+            last_candidate_ids = assistant_candidate_ids[0, -num_new_tokens:]
+            if self.assistant_prune_lm_head:
+                # Map assistant IDs -> target input IDs
+                last_candidate_ids = self.assistant_overlap_token_ids[last_candidate_ids]
+            transformed_slice = self._assistant_to_target_input_ids[last_candidate_ids]
             return mint.cat((target_input_ids, transformed_slice.unsqueeze(0)), dim=1)
 
     def get_target_logits(self, assistant_logits: ms.Tensor) -> ms.Tensor:
@@ -713,8 +768,11 @@ class AssistantToTargetTranslator:
         target_logits_supported_indices = self._assistant_to_target_input_ids[assistant_indices_mask]
         valid_assistant_logits = assistant_logits[..., : self._assistant_to_target_input_ids.shape[0]]
 
-        target_logits[..., target_logits_supported_indices] = valid_assistant_logits[..., assistant_indices_mask]
-
+        if self.assistant_prune_lm_head:
+            target_logits[..., target_logits_supported_indices] = assistant_logits
+        else:
+            valid_assistant_logits = assistant_logits[..., : self._assistant_to_target_input_ids.shape[0]]
+            target_logits[..., target_logits_supported_indices] = valid_assistant_logits[..., assistant_indices_mask]
         return target_logits
 
 
@@ -732,7 +790,8 @@ class AssistantVocabTranslatorCache:
         target_tokenizer: "PreTrainedTokenizerBase",
         assistant_tokenizer: "PreTrainedTokenizerBase",
         target_vocab_size: int,
-        assistant_model_device: str = "cpu",
+        assistant_model: Optional["PreTrainedModel"] = None,
+        assistant_prune_lm_head: bool = False,
     ) -> AssistantToTargetTranslator:
         assistant_dict = cls._cache.get(target_tokenizer)
         if assistant_dict is None:
@@ -742,7 +801,7 @@ class AssistantVocabTranslatorCache:
         mapping = assistant_dict.get(assistant_tokenizer)
         if mapping is None:
             mapping = AssistantToTargetTranslator(
-                target_tokenizer, assistant_tokenizer, target_vocab_size, assistant_model_device
+                target_tokenizer, assistant_tokenizer, target_vocab_size, assistant_model, assistant_prune_lm_head
             )
             assistant_dict[assistant_tokenizer] = mapping
 
@@ -879,7 +938,7 @@ class UniversalSpeculativeDecodingGenerator(AssistedCandidateGeneratorDifferentT
                 self._prev_assistant_ids = self._prev_assistant_ids[:, :-tokens_to_remove]
             assistant_input_ids = mint.cat([self._prev_assistant_ids, assistant_new_ids], dim=-1)
         assistant_input_ids = assistant_input_ids.to(dtype=ms.int64)
-
+        self._atm_translator.unmap_input_ids()
         return assistant_input_ids, len(assistant_new_ids[0])
 
 
@@ -925,7 +984,7 @@ class PromptLookupCandidateGenerator(CandidateGenerator):
         Return:
             `ms.Tensor` of shape `(num_candidates, candidate_length)`: The candidate sequences to be tried.
         """
-        input_length = input_ids.size(1)
+        input_length = input_ids.shape[1]
 
         # Don't generate more than `max_length - 1` candidates since the target model generates one extra token.
         if self.max_length == input_length + 1:
@@ -940,6 +999,7 @@ class PromptLookupCandidateGenerator(CandidateGenerator):
             # Convert ngram to a tensor for comparison
             ngram_tensor = input_ids[0, -ngram_size:]
 
+            # Find where the windows match the ngram
             # Find where the windows match the ngram
             matches = (windows == ngram_tensor).all(dim=2)
 
@@ -1049,47 +1109,6 @@ class EarlyExitCandidateGenerator(AssistedCandidateGenerator):
         candidate_ids, candidate_logits = super().get_candidates(input_ids)
         base_model.config.num_hidden_layers = original_num_hidden_layers
         return candidate_ids, candidate_logits
-
-
-def _crop_past_key_values(model, past_key_values, max_length):
-    """Crops the past key values up to a certain maximum length."""
-    new_past = []
-    if model.config.is_encoder_decoder:
-        for idx in range(len(past_key_values)):
-            new_past.append(
-                (
-                    past_key_values[idx][0][:, :, :max_length, :],
-                    past_key_values[idx][1][:, :, :max_length, :],
-                    past_key_values[idx][2],
-                    past_key_values[idx][3],
-                )
-            )
-        past_key_values = tuple(new_past)
-    # gptbigcode is special and stores kv in shape (batch_size, seq_len, dim), if it's a multi_query model
-    elif "gptbigcode" in model.__class__.__name__.lower() or (
-        model.config.architectures is not None and "gptbigcode" in model.config.architectures[0].lower()
-    ):
-        if model.config.multi_query:
-            for idx in range(len(past_key_values)):
-                past_key_values[idx] = past_key_values[idx][:, :max_length, :]
-        else:
-            for idx in range(len(past_key_values)):
-                past_key_values[idx] = past_key_values[idx][:, :, :max_length, :]
-    elif isinstance(past_key_values, DynamicCache):
-        past_key_values.crop(max_length)
-    elif past_key_values is not None:
-        for idx in range(len(past_key_values)):
-            if past_key_values[idx] != ([], []):
-                new_past.append(
-                    (
-                        past_key_values[idx][0][:, :, :max_length, :],
-                        past_key_values[idx][1][:, :, :max_length, :],
-                    )
-                )
-            else:
-                new_past.append((past_key_values[idx][0], past_key_values[idx][1]))
-        past_key_values = tuple(new_past)
-    return past_key_values
 
 
 def _prepare_attention_mask(model_kwargs: dict[str, Any], new_length: int, is_encoder_decoder: bool) -> dict[str, Any]:
