@@ -68,6 +68,7 @@ MODEL_MAPPING_NAMES = OrderedDict(
         ("granite", "GraniteModel"),
         ("granitemoe", "GraniteMoeModel"),
         ("granitemoeshared", "GraniteMoeSharedModel"),
+        ("groupvit", "GroupViTModel"),
         ("qwen2_audio_encoder", "Qwen2AudioEncoder"),
         ("qwen2_audio_encoder", "Qwen2AudioEncoder"),
         ("recurrent_gemma", "RecurrentGemmaModel"),
@@ -108,6 +109,7 @@ MODEL_MAPPING_NAMES = OrderedDict(
         ("smolvlm", "SmolVLMModel"),
         ("smolvlm_vision", "SmolVLMVisionTransformer"),
         ("speecht5", "SpeechT5Model"),
+        ("swinv2", "Swinv2Model"),
         ("t5", "T5Model"),
         ("umt5", "UMT5Model"),
         ("vit", "ViTModel"),
@@ -236,6 +238,7 @@ MODEL_FOR_IMAGE_MAPPING_NAMES = OrderedDict(
         ("levit", "LevitModel"),
         ("segformer", "SegformerModel"),
         ("siglip_vision_model", "SiglipVisionModel"),
+        ("swinv2", "Swinv2Model"),
         ("vit", "ViTModel"),
         ("yolos", "YolosModel"),
     ]
@@ -243,6 +246,7 @@ MODEL_FOR_IMAGE_MAPPING_NAMES = OrderedDict(
 
 MODEL_FOR_MASKED_IMAGE_MODELING_MAPPING_NAMES = OrderedDict(
     [
+        ("swinv2", "Swinv2ForMaskedImageModeling"),
         ("vit", "ViTForMaskedImageModeling"),
     ]
 )
@@ -272,6 +276,7 @@ MODEL_FOR_IMAGE_CLASSIFICATION_MAPPING_NAMES = OrderedDict(
         ("resnet", "ResNetForImageClassification"),
         ("segformer", "SegformerForImageClassification"),
         ("siglip", "SiglipForImageClassification"),
+        ("swinv2", "Swinv2ForImageClassification"),
         ("vit", "ViTForImageClassification"),
     ]
 )
@@ -615,6 +620,7 @@ MODEL_FOR_BACKBONE_MAPPING_NAMES = OrderedDict(
         ("dinov2", "Dinov2Backbone"),
         ("hiera", "HieraBackbone"),
         ("swin", "SwinBackbone"),
+        ("swinv2", "Swinv2Backbone"),
     ]
 )
 

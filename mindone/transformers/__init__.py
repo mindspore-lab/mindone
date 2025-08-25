@@ -331,6 +331,7 @@ from .models.gpt2 import (
 from .models.granite import GraniteForCausalLM, GraniteModel, GranitePreTrainedModel
 from .models.granitemoe import GraniteMoeForCausalLM, GraniteMoeModel, GraniteMoePreTrainedModel
 from .models.granitemoeshared import GraniteMoeSharedForCausalLM, GraniteMoeSharedModel, GraniteMoeSharedPreTrainedModel
+from .models.groupvit import GroupViTModel, GroupViTPreTrainedModel, GroupViTTextModel, GroupViTVisionModel
 from .models.helium import (
     HeliumForCausalLM,
     HeliumForSequenceClassification,
@@ -590,6 +591,13 @@ from .models.swin import (
     SwinForMaskedImageModeling,
     SwinModel,
     SwinPreTrainedModel,
+)
+from .models.swinv2 import (
+    Swinv2Backbone,
+    Swinv2ForImageClassification,
+    Swinv2ForMaskedImageModeling,
+    Swinv2Model,
+    Swinv2PreTrainedModel,
 )
 from .models.switch_transformers import (
     SwitchTransformersEncoderModel,
