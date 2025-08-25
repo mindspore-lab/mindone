@@ -269,13 +269,13 @@ class QwenImageEditPipeline(DiffusionPipeline, QwenImageLoraLoaderMixin):
         hidden_states = outputs.hidden_states[-1]
         split_hidden_states = self._extract_masked_hidden(hidden_states, ms.Tensor(model_inputs.attention_mask))
         split_hidden_states = [e[drop_idx:] for e in split_hidden_states]
-        attn_mask_list = [mint.ones(e.size(0), dtype=ms.int64) for e in split_hidden_states]
-        max_seq_len = max([e.size(0) for e in split_hidden_states])
+        attn_mask_list = [mint.ones(e.shape[0], dtype=ms.int64) for e in split_hidden_states]
+        max_seq_len = max([e.shape[0] for e in split_hidden_states])
         prompt_embeds = mint.stack(
-            [mint.cat([u, u.new_zeros(max_seq_len - u.size(0), u.size(1))]) for u in split_hidden_states]
+            [mint.cat([u, u.new_zeros(max_seq_len - u.shape[0], u.shape[1])]) for u in split_hidden_states]
         )
         encoder_attention_mask = mint.stack(
-            [mint.cat([u, u.new_zeros(max_seq_len - u.size(0))]) for u in attn_mask_list]
+            [mint.cat([u, u.new_zeros(max_seq_len - u.shape[0])]) for u in attn_mask_list]
         )
 
         prompt_embeds = prompt_embeds.to(dtype=dtype)
@@ -662,7 +662,7 @@ class QwenImageEditPipeline(DiffusionPipeline, QwenImageLoraLoaderMixin):
             batch_size = prompt_embeds.shape[0]
 
         # 3. Preprocess image
-        if image is not None and not (isinstance(image, ms.Tensor) and image.size(1) == self.latent_channels):
+        if image is not None and not (isinstance(image, ms.Tensor) and image.shape[1] == self.latent_channels):
             img = image[0] if isinstance(image, list) else image
             image_height, image_width = self.image_processor.get_default_height_width(img)
             aspect_ratio = image_width / image_height
@@ -782,7 +782,7 @@ class QwenImageEditPipeline(DiffusionPipeline, QwenImageLoraLoaderMixin):
                     attention_kwargs=self.attention_kwargs,
                     return_dict=False,
                 )[0]
-                noise_pred = noise_pred[:, : latents.size(1)]
+                noise_pred = noise_pred[:, : latents.shape[1]]
 
                 if do_true_cfg:
                     # with self.transformer.cache_context("uncond"):
@@ -797,7 +797,7 @@ class QwenImageEditPipeline(DiffusionPipeline, QwenImageLoraLoaderMixin):
                         attention_kwargs=self.attention_kwargs,
                         return_dict=False,
                     )[0]
-                    neg_noise_pred = neg_noise_pred[:, : latents.size(1)]
+                    neg_noise_pred = neg_noise_pred[:, : latents.shape[1]]
                     comb_pred = neg_noise_pred + true_cfg_scale * (noise_pred - neg_noise_pred)
 
                     cond_norm = mint.norm(noise_pred, dim=-1, keepdim=True)
