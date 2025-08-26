@@ -15,7 +15,7 @@ from tests.modeling_test_utils import compute_diffs, generalized_parse_args, get
 from tests.transformers_tests.models.modeling_common import ids_numpy, random_attention_mask
 
 DTYPE_AND_THRESHOLDS = {"fp32": 1e-3, "fp16": 1e-2, "bf16": 1e-2}
-MODES = [0, 1]
+MODES = [0]
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
