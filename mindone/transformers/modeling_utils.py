@@ -150,12 +150,10 @@ def _get_pt2ms_mapped_k(mappings, has_prefix_module, expects_prefix_module, load
             else mappings.get(s, (s, lambda x: x))[0]
             for s in loaded_keys
         ]
-        loaded_keys = [".".join([prefix, s]) for s in loaded_keys]
     elif not has_prefix_module and expects_prefix_module:
         loaded_keys = [
             mappings.get(".".join([prefix, s]), (".".join([prefix, s]), lambda x: x))[0] for s in loaded_keys
         ]
-        loaded_keys = [s[len(prefix) + 1 :] if s.startswith(prefix) else s for s in loaded_keys]
     else:
         loaded_keys = [mappings.get(s, (s, lambda x: x))[0] for s in loaded_keys]
     return loaded_keys
@@ -172,9 +170,11 @@ def _convert_state_dict(m, state_dict_pt, prefix=""):
             name_ms = param.name
             length = len(prefix) + 1
             if name_pt.startswith(prefix):
+                # When name_ms and name_pt match and name_pt has prefix, name_pt would be sliced
                 if name_ms.rsplit(".", 1)[0] == name_pt.rsplit(".", 1)[0][length:] or name_ms == name_pt[length:]:
                     name_pt = name_pt[length:]
             elif not name_pt.startswith(prefix):
+                # When name_ms and name_pt match and name_ms has prefix, prefix would be added to name_pt
                 if name_pt.rsplit(".", 1)[0] == name_ms.rsplit(".", 1)[0][length:] or name_pt == name_ms[length:]:
                     name_pt = ".".join([prefix, name_pt])
         name_ms, data_mapping = pt2ms_mappings.get(name_pt, (name_pt, lambda x: x))
@@ -2921,6 +2921,10 @@ class PreTrainedModel(
         loading_task_model_from_base_state_dict = not has_prefix_module and expects_prefix_module
         loading_base_model_from_task_state_dict = has_prefix_module and not expects_prefix_module
 
+        # Mapping loaded_keys from pt to ms
+        pt2ms_mappings = _get_pt2ms_mappings(model)
+        loaded_keys = _get_pt2ms_mapped_k(pt2ms_mappings, has_prefix_module, expects_prefix_module, loaded_keys, prefix)
+
         # Find the key names that the model expects from the serialized keys
         key_renaming_mapping = model._get_key_renaming_mapping(
             original_checkpoint_keys,
@@ -2935,7 +2939,7 @@ class PreTrainedModel(
             cls,
             model,
             original_checkpoint_keys,
-            checkpoint_keys,
+            loaded_keys,
             loading_base_model_from_task_state_dict,
         )
 
@@ -3013,12 +3017,13 @@ class PreTrainedModel(
 
         if state_dict is not None:
             # Whole checkpoint
-            state_dict = _convert_state_dict(model, state_dict, prefix)
-
+            # checkpoint mapping from pt to hf
             matching = [s for s in key_renaming_mapping.keys() if "LayerNorm.gamma" in s]
             if matching:
                 # Fix the key names when model weight names contain LayerNorm.gamma/LayerNorm.beta
                 state_dict = {key_renaming_mapping[k]: v for k, v in state_dict.items() if k in key_renaming_mapping}
+            # checkpoint mapping from hf to ms
+            state_dict = _convert_state_dict(model, state_dict, prefix)
 
             mismatched_keys = _find_mismatched_keys(
                 state_dict,
@@ -3045,14 +3050,14 @@ class PreTrainedModel(
             # loading checkpoint
             for shard_file in resolved_archive_file:
                 state_dict = load_state_dict(shard_file)
-                state_dict = _convert_state_dict(model, state_dict, prefix)
-
+                # checkpoint mapping from pt to hf
                 matching = [s for s in key_renaming_mapping.keys() if "LayerNorm.gamma" in s]
                 if matching:
                     # Fix the key names when model weight names contain LayerNorm.gamma/LayerNorm.beta
-                    state_dict = {
-                        key_renaming_mapping[k]: v for k, v in state_dict.items() if k in key_renaming_mapping
-                    }
+                    state_dict = {key_renaming_mapping[k]: v for k, v in state_dict.items() if
+                                  k in key_renaming_mapping}
+                # checkpoint mapping from hf to ms
+                state_dict = _convert_state_dict(model, state_dict, prefix)
 
                 # Mismatched keys contains tuples key/shape1/shape2 of weights in the checkpoint that have a shape not
                 # matching the weights in the model.

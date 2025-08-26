@@ -52,8 +52,6 @@ def flash_attention_forward(
             " Please set your attention to `eager` if you want any of these features."
         )
 
-    if attention_mask is not None:
-        raise RuntimeError("FlashAttention's variable-length attention is not available.")
     if (
         kwargs.get("position_ids", None) is not None
         and query.shape[0] == 1
