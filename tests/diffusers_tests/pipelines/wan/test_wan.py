@@ -28,8 +28,7 @@ import mindspore as ms
 from mindone.diffusers import AutoencoderKLWan, UniPCMultistepScheduler, WanPipeline
 from mindone.diffusers.utils.testing_utils import load_numpy_from_local_file, slow
 
-# from ..pipeline_test_utils import (
-from mindone.tests.diffusers_tests.pipeline_test_utils import (    
+from ..pipeline_test_utils import (  
     THRESHOLD_FP16,
     THRESHOLD_FP32,
     THRESHOLD_PIXEL,
