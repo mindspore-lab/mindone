@@ -103,7 +103,8 @@ class WanVACETransformerBlock(nn.Cell):
         hidden_states: ms.Tensor,
         encoder_hidden_states: ms.Tensor,
         control_hidden_states: ms.Tensor,
-        temb: ms.Tensor, rotary_emb: ms.Tensor,
+        temb: ms.Tensor, 
+        rotary_emb: ms.Tensor,
     ) -> ms.Tensor:
         if self.proj_in is not None:
             control_hidden_states = self.proj_in(control_hidden_states)
