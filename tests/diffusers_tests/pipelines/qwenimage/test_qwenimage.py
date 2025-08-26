@@ -31,7 +31,7 @@ from mindone.diffusers import (
     QwenImageTransformer2DModel,
 )
 # from diffusers.utils.testing_utils import enable_full_determinism, torch_device
-from diffusers.utils.testing_utils import load_numpy_from_local_file, slow
+from mindone.diffusers.utils.testing_utils import load_numpy_from_local_file, slow
 
 # from ..pipeline_params import TEXT_TO_IMAGE_BATCH_PARAMS, TEXT_TO_IMAGE_IMAGE_PARAMS, TEXT_TO_IMAGE_PARAMS
 # from ..test_pipelines_common import PipelineTesterMixin, to_np
