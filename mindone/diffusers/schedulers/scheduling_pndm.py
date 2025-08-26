@@ -1,4 +1,7 @@
-# Copyright 2024 Zhejiang University Team and The HuggingFace Team. All rights reserved.
+# Copyright 2025 Zhejiang University Team and The HuggingFace Team. All rights reserved.
+#
+# This code is adapted from https://github.com/huggingface/diffusers
+# with modifications to run diffusers on mindspore.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -150,7 +153,7 @@ class PNDMScheduler(SchedulerMixin, ConfigMixin):
         self.init_noise_sigma = 1.0
 
         # For now we only support F-PNDM, i.e. the runge-kutta method
-        # For more information on the algorithm please take a look at the paper: https://arxiv.org/pdf/2202.09778.pdf
+        # For more information on the algorithm please take a look at the paper: https://huggingface.co/papers/2202.09778
         # mainly at formula (9), (12), (13) and the Algorithm 2.
         self.pndm_order = 4
 
@@ -177,7 +180,7 @@ class PNDMScheduler(SchedulerMixin, ConfigMixin):
         """
 
         self.num_inference_steps = num_inference_steps
-        # "linspace", "leading", "trailing" corresponds to annotation of Table 2. of https://arxiv.org/abs/2305.08891
+        # "linspace", "leading", "trailing" corresponds to annotation of Table 2. of https://huggingface.co/papers/2305.08891
         if self.config.timestep_spacing == "linspace":
             self._timesteps = (
                 np.linspace(0, self.config.num_train_timesteps - 1, num_inference_steps).round().astype(np.int64)
@@ -219,7 +222,7 @@ class PNDMScheduler(SchedulerMixin, ConfigMixin):
             ].copy()  # we copy to avoid having negative strides which are not supported by torch.from_numpy
 
         timesteps = np.concatenate([self.prk_timesteps, self.plms_timesteps]).astype(np.int64)
-        self.timesteps = ms.Tensor(timesteps)
+        self.timesteps = ms.tensor(timesteps)
 
         self.ets = []
         self.counter = 0
@@ -293,7 +296,7 @@ class PNDMScheduler(SchedulerMixin, ConfigMixin):
 
         diff_to_prev = 0 if self.counter % 2 else self.config.num_train_timesteps // self.num_inference_steps // 2
         prev_timestep = timestep - diff_to_prev
-        timestep = ms.Tensor(self.prk_timesteps[self.counter // 4 * 4])
+        timestep = ms.tensor(self.prk_timesteps[self.counter // 4 * 4])
 
         if self.counter % 4 == 0:
             self.cur_model_output += 1 / 6 * model_output
@@ -405,7 +408,7 @@ class PNDMScheduler(SchedulerMixin, ConfigMixin):
         return sample
 
     def _get_prev_sample(self, sample, timestep, prev_timestep, model_output):
-        # See formula (9) of PNDM paper https://arxiv.org/pdf/2202.09778.pdf
+        # See formula (9) of PNDM paper https://huggingface.co/papers/2202.09778
         # this function computes x_(t−δ) using the formula of (9)
         # Note that x_t needs to be added to both sides of the equation
 

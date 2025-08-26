@@ -1,4 +1,7 @@
-# Copyright 2024 The CogView team, Tsinghua University & ZhipuAI and The HuggingFace Team. All rights reserved.
+# Copyright 2025 The CogView team, Tsinghua University & ZhipuAI and The HuggingFace Team. All rights reserved.
+#
+# This code is adapted from https://github.com/huggingface/diffusers
+# with modifications to run diffusers on mindspore.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -19,14 +22,13 @@ import mindspore as ms
 from mindspore import mint, nn
 
 from ...configuration_utils import ConfigMixin, register_to_config
-from ...models.attention import FeedForward
-from ...models.attention_processor import Attention, AttentionProcessor, CogVideoXAttnProcessor2_0
-from ...models.modeling_utils import ModelMixin
-from ...models.normalization import AdaLayerNormContinuous, LayerNorm
 from ...utils import logging
+from ..attention import FeedForward
+from ..attention_processor import Attention, AttentionProcessor, CogVideoXAttnProcessor2_0
 from ..embeddings import CogView3CombinedTimestepSizeEmbeddings, CogView3PlusPatchEmbed
 from ..modeling_outputs import Transformer2DModelOutput
-from ..normalization import CogView3PlusAdaLayerNormZeroTextImage
+from ..modeling_utils import ModelMixin
+from ..normalization import AdaLayerNormContinuous, CogView3PlusAdaLayerNormZeroTextImage
 
 logger = logging.get_logger(__name__)  # pylint: disable=invalid-name
 
@@ -69,8 +71,8 @@ class CogView3PlusTransformerBlock(nn.Cell):
             processor=CogVideoXAttnProcessor2_0(),
         )
 
-        self.norm2 = LayerNorm(dim, elementwise_affine=False, eps=1e-5)
-        self.norm2_context = LayerNorm(dim, elementwise_affine=False, eps=1e-5)
+        self.norm2 = mint.nn.LayerNorm(dim, elementwise_affine=False, eps=1e-5)
+        self.norm2_context = mint.nn.LayerNorm(dim, elementwise_affine=False, eps=1e-5)
 
         self.ff = FeedForward(dim=dim, dim_out=dim, activation_fn="gelu-approximate")
 
@@ -161,6 +163,8 @@ class CogView3PlusTransformer2DModel(ModelMixin, ConfigMixin):
     """
 
     _supports_gradient_checkpointing = True
+    _skip_layerwise_casting_patterns = ["patch_embed", "norm"]
+    _no_split_modules = ["CogView3PlusTransformerBlock", "CogView3PlusPatchEmbed"]
 
     @register_to_config
     def __init__(
@@ -283,10 +287,6 @@ class CogView3PlusTransformer2DModel(ModelMixin, ConfigMixin):
         for name, module in self.name_cells().items():
             fn_recursive_attn_processor(name, module, processor)
 
-    def _set_gradient_checkpointing(self, module, value=False):
-        if hasattr(module, "gradient_checkpointing"):
-            module.gradient_checkpointing = value
-
     def construct(
         self,
         hidden_states: ms.Tensor,
@@ -354,7 +354,7 @@ class CogView3PlusTransformer2DModel(ModelMixin, ConfigMixin):
         hidden_states = hidden_states.reshape(
             hidden_states.shape[0], height, width, self.out_channels, patch_size, patch_size
         )
-        hidden_states = hidden_states.permute(0, 3, 1, 4, 2, 5)  # torch.einsum("nhwcpq->nchpwq", hidden_states)
+        hidden_states = mint.einsum("nhwcpq->nchpwq", hidden_states)
         output = hidden_states.reshape(
             hidden_states.shape[0], self.out_channels, height * patch_size, width * patch_size
         )

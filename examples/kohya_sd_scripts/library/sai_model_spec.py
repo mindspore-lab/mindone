@@ -1,3 +1,4 @@
+# Adapted from https://github.com/kohya-ss/sd-scripts/blob/main/library/sai_model_spec.py
 # based on https://github.com/Stability-AI/ModelSpec
 import datetime
 import hashlib

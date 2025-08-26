@@ -1,3 +1,4 @@
+# Adapted from https://github.com/deepseek-ai/Janus to work with MindSpore.
 import argparse
 import os
 import sys

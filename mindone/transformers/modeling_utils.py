@@ -2,6 +2,9 @@
 # Copyright 2018 The Google AI Language Team Authors, Facebook AI Research authors and The HuggingFace Inc. team.
 # Copyright (c) 2018, NVIDIA CORPORATION.  All rights reserved.
 #
+# This code is adapted from https://github.com/huggingface/transformers
+# with modifications to run transformers on mindspore.
+#
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -65,6 +68,14 @@ from .integrations.flash_attention import flash_attention_forward
 from .integrations.sdpa_attention import sdpa_attention_forward
 from .loss.loss_utils import LOSS_MAPPING
 from .mindspore_adapter import dtype_to_str
+from .mindspore_utils import (  # noqa: F401
+    Conv1D,
+    apply_chunking_to_forward,
+    find_pruneable_heads_and_indices,
+    prune_conv1d_layer,
+    prune_layer,
+    prune_linear_layer,
+)
 from .modeling_attn_mask_utils import dtype_to_min
 from .utils.import_utils import is_flash_attn_2_available, is_sdpa_available
 
@@ -136,10 +147,12 @@ def _convert_state_dict(m, state_dict_pt, prefix=""):
         for name, param in m.parameters_and_names():
             name_ms = param.name
             length = len(prefix) + 1
-            if name_pt.startswith(prefix) and name_ms.rsplit(".", 1)[0] == name_pt.rsplit(".", 1)[0][length:]:
-                name_pt = name_pt[length:]
-            elif not name_pt.startswith(prefix) and name_pt.rsplit(".", 1)[0] == name_ms.rsplit(".", 1)[0][length:]:
-                name_pt = ".".join([prefix, name_pt])
+            if name_pt.startswith(prefix):
+                if name_ms.rsplit(".", 1)[0] == name_pt.rsplit(".", 1)[0][length:] or name_ms == name_pt[length:]:
+                    name_pt = name_pt[length:]
+            elif not name_pt.startswith(prefix):
+                if name_pt.rsplit(".", 1)[0] == name_ms.rsplit(".", 1)[0][length:] or name_pt == name_ms[length:]:
+                    name_pt = ".".join([prefix, name_pt])
         name_ms, data_mapping = pt2ms_mappings.get(name_pt, (name_pt, lambda x: x))
         data_ms = data_mapping(data_pt)
         if name_ms is not None:
@@ -333,7 +346,7 @@ def _load_state_dict_into_model(model_to_load, state_dict, start_prefix, is_shar
     # TODO: We should support loading float16 state_dict into float32 model, like PyTorch's behavior.
     error_msgs = []
     # TODO: State dict loading in mindspore does not cast dtype correctly. We do it manually. It's might unsafe.
-    local_state = {k: v for k, v in model_to_load.parameters_and_names()}
+    local_state = {v.name: v for k, v in model_to_load.parameters_and_names()}
     for k, v in state_dict.items():
         if k in local_state:
             v.set_dtype(local_state[k].dtype)
@@ -369,6 +382,10 @@ class ModuleUtilsMixin:
         return self.__class__.__name__
 
     def to(self, dtype: Optional[ms.Type] = None):
+        # FIXME: In ms 2.6.0 `tensor.set_dtype()` encountered a bug that it occurs wrong values.
+        # Resume to use self.register_buffer() in network and set dtype for buffer tensors after ms2.7.0 launched.
+        # Now we use `Parameter` and `Parameter.set_dtype()` instead.
+
         for p in self.get_parameters():
             p.set_dtype(dtype)
         return self
@@ -671,6 +688,11 @@ class PreTrainedModel(nn.Cell, ModuleUtilsMixin, GenerationMixin, PushToHubMixin
     # Has support for a `QuantoQuantizedCache` instance as `past_key_values`
     _supports_quantized_cache = False
 
+    # This flag signal that the model can be used as an efficient backend in TGI and vLLM
+    # In practice, it means that they support attention interface functions, fully pass the kwargs
+    # through all modules up to the Attention layer, can slice logits with Tensor, and have a default TP plan
+    _supports_attention_backend = False
+
     @property
     def dummy_inputs(self) -> Dict[str, Tensor]:
         """
@@ -736,7 +758,7 @@ class PreTrainedModel(nn.Cell, ModuleUtilsMixin, GenerationMixin, PushToHubMixin
                     ' We recommend to just use `attn_implementation="flash_attention_2"` when loading the model.'
                 )
 
-            if config._attn_implementation not in ["eager", "sdpa", "flash_attention_2", "paged_attention"]:
+            if config._attn_implementation not in ["eager", "paged_attention"] + ALL_ATTENTION_FUNCTIONS.valid_keys():
                 message = (
                     f'Specified `attn_implementation="{config._attn_implementation}"` is not supported. '
                     f'The only possible arguments are `attn_implementation="eager"`'
@@ -879,6 +901,10 @@ class PreTrainedModel(nn.Cell, ModuleUtilsMixin, GenerationMixin, PushToHubMixin
         self._loss_function = value
 
     @classmethod
+    def is_backend_compatible(cls):
+        return cls._supports_attention_backend
+
+    @classmethod
     def _check_and_enable_sdpa(cls, config, hard_check_only: bool = False) -> PretrainedConfig:
         """
         Checks the availability of SDPA for a given model.
@@ -917,9 +943,21 @@ class PreTrainedModel(nn.Cell, ModuleUtilsMixin, GenerationMixin, PushToHubMixin
         # when we init a model from within another model (e.g. VLMs) and dispatch on FA2
         # a warning is raised that dtype should be fp16. Since we never pass dtype from within
         # modeling code, we can try to infer it here same way as done in `from_pretrained`
-        mindspore_dtype = kwargs.pop("torch_dtype", config.torch_dtype)
+        if hasattr(config, "mindspore_dtype"):
+            mindspore_dtype = kwargs.pop("mindspore_dtype", config.mindspore_dtype)
+        else:
+            mindspore_dtype = kwargs.pop("torch_dtype", config.torch_dtype)
+
         if isinstance(mindspore_dtype, str):
             mindspore_dtype = getattr(ms, mindspore_dtype)
+        elif mindspore_dtype is not None:
+            TORCH_TO_MINDSPORE_DTYPE_MAP = {
+                "torch.float32": ms.float32,
+                "torch.bfloat16": ms.bfloat16,
+                "torch.float16": ms.float16,
+            }
+            mindspore_dtype = str(mindspore_dtype)
+            mindspore_dtype = TORCH_TO_MINDSPORE_DTYPE_MAP[mindspore_dtype]
 
         use_flash_attention_2 = kwargs.pop("use_flash_attention_2", False)
 
@@ -1138,7 +1176,7 @@ class PreTrainedModel(nn.Cell, ModuleUtilsMixin, GenerationMixin, PushToHubMixin
                 output_embeddings.weight = input_embeddings.weight
 
         if getattr(output_embeddings, "bias", None) is not None:
-            output_embeddings.bias = ops.pad(
+            output_embeddings.bias = mint.nn.functional.pad(
                 output_embeddings.bias,
                 (
                     0,
@@ -1283,7 +1321,7 @@ class PreTrainedModel(nn.Cell, ModuleUtilsMixin, GenerationMixin, PushToHubMixin
         # Replace weights in old_embeddings and return to maintain the same embedding type.
         # This ensures correct functionality when a Custom Embedding class is passed as input.
         # The input and output embedding types remain consistent. (c.f. https://github.com/huggingface/transformers/pull/31979)
-        old_embeddings.weight.data = new_embeddings.embedding_table.data
+        old_embeddings.embedding_table.set_data(new_embeddings.embedding_table.data)
         old_embeddings.num_embeddings = new_embeddings.embedding_table.data.shape[0]
         if old_embeddings.padding_idx is not None and (new_num_tokens - 1) < old_embeddings.padding_idx:
             old_embeddings.padding_idx = None
@@ -1336,7 +1374,7 @@ class PreTrainedModel(nn.Cell, ModuleUtilsMixin, GenerationMixin, PushToHubMixin
 
         new_lm_head = nn.Dense(
             *new_lm_head_shape,
-            bias=has_new_lm_head_bias,
+            has_bias=has_new_lm_head_bias,
             dtype=old_lm_head.weight.dtype,
         )
 
@@ -2268,6 +2306,9 @@ class PreTrainedModel(nn.Cell, ModuleUtilsMixin, GenerationMixin, PushToHubMixin
 
             if mindspore_dtype is not None:
                 config.mindspore_dtype = dtype_to_str(mindspore_dtype)
+                for sub_config_key in config.sub_configs.keys():
+                    sub_config = getattr(config, sub_config_key)
+                    sub_config.mindspore_dtype = mindspore_dtype
                 if isinstance(mindspore_dtype, str):
                     if mindspore_dtype == "auto":
                         if hasattr(config, "torch_dtype") and config.torch_dtype is not None:

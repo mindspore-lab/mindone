@@ -1,5 +1,8 @@
 # Copyright 2024 The HuggingFace Team. All rights reserved.
 #
+# This code is adapted from https://github.com/huggingface/diffusers
+# with modifications to run diffusers on mindspore.
+#
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -18,37 +21,41 @@ from ..utils import _LazyModule
 
 _import_structure = {
     "adapter": ["MultiAdapter", "T2IAdapter"],
+    "auto_model": ["AutoModel"],
     "autoencoders.autoencoder_asym_kl": ["AsymmetricAutoencoderKL"],
     "autoencoders.autoencoder_dc": ["AutoencoderDC"],
     "autoencoders.autoencoder_kl": ["AutoencoderKL"],
     "autoencoders.autoencoder_kl_allegro": ["AutoencoderKLAllegro"],
     "autoencoders.autoencoder_kl_cogvideox": ["AutoencoderKLCogVideoX"],
+    "autoencoders.autoencoder_kl_cosmos": ["AutoencoderKLCosmos"],
     "autoencoders.autoencoder_kl_hunyuan_video": ["AutoencoderKLHunyuanVideo"],
     "autoencoders.autoencoder_kl_ltx": ["AutoencoderKLLTXVideo"],
     "autoencoders.autoencoder_kl_magvit": ["AutoencoderKLMagvit"],
+    "autoencoders.autoencoder_kl_mochi": ["AutoencoderKLMochi"],
     "autoencoders.autoencoder_kl_temporal_decoder": ["AutoencoderKLTemporalDecoder"],
     "autoencoders.autoencoder_kl_wan": ["AutoencoderKLWan"],
     "autoencoders.autoencoder_oobleck": ["AutoencoderOobleck"],
     "autoencoders.autoencoder_tiny": ["AutoencoderTiny"],
     "autoencoders.consistency_decoder_vae": ["ConsistencyDecoderVAE"],
     "autoencoders.vq_model": ["VQModel"],
-    "autoencoders.autoencoder_kl_mochi": ["AutoencoderKLMochi"],
     "controlnets.controlnet": ["ControlNetModel"],
     "controlnets.controlnet_flux": ["FluxControlNetModel", "FluxMultiControlNetModel"],
     "controlnets.controlnet_hunyuan": [
         "HunyuanDiT2DControlNetModel",
         "HunyuanDiT2DMultiControlNetModel",
     ],
+    "controlnets.controlnet_sana": ["SanaControlNetModel"],
     "controlnets.controlnet_sd3": ["SD3ControlNetModel", "SD3MultiControlNetModel"],
     "controlnets.controlnet_sparsectrl": ["SparseControlNetModel"],
     "controlnets.controlnet_union": ["ControlNetUnionModel"],
     "controlnets.controlnet_xs": ["ControlNetXSAdapter", "UNetControlNetXSModel"],
     "controlnets.multicontrolnet": ["MultiControlNetModel"],
-    "dual_transformer_2d": ["DualTransformer2DModel"],
+    "controlnets.multicontrolnet_union": ["MultiControlNetUnionModel"],
     "embeddings": ["ImageProjection"],
     "modeling_utils": ["ModelMixin"],
     "transformers.auraflow_transformer_2d": ["AuraFlowTransformer2DModel"],
     "transformers.cogvideox_transformer_3d": ["CogVideoXTransformer3DModel"],
+    "transformers.consisid_transformer_3d": ["ConsisIDTransformer3DModel"],
     "transformers.dit_transformer_2d": ["DiTTransformer2DModel"],
     "transformers.dual_transformer_2d": ["DualTransformer2DModel"],
     "transformers.hunyuan_transformer_2d": ["HunyuanDiT2DModel"],
@@ -63,11 +70,15 @@ _import_structure = {
     "transformers.transformer_allegro": ["AllegroTransformer3DModel"],
     "transformers.transformer_cogview3plus": ["CogView3PlusTransformer2DModel"],
     "transformers.transformer_cogview4": ["CogView4Transformer2DModel"],
+    "transformers.transformer_cosmos": ["CosmosTransformer3DModel"],
     "transformers.transformer_easyanimate": ["EasyAnimateTransformer3DModel"],
     "transformers.transformer_flux": ["FluxTransformer2DModel"],
     "transformers.transformer_hunyuan_video": ["HunyuanVideoTransformer3DModel"],
+    "transformers.transformer_hunyuan_video_framepack": ["HunyuanVideoFramepackTransformer3DModel"],
     "transformers.transformer_ltx": ["LTXVideoTransformer3DModel"],
     "transformers.transformer_lumina2": ["Lumina2Transformer2DModel"],
+    "transformers.transformer_mochi": ["MochiTransformer3DModel"],
+    "transformers.transformer_omnigen": ["OmniGenTransformer2DModel"],
     "transformers.transformer_sd3": ["SD3Transformer2DModel"],
     "transformers.transformer_temporal": ["TransformerTemporalModel"],
     "transformers.transformer_wan": ["WanTransformer3DModel"],
@@ -81,19 +92,21 @@ _import_structure = {
     "unets.unet_i2vgen_xl": ["I2VGenXLUNet"],
     "unets.unet_kandinsky3": ["Kandinsky3UNet"],
     "unets.unet_motion_model": ["MotionAdapter", "UNetMotionModel"],
-    "unets.unet_stable_cascade": ["StableCascadeUNet"],
     "unets.unet_spatio_temporal_condition": ["UNetSpatioTemporalConditionModel"],
+    "unets.unet_stable_cascade": ["StableCascadeUNet"],
     "unets.uvit_2d": ["UVit2DModel"],
 }
 
 if TYPE_CHECKING:
     from .adapter import MultiAdapter, T2IAdapter
+    from .auto_model import AutoModel
     from .autoencoders import (
         AsymmetricAutoencoderKL,
         AutoencoderDC,
         AutoencoderKL,
         AutoencoderKLAllegro,
         AutoencoderKLCogVideoX,
+        AutoencoderKLCosmos,
         AutoencoderKLHunyuanVideo,
         AutoencoderKLLTXVideo,
         AutoencoderKLMagvit,
@@ -114,6 +127,8 @@ if TYPE_CHECKING:
         HunyuanDiT2DControlNetModel,
         HunyuanDiT2DMultiControlNetModel,
         MultiControlNetModel,
+        MultiControlNetUnionModel,
+        SanaControlNetModel,
         SD3ControlNetModel,
         SD3MultiControlNetModel,
         SparseControlNetModel,
@@ -127,11 +142,14 @@ if TYPE_CHECKING:
         CogVideoXTransformer3DModel,
         CogView3PlusTransformer2DModel,
         CogView4Transformer2DModel,
+        ConsisIDTransformer3DModel,
+        CosmosTransformer3DModel,
         DiTTransformer2DModel,
         DualTransformer2DModel,
         EasyAnimateTransformer3DModel,
         FluxTransformer2DModel,
         HunyuanDiT2DModel,
+        HunyuanVideoFramepackTransformer3DModel,
         HunyuanVideoTransformer3DModel,
         LatteTransformer3DModel,
         LTXVideoTransformer3DModel,

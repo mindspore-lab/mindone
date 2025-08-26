@@ -1,5 +1,26 @@
+# Copyright 2020-present the HuggingFace Inc. team.
+#
+# This code is adapted from https://github.com/huggingface/transformers
+# with modifications to run transformers on mindspore.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+"""
+The Trainer class, to easily train a 🤗 Transformers from scratch or finetune it on a new task.
+"""
+
 import functools
 import inspect
+import json
 import math
 import os
 import re
@@ -12,7 +33,6 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Any, Callable, Dict, Iterable, List, NamedTuple, Optional, Tuple, Union
 
 import numpy as np
-from ezcolorlog import root_logger as logger
 from packaging import version
 from transformers import PreTrainedTokenizerBase
 from transformers.feature_extraction_sequence_utils import SequenceFeatureExtractor
@@ -30,17 +50,19 @@ from transformers.trainer_callback import (
 )
 from transformers.trainer_utils import (
     EvalPrediction,
-    RemoveColumnsCollator,
     get_last_checkpoint,
     has_length,
     number_of_arguments,
     speed_metrics,
 )
-from transformers.utils import SAFE_WEIGHTS_NAME, WEIGHTS_NAME, is_datasets_available, logging
+from transformers.utils import SAFE_WEIGHTS_NAME, WEIGHTS_NAME, is_datasets_available
 
 import mindspore as ms
 from mindspore import Tensor, nn, ops
+from mindspore.communication import GlobalComm
 from mindspore.communication.management import get_group_size
+
+from mindone.trainers.zero import ZeroHelper, prepare_network
 
 from ..safetensors.mindspore import save_file
 from .data.data_collator import DataCollator, DataCollatorWithPadding, default_data_collator
@@ -50,9 +72,9 @@ from .mindspore_utils import ALL_LAYERNORM_LAYERS
 from .modeling_utils import MSPreTrainedModel as PreTrainedModel
 from .optimization import get_scheduler
 from .trainer_ms_utils import LabelSmoother, LengthGroupedSampler, get_model_param_count, get_parameter_names
-from .trainer_utils import enable_full_determinism, set_seed
+from .trainer_utils import RemoveColumnsCollator, enable_full_determinism, set_seed
 from .training_args import OptimizerNames, TrainingArguments
-from .utils import can_return_loss, find_labels
+from .utils import can_return_loss, find_labels, logging
 
 if is_datasets_available():
     import datasets
@@ -79,6 +101,7 @@ class TrainOutput(NamedTuple):
 PREFIX_CHECKPOINT_DIR = "checkpoint"
 _re_checkpoint = re.compile(r"^" + PREFIX_CHECKPOINT_DIR + r"\-(\d+)$")
 
+logger = logging.get_logger(__name__)
 
 # Name of the files used for checkpointing
 TRAINER_STATE_NAME = "trainer_state.json"
@@ -122,6 +145,19 @@ class Trainer:
         self.deepspeed = None
         self.is_in_train = False
 
+        # TODO: this is just a temporaily implementation to support zero-3 based on deepspeed config.
+        self.use_zero3 = False
+        if self.args.deepspeed:
+            with open(self.args.deepspeed) as f:
+                deepspeed_config = json.load(f)
+                try:
+                    if deepspeed_config["zero_optimization"]["stage"] == 3:
+                        self.use_zero3 = True
+                    else:
+                        raise NotImplementedError("we support deepspeed config with zero stage == 3 only.")
+                except KeyError as e:
+                    raise RuntimeError("Parsing deepspeed config failed") from e
+
         # self.create_accelerator_and_postprocess()
 
         # memory metrics - must set up as early as possible
@@ -131,6 +167,7 @@ class Trainer:
         # set the correct log level depending on the node
         log_level = args.get_process_log_level()
         logging.set_verbosity(log_level)
+        logger.setLevel(log_level)
 
         if model is None:
             if model_init is not None:
@@ -505,6 +542,10 @@ class Trainer:
             optimizer_cls = nn.Adagrad
         elif args.optim == OptimizerNames.RMSPROP:
             optimizer_cls = nn.RMSProp
+        elif args.optim in OptimizerNames.BF16ADAMW:
+            from ..trainers.adamw_bf16 import BF16AdamW
+
+            optimizer_cls = BF16AdamW
         elif args.optim in [OptimizerNames.LOMO, OptimizerNames.ADALOMO]:
             raise NotImplementedError
         else:
@@ -730,6 +771,12 @@ class Trainer:
 
             model_ = ReturnLoss(model)
 
+        if self.use_zero3:
+            model_ = prepare_network(model_, 3, optimizer_parallel_group=GlobalComm.WORLD_COMM_GROUP)
+            zero_helper = ZeroHelper(self.optimizer, 3, optimizer_parallel_group=GlobalComm.WORLD_COMM_GROUP)
+        else:
+            zero_helper = None
+
         # Note: unlike the original transformers, we will define train step process
         # that include auto mix precision, forward process, loss compute and optimizer step on `train_model`
         train_model = TrainOneStepWrapper(
@@ -742,6 +789,7 @@ class Trainer:
             gradient_accumulation_steps=self.args.gradient_accumulation_steps,
             clip_grad="global_norm",
             clip_value=self.args.max_grad_norm,
+            zero_helper=zero_helper,
         )
 
         return model, train_model

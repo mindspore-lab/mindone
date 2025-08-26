@@ -3,6 +3,9 @@
 # This code is adapted from https://github.com/huggingface/diffusers
 # with modifications to run diffusers on mindspore.
 #
+# This code is adapted from https://github.com/huggingface/diffusers
+# with modifications to run diffusers on mindspore.
+#
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -46,8 +49,10 @@ class WanAttnProcessor2_0:
     ) -> ms.Tensor:
         encoder_hidden_states_img = None
         if attn.add_k_proj is not None:
-            encoder_hidden_states_img = encoder_hidden_states[:, :257]
-            encoder_hidden_states = encoder_hidden_states[:, 257:]
+            # 512 is the context length of the text encoder, hardcoded for now
+            image_context_length = encoder_hidden_states.shape[1] - 512
+            encoder_hidden_states_img = encoder_hidden_states[:, :image_context_length]
+            encoder_hidden_states = encoder_hidden_states[:, image_context_length:]
         if encoder_hidden_states is None:
             encoder_hidden_states = hidden_states
 
@@ -69,7 +74,8 @@ class WanAttnProcessor2_0:
             def apply_rotary_emb(hidden_states: ms.Tensor, freqs: ms.Tensor):
                 # TODO: use float32 here since float64 has performance issue
                 # x_rotated = view_as_complex(unflatten(hidden_states.to(ms.float64), 3, (-1, 2)))
-                x_rotated = view_as_complex(unflatten(hidden_states.to(ms.float32), 3, (-1, 2)))
+                dtype = ms.float32
+                x_rotated = view_as_complex(unflatten(hidden_states.to(dtype), 3, (-1, 2)))
                 x_out = ops.view_as_real(x_rotated * freqs).flatten(3, 4)
                 return x_out.type_as(hidden_states)
 
@@ -123,6 +129,7 @@ class WanImageEmbedding(nn.Cell):
             batch_size, seq_len, embed_dim = encoder_hidden_states_image.shape
             encoder_hidden_states_image = encoder_hidden_states_image.view(-1, 2 * seq_len, embed_dim)
             encoder_hidden_states_image = encoder_hidden_states_image + self.pos_embed
+
         hidden_states = self.norm1(encoder_hidden_states_image)
         hidden_states = self.ff(hidden_states)
         hidden_states = self.norm2(hidden_states)
@@ -188,9 +195,10 @@ class WanRotaryPosEmbed(nn.Cell):
         t_dim = attention_head_dim - h_dim - w_dim
 
         freqs = []
+        freqs_dtype = ms.float64
         for dim in [t_dim, h_dim, w_dim]:
             freq = get_1d_rotary_pos_embed(
-                dim, max_seq_len, theta, use_real=False, repeat_interleave_real=False, freqs_dtype=ms.float64
+                dim, max_seq_len, theta, use_real=False, repeat_interleave_real=False, freqs_dtype=freqs_dtype
             )
             freqs.append(freq)
         self.freqs = mint.cat(freqs, dim=1)
@@ -364,6 +372,7 @@ class WanTransformer3DModel(ModelMixin, ConfigMixin, PeftAdapterMixin, FromOrigi
         image_dim: Optional[int] = None,
         added_kv_proj_dim: Optional[int] = None,
         rope_max_seq_len: int = 1024,
+        pos_embed_seq_len: Optional[int] = None,
     ) -> None:
         super().__init__()
 
@@ -384,6 +393,7 @@ class WanTransformer3DModel(ModelMixin, ConfigMixin, PeftAdapterMixin, FromOrigi
             time_proj_dim=inner_dim * 6,
             text_embed_dim=text_dim,
             image_embed_dim=image_dim,
+            pos_embed_seq_len=pos_embed_seq_len,
         )
 
         # 3. Transformer blocks
