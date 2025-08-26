@@ -448,7 +448,7 @@ if TYPE_CHECKING:
     from .unclip import UnCLIPImageVariationPipeline, UnCLIPPipeline
     from .unidiffuser import ImageTextPipelineOutput, UniDiffuserModel, UniDiffuserPipeline, UniDiffuserTextDecoder
     from .visualcloze import VisualClozeGenerationPipeline, VisualClozePipeline
-    from .wan import WanImageToVideoPipeline, WanPipeline, WanVideoToVideoPipeline, WanVACEPipeline
+    from .wan import WanImageToVideoPipeline, WanPipeline, WanVACEPipeline, WanVideoToVideoPipeline
     from .wuerstchen import WuerstchenCombinedPipeline, WuerstchenDecoderPipeline, WuerstchenPriorPipeline
 else:
     import sys
