@@ -342,7 +342,7 @@ class BaseVideoProcessor(BaseImageProcessorFast):
         do_resize: bool,
         size: SizeDict,
         size_divisor: Optional[int],
-        interpolation: Optional["F.InterpolationMode"],
+        interpolation: Optional["ms.dataset.vision.Inter.InterpolationMode"],
         do_center_crop: bool,
         crop_size: SizeDict,
         do_rescale: bool,

@@ -80,7 +80,7 @@ from .mindspore_utils import (  # noqa: F401
 )
 from .modeling_attn_mask_utils import dtype_to_min
 from .utils.generic import _CAN_RECORD_REGISTRY, OutputRecorder
-from .utils.import_utils import is_flash_attn_2_available, is_sdpa_available
+from .utils.import_utils import is_sdpa_available
 
 if is_safetensors_available():
     from safetensors import safe_open
@@ -1236,7 +1236,9 @@ class PreTrainedModel(
                 'Example: `model = AutoModel.from_pretrained("openai/whisper-tiny", attn_implementation="eager")`'
             )
         if not is_sdpa_available():
-            raise ImportError("MindSpore SDPA requirements in Transformers are not met. Use `attn_implementation='eager'` instead.")
+            raise ImportError(
+                "MindSpore SDPA requirements in Transformers are not met. Use `attn_implementation='eager'` instead."
+            )
 
         return True
 
@@ -1301,9 +1303,13 @@ class PreTrainedModel(
         if applicable_attn_implementation == "flash_attention_2":
             self._flash_attn_2_can_dispatch(is_init_check)
         elif applicable_attn_implementation == "flash_attention_3":
-            raise NotImplementedError("mindone.transformers does not support fa3 yet. Please use eager attention instead!")
+            raise NotImplementedError(
+                "mindone.transformers does not support fa3 yet. Please use eager attention instead!"
+            )
         elif applicable_attn_implementation == "flex_attention":
-            raise NotImplementedError("mindone.transformers does not support flex attention yet. Please use eager attention instead!")
+            raise NotImplementedError(
+                "mindone.transformers does not support flex attention yet. Please use eager attention instead!"
+            )
         elif applicable_attn_implementation == "sdpa":
             # Sdpa is the default, so we try it and fallback to eager otherwise when not possible
             try:
@@ -3054,8 +3060,9 @@ class PreTrainedModel(
                 matching = [s for s in key_renaming_mapping.keys() if "LayerNorm.gamma" in s]
                 if matching:
                     # Fix the key names when model weight names contain LayerNorm.gamma/LayerNorm.beta
-                    state_dict = {key_renaming_mapping[k]: v for k, v in state_dict.items() if
-                                  k in key_renaming_mapping}
+                    state_dict = {
+                        key_renaming_mapping[k]: v for k, v in state_dict.items() if k in key_renaming_mapping
+                    }
                 # checkpoint mapping from hf to ms
                 state_dict = _convert_state_dict(model, state_dict, prefix)
 

@@ -31,10 +31,10 @@ import mindspore as ms
 
 from ...feature_extraction_utils import BatchFeature
 from ...image_processing_utils import select_best_resolution
-from ...image_utils import ImageInput,  get_image_size, to_numpy_array
-from ...video_utils import VideoInput
+from ...image_utils import ImageInput, get_image_size, to_numpy_array
 from ...processing_utils import ProcessingKwargs, ProcessorMixin, Unpack
 from ...utils import logging
+from ...video_utils import VideoInput
 from ..auto import AutoImageProcessor
 
 logger = logging.get_logger(__name__)

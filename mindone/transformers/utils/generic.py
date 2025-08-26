@@ -20,7 +20,6 @@ Generic utilities
 
 import inspect
 import json
-from transformers.utils import logging
 import os
 import tempfile
 import warnings
@@ -33,13 +32,17 @@ from functools import wraps
 from typing import Any, Callable, ContextManager, Optional, TypedDict
 
 import numpy as np
+from transformers.utils import logging
 
 import mindspore as ms
 from mindspore import nn
 
+from mindone.transformers.utils.import_utils import is_mindspore_available
+
 _CAN_RECORD_REGISTRY = {}
 
 logger = logging.get_logger(__name__)
+
 
 class cached_property(property):
     """
@@ -683,40 +686,6 @@ def filter_out_non_signature_kwargs(extra: Optional[list] = None):
     return decorator
 
 
-class TransformersKwargs(TypedDict, total=False):
-    """
-    Keyword arguments to be passed to the loss function
-
-    Attributes:
-        num_items_in_batch (`Optional[ms.Tensor]`, *optional*):
-            Number of items in the batch. It is recommended to pass it when
-            you are doing gradient accumulation.
-        output_hidden_states (`Optional[bool]`, *optional*):
-            Most of the models support outputing all hidden states computed during the forward pass.
-        output_attentions (`Optional[bool]`, *optional*):
-            Turn this on to return the intermediary attention scores.
-        output_router_logits (`Optional[bool]`, *optional*):
-            For MoE models, this allows returning the router logits to compute the loss.
-        cumulative_seqlens_q (`ms.Tensor`, *optional*)
-            Gets cumulative sequence length for query state.
-        cumulative_seqlens_k (`ms.Tensor`, *optional*)
-            Gets cumulative sequence length for key state.
-        max_length_q (`int`, *optional*):
-            Maximum sequence length for query state.
-        max_length_k (`int`, *optional*):
-            Maximum sequence length for key state.
-    """
-
-    num_items_in_batch: Optional["ms.Tensor"]
-    output_hidden_states: Optional[bool]
-    output_attentions: Optional[bool]
-    output_router_logits: Optional[bool]
-    cumulative_seqlens_q: Optional["ms.Tensor"]
-    cumulative_seqlens_k: Optional["ms.Tensor"]
-    max_length_q: Optional[int]
-    max_length_k: Optional[int]
-
-
 def is_timm_config_dict(config_dict: dict[str, Any]) -> bool:
     """Checks whether a config dict is a timm config dict."""
     return "pretrained_cfg" in config_dict
@@ -792,22 +761,6 @@ def can_return_tuple(func):
         return output
 
     return wrapper
-
-
-@dataclass
-class OutputRecorder:
-    """
-    Configuration for recording outputs from a model via hooks.
-
-    Attributes:
-        target_class (Type): The class (e.g., nn.Module) to which the hook will be attached.
-        index (Optional[int]): If the output is a tuple/list, optionally record only at a specific index.
-        layer_name (Optional[str]): Name of the submodule to target (if needed), e.g., "transformer.layer.3.attn".
-    """
-
-    target_class: "type[ms.nn.Cell]"
-    index: Optional[int] = 0
-    layer_name: Optional[str] = None
 
 
 def check_model_inputs(func):

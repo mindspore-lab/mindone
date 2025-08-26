@@ -24,11 +24,13 @@ import os
 import warnings
 from io import BytesIO
 from typing import Any, List, Optional, Tuple, Union
-import mindspore as ms
+
 import numpy as np
 import requests
 
-from .utils import is_librosa_available, is_numpy_array, is_soundfile_available, is_mindspore_tensor, requires_backends
+import mindspore as ms
+
+from .utils import is_librosa_available, is_mindspore_tensor, is_numpy_array, is_soundfile_available, requires_backends
 
 if is_soundfile_available():
     import soundfile as sf

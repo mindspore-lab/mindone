@@ -522,10 +522,6 @@ class ProcessorMixin(PushToHubMixin):
             optional_attribute_value = kwargs.pop(optional_attribute, None)
             setattr(self, optional_attribute, optional_attribute_value)
 
-            # Check audio tokenizer for its class but do not treat it as attr to avoid saving weights
-            if optional_attribute == "audio_tokenizer" and optional_attribute_value is not None:
-                proper_class = self.check_argument_for_proper_class(optional_attribute, optional_attribute_value)
-
         # Sanitize args and kwargs
         for key in kwargs:
             if key not in self.attributes:
@@ -1358,14 +1354,15 @@ class ProcessorMixin(PushToHubMixin):
 
     @staticmethod
     def get_possibly_dynamic_module(module_name):
-
-        if  "ImageProcess" in module_name:
+        if "ImageProcess" in module_name:
             sub_path = os.path.abspath(os.path.dirname(__file__))
             sub_path = str(Path(sub_path).parent)
             sys.path.insert(0, sub_path)
             mindone_transformers_module = importlib.import_module("mindone.transformers")
             if not hasattr(mindone_transformers_module, module_name):
-                raise ValueError(f"Expect to have `{module_name}` registered in `mindone.transformers`, but failed to load it!")
+                raise ValueError(
+                    f"Expect to have `{module_name}` registered in `mindone.transformers`, but failed to load it!"
+                )
             return getattr(mindone_transformers_module, module_name)
         else:
             if hasattr(transformers_module, module_name):

@@ -163,8 +163,10 @@ def is_flash_attn_2_available():
 def is_sdpa_available():
     return False
 
+
 def is_soundfile_available():
     return _soundfile_available
+
 
 def is_librosa_available():
     return _librosa_available

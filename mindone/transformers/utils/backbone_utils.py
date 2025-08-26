@@ -22,9 +22,6 @@ import inspect
 from collections.abc import Iterable
 from typing import TYPE_CHECKING, Optional, Union
 
-if TYPE_CHECKING:
-    from transformers.configuration_utils import PretrainedConfig
-
 
 class BackboneType(enum.Enum):
     TIMM = "timm"
