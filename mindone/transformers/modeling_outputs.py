@@ -1154,51 +1154,53 @@ class QuestionAnsweringModelOutput(ModelOutput):
 @dataclass
 class Seq2SeqQuestionAnsweringModelOutput(ModelOutput):
     """
-    Base class for outputs of sequence-to-sequence question answering models.
+        Base class for outputs of sequence-to-sequence question answering models.
 
-    Args:
-        loss (`ms.Tensor` of shape `(1,)`, *optional*, returned when `labels` is provided):
-            Total span extraction loss is the sum of a Cross-Entropy for the start and end positions.
-        start_logits (`ms.Tensor` of shape `(batch_size, sequence_length)`):
-            Span-start scores (before SoftMax).
-        end_logits (`ms.Tensor` of shape `(batch_size, sequence_length)`):
-            Span-end scores (before SoftMax).
-        past_key_values (`EncoderDecoderCache`, *optional*, returned when `use_cache=True` is passed or when `config.use_cache=True`):
-            It is a [`~cache_utils.EncoderDecoderCache`] instance. For more details, see our
-            [kv cache guide](https://huggingface.co/docs/transformers/en/kv_cache).
-]
-            Contains pre-computed hidden-states (key and values in the self-attention blocks and in the cross-attention
-            blocks) that can be used (see `past_key_values` input) to speed up sequential decoding.
-        decoder_hidden_states (`tuple(ms.Tensor)`, *optional*, returned when `output_hidden_states=True` is passed or when `config.output_hidden_states=True`):
-            Tuple of `ms.Tensor` (one for the output of the embeddings, if the model has an embedding layer, +
-            one for the output of each layer) of shape `(batch_size, sequence_length, hidden_size)`.
+        Args:
+            loss (`ms.Tensor` of shape `(1,)`, *optional*, returned when `labels` is provided):
+                Total span extraction loss is the sum of a Cross-Entropy for the start and end positions.
+            start_logits (`ms.Tensor` of shape `(batch_size, sequence_length)`):
+                Span-start scores (before SoftMax).
+            end_logits (`ms.Tensor` of shape `(batch_size, sequence_length)`):
+                Span-end scores (before SoftMax).
+            past_key_values (`EncoderDecoderCache`, *optional*, returned when `use_cache=True` is passed or when `config.use_cache=True`):
+                It is a [`~cache_utils.EncoderDecoderCache`] instance. For more details, see our
+                [kv cache guide](https://huggingface.co/docs/transformers/en/kv_cache).
+    ]
+                Contains pre-computed hidden-states (key and values in the self-attention blocks and in the cross-attention
+                blocks) that can be used (see `past_key_values` input) to speed up sequential decoding.
+            decoder_hidden_states (`tuple(ms.Tensor)`, *optional*, returned when `output_hidden_states=True` is passed or
+            when `config.output_hidden_states=True`):
+                Tuple of `ms.Tensor` (one for the output of the embeddings, if the model has an embedding layer, +
+                one for the output of each layer) of shape `(batch_size, sequence_length, hidden_size)`.
 
-            Hidden-states of the decoder at the output of each layer plus the initial embedding outputs.
-        decoder_attentions (`tuple(ms.Tensor)`, *optional*, returned when `output_attentions=True` is passed or when `config.output_attentions=True`):
-            Tuple of `ms.Tensor` (one for each layer) of shape `(batch_size, num_heads, sequence_length,
-            sequence_length)`.
+                Hidden-states of the decoder at the output of each layer plus the initial embedding outputs.
+            decoder_attentions (`tuple(ms.Tensor)`, *optional*, returned when `output_attentions=True` is passed or when `config.output_attentions=True`):
+                Tuple of `ms.Tensor` (one for each layer) of shape `(batch_size, num_heads, sequence_length,
+                sequence_length)`.
 
-            Attentions weights of the decoder, after the attention softmax, used to compute the weighted average in the
-            self-attention heads.
-        cross_attentions (`tuple(ms.Tensor)`, *optional*, returned when `output_attentions=True` is passed or when `config.output_attentions=True`):
-            Tuple of `ms.Tensor` (one for each layer) of shape `(batch_size, num_heads, sequence_length,
-            sequence_length)`.
+                Attentions weights of the decoder, after the attention softmax, used to compute the weighted average in the
+                self-attention heads.
+            cross_attentions (`tuple(ms.Tensor)`, *optional*, returned when `output_attentions=True` is passed or when `config.output_attentions=True`):
+                Tuple of `ms.Tensor` (one for each layer) of shape `(batch_size, num_heads, sequence_length,
+                sequence_length)`.
 
-            Attentions weights of the decoder's cross-attention layer, after the attention softmax, used to compute the
-            weighted average in the cross-attention heads.
-        encoder_last_hidden_state (`ms.Tensor` of shape `(batch_size, sequence_length, hidden_size)`, *optional*):
-            Sequence of hidden-states at the output of the last layer of the encoder of the model.
-        encoder_hidden_states (`tuple(ms.Tensor)`, *optional*, returned when `output_hidden_states=True` is passed or when `config.output_hidden_states=True`):
-            Tuple of `ms.Tensor` (one for the output of the embeddings, if the model has an embedding layer, +
-            one for the output of each layer) of shape `(batch_size, sequence_length, hidden_size)`.
+                Attentions weights of the decoder's cross-attention layer, after the attention softmax, used to compute the
+                weighted average in the cross-attention heads.
+            encoder_last_hidden_state (`ms.Tensor` of shape `(batch_size, sequence_length, hidden_size)`, *optional*):
+                Sequence of hidden-states at the output of the last layer of the encoder of the model.
+            encoder_hidden_states (`tuple(ms.Tensor)`, *optional*, returned when `output_hidden_states=True` is passed or
+            when `config.output_hidden_states=True`):
+                Tuple of `ms.Tensor` (one for the output of the embeddings, if the model has an embedding layer, +
+                one for the output of each layer) of shape `(batch_size, sequence_length, hidden_size)`.
 
-            Hidden-states of the encoder at the output of each layer plus the initial embedding outputs.
-        encoder_attentions (`tuple(ms.Tensor)`, *optional*, returned when `output_attentions=True` is passed or when `config.output_attentions=True`):
-            Tuple of `ms.Tensor` (one for each layer) of shape `(batch_size, num_heads, sequence_length,
-            sequence_length)`.
+                Hidden-states of the encoder at the output of each layer plus the initial embedding outputs.
+            encoder_attentions (`tuple(ms.Tensor)`, *optional*, returned when `output_attentions=True` is passed or when `config.output_attentions=True`):
+                Tuple of `ms.Tensor` (one for each layer) of shape `(batch_size, num_heads, sequence_length,
+                sequence_length)`.
 
-            Attentions weights of the encoder, after the attention softmax, used to compute the weighted average in the
-            self-attention heads.
+                Attentions weights of the encoder, after the attention softmax, used to compute the weighted average in the
+                self-attention heads.
     """
 
     loss: Optional[ms.Tensor] = None

@@ -5,7 +5,9 @@ from typing import Optional
 from transformers.utils import logging
 
 import mindspore as ms
-from mindspore import mint, nn, ops
+from mindspore import mint, nn
+
+from ..modeling_flash_attention_utils import _flash_attention_forward
 
 logger = logging.get_logger(__name__)
 
@@ -96,23 +98,6 @@ def flash_attention_forward(
     if attention_mask is not None:
         attention_mask = mint.logical_not(attention_mask) if attention_mask.dtype == ms.bool_ else attention_mask.bool()
 
-    # flash_attention only supports [float16, bfloat16]
-    origin_dtype = query.dtype
-    if origin_dtype not in (ms.float16, ms.bfloat16):
-        query = query.to(ms.float16)
-        key = key.to(ms.float16)
-        value = value.to(ms.float16)
-
-    attn_output = ops.flash_attention_score(
-        query,
-        key,
-        value,
-        head_num=num_head,
-        attn_mask=attention_mask,
-        keep_prob=1.0 - dropout,
-        scalar_value=scaling,
-        input_layout=input_layout,
-    )
-    attn_output = attn_output.to(origin_dtype)
+    attn_output = _flash_attention_forward(query, key, value, attention_mask, num_head, scaling, input_layout, dropout)
 
     return attn_output, None

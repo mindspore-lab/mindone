@@ -22,7 +22,7 @@ from transformers.utils import logging
 
 import mindspore as ms
 import mindspore.mint.nn.functional as F
-from mindspore import mint
+from mindspore import mint, ops
 
 logger = logging.get_logger(__name__)
 
@@ -284,22 +284,31 @@ def _flash_attention_forward(
     value_states: ms.Tensor,
     attention_mask: Optional[ms.Tensor],
     query_length: int,
-    is_causal: bool,
+    scaling: float = None,
+    input_layout: str = "BSND",
     dropout: float = 0.0,
     position_ids: Optional[ms.Tensor] = None,
     softmax_scale: Optional[float] = None,
     sliding_window: Optional[int] = None,
-    use_top_left_mask: bool = False,
-    softcap: Optional[float] = None,
-    deterministic: Optional[bool] = None,
-    cu_seq_lens_q: Optional[ms.Tensor] = None,
-    cu_seq_lens_k: Optional[ms.Tensor] = None,
-    max_length_q: Optional[int] = None,
-    max_length_k: Optional[int] = None,
-    target_dtype: Optional[ms.Type] = None,
-    implementation: Optional[str] = None,
     **kwargs,
 ):
-    raise NotImplementedError(
-        "`_flash_attention_forward` is not supported yet. Use `mindone.transformers.integrations.flash_attention.flash_attention_forward instead!`"
+    # flash_attention only supports [float16, bfloat16]
+    origin_dtype = query_states.dtype
+    if origin_dtype not in (ms.float16, ms.bfloat16):
+        query = query_states.to(ms.float16)
+        key = key_states.to(ms.float16)
+        value = value_states.to(ms.float16)
+
+    attn_output = ops.flash_attention_score(
+        query,
+        key,
+        value,
+        head_num=query_length,
+        attn_mask=attention_mask,
+        keep_prob=1.0 - dropout,
+        scalar_value=scaling,
+        input_layout=input_layout,
     )
+    attn_output = attn_output.to(origin_dtype)
+
+    return attn_output
