@@ -331,6 +331,7 @@ from .models.gpt2 import (
 from .models.gpt_bigcode import (
     GPTBigCodeForCausalLM,
     GPTBigCodeForSequenceClassification,
+    GPTBigCodeForTokenClassification,
     GPTBigCodeModel,
     GPTBigCodePreTrainedModel,
 )
@@ -338,6 +339,7 @@ from .models.gpt_neox import (
     GPTNeoXForCausalLM,
     GPTNeoXForQuestionAnswering,
     GPTNeoXForSequenceClassification,
+    GPTNeoXForTokenClassification,
     GPTNeoXLayer,
     GPTNeoXModel,
     GPTNeoXPreTrainedModel,
