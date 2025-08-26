@@ -22,7 +22,6 @@ import numpy as np
 from transformers.models.mbart.configuration_mbart import MBartConfig
 
 import mindspore
-
 from mindspore.mint.nn import BCEWithLogitsLoss, CrossEntropyLoss, MSELoss
 
 from ...activations import ACT2FN
@@ -749,7 +748,7 @@ class MBartPreTrainedModel(PreTrainedModel):
         pad_token = self.config.pad_token_id
         input_ids = mindspore.Tensor(
             [[0, 6, 10, 4, 2], [0, 8, 12, 2, pad_token]],
-                                     )
+        )
         dummy_inputs = {
             "attention_mask": input_ids.ne(pad_token),
             "input_ids": input_ids,
