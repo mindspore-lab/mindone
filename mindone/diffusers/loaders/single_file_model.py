@@ -1,4 +1,4 @@
-# Copyright 2024 The HuggingFace Team. All rights reserved.
+# Copyright 2025 The HuggingFace Team. All rights reserved.
 #
 # This code is adapted from https://github.com/huggingface/diffusers
 # with modifications to run diffusers on mindspore.
@@ -24,6 +24,7 @@ from typing_extensions import Self
 
 import mindspore as ms
 
+from .. import __version__
 from ..models.modeling_utils import _convert_state_dict
 from ..utils import deprecate, logging
 from .single_file_utils import (
@@ -32,8 +33,10 @@ from .single_file_utils import (
     convert_animatediff_checkpoint_to_diffusers,
     convert_auraflow_transformer_checkpoint_to_diffusers,
     convert_autoencoder_dc_checkpoint_to_diffusers,
+    convert_chroma_transformer_checkpoint_to_diffusers,
     convert_controlnet_checkpoint,
     convert_flux_transformer_checkpoint_to_diffusers,
+    convert_hidream_transformer_to_diffusers,
     convert_hunyuan_video_transformer_to_diffusers,
     convert_ldm_unet_checkpoint,
     convert_ldm_vae_checkpoint,
@@ -92,6 +95,10 @@ SINGLE_FILE_LOADABLE_CLASSES = {
         "checkpoint_mapping_fn": convert_flux_transformer_checkpoint_to_diffusers,
         "default_subfolder": "transformer",
     },
+    "ChromaTransformer2DModel": {
+        "checkpoint_mapping_fn": convert_chroma_transformer_checkpoint_to_diffusers,
+        "default_subfolder": "transformer",
+    },
     "LTXVideoTransformer3DModel": {
         "checkpoint_mapping_fn": convert_ltx_transformer_checkpoint_to_diffusers,
         "default_subfolder": "transformer",
@@ -128,6 +135,10 @@ SINGLE_FILE_LOADABLE_CLASSES = {
     "AutoencoderKLWan": {
         "checkpoint_mapping_fn": convert_wan_vae_to_diffusers,
         "default_subfolder": "vae",
+    },
+    "HiDreamImageTransformer2DModel": {
+        "checkpoint_mapping_fn": convert_hidream_transformer_to_diffusers,
+        "default_subfolder": "transformer",
     },
 }
 
@@ -183,9 +194,8 @@ class FromOriginalModelMixin:
             original_config (`str`, *optional*):
                 Dict or path to a yaml file containing the configuration for the model in its original format.
                     If a dict is provided, it will be used to initialize the model configuration.
-            mindspore_dtype (`str` or `mindspore.Type`, *optional*):
-                Override the default `mindspore.Type` and load the model with another dtype. If `"auto"` is passed, the
-                dtype is automatically derived from the model's weights.
+            mindspore_dtype (`ms.Type`, *optional*):
+                Override the default `ms.Type` and load the model with another dtype.
             force_download (`bool`, *optional*, defaults to `False`):
                 Whether or not to force the (re-)download of the model weights and configuration files, overriding the
                 cached versions if they exist.
@@ -255,6 +265,7 @@ class FromOriginalModelMixin:
         mindspore_dtype = kwargs.pop("mindspore_dtype", None)
         disable_mmap = kwargs.pop("disable_mmap", False)
 
+        user_agent = {"diffusers": __version__, "file_type": "single_file", "framework": "pytorch"}
         if mindspore_dtype is not None and not isinstance(mindspore_dtype, ms.Type):
             mindspore_dtype = ms.float32
             logger.warning(
@@ -273,6 +284,7 @@ class FromOriginalModelMixin:
                 local_files_only=local_files_only,
                 revision=revision,
                 disable_mmap=disable_mmap,
+                user_agent=user_agent,
             )
 
         mapping_functions = SINGLE_FILE_LOADABLE_CLASSES[mapping_class_name]

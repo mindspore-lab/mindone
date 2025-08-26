@@ -1,4 +1,4 @@
-# Copyright 2024 The Hunyuan Team and The HuggingFace Team. All rights reserved.
+# Copyright 2025 The Hunyuan Team and The HuggingFace Team. All rights reserved.
 #
 # This code is adapted from https://github.com/huggingface/diffusers
 # with modifications to run diffusers on mindspore.
@@ -1063,15 +1063,13 @@ class HunyuanVideoTransformer3DModel(ModelMixin, ConfigMixin, PeftAdapterMixin, 
         latent_sequence_length = hidden_states.shape[1]
         condition_sequence_length = encoder_hidden_states.shape[1]
         sequence_length = latent_sequence_length + condition_sequence_length
-        attention_mask = mint.zeros((batch_size, sequence_length), dtype=ms.bool_)  # [B, N]
-
+        attention_mask = mint.ones((batch_size, sequence_length), dtype=ms.bool_)  # [B, N]
         effective_condition_sequence_length = encoder_attention_mask.sum(dim=1, dtype=ms.int64)  # [B,]
         effective_sequence_length = latent_sequence_length + effective_condition_sequence_length
-
-        for i in range(batch_size):
-            attention_mask[i, : effective_sequence_length[i]] = True
-        # [B, 1, 1, N], for broadcasting across attention heads
-        attention_mask = attention_mask.unsqueeze(1).unsqueeze(1)
+        indices = mint.arange(sequence_length).unsqueeze(0)  # [1, N]
+        mask_indices = indices >= effective_sequence_length.unsqueeze(1)  # [B, N]
+        attention_mask = attention_mask.masked_fill(mask_indices, False)
+        attention_mask = attention_mask.unsqueeze(1).unsqueeze(1)  # [B, 1, 1, N]
 
         # 4. Transformer blocks
         for block in self.transformer_blocks:

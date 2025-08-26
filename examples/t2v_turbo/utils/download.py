@@ -135,10 +135,11 @@ class DownLoad:
     def download_file(self, url: str, file_path: str, chunk_size: int = 1024):
         """Download a file."""
 
-        # no check certificate
+        # For security reasons, this repository code does not provide a function to disable SSL.
+        # If necessary, please disable SSL verification yourself.
         ctx = ssl.create_default_context()
-        ctx.check_hostname = False
-        ctx.verify_mode = ssl.CERT_NONE
+        # ctx.check_hostname = False
+        # ctx.verify_mode = ssl.CERT_NONE
 
         # Define request headers.
         headers = {"User-Agent": self.USER_AGENT}
@@ -178,20 +179,22 @@ class DownLoad:
                 return file_path
 
         # Download the file.
+        # For security reasons, this repository code does not provide a function to disable SSL.
+        # If necessary, please disable SSL verification yourself.
         try:
             self.download_file(url, file_path)
         except (urllib.error.URLError, IOError) as e:
-            if url.startswith("https"):
-                url = url.replace("https", "http")
-                try:
-                    self.download_file(url, file_path)
-                except (urllib.error.URLError, IOError):
-                    # pylint: disable=protected-access
-                    ssl._create_default_https_context = ssl._create_unverified_context
-                    self.download_file(url, file_path)
-                    ssl._create_default_https_context = ssl.create_default_context
-            else:
-                raise e
+            # if url.startswith("https"):
+            #     url = url.replace("https", "http")
+            #     try:
+            #         self.download_file(url, file_path)
+            #     except (urllib.error.URLError, IOError):
+            #         # pylint: disable=protected-access
+            #         ssl._create_default_https_context = ssl._create_unverified_context
+            #         self.download_file(url, file_path)
+            #         ssl._create_default_https_context = ssl.create_default_context
+            # else:
+            raise e
 
         return file_path
 

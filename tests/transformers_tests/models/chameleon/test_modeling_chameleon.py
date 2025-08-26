@@ -1,4 +1,4 @@
-"""Adapted from https://github.com/huggingface/transformers/tree/main/tests//models/chameleon/test_modeling_chameleon.py."""
+"""Adapted from https://github.com/huggingface/transformers/tree/main/tests/models/chameleon/test_modeling_chameleon.py."""
 
 # This module contains test cases that are defined in the `.test_cases.py` file, structured as lists or tuples like
 #     [name, pt_module, ms_module, init_args, init_kwargs, inputs_args, inputs_kwargs, outputs_map].
@@ -10,7 +10,6 @@
 # In cases where models have unique initialization procedures or require testing with specialized output formats,
 # it is necessary to develop distinct, dedicated test cases.
 
-import inspect
 import logging
 
 import numpy as np
@@ -20,13 +19,7 @@ from transformers import ChameleonConfig
 
 import mindspore as ms
 
-from tests.modeling_test_utils import (
-    MS_DTYPE_MAPPING,
-    PT_DTYPE_MAPPING,
-    compute_diffs,
-    generalized_parse_args,
-    get_modules,
-)
+from tests.modeling_test_utils import compute_diffs, generalized_parse_args, get_modules
 from tests.transformers_tests.models.modeling_common import ids_numpy
 
 DTYPE_AND_THRESHOLDS = {"fp32": 5e-4, "fp16": 5e-3, "bf16": 5e-2}
@@ -66,6 +59,7 @@ class ChameleonModelTester:
         vq_channel_multiplier=[1, 4],
         vq_img_token_start_id=10,  # has to be less than vocab size when added with vq_num_embeds
         scope=None,
+        attn_implementation="eager",
     ):
         self.batch_size = batch_size
         self.seq_length = seq_length
@@ -94,6 +88,7 @@ class ChameleonModelTester:
         self.vq_embed_dim = vq_embed_dim
         self.vq_channel_multiplier = vq_channel_multiplier
         self.vq_img_token_start_id = vq_img_token_start_id
+        self.attn_implementation = attn_implementation
 
     def prepare_config_and_inputs(self):
         input_ids = ids_numpy([self.batch_size, self.seq_length], self.vocab_size)
@@ -146,6 +141,7 @@ class ChameleonModelTester:
             pad_token_id=self.pad_token_id,
             vocabulary_map={v: k for k, v in vocab_map.items()},
             vq_config=self.get_vq_config(),
+            attn_implementation=self.attn_implementation,
         )
 
     def get_vq_config(self):
@@ -158,85 +154,55 @@ class ChameleonModelTester:
             "channel_multiplier": self.vq_channel_multiplier,
         }
 
+    def prepare_config_and_inputs_for_common(self):
+        config_and_inputs = self.prepare_config_and_inputs()
+        (
+            config,
+            input_ids,
+            input_mask,
+            sequence_labels,
+            token_labels,
+            choice_labels,
+        ) = config_and_inputs
+        inputs_dict = {"input_ids": input_ids, "attention_mask": input_mask}
+        return config, inputs_dict
+
 
 model_tester = ChameleonModelTester()
-(
-    config,
-    input_ids,
-    input_mask,
-    sequence_labels,
-    token_labels,
-    choice_labels,
-) = model_tester.prepare_config_and_inputs()
+config, inputs_dict = model_tester.prepare_config_and_inputs_for_common()
 
 
 Chameleon_CASES = [
     [
-        "ChameleonModel",
-        "transformers.ChameleonModel",
-        "mindone.transformers.ChameleonModel",
+        "ChameleonForConditionalGeneration",
+        "transformers.ChameleonForConditionalGeneration",
+        "mindone.transformers.ChameleonForConditionalGeneration",
         (config,),
         {},
-        (input_ids,),
-        {
-            "attention_mask": input_mask,
-        },
-        {
-            "last_hidden_state": 0,
-        },
+        (),
+        inputs_dict,
+        {"logits": "logits"},
     ],
 ]
 
 
 @pytest.mark.parametrize(
     "name,pt_module,ms_module,init_args,init_kwargs,inputs_args,inputs_kwargs,outputs_map,dtype,mode",
-    [
-        case
-        + [
-            dtype,
-        ]
-        + [
-            mode,
-        ]
-        for case in Chameleon_CASES
-        for dtype in DTYPE_AND_THRESHOLDS.keys()
-        for mode in MODES
-    ],
+    [case + [dtype] + [mode] for case in Chameleon_CASES for dtype in DTYPE_AND_THRESHOLDS.keys() for mode in MODES],
 )
 def test_named_modules(
-    name,
-    pt_module,
-    ms_module,
-    init_args,
-    init_kwargs,
-    inputs_args,
-    inputs_kwargs,
-    outputs_map,
-    dtype,
-    mode,
+    name, pt_module, ms_module, init_args, init_kwargs, inputs_args, inputs_kwargs, outputs_map, dtype, mode
 ):
     ms.set_context(mode=mode)
 
-    (
-        pt_model,
-        ms_model,
-        pt_dtype,
-        ms_dtype,
-    ) = get_modules(pt_module, ms_module, dtype, *init_args, **init_kwargs)
+    (pt_model, ms_model, pt_dtype, ms_dtype) = get_modules(pt_module, ms_module, dtype, *init_args, **init_kwargs)
     pt_inputs_args, pt_inputs_kwargs, ms_inputs_args, ms_inputs_kwargs = generalized_parse_args(
         pt_dtype, ms_dtype, *inputs_args, **inputs_kwargs
     )
 
-    # set `hidden_dtype` if requiring, for some modules always compute in float
-    # precision and require specific `hidden_dtype` to cast before return
-    if "hidden_dtype" in inspect.signature(pt_model.forward).parameters:
-        pt_inputs_kwargs.update({"hidden_dtype": PT_DTYPE_MAPPING[pt_dtype]})
-        ms_inputs_kwargs.update({"hidden_dtype": MS_DTYPE_MAPPING[ms_dtype]})
     with torch.no_grad():
         pt_outputs = pt_model(*pt_inputs_args, **pt_inputs_kwargs)
     ms_outputs = ms_model(*ms_inputs_args, **ms_inputs_kwargs)
-    # logger.info(f"ms:{ms_outputs}")
-    # logger.info(f"pt:{pt_outputs}" )
     if outputs_map:
         pt_outputs_n = []
         ms_outputs_n = []
@@ -247,6 +213,9 @@ def test_named_modules(
                 pt_outputs_n += list(pt_output)
                 ms_outputs_n += list(ms_output)
             else:
+                # we do not need to compare the logits of image tokens, which are very negative values
+                pt_output[pt_output < -10e5] = 0
+                ms_output[ms_output < -10e5] = 0
                 pt_outputs_n.append(pt_output)
                 ms_outputs_n.append(ms_output)
         diffs = compute_diffs(pt_outputs_n, ms_outputs_n)

@@ -19,6 +19,7 @@ from packaging import version
 
 from . import (
     albert,
+    aria,
     auto,
     bart,
     bert,
@@ -27,8 +28,16 @@ from . import (
     bit,
     blip,
     blip_2,
+    camembert,
+    canine,
+    chameleon,
     clap,
     clip,
+    convbert,
+    convnext,
+    convnextv2,
+    depth_anything,
+    dinov2,
     dpt,
     fuyu,
     gemma,
@@ -41,12 +50,19 @@ from . import (
     granitemoe,
     granitemoeshared,
     hiera,
+    hubert,
+    idefics,
+    idefics2,
     idefics3,
     ijepa,
     imagegpt,
     levit,
     llama,
     llava,
+    llava_next,
+    llava_next_video,
+    llava_onevision,
+    m2m_100,
     mbart,
     megatron_bert,
     minicpm4,
@@ -54,6 +70,9 @@ from . import (
     mixtral,
     mobilebert,
     mpt,
+    mvp,
+    opt,
+    owlvit,
     paligemma,
     persimmon,
     phi,
@@ -64,14 +83,19 @@ from . import (
     qwen2_audio,
     qwen2_vl,
     roberta,
+    segformer,
     siglip,
+    smolvlm,
     speecht5,
+    starcoder2,
     switch_transformers,
     t5,
     umt5,
+    vit,
     vits,
     wav2vec2,
     xlm_roberta,
+    yolos,
 )
 
 if version.parse(transformers.__version__) >= version.parse("4.51.0"):
@@ -81,4 +105,4 @@ if version.parse(transformers.__version__) >= version.parse("4.51.3"):
     from . import glm4
 
 if version.parse(transformers.__version__) >= version.parse("4.53.0"):
-    from . import glm4v
+    from . import glm4v, minimax, vjepa2

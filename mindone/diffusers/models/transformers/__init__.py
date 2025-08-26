@@ -17,9 +17,11 @@ from .transformer_2d import Transformer2DModel
 from .transformer_allegro import AllegroTransformer3DModel
 from .transformer_cogview3plus import CogView3PlusTransformer2DModel
 from .transformer_cogview4 import CogView4Transformer2DModel
+from .transformer_cosmos import CosmosTransformer3DModel
 from .transformer_easyanimate import EasyAnimateTransformer3DModel
 from .transformer_flux import FluxTransformer2DModel
 from .transformer_hunyuan_video import HunyuanVideoTransformer3DModel
+from .transformer_hunyuan_video_framepack import HunyuanVideoFramepackTransformer3DModel
 from .transformer_ltx import LTXVideoTransformer3DModel
 from .transformer_lumina2 import Lumina2Transformer2DModel
 from .transformer_mochi import MochiTransformer3DModel

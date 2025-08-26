@@ -14,12 +14,6 @@ from huggingface_hub import HfApi, configure_http_backend, hf_hub_download, snap
 from safetensors.torch import _find_shared_tensors, _is_complete, load_file, save_file
 
 
-def backend_factory() -> requests.Session:
-    session = requests.Session()
-    session.verify = False
-    return session
-
-
 def _remove_duplicate_names(
     state_dict: Dict[str, torch.Tensor],
     *,
@@ -332,6 +326,18 @@ if __name__ == "__main__":
 
     args = parser.parse_args()
     if args.disable_ssl_verify:
+        print(
+            "Warning: The --disable-ssl-verify flag is deprecated and has no effect. "
+            "SSL verification is enforced for security reasons."
+        )
+
+        def backend_factory() -> requests.Session:
+            session = requests.Session()
+            # For security reasons, this repository code does not provide a function to disable SSL.
+            # If necessary, please disable SSL verification yourself.
+            # session.verify = False
+            return session
+
         configure_http_backend(backend_factory=backend_factory)
 
     path = convert(
