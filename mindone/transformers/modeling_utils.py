@@ -1011,7 +1011,13 @@ class PreTrainedModel(
         # setting it recursively)
         # TODO set default implementation to "eager" because of immature sdpa attention
         if self.config._attn_implementation == "sdpa":
-            self.config._attn_implementation == "eager"
+            self.config._attn_implementation = "eager"
+            # warn user that sdpa is not supported
+            logger.warning(
+                "SDPA is not supported yet. Falling back to eager attention implementation. This warning can be removed using the argument "
+                '`attn_implementation="eager"` when loading the model. '
+                "Example: `model = AutoModel.from_pretrained('openai/whisper-tiny', attn_implementation='eager')`"
+            )
         self.config._attn_implementation_internal = self._check_and_adjust_attn_implementation(
             self.config._attn_implementation, is_init_check=True
         )

@@ -121,7 +121,6 @@ class AriaModelTester:
             },
             image_token_index=self.image_token_index,
         )
-        config._attn_implementation = "eager"
         return text_config, config
 
 

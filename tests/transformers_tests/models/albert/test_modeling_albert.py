@@ -103,7 +103,6 @@ class AlbertModelTester:
             choice_labels = ids_numpy([self.batch_size], self.num_choices)
 
         config = self.get_config()
-        config._attn_implementation = "eager"
         return config, input_ids, token_type_ids, input_mask, sequence_labels, token_labels, choice_labels
 
     def get_config(self):
