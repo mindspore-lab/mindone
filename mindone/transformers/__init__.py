@@ -255,6 +255,20 @@ from .models.convbert import (
     ConvBertLayer,
     ConvBertModel,
 )
+from .models.convnext import (
+    ConvNextBackbone,
+    ConvNextFeatureExtractor,
+    ConvNextForImageClassification,
+    ConvNextImageProcessor,
+    ConvNextModel,
+    ConvNextPreTrainedModel,
+)
+from .models.convnextv2 import (
+    ConvNextV2Backbone,
+    ConvNextV2ForImageClassification,
+    ConvNextV2Model,
+    ConvNextV2PreTrainedModel,
+)
 from .models.deberta import (
     DebertaForMaskedLM,
     DebertaForQuestionAnswering,
@@ -272,7 +286,9 @@ from .models.deberta_v2 import (
     DebertaV2Model,
     DebertaV2PreTrainedModel,
 )
-from .models.dpt import DPTForDepthEstimation
+from .models.depth_anything import DepthAnythingForDepthEstimation, DepthAnythingPreTrainedModel
+from .models.dinov2 import Dinov2Backbone, Dinov2ForImageClassification, Dinov2Model, Dinov2PreTrainedModel
+from .models.dpt import DPTForDepthEstimation, DPTImageProcessor, DPTModel, DPTPreTrainedModel
 from .models.fuyu import FuyuForCausalLM, FuyuPreTrainedModel
 from .models.gemma import (
     GemmaForCausalLM,
@@ -460,6 +476,15 @@ from .models.opt import (
     OPTModel,
     OPTPreTrainedModel,
 )
+from .models.owlvit import (
+    OwlViTForObjectDetection,
+    OwlViTImageProcessor,
+    OwlViTModel,
+    OwlViTPreTrainedModel,
+    OwlViTProcessor,
+    OwlViTTextModel,
+    OwlViTVisionModel,
+)
 from .models.paligemma import PaliGemmaForConditionalGeneration, PaliGemmaPreTrainedModel
 from .models.persimmon import (
     PersimmonForCausalLM,
@@ -623,6 +648,7 @@ from .models.xlm_roberta_xl import (
     XLMRobertaXLModel,
     XLMRobertaXLPreTrainedModel,
 )
+from .models.yolos import YolosForObjectDetection, YolosImageProcessor, YolosModel, YolosPreTrainedModel
 from .pipelines import TextGenerationPipeline, pipeline
 from .processing_utils import ProcessorMixin
 

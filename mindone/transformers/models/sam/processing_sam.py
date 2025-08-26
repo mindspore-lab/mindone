@@ -113,7 +113,7 @@ class SamProcessor(ProcessorMixin):
         # pop arguments that are not used in the foward but used nevertheless
         original_sizes = encoding_image_processor["original_sizes"]
 
-        if hasattr(original_sizes, "numpy"):  # Checks if Torch or TF tensor
+        if hasattr(original_sizes, "numpy"):  # Checks if MindSpore tensor
             original_sizes = original_sizes.numpy()
 
         input_points, input_labels, input_boxes = self._check_and_preprocess_points(
