@@ -466,7 +466,6 @@ class WanVACEPipeline(DiffusionPipeline, WanLoraLoaderMixin):
                 new_height, new_width = int(img_height * scale), int(img_width * scale)
                 resized_image = mint.nn.functional.interpolate(
                     image, size=(new_height, new_width), mode="bilinear", align_corners=False
-
                 ).squeeze(
                     0
                 )  # [C, H, W]
