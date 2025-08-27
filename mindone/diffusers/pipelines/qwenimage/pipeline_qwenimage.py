@@ -196,8 +196,8 @@ class QwenImagePipeline(DiffusionPipeline, QwenImageLoraLoaderMixin):
             ""
         )
         encoder_hidden_states = self.text_encoder(
-            input_ids=ms.Tensor(txt_tokens.input_ids),
-            attention_mask=ms.Tensor(txt_tokens.attention_mask),
+            input_ids=ms.Tensor(txt_tokens.input_ids, dtype=ms.int32),
+            attention_mask=ms.Tensor(txt_tokens.attention_mask, dtype=ms.int32),
             output_hidden_states=True,
         )
         hidden_states = encoder_hidden_states.hidden_states[-1]
