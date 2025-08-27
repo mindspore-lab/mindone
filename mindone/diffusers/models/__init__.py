@@ -83,8 +83,6 @@ _import_structure = {
     "transformers.transformer_temporal": ["TransformerTemporalModel"],
     "transformers.transformer_wan": ["WanTransformer3DModel"],
     "transformers.transformer_wan_vace": ["WanVACETransformer3DModel"],
-    "transformers.transformer_mochi": ["MochiTransformer3DModel"],
-    "transformers.transformer_omnigen": ["OmniGenTransformer2DModel"],
     "unets.unet_1d": ["UNet1DModel"],
     "unets.unet_2d": ["UNet2DModel"],
     "unets.unet_2d_condition": ["UNet2DConditionModel"],
