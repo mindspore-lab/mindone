@@ -486,6 +486,15 @@ from .models.opt import (
     OPTModel,
     OPTPreTrainedModel,
 )
+from .models.owlvit import (
+    OwlViTForObjectDetection,
+    OwlViTImageProcessor,
+    OwlViTModel,
+    OwlViTPreTrainedModel,
+    OwlViTProcessor,
+    OwlViTTextModel,
+    OwlViTVisionModel,
+)
 from .models.paligemma import PaliGemmaForConditionalGeneration, PaliGemmaPreTrainedModel
 from .models.persimmon import (
     PersimmonForCausalLM,
@@ -521,9 +530,19 @@ from .models.qwen2_5_omni import (
     Qwen2_5OmniToken2WavDiTModel,
     Qwen2_5OmniToken2WavModel,
 )
-from .models.qwen2_5_vl import Qwen2_5_VLForConditionalGeneration, Qwen2_5_VLModel, Qwen2_5_VLPreTrainedModel
+from .models.qwen2_5_vl import (
+    Qwen2_5_VLForConditionalGeneration,
+    Qwen2_5_VLModel,
+    Qwen2_5_VLPreTrainedModel,
+    Qwen2_5_VLProcessor,
+)
 from .models.qwen2_audio import Qwen2AudioEncoder, Qwen2AudioForConditionalGeneration, Qwen2AudioPreTrainedModel
-from .models.qwen2_vl import Qwen2VLForConditionalGeneration, Qwen2VLModel, Qwen2VLPreTrainedModel
+from .models.qwen2_vl import (
+    Qwen2VLForConditionalGeneration,
+    Qwen2VLImageProcessor,
+    Qwen2VLModel,
+    Qwen2VLPreTrainedModel,
+)
 from .models.recurrent_gemma import RecurrentGemmaForCausalLM, RecurrentGemmaModel, RecurrentGemmaPreTrainedModel
 from .models.rembert import (
     RemBertForCausalLM,
@@ -648,8 +667,12 @@ from .models.xlm_roberta_xl import (
     XLMRobertaXLModel,
     XLMRobertaXLPreTrainedModel,
 )
+from .models.yolos import YolosForObjectDetection, YolosImageProcessor, YolosModel, YolosPreTrainedModel
 from .pipelines import TextGenerationPipeline, pipeline
 from .processing_utils import ProcessorMixin
+from .trainer import Trainer
+from .training_args import TrainingArguments
+from .utils import logging
 
 if version.parse(transformers.__version__) >= version.parse("4.51.0"):
     from .models.qwen3 import Qwen3ForCausalLM, Qwen3Model, Qwen3PreTrainedModel

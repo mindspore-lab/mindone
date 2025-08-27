@@ -62,11 +62,14 @@ from .image_classification import ImageClassificationPipeline
 from .image_feature_extraction import ImageFeatureExtractionPipeline
 from .image_segmentation import ImageSegmentationPipeline
 from .image_text_to_text import ImageTextToTextPipeline
+from .object_detection import ObjectDetectionPipeline
 from .question_answering import QuestionAnsweringArgumentHandler, QuestionAnsweringPipeline
 from .text2text_generation import Text2TextGenerationPipeline
 from .text_classification import TextClassificationPipeline
 from .text_generation import TextGenerationPipeline
+from .zero_shot_classification import ZeroShotClassificationArgumentHandler, ZeroShotClassificationPipeline
 from .zero_shot_image_classification import ZeroShotImageClassificationPipeline
+from .zero_shot_object_detection import ZeroShotObjectDetectionPipeline
 
 if is_mindspore_available():
     import mindspore as ms
@@ -78,12 +81,14 @@ if is_mindspore_available():
         AutoModelForImageClassification,
         AutoModelForImageSegmentation,
         AutoModelForImageTextToText,
+        AutoModelForObjectDetection,
         AutoModelForQuestionAnswering,
         AutoModelForSemanticSegmentation,
         AutoModelForSeq2SeqLM,
         AutoModelForSequenceClassification,
         AutoModelForTokenClassification,
         AutoModelForZeroShotImageClassification,
+        AutoModelForZeroShotObjectDetection,
     )
 
 
@@ -104,14 +109,61 @@ TASK_ALIASES = {
     "text-to-speech": "text-to-audio",
 }
 SUPPORTED_TASKS = {
+    "feature-extraction": {
+        "impl": FeatureExtractionPipeline,
+        "ms": (AutoModel,) if is_mindspore_available() else (),
+        "default": {"model": {"ms": ("distilbert/distilbert-base-cased", "6ea8117")}},
+        "type": "multimodal",
+    },
+    "text-classification": {
+        "impl": TextClassificationPipeline,
+        "ms": (AutoModelForSequenceClassification,) if is_mindspore_available() else (),
+        "default": {"model": {"ms": ("distilbert/distilbert-base-uncased-finetuned-sst-2-english", "714eb0f")}},
+        "type": "text",
+    },
+    "question-answering": {
+        "impl": QuestionAnsweringPipeline,
+        "ms": (AutoModelForQuestionAnswering,) if is_mindspore_available() else (),
+        "default": {"model": {"ms": ("distilbert/distilbert-base-cased-distilled-squad", "564e9b5")}},
+        "type": "text",
+    },
+    "text2text-generation": {
+        "impl": Text2TextGenerationPipeline,
+        "ms": (AutoModelForSeq2SeqLM,) if is_mindspore_available() else (),
+        "default": {"model": {"ms": ("google-t5/t5-base", "a9723ea")}},
+        "type": "text",
+    },
+    "text-generation": {
+        "impl": TextGenerationPipeline,
+        "ms": (AutoModelForCausalLM,) if is_mindspore_available() else (),
+        "default": {"model": {"ms": ("openai-community/gpt2", "607a30d")}},
+        "type": "text",
+    },
+    "zero-shot-classification": {
+        "impl": ZeroShotClassificationPipeline,
+        "ms": (AutoModelForSequenceClassification,) if is_mindspore_available() else (),
+        "default": {
+            "model": {"ms": ("facebook/bart-large-mnli", "d7645e1")},
+            "config": {"ms": ("facebook/bart-large-mnli", "d7645e1")},
+        },
+        "type": "text",
+    },
+    "zero-shot-image-classification": {
+        "impl": ZeroShotImageClassificationPipeline,
+        "ms": (AutoModelForZeroShotImageClassification,) if is_mindspore_available() else (),
+        "default": {"model": {"ms": ("openai/clip-vit-base-patch32", "3d74acf")}},
+        "type": "multimodal",
+    },
     "image-classification": {
         "impl": ImageClassificationPipeline,
         "ms": (AutoModelForImageClassification,) if is_mindspore_available() else (),
-        "default": {
-            "model": {
-                "ms": ("google/vit-base-patch16-224", "3f49326"),
-            }
-        },
+        "default": {"model": {"ms": ("google/vit-base-patch16-224", "3f49326")}},
+        "type": "image",
+    },
+    "image-feature-extraction": {
+        "impl": ImageFeatureExtractionPipeline,
+        "ms": (AutoModel,) if is_mindspore_available() else (),
+        "default": {"model": {"ms": ("google/vit-base-patch16-224", "3f49326")}},
         "type": "image",
     },
     "image-segmentation": {
@@ -123,72 +175,26 @@ SUPPORTED_TASKS = {
     "image-text-to-text": {
         "impl": ImageTextToTextPipeline,
         "ms": (AutoModelForImageTextToText,) if is_mindspore_available() else (),
-        "default": {
-            "model": {
-                "ms": ("llava-hf/llava-onevision-qwen2-0.5b-ov-hf", "2c9ba3b"),
-            }
-        },
+        "default": {"model": {"ms": ("llava-hf/llava-onevision-qwen2-0.5b-ov-hf", "2c9ba3b")}},
         "type": "multimodal",
     },
-    "question-answering": {
-        "impl": QuestionAnsweringPipeline,
-        "ms": (AutoModelForQuestionAnswering,) if is_mindspore_available() else (),
-        "default": {
-            "model": {
-                "ms": ("distilbert/distilbert-base-cased-distilled-squad", "564e9b5"),
-            },
-        },
-        "type": "text",
+    "object-detection": {
+        "impl": ObjectDetectionPipeline,
+        "ms": (AutoModelForObjectDetection,) if is_mindspore_available() else (),
+        "default": {"model": {"ms": ("facebook/detr-resnet-50", "1d5f47b")}},
+        "type": "multimodal",
     },
-    "text-classification": {
-        "impl": TextClassificationPipeline,
-        "ms": (AutoModelForSequenceClassification,) if is_mindspore_available() else (),
-        "default": {
-            "model": {
-                "ms": ("distilbert/distilbert-base-uncased-finetuned-sst-2-english", "714eb0f"),
-            },
-        },
-        "type": "text",
-    },
-    "text-generation": {
-        "impl": TextGenerationPipeline,
-        "ms": (AutoModelForCausalLM,) if is_mindspore_available() else (),
-        "default": {"model": {"ms": ("openai-community/gpt2", "607a30d")}},
-        "type": "text",
-    },
-    "text2text-generation": {
-        "impl": Text2TextGenerationPipeline,
-        "ms": (AutoModelForSeq2SeqLM,) if is_mindspore_available() else (),
-        "default": {"model": {"ms": ("google-t5/t5-base", "a9723ea")}},
-        "type": "text",
+    "zero-shot-object-detection": {
+        "impl": ZeroShotObjectDetectionPipeline,
+        "ms": (AutoModelForZeroShotObjectDetection,) if is_mindspore_available() else (),
+        "default": {"model": {"ms": ("google/owlvit-base-patch32", "cbc355f")}},
+        "type": "multimodal",
     },
     "depth-estimation": {
         "impl": DepthEstimationPipeline,
         "ms": (AutoModelForDepthEstimation,) if is_mindspore_available() else (),
         "default": {"model": {"ms": ("Intel/dpt-large", "bc15f29")}},
         "type": "image",
-    },
-    "feature-extraction": {
-        "impl": FeatureExtractionPipeline,
-        "ms": (AutoModel,) if is_mindspore_available() else (),
-        "default": {"model": {"ms": ("distilbert/distilbert-base-cased", "6ea8117")}},
-        "type": "multimodal",
-    },
-    "image-feature-extraction": {
-        "impl": ImageFeatureExtractionPipeline,
-        "ms": (AutoModel,) if is_mindspore_available() else (),
-        "default": {"model": {"ms": ("google/vit-base-patch16-224", "3f49326")}},
-        "type": "image",
-    },
-    "zero-shot-image-classification": {
-        "impl": ZeroShotImageClassificationPipeline,
-        "ms": (AutoModelForZeroShotImageClassification,) if is_mindspore_available() else (),
-        "default": {
-            "model": {
-                "ms": ("openai/clip-vit-base-patch32", "3d74acf"),
-            }
-        },
-        "type": "multimodal",
     },
 }
 
