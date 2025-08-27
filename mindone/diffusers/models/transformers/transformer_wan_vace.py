@@ -285,12 +285,6 @@ class WanVACETransformer3DModel(ModelMixin, ConfigMixin, PeftAdapterMixin, FromO
         return_dict: bool = True,
         attention_kwargs: Optional[Dict[str, Any]] = None,
     ) -> Union[ms.Tensor, Dict[str, ms.Tensor]]:
-        if attention_kwargs is not None:
-            attention_kwargs = attention_kwargs.copy()
-            lora_scale = attention_kwargs.pop("scale", 1.0)
-        else:
-            lora_scale = 1.0
-
         batch_size, num_channels, num_frames, height, width = hidden_states.shape
 
         post_patch_num_frames = num_frames // self.p_t
