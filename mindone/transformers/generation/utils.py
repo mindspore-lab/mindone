@@ -1071,7 +1071,7 @@ class GenerationMixin:
                         decoder_attention_mask,
                         mint.ones((decoder_attention_mask.shape[0], 1), dtype=decoder_attention_mask.dtype),
                     ],
-                    axis=-1,
+                    dim=-1,
                 )
 
         if model_kwargs.get("use_cache", True):
@@ -2264,13 +2264,13 @@ class GenerationMixin:
         emb_length = inputs_embeds.shape[-1] if inputs_embeds is not None else 0
         ignore_label_index = 0
 
-        padded_input_ids = mint.zeros((bs, max_length), ms.int32)
+        padded_input_ids = mint.zeros((bs, max_length), dtype=ms.int32)
         padded_labels = ops.full((bs, max_length), ignore_label_index, dtype=ms.int32)
-        padded_position_ids = mint.zeros((bs, max_length), ms.int32)
-        padded_attention_mask = mint.zeros((bs, max_length), ms.bool_)
+        padded_position_ids = mint.zeros((bs, max_length), dtype=ms.int32)
+        padded_attention_mask = mint.zeros((bs, max_length), dtype=ms.bool_)
 
         padded_inputs_embeds = (
-            mint.zeros((bs, max_length, emb_length), inputs_embeds.dtype) if inputs_embeds is not None else None
+            mint.zeros((bs, max_length, emb_length), dtype=inputs_embeds.dtype) if inputs_embeds is not None else None
         )
 
         _labels = labels
@@ -2303,7 +2303,7 @@ class GenerationMixin:
             padded_attention_mask[batch_idx, :cur_len] = attention_mask[batch_idx][:]
             padded_input_ids[batch_idx, : min(cur_len, input_ids[batch_idx].shape[0])] = input_ids[batch_idx][:]
             padded_labels[batch_idx, :cur_len] = labels[batch_idx][:]
-            padded_position_ids[batch_idx, :cur_len] = mint.arange(0, cur_len, dtype=position_ids.dtype)
+            padded_position_ids[batch_idx, :cur_len] = mint.arange(0, cur_len.item(), dtype=position_ids.dtype)
 
             if inputs_embeds is not None:
                 padded_inputs_embeds[batch_idx, :cur_len] = inputs_embeds[batch_idx][:]
