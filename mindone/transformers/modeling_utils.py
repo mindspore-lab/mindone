@@ -3163,8 +3163,10 @@ class PreTrainedModel(
         # Only reset it if not present or different from previous config
         if "llama4" in self.config.model_type:  # TODO try to enable for FULL COMPILE HYBRID CACHE SUPPORT
             return self.__call__
-        raise NotImplementedError("mindone.transformers does not support operator like 'torch.compile' right now."
-                                  "Please add @jit decorator in model constuct func instead!")
+        raise NotImplementedError(
+            "mindone.transformers does not support operator like 'torch.compile' right now."
+            "Please add @jit decorator in model constuct func instead!"
+        )
 
     def retrieve_modules_from_names(self, names, add_prefix=False, remove_prefix=False):
         module_keys = {".".join(key.split(".")[:-1]) for key in names}

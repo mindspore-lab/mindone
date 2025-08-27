@@ -2013,8 +2013,8 @@ class GenerationMixin:
 
     def _supports_default_jit(self) -> bool:
         """
-        Return `True` if current model use compilable cache or _supports_jit is `True` , and add addtional consideration for `paged_attention` which use dynamic input
-        shape.
+        Return `True` if current model use compilable cache or _supports_jit is `True` ,
+        and add addtional consideration for `paged_attention` which use dynamic input shape.
         """
         return (
             self._supports_jit

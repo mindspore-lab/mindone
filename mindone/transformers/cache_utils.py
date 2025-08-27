@@ -393,7 +393,7 @@ class StaticLayer(CacheLayerMixin):
             try:
                 self.keys.index_copy_(2, cache_position, key_states)
                 self.values.index_copy_(2, cache_position, value_states)
-            except Exception as e: # MindSpore does not support index_copy_
+            except Exception:  # MindSpore does not support index_copy_
                 # Fallback for devices like MPS where index_copy_ might not be supported.
                 self.keys[:, :, cache_position] = key_states
                 self.values[:, :, cache_position] = value_states
@@ -487,7 +487,7 @@ class SlidingWindowLayer(StaticLayer):
         try:
             k_out_updated = k_out_shifted.index_copy(2, update_position, key_states)
             v_out_updated = v_out_shifted.index_copy(2, update_position, value_states)
-        except Exception as e: # MindSpore does not support index_copy_
+        except Exception:  # MindSpore does not support index_copy_
             # Fallback for MPS: clone and modify the clone
             k_out_updated = k_out_shifted.clone()
             v_out_updated = v_out_shifted.clone()
@@ -555,7 +555,7 @@ class ChunkedSlidingLayer(SlidingWindowLayer):
             try:
                 self.keys.index_copy_(2, cache_position, key_states)
                 self.values.index_copy_(2, cache_position, value_states)
-            except Exception as e: # MindSpore does not support index_copy_
+            except Exception:  # MindSpore does not support index_copy_
                 self.keys[:, :, cache_position] = key_states
                 self.values[:, :, cache_position] = value_states
             return self.keys, self.values
