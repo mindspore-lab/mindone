@@ -659,6 +659,7 @@ class GotOcr2Model(GotOcr2PreTrainedModel):
 )
 class GotOcr2ForConditionalGeneration(GotOcr2PreTrainedModel, GenerationMixin):
     _checkpoint_conversion_mapping = {
+        "embed_tokens.weight$": "embed_tokens.embedding_table",
         "^language_model.model": "model.language_model",
         "^vision_tower": "model.vision_tower",
         "^multi_modal_projector": "model.multi_modal_projector",
@@ -730,7 +731,7 @@ class GotOcr2ForConditionalGeneration(GotOcr2PreTrainedModel, GenerationMixin):
         output_hidden_states: Optional[bool] = None,
         return_dict: Optional[bool] = None,
         cache_position: Optional[ms.Tensor] = None,
-        logits_to_keep: Union[int, ms.Tensor] = 0,
+        logits_to_keep: Optional[Union[int, ms.Tensor]] = None,
     ) -> Union[tuple, GotOcr2CausalLMOutputWithPast]:
         r"""
         labels (`torch.LongTensor` of shape `(batch_size, sequence_length)`, *optional*):
@@ -788,6 +789,8 @@ class GotOcr2ForConditionalGeneration(GotOcr2PreTrainedModel, GenerationMixin):
         )
 
         hidden_states = outputs[0]
+        if logits_to_keep is None:
+            logits_to_keep = 1
         # Only compute necessary logits, and do not upcast them to float if we are not computing the loss
         slice_indices = slice(-logits_to_keep, None) if isinstance(logits_to_keep, int) else logits_to_keep
         logits = self.lm_head(hidden_states[:, slice_indices, :])
