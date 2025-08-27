@@ -250,7 +250,7 @@ class Emu3Attention(nn.Cell):
                 )
             elif self.config._attn_implementation == "flex_attention":
                 logger.warning_once(
-                    "Mindspore dose not support flex_attention yet. Falling back to eager attention."
+                    "Mindspore does not support flex_attention yet. Falling back to eager attention."
                     'This warning can be removed using the argument `attn_implementation="eager"` when loading the model.'
                 )
             else:
@@ -351,7 +351,7 @@ class Emu3VQVAEVectorQuantizer(nn.Cell):
     """
     A module for vector quantization using learned embedding vectors.
 
-    This module implements the quantization process similar to te one described in
+    This module implements the quantization process similar to the one described in
     the VQ-VAE (Vector Quantized Variational AutoEncoder) paper. It quantizes continuous
     input vectors into discrete codebook vectors, which are learned during training.
     Current implementation improves over previous ones by avoiding costly matrix multiplications
@@ -700,7 +700,7 @@ class Emu3VQVAEAttentionBlock(nn.Cell):
 
 class Emu3VQVAEGroupNorm(mint.nn.GroupNorm):
     """
-    Same as the torch GroupNorm with the only difference that this ones accepts
+    Same as the torch GroupNorm with the only difference that this one accepts
     an optional kwarg `quant_states` which is not used. This class makes it easier to
     use SpatialNorm or GroupNorm without conditionals
     """
@@ -1291,7 +1291,7 @@ class Emu3RotaryEmbedding(nn.Cell):
         seq_len = mint.max(position_ids) + 1
         if seq_len > self.max_seq_len_cached:  # growth
             inv_freq, self.attention_scaling = self.rope_init_fn(self.config, seq_len=seq_len)
-            self.register_buffer("inv_freq", inv_freq, persistent=False)  # TODO joao: may break with compilation
+            self.register_buffer("inv_freq", inv_freq, persistent=False)
             self.max_seq_len_cached = seq_len
 
         if seq_len < self.original_max_seq_len and self.max_seq_len_cached > self.original_max_seq_len:
