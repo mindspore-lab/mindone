@@ -552,7 +552,7 @@ class GenerationMixin:
                 if past_key_values is not None
                 else 0
             )
-            cache_position = ops.arange(past_length, input_ids.shape[1], dtype=ms.int32)
+            cache_position = mint.arange(past_length, input_ids.shape[1], dtype=ms.int32)
 
         if kwargs["use_cache"]:
             model_inputs["cache_position"] = cache_position
@@ -839,7 +839,7 @@ class GenerationMixin:
         if self.config.is_encoder_decoder and encoder_outputs is not None:
             # make dummy input_ids with value -100, as a sanity check ensuring that they won't be used for encoding
             shape = encoder_outputs.last_hidden_state.shape[:-1]
-            return ops.ones(shape, dtype=ms.int32) * -100
+            return mint.ones(shape, dtype=ms.int32) * -100
 
         # If there is some tensor in `model_kwargs`, we can infer the batch size from it. This is helpful with
         # soft-prompting or in multimodal implementations built on top of decoder-only language models.
@@ -850,12 +850,12 @@ class GenerationMixin:
                 break
 
         if "inputs_embeds" in model_kwargs:
-            return ops.ones((batch_size, 0), dtype=ms.int32)
+            return mint.ones((batch_size, 0), dtype=ms.int32)
 
         if bos_token_id is None:
             raise ValueError("`bos_token_id` has to be defined when no `input_ids` are provided.")
 
-        return ops.ones((batch_size, 1), dtype=ms.int32) * bos_token_id
+        return mint.ones((batch_size, 1), dtype=ms.int32) * bos_token_id
 
     def _prepare_attention_mask_for_generation(
         self,
@@ -871,7 +871,7 @@ class GenerationMixin:
             inputs_tensor = model_kwargs["input_ids"]
 
         # No information for attention mask inference -> return default attention mask
-        default_attention_mask = ops.ones(inputs_tensor.shape[:2], dtype=ms.int32)
+        default_attention_mask = mint.ones(inputs_tensor.shape[:2], dtype=ms.int32)
         if pad_token_id is None:
             return default_attention_mask
 
@@ -953,7 +953,7 @@ class GenerationMixin:
                 )
             decoder_start_token_id = decoder_start_token_id.view(-1, 1)
         else:
-            decoder_start_token_id = ops.ones((batch_size, 1), dtype=ms.int32) * decoder_start_token_id
+            decoder_start_token_id = mint.ones((batch_size, 1), dtype=ms.int32) * decoder_start_token_id
 
         # 3. Encoder-decoder models expect the `decoder_input_ids` to start with a special token. Let's ensure that.
         # no user input -> use decoder_start_token_id as decoder_input_ids
@@ -971,12 +971,12 @@ class GenerationMixin:
         # user input but doesn't start with decoder_start_token_id -> prepend decoder_start_token_id (and adjust
         # decoder_attention_mask if provided)
         elif (decoder_input_ids[:, 0] != decoder_start_token_id[:, 0]).all().item():
-            decoder_input_ids = ops.cat([decoder_start_token_id, decoder_input_ids], axis=-1)
+            decoder_input_ids = mint.cat([decoder_start_token_id, decoder_input_ids], dim=-1)
             if "decoder_attention_mask" in model_kwargs:
                 decoder_attention_mask = model_kwargs["decoder_attention_mask"]
-                decoder_attention_mask = ops.cat(
-                    (ops.ones_like(decoder_attention_mask)[:, :1], decoder_attention_mask),
-                    axis=-1,
+                decoder_attention_mask = mint.cat(
+                    (mint.ones_like(decoder_attention_mask)[:, :1], decoder_attention_mask),
+                    dim=-1,
                 )
                 model_kwargs["decoder_attention_mask"] = decoder_attention_mask
 
@@ -1041,7 +1041,7 @@ class GenerationMixin:
         # update token_type_ids with last value
         if "token_type_ids" in model_kwargs:
             token_type_ids = model_kwargs["token_type_ids"]
-            model_kwargs["token_type_ids"] = ops.cat([token_type_ids, token_type_ids[:, -1].unsqueeze(-1)], axis=-1)
+            model_kwargs["token_type_ids"] = mint.cat([token_type_ids, token_type_ids[:, -1].unsqueeze(-1)], dim=-1)
 
         if not is_encoder_decoder:
             # update attention mask
@@ -1049,8 +1049,8 @@ class GenerationMixin:
                 attention_mask = model_kwargs["attention_mask"]
 
                 if not self._supports_default_jit():
-                    model_kwargs["attention_mask"] = ops.cat(
-                        [attention_mask, ops.ones((attention_mask.shape[0], 1), dtype=attention_mask.dtype)], axis=-1
+                    model_kwargs["attention_mask"] = mint.cat(
+                        [attention_mask, mint.ones((attention_mask.shape[0], 1), dtype=attention_mask.dtype)], dim=-1
                     )
                 else:  # update static attention mask
                     cur_lens = attention_mask.sum(-1)
@@ -1066,10 +1066,10 @@ class GenerationMixin:
             # update decoder attention mask
             if "decoder_attention_mask" in model_kwargs:
                 decoder_attention_mask = model_kwargs["decoder_attention_mask"]
-                model_kwargs["decoder_attention_mask"] = ops.cat(
+                model_kwargs["decoder_attention_mask"] = mint.cat(
                     [
                         decoder_attention_mask,
-                        ops.ones((decoder_attention_mask.shape[0], 1), dtype=decoder_attention_mask.dtype),
+                        mint.ones((decoder_attention_mask.shape[0], 1), dtype=decoder_attention_mask.dtype),
                     ],
                     axis=-1,
                 )
@@ -1101,7 +1101,7 @@ class GenerationMixin:
                 cache_position = mint.cat((past_positions[:cur_idx], new_positions))
                 if cache_position.shape[-1] < max_len:  # pad to max_len
                     cache_position = mint.cat(
-                        (cache_position, ops.zeros((max_len - cache_position.shape[-1]), dtype=cache_position.dtype))
+                        (cache_position, mint.zeros((max_len - cache_position.shape[-1]), dtype=cache_position.dtype))
                     )
                 model_kwargs["cache_position"] = cache_position
 
@@ -2264,13 +2264,13 @@ class GenerationMixin:
         emb_length = inputs_embeds.shape[-1] if inputs_embeds is not None else 0
         ignore_label_index = 0
 
-        padded_input_ids = ops.zeros((bs, max_length), ms.int32)
+        padded_input_ids = mint.zeros((bs, max_length), ms.int32)
         padded_labels = ops.full((bs, max_length), ignore_label_index, dtype=ms.int32)
-        padded_position_ids = ops.zeros((bs, max_length), ms.int32)
-        padded_attention_mask = ops.zeros((bs, max_length), ms.bool_)
+        padded_position_ids = mint.zeros((bs, max_length), ms.int32)
+        padded_attention_mask = mint.zeros((bs, max_length), ms.bool_)
 
         padded_inputs_embeds = (
-            ops.zeros((bs, max_length, emb_length), inputs_embeds.dtype) if inputs_embeds is not None else None
+            mint.zeros((bs, max_length, emb_length), inputs_embeds.dtype) if inputs_embeds is not None else None
         )
 
         _labels = labels
@@ -2278,15 +2278,15 @@ class GenerationMixin:
 
         if attention_mask is None:
             if inputs_embeds is not None:
-                attention_mask = ops.ones(inputs_embeds.shape[:2], dtype=ms.bool_)
+                attention_mask = mint.ones(inputs_embeds.shape[:2], dtype=ms.bool_)
             else:
-                attention_mask = ops.ones(input_ids.shape[:], dtype=ms.bool_)
+                attention_mask = mint.ones(input_ids.shape[:], dtype=ms.bool_)
         else:
             attention_mask = attention_mask.astype(ms.bool_)
         cur_len = int(attention_mask.sum(-1).max())
 
         if position_ids is None:
-            position_ids = ops.arange(0, cur_len, dtype=ms.int32)
+            position_ids = mint.arange(0, cur_len, dtype=ms.int32)
         if labels is None:
             labels = ops.full(
                 (
@@ -2303,7 +2303,7 @@ class GenerationMixin:
             padded_attention_mask[batch_idx, :cur_len] = attention_mask[batch_idx][:]
             padded_input_ids[batch_idx, : min(cur_len, input_ids[batch_idx].shape[0])] = input_ids[batch_idx][:]
             padded_labels[batch_idx, :cur_len] = labels[batch_idx][:]
-            padded_position_ids[batch_idx, :cur_len] = ops.arange(0, cur_len, dtype=position_ids.dtype)
+            padded_position_ids[batch_idx, :cur_len] = mint.arange(0, cur_len, dtype=position_ids.dtype)
 
             if inputs_embeds is not None:
                 padded_inputs_embeds[batch_idx, :cur_len] = inputs_embeds[batch_idx][:]
@@ -2511,7 +2511,7 @@ class GenerationMixin:
                 generation_config._pad_token_tensor is not None
                 and batch_size > 1
                 and len(inputs_tensor.shape) == 2
-                and ops.sum(inputs_tensor[:, -1] == generation_config._pad_token_tensor) > 0
+                and mint.sum(inputs_tensor[:, -1] == generation_config._pad_token_tensor) > 0
             ):
                 logger.warning(
                     "A decoder-only architecture is being used, but right-padding was detected! For correct "
@@ -2724,7 +2724,7 @@ class GenerationMixin:
         )
 
         # replace bos with pad to not condition healing on it
-        input_ids = ops.where(input_ids == bos_token_id, pad_token_id, input_ids)
+        input_ids = mint.where(input_ids == bos_token_id, pad_token_id, input_ids)
 
         tail_ids = input_ids[:, -1].tolist()
 
@@ -2735,7 +2735,7 @@ class GenerationMixin:
 
         for batch_idx, (tail_id, tail_tok) in enumerate(zip(tail_ids, tail_toks)):
             batch_ids = input_ids[batch_idx]
-            if ops.all(batch_ids == pad_token_id).item():
+            if mint.all(batch_ids == pad_token_id).item():
                 continue  # skip empty sequences (all pad ids)
 
             # apply bias for alternatives (extensions) to the tail token
@@ -2858,7 +2858,7 @@ class GenerationMixin:
         # keep track of which sequences are already finished
         batch_size, cur_len = input_ids.shape
         this_peer_finished = False
-        unfinished_sequences = ops.ones(batch_size, dtype=ms.int32)
+        unfinished_sequences = mint.ones(batch_size, dtype=ms.int32)
         model_kwargs = self._get_initial_cache_position(input_ids, model_kwargs)
 
         model_forward = self.__call__
@@ -2986,10 +2986,10 @@ class GenerationMixin:
 
             # token selection
             if do_sample:
-                probs = ops.softmax(next_token_scores, axis=-1, dtype=ms.float32).to(next_token_scores.dtype)
+                probs = mint.softmax(next_token_scores, dim=-1, dtype=ms.float32).to(next_token_scores.dtype)
                 next_tokens = multinomial(probs, num_samples=1).squeeze(1)
             else:
-                next_tokens = ops.argmax(next_token_scores, dim=-1)
+                next_tokens = mint.argmax(next_token_scores, dim=-1)
 
             # finished sentences should have their next token be a padding token
             if has_eos_stopping_criteria:
@@ -2997,7 +2997,7 @@ class GenerationMixin:
             next_tokens = next_tokens.to(ms.int32)
 
             # update generated ids, model inputs, and length for next step
-            input_ids = ops.cat([input_ids, next_tokens[:, None]], axis=-1)
+            input_ids = mint.cat([input_ids, next_tokens[:, None]], dim=-1)
             if streamer is not None:
                 streamer.put(next_tokens.asnumpy())
 
@@ -3241,7 +3241,7 @@ class GenerationMixin:
         # - add length penalty
         topk_log_probs = topk_log_probs / ((cur_len + 1 - decoder_prompt_len) ** length_penalty)
         # - make sure no scores can be added anymore if beam is full and early stopping is on
-        beams_in_batch_are_full = ops.all(is_sent_finished, axis=-1, keep_dims=True) & ms.Tensor(
+        beams_in_batch_are_full = mint.all(is_sent_finished, dim=-1, keepdim=True) & ms.Tensor(
             early_stopping is True, ms.int32
         )
         topk_log_probs += beams_in_batch_are_full.to(ms.float32) * -1.0e9
