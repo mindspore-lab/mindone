@@ -961,7 +961,7 @@ class Qwen3ForCausalLM(Qwen3PreTrainedModel, GenerationMixin):
         block_tables = Tensor(shape=[None, None], dtype=ms.int32)
         slot_mapping = Tensor(shape=[None], dtype=ms.int32)
         batch_valid_length = ms.mutable(Tensor(shape=[None], dtype=ms.int32))
-        logits_to_keep = 0
+        logits_to_keep = 1
 
         self.set_inputs(
             input_ids,
