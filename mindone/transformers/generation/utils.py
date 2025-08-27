@@ -626,7 +626,7 @@ class GenerationMixin:
                         if model_inputs.get("inputs_embeds") is not None
                         else model_inputs[input_ids_key].shape[1]
                     )
-                    if not self._supports_jit() or attention_mask is None:
+                    if not self._supports_default_jit() or attention_mask is None:
                         model_input = model_input[:, -current_input_length:]
                     else:  # static shape input
                         cur_len = attention_mask.sum(-1).max()
