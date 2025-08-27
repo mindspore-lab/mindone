@@ -1,16 +1,16 @@
 import mindspore as ms
-from mindspore import Parameter, nn, ops
+from mindspore import Parameter, nn, ops, mint
 
 
 def norm_except_dim(v, pow, dim):
     if dim == -1:
-        return ops.norm(v, pow)
+        return mint.norm(v, pow)
     elif dim == 0:
         output_size = (v.shape[0],) + (1,) * (v.ndim - 1)
-        return ops.norm(v.view((v.shape[0], -1)), pow, 1).view(output_size)
+        return mint.norm(v.view((v.shape[0], -1)), pow, 1).view(output_size)
     elif dim == (v.ndim - 1):
         output_size = (1,) * (v.ndim - 1) + (v.shape[v.ndim - 1],)
-        return ops.norm(v.view((-1, v.shape[v.ndim - 1])), pow, 0).view(output_size)
+        return mint.norm(v.view((-1, v.shape[v.ndim - 1])), pow, 0).view(output_size)
     else:
         return norm_except_dim(v.transpose(0, v.ndim - 1), pow, 0).transpose(0, v.ndim - 1)
 
