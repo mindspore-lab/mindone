@@ -37,16 +37,14 @@ from transformers.utils import (
 from transformers.utils.deprecation import deprecate_kwarg
 
 import mindspore as ms
-import mindspore.mint as mint
-import mindspore.mint.nn as nn
 import mindspore.mint.nn.functional as F
-from mindspore import _no_grad, jit_class
+from mindspore import _no_grad, jit_class, mint, nn, ops
 from mindspore.common.initializer import HeNormal, Uniform, initializer
 
 from mindone.models.utils import normal_, ones_, zeros_
 
 from ...activations import ACT2FN
-from ...cache_utils import Cache, DynamicCache, get_max_length,  get_seq_length, update
+from ...cache_utils import Cache, DynamicCache, get_max_length, get_seq_length, update
 from ...generation import GenerationMixin
 from ...modeling_attn_mask_utils import dtype_to_min
 from ...modeling_flash_attention_utils import FlashAttentionKwargs
@@ -159,7 +157,7 @@ def repeat_kv(hidden_states: ms.Tensor, n_rep: int) -> ms.Tensor:
     batch, num_key_value_heads, slen, head_dim = hidden_states.shape
     if n_rep == 1:
         return hidden_states
-    hidden_states = hidden_states[:, :, None, :, :].broadcast((batch, num_key_value_heads, n_rep, slen, head_dim))
+    hidden_states = hidden_states[:, :, None, :, :].broadcast_to((batch, num_key_value_heads, n_rep, slen, head_dim))
     return hidden_states.reshape(batch, num_key_value_heads * n_rep, slen, head_dim)
 
 
@@ -235,9 +233,13 @@ class Emu3Attention(nn.Cell):
         query_states, key_states = apply_rotary_pos_emb(query_states, key_states, cos, sin)
 
         if past_key_value is not None:
-            # sin and cos are specific to RoPE models; cache_position needed for the static cache
-            cache_kwargs = {"sin": sin, "cos": cos, "cache_position": cache_position}
-            key_states, value_states = past_key_value.update(key_states, value_states, self.layer_idx, cache_kwargs)
+            if isinstance(past_key_value, Cache):
+                # sin and cos are specific to RoPE models; cache_position needed for the static cache
+                cache_kwargs = {"sin": sin, "cos": cos, "cache_position": cache_position}
+                key_states, value_states = past_key_value.update(key_states, value_states, self.layer_idx, cache_kwargs)
+            elif isinstance(past_key_value, tuple):
+                key_states, value_states = update(past_key_value, key_states, value_states, cache_position)
+                past_key_value = (key_states, value_states)
 
         attention_interface: Callable = eager_attention_construct
         if self.config._attn_implementation != "eager":
@@ -873,12 +875,12 @@ class Emu3VQVAEEncoder(nn.Cell):
         out_channels = 2 * latent_channels if double_latent else latent_channels
         block_in = base_channels * channel_multiplier[-1]
 
-        self.conv_in = mint.mint.nn.Conv2d(in_channels, base_channels, kernel_size=3, stride=1, padding=1)
+        self.conv_in = mint.nn.Conv2d(in_channels, base_channels, kernel_size=3, stride=1, padding=1)
         self.down_block = Emu3VQVAEDownBlock(config)
         self.middle_block = Emu3VQVAEMiddleBlock(config, block_in)
 
-        self.norm_out = mint.mint.nn.GroupNorm(num_groups=32, num_channels=block_in, eps=1e-6, affine=True)
-        self.conv_out = mint.mint.nn.Conv2d(
+        self.norm_out = mint.nn.GroupNorm(num_groups=32, num_channels=block_in, eps=1e-6, affine=True)
+        self.conv_out = mint.nn.Conv2d(
             block_in,
             out_channels,
             kernel_size=3,
@@ -1259,12 +1261,11 @@ class Emu3PreTrainedModel(PreTrainedModel):
         elif isinstance(module, mint.nn.Embedding):
             normal_(module.weight, mean=0.0, std=std)
             if module.padding_idx is not None:
-                zeros_(module.weight.data[module.padding_idx])
-                # module.weight[module.padding_idx] = 0
+                module.weight[module.padding_idx] = 0
 
 
 class Emu3RotaryEmbedding(nn.Cell):
-    def __init__(self, config: Emu3Config, device=None):
+    def __init__(self, config: Emu3Config):
         super().__init__()
         # BC: "rope_type" was originally "type"
         if hasattr(config, "rope_scaling") and config.rope_scaling is not None:
@@ -1277,11 +1278,11 @@ class Emu3RotaryEmbedding(nn.Cell):
         self.config = config
         self.rope_init_fn = ROPE_INIT_FUNCTIONS[self.rope_type]
 
-        inv_freq, self.attention_scaling = self.rope_init_fn(self.config, device)
+        inv_freq, self.attention_scaling = self.rope_init_fn(self.config)
         self.register_buffer("inv_freq", inv_freq, persistent=False)
         self.original_inv_freq = self.inv_freq
 
-    def _dynamic_frequency_update(self, position_ids, device):
+    def _dynamic_frequency_update(self, position_ids):
         """
         dynamic RoPE layers should recompute `inv_freq` in the following situations:
         1 - growing beyond the cached sequence length (allow scaling)
@@ -1289,36 +1290,33 @@ class Emu3RotaryEmbedding(nn.Cell):
         """
         seq_len = mint.max(position_ids) + 1
         if seq_len > self.max_seq_len_cached:  # growth
-            inv_freq, self.attention_scaling = self.rope_init_fn(self.config, device, seq_len=seq_len)
+            inv_freq, self.attention_scaling = self.rope_init_fn(self.config, seq_len=seq_len)
             self.register_buffer("inv_freq", inv_freq, persistent=False)  # TODO joao: may break with compilation
             self.max_seq_len_cached = seq_len
 
-        if seq_len < self.original_max_seq_len and self.max_seq_len_cached > self.original_max_seq_len:  # reset
-            # This .to() is needed if the model has been moved to a device after being initialized (because
-            # the buffer is automatically moved, but not the original copy)
+        if seq_len < self.original_max_seq_len and self.max_seq_len_cached > self.original_max_seq_len:
             self.original_inv_freq = self.original_inv_freq
             self.register_buffer("inv_freq", self.original_inv_freq, persistent=False)
             self.max_seq_len_cached = self.original_max_seq_len
 
     def construct(self, x, position_ids):
-        with no_grad():
-            if "dynamic" in self.rope_type:
-                self._dynamic_frequency_update(position_ids)
+        if "dynamic" in self.rope_type:
+            self._dynamic_frequency_update(position_ids)
 
-            # Core RoPE block
-            inv_freq_expanded = self.inv_freq[None, :, None].float().broadcast_to((position_ids.shape[0], -1, 1))
-            position_ids_expanded = position_ids[:, None, :].float()
-            # Force float32 (see https://github.com/huggingface/transformers/pull/29285)
-            freqs = (inv_freq_expanded.float() @ position_ids_expanded.float()).swapaxes(1, 2)
-            emb = mint.cat((freqs, freqs), dim=-1)
-            cos = emb.cos()
-            sin = emb.sin()
+        # Core RoPE block
+        inv_freq_expanded = self.inv_freq[None, :, None].float().broadcast_to((position_ids.shape[0], -1, 1))
+        position_ids_expanded = position_ids[:, None, :].float()
+        # Force float32 (see https://github.com/huggingface/transformers/pull/29285)
+        freqs = (inv_freq_expanded.float() @ position_ids_expanded.float()).swapaxes(1, 2)
+        emb = mint.cat((freqs, freqs), dim=-1)
+        cos = emb.cos()
+        sin = emb.sin()
 
-            # Advanced RoPE types (e.g. yarn) apply a post-processing scaling factor, equivalent to scaling attention
-            cos = cos * self.attention_scaling
-            sin = sin * self.attention_scaling
+        # Advanced RoPE types (e.g. yarn) apply a post-processing scaling factor, equivalent to scaling attention
+        cos = cos * self.attention_scaling
+        sin = sin * self.attention_scaling
 
-            return cos.to(dtype=x.dtype), sin.to(dtype=x.dtype)
+        return cos.to(dtype=x.dtype), sin.to(dtype=x.dtype)
 
 
 EMU3_TEXT_INPUTS_DOCSTRING = r"""
@@ -1571,7 +1569,7 @@ class Emu3TextModel(Emu3PreTrainedModel):
         attention_mask: ms.Tensor,
         sequence_length: int,
         target_length: int,
-        dtype: ms.dtype,
+        dtype: ms.Type,
         cache_position: ms.Tensor,
         batch_size: int,
         **kwargs,
@@ -1589,7 +1587,7 @@ class Emu3TextModel(Emu3PreTrainedModel):
             target_length (`int`):
                 The target length: when generating with static cache, the mask should be as long as the static cache,
                 to account for the 0 padding, the part of the cache that is not filled yet.
-            dtype (`ms.dtype`):
+            dtype (`ms.Type`):
                 The dtype to use for the 4D attention mask.
             cache_position (`ms.Tensor`):
                 Indices depicting the position of the input sequence tokens in the sequence.
@@ -1601,7 +1599,7 @@ class Emu3TextModel(Emu3PreTrainedModel):
             causal_mask = attention_mask
         else:
             min_dtype = dtype_to_min(dtype)
-            causal_mask = mint.full((sequence_length, target_length), fill_value=min_dtype, dtype=dtype)
+            causal_mask = ops.full((sequence_length, target_length), fill_value=min_dtype, dtype=dtype)
             if sequence_length != 1:
                 causal_mask = mint.triu(causal_mask, diagonal=1)
             causal_mask *= mint.arange(target_length) > cache_position.reshape(-1, 1)
@@ -1609,9 +1607,7 @@ class Emu3TextModel(Emu3PreTrainedModel):
             if attention_mask is not None:
                 causal_mask = causal_mask.clone()  # copy to contiguous memory for in-place edit
                 mask_length = attention_mask.shape[-1]
-                padding_mask = causal_mask[:, :, :, :mask_length] + attention_mask[:, None, None, :].to(
-                    causal_mask.device
-                )
+                padding_mask = causal_mask[:, :, :, :mask_length] + attention_mask[:, None, None, :]
                 padding_mask = padding_mask == 0
                 causal_mask[:, :, :, :mask_length] = causal_mask[:, :, :, :mask_length].masked_fill(
                     padding_mask, min_dtype
@@ -1694,12 +1690,14 @@ class Emu3ForCausalLM(Emu3PreTrainedModel, GenerationMixin):
         Example:
 
         ```python
-        >>> from mindone.transformers import Emu3Processor, Emu3ForConditionalGeneration
+        >>> from transformers import Emu3Processor
+        >>> from mindone.transformers import Emu3ForConditionalGeneration
         >>> import mindspore as ms
         >>> import requests
         >>> from PIL import Image
 
-        >>> model = Emu3ForCausalLM.from_pretrained("BAAI/Emu3-Chat-hf", torch_dtype=ms.bfloat16)
+        >>> model = Emu3ForConditionalGeneration.from_pretrained("BAAI/Emu3-Chat-hf")
+        >>> model = model.text_model
         >>> processor = Emu3Processor.from_pretrained("BAAI/Emu3-Chat-hf")
 
         >>> inputs = processor(text=["Can you write me a poem about winter."], return_tensors="np")
@@ -1734,8 +1732,6 @@ class Emu3ForCausalLM(Emu3PreTrainedModel, GenerationMixin):
         )
 
         hidden_states = outputs[0]
-        if logits_to_keep is None:
-            logits_to_keep = 1
         # Only compute necessary logits, and do not upcast them to float if we are not computing the loss
         slice_indices = slice(-logits_to_keep, None) if isinstance(logits_to_keep, int) else logits_to_keep
         logits = self.lm_head(hidden_states[:, slice_indices, :])
@@ -1928,13 +1924,18 @@ class Emu3ForConditionalGeneration(Emu3PreTrainedModel, GenerationMixin):
         Example:
 
         ```python
-        >>> from mindone.transformers import Emu3Processor, Emu3ForConditionalGeneration
+        >>> from transformers import Emu3Processor
+        >>> from mindone.transformers import Emu3ForConditionalGeneration
         >>> import mindspore as ms
         >>> import requests
         >>> from PIL import Image
 
         >>> model = Emu3ForConditionalGeneration.from_pretrained("BAAI/Emu3-Chat-hf", mindspore_dtype=ms.bfloat16)
-        >>> processor = Emu3Processor.from_pretrained("BAAI/Emu3-Chat-hf")
+        >>> processor = Emu3Processor.from_pretrained(
+        ...     "BAAI/Emu3-Chat-hf",
+        ...     min_pixels=240*360,
+        ...     max_pixels=512*512,
+        ... ) # reduce memory
 
         >>> conversation = [
         ...     {
@@ -1971,7 +1972,7 @@ class Emu3ForConditionalGeneration(Emu3PreTrainedModel, GenerationMixin):
         )
         return_dict = return_dict if return_dict is not None else self.config.use_return_dict
 
-        if (input_ids is None) ^ (inputs_embeds is not None):
+        if (input_ids is None) != (inputs_embeds is not None):
             raise ValueError(
                 "You cannot specify both input_ids and inputs_embeds at the same time, and must specify either one"
             )
@@ -1984,7 +1985,7 @@ class Emu3ForConditionalGeneration(Emu3PreTrainedModel, GenerationMixin):
         if pixel_values is not None:
             image_tokens = self.get_image_tokens(pixel_values, image_sizes)
             special_image_mask = input_ids == self.vocabulary_mapping.image_token_id
-            image_tokens = image_tokens.to(input_ids.device, input_ids.dtype)
+            image_tokens = image_tokens.to(input_ids.dtype)
             input_ids = input_ids.masked_scatter(special_image_mask, image_tokens)
 
         # decoder outputs consists of (dec_features, layer_state, dec_hidden, dec_attn)
@@ -2014,8 +2015,12 @@ class Emu3ForConditionalGeneration(Emu3PreTrainedModel, GenerationMixin):
         position_ids=None,
         use_cache=True,
         pixel_values=None,
+        logits_to_keep=None,
         **kwargs,
     ):
+        if logits_to_keep is None:  # Specific to MindSpore
+            logits_to_keep = 1
+
         # Overwritten -- in specific circumstances we don't want to construct image inputs to the model
 
         model_inputs = super().prepare_inputs_for_generation(
@@ -2027,6 +2032,7 @@ class Emu3ForConditionalGeneration(Emu3PreTrainedModel, GenerationMixin):
             position_ids=position_ids,
             pixel_values=pixel_values,
             use_cache=use_cache,
+            logits_to_keep=logits_to_keep,
             **kwargs,
         )
 

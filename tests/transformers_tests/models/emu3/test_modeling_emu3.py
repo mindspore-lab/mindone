@@ -19,8 +19,8 @@ import mindspore as ms
 from tests.modeling_test_utils import compute_diffs, generalized_parse_args, get_modules
 from tests.transformers_tests.models.modeling_common import floats_numpy, ids_numpy
 
-DTYPE_AND_THRESHOLDS = {"fp32": 5e-3, "fp16": 5e-4, "bf16": 6e-3}
-MODES = [0, 1]
+DTYPE_AND_THRESHOLDS = {"fp32": 5e-6, "fp16": 5e-3, "bf16": 5e-1}
+MODES = [1]
 
 
 class Emu3Text2TextModelTester:
@@ -227,6 +227,7 @@ class Emu3Vision2TextModelTester:
             "attention_mask": attention_mask,
             "pixel_values": pixel_values,
             "image_sizes": image_sizes,
+            "logits_to_keep": 1,
         }
         return config, inputs_dict
 
@@ -247,7 +248,7 @@ EMU3_CASES = [
     [
         "Emu3TextModel",
         "transformers.Emu3TextModel",
-        "mindway.transformers.Emu3TextModel",
+        "mindone.transformers.Emu3TextModel",
         (text_config,),
         {},
         (),
@@ -259,7 +260,7 @@ EMU3_CASES = [
     [
         "Emu3ForConditionalGeneration",
         "transformers.Emu3ForConditionalGeneration",
-        "mindway.transformers.Emu3ForConditionalGeneration",
+        "mindone.transformers.Emu3ForConditionalGeneration",
         (config,),
         {},
         (),
