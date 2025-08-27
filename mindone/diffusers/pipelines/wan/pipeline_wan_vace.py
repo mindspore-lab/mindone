@@ -20,7 +20,6 @@ from typing import Any, Callable, Dict, List, Optional, Union
 
 import numpy as np
 import PIL.Image
-
 import regex as re
 from transformers import AutoTokenizer
 
@@ -28,7 +27,6 @@ import mindspore as ms
 from mindspore import mint
 
 from mindone.diffusers.models.transformers.transformer_wan_vace import WanVACETransformer3DModel
-
 from mindone.transformers import UMT5EncoderModel
 
 from ...callbacks import MultiPipelineCallbacks, PipelineCallback
