@@ -548,7 +548,7 @@ class GenerationMixin:
         #   (this alternative is not as robust as calling `generate` and letting it create `cache_position`)
         elif cache_position is None:
             past_length = (
-                get_seq_length(past_key_values, dynamic=self._supports_default_dynamic_input())
+                get_seq_length(past_key_values, dynamic=not self._supports_default_jit())
                 if past_key_values is not None
                 else 0
             )
@@ -585,7 +585,7 @@ class GenerationMixin:
                 model_inputs["inputs_embeds"] = inputs_embeds
             else:
                 # For static shape, padding input_id to max_len when no cache, in prefill-stage
-                if not self._supports_default_dynamic_input() and past_key_values is None:
+                if self._supports_default_jit() and past_key_values is None:
                     pad_len = max(0, attention_mask.shape[1] - input_ids.shape[1])
                     input_ids = mint.nn.functional.pad(input_ids, (0, pad_len), value=0)
                 model_inputs[input_ids_key] = input_ids
@@ -616,7 +616,7 @@ class GenerationMixin:
                 _past_key_values = past_key_values
                 if (
                     isinstance(past_key_values, (tuple, list))
-                    and get_seq_length(past_key_values, dynamic=self._supports_default_dynamic_input()) == 0
+                    and get_seq_length(past_key_values, dynamic=not self._supports_default_jit()) == 0
                 ):
                     _past_key_values = None
 
@@ -626,7 +626,7 @@ class GenerationMixin:
                         if model_inputs.get("inputs_embeds") is not None
                         else model_inputs[input_ids_key].shape[1]
                     )
-                    if self._supports_default_dynamic_input() or attention_mask is None:
+                    if not self._supports_jit() or attention_mask is None:
                         model_input = model_input[:, -current_input_length:]
                     else:  # static shape input
                         cur_len = attention_mask.sum(-1).max()
@@ -1048,7 +1048,7 @@ class GenerationMixin:
             if "attention_mask" in model_kwargs:
                 attention_mask = model_kwargs["attention_mask"]
 
-                if self._supports_default_dynamic_input():
+                if not self._supports_default_jit():
                     model_kwargs["attention_mask"] = ops.cat(
                         [attention_mask, ops.ones((attention_mask.shape[0], 1), dtype=attention_mask.dtype)], axis=-1
                     )
@@ -1077,7 +1077,7 @@ class GenerationMixin:
         if model_kwargs.get("use_cache", True):
             # the first step for static shape
             if (
-                not self._supports_default_dynamic_input()
+                self._supports_default_jit()
                 and model_kwargs.get("attention_mask", None) is not None
                 and model_kwargs["attention_mask"].shape[-1] == model_kwargs["cache_position"].shape[0]
             ):
@@ -1090,7 +1090,7 @@ class GenerationMixin:
                 model_kwargs["cache_position"] = model_kwargs["cache_position"][-1:] + num_new_tokens
         else:
             past_positions = model_kwargs.pop("cache_position")
-            if self._supports_default_dynamic_input() or model_kwargs.get("attention_mask", None) is None:
+            if not self._supports_default_jit() or model_kwargs.get("attention_mask", None) is None:
                 cur_idx = int(past_positions[-1]) + 1
                 new_positions = mint.arange(cur_idx, cur_idx + num_new_tokens, dtype=past_positions.dtype)
                 model_kwargs["cache_position"] = mint.cat((past_positions, new_positions))
@@ -1912,7 +1912,7 @@ class GenerationMixin:
             cache = model_kwargs["past_key_values"]
             past_length = 0
             if not isinstance(cache, Cache):
-                past_length = get_seq_length(cache, dynamic=self._supports_default_dynamic_input())
+                past_length = get_seq_length(cache, dynamic=not self._supports_default_jit())
             elif hasattr(cache, "get_seq_length") and cache.get_seq_length() is not None:
                 past_length = cache.get_seq_length()
 
@@ -1920,7 +1920,7 @@ class GenerationMixin:
             cache_position = cache_position[past_length:]
 
             # for static input, cache fallback to static shape
-            if not self._supports_default_dynamic_input() and model_kwargs.get("attention_mask", None) is not None:
+            if self._supports_default_jit() and model_kwargs.get("attention_mask", None) is not None:
                 attention_mask = model_kwargs["attention_mask"]
                 cur_len = int(attention_mask.sum(-1).max())
                 valid_len = cur_len - past_length
@@ -1992,31 +1992,34 @@ class GenerationMixin:
             self._cache.reset()
         return self._cache
 
-    def _supports_default_dynamic_cache(self) -> bool:
+    @classmethod
+    def _supports_default_dynamic_cache(cls) -> bool:
         """
         Return `True` if current model can use a `DynamicCache` instance when initializing the `past_key_values`.
-        This is mostly the same as `_supports_cache_class` attribute, but add exception for `Jamba` model which
-        uses its own `HybridMambaAttentionDynamicCache` and do not need to initialize the Cache in advance in
-        order to save memory (because no back and forth `to_legacy_cache` and `from_legacy_cache` will be performed
-        for `HybridMambaAttentionDynamicCache`).
+        This adds exception for some models like `Mamba` models which use their own caches
+        and do not need to initialize the Cache in advance in order to save memory (because no back and forth
+        `to_legacy_cache` and `from_legacy_cache` will be performed for mamba-based models).
         """
-        return (
-            self._supports_cache_class
-            and "jamba" not in self.__class__.__name__.lower()
-            and "zamba" not in self.__class__.__name__.lower()
-            and "bamba" not in self.__class__.__name__.lower()
-            and "minimax" not in self.__class__.__name__.lower()
+        # NOTE: remove xlnet/reformer when the models are deprecated, non-standard model architecture/cache name
+        return not cls._is_stateful and all(
+            special_model_name not in cls.__name__.lower()
+            for special_model_name in [
+                "reformer",
+                "minimax",
+                "xlnet",
+                "lfm2",
+            ]
         )
 
-    def _supports_default_dynamic_input(self) -> bool:
+    def _supports_default_jit(self) -> bool:
         """
-        Return `True` if current model use dynamic cache or _supports_dynamic_input is `True` , but add exception for `paged_attention` which use dynamic input
+        Return `True` if current model use compilable cache or _supports_jit is `True` , and add addtional consideration for `paged_attention` which use dynamic input
         shape.
         """
         return (
-            self._supports_dynamic_input
-            or self._supports_default_dynamic_cache()
-            or self.config._attn_implementation == "paged_attention"
+            self._supports_jit
+            and not self._supports_default_dynamic_cache()
+            and self.config._attn_implementation != "paged_attention"
         )
 
     def _prepare_legacy_cache(
@@ -2029,7 +2032,7 @@ class GenerationMixin:
         """
         Prepares a static legacy cache (tuple of tuples) for `generate`.
         """
-        if self._supports_default_dynamic_input():  # cache will be default None and will be processed further in model
+        if not self._supports_default_jit():  # cache will be default None and will be processed further in model
             return
 
         past = model_kwargs.get(cache_name, None)
@@ -2567,8 +2570,9 @@ class GenerationMixin:
         )
 
         # This lines will always select the last logits, which is not the right way for static shape
-        # if self._supports_logits_to_keep() and "logits_to_keep" not in model_kwargs:
-        #     model_kwargs["logits_to_keep"] = 1
+        if not self._supports_default_jit():
+            if self._supports_logits_to_keep() and "logits_to_keep" not in model_kwargs:
+                model_kwargs["logits_to_keep"] = 1
 
         self._validate_generated_length(generation_config, input_ids_length, has_default_max_length)
 
@@ -2827,7 +2831,7 @@ class GenerationMixin:
             )
 
         # Padding inputs to avoid dynamic shape
-        if not self._supports_default_dynamic_input():
+        if self._supports_default_jit():
             (
                 padded_input_ids,
                 padded_inputs_embeds,
@@ -2923,7 +2927,7 @@ class GenerationMixin:
                     past_key_values=outputs[1] if model_inputs.get("use_cache", False) else None,
                 )
 
-            if self._supports_default_dynamic_input() or model_kwargs.get("attention_mask", None) is None:
+            if not self._supports_default_jit() or model_kwargs.get("attention_mask", None) is None:
                 next_token_logits = outputs.logits[:, -1, :]
             else:  # Get the right logits from static input shape
                 attention_mask = model_kwargs["attention_mask"]

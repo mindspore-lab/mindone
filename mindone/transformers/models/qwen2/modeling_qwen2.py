@@ -508,6 +508,8 @@ class Qwen2PreTrainedModel(MSPreTrainedModel):
     _supports_sdpa = True
     _supports_cache_class = False  # FIXME
     _supports_attention_backend = True
+    _supports_jit = True
+    _is_stateful = True
 
     def _init_weights(self, module):
         std = self.config.initializer_range

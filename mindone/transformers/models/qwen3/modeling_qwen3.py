@@ -494,6 +494,8 @@ class Qwen3PreTrainedModel(PreTrainedModel):
     _supports_quantized_cache = True
     _supports_static_cache = False  # StaticCache, not used
     _supports_attention_backend = True
+    _supports_jit = True
+    _is_stateful = True
 
     def _init_weights(self, module):
         if not self.training:

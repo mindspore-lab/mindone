@@ -891,6 +891,7 @@ class PreTrainedModel(
 
     is_parallelizable = False
     supports_gradient_checkpointing = False
+    _is_stateful = False
 
     # Flash Attention support
     _supports_flash_attn = False
@@ -904,8 +905,9 @@ class PreTrainedModel(
     _supports_cache_class = False
     _supports_static_cache = False
 
-    # Has support for dynamic model input?
+    # control for padding and static cache
     _supports_dynamic_input = False
+    _supports_jit = False
 
     # Has support for a `QuantoQuantizedCache` instance as `past_key_values`
     _supports_quantized_cache = False
