@@ -227,6 +227,15 @@ from .models.chameleon import (
     ChameleonProcessor,
     ChameleonVQVAE,
 )
+from .models.chinese_clip import (
+    ChineseCLIPFeatureExtractor,
+    ChineseCLIPImageProcessor,
+    ChineseCLIPModel,
+    ChineseCLIPPreTrainedModel,
+    ChineseCLIPProcessor,
+    ChineseCLIPTextModel,
+    ChineseCLIPVisionModel,
+)
 from .models.clap import (
     ClapAudioModel,
     ClapAudioModelWithProjection,
@@ -269,6 +278,7 @@ from .models.convnextv2 import (
     ConvNextV2Model,
     ConvNextV2PreTrainedModel,
 )
+from .models.cvt import CvtForImageClassification, CvtModel, CvtPreTrainedModel
 from .models.deberta import (
     DebertaForMaskedLM,
     DebertaForQuestionAnswering,
