@@ -647,6 +647,11 @@ from .models.xlm_roberta_xl import (
     XLMRobertaXLModel,
     XLMRobertaXLPreTrainedModel,
 )
+from .models.got_ocr2 import (
+    GotOcr2Model,
+    GotOcr2PreTrainedModel,
+    GotOcr2ForConditionalGeneration,
+)
 from .models.yolos import YolosForObjectDetection, YolosImageProcessor, YolosModel, YolosPreTrainedModel
 from .pipelines import TextGenerationPipeline, pipeline
 from .processing_utils import ProcessorMixin
