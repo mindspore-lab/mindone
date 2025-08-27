@@ -45,65 +45,6 @@ logger = logging.get_logger(__name__)  # pylint: disable=invalid-name
 if is_ftfy_available():
     import ftfy
 
-EXAMPLE_DOC_STRING = """
-    Examples:
-        ```python
-        >>> import mindspore as ms
-        >>> import PIL.Image
-        >>> from mindone.diffusers import AutoencoderKLWan, WanVACEPipeline
-        >>> from mindone.diffusers.schedulers.scheduling_unipc_multistep import UniPCMultistepScheduler
-        >>> from mindone.diffusers.utils import export_to_video, load_image
-        def prepare_video_and_mask(first_img: PIL.Image.Image, last_img: PIL.Image.Image, height: int, width: int, num_frames: int):
-            first_img = first_img.resize((width, height))
-            last_img = last_img.resize((width, height))
-            frames = []
-            frames.append(first_img)
-            # Ideally, this should be 127.5 to match original code, but they perform computation on numpy arrays
-            # whereas we are passing PIL images. If you choose to pass numpy arrays, you can set it to 127.5 to
-            # match the original code.
-            frames.extend([PIL.Image.new("RGB", (width, height), (128, 128, 128))] * (num_frames - 2))
-            frames.append(last_img)
-            mask_black = PIL.Image.new("L", (width, height), 0)
-            mask_white = PIL.Image.new("L", (width, height), 255)
-            mask = [mask_black, *[mask_white] * (num_frames - 2), mask_black]
-            return frames, mask
-
-        >>> # Available checkpoints: Wan-AI/Wan2.1-VACE-1.3B-diffusers, Wan-AI/Wan2.1-VACE-14B-diffusers
-        >>> model_id = "Wan-AI/Wan2.1-VACE-1.3B-diffusers"
-        >>> vae = AutoencoderKLWan.from_pretrained(model_id, subfolder="vae", mindspore_dtype=ms.float32)
-        >>> pipe = WanVACEPipeline.from_pretrained(model_id, vae=vae, mindspore_dtype=ms.bfloat16)
-        >>> flow_shift = 3.0  # 5.0 for 720P, 3.0 for 480P
-        >>> pipe.scheduler = UniPCMultistepScheduler.from_config(pipe.scheduler.config, flow_shift=flow_shift)
-
-        >>> prompt = "CG animation style, a small blue bird takes off from the ground, flapping its wings. The bird's feathers are delicate, with a unique pattern on its chest. The background shows a blue sky with white clouds under bright sunshine. The camera follows the bird upward, capturing its flight and the vastness of the sky from a close-up, low-angle perspective."
-        >>> negative_prompt = "Bright tones, overexposed, static, blurred details, subtitles, style, works, paintings, images, static, overall gray, worst quality, low quality, JPEG compression residue, ugly, incomplete, extra fingers, poorly drawn hands, poorly drawn faces, deformed, disfigured, misshapen limbs, fused fingers, still picture, messy background, three legs, many people in the background, walking backwards"
-        >>> first_frame = load_image(
-        ...     "https://huggingface.co/datasets/huggingface/documentation-images/resolve/main/diffusers/flf2v_input_first_frame.png"
-        ... )
-        >>> last_frame = load_image(
-        ...     "https://huggingface.co/datasets/huggingface/documentation-images/resolve/main/diffusers/flf2v_input_last_frame.png>>> "
-        ... )
-
-        >>> height = 512
-        >>> width = 512
-        >>> num_frames = 81
-        >>> video, mask = prepare_video_and_mask(first_frame, last_frame, height, width, num_frames)
-
-        >>> output = pipe(
-        ...     video=video,
-        ...     mask=mask,
-        ...     prompt=prompt,
-        ...     negative_prompt=negative_prompt,
-        ...     height=height,
-        ...     width=width,
-        ...     num_frames=num_frames,
-        ...     num_inference_steps=30,
-        ...     guidance_scale=5.0,
-        ... ).[0][0]
-        >>> export_to_video(output, "output.mp4", fps=16)
-        ```
-"""
-
 
 def basic_clean(text):
     text = ftfy.fix_text(text)
@@ -446,7 +387,7 @@ class WanVACEPipeline(DiffusionPipeline, WanLoraLoaderMixin):
             )
 
         ref_images_lengths = [len(reference_images_batch) for reference_images_batch in reference_images]
-        if any(l != ref_images_lengths[0] for l in ref_images_lengths):
+        if any(length != ref_images_lengths[0] for length in ref_images_lengths):
             raise ValueError(
                 f"All batches of `reference_images` should have the same length, but got {ref_images_lengths}. Support for this "
                 "may be added in the future."
