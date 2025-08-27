@@ -34,7 +34,7 @@ from ...modeling_outputs import BaseModelOutputWithPast, ModelOutput
 from ...modeling_utils import PreTrainedModel
 from ...processing_utils import Unpack
 
-from ..auto import AutoModel
+from ..qwen2 import Qwen2Model
 
 from transformers.utils import auto_docstring, can_return_tuple
 from transformers import GotOcr2Config, GotOcr2VisionConfig
@@ -539,8 +539,7 @@ class GotOcr2Model(GotOcr2PreTrainedModel):
         self.vision_tower = GotOcr2VisionEncoder(config.vision_config)
 
         self.multi_modal_projector = GotOcr2MultiModalProjector(config)
-        # TODO: check language model
-        self.language_model = AutoModel.from_config(config.text_config)
+        self.language_model = Qwen2Model(config.text_config)
         self.post_init()
 
     def get_input_embeddings(self):
