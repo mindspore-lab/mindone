@@ -278,8 +278,17 @@ class WanVACEPipelineIntegrationTests(PipelineTesterMixin, unittest.TestCase):
         flow_shift = 3.0  # 5.0 for 720P, 3.0 for 480P
         pipe.scheduler = UniPCMultistepScheduler.from_config(pipe.scheduler.config, flow_shift=flow_shift)
 
-        prompt = "CG animation style, a small blue bird takes off from the ground, flapping its wings. The bird's feathers are delicate, with a unique pattern on its chest. The background shows a blue sky with white clouds under bright sunshine. The camera follows the bird upward, capturing its flight and the vastness of the sky from a close-up, low-angle perspective."
-        negative_prompt = "Bright tones, overexposed, static, blurred details, subtitles, style, works, paintings, images, static, overall gray, worst quality, low quality, JPEG compression residue, ugly, incomplete, extra fingers, poorly drawn hands, poorly drawn faces, deformed, disfigured, misshapen limbs, fused fingers, still picture, messy background, three legs, many people in the background, walking backwards"
+        prompt = ("CG animation style, a small blue bird takes off from the ground, flapping its wings. The bird's "
+                  "feathers are delicate, with a unique pattern on its chest. The background shows a blue sky with "
+                  "white clouds under bright sunshine. The camera follows the bird upward, capturing its flight and "
+                  "the vastness of the sky from a close-up, low-angle perspective."
+                  )
+        negative_prompt = ("Bright tones, overexposed, static, blurred details, subtitles, style, works, paintings, "
+                           "images, static, overall gray, worst quality, low quality, JPEG compression residue, ugly, "
+                           "incomplete, extra fingers, poorly drawn hands, poorly drawn faces, deformed, disfigured, "
+                           "misshapen limbs, fused fingers, still picture, messy background, three legs, many people in"
+                           " the background, walking backwards"
+                           )
         first_frame = load_downloaded_image_from_hf_hub(
             "huggingface/documentation-images",
             "flf2v_input_first_frame.png",
