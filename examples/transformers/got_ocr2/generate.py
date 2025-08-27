@@ -30,9 +30,9 @@ start = time.time()
 generated_ids = model.generate(
     **inputs,
     do_sample=False,
-    tokenizer=processor.tokenizer,
-    stop_strings="<|im_end|>",
-    max_new_tokens=4096,
+    max_new_tokens=200,
+    eos_token_id = processor.tokenizer.convert_tokens_to_ids("<|im_end|>"),
+    pad_token_id = processor.tokenizer.pad_token_id,
 )
 print(f"Inference in {time.time()-start:.4f}s")
 
