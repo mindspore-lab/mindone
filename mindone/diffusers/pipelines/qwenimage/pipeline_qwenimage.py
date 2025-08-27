@@ -203,7 +203,7 @@ class QwenImagePipeline(DiffusionPipeline, QwenImageLoraLoaderMixin):
         hidden_states = encoder_hidden_states.hidden_states[-1]
         split_hidden_states = self._extract_masked_hidden(hidden_states, ms.Tensor(txt_tokens.attention_mask))
         split_hidden_states = [e[drop_idx:] for e in split_hidden_states]
-        attn_mask_list = [mint.ones(e.shape[0], dtype=ms.int64) for e in split_hidden_states]
+        attn_mask_list = [mint.ones(e.shape[0], dtype=ms.int32) for e in split_hidden_states]
         max_seq_len = max([e.shape[0] for e in split_hidden_states])
         prompt_embeds = mint.stack(
             [mint.cat([u, u.new_zeros((max_seq_len - u.shape[0], u.shape[1]))]) for u in split_hidden_states]

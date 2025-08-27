@@ -125,16 +125,18 @@ class QwenImagePipelineFastTests(PipelineTesterMixin, unittest.TestCase):
                     num_hidden_layers=2,
                     num_attention_heads=2,
                     num_key_value_heads=2,
-                    rms_norm_eps=1e-06
+                    rms_norm_eps=1e-06,
                     max_position_embeddings=128000,
                     hidden_size=16,
                     hidden_act="silu",
                     intermediate_size=16,
+                    initializer_range=0.02,
                     vocab_size=152064,
                     vision_end_token_id=151653,
                     vision_start_token_id=151652,
                     vision_token_id=151654,
                     use_sliding_window=False,
+                    use_cache=True,
                     attn_implementation="eager",
                     rope_scaling={
                         "mrope_section": [1, 1, 2],
@@ -147,10 +149,13 @@ class QwenImagePipelineFastTests(PipelineTesterMixin, unittest.TestCase):
         ],
         [
             "tokenizer",
-            "transformers.models.qwem2.tokenization_qwen2.Qwen2Tokenizer",
-            "transformers.models.qwem2.tokenization_qwen2.Qwen2Tokenizer",
+            "transformers.models.qwen2.tokenization_qwen2.Qwen2Tokenizer",
+            "transformers.models.qwen2.tokenization_qwen2.Qwen2Tokenizer",
             dict(
-                pretrained_model_name_or_path="hf-internal-testing/tiny-random-Qwen2VLForConditionalGeneration"
+                # pretrained_model_name_or_path="hf-internal-testing/tiny-random-Qwen2VLForConditionalGeneration"
+                pretrained_model_name_or_path="hf-internal-testing/tiny-random-Qwen2VLForConditionalGeneration",
+                local_files_only=True,
+                trust_remote_code=True,
             ),
         ],
     ]
