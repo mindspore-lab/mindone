@@ -29,16 +29,17 @@ class MockAttentionModule:
 
 
 @pytest.fixture(scope="module")
-def q_k_v_target() -> dict[str, tuple]:
+def q_k_v_target_mask() -> dict[str, tuple]:
     # B, H, S, D
     set_seed(42)
     q = np.random.uniform(size=(2, 8, 256, 32)).astype(np.float32)
     k = np.random.uniform(size=(2, 8, 256, 32)).astype(np.float32)
     v = np.random.uniform(size=(2, 8, 256, 32)).astype(np.float32)
     target = np.random.uniform(size=(2, 256, 8, 32)).astype(np.float32)
+    attention_mask = np.random.randint(0, 2, (q.shape[0], 1, q.shape[2], k.shape[2]), dtype=bool)
     return {
-        "ms": (tensor(q), tensor(k), tensor(v), tensor(target)),
-        "pt": (torch.tensor(q), torch.tensor(k), torch.tensor(v), torch.tensor(target)),
+        "ms": (tensor(q), tensor(k), tensor(v), tensor(target), tensor(attention_mask)),
+        "pt": (torch.tensor(q), torch.tensor(k), torch.tensor(v), torch.tensor(target), torch.tensor(attention_mask)),
     }
 
 
@@ -50,27 +51,32 @@ def cast_inputs(q, k, v, target, dtype, device: Optional[str] = None):
 
 
 @pytest.mark.parametrize("dtype", ["fp16", "bf16"])  # FlashAttention doesn't support fp32
+@pytest.mark.parametrize("use_mask", [True, False], ids=["with_mask", "without_mask"])
 @pytest.mark.parametrize("causal", [False, True], ids=["non-causal", "causal"])
 @pytest.mark.parametrize("jit_compile", [False, True], ids=["eager", "jit"])
-def test_fa_attention_forward(q_k_v_target, dtype: str, causal: bool, jit_compile):
+def test_fa_attention_forward(q_k_v_target_mask, dtype: str, use_mask: bool, causal: bool, jit_compile):
     module = MockAttentionModule(is_causal=causal, attn_implementation="flash_attention_2")
 
     if torch.cuda.is_available():  # CUDA device
         if jit_compile:
             pytest.skip("Generate PyTorch outputs only for eager mode.")
-        q_pt, k_pt, v_pt, _ = cast_inputs(*q_k_v_target["pt"], dtype=PT_DTYPE_MAPPING[dtype], device="cuda")
-        output_pt = flash_attention_forward_transformers(module, q_pt, k_pt, v_pt, None)[0]
+        q_pt, k_pt, v_pt, _, attn_mask_pt = cast_inputs(
+            *q_k_v_target_mask["pt"], dtype=PT_DTYPE_MAPPING[dtype], device="cuda"
+        )
+        output_pt = flash_attention_forward_transformers(
+            module, q_pt, k_pt, v_pt, attention_mask=attn_mask_pt if use_mask else None
+        )[0]
 
-        torch.save(output_pt.cpu(), f"fa_attn_fwd_{dtype}_{causal}.pt")
-        assert os.path.exists(f"fa_attn_fwd_{dtype}_{causal}.pt"), "Failed to save PyTorch outputs."
+        torch.save(output_pt.cpu(), f"fa_attn_fwd_{dtype}_{use_mask}_{causal}.pt")
+        assert os.path.exists(f"fa_attn_fwd_{dtype}_{use_mask}_{causal}.pt"), "Failed to save PyTorch outputs."
 
     else:  # Ascend device
-        q, k, v, _ = cast_inputs(*q_k_v_target["ms"], dtype=MS_DTYPE_MAPPING[dtype])
+        q, k, v, _, attn_mask = cast_inputs(*q_k_v_target_mask["ms"], dtype=MS_DTYPE_MAPPING[dtype])
         scaling = 1 / sqrt(q.shape[-1])
 
         fa_forward = flash_attention_forward_jit if jit_compile else flash_attention_forward
-        output = fa_forward(module, q, k, v, None, scaling=scaling)[0]
-        output_pt = torch.load(f"fa_attn_fwd_{dtype}_{causal}.pt")
+        output = fa_forward(module, q, k, v, attention_mask=attn_mask if use_mask else None, scaling=scaling)[0]
+        output_pt = torch.load(f"fa_attn_fwd_{dtype}_{use_mask}_{causal}.pt")
 
         assert output.shape == output_pt.shape, f"Shape mismatch: {output.shape} vs {output_pt.shape}"
         assert not output.isnan().any(), "Output contains NaNs."
@@ -80,39 +86,44 @@ def test_fa_attention_forward(q_k_v_target, dtype: str, causal: bool, jit_compil
 
 
 @pytest.mark.parametrize("dtype", ["fp16", "bf16"])
+@pytest.mark.parametrize("use_mask", [True, False], ids=["with_mask", "without_mask"])
 @pytest.mark.parametrize("causal", [False, True], ids=["non-causal", "causal"])
 @pytest.mark.parametrize("jit_compile", [False, True], ids=["eager", "jit"])
-def test_fa_attention_backward(q_k_v_target, dtype: str, causal: bool, jit_compile):
+def test_fa_attention_backward(q_k_v_target_mask, dtype: str, use_mask: bool, causal: bool, jit_compile):
     module = MockAttentionModule(is_causal=causal, attn_implementation="flash_attention_2")
 
     if torch.cuda.is_available():  # CUDA device
         if jit_compile:
             pytest.skip("Generate PyTorch outputs only for eager mode.")
-        q_pt, k_pt, v_pt, target = cast_inputs(*q_k_v_target["pt"], dtype=PT_DTYPE_MAPPING[dtype], device="cuda")
+        q_pt, k_pt, v_pt, target, attn_mask_pt = cast_inputs(
+            *q_k_v_target_mask["pt"], dtype=PT_DTYPE_MAPPING[dtype], device="cuda"
+        )
         q_pt.requires_grad, k_pt.requires_grad, v_pt.requires_grad = (True,) * 3
 
-        output_pt = flash_attention_forward_transformers(module, q_pt, k_pt, v_pt, None)[0]
+        output_pt = flash_attention_forward_transformers(
+            module, q_pt, k_pt, v_pt, attention_mask=attn_mask_pt if use_mask else None
+        )[0]
         loss = torch.nn.functional.mse_loss(output_pt, target)
         loss.backward()
 
         grad_out_pt = torch.stack([q_pt.grad, k_pt.grad, v_pt.grad], dim=0)
-        torch.save(grad_out_pt.cpu(), f"fa_attn_bwd_{dtype}_{causal}.pt")
-        assert os.path.exists(f"fa_attn_bwd_{dtype}_{causal}.pt"), "Failed to save PyTorch outputs."
+        torch.save(grad_out_pt.cpu(), f"fa_attn_bwd_{dtype}_{use_mask}_{causal}.pt")
+        assert os.path.exists(f"fa_attn_bwd_{dtype}_{use_mask}_{causal}.pt"), "Failed to save PyTorch outputs."
 
     else:  # Ascend device
-        q, k, v, target = cast_inputs(*q_k_v_target["ms"], dtype=MS_DTYPE_MAPPING[dtype])
+        q, k, v, target, attn_mask = cast_inputs(*q_k_v_target_mask["ms"], dtype=MS_DTYPE_MAPPING[dtype])
         scaling = 1 / sqrt(q.shape[-1])
 
         fa_forward = flash_attention_forward_jit if jit_compile else flash_attention_forward
 
         def _forward(q_, k_, v_, target_):
-            output = fa_forward(module, q_, k_, v_, None, scaling=scaling)[0]
+            output = fa_forward(module, q_, k_, v_, attention_mask=attn_mask if use_mask else None, scaling=scaling)[0]
             return mint.nn.functional.mse_loss(output, target_)
 
         grad_out = grad(_forward, grad_position=(0, 1, 2))(q, k, v, target)
         grad_out = mint.stack(grad_out, dim=0)
 
-        grad_out_pt = torch.load(f"fa_attn_bwd_{dtype}_{causal}.pt")
+        grad_out_pt = torch.load(f"fa_attn_bwd_{dtype}_{use_mask}_{causal}.pt")
 
         assert grad_out.shape == grad_out_pt.shape, f"Shape mismatch: {grad_out.shape} vs {grad_out_pt.shape}"
         assert not grad_out.isnan().any(), "Output contains NaNs."

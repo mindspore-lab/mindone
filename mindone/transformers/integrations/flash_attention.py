@@ -52,8 +52,6 @@ def flash_attention_forward(
             " Please set your attention to `eager` if you want any of these features."
         )
 
-    if attention_mask is not None:
-        raise RuntimeError("FlashAttention's variable-length attention is not available.")
     if (
         kwargs.get("position_ids", None) is not None
         and query.shape[0] == 1
@@ -91,12 +89,17 @@ def flash_attention_forward(
     value = value.swapaxes(1, 2)
     input_layout = "BSND"
 
-    if module.is_causal:
-        attention_mask = mint.tril(mint.ones((query.shape[1], key.shape[1]), dtype=ms.bool_), diagonal=0)
     # For `attn_mask` of ops.flash_attention_score, False indicates retention and True indicates discard, Which is
     # opposite to PyTorch
     if attention_mask is not None:
         attention_mask = mint.logical_not(attention_mask) if attention_mask.dtype == ms.bool_ else attention_mask.bool()
+
+    if module.is_causal and query.shape[1] > 1:
+        if attention_mask is None:
+            attention_mask = mint.triu(mint.ones((query.shape[1], key.shape[1]), dtype=ms.bool_), diagonal=1)
+        else:
+            causal_mask = mint.triu(mint.ones_like(attention_mask, dtype=ms.bool_), diagonal=1)
+            attention_mask = attention_mask | causal_mask
 
     # flash_attention only supports [float16, bfloat16]
     origin_dtype = query.dtype
