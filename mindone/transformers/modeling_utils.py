@@ -2437,10 +2437,10 @@ class PreTrainedModel(
             # passes manually the config to `from_pretrained`.
             config = copy.deepcopy(config)
 
-            kwarg_attn_imp = kwargs.pop("attn_implementation", None)
-            if kwarg_attn_imp is not None and config._attn_implementation != kwarg_attn_imp:
-                config._attn_implementation = kwarg_attn_imp
-            model_kwargs = kwargs
+        # Because some composite configs call super().__init__ before instantiating the sub-configs, we need this call
+        # to correctly redispatch recursively if the kwarg is provided
+        if "attn_implementation" in kwargs:
+            config._attn_implementation = kwargs.pop("attn_implementation")
 
         # This variable will flag if we're loading a sharded checkpoint. In this case the archive file is just the
         # index of the files.
