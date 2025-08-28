@@ -67,9 +67,6 @@ class PipelineIterator:
 
         self.collate_fn = collate_fn
 
-    def __len__(self):
-        return len(self.loader)
-
     def __iter__(self):
         self.iterator = iter(self.loader)
         return self

@@ -50,9 +50,13 @@ MODEL_MAPPING_NAMES = OrderedDict(
         ("clip", "CLIPModel"),
         ("clip_text_model", "CLIPTextModel"),
         ("clip_vision_model", "CLIPVisionModel"),
+        ("convnext", "ConvNextModel"),
+        ("convnextv2", "ConvNextV2Model"),
         ("deberta", "DebertaModel"),
         ("opt", "OPTModel"),
         ("deberta-v2", "DebertaV2Model"),
+        ("detr", "DetrModel"),
+        ("dinov2", "Dinov2Model"),
         ("dpt", "DPTModel"),
         ("gemma", "GemmaModel"),
         ("m2m_100", "M2M100Model"),
@@ -90,6 +94,7 @@ MODEL_MAPPING_NAMES = OrderedDict(
         ("mixtral", "MixtralModel"),
         ("mobilevit", "MobileViTModel"),
         ("mobilevitv2", "MobileViTV2Model"),
+        ("owlvit", "OwlViTModel"),
         ("phi", "PhiModel"),
         ("phi3", "Phi3Model"),
         ("qwen2", "Qwen2Model"),
@@ -98,6 +103,8 @@ MODEL_MAPPING_NAMES = OrderedDict(
         ("qwen2_vl", "Qwen2VLModel"),
         ("roberta", "RobertaModel"),
         ("rembert", "RemBertModel"),
+        ("resnet", "ResNetModel"),
+        ("segformer", "SegformerModel"),
         ("siglip", "SiglipModel"),
         ("siglip_vision_model", "SiglipVisionModel"),
         ("smolvlm", "SmolVLMModel"),
@@ -111,6 +118,7 @@ MODEL_MAPPING_NAMES = OrderedDict(
         ("xlnet", "XLNetModel"),
         ("xlm-roberta", "XLMRobertaModel"),
         ("xlm-roberta-xl", "XLMRobertaXLModel"),
+        ("yolos", "YolosModel"),
         ("cohere2", "Cohere2Model"),
     ]
 )
@@ -221,7 +229,10 @@ MODEL_FOR_IMAGE_MAPPING_NAMES = OrderedDict(
     [
         # Model for Image mapping
         ("bit", "BitModel"),
-        ("siglip_vision_model", "SiglipVisionModel"),
+        ("convnext", "ConvNextModel"),
+        ("convnextv2", "ConvNextV2Model"),
+        ("detr", "DetrModel"),
+        ("dinov2", "Dinov2Model"),
         ("dpt", "DPTModel"),
         ("glpn", "GLPNModel"),
         ("hiera", "HieraModel"),
@@ -231,8 +242,10 @@ MODEL_FOR_IMAGE_MAPPING_NAMES = OrderedDict(
         ("levit", "LevitModel"),
         ("mobilevit", "MobileViTModel"),
         ("mobilevitv2", "MobileViTV2Model"),
+        ("segformer", "SegformerModel"),
         ("siglip_vision_model", "SiglipVisionModel"),
         ("vit", "ViTModel"),
+        ("yolos", "YolosModel"),
     ]
 )
 
@@ -254,6 +267,9 @@ MODEL_FOR_IMAGE_CLASSIFICATION_MAPPING_NAMES = OrderedDict(
         # Model for Image Classification mapping
         ("bit", "BitForImageClassification"),
         ("clip", "CLIPForImageClassification"),
+        ("convnext", "ConvNextForImageClassification"),
+        ("convnextv2", "ConvNextV2ForImageClassification"),
+        ("dinov2", "Dinov2ForImageClassification"),
         ("hiera", "HieraForImageClassification"),
         ("ijepa", "IJepaForImageClassification"),
         ("imagegpt", "ImageGPTForImageClassification"),
@@ -261,6 +277,8 @@ MODEL_FOR_IMAGE_CLASSIFICATION_MAPPING_NAMES = OrderedDict(
             "levit",
             ("LevitForImageClassification", "LevitForImageClassificationWithTeacher"),
         ),
+        ("resnet", "ResNetForImageClassification"),
+        ("segformer", "SegformerForImageClassification"),
         ("siglip", "SiglipForImageClassification"),
         ("mobilevit", "MobileViTForImageClassification"),
         ("mobilevitv2", "MobileViTV2ForImageClassification"),
@@ -268,18 +286,41 @@ MODEL_FOR_IMAGE_CLASSIFICATION_MAPPING_NAMES = OrderedDict(
     ]
 )
 
-MODEL_FOR_IMAGE_SEGMENTATION_MAPPING_NAMES = OrderedDict()
+MODEL_FOR_IMAGE_SEGMENTATION_MAPPING_NAMES = OrderedDict(
+    [
+        # Do not add new models here, this class will be deprecated in the future.
+        # Model for Image Segmentation mapping
+        ("detr", "DetrForSegmentation"),
+    ]
+)
 
 MODEL_FOR_SEMANTIC_SEGMENTATION_MAPPING_NAMES = OrderedDict(
     [
+        # Model for Semantic Segmentation mapping
         ("mobilevit", "MobileViTForSemanticSegmentation"),
         ("mobilevitv2", "MobileViTV2ForSemanticSegmentation"),
+        ("beit", "BeitForSemanticSegmentation"),
+        ("data2vec-vision", "Data2VecVisionForSemanticSegmentation"),
+        ("dpt", "DPTForSemanticSegmentation"),
+        ("mobilenet_v2", "MobileNetV2ForSemanticSegmentation"),
+        ("mobilevit", "MobileViTForSemanticSegmentation"),
+        ("mobilevitv2", "MobileViTV2ForSemanticSegmentation"),
+        ("segformer", "SegformerForSemanticSegmentation"),
+        ("upernet", "UperNetForSemanticSegmentation"),
     ]
 )
 
 MODEL_FOR_INSTANCE_SEGMENTATION_MAPPING_NAMES = OrderedDict()
 
-MODEL_FOR_UNIVERSAL_SEGMENTATION_MAPPING_NAMES = OrderedDict()
+MODEL_FOR_UNIVERSAL_SEGMENTATION_MAPPING_NAMES = OrderedDict(
+    [
+        # Model for Universal Segmentation mapping
+        ("detr", "DetrForSegmentation"),
+        ("mask2former", "Mask2FormerForUniversalSegmentation"),
+        ("maskformer", "MaskFormerForInstanceSegmentation"),
+        ("oneformer", "OneFormerForUniversalSegmentation"),
+    ]
+)
 
 MODEL_FOR_VIDEO_CLASSIFICATION_MAPPING_NAMES = OrderedDict()
 
@@ -585,6 +626,9 @@ MODEL_FOR_ZERO_SHOT_IMAGE_CLASSIFICATION_MAPPING_NAMES = OrderedDict(
 
 MODEL_FOR_BACKBONE_MAPPING_NAMES = OrderedDict(
     [
+        ("convnext", "ConvNextBackbone"),
+        ("convnextv2", "ConvNextV2Backbone"),
+        ("dinov2", "Dinov2Backbone"),
         ("hiera", "HieraBackbone"),
         ("swin", "SwinBackbone"),
     ]

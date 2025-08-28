@@ -1,10 +1,16 @@
 from __future__ import absolute_import
 
+import ml_dtypes
+import numpy as np
+
 import mindspore as ms
 from mindspore import _checkparam as validator
-from mindspore import ops
+from mindspore import mint, ops
 from mindspore.nn import Optimizer
 from mindspore.ops import auto_generate as gen
+
+_DTYPE_MAPPING = {ms.float32: np.float32, ms.float16: np.float16, ms.bfloat16: ml_dtypes.bfloat16}
+
 
 _optim_adamw_opt = ops.MultitypeFuncGraph("optim_adamw_opt")
 hyper_map = ops.HyperMap()
@@ -30,7 +36,7 @@ def _run_optim_adamw_opt(
 ):
     """Apply adamw optimizer to the weight parameter."""
     success = True
-    max_exp_avg_sq = ops.zeros_like(exp_avg)
+    max_exp_avg_sq = mint.zeros_like(exp_avg)
     learning_rate = float(learning_rate)
     weight_decay = float(weight_decay)
     opt(
@@ -192,10 +198,35 @@ class AdamW(Optimizer):
         self.beta1 = beta1
         self.beta2 = beta2
         self.eps = eps
-        self.exp_avg = self.parameters.clone(prefix="exp_avg", init="zeros")
-        self.exp_avg_sq = self.parameters.clone(prefix="exp_avg_sq", init="zeros")
+        self.exp_avg, self.exp_avg_sq, self.max_exp_avg_sq = [], [], []
+        for param in self.parameters:
+            self.exp_avg.append(
+                ms.Parameter(
+                    ms.Tensor.from_numpy(np.zeros(param.shape, dtype=_DTYPE_MAPPING[param.dtype])),
+                    name="exp_avg." + param.name,
+                )
+            )
+            self.exp_avg_sq.append(
+                ms.Parameter(
+                    ms.Tensor.from_numpy(np.zeros(param.shape, dtype=_DTYPE_MAPPING[param.dtype])),
+                    name="exp_avg_sq." + param.name,
+                )
+            )
+            if amsgrad:
+                self.max_exp_avg_sq.append(
+                    ms.Parameter(
+                        ms.Tensor.from_numpy(np.zeros(param.shape, dtype=_DTYPE_MAPPING[param.dtype])),
+                        name="max_exp_avg_sq." + param.name,
+                    )
+                )
+
+        self.exp_avg = ms.ParameterTuple(self.exp_avg)
+        self.exp_avg_sq = ms.ParameterTuple(self.exp_avg_sq)
         if amsgrad:
-            self.max_exp_avg_sq = self.parameters.clone(prefix="max_exp_avg_sq", init="zeros")
+            self.max_exp_avg_sq = ms.ParameterTuple(self.max_exp_avg_sq)
+        else:
+            self.max_exp_avg_sq = None
+
         self.adamw_opt = gen.AdamW()
         self.amsgrad = amsgrad
         self.maximize = maximize

@@ -1,5 +1,7 @@
 import logging
 
+import numpy as np
+
 import mindspore as ms
 from mindspore import Parameter, ParameterTuple, Tensor
 from mindspore import _checkparam as validator
@@ -16,7 +18,7 @@ update_ = MultitypeFuncGraph("update_")
 
 @update_.register("Tensor", "Tensor")
 def update_param(source_param: Tensor, target_param: Tensor) -> None:
-    ops.assign(target_param, ops.cast(source_param, target_param.dtype))
+    target_param.copy_(source_param.to(target_param.dtype))
 
 
 class BF16AdamW(AdamW):
@@ -49,9 +51,15 @@ class BF16AdamW(AdamW):
         )
 
         # maintain a copy of parameters in fp32 for the optimiser update
-        self._master_parameters = ParameterTuple(
-            [Parameter(x.to(ms.float32), name="master." + x.name) for x in self._parameters]
-        )
+        self._master_parameters = []
+        for param in self._parameters:
+            self._master_parameters.append(
+                Parameter(
+                    Tensor.from_numpy(param.numpy().astype(np.float32)),
+                    name="master." + param.name,
+                )
+            )
+        self._master_parameters = ParameterTuple(self._master_parameters)
 
     def _check_param_value(self, beta1, beta2, eps, prim_name):
         """Check the type of inputs."""
@@ -65,11 +73,12 @@ class BF16AdamW(AdamW):
             if x.dtype == ms.float32:
                 _logger.warning(f"model parameter {x.name} should be `bfloat16`, but got `{x.dtype}`.")
 
+    @ms.jit
     def construct(self, gradients):
         gradients = self.flatten_gradients(gradients)
         weight_decay = self.get_weight_decay()
         lr = self.get_lr()
-        self.assignadd(self.global_step, self.global_step_increase_tensor)
+        self.global_step.add_(self.global_step_increase_tensor)
         state_step = self.global_step.astype(ms.float32)
         if self.amsgrad:
             if self.is_group:
