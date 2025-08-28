@@ -601,6 +601,7 @@ from .models.swin import (
     SwinModel,
     SwinPreTrainedModel,
 )
+from .models.swin2sr import Swin2SRForImageSuperResolution, Swin2SRModel, Swin2SRPreTrainedModel
 from .models.switch_transformers import (
     SwitchTransformersEncoderModel,
     SwitchTransformersForConditionalGeneration,
@@ -624,6 +625,16 @@ from .models.umt5 import (
     UMT5Model,
     UMT5PreTrainedModel,
 )
+from .models.vilt import (
+    ViltForImageAndTextRetrieval,
+    ViltForImagesAndTextClassification,
+    ViltForMaskedLM,
+    ViltForQuestionAnswering,
+    ViltForTokenClassification,
+    ViltModel,
+    ViltPreTrainedModel,
+)
+from .models.vision_encoder_decoder import VisionEncoderDecoderModel
 from .models.vit import ViTForImageClassification, ViTForMaskedImageModeling, ViTModel, ViTPreTrainedModel
 from .models.vits import VitsModel, VitsPreTrainedModel
 from .models.wav2vec2 import (
@@ -658,7 +669,13 @@ from .models.xlm_roberta_xl import (
     XLMRobertaXLPreTrainedModel,
 )
 from .models.yolos import YolosForObjectDetection, YolosImageProcessor, YolosModel, YolosPreTrainedModel
-from .pipelines import TextGenerationPipeline, pipeline
+from .pipelines import (
+    ImageToImagePipeline,
+    ImageToTextPipeline,
+    TextGenerationPipeline,
+    VisualQuestionAnsweringPipeline,
+    pipeline,
+)
 from .processing_utils import ProcessorMixin
 from .trainer import Trainer
 from .training_args import TrainingArguments
