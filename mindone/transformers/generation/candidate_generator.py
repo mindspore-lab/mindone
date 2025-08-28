@@ -1006,7 +1006,6 @@ class PromptLookupCandidateGenerator(CandidateGenerator):
             ngram_tensor = input_ids[0, -ngram_size:]
 
             # Find where the windows match the ngram
-            # Find where the windows match the ngram
             matches = (windows == ngram_tensor).all(dim=2)
 
             # Get the indices of matches

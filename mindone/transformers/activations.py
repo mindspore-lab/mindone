@@ -211,6 +211,7 @@ def get_activation(activation_string):
     else:
         raise KeyError(f"function {activation_string} not found in ACT2FN mapping {list(ACT2FN.keys())}")
 
+
 # For backwards compatibility with: from activations import gelu_python
 gelu_python = get_activation("gelu_python")
 gelu_new = get_activation("gelu_new")

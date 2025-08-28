@@ -25,7 +25,16 @@ __version__ = "4.54.1"
 import transformers
 from packaging import version
 
-from .cache_utils import *
+from .cache_utils import (
+    Cache,
+    DynamicCache,
+    EncoderDecoderCache,
+    HybridCache,
+    MambaCache,
+    OffloadedStaticCache,
+    SlidingWindowCache,
+    StaticCache,
+)
 from .feature_extraction_sequence_utils import SequenceFeatureExtractor
 
 # Feature Extractor
