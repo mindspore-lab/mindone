@@ -2436,6 +2436,7 @@ class PreTrainedModel(
             # we pop attn_implementation from the kwargs but this handles the case where users
             # passes manually the config to `from_pretrained`.
             config = copy.deepcopy(config)
+            model_kwargs = kwargs
 
         # Because some composite configs call super().__init__ before instantiating the sub-configs, we need this call
         # to correctly redispatch recursively if the kwarg is provided
