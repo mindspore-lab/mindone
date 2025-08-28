@@ -40,7 +40,7 @@ from mindone.transformers.modeling_rope_utils import ROPE_INIT_FUNCTIONS
 from mindone.transformers.modeling_utils import ALL_ATTENTION_FUNCTIONS, MSPreTrainedModel
 from mindone.transformers.processing_utils import Unpack
 
-from ...utils import LossKwargs
+from ...utils import TransformersKwargs
 
 logger = logging.get_logger(__name__)
 
@@ -857,10 +857,6 @@ class Qwen2Model(Qwen2PreTrainedModel):
         return causal_mask
 
 
-class KwargsForCausalLM(FlashAttentionKwargs, LossKwargs):
-    ...
-
-
 class Qwen2ForCausalLM(Qwen2PreTrainedModel, GenerationMixin):
     _tied_weights_keys = ["lm_head.weight"]
 
@@ -967,7 +963,7 @@ class Qwen2ForCausalLM(Qwen2PreTrainedModel, GenerationMixin):
         block_tables: Optional[ms.Tensor] = None,
         slot_mapping: Optional[ms.Tensor] = None,
         batch_valid_length: Optional[ms.Tensor] = None,
-        **kwargs: Unpack[KwargsForCausalLM],
+        **kwargs: Unpack[TransformersKwargs],
     ) -> Union[Tuple, CausalLMOutputWithPast]:
         r"""
         Args:

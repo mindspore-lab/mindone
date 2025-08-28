@@ -48,7 +48,7 @@ from ...modeling_outputs import BaseModelOutputWithPast, CausalLMOutputWithPast
 from ...modeling_rope_utils import ROPE_INIT_FUNCTIONS
 from ...modeling_utils import ALL_ATTENTION_FUNCTIONS, PreTrainedModel
 from ...processing_utils import Unpack
-from ...utils import LossKwargs
+from ...utils import TransformersKwargs
 
 logger = logging.get_logger(__name__)
 
@@ -779,10 +779,6 @@ class Cohere2Model(Cohere2PreTrainedModel):
         return causal_mask
 
 
-class KwargsForCausalLM(FlashAttentionKwargs, LossKwargs):
-    ...
-
-
 class Cohere2ForCausalLM(Cohere2PreTrainedModel, GenerationMixin):
     _tied_weights_keys = ["lm_head.weight"]
     _tp_plan = {"lm_head": "colwise_rep"}
@@ -834,7 +830,7 @@ class Cohere2ForCausalLM(Cohere2PreTrainedModel, GenerationMixin):
         return_dict: Optional[bool] = None,
         cache_position: Optional[mint.Tensor] = None,
         logits_to_keep: Union[int, mint.Tensor] = 0,
-        **kwargs: Unpack[KwargsForCausalLM],
+        **kwargs: Unpack[TransformersKwargs],
     ) -> Union[Tuple, CausalLMOutputWithPast]:
         r"""
             labels (`mint.Tensor` of shape `(batch_size, sequence_length)`, *optional*):

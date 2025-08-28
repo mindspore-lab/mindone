@@ -912,17 +912,3 @@ class GeneralInterface(MutableMapping):
 
     def valid_keys(self) -> list[str]:
         return list(self.keys())
-
-
-# TODO: remove this class in v4.54.1
-class LossKwargs(TypedDict, total=False):
-    """
-    Keyword arguments to be passed to the loss function
-
-    Attributes:
-        num_items_in_batch (`Optional[Tensor]`, *optional*):
-            Number of items in the batch. It is recommended to pass it when
-            you are doing gradient accumulation.
-    """
-
-    num_items_in_batch: Optional[ms.Tensor]

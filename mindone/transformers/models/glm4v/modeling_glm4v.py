@@ -44,7 +44,7 @@ from ...modeling_outputs import BaseModelOutputWithPast, ModelOutput
 from ...modeling_rope_utils import ROPE_INIT_FUNCTIONS
 from ...modeling_utils import ALL_ATTENTION_FUNCTIONS, PreTrainedModel
 from ...processing_utils import Unpack
-from ...utils import LossKwargs
+from ...utils import TransformersKwargs
 from .configuration_glm4v import Glm4vConfig, Glm4vTextConfig, Glm4vVisionConfig
 
 logger = logging.get_logger(__name__)
@@ -507,10 +507,6 @@ class Glm4vVisionModel(Glm4vPreTrainedModel):
 
         hidden_states = self.merger(hidden_states)
         return hidden_states
-
-
-class KwargsForCausalLM(FlashAttentionKwargs, LossKwargs):
-    ...
 
 
 @dataclass
@@ -1216,7 +1212,7 @@ class Glm4vModel(Glm4vPreTrainedModel):
         video_grid_thw: Optional[ms.Tensor] = None,
         rope_deltas: Optional[ms.Tensor] = None,
         cache_position: Optional[ms.Tensor] = None,
-        **kwargs: Unpack[KwargsForCausalLM],
+        **kwargs: Unpack[TransformersKwargs],
     ) -> Union[Tuple, Glm4vModelOutputWithPast]:
         r"""
         pixel_values_videos (`torch.FloatTensor` of shape `(seq_length, num_channels * temporal_size * image_size * image_size)):
@@ -1457,7 +1453,7 @@ class Glm4vForConditionalGeneration(Glm4vPreTrainedModel, GenerationMixin):
         video_grid_thw: Optional[ms.Tensor] = None,
         rope_deltas: Optional[ms.Tensor] = None,
         cache_position: Optional[ms.Tensor] = None,
-        **kwargs: Unpack[KwargsForCausalLM],
+        **kwargs: Unpack[TransformersKwargs],
     ) -> Union[Tuple, Glm4vCausalLMOutputWithPast]:
         r"""
         labels (`torch.LongTensor` of shape `(batch_size, sequence_length)`, *optional*):
