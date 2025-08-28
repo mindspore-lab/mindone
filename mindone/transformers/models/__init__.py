@@ -34,6 +34,8 @@ from . import (
     clap,
     clip,
     convbert,
+    convnext,
+    convnextv2,
     depth_anything,
     dinov2,
     dpt,

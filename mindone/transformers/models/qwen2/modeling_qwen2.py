@@ -15,7 +15,6 @@ import math
 from typing import Callable, List, Optional, Tuple, Union
 
 from transformers import Qwen2Config, logging
-from transformers.utils import LossKwargs
 
 import mindspore as ms
 from mindspore import Parameter, Tensor, mint, nn, ops
@@ -40,6 +39,8 @@ from mindone.transformers.modeling_outputs import (
 from mindone.transformers.modeling_rope_utils import ROPE_INIT_FUNCTIONS
 from mindone.transformers.modeling_utils import ALL_ATTENTION_FUNCTIONS, MSPreTrainedModel
 from mindone.transformers.processing_utils import Unpack
+
+from ...utils import TransformersKwargs
 
 logger = logging.get_logger(__name__)
 
@@ -507,6 +508,8 @@ class Qwen2PreTrainedModel(MSPreTrainedModel):
     _supports_sdpa = True
     _supports_cache_class = False  # FIXME
     _supports_attention_backend = True
+    _supports_jit = True
+    _is_stateful = True
 
     def _init_weights(self, module):
         std = self.config.initializer_range
@@ -854,10 +857,6 @@ class Qwen2Model(Qwen2PreTrainedModel):
         return causal_mask
 
 
-class KwargsForCausalLM(FlashAttentionKwargs, LossKwargs):
-    ...
-
-
 class Qwen2ForCausalLM(Qwen2PreTrainedModel, GenerationMixin):
     _tied_weights_keys = ["lm_head.weight"]
 
@@ -964,7 +963,7 @@ class Qwen2ForCausalLM(Qwen2PreTrainedModel, GenerationMixin):
         block_tables: Optional[ms.Tensor] = None,
         slot_mapping: Optional[ms.Tensor] = None,
         batch_valid_length: Optional[ms.Tensor] = None,
-        **kwargs: Unpack[KwargsForCausalLM],
+        **kwargs: Unpack[TransformersKwargs],
     ) -> Union[Tuple, CausalLMOutputWithPast]:
         r"""
         Args:

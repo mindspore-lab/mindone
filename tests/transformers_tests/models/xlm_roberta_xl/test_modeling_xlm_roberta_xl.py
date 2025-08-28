@@ -15,7 +15,7 @@ import inspect
 import numpy as np
 import pytest
 import torch
-from transformers.models.xlm_roberta_xl.configuration_xlm_roberta_xl import XLMXLMRobertaConfig
+from transformers.models.xlm_roberta_xl.configuration_xlm_roberta_xl import XLMRobertaXLConfig
 
 import mindspore as ms
 
@@ -103,7 +103,7 @@ class XLMRobertaXLModelTester:
         return config, input_ids, token_type_ids, input_mask, sequence_labels, token_labels, choice_labels
 
     def get_config(self):
-        return XLMXLMRobertaConfig(
+        return XLMRobertaXLConfig(
             attn_implementation="eager",
             vocab_size=self.vocab_size,
             hidden_size=self.hidden_size,
@@ -269,6 +269,6 @@ def test_named_modules(
 
     THRESHOLD = DTYPE_AND_THRESHOLDS[ms_dtype]
     assert (np.array(diffs) < THRESHOLD).all(), (
-        f"ms_dtype: {ms_dtype}, pt_type:{pt_dtype}, "
+        f"ms_dtype: {ms_dtype}, pt_type: {pt_dtype}, "
         f"Outputs({np.array(diffs).tolist()}) has diff bigger than {THRESHOLD}"
     )
