@@ -844,7 +844,6 @@ def _reconstruct_nested_structure(indices, processed_images):
 
 def group_images_by_shape(
     images: Union[list["ms.Tensor"], "ms.Tensor"],
-    disable_grouping: bool,
     is_nested: bool = False,
 ) -> tuple[dict[tuple[int, int], list["ms.Tensor"]], dict[Union[int, tuple[int, int]], tuple[tuple[int, int], int]]]:
     """
@@ -869,18 +868,7 @@ def group_images_by_shape(
             - A dictionary with shape as key and list of images with that shape as value
             - A dictionary mapping original indices to (shape, index) tuples
     """
-    # If disable grouping is not explicitely provided, we favor disabling it if the images are on CPU, and enabling it otherwise.
-    if disable_grouping is None:
-        device = images[0][0].device if is_nested else images[0].device
-        disable_grouping = device == "cpu"
-
-    if disable_grouping:
-        if is_nested:
-            return {(i, j): images[i][j].unsqueeze(0) for i in range(len(images)) for j in range(len(images[i]))}, {
-                (i, j): ((i, j), 0) for i in range(len(images)) for j in range(len(images[i]))
-            }
-        else:
-            return {i: images[i].unsqueeze(0) for i in range(len(images))}, {i: (i, 0) for i in range(len(images))}
+    # TODO mindone.transformers hasn't supported disable_grouping yet
 
     # Handle single level nested structure
     grouped_images, grouped_images_index = _group_images_by_shape(images, is_nested)
