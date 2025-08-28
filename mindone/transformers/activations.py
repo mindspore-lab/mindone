@@ -18,7 +18,6 @@
 import math
 from collections import OrderedDict
 
-import mindspore as ms
 from mindspore import Tensor, mint, nn
 
 
@@ -131,19 +130,6 @@ class AccurateGELUActivation(nn.Cell):
         return 0.5 * input * (1 + mint.tanh(self.precomputed_constant * (input + 0.044715 * mint.pow(input, 3))))
 
 
-class SiLUActivationFP32(nn.Cell):
-    def __init__(self):
-        super(SiLUActivationFP32, self).__init__()
-        self.sigmoid = nn.Sigmoid()
-
-    def construct(self, x):
-        _dtype = x.dtype
-        x = x.to(ms.float32)
-        out = x * self.sigmoid(x)
-        out = out.to(_dtype)
-        return out
-
-
 class MishActivation(nn.Cell):
     """
     See Mish: A Self-Regularized Non-Monotonic Activation Function (Misra., https://huggingface.co/papers/1908.08681). Also
@@ -203,6 +189,7 @@ ACT2CLS = {
     "gelu_pytorch_tanh": PytorchGELUTanh,
     "gelu_accurate": AccurateGELUActivation,
     "laplace": LaplaceActivation,
+    "leaky_relu": nn.LeakyReLU,
     "linear": LinearActivation,
     "mish": MishActivation,
     "quick_gelu": QuickGELUActivation,
@@ -210,9 +197,10 @@ ACT2CLS = {
     "relu2": ReLUSquaredActivation,
     "relu6": mint.nn.ReLU6,
     "sigmoid": mint.nn.Sigmoid,
-    "silu": SiLUActivationFP32,
-    "swish": SiLUActivationFP32,
+    "silu": mint.nn.SiLU,
+    "swish": mint.nn.SiLU,
     "tanh": mint.nn.Tanh,
+    "prelu": mint.nn.PReLU,
 }
 ACT2FN = ClassInstantier(ACT2CLS)
 
@@ -222,3 +210,13 @@ def get_activation(activation_string):
         return ACT2FN[activation_string]
     else:
         raise KeyError(f"function {activation_string} not found in ACT2FN mapping {list(ACT2FN.keys())}")
+
+# For backwards compatibility with: from activations import gelu_python
+gelu_python = get_activation("gelu_python")
+gelu_new = get_activation("gelu_new")
+gelu = get_activation("gelu")
+gelu_fast = get_activation("gelu_fast")
+quick_gelu = get_activation("quick_gelu")
+silu = get_activation("silu")
+mish = get_activation("mish")
+linear_act = get_activation("linear")
