@@ -414,7 +414,7 @@ class StopStringCriteria(StoppingCriteria):
         flipped_ids = mint.flip(input_ids, (1,))
 
         # Clip out-of-vocab values to the dummy value at the end of the embedding vector
-        flipped_ids = mint.clamp(flipped_ids, max=self.embedding_vec.size(0) - 1)
+        flipped_ids = mint.clamp(flipped_ids, max=self.embedding_vec.shape[0] - 1)
 
         # Size of the vector of positions a single token can match
         max_valid_positions = self.max_valid_positions
@@ -423,14 +423,15 @@ class StopStringCriteria(StoppingCriteria):
         embedded = F.embedding(flipped_ids, self.embedding_vec)
 
         # Now we split the embedding vector. valid_positions is the positions in the stop string the token can fit
-        valid_positions = embedded[:, 1:, : max_valid_positions * self.num_stop_strings].unflatten(
-            -1, (self.num_stop_strings, -1)
-        )
+        valid_positions = embedded[:, 1:, : max_valid_positions * self.num_stop_strings]
+        num_embeds, embeds_size, _ = valid_positions.shape
+        valid_positions = valid_positions.reshape((num_embeds, embeds_size, self.num_stop_strings, -1))
+
         # end_lengths is the number of characters from the string, counting from the end, that the token
         # contains. It can have multiple values if the same token can overlap different end lengths
-        end_lengths = embedded[:, :1, max_valid_positions * self.num_stop_strings : -1].unflatten(
-            -1, (self.num_stop_strings, -1)
-        )
+        end_lengths = embedded[:, :1, max_valid_positions * self.num_stop_strings : -1]
+        num_embeds, embeds_size, _ = end_lengths.shape
+        end_lengths = end_lengths.reshape((num_embeds, embeds_size, self.num_stop_strings, -1))
         # Lengths is the total length of each token. Unlike the others, it always has a single value
         lengths = embedded[:, 1:, None, -1:]  # Insert a dummy dimension for stop_strings even though lengths are const
 
