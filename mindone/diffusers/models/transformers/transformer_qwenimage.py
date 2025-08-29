@@ -331,7 +331,7 @@ class QwenDoubleStreamAttnProcessor2_0:
         joint_value = mint.cat([txt_value, img_value], dim=1)
 
         # Compute joint attention
-        # NOTICE! 2025/8/18. Replace in the present version.
+        # TODO: dispatch_attention_fn.py
         # joint_hidden_states = dispatch_attention_fn(
         #     joint_query,
         #     joint_key,
@@ -341,9 +341,11 @@ class QwenDoubleStreamAttnProcessor2_0:
         #     is_causal=False,
         #     backend=self._attention_backend,
         # )
+        joint_query, joint_key, joint_value = (x.permute(0, 2, 1, 3) for x in (joint_query, joint_key, joint_value))
         joint_hidden_states = attn.scaled_dot_product_attention(
             joint_query, joint_key, joint_value, attn_mask=attention_mask, dropout_p=0.0, is_causal=False
         )
+        joint_hidden_states = joint_hidden_states.permute(0, 2, 1, 3)
 
         # Reshape back
         joint_hidden_states = joint_hidden_states.flatten(2, 3)
@@ -563,6 +565,7 @@ class QwenImageTransformer2DModel(ModelMixin, ConfigMixin, PeftAdapterMixin, Fro
         txt_seq_lens: Optional[List[int]] = None,
         guidance: ms.Tensor = None,  # TODO: this should probably be removed
         attention_kwargs: Optional[Dict[str, Any]] = None,
+        controlnet_block_samples=None,
         return_dict: bool = True,
     ) -> Union[ms.Tensor, Transformer2DModelOutput]:
         """
@@ -627,6 +630,12 @@ class QwenImageTransformer2DModel(ModelMixin, ConfigMixin, PeftAdapterMixin, Fro
                 image_rotary_emb=image_rotary_emb,
                 joint_attention_kwargs=attention_kwargs,
             )
+
+            # controlnet residual
+            if controlnet_block_samples is not None:
+                interval_control = len(self.transformer_blocks) / len(controlnet_block_samples)
+                interval_control = int(mint.ceil(interval_control))
+                hidden_states = hidden_states + controlnet_block_samples[index_block // interval_control]
 
         # Use only the image part (hidden_states) from the dual-stream blocks
         hidden_states = self.norm_out(hidden_states, temb)
