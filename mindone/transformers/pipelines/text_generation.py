@@ -302,7 +302,7 @@ class TextGenerationPipeline(Pipeline):
                 add_generation_prompt=not continue_final_message,
                 continue_final_message=continue_final_message,
                 return_dict=True,
-                return_tensors=self.framework,
+                return_tensors="np",
                 **tokenizer_kwargs,
             )
         else:
@@ -331,7 +331,7 @@ class TextGenerationPipeline(Pipeline):
                     inputs["attention_mask"] = inputs["attention_mask"][:, -keep_length:]
 
         for key in inputs.keys():
-            if not isinstance(inputs[key], str):
+            if not isinstance(inputs[key], (str, Chat)):
                 inputs[key] = ms.tensor(inputs[key])
 
         return inputs
