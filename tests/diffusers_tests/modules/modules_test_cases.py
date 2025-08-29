@@ -509,6 +509,32 @@ VAE_CASES = [
         },
     ],
     [
+        "AutoencoderKLCosmos",
+        "diffusers.models.autoencoders.AutoencoderKLCosmos",
+        "mindone.diffusers.models.autoencoders.AutoencoderKLCosmos",
+        (),
+        {
+            "in_channels": 3,
+            "out_channels": 3,
+            "latent_channels": 4,
+            "encoder_block_out_channels": (8, 8, 8, 8),
+            "decode_block_out_channels": (8, 8, 8, 8),
+            "attention_resolutions": (8,),
+            "resolution": 64,
+            "num_layers": 2,
+            "patch_size": 4,
+            "patch_type": "haar",
+            "scaling_factor": 1.0,
+            "spatial_compression_ratio": 4,
+            "temporal_compression_ratio": 4,
+        },
+        (),
+        {
+            "sample": np.random.randn(2, 3, 9, 32, 32).astype(np.float32),
+            "return_dict": False,
+        },
+    ],
+    [
         "AutoencoderDC",
         "diffusers.models.autoencoders.AutoencoderDC",
         "mindone.diffusers.models.autoencoders.AutoencoderDC",
@@ -931,6 +957,39 @@ CONSISID_TRANSFORMER3D_CASES = [
     ],
 ]
 
+
+COSMOS_TRANSFORMER3D_CASES = [
+    [
+        "CosmosTransformer3DModel",
+        "diffusers.models.transformers.transformer_cosmos.CosmosTransformer3DModel",
+        "mindone.diffusers.models.transformers.transformer_cosmos.CosmosTransformer3DModel",
+        (),
+        {
+            "in_channels": 4,
+            "out_channels": 4,
+            "num_attention_heads": 2,
+            "attention_head_dim": 12,
+            "num_layers": 2,
+            "mlp_ratio": 2,
+            "text_embed_dim": 16,
+            "adaln_lora_dim": 4,
+            "max_size": (4, 32, 32),
+            "patch_size": (1, 2, 2),
+            "rope_scale": (2.0, 1.0, 1.0),
+            "concat_padding_mask": True,
+            "extra_pos_embed_type": "learnable",
+        },
+        (),
+        {
+            "hidden_states": np.random.randn(1, 4, 1, 16, 16),
+            "encoder_hidden_states": np.random.randn(1, 12, 16),
+            "timestep": np.random.randint(0, 1000, size=(1,)),
+            "attention_mask": np.ones((1, 12)),
+            "padding_mask": np.zeros((1, 1, 16, 16)),
+            "return_dict": False,
+        },
+    ],
+]
 
 DIT_TRANSFORMER2D_CASES = [
     [
@@ -1381,9 +1440,41 @@ LUMINA2_TRANSFORMER2D_CASES = [
 ]
 
 
+CHROMA_TRANSFORMER2D_CASES = [
+    [
+        "ChromaTransformer2DModel",
+        "diffusers.models.transformers.transformer_chroma.ChromaTransformer2DModel",
+        "mindone.diffusers.models.transformers.transformer_chroma.ChromaTransformer2DModel",
+        (),
+        {
+            "patch_size": 1,
+            "in_channels": 4,
+            "num_layers": 1,
+            "num_single_layers": 1,
+            "attention_head_dim": 16,
+            "num_attention_heads": 2,
+            "joint_attention_dim": 32,
+            "axes_dims_rope": [4, 4, 8],
+            "approximator_num_channels": 8,
+            "approximator_hidden_dim": 16,
+            "approximator_layers": 1,
+        },
+        (),
+        {
+            "hidden_states": np.random.randn(1, 16, 4),
+            "encoder_hidden_states": np.random.randn(1, 48, 32),
+            "img_ids": np.random.randn(48, 3),
+            "txt_ids": np.random.randn(16, 3),
+            "timestep": np.ones(1),
+        },
+    ]
+]
+
+
 TRANSFORMERS_CASES = (
     ALLEGRO_TRANSFORMER3D_CASES
     + AURAFLOW_TRANSFORMER2D_CASES
+    + COSMOS_TRANSFORMER3D_CASES
     + COGVIDEOX_TRANSFORMER3D_CASES
     + COGVIEW3PLUS_TRANSFORMER2D_CASES
     + CONSISID_TRANSFORMER3D_CASES
@@ -1402,6 +1493,7 @@ TRANSFORMERS_CASES = (
     + LATTE_TRANSORMER3D_CASES
     + LUMINA_NEXTDIT2D_CASES
     + LUMINA2_TRANSFORMER2D_CASES
+    + CHROMA_TRANSFORMER2D_CASES
 )
 
 
