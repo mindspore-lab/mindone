@@ -446,6 +446,18 @@ from .models.mobilebert import (
     MobileBertModel,
     MobileBertPreTrainedModel,
 )
+from .models.mobilevit import (
+    MobileViTForImageClassification,
+    MobileViTForSemanticSegmentation,
+    MobileViTModel,
+    MobileViTPreTrainedModel,
+)
+from .models.mobilevitv2 import (
+    MobileViTV2ForImageClassification,
+    MobileViTV2ForSemanticSegmentation,
+    MobileViTV2Model,
+    MobileViTV2PreTrainedModel,
+)
 from .models.mpt import (
     MptForCausalLM,
     MptForQuestionAnswering,
@@ -668,6 +680,16 @@ from .models.xlm_roberta_xl import (
     XLMRobertaXLModel,
     XLMRobertaXLPreTrainedModel,
 )
+from .models.xlnet import (
+    XLNetForMultipleChoice,
+    XLNetForQuestionAnswering,
+    XLNetForQuestionAnsweringSimple,
+    XLNetForSequenceClassification,
+    XLNetForTokenClassification,
+    XLNetLMHeadModel,
+    XLNetModel,
+    XLNetPreTrainedModel,
+)
 from .models.yolos import YolosForObjectDetection, YolosImageProcessor, YolosModel, YolosPreTrainedModel
 from .pipelines import (
     ImageToImagePipeline,
@@ -682,6 +704,7 @@ from .training_args import TrainingArguments
 from .utils import logging
 
 if version.parse(transformers.__version__) >= version.parse("4.51.0"):
+    from .models.deepseek_v3 import DeepseekV3ForCausalLM, DeepseekV3Model, DeepseekV3PreTrainedModel
     from .models.qwen3 import Qwen3ForCausalLM, Qwen3Model, Qwen3PreTrainedModel
 
 if version.parse(transformers.__version__) >= version.parse("4.51.3"):
