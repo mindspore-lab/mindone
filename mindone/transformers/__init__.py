@@ -287,8 +287,17 @@ from .models.deberta_v2 import (
     DebertaV2PreTrainedModel,
 )
 from .models.depth_anything import DepthAnythingForDepthEstimation, DepthAnythingPreTrainedModel
+from .models.diffllama import (
+    DiffLlamaForCausalLM,
+    DiffLlamaForQuestionAnswering,
+    DiffLlamaForSequenceClassification,
+    DiffLlamaForTokenClassification,
+    DiffLlamaModel,
+    DiffLlamaPreTrainedModel,
+)
 from .models.dinov2 import Dinov2Backbone, Dinov2ForImageClassification, Dinov2Model, Dinov2PreTrainedModel
 from .models.dpt import DPTForDepthEstimation, DPTImageProcessor, DPTModel, DPTPreTrainedModel
+from .models.encoder_decoder import EncoderDecoderModel
 from .models.fuyu import FuyuForCausalLM, FuyuPreTrainedModel
 from .models.gemma import (
     GemmaForCausalLM,
@@ -469,6 +478,7 @@ from .models.mvp import (
     MvpModel,
     MvpPreTrainedModel,
 )
+from .models.olmoe import OlmoeForCausalLM, OlmoeModel, OlmoePreTrainedModel
 from .models.opt import (
     OPTForCausalLM,
     OPTForQuestionAnswering,

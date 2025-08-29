@@ -18,17 +18,15 @@
 # limitations under the License.
 """MindSpore BERT model."""
 
-import numbers
 import warnings
 from dataclasses import dataclass
 from typing import List, Optional, Tuple, Union
 
-import numpy as np
 from transformers.models.bert.configuration_bert import BertConfig
 from transformers.utils import ModelOutput, logging
 
 import mindspore as ms
-from mindspore import nn, ops
+from mindspore import mint, nn, ops
 from mindspore.common.initializer import Normal, One, Zero, initializer
 
 from ...activations import ACT2FN
@@ -77,18 +75,18 @@ class BertEmbeddings(nn.Cell):
 
     def __init__(self, config):
         super().__init__()
-        self.word_embeddings = nn.Embedding(config.vocab_size, config.hidden_size, padding_idx=config.pad_token_id)
-        self.position_embeddings = nn.Embedding(config.max_position_embeddings, config.hidden_size)
-        self.token_type_embeddings = nn.Embedding(config.type_vocab_size, config.hidden_size)
+        self.word_embeddings = mint.nn.Embedding(config.vocab_size, config.hidden_size, padding_idx=config.pad_token_id)
+        self.position_embeddings = mint.nn.Embedding(config.max_position_embeddings, config.hidden_size)
+        self.token_type_embeddings = mint.nn.Embedding(config.type_vocab_size, config.hidden_size)
 
         # self.LayerNorm is not snake-cased to stick with TensorFlow model variable name and be able to load
         # any TensorFlow checkpoint file
-        self.LayerNorm = nn.LayerNorm((config.hidden_size,), epsilon=config.layer_norm_eps)
-        self.dropout = nn.Dropout(p=config.hidden_dropout_prob)
+        self.LayerNorm = mint.nn.LayerNorm((config.hidden_size,), eps=config.layer_norm_eps)
+        self.dropout = mint.nn.Dropout(p=config.hidden_dropout_prob)
         # position_ids (1, len position emb) is contiguous in memory and exported when serialized
         self.position_embedding_type = getattr(config, "position_embedding_type", "absolute")
-        self.position_ids = ops.arange(config.max_position_embeddings).broadcast_to((1, -1))
-        self.token_type_ids = ops.zeros(self.position_ids.shape, dtype=ms.int32)
+        self.position_ids = mint.arange(config.max_position_embeddings).broadcast_to((1, -1))
+        self.token_type_ids = mint.zeros(self.position_ids.shape, dtype=ms.int32)
 
     def construct(
         self,
@@ -117,7 +115,7 @@ class BertEmbeddings(nn.Cell):
                 buffered_token_type_ids_expanded = buffered_token_type_ids.broadcast_to((input_shape[0], seq_length))
                 token_type_ids = buffered_token_type_ids_expanded
             else:
-                token_type_ids = ops.zeros(input_shape, dtype=ms.int32)
+                token_type_ids = mint.zeros(input_shape, dtype=ms.int32)
 
         if inputs_embeds is None:
             inputs_embeds = self.word_embeddings(input_ids.int())
@@ -145,15 +143,17 @@ class BertSelfAttention(nn.Cell):
         self.attention_head_size = int(config.hidden_size / config.num_attention_heads)
         self.all_head_size = self.num_attention_heads * self.attention_head_size
 
-        self.query = nn.Dense(config.hidden_size, self.all_head_size)
-        self.key = nn.Dense(config.hidden_size, self.all_head_size)
-        self.value = nn.Dense(config.hidden_size, self.all_head_size)
+        self.query = mint.nn.Linear(config.hidden_size, self.all_head_size)
+        self.key = mint.nn.Linear(config.hidden_size, self.all_head_size)
+        self.value = mint.nn.Linear(config.hidden_size, self.all_head_size)
 
-        self.dropout = nn.Dropout(p=config.attention_probs_dropout_prob)
+        self.dropout = mint.nn.Dropout(p=config.attention_probs_dropout_prob)
         self.position_embedding_type = position_embedding_type or getattr(config, "position_embedding_type", "absolute")
         if self.position_embedding_type == "relative_key" or self.position_embedding_type == "relative_key_query":
             self.max_position_embeddings = config.max_position_embeddings
-            self.distance_embedding = nn.Embedding(2 * config.max_position_embeddings - 1, self.attention_head_size)
+            self.distance_embedding = mint.nn.Embedding(
+                2 * config.max_position_embeddings - 1, self.attention_head_size
+            )
 
         self.is_decoder = config.is_decoder
 
@@ -191,8 +191,8 @@ class BertSelfAttention(nn.Cell):
         elif past_key_value is not None:
             key_layer = self.transpose_for_scores(self.key(hidden_states))
             value_layer = self.transpose_for_scores(self.value(hidden_states))
-            key_layer = ops.cat([past_key_value[0], key_layer], axis=2)
-            value_layer = ops.cat([past_key_value[1], value_layer], axis=2)
+            key_layer = mint.cat([past_key_value[0], key_layer], dim=2)
+            value_layer = mint.cat([past_key_value[1], value_layer], dim=2)
         else:
             key_layer = self.transpose_for_scores(self.key(hidden_states))
             value_layer = self.transpose_for_scores(self.value(hidden_states))
@@ -211,29 +211,29 @@ class BertSelfAttention(nn.Cell):
             past_key_value = (key_layer, value_layer)
 
         # Take the dot product between "query" and "key" to get the raw attention scores.
-        attention_scores = ops.matmul(query_layer, key_layer.swapaxes(-1, -2))
+        attention_scores = mint.matmul(query_layer, key_layer.swapaxes(-1, -2))
 
         if self.position_embedding_type == "relative_key" or self.position_embedding_type == "relative_key_query":
             query_length, key_length = query_layer.shape[2], key_layer.shape[2]
             if use_cache:
                 position_ids_l = ms.tensor(key_length - 1, dtype=ms.int32).view(-1, 1)
             else:
-                position_ids_l = ops.arange(query_length, dtype=ms.int32).view(-1, 1)
-            position_ids_r = ops.arange(key_length, dtype=ms.int32).view(1, -1)
+                position_ids_l = mint.arange(query_length, dtype=ms.int32).view(-1, 1)
+            position_ids_r = mint.arange(key_length, dtype=ms.int32).view(1, -1)
             distance = position_ids_l - position_ids_r
 
             positional_embedding = self.distance_embedding(distance + self.max_position_embeddings - 1)
             positional_embedding = positional_embedding.to(dtype=query_layer.dtype)  # fp16 compatibility
 
             if self.position_embedding_type == "relative_key":
-                relative_position_scores = ops.matmul(
+                relative_position_scores = mint.matmul(
                     query_layer.unsqueeze(3), positional_embedding.permute(0, 2, 1)
                 ).squeeze(
                     3
                 )  # "bhld,lrd->bhlr"
                 attention_scores = attention_scores + relative_position_scores
             elif self.position_embedding_type == "relative_key_query":
-                relative_position_scores_query = ops.matmul(
+                relative_position_scores_query = mint.matmul(
                     query_layer.unsqueeze(3), positional_embedding.permute(0, 2, 1)
                 ).squeeze(
                     3
@@ -245,7 +245,7 @@ class BertSelfAttention(nn.Cell):
                 )  # "bhrd,lrd->bhlr"
                 attention_scores = attention_scores + relative_position_scores_query + relative_position_scores_key
 
-        attention_scores = attention_scores / ops.sqrt(
+        attention_scores = attention_scores / mint.sqrt(
             ms.tensor(self.attention_head_size, dtype=attention_scores.dtype)
         )
         if attention_mask is not None:
@@ -253,7 +253,7 @@ class BertSelfAttention(nn.Cell):
             attention_scores = attention_scores + attention_mask
 
         # Normalize the attention scores to probabilities.
-        attention_probs = ops.softmax(attention_scores, axis=-1)
+        attention_probs = mint.softmax(attention_scores, dim=-1)
 
         # This is actually dropping out entire tokens to attend to, which might
         # seem a bit unusual, but is taken from the original Transformer paper.
@@ -263,7 +263,7 @@ class BertSelfAttention(nn.Cell):
         if head_mask is not None:
             attention_probs = attention_probs * head_mask
 
-        context_layer = ops.matmul(attention_probs, value_layer)
+        context_layer = mint.matmul(attention_probs, value_layer)
 
         context_layer = context_layer.permute(0, 2, 1, 3)
         new_context_layer_shape = context_layer.shape[:-2] + (self.all_head_size,)
@@ -329,8 +329,8 @@ class BertSdpaSelfAttention(BertSelfAttention):
             key_layer = self.transpose_for_scores(self.key(current_states))
             value_layer = self.transpose_for_scores(self.value(current_states))
             if past_key_value is not None and not is_cross_attention:
-                key_layer = ops.cat([past_key_value[0], key_layer], axis=2)
-                value_layer = ops.cat([past_key_value[1], value_layer], axis=2)
+                key_layer = mint.cat([past_key_value[0], key_layer], dim=2)
+                value_layer = mint.cat([past_key_value[1], value_layer], dim=2)
 
         if self.is_decoder:
             # if cross_attention save Tuple(ms.Tensor, ms.Tensor) of all cross attention key/value_states.
@@ -367,9 +367,9 @@ class BertSdpaSelfAttention(BertSelfAttention):
 class BertSelfOutput(nn.Cell):
     def __init__(self, config):
         super().__init__()
-        self.dense = nn.Dense(config.hidden_size, config.hidden_size)
-        self.LayerNorm = nn.LayerNorm((config.hidden_size,), epsilon=config.layer_norm_eps)
-        self.dropout = nn.Dropout(p=config.hidden_dropout_prob)
+        self.dense = mint.nn.Linear(config.hidden_size, config.hidden_size)
+        self.LayerNorm = mint.nn.LayerNorm((config.hidden_size,), eps=config.layer_norm_eps)
+        self.dropout = mint.nn.Dropout(p=config.hidden_dropout_prob)
 
     def construct(self, hidden_states: ms.Tensor, input_tensor: ms.Tensor) -> ms.Tensor:
         hidden_states = self.dense(hidden_states)
@@ -438,7 +438,7 @@ class BertAttention(nn.Cell):
 class BertIntermediate(nn.Cell):
     def __init__(self, config):
         super().__init__()
-        self.dense = nn.Dense(config.hidden_size, config.intermediate_size)
+        self.dense = mint.nn.Linear(config.hidden_size, config.intermediate_size)
         if isinstance(config.hidden_act, str):
             self.intermediate_act_fn = ACT2FN[config.hidden_act]
         else:
@@ -453,9 +453,9 @@ class BertIntermediate(nn.Cell):
 class BertOutput(nn.Cell):
     def __init__(self, config):
         super().__init__()
-        self.dense = nn.Dense(config.intermediate_size, config.hidden_size)
-        self.LayerNorm = nn.LayerNorm((config.hidden_size,), epsilon=config.layer_norm_eps)
-        self.dropout = nn.Dropout(p=config.hidden_dropout_prob)
+        self.dense = mint.nn.Linear(config.intermediate_size, config.hidden_size)
+        self.LayerNorm = mint.nn.LayerNorm((config.hidden_size,), eps=config.layer_norm_eps)
+        self.dropout = mint.nn.Dropout(p=config.hidden_dropout_prob)
 
     def construct(self, hidden_states: ms.Tensor, input_tensor: ms.Tensor) -> ms.Tensor:
         hidden_states = self.dense(hidden_states)
@@ -636,8 +636,8 @@ class BertEncoder(nn.Cell):
 class BertPooler(nn.Cell):
     def __init__(self, config):
         super().__init__()
-        self.dense = nn.Dense(config.hidden_size, config.hidden_size)
-        self.activation = nn.Tanh()
+        self.dense = mint.nn.Linear(config.hidden_size, config.hidden_size)
+        self.activation = mint.nn.Tanh()
 
     def construct(self, hidden_states: ms.Tensor) -> ms.Tensor:
         # We "pool" the model by simply taking the hidden state corresponding
@@ -651,12 +651,12 @@ class BertPooler(nn.Cell):
 class BertPredictionHeadTransform(nn.Cell):
     def __init__(self, config):
         super().__init__()
-        self.dense = nn.Dense(config.hidden_size, config.hidden_size)
+        self.dense = mint.nn.Linear(config.hidden_size, config.hidden_size)
         if isinstance(config.hidden_act, str):
             self.transform_act_fn = ACT2FN[config.hidden_act]
         else:
             self.transform_act_fn = config.hidden_act
-        self.LayerNorm = nn.LayerNorm((config.hidden_size,), epsilon=config.layer_norm_eps)
+        self.LayerNorm = mint.nn.LayerNorm(config.hidden_size, eps=config.layer_norm_eps)
 
     def construct(self, hidden_states: ms.Tensor) -> ms.Tensor:
         hidden_states = self.dense(hidden_states)
@@ -672,9 +672,9 @@ class BertLMPredictionHead(nn.Cell):
 
         # The output weights are the same as the input embeddings, but there is
         # an output-only bias for each token.
-        self.decoder = nn.Dense(config.hidden_size, config.vocab_size, has_bias=False)
+        self.decoder = mint.nn.Linear(config.hidden_size, config.vocab_size, bias=False)
 
-        self.bias = ms.Parameter(ops.zeros(config.vocab_size), name="bias")
+        self.bias = ms.Parameter(mint.zeros(config.vocab_size), name="bias")
 
         # Need a link between the two variables so that the bias is correctly resized with `resize_token_embeddings`
         self.decoder.bias = self.bias
@@ -701,7 +701,7 @@ class BertOnlyMLMHead(nn.Cell):
 class BertOnlyNSPHead(nn.Cell):
     def __init__(self, config):
         super().__init__()
-        self.seq_relationship = nn.Dense(config.hidden_size, 2)
+        self.seq_relationship = mint.nn.Linear(config.hidden_size, 2)
 
     def construct(self, pooled_output):
         seq_relationship_score = self.seq_relationship(pooled_output)
@@ -712,7 +712,7 @@ class BertPreTrainingHeads(nn.Cell):
     def __init__(self, config):
         super().__init__()
         self.predictions = BertLMPredictionHead(config)
-        self.seq_relationship = nn.Dense(config.hidden_size, 2)
+        self.seq_relationship = mint.nn.Linear(config.hidden_size, 2)
 
     def construct(self, sequence_output, pooled_output):
         prediction_scores = self.predictions(sequence_output)
@@ -733,7 +733,7 @@ class BertPreTrainedModel(MSPreTrainedModel):
 
     def _init_weights(self, module):
         """Initialize the weights"""
-        if isinstance(module, nn.Dense):
+        if isinstance(module, mint.nn.Linear):
             # Slightly different from the TF version which uses truncated_normal for initialization
             # cf https://github.com/pytorch/pytorch/pull/5617
             module.weight.set_data(
@@ -743,17 +743,17 @@ class BertPreTrainedModel(MSPreTrainedModel):
             )
             if module.bias is not None:
                 module.bias.set_data(initializer(Zero(), module.bias.shape, module.bias.dtype))
-        elif isinstance(module, nn.Embedding):
-            module.embedding_table.set_data(
+        elif isinstance(module, mint.nn.Embedding):
+            module.weight.set_data(
                 initializer(
                     Normal(sigma=self.config.initializer_range, mean=0.0),
-                    module.embedding_table.shape,
-                    module.embedding_table.dtype,
+                    module.weight.shape,
+                    module.weight.dtype,
                 )
             )
             if module.padding_idx is not None:
-                module.embedding_table[module.padding_idx] = 0
-        elif isinstance(module, LayerNorm):
+                module.weight.data[module.padding_idx] = 0
+        elif isinstance(module, mint.nn.LayerNorm):
             module.bias.set_data(initializer(Zero(), module.bias.shape, module.bias.dtype))
             module.weight.set_data(initializer(One(), module.weight.shape, module.weight.dtype))
 
@@ -916,7 +916,7 @@ class BertModel(BertPreTrainedModel):
                 buffered_token_type_ids_expanded = buffered_token_type_ids.broadcast_to((batch_size, seq_length))
                 token_type_ids = buffered_token_type_ids_expanded
             else:
-                token_type_ids = ops.zeros(input_shape, dtype=ms.int32)
+                token_type_ids = mint.zeros(input_shape, dtype=ms.int32)
 
         embedding_output = self.embeddings(
             input_ids=input_ids,
@@ -927,7 +927,7 @@ class BertModel(BertPreTrainedModel):
         )
 
         if attention_mask is None:
-            attention_mask = ops.ones((batch_size, seq_length + past_key_values_length))
+            attention_mask = mint.ones((batch_size, seq_length + past_key_values_length))
 
         use_sdpa_attention_masks = (
             self.attn_implementation == "sdpa"
@@ -962,7 +962,7 @@ class BertModel(BertPreTrainedModel):
             encoder_batch_size, encoder_sequence_length, _ = encoder_hidden_states.shape
             encoder_hidden_shape = (encoder_batch_size, encoder_sequence_length)
             if encoder_attention_mask is None:
-                encoder_attention_mask = ops.ones(encoder_hidden_shape)
+                encoder_attention_mask = mint.ones(encoder_hidden_shape)
 
             if use_sdpa_attention_masks:
                 # Expand the attention mask for SDPA.
@@ -1100,7 +1100,7 @@ class BertForPreTraining(BertPreTrainedModel):
 
         total_loss = None
         if labels is not None and next_sentence_label is not None:
-            loss_fct = nn.CrossEntropyLoss()
+            loss_fct = mint.nn.CrossEntropyLoss()
             masked_lm_loss = loss_fct(prediction_scores.view(-1, self.vocab_size), labels.view(-1).int())
             next_sentence_loss = loss_fct(seq_relationship_score.view(-1, 2), next_sentence_label.view(-1).int())
             total_loss = masked_lm_loss + next_sentence_loss
@@ -1211,7 +1211,7 @@ class BertLMHeadModel(BertPreTrainedModel):
             # we are doing next-token prediction; shift prediction scores and input ids by one
             shifted_prediction_scores = prediction_scores[:, :-1, :]
             labels = labels[:, 1:]
-            loss_fct = nn.CrossEntropyLoss()
+            loss_fct = mint.nn.CrossEntropyLoss()
             lm_loss = loss_fct(shifted_prediction_scores.view(-1, self.vocab_size), labels.view(-1).int())
 
         if not return_dict:
@@ -1333,7 +1333,7 @@ class BertForMaskedLM(BertPreTrainedModel):
 
         masked_lm_loss = None
         if labels is not None:
-            loss_fct = nn.CrossEntropyLoss()  # -100 index = padding token
+            loss_fct = mint.nn.CrossEntropyLoss()  # -100 index = padding token
             masked_lm_loss = loss_fct(prediction_scores.view(-1, self.vocab_size), labels.view(-1).int())
 
         if not return_dict:
@@ -1355,9 +1355,9 @@ class BertForMaskedLM(BertPreTrainedModel):
         if self.pad_token_id is None:
             raise ValueError("The PAD token should be defined for generation")
 
-        attention_mask = ops.cat([attention_mask, attention_mask.new_zeros((attention_mask.shape[0], 1))], axis=-1)
-        dummy_token = ops.full((effective_batch_size, 1), self.pad_token_id, dtype=ms.int32)
-        input_ids = ops.cat([input_ids, dummy_token], axis=1)
+        attention_mask = mint.cat([attention_mask, attention_mask.new_zeros((attention_mask.shape[0], 1))], dim=-1)
+        dummy_token = mint.full((effective_batch_size, 1), self.pad_token_id, dtype=ms.int32)
+        input_ids = mint.cat([input_ids, dummy_token], dim=1)
 
         return {"input_ids": input_ids, "attention_mask": attention_mask}
 
@@ -1444,7 +1444,7 @@ class BertForNextSentencePrediction(BertPreTrainedModel):
 
         next_sentence_loss = None
         if labels is not None:
-            loss_fct = nn.CrossEntropyLoss()
+            loss_fct = mint.nn.CrossEntropyLoss()
             next_sentence_loss = loss_fct(seq_relationship_scores.view(-1, 2), labels.view(-1).int())
 
         if not return_dict:
@@ -1471,8 +1471,8 @@ class BertForSequenceClassification(BertPreTrainedModel):
         classifier_dropout = (
             config.classifier_dropout if config.classifier_dropout is not None else config.hidden_dropout_prob
         )
-        self.dropout = nn.Dropout(p=classifier_dropout)
-        self.classifier = nn.Dense(config.hidden_size, config.num_labels)
+        self.dropout = mint.nn.Dropout(p=classifier_dropout)
+        self.classifier = mint.nn.Linear(config.hidden_size, config.num_labels)
 
         # Initialize weights and apply final processing
         self.post_init()
@@ -1528,16 +1528,16 @@ class BertForSequenceClassification(BertPreTrainedModel):
                 problem_type = self.problem_type
 
             if problem_type == "regression":
-                loss_fct = nn.MSELoss()
+                loss_fct = mint.nn.MSELoss()
                 if self.num_labels == 1:
                     loss = loss_fct(logits.squeeze(), labels.squeeze())
                 else:
                     loss = loss_fct(logits, labels)
             elif problem_type == "single_label_classification":
-                loss_fct = nn.CrossEntropyLoss()
+                loss_fct = mint.nn.CrossEntropyLoss()
                 loss = loss_fct(logits.view(-1, self.num_labels), labels.view(-1).int())
             elif problem_type == "multi_label_classification":
-                loss_fct = nn.BCEWithLogitsLoss()
+                loss_fct = mint.nn.BCEWithLogitsLoss()
                 loss = loss_fct(logits, labels)
 
         if not return_dict:
@@ -1560,8 +1560,8 @@ class BertForMultipleChoice(BertPreTrainedModel):
         classifier_dropout = (
             config.classifier_dropout if config.classifier_dropout is not None else config.hidden_dropout_prob
         )
-        self.dropout = nn.Dropout(p=classifier_dropout)
-        self.classifier = nn.Dense(config.hidden_size, 1)
+        self.dropout = mint.nn.Dropout(p=classifier_dropout)
+        self.classifier = mint.nn.Linear(config.hidden_size, 1)
         self.use_return_dict = config.use_return_dict
 
         # Initialize weights and apply final processing
@@ -1619,7 +1619,7 @@ class BertForMultipleChoice(BertPreTrainedModel):
 
         loss = None
         if labels is not None:
-            loss_fct = nn.CrossEntropyLoss()
+            loss_fct = mint.nn.CrossEntropyLoss()
             loss = loss_fct(reshaped_logits, labels.int())
 
         if not return_dict:
@@ -1643,8 +1643,8 @@ class BertForTokenClassification(BertPreTrainedModel):
         classifier_dropout = (
             config.classifier_dropout if config.classifier_dropout is not None else config.hidden_dropout_prob
         )
-        self.dropout = nn.Dropout(p=classifier_dropout)
-        self.classifier = nn.Dense(config.hidden_size, config.num_labels)
+        self.dropout = mint.nn.Dropout(p=classifier_dropout)
+        self.classifier = mint.nn.Linear(config.hidden_size, config.num_labels)
         self.use_return_dict = config.use_return_dict
 
         # Initialize weights and apply final processing
@@ -1688,7 +1688,7 @@ class BertForTokenClassification(BertPreTrainedModel):
 
         loss = None
         if labels is not None:
-            loss_fct = nn.CrossEntropyLoss()
+            loss_fct = mint.nn.CrossEntropyLoss()
             loss = loss_fct(logits.view(-1, self.num_labels), labels.view(-1).int())
 
         if not return_dict:
@@ -1709,7 +1709,7 @@ class BertForQuestionAnswering(BertPreTrainedModel):
         self.num_labels = config.num_labels
 
         self.bert = BertModel(config, add_pooling_layer=False)
-        self.qa_outputs = nn.Dense(config.hidden_size, config.num_labels)
+        self.qa_outputs = mint.nn.Linear(config.hidden_size, config.num_labels)
 
         # Initialize weights and apply final processing
         self.post_init()
@@ -1755,7 +1755,7 @@ class BertForQuestionAnswering(BertPreTrainedModel):
         sequence_output = outputs[0]
 
         logits = self.qa_outputs(sequence_output)
-        start_logits, end_logits = logits.split(1, axis=-1)
+        start_logits, end_logits = logits.split(1, dim=-1)
         start_logits = start_logits.squeeze(-1)
         end_logits = end_logits.squeeze(-1)
 
@@ -1771,7 +1771,7 @@ class BertForQuestionAnswering(BertPreTrainedModel):
             start_positions = start_positions.clamp(0, ignored_index)
             end_positions = end_positions.clamp(0, ignored_index)
 
-            loss_fct = nn.CrossEntropyLoss(ignore_index=ignored_index)
+            loss_fct = mint.nn.CrossEntropyLoss(ignore_index=ignored_index)
             start_loss = loss_fct(start_logits, start_positions.int())
             end_loss = loss_fct(end_logits, end_positions.int())
             total_loss = (start_loss + end_loss) / 2
@@ -1789,109 +1789,6 @@ class BertForQuestionAnswering(BertPreTrainedModel):
         )
 
 
-class LayerNorm(nn.Cell):
-    r"""Applies Layer Normalization over a mini-batch of inputs.
-
-    This layer implements the operation as described in
-    the paper `Layer Normalization <https://arxiv.org/abs/1607.06450>`__
-
-    .. math::
-        y = \frac{x - \mathrm{E}[x]}{ \sqrt{\mathrm{Var}[x] + \epsilon}} * \gamma + \beta
-
-    The mean and standard-deviation are calculated over the last `D` dimensions, where `D`
-    is the dimension of :attr:`normalized_shape`. For example, if :attr:`normalized_shape`
-    is ``(3, 5)`` (a 2-dimensional shape), the mean and standard-deviation are computed over
-    the last 2 dimensions of the input (i.e. ``input.mean((-2, -1))``).
-    :math:`\gamma` and :math:`\beta` are learnable affine transform parameters of
-    :attr:`normalized_shape` if :attr:`elementwise_affine` is ``True``.
-    The standard-deviation is calculated via the biased estimator, equivalent to
-    `ops.var(input, unbiased=False)`.
-
-    .. note::
-        Unlike Batch Normalization and Instance Normalization, which applies
-        scalar scale and bias for each entire channel/plane with the
-        :attr:`affine` option, Layer Normalization applies per-element scale and
-        bias with :attr:`elementwise_affine`.
-
-    This layer uses statistics computed from input data in both training and
-    evaluation modes.
-
-    Args:
-        normalized_shape (int or list): input shape from an expected input
-            of size
-
-            .. math::
-                [* \times \text{normalized\_shape}[0] \times \text{normalized\_shape}[1]
-                    \times \ldots \times \text{normalized\_shape}[-1]]
-
-            If a single integer is used, it is treated as a singleton list, and this module will
-            normalize over the last dimension which is expected to be of that specific size.
-        eps: a value added to the denominator for numerical stability. Default: 1e-5
-        elementwise_affine: a boolean value that when set to ``True``, this module
-            has learnable per-element affine parameters initialized to ones (for weights)
-            and zeros (for biases). Default: ``True``.
-
-    Attributes:
-        weight: the learnable weights of the module of shape
-            :math:`\text{normalized\_shape}` when :attr:`elementwise_affine` is set to ``True``.
-            The values are initialized to 1.
-        bias:   the learnable bias of the module of shape
-                :math:`\text{normalized\_shape}` when :attr:`elementwise_affine` is set to ``True``.
-                The values are initialized to 0.
-
-    Shape:
-        - Input: :math:`(N, *)`
-        - Output: :math:`(N, *)` (same shape as input)
-
-    Examples::
-
-        >>> # NLP Example
-        >>> batch, sentence_length, embedding_dim = 20, 5, 10
-        >>> embedding = ops.randn(batch, sentence_length, embedding_dim)
-        >>> layer_norm = LayerNorm(embedding_dim)
-        >>> # Activate module
-        >>> layer_norm(embedding)
-        >>>
-        >>> # Image Example
-        >>> N, C, H, W = 20, 5, 10, 10
-        >>> input = ops.randn(N, C, H, W)
-        >>> # Normalize over the last three dimensions (i.e. the channel and spatial dimensions)
-        >>> # as shown in the image below
-        >>> layer_norm = LayerNorm([C, H, W])
-        >>> output = layer_norm(input)
-    """
-
-    normalized_shape: Tuple[int, ...]
-    eps: float
-    elementwise_affine: bool
-
-    def __init__(self, normalized_shape, eps=1e-5, elementwise_affine: bool = True, bias=True, dtype=ms.float32):
-        super().__init__()
-        if isinstance(normalized_shape, numbers.Integral):
-            normalized_shape = (normalized_shape,)
-        self.normalized_shape = tuple(normalized_shape)
-        self.eps = eps
-        self.elementwise_affine = elementwise_affine
-        _weight = np.ones(normalized_shape, dtype=ms.dtype_to_nptype(dtype))
-        _bias = np.zeros(normalized_shape, dtype=ms.dtype_to_nptype(dtype))
-        if self.elementwise_affine:
-            self.weight = ms.Parameter(ms.Tensor.from_numpy(_weight), name="weight")
-            if bias:
-                self.bias = ms.Parameter(ms.Tensor.from_numpy(_bias), name="bias")
-            else:
-                self.bias = ms.Tensor.from_numpy(_bias)
-        else:
-            self.weight = ms.Tensor.from_numpy(_weight)
-            self.bias = ms.Tensor.from_numpy(_bias)
-        # TODO: In fact, we need -len(normalized_shape) instead of -1, but LayerNorm doesn't allow it.
-        #  For positive axis, the ndim of input is needed. Put it in construct?
-        self.layer_norm = ops.LayerNorm(-1, -1, epsilon=eps)
-
-    def construct(self, x: ms.Tensor):
-        x, _, _ = self.layer_norm(x, self.weight, self.bias)
-        return x
-
-
 def scaled_dot_product_attention(query, key, value, attn_mask=None, dtype=None):
     # force fp16 precision calculation
     _dtype = query.dtype
@@ -1900,13 +1797,13 @@ def scaled_dot_product_attention(query, key, value, attn_mask=None, dtype=None):
 
     if attn_mask is not None:
         attn_mask = attn_mask.masked_fill(not attn_mask, -1e5) if attn_mask.dtype == ms.bool_ else attn_mask
-        attn_weight = ops.softmax(
-            ops.cast(ops.matmul(query, key.swapaxes(-2, -1)) / (query.shape[-1] ** 0.5) + attn_mask, ms.float32),
-            axis=-1,
+        attn_weight = mint.softmax(
+            ops.cast(mint.matmul(query, key.swapaxes(-2, -1)) / (query.shape[-1] ** 0.5) + attn_mask, ms.float32),
+            dim=-1,
         ).astype(_dtype)
     else:
-        attn_weight = ops.softmax(
-            ops.cast(ops.matmul(query, key.swapaxes(-2, -1)) / (query.shape[-1] ** 0.5), ms.float32), axis=-1
+        attn_weight = mint.softmax(
+            ops.cast(mint.matmul(query, key.swapaxes(-2, -1)) / (query.shape[-1] ** 0.5), ms.float32), dim=-1
         ).astype(_dtype)
 
     out = ops.matmul(attn_weight, value)
