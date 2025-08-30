@@ -1,4 +1,4 @@
-# Copyright 2024 Alibaba DAMO-VILAB and The HuggingFace Team. All rights reserved.
+# Copyright 2025 Alibaba DAMO-VILAB and The HuggingFace Team. All rights reserved.
 #
 # This code is adapted from https://github.com/huggingface/diffusers
 # with modifications to run diffusers on mindspore.
@@ -34,7 +34,7 @@ from ...schedulers import DDIMScheduler
 from ...utils import BaseOutput, logging
 from ...utils.mindspore_utils import randn_tensor
 from ...video_processor import VideoProcessor
-from ..pipeline_utils import DiffusionPipeline, StableDiffusionMixin
+from ..pipeline_utils import DeprecatedPipelineMixin, DiffusionPipeline, StableDiffusionMixin
 
 XLA_AVAILABLE = False
 
@@ -91,7 +91,12 @@ class I2VGenXLPipelineOutput(BaseOutput):
     frames: Union[ms.Tensor, np.ndarray, List[List[PIL.Image.Image]]]
 
 
-class I2VGenXLPipeline(DiffusionPipeline, StableDiffusionMixin):
+class I2VGenXLPipeline(
+    DeprecatedPipelineMixin,
+    DiffusionPipeline,
+    StableDiffusionMixin,
+):
+    _last_supported_version = "0.33.1"
     r"""
     Pipeline for image-to-video generation as proposed in [I2VGenXL](https://i2vgen-xl.github.io/).
 
@@ -143,7 +148,7 @@ class I2VGenXLPipeline(DiffusionPipeline, StableDiffusionMixin):
         return self._guidance_scale
 
     # here `guidance_scale` is defined analog to the guidance weight `w` of equation (2)
-    # of the Imagen paper: https://arxiv.org/pdf/2205.11487.pdf . `guidance_scale = 1`
+    # of the Imagen paper: https://huggingface.co/papers/2205.11487 . `guidance_scale = 1`
     # corresponds to doing no classifier free guidance.
     @property
     def do_classifier_free_guidance(self):
@@ -373,7 +378,7 @@ class I2VGenXLPipeline(DiffusionPipeline, StableDiffusionMixin):
     def prepare_extra_step_kwargs(self, generator, eta):
         # prepare extra kwargs for the scheduler step, since not all schedulers have the same signature
         # eta (η) is only used with the DDIMScheduler, it will be ignored for other schedulers.
-        # eta corresponds to η in DDIM paper: https://arxiv.org/abs/2010.02502
+        # eta corresponds to η in DDIM paper: https://huggingface.co/papers/2010.02502
         # and should be between [0, 1]
 
         accepts_eta = "eta" in set(inspect.signature(self.scheduler.step).parameters.keys())
@@ -446,7 +451,7 @@ class I2VGenXLPipeline(DiffusionPipeline, StableDiffusionMixin):
         image_latents = image_latents.unsqueeze(2)
 
         # Append a position mask for each subsequent frame
-        # after the intial image latent frame
+        # after the initial image latent frame
         frame_position_mask = []
         for frame_idx in range(num_frames - 1):
             scale = (frame_idx + 1) / (num_frames - 1)
@@ -537,8 +542,8 @@ class I2VGenXLPipeline(DiffusionPipeline, StableDiffusionMixin):
                 The prompt or prompts to guide what to not include in image generation. If not defined, you need to
                 pass `negative_prompt_embeds` instead. Ignored when not using guidance (`guidance_scale < 1`).
             eta (`float`, *optional*):
-                Corresponds to parameter eta (η) from the [DDIM](https://arxiv.org/abs/2010.02502) paper. Only applies
-                to the [`~schedulers.DDIMScheduler`], and is ignored in other schedulers.
+                Corresponds to parameter eta (η) from the [DDIM](https://huggingface.co/papers/2010.02502) paper. Only
+                applies to the [`~schedulers.DDIMScheduler`], and is ignored in other schedulers.
             num_videos_per_prompt (`int`, *optional*):
                 The number of images to generate per prompt.
             decode_chunk_size (`int`, *optional*):
@@ -601,7 +606,7 @@ class I2VGenXLPipeline(DiffusionPipeline, StableDiffusionMixin):
             batch_size = prompt_embeds.shape[0]
 
         # here `guidance_scale` is defined analog to the guidance weight `w` of equation (2)
-        # of the Imagen paper: https://arxiv.org/pdf/2205.11487.pdf . `guidance_scale = 1`
+        # of the Imagen paper: https://huggingface.co/papers/2205.11487 . `guidance_scale = 1`
         # corresponds to doing no classifier free guidance.
         self._guidance_scale = guidance_scale
 
