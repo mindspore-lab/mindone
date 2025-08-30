@@ -15,6 +15,7 @@ from .stable_audio_transformer import StableAudioDiTModel
 from .t5_film_transformer import T5FilmDecoder
 from .transformer_2d import Transformer2DModel
 from .transformer_allegro import AllegroTransformer3DModel
+from .transformer_chroma import ChromaTransformer2DModel
 from .transformer_cogview3plus import CogView3PlusTransformer2DModel
 from .transformer_cogview4 import CogView4Transformer2DModel
 from .transformer_cosmos import CosmosTransformer3DModel
@@ -27,6 +28,7 @@ from .transformer_lumina2 import Lumina2Transformer2DModel
 from .transformer_mochi import MochiTransformer3DModel
 from .transformer_omnigen import OmniGenTransformer2DModel
 from .transformer_sd3 import SD3Transformer2DModel
+from .transformer_skyreels_v2 import SkyReelsV2Transformer3DModel
 from .transformer_temporal import TransformerTemporalModel
 from .transformer_wan import WanTransformer3DModel
 from .transformer_wan_vace import WanVACETransformer3DModel
