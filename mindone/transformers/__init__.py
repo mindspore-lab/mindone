@@ -405,6 +405,7 @@ from .models.llava_onevision import (
     LlavaOnevisionVideoProcessor,
 )
 from .models.m2m_100 import M2M100ForConditionalGeneration, M2M100Model, M2M100PreTrainedModel
+from .models.marian import MarianForCausalLM, MarianModel, MarianMTModel, MarianPreTrainedModel
 from .models.megatron_bert import (
     MegatronBertForCausalLM,
     MegatronBertForMaskedLM,
