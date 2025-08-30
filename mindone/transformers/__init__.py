@@ -693,6 +693,15 @@ if version.parse(transformers.__version__) >= version.parse("4.51.3"):
         Glm4PreTrainedModel,
     )
 
+if version.parse(transformers.__version__) >= version.parse("4.52.0"):
+    from .models.internvl import (
+        InternVLForConditionalGeneration,
+        InternVLModel,
+        InternVLPreTrainedModel,
+        InternVLVisionModel,
+        InternVLVisionPreTrainedModel,
+    )
+
 if version.parse(transformers.__version__) >= version.parse("4.53.0"):
     from .models.glm4v import (
         Glm4vForConditionalGeneration,
