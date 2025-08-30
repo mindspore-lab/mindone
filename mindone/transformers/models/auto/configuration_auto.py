@@ -124,7 +124,11 @@ CONFIG_MAPPING_NAMES = OrderedDict(
         ("mvp", "MvpConfig"),
         ("whisper", "WhisperConfig"),
         ("xlm-roberta", "XLMRobertaConfig"),
+        ("gpt_bigcode", "GPTBigCodeConfig"),
+        ("gpt_neox", "GPTNeoXConfig"),
+        ("gptj", "GPTJConfig"),
         ("xlm-roberta-xl", "XLMRobertaXLConfig"),
+        ("gpt_neox_japanese", "GPTNeoXJapaneseConfig"),
         ("yolos", "YolosConfig"),
         ("cohere2", "Cohere2Config"),
     ]
@@ -233,8 +237,12 @@ MODEL_NAMES_MAPPING = OrderedDict(
         ("opt", "OPT"),
         ("xlm-roberta", "XLM-RoBERTa"),
         ("xlm-roberta-xl", "XLM-RoBERTa-XL"),
-        ("yolos", "YOLOS"),
-        ("cohere2", "Cohere2"),
+        ("gpt_bigcode", "GPTBigCode"),
+        ("gpt_neox", "GPTNeoX"),
+        ("gpt_neox_japanese", "GPTNeoXJapaneseModel"),
+        ("gptj", "GPTJ"),
+        ("yolos", "YolosModel"),
+        ("cohere2", "Cohere2Model"),
     ]
 )
 
