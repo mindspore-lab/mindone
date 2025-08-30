@@ -582,9 +582,8 @@ class ModelMixin(nn.Cell, PushToHubMixin):
             cache_dir (`Union[str, os.PathLike]`, *optional*):
                 Path to a directory where a downloaded pretrained model configuration is cached if the standard cache
                 is not used.
-            mindspore_dtype (`str` or `mindspore.Type`, *optional*):
-                Override the default `mindspore.Type` and load the model with another dtype. If `"auto"` is passed, the
-                dtype is automatically derived from the model's weights.
+            mindspore_dtype (`mindspore.Type`, *optional*):
+                Override the default `mindspore.Type` and load the model with another dtype.
             force_download (`bool`, *optional*, defaults to `False`):
                 Whether or not to force the (re-)download of the model weights and configuration files, overriding the
                 cached versions if they exist.
@@ -707,7 +706,7 @@ class ModelMixin(nn.Cell, PushToHubMixin):
         # use_keep_in_fp32_modules = cls._keep_in_fp32_modules is not None and (
         #     hf_quantizer is None or getattr(hf_quantizer, "use_keep_in_fp32_modules", False)
         # )
-        use_keep_in_fp32_modules = (cls._keep_in_fp32_modules is not None) and (mindspore_dtype == ms.float16)
+        use_keep_in_fp32_modules = cls._keep_in_fp32_modules is not None
 
         if use_keep_in_fp32_modules:
             keep_in_fp32_modules = cls._keep_in_fp32_modules
@@ -860,7 +859,7 @@ class ModelMixin(nn.Cell, PushToHubMixin):
             "error_msgs": error_msgs,
         }
 
-        if mindspore_dtype is not None and not use_keep_in_fp32_modules:
+        if mindspore_dtype is not None:
             model = model.to(mindspore_dtype)
 
         model.register_to_config(_name_or_path=pretrained_model_name_or_path)
