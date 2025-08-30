@@ -1,4 +1,4 @@
-# Copyright 2024 FLAIR Lab and The HuggingFace Team. All rights reserved.
+# Copyright 2025 FLAIR Lab and The HuggingFace Team. All rights reserved.
 #
 # This code is adapted from https://github.com/huggingface/diffusers
 # with modifications to run diffusers on mindspore.
@@ -15,7 +15,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# DISCLAIMER: check https://arxiv.org/abs/2204.13902 and https://github.com/qsh-zh/deis for more info
+# DISCLAIMER: check https://huggingface.co/papers/2204.13902 and https://github.com/qsh-zh/deis for more info
 # The codebase is modified based on https://github.com/huggingface/diffusers/blob/main/src/diffusers/schedulers/scheduling_dpmsolver_multistep.py
 
 import math
@@ -245,7 +245,7 @@ class DEISMultistepScheduler(SchedulerMixin, ConfigMixin):
             num_inference_steps (`int`):
                 The number of diffusion steps used when generating samples with a pre-trained model.
         """
-        # "linspace", "leading", "trailing" corresponds to annotation of Table 2. of https://arxiv.org/abs/2305.08891
+        # "linspace", "leading", "trailing" corresponds to annotation of Table 2. of https://huggingface.co/papers/2305.08891
         if self.config.timestep_spacing == "linspace":
             timesteps = (
                 np.linspace(0, self.config.num_train_timesteps - 1, num_inference_steps + 1)
@@ -321,7 +321,7 @@ class DEISMultistepScheduler(SchedulerMixin, ConfigMixin):
         pixels from saturation at each step. We find that dynamic thresholding results in significantly better
         photorealism as well as better image-text alignment, especially when using very large guidance weights."
 
-        https://arxiv.org/abs/2205.11487
+        https://huggingface.co/papers/2205.11487
         """
         dtype = sample.dtype
         batch_size, channels, *remaining_dims = sample.shape
@@ -488,7 +488,7 @@ class DEISMultistepScheduler(SchedulerMixin, ConfigMixin):
             if len(args) > 1:
                 sample = args[1]
             else:
-                raise ValueError("missing `sample` as a required keyward argument")
+                raise ValueError("missing `sample` as a required keyword argument")
         if timestep is not None:
             deprecate(
                 "timesteps",
@@ -552,7 +552,7 @@ class DEISMultistepScheduler(SchedulerMixin, ConfigMixin):
             if len(args) > 2:
                 sample = args[2]
             else:
-                raise ValueError(" missing `sample` as a required keyward argument")
+                raise ValueError("missing `sample` as a required keyword argument")
         if timestep is not None:
             deprecate(
                 "timesteps",
@@ -607,7 +607,7 @@ class DEISMultistepScheduler(SchedulerMixin, ConfigMixin):
             if len(args) > 2:
                 sample = args[2]
             else:
-                raise ValueError(" missing `sample` as a required keyward argument")
+                raise ValueError("missing `sample` as a required keyword argument")
         if timestep_list is not None:
             deprecate(
                 "timestep_list",
@@ -678,7 +678,7 @@ class DEISMultistepScheduler(SchedulerMixin, ConfigMixin):
             if len(args) > 2:
                 sample = args[2]
             else:
-                raise ValueError(" missing`sample` as a required keyward argument")
+                raise ValueError("missing `sample` as a required keyword argument")
         if timestep_list is not None:
             deprecate(
                 "timestep_list",
