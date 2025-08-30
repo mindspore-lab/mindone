@@ -117,7 +117,11 @@ MODEL_MAPPING_NAMES = OrderedDict(
         ("wav2vec2", "Wav2Vec2Model"),
         ("whisper", "WhisperModel"),
         ("xlm-roberta", "XLMRobertaModel"),
+        ("gpt_bigcode", "GPTBigCodeModel"),
+        ("gpt_neox", "GPTNeoXModel"),
+        ("gptj", "GPTJModel"),
         ("xlm-roberta-xl", "XLMRobertaXLModel"),
+        ("gpt_neox_japanese", "GPTNeoXJapaneseModel"),
         ("yolos", "YolosModel"),
         ("cohere2", "Cohere2Model"),
     ]
@@ -152,6 +156,7 @@ MODEL_FOR_PRETRAINING_MAPPING_NAMES = OrderedDict(
         ("wav2vec2", "Wav2Vec2ForPreTraining"),
         ("xlm-roberta", "XLMRobertaForMaskedLM"),
         ("xlm-roberta-xl", "XLMRobertaXLForMaskedLM"),
+        ("gpt_neox_japanese", "GPTNeoXJapanesePreTrainedModel"),
     ]
 )
 
@@ -219,6 +224,10 @@ MODEL_FOR_CAUSAL_LM_MAPPING_NAMES = OrderedDict(
         ("whisper", "WhisperForCausalLM"),
         ("xlm-roberta", "XLMRobertaForCausalLM"),
         ("xlm-roberta-xl", "XLMRobertaXLForCausalLM"),
+        ("gpt_bigcode", "GPTBigCodeForCausalLM"),
+        ("gpt_neox", "GPTNeoXForCausalLM"),
+        ("gpt_neox_japanese", "GPTNeoXJapaneseForCausalLM"),
+        ("gptj", "GPTJForCausalLM"),
         ("cohere2", "Cohere2ForCausalLM"),
     ]
 )
@@ -470,7 +479,10 @@ MODEL_FOR_SEQUENCE_CLASSIFICATION_MAPPING_NAMES = OrderedDict(
         ("qwen2", "Qwen2ForSequenceClassification"),
         ("rembert", "RemBertForSequenceClassification"),
         ("t5", "T5ForSequenceClassification"),
+        ("gpt_bigcode", "GPTBigCodeForSequenceClassification"),
+        ("gptj", "GPTJForSequenceClassification"),
         ("umt5", "UMT5ForSequenceClassification"),
+        ("gpt_neox", "SequenceClassification"),
         ("xlm-roberta-xl", "XLMRobertaXLForSequenceClassification"),
     ]
 )
@@ -503,7 +515,9 @@ MODEL_FOR_QUESTION_ANSWERING_MAPPING_NAMES = OrderedDict(
         ("canine", "CanineForQuestionAnswering"),
         ("umt5", "UMT5ForQuestionAnswering"),
         ("xlm-roberta", "XLMRobertaForQuestionAnswering"),
+        ("gpt_neox", "GPTNeoXForQuestionAnswering"),
         ("xlm-roberta-xl", "XLMRobertaXLForQuestionAnswering"),
+        ("gptj", "GPTJForQuestionAnswering"),
     ]
 )
 
@@ -550,6 +564,7 @@ MODEL_FOR_TOKEN_CLASSIFICATION_MAPPING_NAMES = OrderedDict(
         ("t5", "T5ForTokenClassification"),
         ("umt5", "UMT5ForTokenClassification"),
         ("xlm-roberta", "XLMRobertaForTokenClassification"),
+        ("gpt_neox", "GPTNeoXForTokenClassification"),
         ("xlm-roberta-xl", "XLMRobertaXLForTokenClassification"),
     ]
 )
