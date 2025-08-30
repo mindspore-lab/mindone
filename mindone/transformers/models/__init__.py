@@ -68,6 +68,8 @@ from . import (
     mistral,
     mixtral,
     mobilebert,
+    mobilenet_v1,
+    mobilenet_v2,
     mpt,
     mvp,
     opt,
