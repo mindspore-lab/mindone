@@ -58,6 +58,7 @@ _import_structure = {
         "IPAdapterMixin",
         "FluxIPAdapterMixin",
         "SD3IPAdapterMixin",
+        "ModularIPAdapterMixin",
     ],
     "lora_pipeline": [
         "AmusedLoraLoaderMixin",
@@ -85,7 +86,12 @@ _import_structure = {
 
 
 if TYPE_CHECKING:
-    from .ip_adapter import FluxIPAdapterMixin, IPAdapterMixin, SD3IPAdapterMixin
+    from .ip_adapter import (
+        FluxIPAdapterMixin,
+        IPAdapterMixin,
+        ModularIPAdapterMixin,
+        SD3IPAdapterMixin,
+    )
     from .lora_pipeline import (
         AmusedLoraLoaderMixin,
         AuraFlowLoraLoaderMixin,

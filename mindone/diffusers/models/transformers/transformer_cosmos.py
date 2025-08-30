@@ -20,6 +20,7 @@ import mindspore as ms
 from mindspore import mint, nn
 
 from ...configuration_utils import ConfigMixin, register_to_config
+from ...loaders import FromOriginalModelMixin
 from ..attention import FeedForward
 from ..attention_processor import Attention
 from ..embeddings import Timesteps
@@ -181,9 +182,9 @@ class CosmosAttnProcessor2_0:
             key = self.apply_rotary_emb(key, image_rotary_emb, use_real=True, use_real_unbind_dim=-2)
 
         # 4. Prepare for GQA
-        query_idx = ms.tensor(query.shape[3])
-        key_idx = ms.tensor(key.shape[3])
-        value_idx = ms.tensor(value.shape[3])
+        query_idx = query.shape[3]
+        key_idx = key.shape[3]
+        value_idx = value.shape[3]
         key = mint.repeat_interleave(key, repeats=(query_idx // key_idx), dim=3)
         value = mint.repeat_interleave(value, repeats=(query_idx // value_idx), dim=3)
 
@@ -365,7 +366,7 @@ class CosmosLearnablePositionalEmbed(nn.Cell):
         return (emb / norm).type_as(hidden_states)
 
 
-class CosmosTransformer3DModel(ModelMixin, ConfigMixin):
+class CosmosTransformer3DModel(ModelMixin, ConfigMixin, FromOriginalModelMixin):
     r"""
     A Transformer model for video-like data used in [Cosmos](https://github.com/NVIDIA/Cosmos).
 

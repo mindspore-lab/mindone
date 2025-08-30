@@ -231,12 +231,19 @@ class PeftAdapterMixin:
                 alpha_keys = [k for k in network_alphas.keys() if k.startswith(f"{prefix}.")]
                 network_alphas = {k.removeprefix(f"{prefix}."): v for k, v in network_alphas.items() if k in alpha_keys}
 
-            # create LoraConfig
-            lora_config = _create_lora_config(state_dict, network_alphas, metadata, rank)
-
             # adapter_name
             if adapter_name is None:
                 adapter_name = get_adapter_name(self)
+
+            # create LoraConfig
+            lora_config = _create_lora_config(
+                state_dict,
+                network_alphas,
+                metadata,
+                rank,
+                model_state_dict=self.state_dict(),
+                adapter_name=adapter_name,
+            )
 
             # <Unsafe code
             # We can be sure that the following works as it just sets attention processors, lora layers and puts all in the same dtype
@@ -293,7 +300,9 @@ class PeftAdapterMixin:
                     # it to None
                     incompatible_keys = None
                 else:
-                    inject_adapter_in_model(lora_config, self, adapter_name=adapter_name, **peft_kwargs)
+                    inject_adapter_in_model(
+                        lora_config, self, adapter_name=adapter_name, state_dict=state_dict, **peft_kwargs
+                    )
                     incompatible_keys = set_peft_model_state_dict(self, state_dict, adapter_name, **peft_kwargs)
 
                     if self._prepare_lora_hotswap_kwargs is not None:
@@ -624,6 +633,8 @@ class PeftAdapterMixin:
         recurse_remove_peft_layers(self)
         if hasattr(self, "peft_config"):
             del self.peft_config
+        if hasattr(self, "_hf_peft_config_loaded"):
+            self._hf_peft_config_loaded = None
 
     def disable_lora(self):
         """

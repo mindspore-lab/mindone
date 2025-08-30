@@ -327,7 +327,7 @@ def get_2d_sincos_pos_embed_from_grid(embed_dim, grid, output_type="np"):
     return emb
 
 
-def get_1d_sincos_pos_embed_from_grid(embed_dim, pos, output_type="np"):
+def get_1d_sincos_pos_embed_from_grid(embed_dim, pos, output_type="np", flip_sin_to_cos=False):
     """
     This function generates 1D positional embeddings from a grid.
 
@@ -360,6 +360,11 @@ def get_1d_sincos_pos_embed_from_grid(embed_dim, pos, output_type="np"):
     emb_cos = mint.cos(out)  # (M, D/2)
 
     emb = mint.concat([emb_sin, emb_cos], dim=1)  # (M, D)
+
+    # flip sine and cosine embeddings
+    if flip_sin_to_cos:
+        emb = mint.cat([emb[:, embed_dim // 2 :], emb[:, : embed_dim // 2]], dim=1)
+
     return emb
 
 
@@ -1165,6 +1170,7 @@ def apply_rotary_emb(
     freqs_cis: Union[ms.Tensor, Tuple[ms.Tensor]],
     use_real: bool = True,
     use_real_unbind_dim: int = -1,
+    sequence_dim: int = 2,
 ) -> Tuple[ms.Tensor, ms.Tensor]:
     """
     Apply rotary embeddings to input tensors using the given frequency tensor. This function applies rotary embeddings
@@ -1185,16 +1191,32 @@ def apply_rotary_emb(
         # todo: unavailable mint interface
         if ops.is_tensor(freqs_cis):
             cos, sin = freqs_cis.chunk(2)  # [1, S, D]
-            # cos = cos[None]
-            # sin = sin[None]
-            cos = cos.expand_dims(axis=0)
-            sin = sin.expand_dims(axis=0)
+            if sequence_dim == 2:
+                # cos = cos[None, :, :]
+                # sin = sin[None, :, :]
+                cos = cos.expand_dims(axis=0)
+                sin = sin.expand_dims(axis=0)
+            elif sequence_dim == 1:
+                # cos = cos[:, :, None]
+                # sin = sin[:, :, None]
+                cos = cos.expand_dims(axis=2)
+                sin = sin.expand_dims(axis=2)
+            else:
+                raise ValueError(f"`sequence_dim={sequence_dim}` but should be 1 or 2.")
         else:
             cos, sin = freqs_cis  # [S, D]
-            # cos = cos[None, None]
-            # sin = sin[None, None]
-            cos = cos.expand_dims(axis=0).expand_dims(axis=0)
-            sin = sin.expand_dims(axis=0).expand_dims(axis=0)
+            if sequence_dim == 2:
+                # cos = cos[None, None, :, :]
+                # sin = sin[None, None, :, :]
+                cos = cos.expand_dims(axis=0).expand_dims(axis=0)
+                sin = sin.expand_dims(axis=0).expand_dims(axis=0)
+            elif sequence_dim == 1:
+                # cos = cos[None, :, None, :]
+                # sin = sin[None, :, None, :]
+                cos = cos.expand_dims(axis=0).expand_dims(axis=2)
+                sin = sin.expand_dims(axis=0).expand_dims(axis=2)
+            else:
+                raise ValueError(f"`sequence_dim={sequence_dim}` but should be 1 or 2.")
 
         if use_real_unbind_dim == -1:
             # Used for flux, cogvideox, hunyuan-dit
@@ -1239,35 +1261,6 @@ def apply_rotary_emb_allegro(x: ms.Tensor, freqs_cis, positions):
     w = apply_1d_rope(w, positions[2], w_cos, w_sin)
     x = mint.cat([t, h, w], dim=-1)
     return x
-
-
-class FluxPosEmbed(nn.Cell):
-    # modified from https://github.com/black-forest-labs/flux/blob/c00d7c60b085fce8058b9df845e036090873f2ce/src/flux/modules/layers.py#L11
-    def __init__(self, theta: int, axes_dim: List[int]):
-        super().__init__()
-        self.theta = theta
-        self.axes_dim = axes_dim
-
-    def construct(self, ids: ms.Tensor) -> ms.Tensor:
-        n_axes = ids.shape[-1]
-        cos_out = []
-        sin_out = []
-        pos = ids.float()
-        freqs_dtype = ms.float32
-        for i in range(n_axes):
-            cos, sin = get_1d_rotary_pos_embed(
-                self.axes_dim[i],
-                mint.split(pos, 1, dim=1)[i].squeeze(axis=1),
-                theta=self.theta,
-                repeat_interleave_real=True,
-                use_real=True,
-                freqs_dtype=freqs_dtype,
-            )
-            cos_out.append(cos)
-            sin_out.append(sin)
-        freqs_cos = mint.cat(cos_out, dim=-1)
-        freqs_sin = mint.cat(sin_out, dim=-1)
-        return freqs_cos, freqs_sin
 
 
 class TimestepEmbedding(nn.Cell):
@@ -2644,6 +2637,16 @@ class MultiIPAdapterImageProjection(nn.Cell):
             projected_image_embeds.append(image_embed)
 
         return projected_image_embeds
+
+
+class FluxPosEmbed(nn.Cell):
+    def __new__(cls, *args, **kwargs):
+        deprecation_message = "Importing and using `FluxPosEmbed` from `diffusers.models.embeddings` is deprecated. Please import it from `diffusers.models.transformers.transformer_flux`."
+        deprecate("FluxPosEmbed", "1.0.0", deprecation_message)
+
+        from .transformers.transformer_flux import FluxPosEmbed
+
+        return FluxPosEmbed(*args, **kwargs)
 
 
 class _GELU(nn.Cell):

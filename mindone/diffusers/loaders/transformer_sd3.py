@@ -18,7 +18,7 @@ from typing import Dict
 
 from ..models.attention_processor import SD3IPAdapterJointAttnProcessor2_0
 from ..models.embeddings import IPAdapterTimeImageProjection
-from ..models.modeling_utils import _load_state_dict_into_model
+from ..models.model_loading_utils import _load_state_dict_into_model
 from ..utils import logging
 
 logger = logging.get_logger(__name__)

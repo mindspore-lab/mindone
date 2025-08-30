@@ -34,6 +34,7 @@ from .lora_base import (  # noqa
 )
 from .lora_conversion_utils import (
     _convert_bfl_flux_control_lora_to_diffusers,
+    _convert_fal_kontext_lora_to_diffusers,
     _convert_hunyuan_video_lora_to_diffusers,
     _convert_kohya_flux_lora_to_diffusers,
     _convert_musubi_wan_lora_to_diffusers,
@@ -41,6 +42,7 @@ from .lora_conversion_utils import (
     _convert_non_diffusers_lora_to_diffusers,
     _convert_non_diffusers_ltxv_lora_to_diffusers,
     _convert_non_diffusers_lumina2_lora_to_diffusers,
+    _convert_non_diffusers_qwen_lora_to_diffusers,
     _convert_non_diffusers_wan_lora_to_diffusers,
     _convert_xlabs_flux_lora_to_diffusers,
     _maybe_map_sgm_blocks_to_diffusers,
@@ -1863,6 +1865,17 @@ class FluxLoraLoaderMixin(LoraBaseMixin):
         is_bfl_control = any("query_norm.scale" in k for k in state_dict)
         if is_bfl_control:
             state_dict = _convert_bfl_flux_control_lora_to_diffusers(state_dict)
+            return cls._prepare_outputs(
+                state_dict,
+                metadata=metadata,
+                alphas=None,
+                return_alphas=return_alphas,
+                return_metadata=return_lora_metadata,
+            )
+
+        is_fal_kontext = any("base_model" in k for k in state_dict)
+        if is_fal_kontext:
+            state_dict = _convert_fal_kontext_lora_to_diffusers(state_dict)
             return cls._prepare_outputs(
                 state_dict,
                 metadata=metadata,
@@ -4652,7 +4665,7 @@ class WanLoraLoaderMixin(LoraBaseMixin):
     Load LoRA layers into [`WanTransformer3DModel`]. Specific to [`WanPipeline`] and `[WanImageToVideoPipeline`].
     """
 
-    _lora_loadable_modules = ["transformer"]
+    _lora_loadable_modules = ["transformer", "transformer_2"]
     transformer_name = TRANSFORMER_NAME
 
     @classmethod
@@ -4841,14 +4854,33 @@ class WanLoraLoaderMixin(LoraBaseMixin):
         if not is_correct_format:
             raise ValueError("Invalid LoRA checkpoint.")
 
-        self.load_lora_into_transformer(
-            state_dict,
-            transformer=getattr(self, self.transformer_name) if not hasattr(self, "transformer") else self.transformer,
-            adapter_name=adapter_name,
-            metadata=metadata,
-            _pipeline=self,
-            hotswap=hotswap,
-        )
+        load_into_transformer_2 = kwargs.pop("load_into_transformer_2", False)
+        if load_into_transformer_2:
+            if not hasattr(self, "transformer_2"):
+                raise AttributeError(
+                    f"'{type(self).__name__}' object has no attribute transformer_2"
+                    "Note that Wan2.1 models do not have a transformer_2 component."
+                    "Ensure the model has a transformer_2 component before setting load_into_transformer_2=True."
+                )
+            self.load_lora_into_transformer(
+                state_dict,
+                transformer=self.transformer_2,
+                adapter_name=adapter_name,
+                metadata=metadata,
+                _pipeline=self,
+                hotswap=hotswap,
+            )
+        else:
+            self.load_lora_into_transformer(
+                state_dict,
+                transformer=getattr(self, self.transformer_name)
+                if not hasattr(self, "transformer")
+                else self.transformer,
+                adapter_name=adapter_name,
+                metadata=metadata,
+                _pipeline=self,
+                hotswap=hotswap,
+            )
 
     @classmethod
     # Copied from diffusers.loaders.lora_pipeline.SD3LoraLoaderMixin.load_lora_into_transformer with SD3Transformer2DModel->WanTransformer3DModel

@@ -862,6 +862,12 @@ class HunyuanVideoTransformer3DModel(ModelMixin, ConfigMixin, PeftAdapterMixin, 
         "HunyuanVideoPatchEmbed",
         "HunyuanVideoTokenRefiner",
     ]
+    _repeated_blocks = [
+        "HunyuanVideoTransformerBlock",
+        "HunyuanVideoSingleTransformerBlock",
+        "HunyuanVideoPatchEmbed",
+        "HunyuanVideoTokenRefiner",
+    ]
 
     @register_to_config
     def __init__(
