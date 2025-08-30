@@ -1,4 +1,4 @@
-# Copyright 2024 The HuggingFace Team. All rights reserved.
+# Copyright 2025 The HuggingFace Team. All rights reserved.
 #
 # This code is adapted from https://github.com/huggingface/diffusers
 # with modifications to run diffusers on mindspore.
@@ -189,8 +189,8 @@ class Attention(nn.Cell):
             self.norm_q = mint.nn.LayerNorm(dim_head * heads, eps=eps)
             self.norm_k = mint.nn.LayerNorm(dim_head * kv_heads, eps=eps)
         elif qk_norm == "rms_norm":
-            self.norm_q = RMSNorm(dim_head, eps=eps)
-            self.norm_k = RMSNorm(dim_head, eps=eps)
+            self.norm_q = RMSNorm(dim_head, eps=eps, elementwise_affine=elementwise_affine)
+            self.norm_k = RMSNorm(dim_head, eps=eps, elementwise_affine=elementwise_affine)
         elif qk_norm == "rms_norm_across_heads":
             # LTX applies qk norm across all heads
             self.norm_q = RMSNorm(dim_head * heads, eps=eps)
@@ -728,6 +728,35 @@ class Attention(nn.Cell):
             - Otherwise, the function falls back to the mathematical formula-based attention.
         """
         head_dim = query.shape[-1]
+
+        # Note: PyTorch's SDPA and MindSpore's FA handle `attention_mask` slightly differently.
+        # In PyTorch, if the mask is not boolean (e.g., float32 with 0/1 values), it is interpreted
+        # as an additive bias: `attn_bias = attn_mask + attn_bias`.
+        # This implicit branch may lead to issues if the pipeline mistakenly provides
+        # a 0/1 float mask instead of a boolean mask.
+        # While this behavior is consistent with HF Diffusers for now,
+        # it may still be a potential bug source worth validating.
+        if attn_mask is not None and 1.0 in attn_mask:
+            L, S = query.shape[-2], key.shape[-2]
+            scale_factor = 1 / math.sqrt(query.shape[-1]) if scale is None else scale
+            attn_bias = mint.zeros((L, S), dtype=query.dtype)
+            if is_causal:
+                assert attn_mask is None
+                temp_mask = mint.ones((L, S), dtype=ms.bool_).tril(diagonal=0)
+                attn_bias.masked_fill_(temp_mask.logical_not(), float("-inf"))
+                attn_bias.to(query.dtype)
+
+            if attn_mask is not None:
+                if attn_mask.dtype == ms.bool_:
+                    attn_bias.masked_fill_(attn_mask.logical_not(), float("-inf"))
+                else:
+                    attn_bias = attn_mask + attn_bias
+
+            attn_weight = mint.matmul(query, key.swapaxes(-2, -1)) * scale_factor
+            attn_weight += attn_bias
+            attn_weight = mint.softmax(attn_weight, dim=-1)
+            attn_weight = ops.dropout(attn_weight, dropout_p, training=True)
+            return mint.matmul(attn_weight, value)
 
         if not (self.fa_op_available and self._enable_flash_sdp):
             return self.math_attention_op(query, key, value, attn_mask)
@@ -2279,7 +2308,10 @@ class FusedFluxAttnProcessor2_0:
             query = self.apply_rotary_emb(query, image_rotary_emb)
             key = self.apply_rotary_emb(key, image_rotary_emb)
 
-        hidden_states = attn.scaled_dot_product_attention(query, key, value, dropout_p=0.0, is_causal=False)
+        hidden_states = attn.scaled_dot_product_attention(
+            query, key, value, attn_mask=attention_mask, dropout_p=0.0, is_causal=False
+        )
+
         hidden_states = hidden_states.swapaxes(1, 2).reshape(batch_size, -1, attn.heads * head_dim)
         hidden_states = hidden_states.to(query.dtype)
 
@@ -2388,7 +2420,9 @@ class FluxIPAdapterJointAttnProcessor2_0(nn.Cell):
             query = self.apply_rotary_emb(query, image_rotary_emb)
             key = self.apply_rotary_emb(key, image_rotary_emb)
 
-        hidden_states = attn.scaled_dot_product_attention(query, key, value, dropout_p=0.0, is_causal=False)
+        hidden_states = attn.scaled_dot_product_attention(
+            query, key, value, attn_mask=attention_mask, dropout_p=0.0, is_causal=False
+        )
         hidden_states = hidden_states.swapaxes(1, 2).reshape(batch_size, -1, attn.heads * head_dim)
         hidden_states = hidden_states.to(query.dtype)
 
@@ -3117,7 +3151,7 @@ class StableAudioAttnProcessor2_0:
 
 class SpatialNorm(nn.Cell):
     """
-    Spatially conditioned normalization as defined in https://arxiv.org/abs/2209.09002.
+    Spatially conditioned normalization as defined in https://huggingface.co/papers/2209.09002.
 
     Args:
         f_channels (`int`):
@@ -3745,7 +3779,7 @@ class PAGHunyuanAttnProcessor2_0:
     r"""
     Processor for implementing scaled dot-product attention (enabled by default if you're using PyTorch 2.0). This is
     used in the HunyuanDiT model. It applies a normalization layer and rotary embedding on query and key vector. This
-    variant of the processor employs [Pertubed Attention Guidance](https://arxiv.org/abs/2403.17377).
+    variant of the processor employs [Pertubed Attention Guidance](https://huggingface.co/papers/2403.17377).
     """
 
     def __init__(self):
@@ -3869,7 +3903,7 @@ class PAGCFGHunyuanAttnProcessor2_0:
     r"""
     Processor for implementing scaled dot-product attention (enabled by default if you're using PyTorch 2.0). This is
     used in the HunyuanDiT model. It applies a normalization layer and rotary embedding on query and key vector. This
-    variant of the processor employs [Pertubed Attention Guidance](https://arxiv.org/abs/2403.17377).
+    variant of the processor employs [Pertubed Attention Guidance](https://huggingface.co/papers/2403.17377).
     """
 
     def __init__(self):
@@ -4189,7 +4223,7 @@ class FusedAttnProcessor2_0:
 class PAGIdentitySelfAttnProcessor2_0:
     r"""
     Processor for implementing PAG using scaled dot-product attention (enabled by default if you're using PyTorch 2.0).
-    PAG reference: https://arxiv.org/abs/2403.17377
+    PAG reference: https://huggingface.co/papers/2403.17377
     """
 
     def __call__(
@@ -4285,7 +4319,7 @@ class PAGIdentitySelfAttnProcessor2_0:
 class PAGCFGIdentitySelfAttnProcessor2_0:
     r"""
     Processor for implementing PAG using scaled dot-product attention (enabled by default if you're using PyTorch 2.0).
-    PAG reference: https://arxiv.org/abs/2403.17377
+    PAG reference: https://huggingface.co/papers/2403.17377
     """
 
     def __call__(
