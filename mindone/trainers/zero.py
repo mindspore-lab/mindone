@@ -271,19 +271,12 @@ class ZeroHelper:
 
     def get_optimizer_param_tuples(self):
         param_tuples = []
-        if ms.get_context("mode") == ms.PYNATIVE_MODE:
-            for name in self.optimizer._params_list:
-                if name in ["_parameters", "parameters"]:
+        for attr in self.optimizer.__dict__:
+            if isinstance(getattr(self.optimizer, attr), ms.ParameterTuple):
+                if attr in ["_parameters", "parameters"]:
                     continue
-                _logger.debug(f"Add optimizer param_tuples {name}")
-                param_tuples.append(getattr(self.optimizer, name))
-        else:
-            for attr in self.optimizer.__dict__:
-                if isinstance(getattr(self.optimizer, attr), ms.ParameterTuple):
-                    if attr in ["_parameters", "parameters"]:
-                        continue
-                    _logger.debug(f"Add optimizer param_tuples {attr}")
-                    param_tuples.append(getattr(self.optimizer, attr))
+                _logger.debug(f"Add optimizer param_tuples {attr}")
+                param_tuples.append(getattr(self.optimizer, attr))
         return param_tuples
 
     def dump_params_split_info(self, params_split_info):

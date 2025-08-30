@@ -55,6 +55,7 @@ PROCESSOR_MAPPING_NAMES = OrderedDict(
         ("llava_next", "LlavaNextProcessor"),
         ("llava_next_video", "LlavaNextVideoProcessor"),
         ("llava_onevision", "LlavaOnevisionProcessor"),
+        ("qwen2_5_vl", "Qwen2_5_VLProcessor"),
         ("owlvit", "OwlViTProcessor"),
         ("siglip", "SiglipProcessor"),
     ]
