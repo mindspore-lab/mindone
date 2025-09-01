@@ -20,14 +20,7 @@
 from dataclasses import dataclass
 from typing import List, Optional, Tuple, Union
 
-import mindspore as ms
-import mindspore.mint as mint
-from mindspore import nn
-
-from ...activations import ACT2FN
-from ...generation import GenerationMixin
-from ...modeling_outputs import ModelOutput
-from ...modeling_utils import PreTrainedModel
+from transformers import VipLlavaConfig
 from transformers.utils import (
     add_start_docstrings,
     add_start_docstrings_to_model_forward,
@@ -35,10 +28,18 @@ from transformers.utils import (
     replace_return_docstrings,
 )
 from transformers.utils.deprecation import deprecate_kwarg
-from ..auto import AutoModel, AutoModelForCausalLM
-from transformers import VipLlavaConfig
+
+import mindspore as ms
+import mindspore.mint as mint
+from mindspore import nn
+
 from mindone.models.utils import normal_, zeros_
 
+from ...activations import ACT2FN
+from ...generation import GenerationMixin
+from ...modeling_outputs import ModelOutput
+from ...modeling_utils import PreTrainedModel
+from ..auto import AutoModel, AutoModelForCausalLM
 
 logger = logging.get_logger(__name__)
 
@@ -245,6 +246,9 @@ VIPLLAVA_INPUTS_DOCSTRING = r"""
 class VipLlavaForConditionalGeneration(VipLlavaPreTrainedModel, GenerationMixin):
     def __init__(self, config: VipLlavaConfig):
         super().__init__(config)
+        # config.vision_config._attn_implementation = config._attn_implementation # FIXME: CLIP no support FA yet
+        config.text_config._attn_implementation = config._attn_implementation
+
         self.vision_tower = AutoModel.from_config(config.vision_config)
 
         self.multi_modal_projector = VipLlavaMultiModalProjector(config)
@@ -290,7 +294,7 @@ class VipLlavaForConditionalGeneration(VipLlavaPreTrainedModel, GenerationMixin)
         Returns:
             image_features (`ms.Tensor`): Image feature tensor of shape `(num_images, image_length, embed_dim)`).
         """
-        image_outputs = self.vision_tower(pixel_values, output_hidden_states=True)
+        image_outputs = self.vision_tower(pixel_values, output_hidden_states=True, return_dict=True)
 
         # If multiple feature layers are provided (which is usually the case)
         # then the image features are concatenated after the CLS is removed.
@@ -348,18 +352,19 @@ class VipLlavaForConditionalGeneration(VipLlavaPreTrainedModel, GenerationMixin)
 
         >>> from PIL import Image
         >>> import requests
-        >>> from transformers import AutoProcessor, VipLlavaForConditionalGeneration
+        >>> from mindone.transformers import AutoProcessor, VipLlavaForConditionalGeneration
 
         >>> model = VipLlavaForConditionalGeneration.from_pretrained("llava-hf/vip-llava-7b-hf", mindspore_dtype=ms.float16)
         >>> processor = AutoProcessor.from_pretrained("llava-hf/vip-llava-7b-hf")
 
-        >>> prompt = "A chat between a curious human and an artificial intelligence assistant. The assistant gives helpful, detailed, and polite answers to the human's questions.###Human: <image>\n{}###Assistant:"
+        >>> prompt = "A chat between a curious human and an artificial intelligence assistant. The assistant gives helpful, detailed, \
+        and polite answers to the human's questions.###Human: <image>\n{}###Assistant:"
         >>> question = "Can you please describe this image?"
         >>> prompt = prompt.format(question)
         >>> url = "https://huggingface.co/datasets/huggingface/documentation-images/resolve/main/diffusers/compel-neg.png"
         >>> image = Image.open(requests.get(url, stream=True).raw)
 
-        >>> inputs = processor(text=text, images=image, return_tensors="np")
+        >>> inputs = processor(text=prompt, images=image, return_tensors="np")
         >>> for k, v in inputs.items():
         ...     inputs[k] = ms.tensor(v)
         ...     if inputs[k].dtype == ms.int64:
@@ -382,7 +387,7 @@ class VipLlavaForConditionalGeneration(VipLlavaPreTrainedModel, GenerationMixin)
             vision_feature_layers if vision_feature_layers is not None else self.config.vision_feature_layers
         )
 
-        if (input_ids is None) ^ (inputs_embeds is not None):
+        if (input_ids is None) != (inputs_embeds is not None):
             raise ValueError("You must specify exactly one of input_ids or inputs_embeds")
 
         if pixel_values is not None and inputs_embeds is not None:
@@ -393,6 +398,7 @@ class VipLlavaForConditionalGeneration(VipLlavaPreTrainedModel, GenerationMixin)
         if inputs_embeds is None:
             inputs_embeds = self.get_input_embeddings()(input_ids)
 
+        image_features = None
         if pixel_values is not None:
             image_features = self.get_image_features(
                 pixel_values=pixel_values, vision_feature_layers=vision_feature_layers
@@ -407,7 +413,9 @@ class VipLlavaForConditionalGeneration(VipLlavaPreTrainedModel, GenerationMixin)
                     f"Image features and image tokens do not match: tokens: {n_image_tokens}, features {n_image_features}"
                 )
             image_features = image_features.float()
-            inputs_embeds = inputs_embeds.float().masked_scatter(special_image_mask, image_features).to(inputs_embeds.dtype)
+            inputs_embeds = (
+                inputs_embeds.float().masked_scatter(special_image_mask, image_features).to(inputs_embeds.dtype)
+            )
 
         outputs = self.language_model(
             attention_mask=attention_mask,
@@ -437,9 +445,7 @@ class VipLlavaForConditionalGeneration(VipLlavaPreTrainedModel, GenerationMixin)
                 shift_labels = labels[..., 1:].contiguous()
             # Flatten the tokens
             loss_fct = mint.nn.CrossEntropyLoss()
-            loss = loss_fct(
-                shift_logits.view(-1, shift_logits.size(-1)), shift_labels.view(-1)
-            )
+            loss = loss_fct(shift_logits.view(-1, shift_logits.size(-1)), shift_labels.view(-1))
 
         if not return_dict:
             output = (logits,) + outputs[1:]
@@ -465,6 +471,9 @@ class VipLlavaForConditionalGeneration(VipLlavaPreTrainedModel, GenerationMixin)
         logits_to_keep=None,
         **kwargs,
     ):
+        if logits_to_keep is None:  # Mindspore-specific
+            logits_to_keep = 1
+
         # Overwritten -- in specific circumstances we don't want to construct image inputs to the model
 
         model_inputs = self.language_model.prepare_inputs_for_generation(

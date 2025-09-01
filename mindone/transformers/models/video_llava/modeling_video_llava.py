@@ -20,14 +20,7 @@
 from dataclasses import dataclass
 from typing import List, Optional, Tuple, Union
 
-import mindspore as ms
-from mindspore import nn, mint
-
-from ...activations import ACT2FN
-from ...generation import GenerationMixin
-from ...modeling_outputs import ModelOutput
-from ...modeling_utils import PreTrainedModel
-from ..auto import AutoModel, AutoModelForCausalLM
+from transformers import VideoLlavaConfig
 from transformers.utils import (
     add_start_docstrings,
     add_start_docstrings_to_model_forward,
@@ -35,9 +28,17 @@ from transformers.utils import (
     replace_return_docstrings,
 )
 from transformers.utils.deprecation import deprecate_kwarg
-from transformers import VideoLlavaConfig
+
+import mindspore as ms
+from mindspore import mint, nn
+
 from mindone.models.utils import normal_, zeros_
 
+from ...activations import ACT2FN
+from ...generation import GenerationMixin
+from ...modeling_outputs import ModelOutput
+from ...modeling_utils import PreTrainedModel
+from ..auto import AutoModel, AutoModelForCausalLM
 
 logger = logging.get_logger(__name__)
 
@@ -251,6 +252,9 @@ VIDEO_LLAVA_INPUTS_DOCSTRING = r"""
 class VideoLlavaForConditionalGeneration(VideoLlavaPreTrainedModel, GenerationMixin):
     def __init__(self, config: VideoLlavaConfig):
         super().__init__(config)
+        # config.vision_config._attn_implementation = config._attn_implementation # FIXME: CLIP no support FA yet
+        config.text_config._attn_implementation = config._attn_implementation
+
         self.video_tower = AutoModel.from_config(config.vision_config)
         self.image_tower = AutoModel.from_config(config.vision_config)
 
@@ -306,7 +310,7 @@ class VideoLlavaForConditionalGeneration(VideoLlavaPreTrainedModel, GenerationMi
         if vision_feature_select_strategy not in ["default", "full"]:
             raise ValueError(f"Unexpected select feature strategy: {self.config.vision_feature_select_strategy}")
 
-        image_outputs = self.image_tower(pixel_values_images, output_hidden_states=True)
+        image_outputs = self.image_tower(pixel_values_images, output_hidden_states=True, return_dict=True)
 
         # If we have one vision feature layer, return the corresponding hidden states,
         # otherwise, select the hidden states of each feature layer and concatenate them
@@ -347,7 +351,7 @@ class VideoLlavaForConditionalGeneration(VideoLlavaPreTrainedModel, GenerationMi
         batch_size_vid, num_frames, channels, height, width = pixel_values_videos.shape
 
         pixel_values = pixel_values_videos.reshape(batch_size_vid * num_frames, channels, height, width)
-        video_outputs = self.video_tower(pixel_values, output_hidden_states=True)
+        video_outputs = self.video_tower(pixel_values, output_hidden_states=True, return_dict=True)
 
         # If we have one vision feature layer, return the corresponding hidden states,
         # otherwise, select the hidden states of each feature layer and concatenate them
@@ -452,9 +456,11 @@ class VideoLlavaForConditionalGeneration(VideoLlavaPreTrainedModel, GenerationMi
         ...     else:
         ...         inputs[k] = inputs[k].to(model.dtype)
         >>> # Generate
-        >>> generate_ids = model.generate(**inputs, max_length=80)
+        >>> generate_ids = model.generate(**inputs, max_new_tokens=80)
         >>> processor.batch_decode(generate_ids, skip_special_tokens=True, clean_up_tokenization_spaces=False)[0]
-        "USER:  Why is this video funny? ASSISTANT: The video is funny because the baby is playing with a Wii remote while sitting on the floor, and the baby is wearing glasses.Ъ. The baby's actions are amusing because it is a young child trying to interact with a video game, which is not a typical activity for a"
+        "USER:  Why is this video funny? ASSISTANT: The video is funny because the baby is playing with a Wii remote, which is an unusual sight.
+        Babies are not typically known for playing video games, and the fact that the baby is holding a Wii remote and interacting with it adds
+        a humorous element to the scene. The baby's innovent and curious behavior while playing the remote creates"
 
         >>> # to generate from image and video mix
         >>> url = "http://images.cocodataset.org/val2017/000000039769.jpg"
@@ -463,7 +469,7 @@ class VideoLlavaForConditionalGeneration(VideoLlavaPreTrainedModel, GenerationMi
         ...     "USER: <image>\nHow many cats do you see? ASSISTANT:",
         ...     "USER: <video>\nWhy is this video funny? ASSISTANT:"
         ... ]
-        >>> inputs = processor(text=prompt, images=image, videos=clip, padding=True, return_tensors="pt")
+        >>> inputs = processor(text=prompt, images=image, videos=clip, padding=True, return_tensors="np")
         >>> for k, v in inputs.items():
         ...     inputs[k] = ms.tensor(v)
         ...     if inputs[k].dtype == ms.int64:
@@ -471,9 +477,11 @@ class VideoLlavaForConditionalGeneration(VideoLlavaPreTrainedModel, GenerationMi
         ...     else:
         ...         inputs[k] = inputs[k].to(model.dtype)
         >>> # Generate
-        >>> generate_ids = model.generate(**inputs, max_length=50)
+        >>> generate_ids = model.generate(**inputs, max_new_tokens=50)
         >>> processor.batch_decode(generate_ids, skip_special_tokens=True, clean_up_tokenization_spaces=True)
-        ['USER:   How many cats do you see? ASSISTANT: There are two cats visible in the image. (or three, if you count the one in the background).', 'USER:  Why is this video funny? ASSISTANT: The video is funny because it shows a baby sitting on a bed and playing with a Wii remote.Ъ. The baby is holding the remote']
+        ['USER:   How many cats do you see? ASSISTANT: There are two cats in the image., 'USER:  Why is this video funny? ASSISTANT: The video is funny because
+        it shows a baby sitting on a bed and playing with a Wii remote, which is an unusual sight.
+        Babies are not typically known for playing for video games, and the fact that the baby is holding a Wii']
         ```
         """
 
@@ -503,6 +511,7 @@ class VideoLlavaForConditionalGeneration(VideoLlavaPreTrainedModel, GenerationMi
         if inputs_embeds is None:
             inputs_embeds = self.get_input_embeddings()(input_ids)
 
+        image_features = None
         if pixel_values_images is not None:
             image_features = self.get_image_features(
                 pixel_values_images,
@@ -518,8 +527,11 @@ class VideoLlavaForConditionalGeneration(VideoLlavaPreTrainedModel, GenerationMi
                     f"Image features and image tokens do not match: tokens: {n_image_tokens}, features {n_image_features}"
                 )
             image_features = image_features.float()
-            inputs_embeds = inputs_embeds.float().masked_scatter(special_image_mask, image_features).to(inputs_embeds.dtype)
+            inputs_embeds = (
+                inputs_embeds.float().masked_scatter(special_image_mask, image_features).to(inputs_embeds.dtype)
+            )
 
+        video_features = None
         if pixel_values_videos is not None:
             video_features, num_frames = self.get_video_features(
                 pixel_values_videos=pixel_values_videos, vision_feature_layer=vision_feature_layer
@@ -534,7 +546,9 @@ class VideoLlavaForConditionalGeneration(VideoLlavaPreTrainedModel, GenerationMi
                     f"Video features and video tokens do not match: tokens: {n_video_tokens}, features {n_video_features}"
                 )
             video_features = video_features.float()
-            inputs_embeds = inputs_embeds.float().masked_scatter(special_image_mask, video_features).to(inputs_embeds.dtype)
+            inputs_embeds = (
+                inputs_embeds.float().masked_scatter(special_image_mask, video_features).to(inputs_embeds.dtype)
+            )
 
         outputs = self.language_model(
             attention_mask=attention_mask,
@@ -566,9 +580,7 @@ class VideoLlavaForConditionalGeneration(VideoLlavaPreTrainedModel, GenerationMi
                 shift_labels = labels[..., 1:].contiguous()
             # Flatten the tokens
             loss_fct = mint.nn.CrossEntropyLoss()
-            loss = loss_fct(
-                shift_logits.view(-1, shift_logits.size(-1)), shift_labels.view(-1)
-            )
+            loss = loss_fct(shift_logits.view(-1, shift_logits.size(-1)), shift_labels.view(-1))
 
         if not return_dict:
             output = (logits,) + outputs[1:]
@@ -596,6 +608,9 @@ class VideoLlavaForConditionalGeneration(VideoLlavaPreTrainedModel, GenerationMi
         logits_to_keep=None,
         **kwargs,
     ):
+        if logits_to_keep is None:  # Mindspore-specific
+            logits_to_keep = 1
+
         # Overwritten -- in specific circumstances we don't want to construct image inputs to the model
 
         model_inputs = self.language_model.prepare_inputs_for_generation(

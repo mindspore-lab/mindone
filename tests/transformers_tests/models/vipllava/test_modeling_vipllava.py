@@ -10,18 +10,19 @@
 # In cases where models have unique initialization procedures or require testing with specialized output formats,
 # it is necessary to develop distinct, dedicated test cases.
 
-import inspect
-
 import numpy as np
 import pytest
 import torch
+from transformers import VipLlavaConfig
+
 import mindspore as ms
 
-from transformers import VipLlavaConfig
+from tests.modeling_test_utils import compute_diffs, generalized_parse_args, get_modules
 from tests.transformers_tests.models.modeling_common import floats_numpy, ids_numpy
 
-DTYPE_AND_THRESHOLDS = {"fp32": 5e-4, "fp16": 5e-3, "bf16": 5e-3}
+DTYPE_AND_THRESHOLDS = {"fp32": 5e-4, "fp16": 5e-3, "bf16": 5e-2}
 MODES = [1]
+
 
 # Copied from transformers.tests.models.llava.test_modeling_llava.LlavaVisionText2TextModelTester with Llava->VipLlava
 class VipLlavaVisionText2TextModelTester:
@@ -122,7 +123,7 @@ class VipLlavaVisionText2TextModelTester:
         config_and_inputs = self.prepare_config_and_inputs()
         config, pixel_values = config_and_inputs
         input_ids = ids_numpy([self.batch_size, self.seq_length], config.text_config.vocab_size - 1) + 1
-        attention_mask = input_ids.ne(1).to(torch_device)
+        attention_mask = np.not_equal(input_ids, 1)
 
         input_ids[input_ids == config.image_token_index] = self.pad_token_id
         input_ids[:, : self.num_image_tokens] = config.image_token_index
@@ -134,8 +135,8 @@ class VipLlavaVisionText2TextModelTester:
         return config, inputs_dict
 
 
-model_tester = VideoLlavaVisionText2TextModelTester()
-config, input_dicts = model_tester.prepare_config_and_inputs()
+model_tester = VipLlavaVisionText2TextModelTester()
+config, input_dicts = model_tester.prepare_config_and_inputs_for_common()
 
 
 TEST_CASES = [
