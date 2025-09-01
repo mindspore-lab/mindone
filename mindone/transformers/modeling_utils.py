@@ -150,9 +150,10 @@ def _convert_state_dict(m, state_dict_pt, prefix=""):
             if name_pt.startswith(prefix):
                 if name_ms.rsplit(".", 1)[0] == name_pt.rsplit(".", 1)[0][length:] or name_ms == name_pt[length:]:
                     name_pt = name_pt[length:]
-            elif not name_pt.startswith(prefix):
-                if name_pt.rsplit(".", 1)[0] == name_ms.rsplit(".", 1)[0][length:] or name_pt == name_ms[length:]:
-                    name_pt = ".".join([prefix, name_pt])
+            # FIXME: the following logic will add unecssary prefix under some cases, e.g. (depth pro) Need to be fixed.
+            # elif not name_pt.startswith(prefix):
+            #     if name_pt.rsplit(".", 1)[0] == name_ms.rsplit(".", 1)[0][length:] or name_pt == name_ms[length:]:
+            #         name_pt = ".".join([prefix, name_pt])
         name_ms, data_mapping = pt2ms_mappings.get(name_pt, (name_pt, lambda x: x))
         data_ms = data_mapping(data_pt)
         if name_ms is not None:
