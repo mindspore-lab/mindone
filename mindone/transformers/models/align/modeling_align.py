@@ -27,7 +27,7 @@ from transformers.utils import (
 )
 
 import mindspore as ms
-from mindspore import mint, nn
+from mindspore import mint
 
 from mindone.models.utils import constant_, normal_, xavier_uniform_
 
@@ -1342,7 +1342,7 @@ class AlignVisionModel(AlignPreTrainedModel):
         if config.pooling_type == "mean":
             self.pooler = mint.nn.AvgPool2d(config.hidden_dim, ceil_mode=True)
         elif config.pooling_type == "max":
-            self.pooler = nn.MaxPool2d(config.hidden_dim, ceil_mode=True)
+            self.pooler = mint.nn.MaxPool2d(config.hidden_dim, ceil_mode=True)
         else:
             raise ValueError(f"config.pooling must be one of ['mean', 'max'] got {config.pooling}")
 
