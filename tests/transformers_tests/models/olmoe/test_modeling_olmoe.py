@@ -1,22 +1,28 @@
-"""Adapted from https://github.com/huggingface/transformers/tree/main/tests//models/bert/test_modeling_bert.py."""
-
-# This module contains test cases that are defined in the `.test_cases.py` file, structured as lists or tuples like
-#     [name, pt_module, ms_module, init_args, init_kwargs, inputs_args, inputs_kwargs, outputs_map].
+# coding=utf-8
+# Copyright 2024 The HuggingFace Inc. team. All rights reserved.
 #
-# Each defined case corresponds to a pair consisting of PyTorch and MindSpore modules, including their respective
-# initialization parameters and inputs for the forward. The testing framework adopted here is designed to generically
-# parse these parameters to assess and compare the precision of forward outcomes between the two frameworks.
+# This code is adapted from https://github.com/huggingface/transformers
+# with modifications to run transformers on mindspore.
 #
-# In cases where models have unique initialization procedures or require testing with specialized output formats,
-# it is necessary to develop distinct, dedicated test cases.
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+"""Testing suite for the PyTorch OLMoE model."""
 
-import copy
 import inspect
 
 import numpy as np
 import pytest
 import torch
-from transformers import BertConfig
+from transformers import OlmoeConfig
 
 import mindspore as ms
 
@@ -27,28 +33,27 @@ from tests.modeling_test_utils import (
     generalized_parse_args,
     get_modules,
 )
-from tests.transformers_tests.models.modeling_common import floats_numpy, ids_numpy, random_attention_mask
+from tests.transformers_tests.models.modeling_common import ids_numpy
 
-# CrossEntropyLoss not support bf16
-DTYPE_AND_THRESHOLDS = {"fp32": 5e-4, "fp16": 5e-3}
-MODES = [0, 1]
+DTYPE_AND_THRESHOLDS = {"fp32": 5e-4, "fp16": 5e-3, "bf16": 5e-2}
+# graph mode is not supported in this model
+MODES = [1]
 
 
-class BertModelTester:
+class OlmoeModelTester:
     def __init__(
         self,
         batch_size=13,
         seq_length=7,
         is_training=True,
         use_input_mask=True,
-        use_token_type_ids=True,
+        use_token_type_ids=False,
         use_labels=True,
         vocab_size=99,
         hidden_size=32,
         num_hidden_layers=2,
         num_attention_heads=4,
-        intermediate_size=37,
-        hidden_act="gelu",
+        hidden_act="silu",
         hidden_dropout_prob=0.1,
         attention_probs_dropout_prob=0.1,
         max_position_embeddings=512,
@@ -57,7 +62,15 @@ class BertModelTester:
         initializer_range=0.02,
         num_labels=3,
         num_choices=4,
+        pad_token_id=0,
         scope=None,
+        num_experts_per_tok=2,
+        num_experts=8,
+        norm_topk_prob=False,
+        output_router_logits=False,
+        router_aux_loss_coef=0.001,
+        intermediate_size=12,
+        _attn_implementation="eager",
     ):
         self.batch_size = batch_size
         self.seq_length = seq_length
@@ -79,14 +92,21 @@ class BertModelTester:
         self.initializer_range = initializer_range
         self.num_labels = num_labels
         self.num_choices = num_choices
+        self.pad_token_id = pad_token_id
         self.scope = scope
+        self.num_experts_per_tok = num_experts_per_tok
+        self.num_experts = num_experts
+        self.norm_topk_prob = norm_topk_prob
+        self.output_router_logits = output_router_logits
+        self.router_aux_loss_coef = router_aux_loss_coef
+        self._attn_implementation = _attn_implementation
 
     def prepare_config_and_inputs(self):
         input_ids = ids_numpy([self.batch_size, self.seq_length], self.vocab_size)
 
         input_mask = None
         if self.use_input_mask:
-            input_mask = random_attention_mask([self.batch_size, self.seq_length])
+            input_mask = np.tril(np.ones_like(input_ids))
 
         token_type_ids = None
         if self.use_token_type_ids:
@@ -101,13 +121,11 @@ class BertModelTester:
             choice_labels = ids_numpy([self.batch_size], self.num_choices)
 
         config = self.get_config()
+
         return config, input_ids, token_type_ids, input_mask, sequence_labels, token_labels, choice_labels
 
     def get_config(self):
-        """
-        Returns a tiny configuration by default.
-        """
-        return BertConfig(
+        return OlmoeConfig(
             vocab_size=self.vocab_size,
             hidden_size=self.hidden_size,
             num_hidden_layers=self.num_hidden_layers,
@@ -120,37 +138,17 @@ class BertModelTester:
             type_vocab_size=self.type_vocab_size,
             is_decoder=False,
             initializer_range=self.initializer_range,
-        )
-
-    def prepare_config_and_inputs_for_decoder(self):
-        (
-            config,
-            input_ids,
-            token_type_ids,
-            input_mask,
-            sequence_labels,
-            token_labels,
-            choice_labels,
-        ) = self.prepare_config_and_inputs()
-
-        config.is_decoder = True
-        encoder_hidden_states = floats_numpy([self.batch_size, self.seq_length, self.hidden_size])
-        encoder_attention_mask = ids_numpy([self.batch_size, self.seq_length], vocab_size=2)
-
-        return (
-            config,
-            input_ids,
-            token_type_ids,
-            input_mask,
-            sequence_labels,
-            token_labels,
-            choice_labels,
-            encoder_hidden_states,
-            encoder_attention_mask,
+            pad_token_id=self.pad_token_id,
+            num_experts_per_tok=self.num_experts_per_tok,
+            num_experts=self.num_experts,
+            norm_topk_prob=self.norm_topk_prob,
+            output_router_logits=self.output_router_logits,
+            router_aux_loss_coef=self.router_aux_loss_coef,
+            _attn_implementation=self._attn_implementation,
         )
 
 
-model_tester = BertModelTester()
+model_tester = OlmoeModelTester()
 (
     config,
     input_ids,
@@ -160,147 +158,21 @@ model_tester = BertModelTester()
     token_labels,
     choice_labels,
 ) = model_tester.prepare_config_and_inputs()
-config_has_num_labels = copy.deepcopy(config)
-config_has_num_labels.num_labels = model_tester.num_labels
 
-BERT_CASES = [
+
+OLMOE_CASES = [
     [
-        "BertForMaskedLM",
-        "transformers.BertForMaskedLM",
-        "mindone.transformers.BertForMaskedLM",
+        "OlmoeModel",
+        "transformers.OlmoeModel",
+        "mindone.transformers.OlmoeModel",
         (config,),
         {},
         (input_ids,),
         {
             "attention_mask": input_mask,
-            "token_type_ids": token_type_ids,
-            "labels": token_labels,
-        },
-        {
-            "loss": 0,
-            "logits": 1,
-        },
-    ],
-    [
-        "BertForMultipleChoice",
-        "transformers.BertForMultipleChoice",
-        "mindone.transformers.BertForMultipleChoice",
-        (config,),
-        {},
-        (np.repeat(np.expand_dims(input_ids, 1), model_tester.num_choices, 1),),
-        {
-            "attention_mask": np.repeat(np.expand_dims(input_mask, 1), model_tester.num_choices, 1),
-            "token_type_ids": np.repeat(np.expand_dims(token_type_ids, 1), model_tester.num_choices, 1),
-            "labels": choice_labels,
-        },
-        {
-            "loss": 0,
-            "logits": 1,
-        },
-    ],
-    [
-        "BertForNextSentencePrediction",
-        "transformers.BertForNextSentencePrediction",
-        "mindone.transformers.BertForNextSentencePrediction",
-        (config,),
-        {},
-        (input_ids,),
-        {
-            "attention_mask": input_mask,
-            "token_type_ids": token_type_ids,
-            "labels": sequence_labels,
-        },
-        {
-            "loss": 0,
-            "logits": 1,
-        },
-    ],
-    [
-        "BertForPreTraining",
-        "transformers.BertForPreTraining",
-        "mindone.transformers.BertForPreTraining",
-        (config,),
-        {},
-        (input_ids,),
-        {
-            "attention_mask": input_mask,
-            "token_type_ids": token_type_ids,
-            "labels": token_labels,
-            "next_sentence_label": sequence_labels,
-        },
-        {
-            "loss": 0,
-            "prediction_logits": 1,
-            "seq_relationship_logits": 2,
-        },
-    ],
-    [
-        "BertForQuestionAnswering",
-        "transformers.BertForQuestionAnswering",
-        "mindone.transformers.BertForQuestionAnswering",
-        (config,),
-        {},
-        (input_ids,),
-        {
-            "attention_mask": input_mask,
-            "token_type_ids": token_type_ids,
-            "start_positions": sequence_labels,
-            "end_positions": sequence_labels,
-        },
-        {
-            "loss": 0,
-            "start_logits": 1,
-            "end_logits": 2,
-        },
-    ],
-    [
-        "BertForSequenceClassification",
-        "transformers.BertForSequenceClassification",
-        "mindone.transformers.BertForSequenceClassification",
-        (config_has_num_labels,),
-        {},
-        (input_ids,),
-        {
-            "attention_mask": input_mask,
-            "token_type_ids": token_type_ids,
-            "labels": sequence_labels,
-        },
-        {
-            "loss": 0,
-            "logits": 1,
-        },
-    ],
-    [
-        "BertForTokenClassification",
-        "transformers.BertForTokenClassification",
-        "mindone.transformers.BertForTokenClassification",
-        (config_has_num_labels,),
-        {},
-        (input_ids,),
-        {
-            "attention_mask": input_mask,
-            "token_type_ids": token_type_ids,
-            "labels": token_labels,
-        },
-        {
-            "loss": 0,
-            "logits": 1,
-        },
-    ],
-    [
-        "BertModel",
-        "transformers.BertModel",
-        "mindone.transformers.BertModel",
-        (config,),
-        {},
-        (input_ids,),
-        {
-            "attention_mask": input_mask,
-            "token_type_ids": token_type_ids,
         },
         {
             "last_hidden_state": 0,
-            "pooler_output": 1,
         },
     ],
 ]
@@ -316,7 +188,7 @@ BERT_CASES = [
         + [
             mode,
         ]
-        for case in BERT_CASES
+        for case in OLMOE_CASES
         for dtype in DTYPE_AND_THRESHOLDS.keys()
         for mode in MODES
     ],
@@ -350,7 +222,6 @@ def test_named_modules(
     if "hidden_dtype" in inspect.signature(pt_model.forward).parameters:
         pt_inputs_kwargs.update({"hidden_dtype": PT_DTYPE_MAPPING[pt_dtype]})
         ms_inputs_kwargs.update({"hidden_dtype": MS_DTYPE_MAPPING[ms_dtype]})
-    ms_inputs_kwargs["return_dict"] = False
 
     with torch.no_grad():
         pt_outputs = pt_model(*pt_inputs_args, **pt_inputs_kwargs)
