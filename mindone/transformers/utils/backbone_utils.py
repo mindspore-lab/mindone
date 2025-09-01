@@ -245,7 +245,6 @@ def load_backbone(config):
     """
     from mindone.transformers import AutoBackbone, AutoConfig
 
-
     backbone_config = getattr(config, "backbone_config", None)
     use_timm_backbone = getattr(config, "use_timm_backbone", None)
     use_pretrained_backbone = getattr(config, "use_pretrained_backbone", None)
