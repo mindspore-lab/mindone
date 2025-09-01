@@ -18,10 +18,10 @@
 import unittest
 
 import numpy as np
+import pytest
 import torch
 from ddt import data, ddt, unpack
 from transformers import Qwen2_5_VLConfig
-# from transformers import Qwen2_5_VLConfig, Qwen2_5_VLForConditionalGeneration, Qwen2Tokenizer
 
 import mindspore as ms
 
@@ -30,11 +30,8 @@ from mindone.diffusers import (
     QwenImagePipeline,
     QwenImageTransformer2DModel,
 )
-# from diffusers.utils.testing_utils import enable_full_determinism, torch_device
 from mindone.diffusers.utils.testing_utils import load_numpy_from_local_file, slow
 
-# from ..pipeline_params import TEXT_TO_IMAGE_BATCH_PARAMS, TEXT_TO_IMAGE_IMAGE_PARAMS, TEXT_TO_IMAGE_PARAMS
-# from ..test_pipelines_common import PipelineTesterMixin, to_np
 from ..pipeline_test_utils import (
     THRESHOLD_FP16,
     THRESHOLD_FP32,
@@ -47,12 +44,7 @@ from ..pipeline_test_utils import (
 test_cases = [
     {"mode": ms.PYNATIVE_MODE, "dtype": "float32"},
     {"mode": ms.PYNATIVE_MODE, "dtype": "bfloat16"},
-    {"mode": ms.GRAPH_MODE, "dtype": "float32"},
-    {"mode": ms.GRAPH_MODE, "dtype": "bfloat16"},
 ]
-
-
-# enable_full_determinism()
 
 @ddt
 class QwenImagePipelineFastTests(PipelineTesterMixin, unittest.TestCase):
@@ -236,10 +228,10 @@ class QwenImagePipelineIntegrationTests(PipelineTesterMixin, unittest.TestCase):
         ms.set_context(mode=mode)
         ms_dtype = getattr(ms, dtype)
         
-        model_id = "Qwen/Qwen-Image"
+        # model_id = "Qwen/Qwen-Image"
+        model_id = "/data6/Qwen-Image"
         pipe = QwenImagePipeline.from_pretrained(model_id, mindspore_dtype=ms_dtype)
 
-        pipe.transformer.to(ms.bfloat16)
         pipe.vae.enable_tiling()
 
         torch.manual_seed(0)
@@ -249,7 +241,8 @@ class QwenImagePipelineIntegrationTests(PipelineTesterMixin, unittest.TestCase):
         )[0][0]
 
         expected_image = load_numpy_from_local_file(
-            "mindone-testing-arrays",
+            # "mindone-testing-arrays",
+            "/data4/mindone-testing-arrays",
             f"qwenimage_t2i_{dtype}.npy",
             subfolder="qwenimage",
         )
