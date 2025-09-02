@@ -24,9 +24,9 @@ def shard_model(
     return model
 
 
-def free_model(obj: object, name: str) -> None:
+def free_model(obj: object, name: str, dist_barrier: bool = True) -> None:
     ms.synchronize()
-    if dist.is_initialized():
+    if dist.is_initialized() and dist_barrier:
         dist.barrier()
     delattr(obj, name)
     gc.collect()

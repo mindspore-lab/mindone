@@ -10,8 +10,9 @@ from typing import Union
 from PIL import Image
 
 import mindspore as ms
+import mindspore.nn as nn
 
-from ..distributed.zero import free_model
+from ..distributed.zero import free_model, shard_model
 from .system_prompt import (
     I2V_A14B_EMPTY_EN_SYS_PROMPT,
     I2V_A14B_EMPTY_ZH_SYS_PROMPT,
@@ -113,6 +114,7 @@ class QwenPromptExpander(PromptExpander):
             model_name = "Qwen2.5_14B" if not is_vl else "QwenVL2.5_7B"
         super().__init__(model_name, task, is_vl, **kwargs)
         self.offload_model = kwargs.get("offload_model", False)
+        self.qwen_zero3 = kwargs.get("local_qwen_zero3", False)
 
         if (not os.path.exists(self.model_name)) and (self.model_name in self.model_dict):
             self.model_name = self.model_dict[self.model_name]
@@ -130,18 +132,23 @@ class QwenPromptExpander(PromptExpander):
             self.processor = AutoProcessor.from_pretrained(
                 self.model_name, min_pixels=min_pixels, max_pixels=max_pixels, use_fast=True
             )
-            self.model = Qwen2_5_VLForConditionalGeneration.from_pretrained(
-                self.model_name, mindspore_dtype="auto", attn_implementation="flash_attention_2"
-            )
+            with nn.no_init_parameters():
+                self.model = Qwen2_5_VLForConditionalGeneration.from_pretrained(
+                    self.model_name, mindspore_dtype=ms.bfloat16, attn_implementation="flash_attention_2"
+                )
         else:
             from transformers import AutoTokenizer
 
             from mindone.transformers import AutoModelForCausalLM
 
-            self.model = AutoModelForCausalLM.from_pretrained(
-                self.model_name, mindspore_dtype="auto", attn_implementation="flash_attention_2"
-            )
+            with nn.no_init_parameters():
+                self.model = AutoModelForCausalLM.from_pretrained(
+                    self.model_name, mindspore_dtype=ms.bfloat16, attn_implementation="eager"
+                )
             self.tokenizer = AutoTokenizer.from_pretrained(self.model_name)
+
+        if self.qwen_zero3:
+            self.model = shard_model(self.model)
 
     def extend(self, prompt, system_prompt, seed=-1, *args, **kwargs):
         messages = [{"role": "system", "content": system_prompt}, {"role": "user", "content": prompt}]
@@ -150,12 +157,16 @@ class QwenPromptExpander(PromptExpander):
         for k, v in model_inputs.items():
             model_inputs[k] = ms.tensor(v)
 
-        generated_ids = self.model.generate(**model_inputs, max_new_tokens=512)
+        generated_ids = self.model.generate(**model_inputs, max_new_tokens=512, do_sample=False)
         generated_ids = [
             output_ids[len(input_ids) :] for input_ids, output_ids in zip(model_inputs.input_ids, generated_ids)
         ]
 
         expanded_prompt = self.tokenizer.batch_decode(generated_ids, skip_special_tokens=True)[0]
+
+        if self.offload_model:
+            free_model(self, "model")
+
         return PromptOutput(
             status=True,
             prompt=expanded_prompt,
@@ -191,7 +202,7 @@ class QwenPromptExpander(PromptExpander):
         )
 
         # Inference: Generation of the output
-        generated_ids = self.model.generate(**inputs, max_new_tokens=512)
+        generated_ids = self.model.generate(**inputs, max_new_tokens=512, do_sample=False)
         generated_ids_trimmed = [out_ids[len(in_ids) :] for in_ids, out_ids in zip(inputs.input_ids, generated_ids)]
         expanded_prompt = self.processor.batch_decode(
             generated_ids_trimmed, skip_special_tokens=True, clean_up_tokenization_spaces=False

@@ -99,6 +99,9 @@ def _parse_args():
     parser.add_argument("--t5_zero3", action="store_true", default=False, help="Whether to use ZeRO3 for T5.")
     parser.add_argument("--t5_cpu", action="store_true", default=False, help="Whether to place T5 model on CPU.")
     parser.add_argument("--dit_zero3", action="store_true", default=False, help="Whether to use ZeRO3 for DiT.")
+    parser.add_argument(
+        "--local_qwen_zero3", action="store_true", default=False, help="Whether to use ZeRO3 for local Qwen."
+    )
     parser.add_argument("--save_file", type=str, default=None, help="The file to save the generated video to.")
     parser.add_argument("--prompt", type=str, default=None, help="The prompt to generate the video from.")
     parser.add_argument("--use_prompt_extend", action="store_true", default=False, help="Whether to use prompt extend.")
@@ -187,6 +190,7 @@ def generate(args):
                 is_vl=args.image is not None,
                 device=rank,
                 offload_model=args.offload_model,
+                local_qwen_zero3=args.local_qwen_zero3,
             )
         else:
             raise NotImplementedError(f"Unsupport prompt_extend_method: {args.prompt_extend_method}")
@@ -214,22 +218,17 @@ def generate(args):
     # prompt extend
     if args.use_prompt_extend:
         logging.info("Extending prompt ...")
-        if rank == 0:
-            prompt_output = prompt_expander(
-                args.prompt, image=img, tar_lang=args.prompt_extend_target_lang, seed=args.base_seed
-            )
-            if prompt_output.status is False:
-                logging.info(f"Extending prompt failed: {prompt_output.message}")
-                logging.info("Falling back to original prompt.")
-                input_prompt = args.prompt
-            else:
-                input_prompt = prompt_output.prompt
-            input_prompt = [input_prompt]
+        prompt_output = prompt_expander(
+            args.prompt, image=img, tar_lang=args.prompt_extend_target_lang, seed=args.base_seed
+        )
+        if prompt_output.status is False:
+            logging.info(f"Extending prompt failed: {prompt_output.message}")
+            logging.info("Falling back to original prompt.")
+            input_prompt = args.prompt
         else:
-            input_prompt = [None]
-        if dist.is_initialized():
-            dist.broadcast_object_list(input_prompt, src=0)
-        args.prompt = input_prompt[0]
+            input_prompt = prompt_output.prompt
+
+        args.prompt = input_prompt
         logging.info(f"Extended prompt: {args.prompt}")
 
     if "t2v" in args.task:

@@ -20,17 +20,11 @@ We are excited to introduce **Wan2.2**, a major upgrade to our foundational vide
 
 ## 📑 Todo List
 - Wan2.2 Text-to-Video
-    - [x] Multi-GPU Inference code of the A14B and 14B models
-    - [x] ComfyUI integration
-    - [ ] MindONE/Diffusers integration
+    - [x] Multi-NPU Inference code of the A14B and 14B models
 - Wan2.2 Image-to-Video
-    - [x] Multi-GPU Inference code of the A14B model
-    - [x] ComfyUI integration
-    - [ ] MindONE/Diffusers integration
+    - [x] Multi-NPU Inference code of the A14B model
 - Wan2.2 Text-Image-to-Video
-    - [x] Multi-GPU Inference code of the 5B model
-    - [x] ComfyUI integration
-    - [ ] MindONE/Diffusers integration
+    - [x] Single-NPU/Multi-NPU Inference code of the 5B model
 
 ## Run Wan2.2
 
@@ -87,7 +81,7 @@ This repository supports the `Wan2.2-T2V-A14B` Text-to-Video model and can simul
 
 To facilitate implementation, we will start with a basic version of the inference process that skips the [prompt extension](#2-using-prompt-extention) step.
 
-- Multi-GPU inference using ZeRO3 + DeepSpeed Ulysses
+- Multi-NPU inference using ZeRO3 + DeepSpeed Ulysses
 
   We use [ZeRO3](https://arxiv.org/abs/1910.02054) and [DeepSpeed Ulysses](https://arxiv.org/abs/2309.14509) to accelerate inference.
 
@@ -107,11 +101,11 @@ Extending the prompts can effectively enrich the details in the generated videos
   - By default, the Qwen model on HuggingFace is used for this extension. Users can choose Qwen models or other models based on the available NPU memory size.
   - For text-to-video tasks, you can use models like `Qwen/Qwen2.5-14B-Instruct`, `Qwen/Qwen2.5-7B-Instruct` and `Qwen/Qwen2.5-3B-Instruct`.
   - For image-to-video tasks, you can use models like `Qwen/Qwen2.5-VL-7B-Instruct` and `Qwen/Qwen2.5-VL-3B-Instruct`.
-  - Larger models generally provide better extension results but require more GPU memory.
+  - Larger models generally provide better extension results but require more NPU memory.
   - You can modify the model used for extension with the parameter `--prompt_extend_model` , allowing you to specify either a local model path or a Hugging Face model. For example:
 
 ``` sh
-msrun --worker_num=4 --local_worker_num=4 generate.py  --task t2v-A14B --size 1280*720 --ckpt_dir ./Wan2.2-T2V-A14B --dit_zero3 --t5_zero3 --ulysses_size 4 --offload_model True --prompt "Two anthropomorphic cats in comfy boxing gear and bright gloves fight intensely on a spotlighted stage" --use_prompt_extend --prompt_extend_method 'local_qwen' --prompt_extend_target_lang 'zh'
+msrun --worker_num=4 --local_worker_num=4 generate.py --task t2v-A14B --size 1280*720 --ckpt_dir ./Wan2.2-T2V-A14B --dit_zero3 --t5_zero3 --local_qwen_zero3 --ulysses_size 4 --offload_model True --prompt "Two anthropomorphic cats in comfy boxing gear and bright gloves fight intensely on a spotlighted stage" --use_prompt_extend --prompt_extend_method 'local_qwen' --prompt_extend_target_lang 'zh'
 ```
 
 
@@ -120,7 +114,7 @@ msrun --worker_num=4 --local_worker_num=4 generate.py  --task t2v-A14B --size 12
 This repository supports the `Wan2.2-I2V-A14B` Image-to-Video model and can simultaneously support video generation at 480P and 720P resolutions.
 
 
-- Multi-GPU inference using ZeRO3 + DeepSpeed Ulysses
+- Multi-NPU inference using ZeRO3 + DeepSpeed Ulysses
 
 ```sh
 msrun --worker_num=2 --local_worker_num=2 generate.py --task i2v-A14B --size 1280*720 --ckpt_dir ./Wan2.2-I2V-A14B --offload_model True --convert_model_dtype --image ../wan2_1/examples/i2v_input.JPG --prompt "Summer beach vacation style, a white cat wearing sunglasses sits on a surfboard. The fluffy-furred feline gazes directly at the camera with a relaxed expression. Blurred beach scenery forms the background featuring crystal-clear waters, distant green hills, and a blue sky dotted with white clouds. The cat assumes a naturally relaxed posture, as if savoring the sea breeze and warm sunlight. A close-up shot highlights the feline's intricate details and the refreshing atmosphere of the seaside."
@@ -144,7 +138,7 @@ DASH_API_KEY=your_key torchrun --nproc_per_node=8 generate.py --task i2v-A14B --
 This repository supports the `Wan2.2-TI2V-5B` Text-Image-to-Video model and can support video generation at 720P resolutions.
 
 
-- Single-GPU Text-to-Video inference
+- Single-NPU Text-to-Video inference
 ```sh
 python generate.py --task ti2v-5B --size 1280*704 --ckpt_dir ./Wan2.2-TI2V-5B --convert_model_dtype --prompt "Two anthropomorphic cats in comfy boxing gear and bright gloves fight intensely on a spotlighted stage"
 ```
@@ -152,7 +146,7 @@ python generate.py --task ti2v-5B --size 1280*704 --ckpt_dir ./Wan2.2-TI2V-5B --
 > 💡Unlike other tasks, the 720P resolution of the Text-Image-to-Video task is `1280*704` or `704*1280`.
 
 
-- Single-GPU Image-to-Video inference
+- Single-NPU Image-to-Video inference
 ```sh
 python generate.py --task ti2v-5B --size 1280*704 --ckpt_dir ./Wan2.2-TI2V-5B --convert_model_dtype --image ../wan2_1/examples/i2v_input.JPG --prompt "Summer beach vacation style, a white cat wearing sunglasses sits on a surfboard. The fluffy-furred feline gazes directly at the camera with a relaxed expression. Blurred beach scenery forms the background featuring crystal-clear waters, distant green hills, and a blue sky dotted with white clouds. The cat assumes a naturally relaxed posture, as if savoring the sea breeze and warm sunlight. A close-up shot highlights the feline's intricate details and the refreshing atmosphere of the seaside."
 ```
@@ -162,7 +156,7 @@ python generate.py --task ti2v-5B --size 1280*704 --ckpt_dir ./Wan2.2-TI2V-5B --
 > 💡Similar to Image-to-Video, the `size` parameter represents the area of the generated video, with the aspect ratio following that of the original input image.
 
 
-- Multi-GPU inference using ZeRO3 + DeepSpeed Ulysses
+- Multi-NPU inference using ZeRO3 + DeepSpeed Ulysses
 
 ```sh
 msrun --worker_num=2 --local_worker_num=2 generate.py --task ti2v-5B --size 1280*704 --ckpt_dir ./Wan2.2-TI2V-5B --dit_zero3 --t5_zero3 --ulysses_size 2 --image ../wan2_1/examples/i2v_input.JPG --prompt "Summer beach vacation style, a white cat wearing sunglasses sits on a surfboard. The fluffy-furred feline gazes directly at the camera with a relaxed expression. Blurred beach scenery forms the background featuring crystal-clear waters, distant green hills, and a blue sky dotted with white clouds. The cat assumes a naturally relaxed posture, as if savoring the sea breeze and warm sunlight. A close-up shot highlights the feline's intricate details and the refreshing atmosphere of the seaside."
