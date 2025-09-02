@@ -636,7 +636,7 @@ class DepthProPreTrainedModel(PreTrainedModel):
     """
 
     config_class = DepthProConfig
-    base_model_prefix = "depth_pro"
+    # base_model_prefix = "depth_pro" # prefix is already existed in parameter naming in ckpt, no need to added the prefix again
     main_input_name = "pixel_values"
     supports_gradient_checkpointing = True
     _supports_sdpa = True
