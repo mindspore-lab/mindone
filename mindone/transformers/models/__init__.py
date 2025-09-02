@@ -70,6 +70,7 @@ from . import (
     mobilebert,
     mpt,
     mvp,
+    nystromformer,
     opt,
     owlvit,
     paligemma,

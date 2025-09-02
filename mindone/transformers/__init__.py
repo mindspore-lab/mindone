@@ -469,6 +469,16 @@ from .models.mvp import (
     MvpModel,
     MvpPreTrainedModel,
 )
+from .models.nystromformer import (
+    NystromformerEncoder,
+    NystromformerModel,
+    NystromformerForMaskedLM,
+    NystromformerForMultipleChoice,
+    NystromformerForQuestionAnswering,
+    NystromformerForSequenceClassification,
+    NystromformerForTokenClassification,
+    NystromformerPreTrainedModel,
+)
 from .models.opt import (
     OPTForCausalLM,
     OPTForQuestionAnswering,
