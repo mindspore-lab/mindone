@@ -16,6 +16,7 @@ import inspect
 import numpy as np
 import pytest
 import torch
+import transformers
 from transformers import VJEPA2Config
 
 import mindspore as ms
@@ -177,6 +178,7 @@ VJEPA2_CASES = [
         for mode in MODES
     ],
 )
+@pytest.mark.skipif(transformers.__version__ < "4.52.3", reason="need to set specific transformers version")
 def test_named_modules(
     name,
     pt_module,

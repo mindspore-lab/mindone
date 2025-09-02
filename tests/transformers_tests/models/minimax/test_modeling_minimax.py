@@ -16,6 +16,7 @@ from typing import Union
 
 import numpy as np
 import pytest
+import transformers
 from torch import inference_mode, load
 from transformers import MiniMaxConfig
 
@@ -60,6 +61,7 @@ for attn_impl in ["eager", "sdpa"]:  # "flash_attention" is not supported on CPU
 
 @pytest.mark.parametrize("name,pt_module,ms_module,init_args,init_kwargs,inputs_args,inputs_kwargs,outputs_map", _CASES)
 @pytest.mark.parametrize("dtype", DTYPE_AND_THRESHOLDS.keys())
+@pytest.mark.skipif(transformers.__version__ < "4.53.3", reason="need to set specific transformers version")
 def test_named_modules(
     name, pt_module, ms_module, init_args, init_kwargs, inputs_args, inputs_kwargs, outputs_map, dtype
 ):
@@ -95,6 +97,7 @@ def test_named_modules(
 
 
 @pytest.mark.parametrize("attn_impl", [None, "flash_attention_2"], ids=["default (sdpa)", "flash_attention_2"])
+@pytest.mark.skipif(transformers.__version__ < "4.53.3", reason="need to set specific transformers version")
 def test_minimax_forward(attn_impl: Union[str, None]):
     model = MiniMaxForCausalLM.from_pretrained(
         "hf-internal-testing/MiniMax-tiny", attn_implementation=attn_impl, mindspore_dtype=ms.float16
