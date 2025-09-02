@@ -1,6 +1,12 @@
 # Language Segment-Anything
 
+**English** | [中文](README_CN.md)
+
 This is a MindSpore Implementation of [Language SAM](https://github.com/luca-medeiros/lang-segment-anything).
+
+Language SAM is built on Meta model, Segment Anything Model 2, and the GroundingDINO detection model. Is can be used for object detection and image segmentation given text prompt.
+
+![Lang_SAM](https://github.com/luca-medeiros/lang-segment-anything/raw/main/assets/outputs/person.png)
 
 
 ## 📦 Requirements
@@ -27,6 +33,18 @@ This is a MindSpore Implementation of [Language SAM](https://github.com/luca-med
     pip install -e .
     ```
     Try `python -c "import mindone"`. If no error occurs, the installation is successful.
+
+## 🔆 Features
+
+- 📍 **Language SAM** with the following features
+    - ✅ Prediction of masks given a static image and a textual prompt.
+
+
+### TODO
+* [ ] Batch inference script **[WIP]**.
+* [ ] Gradio demo **[WIP]**.
+
+You contributions are welcome.
 
 ## 🚀 Quick Start
 
