@@ -103,11 +103,24 @@ def _flash_attention_forward(
         input_layout (`str`, *optional*):
             Input query, key and value input layout, supports `BSND` or `BNSD`. Default to `BSND`.
     """
+    # if ( # NOTE: this is commented to support padded position_ids inputs
+    #     kwargs.get("position_ids", None) is not None
+    #     and query.shape[0] == 1
+    #     and (
+    #         kwargs.get("max_length_q", None) is not None
+    #         or (query.shape[1] != 1 and not (mint.diff(kwargs["position_ids"], dim=-1) >= 0).all())
+    #     )
+    # ):
+    #     raise RuntimeError("FlashAttention's variable-length attention is not available.")
+    if softmax_scale is None:
+        # `flash_attention_score` does not support `None`
+        # and the value can't be set in jit mode, thus must be set in advance
+        raise ValueError("`softmax_scale` must be provided.")
     if max_length_q is not None or max_length_k is not None:
         raise RuntimeError("FlashAttention's variable-length attention is not available.")
     if sliding_window is not None:
         raise NotImplementedError("Sliding window is not supported in Mindspore yet. Please set `sliding_window=None`.")
-    if not use_top_left_mask:
+    if use_top_left_mask:
         raise NotImplementedError(
             "Top left mask is not supported in Mindspore yet. Please set `use_top_left_mask=False`."
         )

@@ -5,7 +5,7 @@ from typing import Optional
 from transformers.utils import logging
 
 import mindspore as ms
-from mindspore import mint, nn
+from mindspore import nn
 
 from ..modeling_flash_attention_utils import _flash_attention_forward
 
@@ -54,30 +54,6 @@ def flash_attention_forward(
             "`flash_attention_2` does not support `output_attentions=True` or `head_mask`."
             " Please set your attention to `eager` if you want any of these features."
         )
-
-    if (
-        kwargs.get("position_ids", None) is not None
-        and query.shape[0] == 1
-        and (
-            kwargs.get("max_length_q", None) is not None
-            or (query.shape[2] != 1 and not (mint.diff(kwargs["position_ids"], dim=-1) >= 0).all())
-        )
-    ):
-        raise RuntimeError("FlashAttention's variable-length attention is not available.")
-    if all(
-        kwarg is not None
-        for kwarg in (
-            kwargs.get("cu_seq_lens_q", None),
-            kwargs.get("cu_seq_lens_k", None),
-            kwargs.get("max_length_q", None),
-            kwargs.get("max_length_k", None),
-        )
-    ):
-        raise RuntimeError("FlashAttention's variable-length attention is not available.")
-    if sliding_window is not None:
-        raise NotImplementedError("Sliding window is not supported in Mindspore yet. Please set `sliding_window=None`.")
-    if softcap is not None:
-        raise NotImplementedError("Softcap is not supported in Mindspore yet. Please set `softcap=None`.")
     if scaling is None:
         # `flash_attention_score` does not support `None`
         # and the value can't be set in jit mode, thus must be set in advance
@@ -90,7 +66,8 @@ def flash_attention_forward(
     input_layout = "BSND"
 
     # FA2 always relies on the value set in the module, so remove it if present in kwargs to avoid passing it twice
-    kwargs.pop("is_causal", None)
+    if kwargs.get("is_causal", None) is not None:
+        kwargs.pop("is_causal")
 
     attn_output = _flash_attention_forward(
         query,
