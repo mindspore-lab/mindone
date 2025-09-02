@@ -138,97 +138,97 @@ if transformers.__version__ >= "4.52.3":
         pixel_values,
     ) = model_tester.prepare_config_and_inputs()
 
-VJEPA2_CASES = [
-    [
-        "VJEPA2Model",
-        "transformers.VJEPA2Model",
-        "mindone.transformers.VJEPA2Model",
-        (config,),
-        {},
-        (pixel_values,),
-        {},
-        {"last_hidden_state": 0},
-    ],
-    [
-        "VJEPA2ForVideoClassification",
-        "transformers.VJEPA2ForVideoClassification",
-        "mindone.transformers.VJEPA2ForVideoClassification",
-        (config,),
-        {},
-        (pixel_values,),
-        {},
-        {"logits": 0},
-    ],
-]
+    VJEPA2_CASES = [
+        [
+            "VJEPA2Model",
+            "transformers.VJEPA2Model",
+            "mindone.transformers.VJEPA2Model",
+            (config,),
+            {},
+            (pixel_values,),
+            {},
+            {"last_hidden_state": 0},
+        ],
+        [
+            "VJEPA2ForVideoClassification",
+            "transformers.VJEPA2ForVideoClassification",
+            "mindone.transformers.VJEPA2ForVideoClassification",
+            (config,),
+            {},
+            (pixel_values,),
+            {},
+            {"logits": 0},
+        ],
+    ]
 
 
-# transformers need >= 4.53.0.dev3
-@pytest.mark.parametrize(
-    "name,pt_module,ms_module,init_args,init_kwargs,inputs_args,inputs_kwargs,outputs_map,dtype,mode",
-    [
-        case
-        + [
-            dtype,
-        ]
-        + [
-            mode,
-        ]
-        for case in VJEPA2_CASES
-        for dtype in DTYPE_AND_THRESHOLDS.keys()
-        for mode in MODES
-    ],
-)
-@pytest.mark.skipif(transformers.__version__ < "4.52.3", reason="need to set specific transformers version")
-def test_named_modules(
-    name,
-    pt_module,
-    ms_module,
-    init_args,
-    init_kwargs,
-    inputs_args,
-    inputs_kwargs,
-    outputs_map,
-    dtype,
-    mode,
-):
-    ms.set_context(mode=mode, jit_syntax_level=ms.STRICT)
-
-    (
-        pt_model,
-        ms_model,
-        pt_dtype,
-        ms_dtype,
-    ) = get_modules(pt_module, ms_module, dtype, *init_args, **init_kwargs)
-    pt_inputs_args, pt_inputs_kwargs, ms_inputs_args, ms_inputs_kwargs = generalized_parse_args(
-        pt_dtype, ms_dtype, *inputs_args, **inputs_kwargs
+    # transformers need >= 4.53.0.dev3
+    @pytest.mark.parametrize(
+        "name,pt_module,ms_module,init_args,init_kwargs,inputs_args,inputs_kwargs,outputs_map,dtype,mode",
+        [
+            case
+            + [
+                dtype,
+            ]
+            + [
+                mode,
+            ]
+            for case in VJEPA2_CASES
+            for dtype in DTYPE_AND_THRESHOLDS.keys()
+            for mode in MODES
+        ],
     )
+    @pytest.mark.skipif(transformers.__version__ < "4.52.3", reason="need to set specific transformers version")
+    def test_named_modules(
+        name,
+        pt_module,
+        ms_module,
+        init_args,
+        init_kwargs,
+        inputs_args,
+        inputs_kwargs,
+        outputs_map,
+        dtype,
+        mode,
+    ):
+        ms.set_context(mode=mode, jit_syntax_level=ms.STRICT)
 
-    if "hidden_dtype" in inspect.signature(pt_model.forward).parameters:
-        pt_inputs_kwargs.update({"hidden_dtype": PT_DTYPE_MAPPING[pt_dtype]})
-        ms_inputs_kwargs.update({"hidden_dtype": MS_DTYPE_MAPPING[ms_dtype]})
+        (
+            pt_model,
+            ms_model,
+            pt_dtype,
+            ms_dtype,
+        ) = get_modules(pt_module, ms_module, dtype, *init_args, **init_kwargs)
+        pt_inputs_args, pt_inputs_kwargs, ms_inputs_args, ms_inputs_kwargs = generalized_parse_args(
+            pt_dtype, ms_dtype, *inputs_args, **inputs_kwargs
+        )
 
-    with torch.no_grad():
-        pt_outputs = pt_model(*pt_inputs_args, **pt_inputs_kwargs)
-    ms_outputs = ms_model(*ms_inputs_args, **ms_inputs_kwargs)
+        if "hidden_dtype" in inspect.signature(pt_model.forward).parameters:
+            pt_inputs_kwargs.update({"hidden_dtype": PT_DTYPE_MAPPING[pt_dtype]})
+            ms_inputs_kwargs.update({"hidden_dtype": MS_DTYPE_MAPPING[ms_dtype]})
 
-    if outputs_map:
-        pt_outputs_n = []
-        ms_outputs_n = []
-        for pt_key, ms_idx in outputs_map.items():
-            pt_output = getattr(pt_outputs, pt_key)
-            ms_output = ms_outputs[ms_idx]
-            if isinstance(pt_output, (list, tuple)):
-                pt_outputs_n += list(pt_output)
-                ms_outputs_n += list(ms_output)
-            else:
-                pt_outputs_n.append(pt_output)
-                ms_outputs_n.append(ms_output)
-        diffs = compute_diffs(pt_outputs_n, ms_outputs_n)
-    else:
-        diffs = compute_diffs(pt_outputs, ms_outputs)
+        with torch.no_grad():
+            pt_outputs = pt_model(*pt_inputs_args, **pt_inputs_kwargs)
+        ms_outputs = ms_model(*ms_inputs_args, **ms_inputs_kwargs)
 
-    THRESHOLD = DTYPE_AND_THRESHOLDS[ms_dtype]
-    assert (np.array(diffs) < THRESHOLD).all(), (
-        f"ms_dtype: {ms_dtype}, pt_type:{pt_dtype}, "
-        f"Outputs({np.array(diffs).tolist()}) has diff bigger than {THRESHOLD}"
-    )
+        if outputs_map:
+            pt_outputs_n = []
+            ms_outputs_n = []
+            for pt_key, ms_idx in outputs_map.items():
+                pt_output = getattr(pt_outputs, pt_key)
+                ms_output = ms_outputs[ms_idx]
+                if isinstance(pt_output, (list, tuple)):
+                    pt_outputs_n += list(pt_output)
+                    ms_outputs_n += list(ms_output)
+                else:
+                    pt_outputs_n.append(pt_output)
+                    ms_outputs_n.append(ms_output)
+            diffs = compute_diffs(pt_outputs_n, ms_outputs_n)
+        else:
+            diffs = compute_diffs(pt_outputs, ms_outputs)
+
+        THRESHOLD = DTYPE_AND_THRESHOLDS[ms_dtype]
+        assert (np.array(diffs) < THRESHOLD).all(), (
+            f"ms_dtype: {ms_dtype}, pt_type:{pt_dtype}, "
+            f"Outputs({np.array(diffs).tolist()}) has diff bigger than {THRESHOLD}"
+        )
