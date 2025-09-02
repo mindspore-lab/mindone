@@ -27,10 +27,10 @@ from ...loaders import FromOriginalModelMixin, PeftAdapterMixin
 from ...utils import deprecate, logging
 from ..attention import AttentionMixin, AttentionModuleMixin, FeedForward
 from ..embeddings import PixArtAlphaTextProjection, TimestepEmbedding, Timesteps, get_1d_rotary_pos_embed
-from ..layers_compat import unflatten, view_as_complex
+from ..layers_compat import unflatten
 from ..modeling_outputs import Transformer2DModelOutput
 from ..modeling_utils import ModelMixin
-from ..normalization import FP32LayerNorm
+from ..normalization import FP32LayerNorm, RMSNorm
 
 logger = logging.get_logger(__name__)  # pylint: disable=invalid-name
 
@@ -172,6 +172,7 @@ class WanAttention(nn.Cell, AttentionModuleMixin):
         self.added_kv_proj_dim = added_kv_proj_dim
         self.cross_attention_dim_head = cross_attention_dim_head
         self.kv_inner_dim = self.inner_dim if cross_attention_dim_head is None else cross_attention_dim_head * heads
+        self.scale = dim_head**-0.5
 
         self.to_q = mint.nn.Linear(dim, self.inner_dim, bias=True)
         self.to_k = mint.nn.Linear(dim, self.kv_inner_dim, bias=True)
@@ -182,18 +183,72 @@ class WanAttention(nn.Cell, AttentionModuleMixin):
                 mint.nn.Dropout(dropout),
             ]
         )
-        self.norm_q = mint.nn.RMSNorm(dim_head * heads, eps=eps, elementwise_affine=True)
-        self.norm_k = mint.nn.RMSNorm(dim_head * heads, eps=eps, elementwise_affine=True)
+        self.norm_q = RMSNorm(dim_head * heads, eps=eps, elementwise_affine=True)
+        self.norm_k = RMSNorm(dim_head * heads, eps=eps, elementwise_affine=True)
 
         self.add_k_proj = self.add_v_proj = None
         if added_kv_proj_dim is not None:
             self.add_k_proj = mint.nn.Linear(added_kv_proj_dim, self.inner_dim, bias=True)
             self.add_v_proj = mint.nn.Linear(added_kv_proj_dim, self.inner_dim, bias=True)
-            self.norm_added_k = mint.nn.RMSNorm(dim_head * heads, eps=eps)
+            self.norm_added_k = RMSNorm(dim_head * heads, eps=eps)
 
         self.is_cross_attention = cross_attention_dim_head is not None
 
         self.set_processor(processor)
+
+    def scaled_dot_product_attention(
+        self,
+        query: ms.Tensor,
+        key: ms.Tensor,
+        value: ms.Tensor,
+        attn_mask: Optional[ms.Tensor] = None,
+        dropout_p: float = 0.0,
+        is_causal: bool = False,
+        scale: Optional[float] = None,
+    ):
+        query, key, value = (x.permute(0, 2, 1, 3) for x in (query, key, value))
+        if query.dtype in (ms.float16, ms.bfloat16):
+            out = self.flash_attention_op(query, key, value, attn_mask, keep_prob=1 - dropout_p, scale=scale)
+        else:
+            out = self.flash_attention_op(
+                query.to(ms.float16),
+                key.to(ms.float16),
+                value.to(ms.float16),
+                attn_mask,
+                keep_prob=1 - dropout_p,
+                scale=scale,
+            ).to(query.dtype)
+        return out.permute(0, 2, 1, 3)
+
+    def flash_attention_op(
+        self,
+        query: ms.Tensor,
+        key: ms.Tensor,
+        value: ms.Tensor,
+        attn_mask: Optional[ms.Tensor] = None,
+        keep_prob: float = 1.0,
+        scale: Optional[float] = None,
+    ):
+        # For most scenarios, qkv has been processed into a BNSD layout before sdp
+        input_layout = "BNSD"
+        head_num = query.shape[1]
+
+        # In case qkv is 3-dim after `head_to_batch_dim`
+        if query.ndim == 3:
+            input_layout = "BSH"
+            head_num = 1
+
+        # process `attn_mask` as logic is different between PyTorch and Mindspore
+        # In MindSpore, False indicates retention and True indicates discard, in PyTorch it is the opposite
+        if attn_mask is not None:
+            attn_mask = mint.logical_not(attn_mask) if attn_mask.dtype == ms.bool_ else attn_mask.bool()
+            attn_mask = mint.broadcast_to(
+                attn_mask, (attn_mask.shape[0], attn_mask.shape[1], query.shape[-2], key.shape[-2])
+            )[:, :1, :, :]
+
+        return ops.operations.nn_ops.FlashAttentionScore(
+            head_num=head_num, keep_prob=keep_prob, scale_value=scale or self.scale, input_layout=input_layout
+        )(query, key, value, None, None, None, attn_mask)[3]
 
     def fuse_projections(self):
         if getattr(self, "fused_projections", False):
@@ -226,7 +281,9 @@ class WanAttention(nn.Cell, AttentionModuleMixin):
             out_features, in_features = concatenated_weights.shape
             # with torch.device("meta"):
             #     self.to_added_kv = nn.Linear(in_features, out_features, bias=True)
-            self.to_added_kv = mint.nn.Linear(in_features, out_features, bias=True, weight_init=Zero(), bias_init=Zero())
+            self.to_added_kv = mint.nn.Linear(
+                in_features, out_features, bias=True, weight_init=Zero(), bias_init=Zero()
+            )
             self.to_added_kv.load_state_dict(
                 {"weight": concatenated_weights, "bias": concatenated_bias}, strict=True, assign=True
             )
@@ -488,9 +545,7 @@ class WanTransformerBlock(nn.Cell):
         return hidden_states
 
 
-class WanTransformer3DModel(
-    ModelMixin, ConfigMixin, PeftAdapterMixin, FromOriginalModelMixin, AttentionMixin
-):
+class WanTransformer3DModel(ModelMixin, ConfigMixin, PeftAdapterMixin, FromOriginalModelMixin, AttentionMixin):
     r"""
     A Transformer model for video-like data used in the Wan model.
 

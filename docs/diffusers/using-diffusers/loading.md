@@ -1,4 +1,4 @@
-<!--Copyright 2024 The HuggingFace Team. All rights reserved.
+<!--Copyright 2025 The HuggingFace Team. All rights reserved.
 
 Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except in compliance with
 the License. You may obtain a copy of the License at
@@ -72,6 +72,27 @@ There are two ways to load a pipeline for a task:
 
     pipeline = StableDiffusionImg2ImgPipeline.from_pretrained("stable-diffusion-v1-5/stable-diffusion-v1-5", use_safetensors=True)
     ```
+
+### Parallel loading
+
+Large models are often [sharded] into smaller files so that they are easier to load. Diffusers supports loading shards in parallel to speed up the loading process.
+
+Set the environment variables below to enable parallel loading.
+
+- Set `HF_ENABLE_PARALLEL_LOADING` to `"YES"` to enable parallel loading of shards.
+- Set `HF_PARALLEL_LOADING_WORKERS` to configure the number of parallel threads to use when loading shards. More workers loads a model faster but uses more memory.
+
+```py
+import os
+import mindspore as ms
+from mindone.diffusers import DiffusionPipeline
+
+os.environ["HF_ENABLE_PARALLEL_LOADING"] = "YES"
+pipeline = DiffusionPipeline.from_pretrained(
+    "Wan-AI/Wan2.2-I2V-A14B-Diffusers",
+    mindspore_dtype=ms.bfloat16,
+)
+```
 
 ### Local pipeline
 

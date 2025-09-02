@@ -300,9 +300,11 @@ class PeftAdapterMixin:
                     # it to None
                     incompatible_keys = None
                 else:
-                    inject_adapter_in_model(
-                        lora_config, self, adapter_name=adapter_name, state_dict=state_dict, **peft_kwargs
-                    )
+                    # inject_adapter_in_model(
+                    #     lora_config, self, adapter_name=adapter_name, state_dict=state_dict, **peft_kwargs
+                    # )
+                    # FIXME: There is an issue with the current version of `PEFT`. Please upgrade it after the master is integrated into `PEFT`.
+                    inject_adapter_in_model(lora_config, self, adapter_name=adapter_name, **peft_kwargs)
                     incompatible_keys = set_peft_model_state_dict(self, state_dict, adapter_name, **peft_kwargs)
 
                     if self._prepare_lora_hotswap_kwargs is not None:

@@ -15,12 +15,11 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import inspect
+import math
 from typing import Any, Dict, List, Optional, Tuple, Union
 
 import mindspore as ms
-from mindspore import mint, nn
-import mindspore.mint.nn.functional as F
+from mindspore import mint, nn, ops
 
 from ...configuration_utils import ConfigMixin, register_to_config
 from ...loaders import FluxTransformer2DLoadersMixin, FromOriginalModelMixin, PeftAdapterMixin
@@ -35,7 +34,7 @@ from ..embeddings import (
 from ..layers_compat import GELU, unflatten
 from ..modeling_outputs import Transformer2DModelOutput
 from ..modeling_utils import ModelMixin
-from ..normalization import AdaLayerNormContinuous, AdaLayerNormZero, AdaLayerNormZeroSingle
+from ..normalization import AdaLayerNormContinuous, AdaLayerNormZero, AdaLayerNormZeroSingle, RMSNorm
 
 logger = logging.get_logger(__name__)  # pylint: disable=invalid-name
 
@@ -72,7 +71,6 @@ def _get_qkv_projections(attn: "FluxAttention", hidden_states, encoder_hidden_st
 
 @ms.jit_class
 class FluxAttnProcessor:
-
     def __call__(
         self,
         attn: "FluxAttention",
@@ -108,14 +106,15 @@ class FluxAttnProcessor:
             query = apply_rotary_emb(query, image_rotary_emb, sequence_dim=1)
             key = apply_rotary_emb(key, image_rotary_emb, sequence_dim=1)
 
-        hidden_states = attn.scaled_dot_product_attention(
-            query, key, value, attn_mask=attention_mask
-        )
+        hidden_states = attn.scaled_dot_product_attention(query, key, value, attn_mask=attention_mask)
         hidden_states = hidden_states.flatten(2, 3)
         hidden_states = hidden_states.to(query.dtype)
 
         if encoder_hidden_states is not None:
-            encoder_hidden_states, hidden_states = hidden_states.split_with_sizes(
+            # encoder_hidden_states, hidden_states = hidden_states.split_with_sizes(
+            #     [encoder_hidden_states.shape[1], hidden_states.shape[1] - encoder_hidden_states.shape[1]], dim=1
+            # )
+            encoder_hidden_states, hidden_states = hidden_states.split(
                 [encoder_hidden_states.shape[1], hidden_states.shape[1] - encoder_hidden_states.shape[1]], dim=1
             )
             hidden_states = attn.to_out[0](hidden_states)
@@ -127,13 +126,10 @@ class FluxAttnProcessor:
             return hidden_states
 
 
-@ms.jit_class
 class FluxIPAdapterAttnProcessor(nn.Cell):
     """Flux Attention processor for IP-Adapter."""
 
-    def __init__(
-        self, hidden_size: int, cross_attention_dim: int, num_tokens=(4,), scale=1.0, dtype=None
-    ):
+    def __init__(self, hidden_size: int, cross_attention_dim: int, num_tokens=(4,), scale=1.0, dtype=None):
         super().__init__()
 
         self.hidden_size = hidden_size
@@ -149,16 +145,10 @@ class FluxIPAdapterAttnProcessor(nn.Cell):
         self.scale = scale
 
         self.to_k_ip = nn.CellList(
-            [
-                mint.nn.Linear(cross_attention_dim, hidden_size, bias=True, dtype=dtype)
-                for _ in range(len(num_tokens))
-            ]
+            [mint.nn.Linear(cross_attention_dim, hidden_size, bias=True, dtype=dtype) for _ in range(len(num_tokens))]
         )
         self.to_v_ip = nn.CellList(
-            [
-                mint.nn.Linear(cross_attention_dim, hidden_size, bias=True, dtype=dtype)
-                for _ in range(len(num_tokens))
-            ]
+            [mint.nn.Linear(cross_attention_dim, hidden_size, bias=True, dtype=dtype) for _ in range(len(num_tokens))]
         )
 
     def __call__(
@@ -213,7 +203,10 @@ class FluxIPAdapterAttnProcessor(nn.Cell):
         hidden_states = hidden_states.to(query.dtype)
 
         if encoder_hidden_states is not None:
-            encoder_hidden_states, hidden_states = hidden_states.split_with_sizes(
+            # encoder_hidden_states, hidden_states = hidden_states.split_with_sizes(
+            #     [encoder_hidden_states.shape[1], hidden_states.shape[1] - encoder_hidden_states.shape[1]], dim=1
+            # )
+            encoder_hidden_states, hidden_states = hidden_states.split(
                 [encoder_hidden_states.shape[1], hidden_states.shape[1] - encoder_hidden_states.shape[1]], dim=1
             )
             hidden_states = attn.to_out[0](hidden_states)
@@ -281,14 +274,15 @@ class FluxAttention(nn.Cell, AttentionModuleMixin):
         self.use_bias = bias
         self.dropout = dropout
         self.out_dim = out_dim if out_dim is not None else query_dim
+        self.scale = dim_head**-0.5
         self.context_pre_only = context_pre_only
         self.pre_only = pre_only
         self.heads = out_dim // dim_head if out_dim is not None else heads
         self.added_kv_proj_dim = added_kv_proj_dim
         self.added_proj_bias = added_proj_bias
 
-        self.norm_q = mint.nn.RMSNorm(dim_head, eps=eps, elementwise_affine=elementwise_affine)
-        self.norm_k = mint.nn.RMSNorm(dim_head, eps=eps, elementwise_affine=elementwise_affine)
+        self.norm_q = RMSNorm(dim_head, eps=eps, elementwise_affine=elementwise_affine)
+        self.norm_k = RMSNorm(dim_head, eps=eps, elementwise_affine=elementwise_affine)
         self.to_q = mint.nn.Linear(query_dim, self.inner_dim, bias=bias)
         self.to_k = mint.nn.Linear(query_dim, self.inner_dim, bias=bias)
         self.to_v = mint.nn.Linear(query_dim, self.inner_dim, bias=bias)
@@ -299,8 +293,8 @@ class FluxAttention(nn.Cell, AttentionModuleMixin):
             self.to_out.append(mint.nn.Dropout(dropout))
 
         if added_kv_proj_dim is not None:
-            self.norm_added_q = mint.nn.RMSNorm(dim_head, eps=eps)
-            self.norm_added_k = mint.nn.RMSNorm(dim_head, eps=eps)
+            self.norm_added_q = RMSNorm(dim_head, eps=eps)
+            self.norm_added_k = RMSNorm(dim_head, eps=eps)
             self.add_q_proj = mint.nn.Linear(added_kv_proj_dim, self.inner_dim, bias=added_proj_bias)
             self.add_k_proj = mint.nn.Linear(added_kv_proj_dim, self.inner_dim, bias=added_proj_bias)
             self.add_v_proj = mint.nn.Linear(added_kv_proj_dim, self.inner_dim, bias=added_proj_bias)
@@ -310,6 +304,89 @@ class FluxAttention(nn.Cell, AttentionModuleMixin):
             processor = self._default_processor_cls()
         self.set_processor(processor)
 
+    def scaled_dot_product_attention(
+        self,
+        query: ms.Tensor,
+        key: ms.Tensor,
+        value: ms.Tensor,
+        attn_mask: Optional[ms.Tensor] = None,
+        dropout_p: float = 0.0,
+        is_causal: bool = False,
+        scale: Optional[float] = None,
+    ):
+        query, key, value = (x.permute(0, 2, 1, 3) for x in (query, key, value))
+        # Note: PyTorch's SDPA and MindSpore's FA handle `attention_mask` slightly differently.
+        # In PyTorch, if the mask is not boolean (e.g., float32 with 0/1 values), it is interpreted
+        # as an additive bias: `attn_bias = attn_mask + attn_bias`.
+        # This implicit branch may lead to issues if the pipeline mistakenly provides
+        # a 0/1 float mask instead of a boolean mask.
+        # While this behavior is consistent with HF Diffusers for now,
+        # it may still be a potential bug source worth validating.
+        if attn_mask is not None and 1.0 in attn_mask:
+            L, S = query.shape[-2], key.shape[-2]
+            scale_factor = 1 / math.sqrt(query.shape[-1]) if scale is None else scale
+            attn_bias = mint.zeros((L, S), dtype=query.dtype)
+            if is_causal:
+                assert attn_mask is None
+                temp_mask = mint.ones((L, S), dtype=ms.bool_).tril(diagonal=0)
+                attn_bias = attn_bias.masked_fill(temp_mask.logical_not(), float("-inf"))
+                attn_bias.to(query.dtype)
+
+            if attn_mask is not None:
+                if attn_mask.dtype == ms.bool_:
+                    attn_bias = attn_bias.masked_fill(attn_mask.logical_not(), float("-inf"))
+                else:
+                    attn_bias = attn_mask + attn_bias
+
+            attn_weight = mint.matmul(query, key.swapaxes(-2, -1)) * scale_factor
+            attn_weight += attn_bias
+            attn_weight = mint.softmax(attn_weight, dim=-1)
+            attn_weight = ops.dropout(attn_weight, dropout_p, training=True)
+            return mint.matmul(attn_weight, value).permute(0, 2, 1, 3)
+
+        if query.dtype in (ms.float16, ms.bfloat16):
+            out = self.flash_attention_op(query, key, value, attn_mask, keep_prob=1 - dropout_p, scale=scale)
+        else:
+            out = self.flash_attention_op(
+                query.to(ms.float16),
+                key.to(ms.float16),
+                value.to(ms.float16),
+                attn_mask,
+                keep_prob=1 - dropout_p,
+                scale=scale,
+            ).to(query.dtype)
+        return out.permute(0, 2, 1, 3)
+
+    def flash_attention_op(
+        self,
+        query: ms.Tensor,
+        key: ms.Tensor,
+        value: ms.Tensor,
+        attn_mask: Optional[ms.Tensor] = None,
+        keep_prob: float = 1.0,
+        scale: Optional[float] = None,
+    ):
+        # For most scenarios, qkv has been processed into a BNSD layout before sdp
+        input_layout = "BNSD"
+        head_num = query.shape[1]
+
+        # In case qkv is 3-dim after `head_to_batch_dim`
+        if query.ndim == 3:
+            input_layout = "BSH"
+            head_num = 1
+
+        # process `attn_mask` as logic is different between PyTorch and Mindspore
+        # In MindSpore, False indicates retention and True indicates discard, in PyTorch it is the opposite
+        if attn_mask is not None:
+            attn_mask = mint.logical_not(attn_mask) if attn_mask.dtype == ms.bool_ else attn_mask.bool()
+            attn_mask = mint.broadcast_to(
+                attn_mask, (attn_mask.shape[0], attn_mask.shape[1], query.shape[-2], key.shape[-2])
+            )[:, :1, :, :]
+
+        return ops.operations.nn_ops.FlashAttentionScore(
+            head_num=head_num, keep_prob=keep_prob, scale_value=scale or self.scale, input_layout=input_layout
+        )(query, key, value, None, None, None, attn_mask)[3]
+
     def construct(
         self,
         hidden_states: ms.Tensor,
@@ -318,8 +395,26 @@ class FluxAttention(nn.Cell, AttentionModuleMixin):
         image_rotary_emb: Optional[ms.Tensor] = None,
         **kwargs,
     ) -> ms.Tensor:
-        attn_parameters = set(inspect.signature(self.processor.__call__).parameters.keys())
-        quiet_attn_parameters = {"ip_adapter_masks", "ip_hidden_states"}
+        # attn_parameters = set(inspect.signature(self.processor.__call__).parameters.keys())
+        # ms.jit can't support set type
+        if isinstance(self.processor, FluxIPAdapterAttnProcessor):
+            attn_parameters = (
+                "hidden_states",
+                "encoder_hidden_states",
+                "attention_mask",
+                "image_rotary_emb",
+                "ip_hidden_states",
+                "ip_adapter_masks",
+            )
+        else:
+            attn_parameters = (
+                "image_rotary_emb",
+                "attn",
+                "attention_mask",
+                "encoder_hidden_states",
+                "hidden_states",
+            )
+        quiet_attn_parameters = ("ip_adapter_masks", "ip_hidden_states")
         unused_kwargs = [k for k, _ in kwargs.items() if k not in attn_parameters and k not in quiet_attn_parameters]
         if len(unused_kwargs) > 0:
             logger.warning(

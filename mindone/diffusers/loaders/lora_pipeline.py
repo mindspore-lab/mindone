@@ -42,7 +42,6 @@ from .lora_conversion_utils import (
     _convert_non_diffusers_lora_to_diffusers,
     _convert_non_diffusers_ltxv_lora_to_diffusers,
     _convert_non_diffusers_lumina2_lora_to_diffusers,
-    _convert_non_diffusers_qwen_lora_to_diffusers,
     _convert_non_diffusers_wan_lora_to_diffusers,
     _convert_xlabs_flux_lora_to_diffusers,
     _maybe_map_sgm_blocks_to_diffusers,

@@ -56,7 +56,7 @@ class AvgDown3D(nn.Cell):
     def construct(self, x: ms.Tensor) -> ms.Tensor:
         pad_t = (self.factor_t - x.shape[2] % self.factor_t) % self.factor_t
         pad = (0, 0, 0, 0, pad_t, 0)
-        x = F.pad(x, pad)
+        x = mint.nn.functional.pad(x, pad)
         B, C, T, H, W = x.shape
         x = x.view(
             B,

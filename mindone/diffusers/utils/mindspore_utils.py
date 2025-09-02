@@ -141,3 +141,8 @@ class pynative_context(contextlib.ContextDecorator):
     def __exit__(self, exc_type, exc_val, exc_tb):
         ms.context.set_context(mode=self._prev_mode)
         return False
+
+
+def unwrap_module(module):
+    """FIXME: Unwraps a module if it was compiled with ms.jit() ???"""
+    return module

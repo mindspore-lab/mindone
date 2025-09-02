@@ -34,8 +34,8 @@ class ReturnNameVisitor(ast.NodeVisitor):
         self.generic_visit(node)
 
     def _determine_parent_module(self, cls):
-        from diffusers import DiffusionPipeline
-        from diffusers.models.modeling_utils import ModelMixin
+        from mindone.diffusers import DiffusionPipeline
+        from mindone.diffusers.models.modeling_utils import ModelMixin
 
         if issubclass(cls, DiffusionPipeline):
             return "pipelines"
@@ -46,7 +46,7 @@ class ReturnNameVisitor(ast.NodeVisitor):
 
     def get_ast_tree(self, cls, attribute_name="encode_prompt"):
         parent_module_name = self._determine_parent_module(cls)
-        main_module = importlib.import_module(f"diffusers.{parent_module_name}")
+        main_module = importlib.import_module(f"mindone.diffusers.{parent_module_name}")
         current_cls_module = getattr(main_module, cls.__name__)
         source_code = inspect.getsource(getattr(current_cls_module, attribute_name))
         source_code = textwrap.dedent(source_code)

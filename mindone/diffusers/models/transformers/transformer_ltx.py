@@ -21,11 +21,11 @@ import math
 from typing import Any, Dict, Optional, Tuple, Union
 
 import mindspore as ms
-from mindspore import mint, nn
+from mindspore import mint, nn, ops
 
 from ...configuration_utils import ConfigMixin, register_to_config
 from ...loaders import FromOriginalModelMixin, PeftAdapterMixin
-from ...utils import logging, deprecate
+from ...utils import deprecate, logging
 from ..attention import AttentionMixin, AttentionModuleMixin, FeedForward
 from ..embeddings import PixArtAlphaTextProjection
 from ..layers_compat import unflatten
@@ -80,9 +80,9 @@ class LTXVideoAttnProcessor:
             query = apply_rotary_emb(query, image_rotary_emb)
             key = apply_rotary_emb(key, image_rotary_emb)
 
-        query = unflatten(query, 2, (attn.heads, -1)).swapaxes(1, 2)
-        key = unflatten(key, 2, (attn.heads, -1)).swapaxes(1, 2)
-        value = unflatten(value, 2, (attn.heads, -1)).swapaxes(1, 2)
+        query = unflatten(query, 2, (attn.heads, -1))
+        key = unflatten(key, 2, (attn.heads, -1))
+        value = unflatten(value, 2, (attn.heads, -1))
 
         hidden_states = attn.scaled_dot_product_attention(
             query, key, value, attn_mask=attention_mask, dropout_p=0.0, is_causal=False
@@ -124,12 +124,13 @@ class LTXAttention(nn.Cell, AttentionModuleMixin):
         self.use_bias = bias
         self.dropout = dropout
         self.out_dim = query_dim
+        self.scale = dim_head**-0.5
         self.heads = heads
 
         norm_eps = 1e-5
         norm_elementwise_affine = True
-        self.norm_q = mint.nn.RMSNorm(dim_head * heads, eps=norm_eps, elementwise_affine=norm_elementwise_affine)
-        self.norm_k = mint.nn.RMSNorm(dim_head * kv_heads, eps=norm_eps, elementwise_affine=norm_elementwise_affine)
+        self.norm_q = RMSNorm(dim_head * heads, eps=norm_eps, elementwise_affine=norm_elementwise_affine)
+        self.norm_k = RMSNorm(dim_head * kv_heads, eps=norm_eps, elementwise_affine=norm_elementwise_affine)
         self.to_q = mint.nn.Linear(query_dim, self.inner_dim, bias=bias)
         self.to_k = mint.nn.Linear(self.cross_attention_dim, self.inner_kv_dim, bias=bias)
         self.to_v = mint.nn.Linear(self.cross_attention_dim, self.inner_kv_dim, bias=bias)
@@ -140,6 +141,60 @@ class LTXAttention(nn.Cell, AttentionModuleMixin):
         if processor is None:
             processor = self._default_processor_cls()
         self.set_processor(processor)
+
+    def scaled_dot_product_attention(
+        self,
+        query: ms.Tensor,
+        key: ms.Tensor,
+        value: ms.Tensor,
+        attn_mask: Optional[ms.Tensor] = None,
+        dropout_p: float = 0.0,
+        is_causal: bool = False,
+        scale: Optional[float] = None,
+    ):
+        query, key, value = (x.permute(0, 2, 1, 3) for x in (query, key, value))
+        if query.dtype in (ms.float16, ms.bfloat16):
+            out = self.flash_attention_op(query, key, value, attn_mask, keep_prob=1 - dropout_p, scale=scale)
+        else:
+            out = self.flash_attention_op(
+                query.to(ms.float16),
+                key.to(ms.float16),
+                value.to(ms.float16),
+                attn_mask,
+                keep_prob=1 - dropout_p,
+                scale=scale,
+            ).to(query.dtype)
+        return out.permute(0, 2, 1, 3)
+
+    def flash_attention_op(
+        self,
+        query: ms.Tensor,
+        key: ms.Tensor,
+        value: ms.Tensor,
+        attn_mask: Optional[ms.Tensor] = None,
+        keep_prob: float = 1.0,
+        scale: Optional[float] = None,
+    ):
+        # For most scenarios, qkv has been processed into a BNSD layout before sdp
+        input_layout = "BNSD"
+        head_num = query.shape[1]
+
+        # In case qkv is 3-dim after `head_to_batch_dim`
+        if query.ndim == 3:
+            input_layout = "BSH"
+            head_num = 1
+
+        # process `attn_mask` as logic is different between PyTorch and Mindspore
+        # In MindSpore, False indicates retention and True indicates discard, in PyTorch it is the opposite
+        if attn_mask is not None:
+            attn_mask = mint.logical_not(attn_mask) if attn_mask.dtype == ms.bool_ else attn_mask.bool()
+            attn_mask = mint.broadcast_to(
+                attn_mask, (attn_mask.shape[0], attn_mask.shape[1], query.shape[-2], key.shape[-2])
+            )[:, :1, :, :]
+
+        return ops.operations.nn_ops.FlashAttentionScore(
+            head_num=head_num, keep_prob=keep_prob, scale_value=scale or self.scale, input_layout=input_layout
+        )(query, key, value, None, None, None, attn_mask)[3]
 
     def construct(
         self,
@@ -359,9 +414,7 @@ class LTXVideoTransformerBlock(nn.Cell):
         return hidden_states
 
 
-class LTXVideoTransformer3DModel(
-    ModelMixin, ConfigMixin, AttentionMixin, FromOriginalModelMixin, PeftAdapterMixin
-):
+class LTXVideoTransformer3DModel(ModelMixin, ConfigMixin, AttentionMixin, FromOriginalModelMixin, PeftAdapterMixin):
     r"""
     A Transformer model for video-like data used in [LTX](https://huggingface.co/Lightricks/LTX-Video).
 

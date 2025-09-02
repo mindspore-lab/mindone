@@ -2641,7 +2641,7 @@ class MultiIPAdapterImageProjection(nn.Cell):
 
 class FluxPosEmbed(nn.Cell):
     def __new__(cls, *args, **kwargs):
-        deprecation_message = "Importing and using `FluxPosEmbed` from `diffusers.models.embeddings` is deprecated. Please import it from `diffusers.models.transformers.transformer_flux`."
+        deprecation_message = "Importing and using `FluxPosEmbed` from `diffusers.models.embeddings` is deprecated. Please import it from `diffusers.models.transformers.transformer_flux`."  # noqa
         deprecate("FluxPosEmbed", "1.0.0", deprecation_message)
 
         from .transformers.transformer_flux import FluxPosEmbed

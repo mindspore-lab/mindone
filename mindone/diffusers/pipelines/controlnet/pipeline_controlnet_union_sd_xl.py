@@ -1384,17 +1384,15 @@ class StableDiffusionXLControlNetUnionPipeline(
             num_inference_steps = len(list(filter(lambda ts: ts >= discrete_timestep_cutoff, timesteps)))
             timesteps = timesteps[:num_inference_steps]
 
+        control_type_repeat_factor = batch_size * num_images_per_prompt * (2 if self.do_classifier_free_guidance else 1)
+
         if isinstance(controlnet, ControlNetUnionModel):
             control_type = (
-                control_type.reshape(1, -1)
-                .to(dtype=prompt_embeds.dtype)
-                .tile((batch_size * num_images_per_prompt * 2, 1))
+                control_type.reshape(1, -1).to(dtype=prompt_embeds.dtype).tile((control_type_repeat_factor, 1))
             )
-        if isinstance(controlnet, MultiControlNetUnionModel):
+        elif isinstance(controlnet, MultiControlNetUnionModel):
             control_type = [
-                _control_type.reshape(1, -1)
-                .to(dtype=prompt_embeds.dtype)
-                .tile((batch_size * num_images_per_prompt * 2, 1))
+                _control_type.reshape(1, -1).to(dtype=prompt_embeds.dtype).tile((control_type_repeat_factor, 1))
                 for _control_type in control_type
             ]
 

@@ -314,7 +314,7 @@ class ModularIPAdapterMixin:
     @validate_hf_hub_args
     def load_ip_adapter(
         self,
-        pretrained_model_name_or_path_or_dict: Union[str, List[str], Dict[str, ms.Tensor]],
+        pretrained_model_name_or_path_or_dict: Union[str, List[str], Dict[str, mindspore.Tensor]],
         subfolder: Union[str, List[str]],
         weight_name: Union[str, List[str]],
         **kwargs,
@@ -408,11 +408,10 @@ class ModularIPAdapterMixin:
                 if weight_name.endswith(".safetensors"):
                     state_dict = {"image_proj": {}, "ip_adapter": {}}
                     for key, value in load_file(model_file).items():
-                        for key in f.keys():
-                            if key.startswith("image_proj."):
-                                state_dict["image_proj"][key.replace("image_proj.", "")] = value
-                            elif key.startswith("ip_adapter."):
-                                state_dict["ip_adapter"][key.replace("ip_adapter.", "")] = value
+                        if key.startswith("image_proj."):
+                            state_dict["image_proj"][key.replace("image_proj.", "")] = value
+                        elif key.startswith("ip_adapter."):
+                            state_dict["ip_adapter"][key.replace("ip_adapter.", "")] = value
                 else:
                     raise NotImplementedError(
                         f"Only supports deserialization of weights file in safetensors format, but got {model_file}"
@@ -432,15 +431,12 @@ class ModularIPAdapterMixin:
 
         extra_loras = unet._load_ip_adapter_loras(state_dicts)
         if extra_loras != {}:
-            if not USE_PEFT_BACKEND:
-                logger.warning("PEFT backend is required to load these weights.")
-            else:
-                # apply the IP Adapter Face ID LoRA weights
-                peft_config = getattr(unet, "peft_config", {})
-                for k, lora in extra_loras.items():
-                    if f"faceid_{k}" not in peft_config:
-                        self.load_lora_weights(lora, adapter_name=f"faceid_{k}")
-                        self.set_adapters([f"faceid_{k}"], adapter_weights=[1.0])
+            # apply the IP Adapter Face ID LoRA weights
+            peft_config = getattr(unet, "peft_config", {})
+            for k, lora in extra_loras.items():
+                if f"faceid_{k}" not in peft_config:
+                    self.load_lora_weights(lora, adapter_name=f"faceid_{k}")
+                    self.set_adapters([f"faceid_{k}"], adapter_weights=[1.0])
 
     def set_ip_adapter_scale(self, scale):
         """
@@ -479,9 +475,7 @@ class ModularIPAdapterMixin:
         scale_configs = _maybe_expand_lora_scales(unet, scale, default_scale=0.0)
 
         for attn_name, attn_processor in unet.attn_processors.items():
-            if isinstance(
-                attn_processor, (IPAdapterAttnProcessor, IPAdapterAttnProcessor2_0, IPAdapterXFormersAttnProcessor)
-            ):
+            if isinstance(attn_processor, (IPAdapterAttnProcessor, IPAdapterAttnProcessor2_0)):
                 if len(scale_configs) != len(attn_processor.scale):
                     raise ValueError(
                         f"Cannot assign {len(scale_configs)} scale_configs to {len(attn_processor.scale)} IP-Adapter."
@@ -525,14 +519,10 @@ class ModularIPAdapterMixin:
         # restore original Unet attention processors layers
         attn_procs = {}
         for name, value in self.unet.attn_processors.items():
-            attn_processor_class = (
-                AttnProcessor2_0() if hasattr(F, "scaled_dot_product_attention") else AttnProcessor()
-            )
+            attn_processor_class = AttnProcessor2_0()
             attn_procs[name] = (
                 attn_processor_class
-                if isinstance(
-                    value, (IPAdapterAttnProcessor, IPAdapterAttnProcessor2_0, IPAdapterXFormersAttnProcessor)
-                )
+                if isinstance(value, (IPAdapterAttnProcessor, IPAdapterAttnProcessor2_0))
                 else value.__class__()
             )
         self.unet.set_attn_processor(attn_procs)

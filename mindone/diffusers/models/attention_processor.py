@@ -736,19 +736,19 @@ class Attention(nn.Cell):
         # a 0/1 float mask instead of a boolean mask.
         # While this behavior is consistent with HF Diffusers for now,
         # it may still be a potential bug source worth validating.
-        if attn_mask is not None and 1.0 in attn_mask:
+        if attn_mask is not None and attn_mask.dtype != ms.bool_ and 1.0 in attn_mask:
             L, S = query.shape[-2], key.shape[-2]
             scale_factor = 1 / math.sqrt(query.shape[-1]) if scale is None else scale
             attn_bias = mint.zeros((L, S), dtype=query.dtype)
             if is_causal:
                 assert attn_mask is None
                 temp_mask = mint.ones((L, S), dtype=ms.bool_).tril(diagonal=0)
-                attn_bias.masked_fill_(temp_mask.logical_not(), float("-inf"))
+                attn_bias = attn_bias.masked_fill(temp_mask.logical_not(), float("-inf"))
                 attn_bias.to(query.dtype)
 
             if attn_mask is not None:
                 if attn_mask.dtype == ms.bool_:
-                    attn_bias.masked_fill_(attn_mask.logical_not(), float("-inf"))
+                    attn_bias = attn_bias.masked_fill(attn_mask.logical_not(), float("-inf"))
                 else:
                     attn_bias = attn_mask + attn_bias
 
@@ -818,7 +818,7 @@ class Attention(nn.Cell):
     ):
         # For most scenarios, qkv has been processed into a BNSD layout before sdp
         input_layout = "BNSD"
-        head_num = self.heads
+        head_num = query.shape[1]
 
         # In case qkv is 3-dim after `head_to_batch_dim`
         if query.ndim == 3:
@@ -1013,7 +1013,7 @@ class MochiAttention(nn.Cell):
     ):
         # For most scenarios, qkv has been processed into a BNSD layout before sdp
         input_layout = "BNSD"
-        head_num = self.heads
+        head_num = query.shape[1]
 
         # In case qkv is 3-dim after `head_to_batch_dim`
         if query.ndim == 3:
@@ -4365,12 +4365,13 @@ class FusedFluxAttnProcessor2_0:
 @ms.jit_class
 class FluxIPAdapterJointAttnProcessor2_0:
     def __new__(cls, *args, **kwargs):
-        deprecation_message = "`FluxIPAdapterJointAttnProcessor2_0` is deprecated and this will be removed in a future version. Please use `FluxIPAdapterAttnProcessor`"
+        deprecation_message = "`FluxIPAdapterJointAttnProcessor2_0` is deprecated and this will be removed in a future version. Please use `FluxIPAdapterAttnProcessor`"  # noqa
         deprecate("FluxIPAdapterJointAttnProcessor2_0", "1.0.0", deprecation_message)
 
         from .transformers.transformer_flux import FluxIPAdapterAttnProcessor
 
         return FluxIPAdapterAttnProcessor(*args, **kwargs)
+
 
 ADDED_KV_ATTENTION_PROCESSORS = (AttnAddedKVProcessor,)
 

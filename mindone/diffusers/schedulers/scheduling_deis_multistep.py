@@ -157,6 +157,8 @@ class DEISMultistepScheduler(SchedulerMixin, ConfigMixin):
         flow_shift: Optional[float] = 1.0,
         timestep_spacing: str = "linspace",
         steps_offset: int = 0,
+        use_dynamic_shifting: bool = False,
+        time_shift_type: str = "exponential",
     ):
         if self.config.use_beta_sigmas and not is_scipy_available():
             raise ImportError("Make sure to install scipy if you want to use beta sigmas.")
@@ -237,7 +239,7 @@ class DEISMultistepScheduler(SchedulerMixin, ConfigMixin):
         """
         self._begin_index = begin_index
 
-    def set_timesteps(self, num_inference_steps: int):
+    def set_timesteps(self, num_inference_steps: int, mu: Optional[float] = None):
         """
         Sets the discrete timesteps used for the diffusion chain (to be run before inference).
 
@@ -245,6 +247,9 @@ class DEISMultistepScheduler(SchedulerMixin, ConfigMixin):
             num_inference_steps (`int`):
                 The number of diffusion steps used when generating samples with a pre-trained model.
         """
+        if mu is not None:
+            assert self.config.use_dynamic_shifting and self.config.time_shift_type == "exponential"
+            self.config.flow_shift = np.exp(mu)
         # "linspace", "leading", "trailing" corresponds to annotation of Table 2. of https://huggingface.co/papers/2305.08891
         if self.config.timestep_spacing == "linspace":
             timesteps = (

@@ -26,12 +26,12 @@ from mindspore import mint, nn
 from ...configuration_utils import ConfigMixin, register_to_config
 from ...loaders import FluxTransformer2DLoadersMixin, FromOriginalModelMixin, PeftAdapterMixin
 from ...utils import logging
-from ..attention import FeedForward
-from ..attention_processor import Attention, AttentionProcessor, FluxAttnProcessor2_0, FusedFluxAttnProcessor2_0
+from ..attention import AttentionMixin, FeedForward
 from ..embeddings import FluxPosEmbed, PixArtAlphaTextProjection, Timesteps, get_timestep_embedding
 from ..modeling_outputs import Transformer2DModelOutput
 from ..modeling_utils import ModelMixin
 from ..normalization import CombinedTimestepLabelEmbeddings, FP32LayerNorm, RMSNorm
+from .transformer_flux import FluxAttention, FluxAttnProcessor
 
 logger = logging.get_logger(__name__)  # pylint: disable=invalid-name
 
@@ -214,17 +214,15 @@ class ChromaSingleTransformerBlock(nn.Cell):
         self.act_mlp = mint.nn.GELU(approximate="tanh")
         self.proj_out = mint.nn.Linear(dim + self.mlp_hidden_dim, dim)
 
-        processor = FluxAttnProcessor2_0()
+        processor = FluxAttnProcessor()
 
-        self.attn = Attention(
+        self.attn = FluxAttention(
             query_dim=dim,
-            cross_attention_dim=None,
             dim_head=attention_head_dim,
             heads=num_attention_heads,
             out_dim=dim,
             bias=True,
             processor=processor,
-            qk_norm="rms_norm",
             eps=1e-6,
             pre_only=True,
         )
@@ -275,17 +273,15 @@ class ChromaTransformerBlock(nn.Cell):
         self.norm1 = ChromaAdaLayerNormZeroPruned(dim)
         self.norm1_context = ChromaAdaLayerNormZeroPruned(dim)
 
-        self.attn = Attention(
+        self.attn = FluxAttention(
             query_dim=dim,
-            cross_attention_dim=None,
             added_kv_proj_dim=dim,
             dim_head=attention_head_dim,
             heads=num_attention_heads,
             out_dim=dim,
             context_pre_only=False,
             bias=True,
-            processor=FluxAttnProcessor2_0(),
-            qk_norm=qk_norm,
+            processor=FluxAttnProcessor(),
             eps=eps,
         )
 
@@ -362,7 +358,12 @@ class ChromaTransformerBlock(nn.Cell):
 
 
 class ChromaTransformer2DModel(
-    ModelMixin, ConfigMixin, PeftAdapterMixin, FromOriginalModelMixin, FluxTransformer2DLoadersMixin
+    ModelMixin,
+    ConfigMixin,
+    PeftAdapterMixin,
+    FromOriginalModelMixin,
+    FluxTransformer2DLoadersMixin,
+    AttentionMixin,
 ):
     """
     The Transformer model introduced in Flux, modified for Chroma.
@@ -393,6 +394,7 @@ class ChromaTransformer2DModel(
 
     _supports_gradient_checkpointing = True
     _no_split_modules = ["ChromaTransformerBlock", "ChromaSingleTransformerBlock"]
+    _repeated_blocks = ["ChromaTransformerBlock", "ChromaSingleTransformerBlock"]
     _skip_layerwise_casting_patterns = ["pos_embed", "norm"]
 
     @register_to_config
@@ -459,106 +461,6 @@ class ChromaTransformer2DModel(
         self.proj_out = mint.nn.Linear(self.inner_dim, patch_size * patch_size * self.out_channels, bias=True)
 
         self.gradient_checkpointing = False
-
-    @property
-    # Copied from diffusers.models.unets.unet_2d_condition.UNet2DConditionModel.attn_processors
-    def attn_processors(self) -> Dict[str, AttentionProcessor]:
-        r"""
-        Returns:
-            `dict` of attention processors: A dictionary containing all attention processors used in the model with
-            indexed by its weight name.
-        """
-        # set recursively
-        processors = {}
-
-        def fn_recursive_add_processors(name: str, module: nn.Cell, processors: Dict[str, AttentionProcessor]):
-            if hasattr(module, "get_processor"):
-                processors[f"{name}.processor"] = module.get_processor()
-
-            for sub_name, child in module.named_children():
-                fn_recursive_add_processors(f"{name}.{sub_name}", child, processors)
-
-            return processors
-
-        for name, module in self.named_children():
-            fn_recursive_add_processors(name, module, processors)
-
-        return processors
-
-    # Copied from diffusers.models.unets.unet_2d_condition.UNet2DConditionModel.set_attn_processor
-    def set_attn_processor(self, processor: Union[AttentionProcessor, Dict[str, AttentionProcessor]]):
-        r"""
-        Sets the attention processor to use to compute attention.
-
-        Parameters:
-            processor (`dict` of `AttentionProcessor` or only `AttentionProcessor`):
-                The instantiated processor class or a dictionary of processor classes that will be set as the processor
-                for **all** `Attention` layers.
-
-                If `processor` is a dict, the key needs to define the path to the corresponding cross attention
-                processor. This is strongly recommended when setting trainable attention processors.
-
-        """
-        count = len(self.attn_processors.keys())
-
-        if isinstance(processor, dict) and len(processor) != count:
-            raise ValueError(
-                f"A dict of processors was passed, but the number of processors {len(processor)} does not match the"
-                f" number of attention layers: {count}. Please make sure to pass {count} processor classes."
-            )
-
-        def fn_recursive_attn_processor(name: str, module: nn.Cell, processor):
-            if hasattr(module, "set_processor"):
-                if not isinstance(processor, dict):
-                    module.set_processor(processor)
-                else:
-                    module.set_processor(processor.pop(f"{name}.processor"))
-
-            for sub_name, child in module.named_children():
-                fn_recursive_attn_processor(f"{name}.{sub_name}", child, processor)
-
-        for name, module in self.named_children():
-            fn_recursive_attn_processor(name, module, processor)
-
-    # Copied from diffusers.models.unets.unet_2d_condition.UNet2DConditionModel.fuse_qkv_projections with FusedAttnProcessor2_0->FusedFluxAttnProcessor2_0
-    def fuse_qkv_projections(self):
-        """
-        Enables fused QKV projections. For self-attention modules, all projection matrices (i.e., query, key, value)
-        are fused. For cross-attention modules, key and value projection matrices are fused.
-
-        <Tip warning={true}>
-
-        This API is 🧪 experimental.
-
-        </Tip>
-        """
-        self.original_attn_processors = None
-
-        for _, attn_processor in self.attn_processors.items():
-            if "Added" in str(attn_processor.__class__.__name__):
-                raise ValueError("`fuse_qkv_projections()` is not supported for models having added KV projections.")
-
-        self.original_attn_processors = self.attn_processors
-
-        for module in self.modules():
-            if isinstance(module, Attention):
-                module.fuse_projections(fuse=True)
-
-        self.set_attn_processor(FusedFluxAttnProcessor2_0())
-
-    # Copied from diffusers.models.unets.unet_2d_condition.UNet2DConditionModel.unfuse_qkv_projections
-    def unfuse_qkv_projections(self):
-        """Disables the fused QKV projection if enabled.
-
-        <Tip warning={true}>
-
-        This API is 🧪 experimental.
-
-        </Tip>
-
-        """
-        if self.original_attn_processors is not None:
-            self.set_attn_processor(self.original_attn_processors)
 
     def construct(
         self,

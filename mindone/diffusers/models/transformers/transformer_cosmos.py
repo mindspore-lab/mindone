@@ -147,7 +147,7 @@ class CosmosAdaLayerNormZero(nn.Cell):
 
 
 class CosmosAttnProcessor2_0:
-    def _init__(self):
+    def __init__(self):
         from ..embeddings import apply_rotary_emb
 
         self.apply_rotary_emb = apply_rotary_emb

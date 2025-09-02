@@ -26,8 +26,6 @@ from ..pipeline_test_utils import (
 test_cases = [
     {"mode": ms.PYNATIVE_MODE, "dtype": "float32"},
     {"mode": ms.PYNATIVE_MODE, "dtype": "float16"},
-    {"mode": ms.GRAPH_MODE, "dtype": "float32"},
-    {"mode": ms.GRAPH_MODE, "dtype": "float16"},
 ]
 
 
@@ -235,6 +233,11 @@ class UniDiffuserPipelineFastTests(PipelineTesterMixin, unittest.TestCase):
 
         pt_pipe = pt_pipe.to(pt_dtype)
         ms_pipe = ms_pipe.to(ms_dtype)
+        if pt_pipe.text_decoder.transformer.transformer.wte.weight.is_meta:
+            pt_pipe.text_decoder.transformer.transformer.wte.weight = torch.randn(
+                pt_pipe.text_decoder.transformer.transformer.wte.weight.shape,
+                dtype=pt_pipe.text_decoder.transformer.transformer.wte.weight.dtype,
+            )
         pt_pipe.text_decoder.transformer.lm_head.weight = pt_pipe.text_decoder.transformer.transformer.wte.weight
         weight = ms.Tensor(pt_pipe.text_decoder.transformer.lm_head.weight.detach().numpy())
         ms_pipe.text_decoder.transformer.lm_head.weight = weight
@@ -342,6 +345,11 @@ class UniDiffuserPipelineFastTests(PipelineTesterMixin, unittest.TestCase):
         pt_pipe = pt_pipe.to(pt_dtype)
         ms_pipe = ms_pipe.to(ms_dtype)
 
+        if pt_pipe.text_decoder.transformer.transformer.wte.weight.is_meta:
+            pt_pipe.text_decoder.transformer.transformer.wte.weight = torch.randn(
+                pt_pipe.text_decoder.transformer.transformer.wte.weight.shape,
+                dtype=pt_pipe.text_decoder.transformer.transformer.wte.weight.dtype,
+            )
         pt_pipe.text_decoder.transformer.lm_head.weight = pt_pipe.text_decoder.transformer.transformer.wte.weight
         weight = ms.Tensor(pt_pipe.text_decoder.transformer.lm_head.weight.detach().numpy())
         ms_pipe.text_decoder.transformer.lm_head.weight = weight

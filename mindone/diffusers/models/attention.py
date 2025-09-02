@@ -14,7 +14,7 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-from typing import Any, Callable, Dict, List, Optional, Tuple, Union
+from typing import Any, Dict, List, Optional, Tuple, Union
 
 import mindspore as ms
 import mindspore.nn as nn
@@ -130,11 +130,7 @@ class AttentionModuleMixin:
         """
         # if current processor is in `self._modules` and if passed `processor` is not, we need to
         # pop `processor` from `self._modules`
-        if (
-            hasattr(self, "processor")
-            and isinstance(self.processor, nn.Cell)
-            and not isinstance(processor, nn.Cell)
-        ):
+        if hasattr(self, "processor") and isinstance(self.processor, nn.Cell) and not isinstance(processor, nn.Cell):
             logger.info(f"You are removing possibly trained weights of {self.processor} with {processor}")
             self._modules.pop("processor")
 
@@ -199,9 +195,7 @@ class AttentionModuleMixin:
             in_features = concatenated_weights.shape[1]
             out_features = concatenated_weights.shape[0]
 
-            self.to_added_qkv = mint.nn.Linear(
-                in_features, out_features, bias=self.added_proj_bias, dtype=dtype
-            )
+            self.to_added_qkv = mint.nn.Linear(in_features, out_features, bias=self.added_proj_bias, dtype=dtype)
             self.to_added_qkv.weight.copy_(concatenated_weights)
             if self.added_proj_bias:
                 concatenated_bias = mint.cat(
@@ -315,9 +309,7 @@ class AttentionModuleMixin:
             key = key.float()
 
         if attention_mask is None:
-            baddbmm_input = mint.empty(
-                query.shape[0], query.shape[1], key.shape[1], dtype=query.dtype
-            )
+            baddbmm_input = mint.empty(query.shape[0], query.shape[1], key.shape[1], dtype=query.dtype)
             beta = 0
         else:
             baddbmm_input = attention_mask

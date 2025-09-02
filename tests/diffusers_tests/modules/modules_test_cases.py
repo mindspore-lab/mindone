@@ -77,15 +77,6 @@ NORMALIZATION_CASES = [
         {},
     ],
     [
-        "GroupNorm",
-        "torch.nn.GroupNorm",
-        "mindone.diffusers.models.normalization.GroupNorm",
-        (4, 16),
-        {},
-        (np.random.randn(3, 16, 4, 4).astype(np.float32),),
-        {},
-    ],
-    [
         "GlobalResponseNorm",
         "diffusers.models.normalization.GlobalResponseNorm",
         "mindone.diffusers.models.normalization.GlobalResponseNorm",

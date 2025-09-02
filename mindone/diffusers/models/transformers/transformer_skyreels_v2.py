@@ -101,7 +101,7 @@ class SkyReelsV2AttnProcessor2_0:
             query,
             key,
             value,
-            attn_mask=attention_mask,
+            attn_mask=attention_mask
             dropout_p=0.0,
             is_causal=False,
         )
