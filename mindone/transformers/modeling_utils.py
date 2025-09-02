@@ -147,10 +147,17 @@ def _convert_state_dict(m, state_dict_pt, prefix=""):
         for name, param in m.parameters_and_names():
             name_ms = param.name
             length = len(prefix) + 1
+            # State dict name conversion is added for dealing with the condition that model key and state_dict key mismatch
             if name_pt.startswith(prefix):
+                # if state_dict has prefix, check if model has prefix
+                # When the prefix and the end of the name (such as embedding_table and weight) are removed, the consistency is judged
+                # if yes, slice prefix from state_dict key
                 if name_ms.rsplit(".", 1)[0] == name_pt.rsplit(".", 1)[0][length:] or name_ms == name_pt[length:]:
                     name_pt = name_pt[length:]
             elif not name_pt.startswith(prefix):
+                # if state_dict does not have prefix, check if model has prefix
+                # When the prefix and the end of the name (such as embedding_table and weight) are removed, the consistency is judged
+                # if no, add prefix to state_dict key
                 if name_pt.rsplit(".", 1)[0] == name_ms.rsplit(".", 1)[0][length:] or name_pt == name_ms[length:]:
                     name_pt = ".".join([prefix, name_pt])
         name_ms, data_mapping = pt2ms_mappings.get(name_pt, (name_pt, lambda x: x))
