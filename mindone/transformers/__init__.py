@@ -471,12 +471,12 @@ from .models.mvp import (
 )
 from .models.nystromformer import (
     NystromformerEncoder,
-    NystromformerModel,
     NystromformerForMaskedLM,
     NystromformerForMultipleChoice,
     NystromformerForQuestionAnswering,
     NystromformerForSequenceClassification,
     NystromformerForTokenClassification,
+    NystromformerModel,
     NystromformerPreTrainedModel,
 )
 from .models.opt import (

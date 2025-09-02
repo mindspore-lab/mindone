@@ -1,6 +1,9 @@
 # coding=utf-8
 # Copyright 2022 UW-Madison The HuggingFace Inc. team. All rights reserved.
 #
+# This code is adapted from https://github.com/huggingface/transformers
+# with modifications to run transformers on mindspore.
+#
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -17,11 +20,20 @@
 import math
 from typing import Optional, Tuple, Union
 
+from transformers.models.nystromformer.configuration_nystromformer import NystromformerConfig
+from transformers.utils import (
+    add_code_sample_docstrings,
+    add_start_docstrings,
+    add_start_docstrings_to_model_forward,
+    logging,
+)
+
 import mindspore as ms
-from mindspore import mint, nn, Parameter
-from mindspore.nn import BCEWithLogitsLoss, CrossEntropyLoss, MSELoss
+from mindspore import Parameter, mint, nn
+from mindspore.mint.nn import BCEWithLogitsLoss, CrossEntropyLoss, MSELoss
 
 from ...activations import ACT2FN
+from ...mindspore_utils import apply_chunking_to_forward, find_pruneable_heads_and_indices, prune_linear_layer
 from ...modeling_outputs import (
     BaseModelOutputWithPastAndCrossAttentions,
     MaskedLMOutput,
@@ -31,10 +43,6 @@ from ...modeling_outputs import (
     TokenClassifierOutput,
 )
 from ...modeling_utils import PreTrainedModel
-from ...mindspore_utils import apply_chunking_to_forward, find_pruneable_heads_and_indices, prune_linear_layer
-from transformers.utils import add_code_sample_docstrings, add_start_docstrings, add_start_docstrings_to_model_forward, logging
-from transformers.models.nystromformer.configuration_nystromformer import NystromformerConfig
-
 
 logger = logging.get_logger(__name__)
 
@@ -129,9 +137,7 @@ class NystromformerSelfAttention(nn.Cell):
         self.value = mint.nn.Linear(config.hidden_size, self.all_head_size)
 
         self.dropout = mint.nn.Dropout(config.attention_probs_dropout_prob)
-        self.position_embedding_type = position_embedding_type or getattr(
-            config, "position_embedding_type", "absolute"
-        )
+        self.position_embedding_type = position_embedding_type or getattr(config, "position_embedding_type", "absolute")
 
         if self.conv_kernel_size is not None:
             self.conv = mint.nn.Conv2d(
@@ -145,7 +151,7 @@ class NystromformerSelfAttention(nn.Cell):
 
     # Function to approximate Moore-Penrose inverse via the iterative method
     def iterative_inv(self, mat, n_iter=6):
-        identity = mint.eye(mat.size(-1))
+        identity = mint.eye(mat.shape[-1])
         key = mat
 
         # The entries of key are positive and ||key||_{\infty} = 1 due to softmax
@@ -872,12 +878,12 @@ class NystromformerForMultipleChoice(NystromformerPreTrainedModel):
         return_dict = return_dict if return_dict is not None else self.config.use_return_dict
         num_choices = input_ids.shape[1] if input_ids is not None else inputs_embeds.shape[1]
 
-        input_ids = input_ids.view(-1, input_ids.size(-1)) if input_ids is not None else None
-        attention_mask = attention_mask.view(-1, attention_mask.size(-1)) if attention_mask is not None else None
-        token_type_ids = token_type_ids.view(-1, token_type_ids.size(-1)) if token_type_ids is not None else None
-        position_ids = position_ids.view(-1, position_ids.size(-1)) if position_ids is not None else None
+        input_ids = input_ids.view(-1, input_ids.shape[-1]) if input_ids is not None else None
+        attention_mask = attention_mask.view(-1, attention_mask.shape[-1]) if attention_mask is not None else None
+        token_type_ids = token_type_ids.view(-1, token_type_ids.shape[-1]) if token_type_ids is not None else None
+        position_ids = position_ids.view(-1, position_ids.shape[-1]) if position_ids is not None else None
         inputs_embeds = (
-            inputs_embeds.view(-1, inputs_embeds.size(-2), inputs_embeds.size(-1))
+            inputs_embeds.view(-1, inputs_embeds.shape[-2], inputs_embeds.shape[-1])
             if inputs_embeds is not None
             else None
         )
@@ -1076,7 +1082,7 @@ class NystromformerForQuestionAnswering(NystromformerPreTrainedModel):
             if len(end_positions.shape) > 1:
                 end_positions = end_positions.squeeze(-1)
             # sometimes the start/end positions are outside our model inputs, we ignore these terms
-            ignored_index = start_logits.size(1)
+            ignored_index = start_logits.shape[1]
             start_positions = start_positions.clamp(0, ignored_index)
             end_positions = end_positions.clamp(0, ignored_index)
 
