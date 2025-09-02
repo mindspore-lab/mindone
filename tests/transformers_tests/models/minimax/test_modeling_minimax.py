@@ -19,9 +19,6 @@ import pytest
 import transformers
 from torch import inference_mode, load
 
-if transformers.__version__ >= "4.53.3":
-    from transformers import MiniMaxConfig
-
 import mindspore as ms
 
 from mindone.transformers import MiniMaxForCausalLM
@@ -31,34 +28,36 @@ from ...causal_lm_tester import CausalLMModelTester
 
 DTYPE_AND_THRESHOLDS = {"fp32": 5e-7, "fp16": 1e-3, "bf16": 5e-3}
 
+if transformers.__version__ >= "4.53.3":
+    from transformers import MiniMaxConfig
 
-class MiniMaxModelTester(CausalLMModelTester):
-    config_class = MiniMaxConfig
+    class MiniMaxModelTester(CausalLMModelTester):
+        config_class = MiniMaxConfig
 
-    def __init__(self, parent=None, layer_types=None, block_size=3, attn_implementation: str = "eager"):
-        super().__init__(parent)
-        self.layer_types = layer_types
-        self.block_size = block_size
-        self.forced_config_args += ["attn_implementation"]
-        self.attn_implementation = attn_implementation
+        def __init__(self, parent=None, layer_types=None, block_size=3, attn_implementation: str = "eager"):
+            super().__init__(parent)
+            self.layer_types = layer_types
+            self.block_size = block_size
+            self.forced_config_args += ["attn_implementation"]
+            self.attn_implementation = attn_implementation
 
 
-_CASES = []
-for attn_impl in ["eager", "sdpa"]:  # "flash_attention" is not supported on CPU in PyTorch
-    model_tester = MiniMaxModelTester(attn_implementation=attn_impl)
-    config, inputs_dict = model_tester.prepare_config_and_inputs_for_common()
-    _CASES.append(
-        [
-            "MiniMaxForCausalLM",
-            "transformers.MiniMaxForCausalLM",
-            "mindone.transformers.MiniMaxForCausalLM",
-            (config,),
-            {},
-            (),
-            inputs_dict,
-            {"logits": "logits"},
-        ]
-    )
+    _CASES = []
+    for attn_impl in ["eager", "sdpa"]:  # "flash_attention" is not supported on CPU in PyTorch
+        model_tester = MiniMaxModelTester(attn_implementation=attn_impl)
+        config, inputs_dict = model_tester.prepare_config_and_inputs_for_common()
+        _CASES.append(
+            [
+                "MiniMaxForCausalLM",
+                "transformers.MiniMaxForCausalLM",
+                "mindone.transformers.MiniMaxForCausalLM",
+                (config,),
+                {},
+                (),
+                inputs_dict,
+                {"logits": "logits"},
+            ]
+        )
 
 
 @pytest.mark.parametrize("name,pt_module,ms_module,init_args,init_kwargs,inputs_args,inputs_kwargs,outputs_map", _CASES)
