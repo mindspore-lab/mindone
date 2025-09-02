@@ -1,5 +1,7 @@
 # SAM 2: Segment Anything in Images and Videos
 
+**English** | [中文](README_CN.md)
+
 This is a MindSpore Implementation of [SAM2](https://github.com/facebookresearch/sam2) from Meta, FAIR.
 
 Segment Anything Model 2 (SAM 2) is a foundation model for image/video visual segmentation task. The model architecture is a transformer with streaming memory for real-time video processing. Detailed architecture is shown as follows.
