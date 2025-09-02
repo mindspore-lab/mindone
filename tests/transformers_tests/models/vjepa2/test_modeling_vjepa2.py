@@ -17,7 +17,8 @@ import numpy as np
 import pytest
 import torch
 import transformers
-from transformers import VJEPA2Config
+if transformers.__version__ >= "4.52.3":
+    from transformers import VJEPA2Config
 
 import mindspore as ms
 

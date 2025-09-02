@@ -18,14 +18,16 @@ import numpy as np
 import pytest
 import torch
 import transformers
-from transformers.models.qwen2_5_omni import (  # Qwen2_5OmniThinkerConfig,
-    Qwen2_5OmniConfig,
-    Qwen2_5OmniTalkerConfig,
-    Qwen2_5OmniToken2WavConfig,
-)
-from transformers.models.qwen2_5_omni.configuration_qwen2_5_omni import (  # Qwen2_5OmniBigVGANConfig,; Qwen2_5OmniDiTConfig,
-    Qwen2_5OmniTextConfig,
-)
+
+if transformers.__version__ >= "4.52.3":
+    from transformers.models.qwen2_5_omni import (  # Qwen2_5OmniThinkerConfig,
+        Qwen2_5OmniConfig,
+        Qwen2_5OmniTalkerConfig,
+        Qwen2_5OmniToken2WavConfig,
+    )
+    from transformers.models.qwen2_5_omni.configuration_qwen2_5_omni import (  # Qwen2_5OmniBigVGANConfig,; Qwen2_5OmniDiTConfig,
+        Qwen2_5OmniTextConfig,
+    )
 
 import mindspore as ms
 

@@ -18,7 +18,9 @@ import numpy as np
 import pytest
 import transformers
 from torch import inference_mode, load
-from transformers import MiniMaxConfig
+
+if transformers.__version__ >= "4.53.3":
+    from transformers import MiniMaxConfig
 
 import mindspore as ms
 
