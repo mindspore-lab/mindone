@@ -17,8 +17,6 @@ import numpy as np
 import pytest
 import torch
 import transformers
-if transformers.__version__ >= "4.52.3":
-    from transformers import VJEPA2Config
 
 import mindspore as ms
 
@@ -134,35 +132,34 @@ if transformers.__version__ >= "4.52.3":
                 attn_implementation=self.attn_implementation,
             )
 
-
     model_tester = VJEPA2ModelTester()
     (
         config,
         pixel_values,
     ) = model_tester.prepare_config_and_inputs()
 
-    VJEPA2_CASES = [
-        [
-            "VJEPA2Model",
-            "transformers.VJEPA2Model",
-            "mindone.transformers.VJEPA2Model",
-            (config,),
-            {},
-            (pixel_values,),
-            {},
-            {"last_hidden_state": 0},
-        ],
-        [
-            "VJEPA2ForVideoClassification",
-            "transformers.VJEPA2ForVideoClassification",
-            "mindone.transformers.VJEPA2ForVideoClassification",
-            (config,),
-            {},
-            (pixel_values,),
-            {},
-            {"logits": 0},
-        ],
-    ]
+VJEPA2_CASES = [
+    [
+        "VJEPA2Model",
+        "transformers.VJEPA2Model",
+        "mindone.transformers.VJEPA2Model",
+        (config,),
+        {},
+        (pixel_values,),
+        {},
+        {"last_hidden_state": 0},
+    ],
+    [
+        "VJEPA2ForVideoClassification",
+        "transformers.VJEPA2ForVideoClassification",
+        "mindone.transformers.VJEPA2ForVideoClassification",
+        (config,),
+        {},
+        (pixel_values,),
+        {},
+        {"logits": 0},
+    ],
+]
 
 
 # transformers need >= 4.53.0.dev3

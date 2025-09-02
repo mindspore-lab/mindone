@@ -21,15 +21,16 @@ from torch import inference_mode, load
 
 import mindspore as ms
 
-from mindone.transformers import MiniMaxForCausalLM
 from tests.modeling_test_utils import compute_diffs, generalized_parse_args, get_modules
 
 from ...causal_lm_tester import CausalLMModelTester
 
 DTYPE_AND_THRESHOLDS = {"fp32": 5e-7, "fp16": 1e-3, "bf16": 5e-3}
 
-if transformers.__version__ >= "4.53.3":
+if transformers.__version__ >= "4.53.0":
     from transformers import MiniMaxConfig
+
+    from mindone.transformers import MiniMaxForCausalLM
 
     class MiniMaxModelTester(CausalLMModelTester):
         config_class = MiniMaxConfig
@@ -40,7 +41,6 @@ if transformers.__version__ >= "4.53.3":
             self.block_size = block_size
             self.forced_config_args += ["attn_implementation"]
             self.attn_implementation = attn_implementation
-
 
     _CASES = []
     for attn_impl in ["eager", "sdpa"]:  # "flash_attention" is not supported on CPU in PyTorch
@@ -62,7 +62,7 @@ if transformers.__version__ >= "4.53.3":
 
 @pytest.mark.parametrize("name,pt_module,ms_module,init_args,init_kwargs,inputs_args,inputs_kwargs,outputs_map", _CASES)
 @pytest.mark.parametrize("dtype", DTYPE_AND_THRESHOLDS.keys())
-@pytest.mark.skipif(transformers.__version__ < "4.53.3", reason="need to set specific transformers version")
+@pytest.mark.skipif(transformers.__version__ < "4.53.0", reason="need to set specific transformers version")
 def test_named_modules(
     name, pt_module, ms_module, init_args, init_kwargs, inputs_args, inputs_kwargs, outputs_map, dtype
 ):
@@ -98,7 +98,7 @@ def test_named_modules(
 
 
 @pytest.mark.parametrize("attn_impl", [None, "flash_attention_2"], ids=["default (sdpa)", "flash_attention_2"])
-@pytest.mark.skipif(transformers.__version__ < "4.53.3", reason="need to set specific transformers version")
+@pytest.mark.skipif(transformers.__version__ < "4.53.0", reason="need to set specific transformers version")
 def test_minimax_forward(attn_impl: Union[str, None]):
     model = MiniMaxForCausalLM.from_pretrained(
         "hf-internal-testing/MiniMax-tiny", attn_implementation=attn_impl, mindspore_dtype=ms.float16

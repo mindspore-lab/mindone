@@ -167,7 +167,6 @@ if transformers.__version__ >= "4.52.3":
 
             return thinker_config, talker_config, token2wav_config
 
-
     model_tester = Qwen2_5_OmniModelTester()
     (
         thinker_config,
@@ -181,49 +180,49 @@ if transformers.__version__ >= "4.52.3":
     ) = model_tester.prepare_config_and_inputs()
 
 
-    T5_CASES = [
-        [
-            "Qwen2_5OmniThinkerTextModel",
-            "transformers.models.qwen2_5_omni.Qwen2_5OmniThinkerTextModel",  # NOTE: name is different
-            "mindone.transformers.Qwen2_5OmniThinkerTextModel",
-            (thinker_config,),
-            {},
-            (),
-            {"input_ids": input_ids, "attention_mask": attention_mask, "return_dict": True},
-            {
-                "last_hidden_state": "last_hidden_state",
-            },
-        ],
-        [
-            "Qwen2_5OmniTalkerModel",
-            "transformers.Qwen2_5OmniTalkerModel",
-            "mindone.transformers.Qwen2_5OmniTalkerModel",
-            (talker_config,),
-            {},
-            (),
-            {
-                "input_ids": decoder_input_ids,
-                "attention_mask": decoder_attention_mask,
-            },
-            {
-                "last_hidden_state": "last_hidden_state",
-            },
-        ],
-        # [
-        #     "Qwen2_5OmniToken2WavModel",
-        #     "transformers.Qwen2_5OmniToken2WavModel",
-        #     "mindone.transformers.Qwen2_5OmniToken2WavModel",
-        #     (token2wav_config,),
-        #     {},
-        #     (),
-        #     {
-        #         "code": code,
-        #         "conditioning": conditioning,
-        #         "reference_mel": reference_mel,
-        #     },
-        #     {},
-        # ],
-    ]
+T5_CASES = [
+    [
+        "Qwen2_5OmniThinkerTextModel",
+        "transformers.models.qwen2_5_omni.Qwen2_5OmniThinkerTextModel",  # NOTE: name is different
+        "mindone.transformers.Qwen2_5OmniThinkerTextModel",
+        (thinker_config,),
+        {},
+        (),
+        {"input_ids": input_ids, "attention_mask": attention_mask, "return_dict": True},
+        {
+            "last_hidden_state": "last_hidden_state",
+        },
+    ],
+    [
+        "Qwen2_5OmniTalkerModel",
+        "transformers.Qwen2_5OmniTalkerModel",
+        "mindone.transformers.Qwen2_5OmniTalkerModel",
+        (talker_config,),
+        {},
+        (),
+        {
+            "input_ids": decoder_input_ids,
+            "attention_mask": decoder_attention_mask,
+        },
+        {
+            "last_hidden_state": "last_hidden_state",
+        },
+    ],
+    # [
+    #     "Qwen2_5OmniToken2WavModel",
+    #     "transformers.Qwen2_5OmniToken2WavModel",
+    #     "mindone.transformers.Qwen2_5OmniToken2WavModel",
+    #     (token2wav_config,),
+    #     {},
+    #     (),
+    #     {
+    #         "code": code,
+    #         "conditioning": conditioning,
+    #         "reference_mel": reference_mel,
+    #     },
+    #     {},
+    # ],
+]
 
 
 @pytest.mark.parametrize(
