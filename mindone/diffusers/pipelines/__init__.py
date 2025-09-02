@@ -29,6 +29,7 @@ _import_structure = {
         "AutoPipelineForText2Image",
     ],
     "blip_diffusion": ["BlipDiffusionPipeline"],
+    "chroma": ["ChromaPipeline", "ChromaImg2ImgPipeline"],
     "cogvideo": [
         "CogVideoXPipeline",
         "CogVideoXImageToVideoPipeline",
@@ -39,6 +40,12 @@ _import_structure = {
     "cogview3": ["CogView3PlusPipeline"],
     "cogview4": ["CogView4Pipeline", "CogView4ControlPipeline"],
     "consisid": ["ConsisIDPipeline"],
+    "cosmos": [
+        "CosmosTextToWorldPipeline",
+        "CosmosVideoToWorldPipeline",
+        "Cosmos2TextToImagePipeline",
+        "Cosmos2VideoToWorldPipeline",
+    ],
     "controlnet": [
         "BlipDiffusionControlNetPipeline",
         "StableDiffusionControlNetImg2ImgPipeline",
@@ -90,6 +97,8 @@ _import_structure = {
         "FluxPipeline",
         "FluxPriorReduxPipeline",
         "ReduxImageEncoder",
+        "FluxKontextPipeline",
+        "FluxKontextInpaintPipeline",
     ],
     "hunyuandit": ["HunyuanDiTPipeline"],
     "hunyuan_video": [
@@ -243,6 +252,13 @@ _import_structure = {
         "WuerstchenPriorPipeline",
     ],
     "wan": ["WanPipeline", "WanImageToVideoPipeline", "WanVideoToVideoPipeline"],
+    "skyreels_v2": [
+        "SkyReelsV2DiffusionForcingPipeline",
+        "SkyReelsV2DiffusionForcingImageToVideoPipeline",
+        "SkyReelsV2DiffusionForcingVideoToVideoPipeline",
+        "SkyReelsV2ImageToVideoPipeline",
+        "SkyReelsV2Pipeline",
+    ],
     "pipeline_utils": [
         "AudioPipelineOutput",
         "DiffusionPipeline",
@@ -267,6 +283,7 @@ if TYPE_CHECKING:
     from .aura_flow import AuraFlowPipeline
     from .auto_pipeline import AutoPipelineForImage2Image, AutoPipelineForInpainting, AutoPipelineForText2Image
     from .blip_diffusion import BlipDiffusionPipeline
+    from .chroma import ChromaImg2ImgPipeline, ChromaPipeline
     from .cogvideo import (
         CogVideoXFunControlPipeline,
         CogVideoXImageToVideoPipeline,
@@ -292,6 +309,12 @@ if TYPE_CHECKING:
     from .controlnet_hunyuandit import HunyuanDiTControlNetPipeline
     from .controlnet_sd3 import StableDiffusion3ControlNetInpaintingPipeline, StableDiffusion3ControlNetPipeline
     from .controlnet_xs import StableDiffusionControlNetXSPipeline, StableDiffusionXLControlNetXSPipeline
+    from .cosmos import (
+        Cosmos2TextToImagePipeline,
+        Cosmos2VideoToWorldPipeline,
+        CosmosTextToWorldPipeline,
+        CosmosVideoToWorldPipeline,
+    )
     from .ddim import DDIMPipeline
     from .ddpm import DDPMPipeline
     from .deepfloyd_if import (
@@ -314,6 +337,8 @@ if TYPE_CHECKING:
         FluxFillPipeline,
         FluxImg2ImgPipeline,
         FluxInpaintPipeline,
+        FluxKontextInpaintPipeline,
+        FluxKontextPipeline,
         FluxPipeline,
         FluxPriorReduxPipeline,
         ReduxImageEncoder,
@@ -391,6 +416,13 @@ if TYPE_CHECKING:
     from .sana import SanaControlNetPipeline, SanaPipeline, SanaSprintImg2ImgPipeline, SanaSprintPipeline
     from .semantic_stable_diffusion import SemanticStableDiffusionPipeline
     from .shap_e import ShapEImg2ImgPipeline, ShapEPipeline
+    from .skyreels_v2 import (
+        SkyReelsV2DiffusionForcingImageToVideoPipeline,
+        SkyReelsV2DiffusionForcingPipeline,
+        SkyReelsV2DiffusionForcingVideoToVideoPipeline,
+        SkyReelsV2ImageToVideoPipeline,
+        SkyReelsV2Pipeline,
+    )
     from .stable_audio import StableAudioPipeline, StableAudioProjectionModel
     from .stable_cascade import StableCascadeCombinedPipeline, StableCascadeDecoderPipeline, StableCascadePriorPipeline
     from .stable_diffusion import (

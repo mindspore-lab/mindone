@@ -71,6 +71,7 @@ from . import (
     mpt,
     mvp,
     opt,
+    owlvit,
     paligemma,
     persimmon,
     phi,
@@ -86,15 +87,19 @@ from . import (
     smolvlm,
     speecht5,
     starcoder2,
+    swin2sr,
     switch_transformers,
     t5,
     umt5,
     video_llava,
+    vilt,
     vipllava,
+    vision_encoder_decoder,
     vit,
     vits,
     wav2vec2,
     xlm_roberta,
+    yolos,
 )
 
 if version.parse(transformers.__version__) >= version.parse("4.51.0"):

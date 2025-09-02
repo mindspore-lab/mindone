@@ -196,6 +196,8 @@
         title: AllegroTransformer3DModel
       - local: api/models/aura_flow_transformer2d
         title: AuraFlowTransformer2DModel
+      - local: api/models/chroma_transformer
+        title: ChromaTransformer2DModel
       - local: api/models/cogvideox_transformer3d
         title: CogVideoXTransformer3DModel
       - local: api/models/consisid_transformer3d
@@ -204,6 +206,8 @@
         title: CogView3PlusTransformer2DModel
       - local: api/models/cogview4_transformer2d
         title: CogView4Transformer2DModel
+      - local: api/models/cosmos_transformer3d
+        title: CosmosTransformer3DModel
       - local: api/models/dit_transformer2d
         title: DiTTransformer2DModel
       - local: api/models/easyanimate_transformer3d
@@ -232,6 +236,8 @@
         title: PriorTransformer
       - local: api/models/sd3_transformer2d
         title: SD3Transformer2DModel
+      - local: api/models/skyreels_v2_transformer_3d
+        title: SkyReelsV2Transformer3DModel
       - local: api/models/sana_transformer2d
         title: SanaTransformer2DModel
       - local: api/models/stable_audio_transformer
@@ -266,6 +272,8 @@
         title: AutoencoderKLAllegro
       - local: api/models/autoencoderkl_cogvideox
         title: AutoencoderKLCogVideoX
+      - local: api/models/autoencoderkl_cosmos
+        title: AutoencoderKLCosmos
       - local: api/models/autoencoder_kl_hunyuan_video
         title: AutoencoderKLHunyuanVideo
       - local: api/models/autoencoderkl_ltx_video
@@ -312,6 +320,8 @@
       title: AutoPipeline
     - local: api/pipelines/blip_diffusion
       title: BLIP-Diffusion
+    - local: api/pipelines/chroma
+      title: Chroma
     - local: api/pipelines/cogvideox
       title: CogVideoX
     - local: api/pipelines/cogview3
@@ -340,6 +350,8 @@
       title: ControlNet-XS with Stable Diffusion XL
     - local: api/pipelines/controlnet_union
       title: ControlNetUnion
+    - local: api/pipelines/cosmos
+      title: Cosmos
     - local: api/pipelines/dance_diffusion
       title: Dance Diffusion
     - local: api/pipelines/ddim
@@ -420,6 +432,8 @@
       title: Semantic Guidance
     - local: api/pipelines/shap_e
       title: Shap-E
+    - local: api/pipelines/skyreels_v2
+      title: SkyReels-V2
     - local: api/pipelines/stable_audio
       title: Stable Audio
     - local: api/pipelines/stable_cascade

@@ -65,6 +65,7 @@ MODEL_MAPPING_NAMES = OrderedDict(
         ("glm", "GlmModel"),
         ("glpn", "GLPNModel"),
         ("gpt2", "GPT2Model"),
+        ("opt", "OPTModel"),
         ("granite", "GraniteModel"),
         ("granitemoe", "GraniteMoeModel"),
         ("granitemoeshared", "GraniteMoeSharedModel"),
@@ -92,6 +93,7 @@ MODEL_MAPPING_NAMES = OrderedDict(
         ("mt5", "MT5Model"),
         ("megatron-bert", "MegatronBertModel"),
         ("mixtral", "MixtralModel"),
+        ("owlvit", "OwlViTModel"),
         ("phi", "PhiModel"),
         ("phi3", "Phi3Model"),
         ("qwen2", "Qwen2Model"),
@@ -107,13 +109,16 @@ MODEL_MAPPING_NAMES = OrderedDict(
         ("smolvlm", "SmolVLMModel"),
         ("smolvlm_vision", "SmolVLMVisionTransformer"),
         ("speecht5", "SpeechT5Model"),
+        ("swin2sr", "Swin2SRModel"),
         ("t5", "T5Model"),
         ("umt5", "UMT5Model"),
+        ("vilt", "ViltModel"),
         ("vit", "ViTModel"),
         ("wav2vec2", "Wav2Vec2Model"),
         ("whisper", "WhisperModel"),
         ("xlm-roberta", "XLMRobertaModel"),
         ("xlm-roberta-xl", "XLMRobertaXLModel"),
+        ("yolos", "YolosModel"),
         ("cohere2", "Cohere2Model"),
     ]
 )
@@ -202,6 +207,7 @@ MODEL_FOR_CAUSAL_LM_MAPPING_NAMES = OrderedDict(
         ("granitemoe", "GraniteMoeForCausalLM"),
         ("granitemoeshared", "GraniteMoeSharedForCausalLM"),
         ("llama", "LlamaForCausalLM"),
+        ("opt", "OPTForCausalLM"),
         ("megatron-bert", "MegatronBertForCausalLM"),
         ("mistral", "MistralForCausalLM"),
         ("mpt", "MptForCausalLM"),
@@ -236,7 +242,9 @@ MODEL_FOR_IMAGE_MAPPING_NAMES = OrderedDict(
         ("levit", "LevitModel"),
         ("segformer", "SegformerModel"),
         ("siglip_vision_model", "SiglipVisionModel"),
+        ("swin2sr", "Swin2SRModel"),
         ("vit", "ViTModel"),
+        ("yolos", "YolosModel"),
     ]
 )
 
@@ -327,6 +335,7 @@ MODEL_FOR_VISION_2_SEQ_MAPPING_NAMES = OrderedDict(
         ("qwen2_vl", "Qwen2VLForConditionalGeneration"),
         ("video_llava", "VideoLlavaForConditionalGeneration"),
         ("vipllava", "VipLlavaForConditionalGeneration"),
+        ("vision-encoder-decoder", "VisionEncoderDecoderModel"),
     ]
 )
 MODEL_FOR_RETRIEVAL_MAPPING_NAMES = OrderedDict(
@@ -354,6 +363,7 @@ MODEL_FOR_IMAGE_TEXT_TO_TEXT_MAPPING_NAMES = OrderedDict(
         ("qwen2_vl", "Qwen2VLForConditionalGeneration"),
         ("smolvlm", "SmolVLMForConditionalGeneration"),
         ("vipllava", "VipLlavaForConditionalGeneration"),
+        ("vision-encoder-decoder", "VisionEncoderDecoderModel"),
     ]
 )
 
@@ -451,6 +461,7 @@ MODEL_FOR_SEQUENCE_CLASSIFICATION_MAPPING_NAMES = OrderedDict(
         ("starcoder2", "Starcoder2ForSequenceClassification"),
         ("canine", "CanineForSequenceClassification"),
         ("llama", "LlamaForSequenceClassification"),
+        ("opt", "OPTForSequenceClassification"),
         ("persimmon", "PersimmonForSequenceClassification"),
         ("mobilebert", "MobileBertForSequenceClassification"),
         ("convbert", "ConvBertForSequenceClassification"),
@@ -488,6 +499,7 @@ MODEL_FOR_QUESTION_ANSWERING_MAPPING_NAMES = OrderedDict(
         ("mobilebert", "MobileBertForQuestionAnswering"),
         ("megatron-bert", "MegatronBertForQuestionAnswering"),
         ("mistral", "MistralForQuestionAnswering"),
+        ("opt", "OPTForQuestionAnswering"),
         ("qwen2", "Qwen2ForQuestionAnswering"),
         ("rembert", "RemBertForQuestionAnswering"),
         ("t5", "T5ForQuestionAnswering"),
@@ -500,11 +512,16 @@ MODEL_FOR_QUESTION_ANSWERING_MAPPING_NAMES = OrderedDict(
     ]
 )
 
-MODEL_FOR_TABLE_QUESTION_ANSWERING_MAPPING_NAMES = OrderedDict()
+MODEL_FOR_TABLE_QUESTION_ANSWERING_MAPPING_NAMES = OrderedDict(
+    [
+        ("blip-2", "Blip2ForConditionalGeneration"),
+    ]
+)
 
 MODEL_FOR_VISUAL_QUESTION_ANSWERING_MAPPING_NAMES = OrderedDict(
     [
         ("blip", "BlipForQuestionAnswering"),
+        ("vilt", "ViltForQuestionAnswering"),
     ]
 )
 
@@ -607,6 +624,7 @@ MODEL_FOR_ZERO_SHOT_IMAGE_CLASSIFICATION_MAPPING_NAMES = OrderedDict(
         # Model for Zero Shot Image Classification mapping
         ("blip", "BlipModel"),
         ("siglip", "SiglipModel"),
+        ("blip-2", "Blip2ForImageTextRetrieval"),
     ]
 )
 
@@ -647,7 +665,11 @@ MODEL_FOR_TIME_SERIES_CLASSIFICATION_MAPPING_NAMES = OrderedDict()
 
 MODEL_FOR_TIME_SERIES_REGRESSION_MAPPING_NAMES = OrderedDict()
 
-MODEL_FOR_IMAGE_TO_IMAGE_MAPPING_NAMES = OrderedDict()
+MODEL_FOR_IMAGE_TO_IMAGE_MAPPING_NAMES = OrderedDict(
+    [
+        ("swin2sr", "Swin2SRForImageSuperResolution"),
+    ]
+)
 
 
 if version.parse(transformers.__version__) >= version.parse("4.51.0"):
