@@ -840,7 +840,7 @@ class AutoencoderKLQwenImage(ModelMixin, ConfigMixin, FromOriginalModelMixin):
 
     # @apply_forward_hook
     def encode(
-        self, x: ms.Tensor, return_dict: bool = True
+        self, x: ms.Tensor, return_dict: bool = False
     ) -> Union[AutoencoderKLOutput, Tuple[DiagonalGaussianDistribution]]:
         r"""
         Encode a batch of images into latents.
@@ -867,7 +867,7 @@ class AutoencoderKLQwenImage(ModelMixin, ConfigMixin, FromOriginalModelMixin):
             return (h,)
         return AutoencoderKLOutput(latent_dist=h)
 
-    def _decode(self, z: ms.Tensor, return_dict: bool = True):
+    def _decode(self, z: ms.Tensor, return_dict: bool = False):
         _, _, num_frame, height, width = z.shape
         tile_latent_min_height = self.tile_sample_min_height // self.spatial_compression_ratio
         tile_latent_min_width = self.tile_sample_min_width // self.spatial_compression_ratio
@@ -893,7 +893,7 @@ class AutoencoderKLQwenImage(ModelMixin, ConfigMixin, FromOriginalModelMixin):
         return DecoderOutput(sample=out)
 
     # @apply_forward_hook
-    def decode(self, z: ms.Tensor, return_dict: bool = True) -> Union[DecoderOutput, ms.Tensor]:
+    def decode(self, z: ms.Tensor, return_dict: bool = False) -> Union[DecoderOutput, ms.Tensor]:
         r"""
         Decode a batch of images.
 
@@ -1066,7 +1066,7 @@ class AutoencoderKLQwenImage(ModelMixin, ConfigMixin, FromOriginalModelMixin):
         self,
         sample: ms.Tensor,
         sample_posterior: bool = False,
-        return_dict: bool = True,
+        return_dict: bool = False,
         generator: Optional[np.random.Generator] = None,
     ) -> Union[DecoderOutput, ms.Tensor]:
         """
