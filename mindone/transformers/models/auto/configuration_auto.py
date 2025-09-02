@@ -227,7 +227,6 @@ MODEL_NAMES_MAPPING = OrderedDict(
         ("t5v1.1", "T5v1.1"),
         ("umt5", "UMT5"),
         ("video_llava", "VideoLlava"),
-        ("vipllava", "VipLlava"),
         ("vilt", "ViLT"),
         ("vipllava", "VipLlava"),
         ("vision-encoder-decoder", "Vision Encoder decoder"),
