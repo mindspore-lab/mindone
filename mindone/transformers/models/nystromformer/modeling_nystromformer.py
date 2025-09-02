@@ -63,15 +63,15 @@ class NystromformerEmbeddings(nn.Cell):
         self.position_embedding_type = getattr(config, "position_embedding_type", "absolute")
         self.register_buffer(
             "token_type_ids",
-            mint.zeros(self.position_ids.size(), dtype=ms.int64),
+            mint.zeros(self.position_ids.shape, dtype=ms.int64),
             persistent=False,
         )
 
     def construct(self, input_ids=None, token_type_ids=None, position_ids=None, inputs_embeds=None):
         if input_ids is not None:
-            input_shape = input_ids.size()
+            input_shape = input_ids.shape
         else:
-            input_shape = inputs_embeds.size()[:-1]
+            input_shape = inputs_embeds.shape[:-1]
 
         seq_length = input_shape[1]
 
@@ -166,7 +166,7 @@ class NystromformerSelfAttention(nn.Cell):
         return value
 
     def transpose_for_scores(self, layer):
-        new_layer_shape = layer.size()[:-1] + (self.num_attention_heads, self.attention_head_size)
+        new_layer_shape = layer.shape[:-1] + (self.num_attention_heads, self.attention_head_size)
         layer = layer.view(*new_layer_shape)
         return layer.permute(0, 2, 1, 3)
 
@@ -224,7 +224,7 @@ class NystromformerSelfAttention(nn.Cell):
             context_layer += self.conv(value_layer)
 
         context_layer = context_layer.permute(0, 2, 1, 3).contiguous()
-        new_context_layer_shape = context_layer.size()[:-2] + (self.all_head_size,)
+        new_context_layer_shape = context_layer.shape[:-2] + (self.all_head_size,)
         context_layer = context_layer.view(*new_context_layer_shape)
 
         outputs = (context_layer, attention_probs) if output_attentions else (context_layer,)
@@ -574,9 +574,9 @@ class NystromformerModel(NystromformerPreTrainedModel):
             raise ValueError("You cannot specify both input_ids and inputs_embeds at the same time")
         elif input_ids is not None:
             self.warn_if_padding_and_no_attention_mask(input_ids, attention_mask)
-            input_shape = input_ids.size()
+            input_shape = input_ids.shape
         elif inputs_embeds is not None:
-            input_shape = inputs_embeds.size()[:-1]
+            input_shape = inputs_embeds.shape[:-1]
         else:
             raise ValueError("You have to specify either input_ids or inputs_embeds")
 
@@ -1071,9 +1071,9 @@ class NystromformerForQuestionAnswering(NystromformerPreTrainedModel):
         total_loss = None
         if start_positions is not None and end_positions is not None:
             # If we are on multi-GPU, split add a dimension
-            if len(start_positions.size()) > 1:
+            if len(start_positions.shape) > 1:
                 start_positions = start_positions.squeeze(-1)
-            if len(end_positions.size()) > 1:
+            if len(end_positions.shape) > 1:
                 end_positions = end_positions.squeeze(-1)
             # sometimes the start/end positions are outside our model inputs, we ignore these terms
             ignored_index = start_logits.size(1)
