@@ -34,7 +34,7 @@ from ...modeling_outputs import (
 )
 from ...modeling_utils import PreTrainedModel
 from ...mindspore_utils import apply_chunking_to_forward, find_pruneable_heads_and_indices, prune_linear_layer
-from ...utils import ModelOutput, add_start_docstrings_to_model_forward, logging, replace_return_docstrings, torch_int
+from transformers.utils import ModelOutput, add_start_docstrings_to_model_forward, logging, replace_return_docstrings
 from transformers import AltCLIPConfig, AltCLIPTextConfig, AltCLIPVisionConfig
 
 
@@ -1021,7 +1021,7 @@ class AltCLIPVisionEmbeddings(ms.nn.Cell):
         new_height = height // self.patch_size
         new_width = width // self.patch_size
 
-        sqrt_num_positions = torch_int(num_positions**0.5)
+        sqrt_num_positions = int(num_positions**0.5)
         patch_pos_embed = patch_pos_embed.reshape(1, sqrt_num_positions, sqrt_num_positions, dim)
         patch_pos_embed = patch_pos_embed.permute(0, 3, 1, 2)
 
