@@ -621,7 +621,7 @@ class Idefics3PreTrainedModel(MSPreTrainedModel):
         elif isinstance(module, mint.nn.Embedding):
             normal_(module.weight, mean=0.0, std=std)
             if module.padding_idx is not None:
-                zeros_(module.weight.data[module.padding_idx])
+                module.weight[module.padding_idx] = 0
 
 
 IDEFICS3_VISION_START_DOCSTRING = r"""
