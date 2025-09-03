@@ -59,8 +59,9 @@ if transformers.__version__ >= "4.53.0":
             ]
         )
 
-
-    @pytest.mark.parametrize("name,pt_module,ms_module,init_args,init_kwargs,inputs_args,inputs_kwargs,outputs_map", _CASES)
+    @pytest.mark.parametrize(
+        "name,pt_module,ms_module,init_args,init_kwargs,inputs_args,inputs_kwargs,outputs_map", _CASES
+    )
     @pytest.mark.parametrize("dtype", DTYPE_AND_THRESHOLDS.keys())
     @pytest.mark.skipif(transformers.__version__ < "4.53.0", reason="need to set specific transformers version")
     def test_named_modules(
@@ -95,7 +96,6 @@ if transformers.__version__ >= "4.53.0":
             f"ms_dtype: {ms_dtype}, pt_type:{pt_dtype}, "
             f"Outputs({np.array(diffs).tolist()}) has diff bigger than {THRESHOLD}"
         )
-
 
     @pytest.mark.parametrize("attn_impl", [None, "flash_attention_2"], ids=["default (sdpa)", "flash_attention_2"])
     @pytest.mark.skipif(transformers.__version__ < "4.53.0", reason="need to set specific transformers version")

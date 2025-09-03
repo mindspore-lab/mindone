@@ -161,7 +161,6 @@ if transformers.__version__ >= "4.52.3":
         ],
     ]
 
-
     # transformers need >= 4.53.0.dev3
     @pytest.mark.parametrize(
         "name,pt_module,ms_module,init_args,init_kwargs,inputs_args,inputs_kwargs,outputs_map,dtype,mode",

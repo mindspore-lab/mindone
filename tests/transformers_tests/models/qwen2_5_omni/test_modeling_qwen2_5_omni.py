@@ -179,7 +179,6 @@ if transformers.__version__ >= "4.52.3":
         lm_labels,
     ) = model_tester.prepare_config_and_inputs()
 
-
     T5_CASES = [
         [
             "Qwen2_5OmniThinkerTextModel",
@@ -223,7 +222,6 @@ if transformers.__version__ >= "4.52.3":
         #     {},
         # ],
     ]
-
 
     @pytest.mark.parametrize(
         "name,pt_module,ms_module,init_args,init_kwargs,inputs_args,inputs_kwargs,outputs_map,dtype,mode",
