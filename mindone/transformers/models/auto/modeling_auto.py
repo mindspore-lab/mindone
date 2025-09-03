@@ -50,6 +50,7 @@ MODEL_MAPPING_NAMES = OrderedDict(
         ("clip", "CLIPModel"),
         ("clip_text_model", "CLIPTextModel"),
         ("clip_vision_model", "CLIPVisionModel"),
+        ("clipseg", "CLIPSegModel"),
         ("convnext", "ConvNextModel"),
         ("convnextv2", "ConvNextV2Model"),
         ("deberta", "DebertaModel"),
@@ -620,6 +621,7 @@ MODEL_FOR_ZERO_SHOT_IMAGE_CLASSIFICATION_MAPPING_NAMES = OrderedDict(
         ("blip", "BlipModel"),
         ("siglip", "SiglipModel"),
         ("blip-2", "Blip2ForImageTextRetrieval"),
+        ("clipseg", "CLIPSegModel"),
     ]
 )
 
