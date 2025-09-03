@@ -2,6 +2,7 @@
 # with modifications to run diffusers on mindspore.
 
 import random
+import sys
 import unittest
 
 import numpy as np
@@ -20,7 +21,6 @@ from mindone.diffusers import (
 from mindone.diffusers.utils.testing_utils import (
     load_numpy_from_local_file, 
     slow, 
-    floats_tensor, 
 )
 
 from ..pipeline_test_utils import (
@@ -28,8 +28,10 @@ from ..pipeline_test_utils import (
     THRESHOLD_FP32,
     THRESHOLD_PIXEL,
     PipelineTesterMixin,
+    floats_tensor,
     get_module,
     get_pipeline_components,
+    randn_tensor,
 )
 
 test_cases = [
@@ -158,7 +160,7 @@ class QwenImageImg2ImgPipelineFastTests(unittest.TestCase, PipelineTesterMixin):
         }
         return get_pipeline_components(components, self.pipeline_config)
 
-    def get_dummy_inputs(self, seed):
+    def get_dummy_inputs(self, seed=0):
         pt_image = floats_tensor((1, 3, 32, 32), rng=random.Random(seed))
         ms_image = ms.Tensor(pt_image.numpy())
         
@@ -209,6 +211,9 @@ class QwenImageImg2ImgPipelineFastTests(unittest.TestCase, PipelineTesterMixin):
         pt_pipe = pt_pipe.to(pt_dtype)
         ms_pipe = ms_pipe.to(ms_dtype)
 
+        sys.modules[ms_pipe.__module__].randn_tensor = randn_tensor
+        sys.modules[ms_pipe.vae.diag_gauss_dist.__module__].randn_tensor = randn_tensor
+
         pt_inputs, ms_inputs = self.get_dummy_inputs()
 
         torch.manual_seed(0)
@@ -238,14 +243,14 @@ class QwenImageImg2ImgPipelineIntegrationTests(PipelineTesterMixin, unittest.Tes
         # model_id = "Qwen/Qwen-Image"
         model_id = "/data6/Qwen-Image"
         image = floats_tensor((1, 3, 32, 32), rng=random.Random(0))  # load given image
-
+        
         pipe = QwenImageImg2ImgPipeline.from_pretrained(model_id, mindspore_dtype=ms_dtype)
 
         pipe.vae.enable_tiling()
 
         torch.manual_seed(0)
         image = pipe(
-            image=image,
+            image=ms.Tensor(image.numpy()),
             prompt="dance monkey",
             negative_prompt="bad quality",
         )[0][0]
