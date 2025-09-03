@@ -142,7 +142,6 @@ class WanI2V:
                 The function to apply ZeRO3 sharding.
             convert_model_dtype (`bool`):
                 Convert DiT model parameters dtype to 'config.param_dtype'.
-                Only works without ZeRO3.
 
         Returns:
             mindspore.nn.Cell:
@@ -162,9 +161,9 @@ class WanI2V:
 
         if dit_zero3:
             model = shard_fn(model)
-        else:
-            if convert_model_dtype:
-                model.to(self.param_dtype)
+
+        if convert_model_dtype:
+            model.to(self.param_dtype)
 
         return model
 
@@ -241,7 +240,7 @@ class WanI2V:
             n_prompt (`str`, *optional*, defaults to ""):
                 Negative prompt for content exclusion. If not given, use `config.sample_neg_prompt`
             seed (`int`, *optional*, defaults to -1):
-                Random seed for noise generation. If -1, use random seed
+                Random seed for noise generation. If -1, use random seed.
             offload_model (`bool`, *optional*, defaults to False):
                 If True, offloads models to CPU during generation to save VRAM
 
@@ -297,7 +296,7 @@ class WanI2V:
                 mint.concat(
                     [
                         mint.nn.functional.interpolate(img[None], size=(h, w), mode="bicubic").transpose(0, 1),
-                        mint.zeros(3, F - 1, h, w),
+                        mint.zeros((3, F - 1, h, w)),
                     ],
                     dim=1,
                 )
@@ -341,9 +340,6 @@ class WanI2V:
             arg_c = {"context": [context[0]], "seq_len": max_seq_len, "y": [y]}
 
             arg_null = {"context": context_null, "seq_len": max_seq_len, "y": [y]}
-
-            if offload_model:
-                ms.empty_cache()
 
             for _, t in enumerate(tqdm(timesteps)):
                 latent_model_input = [latent]

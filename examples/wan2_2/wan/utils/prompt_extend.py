@@ -130,7 +130,7 @@ class QwenPromptExpander(PromptExpander):
             min_pixels = 256 * 28 * 28
             max_pixels = 1280 * 28 * 28
             self.processor = AutoProcessor.from_pretrained(
-                self.model_name, min_pixels=min_pixels, max_pixels=max_pixels, use_fast=True
+                self.model_name, min_pixels=min_pixels, max_pixels=max_pixels
             )
             with nn.no_init_parameters():
                 self.model = Qwen2_5_VLForConditionalGeneration.from_pretrained(

@@ -132,7 +132,6 @@ class WanTI2V:
                 The function to apply ZeRO3 sharding.
             convert_model_dtype (`bool`):
                 Convert DiT model parameters dtype to 'config.param_dtype'.
-                Only works without ZeRO3.
 
         Returns:
             mindspore.nn.Cell:
@@ -152,9 +151,9 @@ class WanTI2V:
 
         if dit_zero3:
             model = shard_fn(model)
-        else:
-            if convert_model_dtype:
-                model.to(self.param_dtype)
+
+        if convert_model_dtype:
+            model.to(self.param_dtype)
 
         return model
 

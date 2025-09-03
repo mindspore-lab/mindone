@@ -61,7 +61,6 @@ class WanT2V:
                 Enable initializing Transformer Model on CPU. Only works without ZeRO3 or USP.
             convert_model_dtype (`bool`, *optional*, defaults to False):
                 Convert DiT model parameters dtype to 'config.param_dtype'.
-                Only works without ZeRO3.
         """
         self.config = config
         self.rank = rank
@@ -159,9 +158,9 @@ class WanT2V:
 
         if dit_zero3:
             model = shard_fn(model)
-        else:
-            if convert_model_dtype:
-                model.to(self.param_dtype)
+
+        if convert_model_dtype:
+            model.to(self.param_dtype)
 
         return model
 
@@ -179,7 +178,7 @@ class WanT2V:
                 A flag intended to control the offloading behavior.
 
         Returns:
-            mindspore.mint.nn.Cell:
+            mindspore.nn.Cell:
                 The active model on the target device for the current timestep.
         """
         if t.item() >= boundary:
