@@ -244,7 +244,7 @@ class QwenImagePipelineIntegrationTests(PipelineTesterMixin, unittest.TestCase):
             negative_prompt="bad quality",
         )[0][0]
 
-        # The text_coder causes deviations between ms and pt versions, but the test result (2.809) \
+        # The text_coder causes deviations between ms and pt versions. However, the deviation\
         # is within THRESHOLD_PIXEL when using the same intermediate results of text_encoder.
         expected_image = load_numpy_from_local_file(
             # "mindone-testing-arrays",

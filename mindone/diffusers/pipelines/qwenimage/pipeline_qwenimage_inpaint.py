@@ -15,7 +15,7 @@ from ...loaders import QwenImageLoraLoaderMixin
 from ...models import AutoencoderKLQwenImage, QwenImageTransformer2DModel
 from ...schedulers import FlowMatchEulerDiscreteScheduler
 from ...utils import logging
-from ...utils.mindspore_utils import randn_tensor
+from ...utils.mindspore_utils import randn_tensor, pynative_context
 from ..pipeline_utils import DiffusionPipeline
 from .pipeline_output import QwenImagePipelineOutput
 
@@ -44,17 +44,17 @@ EXAMPLE_DOC_STRING = """
 
 # Copied from diffusers.pipelines.stable_diffusion.pipeline_stable_diffusion_img2img.retrieve_latents
 def retrieve_latents(
-    encoder_output: ms.Tensor, generator: Optional[np.random.Generator] = None, sample_mode: str = "sample"
+    vae, encoder_output: ms.Tensor, generator: Optional[np.random.Generator] = None, sample_mode: str = "sample"
 ):
-    if hasattr(encoder_output, "latent_dist") and sample_mode == "sample":
-        return encoder_output.latent_dist.sample(generator)
-    elif hasattr(encoder_output, "latent_dist") and sample_mode == "argmax":
-        return encoder_output.latent_dist.mode()
-    elif hasattr(encoder_output, "latents"):
-        return encoder_output.latents
+    if sample_mode == "sample":
+        return vae.diag_gauss_dist.sample(encoder_output, generator=generator)
+    elif sample_mode == "argmax":
+        return vae.diag_gauss_dist.mode(encoder_output)
+    # This brach is not needed because the encoder_output type is ms.Tensor as per AutoencoderKLOuput change
+    # elif hasattr(encoder_output, "latents"):
+    #     return encoder_output.latents  
     else:
-        raise AttributeError("Could not access latents of provided encoder_output")
-
+        return encoder_output
 
 # Copied from diffusers.pipelines.qwenimage.pipeline_qwenimage.calculate_shift
 def calculate_shift(
@@ -233,14 +233,16 @@ class QwenImageInpaintPipeline(DiffusionPipeline, QwenImageLoraLoaderMixin):
 
     # Copied from diffusers.pipelines.qwenimage.pipeline_qwenimage_img2img.QwenImageImg2ImgPipeline._encode_vae_image
     def _encode_vae_image(self, image: ms.Tensor, generator: np.random.Generator):
-        if isinstance(generator, list):
-            image_latents = [
-                retrieve_latents(self.vae.encode(image[i : i + 1]), generator=generator[i])
-                for i in range(image.shape[0])
-            ]
-            image_latents = mint.cat(image_latents, dim=0)
-        else:
-            image_latents = retrieve_latents(self.vae.encode(image), generator=generator)
+        # TODO: we use pynative mode here since cache in vae.decode which not supported in graph mode
+        with pynative_context():
+            if isinstance(generator, list):
+                image_latents = [
+                    retrieve_latents(self.vae, self.vae.encode(image[i : i + 1])[0])
+                    for i in range(image.shape[0])
+                ]
+                image_latents = mint.cat(image_latents, dim=0)
+            else:
+                image_latents = retrieve_latents(self.vae, self.vae.encode(image)[0])
 
         latents_mean = (
             ms.Tensor(self.vae.config.latents_mean)
@@ -962,7 +964,9 @@ class QwenImageInpaintPipeline(DiffusionPipeline, QwenImageLoraLoaderMixin):
             )
 
             latents = latents / latents_std + latents_mean
-            image = self.vae.decode(latents, return_dict=False)[0][:, :, 0]
+            # TODO: we use pynative mode here since cache in vae.decode which not supported in graph mode
+            with pynative_context():
+                image = self.vae.decode(latents, return_dict=False)[0][:, :, 0]
             image = self.image_processor.postprocess(image, output_type=output_type)
 
             if padding_mask_crop is not None:
