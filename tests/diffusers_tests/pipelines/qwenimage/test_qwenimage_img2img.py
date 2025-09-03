@@ -5,217 +5,243 @@ import random
 import unittest
 
 import numpy as np
+import pytest
 import torch
-from transformers import Qwen2_5_VLConfig, Qwen2_5_VLForConditionalGeneration, Qwen2Tokenizer
+from ddt import data, ddt, unpack
+from transformers import Qwen2_5_VLConfig
 
-from diffusers import (
+import minsdspore as ms
+
+from mindone.diffusers import (
     AutoencoderKLQwenImage,
-    FlowMatchEulerDiscreteScheduler,
     QwenImageImg2ImgPipeline,
     QwenImageTransformer2DModel,
 )
-from diffusers.utils.testing_utils import (
-    enable_full_determinism,
-    floats_tensor,
-    torch_device,
+from mindone.diffusers.utils.testing_utils import (
+    load_numpy_from_local_file, 
+    slow, 
+    floats_tensor, 
 )
 
-from ..test_pipelines_common import PipelineTesterMixin, to_np
+from ..pipeline_test_utils import (
+    THRESHOLD_FP16,
+    THRESHOLD_FP32,
+    THRESHOLD_PIXEL,
+    PipelineTesterMixin,
+    get_module,
+    get_pipeline_components,
+)
 
+test_cases = [
+    {"mode": ms.PYNATIVE_MODE, "dtype": "float32"},
+    {"mode": ms.PYNATIVE_MODE, "dtype": "bfloat16"},
+]
 
-enable_full_determinism()
-
-
+@ddt
 class QwenImageImg2ImgPipelineFastTests(unittest.TestCase, PipelineTesterMixin):
-    pipeline_class = QwenImageImg2ImgPipeline
-    params = frozenset(["prompt", "image", "height", "width", "guidance_scale", "true_cfg_scale", "strength"])
-    batch_params = frozenset(["prompt", "image"])
-    image_params = frozenset(["image"])
-    image_latents_params = frozenset(["latents"])
-    required_optional_params = frozenset(
+    pipeline_config = [
         [
-            "num_inference_steps",
-            "generator",
-            "latents",
-            "return_dict",
-            "callback_on_step_end",
-            "callback_on_step_end_tensor_inputs",
-        ]
-    )
-    supports_dduf = False
-    test_xformers_attention = False
-    test_attention_slicing = True
-    test_layerwise_casting = True
-    test_group_offloading = True
+            "transformer",
+            "diffusers.models.transformers.transformer_qwenimage.QwenImageTransformer2DModel",
+            "mindone.diffusers.models.transformers.transformer_qwenimage.QwenImageTransformer2DModel",
+            dict(
+                patch_size=2,
+                in_channels=16,
+                out_channels=4,
+                num_layers=2,
+                attention_head_dim=16,
+                num_attention_heads=3,
+                joint_attention_dim=16,
+                guidance_embeds=False,
+                axes_dims_rope=(8, 4, 4),
+            ),
+        ],
+        [
+            "vae",
+            "diffusers.models.autoencoders.autoencoder_kl_qwenimage.AutoencoderKLQwenImage",
+            "mindone.diffusers.models.autoencoders.autoencoder_kl_qwenimage.AutoencoderKLQwenImage",
+            dict(
+                base_dim=4 * 6,
+                z_dim=4,
+                dim_mult=[1, 2, 4],
+                num_res_blocks=1,
+                temperal_downsample=[False, True],
+                # fmt: off
+                latents_mean=[0.0] * 4,
+                latents_std=[1.0] * 4,
+                # fmt: on            
+            ),            
+        ],    
+        [
+            "scheduler",
+            "diffusers.schedulers.scheduling_flow_match_euler_discrete.FlowMatchEulerDiscreteScheduler",
+            "mindone.diffusers.schedulers.scheduling_flow_match_euler_discrete.FlowMatchEulerDiscreteScheduler",
+            dict(),
+        ],
+        [
+            "text_encoder",
+            "transformers.models.qwen2_5_vl.modeling_qwen2_5_vl.Qwen2_5_VLForConditionalGeneration",
+            "mindone.transformers.models.qwen2_5_vl.modeling_qwen2_5_vl.Qwen2_5_VLForConditionalGeneration",
+            dict(
+                config=Qwen2_5_VLConfig(
+                    text_config={
+                        "hidden_size": 16,
+                        "intermediate_size": 16,
+                        "num_hidden_layers": 2,
+                        "num_attention_heads": 2,
+                        "num_key_value_heads": 2,
+                        "rope_scaling": {
+                            "mrope_section": [1, 1, 2],
+                            "rope_type": "default",
+                            "type": "default",
+                        },
+                        "rope_theta": 1000000.0,
+                    },
+                    vision_config={
+                        "depth": 2,
+                        "hidden_size": 16,
+                        "intermediate_size": 16,
+                        "num_heads": 2,
+                        "out_hidden_size": 16,
+                    },
+                    attention_dropout=0.0,
+                    num_hidden_layers=2,
+                    num_attention_heads=2,
+                    num_key_value_heads=2,
+                    rms_norm_eps=1e-06,
+                    max_position_embeddings=128000,
+                    hidden_size=16,
+                    hidden_act="silu",
+                    intermediate_size=16,
+                    initializer_range=0.02,
+                    vocab_size=152064,
+                    vision_end_token_id=151653,
+                    vision_start_token_id=151652,
+                    vision_token_id=151654,
+                    sliding_window=32768, #None
+                    use_sliding_window=False,
+                    use_cache=True,
+                    attn_implementation="eager",
+                    rope_scaling={
+                        "mrope_section": [1, 1, 2],
+                        "rope_type": "default",
+                        "type": "default",
+                    },
+                    rope_theta=1000000.0,
+                ),
+            ),
+        ],
+        [
+            "tokenizer",
+            "transformers.models.qwen2.tokenization_qwen2.Qwen2Tokenizer",
+            "transformers.models.qwen2.tokenization_qwen2.Qwen2Tokenizer",
+            dict(
+                # pretrained_model_name_or_path="hf-internal-testing/tiny-random-Qwen2VLForConditionalGeneration"
+                # pretrained_model_name_or_path="./hf-internal-testing/tiny-random-Qwen2VLForConditionalGeneration",
+                pretrained_model_name_or_path="tests/diffusers_tests/pipelines/qwenimage/hf-internal-testing/tiny-random-Qwen2VLForConditionalGeneration",
+                local_files_only=True,
+                trust_remote_code=True,
+            ),
+        ],
+    ]
 
     def get_dummy_components(self):
-        torch.manual_seed(0)
-        transformer = QwenImageTransformer2DModel(
-            patch_size=2,
-            in_channels=16,
-            out_channels=4,
-            num_layers=2,
-            attention_head_dim=16,
-            num_attention_heads=3,
-            joint_attention_dim=16,
-            guidance_embeds=False,
-            axes_dims_rope=(8, 4, 4),
-        )
-
-        torch.manual_seed(0)
-        z_dim = 4
-        vae = AutoencoderKLQwenImage(
-            base_dim=z_dim * 6,
-            z_dim=z_dim,
-            dim_mult=[1, 2, 4],
-            num_res_blocks=1,
-            temperal_downsample=[False, True],
-            latents_mean=[0.0] * 4,
-            latents_std=[1.0] * 4,
-        )
-
-        torch.manual_seed(0)
-        scheduler = FlowMatchEulerDiscreteScheduler()
-
-        torch.manual_seed(0)
-        config = Qwen2_5_VLConfig(
-            text_config={
-                "hidden_size": 16,
-                "intermediate_size": 16,
-                "num_hidden_layers": 2,
-                "num_attention_heads": 2,
-                "num_key_value_heads": 2,
-                "rope_scaling": {
-                    "mrope_section": [1, 1, 2],
-                    "rope_type": "default",
-                    "type": "default",
-                },
-                "rope_theta": 1000000.0,
-            },
-            vision_config={
-                "depth": 2,
-                "hidden_size": 16,
-                "intermediate_size": 16,
-                "num_heads": 2,
-                "out_hidden_size": 16,
-            },
-            hidden_size=16,
-            vocab_size=152064,
-            vision_end_token_id=151653,
-            vision_start_token_id=151652,
-            vision_token_id=151654,
-        )
-        text_encoder = Qwen2_5_VLForConditionalGeneration(config)
-        tokenizer = Qwen2Tokenizer.from_pretrained("hf-internal-testing/tiny-random-Qwen2VLForConditionalGeneration")
-
-        return {
-            "transformer": transformer,
-            "vae": vae,
-            "scheduler": scheduler,
-            "text_encoder": text_encoder,
-            "tokenizer": tokenizer,
+        components = {
+            key: None
+            for key in [
+                "transformer",
+                "vae",
+                "scheduler",
+                "text_encoder",
+                "tokenizer",                
+            ]
         }
+        return get_pipeline_components(components, self.pipeline_config)
 
-    def get_dummy_inputs(self, device, seed=0):
-        image = floats_tensor((1, 3, 32, 32), rng=random.Random(seed)).to(device)
-        if str(device).startswith("mps"):
-            generator = torch.manual_seed(seed)
-        else:
-            generator = torch.Generator(device="cpu").manual_seed(seed)
-
+    def get_dummy_inputs(self):
+        image = floats_tensor((1, 3, 32, 32), rng=random.Random(0))
         inputs = {
             "image": image,
             "prompt": "dance monkey",
             "negative_prompt": "bad quality",
-            "generator": generator,
             "num_inference_steps": 2,
             "guidance_scale": 3.0,
             "true_cfg_scale": 1.0,
             "height": 32,
             "width": 32,
             "max_sequence_length": 16,
-            "output_type": "pt",
+            "output_type": "np",
         }
 
         return inputs
 
-    def test_inference(self):
-        device = "cpu"
+    @data(*test_cases)
+    @unpack
+    def test_inference(self, mode, dtype):
+        ms.set_context(mode=mode)
 
-        components = self.get_dummy_components()
-        pipe = self.pipeline_class(**components)
-        pipe.to(device)
-        pipe.set_progress_bar_config(disable=None)
+        pt_components, ms_components = self.get_dummy_components()
+        pt_pipe_cls = get_module("diffusers.pipelines.qwenimage.QwenImageImg2ImgPipeline")
+        ms_pipe_cls = get_module("mindone.diffusers.pipelines.qwenimage.QwenImageImg2ImgPipeline")
 
-        inputs = self.get_dummy_inputs(device)
-        image = pipe(**inputs).images
-        generated_image = image[0]
-        self.assertEqual(generated_image.shape, (3, 32, 32))
+        pt_pipe = pt_pipe_cls(**pt_components)
+        ms_pipe = ms_pipe_cls(**ms_components)
 
-    def test_inference_batch_single_identical(self):
-        self._test_inference_batch_single_identical(batch_size=3, expected_max_diff=1e-1)
+        pt_pipe.set_progress_bar_config(disable=None)
+        ms_pipe.set_progress_bar_config(disable=None)
 
-    def test_attention_slicing_forward_pass(
-        self, test_max_difference=True, test_mean_pixel_difference=True, expected_max_diff=1e-3
-    ):
-        if not self.test_attention_slicing:
-            return
+        ms_dtype, pt_dtype = getattr(ms, dtype), getattr(torch, dtype)
+        pt_pipe = pt_pipe.to(pt_dtype)
+        ms_pipe = ms_pipe.to(ms_dtype)
 
-        components = self.get_dummy_components()
-        pipe = self.pipeline_class(**components)
-        for component in pipe.components.values():
-            if hasattr(component, "set_default_attn_processor"):
-                component.set_default_attn_processor()
-        pipe.to(torch_device)
-        pipe.set_progress_bar_config(disable=None)
+        inputs = self.get_dummy_inputs()
 
-        generator_device = "cpu"
-        inputs = self.get_dummy_inputs(generator_device)
-        output_without_slicing = pipe(**inputs).images[0]
+        torch.manual_seed(0)
+        pt_image = pt_pipe(**inputs).images
+        torch.manual_seed(0)
+        ms_image = ms_pipe(**inputs)[0]
 
-        pipe.enable_attention_slicing(slice_size=1)
-        inputs = self.get_dummy_inputs(generator_device)
-        output_with_slicing1 = pipe(**inputs).images[0]
+        pt_generated_image = pt_image[0]
+        ms_generated_image = ms_image[0]
 
-        pipe.enable_attention_slicing(slice_size=2)
-        inputs = self.get_dummy_inputs(generator_device)
-        output_with_slicing2 = pipe(**inputs).images[0]
+        threshold = THRESHOLD_FP32 if dtype == "float32" else THRESHOLD_FP16
+        assert np.max(np.linalg.norm(pt_generated_image - ms_generated_image) / np.linalg.norm(pt_generated_image)) < threshold
 
-        if test_max_difference:
-            max_diff1 = np.abs(to_np(output_with_slicing1) - to_np(output_without_slicing)).max()
-            max_diff2 = np.abs(to_np(output_with_slicing2) - to_np(output_without_slicing)).max()
-            self.assertLess(
-                max(max_diff1, max_diff2),
-                expected_max_diff,
-                "Attention slicing should not affect the inference results",
-            )
 
-    def test_vae_tiling(self, expected_diff_max: float = 0.2):
-        generator_device = "cpu"
-        components = self.get_dummy_components()
+@slow
+@ddt
+class QwenImageImg2ImgPipelineIntegrationTests(PipelineTesterMixin, unittest.TestCase):
+    @data(*test_cases)
+    @unpack
+    def test_inference(self, mode, dtype):
+        if dtype == "float32":
+            pytest.skip("Skipping this case since this pipeline will OOM in float32")
 
-        pipe = self.pipeline_class(**components)
-        pipe.to("cpu")
-        pipe.set_progress_bar_config(disable=None)
+        ms.set_context(mode=mode)
+        ms_dtype = getattr(ms, dtype)
+        
+        # model_id = "Qwen/Qwen-Image"
+        model_id = "/data6/Qwen-Image"
+        image = floats_tensor((1, 3, 32, 32), rng=random.Random(0))  # load given image
 
-        # Without tiling
-        inputs = self.get_dummy_inputs(generator_device)
-        inputs["height"] = inputs["width"] = 128
-        output_without_tiling = pipe(**inputs)[0]
+        pipe = QwenImageImg2ImgPipeline.from_pretrained(model_id, mindspore_dtype=ms_dtype)
 
-        # With tiling
-        pipe.vae.enable_tiling(
-            tile_sample_min_height=96,
-            tile_sample_min_width=96,
-            tile_sample_stride_height=64,
-            tile_sample_stride_width=64,
+        pipe.vae.enable_tiling()
+
+        torch.manual_seed(0)
+        image = pipe(
+            image=image,
+            prompt="dance monkey",
+            negative_prompt="bad quality",
+        )[0][0]
+
+        # The text_coder causes deviations between ms and pt versions. However, the deviation\
+        # is within THRESHOLD_PIXEL when using the same intermediate results of text_encoder.
+        expected_image = load_numpy_from_local_file(
+            # "mindone-testing-arrays",
+            "/data4/mindone-testing-arrays",
+            f"qwenimage_i2i_{dtype}.npy",
+            subfolder="qwenimage",
         )
-        inputs = self.get_dummy_inputs(generator_device)
-        inputs["height"] = inputs["width"] = 128
-        output_with_tiling = pipe(**inputs)[0]
 
-        self.assertLess(
-            (to_np(output_without_tiling) - to_np(output_with_tiling)).max(),
-            expected_diff_max,
-            "VAE tiling should not affect the inference results",
-        )
+        assert np.mean(np.abs(np.array(image, dtype=np.float32) - expected_image)) < THRESHOLD_PIXEL

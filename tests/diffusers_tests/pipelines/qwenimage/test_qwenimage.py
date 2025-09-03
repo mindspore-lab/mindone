@@ -165,7 +165,6 @@ class QwenImagePipelineFastTests(PipelineTesterMixin, unittest.TestCase):
                 "tokenizer",                
             ]
         }
-
         return get_pipeline_components(components, self.pipeline_config)
 
 
