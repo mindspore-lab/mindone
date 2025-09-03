@@ -105,7 +105,7 @@ class BrosModelTester:
             token_type_ids = ids_numpy([self.batch_size, self.seq_length], self.type_vocab_size)
 
         # Create bbox tensor with shape [batch_size, seq_length, dim_bbox]
-        bbox = np.random.randint(0, 1000, size=(self.batch_size, self.seq_length, self.dim_bbox), dtype=np.float32) / 1000.0
+        bbox = np.random.randint(0, 1000, size=(self.batch_size, self.seq_length, self.dim_bbox)).astype(np.float32) / 1000.0
 
         sequence_labels = None
         token_labels = None
