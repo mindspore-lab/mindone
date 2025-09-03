@@ -814,6 +814,14 @@ from .models.nystromformer import (
 )
 from .models.olmo import OlmoForCausalLM, OlmoModel, OlmoPreTrainedModel
 from .models.olmo2 import Olmo2ForCausalLM, Olmo2Model, Olmo2PreTrainedModel
+from .models.oneformer import (
+    OneFormerForUniversalSegmentation,
+    OneFormerImageProcessor,
+    OneFormerModel,
+    OneFormerPreTrainedModel,
+    OneFormerProcessor,
+    OneFormerImageProcessor,
+)
 from .models.opt import (
     OPTForCausalLM,
     OPTForQuestionAnswering,
