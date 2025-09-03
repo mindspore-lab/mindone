@@ -1,3 +1,4 @@
+import transformers
 from packaging import version
 
 from . import (
