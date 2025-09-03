@@ -1,3 +1,4 @@
+# Adapted from https://github.com/kohya-ss/sd-scripts/blob/main/library/train_util.py
 # common functions for training
 
 import argparse

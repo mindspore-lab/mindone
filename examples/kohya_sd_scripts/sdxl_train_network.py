@@ -1,3 +1,5 @@
+# Adapted from https://github.com/kohya-ss/sd-scripts/blob/main/sdxl_train_network.py
+
 import argparse
 
 import train_network

@@ -1,3 +1,4 @@
+# Adapted from https://github.com/pytorch/pytorch/blob/main/torch/nn/functional.py
 # reference to https://pytorch.org/
 
 from typing import Optional, Tuple

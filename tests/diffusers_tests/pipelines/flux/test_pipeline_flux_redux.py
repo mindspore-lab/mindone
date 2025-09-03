@@ -1,3 +1,5 @@
+"""Adapted from https://github.com/huggingface/diffusers/tree/main/tests//pipelines/flux/test_pipeline_flux_redux.py."""
+
 import unittest
 
 import numpy as np
@@ -7,11 +9,7 @@ from ddt import data, ddt, unpack
 import mindspore as ms
 
 from mindone.diffusers import FluxPipeline, FluxPriorReduxPipeline
-from mindone.diffusers.utils.testing_utils import (
-    load_downloaded_image_from_hf_hub,
-    load_downloaded_numpy_from_hf_hub,
-    slow,
-)
+from mindone.diffusers.utils.testing_utils import load_downloaded_image_from_hf_hub, load_numpy_from_local_file, slow
 
 from ..pipeline_test_utils import THRESHOLD_PIXEL, PipelineTesterMixin
 
@@ -52,8 +50,8 @@ class FluxReduxSlowTests(PipelineTesterMixin, unittest.TestCase):
             pooled_prompt_embeds=pooled_prompt_embeds,
         )[0][0]
 
-        expected_image = load_downloaded_numpy_from_hf_hub(
-            "The-truth/mindone-testing-arrays",
+        expected_image = load_numpy_from_local_file(
+            "mindone-testing-arrays",
             f"redux_{dtype}.npy",
             subfolder="flux",
         )

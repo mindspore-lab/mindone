@@ -1,3 +1,5 @@
+"""Adapted from https://github.com/huggingface/diffusers/tree/main/src/diffusers/models/transformers/prior_transformer.py."""
+
 from dataclasses import dataclass
 from typing import Dict, Optional, Union
 
@@ -11,7 +13,6 @@ from ..attention import BasicTransformerBlock
 from ..attention_processor import CROSS_ATTENTION_PROCESSORS, AttentionProcessor, AttnProcessor
 from ..embeddings import TimestepEmbedding, Timesteps
 from ..modeling_utils import ModelMixin
-from ..normalization import LayerNorm
 
 
 @dataclass
@@ -55,7 +56,7 @@ class PriorTransformer(ModelMixin, ConfigMixin, UNet2DConditionLoadersMixin, Pef
         added_emb_type (`str`, *optional*, defaults to `prd`): Additional embeddings to condition the model.
             Choose from `prd` or `None`. if choose `prd`, it will prepend a token indicating the (quantized) dot
             product between the text embedding and image embedding as proposed in the unclip paper
-            https://arxiv.org/abs/2204.06125 If it is `None`, no additional embeddings will be prepended.
+            https://huggingface.co/papers/2204.06125 If it is `None`, no additional embeddings will be prepended.
         time_embed_dim (`int, *optional*, defaults to None): The dimension of timestep embeddings.
             If None, will be set to `num_attention_heads * attention_head_dim`
         embedding_proj_dim (`int`, *optional*, default to None):
@@ -101,7 +102,7 @@ class PriorTransformer(ModelMixin, ConfigMixin, UNet2DConditionLoadersMixin, Pef
         if embedding_proj_norm_type is None:
             self.embedding_proj_norm = None
         elif embedding_proj_norm_type == "layer":
-            self.embedding_proj_norm = LayerNorm(embedding_proj_dim)
+            self.embedding_proj_norm = mint.nn.LayerNorm(embedding_proj_dim)
         else:
             raise ValueError(f"unsupported embedding_proj_norm_type: {embedding_proj_norm_type}")
 
@@ -142,13 +143,13 @@ class PriorTransformer(ModelMixin, ConfigMixin, UNet2DConditionLoadersMixin, Pef
         )
 
         if norm_in_type == "layer":
-            self.norm_in = LayerNorm(inner_dim)
+            self.norm_in = mint.nn.LayerNorm(inner_dim)
         elif norm_in_type is None:
             self.norm_in = None
         else:
             raise ValueError(f"Unsupported norm_in_type: {norm_in_type}.")
 
-        self.norm_out = LayerNorm(inner_dim)
+        self.norm_out = mint.nn.LayerNorm(inner_dim)
 
         self.proj_to_clip_embeddings = mint.nn.Linear(inner_dim, clip_embed_dim)
 
@@ -270,7 +271,7 @@ class PriorTransformer(ModelMixin, ConfigMixin, UNet2DConditionLoadersMixin, Pef
         timesteps = timestep
         # todo: unavailable mint interface
         if not ops.is_tensor(timesteps):
-            timesteps = ms.Tensor([timesteps], dtype=ms.int64)
+            timesteps = ms.tensor([timesteps], dtype=ms.int64)
         # todo: unavailable mint interface
         elif ops.is_tensor(timesteps) and len(timesteps.shape) == 0:
             timesteps = timesteps[None]
@@ -346,7 +347,11 @@ class PriorTransformer(ModelMixin, ConfigMixin, UNet2DConditionLoadersMixin, Pef
             attention_mask = (1 - attention_mask.to(hidden_states.dtype)) * -10000.0
             attention_mask = mint.nn.functional.pad(attention_mask, (0, self.additional_embeddings), value=0.0)
             attention_mask = (attention_mask[:, None, :] + self.causal_attention_mask).to(hidden_states.dtype)
-            attention_mask = attention_mask.repeat_interleave(self.config["num_attention_heads"], dim=0)
+            attention_mask = attention_mask.repeat_interleave(
+                self.config["num_attention_heads"],
+                dim=0,
+                output_size=attention_mask.shape[0] * self.config["num_attention_heads"],
+            )
 
         if self.norm_in is not None:
             hidden_states = self.norm_in(hidden_states)

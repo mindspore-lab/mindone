@@ -1,3 +1,5 @@
+# Adapted from https://github.com/VectorSpaceLab/OmniGen/blob/main/OmniGen/train_helper/loss.py
+
 from mindspore import ops
 
 

@@ -1,6 +1,9 @@
 # coding=utf-8
 # Copyright 2024 the HuggingFace Inc. team. All rights reserved.
 #
+# This code is adapted from https://github.com/huggingface/transformers
+# with modifications to run transformers on mindspore.
+#
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -43,7 +46,7 @@ if is_flash_attn_2_available:
 import inspect
 
 from mindone.transformers.mindspore_adapter.paged_attention_block_tables import BlockTables
-from mindone.transformers.mindspore_adapter.utils import _MIN_FP16, dtype_to_min
+from mindone.transformers.mindspore_adapter.utils import dtype_to_min
 
 from ...mindspore_adapter import dtype_to_max
 from ..qwen2 import Qwen2ForCausalLM, modeling_qwen2
@@ -221,11 +224,11 @@ class Qwen2AudioFlashAttention2(Qwen2AudioAttention):
                 attention_mask = 1 - attention_mask
                 attention_mask = attention_mask.to(ms.uint8)
             else:
-                attention_mask = attention_mask.to(ms.float16)
-                attention_mask = ops.select(
-                    ops.equal(attention_mask, _MIN_FP16),
-                    ops.ones((), ms.uint8),
-                    ops.zeros((), ms.uint8),
+                min_dtype = dtype_to_min(attention_mask.dtype)
+                attention_mask = mint.where(
+                    attention_mask == min_dtype,
+                    mint.ones((), dtype=ms.uint8),
+                    mint.zeros((), dtype=ms.uint8),
                 )
 
         return attention_mask

@@ -1,3 +1,5 @@
+"""Adapted from https://github.com/huggingface/diffusers/tree/main/src/diffusers/pipelines/deepfloyd_if/pipeline_if.py."""
+
 import html
 import inspect
 import re
@@ -10,25 +12,22 @@ from transformers import CLIPImageProcessor, T5Tokenizer
 import mindspore as ms
 from mindspore import mint
 
-from ....transformers import T5EncoderModel
-from ...loaders import LoraLoaderMixin
+from mindone.transformers import T5EncoderModel
+
+from ...loaders import StableDiffusionLoraLoaderMixin
 from ...models import UNet2DConditionModel
 from ...schedulers import DDPMScheduler
-from ...utils import (
-    BACKENDS_MAPPING,
-    is_bs4_available,
-    is_ftfy_available,
-    logging,
-    scale_lora_layers,
-    unscale_lora_layers,
-)
+from ...utils import BACKENDS_MAPPING, is_bs4_available, is_ftfy_available, logging
 from ...utils.mindspore_utils import randn_tensor
 from ..pipeline_utils import DiffusionPipeline
 from .pipeline_output import IFPipelineOutput
 from .safety_checker import IFSafetyChecker
 from .watermark import IFWatermarker
 
+XLA_AVAILABLE = False
+
 logger = logging.get_logger(__name__)  # pylint: disable=invalid-name
+
 
 if is_bs4_available():
     from bs4 import BeautifulSoup
@@ -56,7 +55,7 @@ EXAMPLE_DOC_STRING = """
         >>> pil_image[0].save("./if_stage_I.png")
 
         >>> super_res_1_pipe = IFSuperResolutionPipeline.from_pretrained(
-        ...     "DeepFloyd/IF-II-L-v1.0", text_encoder=None, use_safetensors=True, mindspore_dtype=mindspore.float16
+        ...     "DeepFloyd/IF-II-L-v1.0", text_encoder=None, variant="fp16", mindspore_dtype=mindspore.float16
         ... )
 
         >>> image = super_res_1_pipe(
@@ -65,12 +64,27 @@ EXAMPLE_DOC_STRING = """
 
         >>> # save intermediate image
         >>> pil_image = ms_to_pil(image)
-        >>> pil_image[0].save("./if_stage_II.png")
+        >>> pil_image[0].save("./if_stage_I.png")
+
+        >>> safety_modules = {
+        ...     "feature_extractor": pipe.feature_extractor,
+        ...     "safety_checker": pipe.safety_checker,
+        ...     "watermarker": pipe.watermarker,
+        ... }
+        >>> super_res_2_pipe = DiffusionPipeline.from_pretrained(
+        ...     "stabilityai/stable-diffusion-x4-upscaler", **safety_modules, mindspore_dtype=mindspore.float16
+        ... )
+
+        >>> image = super_res_2_pipe(
+        ...     prompt=prompt,
+        ...     image=image,
+        ... )[0]
+        >>> image[0].save("./if_stage_II.png")
         ```
 """
 
 
-class IFPipeline(DiffusionPipeline, LoraLoaderMixin):
+class IFPipeline(DiffusionPipeline, StableDiffusionLoraLoaderMixin):
     tokenizer: T5Tokenizer
     text_encoder: T5EncoderModel
 
@@ -100,6 +114,7 @@ class IFPipeline(DiffusionPipeline, LoraLoaderMixin):
 
     _optional_components = ["tokenizer", "text_encoder", "safety_checker", "feature_extractor", "watermarker"]
     model_cpu_offload_seq = "text_encoder->unet"
+    _exclude_from_cpu_offload = ["watermarker"]
 
     def __init__(
         self,
@@ -214,7 +229,7 @@ class IFPipeline(DiffusionPipeline, LoraLoaderMixin):
                     f" {max_length} tokens: {removed_text}"
                 )
 
-            attention_mask = ms.Tensor.from_numpy(text_inputs.attention_mask)
+            attention_mask = ms.tensor(text_inputs.attention_mask)
 
             prompt_embeds = self.text_encoder(
                 ms.tensor(text_input_ids),
@@ -263,10 +278,10 @@ class IFPipeline(DiffusionPipeline, LoraLoaderMixin):
                 add_special_tokens=True,
                 return_tensors="np",
             )
-            attention_mask = ms.Tensor.from_numpy(uncond_input.attention_mask)
+            attention_mask = ms.tensor(uncond_input.attention_mask)
 
             negative_prompt_embeds = self.text_encoder(
-                ms.Tensor.from_numpy(uncond_input.input_ids),
+                ms.tensor(uncond_input.input_ids),
                 attention_mask=attention_mask,
             )
             negative_prompt_embeds = negative_prompt_embeds[0]
@@ -290,16 +305,11 @@ class IFPipeline(DiffusionPipeline, LoraLoaderMixin):
 
     def run_safety_checker(self, image, dtype):
         if self.safety_checker is not None:
-            safety_checker_input = self.feature_extractor(self.numpy_to_pil(image.numpy()), return_tensors="np")
+            safety_checker_input = self.feature_extractor(self.numpy_to_pil(image), return_tensors="np")
             image, nsfw_detected, watermark_detected = self.safety_checker(
                 images=image,
-                clip_input=ms.Tensor.from_numpy(safety_checker_input.pixel_values).to(dtype=dtype),
+                clip_input=ms.tensor(safety_checker_input.pixel_values).to(dtype=dtype),
             )
-            if mint.any(mint.cat([nsfw_detected[..., None].int(), watermark_detected[..., None].int()], dim=1), dim=1):
-                logger.warning(
-                    "Potential NSFW or watermarked content was detected in one or more images. A black image will be returned instead."
-                    " Try again with a different prompt and/or seed."
-                )
         else:
             nsfw_detected = None
             watermark_detected = None
@@ -310,7 +320,7 @@ class IFPipeline(DiffusionPipeline, LoraLoaderMixin):
     def prepare_extra_step_kwargs(self, generator, eta):
         # prepare extra kwargs for the scheduler step, since not all schedulers have the same signature
         # eta (η) is only used with the DDIMScheduler, it will be ignored for other schedulers.
-        # eta corresponds to η in DDIM paper: https://arxiv.org/abs/2010.02502
+        # eta corresponds to η in DDIM paper: https://huggingface.co/papers/2010.02502
         # and should be between [0, 1]
 
         accepts_eta = "eta" in set(inspect.signature(self.scheduler.step).parameters.keys())
@@ -458,7 +468,7 @@ class IFPipeline(DiffusionPipeline, LoraLoaderMixin):
         # &amp
         caption = re.sub(r"&amp", "", caption)
 
-        # ip adresses:
+        # ip addresses:
         caption = re.sub(r"\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}", " ", caption)
 
         # article ids:
@@ -553,11 +563,11 @@ class IFPipeline(DiffusionPipeline, LoraLoaderMixin):
                 Custom timesteps to use for the denoising process. If not defined, equal spaced `num_inference_steps`
                 timesteps are used. Must be in descending order.
             guidance_scale (`float`, *optional*, defaults to 7.0):
-                Guidance scale as defined in [Classifier-Free Diffusion Guidance](https://arxiv.org/abs/2207.12598).
-                `guidance_scale` is defined as `w` of equation 2. of [Imagen
-                Paper](https://arxiv.org/pdf/2205.11487.pdf). Guidance scale is enabled by setting `guidance_scale >
-                1`. Higher guidance scale encourages to generate images that are closely linked to the text `prompt`,
-                usually at the expense of lower image quality.
+                Guidance scale as defined in [Classifier-Free Diffusion
+                Guidance](https://huggingface.co/papers/2207.12598). `guidance_scale` is defined as `w` of equation 2.
+                of [Imagen Paper](https://huggingface.co/papers/2205.11487). Guidance scale is enabled by setting
+                `guidance_scale > 1`. Higher guidance scale encourages to generate images that are closely linked to
+                the text `prompt`, usually at the expense of lower image quality.
             negative_prompt (`str` or `List[str]`, *optional*):
                 The prompt or prompts not to guide the image generation. If not defined, one has to pass
                 `negative_prompt_embeds` instead. Ignored when not using guidance (i.e., ignored if `guidance_scale` is
@@ -569,8 +579,8 @@ class IFPipeline(DiffusionPipeline, LoraLoaderMixin):
             width (`int`, *optional*, defaults to self.unet.config.sample_size):
                 The width in pixels of the generated image.
             eta (`float`, *optional*, defaults to 0.0):
-                Corresponds to parameter eta (η) in the DDIM paper: https://arxiv.org/abs/2010.02502. Only applies to
-                [`schedulers.DDIMScheduler`], will be ignored for others.
+                Corresponds to parameter eta (η) in the DDIM paper: https://huggingface.co/papers/2010.02502. Only
+                applies to [`schedulers.DDIMScheduler`], will be ignored for others.
             generator (`np.random.Generator` or `List[np.random.Generator]`, *optional*):
                 One or a list of [torch generator(s)](https://pytorch.org/docs/stable/generated/torch.Generator.html)
                 to make generation deterministic.
@@ -625,7 +635,7 @@ class IFPipeline(DiffusionPipeline, LoraLoaderMixin):
             batch_size = prompt_embeds.shape[0]
 
         # here `guidance_scale` is defined analog to the guidance weight `w` of equation (2)
-        # of the Imagen paper: https://arxiv.org/pdf/2205.11487.pdf . `guidance_scale = 1`
+        # of the Imagen paper: https://huggingface.co/papers/2205.11487 . `guidance_scale = 1`
         # corresponds to doing no classifier free guidance.
         do_classifier_free_guidance = guidance_scale > 1.0
 
@@ -668,13 +678,6 @@ class IFPipeline(DiffusionPipeline, LoraLoaderMixin):
         # 6. Prepare extra step kwargs. TODO: Logic should ideally just be moved out of the pipeline
         extra_step_kwargs = self.prepare_extra_step_kwargs(generator, eta)
 
-        # we're popping the `scale` instead of getting it because otherwise `scale` will be propagated
-        # to the unet and will raise RuntimeError.
-        lora_scale = cross_attention_kwargs.pop("scale", None) if cross_attention_kwargs is not None else None
-        if lora_scale is not None:
-            # weight the lora layers by setting `lora_scale` for each PEFT layer
-            scale_lora_layers(self.unet, lora_scale)
-
         # 7. Denoising loop
         num_warmup_steps = len(timesteps) - num_inference_steps * self.scheduler.order
         with self.progress_bar(total=num_inference_steps) as progress_bar:
@@ -682,11 +685,7 @@ class IFPipeline(DiffusionPipeline, LoraLoaderMixin):
                 model_input = (
                     mint.cat([intermediate_images] * 2) if do_classifier_free_guidance else intermediate_images
                 )
-                # TODO: method of scheduler should not change the dtype of input.
-                #  Remove the casting after cuiyushi confirm that.
-                tmp_dtype = model_input.dtype
                 model_input = self.scheduler.scale_model_input(model_input, t)
-                model_input = model_input.to(tmp_dtype)
 
                 # predict the noise residual
                 noise_pred = self.unet(
@@ -709,13 +708,9 @@ class IFPipeline(DiffusionPipeline, LoraLoaderMixin):
                     noise_pred, _ = noise_pred.split(model_input.shape[1], dim=1)
 
                 # compute the previous noisy sample x_t -> x_t-1
-                # TODO: method of scheduler should not change the dtype of input.
-                #  Remove the casting after cuiyushi confirm that.
-                tmp_dtype = intermediate_images.dtype
                 intermediate_images = self.scheduler.step(
                     noise_pred, t, intermediate_images, **extra_step_kwargs, return_dict=False
                 )[0]
-                intermediate_images = intermediate_images.to(tmp_dtype)
 
                 # call the callback, if provided
                 if i == len(timesteps) - 1 or ((i + 1) > num_warmup_steps and (i + 1) % self.scheduler.order == 0):
@@ -723,22 +718,18 @@ class IFPipeline(DiffusionPipeline, LoraLoaderMixin):
                     if callback is not None and i % callback_steps == 0:
                         callback(i, t, intermediate_images)
 
-        if lora_scale is not None:
-            # remove `lora_scale` from each PEFT layer
-            unscale_lora_layers(self.unet, lora_scale)
-
         image = intermediate_images
 
         if output_type == "pil":
             # 8. Post-processing
             image = (image / 2 + 0.5).clamp(0, 1)
-            image = image.permute(0, 2, 3, 1).float()
+            image = image.permute(0, 2, 3, 1).float().numpy()
 
             # 9. Run safety checker
             image, nsfw_detected, watermark_detected = self.run_safety_checker(image, prompt_embeds.dtype)
 
             # 10. Convert to PIL
-            image = self.numpy_to_pil(image.numpy())
+            image = self.numpy_to_pil(image)
 
             # 11. Apply watermark
             if self.watermarker is not None:
@@ -749,11 +740,10 @@ class IFPipeline(DiffusionPipeline, LoraLoaderMixin):
         else:
             # 8. Post-processing
             image = (image / 2 + 0.5).clamp(0, 1)
-            image = image.permute(0, 2, 3, 1).float()
+            image = image.permute(0, 2, 3, 1).float().numpy()
 
             # 9. Run safety checker
             image, nsfw_detected, watermark_detected = self.run_safety_checker(image, prompt_embeds.dtype)
-            image = image.numpy()
 
         if not return_dict:
             return (image, nsfw_detected, watermark_detected)

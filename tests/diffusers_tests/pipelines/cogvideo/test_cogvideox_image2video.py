@@ -1,4 +1,7 @@
-# Copyright 2024 The HuggingFace Team.
+# Copyright 2025 The HuggingFace Team.
+#
+# This code is adapted from https://github.com/huggingface/diffusers
+# with modifications to run diffusers on mindspore.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -21,11 +24,7 @@ from PIL import Image
 
 import mindspore as ms
 
-from mindone.diffusers.utils.testing_utils import (
-    load_downloaded_image_from_hf_hub,
-    load_downloaded_numpy_from_hf_hub,
-    slow,
-)
+from mindone.diffusers.utils.testing_utils import load_downloaded_image_from_hf_hub, load_numpy_from_local_file, slow
 
 from ..pipeline_test_utils import (
     THRESHOLD_FP16,
@@ -224,8 +223,8 @@ class CogVideoXImageToVideoPipelineIntegrationTests(PipelineTesterMixin, unittes
         )[0]
 
         video = videos[0]
-        expected_video = load_downloaded_numpy_from_hf_hub(
-            "The-truth/mindone-testing-arrays",
+        expected_video = load_numpy_from_local_file(
+            "mindone-testing-arrays",
             f"cogvideox_image2video_{dtype}.npy",
             subfolder="cogvideo",
         )

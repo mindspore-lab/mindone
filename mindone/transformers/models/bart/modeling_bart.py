@@ -1,6 +1,9 @@
 # coding=utf-8
 # Copyright 2021 The Fairseq Authors and The HuggingFace Inc. team. All rights reserved.
 #
+# This code is adapted from https://github.com/huggingface/transformers
+# with modifications to run transformers on mindspore.
+#
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -37,11 +40,11 @@ from mindspore.nn import BCEWithLogitsLoss, CrossEntropyLoss, MSELoss
 from ...activations import ACT2FN
 from ...generation import GenerationMixin
 from ...modeling_attn_mask_utils import (
-    _MIN_FP16,
     _prepare_4d_attention_mask,
     _prepare_4d_attention_mask_for_sdpa,
     _prepare_4d_causal_attention_mask,
     _prepare_4d_causal_attention_mask_for_sdpa,
+    dtype_to_min,
 )
 from ...modeling_outputs import (
     BaseModelOutput,
@@ -314,11 +317,11 @@ class BartFlashAttention2(BartAttention):
                 attention_mask = attention_mask.to(ms.uint8)
             else:
                 # attention_mask has beed inverted before in _prepare_4d_causal_mask: 0: retain, -inf: discard
-                attention_mask = attention_mask.to(ms.float16)
-                attention_mask = ops.select(
-                    ops.equal(attention_mask, _MIN_FP16),
-                    ops.ones((), ms.uint8),
-                    ops.zeros((), ms.uint8),
+                min_dtype = dtype_to_min(attention_mask.dtype)
+                attention_mask = mint.where(
+                    attention_mask == min_dtype,
+                    mint.ones((), dtype=ms.uint8),
+                    mint.zeros((), dtype=ms.uint8),
                 )
 
         return attention_mask
@@ -1457,7 +1460,7 @@ class BartForConditionalGeneration(BartPreTrainedModel, GenerationMixin):
         super().__init__(config)
         self.model = BartModel(config)
         self.register_buffer("final_logits_bias", mint.zeros((1, self.model.shared.weight.shape[0])))
-        self.lm_head = mint.nn.Linear(config.d_model, self.model.shared.weight.shape[0], has_bias=False)
+        self.lm_head = mint.nn.Linear(config.d_model, self.model.shared.weight.shape[0], bias=False)
 
         # Initialize weights and apply final processing
         self.post_init()
@@ -1858,7 +1861,7 @@ class BartForCausalLM(BartPreTrainedModel, GenerationMixin):
         super().__init__(config)
         self.model = BartDecoderWrapper(config)
 
-        self.lm_head = mint.nn.Linear(config.hidden_size, config.vocab_size, has_bias=False)
+        self.lm_head = mint.nn.Linear(config.hidden_size, config.vocab_size, bias=False)
 
         # Initialize weights and apply final processing
         self.post_init()

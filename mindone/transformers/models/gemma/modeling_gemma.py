@@ -8,6 +8,9 @@
 # Copyright 2024 Google Inc. HuggingFace Inc. team. All rights reserved.
 #
 #
+# This code is adapted from https://github.com/huggingface/transformers
+# with modifications to run transformers on mindspore.
+#
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -566,6 +569,7 @@ class GemmaModel(GemmaPreTrainedModel):
                     use_cache,
                     cache_position,
                     position_embeddings,
+                    **kwargs,
                 )
             else:
                 layer_outputs = decoder_layer(
@@ -577,6 +581,7 @@ class GemmaModel(GemmaPreTrainedModel):
                     use_cache=use_cache,
                     cache_position=cache_position,
                     position_embeddings=position_embeddings,
+                    **kwargs,
                 )
 
             hidden_states = layer_outputs[0]

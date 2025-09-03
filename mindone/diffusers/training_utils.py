@@ -1,3 +1,5 @@
+"""Adapted from https://github.com/huggingface/diffusers/tree/main/src/diffusers/training_utils.py."""
+
 import contextlib
 import copy
 import logging
@@ -81,9 +83,9 @@ def compute_dream_and_update_latents(
     dream_detail_preservation: float = 1.0,
 ) -> Tuple[Optional[ms.Tensor], Optional[ms.Tensor]]:
     """
-    Implements "DREAM (Diffusion Rectification and Estimation-Adaptive Models)" from http://arxiv.org/abs/2312.00210.
-    DREAM helps align training with sampling to help training be more efficient and accurate at the cost of an extra
-    forward step without gradients.
+    Implements "DREAM (Diffusion Rectification and Estimation-Adaptive Models)" from
+    https://huggingface.co/papers/2312.00210. DREAM helps align training with sampling to help training be more
+    efficient and accurate at the cost of an extra forward step without gradients.
 
     Args:
         `unet`: The state unet to use to make a prediction.
@@ -149,10 +151,18 @@ def _set_state_dict_into_text_encoder(lora_state_dict: Dict[str, ms.Tensor], pre
     """
 
     text_encoder_state_dict = {
-        f'{k.replace(prefix, "")}': v for k, v in lora_state_dict.items() if k.startswith(prefix)
+        f"{k.replace(prefix, '')}": v for k, v in lora_state_dict.items() if k.startswith(prefix)
     }
     text_encoder_state_dict = convert_state_dict_to_peft(convert_state_dict_to_diffusers(text_encoder_state_dict))
     set_peft_model_state_dict(text_encoder, text_encoder_state_dict, adapter_name="default")
+
+
+def _collate_lora_metadata(modules_to_save: Dict[str, nn.Cell]) -> Dict[str, Any]:
+    metadatas = {}
+    for module_name, module in modules_to_save.items():
+        if module is not None:
+            metadatas[f"{module_name}_lora_adapter_metadata"] = module.peft_config["default"].to_dict()
+    return metadatas
 
 
 def compute_density_for_timestep_sampling(
@@ -163,7 +173,7 @@ def compute_density_for_timestep_sampling(
 
     Courtesy: This was contributed by Rafie Walker in https://github.com/huggingface/diffusers/pull/8528.
 
-    SD3 paper reference: https://arxiv.org/abs/2403.03206v1.
+    SD3 paper reference: https://huggingface.co/papers/2403.03206v1.
     """
     if weighting_scheme == "logit_normal":
         # See 3.1 in the SD3 paper ($rf/lognorm(0.00,1.00)$).
@@ -183,7 +193,7 @@ def compute_loss_weighting_for_sd3(weighting_scheme: str, sigmas=None):
 
     Courtesy: This was contributed by Rafie Walker in https://github.com/huggingface/diffusers/pull/8528.
 
-    SD3 paper reference: https://arxiv.org/abs/2403.03206v1.
+    SD3 paper reference: https://huggingface.co/papers/2403.03206v1.
     """
     if weighting_scheme == "sigma_sqrt":
         weighting = (sigmas**-2.0).float()
@@ -585,8 +595,8 @@ class GradAccumulator:
             raise ValueError(f"'gradient_accumulation_steps' must be positive, but got {gradient_accumulation_steps}")
 
         self.gradient_accumulation_steps = gradient_accumulation_steps
-        self.batch_idx = ms.Parameter(ms.Tensor(0, ms.int64), name="batch_idx", requires_grad=False)
-        self.sync_gradients = ms.Parameter(ms.Tensor(True), name="sync_gradients", requires_grad=False)
+        self.batch_idx = ms.Parameter(ms.tensor(0, ms.int64), name="batch_idx", requires_grad=False)
+        self.sync_gradients = ms.Parameter(ms.tensor(True), name="sync_gradients", requires_grad=False)
         self.hyper_map = ops.HyperMap()
 
         if self.sync_with_dataloader and self.length_of_dataloader <= 0:
@@ -660,7 +670,7 @@ class GradScaler:
             self.step = self._maybe_opt_step
         else:
             raise NotImplementedError(f"Unsupported loss scaler: {type(loss_scaler)}")
-        self.all_finite = ms.Parameter(ms.Tensor(True), name="all_finite", requires_grad=False)
+        self.all_finite = ms.Parameter(ms.tensor(True), name="all_finite", requires_grad=False)
 
     def scale(self, inputs):
         return self.loss_scaler.scale(inputs)
@@ -931,7 +941,7 @@ def prepare_train_network(
         )
 
     if isinstance(scale_sense, float):
-        scale_sense = ms.Tensor(scale_sense, ms.float32)
+        scale_sense = ms.tensor(scale_sense, ms.float32)
     train_network = DiffusersTrainOneStepWrapper(
         network,
         optimizer,
@@ -1012,7 +1022,7 @@ class DiffusersTrainOneStepWrapper(TrainOneStepWrapper):
         loss_scaler_file = os.path.join(input_dir, "loss_scaler.ckpt")
         loss_scaler_state_dict = ms.load_checkpoint(loss_scaler_file)
 
-        scale_sense = loss_scaler_state_dict.get("scale_sense", ms.Tensor(1.0, dtype=mstype.float32))
+        scale_sense = loss_scaler_state_dict.get("scale_sense", ms.tensor(1.0, dtype=mstype.float32))
         cur_iter = loss_scaler_state_dict.get("cur_iter", None)
         last_overflow_iter = loss_scaler_state_dict.get("last_overflow_iter", None)
 

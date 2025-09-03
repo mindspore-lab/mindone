@@ -1,3 +1,4 @@
+# Adapted from https://github.com/Doubiiu/DynamiCrafter to work with MindSpore.
 import argparse
 import datetime
 import logging

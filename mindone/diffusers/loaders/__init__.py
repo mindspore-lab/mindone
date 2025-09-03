@@ -1,3 +1,5 @@
+"""Adapted from https://github.com/huggingface/diffusers/tree/main/src/diffusers/loaders/__init__.py."""
+
 from typing import TYPE_CHECKING
 
 from ..utils import _LazyModule, deprecate
@@ -61,14 +63,20 @@ _import_structure = {
         "AmusedLoraLoaderMixin",
         "StableDiffusionLoraLoaderMixin",
         "SD3LoraLoaderMixin",
+        "AuraFlowLoraLoaderMixin",
         "StableDiffusionXLLoraLoaderMixin",
         "LTXVideoLoraLoaderMixin",
         "LoraLoaderMixin",
         "FluxLoraLoaderMixin",
         "CogVideoXLoraLoaderMixin",
+        "CogView4LoraLoaderMixin",
         "Mochi1LoraLoaderMixin",
         "HunyuanVideoLoraLoaderMixin",
         "SanaLoraLoaderMixin",
+        "Lumina2LoraLoaderMixin",
+        "WanLoraLoaderMixin",
+        "HiDreamImageLoraLoaderMixin",
+        "SkyReelsV2LoraLoaderMixin",
     ],
     "peft": ["PeftAdapterMixin"],
     "single_file": ["FromSingleFileMixin"],
@@ -81,16 +89,22 @@ if TYPE_CHECKING:
     from .ip_adapter import FluxIPAdapterMixin, IPAdapterMixin, SD3IPAdapterMixin
     from .lora_pipeline import (
         AmusedLoraLoaderMixin,
+        AuraFlowLoraLoaderMixin,
         CogVideoXLoraLoaderMixin,
+        CogView4LoraLoaderMixin,
         FluxLoraLoaderMixin,
+        HiDreamImageLoraLoaderMixin,
         HunyuanVideoLoraLoaderMixin,
         LoraLoaderMixin,
         LTXVideoLoraLoaderMixin,
+        Lumina2LoraLoaderMixin,
         Mochi1LoraLoaderMixin,
         SanaLoraLoaderMixin,
         SD3LoraLoaderMixin,
+        SkyReelsV2LoraLoaderMixin,
         StableDiffusionLoraLoaderMixin,
         StableDiffusionXLLoraLoaderMixin,
+        WanLoraLoaderMixin,
     )
     from .peft import PeftAdapterMixin
     from .single_file import FromSingleFileMixin

@@ -32,11 +32,11 @@ from transformers import AutoTokenizer
 
 import mindspore as ms
 from mindspore import mint, nn, ops
-from mindspore.amp import auto_mixed_precision
 from mindspore.dataset import GeneratorDataset, transforms, vision
 
 from mindone.diffusers import AutoencoderKL, FlowMatchEulerDiscreteScheduler, FluxTransformer2DModel
 from mindone.diffusers.models.controlnet_flux import FluxControlNetModel
+from mindone.diffusers.models.layers_compat import set_amp_strategy
 from mindone.diffusers.optimization import get_scheduler
 from mindone.diffusers.pipelines.flux.pipeline_flux_controlnet import FluxControlNetPipeline
 from mindone.diffusers.training_utils import (
@@ -939,10 +939,6 @@ def main():
     vae.to(dtype=weight_dtype)
     flux_transformer.to(dtype=weight_dtype)
 
-    # Make sure the trainable params are in float32. and do AMP wrapper manually
-    if weight_dtype != ms.float32:
-        flux_controlnet = auto_mixed_precision(flux_controlnet, amp_level="auto", dtype=weight_dtype)
-
     def compute_embeddings(
         batch,
         proportion_empty_prompts,
@@ -1057,6 +1053,13 @@ def main():
         weight_decay=args.adam_weight_decay,
         eps=args.adam_epsilon,
     )
+
+    # Prepare everything with our `accelerator`.
+    # TODO: We will update the training methods during mixed precision training to ensure the performance and strategies during the training process.
+    if args.mixed_precision and args.mixed_precision != "no":
+        set_amp_strategy(flux_controlnet, weight_dtype)
+        for _, cell in flux_controlnet.cells_and_names():
+            set_amp_strategy(cell, weight_dtype)
 
     # create train_step for training
     network_with_loss = FluxControlNetWithLoss(

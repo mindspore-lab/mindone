@@ -1,3 +1,5 @@
+"""Adapted from https://github.com/huggingface/diffusers/tree/main/tests//pipelines/flux/test_pipeline_flux_controlnet_image_to_image.py."""
+
 import unittest
 
 import numpy as np
@@ -9,11 +11,7 @@ from transformers import CLIPTextConfig
 import mindspore as ms
 
 from mindone.diffusers import FluxControlNetImg2ImgPipeline, FluxControlNetModel
-from mindone.diffusers.utils.testing_utils import (
-    load_downloaded_image_from_hf_hub,
-    load_downloaded_numpy_from_hf_hub,
-    slow,
-)
+from mindone.diffusers.utils.testing_utils import load_downloaded_image_from_hf_hub, load_numpy_from_local_file, slow
 
 from ..pipeline_test_utils import (
     THRESHOLD_FP16,
@@ -273,8 +271,8 @@ class FluxControlNetImg2ImgPipelineSlowTests(PipelineTesterMixin, unittest.TestC
         torch.manual_seed(0)
         image = pipe(**inputs)[0][0]
 
-        expected_image = load_downloaded_numpy_from_hf_hub(
-            "The-truth/mindone-testing-arrays",
+        expected_image = load_numpy_from_local_file(
+            "mindone-testing-arrays",
             f"flux_controlnet_image_to_image_{dtype}.npy",
             subfolder="flux",
         )

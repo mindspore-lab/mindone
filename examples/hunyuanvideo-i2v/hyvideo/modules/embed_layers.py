@@ -1,3 +1,4 @@
+# Adapted from https://github.com/Tencent-Hunyuan/HunyuanVideo-I2V to work with MindSpore.
 import math
 
 import numpy as np
@@ -59,7 +60,7 @@ class PatchEmbed(nn.Cell):
         # nn.init.zeros_(self.proj.bias)
         w = self.proj.weight
         w_flatted = w.reshape(w.shape[0], -1)
-        w.set_data(initializer(XavierUniform(), w_flatted.shape, w_flatted.dtype).reshape(w.shape))
+        w.set_data(initializer(XavierUniform(), w_flatted.shape, w_flatted.dtype).init_data().reshape(w.shape))
 
         self.norm = norm_layer(embed_dim) if norm_layer else nn.Identity()
 

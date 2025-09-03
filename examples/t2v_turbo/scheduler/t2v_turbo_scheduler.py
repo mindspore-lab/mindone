@@ -1,5 +1,8 @@
 # Copyright 2023 Stanford University Team and The HuggingFace Team. All rights reserved.
 #
+# This code is adapted from https://github.com/Ji4chenLi/t2v-turbo
+# with modifications to run on MindSpore.
+#
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at

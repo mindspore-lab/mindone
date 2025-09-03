@@ -52,14 +52,14 @@ This pipeline was contributed by [PommesPeter](https://github.com/PommesPeter). 
 ### Inference (Text-to-Image)
 
 ```python
-from mindone.diffusers import LuminaText2ImgPipeline
+from mindone.diffusers import LuminaPipeline
 import mindspore as ms
 
-pipeline = LuminaText2ImgPipeline.from_pretrained(
+pipeline = LuminaPipeline.from_pretrained(
 	"Alpha-VLLM/Lumina-Next-SFT-diffusers", mindspore_dtype=ms.bfloat16
 )
 
 image = pipeline(prompt="Upper body of a young woman in a Victorian-era outfit with brass goggles and leather straps. Background shows an industrial revolution cityscape with smoky skies and tall, metal structures")[0][0]
 ```
 
-::: mindone.diffusers.LuminaText2ImgPipeline
+::: mindone.diffusers.LuminaPipeline

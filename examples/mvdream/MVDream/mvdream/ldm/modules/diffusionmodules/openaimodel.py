@@ -1,3 +1,5 @@
+# Adapted from https://github.com/bytedance/MVDream/blob/main/mvdream/ldm/modules/diffusionmodules/openaimodel.py
+
 import os
 import sys
 

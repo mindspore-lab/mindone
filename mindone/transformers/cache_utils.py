@@ -1,4 +1,6 @@
 """
+Adapted from https://github.com/huggingface/transformers/tree/main/src/transformers/cache_utils.py.
+
 Cache utils.
 """
 import copy
@@ -27,9 +29,10 @@ def init_static_cache(config: PretrainedConfig, max_batch_size: int, max_cache_l
     head_dim = config.head_dim if hasattr(config, "head_dim") else config.hidden_size // config.num_attention_heads
 
     dtype = dtype if dtype is not None else ms.float32
-    num_key_value_heads = (
-        config.num_attention_heads if config.num_key_value_heads is None else config.num_key_value_heads
-    )
+    if hasattr(config, "num_key_value_heads"):
+        num_key_value_heads = config.num_key_value_heads
+    else:
+        num_key_value_heads = config.num_attention_heads
 
     key_value_cache: Tuple[Tuple[ms.Tensor, ms.Tensor]] = []
     cache_shape = (max_batch_size, num_key_value_heads, max_cache_len, head_dim)
@@ -147,6 +150,8 @@ class Cache(nn.Cell):
     """
     Base, abstract class for all caches. The actual data structure is specific to each subclass.
     """
+
+    is_compileable = False
 
     def update(
         self,
@@ -587,6 +592,18 @@ class DynamicCache(Cache):
         for layer_idx in range(len(self)):
             self.key_cache[layer_idx] = self.key_cache[layer_idx][indices, ...]
             self.value_cache[layer_idx] = self.value_cache[layer_idx][indices, ...]
+
+    def get_mask_sizes(self, cache_position: ms.Tensor, layer_idx: int) -> tuple[int, int]:
+        """
+        Return a tuple (kv_length, kv_offset) corresponding to the length and offset that will be returned for
+        the given layer at `layer_idx`.
+        The masks are then prepared according to the given lengths (kv_length, kv_offset) and patterns (i.e. sliding_window, chunk_size),
+        for each layer.
+        """
+        query_length = cache_position.shape[0]
+        past_seen_tokens = self.get_seq_length()
+        kv_length = query_length + past_seen_tokens
+        return kv_length, 0
 
 
 class SlidingWindowCache(StaticCache):

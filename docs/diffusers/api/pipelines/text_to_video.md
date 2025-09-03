@@ -16,6 +16,10 @@ specific language governing permissions and limitations under the License.
 
 # Text-to-video
 
+<div class="flex flex-wrap space-x-1">
+  <img alt="LoRA" src="https://img.shields.io/badge/LoRA-d8b4fe?style=flat"/>
+</div>
+
 [ModelScope Text-to-Video Technical Report](https://arxiv.org/abs/2308.06571) is by Jiuniu Wang, Hangjie Yuan, Dayou Chen, Yingya Zhang, Xiang Wang, Shiwei Zhang.
 
 The abstract from the paper is:
@@ -168,7 +172,7 @@ Check out the [Text or image-to-video](../../using-diffusers/text-img2vid.md) gu
 
 !!! tip
 
-	Make sure to check out the Schedulers [guide](../../using-diffusers/schedulers.md) to learn how to explore the tradeoff between scheduler speed and quality.
+    Make sure to check out the Schedulers [guide](../../using-diffusers/schedulers.md) to learn how to explore the tradeoff between scheduler speed and quality, and see the [reuse components across pipelines](../../using-diffusers/loading.md#reuse-a-pipeline) section to learn how to efficiently load the same components into multiple pipelines.
 
 ::: mindone.diffusers.TextToVideoSDPipeline
 

@@ -1,3 +1,5 @@
+# This code is copied from https://github.com/Ji4chenLi/t2v-turbo
+
 from intern_vid2.configs.model import TextEncoders
 
 # ========================= data ==========================

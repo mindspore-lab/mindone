@@ -1,3 +1,4 @@
+# Adapted from https://github.com/Tencent-Hunyuan/HunyuanVideo to work with MindSpore.
 from hyvideo.utils.modules_utils import LayerNorm
 
 import mindspore as ms

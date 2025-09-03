@@ -1,4 +1,7 @@
-# Copyright 2024 Harutatsu Akiyama, Jinbin Bai, and The HuggingFace Team. All rights reserved.
+# Copyright 2025 Harutatsu Akiyama, Jinbin Bai, and The HuggingFace Team. All rights reserved.
+#
+# This code is adapted from https://github.com/huggingface/diffusers
+# with modifications to run diffusers on mindspore.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -107,7 +110,7 @@ def rescale_noise_cfg(noise_cfg, noise_pred_text, guidance_rescale=0.0):
     r"""
     Rescales `noise_cfg` tensor based on `guidance_rescale` to improve image quality and fix overexposure. Based on
     Section 3.4 from [Common Diffusion Noise Schedules and Sample Steps are
-    Flawed](https://arxiv.org/pdf/2305.08891.pdf).
+    Flawed](https://huggingface.co/papers/2305.08891).
 
     Args:
         noise_cfg (`ms.Tensor`):
@@ -192,6 +195,7 @@ class StableDiffusionXLControlNetUnionInpaintPipeline(
         "add_time_ids",
         "mask",
         "masked_image_latents",
+        "control_image",
     ]
 
     def __init__(
@@ -229,7 +233,7 @@ class StableDiffusionXLControlNetUnionInpaintPipeline(
         )
         self.register_to_config(force_zeros_for_empty_prompt=force_zeros_for_empty_prompt)
         self.register_to_config(requires_aesthetics_score=requires_aesthetics_score)
-        self.vae_scale_factor = 2 ** (len(self.vae.config.block_out_channels) - 1)
+        self.vae_scale_factor = 2 ** (len(self.vae.config.block_out_channels) - 1) if getattr(self, "vae", None) else 8
         self.image_processor = VaeImageProcessor(vae_scale_factor=self.vae_scale_factor)
         self.mask_processor = VaeImageProcessor(
             vae_scale_factor=self.vae_scale_factor, do_normalize=False, do_binarize=True, do_convert_grayscale=True
@@ -357,10 +361,12 @@ class StableDiffusionXLControlNetUnionInpaintPipeline(
                         f" {tokenizer.model_max_length} tokens: {removed_text}"
                     )
 
-                prompt_embeds = text_encoder(ms.Tensor(text_input_ids), output_hidden_states=True)
+                prompt_embeds = text_encoder(ms.tensor(text_input_ids), output_hidden_states=True)
 
                 # We are only ALWAYS interested in the pooled output of the final text encoder
-                pooled_prompt_embeds = prompt_embeds[0]
+                if pooled_prompt_embeds is None and prompt_embeds[0].ndim == 2:
+                    pooled_prompt_embeds = prompt_embeds[0]
+
                 if clip_skip is None:
                     prompt_embeds = prompt_embeds[2][-2]
                 else:
@@ -416,11 +422,13 @@ class StableDiffusionXLControlNetUnionInpaintPipeline(
                 )
 
                 negative_prompt_embeds = text_encoder(
-                    ms.Tensor(uncond_input.input_ids),
+                    ms.tensor(uncond_input.input_ids),
                     output_hidden_states=True,
                 )
+
                 # We are only ALWAYS interested in the pooled output of the final text encoder
-                negative_pooled_prompt_embeds = negative_prompt_embeds[0]
+                if negative_pooled_prompt_embeds is None and negative_prompt_embeds[0].ndim == 2:
+                    negative_pooled_prompt_embeds = negative_prompt_embeds[0]
                 negative_prompt_embeds = negative_prompt_embeds[2][-2]
 
                 negative_prompt_embeds_list.append(negative_prompt_embeds)
@@ -475,7 +483,7 @@ class StableDiffusionXLControlNetUnionInpaintPipeline(
 
         if not isinstance(image, ms.Tensor):
             image = self.feature_extractor(image, return_tensors="np").pixel_values
-            image = ms.Tensor(image)
+            image = ms.tensor(image)
 
         image = image.to(dtype=dtype)
         if output_hidden_states:
@@ -544,7 +552,7 @@ class StableDiffusionXLControlNetUnionInpaintPipeline(
     def prepare_extra_step_kwargs(self, generator, eta):
         # prepare extra kwargs for the scheduler step, since not all schedulers have the same signature
         # eta (η) is only used with the DDIMScheduler, it will be ignored for other schedulers.
-        # eta corresponds to η in DDIM paper: https://arxiv.org/abs/2010.02502
+        # eta corresponds to η in DDIM paper: https://huggingface.co/papers/2010.02502
         # and should be between [0, 1]
 
         accepts_eta = "eta" in set(inspect.signature(self.scheduler.step).parameters.keys())
@@ -684,7 +692,7 @@ class StableDiffusionXLControlNetUnionInpaintPipeline(
         if padding_mask_crop is not None:
             if not isinstance(image, PIL.Image.Image):
                 raise ValueError(
-                    f"The image should be a PIL image when inpainting mask crop, but is of type" f" {type(image)}."
+                    f"The image should be a PIL image when inpainting mask crop, but is of type {type(image)}."
                 )
             if not isinstance(mask_image, PIL.Image.Image):
                 raise ValueError(
@@ -692,7 +700,7 @@ class StableDiffusionXLControlNetUnionInpaintPipeline(
                     f" {type(mask_image)}."
                 )
             if output_type != "pil":
-                raise ValueError(f"The output type should be PIL when inpainting mask crop, but is" f" {output_type}.")
+                raise ValueError(f"The output type should be PIL when inpainting mask crop, but is {output_type}.")
 
         if prompt_embeds is not None and pooled_prompt_embeds is None:
             raise ValueError(
@@ -709,16 +717,7 @@ class StableDiffusionXLControlNetUnionInpaintPipeline(
             self.check_image(image, prompt, prompt_embeds)
         elif isinstance(self.controlnet, ControlNetUnionModel):
             self.check_image(image, prompt, prompt_embeds)
-        else:
-            assert False
 
-        # Check `controlnet_conditioning_scale`
-        if isinstance(self.controlnet, ControlNetModel):
-            if not isinstance(controlnet_conditioning_scale, float):
-                raise TypeError("For single controlnet: `controlnet_conditioning_scale` must be type `float`.")
-        elif isinstance(self.controlnet, ControlNetUnionModel):
-            if not isinstance(controlnet_conditioning_scale, float):
-                raise TypeError("For single controlnet: `controlnet_conditioning_scale` must be type `float`.")
         else:
             assert False
 
@@ -1009,8 +1008,8 @@ class StableDiffusionXLControlNetUnionInpaintPipeline(
                 f"Model expects an added time embedding vector of length {expected_add_embed_dim}, but a vector of {passed_add_embed_dim} was created. The model has an incorrect config. Please check `unet.config.time_embedding_type` and `text_encoder_2.config.projection_dim`."  # noqa: E501
             )
 
-        add_time_ids = ms.Tensor([add_time_ids], dtype=dtype)
-        add_neg_time_ids = ms.Tensor([add_neg_time_ids], dtype=dtype)
+        add_time_ids = ms.tensor([add_time_ids], dtype=dtype)
+        add_neg_time_ids = ms.tensor([add_neg_time_ids], dtype=dtype)
 
         return add_time_ids, add_neg_time_ids
 
@@ -1027,7 +1026,7 @@ class StableDiffusionXLControlNetUnionInpaintPipeline(
         return self._clip_skip
 
     # here `guidance_scale` is defined analog to the guidance weight `w` of equation (2)
-    # of the Imagen paper: https://arxiv.org/pdf/2205.11487.pdf . `guidance_scale = 1`
+    # of the Imagen paper: https://huggingface.co/papers/2205.11487 . `guidance_scale = 1`
     # corresponds to doing no classifier free guidance.
     @property
     def do_classifier_free_guidance(self):
@@ -1149,11 +1148,11 @@ class StableDiffusionXLControlNetUnionInpaintPipeline(
                 forms a part of a "Mixture of Denoisers" multi-pipeline setup, as elaborated in [**Refining the Image
                 Output**](https://huggingface.co/docs/diffusers/api/pipelines/stable_diffusion/stable_diffusion_xl#refining-the-image-output).
             guidance_scale (`float`, *optional*, defaults to 7.5):
-                Guidance scale as defined in [Classifier-Free Diffusion Guidance](https://arxiv.org/abs/2207.12598).
-                `guidance_scale` is defined as `w` of equation 2. of [Imagen
-                Paper](https://arxiv.org/pdf/2205.11487.pdf). Guidance scale is enabled by setting `guidance_scale >
-                1`. Higher guidance scale encourages to generate images that are closely linked to the text `prompt`,
-                usually at the expense of lower image quality.
+                Guidance scale as defined in [Classifier-Free Diffusion
+                Guidance](https://huggingface.co/papers/2207.12598). `guidance_scale` is defined as `w` of equation 2.
+                of [Imagen Paper](https://huggingface.co/papers/2205.11487). Guidance scale is enabled by setting
+                `guidance_scale > 1`. Higher guidance scale encourages to generate images that are closely linked to
+                the text `prompt`, usually at the expense of lower image quality.
             negative_prompt (`str` or `List[str]`, *optional*):
                 The prompt or prompts not to guide the image generation. If not defined, one has to pass
                 `negative_prompt_embeds` instead. Ignored when not using guidance (i.e., ignored if `guidance_scale` is
@@ -1184,8 +1183,8 @@ class StableDiffusionXLControlNetUnionInpaintPipeline(
             num_images_per_prompt (`int`, *optional*, defaults to 1):
                 The number of images to generate per prompt.
             eta (`float`, *optional*, defaults to 0.0):
-                Corresponds to parameter eta (η) in the DDIM paper: https://arxiv.org/abs/2010.02502. Only applies to
-                [`schedulers.DDIMScheduler`], will be ignored for others.
+                Corresponds to parameter eta (η) in the DDIM paper: https://huggingface.co/papers/2010.02502. Only
+                applies to [`schedulers.DDIMScheduler`], will be ignored for others.
             generator (`torch.Generator`, *optional*):
                 One or a list of [torch generator(s)](https://pytorch.org/docs/stable/generated/torch.Generator.html)
                 to make generation deterministic.
@@ -1285,6 +1284,8 @@ class StableDiffusionXLControlNetUnionInpaintPipeline(
 
         if not isinstance(control_image, list):
             control_image = [control_image]
+        else:
+            control_image = control_image.copy()
 
         if not isinstance(control_mode, list):
             control_mode = [control_mode]
@@ -1322,7 +1323,7 @@ class StableDiffusionXLControlNetUnionInpaintPipeline(
                 padding_mask_crop,
             )
 
-        control_type = ms.Tensor(control_type)
+        control_type = ms.tensor(control_type)
 
         self._guidance_scale = guidance_scale
         self._clip_skip = clip_skip
@@ -1640,7 +1641,7 @@ class StableDiffusionXLControlNetUnionInpaintPipeline(
                     noise_pred = noise_pred_uncond + guidance_scale * (noise_pred_text - noise_pred_uncond)
 
                 if self.do_classifier_free_guidance and guidance_rescale > 0.0:
-                    # Based on 3.4. in https://arxiv.org/pdf/2305.08891.pdf
+                    # Based on 3.4. in https://huggingface.co/papers/2305.08891
                     noise_pred = rescale_noise_cfg(noise_pred, noise_pred_text, guidance_rescale=guidance_rescale)
 
                 # compute the previous noisy sample x_t -> x_t-1
@@ -1655,7 +1656,7 @@ class StableDiffusionXLControlNetUnionInpaintPipeline(
                 if i < len(timesteps) - 1:
                     noise_timestep = timesteps[i + 1]
                     init_latents_proper = self.scheduler.add_noise(
-                        init_latents_proper, noise, ms.Tensor([noise_timestep.numpy()])
+                        init_latents_proper, noise, ms.tensor([noise_timestep.numpy()])
                     )
 
                 latents = (1 - init_mask) * init_latents_proper + init_mask * latents
@@ -1669,6 +1670,7 @@ class StableDiffusionXLControlNetUnionInpaintPipeline(
                     latents = callback_outputs.pop("latents", latents)
                     prompt_embeds = callback_outputs.pop("prompt_embeds", prompt_embeds)
                     negative_prompt_embeds = callback_outputs.pop("negative_prompt_embeds", negative_prompt_embeds)
+                    control_image = callback_outputs.pop("control_image", control_image)
 
                 # call the callback, if provided
                 if i == len(timesteps) - 1 or ((i + 1) > num_warmup_steps and (i + 1) % self.scheduler.order == 0):

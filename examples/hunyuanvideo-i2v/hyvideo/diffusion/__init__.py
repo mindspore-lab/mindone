@@ -1,3 +1,4 @@
+# Adapted from https://github.com/Tencent-Hunyuan/HunyuanVideo-I2V to work with MindSpore.
 from .flow.transport import ModelType, PathType, SNRType, Transport, WeightType
 from .pipelines import HunyuanVideoPipeline
 from .schedulers import FlowMatchDiscreteScheduler

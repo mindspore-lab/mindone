@@ -1,3 +1,7 @@
+# Adapted from
+# https://github.com/PKU-YuanGroup/Open-Sora-Plan/blob/main/opensora/models/causalvideovae/model/losses/lpips.py
+"""Stripped version of https://github.com/richzhang/PerceptualSimilarity/tree/master/models"""
+
 import logging
 import os
 

@@ -1,3 +1,5 @@
+# Adapted from https://github.com/PKU-YuanGroup/Open-Sora-Plan/blob/main/opensora/sample/pipeline_opensora.py
+
 import inspect
 import logging
 from typing import Callable, List, Optional, Union

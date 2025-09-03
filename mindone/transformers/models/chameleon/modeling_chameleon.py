@@ -1,6 +1,9 @@
 # coding=utf-8
 # Copyright 2024 Meta Inc. and The HuggingFace Inc. team. All rights reserved.
 #
+# This code is adapted from https://github.com/huggingface/transformers
+# with modifications to run transformers on mindspore.
+#
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -18,8 +21,7 @@ import math
 from functools import cached_property
 from typing import Optional, Tuple, Union
 
-import numpy as np
-from transformers.models.chameleon.configuration_chameleon import ChameleonConfig, ChameleonVQVAEConfig
+from transformers import ChameleonConfig, ChameleonVQVAEConfig
 
 import mindspore as ms
 import mindspore.mint as mint
@@ -31,7 +33,7 @@ from mindspore.mint.nn import CrossEntropyLoss
 from mindone.models.utils import normal_, ones_, zeros_
 
 from ...activations import ACT2FN
-from ...cache_utils import Cache, DynamicCache
+from ...cache_utils import Cache, DynamicCache, StaticCache
 from ...generation import GenerationMixin
 from ...mindspore_adapter import dtype_to_min
 from ...mindspore_utils import ALL_LAYERNORM_LAYERS
@@ -54,7 +56,7 @@ class ChameleonRMSNorm(nn.Cell):
         ChameleonRMSNorm is equivalent to T5LayerNorm
         """
         super().__init__()
-        self.weight = ms.Parameter(np.ones(hidden_size, dtype=np.float32))
+        self.weight = ms.Parameter(mint.ones(hidden_size))
         self.variance_epsilon = eps
 
     def construct(self, hidden_states):
@@ -62,6 +64,9 @@ class ChameleonRMSNorm(nn.Cell):
             hidden_states.to(ms.float32), self.weight.to(ms.float32), epsilon=self.variance_epsilon
         )
         return result.to(hidden_states.dtype)
+
+    def extra_repr(self):
+        return f"{tuple(self.weight.shape)}, eps={self.variance_epsilon}"
 
 
 ALL_LAYERNORM_LAYERS.append(ChameleonRMSNorm)
@@ -74,8 +79,8 @@ class ChameleonRotaryEmbedding(nn.Cell):
         self.dim = dim
         self.max_position_embeddings = max_position_embeddings
         self.base = base
-        inv_freq = 1.0 / (self.base ** (np.arange(0, self.dim, 2, dtype=np.float32) / self.dim))
-        self.inv_freq = ms.Tensor(inv_freq)
+        inv_freq = 1.0 / (self.base ** (mint.arange(0, self.dim, 2, dtype=ms.int64).float() / self.dim))
+        self.register_buffer("inv_freq", inv_freq, persistent=False)
         # For BC we register cos and sin cached
         self.max_seq_len_cached = max_position_embeddings
 
@@ -112,8 +117,8 @@ class ChameleonDynamicNTKScalingRotaryEmbedding(ChameleonRotaryEmbedding):
             base = self.base * (
                 (self.scaling_factor * seq_len / self.max_position_embeddings) - (self.scaling_factor - 1)
             ) ** (self.dim / (self.dim - 2))
-            inv_freq = 1.0 / (base ** (mint.arange(0, self.dim, 2, dtype=ms.int64).to(dtype=ms.float32) / self.dim))
-            self.inv_freq = inv_freq
+            inv_freq = 1.0 / (base ** (mint.arange(0, self.dim, 2, dtype=ms.int64).float() / self.dim))
+            self.register_buffer("inv_freq", inv_freq, persistent=False)  # TODO joao: this may break with compilation
 
         cos, sin = super().construct(x, position_ids)
         return cos, sin
@@ -336,11 +341,11 @@ class ChameleonAttention(nn.Cell):
         return attn_output, attn_weights, past_key_value
 
 
-class ChameleonSdpaAttention(ChameleonAttention):
+class ChameleonFlashAttention2(ChameleonAttention):
     """
-    Chameleon attention module using torch.nn.functional.scaled_dot_product_attention. This module inherits from
-    `ChameleonAttention` as the weights of the module stays untouched. The only changes are on the forward pass to adapt to
-    SDPA API.
+    Chameleon flash attention module. This module inherits from `ChameleonAttention` as the weights of the module stays
+    untouched. The only required change would be on the forward pass where it needs to correctly call the public API of
+    flash attention and deal with padding tokens in case the input contains any of them.
     """
 
     def construct(
@@ -354,20 +359,103 @@ class ChameleonSdpaAttention(ChameleonAttention):
         cache_position: Optional[ms.Tensor] = None,
         **kwargs,
     ) -> Tuple[ms.Tensor, Optional[ms.Tensor], Optional[Tuple[ms.Tensor]]]:
-        # TODO: MindSpore does not have SDPA API now, we use eager temporarily
-        return super().construct(
-            hidden_states=hidden_states,
-            attention_mask=attention_mask,
-            position_ids=position_ids,
-            past_key_value=past_key_value,
-            output_attentions=output_attentions,
-            use_cache=use_cache,
-            cache_position=cache_position,
-            **kwargs,
+        if isinstance(past_key_value, StaticCache):
+            raise ValueError(
+                "`static` cache implementation is not compatible with `attn_implementation==flash_attention_2`"
+            )
+
+        output_attentions = False
+
+        bsz, q_len, _ = hidden_states.shape
+
+        query_states = self.q_proj(hidden_states)
+        key_states = self.k_proj(hidden_states)
+        value_states = self.v_proj(hidden_states)
+
+        query_states = query_states.reshape(-1, self.num_heads, self.head_dim)
+        query_states = self.q_norm(query_states)
+
+        key_states = key_states.reshape(-1, self.num_key_value_heads, self.head_dim)
+        key_states = self.k_norm(key_states)
+
+        # Flash attention requires the input to have the shape
+        # batch_size x seq_length x head_dim x hidden_dim
+        # therefore we just need to keep the original shape
+        query_states = query_states.view(bsz, q_len, self.num_heads, self.head_dim).transpose(1, 2)
+        key_states = key_states.view(bsz, q_len, self.num_key_value_heads, self.head_dim).transpose(1, 2)
+        value_states = value_states.view(bsz, q_len, self.num_key_value_heads, self.head_dim).transpose(1, 2)
+
+        cos, sin = self.rotary_emb(value_states, position_ids)
+        query_states, key_states = apply_rotary_pos_emb(query_states, key_states, cos, sin)
+
+        if past_key_value is not None:
+            # sin and cos are specific to RoPE models; position_ids needed for the static cache
+            cache_kwargs = {"sin": sin, "cos": cos, "cache_position": cache_position}
+            key_states, value_states = past_key_value.update(key_states, value_states, self.layer_idx, cache_kwargs)
+
+        key_states = repeat_kv(key_states, self.num_key_value_groups)
+        value_states = repeat_kv(value_states, self.num_key_value_groups)
+
+        dropout_rate = self.attention_dropout if self.training else 0.0
+
+        # In PEFT, usually we cast the layer norms in float32 for training stability reasons
+        # therefore the input hidden states gets silently casted in float32. Hence, we need
+        # cast them back in the correct dtype just to be sure everything works as expected.
+        # This might slowdown training & inference so it is recommended to not cast the LayerNorms
+        # in fp32. (ChameleonRMSNorm handles it correctly)
+
+        input_dtype = query_states.dtype
+        if input_dtype == ms.float32:
+            target_dtype = self.q_proj.weight.dtype
+
+            logger.warning_once(
+                f"The input hidden states seems to be silently casted in float32, this might be related to"
+                f" the fact you have upcasted embedding or layer norm layers in float32. We will cast back the input in"
+                f" {target_dtype}."
+            )
+
+            query_states = query_states.to(target_dtype)
+            key_states = key_states.to(target_dtype)
+            value_states = value_states.to(target_dtype)
+
+        sliding_window = getattr(self, "sliding_window", None)
+        assert sliding_window is None, "sliding_window is not supported yet."
+
+        if self.is_causal and q_len > 1:
+            causal_mask = mint.triu(mint.ones((bsz, 1, q_len, key_states.shape[2]), dtype=ms.bool_), diagonal=1)
+        else:
+            causal_mask = None
+
+        if attention_mask is not None:
+            attention_mask = ~attention_mask[:, None, None, :].to(ms.bool_)
+            if causal_mask is not None:
+                attention_mask = attention_mask | causal_mask
+            else:
+                attention_mask = mint.tile(attention_mask, (1, 1, q_len, 1))
+        else:
+            attention_mask = causal_mask
+
+        attn_output = ops.flash_attention_score(
+            query_states,
+            key_states,
+            value_states,
+            self.num_heads,
+            attn_mask=attention_mask,
+            keep_prob=1 - dropout_rate,
+            scalar_value=1 / math.sqrt(query_states.shape[-1]),
+            input_layout="BNSD",
         )
 
+        attn_output = attn_output.transpose(1, 2).reshape(bsz, q_len, -1).contiguous()
+        attn_output = self.o_proj(attn_output)
 
-CHAMELEON_ATTENTION_CLASSES = {"eager": ChameleonAttention, "sdpa": ChameleonAttention}
+        if not output_attentions:
+            attn_weights = None
+
+        return attn_output, attn_weights, past_key_value
+
+
+CHAMELEON_ATTENTION_CLASSES = {"eager": ChameleonAttention, "flash_attention_2": ChameleonFlashAttention2}
 
 
 class ChameleonDecoderLayer(nn.Cell):
@@ -536,6 +624,7 @@ class ChameleonVQVAEVectorQuantizer(nn.Cell):
         self.beta = getattr(config, "beta", 0.25)
 
         self.embedding = mint.nn.Embedding(self.num_embeddings, self.embedding_dim)
+        self.re_embed = self.num_embeddings
 
     def construct(self, hidden_state: ms.Tensor):
         hidden_state = hidden_state.permute(0, 2, 3, 1).contiguous()
@@ -807,25 +896,21 @@ class ChameleonPreTrainedModel(PreTrainedModel):
     supports_gradient_checkpointing = True
     _no_split_modules = ["ChameleonDecoderLayer", "ChameleonSwinDecoderLayer"]
     _skip_keys_device_placement = ["past_key_values", "causal_mask"]
-    _supports_flash_attn_2 = False
-    _supports_sdpa = True
+    _supports_flash_attn_2 = True
+    _supports_sdpa = False
     _supports_quantized_cache = False
-    _supports_cache_class = False
-    _supports_static_cache = False
+    _supports_cache_class = True
+    _supports_static_cache = True
     _supports_param_buffer_assignment = False
 
     def _init_weights(self, module):
         std = self.config.initializer_range
-
+        if isinstance(module, ChameleonVQVAE):
+            module.apply(module._init_weights)
         if isinstance(module, (mint.nn.Linear, mint.nn.Conv2d)):
             normal_(module.weight, mean=0.0, std=std)
             if module.bias is not None:
                 zeros_(module.bias)
-        elif isinstance(module, (mint.nn.GroupNorm, mint.nn.LayerNorm)):
-            zeros_(module.bias)
-            ones_(module.weight)
-        elif isinstance(module, ChameleonRMSNorm):
-            ones_(module.weight)
         elif isinstance(module, mint.nn.Embedding):
             normal_(module.weight, mean=0.0, std=std)
             if module.padding_idx is not None:
@@ -836,6 +921,18 @@ class ChameleonVQVAE(ChameleonPreTrainedModel):
     config_class = ChameleonVQVAEConfig
     _no_split_modules = ["ChameleonVQVAEVectorQuantizer"]
 
+    def _init_weights(self, module):
+        std = self.config.initializer_range
+        if isinstance(module, mint.nn.Embedding):
+            normal_(module.weight, mean=0.0, std=std)
+        elif isinstance(module, mint.nn.GroupNorm):
+            zeros_(module.bias)
+            ones_(module.weight)
+        elif isinstance(module, (mint.nn.Linear, mint.nn.Conv2d)):
+            normal_(module.weight, mean=0.0, std=std)
+            if module.bias is not None:
+                zeros_(module.bias)
+
     def __init__(self, config: ChameleonVQVAEConfig):
         super().__init__(config)
 
@@ -843,6 +940,7 @@ class ChameleonVQVAE(ChameleonPreTrainedModel):
         self.quantize = ChameleonVQVAEVectorQuantizer(config)
         self.quant_conv = mint.nn.Conv2d(config.latent_channels, config.embed_dim, 1)
         self.post_quant_conv = mint.nn.Conv2d(config.embed_dim, config.latent_channels, 1)
+        self.set_train(False)  # Chameleon's VQ model is frozen
 
     def encode(self, pixel_values: ms.Tensor):
         hidden_states = self.encoder(pixel_values)
@@ -869,6 +967,9 @@ class ChameleonModel(ChameleonPreTrainedModel):
         decoder_layer = ChameleonDecoderLayer if not self.config.swin_norm else ChameleonSwinDecoderLayer
         self.layers = nn.CellList([decoder_layer(config, layer_idx) for layer_idx in range(config.num_hidden_layers)])
         self.norm = ChameleonRMSNorm(config.hidden_size, eps=config.rms_norm_eps)
+        # TODO: remove the config fix once they are fixed.
+        config.vq_config._attn_implementation = config._attn_implementation
+        config.vq_config.mindspore_dtype = getattr(config, "mindspore_dtype", None)
         self.vqmodel = ChameleonVQVAE._from_config(config.vq_config)
         self.gradient_checkpointing = False
 
@@ -892,7 +993,7 @@ class ChameleonModel(ChameleonPreTrainedModel):
                 The tensors corresponding to the input images.
         """
         batch_size = pixel_values.shape[0]
-        _, _, image_toks = self.vqmodel.encode(pixel_values)
+        _, _, image_toks = self.vqmodel.encode(pixel_values.to(self.vqmodel.dtype))
         bpe_toks = self.vocabulary_mapping.convert_img2bpe(image_toks)
         bpe_toks = bpe_toks.view(batch_size, -1)
         return bpe_toks
@@ -1041,14 +1142,18 @@ class ChameleonModel(ChameleonPreTrainedModel):
         # order to dispatch on Flash Attention 2. This feature is not compatible with static cache, as SDPA will fail
         # to infer the attention mask.
         past_seen_tokens = past_key_values.get_seq_length() if past_key_values is not None else 0
+        using_static_cache = isinstance(past_key_values, StaticCache)
 
         dtype = input_tensor.dtype
         sequence_length = input_tensor.shape[1]
-        target_length = (
-            attention_mask.shape[-1]
-            if isinstance(attention_mask, ms.Tensor)
-            else past_seen_tokens + sequence_length + 1
-        )
+        if using_static_cache:
+            target_length = past_key_values.get_max_cache_shape()
+        else:
+            target_length = (
+                attention_mask.shape[-1]
+                if isinstance(attention_mask, ms.Tensor)
+                else past_seen_tokens + sequence_length + 1
+            )
 
         # In case the provided `attention` mask is 2D, we generate a causal mask here (4D).
         causal_mask = self._prepare_4d_causal_attention_mask_with_cache_position(
@@ -1098,8 +1203,7 @@ class ChameleonModel(ChameleonPreTrainedModel):
             causal_mask = attention_mask
         else:
             min_dtype = dtype_to_min(dtype)
-            # TODO: to mint.full
-            causal_mask = ops.full((sequence_length, target_length), fill_value=min_dtype, dtype=dtype)
+            causal_mask = mint.full((sequence_length, target_length), fill_value=min_dtype.item(), dtype=dtype)
             if sequence_length != 1:
                 causal_mask = mint.triu(causal_mask, diagonal=1)
             causal_mask *= mint.arange(target_length) > cache_position.reshape(-1, 1)
@@ -1161,6 +1265,36 @@ class ChameleonForConditionalGeneration(ChameleonPreTrainedModel, GenerationMixi
         return_dict: Optional[bool] = None,
         cache_position: Optional[ms.Tensor] = None,
     ) -> Union[Tuple, CausalLMOutputWithPast]:
+        r"""
+            labels (`ms.Tensor` of shape `(batch_size, sequence_length)`, *optional*):
+                Labels for computing the masked language modeling loss. Indices should either be in `[0, ...,
+                config.vocab_size]` or -100 (see `input_ids` docstring). Tokens with indices set to `-100` are ignored
+                (masked), the loss is only computed for the tokens with labels in `[0, ..., config.vocab_size]`.
+
+        Returns:
+
+        Example:
+
+        ```python
+        >>> from mindone.transformers import ChameleonProcessor, ChameleonForConditionalGeneration
+        >>> import mindspore as ms
+        >>> import requests
+        >>> from PIL import Image
+
+        >>> model = ChameleonForConditionalGeneration.from_pretrained("facebook/chameleon-7b", mindspore_dtype=ms.bfloat16)
+        >>> processor = ChameleonProcessor.from_pretrained("facebook/chameleon-7b")
+
+        >>> prompt = "I used to know a lot about constellations when I was younger, but as I grew older, I forgot most of what I knew. "
+        >>> prompt += "These are the only two constellations that I really remember now.<image><image>I would like for you to tell me about 3 more "
+        >>> prompt += "constellations and give me a little bit of history about the constellation."
+        >>> image = Image.open(requests.get("https://nineplanets.org/wp-content/uploads/2020/12/the-big-dipper-1.jpg", stream=True).raw)
+        >>> image_2 = Image.open(requests.get("https://www.kxan.com/wp-content/uploads/sites/40/2020/10/ORION.jpg", stream=True).raw)
+
+        >>> inputs = processor(images=[image, image_2], text=prompt, return_tensors="ms").to(ms.bfloat16)
+
+        >>> generated_ids = model.generate(**inputs, max_new_tokens=100, do_sample=False)
+        >>> processor.batch_decode(generated_ids, skip_special_tokens=True)[0]
+        ```"""
         output_attentions = output_attentions if output_attentions is not None else self.config.output_attentions
         output_hidden_states = (
             output_hidden_states if output_hidden_states is not None else self.config.output_hidden_states

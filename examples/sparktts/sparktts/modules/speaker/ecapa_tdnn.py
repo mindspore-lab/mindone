@@ -2,6 +2,9 @@
 #               2022 Hongji Wang (jijijiang77@gmail.com)
 #               2023 Bing Han (hanbing97@sjtu.edu.cn)
 #
+# This code is adapted from https://github.com/SparkAudio/Spark-TTS
+# with modifications to run on MindSpore.
+#
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at

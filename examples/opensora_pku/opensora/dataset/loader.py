@@ -204,6 +204,7 @@ class MetaLoader:
         self.sampling_pools = []
         self.loaders = loaders
         self.datalen = datalen
+        # Adapted from https://gitee.com/mindspore/models/blob/master/research/mm/opt/src/data/data_loader.py
         for n, l in loaders.items():
             if isinstance(l, tuple):
                 l, r = l

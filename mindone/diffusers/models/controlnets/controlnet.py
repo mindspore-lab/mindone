@@ -1,4 +1,7 @@
-# Copyright 2024 The HuggingFace Team. All rights reserved.
+# Copyright 2025 The HuggingFace Team. All rights reserved.
+#
+# This code is adapted from https://github.com/huggingface/diffusers
+# with modifications to run diffusers on mindspore.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -24,13 +27,7 @@ from ...utils import BaseOutput, logging
 from ..attention_processor import CROSS_ATTENTION_PROCESSORS, AttentionProcessor, AttnProcessor
 from ..embeddings import TextImageProjection, TextImageTimeEmbedding, TextTimeEmbedding, TimestepEmbedding, Timesteps
 from ..modeling_utils import ModelMixin
-from ..unets.unet_2d_blocks import (
-    CrossAttnDownBlock2D,
-    DownBlock2D,
-    UNetMidBlock2D,
-    UNetMidBlock2DCrossAttn,
-    get_down_block,
-)
+from ..unets.unet_2d_blocks import UNetMidBlock2D, UNetMidBlock2DCrossAttn, get_down_block
 from ..unets.unet_2d_condition import UNet2DConditionModel
 
 logger = logging.get_logger(__name__)  # pylint: disable=invalid-name
@@ -58,8 +55,8 @@ class ControlNetOutput(BaseOutput):
 
 class ControlNetConditioningEmbedding(nn.Cell):
     """
-    Quoting from https://arxiv.org/abs/2302.05543: "Stable Diffusion uses a pre-processing method similar to VQ-GAN
-    [11] to convert the entire dataset of 512 × 512 images into smaller 64 × 64 “latent images” for stabilized
+    Quoting from https://huggingface.co/papers/2302.05543: "Stable Diffusion uses a pre-processing method similar to
+    VQ-GAN [11] to convert the entire dataset of 512 × 512 images into smaller 64 × 64 “latent images” for stabilized
     training. This requires ControlNets to convert image-based conditions to 64 × 64 feature space to match the
     convolution size. We use a tiny network E(·) of four convolution layers with 4 × 4 kernels and 2 × 2 strides
     (activated by ReLU, channels are 16, 32, 64, 128, initialized with Gaussian weights, trained jointly with the full
@@ -592,10 +589,6 @@ class ControlNetModel(ModelMixin, ConfigMixin, FromOriginalModelMixin):
 
         self.set_attn_processor(processor)
 
-    def _set_gradient_checkpointing(self, module, value: bool = False) -> None:
-        if isinstance(module, (CrossAttnDownBlock2D, DownBlock2D)):
-            module.gradient_checkpointing = value
-
     def construct(
         self,
         sample: ms.Tensor,
@@ -673,10 +666,10 @@ class ControlNetModel(ModelMixin, ConfigMixin, FromOriginalModelMixin):
             # TODO: this requires sync between CPU and GPU. So try to pass timesteps as tensors if you can
             # This would be a good case for the `match` statement (Python 3.10+)
             if isinstance(timestep, float):
-                dtype = ms.float64
+                dtype = ms.float32
             else:
-                dtype = ms.int64
-            timesteps = ms.Tensor([timesteps], dtype=dtype)
+                dtype = ms.int32
+            timesteps = ms.tensor([timesteps], dtype=dtype)
         elif len(timesteps.shape) == 0:
             timesteps = timesteps[None]
 

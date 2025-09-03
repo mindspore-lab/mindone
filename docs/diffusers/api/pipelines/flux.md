@@ -12,11 +12,16 @@ specific language governing permissions and limitations under the License.
 
 # Flux
 
+<div class="flex flex-wrap space-x-1">
+  <img alt="LoRA" src="https://img.shields.io/badge/LoRA-d8b4fe?style=flat"/>
+</div>
+
 Flux is a series of text-to-image generation models based on diffusion transformers. To know more about Flux, check out the original [blog post](https://blackforestlabs.ai/announcing-black-forest-labs/) by the creators of Flux, Black Forest Labs.
 
 Original model checkpoints for Flux can be found [here](https://huggingface.co/black-forest-labs). Original inference code can be found [here](https://github.com/black-forest-labs/flux).
 
-Flux comes in two variants:
+Flux comes in the following variants:
+
 | model type | model id |
 |:----------:|:--------:|
 | Timestep-distilled | [`black-forest-labs/FLUX.1-schnell`](https://huggingface.co/black-forest-labs/FLUX.1-schnell) |
@@ -24,7 +29,8 @@ Flux comes in two variants:
 | Fill Inpainting/Outpainting (Guidance-distilled) | [`black-forest-labs/FLUX.1-Fill-dev`](https://huggingface.co/black-forest-labs/FLUX.1-Fill-dev) |
 | Canny Control (Guidance-distilled) | [`black-forest-labs/FLUX.1-Canny-dev`](https://huggingface.co/black-forest-labs/FLUX.1-Canny-dev) |
 | Depth Control (Guidance-distilled) | [`black-forest-labs/FLUX.1-Depth-dev`](https://huggingface.co/black-forest-labs/FLUX.1-Depth-dev) |
-| Redux | [`black-forest-labs/FLUX.1-Redux-dev`](https://huggingface.co/black-forest-labs/FLUX.1-Redux-dev) |
+| Redux (Adapter) | [`black-forest-labs/FLUX.1-Redux-dev`](https://huggingface.co/black-forest-labs/FLUX.1-Redux-dev) |
+| Kontext | [`black-forest-labs/FLUX.1-kontext`](https://huggingface.co/black-forest-labs/FLUX.1-kontext) |
 
 All checkpoints have different usage which we detail below.
 
@@ -209,6 +215,36 @@ images = pipe(
 )[0]
 images[0].save("flux-redux.png")
 ```
+
+
+### Kontext
+
+Flux Kontext is a model that allows in-context control of the image generation process, allowing for editing, refinement, relighting, style transfer, character customization, and more.
+
+```python
+import mindspore as ms
+from mindone.diffusers import FluxKontextPipeline
+from mindone.diffusers.utils import load_image
+import numpy as np
+
+pipe = FluxKontextPipeline.from_pretrained(
+    "black-forest-labs/FLUX.1-Kontext-dev", mindspore_dtype=ms.bfloat16
+)
+
+image = load_image("https://huggingface.co/datasets/huggingface/documentation-images/resolve/main/diffusers/yarn-art-pikachu.png").convert("RGB")
+prompt = "Make Pikachu hold a sign that says 'Black Forest Labs is awesome', yarn art style, detailed, vibrant colors"
+image = pipe(
+    image=image,
+    prompt=prompt,
+    guidance_scale=2.5,
+    generator=np.random.default_rng(42),
+)[0][0]
+image.save("flux-kontext.png")
+```
+
+## Note about `unload_lora_weights()` when using Flux LoRAs
+
+When unloading the Control LoRA weights, call `pipe.unload_lora_weights(reset_to_overwritten_params=True)` to reset the `pipe.transformer` completely back to its original form. The resultant pipeline can then be used with methods like [`DiffusionPipeline.from_pipe`]. More details about this argument are available in [this PR](https://github.com/huggingface/diffusers/pull/10397).
 
 ## Running FP16 inference
 Flux can generate high-quality images with FP16 but produces different outputs compared to FP32/BF16. The issue is that some activations in the text encoders have to be clipped when running in FP16, which affects the overall image. Forcing text encoders to run with FP32 inference thus removes this output difference. See [here](https://github.com/huggingface/diffusers/pull/9097#issuecomment-2272292516) for details.
