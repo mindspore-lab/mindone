@@ -197,9 +197,12 @@ class Siglip2ModelTester:
 
     def prepare_config_and_inputs(self):
         text_config, input_ids, attention_mask = self.text_model_tester.prepare_config_and_inputs()
-        vision_config, pixel_values, pixel_attention_mask, spatial_shapes = (
-            self.vision_model_tester.prepare_config_and_inputs()
-        )
+        (
+            vision_config,
+            pixel_values,
+            pixel_attention_mask,
+            spatial_shapes,
+        ) = self.vision_model_tester.prepare_config_and_inputs()
 
         config = self.get_config()
 

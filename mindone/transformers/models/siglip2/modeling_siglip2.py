@@ -19,15 +19,21 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 import math
-import warnings
 from dataclasses import dataclass
 from typing import Any, Optional, Tuple, Union
 
+import torch
+from transformers.models.siglip2.configuration_siglip2 import Siglip2Config, Siglip2TextConfig, Siglip2VisionConfig
+from transformers.utils import (
+    ModelOutput,
+    add_start_docstrings,
+    add_start_docstrings_to_model_forward,
+    replace_return_docstrings,
+)
+
 import mindspore as ms
 import mindspore.nn as nn
-import mindspore.mint.nn.functional as F
-import torch
-from mindspore import mint, ops, Parameter
+from mindspore import Parameter, mint, ops
 from mindspore.nn import BCEWithLogitsLoss, CrossEntropyLoss, MSELoss
 from mindspore.ops.operations.nn_ops import FlashAttentionScore
 
@@ -36,9 +42,6 @@ from ...modeling_attn_mask_utils import _prepare_4d_attention_mask
 from ...modeling_outputs import BaseModelOutput, BaseModelOutputWithPooling, ImageClassifierOutput
 from ...modeling_utils import PreTrainedModel
 from ...utils import logging
-from transformers.utils import ModelOutput, add_start_docstrings, add_start_docstrings_to_model_forward, replace_return_docstrings
-from transformers.models.siglip2.configuration_siglip2 import Siglip2Config, Siglip2TextConfig, Siglip2VisionConfig
-
 
 logger = logging.get_logger(__name__)
 
@@ -557,9 +560,7 @@ class Siglip2Encoder(nn.Cell):
 
         if not return_dict:
             return tuple(v for v in [hidden_states, encoder_states, all_attentions] if v is not None)
-        return BaseModelOutput(
-            last_hidden_state=hidden_states, hidden_states=encoder_states, attentions=all_attentions
-        )
+        return BaseModelOutput(last_hidden_state=hidden_states, hidden_states=encoder_states, attentions=all_attentions)
 
 
 SIGLIP2_VISION_INPUTS_DOCSTRING = r"""
