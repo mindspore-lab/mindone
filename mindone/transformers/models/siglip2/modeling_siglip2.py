@@ -22,7 +22,6 @@ import math
 from dataclasses import dataclass
 from typing import Any, Optional, Tuple, Union
 
-import torch
 from transformers.models.siglip2.configuration_siglip2 import Siglip2Config, Siglip2TextConfig, Siglip2VisionConfig
 from transformers.utils import (
     ModelOutput,
@@ -55,17 +54,17 @@ class Siglip2VisionOutput(ModelOutput):
     Base class for vision model's outputs that also contains image embeddings of the pooling of the last hidden states.
 
     Args:
-        image_embeds (`torch.FloatTensor` of shape `(batch_size, output_dim)` *optional* returned when model is initialized with `with_projection=True`):
+        image_embeds (`ms.Tensor` of shape `(batch_size, output_dim)` *optional* returned when model is initialized with `with_projection=True`):
             The image embeddings obtained by applying the projection layer to the pooler_output.
-        last_hidden_state (`torch.FloatTensor` of shape `(batch_size, sequence_length, hidden_size)`):
+        last_hidden_state (`ms.Tensor` of shape `(batch_size, sequence_length, hidden_size)`):
             Sequence of hidden-states at the output of the last layer of the model.
-        hidden_states (`tuple(torch.FloatTensor)`, *optional*, returned when `output_hidden_states=True` is passed or when `config.output_hidden_states=True`):
-            Tuple of `torch.FloatTensor` (one for the output of the embeddings, if the model has an embedding layer, +
+        hidden_states (`tuple(ms.Tensor)`, *optional*, returned when `output_hidden_states=True` is passed or when `config.output_hidden_states=True`):
+            Tuple of `ms.Tensor` (one for the output of the embeddings, if the model has an embedding layer, +
             one for the output of each layer) of shape `(batch_size, sequence_length, hidden_size)`.
 
             Hidden-states of the model at the output of each layer plus the optional initial embedding outputs.
-        attentions (`tuple(torch.FloatTensor)`, *optional*, returned when `output_attentions=True` is passed or when `config.output_attentions=True`):
-            Tuple of `torch.FloatTensor` (one for each layer) of shape `(batch_size, num_heads, sequence_length,
+        attentions (`tuple(ms.Tensor)`, *optional*, returned when `output_attentions=True` is passed or when `config.output_attentions=True`):
+            Tuple of `ms.Tensor` (one for each layer) of shape `(batch_size, num_heads, sequence_length,
             sequence_length)`.
 
             Attentions weights after the attention softmax, used to compute the weighted average in the self-attention
@@ -84,17 +83,17 @@ class Siglip2TextOutput(ModelOutput):
     Base class for text model's outputs that also contains a pooling of the last hidden states.
 
     Args:
-        text_embeds (`torch.FloatTensor` of shape `(batch_size, output_dim)` *optional* returned when model is initialized with `with_projection=True`):
+        text_embeds (`ms.Tensor` of shape `(batch_size, output_dim)` *optional* returned when model is initialized with `with_projection=True`):
             The text embeddings obtained by applying the projection layer to the pooler_output.
-        last_hidden_state (`torch.FloatTensor` of shape `(batch_size, sequence_length, hidden_size)`):
+        last_hidden_state (`ms.Tensor` of shape `(batch_size, sequence_length, hidden_size)`):
             Sequence of hidden-states at the output of the last layer of the model.
-        hidden_states (`tuple(torch.FloatTensor)`, *optional*, returned when `output_hidden_states=True` is passed or when `config.output_hidden_states=True`):
-            Tuple of `torch.FloatTensor` (one for the output of the embeddings, if the model has an embedding layer, +
+        hidden_states (`tuple(ms.Tensor)`, *optional*, returned when `output_hidden_states=True` is passed or when `config.output_hidden_states=True`):
+            Tuple of `ms.Tensor` (one for the output of the embeddings, if the model has an embedding layer, +
             one for the output of each layer) of shape `(batch_size, sequence_length, hidden_size)`.
 
             Hidden-states of the model at the output of each layer plus the optional initial embedding outputs.
-        attentions (`tuple(torch.FloatTensor)`, *optional*, returned when `output_attentions=True` is passed or when `config.output_attentions=True`):
-            Tuple of `torch.FloatTensor` (one for each layer) of shape `(batch_size, num_heads, sequence_length,
+        attentions (`tuple(ms.Tensor)`, *optional*, returned when `output_attentions=True` is passed or when `config.output_attentions=True`):
+            Tuple of `ms.Tensor` (one for each layer) of shape `(batch_size, num_heads, sequence_length,
             sequence_length)`.
 
             Attentions weights after the attention softmax, used to compute the weighted average in the self-attention
@@ -111,17 +110,17 @@ class Siglip2TextOutput(ModelOutput):
 class Siglip2Output(ModelOutput):
     """
     Args:
-        loss (`torch.FloatTensor` of shape `(1,)`, *optional*, returned when `return_loss` is `True`):
+        loss (`ms.Tensor` of shape `(1,)`, *optional*, returned when `return_loss` is `True`):
             Contrastive loss for image-text similarity.
-        logits_per_image (`torch.FloatTensor` of shape `(image_batch_size, text_batch_size)`):
+        logits_per_image (`ms.Tensor` of shape `(image_batch_size, text_batch_size)`):
             The scaled dot product scores between `image_embeds` and `text_embeds`. This represents the image-text
             similarity scores.
-        logits_per_text (`torch.FloatTensor` of shape `(text_batch_size, image_batch_size)`):
+        logits_per_text (`ms.Tensor` of shape `(text_batch_size, image_batch_size)`):
             The scaled dot product scores between `text_embeds` and `image_embeds`. This represents the text-image
             similarity scores.
-        text_embeds (`torch.FloatTensor` of shape `(batch_size, output_dim`):
+        text_embeds (`ms.Tensor` of shape `(batch_size, output_dim`):
             The text embeddings obtained by applying the projection layer to the pooled output of [`Siglip2TextModel`].
-        image_embeds (`torch.FloatTensor` of shape `(batch_size, output_dim`):
+        image_embeds (`ms.Tensor` of shape `(batch_size, output_dim`):
             The image embeddings obtained by applying the projection layer to the pooled output of [`Siglip2VisionModel`].
         text_model_output (`BaseModelOutputWithPooling`):
             The output of the [`Siglip2TextModel`].
@@ -170,15 +169,15 @@ class Siglip2VisionEmbeddings(nn.Cell):
         Resize positional embeddings to image-specific size and pad to a fixed size.
 
         Args:
-            positional_embeddings (`torch.Tensor`):
+            positional_embeddings (`ms.Tensor`):
                 Position embeddings of shape (height, width, embed_dim)
-            spatial_shapes (`torch.LongTensor`):
+            spatial_shapes (`ms.Tensor`):
                 Spatial shapes of shape (batch_size, 2) to resize the positional embeddings to
             max_length (`int`):
                 Maximum length of the positional embeddings to pad resized positional embeddings to
 
         Returns:
-            `torch.Tensor`: Embeddings of shape (batch_size, max_length, embed_dim)
+            `ms.Tensor`: Embeddings of shape (batch_size, max_length, embed_dim)
         """
         batch_size = spatial_shapes.shape[0]
         embed_dim = positional_embeddings.shape[-1]
@@ -196,19 +195,19 @@ class Siglip2VisionEmbeddings(nn.Cell):
             # (1, dim, height, width) -> (1, dim, target_height, target_width)
             height, width = spatial_shapes[i]
             # Fixme mint/ops interpolate has precision bugs
-            # resized_embeddings = F.interpolate(
-            #     positional_embeddings,
-            #     size=(int(height), int(width)),
-            #     mode="bilinear",
-            #     align_corners=False,
-            # )
-            resized_embeddings = torch.nn.functional.interpolate(
-                torch.tensor(positional_embeddings.numpy()),
+            resized_embeddings = mint.nn.functional.interpolate(
+                positional_embeddings,
                 size=(int(height), int(width)),
                 mode="bilinear",
                 align_corners=False,
-                antialias=True,
             )
+            # resized_embeddings = torch.nn.functional.interpolate(
+            #     ms.Tensor(positional_embeddings.numpy()),
+            #     size=(int(height), int(width)),
+            #     mode="bilinear",
+            #     align_corners=False,
+            #     antialias=True,
+            # )
 
             # (1, dim, target_height, target_width) -> (target_height * target_width, dim)
             resized_embeddings = resized_embeddings.reshape(embed_dim, int(height * width)).swapaxes(0, 1)
@@ -224,7 +223,7 @@ class Siglip2VisionEmbeddings(nn.Cell):
     def construct(self, pixel_values: ms.Tensor, spatial_shapes: ms.Tensor) -> ms.Tensor:
         """
         Args:
-            pixel_values (`torch.FloatTensor`):
+            pixel_values (`ms.Tensor`):
                 Pixel values of shape (batch_size, max_num_patches, num_channels * patch_size * patch_size)
             spatial_shapes (`List[Tuple[int, int]]`):
                 Spatial shapes of shape (batch_size, 2) to resize the positional embeddings to
@@ -446,9 +445,9 @@ class Siglip2EncoderLayer(nn.Cell):
     ) -> Tuple[ms.Tensor]:
         """
         Args:
-            hidden_states (`torch.FloatTensor`):
+            hidden_states (`ms.Tensor`):
                 Input to the layer of shape `(batch, seq_len, embed_dim)`.
-            attention_mask (`torch.FloatTensor`):
+            attention_mask (`ms.Tensor`):
                 Attention mask of shape `(batch, 1, q_len, k_v_seq_len)` where padding elements are indicated by very large negative values.
             output_attentions (`bool`, *optional*, defaults to `False`):
                 Whether or not to return the attentions tensors of all attention layers. See `attentions` under
@@ -503,11 +502,11 @@ class Siglip2Encoder(nn.Cell):
     ) -> Union[Tuple, BaseModelOutput]:
         r"""
         Args:
-            inputs_embeds (`torch.FloatTensor` of shape `(batch_size, sequence_length, hidden_size)`):
+            inputs_embeds (`ms.Tensor` of shape `(batch_size, sequence_length, hidden_size)`):
                 Optionally, instead of passing `input_ids` you can choose to directly pass an embedded representation.
                 This is useful if you want more control over how to convert `input_ids` indices into associated vectors
                 than the model's internal embedding lookup matrix.
-            attention_mask (`torch.Tensor` of shape `(batch_size, sequence_length)`, *optional*):
+            attention_mask (`ms.Tensor` of shape `(batch_size, sequence_length)`, *optional*):
                 Mask to avoid performing attention on padding token indices. Mask values selected in `[0, 1]`:
 
                 - 1 for tokens that are **not masked**,
@@ -565,7 +564,7 @@ class Siglip2Encoder(nn.Cell):
 
 SIGLIP2_VISION_INPUTS_DOCSTRING = r"""
     Args:
-        pixel_values (`torch.FloatTensor` of shape `(batch_size, num_channels, height, width)`):
+        pixel_values (`ms.Tensor` of shape `(batch_size, num_channels, height, width)`):
             Pixel values. Padding will be ignored by default should you provide it. Pixel values can be obtained using
             [`AutoImageProcessor`]. See [`CLIPImageProcessor.__call__`] for details.
         output_attentions (`bool`, *optional*):
@@ -687,7 +686,7 @@ class Siglip2TextEmbeddings(nn.Cell):
 
 SIGLIP2_TEXT_INPUTS_DOCSTRING = r"""
     Args:
-        input_ids (`torch.LongTensor` of shape `(batch_size, sequence_length)`):
+        input_ids (`ms.Tensor` of shape `(batch_size, sequence_length)`):
             Indices of input sequence tokens in the vocabulary. Padding will be ignored by default should you provide
             it.
 
@@ -695,14 +694,14 @@ SIGLIP2_TEXT_INPUTS_DOCSTRING = r"""
             [`PreTrainedTokenizer.__call__`] for details.
 
             [What are input IDs?](../glossary#input-ids)
-        attention_mask (`torch.Tensor` of shape `(batch_size, sequence_length)`, *optional*):
+        attention_mask (`ms.Tensor` of shape `(batch_size, sequence_length)`, *optional*):
             Mask to avoid performing attention on padding token indices. Mask values selected in `[0, 1]`:
 
             - 1 for tokens that are **not masked**,
             - 0 for tokens that are **masked**.
 
             [What are attention masks?](../glossary#attention-mask)
-        position_ids (`torch.LongTensor` of shape `(batch_size, sequence_length)`, *optional*):
+        position_ids (`ms.Tensor` of shape `(batch_size, sequence_length)`, *optional*):
             Indices of positions of each input sequence tokens in the position embeddings. Selected in the range `[0,
             config.max_position_embeddings - 1]`.
 
@@ -796,8 +795,8 @@ SIGLIP2_START_DOCSTRING = r"""
     library implements for all its model (such as downloading or saving, resizing the input embeddings, pruning heads
     etc.)
 
-    This model is also a PyTorch [torch.nn.Cell](https://pytorch.org/docs/stable/nn.html#torch.nn.Cell) subclass.
-    Use it as a regular PyTorch Module and refer to the PyTorch documentation for all matter related to general usage
+    This model is also a MindSpore [mindspore.nn.Cell](https://www.mindspore.cn/) subclass.
+    Use it as a regular MindSpore Module and refer to the MindSpore documentation for all matter related to general usage
     and behavior.
 
     Parameters:
@@ -808,7 +807,7 @@ SIGLIP2_START_DOCSTRING = r"""
 
 SIGLIP2_INPUTS_DOCSTRING = r"""
     Args:
-        input_ids (`torch.LongTensor` of shape `(batch_size, sequence_length)`):
+        input_ids (`ms.Tensor` of shape `(batch_size, sequence_length)`):
             Indices of input sequence tokens in the vocabulary. Padding will be ignored by default should you provide
             it.
 
@@ -816,19 +815,19 @@ SIGLIP2_INPUTS_DOCSTRING = r"""
             [`PreTrainedTokenizer.__call__`] for details.
 
             [What are input IDs?](../glossary#input-ids)
-        attention_mask (`torch.Tensor` of shape `(batch_size, sequence_length)`, *optional*):
+        attention_mask (`ms.Tensor` of shape `(batch_size, sequence_length)`, *optional*):
             Mask to avoid performing attention on padding token indices. Mask values selected in `[0, 1]`:
 
             - 1 for tokens that are **not masked**,
             - 0 for tokens that are **masked**.
 
             [What are attention masks?](../glossary#attention-mask)
-        position_ids (`torch.LongTensor` of shape `(batch_size, sequence_length)`, *optional*):
+        position_ids (`ms.Tensor` of shape `(batch_size, sequence_length)`, *optional*):
             Indices of positions of each input sequence tokens in the position embeddings. Selected in the range `[0,
             config.max_position_embeddings - 1]`.
 
             [What are position IDs?](../glossary#position-ids)
-        pixel_values (`torch.FloatTensor` of shape `(batch_size, num_channels, height, width)`):
+        pixel_values (`ms.Tensor` of shape `(batch_size, num_channels, height, width)`):
             Pixel values. Padding will be ignored by default should you provide it. Pixel values can be obtained using
             [`AutoImageProcessor`]. See [`CLIPImageProcessor.__call__`] for details.
         return_loss (`bool`, *optional*):
@@ -1074,21 +1073,24 @@ class Siglip2Model(Siglip2PreTrainedModel):
     ) -> ms.Tensor:
         r"""
         Returns:
-            text_features (`torch.FloatTensor` of shape `(batch_size, output_dim`): The text embeddings obtained by
+            text_features (`ms.Tensor` of shape `(batch_size, output_dim`): The text embeddings obtained by
             applying the projection layer to the pooled output of [`Siglip2TextModel`].
 
         Examples:
 
         ```python
-        >>> from transformers import AutoTokenizer, AutoModel
-        >>> import torch
+        >>> from transformers import AutoTokenizer
+        >>> from mindone.transformers import AutoModel
+        >>> import mindspore as ms
 
         >>> model = AutoModel.from_pretrained("google/siglip2-base-patch16-224")
         >>> tokenizer = AutoTokenizer.from_pretrained("google/siglip2-base-patch16-224")
 
         >>> # important: make sure to set padding="max_length" as that's how the model was trained
-        >>> inputs = tokenizer(["a photo of a cat", "a photo of a dog"], padding="max_length", return_tensors="pt")
-        >>> with torch.no_grad():
+        >>> inputs = tokenizer(["a photo of a cat", "a photo of a dog"], padding="max_length", return_tensors="np")
+        >>> for key in inputs.keys():
+        >>>     inputs[key] = ms.tensor(inputs[key])
+        >>> with ms._no_grad():
         ...     text_features = model.get_text_features(**inputs)
         ```"""
         # Use Siglip2 model's config for some fields (if specified) instead of those of vision & text components.
@@ -1123,7 +1125,7 @@ class Siglip2Model(Siglip2PreTrainedModel):
     ) -> ms.Tensor:
         r"""
         Returns:
-            image_features (`torch.FloatTensor` of shape `(batch_size, output_dim`): The image embeddings obtained by
+            image_features (`ms.Tensor` of shape `(batch_size, output_dim`): The image embeddings obtained by
             applying the projection layer to the pooled output of [`Siglip2VisionModel`].
 
         Examples:
@@ -1131,8 +1133,9 @@ class Siglip2Model(Siglip2PreTrainedModel):
         ```python
         >>> from PIL import Image
         >>> import requests
-        >>> from transformers import AutoProcessor, AutoModel
-        >>> import torch
+        >>> from transformers import AutoProcessor
+        >>> from mindone.transformers import AutoModel
+        >>> import mindspore as ms
 
         >>> model = AutoModel.from_pretrained("google/siglip2-base-patch16-224")
         >>> processor = AutoProcessor.from_pretrained("google/siglip2-base-patch16-224")
@@ -1140,9 +1143,11 @@ class Siglip2Model(Siglip2PreTrainedModel):
         >>> url = "http://images.cocodataset.org/val2017/000000039769.jpg"
         >>> image = Image.open(requests.get(url, stream=True).raw)
 
-        >>> inputs = processor(images=image, return_tensors="pt")
+        >>> inputs = processor(images=image, return_tensors="np")
+        >>> for key in inputs.keys():
+        >>>     inputs[key] = ms.tensor(inputs[key])
 
-        >>> with torch.no_grad():
+        >>> with ms._no_grad():
         ...     image_features = model.get_image_features(**inputs)
         ```"""
         # Use Siglip2Model's config for some fields (if specified) instead of those of vision & text components.
@@ -1188,8 +1193,10 @@ class Siglip2Model(Siglip2PreTrainedModel):
         ```python
         >>> from PIL import Image
         >>> import requests
-        >>> from transformers import AutoProcessor, AutoModel
-        >>> import torch
+        >>> from transformers import AutoProcessor
+        >>> from mindone.transformers import AutoModel
+        >>> import mindspore as ms
+        >>> from mindspore import mint
 
         >>> model = AutoModel.from_pretrained("google/siglip2-base-patch16-224")
         >>> processor = AutoProcessor.from_pretrained("google/siglip2-base-patch16-224")
@@ -1199,13 +1206,15 @@ class Siglip2Model(Siglip2PreTrainedModel):
 
         >>> texts = ["a photo of 2 cats", "a photo of 2 dogs"]
         >>> # important: we pass `padding=max_length` since the model was trained with this
-        >>> inputs = processor(text=texts, images=image, padding="max_length", return_tensors="pt")
+        >>> inputs = processor(text=texts, images=image, padding="max_length", return_tensors="np")
+        >>> for key in inputs.keys():
+        >>>     inputs[key] = ms.tensor(inputs[key])
 
-        >>> with torch.no_grad():
+        >>> with ms._no_grad():
         ...     outputs = model(**inputs)
 
         >>> logits_per_image = outputs.logits_per_image
-        >>> probs = torch.sigmoid(logits_per_image) # these are the probabilities
+        >>> probs = mint.sigmoid(logits_per_image) # these are the probabilities
         >>> print(f"{probs[0][0]:.1%} that image 0 is '{texts[0]}'")
         31.9% that image 0 is 'a photo of 2 cats'
         ```"""
@@ -1313,7 +1322,7 @@ class Siglip2ForImageClassification(Siglip2PreTrainedModel):
         return_dict: Optional[bool] = None,
     ) -> Union[tuple, ImageClassifierOutput]:
         r"""
-        labels (`torch.LongTensor` of shape `(batch_size,)`, *optional*):
+        labels (`ms.Tensor` of shape `(batch_size,)`, *optional*):
             Labels for computing the image classification/regression loss. Indices should be in `[0, ...,
             config.num_labels - 1]`. If `config.num_labels == 1` a regression loss is computed (Mean-Square loss), If
             `config.num_labels > 1` a classification loss is computed (Cross-Entropy).
@@ -1323,12 +1332,13 @@ class Siglip2ForImageClassification(Siglip2PreTrainedModel):
         Examples:
 
         ```python
-        >>> from transformers import AutoImageProcessor, Siglip2ForImageClassification
-        >>> import torch
+        >>> from transformers import AutoImageProcessor
+        >>> from mindone.transformers import Siglip2ForImageClassification
+        >>> import mindspore as ms
         >>> from PIL import Image
         >>> import requests
 
-        >>> torch.manual_seed(3)  # doctest: +IGNORE_RESULT
+        >>> ms.set_seed(3)  # doctest: +IGNORE_RESULT
         >>> url = "http://images.cocodataset.org/val2017/000000039769.jpg"
         >>> image = Image.open(requests.get(url, stream=True).raw)
 
@@ -1337,7 +1347,9 @@ class Siglip2ForImageClassification(Siglip2PreTrainedModel):
         >>> image_processor = AutoImageProcessor.from_pretrained("google/siglip2-base-patch16-224")
         >>> model = Siglip2ForImageClassification.from_pretrained("google/siglip2-base-patch16-224")
 
-        >>> inputs = image_processor(images=image, return_tensors="pt")
+        >>> inputs = image_processor(images=image, return_tensors="np")
+        >>> for key in inputs.keys():
+        >>>     inputs[key] = ms.tensor(inputs[key])
         >>> outputs = model(**inputs)
         >>> logits = outputs.logits
         >>> # model predicts one of the two classes

@@ -221,8 +221,10 @@ from .models.canine import (
 )
 from .models.chameleon import (
     ChameleonForConditionalGeneration,
+    ChameleonImageProcessor,
     ChameleonModel,
     ChameleonPreTrainedModel,
+    ChameleonProcessor,
     ChameleonVQVAE,
 )
 from .models.clap import (
@@ -571,22 +573,18 @@ from .models.siglip import (
     SiglipTextModel,
     SiglipVisionModel,
 )
-from .models.smolvlm import (
-    SmolVLMForConditionalGeneration,
-    SmolVLMModel,
-    SmolVLMPreTrainedModel,
-    SmolVLMVisionTransformer,
-)
-from .models.qwen2_vl import Qwen2VLForConditionalGeneration, Qwen2VLModel, Qwen2VLPreTrainedModel
-
-# from .models.qwen3 import Qwen3ForCausalLM, Qwen3Model, Qwen3PreTrainedModel
-from .models.siglip import SiglipModel, SiglipPreTrainedModel, SiglipTextModel, SiglipVisionModel
 from .models.siglip2 import (
     Siglip2ForImageClassification,
     Siglip2Model,
     Siglip2PreTrainedModel,
     Siglip2TextModel,
     Siglip2VisionModel,
+)
+from .models.smolvlm import (
+    SmolVLMForConditionalGeneration,
+    SmolVLMModel,
+    SmolVLMPreTrainedModel,
+    SmolVLMVisionTransformer,
 )
 from .models.speecht5 import (
     SpeechT5ForSpeechToSpeech,

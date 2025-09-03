@@ -1,3 +1,19 @@
+# Copyright 2020 The HuggingFace Team. All rights reserved.
+#
+# This code is adapted from https://github.com/huggingface/transformers
+# with modifications to run transformers on mindspore.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
 import transformers
 from packaging import version
 
@@ -65,10 +81,10 @@ from . import (
     qwen2_5_vl,
     qwen2_audio,
     qwen2_vl,
-    siglip2,
     roberta,
     segformer,
     siglip,
+    siglip2,
     smolvlm,
     speecht5,
     starcoder2,
