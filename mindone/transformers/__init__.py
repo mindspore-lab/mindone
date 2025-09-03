@@ -245,6 +245,13 @@ from .models.clip import (
     CLIPVisionModel,
     CLIPVisionModelWithProjection,
 )
+from .models.clipseg import (
+    CLIPSegForImageSegmentation,
+    CLIPSegModel,
+    CLIPSegPreTrainedModel,
+    CLIPSegTextModel,
+    CLIPSegVisionModel,
+)
 from .models.cohere2 import Cohere2ForCausalLM, Cohere2Model, Cohere2PreTrainedModel
 from .models.convbert import (
     ConvBertForMaskedLM,

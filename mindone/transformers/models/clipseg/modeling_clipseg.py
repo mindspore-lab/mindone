@@ -22,14 +22,7 @@ import math
 from dataclasses import dataclass
 from typing import Any, Optional, Tuple, Union
 
-import mindspore as ms
-from mindspore import nn, mint
-from mindone.models.utils import normal_, zeros_, ones_
-
-from ...activations import ACT2FN
-from ...modeling_attn_mask_utils import _create_4d_causal_attention_mask, _prepare_4d_attention_mask
-from ...modeling_outputs import BaseModelOutput, BaseModelOutputWithPooling
-from ...modeling_utils import PreTrainedModel
+from transformers import CLIPSegConfig, CLIPSegTextConfig, CLIPSegVisionConfig
 from transformers.utils import (
     ModelOutput,
     add_start_docstrings,
@@ -37,8 +30,16 @@ from transformers.utils import (
     logging,
     replace_return_docstrings,
 )
-from transformers import CLIPSegConfig, CLIPSegTextConfig, CLIPSegVisionConfig
 
+import mindspore as ms
+from mindspore import mint, nn
+
+from mindone.models.utils import normal_, ones_, zeros_
+
+from ...activations import ACT2FN
+from ...modeling_attn_mask_utils import _create_4d_causal_attention_mask, _prepare_4d_attention_mask
+from ...modeling_outputs import BaseModelOutput, BaseModelOutputWithPooling
+from ...modeling_utils import PreTrainedModel
 
 logger = logging.get_logger(__name__)
 
@@ -192,7 +193,7 @@ class CLIPSegVisionEmbeddings(nn.Cell):
         new_height = height // self.patch_size
         new_width = width // self.patch_size
 
-        sqrt_num_positions = ms.int32(num_positions**0.5)
+        sqrt_num_positions = int(num_positions**0.5)
         patch_pos_embed = patch_pos_embed.reshape(1, sqrt_num_positions, sqrt_num_positions, dim)
         patch_pos_embed = patch_pos_embed.permute(0, 3, 1, 2)
 
@@ -489,7 +490,6 @@ class CLIPSegPreTrainedModel(PreTrainedModel):
             zeros_(module.bias)
 
 
-
 CLIPSEG_START_DOCSTRING = r"""
     This model is a MindSpore [nn.Cell](https://www.mindspore.cn/docs/en/master/api_python/nn/mindspore.nn.Cell.html) subclass. Use it
     as a regular MindSpore Module and refer to the MindSpore documentation for all matter related to general usage and
@@ -674,9 +674,7 @@ class CLIPSegEncoder(nn.Cell):
 
         if not return_dict:
             return tuple(v for v in [hidden_states, encoder_states, all_attentions] if v is not None)
-        return BaseModelOutput(
-            last_hidden_state=hidden_states, hidden_states=encoder_states, attentions=all_attentions
-        )
+        return BaseModelOutput(last_hidden_state=hidden_states, hidden_states=encoder_states, attentions=all_attentions)
 
 
 class CLIPSegTextTransformer(nn.Cell):
@@ -723,9 +721,7 @@ class CLIPSegTextTransformer(nn.Cell):
 
         # CLIPSeg's text model uses causal mask, prepare it here.
         # https://github.com/openai/CLIPSeg/blob/cfcffb90e69f37bf2ff1e988237a0fbe41f33c04/clipseg/model.py#L324
-        causal_attention_mask = _create_4d_causal_attention_mask(
-            input_shape, hidden_states.dtype
-        )
+        causal_attention_mask = _create_4d_causal_attention_mask(input_shape, hidden_states.dtype)
         # expand attention_mask
         if attention_mask is not None:
             # [bsz, seq_len] -> [bsz, 1, tgt_seq_len, src_seq_len]
@@ -760,9 +756,7 @@ class CLIPSegTextTransformer(nn.Cell):
                 mint.arange(last_hidden_state.shape[0]),
                 # We need to get the first position of `eos_token_id` value (`pad_token_ids` might equal to `eos_token_id`)
                 # Note: we assume each sequence (along batch dim.) contains an  `eos_token_id` (e.g. prepared by the tokenizer)
-                (input_ids.to(dtype=ms.int32) == self.eos_token_id)
-                .int()
-                .argmax(dim=-1),
+                (input_ids.to(dtype=ms.int32) == self.eos_token_id).int().argmax(dim=-1),
             ]
 
         if not return_dict:
@@ -810,12 +804,16 @@ class CLIPSegTextModel(CLIPSegPreTrainedModel):
         Examples:
 
         ```python
-        >>> from transformers import AutoTokenizer, CLIPSegTextModel
+        >>> from transformers import AutoTokenizer
+        >>> from mindone.transformers import CLIPSegTextModel
+        >>> import mindspore as ms
 
         >>> tokenizer = AutoTokenizer.from_pretrained("CIDAS/clipseg-rd64-refined")
         >>> model = CLIPSegTextModel.from_pretrained("CIDAS/clipseg-rd64-refined")
 
-        >>> inputs = tokenizer(["a photo of a cat", "a photo of a dog"], padding=True, return_tensors="pt")
+        >>> inputs = tokenizer(["a photo of a cat", "a photo of a dog"], padding=True, return_tensors="np")
+        >>> for k, v in inputs.items():
+        ...     inputs[k] = ms.Tensor(v)
 
         >>> outputs = model(**inputs)
         >>> last_hidden_state = outputs.last_hidden_state
@@ -1121,7 +1119,7 @@ class CLIPSegModel(CLIPSegPreTrainedModel):
 
         >>> outputs = model(**inputs)
         >>> logits_per_image = outputs.logits_per_image  # this is the image-text similarity score
-        >>> probs = logits_per_image.softmax(dim=1)  # we can take the softmax to get the label probabilities
+        >>> probs = logits_per_image.softmax(axis=1)  # we can take the softmax to get the label probabilities
         ```"""
         # Use CLIPSEG model's config for some fields (if specified) instead of those of vision & text components.
         output_attentions = output_attentions if output_attentions is not None else self.config.output_attentions
@@ -1435,7 +1433,7 @@ class CLIPSegForImageSegmentation(CLIPSegPreTrainedModel):
 
         >>> logits = outputs.logits
         >>> print(logits.shape)
-        [3, 352, 352]
+        (3, 352, 352)
         ```"""
         return_dict = return_dict if return_dict is not None else self.config.use_return_dict
 
@@ -1463,9 +1461,7 @@ class CLIPSegForImageSegmentation(CLIPSegPreTrainedModel):
                 attentions=vision_outputs.attentions,
             )
         else:
-            vision_outputs = (
-                vision_outputs[:2] + vision_outputs[3:] if not output_hidden_states else vision_outputs
-            )
+            vision_outputs = vision_outputs[:2] + vision_outputs[3:] if not output_hidden_states else vision_outputs
 
         # step 2: compute conditional embeddings, either from text, images or an own provided embedding
         if conditional_embeddings is None:

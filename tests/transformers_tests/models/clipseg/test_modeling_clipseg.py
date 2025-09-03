@@ -20,15 +20,12 @@
 import numpy as np
 import pytest
 import torch
+from transformers import CLIPSegConfig, CLIPSegTextConfig, CLIPSegVisionConfig
+
 import mindspore as ms
 
-from tests.modeling_test_utils import (
-    compute_diffs,
-    generalized_parse_args,
-    get_modules,
-)
+from tests.modeling_test_utils import compute_diffs, generalized_parse_args, get_modules
 from tests.transformers_tests.models.modeling_common import floats_numpy, ids_numpy, random_attention_mask
-from transformers import CLIPSegConfig, CLIPSegTextConfig, CLIPSegVisionConfig
 
 DTYPE_AND_THRESHOLDS = {"fp32": 5e-4, "fp16": 5e-3, "bf16": 5e-2}
 MODES = [1]
@@ -94,6 +91,7 @@ class CLIPSegVisionModelTester:
         config, pixel_values = config_and_inputs
         inputs_dict = {"pixel_values": pixel_values}
         return config, inputs_dict
+
 
 class CLIPSegTextModelTester:
     def __init__(
@@ -167,6 +165,7 @@ class CLIPSegTextModelTester:
         inputs_dict = {"input_ids": input_ids, "attention_mask": input_mask}
         return config, inputs_dict
 
+
 class CLIPSegModelTester:
     def __init__(
         self,
@@ -214,6 +213,7 @@ class CLIPSegModelTester:
         }
         return config, inputs_dict
 
+
 vision_model_tester = CLIPSegVisionModelTester()
 vision_config, vision_inputs_dict = vision_model_tester.prepare_config_and_inputs_for_common()
 
@@ -257,7 +257,9 @@ CLIPSEG_CASES = [
         {},
         (),
         inputs_dict,
-        {},
+        {
+            "logits_per_image": 0,
+        },
     ],
     [
         "CLIPSegForImageSegmentation",
