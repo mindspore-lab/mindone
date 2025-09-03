@@ -38,7 +38,7 @@ from transformers.utils import (
     requires_backends,
 )
 from ...utils.backbone_utils import load_backbone
-from .configuration_oneformer import OneFormerConfig
+from transformers import OneFormerConfig
 
 
 logger = logging.get_logger(__name__)
