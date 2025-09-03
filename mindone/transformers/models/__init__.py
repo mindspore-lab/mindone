@@ -33,6 +33,8 @@ from . import (
     chameleon,
     clap,
     clip,
+    clvp,
+    colpali,
     convbert,
     convnext,
     convnextv2,

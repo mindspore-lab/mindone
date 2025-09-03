@@ -245,6 +245,18 @@ from .models.clip import (
     CLIPVisionModel,
     CLIPVisionModelWithProjection,
 )
+from .models.clvp import (
+    ClvpDecoder,
+    ClvpEncoder,
+    ClvpForCausalLM,
+    ClvpModel,
+    ClvpModelForConditionalGeneration,
+    ClvpPreTrainedModel,
+)
+from .models.colpali import (
+    ColPaliForRetrieval,
+    ColPaliPreTrainedModel,
+)
 from .models.cohere2 import Cohere2ForCausalLM, Cohere2Model, Cohere2PreTrainedModel
 from .models.convbert import (
     ConvBertForMaskedLM,
