@@ -19,7 +19,7 @@ from dataclasses import dataclass
 from typing import List, Optional, Tuple, Union
 import mindspore as ms
 from mindspore import mint
-from mint.nn import CrossEntropyLoss
+from mindspore.mint.nn import CrossEntropyLoss
 
 from ...activations import ACT2FN
 from ...modeling_outputs import (
