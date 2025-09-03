@@ -1719,8 +1719,8 @@ class AltCLIPModel(AltCLIPPreTrainedModel):
         text_embeds = self.text_projection(text_embeds)
 
         # normalized features
-        image_embeds = image_embeds / image_embeds.norm(p=2, dim=-1, keepdim=True)
-        text_embeds = text_embeds / text_embeds.norm(p=2, dim=-1, keepdim=True)
+        image_embeds = image_embeds / image_embeds.norm( dim=-1, keepdim=True)
+        text_embeds = text_embeds / text_embeds.norm(dim=-1, keepdim=True)
 
         # cosine similarity as logits
         logit_scale = self.logit_scale.exp()
