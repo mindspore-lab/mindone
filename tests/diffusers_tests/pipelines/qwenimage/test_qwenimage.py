@@ -188,9 +188,6 @@ class QwenImagePipelineFastTests(PipelineTesterMixin, unittest.TestCase):
     def test_inference(self, mode, dtype):
         ms.set_context(mode=mode)
 
-        components = self.get_dummy_components()
-        ms.set_context(mode=mode)
-
         pt_components, ms_components = self.get_dummy_components()
         pt_pipe_cls = get_module("diffusers.pipelines.qwenimage.QwenImagePipeline")
         ms_pipe_cls = get_module("mindone.diffusers.pipelines.qwenimage.QwenImagePipeline")

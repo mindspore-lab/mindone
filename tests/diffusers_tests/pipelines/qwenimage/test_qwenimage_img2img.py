@@ -10,7 +10,7 @@ import torch
 from ddt import data, ddt, unpack
 from transformers import Qwen2_5_VLConfig
 
-import minsdspore as ms
+import mindspore as ms
 
 from mindone.diffusers import (
     AutoencoderKLQwenImage,
@@ -158,10 +158,12 @@ class QwenImageImg2ImgPipelineFastTests(unittest.TestCase, PipelineTesterMixin):
         }
         return get_pipeline_components(components, self.pipeline_config)
 
-    def get_dummy_inputs(self):
-        image = floats_tensor((1, 3, 32, 32), rng=random.Random(0))
-        inputs = {
-            "image": image,
+    def get_dummy_inputs(self, seed):
+        pt_image = floats_tensor((1, 3, 32, 32), rng=random.Random(seed))
+        ms_image = ms.Tensor(pt_image.numpy())
+        
+        pt_inputs = {
+            "image": pt_image,
             "prompt": "dance monkey",
             "negative_prompt": "bad quality",
             "num_inference_steps": 2,
@@ -173,7 +175,20 @@ class QwenImageImg2ImgPipelineFastTests(unittest.TestCase, PipelineTesterMixin):
             "output_type": "np",
         }
 
-        return inputs
+        ms_inputs = {
+            "image": ms_image,
+            "prompt": "dance monkey",
+            "negative_prompt": "bad quality",
+            "num_inference_steps": 2,
+            "guidance_scale": 3.0,
+            "true_cfg_scale": 1.0,
+            "height": 32,
+            "width": 32,
+            "max_sequence_length": 16,
+            "output_type": "np",
+        }
+
+        return pt_inputs, ms_inputs
 
     @data(*test_cases)
     @unpack
@@ -194,12 +209,12 @@ class QwenImageImg2ImgPipelineFastTests(unittest.TestCase, PipelineTesterMixin):
         pt_pipe = pt_pipe.to(pt_dtype)
         ms_pipe = ms_pipe.to(ms_dtype)
 
-        inputs = self.get_dummy_inputs()
+        pt_inputs, ms_inputs = self.get_dummy_inputs()
 
         torch.manual_seed(0)
-        pt_image = pt_pipe(**inputs).images
+        pt_image = pt_pipe(**pt_inputs).images
         torch.manual_seed(0)
-        ms_image = ms_pipe(**inputs)[0]
+        ms_image = ms_pipe(**ms_inputs)[0]
 
         pt_generated_image = pt_image[0]
         ms_generated_image = ms_image[0]
