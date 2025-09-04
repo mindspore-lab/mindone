@@ -28,7 +28,7 @@ from transformers import GotOcr2Config, GotOcr2VisionConfig
 from transformers.utils import add_start_docstrings, add_start_docstrings_to_model_forward, replace_return_docstrings
 
 import mindspore as ms
-from mindspore import mint, nn
+from mindspore import mint
 
 from ...activations import ACT2FN
 from ...generation import GenerationMixin
