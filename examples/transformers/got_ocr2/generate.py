@@ -1,6 +1,6 @@
 import time
 
-from transformers import AutoProcessor, GotOcr2ImageProcessor
+from transformers import AutoProcessor
 
 import mindspore as ms
 
@@ -11,7 +11,6 @@ IMAGE = "demo.png"
 
 start = time.time()
 processor = AutoProcessor.from_pretrained(MODEL_HUB)
-processor.image_processor = GotOcr2ImageProcessor.from_pretrained(MODEL_HUB)
 print(f"Loaded processor in {time.time()-start:.4f}s")
 
 start = time.time()
