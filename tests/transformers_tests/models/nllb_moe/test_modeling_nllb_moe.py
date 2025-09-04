@@ -20,11 +20,7 @@ import pytest
 import torch
 from transformers import NllbMoeConfig
 
-from tests.modeling_test_utils import (
-    compute_diffs,
-    generalized_parse_args,
-    get_modules,
-)
+from tests.modeling_test_utils import compute_diffs, generalized_parse_args, get_modules
 
 from ..modeling_common import ids_numpy, random_attention_mask
 
