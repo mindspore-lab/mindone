@@ -10,6 +10,7 @@ _import_structure = {
     "pipeline_qwenimage_img2img": ["QwenImageImg2ImgPipeline"],
     "pipeline_qwenimage_inpaint": ["QwenImageInpaintPipeline"],
     "pipeline_qwenimage_edit": ["QwenImageEditPipeline"],
+    "pipeline_qwenimage_edit_inpaint": ["QwenImageEditInpaintPipeline"],
     }
 
 if TYPE_CHECKING:
@@ -17,6 +18,7 @@ if TYPE_CHECKING:
     from .pipeline_qwenimage_edit import QwenImageEditPipeline
     from .pipeline_qwenimage_img2img import QwenImageImg2ImgPipeline
     from .pipeline_qwenimage_inpaint import QwenImageInpaintPipeline
+    from .pipeline_qwenimage_edit_inpaint import QwenImageEditInpaintPipeline
 else:
     import sys
 

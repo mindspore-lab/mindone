@@ -396,6 +396,7 @@ if TYPE_CHECKING:
     from .pixart_alpha import PixArtAlphaPipeline, PixArtSigmaPipeline
     from .qwenimage import (
         QwenImageEditPipeline,
+        QwenImageEditInpaintPipeline,
         QwenImageImg2ImgPipeline,
         QwenImageInpaintPipeline,
         QwenImagePipeline,

@@ -60,8 +60,6 @@ from transformers.utils.hub import convert_file_size_to_int, get_checkpoint_shar
 import mindspore as ms
 from mindspore import Parameter, Tensor, mint, nn, ops
 from mindspore.nn import CrossEntropyLoss, Identity
-from mindspore.nn.utils import no_init_parameters
-from mindspore.ops import Cast
 
 from .activations import get_activation
 from .generation.utils import GenerationMixin
@@ -79,7 +77,6 @@ from .mindspore_utils import (  # noqa: F401
     prune_linear_layer,
 )
 from .modeling_attn_mask_utils import dtype_to_min
-from .modeling_patch import patch_nn_default_dtype, restore_nn_default_dtype
 from .utils.import_utils import is_flash_attn_2_available, is_sdpa_available
 
 if is_safetensors_available():
@@ -89,7 +86,6 @@ if is_safetensors_available():
     from mindone.safetensors.mindspore import save_file as safe_save_file
 
 logger = logging.get_logger(__name__)
-cpu_cast = Cast().set_device("CPU")
 
 _init_weights = True
 
@@ -353,7 +349,7 @@ def _load_state_dict_into_model(model_to_load, state_dict, start_prefix, is_shar
     local_state = {v.name: v for k, v in model_to_load.parameters_and_names()}
     for k, v in state_dict.items():
         if k in local_state:
-            state_dict[k] = ms.Parameter(cpu_cast(v.data, local_state[k].dtype), name=k)
+            v.set_dtype(local_state[k].dtype)
         else:
             pass  # unexpect key keeps origin dtype
     cm = silence_mindspore_logger() if is_sharded else nullcontext()
@@ -391,8 +387,7 @@ class ModuleUtilsMixin:
         # Now we use `Parameter` and `Parameter.set_dtype()` instead.
 
         for p in self.get_parameters():
-            if p.dtype != dtype:
-                p.set_dtype(dtype)
+            p.set_dtype(dtype)
         return self
 
     def float(self):
@@ -955,7 +950,7 @@ class PreTrainedModel(nn.Cell, ModuleUtilsMixin, GenerationMixin, PushToHubMixin
 
         if isinstance(mindspore_dtype, str):
             mindspore_dtype = getattr(ms, mindspore_dtype)
-        elif mindspore_dtype is not None:
+        elif mindspore_dtype is not None and not isinstance(mindspore_dtype, ms.Type):
             TORCH_TO_MINDSPORE_DTYPE_MAP = {
                 "torch.float32": ms.float32,
                 "torch.bfloat16": ms.bfloat16,
@@ -982,12 +977,8 @@ class PreTrainedModel(nn.Cell, ModuleUtilsMixin, GenerationMixin, PushToHubMixin
                 use_flash_attention_2=use_flash_attention_2,
                 mindspore_dtype=mindspore_dtype,
             )
-        with no_init_parameters():
-            if mindspore_dtype is not None:
-                patch_nn_default_dtype(dtype=mindspore_dtype, force=True)
-            model = cls(config, **kwargs)
-            if mindspore_dtype is not None:
-                restore_nn_default_dtype()
+
+        model = cls(config, **kwargs)
 
         # We cannot set default mindspore dtype. So we need to cast model weights after creating.
         if mindspore_dtype is not None:
@@ -2357,12 +2348,7 @@ class PreTrainedModel(nn.Cell, ModuleUtilsMixin, GenerationMixin, PushToHubMixin
             config, use_flash_attention_2=use_flash_attention_2, mindspore_dtype=mindspore_dtype
         )
 
-        with no_init_parameters():
-            if mindspore_dtype is not None:
-                patch_nn_default_dtype(dtype=mindspore_dtype, force=True)
-            model = cls(config, *model_args, **model_kwargs)
-            if mindspore_dtype is not None:
-                restore_nn_default_dtype()
+        model = cls(config, *model_args, **model_kwargs)
 
         # Make sure to tie the weights correctly
         model.tie_weights()

@@ -216,6 +216,7 @@ _import_structure = {
         "QwenImageInpaintPipeline",
         "QwenImagePipeline",
         "QwenImageEditPipeline",
+        "QwenImageEditInpaintPipeline",
         "ReduxImageEncoder",
         "SanaControlNetPipeline",
         "SanaPAGPipeline",
