@@ -81,4 +81,4 @@ wget -P images https://raw.githubusercontent.com/facebookresearch/sam2/main/note
 
 | 原图  |  预测结果|
 |:-----:|:-------:|
-|       |         |
+| <img src="https://github.com/user-attachments/assets/b422f52b-b10a-401c-be9a-efcad0eb696a" width="300" alt="cars"> | <img src="https://github.com/user-attachments/assets/ca348fe3-481c-41bf-a62f-2c430f2f6972" width="300" alt="cars">  |
