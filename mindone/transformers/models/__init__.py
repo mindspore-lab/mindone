@@ -38,6 +38,7 @@ from . import (
     convbert,
     convnext,
     convnextv2,
+    dac,
     depth_anything,
     dinov2,
     dpt,
