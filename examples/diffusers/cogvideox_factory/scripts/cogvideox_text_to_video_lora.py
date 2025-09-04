@@ -46,7 +46,6 @@ from mindone.diffusers import (
     ConfigMixin,
     SchedulerMixin,
 )
-from mindone.diffusers._peft import LoraConfig, get_peft_model_state_dict, set_peft_model_state_dict
 from mindone.diffusers.optimization import get_scheduler
 from mindone.diffusers.training_utils import (
     AttrJitWrapper,
@@ -60,6 +59,7 @@ from mindone.diffusers.training_utils import (
 )
 from mindone.diffusers.utils import convert_unet_state_dict_to_peft, export_to_video
 from mindone.diffusers.utils.logging import get_logger
+from mindone.peft import LoraConfig, get_peft_model_state_dict, set_peft_model_state_dict
 from mindone.transformers import T5EncoderModel
 
 logger = get_logger(__name__)

@@ -37,9 +37,6 @@ from mindspore.amp import StaticLossScaler
 from mindspore.dataset import GeneratorDataset, transforms, vision
 
 from mindone.diffusers import AutoencoderKL, DDPMScheduler, StableDiffusionPipeline, UNet2DConditionModel
-from mindone.diffusers._peft import LoraConfig
-from mindone.diffusers._peft.tuners.tuners_utils import BaseTunerLayer
-from mindone.diffusers._peft.utils import get_peft_model_state_dict
 from mindone.diffusers.optimization import get_scheduler
 from mindone.diffusers.training_utils import (
     AttrJitWrapper,
@@ -51,6 +48,9 @@ from mindone.diffusers.training_utils import (
     set_seed,
 )
 from mindone.diffusers.utils import convert_state_dict_to_diffusers
+from mindone.peft import LoraConfig
+from mindone.peft.tuners.tuners_utils import BaseTunerLayer
+from mindone.peft.utils import get_peft_model_state_dict
 from mindone.transformers import CLIPTextModel
 
 logger = logging.getLogger(__name__)

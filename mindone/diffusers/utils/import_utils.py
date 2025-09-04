@@ -428,7 +428,7 @@ def is_peft_version(operation: str, version: str):
         version (`str`):
             A version string
     """
-    from mindone.diffusers._peft import __version__ as _peft_version
+    from mindone.peft import __version__ as _peft_version
 
     if not _peft_version:
         return False
