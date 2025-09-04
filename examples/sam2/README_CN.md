@@ -62,7 +62,13 @@ mkdir images
 wget -P images https://raw.githubusercontent.com/facebookresearch/sam2/main/notebooks/images/truck.jpg
 wget -P images https://raw.githubusercontent.com/facebookresearch/sam2/main/notebooks/images/groceries.jpg
 ```
-然后运行 `python predict_image.py`。
+然后运行 `python predict_image.py --image_path images/truck.jpg` 和 `python predict_image.py --image_path images/groceries.jpg`。结果如下，会保存在`images/`文件夹下。
+
+| 原图（参考点用Star标注） |  预测结果1 |  预测结果2 |  预测结果3 |
+|:--------------------------:|:-------------------------------------:|:-------------------------------------:|:-------------------------------------:|
+| ![原图1](images/truck.jpg) | ![预测结果1](images/truck_result1.jpg) | ![预测结果2](images/truck_result2.jpg) | ![预测结果3](images/truck_result3.jpg) |
+| ![原图2](images/groceries.jpg) | ![预测结果1](images/groceries_result1.jpg) | ![预测结果2](images/groceries_result2.jpg) | ![预测结果3](images/groceries_result3.jpg) |
+
 
 ### 分割掩码预测
 

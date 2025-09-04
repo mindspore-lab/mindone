@@ -10,7 +10,6 @@ import logging
 import os
 
 import sam2
-import torch
 from hydra import compose
 from hydra.utils import instantiate
 from omegaconf import OmegaConf
@@ -138,7 +137,7 @@ def build_sam2_video_predictor(
     _load_checkpoint(model, ckpt_path)
 
     if mode == "eval":
-        model.eval()
+        model.set_train(False)
     return model
 
 
@@ -161,6 +160,12 @@ def build_sam2_video_predictor_hf(model_id, **kwargs):
 
 
 def _load_checkpoint(model, ckpt_path):
+    try:
+        import torch
+    except ImportError:
+        raise ImportError(
+            "torch is not installed, which is required to load SAM2 pytorch weights. Please install it using `pip install torch`."
+        )
     if ckpt_path is not None:
         sd = torch.load(ckpt_path, map_location="cpu", weights_only=True)["model"]
 

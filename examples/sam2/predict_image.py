@@ -83,9 +83,16 @@ def main(args):
     image_path = args.image_path
     image = Image.open(image_path)
     image = np.array(image.convert("RGB"))
-    input_point = np.array([[args.x, args.y]])
-    input_label = np.array([1])
+    if args.x is not None and args.y is not None:
+        input_point = np.array([[args.x, args.y]])
+    else:
+        assert args.image_path in [
+            "images/truck.jpg",
+            "images/groceries.jpg",
+        ], "Please provide x and y coordinates for the point"
+        input_point = [500, 375] if args.image_path == "images/truck.jpg" else [600, 250]
 
+    input_label = np.array([1])
     # show image with point
     plt.figure(figsize=(10, 10))
     plt.imshow(image)
@@ -116,7 +123,7 @@ if __name__ == "__main__":
 
     parser = argparse.ArgumentParser()
     parser.add_argument("--image_path", type=str, default="./images/truck.jpg")
-    parser.add_argument("--x", type=int, default=500)
-    parser.add_argument("--y", type=int, default=375)
+    parser.add_argument("--x", type=int, default=None)
+    parser.add_argument("--y", type=int, default=None)
     args = parser.parse_args()
     main(args)
