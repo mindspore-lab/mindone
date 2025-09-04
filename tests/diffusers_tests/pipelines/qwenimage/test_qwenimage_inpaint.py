@@ -27,7 +27,7 @@ from transformers import Qwen2_5_VLConfig
 
 import mindspore as ms
 
-from diffusers import (
+from mindone.diffusers import (
     AutoencoderKLQwenImage,
     QwenImageInpaintPipeline,
     QwenImageTransformer2DModel,
@@ -176,13 +176,17 @@ class QwenImageInpaintPipelineFastTests(PipelineTesterMixin, unittest.TestCase):
 
     def get_dummy_inputs(self, seed=0):
         pt_image = floats_tensor((1, 3, 32, 32), rng=random.Random(seed))
+        pt_mask_image = torch.ones((1, 1, 32, 32))
         ms_image = ms.Tensor(pt_image.numpy())
+        ms_mask_image = ms.mint.ones((1, 1, 32, 32))
         
         pt_inputs = {
             "image": pt_image,
+            "mask_image": pt_mask_image,
             "prompt": "dance monkey",
             "negative_prompt": "bad quality",
             "num_inference_steps": 2,
+
             "guidance_scale": 3.0,
             "true_cfg_scale": 1.0,
             "height": 32,
@@ -193,6 +197,7 @@ class QwenImageInpaintPipelineFastTests(PipelineTesterMixin, unittest.TestCase):
 
         ms_inputs = {
             "image": ms_image,
+            "mask_image": ms_mask_image,
             "prompt": "dance monkey",
             "negative_prompt": "bad quality",
             "num_inference_steps": 2,
@@ -257,6 +262,7 @@ class QwenImageInpaintPipelineIntegrationTests(PipelineTesterMixin, unittest.Tes
         # model_id = "Qwen/Qwen-Image"
         model_id = "/data6/Qwen-Image"
         image = floats_tensor((1, 3, 32, 32), rng=random.Random(0))  # load given image
+        mask_image = ms.mint.ones((1, 1, 32, 32))
         
         pipe = QwenImageInpaintPipeline.from_pretrained(model_id, mindspore_dtype=ms_dtype)
 
@@ -265,6 +271,7 @@ class QwenImageInpaintPipelineIntegrationTests(PipelineTesterMixin, unittest.Tes
         torch.manual_seed(0)
         image = pipe(
             image=ms.Tensor(image.numpy()),
+            mask_image=mask_image,
             prompt="dance monkey",
             negative_prompt="bad quality",
         )[0][0]

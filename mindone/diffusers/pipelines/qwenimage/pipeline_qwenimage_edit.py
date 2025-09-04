@@ -248,7 +248,7 @@ class QwenImageEditPipeline(DiffusionPipeline, QwenImageLoraLoaderMixin):
         )
 
         hidden_states = outputs.hidden_states[-1]
-        split_hidden_states = self._extract_masked_hidden(hidden_states, model_inputs.attention_mask)
+        split_hidden_states = self._extract_masked_hidden(hidden_states, ms.Tensor(model_inputs.attention_mask))
         split_hidden_states = [e[drop_idx:] for e in split_hidden_states]
         attn_mask_list = [mint.ones(e.shape[0], dtype=ms.int64) for e in split_hidden_states]
         max_seq_len = max([e.shape[0] for e in split_hidden_states])
@@ -622,7 +622,7 @@ class QwenImageEditPipeline(DiffusionPipeline, QwenImageLoraLoaderMixin):
             [`~pipelines.qwenimage.QwenImagePipelineOutput`] if `return_dict` is True, otherwise a `tuple`. When
             returning a tuple, the first element is a list with the generated images.
         """
-        image_size = image[0].shape if isinstance(image, list) else image.shape
+        image_size = image[0].size if isinstance(image, list) else image.size
         calculated_width, calculated_height, _ = calculate_dimensions(1024 * 1024, image_size[0] / image_size[1])
         height = height or calculated_height
         width = width or calculated_width
@@ -659,7 +659,7 @@ class QwenImageEditPipeline(DiffusionPipeline, QwenImageLoraLoaderMixin):
             batch_size = prompt_embeds.shape[0]
 
         # 3. Preprocess image
-        if image is not None and not (isinstance(image, ms.Tensor) and image.shape[1] == self.latent_channels):
+        if image is not None and not (isinstance(image, ms.Tensor) and image.size[1] == self.latent_channels):
             image = self.image_processor.resize(image, calculated_height, calculated_width)
             prompt_image = image
             image = self.image_processor.preprocess(image, calculated_height, calculated_width)
