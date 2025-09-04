@@ -1,5 +1,5 @@
 # Copyright 2024-2025 The Alibaba Wan Team Authors. All rights reserved.
-from typing import List, Optional, Tuple
+from typing import Any, List, Optional, Tuple
 
 import mindspore as ms
 import mindspore.mint as mint
@@ -137,7 +137,7 @@ def sp_attn_forward(
     seq_lens: ms.Tensor,
     grid_sizes: ms.Tensor,
     freqs: ms.Tensor,
-    dtype: ms.dtype = ms.bfloat16,
+    dtype: Any = ms.bfloat16,
 ) -> ms.Tensor:
     b, s, n, d = *x.shape[:2], self.num_heads, self.head_dim
     half_dtypes = (ms.float16, ms.bfloat16)

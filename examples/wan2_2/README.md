@@ -25,6 +25,8 @@ We are excited to introduce **Wan2.2**, a major upgrade to our foundational vide
     - [x] Multi-NPU Inference code of the A14B model
 - Wan2.2 Text-Image-to-Video
     - [x] Single-NPU/Multi-NPU Inference code of the 5B model
+- Wan2.2-S2V Speech-to-Video
+    - [x] Multi-NPU Inference code of Wan2.2-S2V
 
 ## Run Wan2.2
 
@@ -54,6 +56,7 @@ pip install -r requirements.txt
 | T2V-A14B    | 🤗 [Huggingface](https://huggingface.co/Wan-AI/Wan2.2-T2V-A14B)    🤖 [ModelScope](https://modelscope.cn/models/Wan-AI/Wan2.2-T2V-A14B)    | Text-to-Video MoE model, supports 480P & 720P |
 | I2V-A14B    | 🤗 [Huggingface](https://huggingface.co/Wan-AI/Wan2.2-I2V-A14B)    🤖 [ModelScope](https://modelscope.cn/models/Wan-AI/Wan2.2-I2V-A14B)    | Image-to-Video MoE model, supports 480P & 720P |
 | TI2V-5B     | 🤗 [Huggingface](https://huggingface.co/Wan-AI/Wan2.2-TI2V-5B)     🤖 [ModelScope](https://modelscope.cn/models/Wan-AI/Wan2.2-TI2V-5B)     | High-compression VAE, T2V+I2V, supports 720P |
+| S2V-14B     | 🤗 [Huggingface](https://huggingface.co/Wan-AI/Wan2.2-S2V-14B)     🤖 [ModelScope](https://modelscope.cn/models/Wan-AI/Wan2.2-S2V-14B)     | Speech-to-Video model, supports 480P & 720P |
 
 
 > 💡Note:
@@ -160,6 +163,36 @@ python generate.py --task ti2v-5B --size 1280*704 --ckpt_dir ./Wan2.2-TI2V-5B --
 ```sh
 msrun --worker_num=4 --local_worker_num=4 generate.py --task ti2v-5B --size 1280*704 --ckpt_dir ./Wan2.2-TI2V-5B --dit_zero3 --t5_zero3 --ulysses_size 4 --image ../wan2_1/examples/i2v_input.JPG --prompt "Summer beach vacation style, a white cat wearing sunglasses sits on a surfboard. The fluffy-furred feline gazes directly at the camera with a relaxed expression. Blurred beach scenery forms the background featuring crystal-clear waters, distant green hills, and a blue sky dotted with white clouds. The cat assumes a naturally relaxed posture, as if savoring the sea breeze and warm sunlight. A close-up shot highlights the feline's intricate details and the refreshing atmosphere of the seaside."
 ```
+
+
+#### Run Speech-to-Video Generation
+
+This repository supports the `Wan2.2-S2V-14B` Speech-to-Video model and can simultaneously support video generation at 480P and 720P resolutions.
+
+- Multi-GPU inference using ZeRO3 + DeepSpeed Ulysses
+
+```sh
+msrun --worker_num=4 --local_worker_num=4 generate.py --task s2v-14B --size 1024*704 --ckpt_dir ./Wan2.2-S2V-14B/ --dit_zero3 --t5_zero3 --ulysses_size 4 --offload_model True --prompt "Summer beach vacation style, a white cat wearing sunglasses sits on a surfboard." --image "../wan2_1/examples/i2v_input.JPG" --audio "examples/talk.wav"
+```
+
+> You can get the `talk.wav` file from [official Wan2.2](https://github.com/Wan-Video/Wan2.2).
+
+- Pose + Audio driven generation
+
+```sh
+msrun --worker_num=4 --local_worker_num=4 generate.py --task s2v-14B --size 1024*704 --ckpt_dir ./Wan2.2-S2V-14B/ --dit_zero3 --t5_zero3 --ulysses_size 4 --offload_model True --prompt "a person is singing" --image "examples/pose.png" --audio "examples/sing.MP3" --pose_video "examples/pose.mp4"
+```
+
+> 💡For the Speech-to-Video task, the `size` parameter represents the area of the generated video, with the aspect ratio following that of the original input image.
+
+> 💡The model can generate videos from audio input combined with reference image and optional text prompt.
+
+> 💡The `--pose_video` parameter enables pose-driven generation, allowing the model to follow specific pose sequences while generating videos synchronized with audio input.
+
+> 💡The `--num_clip` parameter controls the number of video clips generated, useful for quick preview with shorter generation time.
+
+> You can get the `pose.png`, `sing.MP3` and `pose.mp4` files from [official Wan2.2](https://github.com/Wan-Video/Wan2.2).
+
 
 ## Citation
 If you find this work helpful, please cite.

@@ -56,9 +56,9 @@ class WanT2V:
             use_sp (`bool`, *optional*, defaults to False):
                 Enable distribution strategy of sequence parallel.
             t5_cpu (`bool`, *optional*, defaults to False):
-                Whether to place T5 model on CPU. Only works without t5_zero3.
+                No usage now. For compatibility only.
             init_on_cpu (`bool`, *optional*, defaults to False):
-                Enable initializing Transformer Model on CPU. Only works without ZeRO3 or USP.
+                No usage now. For compatibility only.
             convert_model_dtype (`bool`, *optional*, defaults to False):
                 Convert DiT model parameters dtype to 'config.param_dtype'.
         """
@@ -138,7 +138,6 @@ class WanT2V:
                 The function to apply ZeRO3 sharding.
             convert_model_dtype (`bool`):
                 Convert DiT model parameters dtype to 'config.param_dtype'.
-                Only works without ZeRO3.
 
         Returns:
             mindspore.nn.Cell:
@@ -271,14 +270,10 @@ class WanT2V:
         seed_g = ms.Generator()
         seed_g.manual_seed(seed)
 
-        if not self.t5_cpu:
-            context = self.text_encoder([input_prompt])
-            context_null = self.text_encoder([n_prompt])
-            if offload_model:
-                free_model(self, "text_encoder")
-        else:
-            context = self.text_encoder([input_prompt])
-            context_null = self.text_encoder([n_prompt])
+        context = self.text_encoder([input_prompt])
+        context_null = self.text_encoder([n_prompt])
+        if offload_model:
+            free_model(self, "text_encoder")
 
         noise = [
             mint.randn(

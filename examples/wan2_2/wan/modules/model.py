@@ -268,7 +268,9 @@ class WanAttentionBlock(nn.Cell):
         x = x.to(dtype)
 
         # cross-attention & ffn function
-        def cross_attn_ffn(x: ms.Tensor, context: ms.Tensor, context_lens: ms.Tensor, e: ms.Tensor) -> ms.Tensor:
+        def cross_attn_ffn(
+            x: ms.Tensor, context: ms.Tensor, context_lens: Optional[ms.Tensor], e: ms.Tensor
+        ) -> ms.Tensor:
             x = x + self.cross_attn(self.norm3(x), context, context_lens)
             y = self.ffn((self.norm2(x).float() * (1 + e[4].squeeze(2)) + e[3].squeeze(2)).to(dtype))
             with autocast(dtype=ms.float32):
@@ -378,7 +380,7 @@ class WanModel(ModelMixin, ConfigMixin):
 
         super().__init__()
 
-        assert model_type in ["t2v", "i2v", "ti2v"]
+        assert model_type in ["t2v", "i2v", "ti2v", "s2v"]
         self.model_type = model_type
 
         self.patch_size = patch_size
