@@ -23,14 +23,25 @@ import math
 from dataclasses import dataclass
 from typing import Dict, Optional, Tuple, Union
 
+from transformers import ClvpConfig, ClvpDecoderConfig, ClvpEncoderConfig
+from transformers.generation import GenerationConfig
+from transformers.utils import (
+    ModelOutput,
+    add_start_docstrings,
+    add_start_docstrings_to_model_forward,
+    logging,
+    replace_return_docstrings,
+)
+
 import mindspore as ms
-from mindspore import nn, mint, ops
+from mindspore import mint, nn, ops
 from mindspore.mint.nn import CrossEntropyLoss
-from mindone.models.utils import normal_, zeros_, ones_
+
+from mindone.models.utils import normal_, ones_, zeros_
 
 from ...activations import ACT2FN
-from transformers.generation import GenerationConfig
 from ...generation import GenerationMixin
+from ...mindspore_utils import Conv1D, isin_mps_friendly
 from ...modeling_attn_mask_utils import _prepare_4d_attention_mask, _prepare_4d_causal_attention_mask
 from ...modeling_outputs import (
     BaseModelOutput,
@@ -39,20 +50,6 @@ from ...modeling_outputs import (
     CausalLMOutputWithCrossAttentions,
 )
 from ...modeling_utils import PreTrainedModel, SequenceSummary
-from ...mindspore_utils import Conv1D, isin_mps_friendly
-from transformers.utils import (
-    ModelOutput,
-    add_start_docstrings,
-    add_start_docstrings_to_model_forward,
-    logging,
-    replace_return_docstrings,
-)
-from transformers import (
-    ClvpConfig,
-    ClvpDecoderConfig,
-    ClvpEncoderConfig,
-)
-
 
 logger = logging.get_logger(__name__)
 
@@ -131,12 +128,10 @@ def _pad_extra_bos_eos_tokens(
 
     modified_input_ids = input_ids
     if add_eos_token:
-        modified_input_ids = mint.zeros(
-            (input_ids.shape[0], input_ids.shape[1] + 1), dtype=input_ids.dtype
-        )
+        modified_input_ids = mint.zeros((input_ids.shape[0], input_ids.shape[1] + 1), dtype=input_ids.dtype)
         for i, each_input_id in enumerate(input_ids):
             # locate where the valid tokens end and then add the eos token
-            if isin_mps_friendly(each_input_id, pad_token_id).sum():
+            if isin_mps_friendly(each_input_id, ms.tensor(pad_token_id)).sum():
                 pos = mint.where(each_input_id == pad_token_id)[0].min()
                 modified_input_ids[i] = mint.concat(
                     [each_input_id[:pos], ms.tensor([eos_token_id]), each_input_id[pos:]]
@@ -274,7 +269,7 @@ class ClvpRotaryPositionalEmbedding(nn.Cell):
         embeddings = mint.cat((freqs, freqs), dim=-1)
 
         self.cached_rotary_positional_embedding = embeddings.unsqueeze(0)
-        return self.cached_rotary_positional_embedding
+        return self.cached_rotary_positional_embedding.to(hidden_states.dtype)
 
 
 class ClvpSelfAttention(nn.Cell):
@@ -598,7 +593,7 @@ class ClvpConditioningEncoder(nn.Cell):
             self.decoder_config.max_text_tokens, self.decoder_config.hidden_size
         )
 
-        self.mel_conv = nn.Conv1d(self.decoder_config.feature_size, self.decoder_config.hidden_size, kernel_size=1)
+        self.mel_conv = nn.Conv1d(self.decoder_config.feature_size, self.decoder_config.hidden_size, kernel_size=1, has_bias=True)
 
         # define group norms to be used before each attention layer
         num_groups = self.compute_groupnorm_groups(self.decoder_config.hidden_size)
@@ -1086,9 +1081,7 @@ class ClvpDecoder(ClvpPreTrainedModel):
         else:
             past_key_values_length = past_key_values[0][0].shape[-2]
         if position_ids is None:
-            position_ids = mint.arange(
-                past_key_values_length, input_shape[-1] + past_key_values_length, dtype=ms.int64
-            )
+            position_ids = mint.arange(past_key_values_length, input_shape[-1] + past_key_values_length, dtype=ms.int64)
             position_ids = position_ids.unsqueeze(0).view(-1, input_shape[-1])
 
         if inputs_embeds is None:
@@ -1316,17 +1309,12 @@ class ClvpForCausalLM(ClvpPreTrainedModel, GenerationMixin):
             if hasattr(model_kwargs, "attention_mask"):
                 position_ids = model_kwargs["attention_mask"].long().cumsum(-1) - 1
             else:
-                position_ids = ops.range(
-                    0, conditioning_embeds.shape[1] - 1, dtype=ms.int64
-                )
+                position_ids = ops.range(0, conditioning_embeds.shape[1] - 1, dtype=ms.int64)
             position_ids = position_ids.unsqueeze(0).tile((conditioning_embeds.shape[0], 1))
 
-            model_kwargs["inputs_embeds"] = conditioning_embeds - self.model.decoder.position_embeds_layer(
-                position_ids
-            )
+            model_kwargs["inputs_embeds"] = conditioning_embeds - self.model.decoder.position_embeds_layer(position_ids)
             model_kwargs["input_ids"] = (
-                mint.ones((model_kwargs["inputs_embeds"].shape[0], 1), dtype=ms.int64)
-                * self.config.bos_token_id
+                mint.ones((model_kwargs["inputs_embeds"].shape[0], 1), dtype=ms.int64) * self.config.bos_token_id
             )
 
             return model_kwargs["inputs_embeds"], "inputs_embeds", model_kwargs
@@ -1460,17 +1448,14 @@ class ClvpForCausalLM(ClvpPreTrainedModel, GenerationMixin):
 
     @staticmethod
     # Copied from transformers.models.gpt2.modeling_gpt2.GPT2LMHeadModel._reorder_cache
-    def _reorder_cache(
-        past_key_values: Tuple[Tuple[ms.Tensor]], beam_idx: ms.Tensor
-    ) -> Tuple[Tuple[ms.Tensor]]:
+    def _reorder_cache(past_key_values: Tuple[Tuple[ms.Tensor]], beam_idx: ms.Tensor) -> Tuple[Tuple[ms.Tensor]]:
         """
         This function is used to re-order the `past_key_values` cache if [`~PreTrainedModel.beam_search`] or
         [`~PreTrainedModel.beam_sample`] is called. This is required to match `past_key_values` with the correct
         beam_idx at every generation step.
         """
         return tuple(
-            tuple(past_state.index_select(0, beam_idx) for past_state in layer_past)
-            for layer_past in past_key_values
+            tuple(past_state.index_select(0, beam_idx) for past_state in layer_past) for layer_past in past_key_values
         )
 
 
@@ -1542,9 +1527,7 @@ class ClvpModelForConditionalGeneration(ClvpPreTrainedModel, GenerationMixin):
             stm = each_seq_stop_token_index.argmax()
             speech_ids[i, stm:] = decoder_fixing_codes[0]
             if stm - 3 < speech_ids.shape[1]:
-                speech_ids[i, -3:] = ms.tensor(
-                    [decoder_fixing_codes[1:]], dtype=ms.int64
-                )
+                speech_ids[i, -3:] = ms.tensor([decoder_fixing_codes[1:]], dtype=ms.int64)
 
         return speech_ids
 
@@ -1794,8 +1777,8 @@ class ClvpModelForConditionalGeneration(ClvpPreTrainedModel, GenerationMixin):
         text_embeds = text_outputs[0]
 
         # normalized features
-        speech_embeds = speech_embeds / speech_embeds.norm(p=2, dim=-1, keepdim=True)
-        text_embeds = text_embeds / text_embeds.norm(p=2, dim=-1, keepdim=True)
+        speech_embeds = speech_embeds / mint.norm(speech_embeds, p=2, dim=-1, keepdim=True)
+        text_embeds = text_embeds / mint.norm(text_embeds, p=2, dim=-1, keepdim=True)
 
         # cosine similarity as logits
         logit_scale = self.logit_scale.exp()

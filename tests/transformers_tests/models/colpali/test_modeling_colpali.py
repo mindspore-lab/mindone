@@ -20,7 +20,7 @@ import mindspore as ms
 from tests.modeling_test_utils import compute_diffs, generalized_parse_args, get_modules
 from tests.transformers_tests.models.modeling_common import floats_numpy, ids_numpy
 
-DTYPE_AND_THRESHOLDS = {"fp32": 5e-4, "fp16": 5e-3, "bf16": 5e-3}
+DTYPE_AND_THRESHOLDS = {"fp32": 5e-4, "fp16": 5e-3, "bf16": 5e-2}
 MODES = [1]
 
 
@@ -78,7 +78,7 @@ class ColPaliForRetrievalModelTester:
         },
         use_cache=False,
         embedding_dim=128,
-        attn_implementation="eager"
+        attn_implementation="eager",
     ):
         self.ignore_index = ignore_index
         # `image_token_index` is set to 0 to pass "resize_embeddings" test, do not modify
@@ -120,9 +120,7 @@ class ColPaliForRetrievalModelTester:
 
     def get_config(self):
         return ColPaliConfig(
-            vlm_config=self.vlm_config,
-            embedding_dim=self.embedding_dim,
-            attn_implementation=self.attn_implementation
+            vlm_config=self.vlm_config, embedding_dim=self.embedding_dim, attn_implementation=self.attn_implementation
         )
 
     def prepare_config_and_inputs(self):

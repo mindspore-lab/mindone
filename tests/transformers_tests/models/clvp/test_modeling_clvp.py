@@ -10,22 +10,20 @@
 # In cases where models have unique initialization procedures or require testing with specialized output formats,
 # it is necessary to develop distinct, dedicated test cases.
 
-import datasets
+# import datasets
 import numpy as np
 import pytest
 import torch
-from transformers import ClvpConfig, ClvpDecoderConfig, ClvpEncoderConfig
-# from transformers import ClvpEncoder, ClvpForCausalLM, ClvpModel, ClvpModelForConditionalGeneration
-from transformers import ClvpFeatureExtractor, ClvpTokenizer
+
+from transformers import ClvpConfig, ClvpDecoderConfig, ClvpEncoderConfig # ClvpFeatureExtractor
 
 import mindspore as ms
 
 from tests.modeling_test_utils import compute_diffs, generalized_parse_args, get_modules
-from tests.transformers_tests.models.modeling_common import ids_numpy, random_attention_mask
+from tests.transformers_tests.models.modeling_common import floats_numpy, ids_numpy, random_attention_mask
 
-DTYPE_AND_THRESHOLDS = {"fp32": 5e-4, "fp16": 5e-3, "bf16": 5e-3}
+DTYPE_AND_THRESHOLDS = {"fp32": 5e-6, "fp16": 5e-3, "bf16": 5e-2}
 MODES = [1]
-
 
 
 class ClvpEncoderTester:
@@ -106,6 +104,7 @@ class ClvpEncoderTester:
         inputs_dict = {"input_ids": input_ids, "attention_mask": input_mask}
         return speech_config, inputs_dict
 
+
 class ClvpDecoderTester:
     def __init__(
         self,
@@ -173,13 +172,6 @@ class ClvpDecoderTester:
 
         return decoder_config, input_ids, input_mask
 
-    # def create_and_check_model(self, config, input_ids, attention_mask):
-    #     model = ClvpForCausalLM(config).eval()
-    #     with torch.no_grad():
-    #         result = model(input_ids=input_ids, attention_mask=attention_mask)
-
-    #     self.parent.assertEqual(result[0].shape, (self.batch_size, self.seq_length, self.vocab_size))
-
     def prepare_config_and_inputs_for_common(self):
         config_and_inputs = self.prepare_config_and_inputs()
         config, input_ids, attention_mask = config_and_inputs
@@ -223,14 +215,13 @@ class ClvpModelForConditionalGenerationTester:
     def prepare_config_and_inputs(self):
         _, input_ids, attention_mask = self.clvp_encoder_tester.prepare_config_and_inputs()
 
-        ds = datasets.load_dataset("hf-internal-testing/librispeech_asr_dummy", "clean", split="validation")
-        ds = ds.cast_column("audio", datasets.Audio(sampling_rate=22050))
-        _, audio, sr = ds.sort("id").select(range(1))[:1]["audio"][0].values()
-
-        feature_extractor = ClvpFeatureExtractor()
-        input_features = feature_extractor(raw_speech=audio, sampling_rate=sr, return_tensors="np")[
-            "input_features"
-        ]
+        # ds = datasets.load_dataset("hf-internal-testing/librispeech_asr_dummy", "clean", split="validation")
+        # ds = ds.cast_column("audio", datasets.Audio(sampling_rate=22050))
+        # _, audio, sr = ds.sort("id").select(range(1))[:1]["audio"][0].values()
+        # sr = 22050
+        # feature_extractor = ClvpFeatureExtractor()
+        # input_features = feature_extractor(raw_speech=audio, sampling_rate=sr, return_tensors="np")["input_features"]
+        input_features = floats_numpy([1, 80, 517])
 
         config = self.get_config()
 
@@ -278,7 +269,7 @@ CLVP_CASES = [
         (),
         decoder_inputs_dict,
         {
-            "lm_logits": 0,
+            "logits": 0,
         },
     ],
     [

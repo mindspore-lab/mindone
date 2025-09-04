@@ -20,22 +20,22 @@
 from dataclasses import dataclass
 from typing import List, Optional, Tuple, Union
 
+
 import mindspore as ms
 from mindspore import mint
+
 from mindone.models.utils import normal_, zeros_
 
-from transformers import AutoModelForImageTextToText
-
+from ..auto import AutoModelForImageTextToText
 from ...cache_utils import Cache
 from ...modeling_utils import PreTrainedModel
-from ...utils import (
+from transformers.utils import (
     ModelOutput,
     add_start_docstrings,
-    add_start_docstrings_to_model_construct,
+    add_start_docstrings_to_model_forward,
     replace_return_docstrings,
 )
 from transformers import ColPaliConfig
-
 
 _CONFIG_FOR_DOC = "ColPaliConfig"
 
@@ -191,7 +191,7 @@ class ColPaliForRetrieval(ColPaliPreTrainedModel):
 
         self.post_init()
 
-    @add_start_docstrings_to_model_construct(COLPALI_FOR_RETRIEVAL_INPUT_DOCSTRING)
+    @add_start_docstrings_to_model_forward(COLPALI_FOR_RETRIEVAL_INPUT_DOCSTRING)
     @replace_return_docstrings(output_type=ColPaliForRetrievalOutput, config_class=_CONFIG_FOR_DOC)
     def construct(
         self,
