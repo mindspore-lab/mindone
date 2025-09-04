@@ -952,7 +952,7 @@ class PreTrainedModel(nn.Cell, ModuleUtilsMixin, GenerationMixin, PushToHubMixin
 
         if isinstance(mindspore_dtype, str):
             mindspore_dtype = getattr(ms, mindspore_dtype)
-        elif mindspore_dtype is not None:
+        elif mindspore_dtype is not None and not isinstance(mindspore_dtype, ms.Type):
             TORCH_TO_MINDSPORE_DTYPE_MAP = {
                 "torch.float32": ms.float32,
                 "torch.bfloat16": ms.bfloat16,
