@@ -301,6 +301,7 @@ from .models.convnextv2 import (
     ConvNextV2PreTrainedModel,
 )
 from .models.ctrl import CTRLForSequenceClassification, CTRLLMHeadModel, CTRLModel, CTRLPreTrainedModel
+from .models.dac import DacModel, DacPreTrainedModel
 from .models.data2vec import (
     Data2VecAudioForAudioFrameClassification,
     Data2VecAudioForCTC,
