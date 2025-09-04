@@ -286,6 +286,14 @@ from .models.deberta_v2 import (
     DebertaV2Model,
     DebertaV2PreTrainedModel,
 )
+from .models.deprecated.xlm_prophetnet import (
+    XLMProphetNetDecoder,
+    XLMProphetNetEncoder,
+    XLMProphetNetForCausalLM,
+    XLMProphetNetForConditionalGeneration,
+    XLMProphetNetModel,
+    XLMProphetNetPreTrainedModel,
+)
 from .models.depth_anything import DepthAnythingForDepthEstimation, DepthAnythingPreTrainedModel
 from .models.dinov2 import Dinov2Backbone, Dinov2ForImageClassification, Dinov2Model, Dinov2PreTrainedModel
 from .models.dpt import DPTForDepthEstimation, DPTImageProcessor, DPTModel, DPTPreTrainedModel
@@ -656,6 +664,16 @@ from .models.whisper import (
     WhisperModel,
     WhisperPreTrainedModel,
     WhisperProcessor,
+)
+from .models.xlm import (
+    XLMForMultipleChoice,
+    XLMForQuestionAnswering,
+    XLMForQuestionAnsweringSimple,
+    XLMForSequenceClassification,
+    XLMForTokenClassification,
+    XLMModel,
+    XLMPreTrainedModel,
+    XLMWithLMHeadModel,
 )
 from .models.xlm_roberta import XLMRobertaModel, XLMRobertaPreTrainedModel
 from .models.xlm_roberta_xl import (

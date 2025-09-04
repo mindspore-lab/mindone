@@ -36,6 +36,7 @@ from . import (
     convbert,
     convnext,
     convnextv2,
+    deprecated,
     depth_anything,
     dinov2,
     dpt,
@@ -96,6 +97,7 @@ from . import (
     vit,
     vits,
     wav2vec2,
+    xlm,
     xlm_roberta,
     yolos,
 )
