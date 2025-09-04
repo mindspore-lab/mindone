@@ -76,4 +76,9 @@ wget -P images https://raw.githubusercontent.com/facebookresearch/sam2/main/note
 ```bash
 wget -P images https://raw.githubusercontent.com/facebookresearch/sam2/main/notebooks/images/cars.jpg
 ```
-然后运行 `python predict_mask.py`。
+然后运行 `python predict_mask.py`。结果如下，会保存在`images/`文件夹下。
+
+
+| 原图  |  预测结果|
+|:-----:|:-------:|
+|       |         |
