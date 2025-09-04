@@ -831,7 +831,13 @@ class GotOcr2ForConditionalGeneration(GotOcr2PreTrainedModel, GenerationMixin):
             special_image_mask = (input_ids == self.config.image_token_index).unsqueeze(-1)
             special_image_mask = special_image_mask.expand_as(inputs_embeds)
             image_features = image_features.to(inputs_embeds.dtype)
-            inputs_embeds = inputs_embeds.masked_scatter(special_image_mask, image_features)
+            if inputs_embeds.dtype == ms.bfloat16:
+                inputs_embeds_fp = inputs_embeds.to(ms.float32)
+                image_features_fp = image_features.to(ms.float32)
+                replaced = inputs_embeds_fp.masked_scatter(special_image_mask, image_features_fp)
+                inputs_embeds = replaced.to(inputs_embeds.dtype)
+            else:
+                inputs_embeds = inputs_embeds.masked_scatter(special_image_mask, image_features)
 
         outputs = self.language_model(
             attention_mask=attention_mask,
