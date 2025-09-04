@@ -237,7 +237,8 @@ def get_modules(pt_module, ms_module, dtype, *args, **kwargs):
 
 def set_dtype(model, dtype):
     for p in model.get_parameters():
-        p = p.set_dtype(dtype)
+        if ops.is_floating_point(p):
+            p = p.set_dtype(dtype)
     return model
 
 
