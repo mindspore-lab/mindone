@@ -20,21 +20,21 @@
 # limitations under the License.
 
 
-import mindspore as ms
-from mindspore import mint, nn
 import collections
 from dataclasses import dataclass
 from typing import List, Optional, Tuple, Union
+
+from transformers import GotOcr2Config, GotOcr2VisionConfig
+from transformers.utils import add_start_docstrings, add_start_docstrings_to_model_forward, replace_return_docstrings
+
+import mindspore as ms
+from mindspore import mint, nn
 
 from ...activations import ACT2FN
 from ...generation import GenerationMixin
 from ...modeling_outputs import ModelOutput
 from ...modeling_utils import PreTrainedModel
 from ..auto import AutoModelForCausalLM
-
-from transformers.utils import add_start_docstrings, add_start_docstrings_to_model_forward, replace_return_docstrings
-from transformers import GotOcr2Config, GotOcr2VisionConfig
-
 
 _CONFIG_FOR_DOC = "GotOcr2Config"
 
@@ -389,7 +389,9 @@ class GotOcr2VisionNeck(ms.nn.Cell):
 
         self.conv1 = mint.nn.Conv2d(config.hidden_size, config.output_channels, kernel_size=1, bias=False)
         self.layer_norm1 = GotOcr2LayerNorm(config.output_channels, data_format="channels_first")
-        self.conv2 = mint.nn.Conv2d(config.output_channels, config.output_channels, kernel_size=3, padding=1, bias=False)
+        self.conv2 = mint.nn.Conv2d(
+            config.output_channels, config.output_channels, kernel_size=3, padding=1, bias=False
+        )
         self.layer_norm2 = GotOcr2LayerNorm(config.output_channels, data_format="channels_first")
 
     def construct(self, hidden_states):
@@ -414,12 +416,14 @@ class GotOcr2VisionEncoder(ms.nn.Cell):
         if config.use_abs_pos:
             # Initialize absolute positional embedding with pretrain image size.
             self.pos_embed = ms.Parameter(
-                mint.zeros((
-                    1,
-                    config.image_size // config.patch_size,
-                    config.image_size // config.patch_size,
-                    config.hidden_size,
-                ))
+                mint.zeros(
+                    (
+                        1,
+                        config.image_size // config.patch_size,
+                        config.image_size // config.patch_size,
+                        config.hidden_size,
+                    )
+                )
             )
 
         self.layers = ms.nn.CellList()
@@ -858,9 +862,7 @@ class GotOcr2ForConditionalGeneration(GotOcr2PreTrainedModel, GenerationMixin):
                 shift_labels = labels[..., 1:].contiguous()
             # Flatten the tokens
             loss_fct = mint.nn.CrossEntropyLoss()
-            loss = loss_fct(
-                shift_logits.view(-1, shift_logits.shape[-1]), shift_labels.view(-1)
-            )
+            loss = loss_fct(shift_logits.view(-1, shift_logits.shape[-1]), shift_labels.view(-1))
 
         if not return_dict:
             output = (logits,) + outputs[1:]

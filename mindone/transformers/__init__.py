@@ -319,6 +319,7 @@ from .models.glpn import (
     GLPNModel,
     GLPNPreTrainedModel,
 )
+from .models.got_ocr2 import GotOcr2ForConditionalGeneration, GotOcr2PreTrainedModel
 from .models.gpt2 import (
     GPT2DoubleHeadsModel,
     GPT2ForQuestionAnswering,
@@ -646,10 +647,6 @@ from .models.xlm_roberta_xl import (
     XLMRobertaXLForTokenClassification,
     XLMRobertaXLModel,
     XLMRobertaXLPreTrainedModel,
-)
-from .models.got_ocr2 import (
-    GotOcr2PreTrainedModel,
-    GotOcr2ForConditionalGeneration,
 )
 from .models.yolos import YolosForObjectDetection, YolosImageProcessor, YolosModel, YolosPreTrainedModel
 from .pipelines import TextGenerationPipeline, pipeline

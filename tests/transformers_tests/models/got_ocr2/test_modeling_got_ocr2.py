@@ -1,11 +1,11 @@
 import inspect
+
 import numpy as np
 import pytest
 import torch
+from transformers import GotOcr2Config, GotOcr2VisionConfig, Qwen2Config
 
 import mindspore as ms
-
-from transformers import GotOcr2Config, GotOcr2VisionConfig, Qwen2Config
 
 from tests.modeling_test_utils import (
     MS_DTYPE_MAPPING,
@@ -15,7 +15,6 @@ from tests.modeling_test_utils import (
     get_modules,
 )
 from tests.transformers_tests.models.modeling_common import ids_numpy
-
 
 DTYPE_AND_THRESHOLDS = {"fp32": 5e-2, "fp16": 5e-2, "bf16": 5e-2}
 MODES = [1]
@@ -142,7 +141,7 @@ class GotOcr2ModelTester:
         L = self._image_seq_len()  # = 1 with the chosen geometry
         start = self.seq_length // 2
         for b in range(self.batch_size):
-            input_ids[b, start:start + L] = config.image_token_id  # alias for image_token_index via attribute_map
+            input_ids[b, start : start + L] = config.image_token_id  # alias for image_token_index via attribute_map
 
         attention_mask = None
         if self.use_attention_mask:
@@ -189,10 +188,7 @@ TEST_CASES = [
             "attention_mask": attention_mask,
             "pixel_values": pixel_values,  # (B, C, H, W)
         },
-        {
-            "last_hidden_state": 0,   # Qwen2Model
-            "image_hidden_states": -1 # projected vision features (B, L, D)
-        },
+        {"last_hidden_state": 0, "image_hidden_states": -1},  # Qwen2Model  # projected vision features (B, L, D)
     ],
 ]
 

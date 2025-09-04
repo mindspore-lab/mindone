@@ -1,6 +1,9 @@
 import time
-import mindspore as ms
+
 from transformers import AutoProcessor, GotOcr2ImageProcessor
+
+import mindspore as ms
+
 from mindone.transformers import AutoModelForImageTextToText
 
 MODEL_HUB = "stepfun-ai/GOT-OCR-2.0-hf"
@@ -31,8 +34,8 @@ generated_ids = model.generate(
     **inputs,
     do_sample=False,
     max_new_tokens=200,
-    eos_token_id = processor.tokenizer.convert_tokens_to_ids("<|im_end|>"),
-    pad_token_id = processor.tokenizer.pad_token_id,
+    eos_token_id=processor.tokenizer.convert_tokens_to_ids("<|im_end|>"),
+    pad_token_id=processor.tokenizer.pad_token_id,
 )
 print(f"Inference in {time.time()-start:.4f}s")
 
