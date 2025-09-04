@@ -13,7 +13,6 @@
 # limitations under the License.
 
 from .modeling_got_ocr2 import (
-    GotOcr2Model,
     GotOcr2PreTrainedModel,
     GotOcr2ForConditionalGeneration,
 )

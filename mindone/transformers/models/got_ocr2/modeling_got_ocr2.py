@@ -585,7 +585,6 @@ class GotOcr2PreTrainedModel(PreTrainedModel):
     supports_gradient_checkpointing = True
     _no_split_modules = ["GotOcr2VisionAttention"]
     _skip_keys_device_placement = "past_key_values"
-    _supports_cache_class = True
     _supports_flash_attn_2 = True
     _supports_sdpa = True
     _supports_quantized_cache = True
@@ -889,7 +888,7 @@ class GotOcr2ForConditionalGeneration(GotOcr2PreTrainedModel, GenerationMixin):
     ):
         # Overwritten -- in specific circumstances we don't want to forward image inputs to the model
 
-        model_inputs = self.language_model.prepare_inputs_for_generation(
+        model_inputs = super().prepare_inputs_for_generation(
             input_ids,
             past_key_values=past_key_values,
             inputs_embeds=inputs_embeds,

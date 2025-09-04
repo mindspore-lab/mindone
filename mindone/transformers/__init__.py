@@ -648,7 +648,6 @@ from .models.xlm_roberta_xl import (
     XLMRobertaXLPreTrainedModel,
 )
 from .models.got_ocr2 import (
-    GotOcr2Model,
     GotOcr2PreTrainedModel,
     GotOcr2ForConditionalGeneration,
 )
