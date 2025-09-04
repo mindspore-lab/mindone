@@ -469,16 +469,12 @@ from .models.mvp import (
     MvpModel,
     MvpPreTrainedModel,
 )
-from .models.nllb import (
-    NllbTokenizer,
-    NllbTokenizerFast,
-)
 from .models.nllb_moe import (
     NllbMoeForConditionalGeneration,
     NllbMoeModel,
     NllbMoePreTrainedModel,
-    NllbMoeTop2Router,
     NllbMoeSparseMLP,
+    NllbMoeTop2Router,
 )
 from .models.opt import (
     OPTForCausalLM,
