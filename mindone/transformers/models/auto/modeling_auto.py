@@ -52,6 +52,7 @@ MODEL_MAPPING_NAMES = OrderedDict(
         ("clip_vision_model", "CLIPVisionModel"),
         ("convnext", "ConvNextModel"),
         ("convnextv2", "ConvNextV2Model"),
+        ("dac", "DacModel"),
         ("deberta", "DebertaModel"),
         ("opt", "OPTModel"),
         ("deberta-v2", "DebertaV2Model"),
