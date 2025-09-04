@@ -62,6 +62,7 @@ training = [
     "Jinja2"
 ]
 tests = [
+    "parameterized",
     "pytest",
     "pytest-cov",
     "pytest-mock"

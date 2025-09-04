@@ -156,8 +156,8 @@ class PeftAdapterMixin:
                 LoRA adapter metadata. When supplied, the metadata inferred through the state dict isn't used to
                 initialize `LoraConfig`.
         """
-        from mindone.diffusers._peft import inject_adapter_in_model, set_peft_model_state_dict
-        from mindone.diffusers._peft.tuners.tuners_utils import BaseTunerLayer
+        from mindone.peft import inject_adapter_in_model, set_peft_model_state_dict
+        from mindone.peft.tuners.tuners_utils import BaseTunerLayer
 
         cache_dir = kwargs.pop("cache_dir", None)
         force_download = kwargs.pop("force_download", False)
@@ -248,7 +248,7 @@ class PeftAdapterMixin:
 
             if hotswap or (self._prepare_lora_hotswap_kwargs is not None):
                 if is_peft_version(">", "0.14.0"):
-                    from mindone.diffusers._peft.utils.hotswap import (
+                    from mindone.peft.utils.hotswap import (
                         check_hotswap_configs_compatible,
                         hotswap_adapter_from_state_dict,
                         prepare_model_for_compiled_hotswap,
@@ -359,7 +359,7 @@ class PeftAdapterMixin:
                 Whether to save the model using `safetensors` or the traditional PyTorch way with `pickle`.
             weight_name: (`str`, *optional*, defaults to `None`): Name of the file to serialize the state dict with.
         """
-        from mindone.diffusers._peft.utils import get_peft_model_state_dict
+        from mindone.peft.utils import get_peft_model_state_dict
 
         from .lora_base import LORA_ADAPTER_METADATA_KEY, LORA_WEIGHT_NAME, LORA_WEIGHT_NAME_SAFE
 
@@ -473,7 +473,7 @@ class PeftAdapterMixin:
             adapter_name (`str`, *optional*, defaults to `"default"`):
                 The name of the adapter to add. If no name is passed, a default name is assigned to the adapter.
         """
-        from mindone.diffusers._peft import PeftConfig, inject_adapter_in_model
+        from mindone.peft import PeftConfig, inject_adapter_in_model
 
         if not self._hf_peft_config_loaded:
             self._hf_peft_config_loaded = True
@@ -513,7 +513,7 @@ class PeftAdapterMixin:
                 f" current loaded adapters are: {list(self.peft_config.keys())}"
             )
 
-        from mindone.diffusers._peft.tuners.tuners_utils import BaseTunerLayer
+        from mindone.peft.tuners.tuners_utils import BaseTunerLayer
 
         _adapters_has_been_set = False
 
@@ -540,7 +540,7 @@ class PeftAdapterMixin:
         if not self._hf_peft_config_loaded:
             raise ValueError("No adapter loaded. Please load an adapter first.")
 
-        from mindone.diffusers._peft.tuners.tuners_utils import BaseTunerLayer
+        from mindone.peft.tuners.tuners_utils import BaseTunerLayer
 
         for _, module in self.cells_and_names():
             if isinstance(module, BaseTunerLayer):
@@ -560,7 +560,7 @@ class PeftAdapterMixin:
         if not self._hf_peft_config_loaded:
             raise ValueError("No adapter loaded. Please load an adapter first.")
 
-        from mindone.diffusers._peft.tuners.tuners_utils import BaseTunerLayer
+        from mindone.peft.tuners.tuners_utils import BaseTunerLayer
 
         for _, module in self.cells_and_names():
             if isinstance(module, BaseTunerLayer):
@@ -579,7 +579,7 @@ class PeftAdapterMixin:
         if not self._hf_peft_config_loaded:
             raise ValueError("No adapter loaded. Please load an adapter first.")
 
-        from mindone.diffusers._peft.tuners.tuners_utils import BaseTunerLayer
+        from mindone.peft.tuners.tuners_utils import BaseTunerLayer
 
         for _, module in self.cells_and_names():
             if isinstance(module, BaseTunerLayer):
@@ -591,7 +591,7 @@ class PeftAdapterMixin:
         self.apply(partial(self._fuse_lora_apply, adapter_names=adapter_names))
 
     def _fuse_lora_apply(self, module, adapter_names=None):
-        from mindone.diffusers._peft.tuners.tuners_utils import BaseTunerLayer
+        from mindone.peft.tuners.tuners_utils import BaseTunerLayer
 
         merge_kwargs = {"safe_merge": self._safe_fusing}
 
@@ -613,7 +613,7 @@ class PeftAdapterMixin:
         self.apply(self._unfuse_lora_apply)
 
     def _unfuse_lora_apply(self, module):
-        from mindone.diffusers._peft.tuners.tuners_utils import BaseTunerLayer
+        from mindone.peft.tuners.tuners_utils import BaseTunerLayer
 
         if isinstance(module, BaseTunerLayer):
             module.unmerge()
