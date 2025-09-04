@@ -71,6 +71,7 @@ def rope_apply(
             f, h, w = g[1][i]
             t_f, t_h, t_w = g[2][i]
             seq_f, seq_h, seq_w = f - f_o, h - h_o, w - w_o
+            seq_f, seq_h, seq_w = seq_f.item(), seq_h.item(), seq_w.item()
             seq_len = int(seq_f * seq_h * seq_w)
             if seq_len > 0:
                 if t_f > 0:
@@ -91,9 +92,9 @@ def rope_apply(
 
                     freqs_i = mint.cat(
                         [
-                            freqs_0.expand(seq_f, seq_h, seq_w, -1, 2),
-                            freqs[1][h_sam].view(1, seq_h, 1, -1).expand(seq_f, seq_h, seq_w, -1, 2),
-                            freqs[2][w_sam].view(1, 1, seq_w, -1).expand(seq_f, seq_h, seq_w, -1, 2),
+                            freqs_0.expand((seq_f, seq_h, seq_w, -1, 2)),
+                            freqs[1][h_sam].view(1, seq_h, 1, -1, 2).expand((seq_f, seq_h, seq_w, -1, 2)),
+                            freqs[2][w_sam].view(1, 1, seq_w, -1, 2).expand((seq_f, seq_h, seq_w, -1, 2)),
                         ],
                         dim=-2,
                     ).reshape(seq_len, 1, -1, 2)
@@ -250,7 +251,7 @@ class SwinSelfAttention(SelfAttention):
         )
         out = mint.cat([out, ref_v[:1]], axis=0)
         # (b t) (h w) n d -> b (t h w) n d
-        out = out.reshape(out.shape[0], T, H, W, *out.shape[2:])
+        out = out.reshape(-1, T, H, W, *out.shape[2:])
         out = out.reshape(out.shape[0], T * H * W, *out.shape[2:])
         x = out
 
@@ -343,7 +344,7 @@ class CasualSelfAttention(SelfAttention):
         out = mint.cat(outs, dim=0)
         out = mint.cat([out, ref_v[:1]], axis=0)
         # (b t) (h w) n d -> b (t h w) n d
-        out = out.reshape(out.shape[0], T, H, W, *out.shape[2:])
+        out = out.reshape(-1, T, H, W, *out.shape[2:])
         out = out.reshape(out.shape[0], T * H * W, *out.shape[2:])
         x = out
 
@@ -499,7 +500,7 @@ class MotionerTransformers(nn.Cell, PeftAdapterMixin):
 
         self.motion_side_len = int(math.sqrt(motion_token_num))
         assert self.motion_side_len**2 == motion_token_num
-        self.token = ms.Parameter(mint.zeros(1, motion_token_num, dim, dtype=dtype).contiguous())
+        self.token = ms.Parameter(mint.zeros((1, motion_token_num, dim), dtype=dtype).contiguous())
 
         self.trainable_token_pos_emb = trainable_token_pos_emb
         if trainable_token_pos_emb:
@@ -664,20 +665,22 @@ class FramePackMotioner(nn.Cell):
         mot_remb = []
         for m in motion_latents:
             lat_height, lat_width = m.shape[2], m.shape[3]
-            padd_lat = mint.zeros(16, self.zip_frame_buckets.sum(), lat_height, lat_width).to(dtype=m.dtype)
+            padd_lat = mint.zeros((16, self.zip_frame_buckets.sum().item(), lat_height, lat_width)).to(dtype=m.dtype)
             overlap_frame = min(padd_lat.shape[1], m.shape[1])
             if overlap_frame > 0:
                 padd_lat[:, -overlap_frame:] = m[:, -overlap_frame:]
 
             if add_last_motion < 2 and self.drop_mode != "drop":
-                zero_end_frame = self.zip_frame_buckets[: self.zip_frame_buckets.__len__() - add_last_motion - 1].sum()
+                zero_end_frame = (
+                    self.zip_frame_buckets[: len(self.zip_frame_buckets) - add_last_motion - 1].sum().item()
+                )
                 padd_lat[:, -zero_end_frame:] = 0
 
             padd_lat = padd_lat.unsqueeze(0)
             clean_latents_4x, clean_latents_2x, clean_latents_post = padd_lat[
-                :, :, -self.zip_frame_buckets.sum() :, :, :
+                :, :, -self.zip_frame_buckets.sum().item() :, :, :
             ].split(
-                list(self.zip_frame_buckets)[::-1], dim=2
+                self.zip_frame_buckets.tolist()[::-1], dim=2
             )  # 16, 2 ,1
 
             # patchfy

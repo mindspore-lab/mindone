@@ -13,7 +13,6 @@ def rope_precompute(
     freqs: Union[List[ms.Tensor], ms.Tensor],
     start: Optional[List[ms.Tensor]] = None,
 ) -> ms.Tensor:
-    dtype = x.dtype
     x = x.to(ms.float32)
     b, s, n, c = x.shape[0], x.shape[1], x.shape[2], x.shape[3] // 2
 
@@ -41,6 +40,7 @@ def rope_precompute(
             f, h, w = g[1][i]
             t_f, t_h, t_w = g[2][i]
             seq_f, seq_h, seq_w = f - f_o, h - h_o, w - w_o
+            seq_f, seq_h, seq_w = seq_f.item(), seq_h.item(), seq_w.item()
             seq_len = int(seq_f * seq_h * seq_w)
             if seq_len > 0:
                 if t_f > 0:
@@ -62,9 +62,9 @@ def rope_precompute(
 
                     freqs_i = mint.cat(
                         [
-                            freqs_0.expand(seq_f, seq_h, seq_w, -1, 2),
-                            freqs[1][h_sam].view(1, seq_h, 1, -1).expand(seq_f, seq_h, seq_w, -1, 2),
-                            freqs[2][w_sam].view(1, 1, seq_w, -1).expand(seq_f, seq_h, seq_w, -1, 2),
+                            freqs_0.expand((seq_f, seq_h, seq_w, -1, 2)),
+                            freqs[1][h_sam].view(1, seq_h, 1, -1, 2).expand((seq_f, seq_h, seq_w, -1, 2)),
+                            freqs[2][w_sam].view(1, 1, seq_w, -1, 2).expand((seq_f, seq_h, seq_w, -1, 2)),
                         ],
                         dim=-2,
                     ).reshape(seq_len, 1, -1, 2)
@@ -73,4 +73,4 @@ def rope_precompute(
                 # apply rotary embedding
                 output[i, seq_bucket[-1] : seq_bucket[-1] + seq_len] = freqs_i
         seq_bucket.append(seq_bucket[-1] + seq_len)
-    return output.to(dtype)
+    return output

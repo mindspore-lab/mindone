@@ -71,7 +71,8 @@ class AudioEncoder:
     ) -> ms.Tensor:
         audio_input, sample_rate = librosa.load(audio_path, sr=16000)
 
-        input_values = self.processor(audio_input, sampling_rate=sample_rate, return_tensors="ms").input_values
+        input_values = self.processor(audio_input, sampling_rate=sample_rate, return_tensors="np").input_values
+        input_values = ms.tensor(input_values)
 
         # INFERENCE
 

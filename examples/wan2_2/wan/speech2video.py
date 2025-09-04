@@ -6,6 +6,7 @@ import os
 import random
 import sys
 import types
+from contextlib import contextmanager
 from typing import Any, Callable, List, Optional, Tuple
 
 import numpy as np
@@ -71,7 +72,10 @@ class WanS2V:
         self.init_on_cpu = init_on_cpu
 
         self.num_train_timesteps = config.num_train_timesteps
-        self.param_dtype = config.param_dtype
+        if convert_model_dtype:
+            self.param_dtype = config.param_dtype
+        else:
+            self.param_dtype = ms.float32
 
         if t5_zero3 or dit_zero3 or use_sp:
             self.init_on_cpu = False
@@ -295,14 +299,15 @@ class WanS2V:
         if pose_video is not None:
             pose_seq = self.read_last_n_frames(
                 pose_video, n_frames=infer_frames * num_repeat, target_fps=self.fps, reverse=True
-            )
+            ).astype(np.float32)
 
             resize_opreat = vision.Resize(min(HEIGHT, WIDTH))
             crop_opreat = vision.CenterCrop((HEIGHT, WIDTH))
 
-            cond_tensor = ms.from_numpy(pose_seq)
-            cond_tensor = cond_tensor.permute(0, 3, 1, 2) / 255.0 * 2 - 1.0
-            cond_tensor = crop_opreat(resize_opreat(cond_tensor)).permute(1, 0, 2, 3).unsqueeze(0)
+            cond_tensor = pose_seq
+            cond_tensor = np.stack([crop_opreat(resize_opreat(x)) for x in cond_tensor])
+            cond_tensor = np.transpose(cond_tensor, (0, 3, 1, 2)) / 255.0 * 2 - 1.0
+            cond_tensor = ms.tensor(np.transpose(cond_tensor, (1, 0, 2, 3))).unsqueeze(0)
 
             padding_frame_num = num_repeat * infer_frames - cond_tensor.shape[2]
             cond_tensor = mint.cat([cond_tensor, -mint.ones([1, 3, padding_frame_num, HEIGHT, WIDTH])], dim=2)
@@ -408,7 +413,7 @@ class WanS2V:
         if ref_image is None:
             ref_image = np.array(Image.open(ref_image_path).convert("RGB"))
         if motion_latents is None:
-            motion_latents = mint.zeros([1, channel, self.motion_frames, HEIGHT, WIDTH], dtype=self.param_dtype)
+            motion_latents = mint.zeros([1, channel, self.motion_frames, HEIGHT, WIDTH], dtype=ms.float32)
 
         # extract audio emb
         audio_emb, nr = self.encode_audio(audio_path, infer_frames=infer_frames)
@@ -418,7 +423,7 @@ class WanS2V:
         lat_motion_frames = (self.motion_frames + 3) // 4
         model_pic = crop_opreat(resize_opreat(Image.fromarray(ref_image)))
 
-        ref_pixel_values = tensor_trans(model_pic)
+        ref_pixel_values = ms.tensor(tensor_trans(model_pic))
         ref_pixel_values = ref_pixel_values.unsqueeze(1).unsqueeze(0) * 2 - 1.0  # b c 1 h w
         ref_pixel_values = ref_pixel_values.to(dtype=self.vae.dtype)
         ref_latents = mint.stack(self.vae.encode(ref_pixel_values))
@@ -445,10 +450,17 @@ class WanS2V:
         if offload_model:
             free_model(self, "text_encoder")
 
+        @contextmanager
+        def noop_no_sync():
+            yield
+
+        no_sync = getattr(self.noise_model, "no_sync", noop_no_sync)
+
         out = []
         # evaluation mode
         with (
             # torch.amp.autocast('cuda', dtype=self.param_dtype),
+            no_sync(),
         ):
             for r in range(num_repeat):
                 seed_g = ms.Generator()
@@ -527,10 +539,10 @@ class WanS2V:
                     )[0]
                     latents[0] = temp_x0.squeeze(0)
 
-                if offload_model:
-                    free_model(self, "noise_model")
+                if dist.is_initialized():
+                    dist.barrier()
 
-                latents = mint.stack(latents)
+                latents = mint.stack(latents).to(ms.float32)
                 if not (drop_first_motion and r == 0):
                     decode_latents = mint.cat([motion_latents, latents], dim=2)
                 else:

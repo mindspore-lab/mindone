@@ -1,5 +1,5 @@
 # Copyright 2024-2025 The Alibaba Wan Team Authors. All rights reserved.
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Tuple
 
 import mindspore as ms
 import mindspore.mint as mint
@@ -32,15 +32,17 @@ class CausalAudioEncoder(nn.Cell):
         self.weights = ms.Parameter(weight)
         self.act = mint.nn.SiLU()
 
-    def construct(self, features: ms.Tensor) -> ms.Tensor:
+    def construct(self, features: ms.Tensor) -> Tuple[ms.Tensor, ms.Tensor]:
+        dtype = features.dtype
         with autocast(dtype=ms.float32):
             # features B * num_layers * dim * video_length
             weights = self.act(self.weights)
-            weights_sum = weights.sum(dim=1, keepdims=True)
+            weights_sum = weights.sum(dim=1, keepdim=True)
             weighted_feat = ((features * weights) / weights_sum).sum(dim=1)  # b dim f
             weighted_feat = weighted_feat.permute(0, 2, 1)  # b f dim
             res = self.encoder(weighted_feat)  # b f n dim
 
+        res = [x.to(dtype) for x in res]
         return res  # b f n dim
 
 

@@ -183,6 +183,8 @@ msrun --worker_num=4 --local_worker_num=4 generate.py --task s2v-14B --size 1024
 msrun --worker_num=4 --local_worker_num=4 generate.py --task s2v-14B --size 1024*704 --ckpt_dir ./Wan2.2-S2V-14B/ --dit_zero3 --t5_zero3 --ulysses_size 4 --offload_model True --prompt "a person is singing" --image "examples/pose.png" --audio "examples/sing.MP3" --pose_video "examples/pose.mp4"
 ```
 
+> You can get the `pose.png`, `sing.MP3` and `pose.mp4` files from [official Wan2.2](https://github.com/Wan-Video/Wan2.2).
+
 > 💡For the Speech-to-Video task, the `size` parameter represents the area of the generated video, with the aspect ratio following that of the original input image.
 
 > 💡The model can generate videos from audio input combined with reference image and optional text prompt.
@@ -190,8 +192,6 @@ msrun --worker_num=4 --local_worker_num=4 generate.py --task s2v-14B --size 1024
 > 💡The `--pose_video` parameter enables pose-driven generation, allowing the model to follow specific pose sequences while generating videos synchronized with audio input.
 
 > 💡The `--num_clip` parameter controls the number of video clips generated, useful for quick preview with shorter generation time.
-
-> You can get the `pose.png`, `sing.MP3` and `pose.mp4` files from [official Wan2.2](https://github.com/Wan-Video/Wan2.2).
 
 
 ## Citation

@@ -70,7 +70,7 @@ def attention(
         if causal:
             # Only applied to self attention
             assert attn_mask is None, "Causal mask and attn_mask cannot be used together"
-            temp_mask = mint.ones(b, a, s, s, dtype=ms.bool_).tril(diagonal=0)
+            temp_mask = mint.ones((b, a, s, s), dtype=ms.bool_).tril(diagonal=0)
             attn_bias.masked_fill_(temp_mask.logical_not(), float("-inf"))
             attn_bias.to(q.dtype)
 
@@ -155,7 +155,7 @@ class MotionEncoder_tc(nn.Cell):
         b, c, t = x.shape
         x = self.conv1_local(x)
         # b (n c) t -> (b n) t c
-        x = x.reshape(b, self.num_heads, -1, x.shape[-1])
+        x = x.reshape(x.shape[0], self.num_heads, -1, x.shape[2])
         x = x.transpose(0, 1, 3, 2)
         x = x.reshape(-1, *x.shape[2:])
         x = self.norm1(x)

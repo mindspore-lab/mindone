@@ -223,7 +223,7 @@ class WanS2VAttentionBlock(WanAttentionBlock):
         norm_x = mint.cat(parts, dim=1)
         # self-attention
         dtype = x.dtype
-        y = self.self_attn(norm_x, seq_lens, grid_sizes, freqs)
+        y = self.self_attn(norm_x.to(dtype), seq_lens, grid_sizes, freqs)
         with autocast(dtype=ms.float32):
             z = []
             for i in range(2):
@@ -242,7 +242,7 @@ class WanS2VAttentionBlock(WanAttentionBlock):
             for i in range(2):
                 parts.append(norm2_x[:, seg_idx[i] : seg_idx[i + 1]] * (1 + e[4][:, i : i + 1]) + e[3][:, i : i + 1])
             norm2_x = mint.cat(parts, dim=1)
-            y = self.ffn(norm2_x)
+            y = self.ffn(norm2_x.to(dtype))
             with autocast(dtype=ms.float32):
                 z = []
                 for i in range(2):
@@ -451,7 +451,7 @@ class WanModel_S2V(ModelMixin, ConfigMixin):
         if hasattr(self, "cond_encoder"):
             self.cond_encoder = zero_module(self.cond_encoder)
 
-        for i in range(self.audio_injector.injector.__len__()):
+        for i in range(len(self.audio_injector.injector)):
             self.audio_injector.injector[i].o = zero_module(self.audio_injector.injector[i].o)
             if self.enbale_adain:
                 self.audio_injector.injector_adain_layers[i].linear = zero_module(
@@ -580,7 +580,7 @@ class WanModel_S2V(ModelMixin, ConfigMixin):
             mot, mot_remb = self.process_motion(motion_latents, drop_motion_frames=drop_motion_frames)
 
         if len(mot) > 0:
-            x = [mint.cat([u, m], dim=1) for u, m in zip(x, mot)]
+            x = [mint.cat([u, m.to(u.dtype)], dim=1) for u, m in zip(x, mot)]
             seq_lens = seq_lens + ms.tensor([r.shape[1] for r in mot], dtype=ms.int64)
             rope_embs = [mint.cat([u, m], dim=1) for u, m in zip(rope_embs, mot_remb)]
             mask_input = [
@@ -625,7 +625,7 @@ class WanModel_S2V(ModelMixin, ConfigMixin):
             )
             # (b t) n c -> b (t n) c
             residual_out = residual_out.reshape(-1, num_frames, *residual_out.shape[1:])
-            residual_out = residual_out.reshape(residual_out.shape[0], -1, residual_out.shape[2])
+            residual_out = residual_out.reshape(residual_out.shape[0], -1, residual_out.shape[3])
             hidden_states[:, : self.original_seq_len] = hidden_states[:, : self.original_seq_len] + residual_out
 
             if self.use_context_parallel:
@@ -710,7 +710,7 @@ class WanModel_S2V(ModelMixin, ConfigMixin):
 
         grid_sizes = grid_sizes + ref_grid_sizes
 
-        x = [mint.cat([u, r], dim=1) for u, r in zip(x, ref)]
+        x = [mint.cat([u, r.to(u.dtype)], dim=1) for u, r in zip(x, ref)]
 
         # Initialize masks to indicate noisy latent, ref latent, and motion latent.
         # However, at this point, only the first two (noisy and ref latents) are marked;
@@ -763,19 +763,10 @@ class WanModel_S2V(ModelMixin, ConfigMixin):
 
         # context
         context_lens = None
+        context = [u.to(self.dtype) for u in context]
         context = self.text_embedding(
-            mint.stack([mint.cat([u, u.new_zeros(self.text_len - u.shape[0], u.shape[1])]) for u in context])
+            mint.stack([mint.cat([u, u.new_zeros((self.text_len - u.shape[0], u.shape[1]))]) for u in context])
         )
-
-        # grad ckpt args
-        def create_custom_construct(module, return_dict=None):
-            def custom_construct(*inputs, **kwargs):
-                if return_dict is not None:
-                    return module(*inputs, **kwargs, return_dict=return_dict)
-                else:
-                    return module(*inputs, **kwargs)
-
-            return custom_construct
 
         if self.use_context_parallel:
             # sharded tensors for long context attn
