@@ -66,8 +66,8 @@ wget -P images https://raw.githubusercontent.com/facebookresearch/sam2/main/note
 
 | 原图（参考点用Star标注） |  预测结果1 |  预测结果2 |  预测结果3 |
 |:--------------------------:|:-------------------------------------:|:-------------------------------------:|:-------------------------------------:|
-| ![原图1](images/truck.jpg) | ![预测结果1](images/truck_result1.jpg) | ![预测结果2](images/truck_result2.jpg) | ![预测结果3](images/truck_result3.jpg) |
-| ![原图2](images/groceries.jpg) | ![预测结果1](images/groceries_result1.jpg) | ![预测结果2](images/groceries_result2.jpg) | ![预测结果3](images/groceries_result3.jpg) |
+| ![truck_point](https://github.com/user-attachments/assets/b9e2b831-35e5-4824-8407-68b51a27b891)| ![truck_infer_0](https://github.com/user-attachments/assets/42baa9a0-4485-4a50-9724-8c30f9a6212d) | ![truck_infer_1](https://github.com/user-attachments/assets/d133cb9a-25b3-4b75-b51c-860ee70a0251) | ![truck_infer_2](https://github.com/user-attachments/assets/4810f0e9-0e56-4fb2-a54c-2e58417d9281)|
+| ![groceries_point](https://github.com/user-attachments/assets/df421848-afe5-4dd5-8d35-9f51442515a5)| ![groceries_infer_0](https://github.com/user-attachments/assets/f33fdaa4-2684-4a66-b701-42b795bbd293) | ![groceries_infer_1](https://github.com/user-attachments/assets/b49c11bc-c40d-4fdf-9e73-97b2a358568c) | ![groceries_infer_2](https://github.com/user-attachments/assets/3c72ea9f-5668-4688-a8db-1489984ce2a6) |
 
 
 ### 分割掩码预测
