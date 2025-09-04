@@ -29,6 +29,7 @@ def init_static_cache(config: PretrainedConfig, max_batch_size: int, max_cache_l
     head_dim = config.head_dim if hasattr(config, "head_dim") else config.hidden_size // config.num_attention_heads
 
     dtype = dtype if dtype is not None else ms.float32
+
     if hasattr(config, "num_key_value_heads"):
         num_key_value_heads = config.num_key_value_heads
     else:
