@@ -69,6 +69,13 @@ wget -P images https://raw.githubusercontent.com/facebookresearch/sam2/main/note
 ```
 Then run `python predict_image.py`.
 
+The results will be saved in the `images/` folder as shown below:
+
+| Original (reference point marked with Star) | Prediction 1 | Prediction 2 | Prediction 3 |
+|:-------------------------------------------:|:-------------:|:-------------:|:-------------:|
+| ![truck_point](https://github.com/user-attachments/assets/b9e2b831-35e5-4824-8407-68b51a27b891)| ![truck_infer_0](https://github.com/user-attachments/assets/42baa9a0-4485-4a50-9724-8c30f9a6212d) | ![truck_infer_1](https://github.com/user-attachments/assets/d133cb9a-25b3-4b75-b51c-860ee70a0251) | ![truck_infer_2](https://github.com/user-attachments/assets/4810f0e9-0e56-4fb2-a54c-2e58417d9281)|
+| ![groceries_point](https://github.com/user-attachments/assets/df421848-afe5-4dd5-8d35-9f51442515a5)| ![groceries_infer_0](https://github.com/user-attachments/assets/f33fdaa4-2684-4a66-b701-42b795bbd293) | ![groceries_infer_1](https://github.com/user-attachments/assets/b49c11bc-c40d-4fdf-9e73-97b2a358568c) | ![groceries_infer_2](https://github.com/user-attachments/assets/3c72ea9f-5668-4688-a8db-1489984ce2a6) |
+
 ### Segmentation Mask Prediction
 
 You can use `predict_mask.py` to get the segmentation mask from a given image. Please download the images for inference first:
@@ -76,3 +83,9 @@ You can use `predict_mask.py` to get the segmentation mask from a given image. P
 wget -P images https://raw.githubusercontent.com/facebookresearch/sam2/main/notebooks/images/cars.jpg
 ```
 Then run `python predict_mask.py`.
+
+The results will be saved in the `images/` folder as shown below:
+
+| Original | Prediction |
+|:--------:|:----------:|
+| <img src="https://github.com/user-attachments/assets/b422f52b-b10a-401c-be9a-efcad0eb696a" width="300" alt="cars"> | <img src="https://github.com/user-attachments/assets/ca348fe3-481c-41bf-a62f-2c430f2f6972" width="300" alt="cars">  |
