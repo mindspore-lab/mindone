@@ -33,6 +33,7 @@ from . import (
     chameleon,
     clap,
     clip,
+    clipseg,
     convbert,
     convnext,
     convnextv2,
