@@ -1,8 +1,8 @@
-# Copied from https://github.com/facebookresearch/sam2/blob/main/sam2/configs/sam2/sam2_hiera_s.yaml
 # @package _global_
 
 # Model
 model:
+# Copied from https://github.com/facebookresearch/sam2/blob/main/sam2/configs/sam2/sam2_hiera_s.yaml
   _target_: sam2.modeling.sam2_base.SAM2Base
   image_encoder:
     _target_: sam2.modeling.backbones.image_encoder.ImageEncoder
