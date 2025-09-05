@@ -221,7 +221,7 @@ def multi_head_attention_forward(
 
     if attn_mask is not None and attn_mask.dtype == mstype.bool_:
         new_attn_mask = mint.zeros_like(attn_mask, dtype=q.dtype)
-        attn_mask = new_attn_mask.masked_fill(attn_mask, mint.cast(float("-inf"), new_attn_mask.dtype))
+        attn_mask = new_attn_mask.masked_fill(attn_mask, ops.cast(float("-inf"), new_attn_mask.dtype))
 
     if attn_mask is not None:
         if attn_mask.shape[0] == 1:
@@ -417,9 +417,15 @@ class MultiheadAttention(Cell):
         self.dtype = dtype
 
     def __call__(self, *args, **kwargs):
-        query = kwargs.get("query", args[0])
-        key = kwargs.get("key", args[1])
-        value = kwargs.get("value", args[2])
+        query = kwargs.get("query", args[0] if len(args) > 0 else None)
+        key = kwargs.get("key", args[1] if len(args) > 1 else None)
+        value = kwargs.get("value", args[2] if len(args) > 2 else None)
+
+        # 验证必需参数
+        if None in (query, key, value):
+            missing = [name for name, val in zip(["query", "key", "value"], [query, key, value]) if val is None]
+            raise TypeError(f"Missing required arguments: {', '.join(missing)}")
+
         self.k_is_v = key is value
         self.q_is_k = query is key
         return super().__call__(*args, **kwargs)
