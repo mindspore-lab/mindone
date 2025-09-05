@@ -90,6 +90,7 @@ from . import (
     swin2sr,
     switch_transformers,
     t5,
+    tapas,
     umt5,
     vilt,
     vision_encoder_decoder,
