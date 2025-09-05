@@ -13,7 +13,7 @@ def rope_precompute(
     freqs: Union[List[ms.Tensor], ms.Tensor],
     start: Optional[List[ms.Tensor]] = None,
 ) -> ms.Tensor:
-    x = x.to(ms.float32)
+    x = x.clone().to(ms.float32)
     b, s, n, c = x.shape[0], x.shape[1], x.shape[2], x.shape[3] // 2
 
     # split freqs
