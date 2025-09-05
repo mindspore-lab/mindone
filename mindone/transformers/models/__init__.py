@@ -46,6 +46,7 @@ from . import (
     glm,
     glpn,
     gpt2,
+    got_ocr2,
     granite,
     granitemoe,
     granitemoeshared,
