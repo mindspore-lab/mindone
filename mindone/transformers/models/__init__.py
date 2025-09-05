@@ -49,6 +49,7 @@ from . import (
     distilbert,
     dpr,
     dpt,
+    encodec,
     fastspeech2_conformer,
     funnel,
     fuyu,
