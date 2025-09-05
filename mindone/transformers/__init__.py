@@ -417,6 +417,7 @@ from .models.megatron_bert import (
     MegatronBertModel,
     MegatronBertPreTrainedModel,
 )
+from .models.mgp_str import MgpstrForSceneTextRecognition, MgpstrModel, MgpstrPreTrainedModel
 from .models.minicpm4 import MiniCPMForCausalLM, MiniCPMForSequenceClassification, MiniCPMModel
 from .models.mistral import (
     MistralForCausalLM,

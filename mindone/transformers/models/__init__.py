@@ -64,6 +64,7 @@ from . import (
     llava_onevision,
     m2m_100,
     megatron_bert,
+    mgp_str,
     minicpm4,
     mistral,
     mixtral,
