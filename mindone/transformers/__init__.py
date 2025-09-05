@@ -605,6 +605,11 @@ from .models.umt5 import (
     UMT5Model,
     UMT5PreTrainedModel,
 )
+from .models.udop import (
+    UdopForConditionalGeneration,
+    UdopModel,
+    UdopPreTrainedModel,
+)
 from .models.vit import ViTForImageClassification, ViTForMaskedImageModeling, ViTModel, ViTPreTrainedModel
 from .models.vits import VitsModel, VitsPreTrainedModel
 from .models.wav2vec2 import (
