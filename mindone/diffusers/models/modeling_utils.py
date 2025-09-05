@@ -58,6 +58,7 @@ from .model_loading_utils import (
     load_state_dict,
     split_torch_state_dict_into_shards,
 )
+from .modeling_patch import patch_nn_default_dtype, restore_nn_default_dtype
 
 
 class ContextManagers:
@@ -819,7 +820,11 @@ class ModelMixin(nn.Cell, PushToHubMixin):
                 )
 
         with no_init_parameters():
+            if mindspore_dtype is not None:
+                patch_nn_default_dtype(dtype=mindspore_dtype, force=True)
             model = cls.from_config(config, **unused_kwargs)
+            if mindspore_dtype is not None:
+                restore_nn_default_dtype()
 
         state_dict = None
         if not is_sharded:
@@ -874,7 +879,8 @@ class ModelMixin(nn.Cell, PushToHubMixin):
 
     def to(self, dtype: Optional[ms.Type] = None):
         for p in self.get_parameters():
-            p.set_dtype(dtype)
+            if p.dtype != dtype:
+                p.set_dtype(dtype)
         return self
 
     def half(self):
