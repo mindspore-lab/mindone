@@ -31,7 +31,7 @@ from ...loaders import QwenImageLoraLoaderMixin
 from ...models import AutoencoderKLQwenImage, QwenImageTransformer2DModel
 from ...schedulers import FlowMatchEulerDiscreteScheduler
 from ...utils import logging #, scale_lora_layers, unscale_lora_layers
-from ...utils.torch_utils import randn_tensor, pynative_context
+from ...utils.mindspore_utils import randn_tensor, pynative_context
 from ..pipeline_utils import DiffusionPipeline
 from .pipeline_output import QwenImagePipelineOutput
 
@@ -258,11 +258,12 @@ class QwenImageEditInpaintPipeline(DiffusionPipeline, QwenImageLoraLoaderMixin):
         )
 
         hidden_states = outputs.hidden_states[-1]
-        split_hidden_states = self._extract_masked_hidden(hidden_states, model_inputs.attention_mask)
+        split_hidden_states = self._extract_masked_hidden(hidden_states, ms.Tensor(model_inputs.attention_mask))
         split_hidden_states = [e[drop_idx:] for e in split_hidden_states]
         attn_mask_list = [mint.ones(e.shape[0], dtype=ms.int64) for e in split_hidden_states]
         max_seq_len = max([e.shape[0] for e in split_hidden_states])
         prompt_embeds = mint.stack(
+
             [mint.cat([u, u.new_zeros((max_seq_len - u.shape[0], u.shape[1]))]) for u in split_hidden_states]
         )
         encoder_attention_mask = mint.stack(
@@ -418,12 +419,12 @@ class QwenImageEditInpaintPipeline(DiffusionPipeline, QwenImageLoraLoaderMixin):
         with pynative_context():
             if isinstance(generator, list):
                 image_latents = [
-                    retrieve_latents(self.vae, self.vae.encode(image[i : i + 1]))
+                    retrieve_latents(self.vae, self.vae.encode(image[i : i + 1])[0])
                     for i in range(image.shape[0])
                 ]
                 image_latents = mint.cat(image_latents, dim=0)
             else:
-                image_latents = retrieve_latents(self.vae, self.vae.encode(image))
+                image_latents = retrieve_latents(self.vae, self.vae.encode(image)[0])
 
         latents_mean = (
             ms.Tensor(self.vae.config.latents_mean)
@@ -950,7 +951,7 @@ class QwenImageEditInpaintPipeline(DiffusionPipeline, QwenImageLoraLoaderMixin):
             raise ValueError("guidance_scale is required for guidance-distilled model.")
         elif self.transformer.config.guidance_embeds:
             guidance = mint.full([1], guidance_scale, dtype=ms.float32)
-            guidance = guidance.expand(latents.shape[0])
+            guidance = guidance.expand((latents.shape[0],))
         elif not self.transformer.config.guidance_embeds and guidance_scale is not None:
             logger.warning(
                 f"guidance_scale is passed as {guidance_scale}, but ignored since the model is not guidance-distilled."
@@ -996,18 +997,18 @@ class QwenImageEditInpaintPipeline(DiffusionPipeline, QwenImageLoraLoaderMixin):
                 noise_pred = noise_pred[:, : latents.shape[1]]
 
                 if do_true_cfg:
-                    with self.transformer.cache_context("uncond"):
-                        neg_noise_pred = self.transformer(
-                            hidden_states=latent_model_input,
-                            timestep=timestep / 1000,
-                            guidance=guidance,
-                            encoder_hidden_states_mask=negative_prompt_embeds_mask,
-                            encoder_hidden_states=negative_prompt_embeds,
-                            img_shapes=img_shapes,
-                            txt_seq_lens=negative_txt_seq_lens,
-                            attention_kwargs=self.attention_kwargs,
-                            return_dict=False,
-                        )[0]
+                    # with self.transformer.cache_context("uncond"):
+                    neg_noise_pred = self.transformer(
+                        hidden_states=latent_model_input,
+                        timestep=timestep / 1000,
+                        guidance=guidance,
+                        encoder_hidden_states_mask=negative_prompt_embeds_mask,
+                        encoder_hidden_states=negative_prompt_embeds,
+                        img_shapes=img_shapes,
+                        txt_seq_lens=negative_txt_seq_lens,
+                        attention_kwargs=self.attention_kwargs,
+                        return_dict=False,
+                    )[0]
                     neg_noise_pred = neg_noise_pred[:, : latents.shape[1]]
                     comb_pred = neg_noise_pred + true_cfg_scale * (noise_pred - neg_noise_pred)
 

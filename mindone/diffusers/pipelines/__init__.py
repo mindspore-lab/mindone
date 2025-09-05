@@ -245,6 +245,7 @@ _import_structure = {
     "wan": ["WanPipeline", "WanImageToVideoPipeline", "WanVideoToVideoPipeline"],
     "qwenimage": [
         "QwenImageEditPipeline",
+        "QwenImageEditInpaintPipeline",
         "QwenImageImg2ImgPipeline",
         "QwenImageInpaintPipeline",
         "QwenImagePipeline",

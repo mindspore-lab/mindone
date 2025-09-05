@@ -204,6 +204,9 @@ class QwenImageEditPipelineFastTests(PipelineTesterMixin, unittest.TestCase):
     @data(*test_cases)
     @unpack
     def test_inference(self, mode, dtype):
+        if dtype == "bfloat16":
+            print("The PyTorch pipeline in bfloat16 requires ~1 hrs.")
+
         ms.set_context(mode=mode)
 
         pt_components, ms_components = self.get_dummy_components()

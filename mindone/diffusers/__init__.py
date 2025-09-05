@@ -548,6 +548,7 @@ if TYPE_CHECKING:
         PixArtSigmaPAGPipeline,
         PixArtSigmaPipeline,
         QwenImageEditPipeline,
+        QwenImageEditInpaintPipeline,
         QwenImageImg2ImgPipeline,
         QwenImageInpaintPipeline,
         QwenImagePipeline,
