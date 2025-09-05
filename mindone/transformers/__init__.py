@@ -635,6 +635,7 @@ from .models.vilt import (
     ViltPreTrainedModel,
 )
 from .models.vision_encoder_decoder import VisionEncoderDecoderModel
+from .models.vision_text_dual_encoder import VisionTextDualEncoderModel
 from .models.vit import ViTForImageClassification, ViTForMaskedImageModeling, ViTModel, ViTPreTrainedModel
 from .models.vits import VitsModel, VitsPreTrainedModel
 from .models.wav2vec2 import (
