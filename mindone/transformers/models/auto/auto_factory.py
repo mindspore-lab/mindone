@@ -461,6 +461,7 @@ class _BaseAutoModelClass:
             "subfolder",
             "use_auth_token",
             "token",
+            "mindspore_dtype",
         ]
         hub_kwargs = {name: kwargs.pop(name) for name in hub_kwargs_names if name in kwargs}
         code_revision = kwargs.pop("code_revision", None)

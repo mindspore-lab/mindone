@@ -60,6 +60,7 @@ from transformers.utils.hub import convert_file_size_to_int, get_checkpoint_shar
 import mindspore as ms
 from mindspore import Parameter, Tensor, mint, nn, ops
 from mindspore.nn import CrossEntropyLoss, Identity
+from mindspore.nn.utils import no_init_parameters
 
 from .activations import get_activation
 from .generation.utils import GenerationMixin
@@ -94,9 +95,7 @@ def _get_pt2ms_mappings(m):
     mappings = {}  # pt_param_name: (ms_param_name, pt_param_to_ms_param_func)
     for name, cell in m.cells_and_names():
         if isinstance(cell, (nn.Conv1d, nn.Conv1dTranspose)):
-            mappings[f"{name}.weight"] = f"{name}.weight", lambda x: ms.Parameter(
-                ops.expand_dims(x, axis=-2), name=x.name
-            )
+            mappings[f"{name}.weight"] = f"{name}.weight", lambda x: ops.expand_dims(x, axis=-2)
             if "weight_norm_cell" in name:
                 ori_name = name.replace(".weight_norm_cell", "")
                 mappings[f"{ori_name}.weight_g"] = f"{ori_name}.weight_g", lambda x: ms.Parameter(
@@ -349,9 +348,9 @@ def _load_state_dict_into_model(model_to_load, state_dict, start_prefix, is_shar
     local_state = {v.name: v for k, v in model_to_load.parameters_and_names()}
     for k, v in state_dict.items():
         if k in local_state:
-            v.set_dtype(local_state[k].dtype)
+            state_dict[k] = ms.Parameter(v.to(local_state[k].dtype), name=k)
         else:
-            pass  # unexpect key keeps origin dtype
+            state_dict[k] = ms.Parameter(v, name=k)  # unexpect key keeps origin dtype
     cm = silence_mindspore_logger() if is_sharded else nullcontext()
     with cm:
         ms.load_param_into_net(model_to_load, state_dict, strict_load=True)
@@ -433,7 +432,12 @@ class ModuleUtilsMixin:
         # Now we use `Parameter` and `Parameter.set_dtype()` instead.
 
         for p in self.get_parameters():
-            p.set_dtype(dtype)
+            if p.dtype in (ms.uint8,):
+                logger.warning(
+                    f"Do not convert to {dtype_to_str(dtype)}, param: {p.name}"
+                )
+            else:
+                p.set_dtype(dtype)
         return self
 
     def float(self):
@@ -1024,7 +1028,8 @@ class PreTrainedModel(nn.Cell, ModuleUtilsMixin, GenerationMixin, PushToHubMixin
                 mindspore_dtype=mindspore_dtype,
             )
 
-        model = cls(config, **kwargs)
+        with no_init_parameters():
+            model = cls(config, **kwargs)
 
         # We cannot set default mindspore dtype. So we need to cast model weights after creating.
         if mindspore_dtype is not None:
@@ -1033,6 +1038,8 @@ class PreTrainedModel(nn.Cell, ModuleUtilsMixin, GenerationMixin, PushToHubMixin
             logger.info(
                 f"convert model:{model.__class__.__name__} parameters to mindspore_dtype {dtype_to_str(mindspore_dtype)}"
             )
+
+        model.init_parameters_data()
 
         return model
 
@@ -2394,7 +2401,8 @@ class PreTrainedModel(nn.Cell, ModuleUtilsMixin, GenerationMixin, PushToHubMixin
             config, use_flash_attention_2=use_flash_attention_2, mindspore_dtype=mindspore_dtype
         )
 
-        model = cls(config, *model_args, **model_kwargs)
+        with no_init_parameters():
+            model = cls(config, *model_args, **model_kwargs)
 
         # Make sure to tie the weights correctly
         model.tie_weights()
@@ -2449,6 +2457,8 @@ class PreTrainedModel(nn.Cell, ModuleUtilsMixin, GenerationMixin, PushToHubMixin
 
         # make sure token embedding weights are still tied if needed
         model.tie_weights()
+
+        model.init_parameters_data()
 
         # Set model in evaluation mode to deactivate DropOut modules by default
         model.set_train(False)
