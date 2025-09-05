@@ -277,7 +277,7 @@ from .models.convnextv2 import (
     ConvNextV2Model,
     ConvNextV2PreTrainedModel,
 )
-from .models.dac import DacModel
+from .models.dac import DacModel, DacPreTrainedModel
 from .models.deberta import (
     DebertaForMaskedLM,
     DebertaForQuestionAnswering,
