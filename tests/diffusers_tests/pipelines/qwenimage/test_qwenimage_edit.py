@@ -12,7 +12,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import random
 import sys
 import unittest
 
@@ -41,7 +40,6 @@ from ..pipeline_test_utils import (
     THRESHOLD_FP32,
     THRESHOLD_PIXEL,
     PipelineTesterMixin,
-    floats_tensor,
     get_module,
     get_pipeline_components,
     randn_tensor,
@@ -52,6 +50,7 @@ test_cases = [
     {"mode": ms.PYNATIVE_MODE, "dtype": "bfloat16"},
 ]
 
+@ddt
 class QwenImageEditPipelineFastTests(PipelineTesterMixin, unittest.TestCase):
     pipeline_config = [
         [
@@ -183,8 +182,10 @@ class QwenImageEditPipelineFastTests(PipelineTesterMixin, unittest.TestCase):
                 "processor",               
             ]
         }
+        return get_pipeline_components(components, self.pipeline_config)
 
-    def get_dummy_inputs(self, seed=0):
+
+    def get_dummy_inputs(self):
         inputs = {
             "prompt": "dance monkey",
             "image": Image.new("RGB", (32, 32)),
@@ -238,7 +239,7 @@ class QwenImageEditPipelineFastTests(PipelineTesterMixin, unittest.TestCase):
 
 @slow
 @ddt
-class QwenImageImg2ImgPipelineIntegrationTests(PipelineTesterMixin, unittest.TestCase):
+class QwenImageEditPipelineIntegrationTests(PipelineTesterMixin, unittest.TestCase):
     @data(*test_cases)
     @unpack
     def test_inference(self, mode, dtype):
