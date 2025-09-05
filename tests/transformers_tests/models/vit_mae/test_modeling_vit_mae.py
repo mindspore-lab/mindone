@@ -1,6 +1,9 @@
 # coding=utf-8
 # Copyright 2022 The HuggingFace Inc. team. All rights reserved.
 #
+# This code is adapted from https://github.com/huggingface/transformers
+# with modifications to run transformers on mindspore.
+#
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -12,14 +15,15 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-"""Testing suite for the MindSpore ResNet model."""
+"""Testing suite for the MindSpore ViTMAE model."""
 
 import inspect
+import math
 
 import numpy as np
 import pytest
 import torch
-from transformers import ResNetConfig
+from transformers import ViTMAEConfig
 
 import mindspore as ms
 
@@ -32,74 +36,105 @@ from tests.modeling_test_utils import (
 )
 from tests.transformers_tests.models.modeling_common import floats_numpy, ids_numpy
 
-# TODO: Prompted by accuracy problems in the FP32 model caused by the conv2d operation, we modified the corresponding threshold.  # noqa: E501
-DTYPE_AND_THRESHOLDS = {"fp32": 7e-4, "fp16": 5e-3, "bf16": 5e-2}
+DTYPE_AND_THRESHOLDS = {"fp32": 5e-4, "fp16": 5e-3, "bf16": 5e-2}
+# graph mode is not supported in this model
 MODES = [1]
 
 
-class ResNetModelTester:
+class ViTMAEModelTester:
     def __init__(
         self,
-        batch_size=3,
-        image_size=32,
+        batch_size=13,
+        image_size=30,
+        patch_size=2,
         num_channels=3,
-        embeddings_size=10,
-        hidden_sizes=[10, 20, 30, 40],
-        depths=[1, 1, 2, 1],
         is_training=True,
         use_labels=True,
-        hidden_act="relu",
+        hidden_size=32,
+        num_hidden_layers=2,
+        num_attention_heads=4,
+        intermediate_size=37,
+        hidden_act="gelu",
+        hidden_dropout_prob=0.1,
+        attention_probs_dropout_prob=0.1,
+        type_sequence_label_size=10,
+        initializer_range=0.02,
         num_labels=3,
         scope=None,
-        out_features=["stage2", "stage3", "stage4"],
-        out_indices=[2, 3, 4],
+        mask_ratio=0.5,
+        attn_implementation="eager",
     ):
         self.batch_size = batch_size
         self.image_size = image_size
+        self.patch_size = patch_size
         self.num_channels = num_channels
-        self.embeddings_size = embeddings_size
-        self.hidden_sizes = hidden_sizes
-        self.depths = depths
         self.is_training = is_training
         self.use_labels = use_labels
+        self.hidden_size = hidden_size
+        self.num_hidden_layers = num_hidden_layers
+        self.num_attention_heads = num_attention_heads
+        self.intermediate_size = intermediate_size
         self.hidden_act = hidden_act
-        self.num_labels = num_labels
+        self.hidden_dropout_prob = hidden_dropout_prob
+        self.attention_probs_dropout_prob = attention_probs_dropout_prob
+        self.type_sequence_label_size = type_sequence_label_size
+        self.initializer_range = initializer_range
+        self.mask_ratio = mask_ratio
         self.scope = scope
-        self.num_stages = len(hidden_sizes)
-        self.out_features = out_features
-        self.out_indices = out_indices
+        self.attn_implementation = attn_implementation
+
+        # in ViTMAE, the expected sequence length = (num_patches + 1) * (1 - config.mask_ratio), rounded above
+        # (we add 1 for the [CLS] token)
+        num_patches = (image_size // patch_size) ** 2
+        self.seq_length = int(math.ceil((1 - mask_ratio) * (num_patches + 1)))
+        self.mask_ratio = mask_ratio
+        self.num_masks = int(mask_ratio * self.seq_length)
+        self.mask_length = num_patches
 
     def prepare_config_and_inputs(self):
         pixel_values = floats_numpy([self.batch_size, self.num_channels, self.image_size, self.image_size])
+        noise = floats_numpy(
+            [self.batch_size, (self.image_size // self.patch_size) * (self.image_size // self.patch_size)]
+        )
 
         labels = None
         if self.use_labels:
-            labels = ids_numpy([self.batch_size], self.num_labels)
+            labels = ids_numpy([self.batch_size], self.type_sequence_label_size)
 
         config = self.get_config()
 
-        return config, pixel_values, labels
+        return config, pixel_values, noise, labels
 
     def get_config(self):
-        return ResNetConfig(
+        return ViTMAEConfig(
+            image_size=self.image_size,
+            patch_size=self.patch_size,
             num_channels=self.num_channels,
-            embeddings_size=self.embeddings_size,
-            hidden_sizes=self.hidden_sizes,
-            depths=self.depths,
+            hidden_size=self.hidden_size,
+            num_hidden_layers=self.num_hidden_layers,
+            num_attention_heads=self.num_attention_heads,
+            intermediate_size=self.intermediate_size,
             hidden_act=self.hidden_act,
-            num_labels=self.num_labels,
-            out_features=self.out_features,
-            out_indices=self.out_indices,
+            hidden_dropout_prob=self.hidden_dropout_prob,
+            attention_probs_dropout_prob=self.attention_probs_dropout_prob,
+            is_decoder=False,
+            initializer_range=self.initializer_range,
+            mask_ratio=self.mask_ratio,
+            decoder_hidden_size=self.hidden_size,
+            decoder_intermediate_size=self.intermediate_size,
+            decoder_num_attention_heads=self.num_attention_heads,
+            decoder_num_hidden_layers=self.num_hidden_layers,
+            attn_implementation=self.attn_implementation,
         )
 
 
-model_tester = ResNetModelTester()
-config, pixel_values, labels = model_tester.prepare_config_and_inputs()
-RESNET_CASES = [
+model_tester = ViTMAEModelTester()
+config, pixel_values, noise, labels = model_tester.prepare_config_and_inputs()
+VIT_MAE_CASES = [
     [
-        "ResNetModel",
-        "transformers.ResNetModel",
-        "mindone.transformers.ResNetModel",
+        "ViTMAEModel",
+        "transformers.ViTMAEModel",
+        "mindone.transformers.ViTMAEModel",
         (config,),
         {},
         (pixel_values,),
@@ -121,7 +156,7 @@ RESNET_CASES = [
         + [
             mode,
         ]
-        for case in RESNET_CASES
+        for case in VIT_MAE_CASES
         for dtype in DTYPE_AND_THRESHOLDS.keys()
         for mode in MODES
     ],
@@ -156,9 +191,10 @@ def test_named_modules(
         pt_inputs_kwargs.update({"hidden_dtype": PT_DTYPE_MAPPING[pt_dtype]})
         ms_inputs_kwargs.update({"hidden_dtype": MS_DTYPE_MAPPING[ms_dtype]})
 
+    # noise must be float32
     with torch.no_grad():
-        pt_outputs = pt_model(*pt_inputs_args, **pt_inputs_kwargs)
-    ms_outputs = ms_model(*ms_inputs_args, **ms_inputs_kwargs)
+        pt_outputs = pt_model(*pt_inputs_args, **pt_inputs_kwargs, noise=torch.tensor(noise))
+    ms_outputs = ms_model(*ms_inputs_args, **ms_inputs_kwargs, noise=ms.tensor(noise))
     # print("ms:", ms_outputs)
     # print("pt:", pt_outputs)
     if outputs_map:

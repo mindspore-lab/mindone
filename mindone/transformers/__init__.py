@@ -395,6 +395,12 @@ from .models.diffllama import (
     DiffLlamaPreTrainedModel,
 )
 from .models.dinov2 import Dinov2Backbone, Dinov2ForImageClassification, Dinov2Model, Dinov2PreTrainedModel
+from .models.dinov2_with_registers import (
+    Dinov2WithRegistersBackbone,
+    Dinov2WithRegistersForImageClassification,
+    Dinov2WithRegistersModel,
+    Dinov2WithRegistersPreTrainedModel,
+)
 from .models.distilbert import (
     DistilBertForMaskedLM,
     DistilBertForMultipleChoice,
@@ -489,6 +495,13 @@ from .models.fnet import (
     FNetLayer,
     FNetModel,
     FNetPreTrainedModel,
+)
+from .models.focalnet import (
+    FocalNetBackbone,
+    FocalNetForImageClassification,
+    FocalNetForMaskedImageModeling,
+    FocalNetModel,
+    FocalNetPreTrainedModel,
 )
 from .models.fsmt import FSMTForConditionalGeneration, FSMTModel, PretrainedFSMTModel
 from .models.funnel import (
@@ -734,6 +747,14 @@ from .models.markuplm import (
     MarkupLMModel,
     MarkupLMPreTrainedModel,
 )
+from .models.mask2former import Mask2FormerForUniversalSegmentation, Mask2FormerModel, Mask2FormerPreTrainedModel
+from .models.maskformer import (
+    MaskFormerForInstanceSegmentation,
+    MaskFormerImageProcessor,
+    MaskFormerModel,
+    MaskFormerPreTrainedModel,
+    MaskFormerSwinBackbone,
+)
 from .models.mbart import (
     MBartForCausalLM,
     MBartForConditionalGeneration,
@@ -970,6 +991,7 @@ from .models.qwen2_vl import (
     Qwen2VLPreTrainedModel,
 )
 from .models.recurrent_gemma import RecurrentGemmaForCausalLM, RecurrentGemmaModel, RecurrentGemmaPreTrainedModel
+from .models.regnet import RegNetForImageClassification, RegNetModel, RegNetPreTrainedModel
 from .models.rembert import (
     RemBertForCausalLM,
     RemBertForMaskedLM,
@@ -1107,6 +1129,7 @@ from .models.starcoder2 import (
     Starcoder2Model,
     Starcoder2PreTrainedModel,
 )
+from .models.swiftformer import SwiftFormerForImageClassification, SwiftFormerModel, SwiftFormerPreTrainedModel
 from .models.swin import (
     SwinBackbone,
     SwinForImageClassification,
@@ -1201,6 +1224,7 @@ from .models.visual_bert import (
     VisualBertPreTrainedModel,
 )
 from .models.vit import ViTForImageClassification, ViTForMaskedImageModeling, ViTModel, ViTPreTrainedModel
+from .models.vit_mae import ViTMAEForPreTraining, ViTMAEModel, ViTMAEPreTrainedModel
 from .models.vit_msn import ViTMSNForImageClassification, ViTMSNModel, ViTMSNPreTrainedModel
 from .models.vitdet import VitDetBackbone, VitDetModel, VitDetPreTrainedModel
 from .models.vitmatte import VitMatteForImageMatting, VitMattePreTrainedModel

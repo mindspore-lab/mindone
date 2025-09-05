@@ -1,5 +1,8 @@
 # coding=utf-8
-# Copyright 2022 The HuggingFace Inc. team. All rights reserved.
+# Copyright 2023 The HuggingFace Inc. team. All rights reserved.
+#
+# This code is adapted from https://github.com/huggingface/transformers
+# with modifications to run transformers on mindspore.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -12,14 +15,14 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-"""Testing suite for the MindSpore ResNet model."""
+"""Testing suite for the MindSpore SwiftFormer model."""
 
 import inspect
 
 import numpy as np
 import pytest
 import torch
-from transformers import ResNetConfig
+from transformers import SwiftFormerConfig
 
 import mindspore as ms
 
@@ -32,42 +35,34 @@ from tests.modeling_test_utils import (
 )
 from tests.transformers_tests.models.modeling_common import floats_numpy, ids_numpy
 
-# TODO: Prompted by accuracy problems in the FP32 model caused by the conv2d operation, we modified the corresponding threshold.  # noqa: E501
-DTYPE_AND_THRESHOLDS = {"fp32": 7e-4, "fp16": 5e-3, "bf16": 5e-2}
+DTYPE_AND_THRESHOLDS = {"fp32": 5e-4, "fp16": 5e-3, "bf16": 5e-2}
 MODES = [1]
 
 
-class ResNetModelTester:
+class SwiftFormerModelTester:
     def __init__(
         self,
-        batch_size=3,
-        image_size=32,
+        batch_size=13,
         num_channels=3,
-        embeddings_size=10,
-        hidden_sizes=[10, 20, 30, 40],
-        depths=[1, 1, 2, 1],
         is_training=True,
         use_labels=True,
-        hidden_act="relu",
+        hidden_dropout_prob=0.1,
+        attention_probs_dropout_prob=0.1,
+        image_size=224,
         num_labels=3,
-        scope=None,
-        out_features=["stage2", "stage3", "stage4"],
-        out_indices=[2, 3, 4],
+        layer_depths=[1, 1, 1, 1],
+        embed_dims=[16, 16, 32, 32],
     ):
         self.batch_size = batch_size
-        self.image_size = image_size
         self.num_channels = num_channels
-        self.embeddings_size = embeddings_size
-        self.hidden_sizes = hidden_sizes
-        self.depths = depths
         self.is_training = is_training
         self.use_labels = use_labels
-        self.hidden_act = hidden_act
+        self.hidden_dropout_prob = hidden_dropout_prob
+        self.attention_probs_dropout_prob = attention_probs_dropout_prob
         self.num_labels = num_labels
-        self.scope = scope
-        self.num_stages = len(hidden_sizes)
-        self.out_features = out_features
-        self.out_indices = out_indices
+        self.image_size = image_size
+        self.layer_depths = layer_depths
+        self.embed_dims = embed_dims
 
     def prepare_config_and_inputs(self):
         pixel_values = floats_numpy([self.batch_size, self.num_channels, self.image_size, self.image_size])
@@ -81,25 +76,30 @@ class ResNetModelTester:
         return config, pixel_values, labels
 
     def get_config(self):
-        return ResNetConfig(
-            num_channels=self.num_channels,
-            embeddings_size=self.embeddings_size,
-            hidden_sizes=self.hidden_sizes,
-            depths=self.depths,
-            hidden_act=self.hidden_act,
+        return SwiftFormerConfig(
+            depths=self.layer_depths,
+            embed_dims=self.embed_dims,
+            mlp_ratio=4,
+            downsamples=[True, True, True, True],
+            hidden_act="gelu",
             num_labels=self.num_labels,
-            out_features=self.out_features,
-            out_indices=self.out_indices,
+            down_patch_size=3,
+            down_stride=2,
+            down_pad=1,
+            drop_rate=0.0,
+            drop_path_rate=0.0,
+            use_layer_scale=True,
+            layer_scale_init_value=1e-5,
         )
 
 
-model_tester = ResNetModelTester()
+model_tester = SwiftFormerModelTester()
 config, pixel_values, labels = model_tester.prepare_config_and_inputs()
-RESNET_CASES = [
+SWIFTFORMER_CASES = [
     [
-        "ResNetModel",
-        "transformers.ResNetModel",
-        "mindone.transformers.ResNetModel",
+        "SwiftFormerModel",
+        "transformers.SwiftFormerModel",
+        "mindone.transformers.SwiftFormerModel",
         (config,),
         {},
         (pixel_values,),
@@ -121,7 +121,7 @@ RESNET_CASES = [
         + [
             mode,
         ]
-        for case in RESNET_CASES
+        for case in SWIFTFORMER_CASES
         for dtype in DTYPE_AND_THRESHOLDS.keys()
         for mode in MODES
     ],

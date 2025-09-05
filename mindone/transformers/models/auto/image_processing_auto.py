@@ -64,6 +64,7 @@ else:
             ("llava_next", ("LlavaNextImageProcessor",)),
             ("llava_next_video", ("LlavaNextVideoImageProcessor",)),
             ("llava_onevision", ("LlavaOnevisionImageProcessor",)),
+            ("maskformer", ("MaskFormerImageProcessor",)),
             ("mllama", ("MllamaImageProcessor",)),
             ("qwen2_5_vl", ("Qwen2VLImageProcessor",)),
             ("owlv2", ("Owlv2ImageProcessor",)),
