@@ -58,6 +58,7 @@ MODEL_MAPPING_NAMES = OrderedDict(
         ("detr", "DetrModel"),
         ("dinov2", "Dinov2Model"),
         ("dpt", "DPTModel"),
+        ("focalnet", "FocalNetModel"),
         ("gemma", "GemmaModel"),
         ("m2m_100", "M2M100Model"),
         ("gemma2", "Gemma2Model"),
@@ -87,6 +88,9 @@ MODEL_MAPPING_NAMES = OrderedDict(
         ("led", "LEDModel"),
         ("levit", "LevitModel"),
         ("llama", "LlamaModel"),
+        ("mask2former", "Mask2FormerModel"),
+        ("maskformer", "MaskFormerModel"),
+        ("maskformer-swin", "MaskFormerSwinModel"),
         ("mistral", "MistralModel"),
         ("mobilebert", "MobileBertModel"),
         ("mpt", "MptModel"),
@@ -100,6 +104,7 @@ MODEL_MAPPING_NAMES = OrderedDict(
         ("qwen2_5_vl", "Qwen2_5_VLModel"),
         ("qwen2_audio_encoder", "Qwen2AudioEncoder"),
         ("qwen2_vl", "Qwen2VLModel"),
+        ("regnet", "RegNetModel"),
         ("roberta", "RobertaModel"),
         ("rembert", "RemBertModel"),
         ("resnet", "ResNetModel"),
@@ -109,6 +114,7 @@ MODEL_MAPPING_NAMES = OrderedDict(
         ("smolvlm", "SmolVLMModel"),
         ("smolvlm_vision", "SmolVLMVisionTransformer"),
         ("speecht5", "SpeechT5Model"),
+        ("swiftformer", "SwiftFormerModel"),
         ("swin2sr", "Swin2SRModel"),
         ("t5", "T5Model"),
         ("umt5", "UMT5Model"),
@@ -232,14 +238,17 @@ MODEL_FOR_IMAGE_MAPPING_NAMES = OrderedDict(
         ("detr", "DetrModel"),
         ("dinov2", "Dinov2Model"),
         ("dpt", "DPTModel"),
+        ("focalnet", "FocalNetModel"),
         ("glpn", "GLPNModel"),
         ("hiera", "HieraModel"),
         ("hubert", "HubertModel"),
         ("ijepa", "IJepaModel"),
         ("imagegpt", "ImageGPTModel"),
         ("levit", "LevitModel"),
+        ("regnet", "RegNetModel"),
         ("segformer", "SegformerModel"),
         ("siglip_vision_model", "SiglipVisionModel"),
+        ("swiftformer", "SwiftFormerModel"),
         ("swin2sr", "Swin2SRModel"),
         ("vit", "ViTModel"),
         ("yolos", "YolosModel"),
@@ -248,6 +257,7 @@ MODEL_FOR_IMAGE_MAPPING_NAMES = OrderedDict(
 
 MODEL_FOR_MASKED_IMAGE_MODELING_MAPPING_NAMES = OrderedDict(
     [
+        ("focalnet", "FocalNetForMaskedImageModeling"),
         ("vit", "ViTForMaskedImageModeling"),
     ]
 )
@@ -267,6 +277,7 @@ MODEL_FOR_IMAGE_CLASSIFICATION_MAPPING_NAMES = OrderedDict(
         ("convnext", "ConvNextForImageClassification"),
         ("convnextv2", "ConvNextV2ForImageClassification"),
         ("dinov2", "Dinov2ForImageClassification"),
+        ("focalnet", "FocalNetForImageClassification"),
         ("hiera", "HieraForImageClassification"),
         ("ijepa", "IJepaForImageClassification"),
         ("imagegpt", "ImageGPTForImageClassification"),
@@ -274,9 +285,11 @@ MODEL_FOR_IMAGE_CLASSIFICATION_MAPPING_NAMES = OrderedDict(
             "levit",
             ("LevitForImageClassification", "LevitForImageClassificationWithTeacher"),
         ),
+        ("regnet", "RegNetForImageClassification"),
         ("resnet", "ResNetForImageClassification"),
         ("segformer", "SegformerForImageClassification"),
         ("siglip", "SiglipForImageClassification"),
+        ("swiftformer", "SwiftFormerForImageClassification"),
         ("vit", "ViTForImageClassification"),
     ]
 )
@@ -303,7 +316,13 @@ MODEL_FOR_SEMANTIC_SEGMENTATION_MAPPING_NAMES = OrderedDict(
     ]
 )
 
-MODEL_FOR_INSTANCE_SEGMENTATION_MAPPING_NAMES = OrderedDict()
+MODEL_FOR_INSTANCE_SEGMENTATION_MAPPING_NAMES = OrderedDict(
+    [
+        # Model for Instance Segmentation mapping
+        # MaskFormerForInstanceSegmentation can be removed from this mapping in v5
+        ("maskformer", "MaskFormerForInstanceSegmentation"),
+    ]
+)
 
 MODEL_FOR_UNIVERSAL_SEGMENTATION_MAPPING_NAMES = OrderedDict(
     [
@@ -628,7 +647,9 @@ MODEL_FOR_BACKBONE_MAPPING_NAMES = OrderedDict(
         ("convnext", "ConvNextBackbone"),
         ("convnextv2", "ConvNextV2Backbone"),
         ("dinov2", "Dinov2Backbone"),
+        ("focalnet", "FocalNetBackbone"),
         ("hiera", "HieraBackbone"),
+        ("maskformer-swin", "MaskFormerSwinBackbone"),
         ("swin", "SwinBackbone"),
     ]
 )
