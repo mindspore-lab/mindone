@@ -12,7 +12,7 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-"""PyTorch Perceiver model."""
+"""MindSpore Perceiver model."""
 
 import mindspore as ms
 from mindspore import ops
@@ -33,14 +33,14 @@ from ...activations import ACT2FN
 from ...modeling_outputs import BaseModelOutputWithCrossAttentions
 from ...modeling_utils import PreTrainedModel
 from ...mindspore_utils import apply_chunking_to_forward, find_pruneable_heads_and_indices, meshgrid, prune_linear_layer
-from mindone.transformers.utils import (
+from transformers.utils import (
     ModelOutput,
     add_start_docstrings,
     add_start_docstrings_to_model_forward,
     logging,
     replace_return_docstrings,
 )
-from mindone.transformers import PerceiverConfig
+from transformers import PerceiverConfig
 
 
 ModalitySizeType = Mapping[str, int]
@@ -614,26 +614,35 @@ class PerceiverPreTrainedModel(PreTrainedModel):
 
     def _init_weights(self, module):
         """Initialize the weights"""
+        from mindspore.common.initializer import Constant, Normal, initializer
+        from mindspore import Parameter
+
+        def constant_(tensor: Parameter, val: float) -> None:
+            tensor.set_data(initializer(Constant(val), tensor.shape, tensor.dtype))
+
+        def normal_(tensor: Parameter, mean: float = 0.0, std: float = 1.0) -> None:
+            tensor.set_data(initializer(Normal(std, mean), tensor.shape, tensor.dtype))
+
         if isinstance(module, (mint.nn.Linear, mint.nn.Conv2d)):
             # Slightly different from the TF version which uses truncated_normal for initialization
             # cf https://github.com/pytorch/pytorch/pull/5617
-            module.weight.data.normal_(mean=0.0, std=self.config.initializer_range)
+            normal_(module.weight, mean=0.0, std=self.config.initializer_range)
             if module.bias is not None:
-                module.bias.data.zero_()
+                constant_(module.bias, 0.0)
         elif hasattr(module, "latents"):
-            module.latents.data.normal_(mean=0.0, std=self.config.initializer_range)
+            normal_(module.latents, mean=0.0, std=self.config.initializer_range)
         elif hasattr(module, "position_embeddings") and isinstance(module, PerceiverTrainablePositionEncoding):
-            module.position_embeddings.data.normal_(mean=0.0, std=self.config.initializer_range)
-        elif isinstance(module, nn.ParameterDict):
-            for modality in module.keys():
-                module[modality].data.normal_(mean=0.0, std=self.config.initializer_range)
+            normal_(module.position_embeddings, mean=0.0, std=self.config.initializer_range)
+        # elif isinstance(module, nn.ParameterDict):
+        #     for modality in module.keys():
+        #         normal_(module[modality], mean=0.0, std=self.config.initializer_range)
         elif isinstance(module, mint.nn.Embedding):
-            module.weight.data.normal_(mean=0.0, std=self.config.initializer_range)
+            normal_(module.weight, mean=0.0, std=self.config.initializer_range)
             if module.padding_idx is not None:
-                module.weight.data[module.padding_idx].zero_()
+                module.weight.data[module.padding_idx] = 0.0
         elif isinstance(module, mint.nn.LayerNorm):
-            module.bias.data.zero_()
-            module.weight.data.fill_(1.0)
+            constant_(module.bias, 0.0)
+            constant_(module.weight, 1.0)
 
 
 PERCEIVER_START_DOCSTRING = r"""
@@ -804,7 +813,8 @@ class PerceiverModel(PerceiverPreTrainedModel):
         >>> # you can then do a forward pass as follows:
         >>> tokenizer = PerceiverTokenizer()
         >>> text = "hello world"
-        >>> inputs = tokenizer(text, return_tensors="pt").input_ids
+        >>> inputs = tokenizer(text, return_tensors="np").input_ids
+        >>> inputs = ms.Tensor(inputs)
 
         >>> with ms._no_grad():
         ...     outputs = model(inputs=inputs)
@@ -850,7 +860,8 @@ class PerceiverModel(PerceiverPreTrainedModel):
         >>> image_processor = PerceiverImageProcessor()
         >>> url = "http://images.cocodataset.org/val2017/000000039769.jpg"
         >>> image = Image.open(requests.get(url, stream=True).raw)
-        >>> inputs = image_processor(image, return_tensors="pt").pixel_values
+        >>> inputs = image_processor(image, return_tensors="np").pixel_values
+        >>> inputs = ms.Tensor(inputs)
 
         >>> with ms._no_grad():
         ...     outputs = model(inputs=inputs)
@@ -884,7 +895,7 @@ class PerceiverModel(PerceiverPreTrainedModel):
                 )
 
         batch_size, seq_length, _ = inputs.shape
-        device = inputs.device
+        # device = inputs.device  # removed device parameter for MindSpore
 
         # If no attention mask is provided, make them all ones
         if attention_mask is None:
