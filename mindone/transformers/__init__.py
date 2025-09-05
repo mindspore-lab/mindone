@@ -246,6 +246,12 @@ from .models.clip import (
     CLIPVisionModelWithProjection,
 )
 from .models.cohere2 import Cohere2ForCausalLM, Cohere2Model, Cohere2PreTrainedModel
+from .models.conditional_detr import (
+    ConditionalDetrForObjectDetection,
+    ConditionalDetrForSegmentation,
+    ConditionalDetrModel,
+    ConditionalDetrPreTrainedModel,
+)
 from .models.convbert import (
     ConvBertForMaskedLM,
     ConvBertForMultipleChoice,
@@ -298,6 +304,17 @@ from .models.distilbert import (
     DistilBertPreTrainedModel,
 )
 from .models.dpt import DPTForDepthEstimation, DPTImageProcessor, DPTModel, DPTPreTrainedModel
+from .models.funnel import (
+    FunnelBaseModel,
+    FunnelForMaskedLM,
+    FunnelForMultipleChoice,
+    FunnelForPreTraining,
+    FunnelForQuestionAnswering,
+    FunnelForSequenceClassification,
+    FunnelForTokenClassification,
+    FunnelModel,
+    FunnelPreTrainedModel,
+)
 from .models.fuyu import FuyuForCausalLM, FuyuPreTrainedModel
 from .models.gemma import (
     GemmaForCausalLM,
@@ -442,6 +459,13 @@ from .models.mixtral import (
     MixtralForTokenClassification,
     MixtralModel,
     MixtralPreTrainedModel,
+)
+from .models.mllama import (
+    MllamaForCausalLM,
+    MllamaForConditionalGeneration,
+    MllamaPreTrainedModel,
+    MllamaTextModel,
+    MllamaVisionModel,
 )
 from .models.mobilebert import (
     MobileBertForMaskedLM,

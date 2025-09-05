@@ -43,6 +43,7 @@ logger = logging.get_logger(__name__)
 
 FEATURE_EXTRACTOR_MAPPING_NAMES = OrderedDict(
     [
+        ("conditional_detr", "ConditionalDetrFeatureExtractor"),
         ("convnext", "ConvNextFeatureExtractor"),
     ]
 )

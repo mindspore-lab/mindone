@@ -22,12 +22,23 @@ import math
 from typing import Dict, List, Optional, Set, Tuple, Union
 
 import numpy as np
+from transformers.configuration_utils import PretrainedConfig
+from transformers.models.distilbert.configuration_distilbert import DistilBertConfig
+from transformers.utils import (
+    add_code_sample_docstrings,
+    add_start_docstrings,
+    add_start_docstrings_to_model_forward,
+    logging,
+    replace_return_docstrings,
+)
+
 import mindspore as ms
-from mindspore import nn, mint
-from mint.nn import BCEWithLogitsLoss, CrossEntropyLoss, MSELoss
+from mindspore import mint, nn
+from mindspore.mint.nn import BCEWithLogitsLoss, CrossEntropyLoss, MSELoss
 
 from ...activations import get_activation
-from ...configuration_utils import PretrainedConfig
+from ...mindspore_adapter import dtype_to_min, scaled_dot_product_attention
+from ...mindspore_utils import apply_chunking_to_forward, find_pruneable_heads_and_indices, prune_linear_layer
 from ...modeling_attn_mask_utils import _prepare_4d_attention_mask_for_sdpa
 from ...modeling_outputs import (
     BaseModelOutput,
@@ -38,26 +49,10 @@ from ...modeling_outputs import (
     TokenClassifierOutput,
 )
 from ...modeling_utils import PreTrainedModel
-from ...mindspore_utils import (
-    apply_chunking_to_forward,
-    find_pruneable_heads_and_indices,
-    prune_linear_layer,
-)
-from ...mindspore_adapter import dtype_to_min, scaled_dot_product_attention
-
-from ...utils import (
-    add_code_sample_docstrings,
-    add_start_docstrings,
-    add_start_docstrings_to_model_forward,
-    is_flash_attn_2_available,
-    logging,
-    replace_return_docstrings,
-)
-from transformers.models.modeling_distilbert.configuration_distilbert import DistilBertConfig
-
+from ...utils import is_flash_attn_2_available
 
 if is_flash_attn_2_available():
-    from ...modeling_flash_attention_utils import _flash_attention_forward
+    from ...integrations.flash_attention import flash_attention_forward
 
 
 logger = logging.get_logger(__name__)
@@ -209,9 +204,7 @@ class MultiHeadSelfAttention(nn.Cell):
         q = q / math.sqrt(dim_per_head)  # (bs, n_heads, q_length, dim_per_head)
         scores = mint.matmul(q, k.transpose(2, 3))  # (bs, n_heads, q_length, k_length)
         mask = (mask == 0).view(mask_reshp).expand_as(scores)  # (bs, n_heads, q_length, k_length)
-        scores = scores.masked_fill(
-            mask, dtype_to_min(scores.dtype)
-        )  # (bs, n_heads, q_length, k_length)
+        scores = scores.masked_fill(mask, dtype_to_min(scores.dtype))  # (bs, n_heads, q_length, k_length)
 
         weights = mint.nn.functional.softmax(scores, dim=-1)  # (bs, n_heads, q_length, k_length)
         weights = self.dropout(weights)  # (bs, n_heads, q_length, k_length)
@@ -300,7 +293,7 @@ class DistilBertFlashAttention2(MultiHeadSelfAttention):
             key_states = key_states.to(target_dtype)
             value_states = value_states.to(target_dtype)
 
-        attn_weights = _flash_attention_forward(
+        attn_weights = flash_attention_forward(
             query_states,
             key_states,
             value_states,
