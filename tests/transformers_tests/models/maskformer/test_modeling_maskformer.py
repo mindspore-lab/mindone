@@ -1,6 +1,9 @@
 # coding=utf-8
 # Copyright 2022 The HuggingFace Inc. team. All rights reserved.
 #
+# This code is adapted from https://github.com/huggingface/transformers
+# with modifications to run transformers on mindspore.
+#
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -12,14 +15,14 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-"""Testing suite for the MindSpore ResNet model."""
+"""Testing suite for the MindSpore MaskFormer model."""
 
 import inspect
 
 import numpy as np
 import pytest
 import torch
-from transformers import ResNetConfig
+from transformers import DetrConfig, MaskFormerConfig, SwinConfig
 
 import mindspore as ms
 
@@ -30,82 +33,94 @@ from tests.modeling_test_utils import (
     generalized_parse_args,
     get_modules,
 )
-from tests.transformers_tests.models.modeling_common import floats_numpy, ids_numpy
+from tests.transformers_tests.models.modeling_common import floats_numpy
 
-# TODO: Prompted by accuracy problems in the FP32 model caused by the conv2d operation, we modified the corresponding threshold.  # noqa: E501
-DTYPE_AND_THRESHOLDS = {"fp32": 7e-4, "fp16": 5e-3, "bf16": 5e-2}
+DTYPE_AND_THRESHOLDS = {"fp32": 5e-4, "fp16": 5e-3, "bf16": 5e-2}
 MODES = [1]
 
 
-class ResNetModelTester:
+class MaskFormerModelTester:
     def __init__(
         self,
-        batch_size=3,
-        image_size=32,
-        num_channels=3,
-        embeddings_size=10,
-        hidden_sizes=[10, 20, 30, 40],
-        depths=[1, 1, 2, 1],
+        batch_size=2,
         is_training=True,
-        use_labels=True,
-        hidden_act="relu",
-        num_labels=3,
-        scope=None,
-        out_features=["stage2", "stage3", "stage4"],
-        out_indices=[2, 3, 4],
+        use_auxiliary_loss=False,
+        num_queries=10,
+        num_channels=3,
+        min_size=32 * 4,
+        max_size=32 * 6,
+        num_labels=4,
+        mask_feature_size=32,
+        num_hidden_layers=2,
+        num_attention_heads=2,
     ):
         self.batch_size = batch_size
-        self.image_size = image_size
-        self.num_channels = num_channels
-        self.embeddings_size = embeddings_size
-        self.hidden_sizes = hidden_sizes
-        self.depths = depths
         self.is_training = is_training
-        self.use_labels = use_labels
-        self.hidden_act = hidden_act
+        self.use_auxiliary_loss = use_auxiliary_loss
+        self.num_queries = num_queries
+        self.num_channels = num_channels
+        self.min_size = min_size
+        self.max_size = max_size
         self.num_labels = num_labels
-        self.scope = scope
-        self.num_stages = len(hidden_sizes)
-        self.out_features = out_features
-        self.out_indices = out_indices
+        self.mask_feature_size = mask_feature_size
+        # This is passed to the decoder config. We add it to the model tester here for testing
+        self.num_hidden_layers = num_hidden_layers
+        self.num_attention_heads = num_attention_heads
 
     def prepare_config_and_inputs(self):
-        pixel_values = floats_numpy([self.batch_size, self.num_channels, self.image_size, self.image_size])
+        pixel_values = floats_numpy([self.batch_size, self.num_channels, self.min_size, self.max_size])
 
-        labels = None
-        if self.use_labels:
-            labels = ids_numpy([self.batch_size], self.num_labels)
+        pixel_mask = np.ones([self.batch_size, self.min_size, self.max_size])
+
+        mask_labels = (np.random.rand(self.batch_size, self.num_labels, self.min_size, self.max_size) > 0.5).astype(
+            np.float32
+        )
+        class_labels = (np.random.rand(self.batch_size, self.num_labels) > 0.5).astype(np.int64)
 
         config = self.get_config()
-
-        return config, pixel_values, labels
+        return config, pixel_values, pixel_mask, mask_labels, class_labels
 
     def get_config(self):
-        return ResNetConfig(
+        return MaskFormerConfig.from_backbone_and_decoder_configs(
+            backbone_config=SwinConfig(
+                depths=[1, 1, 1, 1],
+                embed_dim=16,
+                hidden_size=32,
+                num_heads=[1, 1, 2, 2],
+            ),
+            backbone=None,
+            decoder_config=DetrConfig(
+                decoder_ffn_dim=64,
+                decoder_layers=self.num_hidden_layers,
+                decoder_attention_heads=self.num_attention_heads,
+                encoder_ffn_dim=64,
+                encoder_layers=self.num_hidden_layers,
+                encoder_attention_heads=self.num_attention_heads,
+                num_queries=self.num_queries,
+                d_model=self.mask_feature_size,
+            ),
+            mask_feature_size=self.mask_feature_size,
+            fpn_feature_size=self.mask_feature_size,
             num_channels=self.num_channels,
-            embeddings_size=self.embeddings_size,
-            hidden_sizes=self.hidden_sizes,
-            depths=self.depths,
-            hidden_act=self.hidden_act,
             num_labels=self.num_labels,
-            out_features=self.out_features,
-            out_indices=self.out_indices,
         )
 
 
-model_tester = ResNetModelTester()
-config, pixel_values, labels = model_tester.prepare_config_and_inputs()
-RESNET_CASES = [
+model_tester = MaskFormerModelTester()
+config, pixel_values, pixel_mask, mask_labels, class_labels = model_tester.prepare_config_and_inputs()
+MASKFORMER_CASES = [
     [
-        "ResNetModel",
-        "transformers.ResNetModel",
-        "mindone.transformers.ResNetModel",
+        "MaskFormerModel",
+        "transformers.MaskFormerModel",
+        "mindone.transformers.MaskFormerModel",
         (config,),
         {},
         (pixel_values,),
-        {},
         {
-            "last_hidden_state": 0,
+            "pixel_mask": pixel_mask,
+        },
+        {
+            "transformer_decoder_last_hidden_state": 2,
         },
     ],
 ]
@@ -121,7 +136,7 @@ RESNET_CASES = [
         + [
             mode,
         ]
-        for case in RESNET_CASES
+        for case in MASKFORMER_CASES
         for dtype in DTYPE_AND_THRESHOLDS.keys()
         for mode in MODES
     ],
