@@ -44,7 +44,7 @@ from ...generation import GenerationMixin
 from ...modeling_attn_mask_utils import AttentionMaskConverter
 from ...modeling_utils import PreTrainedModel
 from ...mindspore_utils import find_pruneable_heads_and_indices, prune_linear_layer
-from transformers.utils import (
+from mindone.transformers.utils import (
     ModelOutput,
     add_start_docstrings,
     add_start_docstrings_to_model_forward,
@@ -420,7 +420,7 @@ class UdopPreTrainedModel(PreTrainedModel):
 
     config_class = UdopConfig
     base_model_prefix = "transformer"
-    supports_gradient_checkpointing = True
+    supports_gradient_checkpointing = False
     _supports_cache_class = True
     _supports_static_cache = False
     _keep_in_fp32_modules = ["wo"]
@@ -709,14 +709,12 @@ class UdopAttention(ms.nn.Cell):
         relative_buckets += mint.where(is_small, relative_position, relative_position_if_large)
         return relative_buckets
 
-    def compute_bias(self, query_length, key_length, device=None, cache_position=None):
+    def compute_bias(self, query_length, key_length, cache_position=None):
         """Compute binned relative position bias"""
-        if device is None:
-            device = self.relative_attention_bias.weight.device
         if cache_position is None:
             context_position = mint.arange(query_length, dtype=ms.int64, )[:, None]
         else:
-            context_position = cache_position[:, None].to(device)
+            context_position = cache_position[:, None]
         memory_position = mint.arange(key_length, dtype=ms.int64, )[None, :]
         relative_position = memory_position - context_position  # shape (query_length, key_length)
         relative_position_bucket = self._relative_position_bucket(
@@ -795,8 +793,6 @@ class UdopAttention(ms.nn.Cell):
                 position_bias = mint.zeros(
                     (1, self.n_heads, seq_length, key_length), dtype=scores.dtype
                 )
-                if self.gradient_checkpointing and self.training:
-                    position_bias.requires_grad = True
             else:
                 position_bias = self.compute_bias(
                     real_seq_length, key_length, cache_position=cache_position
@@ -1141,7 +1137,7 @@ class RelativePositionBiasBase(ms.nn.Cell, ABC):
             # based on assumption that prefix bboxes are negative
             is_prefix = bbox[:, :, 1] < 0
             num_prefix = is_prefix.sum(-1)
-            for idx, num_prefix_row in enumerate(num_prefix.cpu().numpy()):
+            for idx, num_prefix_row in enumerate(num_prefix.asnumpy()):
                 rp_bucket[idx, :num_prefix_row, num_prefix_row:] = self.relative_attention_num_buckets
                 rp_bucket[idx, num_prefix_row:, :num_prefix_row] = self.relative_attention_num_buckets + 1
 
@@ -1546,10 +1542,8 @@ class UdopStack(UdopPreTrainedModel):
                 return attention_mask
             return None
         if self.config._attn_implementation == "flex_attention":
-            if isinstance(attention_mask, ms.Tensor):
-                attention_mask = make_flex_block_causal_mask(attention_mask)
-            if isinstance(attention_mask, BlockMask):
-                return attention_mask
+            # flex_attention not supported in MindSpore
+            raise NotImplementedError("flex_attention not supported in MindSpore")
 
         # For SDPA, when possible, we will rely on its `is_causal` argument instead of its `attn_mask` argument, in
         # order to dispatch on Flash Attention 2. This feature is not compatible with static cache, as SDPA will fail
@@ -1591,7 +1585,6 @@ class UdopStack(UdopPreTrainedModel):
         if (
             self.config._attn_implementation == "sdpa"
             and attention_mask is not None
-            and attention_mask.device.type in ["cuda", "xpu"]
             and not output_attentions
         ):
             # Attend to all tokens in fully masked rows in the causal_mask, for example the relevant first rows when
@@ -1712,26 +1705,26 @@ class UdopModel(UdopPreTrainedModel):
     @replace_return_docstrings(output_type=Seq2SeqModelOutput, config_class=_CONFIG_FOR_DOC)
     def construct(
         self,
-        input_ids: Tensor = None,
-        attention_mask: Tensor = None,
+        input_ids: ms.Tensor = None,
+        attention_mask: ms.Tensor = None,
         bbox: Dict[str, Any] = None,
-        pixel_values: Optional[Tensor] = None,
+        pixel_values: Optional[ms.Tensor] = None,
         visual_bbox: Dict[str, Any] = None,
-        decoder_input_ids: Optional[Tensor] = None,
-        decoder_attention_mask: Optional[Tensor] = None,
-        inputs_embeds: Optional[Tensor] = None,
-        encoder_outputs: Optional[Tensor] = None,
-        past_key_values: Optional[Tensor] = None,
-        head_mask: Optional[Tensor] = None,
-        decoder_inputs_embeds: Optional[Tensor] = None,
-        decoder_head_mask: Optional[Tensor] = None,
-        cross_attn_head_mask: Optional[Tensor] = None,
+        decoder_input_ids: Optional[ms.Tensor] = None,
+        decoder_attention_mask: Optional[ms.Tensor] = None,
+        inputs_embeds: Optional[ms.Tensor] = None,
+        encoder_outputs: Optional[ms.Tensor] = None,
+        past_key_values: Optional[ms.Tensor] = None,
+        head_mask: Optional[ms.Tensor] = None,
+        decoder_inputs_embeds: Optional[ms.Tensor] = None,
+        decoder_head_mask: Optional[ms.Tensor] = None,
+        cross_attn_head_mask: Optional[ms.Tensor] = None,
         use_cache=True,
         output_attentions: Optional[bool] = None,
         output_hidden_states: Optional[bool] = None,
         return_dict: Optional[bool] = None,
         cache_position: Optional[ms.Tensor] = None,
-    ) -> Tuple[Tensor, ...]:
+    ) -> Tuple[ms.Tensor, ...]:
         r"""
         Returns:
 
@@ -1890,27 +1883,27 @@ class UdopForConditionalGeneration(UdopPreTrainedModel, GenerationMixin):
     @replace_return_docstrings(output_type=Seq2SeqLMOutput, config_class=_CONFIG_FOR_DOC)
     def construct(
         self,
-        input_ids: Tensor = None,
-        attention_mask: Tensor = None,
+        input_ids: ms.Tensor = None,
+        attention_mask: ms.Tensor = None,
         bbox: Dict[str, Any] = None,
-        pixel_values: Optional[Tensor] = None,
+        pixel_values: Optional[ms.Tensor] = None,
         visual_bbox: Dict[str, Any] = None,
-        decoder_input_ids: Optional[Tensor] = None,
-        decoder_attention_mask: Optional[Tensor] = None,
-        inputs_embeds: Optional[Tensor] = None,
-        encoder_outputs: Optional[Tensor] = None,
-        past_key_values: Optional[Tensor] = None,
-        head_mask: Optional[Tensor] = None,
-        decoder_inputs_embeds: Optional[Tensor] = None,
-        decoder_head_mask: Optional[Tensor] = None,
-        cross_attn_head_mask: Optional[Tensor] = None,
+        decoder_input_ids: Optional[ms.Tensor] = None,
+        decoder_attention_mask: Optional[ms.Tensor] = None,
+        inputs_embeds: Optional[ms.Tensor] = None,
+        encoder_outputs: Optional[ms.Tensor] = None,
+        past_key_values: Optional[ms.Tensor] = None,
+        head_mask: Optional[ms.Tensor] = None,
+        decoder_inputs_embeds: Optional[ms.Tensor] = None,
+        decoder_head_mask: Optional[ms.Tensor] = None,
+        cross_attn_head_mask: Optional[ms.Tensor] = None,
         use_cache=True,
         output_attentions: Optional[bool] = None,
         output_hidden_states: Optional[bool] = None,
         return_dict: Optional[bool] = None,
-        labels: Optional[Tensor] = None,
+        labels: Optional[ms.Tensor] = None,
         cache_position: Optional[ms.Tensor] = None,
-    ) -> Tuple[Tensor, ...]:
+    ) -> Tuple[ms.Tensor, ...]:
         r"""
         labels (`mindspore.Tensor` of shape `(batch_size,)`, *optional*):
             Labels for computing the language modeling loss. Indices should be in `[-100, 0, ..., config.vocab_size -
