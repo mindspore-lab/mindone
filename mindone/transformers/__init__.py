@@ -1269,6 +1269,10 @@ from .models.visual_bert import (
     VisualBertForVisualReasoning,
     VisualBertModel,
     VisualBertPreTrainedModel,
+from .models.udop import (
+    UdopForConditionalGeneration,
+    UdopModel,
+    UdopPreTrainedModel,
 )
 from .models.vit import ViTForImageClassification, ViTForMaskedImageModeling, ViTModel, ViTPreTrainedModel
 from .models.vit_mae import ViTMAEForPreTraining, ViTMAEModel, ViTMAEPreTrainedModel
