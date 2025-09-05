@@ -119,17 +119,13 @@ def _flash_attention_forward(
     if max_length_q is not None or max_length_k is not None:
         raise RuntimeError("FlashAttention's variable-length attention is not available.")
     if sliding_window is not None:
-        raise NotImplementedError("Sliding window is not supported in Mindspore yet. Please set `sliding_window=None`.")
+        raise NotImplementedError("Sliding window is not supported yet. Please set `sliding_window=None`.")
     if use_top_left_mask:
-        raise NotImplementedError(
-            "Top left mask is not supported in Mindspore yet. Please set `use_top_left_mask=False`."
-        )
+        raise NotImplementedError("Top left mask is not supported yet. Please set `use_top_left_mask=False`.")
     if softcap is not None:
-        raise NotImplementedError("Softcap is not supported in Mindspore yet. Please set `softcap=None`.")
+        raise NotImplementedError("Softcap is not supported yet. Please set `softcap=None`.")
     if deterministic:
-        raise NotImplementedError(
-            "`deterministic` option is not supported in Mindspore yet. Please set `deterministic=None`."
-        )
+        raise NotImplementedError("`deterministic` option is not supported yet. Please set `deterministic=None`.")
     if cu_seq_lens_q is not None or cu_seq_lens_k is not None:
         raise ValueError(
             "`_flash_attention_forward` does not support `cu_seq_lens_q` or `cu_seq_lens_k` yet,"
@@ -169,6 +165,15 @@ def _flash_attention_forward(
         key_states = key_states.to(ms.float16)
         value_states = value_states.to(ms.float16)
 
+    # Identify rows where all elements are zeros in attn_mask
+    row_is_all_zero = mint.sum(attention_mask, dim=-1, keepdim=True) == 0
+    if row_is_all_zero.any():
+        row_is_all_zero = (
+            row_is_all_zero.broadcast_to((query_states.shape[0], query_states.shape[1], seq_len_q, seq_len_k)) == 0
+        )
+    else:
+        row_is_all_zero = None
+
     out = ops.flash_attention_score(
         query_states,
         key_states,
@@ -179,6 +184,11 @@ def _flash_attention_forward(
         scalar_value=softmax_scale,
         input_layout=input_layout,
     )
+
+    # set full -inf rows to zeros
+    if row_is_all_zero is not None:
+        out = mint.where(row_is_all_zero, mint.zeros_like(out), out)
+
     out = out.to(origin_dtype)
 
     return out
