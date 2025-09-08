@@ -272,10 +272,14 @@ class ConditionalDetrFrozenBatchNorm2d(nn.Cell):
 
     def __init__(self, n):
         super().__init__()
-        self.register_buffer("weight", mint.ones((n,)))
-        self.register_buffer("bias", mint.zeros((n,)))
-        self.register_buffer("running_mean", mint.zeros((n,)))
-        self.register_buffer("running_var", mint.ones((n,)))
+        # self.register_buffer("weight", mint.ones((n,)))
+        # self.register_buffer("bias", mint.zeros((n,)))
+        # self.register_buffer("running_mean", mint.zeros((n,)))
+        # self.register_buffer("running_var", mint.ones((n,)))
+        self.weight = ms.Parameter(mint.ones((n,)), name="weight")
+        self.bias = ms.Parameter(mint.zeros((n,)), name="bias")
+        self.running_mean = ms.Parameter(mint.zeros((n,)), name="running_mean")
+        self.running_var = ms.Parameter(mint.ones((n,)), name="running_var")
 
     def _load_from_state_dict(
         self, state_dict, prefix, local_metadata, strict, missing_keys, unexpected_keys, error_msgs
@@ -310,18 +314,18 @@ def replace_batch_norm(model):
         model (mindspore.nn.Cell):
             input model
     """
-    for name, module in model.name_cells():
+    for name, module in model.name_cells().items():
         if isinstance(module, mint.nn.BatchNorm2d):
             new_module = ConditionalDetrFrozenBatchNorm2d(module.num_features)
 
-            new_module.weight.data.copy_(module.weight)
-            new_module.bias.data.copy_(module.bias)
-            new_module.running_mean.data.copy_(module.running_mean)
-            new_module.running_var.data.copy_(module.running_var)
+            new_module.weight.copy_(module.weight)
+            new_module.bias.copy_(module.bias)
+            new_module.running_mean.copy_(module.running_mean)
+            new_module.running_var.copy_(module.running_var)
 
-            model._modules[name] = new_module
+            model._cells[name] = new_module
 
-        if len(list(module.children())) > 0:
+        if len(list(module.cells())) > 0:
             replace_batch_norm(module)
 
 
@@ -355,7 +359,7 @@ class ConditionalDetrConvEncoder(nn.Cell):
             raise ValueError("Either `backbone` or `backbone_config` should be provided in the config")
 
         if "resnet" in backbone_model_type:
-            for name, parameter in self.model.named_parameters():
+            for name, parameter in self.model.parameters_and_names():
                 if "stage.1" not in name and "stage.2" not in name and "stage.3" not in name:
                     parameter.requires_grad = False
 
@@ -476,8 +480,8 @@ def gen_sine_position_embeddings(pos_tensor, d_model):
     dim_t = 10000 ** (2 * mint.div(dim_t, 2, rounding_mode="floor") / dim)
     x_embed = pos_tensor[:, :, 0] * scale
     y_embed = pos_tensor[:, :, 1] * scale
-    pos_x = x_embed[:, :, None] / dim_t
-    pos_y = y_embed[:, :, None] / dim_t
+    pos_x = x_embed[:, :, None] / dim_t.to(x_embed.dtype)
+    pos_y = y_embed[:, :, None] / dim_t.to(y_embed.dtype)
     pos_x = mint.stack((pos_x[:, :, 0::2].sin(), pos_x[:, :, 1::2].cos()), dim=3).flatten(2)
     pos_y = mint.stack((pos_y[:, :, 0::2].sin(), pos_y[:, :, 1::2].cos()), dim=3).flatten(2)
     pos = mint.cat((pos_y, pos_x), dim=2)
@@ -995,7 +999,7 @@ class MLP(nn.Cell):
         super().__init__()
         self.num_layers = num_layers
         h = [hidden_dim] * (num_layers - 1)
-        self.layers = nn.CellList(mint.nn.Linear(n, k) for n, k in zip([input_dim] + h, h + [output_dim]))
+        self.layers = nn.CellList([mint.nn.Linear(n, k) for n, k in zip([input_dim] + h, h + [output_dim])])
 
     def construct(self, x):
         for i, layer in enumerate(self.layers):
@@ -1588,7 +1592,7 @@ class ConditionalDetrMLPPredictionHead(nn.Cell):
         super().__init__()
         self.num_layers = num_layers
         h = [hidden_dim] * (num_layers - 1)
-        self.layers = nn.CellList(mint.nn.Linear(n, k) for n, k in zip([input_dim] + h, h + [output_dim]))
+        self.layers = nn.CellList([mint.nn.Linear(n, k) for n, k in zip([input_dim] + h, h + [output_dim])])
 
     def construct(self, x):
         for i, layer in enumerate(self.layers):
