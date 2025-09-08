@@ -71,6 +71,7 @@ from . import (
     mixtral,
     mobilebert,
     modernbert,
+    moonshine,
     mpt,
     mvp,
     nystromformer,
