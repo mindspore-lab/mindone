@@ -50,8 +50,8 @@ EXAMPLE_PROMPT = {
 def _validate_args(args):
     # Basic check
     assert args.ckpt_dir is not None, "Please specify the checkpoint directory."
-    assert args.task in WAN_CONFIGS, f"Unsupport task: {args.task}"
-    assert args.task in EXAMPLE_PROMPT, f"Unsupport task: {args.task}"
+    assert args.task in WAN_CONFIGS, f"Unsupported task: {args.task}"
+    assert args.task in EXAMPLE_PROMPT, f"Unsupported task: {args.task}"
 
     if args.prompt is None:
         args.prompt = EXAMPLE_PROMPT[args.task]["prompt"]
@@ -82,7 +82,7 @@ def _validate_args(args):
     if "s2v" not in args.task:
         assert (
             args.size in SUPPORTED_SIZES[args.task]
-        ), f"Unsupport size {args.size} for task {args.task}, supported sizes are: {', '.join(SUPPORTED_SIZES[args.task])}"
+        ), f"Unsupported size {args.size} for task {args.task}, supported sizes are: {', '.join(SUPPORTED_SIZES[args.task])}"
 
 
 def _parse_args():
@@ -227,7 +227,7 @@ def generate(args):
                 local_qwen_zero3=args.local_qwen_zero3,
             )
         else:
-            raise NotImplementedError(f"Unsupport prompt_extend_method: {args.prompt_extend_method}")
+            raise NotImplementedError(f"Unsupported prompt_extend_method: {args.prompt_extend_method}")
 
     cfg = WAN_CONFIGS[args.task]
     if args.ulysses_size > 1:

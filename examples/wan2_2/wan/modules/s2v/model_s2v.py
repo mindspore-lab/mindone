@@ -38,7 +38,7 @@ def zero_module(module: nn.Cell) -> None:
         zeros_(p)
 
 
-def minsdpore_dfs(model: nn.Cell, parent_name: str = "root") -> Tuple[List[nn.Cell], List[str]]:
+def mindspore_dfs(model: nn.Cell, parent_name: str = "root") -> Tuple[List[nn.Cell], List[str]]:
     module_names, modules = [], []
     current_name = parent_name if parent_name else "root"
     module_names.append(current_name)
@@ -49,7 +49,7 @@ def minsdpore_dfs(model: nn.Cell, parent_name: str = "root") -> Tuple[List[nn.Ce
             child_name = f"{parent_name}.{name}"
         else:
             child_name = name
-        child_modules, child_names = minsdpore_dfs(child, child_name)
+        child_modules, child_names = mindspore_dfs(child, child_name)
         module_names += child_names
         modules += child_modules
     return modules, module_names
@@ -358,7 +358,7 @@ class WanModel_S2V(ModelMixin, ConfigMixin):
         self.casual_audio_encoder = CausalAudioEncoder(
             dim=audio_dim, out_dim=self.dim, num_token=num_audio_token, need_global=enable_adain, dtype=dtype
         )
-        all_modules, all_modules_names = minsdpore_dfs(self.blocks, parent_name="root.transformer_blocks")
+        all_modules, all_modules_names = mindspore_dfs(self.blocks, parent_name="root.transformer_blocks")
         self.audio_injector = AudioInjector_WAN(
             all_modules,
             all_modules_names,

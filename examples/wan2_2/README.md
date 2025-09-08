@@ -1,6 +1,6 @@
 # Wan2.2 (MindSpore)
 
-This repository provides the inference codes of [Wan2.2](https://arxiv.org/abs/2503.20314), adapted from [offical Wan2.2](https://github.com/Wan-Video/Wan2.2) to support MindSpore.
+This repository provides the inference codes of [Wan2.2](https://arxiv.org/abs/2503.20314), adapted from [official Wan2.2](https://github.com/Wan-Video/Wan2.2) to support MindSpore.
 
 -----
 
@@ -31,7 +31,7 @@ We are excited to introduce **Wan2.2**, a major upgrade to our foundational vide
 ## Run Wan2.2
 
 #### Requirements
-|mindspore |	ascend driver | firmware | cann tookit/kernel|
+|mindspore |	ascend driver | firmware | cann toolkit/kernel|
 |--- | --- | --- | --- |
 |2.7.0 | 24.1RC3 | 7.3.0.1.231 | 8.2.RC1 |
 
@@ -169,7 +169,7 @@ msrun --worker_num=4 --local_worker_num=4 generate.py --task ti2v-5B --size 1280
 
 This repository supports the `Wan2.2-S2V-14B` Speech-to-Video model and can simultaneously support video generation at 480P and 720P resolutions.
 
-- Multi-GPU inference using ZeRO3 + DeepSpeed Ulysses
+- Multi-NPU inference using ZeRO3 + DeepSpeed Ulysses
 
 ```sh
 msrun --worker_num=4 --local_worker_num=4 generate.py --task s2v-14B --size 1024*704 --ckpt_dir ./Wan2.2-S2V-14B/ --dit_zero3 --t5_zero3 --ulysses_size 4 --offload_model True --prompt "Summer beach vacation style, a white cat wearing sunglasses sits on a surfboard." --image "../wan2_1/examples/i2v_input.JPG" --audio "examples/talk.wav"
