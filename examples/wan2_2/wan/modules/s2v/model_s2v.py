@@ -30,13 +30,12 @@ from .motioner import FramePackMotioner, MotionerTransformers
 from .s2v_utils import rope_precompute
 
 
-def zero_module(module: nn.Cell) -> nn.Cell:
+def zero_module(module: nn.Cell) -> None:
     """
-    Zero out the parameters of a module and return it.
+    Zero out the parameters of a module.
     """
     for _, p in module.parameters_and_names():
         zeros_(p)
-    return module
 
 
 def minsdpore_dfs(model: nn.Cell, parent_name: str = "root") -> Tuple[List[nn.Cell], List[str]]:
@@ -411,8 +410,9 @@ class WanModel_S2V(ModelMixin, ConfigMixin):
             )
             self.zip_motion_out = nn.SequentialCell(
                 WanLayerNorm(motioner_dim, dtype=dtype),
-                zero_module(mint.nn.Linear(motioner_dim, self.dim, dtype=dtype)),
+                mint.nn.Linear(motioner_dim, self.dim, dtype=dtype),
             )
+            zero_module(self.zip_motion_out[1])
 
             self.trainable_token_pos_emb = trainable_token_pos_emb
             if trainable_token_pos_emb:
@@ -447,16 +447,14 @@ class WanModel_S2V(ModelMixin, ConfigMixin):
             )
 
     def zero_init_weights(self) -> None:
-        self.trainable_cond_mask = zero_module(self.trainable_cond_mask)
+        zero_module(self.trainable_cond_mask)
         if hasattr(self, "cond_encoder"):
-            self.cond_encoder = zero_module(self.cond_encoder)
+            zero_module(self.cond_encoder)
 
         for i in range(len(self.audio_injector.injector)):
-            self.audio_injector.injector[i].o = zero_module(self.audio_injector.injector[i].o)
+            zero_module(self.audio_injector.injector[i].o)
             if self.enbale_adain:
-                self.audio_injector.injector_adain_layers[i].linear = zero_module(
-                    self.audio_injector.injector_adain_layers[i].linear
-                )
+                zero_module(self.audio_injector.injector_adain_layers[i].linear)
 
     def process_motion(
         self, motion_latents: List[ms.Tensor], drop_motion_frames: bool = False
