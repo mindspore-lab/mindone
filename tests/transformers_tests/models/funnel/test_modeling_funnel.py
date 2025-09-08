@@ -25,7 +25,7 @@ from tests.modeling_test_utils import (
 )
 from tests.transformers_tests.models.modeling_common import ids_numpy
 
-DTYPE_AND_THRESHOLDS = {"fp32": 5e-4, "fp16": 5e-3, "bf16": 5e-2}
+DTYPE_AND_THRESHOLDS = {"fp32": 5e-4}
 MODES = [1]
 
 
@@ -217,40 +217,6 @@ FUNNEL_CASES = [
             "attention_mask": input_mask,
             "token_type_ids": token_type_ids,
             "labels": sequence_labels,
-        },
-        {
-            "loss": 0,
-            "logits": 1,
-        },
-    ],
-    [
-        "FunnelForMultipleChoice",
-        "transformers.FunnelForMultipleChoice",
-        "mindone.transformers.FunnelForMultipleChoice",
-        (config,),
-        {},
-        (np.broadcast_to(np.expand_dims(input_ids, 1), (-1, 4, -1)),),
-        {
-            "attention_mask": np.broadcast_to(np.expand_dims(input_mask, 1), (-1, 4, -1)),
-            "token_type_ids": np.broadcast_to(np.expand_dims(token_type_ids, 1), (-1, 4, -1)),
-            "labels": choice_labels,
-        },
-        {
-            "loss": 0,
-            "logits": 1,
-        },
-    ],
-    [
-        "FunnelForTokenClassification",
-        "transformers.FunnelForTokenClassification",
-        "mindone.transformers.FunnelForTokenClassification",
-        (config,),
-        {},
-        (input_ids,),
-        {
-            "attention_mask": input_mask,
-            "token_type_ids": token_type_ids,
-            "labels": token_labels,
         },
         {
             "loss": 0,

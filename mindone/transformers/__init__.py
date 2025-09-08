@@ -246,12 +246,6 @@ from .models.clip import (
     CLIPVisionModelWithProjection,
 )
 from .models.cohere2 import Cohere2ForCausalLM, Cohere2Model, Cohere2PreTrainedModel
-from .models.conditional_detr import (
-    ConditionalDetrForObjectDetection,
-    ConditionalDetrForSegmentation,
-    ConditionalDetrModel,
-    ConditionalDetrPreTrainedModel,
-)
 from .models.convbert import (
     ConvBertForMaskedLM,
     ConvBertForMultipleChoice,

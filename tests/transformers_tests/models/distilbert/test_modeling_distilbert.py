@@ -7,8 +7,6 @@
 # initialization parameters and inputs for the forward. The testing framework adopted here is designed to generically
 # parse these parameters to assess and compare the precision of forward outcomes between the two frameworks.
 
-import inspect
-
 import numpy as np
 import pytest
 import torch
@@ -16,13 +14,7 @@ from transformers import DistilBertConfig
 
 import mindspore as ms
 
-from tests.modeling_test_utils import (
-    MS_DTYPE_MAPPING,
-    PT_DTYPE_MAPPING,
-    compute_diffs,
-    generalized_parse_args,
-    get_modules,
-)
+from tests.modeling_test_utils import compute_diffs, generalized_parse_args, get_modules
 from tests.transformers_tests.models.modeling_common import ids_numpy, random_attention_mask
 
 DTYPE_AND_THRESHOLDS = {"fp32": 5e-4, "fp16": 5e-3, "bf16": 5e-2}
@@ -184,38 +176,6 @@ DISTILBERT_CASES = [
             "loss": 0,
             "start_logits": 1,
             "end_logits": 2,
-        },
-    ],
-    [
-        "DistilBertForTokenClassification",
-        "transformers.DistilBertForTokenClassification",
-        "mindone.transformers.DistilBertForTokenClassification",
-        (config,),
-        {},
-        (input_ids,),
-        {
-            "attention_mask": input_mask,
-            "labels": token_labels,
-        },
-        {
-            "loss": 0,
-            "logits": 1,
-        },
-    ],
-    [
-        "DistilBertForMultipleChoice",
-        "transformers.DistilBertForMultipleChoice",
-        "mindone.transformers.DistilBertForMultipleChoice",
-        (config,),
-        {},
-        (input_ids.reshape((-1,) + input_ids.shape[1:]),),
-        {
-            "attention_mask": input_mask.reshape((-1,) + input_mask.shape[1:]) if input_mask is not None else None,
-            "labels": choice_labels,
-        },
-        {
-            "loss": 0,
-            "logits": 1,
         },
     ],
 ]

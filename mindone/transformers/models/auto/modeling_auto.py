@@ -50,7 +50,6 @@ MODEL_MAPPING_NAMES = OrderedDict(
         ("clip", "CLIPModel"),
         ("clip_text_model", "CLIPTextModel"),
         ("clip_vision_model", "CLIPVisionModel"),
-        ("conditional_detr", "ConditionalDetrModel"),
         ("convnext", "ConvNextModel"),
         ("convnextv2", "ConvNextV2Model"),
         ("deberta", "DebertaModel"),
@@ -236,7 +235,6 @@ MODEL_FOR_IMAGE_MAPPING_NAMES = OrderedDict(
     [
         # Model for Image mapping
         ("bit", "BitModel"),
-        ("conditional_detr", "ConditionalDetrModel"),
         ("convnext", "ConvNextModel"),
         ("convnextv2", "ConvNextV2Model"),
         ("detr", "DetrModel"),
@@ -400,7 +398,6 @@ MODEL_FOR_MASKED_LM_MAPPING_NAMES = OrderedDict(
 MODEL_FOR_OBJECT_DETECTION_MAPPING_NAMES = OrderedDict(
     [
         # Model for Object Detection mapping
-        ("conditional_detr", "ConditionalDetrForObjectDetection"),
         ("deformable_detr", "DeformableDetrForObjectDetection"),
         ("deta", "DetaForObjectDetection"),
         ("detr", "DetrForObjectDetection"),

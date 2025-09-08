@@ -33,7 +33,6 @@ from . import (
     chameleon,
     clap,
     clip,
-    conditional_detr,
     convbert,
     convnext,
     convnextv2,

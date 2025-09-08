@@ -37,7 +37,8 @@ from mindspore import mint, nn
 from mindspore.mint.nn import BCEWithLogitsLoss, CrossEntropyLoss, MSELoss
 
 from ...activations import get_activation
-from ...mindspore_adapter import dtype_to_min, scaled_dot_product_attention
+from ...integrations import scaled_dot_product_attention
+from ...mindspore_adapter import dtype_to_min
 from ...mindspore_utils import apply_chunking_to_forward, find_pruneable_heads_and_indices, prune_linear_layer
 from ...modeling_attn_mask_utils import _prepare_4d_attention_mask_for_sdpa
 from ...modeling_outputs import (
@@ -234,9 +235,12 @@ class DistilBertFlashAttention2(MultiHeadSelfAttention):
         super().__init__(*args, **kwargs)
 
         # TODO: Should be removed once Flash Attention for RoCm is bumped to 2.1.
-        # flash_attn<2.1 generates top-left aligned causal mask, while what is needed here is bottom-right alignment, that was made default for flash_attn>=2.1. This attribute is used to handle this difference. Reference: https://github.com/Dao-AILab/flash-attention/releases/tag/v2.1.0.
-        # Beware that with flash_attn<2.1, using q_seqlen != k_seqlen (except for the case q_seqlen == 1) produces a wrong mask (top-left).
-        self._flash_attn_uses_top_left_mask = not is_flash_attn_greater_or_equal_2_10()
+        # flash_attn<2.1 generates top-left aligned causal mask, while what is needed here is bottom-right alignment,
+        # that was made default for flash_attn>=2.1. This attribute is used to handle this difference.
+        # Reference: https://github.com/Dao-AILab/flash-attention/releases/tag/v2.1.0.
+        # Beware that with flash_attn<2.1,
+        # using q_seqlen != k_seqlen (except for the case q_seqlen == 1) produces a wrong mask (top-left).
+        # self._flash_attn_uses_top_left_mask = not is_flash_attn_greater_or_equal_2_10()
 
     def construct(
         self,
@@ -293,14 +297,14 @@ class DistilBertFlashAttention2(MultiHeadSelfAttention):
             key_states = key_states.to(target_dtype)
             value_states = value_states.to(target_dtype)
 
-        attn_weights = flash_attention_forward(
+        attn_weights, _ = flash_attention_forward(
             query_states,
             key_states,
             value_states,
             mask,
-            q_length,
+            # q_length,
             dropout=attn_dropout,
-            use_top_left_mask=self._flash_attn_uses_top_left_mask,
+            # use_top_left_mask=self._flash_attn_uses_top_left_mask,
             is_causal=self.is_causal,
         )
 
@@ -1273,8 +1277,8 @@ class DistilBertForMultipleChoice(DistilBertPreTrainedModel):
         >>> choice1 = "It is eaten while held in the hand."
         >>> labels = ms.tensor(0).unsqueeze(0)  # choice0 is correct (according to Wikipedia ;)), batch size 1
 
-        >>> encoding = tokenizer([[prompt, choice0], [prompt, choice1]], return_tensors="pt", padding=True)
-        >>> outputs = model(**{k: v.unsqueeze(0) for k, v in encoding.items()}, labels=labels)  # batch size is 1
+        >>> encoding = tokenizer([[prompt, choice0], [prompt, choice1]], return_tensors="np", padding=True)
+        >>> outputs = model(**{k: ms.tensor(v).unsqueeze(0) for k, v in encoding.items()}, labels=labels)  # batch size is 1
 
         >>> # the linear classifier still needs to be trained
         >>> loss = outputs.loss

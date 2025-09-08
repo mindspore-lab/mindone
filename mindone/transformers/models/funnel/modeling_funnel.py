@@ -138,7 +138,8 @@ def load_tf_weights_in_funnel(model, config, tf_checkpoint_path):
                 array = array.reshape(pointer.shape)
             if m_name == "kernel":
                 array = np.transpose(array)
-            pointer.data = ms.Tensor.from_numpy(array)
+            # pointer.data = ms.Tensor.from_numpy(array)
+            pointer.set_data(ms.Tensor.from_numpy(array))
 
     return model
 
@@ -274,7 +275,7 @@ class FunnelAttentionStructure(nn.Cell):
                 rel_pos = self.relative_pos(pos, stride)
 
                 rel_pos = rel_pos[:, None] + zero_offset
-                rel_pos = rel_pos.expand(rel_pos.shape[0], d_model)
+                rel_pos = rel_pos.expand((rel_pos.shape[0], d_model))
                 position_embeds_no_pooling = mint.gather(pos_embed, 0, rel_pos)
 
                 position_embeds_list.append([position_embeds_no_pooling, position_embeds_pooling])
@@ -307,7 +308,7 @@ class FunnelAttentionStructure(nn.Cell):
         max_dist = ref_point + num_remove * stride
         min_dist = pooled_pos[0] - pos[-1]
 
-        return mint.arange(max_dist, min_dist - 1, -stride, dtype=ms.int64)
+        return mint.arange(max_dist.item(), min_dist.item() - 1, -stride, dtype=ms.int64)
 
     def stride_pool(
         self,
@@ -339,7 +340,7 @@ class FunnelAttentionStructure(nn.Cell):
         enc_slice = [slice(None)] * axis + [axis_slice]
         if self.config.separate_cls:
             cls_slice = [slice(None)] * axis + [slice(None, 1)]
-            tensor = mint.cat([tensor[cls_slice], tensor], axis=axis)
+            tensor = mint.cat([tensor[cls_slice], tensor], dim=axis)
         return tensor[enc_slice]
 
     def pool_tensor(
@@ -1563,7 +1564,7 @@ class FunnelForQuestionAnswering(FunnelPreTrainedModel):
         if start_positions is not None and end_positions is not None:
             # If we are on multi-GPU, split add a dimension
             if len(start_positions.shape) > 1:
-                start_positions = start_positions.squeze(-1)
+                start_positions = start_positions.squeeze(-1)
             if len(end_positions.shape) > 1:
                 end_positions = end_positions.squeeze(-1)
             # sometimes the start/end positions are outside our model inputs, we ignore these terms

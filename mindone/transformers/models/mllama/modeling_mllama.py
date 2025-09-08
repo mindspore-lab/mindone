@@ -33,7 +33,8 @@ from mindspore import mint, nn
 from ...activations import ACT2FN
 from ...cache_utils import Cache, DynamicCache, StaticCache
 from ...generation import GenerationMixin
-from ...mindspore_adapter import dtype_to_min, scaled_dot_product_attention
+from ...integrations import scaled_dot_product_attention
+from ...mindspore_adapter import dtype_to_min
 from ...modeling_attn_mask_utils import AttentionMaskConverter
 from ...modeling_outputs import BaseModelOutput, BaseModelOutputWithPast, CausalLMOutputWithPast
 from ...modeling_rope_utils import ROPE_INIT_FUNCTIONS
@@ -107,7 +108,7 @@ class MllamaPrecomputedAspectRatioEmbedding(nn.Cell):
 
         self.embedding = mint.nn.Embedding(self.max_aspect_ratio_id + 1, self.max_num_tiles * self.hidden_size)
         if is_gated:
-            self.gate = ms.Parameter(mint.zeros(1))
+            self.gate = ms.Parameter(mint.zeros(1), name="gate")
 
     def construct(self, hidden_state: ms.Tensor, aspect_ratio_ids: ms.Tensor) -> ms.Tensor:
         embeddings = self.embedding(aspect_ratio_ids)
@@ -129,11 +130,11 @@ class MllamaPrecomputedPositionEmbedding(nn.Cell):
         self.hidden_size = config.hidden_size
         self.scale = config.hidden_size**-0.5
 
-        self.gate = ms.Parameter(mint.zeros(1))
+        self.gate = ms.Parameter(mint.zeros(1), name="gate")
 
         # position embedding
         position_embedding = mint.randn(self.num_patches, self.hidden_size)
-        self.embedding = ms.Parameter(self.scale * position_embedding)
+        self.embedding = ms.Parameter(self.scale * position_embedding, name="embedding")
 
         # tile position embedding
         self.tile_embedding = mint.nn.Embedding(
@@ -235,8 +236,8 @@ class MllamaVisionSdpaAttention(MllamaVisionAttention):
         # TODO: Improve this warning with e.g. `model.config.attn_implementation = "manual"` once this is implemented.
         if output_attentions:
             logger.warning_once(
-                "MllamaModel is using MllamaVisionSdpaAttention, but `scaled_dot_product_attention` does not support `output_attentions=True`. Falling back to the manual attention implementation, "
-                'but specifying the manual implementation will be required from Transformers version v5.0.0 onwards. This warning can be removed using the argument `attn_implementation="eager"` when loading the model.'
+                "MllamaModel is using MllamaVisionSdpaAttention, but `scaled_dot_product_attention` does not support `output_attentions=True`. Falling back to the manual attention implementation, "  # noqa
+                'but specifying the manual implementation will be required from Transformers version v5.0.0 onwards. This warning can be removed using the argument `attn_implementation="eager"` when loading the model.'  # noqa
             )
             return super().construct(
                 hidden_state=hidden_state,
@@ -259,7 +260,7 @@ class MllamaVisionSdpaAttention(MllamaVisionAttention):
         key = key.transpose(1, 2)
         value = value.transpose(1, 2)
 
-        attn_output = F.scaled_dot_product_attention(query, key, value, attn_mask=attention_mask)
+        attn_output = scaled_dot_product_attention(query, key, value, attn_mask=attention_mask)
 
         attn_output = attn_output.transpose(1, 2).contiguous()
         attn_output = attn_output.reshape(batch_size, q_seq_len, -1)
@@ -288,8 +289,8 @@ class MllamaVisionEncoderLayer(nn.Cell):
         self.post_attention_layernorm = mint.nn.LayerNorm(self.hidden_size, eps=config.norm_eps)
 
         if is_gated:
-            self.gate_attn = ms.Parameter(mint.ones(1) * math.pi / 4)
-            self.gate_ffn = ms.Parameter(mint.ones(1) * math.pi / 4)
+            self.gate_attn = ms.Parameter(mint.ones(1) * math.pi / 4, name="gate_attn")
+            self.gate_ffn = ms.Parameter(mint.ones(1) * math.pi / 4, name="gate_ffn")
 
     def construct(
         self,
@@ -408,7 +409,7 @@ class MllamaTextRMSNorm(nn.Cell):
         MllamaTextRMSNorm is equivalent to T5LayerNorm
         """
         super().__init__()
-        self.weight = ms.Parameter(mint.ones(hidden_size))
+        self.weight = ms.Parameter(mint.ones(hidden_size), name="weight")
         self.variance_epsilon = eps
 
     def construct(self, hidden_states):
@@ -530,8 +531,8 @@ class MllamaTextCrossSdpaAttention(MllamaTextCrossAttention):
         if output_attentions:
             # TODO: Improve this warning with e.g. `model.config.attn_implementation = "manual"` once this is implemented.
             logger.warning_once(
-                "MllamaModel is using MllamaTextCrossSdpaAttention, but `scaled_dot_product_attention` does not support `output_attentions=True`. Falling back to the manual attention implementation, "
-                'but specifying the manual implementation will be required from Transformers version v5.0.0 onwards. This warning can be removed using the argument `attn_implementation="eager"` when loading the model.'
+                "MllamaModel is using MllamaTextCrossSdpaAttention, but `scaled_dot_product_attention` does not support `output_attentions=True`. Falling back to the manual attention implementation, "  # noqa
+                'but specifying the manual implementation will be required from Transformers version v5.0.0 onwards. This warning can be removed using the argument `attn_implementation="eager"` when loading the model.'  # noqa
             )
             return super().construct(
                 hidden_states=hidden_states,
@@ -732,8 +733,8 @@ class MllamaTextSelfSdpaAttention(MllamaTextSelfAttention):
         if output_attentions:
             # TODO: Improve this warning with e.g. `model.config.attn_implementation = "manual"` once this is implemented.
             logger.warning_once(
-                "MllamaModel is using MllamaTextSelfSdpaAttention, but `scaled_dot_product_attention` does not support `output_attentions=True`. Falling back to the manual attention implementation, "
-                'but specifying the manual implementation will be required from Transformers version v5.0.0 onwards. This warning can be removed using the argument `attn_implementation="eager"` when loading the model.'
+                "MllamaModel is using MllamaTextSelfSdpaAttention, but `scaled_dot_product_attention` does not support `output_attentions=True`. Falling back to the manual attention implementation, "  # noqa
+                'but specifying the manual implementation will be required from Transformers version v5.0.0 onwards. This warning can be removed using the argument `attn_implementation="eager"` when loading the model.'  # noqa
             )
             return super().construct(
                 hidden_states=hidden_states,
@@ -906,11 +907,11 @@ class MllamaCrossAttentionDecoderLayer(nn.Cell):
         self.cross_attn = MLLAMA_TEXT_CROSS_ATTENTION_CLASSES[config._attn_implementation](config, layer_idx=layer_idx)
 
         self.input_layernorm = MllamaTextRMSNorm(config.hidden_size, eps=config.rms_norm_eps)
-        self.cross_attn_attn_gate = ms.Parameter(mint.zeros(1))
+        self.cross_attn_attn_gate = ms.Parameter(mint.zeros(1), name="cross_attn_attn_gate")
 
         self.mlp = MllamaTextMLP(config)
         self.post_attention_layernorm = MllamaTextRMSNorm(config.hidden_size, eps=config.rms_norm_eps)
-        self.cross_attn_mlp_gate = ms.Parameter(mint.zeros(1))
+        self.cross_attn_mlp_gate = ms.Parameter(mint.zeros(1), name="cross_attn_mlp_gate")
 
     def construct(
         self,
@@ -983,7 +984,8 @@ class MllamaRotaryEmbedding(nn.Cell):
             self.max_seq_len_cached = seq_len
 
         if seq_len < self.original_max_seq_len and self.max_seq_len_cached > self.original_max_seq_len:  # reset
-            self.register_buffer("inv_freq", self.original_inv_freq, persistent=False)
+            # self.register_buffer("inv_freq", self.original_inv_freq, persistent=False)
+            self.inv_freq = self.original_inv_freq
             self.max_seq_len_cached = self.original_max_seq_len
 
     def construct(self, x, position_ids):
@@ -1033,12 +1035,12 @@ class MllamaPreTrainedModel(PreTrainedModel):
         elif isinstance(module, ms.Parameter):
             module.data.normal_(mean=0.0, std=std)
         elif isinstance(module, MllamaVisionModel):
-            nn.init.normal_(module.class_embedding.data, std=std)
+            module.class_embedding.data.normal_(std=std)
         elif isinstance(module, MllamaPrecomputedPositionEmbedding):
-            nn.init.normal_(module.embedding.data, std=std)
+            module.embedding.data.normal_(std=std)
         elif isinstance(module, MllamaVisionEncoderLayer) and module.is_gated:
-            nn.init.normal_(module.gate_attn.data, std=std)
-            nn.init.normal_(module.gate_ffn.data, std=std)
+            module.gate_attn.data.normal_(std=std)
+            module.gate_ffn.data.normal_(std=std)
 
     # Copied from transformers.models.llama.modeling_llama.LlamaModel._update_causal_mask
     def _update_causal_mask(
@@ -1054,10 +1056,7 @@ class MllamaPreTrainedModel(PreTrainedModel):
                 return attention_mask
             return None
         if self.config._attn_implementation == "flex_attention":
-            if isinstance(attention_mask, ms.Tensor):
-                attention_mask = make_flex_block_causal_mask(attention_mask)
-            if isinstance(attention_mask, BlockMask):
-                return attention_mask
+            raise NotImplementedError
 
         # For SDPA, when possible, we will rely on its `is_causal` argument instead of its `attn_mask` argument, in
         # order to dispatch on Flash Attention 2. This feature is not compatible with static cache, as SDPA will fail
@@ -1098,7 +1097,7 @@ class MllamaPreTrainedModel(PreTrainedModel):
 
         if self.config._attn_implementation == "sdpa" and attention_mask is not None and not output_attentions:
             # Attend to all tokens in fully masked rows in the causal_mask, for example the relevant first rows when
-            # using left padding. This is required by F.scaled_dot_product_attention memory-efficient attention path.
+            # using left padding. This is required by scaled_dot_product_attention memory-efficient attention path.
             # Details: https://github.com/pytorch/pytorch/issues/110213
             min_dtype = dtype_to_min(dtype)
             causal_mask = AttentionMaskConverter._unmask_unattended(causal_mask, min_dtype)
@@ -1141,7 +1140,7 @@ class MllamaPreTrainedModel(PreTrainedModel):
             causal_mask = attention_mask
         else:
             min_dtype = dtype_to_min(dtype)
-            causal_mask = mint.full((sequence_length, target_length), fill_value=min_dtype, dtype=dtype)
+            causal_mask = mint.full((sequence_length, target_length), fill_value=min_dtype.item(), dtype=dtype)
             if sequence_length != 1:
                 causal_mask = mint.triu(causal_mask, diagonal=1)
             causal_mask *= mint.arange(target_length) > cache_position.reshape(-1, 1)
@@ -1164,7 +1163,7 @@ MLLAMA_START_DOCSTRING = r"""
     etc.)
 
     This model is also a MindSpore [mindspore.nn.Cell](https://www.mindspore.cn/docs/en/master/api_python/nn/mindspore.nn.Cell.html) subclass.
-    Use it as a regular PyTorch Module and refer to the PyTorch documentation for all matter related to general usage
+    Use it as a regular MindSpore Cell and refer to the MindSpore documentation for all matter related to general usage
     and behavior.
 
     Parameters:
@@ -1429,7 +1428,7 @@ class MllamaVisionModel(MllamaPreTrainedModel):
             bias=False,
         )
 
-        self.class_embedding = ms.Parameter(self.scale * mint.randn(self.hidden_size))
+        self.class_embedding = ms.Parameter(self.scale * mint.randn(self.hidden_size), name="class_embedding")
         self.gated_positional_embedding = MllamaPrecomputedPositionEmbedding(config)
 
         self.pre_tile_positional_embedding = MllamaPrecomputedAspectRatioEmbedding(config, is_gated=True)
@@ -1534,7 +1533,7 @@ class MllamaVisionModel(MllamaPreTrainedModel):
         # Compute padding tuple for pad function
         padding = (0, 0, 0, num_padding_patches)  # (pad_left, pad_right, pad_left for dim -2, pad_right for dim -2)
         # Pad the tensor
-        hidden_state = mint.nn.functional.pad(hidden_state, padding, mode="constant", value=0)
+        hidden_state = F.pad(hidden_state, padding, mode="constant", value=0)
         slice_index = -num_padding_patches if num_padding_patches > 0 else None
 
         # Prepare attention mask
@@ -2025,7 +2024,9 @@ class MllamaForConditionalGeneration(MllamaPreTrainedModel, GenerationMixin):
         ```python
         >>> from PIL import Image
         >>> import requests
-        >>> from transformers import AutoProcessor, MllamaForConditionalGeneration
+        >>> from transformers import AutoProcessor
+        >>> from mindone.transformers import MllamaForConditionalGeneration
+        >>> import mindspore as ms
 
         >>> checkpoint = "meta-llama/Llama-3.2-11B-Vision"
         >>> model = MllamaForConditionalGeneration.from_pretrained(checkpoint)
@@ -2035,7 +2036,9 @@ class MllamaForConditionalGeneration(MllamaPreTrainedModel, GenerationMixin):
         >>> url = "https://www.ilankelman.org/stopsigns/australia.jpg"
         >>> image = Image.open(requests.get(url, stream=True).raw)
 
-        >>> inputs = processor(text=prompt, images=image, return_tensors="pt")
+        >>> inputs = processor(text=prompt, images=image, return_tensors="np")
+        >>> for k, v in inputs.items():
+        >>>     inputs[k] = ms.tensor(v)
 
         >>> # Generate
         >>> output = model.generate(**inputs, max_new_tokens=15)
@@ -2151,7 +2154,10 @@ class MllamaForConditionalGeneration(MllamaPreTrainedModel, GenerationMixin):
             if past_key_values:
                 position_ids = position_ids[:, -input_ids.shape[1] :]
 
-                # This `clone` call is needed to avoid recapturing cuda graphs with compile's  `mode="reduce-overhead`, as otherwise the input `position_ids` would have various stride during the decoding. Here, simply using `.contiguous()` is not sufficient as in the batch size = 1 case, `position_ids` is already contiguous but with varying stride which retriggers a capture.
+                # This `clone` call is needed to avoid recapturing cuda graphs with compile's  `mode="reduce-overhead`,
+                # as otherwise the input `position_ids` would have various stride during the decoding.
+                # Here, simply using `.contiguous()` is not sufficient as in the batch size = 1 case,
+                # `position_ids` is already contiguous but with varying stride which retriggers a capture.
                 position_ids = position_ids.clone()
 
         # if `inputs_embeds` are passed, we only want to use them in the 1st generation step
