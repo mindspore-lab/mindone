@@ -68,6 +68,7 @@ from . import (
     mistral,
     mixtral,
     mobilebert,
+    moonshine,
     mpt,
     mvp,
     opt,
