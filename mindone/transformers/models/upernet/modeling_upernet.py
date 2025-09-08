@@ -22,7 +22,6 @@ from mindspore.mint.nn import CrossEntropyLoss
 
 from ...modeling_outputs import SemanticSegmenterOutput
 from ...modeling_utils import PreTrainedModel
-from ...utils import add_start_docstrings, add_start_docstrings_to_model_forward, replace_return_docstrings
 from ...utils.backbone_utils import load_backbone
 from transformers import UperNetConfig
 
@@ -70,7 +69,7 @@ class UperNetPyramidPoolingBlock(ms.nn.Cell):
     def __init__(self, pool_scale: int, in_channels: int, channels: int) -> None:
         super().__init__()
         batch_norm = mint.nn.AdaptiveAvgPool2d(pool_scale)
-        conv = UperNetConvModule(in_channels, channels, kernel_size=1),
+        conv = UperNetConvModule(in_channels, channels, kernel_size=1)
         self.layers = [batch_norm, conv]
         self.insert_child_to_cell("0", batch_norm)
         self.insert_child_to_cell("1", conv)

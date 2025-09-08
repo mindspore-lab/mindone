@@ -67,11 +67,11 @@ class UperNetModelTester:
         self.scope = scope
 
     def prepare_config_and_inputs(self):
-        pixel_values = floats_numpy([self.batch_size, self.num_channels, self.height, self.width])
+        pixel_values = floats_numpy([self.batch_size, self.num_channels, self.image_size, self.image_size])
 
         labels = None
         if self.use_labels:
-            labels = ids_numpy([self.batch_size, self.height, self.width], self.num_labels)
+            labels = ids_numpy([self.batch_size], self.type_sequence_label_size)
 
         config = self.get_config()
 
@@ -171,8 +171,8 @@ def test_named_modules(
         ms_inputs_kwargs.update({"hidden_dtype": MS_DTYPE_MAPPING[ms_dtype]})
 
     with torch.no_grad():
-        pt_outputs = pt_model(*pt_inputs_args, **pt_inputs_kwargs)
-    ms_outputs = ms_model(*ms_inputs_args, **ms_inputs_kwargs)
+        pt_outputs = pt_model(*pt_inputs_args)
+    ms_outputs = ms_model(*ms_inputs_args)
 
     if outputs_map:
         pt_outputs_n = []
