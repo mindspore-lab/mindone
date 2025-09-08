@@ -708,6 +708,11 @@ from .models.rembert import (
     RemBertPreTrainedModel,
 )
 from .models.resnet import ResNetBackbone, ResNetForImageClassification, ResNetModel, ResNetPreTrainedModel
+from .models.rt_detr import (
+    RTDetrForObjectDetection,
+    RTDetrModel,
+    RTDetrPreTrainedModel,
+)
 from .models.roberta import (
     RobertaForCausalLM,
     RobertaForMaskedLM,

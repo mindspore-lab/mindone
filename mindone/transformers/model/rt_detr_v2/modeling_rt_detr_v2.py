@@ -27,7 +27,6 @@ from dataclasses import dataclass
 from functools import partial
 from typing import Dict, List, Optional, Tuple, Union
 
-import mindspore as ms
 import mint.nn.functional as F
 from mindspore import Tensor, nn
 
@@ -171,7 +170,7 @@ class RTDetrV2MultiscaleDeformableAttention(ms.nn.Cell):
         n_points_list = [self.n_points for _ in range(self.n_levels)]
         self.n_points_list = n_points_list
         n_points_scale = [1 / n for n in n_points_list for _ in range(n)]
-        self.register_buffer("n_points_scale", ms.Tensor(n_points_scale, dtype=ms.float32))
+        self.register_buffer("n_points_scale", ms.tensor(n_points_scale, dtype=ms.float32))
 
     def construct(
         self,
@@ -310,7 +309,7 @@ class RTDetrV2MultiheadAttention(ms.nn.Cell):
         # expand attention_mask
         if attention_mask is not None:
             # [seq_len, seq_len] -> [batch_size, 1, target_seq_len, source_seq_len]
-            attention_mask = attention_mask.expand(batch_size, 1, *attention_mask.shape)
+            attention_mask = attention_mask.broadcast_to(batch_size, 1, *attention_mask.shape)
 
         if attention_mask is not None:
             if attention_mask.shape != (batch_size, 1, target_len, source_len):
@@ -712,13 +711,6 @@ def replace_batch_norm(model):
     for name, module in model.named_children():
         if isinstance(module, mint.nn.BatchNorm2d):
             new_module = RTDetrV2FrozenBatchNorm2d(module.num_features)
-
-            if not module.weight.device == torch.device("meta"):
-                new_module.weight.data.copy_(module.weight)
-                new_module.bias.data.copy_(module.bias)
-                new_module.running_mean.data.copy_(module.running_mean)
-                new_module.running_var.data.copy_(module.running_var)
-
             model._modules[name] = new_module
 
         if len(list(module.children())) > 0:
@@ -850,7 +842,7 @@ class RTDetrV2EncoderLayer(ms.nn.Cell):
 
         if self.training:
             if mint.isinf(hidden_states).any() or mint.isnan(hidden_states).any():
-                clamp_value = torch.finfo(hidden_states.dtype).max - 1000
+                clamp_value = ms.tensor(ms.tensor.finfo(hidden_states.dtype).max - 1000, dtype=hidden_states.dtype)
                 hidden_states = mint.clamp(hidden_states, min=-clamp_value, max=clamp_value)
 
         outputs = (hidden_states,)
@@ -1170,7 +1162,7 @@ def get_contrastive_denoising_training_group(
         return None, None, None, None
 
     num_ground_truths = [len(t["class_labels"]) for t in targets]
-    device = targets[0]["class_labels"].device
+    # device = targets[0]["class_labels"].device  # Device removed for MindSpore
 
     max_gt_num = max(num_ground_truths)
     if max_gt_num == 0:

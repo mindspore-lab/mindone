@@ -339,8 +339,8 @@ class RTDetrResNetPreTrainedModel(PreTrainedModel):
 
 
 RTDETR_RESNET_START_DOCSTRING = r"""
-    This model is a PyTorch [torch.nn.Module](https://pytorch.org/docs/stable/nn.html#torch.nn.Module) subclass. Use it
-    as a regular PyTorch Module and refer to the PyTorch documentation for all matter related to general usage and
+    This model is a MindSpore [mindspore.nn.Cell](https://mindspore.cn/docs/api/en/master/api_python/nn/mindspore.nn.Cell.html) subclass. Use it
+    as a regular MindSpore Cell and refer to the MindSpore documentation for all matter related to general usage and
     behavior.
 
     Parameters:
@@ -351,7 +351,7 @@ RTDETR_RESNET_START_DOCSTRING = r"""
 
 RTDETR_RESNET_INPUTS_DOCSTRING = r"""
     Args:
-        pixel_values (`torch.FloatTensor` of shape `(batch_size, num_channels, height, width)`):
+        pixel_values (`mindspore.Tensor` of shape `(batch_size, num_channels, height, width)`):
             Pixel values. Pixel values can be obtained using [`AutoImageProcessor`]. See
             [`RTDetrImageProcessor.__call__`] for details.
 
@@ -393,14 +393,14 @@ class RTDetrResNetBackbone(RTDetrResNetPreTrainedModel, BackboneMixin):
 
         ```python
         >>> from transformers import RTDetrResNetConfig, RTDetrResNetBackbone
-        >>> import torch
+        >>> import mindspore as ms
 
         >>> config = RTDetrResNetConfig()
         >>> model = RTDetrResNetBackbone(config)
 
-        >>> pixel_values = torch.randn(1, 3, 224, 224)
+        >>> pixel_values = ms.ops.randn(1, 3, 224, 224)
 
-        >>> with torch.no_grad():
+        >>> with ms._no_grad():
         ...     outputs = model(pixel_values)
 
         >>> feature_maps = outputs.feature_maps
