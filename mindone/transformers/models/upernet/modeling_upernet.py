@@ -69,10 +69,11 @@ class UperNetConvModule(ms.nn.Cell):
 class UperNetPyramidPoolingBlock(ms.nn.Cell):
     def __init__(self, pool_scale: int, in_channels: int, channels: int) -> None:
         super().__init__()
-        self.layers = nn.CellList([
-            mint.nn.AdaptiveAvgPool2d(pool_scale),
-            UperNetConvModule(in_channels, channels, kernel_size=1),
-        ])
+        batch_norm = mint.nn.AdaptiveAvgPool2d(pool_scale)
+        conv = UperNetConvModule(in_channels, channels, kernel_size=1),
+        self.layers = [batch_norm, conv]
+        self.insert_child_to_cell("0", batch_norm)
+        self.insert_child_to_cell("1", conv)
 
     def construct(self, input: ms.Tensor) -> ms.Tensor:
         hidden_state = input
@@ -102,10 +103,11 @@ class UperNetPyramidPoolingModule(ms.nn.Cell):
         self.align_corners = align_corners
         self.in_channels = in_channels
         self.channels = channels
-        self.blocks = nn.CellList()
+        self.blocks = []
         for i, pool_scale in enumerate(pool_scales):
             block = UperNetPyramidPoolingBlock(pool_scale=pool_scale, in_channels=in_channels, channels=channels)
             self.blocks.append(block)
+            self.insert_child_to_cell(str(i), block)
 
     def construct(self, x: ms.Tensor) -> List[ms.Tensor]:
         ppm_outs = []
@@ -301,44 +303,7 @@ class UperNetPreTrainedModel(PreTrainedModel):
             if module.auxiliary_head is not None:
                 module.auxiliary_head.init_weights()
 
-    def init_weights(self):
-        """Initialize the weights"""
-        self.backbone.init_weights()
-        self.decode_head.init_weights()
-        if self.auxiliary_head is not None:
-            self.auxiliary_head.init_weights()
 
-
-UPERNET_START_DOCSTRING = r"""
-    Parameters:
-    This model is a MindSpore [mindspore.nn.Cell](https://mindspore.cn/docs/en/master/api_python/nn/mindspore.nn.Cell.html) sub-class. Use
-    it as a regular MindSpore Cell and refer to the MindSpore documentation for all matter related to general usage and
-    behavior.
-        config ([`UperNetConfig`]): Model configuration class with all the parameters of the model.
-            Initializing with a config file does not load the weights associated with the model, only the
-            configuration. Check out the [`~PreTrainedModel.from_pretrained`] method to load the model weights.
-"""
-
-UPERNET_INPUTS_DOCSTRING = r"""
-    Args:
-        pixel_values (`mindspore.Tensor` of shape `(batch_size, num_channels, height, width)`):
-            Pixel values. Padding will be ignored by default should you provide it. Pixel values can be obtained using
-            [`AutoImageProcessor`]. See [`SegformerImageProcessor.__call__`] for details.
-        output_attentions (`bool`, *optional*):
-            Whether or not to return the attentions tensors of all attention layers in case the backbone has them. See
-            `attentions` under returned tensors for more detail.
-        output_hidden_states (`bool`, *optional*):
-            Whether or not to return the hidden states of all layers of the backbone. See `hidden_states` under
-            returned tensors for more detail.
-        return_dict (`bool`, *optional*):
-            Whether or not to return a [`~utils.ModelOutput`] instead of a plain tuple.
-"""
-
-
-@add_start_docstrings(
-    """UperNet framework leveraging any vision backbone e.g. for ADE20k, CityScapes.""",
-    UPERNET_START_DOCSTRING,
-)
 class UperNetForSemanticSegmentation(UperNetPreTrainedModel):
     def __init__(self, config):
         super().__init__(config)
@@ -352,8 +317,6 @@ class UperNetForSemanticSegmentation(UperNetPreTrainedModel):
         # Initialize weights and apply final processing
         self.post_init()
 
-    @add_start_docstrings_to_model_forward(UPERNET_INPUTS_DOCSTRING.format("batch_size, sequence_length"))
-    @replace_return_docstrings(output_type=SemanticSegmenterOutput, config_class=_CONFIG_FOR_DOC)
     def construct(
         self,
         pixel_values: Optional[ms.Tensor] = None,

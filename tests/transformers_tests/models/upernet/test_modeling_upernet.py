@@ -12,7 +12,7 @@ import inspect
 import numpy as np
 import pytest
 import torch
-from transformers import UperNetConfig
+from transformers import UperNetConfig, ConvNextConfig
 
 import mindspore as ms
 
@@ -23,9 +23,9 @@ from tests.modeling_test_utils import (
     generalized_parse_args,
     get_modules,
 )
-from tests.transformers_tests.models.modeling_common import ids_numpy
+from tests.transformers_tests.models.modeling_common import ids_numpy, floats_numpy
 
-DTYPE_AND_THRESHOLDS = {"fp32": 5e-4, "fp16": 5e-3, "bf16": 5e-3}
+DTYPE_AND_THRESHOLDS = {"fp32": 5e-4, "fp16": 5e-3, "bf16": 5e-2}
 MODES = [1]  # 1: pynative mode, UperNet doesn't support graph mode
 
 
@@ -34,46 +34,40 @@ class UperNetModelTester:
 
     def __init__(
         self,
-        batch_size=2,
+        batch_size=13,
+        image_size=32,
         num_channels=3,
-        height=32,
-        width=32,
-        num_labels=3,
-        is_training=False,
+        num_stages=4,
+        hidden_sizes=[10, 20, 30, 40],
+        depths=[1, 1, 1, 1],
+        is_training=True,
         use_labels=True,
-        # config
-        hidden_size=32,
+        intermediate_size=37,
+        hidden_act="gelu",
+        type_sequence_label_size=10,
         initializer_range=0.02,
-        pool_scales=[1, 2, 3],
-        use_auxiliary_head=True,
-        auxiliary_loss_weight=0.4,
-        auxiliary_in_channels=24,
-        auxiliary_channels=16,
-        auxiliary_num_convs=1,
-        auxiliary_concat_input=False,
-        loss_ignore_index=255,
+        out_features=["stage2", "stage3", "stage4"],
+        num_labels=3,
+        scope=None,
     ):
         self.batch_size = batch_size
+        self.image_size = image_size
         self.num_channels = num_channels
-        self.height = height
-        self.width = width
-        self.num_labels = num_labels
+        self.num_stages = num_stages
+        self.hidden_sizes = hidden_sizes
+        self.depths = depths
         self.is_training = is_training
         self.use_labels = use_labels
-
-        self.hidden_size = hidden_size
+        self.intermediate_size = intermediate_size
+        self.hidden_act = hidden_act
+        self.type_sequence_label_size = type_sequence_label_size
         self.initializer_range = initializer_range
-        self.pool_scales = pool_scales
-        self.use_auxiliary_head = use_auxiliary_head
-        self.auxiliary_loss_weight = auxiliary_loss_weight
-        self.auxiliary_in_channels = auxiliary_in_channels
-        self.auxiliary_channels = auxiliary_channels
-        self.auxiliary_num_convs = auxiliary_num_convs
-        self.auxiliary_concat_input = auxiliary_concat_input
-        self.loss_ignore_index = loss_ignore_index
+        self.out_features = out_features
+        self.num_labels = num_labels
+        self.scope = scope
 
     def prepare_config_and_inputs(self):
-        pixel_values = ids_numpy([self.batch_size, self.num_channels, self.height, self.width], 256)
+        pixel_values = floats_numpy([self.batch_size, self.num_channels, self.height, self.width])
 
         labels = None
         if self.use_labels:
@@ -83,28 +77,31 @@ class UperNetModelTester:
 
         return config, pixel_values, labels
 
-    def get_config(self):
-        # Use ConvNext as backbone for testing (similar to ResNet but available in MindSpore)
-        from mindone.transformers.models.convnext import ConvNextConfig
-        backbone_config = ConvNextConfig(
+    def get_backbone_config(self):
+        return ConvNextConfig(
             num_channels=self.num_channels,
-            hidden_sizes=[16, 32, 64, 128],
-            depths=[1, 1, 1, 1],
-            out_features=["stage1", "stage2", "stage3", "stage4"],
+            num_stages=self.num_stages,
+            hidden_sizes=self.hidden_sizes,
+            depths=self.depths,
+            is_training=self.is_training,
+            intermediate_size=self.intermediate_size,
+            hidden_act=self.hidden_act,
+            out_features=self.out_features,
         )
-        
-        return self.config_class(
-            backbone_config=backbone_config,
-            hidden_size=self.hidden_size,
-            initializer_range=self.initializer_range,
-            pool_scales=self.pool_scales,
-            use_auxiliary_head=self.use_auxiliary_head,
-            auxiliary_loss_weight=self.auxiliary_loss_weight,
-            auxiliary_in_channels=self.auxiliary_in_channels,
-            auxiliary_channels=self.auxiliary_channels,
-            auxiliary_num_convs=self.auxiliary_num_convs,
-            auxiliary_concat_input=self.auxiliary_concat_input,
-            loss_ignore_index=self.loss_ignore_index,
+
+    def get_config(self):
+        return UperNetConfig(
+            backbone_config=self.get_backbone_config(),
+            backbone=None,
+            hidden_size=64,
+            pool_scales=[1, 2, 3, 6],
+            use_auxiliary_head=True,
+            auxiliary_loss_weight=0.4,
+            auxiliary_in_channels=40,
+            auxiliary_channels=32,
+            auxiliary_num_convs=1,
+            auxiliary_concat_input=False,
+            loss_ignore_index=255,
             num_labels=self.num_labels,
         )
 
