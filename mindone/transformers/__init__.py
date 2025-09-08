@@ -454,6 +454,16 @@ from .models.mpt import (
     MptModel,
     MptPreTrainedModel,
 )
+from .models.mra import (
+    MraForMaskedLM,
+    MraForMultipleChoice,
+    MraForQuestionAnswering,
+    MraForSequenceClassification,
+    MraForTokenClassification,
+    MraLayer,
+    MraModel,
+    MraPreTrainedModel,
+)
 from .models.mt5 import (
     MT5_PRETRAINED_MODEL_ARCHIVE_LIST,
     MT5EncoderModel,

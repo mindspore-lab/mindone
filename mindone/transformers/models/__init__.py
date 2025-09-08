@@ -69,6 +69,7 @@ from . import (
     mixtral,
     mobilebert,
     mpt,
+    mra,
     mvp,
     opt,
     owlvit,
