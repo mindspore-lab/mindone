@@ -85,6 +85,7 @@ from . import (
     mllama,
     mobilebert,
     modernbert,
+    moonshine,
     mpt,
     mvp,
     nystromformer,

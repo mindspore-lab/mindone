@@ -103,6 +103,7 @@ MODEL_MAPPING_NAMES = OrderedDict(
         ("mistral", "MistralModel"),
         ("mixtral", "MixtralModel"),
         ("mobilebert", "MobileBertModel"),
+        ("moonshine", "MoonshineModel"),
         ("mpt", "MptModel"),
         ("mt5", "MT5Model"),
         ("mvp", "MvpModel"),
@@ -219,6 +220,7 @@ MODEL_WITH_LM_HEAD_MAPPING_NAMES = OrderedDict(
         ("mamba2", "Mamba2ForCausalLM"),
         ("megatron-bert", "MegatronBertForCausalLM"),
         ("mobilebert", "MobileBertForMaskedLM"),
+        ("moonshine", "MoonshineForConditionalGeneration"),
         ("mpt", "MptForCausalLM"),
         ("nystromformer", "NystromformerForMaskedLM"),
         ("pop2piano", "Pop2PianoForConditionalGeneration"),
@@ -519,6 +521,7 @@ MODEL_FOR_SEQ_TO_SEQ_CAUSAL_LM_MAPPING_NAMES = OrderedDict(
 
 MODEL_FOR_SPEECH_SEQ_2_SEQ_MAPPING_NAMES = OrderedDict(
     [
+        ("moonshine", "MoonshineForConditionalGeneration"),
         ("pop2piano", "Pop2PianoForConditionalGeneration"),
         ("seamless_m4t_v2", "SeamlessM4Tv2ForSpeechToText"),
         ("speecht5", "SpeechT5ForSpeechToText"),

@@ -573,6 +573,7 @@ from .models.modernbert import (
     ModernBertModel,
     ModernBertPreTrainedModel,
 )
+from .models.moonshine import MoonshineForConditionalGeneration, MoonshineModel, MoonshinePreTrainedModel
 from .models.mpt import (
     MptForCausalLM,
     MptForQuestionAnswering,
