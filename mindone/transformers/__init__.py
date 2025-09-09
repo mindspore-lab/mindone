@@ -669,6 +669,16 @@ from .models.xlm_roberta_xl import (
     XLMRobertaXLPreTrainedModel,
 )
 from .models.yolos import YolosForObjectDetection, YolosImageProcessor, YolosModel, YolosPreTrainedModel
+from .models.yoso import (
+    YosoForMaskedLM,
+    YosoForMultipleChoice,
+    YosoForQuestionAnswering,
+    YosoForSequenceClassification,
+    YosoForTokenClassification,
+    YosoLayer,
+    YosoModel,
+    YosoPreTrainedModel,
+)
 from .pipelines import (
     ImageToImagePipeline,
     ImageToTextPipeline,
