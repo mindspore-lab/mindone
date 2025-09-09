@@ -119,16 +119,16 @@ def _flash_attention_forward(
     if max_length_q is not None or max_length_k is not None:
         raise RuntimeError("FlashAttention's variable-length attention is not available.")
     if sliding_window is not None:
-        raise NotImplementedError("Sliding window is not supported in Mindspore yet. Please set `sliding_window=None`.")
+        raise NotImplementedError("Sliding window is not supported yet. Please set `sliding_window=None`.")
     if use_top_left_mask:
         raise NotImplementedError(
-            "Top left mask is not supported in Mindspore yet. Please set `use_top_left_mask=False`."
+            "Top left mask is not supported yet. Please set `use_top_left_mask=False`."
         )
     if softcap is not None:
-        raise NotImplementedError("Softcap is not supported in Mindspore yet. Please set `softcap=None`.")
+        raise NotImplementedError("Softcap is not supported yet. Please set `softcap=None`.")
     if deterministic:
         raise NotImplementedError(
-            "`deterministic` option is not supported in Mindspore yet. Please set `deterministic=None`."
+            "`deterministic` option is not supported yet. Please set `deterministic=None`."
         )
     if cu_seq_lens_q is not None or cu_seq_lens_k is not None:
         raise ValueError(
