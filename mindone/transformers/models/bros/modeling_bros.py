@@ -1157,6 +1157,10 @@ class BrosSpadeEEForTokenClassification(BrosPreTrainedModel):
         initial_token_logits = self.initial_token_classifier(last_hidden_states).transpose(0, 1).contiguous()
         subsequent_token_logits = self.subsequent_token_classifier(last_hidden_states, last_hidden_states).squeeze(0)
 
+        if attention_mask is None:
+            attention_mask = mint.ones(
+                input_ids.shape,
+            )
         # make subsequent token (sequence token classification) mask
         inv_attention_mask = 1 - attention_mask
         batch_size, max_seq_length = inv_attention_mask.shape
@@ -1287,7 +1291,10 @@ class BrosSpadeELForTokenClassification(BrosPreTrainedModel):
         last_hidden_states = last_hidden_states.transpose(0, 1).contiguous()
 
         logits = self.entity_linker(last_hidden_states, last_hidden_states).squeeze(0)
-
+        if attention_mask is None:
+            attention_mask = mint.ones(
+                input_ids.shape,
+            )
         loss = None
         if labels is not None:
             loss_fct = CrossEntropyLoss()
