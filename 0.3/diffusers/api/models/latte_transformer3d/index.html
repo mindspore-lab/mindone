@@ -18,7 +18,7 @@
       
       
       <link rel="icon" href="../../../../assets/images/favicon.png">
-      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.6.18">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.6.19">
     
     
       
@@ -8965,17 +8965,13 @@ specific language governing permissions and limitations under the License.
       <tbody>
           <tr class="doc-section-item">
             <td>
-                <code>hidden_states</code>
+                <code>hidden_states shape `(batch size, channel, num_frame, height, width)`</code>
             </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
                 <p>Input <code>hidden_states</code>.</p>
               </div>
               <p>
-                  <span class="doc-param-annotation">
-                    <b>TYPE:</b>
-                      <code>shape `(batch size, channel, num_frame, height, width)`</code>
-                  </span>
               </p>
             </td>
           </tr>
@@ -8990,7 +8986,7 @@ specific language governing permissions and limitations under the License.
               <p>
                   <span class="doc-param-annotation">
                     <b>TYPE:</b>
-                      <code> `ms.Tensor`, *optional*</code>
+                      <code>`ms.Tensor`, *optional*</code>
                   </span>
                   <span class="doc-param-default">
                     <b>DEFAULT:</b>
@@ -9011,7 +9007,7 @@ self-attention.</p>
               <p>
                   <span class="doc-param-annotation">
                     <b>TYPE:</b>
-                      <code> `torch.FloatTensor` of shape `(batch size, sequence len, embed dims)`, *optional*</code>
+                      <code>`torch.FloatTensor` of shape `(batch size, sequence len, embed dims)`, *optional*</code>
                   </span>
                   <span class="doc-param-default">
                     <b>DEFAULT:</b>
@@ -9036,7 +9032,7 @@ above. This bias will be added to the cross-attention scores.</p>
               <p>
                   <span class="doc-param-annotation">
                     <b>TYPE:</b>
-                      <code> `ms.Tensor`, *optional*</code>
+                      <code>`ms.Tensor`, *optional*</code>
                   </span>
                   <span class="doc-param-default">
                     <b>DEFAULT:</b>

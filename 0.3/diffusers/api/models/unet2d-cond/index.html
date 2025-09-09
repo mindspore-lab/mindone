@@ -18,7 +18,7 @@
       
       
       <link rel="icon" href="../../../../assets/images/favicon.png">
-      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.6.18">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.6.19">
     
     
       
@@ -8640,7 +8640,7 @@ for all models (such as downloading or saving).</p>
           </tr>
           <tr class="doc-section-item">
             <td>
-                <code>only_cross_attention(`bool`</code>
+                <code>only_cross_attention</code>
             </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
@@ -8650,7 +8650,11 @@ for all models (such as downloading or saving).</p>
               <p>
                   <span class="doc-param-annotation">
                     <b>TYPE:</b>
-                      <code>or `Tuple[bool]`, *optional*, default to `False`</code>
+                      <code>`bool` or `Tuple[bool]`, *optional*, default to `False`</code>
+                  </span>
+                  <span class="doc-param-default">
+                    <b>DEFAULT:</b>
+                      <code>False</code>
                   </span>
               </p>
             </td>
@@ -8860,7 +8864,7 @@ If <code>None</code>, normalization and activation layers is skipped in post-pro
           </tr>
           <tr class="doc-section-item">
             <td>
-                <code>reverse_transformer_layers_per_block</code>
+                <code>reverse_transformer_layers_per_block </code>
             </td>
             <td class="doc-param-details">
               <div class="doc-md-description">
@@ -8871,10 +8875,6 @@ blocks of the U-Net. Only relevant if <code>transformer_layers_per_block</code> 
 [<code>~models.unets.unet_2d_blocks.UNetMidBlock2DCrossAttn</code>].</p>
               </div>
               <p>
-                  <span class="doc-param-default">
-                    <b>DEFAULT:</b>
-                      <code>None</code>
-                  </span>
               </p>
             </td>
           </tr>
