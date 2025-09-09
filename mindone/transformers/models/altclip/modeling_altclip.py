@@ -1259,7 +1259,7 @@ class AltCLIPVisionModel(AltCLIPPreTrainedModel):
         >>> from mindone.transformers import AltCLIPVisionModel
         >>> from transformers import AutoProcessor
 
-        >>> model = AltCLIPVisionModel.from_pretrained("BAAI/AltCLIP")
+        >>> model = AltCLIPVisionModel.from_pretrained("BAAI/AltCLIP", use_safetensors=True)
         >>> processor = AutoProcessor.from_pretrained("BAAI/AltCLIP")
 
         >>> url = "http://images.cocodataset.org/val2017/000000039769.jpg"
@@ -1509,7 +1509,7 @@ class AltCLIPTextModel(AltCLIPPreTrainedModel):
         >>> from transformers import AutoProcessor
         >>> import mindspore as ms
 
-        >>> model = AltCLIPTextModel.from_pretrained("BAAI/AltCLIP")
+        >>> model = AltCLIPTextModel.from_pretrained("BAAI/AltCLIP", use_safetensors=True)
         >>> processor = AutoProcessor.from_pretrained("BAAI/AltCLIP")
 
         >>> texts = ["it's a cat", "it's a dog"]
@@ -1614,7 +1614,7 @@ class AltCLIPModel(AltCLIPPreTrainedModel):
         >>> from mindone.transformers import AltCLIPModel
         >>> from transformers import AutoProcessor
 
-        >>> model = AltCLIPModel.from_pretrained("BAAI/AltCLIP")
+        >>> model = AltCLIPModel.from_pretrained("BAAI/AltCLIP", use_safetensors=True)
         >>> processor = AutoProcessor.from_pretrained("BAAI/AltCLIP")
         >>> inputs = processor(text=["a photo of a cat", "a photo of a dog"], padding=True, return_tensors="np")
         >>> text_features = model.get_text_features(**inputs)
@@ -1663,7 +1663,7 @@ class AltCLIPModel(AltCLIPPreTrainedModel):
         >>> import mindspore as ms
         >>> from transformers import AutoProcessor
 
-        >>> model = AltCLIPModel.from_pretrained("BAAI/AltCLIP")
+        >>> model = AltCLIPModel.from_pretrained("BAAI/AltCLIP", use_safetensors=True)
         >>> processor = AutoProcessor.from_pretrained("BAAI/AltCLIP")
         >>> url = "http://images.cocodataset.org/val2017/000000039769.jpg"
         >>> image = Image.open(requests.get(url, stream=True).raw)
@@ -1718,7 +1718,7 @@ class AltCLIPModel(AltCLIPPreTrainedModel):
         >>> import mindspore as ms
         >>> from transformers import AutoProcessor
 
-        >>> model = AltCLIPModel.from_pretrained("BAAI/AltCLIP")
+        >>> model = AltCLIPModel.from_pretrained("BAAI/AltCLIP", use_safetensors=True)
         >>> processor = AutoProcessor.from_pretrained("BAAI/AltCLIP")
         >>> url = "http://images.cocodataset.org/val2017/000000039769.jpg"
         >>> image = Image.open(requests.get(url, stream=True).raw)
