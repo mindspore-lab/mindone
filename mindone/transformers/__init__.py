@@ -289,6 +289,13 @@ from .models.deberta_v2 import (
 from .models.depth_anything import DepthAnythingForDepthEstimation, DepthAnythingPreTrainedModel
 from .models.dinov2 import Dinov2Backbone, Dinov2ForImageClassification, Dinov2Model, Dinov2PreTrainedModel
 from .models.dpt import DPTForDepthEstimation, DPTImageProcessor, DPTModel, DPTPreTrainedModel
+from .models.esm import (
+    EsmForMaskedLM,
+    EsmForSequenceClassification,
+    EsmForTokenClassification,
+    EsmModel,
+    EsmPreTrainedModel,
+)
 from .models.fuyu import FuyuForCausalLM, FuyuPreTrainedModel
 from .models.gemma import (
     GemmaForCausalLM,
