@@ -534,6 +534,16 @@ from .models.qwen2_vl import (
     Qwen2VLPreTrainedModel,
 )
 from .models.recurrent_gemma import RecurrentGemmaForCausalLM, RecurrentGemmaModel, RecurrentGemmaPreTrainedModel
+from .models.reformer import (
+    ReformerLayer,
+    ReformerModel,
+    ReformerAttention,
+    ReformerPreTrainedModel,
+    ReformerForMaskedLM,
+    ReformerForSequenceClassification,
+    ReformerForQuestionAnswering,
+    ReformerModelWithLMHead,
+)
 from .models.rembert import (
     RemBertForCausalLM,
     RemBertForMaskedLM,
