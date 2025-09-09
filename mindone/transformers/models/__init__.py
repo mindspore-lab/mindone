@@ -69,6 +69,7 @@ from . import (
     mistral,
     mixtral,
     mobilebert,
+    modernbert,
     mpt,
     mvp,
     nystromformer,
