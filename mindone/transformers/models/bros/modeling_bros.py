@@ -838,7 +838,7 @@ class BrosModel(BrosPreTrainedModel):
         >>> model = BrosModel.from_pretrained("jinho8345/bros-base-uncased", use_safetensors=True)
 
         >>> encoding = processor("Hello, my dog is cute", add_special_tokens=False, return_tensors="np")
-        >>> bbox = ms.Tensor([[[0, 0, 1, 1]]]).broadcast_to((1, ms.Tensor(encoding["input_ids"]).shape[-1], 1))
+        >>> bbox = ms.Tensor([[[0, 0, 1, 1]]]).repeat(1, encoding["input_ids"].shape[-1], 1)
         >>> encoding["bbox"] = bbox
 
         >>> outputs = model(input_ids=ms.Tensor(encoding["input_ids"]), bbox=bbox)
@@ -1011,7 +1011,7 @@ class BrosForTokenClassification(BrosPreTrainedModel):
         >>> model = BrosForTokenClassification.from_pretrained("jinho8345/bros-base-uncased", use_safetensors=True)
 
         >>> encoding = processor("Hello, my dog is cute", add_special_tokens=False, return_tensors="np")
-        >>> bbox = ms.Tensor([[[0, 0, 1, 1]]]).broadcast_to((1, ms.Tensor(encoding["input_ids"]).shape[-1], 1))
+        >>> bbox = ms.Tensor([[[0, 0, 1, 1]]]).repeat(1, encoding["input_ids"].shape[-1], 1)
         >>> encoding["bbox"] = bbox
 
         >>> outputs = model(input_ids=ms.Tensor(encoding["input_ids"]), bbox=bbox)
@@ -1131,7 +1131,7 @@ class BrosSpadeEEForTokenClassification(BrosPreTrainedModel):
         >>> model = BrosSpadeEEForTokenClassification.from_pretrained("jinho8345/bros-base-uncased", use_safetensors=True)
 
         >>> encoding = processor("Hello, my dog is cute", add_special_tokens=False, return_tensors="np")
-        >>> bbox = ms.Tensor([[[0, 0, 1, 1]]]).broadcast_to((1, ms.Tensor(encoding["input_ids"]).shape[-1], 1))
+        >>> bbox = ms.Tensor([[[0, 0, 1, 1]]]).repeat(1, encoding["input_ids"].shape[-1], 1)
         >>> encoding["bbox"] = bbox
 
         >>> outputs = model(input_ids=ms.Tensor(encoding["input_ids"]), bbox=bbox)
@@ -1263,7 +1263,7 @@ class BrosSpadeELForTokenClassification(BrosPreTrainedModel):
         >>> model = BrosSpadeELForTokenClassification.from_pretrained("jinho8345/bros-base-uncased", use_safetensors=True)
 
         >>> encoding = processor("Hello, my dog is cute", add_special_tokens=False, return_tensors="np")
-        >>> bbox = ms.Tensor([[[0, 0, 1, 1]]]).broadcast_to((1, ms.Tensor(encoding["input_ids"]).shape[-1], 1))
+        >>> bbox = ms.Tensor([[[0, 0, 1, 1]]]).repeat(1, encoding["input_ids"].shape[-1], 1)
         >>> encoding["bbox"] = bbox
 
         >>> outputs = model(input_ids=ms.Tensor(encoding["input_ids"]), bbox=bbox)
