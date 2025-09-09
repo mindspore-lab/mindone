@@ -21,6 +21,7 @@ from . import (
     albert,
     aria,
     auto,
+    bamba,
     bart,
     bert,
     big_bird,

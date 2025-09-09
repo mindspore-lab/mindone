@@ -35,6 +35,7 @@ MODEL_MAPPING_NAMES = OrderedDict(
         ("albert", "AlbertModel"),
         ("aria", "AriaForConditionalGeneration"),
         ("aria_text", "AriaTextModel"),
+        ("bamba", "BambaModel"),
         ("bert", "BertModel"),
         ("bart", "BartModel"),
         ("camembert", "CamembertModel"),
@@ -188,6 +189,7 @@ MODEL_FOR_CAUSAL_LM_MAPPING_NAMES = OrderedDict(
     [
         # Model for Causal LM mapping
         ("aria_text", "AriaTextForCausalLM"),
+        ("bamba", "BambaForCausalLM"),
         ("bart", "BartForCausalLM"),
         ("camembert", "CamembertForCausalLM"),
         ("mvp", "MvpForCausalLM"),
