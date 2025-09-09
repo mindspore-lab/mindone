@@ -726,7 +726,7 @@ class BrosRelationExtractor(ms.nn.Cell):
 
         self.key = mint.nn.Linear(self.backbone_hidden_size, self.n_relations * self.head_hidden_size)
 
-        self.dummy_node = ms.Parameter(mint.zeros(1, self.backbone_hidden_size))
+        self.dummy_node = ms.Parameter(mint.zeros((1, self.backbone_hidden_size)))
 
     def construct(self, query_layer: ms.Tensor, key_layer: ms.Tensor):
         query_layer = self.query(self.drop(query_layer))
