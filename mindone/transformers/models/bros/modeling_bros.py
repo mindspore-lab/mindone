@@ -17,18 +17,8 @@
 import math
 from dataclasses import dataclass
 from typing import List, Optional, Tuple, Union
-import mindspore as ms
-from mindspore import mint
-from mindspore.mint.nn import CrossEntropyLoss
 
-from ...activations import ACT2FN
-from ...modeling_outputs import (
-    BaseModelOutputWithPastAndCrossAttentions,
-    BaseModelOutputWithPoolingAndCrossAttentions,
-    TokenClassifierOutput,
-)
-from ...modeling_utils import PreTrainedModel
-from ...mindspore_utils import apply_chunking_to_forward, find_pruneable_heads_and_indices, prune_linear_layer
+from transformers import BrosConfig
 from transformers.utils import (
     ModelOutput,
     add_start_docstrings,
@@ -36,8 +26,21 @@ from transformers.utils import (
     logging,
     replace_return_docstrings,
 )
-from transformers import BrosConfig
+
+import mindspore as ms
+from mindspore import mint
+from mindspore.mint.nn import CrossEntropyLoss
+
 from mindone.transformers.mindspore_adapter.utils import _DTYPE_2_MIN
+
+from ...activations import ACT2FN
+from ...mindspore_utils import apply_chunking_to_forward, find_pruneable_heads_and_indices, prune_linear_layer
+from ...modeling_outputs import (
+    BaseModelOutputWithPastAndCrossAttentions,
+    BaseModelOutputWithPoolingAndCrossAttentions,
+    TokenClassifierOutput,
+)
+from ...modeling_utils import PreTrainedModel
 
 logger = logging.get_logger(__name__)
 
@@ -164,9 +167,7 @@ class BrosPositionalEmbedding1D(ms.nn.Cell):
 
         self.dim_bbox_sinusoid_emb_1d = config.dim_bbox_sinusoid_emb_1d
 
-        inv_freq = 1 / (
-            10000 ** (mint.arange(0.0, self.dim_bbox_sinusoid_emb_1d, 2.0) / self.dim_bbox_sinusoid_emb_1d)
-        )
+        inv_freq = 1 / (10000 ** (mint.arange(0.0, self.dim_bbox_sinusoid_emb_1d, 2.0) / self.dim_bbox_sinusoid_emb_1d))
         self.register_buffer("inv_freq", inv_freq)
 
     def construct(self, pos_seq: ms.Tensor) -> ms.Tensor:
@@ -227,13 +228,16 @@ class BrosTextEmbeddings(ms.nn.Cell):
         self.dropout = mint.nn.Dropout(config.hidden_dropout_prob)
         # position_ids (1, len position emb) is contiguous in memory and exported when serialized
         self.position_embedding_type = getattr(config, "position_embedding_type", "absolute")
-        self.register_buffer("position_ids", mint.arange(config.max_position_embeddings).broadcast_to((1, config.max_position_embeddings)))
+        self.register_buffer(
+            "position_ids",
+            mint.arange(config.max_position_embeddings).broadcast_to((1, config.max_position_embeddings)),
+        )
         self.register_buffer(
             "token_type_ids",
             mint.zeros(
                 self.position_ids.shape,
                 dtype=ms.int64,
-                ),
+            ),
             persistent=False,
         )
 
@@ -261,7 +265,10 @@ class BrosTextEmbeddings(ms.nn.Cell):
                 buffered_token_type_ids_expanded = buffered_token_type_ids.broadcast_to((input_shape[0], seq_length))
                 token_type_ids = buffered_token_type_ids_expanded
             else:
-                token_type_ids = mint.zeros(input_shape, dtype=ms.int64, )
+                token_type_ids = mint.zeros(
+                    input_shape,
+                    dtype=ms.int64,
+                )
 
         if inputs_embeds is None:
             inputs_embeds = self.word_embeddings(input_ids)
@@ -271,7 +278,7 @@ class BrosTextEmbeddings(ms.nn.Cell):
         if self.position_embedding_type == "absolute":
             position_embeddings = self.position_embeddings(position_ids)
             embeddings += position_embeddings
-        embeddings = self.LayerNorm(embeddings)
+        embeddings = self.LayerNorm(embeddings).to(embeddings.dtype)
         embeddings = self.dropout(embeddings)
         return embeddings
 
@@ -297,7 +304,9 @@ class BrosSelfAttention(ms.nn.Cell):
         self.position_embedding_type = getattr(config, "position_embedding_type", "absolute")
         if self.position_embedding_type == "relative_key" or self.position_embedding_type == "relative_key_query":
             self.max_position_embeddings = config.max_position_embeddings
-            self.distance_embedding = mint.nn.Embedding(2 * config.max_position_embeddings - 1, self.attention_head_size)
+            self.distance_embedding = mint.nn.Embedding(
+                2 * config.max_position_embeddings - 1, self.attention_head_size
+            )
 
         self.is_decoder = config.is_decoder
 
@@ -362,8 +371,14 @@ class BrosSelfAttention(ms.nn.Cell):
 
         if self.position_embedding_type == "relative_key" or self.position_embedding_type == "relative_key_query":
             seq_length = hidden_states.shape[1]
-            position_ids_l = mint.arange(seq_length, dtype=ms.int64, ).view(-1, 1)
-            position_ids_r = mint.arange(seq_length, dtype=ms.int64, ).view(1, -1)
+            position_ids_l = mint.arange(
+                seq_length,
+                dtype=ms.int64,
+            ).view(-1, 1)
+            position_ids_r = mint.arange(
+                seq_length,
+                dtype=ms.int64,
+            ).view(1, -1)
             distance = position_ids_l - position_ids_r
             positional_embedding = self.distance_embedding(distance + self.max_position_embeddings - 1)
             positional_embedding = positional_embedding.to(dtype=query_layer.dtype)  # fp16 compatibility
@@ -381,7 +396,7 @@ class BrosSelfAttention(ms.nn.Cell):
         batch_size, n_head, seq_length, d_head = query_layer.shape
         bbox_pos_emb = bbox_pos_emb.view(seq_length, seq_length, batch_size, d_head)
         bbox_pos_emb = bbox_pos_emb.permute([2, 0, 1, 3])
-        bbox_pos_scores = mint.einsum("bnid,bijd->bnij", (query_layer, bbox_pos_emb))
+        bbox_pos_scores = mint.einsum("bnid,bijd->bnij", query_layer, bbox_pos_emb)
 
         attention_scores = attention_scores + bbox_pos_scores
 
@@ -425,7 +440,7 @@ class BrosSelfOutput(ms.nn.Cell):
     def construct(self, hidden_states: ms.Tensor, input_tensor: ms.Tensor) -> ms.Tensor:
         hidden_states = self.dense(hidden_states)
         hidden_states = self.dropout(hidden_states)
-        hidden_states = self.LayerNorm(hidden_states + input_tensor)
+        hidden_states = self.LayerNorm(hidden_states + input_tensor).to(hidden_states.dtype)
         return hidden_states
 
 
@@ -509,7 +524,7 @@ class BrosOutput(ms.nn.Cell):
     def construct(self, hidden_states: ms.Tensor, input_tensor: ms.Tensor) -> ms.Tensor:
         hidden_states = self.dense(hidden_states)
         hidden_states = self.dropout(hidden_states)
-        hidden_states = self.LayerNorm(hidden_states + input_tensor)
+        hidden_states = self.LayerNorm(hidden_states + input_tensor).to(hidden_states.dtype)
         return hidden_states
 
 
@@ -856,7 +871,9 @@ class BrosModel(BrosPreTrainedModel):
         past_key_values_length = past_key_values[0][0].shape[2] if past_key_values is not None else 0
 
         if attention_mask is None:
-            attention_mask = mint.ones(input_shape, )
+            attention_mask = mint.ones(
+                input_shape,
+            )
 
         if token_type_ids is None:
             if hasattr(self.embeddings, "token_type_ids"):
@@ -864,7 +881,10 @@ class BrosModel(BrosPreTrainedModel):
                 buffered_token_type_ids_expanded = buffered_token_type_ids.broadcast_to((batch_size, seq_length))
                 token_type_ids = buffered_token_type_ids_expanded
             else:
-                token_type_ids = mint.zeros(input_shape, dtype=ms.int64, )
+                token_type_ids = mint.zeros(
+                    input_shape,
+                    dtype=ms.int64,
+                )
 
         # We can provide a self-attention mask of dimensions [batch_size, from_seq_length, to_seq_length]
         # ourselves in which case we just need to make it broadcastable to all heads.
@@ -876,7 +896,9 @@ class BrosModel(BrosPreTrainedModel):
             encoder_batch_size, encoder_sequence_length, _ = encoder_hidden_states.shape
             encoder_hidden_shape = (encoder_batch_size, encoder_sequence_length)
             if encoder_attention_mask is None:
-                encoder_attention_mask = mint.ones(encoder_hidden_shape, )
+                encoder_attention_mask = mint.ones(
+                    encoder_hidden_shape,
+                )
             encoder_extended_attention_mask = self.invert_attention_mask(encoder_attention_mask)
         else:
             encoder_extended_attention_mask = None
