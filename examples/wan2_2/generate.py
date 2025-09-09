@@ -2,23 +2,24 @@
 import argparse
 import logging
 import os
+import random
 import sys
-import warnings
 from datetime import datetime
 
-warnings.filterwarnings("ignore")
+from PIL import Image
 
-import random
+import mindspore as ms
+import mindspore.mint.distributed as dist
+
+__dir__ = os.path.dirname(os.path.abspath(__file__))
+mindone_lib_path = os.path.abspath(os.path.join(__dir__, "../../"))
+sys.path.insert(0, mindone_lib_path)
 
 import wan
-from PIL import Image
 from wan.configs import MAX_AREA_CONFIGS, SIZE_CONFIGS, SUPPORTED_SIZES, WAN_CONFIGS
 from wan.distributed.util import init_distributed_group
 from wan.utils.prompt_extend import QwenPromptExpander
 from wan.utils.utils import merge_video_audio, save_video, str2bool
-
-import mindspore as ms
-import mindspore.mint.distributed as dist
 
 EXAMPLE_PROMPT = {
     "t2v-A14B": {
