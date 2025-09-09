@@ -16,8 +16,7 @@ from tests.modeling_test_utils import (
     generalized_parse_args,
     get_modules,
 )
-from tests.transformers_tests.models.modeling_common import ids_numpy, floats_numpy
-
+from tests.transformers_tests.models.modeling_common import floats_numpy, ids_numpy
 
 DTYPE_AND_THRESHOLDS = {"fp32": 5e-4, "fp16": 5e-3, "bf16": 6e-3}
 # To avoid current graph-mode limitations, test in pynative mode only
@@ -128,8 +127,9 @@ class AltCLIPModelTester:
             hidden_act=self.vision_hidden_act,
             attention_dropout=self.vision_attention_dropout,
         )
-        config = AltCLIPConfig.from_text_vision_configs(text_cfg, vision_cfg, projection_dim=self.projection_dim,
-                                                        logit_scale_init_value=self.logit_scale_init_value)
+        config = AltCLIPConfig.from_text_vision_configs(
+            text_cfg, vision_cfg, projection_dim=self.projection_dim, logit_scale_init_value=self.logit_scale_init_value
+        )
         return config, text_cfg, vision_cfg, input_ids, attention_mask, pixel_values
 
 
@@ -169,21 +169,14 @@ ALTCLIP_CASES = [
         {},
         (),
         {"input_ids": input_ids, "attention_mask": attention_mask, "pixel_values": pixel_values},
-        {"logits_per_image": 1, "logits_per_text": 2},
+        {"logits_per_image": 0, "logits_per_text": 1},
     ],
 ]
 
 
 @pytest.mark.parametrize(
     "name,pt_module,ms_module,init_args,init_kwargs,inputs_args,inputs_kwargs,outputs_map,dtype,mode",
-    [
-        case
-        + [dtype]
-        + [mode]
-        for case in ALTCLIP_CASES
-        for dtype in DTYPE_AND_THRESHOLDS.keys()
-        for mode in MODES
-    ],
+    [case + [dtype] + [mode] for case in ALTCLIP_CASES for dtype in DTYPE_AND_THRESHOLDS.keys() for mode in MODES],
 )
 def test_named_modules(
     name,
@@ -236,6 +229,6 @@ def test_named_modules(
         diffs = compute_diffs(pt_outputs, ms_outputs)
 
     THRESHOLD = DTYPE_AND_THRESHOLDS[ms_dtype]
-    assert (np.array(diffs) < THRESHOLD).all(), (
-        f"ms_dtype: {ms_dtype}, pt_type:{pt_dtype}, Outputs({np.array(diffs).tolist()}) has diff bigger than {THRESHOLD}"
-    )
+    assert (
+        np.array(diffs) < THRESHOLD
+    ).all(), f"ms_dtype: {ms_dtype}, pt_type:{pt_dtype}, Outputs({np.array(diffs).tolist()}) has diff bigger than {THRESHOLD}"

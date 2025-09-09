@@ -14,17 +14,19 @@
 # limitations under the License.
 
 """MindSpore AltCLIP model."""
-import mindspore as ms
-from mindspore import mint
-from mindspore.common.initializer import Constant, Normal, initializer
-
 import math
 from dataclasses import dataclass
 from typing import Any, List, Optional, Tuple, Union
 
+from transformers import AltCLIPConfig, AltCLIPTextConfig, AltCLIPVisionConfig
+from transformers.utils import ModelOutput, add_start_docstrings_to_model_forward, logging, replace_return_docstrings
+
 import mindspore as ms
+from mindspore import mint
+from mindspore.common.initializer import Constant, Normal, initializer
 
 from ...activations import ACT2FN
+from ...mindspore_utils import apply_chunking_to_forward, find_pruneable_heads_and_indices, prune_linear_layer
 from ...modeling_outputs import (
     BaseModelOutput,
     BaseModelOutputWithPastAndCrossAttentions,
@@ -33,10 +35,6 @@ from ...modeling_outputs import (
     BaseModelOutputWithPoolingAndProjection,
 )
 from ...modeling_utils import PreTrainedModel
-from ...mindspore_utils import apply_chunking_to_forward, find_pruneable_heads_and_indices, prune_linear_layer
-from transformers.utils import ModelOutput, add_start_docstrings_to_model_forward, logging, replace_return_docstrings
-from transformers import AltCLIPConfig, AltCLIPTextConfig, AltCLIPVisionConfig
-
 
 logger = logging.get_logger(__name__)
 
@@ -149,7 +147,12 @@ ALTCLIP_INPUTS_DOCSTRING = r"""
 # contrastive loss function, adapted from
 # https://sachinruk.github.io/blog/pytorch/pytorch%20lightning/loss%20function/gpu/2021/03/07/CLIP.html
 def contrastive_loss(logits: ms.Tensor) -> ms.Tensor:
-    return mint.nn.functional.cross_entropy(logits, mint.arange(len(logits), ))
+    return mint.nn.functional.cross_entropy(
+        logits,
+        mint.arange(
+            len(logits),
+        ),
+    )
 
 
 def clip_loss(similarity: ms.Tensor) -> ms.Tensor:
@@ -252,11 +255,14 @@ class AltRobertaEmbeddings(ms.nn.Cell):
         if token_type_ids is None:
             if hasattr(self, "token_type_ids"):
                 buffered_token_type_ids = self.token_type_ids[:, :seq_length]
-                token_type_ids = (
-                    buffered_token_type_ids.reshape(1, seq_length).broadcast_to((input_shape[0], seq_length))
+                token_type_ids = buffered_token_type_ids.reshape(1, seq_length).broadcast_to(
+                    (input_shape[0], seq_length)
                 )
             else:
-                token_type_ids = mint.zeros(input_shape, dtype=ms.int64, )
+                token_type_ids = mint.zeros(
+                    input_shape,
+                    dtype=ms.int64,
+                )
 
         if inputs_embeds is None:
             inputs_embeds = self.word_embeddings(input_ids)
@@ -309,12 +315,12 @@ class AltRobertaSelfAttention(ms.nn.Cell):
         self.value = mint.nn.Linear(config.hidden_size, self.all_head_size)
 
         self.dropout = mint.nn.Dropout(config.attention_probs_dropout_prob)
-        self.position_embedding_type = position_embedding_type or getattr(
-            config, "position_embedding_type", "absolute"
-        )
+        self.position_embedding_type = position_embedding_type or getattr(config, "position_embedding_type", "absolute")
         if self.position_embedding_type == "relative_key" or self.position_embedding_type == "relative_key_query":
             self.max_position_embeddings = config.max_position_embeddings
-            self.distance_embedding = mint.nn.Embedding(2 * config.max_position_embeddings - 1, self.attention_head_size)
+            self.distance_embedding = mint.nn.Embedding(
+                2 * config.max_position_embeddings - 1, self.attention_head_size
+            )
 
         self.is_decoder = config.is_decoder
 
@@ -377,12 +383,19 @@ class AltRobertaSelfAttention(ms.nn.Cell):
         if self.position_embedding_type == "relative_key" or self.position_embedding_type == "relative_key_query":
             query_length, key_length = query_layer.shape[2], key_layer.shape[2]
             if use_cache:
-                position_ids_l = ms.Tensor(key_length - 1, dtype=ms.int64, ).view(
-                    -1, 1
-                )
+                position_ids_l = ms.Tensor(
+                    key_length - 1,
+                    dtype=ms.int64,
+                ).view(-1, 1)
             else:
-                position_ids_l = mint.arange(query_length, dtype=ms.int64, ).view(-1, 1)
-            position_ids_r = mint.arange(key_length, dtype=ms.int64, ).view(1, -1)
+                position_ids_l = mint.arange(
+                    query_length,
+                    dtype=ms.int64,
+                ).view(-1, 1)
+            position_ids_r = mint.arange(
+                key_length,
+                dtype=ms.int64,
+            ).view(1, -1)
             distance = position_ids_l - position_ids_r
 
             positional_embedding = self.distance_embedding(distance + self.max_position_embeddings - 1)
@@ -963,9 +976,7 @@ class AltCLIPEncoder(ms.nn.Cell):
 
         if not return_dict:
             return tuple(v for v in [hidden_states, encoder_states, all_attentions] if v is not None)
-        return BaseModelOutput(
-            last_hidden_state=hidden_states, hidden_states=encoder_states, attentions=all_attentions
-        )
+        return BaseModelOutput(last_hidden_state=hidden_states, hidden_states=encoder_states, attentions=all_attentions)
 
 
 # Copied from transformers.models.clip.modeling_clip.CLIPVisionEmbeddings with CLIP->AltCLIP
@@ -991,9 +1002,7 @@ class AltCLIPVisionEmbeddings(ms.nn.Cell):
         self.num_positions = self.num_patches + 1
         self.position_embedding = mint.nn.Embedding(self.num_positions, self.embed_dim)
         pos_ids = mint.arange(self.num_positions)
-        self.register_buffer(
-            "position_ids", pos_ids.unsqueeze(0).broadcast_to((1, pos_ids.shape[0])), persistent=False
-        )
+        self.register_buffer("position_ids", pos_ids.unsqueeze(0).broadcast_to((1, pos_ids.shape[0])), persistent=False)
 
     def interpolate_pos_encoding(self, embeddings: ms.Tensor, height: int, width: int) -> ms.Tensor:
         """
@@ -1072,13 +1081,25 @@ class AltCLIPPreTrainedModel(PreTrainedModel):
         if isinstance(module, AltCLIPVisionEmbeddings):
             factor = self.config.initializer_factor
             module.class_embedding.set_data(
-                initializer(Normal(module.embed_dim**-0.5 * factor, 0.0), module.class_embedding.shape, module.class_embedding.dtype)
+                initializer(
+                    Normal(module.embed_dim**-0.5 * factor, 0.0),
+                    module.class_embedding.shape,
+                    module.class_embedding.dtype,
+                )
             )
             module.patch_embedding.weight.set_data(
-                initializer(Normal(module.config.initializer_range * factor, 0.0), module.patch_embedding.weight.shape, module.patch_embedding.weight.dtype)
+                initializer(
+                    Normal(module.config.initializer_range * factor, 0.0),
+                    module.patch_embedding.weight.shape,
+                    module.patch_embedding.weight.dtype,
+                )
             )
             module.position_embedding.weight.set_data(
-                initializer(Normal(module.config.initializer_range * factor, 0.0), module.position_embedding.weight.shape, module.position_embedding.weight.dtype)
+                initializer(
+                    Normal(module.config.initializer_range * factor, 0.0),
+                    module.position_embedding.weight.shape,
+                    module.position_embedding.weight.dtype,
+                )
             )
         elif isinstance(module, AltCLIPAttention):
             factor = self.config.initializer_factor
@@ -1108,17 +1129,25 @@ class AltCLIPPreTrainedModel(PreTrainedModel):
             )
         elif isinstance(module, AltCLIPModel):
             module.text_projection.weight.set_data(
-                initializer(Normal(module.text_embed_dim**-0.5 * self.config.initializer_factor, 0.0), module.text_projection.weight.shape, module.text_projection.weight.dtype)
+                initializer(
+                    Normal(module.text_embed_dim**-0.5 * self.config.initializer_factor, 0.0),
+                    module.text_projection.weight.shape,
+                    module.text_projection.weight.dtype,
+                )
             )
             module.text_projection._is_hf_initialized = True
             module.visual_projection.weight.set_data(
-                initializer(Normal(module.vision_embed_dim**-0.5 * self.config.initializer_factor, 0.0), module.visual_projection.weight.shape, module.visual_projection.weight.dtype)
+                initializer(
+                    Normal(module.vision_embed_dim**-0.5 * self.config.initializer_factor, 0.0),
+                    module.visual_projection.weight.shape,
+                    module.visual_projection.weight.dtype,
+                )
             )
             module.visual_projection._is_hf_initialized = True
         elif isinstance(module, mint.nn.LayerNorm):
-            if hasattr(module, 'bias') and module.bias is not None:
+            if hasattr(module, "bias") and module.bias is not None:
                 module.bias.set_data(initializer(Constant(0.0), module.bias.shape, module.bias.dtype))
-            if hasattr(module, 'weight') and module.weight is not None:
+            if hasattr(module, "weight") and module.weight is not None:
                 module.weight.set_data(initializer(Constant(1.0), module.weight.shape, module.weight.dtype))
         elif isinstance(module, mint.nn.Linear):
             module.weight.set_data(
@@ -1227,7 +1256,8 @@ class AltCLIPVisionModel(AltCLIPPreTrainedModel):
         >>> from PIL import Image
         >>> import requests
         >>> import mindspore as ms
-        >>> from mindone.transformers import AutoProcessor, AltCLIPVisionModel
+        >>> from mindone.transformers import AltCLIPVisionModel
+        >>> from transformers import AutoProcessor
 
         >>> model = AltCLIPVisionModel.from_pretrained("BAAI/AltCLIP")
         >>> processor = AutoProcessor.from_pretrained("BAAI/AltCLIP")
@@ -1361,16 +1391,19 @@ class AltRobertaModel(AltCLIPPreTrainedModel):
         past_key_values_length = past_key_values[0][0].shape[2] if past_key_values is not None else 0
 
         if attention_mask is None:
-            attention_mask = mint.ones(((batch_size, seq_length + past_key_values_length)), )
+            attention_mask = mint.ones(
+                ((batch_size, seq_length + past_key_values_length)),
+            )
 
         if token_type_ids is None:
             if hasattr(self.embeddings, "token_type_ids"):
                 buffered_token_type_ids = self.embeddings.token_type_ids[:, :seq_length]
-                token_type_ids = (
-                    buffered_token_type_ids.broadcast_to((batch_size, seq_length))
-                )
+                token_type_ids = buffered_token_type_ids.broadcast_to((batch_size, seq_length))
             else:
-                token_type_ids = mint.zeros(input_shape, dtype=ms.int64, )
+                token_type_ids = mint.zeros(
+                    input_shape,
+                    dtype=ms.int64,
+                )
 
         # We can provide a self-attention mask of dimensions [batch_size, from_seq_length, to_seq_length]
         # ourselves in which case we just need to make it broadcastable to all heads.
@@ -1382,7 +1415,9 @@ class AltRobertaModel(AltCLIPPreTrainedModel):
             encoder_batch_size, encoder_sequence_length, _ = encoder_hidden_states.shape
             encoder_hidden_shape = (encoder_batch_size, encoder_sequence_length)
             if encoder_attention_mask is None:
-                encoder_attention_mask = mint.ones(encoder_hidden_shape, )
+                encoder_attention_mask = mint.ones(
+                    encoder_hidden_shape,
+                )
             encoder_extended_attention_mask = self.invert_attention_mask(encoder_attention_mask)
         else:
             encoder_extended_attention_mask = None
@@ -1470,7 +1505,8 @@ class AltCLIPTextModel(AltCLIPPreTrainedModel):
         Examples:
 
         ```python
-        >>> from mindone.transformers import AutoProcessor, AltCLIPTextModel
+        >>> from mindone.transformers import AltCLIPTextModel
+        >>> from transformers import AutoProcessor
         >>> import mindspore as ms
 
         >>> model = AltCLIPTextModel.from_pretrained("BAAI/AltCLIP")
@@ -1575,7 +1611,8 @@ class AltCLIPModel(AltCLIPPreTrainedModel):
         Examples:
 
         ```python
-        >>> from mindone.transformers import AutoProcessor, AltCLIPModel
+        >>> from mindone.transformers import AltCLIPModel
+        >>> from transformers import AutoProcessor
 
         >>> model = AltCLIPModel.from_pretrained("BAAI/AltCLIP")
         >>> processor = AutoProcessor.from_pretrained("BAAI/AltCLIP")
@@ -1622,13 +1659,16 @@ class AltCLIPModel(AltCLIPPreTrainedModel):
         ```python
         >>> from PIL import Image
         >>> import requests
-        >>> from mindone.transformers import AutoProcessor, AltCLIPModel
+        >>> from mindone.transformers import AltCLIPModel
+        >>> import mindspore as ms
+        >>> from transformers import AutoProcessor
 
         >>> model = AltCLIPModel.from_pretrained("BAAI/AltCLIP")
         >>> processor = AutoProcessor.from_pretrained("BAAI/AltCLIP")
         >>> url = "http://images.cocodataset.org/val2017/000000039769.jpg"
         >>> image = Image.open(requests.get(url, stream=True).raw)
         >>> inputs = processor(images=image, return_tensors="np")
+        >>> inputs = {k: ms.tensor(v) for k, v in inputs.items()}
         >>> image_features = model.get_image_features(**inputs)
         ```"""
         # Use AltCLIP model's config for some fields (if specified) instead of those of vision & text components.
@@ -1674,7 +1714,9 @@ class AltCLIPModel(AltCLIPPreTrainedModel):
         ```python
         >>> from PIL import Image
         >>> import requests
-        >>> from mindone.transformers import AutoProcessor, AltCLIPModel
+        >>> from mindone.transformers import AltCLIPModel
+        >>> import mindspore as ms
+        >>> from transformers import AutoProcessor
 
         >>> model = AltCLIPModel.from_pretrained("BAAI/AltCLIP")
         >>> processor = AutoProcessor.from_pretrained("BAAI/AltCLIP")
@@ -1683,6 +1725,7 @@ class AltCLIPModel(AltCLIPPreTrainedModel):
         >>> inputs = processor(
         ...     text=["a photo of a cat", "a photo of a dog"], images=image, return_tensors="np", padding=True
         ... )
+        >>> inputs = {k: ms.tensor(v) for k, v in inputs.items()}
         >>> outputs = model(**inputs)
         >>> logits_per_image = outputs.logits_per_image  # this is the image-text similarity score
         >>> probs = logits_per_image.softmax(dim=1)  # we can take the softmax to get the label probabilities
@@ -1719,7 +1762,7 @@ class AltCLIPModel(AltCLIPPreTrainedModel):
         text_embeds = self.text_projection(text_embeds)
 
         # normalized features
-        image_embeds = image_embeds / image_embeds.norm( dim=-1, keepdim=True)
+        image_embeds = image_embeds / image_embeds.norm(dim=-1, keepdim=True)
         text_embeds = text_embeds / text_embeds.norm(dim=-1, keepdim=True)
 
         # cosine similarity as logits
