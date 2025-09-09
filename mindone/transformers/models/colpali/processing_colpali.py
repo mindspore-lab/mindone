@@ -25,14 +25,14 @@
 
 from typing import ClassVar, List, Optional, Union
 
+from transformers.tokenization_utils_base import AddedToken, PreTokenizedInput, TextInput
+
 import mindspore as ms
 from mindspore import mint
-import numpy as np
 
 from ...feature_extraction_utils import BatchFeature
 from ...image_utils import ImageInput, is_valid_image, make_flat_list_of_images
 from ...processing_utils import ProcessingKwargs, ProcessorMixin, Unpack
-from ...tokenization_utils_base import AddedToken, PreTokenizedInput, TextInput
 
 
 class ColPaliProcessorKwargs(ProcessingKwargs, total=False):
@@ -72,6 +72,7 @@ def build_string_from_input(prompt, bos_token, image_seq_len, image_token, num_i
         num_images (`int`): Number of images in the prompt.
     """
     return f"{image_token * image_seq_len * num_images}{bos_token}{prompt}\n"
+
 
 # Adapted from https://github.com/pytorch/pytorch/blob/v2.8.0/torch/nn/utils/rnn.py#L414
 # Copied from examples\transformers\qwen2_5_vl\qwenvl\data\data_qwen.py
@@ -125,7 +126,7 @@ def pad_sequence(
     else:
         out_dims = (max_len, len(sequences)) + trailing_dims
 
-    out_tensor = np.full(out_dims, padding_value, dtype=sequences[0].dtype)
+    out_tensor = mint.full(out_dims, padding_value, dtype=sequences[0].dtype)
     for i, tensor in enumerate(sequences):
         length = tensor.shape[0]
         # use index notation to prevent duplicate references to the tensor
@@ -141,6 +142,7 @@ def pad_sequence(
                 out_tensor[-length:, i, ...] = tensor
 
     return out_tensor
+
 
 class ColPaliProcessor(ProcessorMixin):
     r"""
@@ -245,6 +247,8 @@ class ColPaliProcessor(ProcessorMixin):
             tokenizer_init_kwargs=self.tokenizer.init_kwargs,
             **kwargs,
         )
+        output_kwargs["text_kwargs"].pop("return_tensors", None)  # not support `ms`
+        return_tensors = kwargs.get("return_tensors", None)
         suffix = output_kwargs["text_kwargs"].pop("suffix", None)
 
         return_token_type_ids = True if suffix is not None else False
@@ -294,7 +298,7 @@ class ColPaliProcessor(ProcessorMixin):
                 labels = inputs["input_ids"].masked_fill(inputs["token_type_ids"] == 0, -100)
                 return_data.update({"labels": labels})
 
-            return BatchFeature(data=return_data)
+            return BatchFeature(data=return_data, tensor_type=return_tensors)
 
         elif text is not None:
             if isinstance(text, str):
@@ -320,7 +324,7 @@ class ColPaliProcessor(ProcessorMixin):
                 **output_kwargs["text_kwargs"],
             )
 
-            return batch_query
+            return BatchFeature(data=batch_query, tensor_type=return_tensors)
 
     def batch_decode(self, *args, **kwargs):
         """
@@ -460,13 +464,9 @@ class ColPaliProcessor(ProcessorMixin):
 
         for i in range(0, len(query_embeddings), batch_size):
             batch_scores: List[ms.Tensor] = []
-            batch_queries = pad_sequence(
-                query_embeddings[i : i + batch_size], batch_first=True, padding_value=0
-            )
+            batch_queries = pad_sequence(query_embeddings[i : i + batch_size], batch_first=True, padding_value=0)
             for j in range(0, len(passage_embeddings), batch_size):
-                batch_passages = pad_sequence(
-                    passage_embeddings[j : j + batch_size], batch_first=True, padding_value=0
-                )
+                batch_passages = pad_sequence(passage_embeddings[j : j + batch_size], batch_first=True, padding_value=0)
                 batch_scores.append(
                     mint.einsum("bnd,csd->bcns", batch_queries, batch_passages).max(dim=3)[0].sum(dim=2)
                 )

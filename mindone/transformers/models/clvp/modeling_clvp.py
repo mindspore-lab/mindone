@@ -134,7 +134,7 @@ def _pad_extra_bos_eos_tokens(
             if isin_mps_friendly(each_input_id, ms.tensor(pad_token_id)).sum():
                 pos = mint.where(each_input_id == pad_token_id)[0].min()
                 modified_input_ids[i] = mint.concat(
-                    [each_input_id[:pos], ms.tensor([eos_token_id]), each_input_id[pos:]]
+                    [each_input_id[:pos], ms.tensor([eos_token_id], dtype=input_ids.dtype), each_input_id[pos:]]
                 )
             else:
                 # if there are no pad tokens present, then add eos to the end
@@ -251,7 +251,7 @@ class ClvpRotaryPositionalEmbedding(nn.Cell):
     def __init__(self, config):
         super().__init__()
         dim = max(config.projection_dim // (config.num_attention_heads * 2), 32)
-        inv_freq = 1.0 / (10000 ** (mint.arange(0, dim, 2, dtype=ms.int64).float() / dim))
+        inv_freq = 1.0 / (10000 ** (mint.arange(0, dim, 2, dtype=ms.int32).float() / dim))
 
         self.register_buffer("inv_freq", inv_freq)
         self.cached_sequence_length = None
@@ -653,7 +653,7 @@ class ClvpConditioningEncoder(nn.Cell):
 
         # construct attention mask if not given
         if attention_mask is None:
-            attention_mask = mint.ones([batch_size, seq_length], dtype=ms.int64)
+            attention_mask = mint.ones([batch_size, seq_length], dtype=ms.int32)
 
         # We add bos and eos input_ids in the modeling file instead of the tokenizer file to keep the logic simple
         # This logic is specific to ClvpConditioningEncoder and not used by other modules.
@@ -953,7 +953,7 @@ class ClvpEncoder(ClvpPreTrainedModel):
             attention_mask = _prepare_4d_attention_mask(attention_mask, inputs_embeds.dtype)
 
         if position_ids is None:
-            position_ids = mint.arange(input_shape[1], dtype=ms.int64)
+            position_ids = mint.arange(input_shape[1], dtype=ms.int32)
             position_ids = position_ids.unsqueeze(0)
 
         encoder_states = () if output_hidden_states else None
@@ -1084,7 +1084,7 @@ class ClvpDecoder(ClvpPreTrainedModel):
         else:
             past_key_values_length = past_key_values[0][0].shape[-2]
         if position_ids is None:
-            position_ids = mint.arange(past_key_values_length, input_shape[-1] + past_key_values_length, dtype=ms.int64)
+            position_ids = mint.arange(past_key_values_length, input_shape[-1] + past_key_values_length, dtype=ms.int32)
             position_ids = position_ids.unsqueeze(0).view(-1, input_shape[-1])
 
         if inputs_embeds is None:
@@ -1313,13 +1313,13 @@ class ClvpForCausalLM(ClvpPreTrainedModel, GenerationMixin):
                 position_ids = model_kwargs["attention_mask"].long().cumsum(-1) - 1
             else:
                 position_ids = ops.range(
-                    0, conditioning_embeds.shape[1] - 1, step=1
+                    0, conditioning_embeds.shape[1], step=1
                 )  # NOTE: usage different from torch.range
             position_ids = position_ids.unsqueeze(0).tile((conditioning_embeds.shape[0], 1))
 
             model_kwargs["inputs_embeds"] = conditioning_embeds - self.model.decoder.position_embeds_layer(position_ids)
             model_kwargs["input_ids"] = (
-                mint.ones((model_kwargs["inputs_embeds"].shape[0], 1), dtype=ms.int64) * self.config.bos_token_id
+                mint.ones((model_kwargs["inputs_embeds"].shape[0], 1), dtype=ms.int32) * self.config.bos_token_id
             )
 
             return model_kwargs["inputs_embeds"], "inputs_embeds", model_kwargs
@@ -1362,7 +1362,7 @@ class ClvpForCausalLM(ClvpPreTrainedModel, GenerationMixin):
             position_ids = None
 
         if conditioning_embeds is not None and past_key_values is not None:
-            position_ids = ms.tensor([input_ids_length], dtype=ms.int64)
+            position_ids = ms.tensor([input_ids_length], dtype=ms.int32)
 
         # if `inputs_embeds` are passed, we only want to use them in the 1st generation step
         if inputs_embeds is not None and past_key_values is None:
@@ -1532,7 +1532,7 @@ class ClvpModelForConditionalGeneration(ClvpPreTrainedModel, GenerationMixin):
             stm = each_seq_stop_token_index.argmax()
             speech_ids[i, stm:] = decoder_fixing_codes[0]
             if stm - 3 < speech_ids.shape[1]:
-                speech_ids[i, -3:] = ms.tensor([decoder_fixing_codes[1:]], dtype=ms.int64)
+                speech_ids[i, -3:] = ms.tensor([decoder_fixing_codes[1:]], dtype=ms.int32)
 
         return speech_ids
 

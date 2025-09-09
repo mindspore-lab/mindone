@@ -254,7 +254,7 @@ from .models.clvp import (
     ClvpPreTrainedModel,
 )
 from .models.cohere2 import Cohere2ForCausalLM, Cohere2Model, Cohere2PreTrainedModel
-from .models.colpali import ColPaliForRetrieval, ColPaliPreTrainedModel
+from .models.colpali import ColPaliForRetrieval, ColPaliPreTrainedModel, ColPaliProcessor
 from .models.convbert import (
     ConvBertForMaskedLM,
     ConvBertForMultipleChoice,

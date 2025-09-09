@@ -216,7 +216,7 @@ class ColPaliForRetrieval(ColPaliPreTrainedModel):
 
 
         >>> # Load the model and the processor
-        >>> model_name = "vidore/colpali-v1.3-hf"
+        >>> model_name = "vidore/colpali-v1.2-hf"
 
         >>> model = ColPaliForRetrieval.from_pretrained(
         ...     model_name,
