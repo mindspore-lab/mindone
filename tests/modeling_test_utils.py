@@ -236,6 +236,9 @@ def get_modules(pt_module, ms_module, dtype, *args, **kwargs):
 
 
 def set_dtype(model, dtype):
+    for _, v in model.named_buffers():
+        if ops.is_floating_point(v):
+            v.set_dtype(dtype)
     for p in model.get_parameters():
         if ops.is_floating_point(p):
             p = p.set_dtype(dtype)
@@ -350,7 +353,8 @@ def compute_diffs(pt_outputs: Union[torch.Tensor, np.ndarray], ms_outputs: Union
                 m = m.asnumpy()
             # relative error defined by Frobenius norm
             # dist(x, y) := ||x - y|| / ||y||, where ||·|| means Frobenius norm
-            d = np.linalg.norm(p - m) / np.linalg.norm(p)
+            eps = 1e-9 if np.all(m == 0) and np.all(p == 0) else 0
+            d = np.linalg.norm(p - m) / (np.linalg.norm(p) + eps)
             diffs.append(d)
 
     return diffs
