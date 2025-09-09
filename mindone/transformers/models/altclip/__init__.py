@@ -1,1 +1,1 @@
-from .modeling_altclip import AltCLIPPreTrainedModel, AltCLIPTextModel, AltCLIPVisionModel, AltCLIPModel
+from .modeling_altclip import AltCLIPModel, AltCLIPPreTrainedModel, AltCLIPTextModel, AltCLIPVisionModel
