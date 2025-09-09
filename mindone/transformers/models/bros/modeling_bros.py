@@ -829,7 +829,8 @@ class BrosModel(BrosPreTrainedModel):
 
         ```python
         >>> import mindspore as ms
-        >>> from mindone.transformers import BrosProcessor, BrosModel
+        >>> from mindone.transformers import BrosModel
+        >>> from transformers import BrosProcessor
 
         >>> processor = BrosProcessor.from_pretrained("jinho8345/bros-base-uncased")
 
@@ -1001,7 +1002,8 @@ class BrosForTokenClassification(BrosPreTrainedModel):
 
         ```python
         >>> import mindspore as ms
-        >>> from mindone.transformers import BrosProcessor, BrosForTokenClassification
+        >>> from mindone.transformers import BrosForTokenClassification
+        >>> from transformers import BrosProcessor
 
         >>> processor = BrosProcessor.from_pretrained("jinho8345/bros-base-uncased")
 
@@ -1120,7 +1122,8 @@ class BrosSpadeEEForTokenClassification(BrosPreTrainedModel):
 
         ```python
         >>> import mindspore as ms
-        >>> from mindone.transformers import BrosProcessor, BrosSpadeEEForTokenClassification
+        >>> from mindone.transformers import BrosSpadeEEForTokenClassification
+        >>> from transformers import BrosProcessor
 
         >>> processor = BrosProcessor.from_pretrained("jinho8345/bros-base-uncased")
 
@@ -1251,7 +1254,8 @@ class BrosSpadeELForTokenClassification(BrosPreTrainedModel):
 
         ```python
         >>> import mindspore as ms
-        >>> from mindone.transformers import BrosProcessor, BrosSpadeELForTokenClassification
+        >>> from mindone.transformers import BrosSpadeELForTokenClassification
+        >>> from transformers import BrosProcessor
 
         >>> processor = BrosProcessor.from_pretrained("jinho8345/bros-base-uncased")
 
