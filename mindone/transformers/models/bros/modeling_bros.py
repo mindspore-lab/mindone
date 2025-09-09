@@ -577,7 +577,8 @@ class BrosLayer(ms.nn.Cell):
         if self.is_decoder and encoder_hidden_states is not None:
             if hasattr(self, "crossattention"):
                 raise Exception(
-                    f"If `encoder_hidden_states` are passed, {self} has to be instantiated with cross-attention layers by setting `config.add_cross_attention=True`"
+                    f"If `encoder_hidden_states` are passed, {self} has to be\
+                         instantiated with cross-attention layers by setting `config.add_cross_attention=True`"
                 )
 
             # cross_attn cached key/values tuple is at positions 3,4 of past_key_value tuple
@@ -834,7 +835,7 @@ class BrosModel(BrosPreTrainedModel):
 
         >>> processor = BrosProcessor.from_pretrained("jinho8345/bros-base-uncased")
 
-        >>> model = BrosModel.from_pretrained("jinho8345/bros-base-uncased")
+        >>> model = BrosModel.from_pretrained("jinho8345/bros-base-uncased", use_safetensors=True)
 
         >>> encoding = processor("Hello, my dog is cute", add_special_tokens=False, return_tensors="np")
         >>> bbox = ms.Tensor([[[0, 0, 1, 1]]]).broadcast_to((1, ms.Tensor(encoding["input_ids"]).shape[-1], 1))
@@ -1007,7 +1008,7 @@ class BrosForTokenClassification(BrosPreTrainedModel):
 
         >>> processor = BrosProcessor.from_pretrained("jinho8345/bros-base-uncased")
 
-        >>> model = BrosForTokenClassification.from_pretrained("jinho8345/bros-base-uncased")
+        >>> model = BrosForTokenClassification.from_pretrained("jinho8345/bros-base-uncased", use_safetensors=True)
 
         >>> encoding = processor("Hello, my dog is cute", add_special_tokens=False, return_tensors="np")
         >>> bbox = ms.Tensor([[[0, 0, 1, 1]]]).broadcast_to((1, ms.Tensor(encoding["input_ids"]).shape[-1], 1))
@@ -1127,7 +1128,7 @@ class BrosSpadeEEForTokenClassification(BrosPreTrainedModel):
 
         >>> processor = BrosProcessor.from_pretrained("jinho8345/bros-base-uncased")
 
-        >>> model = BrosSpadeEEForTokenClassification.from_pretrained("jinho8345/bros-base-uncased")
+        >>> model = BrosSpadeEEForTokenClassification.from_pretrained("jinho8345/bros-base-uncased", use_safetensors=True)
 
         >>> encoding = processor("Hello, my dog is cute", add_special_tokens=False, return_tensors="np")
         >>> bbox = ms.Tensor([[[0, 0, 1, 1]]]).broadcast_to((1, ms.Tensor(encoding["input_ids"]).shape[-1], 1))
@@ -1259,7 +1260,7 @@ class BrosSpadeELForTokenClassification(BrosPreTrainedModel):
 
         >>> processor = BrosProcessor.from_pretrained("jinho8345/bros-base-uncased")
 
-        >>> model = BrosSpadeELForTokenClassification.from_pretrained("jinho8345/bros-base-uncased")
+        >>> model = BrosSpadeELForTokenClassification.from_pretrained("jinho8345/bros-base-uncased", use_safetensors=True)
 
         >>> encoding = processor("Hello, my dog is cute", add_special_tokens=False, return_tensors="np")
         >>> bbox = ms.Tensor([[[0, 0, 1, 1]]]).broadcast_to((1, ms.Tensor(encoding["input_ids"]).shape[-1], 1))
