@@ -121,15 +121,11 @@ def _flash_attention_forward(
     if sliding_window is not None:
         raise NotImplementedError("Sliding window is not supported yet. Please set `sliding_window=None`.")
     if use_top_left_mask:
-        raise NotImplementedError(
-            "Top left mask is not supported yet. Please set `use_top_left_mask=False`."
-        )
+        raise NotImplementedError("Top left mask is not supported yet. Please set `use_top_left_mask=False`.")
     if softcap is not None:
         raise NotImplementedError("Softcap is not supported yet. Please set `softcap=None`.")
     if deterministic:
-        raise NotImplementedError(
-            "`deterministic` option is not supported yet. Please set `deterministic=None`."
-        )
+        raise NotImplementedError("`deterministic` option is not supported yet. Please set `deterministic=None`.")
     if cu_seq_lens_q is not None or cu_seq_lens_k is not None:
         raise ValueError(
             "`_flash_attention_forward` does not support `cu_seq_lens_q` or `cu_seq_lens_k` yet,"
