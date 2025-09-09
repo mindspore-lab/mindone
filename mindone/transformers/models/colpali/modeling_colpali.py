@@ -20,22 +20,22 @@
 from dataclasses import dataclass
 from typing import List, Optional, Tuple, Union
 
-
-import mindspore as ms
-from mindspore import mint
-
-from mindone.models.utils import normal_, zeros_
-
-from ..auto import AutoModelForImageTextToText
-from ...cache_utils import Cache
-from ...modeling_utils import PreTrainedModel
+from transformers import ColPaliConfig
 from transformers.utils import (
     ModelOutput,
     add_start_docstrings,
     add_start_docstrings_to_model_forward,
     replace_return_docstrings,
 )
-from transformers import ColPaliConfig
+
+import mindspore as ms
+from mindspore import mint
+
+from mindone.models.utils import normal_, zeros_
+
+from ...cache_utils import Cache
+from ...modeling_utils import PreTrainedModel
+from ..auto import AutoModelForImageTextToText
 
 _CONFIG_FOR_DOC = "ColPaliConfig"
 
@@ -205,7 +205,64 @@ class ColPaliForRetrieval(ColPaliPreTrainedModel):
     ) -> Union[Tuple, ColPaliForRetrievalOutput]:
         r"""
         Returns:
-        """
+
+        Example:
+        ```python
+        >>> import requests
+        >>> import mindspore as ms
+        >>> from PIL import Image
+
+        >>> from mindone.transformers import ColPaliForRetrieval, ColPaliProcessor
+
+
+        >>> # Load the model and the processor
+        >>> model_name = "vidore/colpali-v1.3-hf"
+
+        >>> model = ColPaliForRetrieval.from_pretrained(
+        ...     model_name,
+        ...     mindspore_dtype=ms.bfloat16,
+        ... )
+        >>> processor = ColPaliProcessor.from_pretrained(model_name)
+
+        >>> # The document page screenshots from your corpus
+        >>> url1 = "https://upload.wikimedia.org/wikipedia/commons/8/89/US-original-Declaration-1776.jpg"
+        >>> url2 = "https://upload.wikimedia.org/wikipedia/commons/thumb/4/4c/Romeoandjuliet1597.jpg/500px-Romeoandjuliet1597.jpg"
+
+        >>> images = [
+        ...     Image.open(requests.get(url1, stream=True).raw),
+        ...     Image.open(requests.get(url2, stream=True).raw),
+        ... ]
+
+        >>> # The queries you want to retrieve documents for
+        >>> queries = [
+        ...     "When was the United States Declaration of Independence proclaimed?",
+        ...     "Who printed the edition of Romeo and Juliet?",
+        ... ]
+
+        >>> # Process the inputs
+        >>> inputs_images = processor(images=images, return_tensors="ms")
+        >>> inputs_text = processor(text=queries, return_tensors="ms")
+        >>> for k, v in inputs_images.items():
+        ...     if v.dtype == ms.int64:
+        ...         inputs_images[k] = v.to(ms.int32)
+        ...     else:
+        ...         inputs_images[k] = v.to(model.dtype)
+        >>> for k, v in inputs_text.items():
+        ...     if v.dtype == ms.int64:
+        ...         inputs_text[k] = v.to(ms.int32)
+        ...     else:
+        ...         inputs_text[k] = v.to(model.dtype)
+
+        >>> # Forward pass
+        >>> image_embeddings = model(**inputs_images).embeddings
+        >>> query_embeddings = model(**inputs_text).embeddings
+
+        >>> # Score the queries against the images
+        >>> scores = processor.score_retrieval(query_embeddings, image_embeddings)
+
+        >>> print("Retrieval scores (query x image):")
+        >>> print(scores)
+        ```"""
         if "pixel_values" in kwargs:
             kwargs["pixel_values"] = kwargs["pixel_values"].to(dtype=self.dtype)
         output_attentions = output_attentions if output_attentions is not None else self.config.output_attentions

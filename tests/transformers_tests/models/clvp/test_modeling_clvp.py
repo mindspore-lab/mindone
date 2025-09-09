@@ -14,8 +14,7 @@
 import numpy as np
 import pytest
 import torch
-
-from transformers import ClvpConfig, ClvpDecoderConfig, ClvpEncoderConfig # ClvpFeatureExtractor
+from transformers import ClvpConfig, ClvpDecoderConfig, ClvpEncoderConfig  # ClvpFeatureExtractor
 
 import mindspore as ms
 

@@ -593,7 +593,9 @@ class ClvpConditioningEncoder(nn.Cell):
             self.decoder_config.max_text_tokens, self.decoder_config.hidden_size
         )
 
-        self.mel_conv = nn.Conv1d(self.decoder_config.feature_size, self.decoder_config.hidden_size, kernel_size=1, has_bias=True)
+        self.mel_conv = nn.Conv1d(
+            self.decoder_config.feature_size, self.decoder_config.hidden_size, kernel_size=1, has_bias=True
+        )
 
         # define group norms to be used before each attention layer
         num_groups = self.compute_groupnorm_groups(self.decoder_config.hidden_size)
@@ -705,6 +707,7 @@ class ClvpPreTrainedModel(PreTrainedModel):
     base_model_prefix = "clvp"
     supports_gradient_checkpointing = True
     _skip_keys_device_placement = "past_key_values"
+    _supports_dynamic_input = True
 
     def _init_weights(self, module):
         """Initialize the weights"""
@@ -1309,7 +1312,9 @@ class ClvpForCausalLM(ClvpPreTrainedModel, GenerationMixin):
             if hasattr(model_kwargs, "attention_mask"):
                 position_ids = model_kwargs["attention_mask"].long().cumsum(-1) - 1
             else:
-                position_ids = ops.range(0, conditioning_embeds.shape[1] - 1, dtype=ms.int64)
+                position_ids = ops.range(
+                    0, conditioning_embeds.shape[1] - 1, step=1
+                )  # NOTE: usage different from torch.range
             position_ids = position_ids.unsqueeze(0).tile((conditioning_embeds.shape[0], 1))
 
             model_kwargs["inputs_embeds"] = conditioning_embeds - self.model.decoder.position_embeds_layer(position_ids)
@@ -1723,10 +1728,12 @@ class ClvpModelForConditionalGeneration(ClvpPreTrainedModel, GenerationMixin):
         >>> model = ClvpModelForConditionalGeneration.from_pretrained("susnato/clvp_dev")
 
         >>> # processor outputs and model outputs
-        >>> processor_output = processor(raw_speech=audio, sampling_rate=sr, text=text, return_tensors="np")
+        >>> inputs = processor(raw_speech=audio, sampling_rate=sr, text=text, return_tensors="np")
+        >>> for k, v in inputs.items():
+        ...     inputs[k] = ms.Tensor(v)
         >>> outputs = model(
-        ...     input_ids=ms.Tensor(processor_output["input_ids"]),
-        ...     input_features=ms.Tensor(processor_output["input_features"]),
+        ...     input_ids=inputs["input_ids"],
+        ...     input_features=inputs["input_features"],
         ...     return_dict=True,
         ... )
         ```
