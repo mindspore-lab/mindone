@@ -555,6 +555,17 @@ from .models.roberta import (
     RobertaModel,
     RobertaPreTrainedModel,
 )
+from .models.roformer import (
+    RoFormerForCausalLM,
+    RoFormerForMaskedLM,
+    RoFormerForMultipleChoice,
+    RoFormerForQuestionAnswering,
+    RoFormerForSequenceClassification,
+    RoFormerForTokenClassification,
+    RoFormerLayer,
+    RoFormerModel,
+    RoFormerPreTrainedModel,
+)
 from .models.segformer import (
     SegformerDecodeHead,
     SegformerForImageClassification,
