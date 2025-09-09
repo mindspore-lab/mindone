@@ -206,7 +206,7 @@ class BrosBboxEmbeddings(ms.nn.Cell):
     def construct(self, bbox: ms.Tensor):
         bbox_t = bbox.transpose(0, 1)
         bbox_pos = bbox_t[None, :, :, :] - bbox_t[:, None, :, :]
-        bbox_pos_emb = self.bbox_sinusoid_emb(bbox_pos)
+        bbox_pos_emb = self.bbox_sinusoid_emb(bbox_pos).to(bbox_pos.dtype)
         bbox_pos_emb = self.bbox_projection(bbox_pos_emb)
 
         return bbox_pos_emb
@@ -278,7 +278,7 @@ class BrosTextEmbeddings(ms.nn.Cell):
         if self.position_embedding_type == "absolute":
             position_embeddings = self.position_embeddings(position_ids)
             embeddings += position_embeddings
-        embeddings = self.LayerNorm(embeddings).to(embeddings.dtype)
+        embeddings = self.LayerNorm(embeddings)
         embeddings = self.dropout(embeddings)
         return embeddings
 
@@ -440,7 +440,7 @@ class BrosSelfOutput(ms.nn.Cell):
     def construct(self, hidden_states: ms.Tensor, input_tensor: ms.Tensor) -> ms.Tensor:
         hidden_states = self.dense(hidden_states)
         hidden_states = self.dropout(hidden_states)
-        hidden_states = self.LayerNorm(hidden_states + input_tensor).to(hidden_states.dtype)
+        hidden_states = self.LayerNorm(hidden_states + input_tensor)
         return hidden_states
 
 
@@ -524,7 +524,7 @@ class BrosOutput(ms.nn.Cell):
     def construct(self, hidden_states: ms.Tensor, input_tensor: ms.Tensor) -> ms.Tensor:
         hidden_states = self.dense(hidden_states)
         hidden_states = self.dropout(hidden_states)
-        hidden_states = self.LayerNorm(hidden_states + input_tensor).to(hidden_states.dtype)
+        hidden_states = self.LayerNorm(hidden_states + input_tensor)
         return hidden_states
 
 
