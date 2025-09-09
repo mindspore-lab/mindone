@@ -36,27 +36,26 @@ class BrosModelTester:
 
     def __init__(
         self,
-        batch_size=13,
+        batch_size=2,
         seq_length=7,
         is_training=False,
         use_input_mask=True,
         use_token_type_ids=False,
         use_labels=True,
-        type_vocab_size=16,
         type_sequence_label_size=2,
         num_labels=3,
         num_choices=4,
         # config - reduced sizes for testing
         vocab_size=99,
-        hidden_size=32,
+        hidden_size=768,
         num_hidden_layers=2,
-        num_attention_heads=4,
-        intermediate_size=37,
+        num_attention_heads=12,
+        intermediate_size=3072,
+        type_vocab_size=2,
         hidden_act="gelu",
         hidden_dropout_prob=0.1,
         attention_probs_dropout_prob=0.1,
         max_position_embeddings=512,
-        type_vocab_size_config=2,
         initializer_range=0.02,
         layer_norm_eps=1e-12,
         pad_token_id=0,
@@ -84,7 +83,7 @@ class BrosModelTester:
         self.hidden_dropout_prob = hidden_dropout_prob
         self.attention_probs_dropout_prob = attention_probs_dropout_prob
         self.max_position_embeddings = max_position_embeddings
-        self.type_vocab_size_config = type_vocab_size_config
+
         self.initializer_range = initializer_range
         self.layer_norm_eps = layer_norm_eps
         self.pad_token_id = pad_token_id
@@ -105,7 +104,10 @@ class BrosModelTester:
             token_type_ids = ids_numpy([self.batch_size, self.seq_length], self.type_vocab_size)
 
         # Create bbox tensor with shape [batch_size, seq_length, dim_bbox]
-        bbox = np.random.randint(0, 1000, size=(self.batch_size, self.seq_length, self.dim_bbox)).astype(np.float32) / 1000.0
+        bbox = (
+            np.random.randint(0, 1000, size=(self.batch_size, self.seq_length, self.dim_bbox)).astype(np.float32)
+            / 1000.0
+        )
 
         sequence_labels = None
         token_labels = None
@@ -130,7 +132,7 @@ class BrosModelTester:
             hidden_dropout_prob=self.hidden_dropout_prob,
             attention_probs_dropout_prob=self.attention_probs_dropout_prob,
             max_position_embeddings=self.max_position_embeddings,
-            type_vocab_size=self.type_vocab_size_config,
+            type_vocab_size=self.type_vocab_size,
             initializer_range=self.initializer_range,
             layer_norm_eps=self.layer_norm_eps,
             pad_token_id=self.pad_token_id,
