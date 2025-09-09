@@ -152,7 +152,7 @@ class MgpstrEmbeddings(ms.nn.Cell):
         patch_embeddings = self.proj(pixel_values)
         patch_embeddings = patch_embeddings.flatten(2).transpose(1, 2)  # BCHW -> BNC
 
-        cls_tokens = self.cls_token.expand(batch_size, -1, -1)
+        cls_tokens = self.cls_token.broadcast_to((batch_size, -1, -1))
         embedding_output = mint.cat((cls_tokens, patch_embeddings), dim=1)
         embedding_output = embedding_output + self.pos_embed
         embedding_output = self.pos_drop(embedding_output)
@@ -202,7 +202,7 @@ class MgpstrAttention(ms.nn.Cell):
         query, key, value = qkv[0], qkv[1], qkv[2]  # make torchscript happy (cannot use tensor as tuple)
 
         attention_probs = (query @ key.transpose(-2, -1)) * self.scale
-        attention_probs = attention_probs.softmax(dim=-1)
+        attention_probs = mint.softmax(attention_probs, dim=-1)
         attention_probs = self.attn_drop(attention_probs)
 
         context_layer = (attention_probs @ value).transpose(1, 2).reshape(batch_size, num, channel)
