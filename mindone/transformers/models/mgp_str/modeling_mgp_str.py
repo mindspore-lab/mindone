@@ -441,10 +441,8 @@ class MgpstrForSceneTextRecognition(MgpstrPreTrainedModel):
 
         ```python
         >>> import mindspore as ms
-        >>> from transformers import (
-        ...     MgpstrProcessor,
-        ... )
         >>> from mindone.transformers import (
+        ...     MgpstrProcessor,
         ...     MgpstrForSceneTextRecognition,
         ... )
         >>> import requests
