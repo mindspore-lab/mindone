@@ -1,5 +1,8 @@
-# Copyright 2024 The Lightricks team and The HuggingFace Team.
+# Copyright 2025 The Lightricks team and The HuggingFace Team.
 # All rights reserved.
+#
+# This code is adapted from https://github.com/huggingface/diffusers
+# with modifications to run diffusers on mindspore.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -1074,7 +1077,7 @@ class AutoencoderKLLTXVideo(ModelMixin, ConfigMixin, FromOriginalModelMixin):
             model. The latents are scaled with the formula `z = z * scaling_factor` before being passed to the
             diffusion model. When decoding, the latents are scaled back to the original scale with the formula: `z = 1
             / scaling_factor * z`. For more details, refer to sections 4.3.2 and D.1 of the [High-Resolution Image
-            Synthesis with Latent Diffusion Models](https://arxiv.org/abs/2112.10752) paper.
+            Synthesis with Latent Diffusion Models](https://huggingface.co/papers/2112.10752) paper.
         encoder_causal (`bool`, defaults to `True`):
             Whether the encoder should behave causally (future frames depend only on past frames) or not.
         decoder_causal (`bool`, defaults to `False`):
@@ -1192,10 +1195,6 @@ class AutoencoderKLLTXVideo(ModelMixin, ConfigMixin, FromOriginalModelMixin):
         self.tile_sample_stride_width = 448
         self.tile_sample_stride_num_frames = 8
 
-    def _set_gradient_checkpointing(self, module, value=False):
-        if isinstance(module, (LTXVideoEncoder3d, LTXVideoDecoder3d)):
-            module.gradient_checkpointing = value
-
     def enable_tiling(
         self,
         tile_sample_min_height: Optional[int] = None,
@@ -1297,7 +1296,7 @@ class AutoencoderKLLTXVideo(ModelMixin, ConfigMixin, FromOriginalModelMixin):
     ) -> Union[DecoderOutput, ms.Tensor]:
         batch_size, num_channels, num_frames, height, width = z.shape
         tile_latent_min_height = self.tile_sample_min_height // self.spatial_compression_ratio
-        tile_latent_min_width = self.tile_sample_stride_width // self.spatial_compression_ratio
+        tile_latent_min_width = self.tile_sample_min_width // self.spatial_compression_ratio
         tile_latent_min_num_frames = self.tile_sample_min_num_frames // self.temporal_compression_ratio
 
         if self.use_framewise_decoding and num_frames > tile_latent_min_num_frames:

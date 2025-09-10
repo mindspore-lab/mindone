@@ -1,6 +1,9 @@
 # coding=utf-8
 # Copyright 2021 The HuggingFace Inc. team.
 #
+# This code is adapted from https://github.com/huggingface/transformers
+# with modifications to run transformers on mindspore.
+#
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -46,7 +49,16 @@ logger = logging.get_logger(__name__)
 
 PROCESSOR_MAPPING_NAMES = OrderedDict(
     [
+        ("blip", "BlipProcessor"),
+        ("chameleon", "ChameleonProcessor"),
+        ("idefics", "IdeficsProcessor"),
         ("layoutlmv3", "LayoutMv3Processor"),
+        ("llava_next", "LlavaNextProcessor"),
+        ("llava_next_video", "LlavaNextVideoProcessor"),
+        ("llava_onevision", "LlavaOnevisionProcessor"),
+        ("qwen2_5_vl", "Qwen2_5_VLProcessor"),
+        ("owlvit", "OwlViTProcessor"),
+        ("siglip", "SiglipProcessor"),
     ]
 )
 

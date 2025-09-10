@@ -1,3 +1,4 @@
+# Adapted from https://github.com/Tencent-Hunyuan/HunyuanVideo to work with MindSpore.
 from typing import List, Tuple, Union
 
 import numpy as np

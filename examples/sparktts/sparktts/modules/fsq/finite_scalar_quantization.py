@@ -1,3 +1,6 @@
+# This code is adapted from https://github.com/SparkAudio/Spark-TTS
+# with modifications to run on MindSpore.
+
 """
 Finite Scalar Quantization: VQ-VAE Made Simple - https://arxiv.org/abs/2309.15505
 Code adapted from Jax version in Appendix A.1

@@ -1,3 +1,4 @@
+# Adapted from https://github.com/Tencent-Hunyuan/HunyuanDiT to work with MindSpore.
 import numpy as np
 
 import mindspore as ms

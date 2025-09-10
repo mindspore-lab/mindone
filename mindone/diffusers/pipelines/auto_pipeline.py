@@ -1,5 +1,8 @@
 # coding=utf-8
-# Copyright 2025 The HuggingFace Inc. team and MindSpore team.
+# Copyright 2025 The HuggingFace Inc. team.
+#
+# This code is adapted from https://github.com/huggingface/diffusers
+# with modifications to run diffusers on mindspore.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -21,6 +24,7 @@ from ..configuration_utils import ConfigMixin
 from ..models.controlnets import ControlNetUnionModel
 from ..utils import is_sentencepiece_available
 from .aura_flow import AuraFlowPipeline
+from .chroma import ChromaPipeline
 from .cogview3 import CogView3PlusPipeline
 from .cogview4 import CogView4ControlPipeline, CogView4Pipeline
 from .controlnet import (
@@ -135,6 +139,7 @@ AUTO_TEXT2IMAGE_PIPELINES_MAPPING = OrderedDict(
         ("flux-controlnet", FluxControlNetPipeline),
         ("lumina", LuminaPipeline),
         ("lumina2", Lumina2Pipeline),
+        ("chroma", ChromaPipeline),
         ("cogview3", CogView3PlusPipeline),
         ("cogview4", CogView4Pipeline),
         ("cogview4-control", CogView4ControlPipeline),
@@ -312,9 +317,8 @@ class AutoPipelineForText2Image(ConfigMixin):
                     - A path to a *directory* (for example `./my_pipeline_directory/`) containing pipeline weights
                       saved using
                     [`~DiffusionPipeline.save_pretrained`].
-            mindspore_dtype (`str` or `mindspore.dtype`, *optional*):
-                Override the default `mindspore.dtype` and load the model with another dtype. If "auto" is passed, the
-                dtype is automatically derived from the model's weights.
+            mindspore_dtype (`mindspore.dtype`, *optional*):
+                Override the default `mindspore.dtype` and load the model with another dtype.
             force_download (`bool`, *optional*, defaults to `False`):
                 Whether or not to force the (re-)download of the model weights and configuration files, overriding the
                 cached versions if they exist.
@@ -589,9 +593,8 @@ class AutoPipelineForImage2Image(ConfigMixin):
                     - A path to a *directory* (for example `./my_pipeline_directory/`) containing pipeline weights
                       saved using
                     [`~DiffusionPipeline.save_pretrained`].
-            mindspore_dtype (`str` or `mindspore.dtype`, *optional*):
-                Override the default `mindspore.dtype` and load the model with another dtype. If "auto" is passed, the
-                dtype is automatically derived from the model's weights.
+            mindspore_dtype (`mindspore.dtype`, *optional*):
+                Override the default `mindspore.dtype` and load the model with another dtype.
             force_download (`bool`, *optional*, defaults to `False`):
                 Whether or not to force the (re-)download of the model weights and configuration files, overriding the
                 cached versions if they exist.
@@ -879,9 +882,8 @@ class AutoPipelineForInpainting(ConfigMixin):
                     - A path to a *directory* (for example `./my_pipeline_directory/`) containing pipeline weights
                       saved using
                     [`~DiffusionPipeline.save_pretrained`].
-            mindspore_dtype (`str` or `mindspore.dtype`, *optional*):
-                Override the default `mindspore.dtype` and load the model with another dtype. If "auto" is passed, the
-                dtype is automatically derived from the model's weights.
+            mindspore_dtype (`mindspore.dtype`, *optional*):
+                Override the default `mindspore.dtype` and load the model with another dtype.
             force_download (`bool`, *optional*, defaults to `False`):
                 Whether or not to force the (re-)download of the model weights and configuration files, overriding the
                 cached versions if they exist.

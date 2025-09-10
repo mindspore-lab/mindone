@@ -1,3 +1,5 @@
+"""Adapted from https://github.com/huggingface/transformers/tree/main/src/transformers/trainer_pt_utils.py."""
+
 import os
 from dataclasses import dataclass
 from typing import Iterable, List, Optional
