@@ -573,7 +573,7 @@ from .models.roberta import (
     RobertaModel,
     RobertaPreTrainedModel,
 )
-from .models.rwkv import RwkvModel, RwkvPreTrainedModel
+from .models.rwkv import RwkvForCausalLM, RwkvModel, RwkvPreTrainedModel
 from .models.segformer import (
     SegformerDecodeHead,
     SegformerForImageClassification,
