@@ -27,7 +27,7 @@ from transformers.utils.deprecation import deprecate_kwarg
 
 import mindspore
 import mindspore as ms
-from mindspore import Parameter, mint, ops
+from mindspore import Parameter, Tensor, mint, ops
 from mindspore.common.initializer import Constant, Normal, initializer
 
 from mindone.transformers.mindspore_adapter.utils import _DTYPE_2_MIN
@@ -51,6 +51,61 @@ logger = logging.get_logger(__name__)
 
 _CHECKPOINT_FOR_DOC = "jetmoe"
 _CONFIG_FOR_DOC = "JetMoeConfig"
+
+
+def _flash_attention_forward(
+    query_states: Tensor,
+    key_states: Tensor,
+    value_states: Tensor,
+    attention_mask: Tensor,
+    query_length: int,
+    is_causal: bool,
+    dropout: float = 0.0,
+    position_ids: Optional[Tensor] = None,
+    softmax_scale: Optional[float] = None,
+    sliding_window: Optional[int] = None,
+    use_top_left_mask: bool = False,
+    softcap: Optional[float] = None,
+    deterministic: bool = None,
+    cu_seq_lens_q: Optional[Tensor] = None,
+    cu_seq_lens_k: Optional[Tensor] = None,
+    max_length_q: Optional[int] = None,
+    max_length_k: Optional[int] = None,
+    target_dtype: Optional[ms.Type] = None,
+    **kwargs,
+):
+    bsz, _, num_heads, _ = query_states.shape
+    if is_causal and query_length > 1:
+        causal_mask = mint.triu(mint.ones((bsz, 1, query_length, key_states.shape[1]), dtype=ms.bool_), diagonal=1)
+    else:
+        causal_mask = None
+
+    if attention_mask is not None:
+        attention_mask = ~attention_mask[:, None, None, :].to(ms.bool_)
+        if causal_mask is not None:
+            attention_mask = attention_mask | causal_mask
+        else:
+            attention_mask = mint.tile(attention_mask, (1, 1, query_length, 1))
+    else:
+        attention_mask = causal_mask
+
+    if softmax_scale is None:
+        scalar_value = 1 / math.sqrt(query_states.shape[-1])
+    else:
+        scalar_value = softmax_scale
+
+    attn_output = ops.flash_attention_score(
+        query_states,
+        key_states,
+        value_states,
+        num_heads,
+        attn_mask=attention_mask,
+        keep_prob=1 - dropout,
+        scalar_value=scalar_value,
+        input_layout="BSND",
+    )
+
+    return attn_output
 
 
 def constant_(tensor: Parameter, val: float) -> None:
