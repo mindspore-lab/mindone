@@ -12,14 +12,16 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-import mindspore as ms
-from mindspore import mint, nn
+
+
 """Image processor class for RT-DETR."""
 
 import pathlib
-from typing import Any, Callable, Dict, Iterable, List, Optional, Tuple, Union
+from typing import Any, Dict, Iterable, List, Optional, Tuple, Union
 
 import numpy as np
+
+from mindspore import mint
 
 from ...feature_extraction_utils import BatchFeature
 from ...image_processing_utils import BaseImageProcessor, get_size_dict
@@ -1040,7 +1042,7 @@ class RTDetrImageProcessor(BaseImageProcessor):
 
         if use_focal_loss:
             scores = mint.nn.functional.sigmoid(out_logits)
-            scores, index = mint.topk(scores.flatten(1), num_top_queries, axis=-1)
+            scores, index = mint.topk(scores.flatten(1), num_top_queries, dim=-1)
             labels = index % num_classes
             index = index // num_classes
             boxes = boxes.gather(dim=1, index=index.unsqueeze(-1).repeat(1, 1, boxes.shape[-1]))

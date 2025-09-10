@@ -14,23 +14,20 @@
 # limitations under the License.
 """PyTorch RT-DETR model."""
 
-
-from mindspore import mint
+import math
 import warnings
 from dataclasses import dataclass
 from functools import partial
 from typing import Dict, List, Optional, Tuple, Union
 
-import mindspore as ms
+import mindspore
 import mindspore.mint.nn.functional as F
 from mindspore import Tensor, mint
 
 from ...activations import ACT2CLS, ACT2FN
 from ...image_transforms import center_to_corners_format, corners_to_center_format
-from ...integrations import use_kernel_forward_from_hub
 from ...modeling_outputs import BaseModelOutput
 from ...modeling_utils import PreTrainedModel
-from ...pytorch_utils import compile_compatible_method_lru_cache
 
 from transformers.utils.generic import ModelOutput
 
@@ -41,7 +38,7 @@ from ...mindspore_adapter import dtype_to_max
 
 from mindspore.common.initializer import (
     initializer,
-    XavierUinform,
+    XavierUniform,
     Zero,
     Normal,
     Constant,
@@ -57,7 +54,7 @@ _CHECKPOINT_FOR_DOC = "PekingU/rtdetr_r50vd"
 
 
 # Copied from transformers.models.deformable_detr.modeling_deformable_detr.MultiScaleDeformableAttention
-class MultiScaleDeformableAttention(ms.nn.Cell):
+class MultiScaleDeformableAttention(mindspore.nn.Cell):
     def construct(
         self,
         value: Tensor,
@@ -142,13 +139,13 @@ class RTDetrDecoderOutput(ModelOutput):
             used to compute the weighted average in the cross-attention heads.
     """
 
-    last_hidden_state: ms.Tensor = None
-    intermediate_hidden_states: ms.Tensor = None
-    intermediate_logits: ms.Tensor = None
-    intermediate_reference_points: ms.Tensor = None
-    hidden_states: Optional[Tuple[ms.Tensor]] = None
-    attentions: Optional[Tuple[ms.Tensor]] = None
-    cross_attentions: Optional[Tuple[ms.Tensor]] = None
+    last_hidden_state: mindspore.Tensor = None
+    intermediate_hidden_states: mindspore.Tensor = None
+    intermediate_logits: mindspore.Tensor = None
+    intermediate_reference_points: mindspore.Tensor = None
+    hidden_states: Optional[Tuple[mindspore.Tensor]] = None
+    attentions: Optional[Tuple[mindspore.Tensor]] = None
+    cross_attentions: Optional[Tuple[mindspore.Tensor]] = None
 
 
 @dataclass
@@ -205,21 +202,21 @@ class RTDetrModelOutput(ModelOutput):
             Extra dictionary for the denoising related values
     """
 
-    last_hidden_state: ms.Tensor = None
-    intermediate_hidden_states: ms.Tensor = None
-    intermediate_logits: ms.Tensor = None
-    intermediate_reference_points: ms.Tensor = None
-    decoder_hidden_states: Optional[Tuple[ms.Tensor]] = None
-    decoder_attentions: Optional[Tuple[ms.Tensor]] = None
-    cross_attentions: Optional[Tuple[ms.Tensor]] = None
-    encoder_last_hidden_state: Optional[ms.Tensor] = None
-    encoder_hidden_states: Optional[Tuple[ms.Tensor]] = None
-    encoder_attentions: Optional[Tuple[ms.Tensor]] = None
-    init_reference_points: ms.Tensor = None
-    enc_topk_logits: Optional[ms.Tensor] = None
-    enc_topk_bboxes: Optional[ms.Tensor] = None
-    enc_outputs_class: Optional[ms.Tensor] = None
-    enc_outputs_coord_logits: Optional[ms.Tensor] = None
+    last_hidden_state: mindspore.Tensor = None
+    intermediate_hidden_states: mindspore.Tensor = None
+    intermediate_logits: mindspore.Tensor = None
+    intermediate_reference_points: mindspore.Tensor = None
+    decoder_hidden_states: Optional[Tuple[mindspore.Tensor]] = None
+    decoder_attentions: Optional[Tuple[mindspore.Tensor]] = None
+    cross_attentions: Optional[Tuple[mindspore.Tensor]] = None
+    encoder_last_hidden_state: Optional[mindspore.Tensor] = None
+    encoder_hidden_states: Optional[Tuple[mindspore.Tensor]] = None
+    encoder_attentions: Optional[Tuple[mindspore.Tensor]] = None
+    init_reference_points: mindspore.Tensor = None
+    enc_topk_logits: Optional[mindspore.Tensor] = None
+    enc_topk_bboxes: Optional[mindspore.Tensor] = None
+    enc_outputs_class: Optional[mindspore.Tensor] = None
+    enc_outputs_coord_logits: Optional[mindspore.Tensor] = None
     denoising_meta_values: Optional[Dict] = None
 
 
@@ -292,31 +289,31 @@ class RTDetrObjectDetectionOutput(ModelOutput):
             Extra dictionary for the denoising related values
     """
 
-    loss: Optional[ms.Tensor] = None
+    loss: Optional[mindspore.Tensor] = None
     loss_dict: Optional[Dict] = None
-    logits: ms.Tensor = None
-    pred_boxes: ms.Tensor = None
+    logits: mindspore.Tensor = None
+    pred_boxes: mindspore.Tensor = None
     auxiliary_outputs: Optional[List[Dict]] = None
-    last_hidden_state: ms.Tensor = None
-    intermediate_hidden_states: ms.Tensor = None
-    intermediate_logits: ms.Tensor = None
-    intermediate_reference_points: ms.Tensor = None
-    decoder_hidden_states: Optional[Tuple[ms.Tensor]] = None
-    decoder_attentions: Optional[Tuple[ms.Tensor]] = None
-    cross_attentions: Optional[Tuple[ms.Tensor]] = None
-    encoder_last_hidden_state: Optional[ms.Tensor] = None
-    encoder_hidden_states: Optional[Tuple[ms.Tensor]] = None
-    encoder_attentions: Optional[Tuple[ms.Tensor]] = None
-    init_reference_points: Optional[Tuple[ms.Tensor]] = None
-    enc_topk_logits: Optional[ms.Tensor] = None
-    enc_topk_bboxes: Optional[ms.Tensor] = None
-    enc_outputs_class: Optional[ms.Tensor] = None
-    enc_outputs_coord_logits: Optional[ms.Tensor] = None
+    last_hidden_state: mindspore.Tensor = None
+    intermediate_hidden_states: mindspore.Tensor = None
+    intermediate_logits: mindspore.Tensor = None
+    intermediate_reference_points: mindspore.Tensor = None
+    decoder_hidden_states: Optional[Tuple[mindspore.Tensor]] = None
+    decoder_attentions: Optional[Tuple[mindspore.Tensor]] = None
+    cross_attentions: Optional[Tuple[mindspore.Tensor]] = None
+    encoder_last_hidden_state: Optional[mindspore.Tensor] = None
+    encoder_hidden_states: Optional[Tuple[mindspore.Tensor]] = None
+    encoder_attentions: Optional[Tuple[mindspore.Tensor]] = None
+    init_reference_points: Optional[Tuple[mindspore.Tensor]] = None
+    enc_topk_logits: Optional[mindspore.Tensor] = None
+    enc_topk_bboxes: Optional[mindspore.Tensor] = None
+    enc_outputs_class: Optional[mindspore.Tensor] = None
+    enc_outputs_coord_logits: Optional[mindspore.Tensor] = None
     denoising_meta_values: Optional[Dict] = None
 
 
 def _get_clones(partial_module, N):
-    return ms.nn.CellList([partial_module() for i in range(N)])
+    return mindspore.nn.CellList([partial_module() for i in range(N)])
 
 
 # Copied from transformers.models.conditional_detr.modeling_conditional_detr.inverse_sigmoid
@@ -328,7 +325,7 @@ def inverse_sigmoid(x, eps=1e-5):
 
 
 # Copied from transformers.models.detr.modeling_detr.DetrFrozenBatchNorm2d with Detr->RTDetr
-class RTDetrFrozenBatchNorm2d(ms.nn.Cell):
+class RTDetrFrozenBatchNorm2d(mindspore.nn.Cell):
     """
     BatchNorm2d where the batch statistics and the affine parameters are fixed.
 
@@ -437,9 +434,9 @@ def get_contrastive_denoising_training_group(
     # pad gt to max_num of a batch
     batch_size = len(num_ground_truths)
 
-    input_query_class = ms.mint.full([batch_size, max_gt_num], num_classes, dtype=ms.int32, )
+    input_query_class = mindspore.mint.full([batch_size, max_gt_num], num_classes, dtype=mindspore.int32, )
     input_query_bbox = mint.zeros([batch_size, max_gt_num, 4], )
-    pad_gt_mask = mint.zeros([batch_size, max_gt_num], dtype=ms.bool_, )
+    pad_gt_mask = mint.zeros([batch_size, max_gt_num], dtype=mindspore.bool_, )
 
     for i in range(batch_size):
         num_gt = num_ground_truths[i]
@@ -466,7 +463,7 @@ def get_contrastive_denoising_training_group(
     num_denoising_queries = (max_gt_num * 2 * num_groups_denoising_queries).to(mindspore.int64)
 
     if label_noise_ratio > 0:
-        mask = mint.rand_like(input_query_class, dtype=ms.float32) < (label_noise_ratio * 0.5)
+        mask = mint.rand_like(input_query_class, dtype=mindspore.float32) < (label_noise_ratio * 0.5)
         # randomly put a new one here
         new_label = mint.randint_like(mask, 0, num_classes, dtype=input_query_class.dtype)
         input_query_class = mint.where(mask & pad_gt_mask, new_label, input_query_class)
@@ -486,7 +483,7 @@ def get_contrastive_denoising_training_group(
     input_query_class = class_embed(input_query_class)
 
     target_size = num_denoising_queries + num_queries
-    attn_mask = ms.mint.full([target_size, target_size], False, dtype=ms.bool_, )
+    attn_mask = mindspore.mint.full([target_size, target_size], False, dtype=mindspore.bool_, )
     # match query cannot see the reconstruction
     attn_mask[num_denoising_queries:, :num_denoising_queries] = True
 
@@ -506,7 +503,7 @@ def get_contrastive_denoising_training_group(
     return input_query_class, input_query_bbox, attn_mask, denoising_meta_values
 
 
-class RTDetrConvEncoder(ms.nn.Cell):
+class RTDetrConvEncoder(mindspore.nn.Cell):
     """
     Convolutional backbone using the modeling_rt_detr_resnet.py.
 
@@ -525,19 +522,19 @@ class RTDetrConvEncoder(ms.nn.Cell):
         self.model = backbone
         self.intermediate_channel_sizes = self.model.channels
 
-    def construct(self, pixel_values: ms.Tensor, pixel_mask: ms.Tensor):
+    def construct(self, pixel_values: mindspore.Tensor, pixel_mask: mindspore.Tensor):
         # send pixel_values through the model to get list of feature maps
         features = self.model(pixel_values).feature_maps
 
         out = []
         for feature_map in features:
             # downsample pixel_mask to match shape of corresponding feature_map
-            mask = mint.nn.functional.interpolate(pixel_mask[None].float(), size=feature_map.shape[-2:]).to(ms.bool_)[0]
+            mask = mint.nn.functional.interpolate(pixel_mask[None].float(), size=feature_map.shape[-2:]).to(mindspore.bool_)[0]
             out.append((feature_map, mask))
         return out
 
 
-class RTDetrConvNormLayer(ms.nn.Cell):
+class RTDetrConvNormLayer(mindspore.nn.Cell):
     def __init__(self, config, in_channels, out_channels, kernel_size, stride, padding=None, activation=None):
         super().__init__()
         self.conv = mint.nn.Conv2d(
@@ -558,7 +555,7 @@ class RTDetrConvNormLayer(ms.nn.Cell):
         return hidden_state
 
 
-class RTDetrEncoderLayer(ms.nn.Cell):
+class RTDetrEncoderLayer(mindspore.nn.Cell):
     def __init__(self, config: RTDetrConfig):
         super().__init__()
         self.normalize_before = config.normalize_before
@@ -579,9 +576,9 @@ class RTDetrEncoderLayer(ms.nn.Cell):
 
     def construct(
         self,
-        hidden_states: ms.Tensor,
-        attention_mask: ms.Tensor,
-        position_embeddings: ms.Tensor = None,
+        hidden_states: mindspore.Tensor,
+        attention_mask: mindspore.Tensor,
+        position_embeddings: mindspore.Tensor = None,
         output_attentions: bool = False,
         **kwargs,
     ):
@@ -630,7 +627,7 @@ class RTDetrEncoderLayer(ms.nn.Cell):
 
         if self.training:
             if mint.isinf(hidden_states).any() or mint.isnan(hidden_states).any():
-                clamp_value = ms.tensor(dtype_to_max(hidden_states.dtype) - 1000, dtype=hidden_states.dtype)
+                clamp_value = mindspore.tensor(dtype_to_max(hidden_states.dtype) - 1000, dtype=hidden_states.dtype)
                 hidden_states = mint.clamp(hidden_states, min=-clamp_value, max=clamp_value)
 
         outputs = (hidden_states,)
@@ -641,7 +638,7 @@ class RTDetrEncoderLayer(ms.nn.Cell):
         return outputs
 
 
-class RTDetrRepVggBlock(ms.nn.Cell):
+class RTDetrRepVggBlock(mindspore.nn.Cell):
     """
     RepVGG architecture block introduced by the work "RepVGG: Making VGG-style ConvNets Great Again".
     """
@@ -660,7 +657,7 @@ class RTDetrRepVggBlock(ms.nn.Cell):
         return self.activation(y)
 
 
-class RTDetrCSPRepLayer(ms.nn.Cell):
+class RTDetrCSPRepLayer(mindspore.nn.Cell):
     """
     Cross Stage Partial (CSP) network layer with RepVGG blocks.
     """
@@ -676,7 +673,7 @@ class RTDetrCSPRepLayer(ms.nn.Cell):
         hidden_channels = int(out_channels * config.hidden_expansion)
         self.conv1 = RTDetrConvNormLayer(config, in_channels, hidden_channels, 1, 1, activation=activation)
         self.conv2 = RTDetrConvNormLayer(config, in_channels, hidden_channels, 1, 1, activation=activation)
-        self.bottlenecks = ms.nn.SequentialCell(*[RTDetrRepVggBlock(config) for _ in range(num_blocks)])
+        self.bottlenecks = mindspore.nn.SequentialCell(*[RTDetrRepVggBlock(config) for _ in range(num_blocks)])
         if hidden_channels != out_channels:
             self.conv3 = RTDetrConvNormLayer(config, hidden_channels, out_channels, 1, 1, activation=activation)
         else:
@@ -690,7 +687,7 @@ class RTDetrCSPRepLayer(ms.nn.Cell):
 
 
 # Copied from transformers.models.deformable_detr.modeling_deformable_detr.DeformableDetrMultiscaleDeformableAttention with DeformableDetr->RTDetr
-class RTDetrMultiscaleDeformableAttention(ms.nn.Cell):
+class RTDetrMultiscaleDeformableAttention(mindspore.nn.Cell):
     """
     Multiscale deformable attention as proposed in Deformable DETR.
     """
@@ -727,16 +724,16 @@ class RTDetrMultiscaleDeformableAttention(ms.nn.Cell):
 
         self.disable_custom_kernels = config.disable_custom_kernels
 
-    def with_pos_embed(self, tensor: ms.Tensor, position_embeddings: Optional[Tensor]):
+    def with_pos_embed(self, tensor: mindspore.Tensor, position_embeddings: Optional[Tensor]):
         return tensor if position_embeddings is None else tensor + position_embeddings
 
     def construct(
         self,
-        hidden_states: ms.Tensor,
-        attention_mask: Optional[ms.Tensor] = None,
+        hidden_states: mindspore.Tensor,
+        attention_mask: Optional[mindspore.Tensor] = None,
         encoder_hidden_states=None,
         encoder_attention_mask=None,
-        position_embeddings: Optional[ms.Tensor] = None,
+        position_embeddings: Optional[mindspore.Tensor] = None,
         reference_points=None,
         spatial_shapes=None,
         spatial_shapes_list=None,
@@ -800,7 +797,7 @@ class RTDetrMultiscaleDeformableAttention(ms.nn.Cell):
         return output, attention_weights
 
 
-class RTDetrMultiheadAttention(ms.nn.Cell):
+class RTDetrMultiheadAttention(mindspore.nn.Cell):
     """
     Multi-headed attention from 'Attention Is All You Need' paper.
 
@@ -831,19 +828,19 @@ class RTDetrMultiheadAttention(ms.nn.Cell):
         self.q_proj = mint.nn.Linear(embed_dim, embed_dim, bias=bias)
         self.out_proj = mint.nn.Linear(embed_dim, embed_dim, bias=bias)
 
-    def _reshape(self, tensor: ms.Tensor, seq_len: int, batch_size: int):
+    def _reshape(self, tensor: mindspore.Tensor, seq_len: int, batch_size: int):
         return tensor.view(batch_size, seq_len, self.num_heads, self.head_dim).transpose(1, 2).contiguous()
 
-    def with_pos_embed(self, tensor: ms.Tensor, position_embeddings: Optional[Tensor]):
+    def with_pos_embed(self, tensor: mindspore.Tensor, position_embeddings: Optional[Tensor]):
         return tensor if position_embeddings is None else tensor + position_embeddings
 
     def construct(
         self,
-        hidden_states: ms.Tensor,
-        attention_mask: Optional[ms.Tensor] = None,
-        position_embeddings: Optional[ms.Tensor] = None,
+        hidden_states: mindspore.Tensor,
+        attention_mask: Optional[mindspore.Tensor] = None,
+        position_embeddings: Optional[mindspore.Tensor] = None,
         output_attentions: bool = False,
-    ) -> Tuple[ms.Tensor, Optional[ms.Tensor], Optional[Tuple[ms.Tensor]]]:
+    ) -> Tuple[mindspore.Tensor, Optional[mindspore.Tensor], Optional[Tuple[mindspore.Tensor]]]:
         """Input shape: Batch x Time x Channel"""
 
         batch_size, target_len, embed_dim = hidden_states.shape
@@ -917,7 +914,7 @@ class RTDetrMultiheadAttention(ms.nn.Cell):
         return attn_output, attn_weights_reshaped
 
 
-class RTDetrDecoderLayer(ms.nn.Cell):
+class RTDetrDecoderLayer(mindspore.nn.Cell):
     def __init__(self, config: RTDetrConfig):
         super().__init__()
         # self-attention
@@ -945,14 +942,14 @@ class RTDetrDecoderLayer(ms.nn.Cell):
 
     def construct(
         self,
-        hidden_states: ms.Tensor,
-        position_embeddings: Optional[ms.Tensor] = None,
+        hidden_states: mindspore.Tensor,
+        position_embeddings: Optional[mindspore.Tensor] = None,
         reference_points=None,
         spatial_shapes=None,
         spatial_shapes_list=None,
         level_start_index=None,
-        encoder_hidden_states: Optional[ms.Tensor] = None,
-        encoder_attention_mask: Optional[ms.Tensor] = None,
+        encoder_hidden_states: Optional[mindspore.Tensor] = None,
+        encoder_attention_mask: Optional[mindspore.Tensor] = None,
         output_attentions: Optional[bool] = False,
     ):
         """
@@ -1055,7 +1052,7 @@ class RTDetrPreTrainedModel(PreTrainedModel):
             cell.sampling_offsets.weight.set_data(
                 initializer(Zero(), cell.sampling_offsets.weight.shape, cell.sampling_offsets.weight.dtype))
 
-            thetas = mint.arange(cell.n_heads, dtype=ms.float32) * (2.0 * math.pi / cell.n_heads)
+            thetas = mint.arange(cell.n_heads, dtype=mindspore.float32) * (2.0 * math.pi / cell.n_heads)
             grid_init = mint.stack([mint.cos(thetas), mint.sin(thetas)], -1)
 
             max_val = grid_init.abs().max(-1, keepdim=True)[0]
@@ -1067,7 +1064,7 @@ class RTDetrPreTrainedModel(PreTrainedModel):
             for i in range(cell.n_points):
                 grid_init[:, :, i, :] *= (i + 1)
 
-            cell.sampling_offsets.bias = ms.Parameter(grid_init.view(-1), name=cell.sampling_offsets.bias.name)
+            cell.sampling_offsets.bias = mindspore.Parameter(grid_init.view(-1), name=cell.sampling_offsets.bias.name)
 
             cell.attention_weights.weight.set_data(
                 initializer(Zero(), cell.attention_weights.weight.shape, cell.attention_weights.weight.dtype))
@@ -1107,13 +1104,13 @@ class RTDetrPreTrainedModel(PreTrainedModel):
                             cell.denoising_class_embed.weight.dtype))
 
 
-class RTDetrEncoder(ms.nn.Cell):
+class RTDetrEncoder(mindspore.nn.Cell):
     def __init__(self, config: RTDetrConfig):
         super().__init__()
 
-        self.layers = ms.nn.CellList([RTDetrEncoderLayer(config) for _ in range(config.encoder_layers)])
+        self.layers = mindspore.nn.CellList([RTDetrEncoderLayer(config) for _ in range(config.encoder_layers)])
 
-    def construct(self, src, src_mask=None, pos_embed=None, output_attentions: bool = False) -> ms.Tensor:
+    def construct(self, src, src_mask=None, pos_embed=None, output_attentions: bool = False) -> mindspore.Tensor:
         hidden_states = src
         for layer in self.layers:
             hidden_states = layer(
@@ -1125,7 +1122,7 @@ class RTDetrEncoder(ms.nn.Cell):
         return hidden_states
 
 
-class RTDetrHybridEncoder(ms.nn.Cell):
+class RTDetrHybridEncoder(mindspore.nn.Cell):
     """
     Decoder consisting of a projection layer, a set of `RTDetrEncoder`, a top-down Feature Pyramid Network
     (FPN) and a bottom-up Path Aggregation Network (PAN). More details on the paper: https://arxiv.org/abs/2304.08069
@@ -1150,11 +1147,11 @@ class RTDetrHybridEncoder(ms.nn.Cell):
         activation = config.activation_function
 
         # encoder transformer
-        self.encoder = ms.nn.CellList([RTDetrEncoder(config) for _ in range(len(self.encode_proj_layers))])
+        self.encoder = mindspore.nn.CellList([RTDetrEncoder(config) for _ in range(len(self.encode_proj_layers))])
 
         # top-down FPN
-        self.lateral_convs = ms.nn.CellList()
-        self.fpn_blocks = ms.nn.CellList()
+        self.lateral_convs = mindspore.nn.CellList()
+        self.fpn_blocks = mindspore.nn.CellList()
         for _ in range(self.num_fpn_stages):
             lateral_conv = RTDetrConvNormLayer(
                 config,
@@ -1169,8 +1166,8 @@ class RTDetrHybridEncoder(ms.nn.Cell):
             self.fpn_blocks.append(fpn_block)
 
         # bottom-up PAN
-        self.downsample_convs = ms.nn.CellList()
-        self.pan_blocks = ms.nn.CellList()
+        self.downsample_convs = mindspore.nn.CellList()
+        self.pan_blocks = mindspore.nn.CellList()
         for _ in range(self.num_pan_stages):
             downsample_conv = RTDetrConvNormLayer(
                 config,
@@ -1186,7 +1183,7 @@ class RTDetrHybridEncoder(ms.nn.Cell):
 
     @staticmethod
     def build_2d_sincos_position_embedding(
-        width, height, embed_dim=256, temperature=10000.0, device="cpu", dtype=ms.float32
+        width, height, embed_dim=256, temperature=10000.0, device="cpu", dtype=mindspore.float32
     ):
         grid_w = mint.arange(width, ).to(dtype)
         grid_h = mint.arange(height, ).to(dtype)
@@ -1323,7 +1320,7 @@ class RTDetrDecoder(RTDetrPreTrainedModel):
         super().__init__(config)
 
         self.dropout = config.dropout
-        self.layers = ms.nn.CellList([RTDetrDecoderLayer(config) for _ in range(config.decoder_layers)])
+        self.layers = mindspore.nn.CellList([RTDetrDecoderLayer(config) for _ in range(config.decoder_layers)])
         self.query_pos_head = RTDetrMLPPredictionHead(config, 4, 2 * config.d_model, config.d_model, num_layers=2)
 
         # hack implementation for iterative bounding box refinement and two-stage Deformable DETR
@@ -1478,7 +1475,7 @@ class RTDetrDecoder(RTDetrPreTrainedModel):
 
 
 # taken from https://github.com/facebookresearch/detr/blob/master/models/detr.py
-class RTDetrMLPPredictionHead(ms.nn.Cell):
+class RTDetrMLPPredictionHead(mindspore.nn.Cell):
     """
     Very simple multi-layer perceptron (MLP, also called FFN), used to predict the normalized center coordinates,
     height and width of a bounding box w.r.t. an image.
@@ -1492,7 +1489,7 @@ class RTDetrMLPPredictionHead(ms.nn.Cell):
         super().__init__()
         self.num_layers = num_layers
         h = [d_model] * (num_layers - 1)
-        self.layers = ms.nn.CellList([mint.nn.Linear(n, k) for n, k in zip([input_dim] + h, h + [output_dim])])
+        self.layers = mindspore.nn.CellList([mint.nn.Linear(n, k) for n, k in zip([input_dim] + h, h + [output_dim])])
 
     def construct(self, x):
         for i, layer in enumerate(self.layers):
@@ -1515,12 +1512,12 @@ class RTDetrModel(RTDetrPreTrainedModel):
         for _ in range(num_backbone_outs):
             in_channels = intermediate_channel_sizes[_]
             encoder_input_proj_list.append(
-                ms.nn.SequentialCell(
+                mindspore.nn.SequentialCell(
                     mint.nn.Conv2d(in_channels, config.encoder_hidden_dim, kernel_size=1, bias=False),
                     mint.nn.BatchNorm2d(config.encoder_hidden_dim),
                 )
             )
-        self.encoder_input_proj = ms.nn.CellList(encoder_input_proj_list)
+        self.encoder_input_proj = mindspore.nn.CellList(encoder_input_proj_list)
 
         # Create encoder
         self.encoder = RTDetrHybridEncoder(config)
@@ -1536,7 +1533,7 @@ class RTDetrModel(RTDetrPreTrainedModel):
             self.weight_embedding = mint.nn.Embedding(config.num_queries, config.d_model)
 
         # encoder head
-        self.enc_output = ms.nn.SequentialCell(
+        self.enc_output = mindspore.nn.SequentialCell(
             mint.nn.Linear(config.d_model, config.d_model),
             mint.nn.LayerNorm(config.d_model, eps=config.layer_norm_eps),
         )
@@ -1554,20 +1551,20 @@ class RTDetrModel(RTDetrPreTrainedModel):
         for _ in range(num_backbone_outs):
             in_channels = config.decoder_in_channels[_]
             decoder_input_proj_list.append(
-                ms.nn.SequentialCell(
+                mindspore.nn.SequentialCell(
                     mint.nn.Conv2d(in_channels, config.d_model, kernel_size=1, bias=False),
                     mint.nn.BatchNorm2d(config.d_model, config.batch_norm_eps),
                 )
             )
         for _ in range(config.num_feature_levels - num_backbone_outs):
             decoder_input_proj_list.append(
-                ms.nn.SequentialCell(
+                mindspore.nn.SequentialCell(
                     mint.nn.Conv2d(in_channels, config.d_model, kernel_size=3, stride=2, padding=1, bias=False),
                     mint.nn.BatchNorm2d(config.d_model, config.batch_norm_eps),
                 )
             )
             in_channels = config.d_model
-        self.decoder_input_proj = ms.nn.CellList(decoder_input_proj_list)
+        self.decoder_input_proj = mindspore.nn.CellList(decoder_input_proj_list)
 
         # decoder
         self.decoder = RTDetrDecoder(config)
@@ -1588,7 +1585,7 @@ class RTDetrModel(RTDetrPreTrainedModel):
         for param in self.backbone.parameters():
             param.requires_grad_(True)
 
-    def generate_anchors(self, spatial_shapes=None, grid_size=0.05, dtype=ms.float32):
+    def generate_anchors(self, spatial_shapes=None, grid_size=0.05, dtype=mindspore.float32):
         if spatial_shapes is None:
             spatial_shapes = [
                 [int(self.config.anchor_image_size[0] / s), int(self.config.anchor_image_size[1] / s)]
@@ -1612,22 +1609,22 @@ class RTDetrModel(RTDetrPreTrainedModel):
         anchors = mint.concat(anchors, 1)
         valid_mask = ((anchors > eps) * (anchors < 1 - eps)).all(-1, keepdim=True)
         anchors = mint.log(anchors / (1 - anchors))
-        anchors = mint.where(valid_mask, anchors, ms.Tensor(dtype_to_max(dtype), dtype=dtype, ))
+        anchors = mint.where(valid_mask, anchors, mindspore.Tensor(dtype_to_max(dtype), dtype=dtype, ))
 
         return anchors, valid_mask
 
     def construct(
         self,
-        pixel_values: ms.Tensor,
-        pixel_mask: Optional[ms.Tensor] = None,
-        encoder_outputs: Optional[ms.Tensor] = None,
-        inputs_embeds: Optional[ms.Tensor] = None,
-        decoder_inputs_embeds: Optional[ms.Tensor] = None,
+        pixel_values: mindspore.Tensor,
+        pixel_mask: Optional[mindspore.Tensor] = None,
+        encoder_outputs: Optional[mindspore.Tensor] = None,
+        inputs_embeds: Optional[mindspore.Tensor] = None,
+        decoder_inputs_embeds: Optional[mindspore.Tensor] = None,
         labels: Optional[List[dict]] = None,
         output_attentions: Optional[bool] = None,
         output_hidden_states: Optional[bool] = None,
         return_dict: Optional[bool] = None,
-    ) -> Union[Tuple[ms.Tensor], RTDetrModelOutput]:
+    ) -> Union[Tuple[mindspore.Tensor], RTDetrModelOutput]:
         r"""
         Returns:
 
@@ -1702,7 +1699,7 @@ class RTDetrModel(RTDetrPreTrainedModel):
         # Prepare encoder inputs (by flattening)
         source_flatten = []
         spatial_shapes_list = []
-        spatial_shapes = mint.empty((len(sources), 2), dtype=ms.int64)
+        spatial_shapes = mint.empty((len(sources), 2), dtype=mindspore.int64)
         for level, source in enumerate(sources):
             height, width = source.shape[-2:]
             spatial_shapes[level, 0] = height
@@ -1846,8 +1843,8 @@ class RTDetrForObjectDetection(RTDetrPreTrainedModel):
             self.class_embed = _get_clones(self.class_embed, num_pred)
             self.bbox_embed = _get_clones(self.bbox_embed, num_pred)
         else:
-            self.class_embed = ms.nn.CellList([self.class_embed() for _ in range(num_pred)])
-            self.bbox_embed = ms.nn.CellList([self.bbox_embed() for _ in range(num_pred)])
+            self.class_embed = mindspore.nn.CellList([self.class_embed() for _ in range(num_pred)])
+            self.bbox_embed = mindspore.nn.CellList([self.bbox_embed() for _ in range(num_pred)])
 
         # hack implementation for iterative bounding box refinement
         self.model.decoder.class_embed = self.class_embed
@@ -1864,17 +1861,17 @@ class RTDetrForObjectDetection(RTDetrPreTrainedModel):
 
     def construct(
         self,
-        pixel_values: ms.Tensor,
-        pixel_mask: Optional[ms.Tensor] = None,
-        encoder_outputs: Optional[ms.Tensor] = None,
-        inputs_embeds: Optional[ms.Tensor] = None,
-        decoder_inputs_embeds: Optional[ms.Tensor] = None,
+        pixel_values: mindspore.Tensor,
+        pixel_mask: Optional[mindspore.Tensor] = None,
+        encoder_outputs: Optional[mindspore.Tensor] = None,
+        inputs_embeds: Optional[mindspore.Tensor] = None,
+        decoder_inputs_embeds: Optional[mindspore.Tensor] = None,
         labels: Optional[List[dict]] = None,
         output_attentions: Optional[bool] = None,
         output_hidden_states: Optional[bool] = None,
         return_dict: Optional[bool] = None,
         **loss_kwargs,
-    ) -> Union[Tuple[ms.Tensor], RTDetrObjectDetectionOutput]:
+    ) -> Union[Tuple[mindspore.Tensor], RTDetrObjectDetectionOutput]:
         r"""
         labels (`List[Dict]` of len `(batch_size,)`, *optional*):
             Labels for computing the bipartite matching loss. List of dicts, each dictionary containing at least the
@@ -1913,7 +1910,7 @@ class RTDetrForObjectDetection(RTDetrPreTrainedModel):
         [1, 300, 4]
 
         >>> # convert outputs (bounding boxes and class logits) to Pascal VOC format (xmin, ymin, xmax, ymax)
-        >>> target_sizes = ms.Tensor([image.size[::-1]])
+        >>> target_sizes = mindspore.Tensor([image.size[::-1]])
         >>> results = image_processor.post_process_object_detection(outputs, threshold=0.9, target_sizes=target_sizes)[
         ...     0
         ... ]

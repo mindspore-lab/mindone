@@ -18,10 +18,9 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-import mindspore as ms
-from mindspore import ops
-from mindspore import mint, nn
-import math
+import mindspore
+from mindspore import mint, tensor
+
 import warnings
 from dataclasses import dataclass
 from functools import partial
@@ -34,17 +33,12 @@ from ...activations import ACT2CLS, ACT2FN
 from ...image_transforms import center_to_corners_format, corners_to_center_format
 from ...modeling_outputs import BaseModelOutput
 from ...modeling_utils import PreTrainedModel
-from ...pytorch_utils import compile_compatible_method_lru_cache
-from ...utils import (
-    ModelOutput,
-    add_start_docstrings,
-    add_start_docstrings_to_model_forward,
-    is_torchdynamo_compiling,
-    replace_return_docstrings,
-    torch_int,
-)
+
+from transformers.utils.generic import ModelOutput
+
 from ...utils.backbone_utils import load_backbone
-from .configuration_rt_detr_v2 import RTDetrV2Config
+from transformers import RTDetrV2Config
+from ...mindspore_adapter import dtype_to_max
 
 
 _CONFIG_FOR_DOC = "RTDetrV2Config"
@@ -89,8 +83,8 @@ def multi_scale_deformable_attention_v2(
                 value_l_, sampling_grid_l_, mode="bilinear", padding_mode="zeros", align_corners=False
             )
         elif method == "discrete":
-            sampling_coord = (sampling_grid_l_ * ms.Tensor([[width, height]], ) + 0.5).to(
-                ms.int64
+            sampling_coord = (sampling_grid_l_ * mindspore.Tensor([[width, height]], ) + 0.5).to(
+                mindspore.int64
             )
 
             # Separate clamping for x and y coordinates
@@ -125,7 +119,7 @@ def multi_scale_deformable_attention_v2(
 
 
 # the main change
-class RTDetrV2MultiscaleDeformableAttention(ms.nn.Cell):
+class RTDetrV2MultiscaleDeformableAttention(mindspore.nn.Cell):
     """
     RTDetrV2 version of multiscale deformable attention, extending the base implementation
     with improved offset handling and initialization.
@@ -170,15 +164,15 @@ class RTDetrV2MultiscaleDeformableAttention(ms.nn.Cell):
         n_points_list = [self.n_points for _ in range(self.n_levels)]
         self.n_points_list = n_points_list
         n_points_scale = [1 / n for n in n_points_list for _ in range(n)]
-        self.register_buffer("n_points_scale", ms.tensor(n_points_scale, dtype=ms.float32))
+        self.register_buffer("n_points_scale", mindspore.tensor(n_points_scale, dtype=mindspore.float32))
 
     def construct(
         self,
-        hidden_states: ms.Tensor,
-        attention_mask: Optional[ms.Tensor] = None,
+        hidden_states: mindspore.Tensor,
+        attention_mask: Optional[mindspore.Tensor] = None,
         encoder_hidden_states=None,
         encoder_attention_mask=None,
-        position_embeddings: Optional[ms.Tensor] = None,
+        position_embeddings: Optional[mindspore.Tensor] = None,
         reference_points=None,
         spatial_shapes=None,
         spatial_shapes_list=None,
@@ -191,7 +185,7 @@ class RTDetrV2MultiscaleDeformableAttention(ms.nn.Cell):
 
         batch_size, num_queries, _ = hidden_states.shape
         batch_size, sequence_length, _ = encoder_hidden_states.shape
-        if not is_torchdynamo_compiling() and (spatial_shapes[:, 0] * spatial_shapes[:, 1]).sum() != sequence_length:
+        if (spatial_shapes[:, 0] * spatial_shapes[:, 1]).sum() != sequence_length:
             raise ValueError(
                 "Make sure to align the spatial shapes with the sequence length of the encoder hidden states"
             )
@@ -234,7 +228,7 @@ class RTDetrV2MultiscaleDeformableAttention(ms.nn.Cell):
         return output, attention_weights
 
 
-class RTDetrV2MultiheadAttention(ms.nn.Cell):
+class RTDetrV2MultiheadAttention(mindspore.nn.Cell):
     """
     Multi-headed attention from 'Attention Is All You Need' paper.
 
@@ -265,19 +259,19 @@ class RTDetrV2MultiheadAttention(ms.nn.Cell):
         self.q_proj = mint.nn.Linear(embed_dim, embed_dim, bias=bias)
         self.out_proj = mint.nn.Linear(embed_dim, embed_dim, bias=bias)
 
-    def _reshape(self, tensor: ms.Tensor, seq_len: int, batch_size: int):
+    def _reshape(self, tensor: mindspore.Tensor, seq_len: int, batch_size: int):
         return tensor.view(batch_size, seq_len, self.num_heads, self.head_dim).transpose(1, 2).contiguous()
 
-    def with_pos_embed(self, tensor: ms.Tensor, position_embeddings: Optional[Tensor]):
+    def with_pos_embed(self, tensor: mindspore.Tensor, position_embeddings: Optional[Tensor]):
         return tensor if position_embeddings is None else tensor + position_embeddings
 
     def construct(
         self,
-        hidden_states: ms.Tensor,
-        attention_mask: Optional[ms.Tensor] = None,
-        position_embeddings: Optional[ms.Tensor] = None,
+        hidden_states: mindspore.Tensor,
+        attention_mask: Optional[mindspore.Tensor] = None,
+        position_embeddings: Optional[mindspore.Tensor] = None,
         output_attentions: bool = False,
-    ) -> Tuple[ms.Tensor, Optional[ms.Tensor], Optional[Tuple[ms.Tensor]]]:
+    ) -> Tuple[mindspore.Tensor, Optional[mindspore.Tensor], Optional[Tuple[mindspore.Tensor]]]:
         """Input shape: Batch x Time x Channel"""
 
         batch_size, target_len, embed_dim = hidden_states.shape
@@ -351,7 +345,7 @@ class RTDetrV2MultiheadAttention(ms.nn.Cell):
         return attn_output, attn_weights_reshaped
 
 
-class RTDetrV2DecoderLayer(ms.nn.Cell):
+class RTDetrV2DecoderLayer(mindspore.nn.Cell):
     def __init__(self, config: RTDetrV2Config):
         super().__init__()
         # self-attention
@@ -375,31 +369,31 @@ class RTDetrV2DecoderLayer(ms.nn.Cell):
 
     def construct(
         self,
-        hidden_states: ms.Tensor,
-        position_embeddings: Optional[ms.Tensor] = None,
+        hidden_states: mindspore.Tensor,
+        position_embeddings: Optional[mindspore.Tensor] = None,
         reference_points=None,
         spatial_shapes=None,
         spatial_shapes_list=None,
         level_start_index=None,
-        encoder_hidden_states: Optional[ms.Tensor] = None,
-        encoder_attention_mask: Optional[ms.Tensor] = None,
+        encoder_hidden_states: Optional[mindspore.Tensor] = None,
+        encoder_attention_mask: Optional[mindspore.Tensor] = None,
         output_attentions: Optional[bool] = False,
     ):
         """
         Args:
-            hidden_states (`torch.FloatTensor`):
+            hidden_states (`mindspore.Tensor`):
                 Input to the layer of shape `(seq_len, batch, embed_dim)`.
-            position_embeddings (`torch.FloatTensor`, *optional*):
+            position_embeddings (`mindspore.Tensor`, *optional*):
                 Position embeddings that are added to the queries and keys in the self-attention layer.
-            reference_points (`torch.FloatTensor`, *optional*):
+            reference_points (`mindspore.Tensor`, *optional*):
                 Reference points.
-            spatial_shapes (`torch.LongTensor`, *optional*):
+            spatial_shapes (`mindspore.Tensor`, *optional*):
                 Spatial shapes.
-            level_start_index (`torch.LongTensor`, *optional*):
+            level_start_index (`mindspore.Tensor`, *optional*):
                 Level start index.
-            encoder_hidden_states (`torch.FloatTensor`):
+            encoder_hidden_states (`mindspore.Tensor`):
                 cross attention input to the layer of shape `(seq_len, batch, embed_dim)`
-            encoder_attention_mask (`torch.FloatTensor`): encoder attention mask of size
+            encoder_attention_mask (`mindspore.Tensor`): encoder attention mask of size
                 `(batch, 1, target_len, source_len)` where padding elements are indicated by very large negative
                 values.
             output_attentions (`bool`, *optional*):
@@ -466,35 +460,35 @@ class RTDetrV2DecoderOutput(ModelOutput):
     - a stacked tensor of intermediate reference points.
 
     Args:
-        last_hidden_state (`torch.FloatTensor` of shape `(batch_size, sequence_length, hidden_size)`):
+        last_hidden_state (`mindspore.Tensor` of shape `(batch_size, sequence_length, hidden_size)`):
             Sequence of hidden-states at the output of the last layer of the model.
-        intermediate_hidden_states (`torch.FloatTensor` of shape `(batch_size, config.decoder_layers, num_queries, hidden_size)`):
+        intermediate_hidden_states (`mindspore.Tensor` of shape `(batch_size, config.decoder_layers, num_queries, hidden_size)`):
             Stacked intermediate hidden states (output of each layer of the decoder).
-        intermediate_logits (`torch.FloatTensor` of shape `(batch_size, config.decoder_layers, sequence_length, config.num_labels)`):
+        intermediate_logits (`mindspore.Tensor` of shape `(batch_size, config.decoder_layers, sequence_length, config.num_labels)`):
             Stacked intermediate logits (logits of each layer of the decoder).
-        intermediate_reference_points (`torch.FloatTensor` of shape `(batch_size, config.decoder_layers, sequence_length, hidden_size)`):
+        intermediate_reference_points (`mindspore.Tensor` of shape `(batch_size, config.decoder_layers, sequence_length, hidden_size)`):
             Stacked intermediate reference points (reference points of each layer of the decoder).
-        hidden_states (`tuple(torch.FloatTensor)`, *optional*, returned when `output_hidden_states=True` is passed or when `config.output_hidden_states=True`):
-            Tuple of `torch.FloatTensor` (one for the output of the embeddings + one for the output of each layer) of
+        hidden_states (`tuple(mindspore.Tensor)`, *optional*, returned when `output_hidden_states=True` is passed or when `config.output_hidden_states=True`):
+            Tuple of `mindspore.Tensor` (one for the output of the embeddings + one for the output of each layer) of
             shape `(batch_size, sequence_length, hidden_size)`. Hidden-states of the model at the output of each layer
             plus the initial embedding outputs.
-        attentions (`tuple(torch.FloatTensor)`, *optional*, returned when `output_attentions=True` is passed or when `config.output_attentions=True`):
-            Tuple of `torch.FloatTensor` (one for each layer) of shape `(batch_size, num_heads, sequence_length,
+        attentions (`tuple(mindspore.Tensor)`, *optional*, returned when `output_attentions=True` is passed or when `config.output_attentions=True`):
+            Tuple of `mindspore.Tensor` (one for each layer) of shape `(batch_size, num_heads, sequence_length,
             sequence_length)`. Attentions weights after the attention softmax, used to compute the weighted average in
             the self-attention heads.
-        cross_attentions (`tuple(torch.FloatTensor)`, *optional*, returned when `output_attentions=True` and `config.add_cross_attention=True` is passed or when `config.output_attentions=True`):
-            Tuple of `torch.FloatTensor` (one for each layer) of shape `(batch_size, num_heads, sequence_length,
+        cross_attentions (`tuple(mindspore.Tensor)`, *optional*, returned when `output_attentions=True` and `config.add_cross_attention=True` is passed or when `config.output_attentions=True`):
+            Tuple of `mindspore.Tensor` (one for each layer) of shape `(batch_size, num_heads, sequence_length,
             sequence_length)`. Attentions weights of the decoder's cross-attention layer, after the attention softmax,
             used to compute the weighted average in the cross-attention heads.
     """
 
-    last_hidden_state: ms.Tensor = None
-    intermediate_hidden_states: ms.Tensor = None
-    intermediate_logits: ms.Tensor = None
-    intermediate_reference_points: ms.Tensor = None
-    hidden_states: Optional[Tuple[ms.Tensor]] = None
-    attentions: Optional[Tuple[ms.Tensor]] = None
-    cross_attentions: Optional[Tuple[ms.Tensor]] = None
+    last_hidden_state: mindspore.Tensor = None
+    intermediate_hidden_states: mindspore.Tensor = None
+    intermediate_logits: mindspore.Tensor = None
+    intermediate_reference_points: mindspore.Tensor = None
+    hidden_states: Optional[Tuple[mindspore.Tensor]] = None
+    attentions: Optional[Tuple[mindspore.Tensor]] = None
+    cross_attentions: Optional[Tuple[mindspore.Tensor]] = None
 
 
 @dataclass
@@ -503,69 +497,69 @@ class RTDetrV2ModelOutput(ModelOutput):
     Base class for outputs of the RT-DETR encoder-decoder model.
 
     Args:
-        last_hidden_state (`torch.FloatTensor` of shape `(batch_size, num_queries, hidden_size)`):
+        last_hidden_state (`mindspore.Tensor` of shape `(batch_size, num_queries, hidden_size)`):
             Sequence of hidden-states at the output of the last layer of the decoder of the model.
-        intermediate_hidden_states (`torch.FloatTensor` of shape `(batch_size, config.decoder_layers, num_queries, hidden_size)`):
+        intermediate_hidden_states (`mindspore.Tensor` of shape `(batch_size, config.decoder_layers, num_queries, hidden_size)`):
             Stacked intermediate hidden states (output of each layer of the decoder).
-        intermediate_logits (`torch.FloatTensor` of shape `(batch_size, config.decoder_layers, sequence_length, config.num_labels)`):
+        intermediate_logits (`mindspore.Tensor` of shape `(batch_size, config.decoder_layers, sequence_length, config.num_labels)`):
             Stacked intermediate logits (logits of each layer of the decoder).
-        intermediate_reference_points (`torch.FloatTensor` of shape `(batch_size, config.decoder_layers, num_queries, 4)`):
+        intermediate_reference_points (`mindspore.Tensor` of shape `(batch_size, config.decoder_layers, num_queries, 4)`):
             Stacked intermediate reference points (reference points of each layer of the decoder).
-        decoder_hidden_states (`tuple(torch.FloatTensor)`, *optional*, returned when `output_hidden_states=True` is passed or when `config.output_hidden_states=True`):
-            Tuple of `torch.FloatTensor` (one for the output of the embeddings + one for the output of each layer) of
+        decoder_hidden_states (`tuple(mindspore.Tensor)`, *optional*, returned when `output_hidden_states=True` is passed or when `config.output_hidden_states=True`):
+            Tuple of `mindspore.Tensor` (one for the output of the embeddings + one for the output of each layer) of
             shape `(batch_size, num_queries, hidden_size)`. Hidden-states of the decoder at the output of each layer
             plus the initial embedding outputs.
-        decoder_attentions (`tuple(torch.FloatTensor)`, *optional*, returned when `output_attentions=True` is passed or when `config.output_attentions=True`):
-            Tuple of `torch.FloatTensor` (one for each layer) of shape `(batch_size, num_heads, num_queries,
+        decoder_attentions (`tuple(mindspore.Tensor)`, *optional*, returned when `output_attentions=True` is passed or when `config.output_attentions=True`):
+            Tuple of `mindspore.Tensor` (one for each layer) of shape `(batch_size, num_heads, num_queries,
             num_queries)`. Attentions weights of the decoder, after the attention softmax, used to compute the weighted
             average in the self-attention heads.
-        cross_attentions (`tuple(torch.FloatTensor)`, *optional*, returned when `output_attentions=True` is passed or when `config.output_attentions=True`):
-            Tuple of `torch.FloatTensor` (one for each layer) of shape `(batch_size, num_queries, num_heads, 4, 4)`.
+        cross_attentions (`tuple(mindspore.Tensor)`, *optional*, returned when `output_attentions=True` is passed or when `config.output_attentions=True`):
+            Tuple of `mindspore.Tensor` (one for each layer) of shape `(batch_size, num_queries, num_heads, 4, 4)`.
             Attentions weights of the decoder's cross-attention layer, after the attention softmax, used to compute the
             weighted average in the cross-attention heads.
-        encoder_last_hidden_state (`torch.FloatTensor` of shape `(batch_size, sequence_length, hidden_size)`, *optional*):
+        encoder_last_hidden_state (`mindspore.Tensor` of shape `(batch_size, sequence_length, hidden_size)`, *optional*):
             Sequence of hidden-states at the output of the last layer of the encoder of the model.
-        encoder_hidden_states (`tuple(torch.FloatTensor)`, *optional*, returned when `output_hidden_states=True` is passed or when `config.output_hidden_states=True`):
-            Tuple of `torch.FloatTensor` (one for the output of the embeddings + one for the output of each layer) of
+        encoder_hidden_states (`tuple(mindspore.Tensor)`, *optional*, returned when `output_hidden_states=True` is passed or when `config.output_hidden_states=True`):
+            Tuple of `mindspore.Tensor` (one for the output of the embeddings + one for the output of each layer) of
             shape `(batch_size, sequence_length, hidden_size)`. Hidden-states of the encoder at the output of each
             layer plus the initial embedding outputs.
-        encoder_attentions (`tuple(torch.FloatTensor)`, *optional*, returned when `output_attentions=True` is passed or when `config.output_attentions=True`):
-            Tuple of `torch.FloatTensor` (one for each layer) of shape `(batch_size, num_queries, num_heads, 4, 4)`.
+        encoder_attentions (`tuple(mindspore.Tensor)`, *optional*, returned when `output_attentions=True` is passed or when `config.output_attentions=True`):
+            Tuple of `mindspore.Tensor` (one for each layer) of shape `(batch_size, num_queries, num_heads, 4, 4)`.
             Attentions weights of the encoder, after the attention softmax, used to compute the weighted average in the
             self-attention heads.
-        init_reference_points (`torch.FloatTensor` of shape  `(batch_size, num_queries, 4)`):
+        init_reference_points (`mindspore.Tensor` of shape  `(batch_size, num_queries, 4)`):
             Initial reference points sent through the Transformer decoder.
-        enc_topk_logits (`torch.FloatTensor` of shape `(batch_size, sequence_length, config.num_labels)`):
+        enc_topk_logits (`mindspore.Tensor` of shape `(batch_size, sequence_length, config.num_labels)`):
             Predicted bounding boxes scores where the top `config.two_stage_num_proposals` scoring bounding boxes are
             picked as region proposals in the encoder stage. Output of bounding box binary classification (i.e.
             foreground and background).
-        enc_topk_bboxes (`torch.FloatTensor` of shape `(batch_size, sequence_length, 4)`):
+        enc_topk_bboxes (`mindspore.Tensor` of shape `(batch_size, sequence_length, 4)`):
             Logits of predicted bounding boxes coordinates in the encoder stage.
-        enc_outputs_class (`torch.FloatTensor` of shape `(batch_size, sequence_length, config.num_labels)`, *optional*, returned when `config.with_box_refine=True` and `config.two_stage=True`):
+        enc_outputs_class (`mindspore.Tensor` of shape `(batch_size, sequence_length, config.num_labels)`, *optional*, returned when `config.with_box_refine=True` and `config.two_stage=True`):
             Predicted bounding boxes scores where the top `config.two_stage_num_proposals` scoring bounding boxes are
             picked as region proposals in the first stage. Output of bounding box binary classification (i.e.
             foreground and background).
-        enc_outputs_coord_logits (`torch.FloatTensor` of shape `(batch_size, sequence_length, 4)`, *optional*, returned when `config.with_box_refine=True` and `config.two_stage=True`):
+        enc_outputs_coord_logits (`mindspore.Tensor` of shape `(batch_size, sequence_length, 4)`, *optional*, returned when `config.with_box_refine=True` and `config.two_stage=True`):
             Logits of predicted bounding boxes coordinates in the first stage.
         denoising_meta_values (`dict`):
             Extra dictionary for the denoising related values
     """
 
-    last_hidden_state: ms.Tensor = None
-    intermediate_hidden_states: ms.Tensor = None
-    intermediate_logits: ms.Tensor = None
-    intermediate_reference_points: ms.Tensor = None
-    decoder_hidden_states: Optional[Tuple[ms.Tensor]] = None
-    decoder_attentions: Optional[Tuple[ms.Tensor]] = None
-    cross_attentions: Optional[Tuple[ms.Tensor]] = None
-    encoder_last_hidden_state: Optional[ms.Tensor] = None
-    encoder_hidden_states: Optional[Tuple[ms.Tensor]] = None
-    encoder_attentions: Optional[Tuple[ms.Tensor]] = None
-    init_reference_points: ms.Tensor = None
-    enc_topk_logits: Optional[ms.Tensor] = None
-    enc_topk_bboxes: Optional[ms.Tensor] = None
-    enc_outputs_class: Optional[ms.Tensor] = None
-    enc_outputs_coord_logits: Optional[ms.Tensor] = None
+    last_hidden_state: mindspore.Tensor = None
+    intermediate_hidden_states: mindspore.Tensor = None
+    intermediate_logits: mindspore.Tensor = None
+    intermediate_reference_points: mindspore.Tensor = None
+    decoder_hidden_states: Optional[Tuple[mindspore.Tensor]] = None
+    decoder_attentions: Optional[Tuple[mindspore.Tensor]] = None
+    cross_attentions: Optional[Tuple[mindspore.Tensor]] = None
+    encoder_last_hidden_state: Optional[mindspore.Tensor] = None
+    encoder_hidden_states: Optional[Tuple[mindspore.Tensor]] = None
+    encoder_attentions: Optional[Tuple[mindspore.Tensor]] = None
+    init_reference_points: mindspore.Tensor = None
+    enc_topk_logits: Optional[mindspore.Tensor] = None
+    enc_topk_bboxes: Optional[mindspore.Tensor] = None
+    enc_outputs_class: Optional[mindspore.Tensor] = None
+    enc_outputs_coord_logits: Optional[mindspore.Tensor] = None
     denoising_meta_values: Optional[Dict] = None
 
 
@@ -575,15 +569,15 @@ class RTDetrV2ObjectDetectionOutput(ModelOutput):
     Output type of [`RTDetrV2ForObjectDetection`].
 
     Args:
-        loss (`torch.FloatTensor` of shape `(1,)`, *optional*, returned when `labels` are provided)):
+        loss (`mindspore.Tensor` of shape `(1,)`, *optional*, returned when `labels` are provided)):
             Total loss as a linear combination of a negative log-likehood (cross-entropy) for class prediction and a
             bounding box loss. The latter is defined as a linear combination of the L1 loss and the generalized
             scale-invariant IoU loss.
         loss_dict (`Dict`, *optional*):
             A dictionary containing the individual losses. Useful for logging.
-        logits (`torch.FloatTensor` of shape `(batch_size, num_queries, num_classes + 1)`):
+        logits (`mindspore.Tensor` of shape `(batch_size, num_queries, num_classes + 1)`):
             Classification logits (including no-object) for all queries.
-        pred_boxes (`torch.FloatTensor` of shape `(batch_size, num_queries, 4)`):
+        pred_boxes (`mindspore.Tensor` of shape `(batch_size, num_queries, 4)`):
             Normalized boxes coordinates for all queries, represented as (center_x, center_y, width, height). These
             values are normalized in [0, 1], relative to the size of each individual image in the batch (disregarding
             possible padding). You can use [`~RTDetrV2ImageProcessor.post_process_object_detection`] to retrieve the
@@ -592,76 +586,76 @@ class RTDetrV2ObjectDetectionOutput(ModelOutput):
             Optional, only returned when auxiliary losses are activated (i.e. `config.auxiliary_loss` is set to `True`)
             and labels are provided. It is a list of dictionaries containing the two above keys (`logits` and
             `pred_boxes`) for each decoder layer.
-        last_hidden_state (`torch.FloatTensor` of shape `(batch_size, num_queries, hidden_size)`):
+        last_hidden_state (`mindspore.Tensor` of shape `(batch_size, num_queries, hidden_size)`):
             Sequence of hidden-states at the output of the last layer of the decoder of the model.
-        intermediate_hidden_states (`torch.FloatTensor` of shape `(batch_size, config.decoder_layers, num_queries, hidden_size)`):
+        intermediate_hidden_states (`mindspore.Tensor` of shape `(batch_size, config.decoder_layers, num_queries, hidden_size)`):
             Stacked intermediate hidden states (output of each layer of the decoder).
-        intermediate_logits (`torch.FloatTensor` of shape `(batch_size, config.decoder_layers, num_queries, config.num_labels)`):
+        intermediate_logits (`mindspore.Tensor` of shape `(batch_size, config.decoder_layers, num_queries, config.num_labels)`):
             Stacked intermediate logits (logits of each layer of the decoder).
-        intermediate_reference_points (`torch.FloatTensor` of shape `(batch_size, config.decoder_layers, num_queries, 4)`):
+        intermediate_reference_points (`mindspore.Tensor` of shape `(batch_size, config.decoder_layers, num_queries, 4)`):
             Stacked intermediate reference points (reference points of each layer of the decoder).
-        decoder_hidden_states (`tuple(torch.FloatTensor)`, *optional*, returned when `output_hidden_states=True` is passed or when `config.output_hidden_states=True`):
-            Tuple of `torch.FloatTensor` (one for the output of the embeddings + one for the output of each layer) of
+        decoder_hidden_states (`tuple(mindspore.Tensor)`, *optional*, returned when `output_hidden_states=True` is passed or when `config.output_hidden_states=True`):
+            Tuple of `mindspore.Tensor` (one for the output of the embeddings + one for the output of each layer) of
             shape `(batch_size, num_queries, hidden_size)`. Hidden-states of the decoder at the output of each layer
             plus the initial embedding outputs.
-        decoder_attentions (`tuple(torch.FloatTensor)`, *optional*, returned when `output_attentions=True` is passed or when `config.output_attentions=True`):
-            Tuple of `torch.FloatTensor` (one for each layer) of shape `(batch_size, num_heads, num_queries,
+        decoder_attentions (`tuple(mindspore.Tensor)`, *optional*, returned when `output_attentions=True` is passed or when `config.output_attentions=True`):
+            Tuple of `mindspore.Tensor` (one for each layer) of shape `(batch_size, num_heads, num_queries,
             num_queries)`. Attentions weights of the decoder, after the attention softmax, used to compute the weighted
             average in the self-attention heads.
-        cross_attentions (`tuple(torch.FloatTensor)`, *optional*, returned when `output_attentions=True` is passed or when `config.output_attentions=True`):
-            Tuple of `torch.FloatTensor` (one for each layer) of shape `(batch_size, num_queries, num_heads, 4, 4)`.
+        cross_attentions (`tuple(mindspore.Tensor)`, *optional*, returned when `output_attentions=True` is passed or when `config.output_attentions=True`):
+            Tuple of `mindspore.Tensor` (one for each layer) of shape `(batch_size, num_queries, num_heads, 4, 4)`.
             Attentions weights of the decoder's cross-attention layer, after the attention softmax, used to compute the
             weighted average in the cross-attention heads.
-        encoder_last_hidden_state (`torch.FloatTensor` of shape `(batch_size, sequence_length, hidden_size)`, *optional*):
+        encoder_last_hidden_state (`mindspore.Tensor` of shape `(batch_size, sequence_length, hidden_size)`, *optional*):
             Sequence of hidden-states at the output of the last layer of the encoder of the model.
-        encoder_hidden_states (`tuple(torch.FloatTensor)`, *optional*, returned when `output_hidden_states=True` is passed or when `config.output_hidden_states=True`):
-            Tuple of `torch.FloatTensor` (one for the output of the embeddings + one for the output of each layer) of
+        encoder_hidden_states (`tuple(mindspore.Tensor)`, *optional*, returned when `output_hidden_states=True` is passed or when `config.output_hidden_states=True`):
+            Tuple of `mindspore.Tensor` (one for the output of the embeddings + one for the output of each layer) of
             shape `(batch_size, sequence_length, hidden_size)`. Hidden-states of the encoder at the output of each
             layer plus the initial embedding outputs.
-        encoder_attentions (`tuple(torch.FloatTensor)`, *optional*, returned when `output_attentions=True` is passed or when `config.output_attentions=True`):
-            Tuple of `torch.FloatTensor` (one for each layer) of shape `(batch_size, num_queries, num_heads, 4, 4)`.
+        encoder_attentions (`tuple(mindspore.Tensor)`, *optional*, returned when `output_attentions=True` is passed or when `config.output_attentions=True`):
+            Tuple of `mindspore.Tensor` (one for each layer) of shape `(batch_size, num_queries, num_heads, 4, 4)`.
             Attentions weights of the encoder, after the attention softmax, used to compute the weighted average in the
             self-attention heads.
-        init_reference_points (`torch.FloatTensor` of shape  `(batch_size, num_queries, 4)`):
+        init_reference_points (`mindspore.Tensor` of shape  `(batch_size, num_queries, 4)`):
             Initial reference points sent through the Transformer decoder.
-        enc_topk_logits (`torch.FloatTensor` of shape `(batch_size, sequence_length, config.num_labels)`, *optional*, returned when `config.with_box_refine=True` and `config.two_stage=True`):
+        enc_topk_logits (`mindspore.Tensor` of shape `(batch_size, sequence_length, config.num_labels)`, *optional*, returned when `config.with_box_refine=True` and `config.two_stage=True`):
             Logits of predicted bounding boxes coordinates in the encoder.
-        enc_topk_bboxes (`torch.FloatTensor` of shape `(batch_size, sequence_length, 4)`, *optional*, returned when `config.with_box_refine=True` and `config.two_stage=True`):
+        enc_topk_bboxes (`mindspore.Tensor` of shape `(batch_size, sequence_length, 4)`, *optional*, returned when `config.with_box_refine=True` and `config.two_stage=True`):
             Logits of predicted bounding boxes coordinates in the encoder.
-        enc_outputs_class (`torch.FloatTensor` of shape `(batch_size, sequence_length, config.num_labels)`, *optional*, returned when `config.with_box_refine=True` and `config.two_stage=True`):
+        enc_outputs_class (`mindspore.Tensor` of shape `(batch_size, sequence_length, config.num_labels)`, *optional*, returned when `config.with_box_refine=True` and `config.two_stage=True`):
             Predicted bounding boxes scores where the top `config.two_stage_num_proposals` scoring bounding boxes are
             picked as region proposals in the first stage. Output of bounding box binary classification (i.e.
             foreground and background).
-        enc_outputs_coord_logits (`torch.FloatTensor` of shape `(batch_size, sequence_length, 4)`, *optional*, returned when `config.with_box_refine=True` and `config.two_stage=True`):
+        enc_outputs_coord_logits (`mindspore.Tensor` of shape `(batch_size, sequence_length, 4)`, *optional*, returned when `config.with_box_refine=True` and `config.two_stage=True`):
             Logits of predicted bounding boxes coordinates in the first stage.
         denoising_meta_values (`dict`):
             Extra dictionary for the denoising related values
     """
 
-    loss: Optional[ms.Tensor] = None
+    loss: Optional[mindspore.Tensor] = None
     loss_dict: Optional[Dict] = None
-    logits: ms.Tensor = None
-    pred_boxes: ms.Tensor = None
+    logits: mindspore.Tensor = None
+    pred_boxes: mindspore.Tensor = None
     auxiliary_outputs: Optional[List[Dict]] = None
-    last_hidden_state: ms.Tensor = None
-    intermediate_hidden_states: ms.Tensor = None
-    intermediate_logits: ms.Tensor = None
-    intermediate_reference_points: ms.Tensor = None
-    decoder_hidden_states: Optional[Tuple[ms.Tensor]] = None
-    decoder_attentions: Optional[Tuple[ms.Tensor]] = None
-    cross_attentions: Optional[Tuple[ms.Tensor]] = None
-    encoder_last_hidden_state: Optional[ms.Tensor] = None
-    encoder_hidden_states: Optional[Tuple[ms.Tensor]] = None
-    encoder_attentions: Optional[Tuple[ms.Tensor]] = None
-    init_reference_points: Optional[Tuple[ms.Tensor]] = None
-    enc_topk_logits: Optional[ms.Tensor] = None
-    enc_topk_bboxes: Optional[ms.Tensor] = None
-    enc_outputs_class: Optional[ms.Tensor] = None
-    enc_outputs_coord_logits: Optional[ms.Tensor] = None
+    last_hidden_state: mindspore.Tensor = None
+    intermediate_hidden_states: mindspore.Tensor = None
+    intermediate_logits: mindspore.Tensor = None
+    intermediate_reference_points: mindspore.Tensor = None
+    decoder_hidden_states: Optional[Tuple[mindspore.Tensor]] = None
+    decoder_attentions: Optional[Tuple[mindspore.Tensor]] = None
+    cross_attentions: Optional[Tuple[mindspore.Tensor]] = None
+    encoder_last_hidden_state: Optional[mindspore.Tensor] = None
+    encoder_hidden_states: Optional[Tuple[mindspore.Tensor]] = None
+    encoder_attentions: Optional[Tuple[mindspore.Tensor]] = None
+    init_reference_points: Optional[Tuple[mindspore.Tensor]] = None
+    enc_topk_logits: Optional[mindspore.Tensor] = None
+    enc_topk_bboxes: Optional[mindspore.Tensor] = None
+    enc_outputs_class: Optional[mindspore.Tensor] = None
+    enc_outputs_coord_logits: Optional[mindspore.Tensor] = None
     denoising_meta_values: Optional[Dict] = None
 
 
-class RTDetrV2FrozenBatchNorm2d(ms.nn.Cell):
+class RTDetrV2FrozenBatchNorm2d(mindspore.nn.Cell):
     """
     BatchNorm2d where the batch statistics and the affine parameters are fixed.
 
@@ -702,22 +696,21 @@ class RTDetrV2FrozenBatchNorm2d(ms.nn.Cell):
 
 def replace_batch_norm(model):
     r"""
-    Recursively replace all `torch.nn.BatchNorm2d` with `RTDetrV2FrozenBatchNorm2d`.
+    Recursively replace all `mindspore.nn.BatchNorm2d` with `RTDetrV2FrozenBatchNorm2d`.
 
     Args:
-        model (torch.nn.Module):
+        model (mindspore.cell):
             input model
     """
-    for name, module in model.named_children():
-        if isinstance(module, mint.nn.BatchNorm2d):
-            new_module = RTDetrV2FrozenBatchNorm2d(module.num_features)
-            model._modules[name] = new_module
+    for name, child_cell in model.name_and_cells().items():
+        if isinstance(child_cell, mint.nn.BatchNorm2d):
+            new_module = RTDetrV2FrozenBatchNorm2d(child_cell.num_features)
+            setattr(model, name, new_module)
+        else:
+            replace_batch_norm(child_cell)
 
-        if len(list(module.children())) > 0:
-            replace_batch_norm(module)
 
-
-class RTDetrV2ConvEncoder(ms.nn.Cell):
+class RTDetrV2ConvEncoder(mindspore.nn.Cell):
     """
     Convolutional backbone using the modeling_rt_detr_v2_resnet.py.
 
@@ -732,24 +725,24 @@ class RTDetrV2ConvEncoder(ms.nn.Cell):
 
         if config.freeze_backbone_batch_norms:
             # replace batch norm by frozen batch norm
-            with ms._no_grad():
+            with mindspore._no_grad():
                 replace_batch_norm(backbone)
         self.model = backbone
         self.intermediate_channel_sizes = self.model.channels
 
-    def construct(self, pixel_values: ms.Tensor, pixel_mask: ms.Tensor):
+    def construct(self, pixel_values: mindspore.Tensor, pixel_mask: mindspore.Tensor):
         # send pixel_values through the model to get list of feature maps
         features = self.model(pixel_values).feature_maps
 
         out = []
         for feature_map in features:
             # downsample pixel_mask to match shape of corresponding feature_map
-            mask = mint.nn.functional.interpolate(pixel_mask[None].float(), size=feature_map.shape[-2:]).to(ms.bool_)[0]
+            mask = mint.nn.functional.interpolate(pixel_mask[None].float(), size=feature_map.shape[-2:]).to(mindspore.bool_)[0]
             out.append((feature_map, mask))
         return out
 
 
-class RTDetrV2ConvNormLayer(ms.nn.Cell):
+class RTDetrV2ConvNormLayer(mindspore.nn.Cell):
     def __init__(self, config, in_channels, out_channels, kernel_size, stride, padding=None, activation=None):
         super().__init__()
         self.conv = mint.nn.Conv2d(
@@ -770,7 +763,7 @@ class RTDetrV2ConvNormLayer(ms.nn.Cell):
         return hidden_state
 
 
-class RTDetrV2EncoderLayer(ms.nn.Cell):
+class RTDetrV2EncoderLayer(mindspore.nn.Cell):
     def __init__(self, config: RTDetrV2Config):
         super().__init__()
         self.normalize_before = config.normalize_before
@@ -791,19 +784,19 @@ class RTDetrV2EncoderLayer(ms.nn.Cell):
 
     def construct(
         self,
-        hidden_states: ms.Tensor,
-        attention_mask: ms.Tensor,
-        position_embeddings: ms.Tensor = None,
+        hidden_states: mindspore.Tensor,
+        attention_mask: mindspore.Tensor,
+        position_embeddings: mindspore.Tensor = None,
         output_attentions: bool = False,
         **kwargs,
     ):
         """
         Args:
-            hidden_states (`torch.FloatTensor`): input to the layer of shape `(batch, seq_len, embed_dim)`
-            attention_mask (`torch.FloatTensor`): attention mask of size
+            hidden_states (`mindspore.Tensor`): input to the layer of shape `(batch, seq_len, embed_dim)`
+            attention_mask (`mindspore.Tensor`): attention mask of size
                 `(batch, 1, target_len, source_len)` where padding elements are indicated by very large negative
                 values.
-            position_embeddings (`torch.FloatTensor`, *optional*):
+            position_embeddings (`mindspore.Tensor`, *optional*):
                 Object queries (also called content embeddings), to be added to the hidden states.
             output_attentions (`bool`, *optional*):
                 Whether or not to return the attentions tensors of all attention layers. See `attentions` under
@@ -842,7 +835,7 @@ class RTDetrV2EncoderLayer(ms.nn.Cell):
 
         if self.training:
             if mint.isinf(hidden_states).any() or mint.isnan(hidden_states).any():
-                clamp_value = ms.tensor(ms.tensor.finfo(hidden_states.dtype).max - 1000, dtype=hidden_states.dtype)
+                clamp_value = mindspore.tensor(dtype_to_max(hidden_states.dtype) - 1000, dtype=hidden_states.dtype)
                 hidden_states = mint.clamp(hidden_states, min=-clamp_value, max=clamp_value)
 
         outputs = (hidden_states,)
@@ -853,7 +846,7 @@ class RTDetrV2EncoderLayer(ms.nn.Cell):
         return outputs
 
 
-class RTDetrV2RepVggBlock(ms.nn.Cell):
+class RTDetrV2RepVggBlock(mindspore.nn.Cell):
     """
     RepVGG architecture block introduced by the work "RepVGG: Making VGG-style ConvNets Great Again".
     """
@@ -872,7 +865,7 @@ class RTDetrV2RepVggBlock(ms.nn.Cell):
         return self.activation(y)
 
 
-class RTDetrV2CSPRepLayer(ms.nn.Cell):
+class RTDetrV2CSPRepLayer(mindspore.nn.Cell):
     """
     Cross Stage Partial (CSP) network layer with RepVGG blocks.
     """
@@ -888,7 +881,7 @@ class RTDetrV2CSPRepLayer(ms.nn.Cell):
         hidden_channels = int(out_channels * config.hidden_expansion)
         self.conv1 = RTDetrV2ConvNormLayer(config, in_channels, hidden_channels, 1, 1, activation=activation)
         self.conv2 = RTDetrV2ConvNormLayer(config, in_channels, hidden_channels, 1, 1, activation=activation)
-        self.bottlenecks = ms.nn.SequentialCell(*[RTDetrV2RepVggBlock(config) for _ in range(num_blocks)])
+        self.bottlenecks = mindspore.nn.SequentialCell(*[RTDetrV2RepVggBlock(config) for _ in range(num_blocks)])
         if hidden_channels != out_channels:
             self.conv3 = RTDetrV2ConvNormLayer(config, hidden_channels, out_channels, 1, 1, activation=activation)
         else:
@@ -901,13 +894,13 @@ class RTDetrV2CSPRepLayer(ms.nn.Cell):
         return self.conv3(hidden_state_1 + hidden_state_2)
 
 
-class RTDetrV2Encoder(ms.nn.Cell):
+class RTDetrV2Encoder(mindspore.nn.Cell):
     def __init__(self, config: RTDetrV2Config):
         super().__init__()
 
-        self.layers = ms.nn.CellList([RTDetrV2EncoderLayer(config) for _ in range(config.encoder_layers)])
+        self.layers = mindspore.nn.CellList([RTDetrV2EncoderLayer(config) for _ in range(config.encoder_layers)])
 
-    def construct(self, src, src_mask=None, pos_embed=None, output_attentions: bool = False) -> ms.Tensor:
+    def construct(self, src, src_mask=None, pos_embed=None, output_attentions: bool = False) -> mindspore.Tensor:
         hidden_states = src
         for layer in self.layers:
             hidden_states = layer(
@@ -919,7 +912,7 @@ class RTDetrV2Encoder(ms.nn.Cell):
         return hidden_states
 
 
-class RTDetrV2HybridEncoder(ms.nn.Cell):
+class RTDetrV2HybridEncoder(mindspore.nn.Cell):
     """
     Decoder consisting of a projection layer, a set of `RTDetrV2Encoder`, a top-down Feature Pyramid Network
     (FPN) and a bottom-up Path Aggregation Network (PAN). More details on the paper: https://arxiv.org/abs/2304.08069
@@ -944,11 +937,11 @@ class RTDetrV2HybridEncoder(ms.nn.Cell):
         activation = config.activation_function
 
         # encoder transformer
-        self.encoder = ms.nn.CellList([RTDetrV2Encoder(config) for _ in range(len(self.encode_proj_layers))])
+        self.encoder = mindspore.nn.CellList([RTDetrV2Encoder(config) for _ in range(len(self.encode_proj_layers))])
 
         # top-down FPN
-        self.lateral_convs = ms.nn.CellList()
-        self.fpn_blocks = ms.nn.CellList()
+        self.lateral_convs = mindspore.nn.CellList()
+        self.fpn_blocks = mindspore.nn.CellList()
         for _ in range(self.num_fpn_stages):
             lateral_conv = RTDetrV2ConvNormLayer(
                 config,
@@ -963,8 +956,8 @@ class RTDetrV2HybridEncoder(ms.nn.Cell):
             self.fpn_blocks.append(fpn_block)
 
         # bottom-up PAN
-        self.downsample_convs = ms.nn.CellList()
-        self.pan_blocks = ms.nn.CellList()
+        self.downsample_convs = mindspore.nn.CellList()
+        self.pan_blocks = mindspore.nn.CellList()
         for _ in range(self.num_pan_stages):
             downsample_conv = RTDetrV2ConvNormLayer(
                 config,
@@ -980,10 +973,10 @@ class RTDetrV2HybridEncoder(ms.nn.Cell):
 
     @staticmethod
     def build_2d_sincos_position_embedding(
-        width, height, embed_dim=256, temperature=10000.0, device="cpu", dtype=ms.float32
+        width, height, embed_dim=256, temperature=10000.0, dtype=mindspore.float32
     ):
-        grid_w = mint.arange(torch_int(width), ).to(dtype)
-        grid_h = mint.arange(torch_int(height), ).to(dtype)
+        grid_w = mint.arange(width, ).to(dtype)
+        grid_h = mint.arange(height, ).to(dtype)
         grid_w, grid_h = mint.meshgrid(grid_w, grid_h, indexing="ij")
         if embed_dim % 4 != 0:
             raise ValueError("Embed dimension must be divisible by 4 for 2D sin-cos position embedding")
@@ -1010,20 +1003,20 @@ class RTDetrV2HybridEncoder(ms.nn.Cell):
     ):
         r"""
         Args:
-            inputs_embeds (`torch.FloatTensor` of shape `(batch_size, sequence_length, hidden_size)`):
+            inputs_embeds (`mindspore.Tensor` of shape `(batch_size, sequence_length, hidden_size)`):
                 Flattened feature map (output of the backbone + projection layer) that is passed to the encoder.
-            attention_mask (`torch.Tensor` of shape `(batch_size, sequence_length)`, *optional*):
+            attention_mask (`mindspore.Tensor` of shape `(batch_size, sequence_length)`, *optional*):
                 Mask to avoid performing attention on padding pixel features. Mask values selected in `[0, 1]`:
                 - 1 for pixel features that are real (i.e. **not masked**),
                 - 0 for pixel features that are padding (i.e. **masked**).
                 [What are attention masks?](../glossary#attention-mask)
-            position_embeddings (`torch.FloatTensor` of shape `(batch_size, sequence_length, hidden_size)`):
+            position_embeddings (`mindspore.Tensor` of shape `(batch_size, sequence_length, hidden_size)`):
                 Position embeddings that are added to the queries and keys in each self-attention layer.
-            spatial_shapes (`torch.LongTensor` of shape `(num_feature_levels, 2)`):
+            spatial_shapes (`mindspore.Tensor` of shape `(num_feature_levels, 2)`):
                 Spatial shapes of each feature map.
-            level_start_index (`torch.LongTensor` of shape `(num_feature_levels)`):
+            level_start_index (`mindspore.Tensor` of shape `(num_feature_levels)`):
                 Starting index of each feature map.
-            valid_ratios (`torch.FloatTensor` of shape `(batch_size, num_feature_levels, 2)`):
+            valid_ratios (`mindspore.Tensor` of shape `(batch_size, num_feature_levels, 2)`):
                 Ratio of valid area in each feature level.
             output_attentions (`bool`, *optional*):
                 Whether or not to return the attentions tensors of all attention layers. See `attentions` under
@@ -1148,11 +1141,11 @@ def get_contrastive_denoising_training_group(
             Scale of noise applied to bounding boxes.
     Returns:
         `tuple` comprising various elements:
-        - **input_query_class** (`torch.FloatTensor`) --
+        - **input_query_class** (`mindspore.Tensor`) --
           Class queries with applied label noise.
-        - **input_query_bbox** (`torch.FloatTensor`) --
+        - **input_query_bbox** (`mindspore.Tensor`) --
           Bounding box queries with applied box noise.
-        - **attn_mask** (`torch.FloatTensor`) --
+        - **attn_mask** (`mindspore.Tensor`) --
            Attention mask for separating denoising and reconstruction queries.
         - **denoising_meta_values** (`dict`) --
           Metadata including denoising positive indices, number of groups, and split sizes.
@@ -1162,7 +1155,6 @@ def get_contrastive_denoising_training_group(
         return None, None, None, None
 
     num_ground_truths = [len(t["class_labels"]) for t in targets]
-    # device = targets[0]["class_labels"].device  # Device removed for MindSpore
 
     max_gt_num = max(num_ground_truths)
     if max_gt_num == 0:
@@ -1173,9 +1165,9 @@ def get_contrastive_denoising_training_group(
     # pad gt to max_num of a batch
     batch_size = len(num_ground_truths)
 
-    input_query_class = ms.ops.full([batch_size, max_gt_num], num_classes, dtype=ms.int32, )
+    input_query_class = mindspore.ops.full([batch_size, max_gt_num], num_classes, dtype=mindspore.int32, )
     input_query_bbox = mint.zeros([batch_size, max_gt_num, 4], )
-    pad_gt_mask = mint.zeros([batch_size, max_gt_num], dtype=ms.bool_, )
+    pad_gt_mask = mint.zeros([batch_size, max_gt_num], dtype=mindspore.bool_, )
 
     for i in range(batch_size):
         num_gt = num_ground_truths[i]
@@ -1199,10 +1191,10 @@ def get_contrastive_denoising_training_group(
         denoise_positive_idx, [n * num_groups_denoising_queries for n in num_ground_truths]
     )
     # total denoising queries
-    num_denoising_queries = torch_int(max_gt_num * 2 * num_groups_denoising_queries)
+    num_denoising_queries = max_gt_num * 2 * num_groups_denoising_queries
 
     if label_noise_ratio > 0:
-        mask = mint.rand_like(input_query_class, dtype=ms.float32) < (label_noise_ratio * 0.5)
+        mask = mint.rand_like(input_query_class, dtype=mindspore.float32) < (label_noise_ratio * 0.5)
         # randomly put a new one here
         new_label = mint.randint_like(mask, 0, num_classes, dtype=input_query_class.dtype)
         input_query_class = mint.where(mask & pad_gt_mask, new_label, input_query_class)
@@ -1222,7 +1214,7 @@ def get_contrastive_denoising_training_group(
     input_query_class = class_embed(input_query_class)
 
     target_size = num_denoising_queries + num_queries
-    attn_mask = ms.ops.full([target_size, target_size], False, dtype=ms.bool_, )
+    attn_mask = mindspore.ops.full([target_size, target_size], False, dtype=mindspore.bool_, )
     # match query cannot see the reconstruction
     attn_mask[num_denoising_queries:, :num_denoising_queries] = True
 
@@ -1242,62 +1234,8 @@ def get_contrastive_denoising_training_group(
     return input_query_class, input_query_bbox, attn_mask, denoising_meta_values
 
 
-RTDetrV2_START_DOCSTRING = r"""
-    This model inherits from [`PreTrainedModel`]. Check the superclass documentation for the generic methods the
-    library implements for all its model (such as downloading or saving, resizing the input embeddings, pruning heads
-    etc.)
-
-    This model is also a PyTorch [torch.nn.Module](https://pytorch.org/docs/stable/nn.html#torch.nn.Module) subclass.
-    Use it as a regular PyTorch Module and refer to the PyTorch documentation for all matter related to general usage
-    and behavior.
-
-    Parameters:
-        config ([`RTDetrV2Config`]):
-            Model configuration class with all the parameters of the model. Initializing with a config file does not
-            load the weights associated with the model, only the configuration. Check out the
-            [`~PreTrainedModel.from_pretrained`] method to load the model weights.
-"""
-
-RTDetrV2_INPUTS_DOCSTRING = r"""
-    Args:
-        pixel_values (`torch.FloatTensor` of shape `(batch_size, num_channels, height, width)`):
-            Pixel values. Padding will be ignored by default should you provide it. Pixel values can be obtained using
-            [`AutoImageProcessor`]. See [`RTDetrV2ImageProcessor.__call__`] for details.
-        pixel_mask (`torch.LongTensor` of shape `(batch_size, height, width)`, *optional*):
-            Mask to avoid performing attention on padding pixel values. Mask values selected in `[0, 1]`:
-
-            - 1 for pixels that are real (i.e. **not masked**),
-            - 0 for pixels that are padding (i.e. **masked**).
-
-            [What are attention masks?](../glossary#attention-mask)
-        encoder_outputs (`tuple(tuple(torch.FloatTensor)`, *optional*):
-            Tuple consists of (`last_hidden_state`, *optional*: `hidden_states`, *optional*: `attentions`)
-            `last_hidden_state` of shape `(batch_size, sequence_length, hidden_size)`, *optional*) is a sequence of
-            hidden-states at the output of the last layer of the encoder. Used in the cross-attention of the decoder.
-        inputs_embeds (`torch.FloatTensor` of shape `(batch_size, sequence_length, hidden_size)`, *optional*):
-            Optionally, instead of passing the flattened feature map (output of the backbone + projection layer), you
-            can choose to directly pass a flattened representation of an image.
-        decoder_inputs_embeds (`torch.FloatTensor` of shape `(batch_size, num_queries, hidden_size)`, *optional*):
-            Optionally, instead of initializing the queries with a tensor of zeros, you can choose to directly pass an
-            embedded representation.
-        labels (`List[Dict]` of len `(batch_size,)`, *optional*):
-            Labels for computing the bipartite matching loss. List of dicts, each dictionary containing at least the
-            following 2 keys: 'class_labels' and 'boxes' (the class labels and bounding boxes of an image in the batch
-            respectively). The class labels themselves should be a `torch.LongTensor` of len `(number of bounding boxes
-            in the image,)` and the boxes a `torch.FloatTensor` of shape `(number of bounding boxes in the image, 4)`.
-        output_attentions (`bool`, *optional*):
-            Whether or not to return the attentions tensors of all attention layers. See `attentions` under returned
-            tensors for more detail.
-        output_hidden_states (`bool`, *optional*):
-            Whether or not to return the hidden states of all layers. See `hidden_states` under returned tensors for
-            more detail.
-        return_dict (`bool`, *optional*):
-            Whether or not to return a [`~utils.ModelOutput`] instead of a plain tuple.
-"""
-
-
 def _get_clones(partial_module, N):
-    return ms.nn.CellList([partial_module() for i in range(N)])
+    return mindspore.nn.CellList([partial_module() for i in range(N)])
 
 
 class RTDetrV2PreTrainedModel(PreTrainedModel):
@@ -1325,10 +1263,7 @@ class RTDetrV2PreTrainedModel(PreTrainedModel):
 
         if isinstance(module, RTDetrV2MultiscaleDeformableAttention):
             nn.init.constant_(module.sampling_offsets.weight.data, 0.0)
-            default_dtype = torch.get_default_dtype()
-            thetas = mint.arange(module.n_heads, dtype=ms.int64).to(default_dtype) * (
-                2.0 * math.pi / module.n_heads
-            )
+            thetas = mint.arange(module.n_heads, dtype=mindspore.int64) * (2.0 * math.pi / module.n_heads)
             grid_init = mint.stack([thetas.cos(), thetas.sin()], -1)
             grid_init = (
                 (grid_init / grid_init.abs().max(-1, keepdim=True)[0])
@@ -1337,8 +1272,8 @@ class RTDetrV2PreTrainedModel(PreTrainedModel):
             )
             for i in range(module.n_points):
                 grid_init[:, :, i, :] *= i + 1
-            with ms._no_grad():
-                module.sampling_offsets.bias = ms.Parameter(grid_init.view(-1))
+            with mindspore._no_grad():
+                module.sampling_offsets.bias = mindspore.Parameter(grid_init.view(-1))
             nn.init.constant_(module.attention_weights.weight.data, 0.0)
             nn.init.constant_(module.attention_weights.bias.data, 0.0)
             nn.init.xavier_uniform_(module.value_proj.weight.data)
@@ -1368,7 +1303,7 @@ class RTDetrV2Decoder(RTDetrV2PreTrainedModel):
         super().__init__(config)
 
         self.dropout = config.dropout
-        self.layers = ms.nn.CellList([RTDetrV2DecoderLayer(config) for _ in range(config.decoder_layers)])
+        self.layers = mindspore.nn.CellList([RTDetrV2DecoderLayer(config) for _ in range(config.decoder_layers)])
         self.query_pos_head = RTDetrV2MLPPredictionHead(config, 4, 2 * config.d_model, config.d_model, num_layers=2)
 
         # hack implementation for iterative bounding box refinement and two-stage Deformable DETR
@@ -1395,25 +1330,25 @@ class RTDetrV2Decoder(RTDetrV2PreTrainedModel):
     ):
         r"""
         Args:
-            inputs_embeds (`torch.FloatTensor` of shape `(batch_size, num_queries, hidden_size)`):
+            inputs_embeds (`mindspore.Tensor` of shape `(batch_size, num_queries, hidden_size)`):
                 The query embeddings that are passed into the decoder.
-            encoder_hidden_states (`torch.FloatTensor` of shape `(batch_size, sequence_length, hidden_size)`, *optional*):
+            encoder_hidden_states (`mindspore.Tensor` of shape `(batch_size, sequence_length, hidden_size)`, *optional*):
                 Sequence of hidden-states at the output of the last layer of the encoder. Used in the cross-attention
                 of the decoder.
-            encoder_attention_mask (`torch.LongTensor` of shape `(batch_size, sequence_length)`, *optional*):
+            encoder_attention_mask (`mindspore.Tensor` of shape `(batch_size, sequence_length)`, *optional*):
                 Mask to avoid performing cross-attention on padding pixel_values of the encoder. Mask values selected
                 in `[0, 1]`:
                 - 1 for pixels that are real (i.e. **not masked**),
                 - 0 for pixels that are padding (i.e. **masked**).
-            position_embeddings (`torch.FloatTensor` of shape `(batch_size, num_queries, hidden_size)`, *optional*):
+            position_embeddings (`mindspore.Tensor` of shape `(batch_size, num_queries, hidden_size)`, *optional*):
                 Position embeddings that are added to the queries and keys in each self-attention layer.
-            reference_points (`torch.FloatTensor` of shape `(batch_size, num_queries, 4)` is `as_two_stage` else `(batch_size, num_queries, 2)` or , *optional*):
+            reference_points (`mindspore.Tensor` of shape `(batch_size, num_queries, 4)` is `as_two_stage` else `(batch_size, num_queries, 2)` or , *optional*):
                 Reference point in range `[0, 1]`, top-left (0,0), bottom-right (1, 1), including padding area.
-            spatial_shapes (`torch.FloatTensor` of shape `(num_feature_levels, 2)`):
+            spatial_shapes (`mindspore.Tensor` of shape `(num_feature_levels, 2)`):
                 Spatial shapes of the feature maps.
-            level_start_index (`torch.LongTensor` of shape `(num_feature_levels)`, *optional*):
+            level_start_index (`mindspore.Tensor` of shape `(num_feature_levels)`, *optional*):
                 Indexes for the start of each feature level. In range `[0, sequence_length]`.
-            valid_ratios (`torch.FloatTensor` of shape `(batch_size, num_feature_levels, 2)`, *optional*):
+            valid_ratios (`mindspore.Tensor` of shape `(batch_size, num_feature_levels, 2)`, *optional*):
                 Ratio of valid area in each feature level.
 
             output_attentions (`bool`, *optional*):
@@ -1470,7 +1405,7 @@ class RTDetrV2Decoder(RTDetrV2PreTrainedModel):
             if self.bbox_embed is not None:
                 tmp = self.bbox_embed[idx](hidden_states)
                 new_reference_points = mint.nn.functional.sigmoid(tmp + inverse_sigmoid(reference_points))
-                reference_points = new_reference_points.detach()
+                reference_points = new_reference_points.clone()
 
             intermediate += (hidden_states,)
             intermediate_reference_points += (
@@ -1522,12 +1457,6 @@ class RTDetrV2Decoder(RTDetrV2PreTrainedModel):
         )
 
 
-@add_start_docstrings(
-    """
-    RT-DETR Model (consisting of a backbone and encoder-decoder) outputting raw hidden states without any head on top.
-    """,
-    RTDetrV2_START_DOCSTRING,
-)
 class RTDetrV2Model(RTDetrV2PreTrainedModel):
     def __init__(self, config: RTDetrV2Config):
         super().__init__(config)
@@ -1543,12 +1472,12 @@ class RTDetrV2Model(RTDetrV2PreTrainedModel):
         for _ in range(num_backbone_outs):
             in_channels = intermediate_channel_sizes[_]
             encoder_input_proj_list.append(
-                ms.nn.SequentialCell(
+                mindspore.nn.SequentialCell(
                     mint.nn.Conv2d(in_channels, config.encoder_hidden_dim, kernel_size=1, bias=False),
                     mint.nn.BatchNorm2d(config.encoder_hidden_dim),
                 )
             )
-        self.encoder_input_proj = ms.nn.CellList(encoder_input_proj_list)
+        self.encoder_input_proj = mindspore.nn.CellList(encoder_input_proj_list)
 
         # Create encoder
         self.encoder = RTDetrV2HybridEncoder(config)
@@ -1564,7 +1493,7 @@ class RTDetrV2Model(RTDetrV2PreTrainedModel):
             self.weight_embedding = mint.nn.Embedding(config.num_queries, config.d_model)
 
         # encoder head
-        self.enc_output = ms.nn.SequentialCell(
+        self.enc_output = mindspore.nn.SequentialCell(
             mint.nn.Linear(config.d_model, config.d_model),
             mint.nn.LayerNorm(config.d_model, eps=config.layer_norm_eps),
         )
@@ -1582,20 +1511,20 @@ class RTDetrV2Model(RTDetrV2PreTrainedModel):
         for _ in range(num_backbone_outs):
             in_channels = config.decoder_in_channels[_]
             decoder_input_proj_list.append(
-                ms.nn.SequentialCell(
+                mindspore.nn.SequentialCell(
                     mint.nn.Conv2d(in_channels, config.d_model, kernel_size=1, bias=False),
                     mint.nn.BatchNorm2d(config.d_model, config.batch_norm_eps),
                 )
             )
         for _ in range(config.num_feature_levels - num_backbone_outs):
             decoder_input_proj_list.append(
-                ms.nn.SequentialCell(
+                mindspore.nn.SequentialCell(
                     mint.nn.Conv2d(in_channels, config.d_model, kernel_size=3, stride=2, padding=1, bias=False),
                     mint.nn.BatchNorm2d(config.d_model, config.batch_norm_eps),
                 )
             )
             in_channels = config.d_model
-        self.decoder_input_proj = ms.nn.CellList(decoder_input_proj_list)
+        self.decoder_input_proj = mindspore.nn.CellList(decoder_input_proj_list)
         # decoder
         self.decoder = RTDetrV2Decoder(config)
 
@@ -1615,8 +1544,7 @@ class RTDetrV2Model(RTDetrV2PreTrainedModel):
         for param in self.backbone.parameters():
             param.requires_grad_(True)
 
-    @compile_compatible_method_lru_cache(maxsize=32)
-    def generate_anchors(self, spatial_shapes=None, grid_size=0.05, device="cpu", dtype=ms.float32):
+    def generate_anchors(self, spatial_shapes=None, grid_size=0.05, dtype=mindspore.float32):
         if spatial_shapes is None:
             spatial_shapes = [
                 [int(self.config.anchor_image_size[0] / s), int(self.config.anchor_image_size[1] / s)]
@@ -1640,31 +1568,29 @@ class RTDetrV2Model(RTDetrV2PreTrainedModel):
         anchors = mint.concat(anchors, 1)
         valid_mask = ((anchors > eps) * (anchors < 1 - eps)).all(-1, keepdim=True)
         anchors = mint.log(anchors / (1 - anchors))
-        anchors = mint.where(valid_mask, anchors, ms.Tensor(torch.finfo(dtype).max, dtype=dtype, ))
+        anchors = mint.where(valid_mask, anchors, mindspore.Tensor(dtype_to_max(dtype), dtype=dtype, ))
 
         return anchors, valid_mask
 
-    @add_start_docstrings_to_model_forward(RTDetrV2_INPUTS_DOCSTRING)
-    @replace_return_docstrings(output_type=RTDetrV2ModelOutput, config_class=_CONFIG_FOR_DOC)
     def construct(
         self,
-        pixel_values: ms.Tensor,
-        pixel_mask: Optional[ms.Tensor] = None,
-        encoder_outputs: Optional[ms.Tensor] = None,
-        inputs_embeds: Optional[ms.Tensor] = None,
-        decoder_inputs_embeds: Optional[ms.Tensor] = None,
+        pixel_values: mindspore.Tensor,
+        pixel_mask: Optional[mindspore.Tensor] = None,
+        encoder_outputs: Optional[mindspore.Tensor] = None,
+        inputs_embeds: Optional[mindspore.Tensor] = None,
+        decoder_inputs_embeds: Optional[mindspore.Tensor] = None,
         labels: Optional[List[dict]] = None,
         output_attentions: Optional[bool] = None,
         output_hidden_states: Optional[bool] = None,
         return_dict: Optional[bool] = None,
-    ) -> Union[Tuple[ms.Tensor], RTDetrV2ModelOutput]:
+    ) -> Union[Tuple[mindspore.Tensor], RTDetrV2ModelOutput]:
         r"""
         Returns:
 
         Examples:
 
         ```python
-        >>> from transformers import AutoImageProcessor, RTDetrV2Model
+        >>> from mindone.transformers import AutoImageProcessor, RTDetrV2Model
         >>> from PIL import Image
         >>> import requests
 
@@ -1674,7 +1600,7 @@ class RTDetrV2Model(RTDetrV2PreTrainedModel):
         >>> image_processor = AutoImageProcessor.from_pretrained("PekingU/RTDetrV2_r50vd")
         >>> model = RTDetrV2Model.from_pretrained("PekingU/RTDetrV2_r50vd")
 
-        >>> inputs = image_processor(images=image, return_tensors="pt")
+        >>> inputs = image_processor(images=image, return_tensors="np")
 
         >>> outputs = model(**inputs)
 
@@ -1689,7 +1615,6 @@ class RTDetrV2Model(RTDetrV2PreTrainedModel):
         return_dict = return_dict if return_dict is not None else self.config.use_return_dict
 
         batch_size, num_channels, height, width = pixel_values.shape
-        device = pixel_values.device
 
         if pixel_mask is None:
             pixel_mask = mint.ones(((batch_size, height, width)), )
@@ -1733,7 +1658,7 @@ class RTDetrV2Model(RTDetrV2PreTrainedModel):
         # Prepare encoder inputs (by flattening)
         source_flatten = []
         spatial_shapes_list = []
-        spatial_shapes = mint.empty((len(sources), 2), dtype=ms.int64)
+        spatial_shapes = mint.empty((len(sources), 2), dtype=mindspore.int64)
         for level, source in enumerate(sources):
             height, width = source.shape[-2:]
             spatial_shapes[level, 0] = height
@@ -1764,7 +1689,6 @@ class RTDetrV2Model(RTDetrV2PreTrainedModel):
             denoising_class, denoising_bbox_unact, attention_mask, denoising_meta_values = None, None, None, None
 
         batch_size = len(source_flatten)
-        device = source_flatten.device
         dtype = source_flatten.dtype
 
         # prepare input for decoder
@@ -1775,7 +1699,7 @@ class RTDetrV2Model(RTDetrV2PreTrainedModel):
             anchors, valid_mask = self.generate_anchors(spatial_shapes_tuple, dtype=dtype)
         else:
             anchors, valid_mask = self.anchors, self.valid_mask
-            anchors, valid_mask = anchors.to(device, dtype), valid_mask.to(device, dtype)
+            anchors, valid_mask = anchors.to(dtype), valid_mask.to(dtype)
 
         # use the valid_mask to selectively retain values in the feature map where the mask is `True`
         memory = valid_mask.to(source_flatten.dtype) * source_flatten
@@ -1785,7 +1709,7 @@ class RTDetrV2Model(RTDetrV2PreTrainedModel):
         enc_outputs_class = self.enc_score_head(output_memory)
         enc_outputs_coord_logits = self.enc_bbox_head(output_memory) + anchors
 
-        _, topk_ind = mint.topk(enc_outputs_class.max(-1).values, self.config.num_queries, dim=1)
+        _, topk_ind = mint.topk(mint.max(enc_outputs_class, dim=-1)[0], self.config.num_queries, dim=1)
 
         reference_points_unact = enc_outputs_coord_logits.gather(
             dim=1, index=topk_ind.unsqueeze(-1).repeat(1, 1, enc_outputs_coord_logits.shape[-1])
@@ -1804,12 +1728,12 @@ class RTDetrV2Model(RTDetrV2PreTrainedModel):
             target = self.weight_embedding.tile([batch_size, 1, 1])
         else:
             target = output_memory.gather(dim=1, index=topk_ind.unsqueeze(-1).repeat(1, 1, output_memory.shape[-1]))
-            target = target.detach()
+            target = target.clone()
 
         if denoising_class is not None:
             target = mint.concat([denoising_class, target], 1)
 
-        init_reference_points = reference_points_unact.detach()
+        init_reference_points = reference_points_unact.clone()
 
         # decoder
         decoder_outputs = self.decoder(
@@ -1857,7 +1781,7 @@ class RTDetrV2Model(RTDetrV2PreTrainedModel):
 
 
 # taken from https://github.com/facebookresearch/detr/blob/master/models/detr.py
-class RTDetrV2MLPPredictionHead(ms.nn.Cell):
+class RTDetrV2MLPPredictionHead(mindspore.nn.Cell):
     """
     Very simple multi-layer perceptron (MLP, also called FFN), used to predict the normalized center coordinates,
     height and width of a bounding box w.r.t. an image.
@@ -1871,7 +1795,7 @@ class RTDetrV2MLPPredictionHead(ms.nn.Cell):
         super().__init__()
         self.num_layers = num_layers
         h = [d_model] * (num_layers - 1)
-        self.layers = ms.nn.CellList(mint.nn.Linear(n, k) for n, k in zip([input_dim] + h, h + [output_dim]))
+        self.layers = mindspore.nn.CellList([mint.nn.Linear(n, k) for n, k in zip([input_dim] + h, h + [output_dim])])
 
     def construct(self, x):
         for i, layer in enumerate(self.layers):
@@ -1879,13 +1803,6 @@ class RTDetrV2MLPPredictionHead(ms.nn.Cell):
         return x
 
 
-@add_start_docstrings(
-    """
-    RT-DETR Model (consisting of a backbone and encoder-decoder) outputting bounding boxes and logits to be further
-    decoded into scores and classes.
-    """,
-    RTDetrV2_START_DOCSTRING,
-)
 class RTDetrV2ForObjectDetection(RTDetrV2PreTrainedModel):
     # When using clones, all layers > 0 will be clones, but layer 0 *is* required
     _tied_weights_keys = ["bbox_embed", "class_embed"]
@@ -1901,8 +1818,8 @@ class RTDetrV2ForObjectDetection(RTDetrV2PreTrainedModel):
         class_embed = partial(mint.nn.Linear, config.d_model, config.num_labels)
         bbox_embed = partial(RTDetrV2MLPPredictionHead, config, config.d_model, config.d_model, 4, num_layers=3)
 
-        self.class_embed = ms.nn.CellList([class_embed() for _ in range(config.decoder_layers)])
-        self.bbox_embed = ms.nn.CellList([bbox_embed() for _ in range(config.decoder_layers)])
+        self.class_embed = mindspore.nn.CellList([class_embed() for _ in range(config.decoder_layers)])
+        self.bbox_embed = mindspore.nn.CellList([bbox_embed() for _ in range(config.decoder_layers)])
 
         self.model.decoder.class_embed = self.class_embed
         self.model.decoder.bbox_embed = self.bbox_embed
@@ -1910,44 +1827,41 @@ class RTDetrV2ForObjectDetection(RTDetrV2PreTrainedModel):
         # Initialize weights and apply final processing
         self.post_init()
 
-    @torch.jit.unused
     def _set_aux_loss(self, outputs_class, outputs_coord):
         # this is a workaround to make torchscript happy, as torchscript
         # doesn't support dictionary with non-homogeneous values, such
         # as a dict having both a Tensor and a list.
         return [{"logits": a, "pred_boxes": b} for a, b in zip(outputs_class, outputs_coord)]
 
-    @add_start_docstrings_to_model_forward(RTDetrV2_INPUTS_DOCSTRING)
-    @replace_return_docstrings(output_type=RTDetrV2ObjectDetectionOutput, config_class=_CONFIG_FOR_DOC)
     def construct(
         self,
-        pixel_values: ms.Tensor,
-        pixel_mask: Optional[ms.Tensor] = None,
-        encoder_outputs: Optional[ms.Tensor] = None,
-        inputs_embeds: Optional[ms.Tensor] = None,
-        decoder_inputs_embeds: Optional[ms.Tensor] = None,
+        pixel_values: mindspore.Tensor,
+        pixel_mask: Optional[mindspore.Tensor] = None,
+        encoder_outputs: Optional[mindspore.Tensor] = None,
+        inputs_embeds: Optional[mindspore.Tensor] = None,
+        decoder_inputs_embeds: Optional[mindspore.Tensor] = None,
         labels: Optional[List[dict]] = None,
         output_attentions: Optional[bool] = None,
         output_hidden_states: Optional[bool] = None,
         return_dict: Optional[bool] = None,
         **loss_kwargs,
-    ) -> Union[Tuple[ms.Tensor], RTDetrV2ObjectDetectionOutput]:
+    ) -> Union[Tuple[mindspore.Tensor], RTDetrV2ObjectDetectionOutput]:
         r"""
         labels (`List[Dict]` of len `(batch_size,)`, *optional*):
             Labels for computing the bipartite matching loss. List of dicts, each dictionary containing at least the
             following 2 keys: 'class_labels' and 'boxes' (the class labels and bounding boxes of an image in the batch
-            respectively). The class labels themselves should be a `torch.LongTensor` of len `(number of bounding boxes
-            in the image,)` and the boxes a `torch.FloatTensor` of shape `(number of bounding boxes in the image, 4)`.
+            respectively). The class labels themselves should be a `mindspore.Tensor` of len `(number of bounding boxes
+            in the image,)` and the boxes a `mindspore.Tensor` of shape `(number of bounding boxes in the image, 4)`.
 
         Returns:
 
         Examples:
 
         ```python
-        >>> from transformers import RTDetrV2ImageProcessor, RTDetrV2ForObjectDetection
+        >>> from mindone.transformers import RTDetrV2ImageProcessor, RTDetrV2ForObjectDetection
         >>> from PIL import Image
         >>> import requests
-        >>> import torch
+        >>> import mindspore
 
         >>> url = "http://images.cocodataset.org/val2017/000000039769.jpg"
         >>> image = Image.open(requests.get(url, stream=True).raw)
@@ -1956,7 +1870,7 @@ class RTDetrV2ForObjectDetection(RTDetrV2PreTrainedModel):
         >>> model = RTDetrV2ForObjectDetection.from_pretrained("PekingU/RTDetrV2_r50vd")
 
         >>> # prepare image for the model
-        >>> inputs = image_processor(images=image, return_tensors="pt")
+        >>> inputs = image_processor(images=image, return_tensors="np")
 
         >>> # forward pass
         >>> outputs = model(**inputs)
@@ -1970,7 +1884,7 @@ class RTDetrV2ForObjectDetection(RTDetrV2PreTrainedModel):
         [1, 300, 4]
 
         >>> # convert outputs (bounding boxes and class logits) to Pascal VOC format (xmin, ymin, xmax, ymax)
-        >>> target_sizes = torch.tensor([image.size[::-1]])
+        >>> target_sizes = mindspore.tensor([image.size[::-1]])
         >>> results = image_processor.post_process_object_detection(outputs, threshold=0.9, target_sizes=target_sizes)[
         ...     0
         ... ]

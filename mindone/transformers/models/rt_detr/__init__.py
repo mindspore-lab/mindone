@@ -12,5 +12,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from .image_processing_rt_detr import *
 from .modeling_rt_detr import *
 from .modeling_rt_detr_resnet import *

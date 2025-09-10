@@ -804,7 +804,7 @@ MODEL_FOR_BACKBONE_MAPPING_NAMES = OrderedDict(
         ("hiera", "HieraBackbone"),
         ("resnet", "ResNetBackbone"),
         ("swin", "SwinBackbone"),
-        ("rt_detr_resnet", "RTDetrResNetConfig"),
+        ("rt_detr_resnet", "RTDetrResNetBackbone"),
     ]
 )
 
