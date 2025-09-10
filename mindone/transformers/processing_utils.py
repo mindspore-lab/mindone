@@ -90,7 +90,7 @@ def _resolve_class_from_mindone_or_hf(class_name: str):
             sys.path.insert(0, sub_path)
         module_name = importlib.import_module("mindone.transformers")
         return getattr(module_name, class_name)
-    except Exception:
+    except AttributeError:
         return getattr(transformers_module, class_name)
 
 
