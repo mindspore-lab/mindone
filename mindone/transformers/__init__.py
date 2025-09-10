@@ -376,6 +376,23 @@ from .models.imagegpt import (
     ImageGPTModel,
     ImageGPTPreTrainedModel,
 )
+from .models.layoutlm import (
+    LayoutLMForMaskedLM,
+    LayoutLMForQuestionAnswering,
+    LayoutLMForSequenceClassification,
+    LayoutLMForTokenClassification,
+    LayoutLMModel,
+    LayoutLMPreTrainedModel,
+)
+from .models.layoutlmv3 import (
+    LayoutLMv3ForQuestionAnswering,
+    LayoutLMv3ForSequenceClassification,
+    LayoutLMv3ForTokenClassification,
+    LayoutLMv3ImageProcessor,
+    LayoutLMv3Model,
+    LayoutLMv3PreTrainedModel,
+    LayoutLMv3Processor,
+)
 from .models.led import (
     LEDForConditionalGeneration,
     LEDForQuestionAnswering,

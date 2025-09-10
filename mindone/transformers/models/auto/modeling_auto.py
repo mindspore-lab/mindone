@@ -87,6 +87,8 @@ MODEL_MAPPING_NAMES = OrderedDict(
         ("imagegpt", "ImageGPTModel"),
         ("led", "LEDModel"),
         ("levit", "LevitModel"),
+        ("layoutlm", "LayoutLMModel"),
+        ("layoutlmv3", "LayoutLMv3Model"),
         ("llama", "LlamaModel"),
         ("mistral", "MistralModel"),
         ("mobilebert", "MobileBertModel"),
@@ -135,6 +137,7 @@ MODEL_FOR_PRETRAINING_MAPPING_NAMES = OrderedDict(
         ("gpt2", "GPT2LMHeadModel"),
         ("gemma3", "Gemma3ForConditionalGeneration"),
         ("hiera", "HieraForPreTraining"),
+        ("layoutlm", "LayoutLMForMaskedLM"),
         ("hubert", "HubertForPreTraining"),
         ("idefics", "IdeficsForVisionText2Text"),
         ("idefics2", "Idefics2ForConditionalGeneration"),
@@ -173,6 +176,7 @@ MODEL_WITH_LM_HEAD_MAPPING_NAMES = OrderedDict(
         ("roberta", "RobertaForMaskedLM"),
         ("megatron-bert", "MegatronBertForCausalLM"),
         ("mobilebert", "MobileBertForMaskedLM"),
+        ("layoutlm", "LayoutLMForMaskedLM"),
         ("mpt", "MptForCausalLM"),
         ("rembert", "RemBertForMaskedLM"),
         ("t5", "T5ForConditionalGeneration"),
@@ -205,6 +209,7 @@ MODEL_FOR_CAUSAL_LM_MAPPING_NAMES = OrderedDict(
         ("fuyu", "FuyuForCausalLM"),
         ("granitemoe", "GraniteMoeForCausalLM"),
         ("granitemoeshared", "GraniteMoeSharedForCausalLM"),
+        ("layoutlm", "LayoutLMForMaskedLM"),
         ("llama", "LlamaForCausalLM"),
         ("opt", "OPTForCausalLM"),
         ("megatron-bert", "MegatronBertForCausalLM"),
@@ -451,6 +456,8 @@ MODEL_FOR_SEQUENCE_CLASSIFICATION_MAPPING_NAMES = OrderedDict(
         ("gemma", "GemmaForSequenceClassification"),
         ("gemma2", "Gemma2ForSequenceClassification"),
         ("glm", "GlmForSequenceClassification"),
+        ("layoutlm", "LayoutLMForSequenceClassification"),
+        ("layoutlmv3", "LayoutLMv3ForSequenceClassification"),
         ("helium", "HeliumForSequenceClassification"),
         ("hubert", "HubertForSequenceClassification"),
         ("led", "LEDForSequenceClassification"),
@@ -488,6 +495,7 @@ MODEL_FOR_QUESTION_ANSWERING_MAPPING_NAMES = OrderedDict(
         ("roberta", "RobertaForQuestionAnswering"),
         ("deberta", "DebertaForQuestionAnswering"),
         ("deberta-v2", "DebertaV2ForQuestionAnswering"),
+        ("layoutlmv3", "LayoutLMv3ForQuestionAnswering"),
         ("led", "LEDForQuestionAnswering"),
         ("convbert", "ConvBertForQuestionAnswering"),
         ("llama", "LlamaForQuestionAnswering"),
@@ -521,7 +529,12 @@ MODEL_FOR_VISUAL_QUESTION_ANSWERING_MAPPING_NAMES = OrderedDict(
     ]
 )
 
-MODEL_FOR_DOCUMENT_QUESTION_ANSWERING_MAPPING_NAMES = OrderedDict()
+MODEL_FOR_DOCUMENT_QUESTION_ANSWERING_MAPPING_NAMES = OrderedDict(
+    [
+        ("layoutlm", "LayoutLMForQuestionAnswering"),
+        ("layoutlmv3", "LayoutLMv3ForQuestionAnswering"),
+    ]
+)
 
 MODEL_FOR_TOKEN_CLASSIFICATION_MAPPING_NAMES = OrderedDict(
     [
@@ -540,6 +553,8 @@ MODEL_FOR_TOKEN_CLASSIFICATION_MAPPING_NAMES = OrderedDict(
         ("persimmon", "PersimmonForTokenClassification"),
         ("megatron-bert", "MegatronBertForTokenClassification"),
         ("mixtral", "MixtralForTokenClassification"),
+        ("layoutlm", "LayoutLMForTokenClassification"),
+        ("layoutlmv3", "LayoutLMv3ForTokenClassification"),
         ("mpt", "MptForTokenClassification"),
         ("phi", "PhiForTokenClassification"),
         ("phi3", "Phi3ForTokenClassification"),
