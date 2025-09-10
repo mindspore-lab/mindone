@@ -1,4 +1,4 @@
-# Copyright 2024 The HuggingFace Team. All rights reserved.
+# Copyright 2025 The HuggingFace Team. All rights reserved.
 #
 # This code is adapted from https://github.com/huggingface/diffusers
 # with modifications to run diffusers on mindspore.
@@ -361,7 +361,7 @@ class KUpsample2D(nn.Cell):
 
 class CogVideoXUpsample3D(nn.Cell):
     r"""
-    A 3D Upsample layer using in CogVideoX by Tsinghua University & ZhipuAI # Todo: Wait for paper relase.
+    A 3D Upsample layer using in CogVideoX by Tsinghua University & ZhipuAI # Todo: Wait for paper release.
 
     Args:
         in_channels (`int`):
