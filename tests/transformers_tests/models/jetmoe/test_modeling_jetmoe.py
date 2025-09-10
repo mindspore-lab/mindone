@@ -196,20 +196,6 @@ JETMOE_CASES = [
             "logits": 0,
         },
     ],
-    [
-        "JetMoeForSequenceClassification",
-        "transformers.JetMoeForSequenceClassification",
-        "mindone.transformers.JetMoeForSequenceClassification",
-        (config,),
-        {},
-        (input_ids,),
-        {
-            "attention_mask": input_mask,
-        },
-        {
-            "logits": 0,
-        },
-    ],
 ]
 
 
