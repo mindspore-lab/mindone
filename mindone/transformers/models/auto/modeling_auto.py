@@ -120,6 +120,7 @@ MODEL_MAPPING_NAMES = OrderedDict(
         ("xlm-roberta", "XLMRobertaModel"),
         ("xlm-roberta-xl", "XLMRobertaXLModel"),
         ("yolos", "YolosModel"),
+        ("zamba2", "Zamba2Model"),
         ("cohere2", "Cohere2Model"),
     ]
 )
@@ -244,6 +245,7 @@ MODEL_FOR_IMAGE_MAPPING_NAMES = OrderedDict(
         ("swin2sr", "Swin2SRModel"),
         ("vit", "ViTModel"),
         ("yolos", "YolosModel"),
+        ("zamba2", "Zamba2ForCausalLM"),
     ]
 )
 
@@ -473,6 +475,7 @@ MODEL_FOR_SEQUENCE_CLASSIFICATION_MAPPING_NAMES = OrderedDict(
         ("t5", "T5ForSequenceClassification"),
         ("umt5", "UMT5ForSequenceClassification"),
         ("xlm-roberta-xl", "XLMRobertaXLForSequenceClassification"),
+        ("zamba2", "Zamba2ForSequenceClassification"),
     ]
 )
 
