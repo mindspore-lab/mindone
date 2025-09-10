@@ -57,6 +57,7 @@ from . import (
     ijepa,
     imagegpt,
     levit,
+    lilt,
     llama,
     llava,
     llava_next,
