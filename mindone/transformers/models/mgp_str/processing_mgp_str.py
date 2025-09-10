@@ -48,7 +48,7 @@ class MgpstrProcessor(ProcessorMixin):
     """
 
     attributes = ["image_processor", "char_tokenizer"]
-    image_processor_class = ("ViTImageProcessor", "ViTImageProcessorFast")
+    image_processor_class = ("ViTImageProcessor",)
     char_tokenizer_class = "MgpstrTokenizer"
 
     def __init__(self, image_processor=None, tokenizer=None, **kwargs):
