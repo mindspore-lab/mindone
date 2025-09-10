@@ -1,4 +1,1 @@
-from .modeling_rwkv import (
-    RwkvModel,
-    RwkvPreTrainedModel,
-)
+from .modeling_rwkv import RwkvModel, RwkvPreTrainedModel

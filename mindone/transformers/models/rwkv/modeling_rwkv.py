@@ -20,14 +20,9 @@
 
 import math
 from dataclasses import dataclass
-from pathlib import Path
 from typing import List, Optional, Tuple, Union
 
-import mindspore as ms
-from mindspore import mint, nn, Parameter
-
-from ...generation import GenerationMixin
-from ...modeling_utils import PreTrainedModel
+from transformers.models.rwkv.configuration_rwkv import RwkvConfig
 from transformers.utils import (
     ModelOutput,
     add_code_sample_docstrings,
@@ -35,8 +30,12 @@ from transformers.utils import (
     add_start_docstrings_to_model_forward,
     logging,
 )
-from transformers.models.rwkv.configuration_rwkv import RwkvConfig
 
+import mindspore as ms
+from mindspore import Parameter, mint, nn
+
+from ...generation import GenerationMixin
+from ...modeling_utils import PreTrainedModel
 
 logger = logging.get_logger(__name__)
 
@@ -172,9 +171,7 @@ class RwkvFeedForward(nn.Cell):
         self.config = config
         self.layer_id = layer_id
         hidden_size = config.hidden_size
-        intermediate_size = (
-            config.intermediate_size if config.intermediate_size is not None else 4 * config.hidden_size
-        )
+        intermediate_size = config.intermediate_size if config.intermediate_size is not None else 4 * config.hidden_size
 
         # TODO mint.nn.ZeroPad2d does not support -1 padding value
         self.time_shift = mint.nn.ZeroPad2d((0, 0, 1, 0))
@@ -495,12 +492,7 @@ class RwkvModel(RwkvPreTrainedModel):
 
         if use_cache and state is None:
             shape = (inputs_embeds.shape[0], self.config.hidden_size, self.config.num_hidden_layers)
-            state = [
-                mint.zeros(
-                    shape, dtype=inputs_embeds.dtype if i <= 1 else ms.float32
-                )
-                for i in range(5)
-            ]
+            state = [mint.zeros(shape, dtype=inputs_embeds.dtype if i <= 1 else ms.float32) for i in range(5)]
             state[4] -= 1e30
 
         if self.gradient_checkpointing and self.training:

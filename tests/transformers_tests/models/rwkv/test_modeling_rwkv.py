@@ -131,14 +131,7 @@ class RWKVModelTester:
 
 
 model_tester = RWKVModelTester()
-(
-    config,
-    input_ids,
-    input_mask,
-    sequence_labels,
-    token_labels,
-    choice_labels
-) = model_tester.prepare_config_and_inputs()
+(config, input_ids, input_mask, sequence_labels, token_labels, choice_labels) = model_tester.prepare_config_and_inputs()
 config_has_num_labels = copy.deepcopy(config)
 config_has_num_labels.num_labels = model_tester.num_labels
 
