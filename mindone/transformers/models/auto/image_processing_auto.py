@@ -56,6 +56,7 @@ else:
             ("convnextv2", ("ConvNextImageProcessor",)),
             ("depth_anything", ("DPTImageProcessor",)),
             ("dinov2", ("BitImageProcessor",)),
+            ("donut-swin", ("DonutImageProcessor",)),
             ("dpt", ("DPTImageProcessor",)),
             ("llava_next", ("LlavaNextImageProcessor",)),
             ("llava_next_video", ("LlavaNextVideoImageProcessor",)),

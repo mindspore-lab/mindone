@@ -38,6 +38,7 @@ from . import (
     convnextv2,
     depth_anything,
     dinov2,
+    donut,
     dpt,
     fuyu,
     gemma,
