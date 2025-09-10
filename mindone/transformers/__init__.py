@@ -476,6 +476,14 @@ from .models.mvp import (
     MvpModel,
     MvpPreTrainedModel,
 )
+from .models.nemotron import (
+    NemotronForCausalLM,
+    NemotronForQuestionAnswering,
+    NemotronForSequenceClassification,
+    NemotronForTokenClassification,
+    NemotronModel,
+    NemotronPreTrainedModel,
+)
 from .models.opt import (
     OPTForCausalLM,
     OPTForQuestionAnswering,
