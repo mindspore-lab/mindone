@@ -22,8 +22,8 @@ from functools import partial
 from typing import Dict, List, Optional, Tuple, Union
 
 import mindspore as ms
-import mint.nn.functional as F
-from mindspore import Tensor
+import mindspore.mint.nn.functional as F
+from mindspore import Tensor, mint
 
 from ...activations import ACT2CLS, ACT2FN
 from ...image_transforms import center_to_corners_format, corners_to_center_format
@@ -36,8 +36,16 @@ from transformers.utils.generic import ModelOutput
 
 from ...utils import logging
 from ...utils.backbone_utils import load_backbone
-from .configuration_rt_detr import RTDetrConfig
+from transformers import RTDetrConfig
 from ...mindspore_adapter import dtype_to_max
+
+from mindspore.common.initializer import (
+    initializer,
+    XavierUinform,
+    Zero,
+    Normal,
+    Constant,
+)
 
 
 logger = logging.get_logger(__name__)
@@ -362,7 +370,7 @@ class RTDetrFrozenBatchNorm2d(ms.nn.Cell):
 # Copied from transformers.models.detr.modeling_detr.replace_batch_norm with Detr->RTDetr
 def replace_batch_norm(model):
     r"""
-    Recursively replace all `torch.nn.BatchNorm2d` with `RTDetrFrozenBatchNorm2d`.
+    Recursively replace all `mindspore.nn.BatchNorm2d` with `RTDetrFrozenBatchNorm2d`.
 
     Args:
         model (mindspore.nn.Cell):
@@ -370,7 +378,7 @@ def replace_batch_norm(model):
     """
     for name, child_cell in model.name_cells().items():
         if isinstance(child_cell, mint.nn.BatchNorm2d):
-            new_module = RTDetrFrozenBatchNorm2d(module.num_features)
+            new_module = RTDetrFrozenBatchNorm2d(child_cell.num_features)
             setattr(model, name, new_module)
         else:
             replace_batch_norm(child_cell)
@@ -455,7 +463,7 @@ def get_contrastive_denoising_training_group(
         denoise_positive_idx, [n * num_groups_denoising_queries for n in num_ground_truths]
     )
     # total denoising queries
-    num_denoising_queries = torch_int(max_gt_num * 2 * num_groups_denoising_queries)
+    num_denoising_queries = (max_gt_num * 2 * num_groups_denoising_queries).to(mindspore.int64)
 
     if label_noise_ratio > 0:
         mask = mint.rand_like(input_query_class, dtype=ms.float32) < (label_noise_ratio * 0.5)
@@ -513,8 +521,7 @@ class RTDetrConvEncoder(ms.nn.Cell):
 
         if config.freeze_backbone_batch_norms:
             # replace batch norm by frozen batch norm
-            with ms._no_grad():
-                replace_batch_norm(backbone)
+            replace_batch_norm(backbone)
         self.model = backbone
         self.intermediate_channel_sizes = self.model.channels
 
@@ -1051,7 +1058,7 @@ class RTDetrPreTrainedModel(PreTrainedModel):
             thetas = mint.arange(cell.n_heads, dtype=ms.float32) * (2.0 * math.pi / cell.n_heads)
             grid_init = mint.stack([mint.cos(thetas), mint.sin(thetas)], -1)
 
-            max_val, _ = mint.abs(grid_init).max(-1, keepdims=True)
+            max_val = grid_init.abs().max(-1, keepdim=True)[0]
             grid_init = (grid_init / max_val)
             grid_init = grid_init.view(cell.n_heads, 1, 1, 2)
 
@@ -1088,8 +1095,8 @@ class RTDetrPreTrainedModel(PreTrainedModel):
             if cell.bias is not None:
                 cell.bias.set_data(initializer(Zero(), cell.bias.shape, cell.bias.dtype))
         elif isinstance(cell, mint.nn.BatchNorm2d):
-            cell.gamma.set_data(initializer(Normal(self.config.initializer_range), cell.gamma.shape, cell.gamma.dtype))
-            cell.beta.set_data(initializer(Zero(), cell.beta.shape, cell.beta.dtype))
+            cell.weight.set_data(initializer(Normal(self.config.initializer_range), cell.weight.shape, cell.weight.dtype))
+            cell.bias.set_data(initializer(Zero(), cell.bias.shape, cell.bias.dtype))
 
         if hasattr(cell, "weight_embedding") and self.config.learn_initial_query:
             cell.weight_embedding.weight.set_data(
@@ -1098,60 +1105,6 @@ class RTDetrPreTrainedModel(PreTrainedModel):
             cell.denoising_class_embed.weight.set_data(
                 initializer(XavierUniform(), cell.denoising_class_embed.weight.shape,
                             cell.denoising_class_embed.weight.dtype))
-
-
-RTDETR_START_DOCSTRING = r"""
-    This model inherits from [`PreTrainedModel`]. Check the superclass documentation for the generic methods the
-    library implements for all its model (such as downloading or saving, resizing the input embeddings, pruning heads
-    etc.)
-
-    This model is also a PyTorch [torch.nn.Module](https://pytorch.org/docs/stable/nn.html#torch.nn.Module) subclass.
-    Use it as a regular PyTorch Module and refer to the PyTorch documentation for all matter related to general usage
-    and behavior.
-
-    Parameters:
-        config ([`RTDetrConfig`]):
-            Model configuration class with all the parameters of the model. Initializing with a config file does not
-            load the weights associated with the model, only the configuration. Check out the
-            [`~PreTrainedModel.from_pretrained`] method to load the model weights.
-"""
-
-RTDETR_INPUTS_DOCSTRING = r"""
-    Args:
-        pixel_values (`mindspore.Tensor` of shape `(batch_size, num_channels, height, width)`):
-            Pixel values. Padding will be ignored by default should you provide it. Pixel values can be obtained using
-            [`AutoImageProcessor`]. See [`RTDetrImageProcessor.__call__`] for details.
-        pixel_mask (`mindspore.Tensor` of shape `(batch_size, height, width)`, *optional*):
-            Mask to avoid performing attention on padding pixel values. Mask values selected in `[0, 1]`:
-
-            - 1 for pixels that are real (i.e. **not masked**),
-            - 0 for pixels that are padding (i.e. **masked**).
-
-            [What are attention masks?](../glossary#attention-mask)
-        encoder_outputs (`tuple(tuple(mindspore.Tensor)`, *optional*):
-            Tuple consists of (`last_hidden_state`, *optional*: `hidden_states`, *optional*: `attentions`)
-            `last_hidden_state` of shape `(batch_size, sequence_length, hidden_size)`, *optional*) is a sequence of
-            hidden-states at the output of the last layer of the encoder. Used in the cross-attention of the decoder.
-        inputs_embeds (`mindspore.Tensor` of shape `(batch_size, sequence_length, hidden_size)`, *optional*):
-            Optionally, instead of passing the flattened feature map (output of the backbone + projection layer), you
-            can choose to directly pass a flattened representation of an image.
-        decoder_inputs_embeds (`mindspore.Tensor` of shape `(batch_size, num_queries, hidden_size)`, *optional*):
-            Optionally, instead of initializing the queries with a tensor of zeros, you can choose to directly pass an
-            embedded representation.
-        labels (`List[Dict]` of len `(batch_size,)`, *optional*):
-            Labels for computing the bipartite matching loss. List of dicts, each dictionary containing at least the
-            following 2 keys: 'class_labels' and 'boxes' (the class labels and bounding boxes of an image in the batch
-            respectively). The class labels themselves should be a `mindspore.Tensor` of len `(number of bounding boxes
-            in the image,)` and the boxes a `mindspore.Tensor` of shape `(number of bounding boxes in the image, 4)`.
-        output_attentions (`bool`, *optional*):
-            Whether or not to return the attentions tensors of all attention layers. See `attentions` under returned
-            tensors for more detail.
-        output_hidden_states (`bool`, *optional*):
-            Whether or not to return the hidden states of all layers. See `hidden_states` under returned tensors for
-            more detail.
-        return_dict (`bool`, *optional*):
-            Whether or not to return a [`~utils.ModelOutput`] instead of a plain tuple.
-"""
 
 
 class RTDetrEncoder(ms.nn.Cell):
@@ -1235,8 +1188,8 @@ class RTDetrHybridEncoder(ms.nn.Cell):
     def build_2d_sincos_position_embedding(
         width, height, embed_dim=256, temperature=10000.0, device="cpu", dtype=ms.float32
     ):
-        grid_w = mint.arange(torch_int(width), ).to(dtype)
-        grid_h = mint.arange(torch_int(height), ).to(dtype)
+        grid_w = mint.arange(width, ).to(dtype)
+        grid_h = mint.arange(height, ).to(dtype)
         grid_w, grid_h = mint.meshgrid(grid_w, grid_h, indexing="ij")
         if embed_dim % 4 != 0:
             raise ValueError("Embed dimension must be divisible by 4 for 2D sin-cos position embedding")

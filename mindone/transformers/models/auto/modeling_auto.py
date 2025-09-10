@@ -129,6 +129,8 @@ MODEL_MAPPING_NAMES = OrderedDict(
         ("recurrent_gemma", "RecurrentGemmaModel"),
         ("rembert", "RemBertModel"),
         ("resnet", "ResNetModel"),
+        ("rt_detr", "RTDetrModel"),
+        ("rt_detr_v2", "RTDetrV2Model"),
         ("roberta", "RobertaModel"),
         ("rwkv", "RwkvModel"),
         ("sam", "SamModel"),
@@ -505,6 +507,7 @@ MODEL_FOR_OBJECT_DETECTION_MAPPING_NAMES = OrderedDict(
         ("deta", "DetaForObjectDetection"),
         ("detr", "DetrForObjectDetection"),
         ("rt_detr", "RTDetrForObjectDetection"),
+        ("rt_detr_v2", "RTDetrV2ForObjectDetection"),
         ("table-transformer", "TableTransformerForObjectDetection"),
         ("yolos", "YolosForObjectDetection"),
     ]
@@ -801,6 +804,7 @@ MODEL_FOR_BACKBONE_MAPPING_NAMES = OrderedDict(
         ("hiera", "HieraBackbone"),
         ("resnet", "ResNetBackbone"),
         ("swin", "SwinBackbone"),
+        ("rt_detr_resnet", "RTDetrResNetConfig"),
     ]
 )
 

@@ -1,4 +1,3 @@
-import mindspore as ms
 # coding=utf-8
 # Copyright 2024 Microsoft Research, Inc. and The HuggingFace Inc. team. All rights reserved.
 #
@@ -13,7 +12,6 @@ import mindspore as ms
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-from mindspore import mint, nn
 """
 PyTorch RTDetr specific ResNet model. The main difference between hugginface ResNet model is that this RTDetrResNet model forces to use shortcut at the first layer in the resnet-18/34 models.
 See https://github.com/lyuwenyu/RT-DETR/blob/5b628eaa0a2fc25bdafec7e6148d5296b144af85/rtdetr_pytorch/src/nn/backbone/presnet.py#L126 for details.
@@ -22,7 +20,8 @@ See https://github.com/lyuwenyu/RT-DETR/blob/5b628eaa0a2fc25bdafec7e6148d5296b14
 import math
 from typing import Optional
 
-from mindspore import Tensor, nn
+import mindspore as ms
+from mindspore import Tensor, nn, mint
 
 from ...activations import ACT2FN
 from ...modeling_outputs import (
@@ -30,15 +29,19 @@ from ...modeling_outputs import (
     BaseModelOutputWithNoAttention,
 )
 from ...modeling_utils import PreTrainedModel
-from ...utils import (
-    add_start_docstrings,
-    add_start_docstrings_to_model_forward,
-    logging,
-    replace_return_docstrings,
-)
+from ...utils import logging
 from ...utils.backbone_utils import BackboneMixin
-from .configuration_rt_detr_resnet import RTDetrResNetConfig
+from transformers import RTDetrResNetConfig
 
+from mindspore.common.initializer import (
+    initializer,
+    HeNormal,
+    HeUniform,
+    Uniform,
+    One,
+    Zero,
+    _calculate_fan_in_and_fan_out,
+)
 
 logger = logging.get_logger(__name__)
 
@@ -101,7 +104,7 @@ class RTDetrResNetEmbeddings(ms.nn.Cell):
                 ),
             ]
         )
-        self.pooler = nn.MaxPool2d(kernel_size=3, stride=2, padding=1)
+        self.pooler = mint.nn.MaxPool2d(kernel_size=3, stride=2, padding=1)
         self.num_channels = config.num_channels
 
     def construct(self, pixel_values: Tensor) -> Tensor:
@@ -323,52 +326,28 @@ class RTDetrResNetPreTrainedModel(PreTrainedModel):
     main_input_name = "pixel_values"
     _no_split_modules = ["RTDetrResNetConvLayer", "RTDetrResNetShortCut"]
 
-    def _init_weights(self, module):
-        if isinstance(module, mint.nn.Conv2d):
-            nn.init.kaiming_normal_(module.weight, mode="fan_out", nonlinearity="relu")
-        # copied from the `reset_parameters` method of `class Linear(Module)` in `torch`.
-        elif isinstance(module, mint.nn.Linear):
-            nn.init.kaiming_uniform_(module.weight, a=math.sqrt(5))
-            if module.bias is not None:
-                fan_in, _ = nn.init._calculate_fan_in_and_fan_out(module.weight)
+    def _init_weights(self, cell):
+        """Initializes weights using MindSpore initializers."""
+
+        if isinstance(cell, mint.nn.Conv2d):
+            cell.weight.set_data(
+                initializer(HeNormal(mode="fan_out", nonlinearity="relu"), cell.weight.shape, cell.weight.dtype)
+            )
+
+        elif isinstance(cell, mint.nn.Linear):
+            cell.weight.set_data(
+                initializer(HeUniform(negative_slope=math.sqrt(5)), cell.weight.shape, cell.weight.dtype)
+            )
+            if cell.bias is not None:
+                fan_in, _ = _calculate_fan_in_and_fan_out(cell.weight.shape)
                 bound = 1 / math.sqrt(fan_in) if fan_in > 0 else 0
-                nn.init.uniform_(module.bias, -bound, bound)
-        elif isinstance(module, (mint.nn.BatchNorm2d, mint.nn.GroupNorm)):
-            nn.init.constant_(module.weight, 1)
-            nn.init.constant_(module.bias, 0)
+                cell.bias.set_data(initializer(Uniform(scale=bound), cell.bias.shape, cell.bias.dtype))
+
+        elif isinstance(cell, (mint.nn.BatchNorm2d, mint.nn.GroupNorm)):
+            cell.weight.set_data(initializer(One(), cell.weight.shape, cell.weight.dtype))
+            cell.bias.set_data(initializer(Zero(), cell.bias.shape, cell.bias.dtype))
 
 
-RTDETR_RESNET_START_DOCSTRING = r"""
-    This model is a MindSpore [mindspore.nn.Cell](https://mindspore.cn/docs/api/en/master/api_python/nn/mindspore.nn.Cell.html) subclass. Use it
-    as a regular MindSpore Cell and refer to the MindSpore documentation for all matter related to general usage and
-    behavior.
-
-    Parameters:
-        config ([`RTDetrResNetConfig`]): Model configuration class with all the parameters of the model.
-            Initializing with a config file does not load the weights associated with the model, only the
-            configuration. Check out the [`~PreTrainedModel.from_pretrained`] method to load the model weights.
-"""
-
-RTDETR_RESNET_INPUTS_DOCSTRING = r"""
-    Args:
-        pixel_values (`mindspore.Tensor` of shape `(batch_size, num_channels, height, width)`):
-            Pixel values. Pixel values can be obtained using [`AutoImageProcessor`]. See
-            [`RTDetrImageProcessor.__call__`] for details.
-
-        output_hidden_states (`bool`, *optional*):
-            Whether or not to return the hidden states of all layers. See `hidden_states` under returned tensors for
-            more detail.
-        return_dict (`bool`, *optional*):
-            Whether or not to return a [`~utils.ModelOutput`] instead of a plain tuple.
-"""
-
-
-@add_start_docstrings(
-    """
-    ResNet backbone, to be used with frameworks like RTDETR.
-    """,
-    RTDETR_RESNET_START_DOCSTRING,
-)
 class RTDetrResNetBackbone(RTDetrResNetPreTrainedModel, BackboneMixin):
     def __init__(self, config):
         super().__init__(config)
@@ -381,8 +360,6 @@ class RTDetrResNetBackbone(RTDetrResNetPreTrainedModel, BackboneMixin):
         # initialize weights and apply final processing
         self.post_init()
 
-    @add_start_docstrings_to_model_forward(RTDETR_RESNET_INPUTS_DOCSTRING)
-    @replace_return_docstrings(output_type=BackboneOutput, config_class=_CONFIG_FOR_DOC)
     def construct(
         self, pixel_values: Tensor, output_hidden_states: Optional[bool] = None, return_dict: Optional[bool] = None
     ) -> BackboneOutput:
