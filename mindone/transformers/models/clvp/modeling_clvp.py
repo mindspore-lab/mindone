@@ -268,8 +268,8 @@ class ClvpRotaryPositionalEmbedding(nn.Cell):
         freqs = mint.einsum("i,j->ij", time_stamps, self.inv_freq)
         embeddings = mint.cat((freqs, freqs), dim=-1)
 
-        self.cached_rotary_positional_embedding = embeddings.unsqueeze(0)
-        return self.cached_rotary_positional_embedding.to(hidden_states.dtype)
+        self.cached_rotary_positional_embedding = embeddings.unsqueeze(0).to(hidden_states.dtype)
+        return self.cached_rotary_positional_embedding
 
 
 class ClvpSelfAttention(nn.Cell):
