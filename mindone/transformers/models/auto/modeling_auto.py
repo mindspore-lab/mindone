@@ -78,6 +78,7 @@ MODEL_MAPPING_NAMES = OrderedDict(
         ("qwen2_audio_encoder", "Qwen2AudioEncoder"),
         ("siglip", "SiglipModel"),
         ("helium", "HeliumModel"),
+        ("grounding-dino", "GroundingDinoModel"),
         ("hiera", "HieraModel"),
         ("hubert", "HubertModel"),
         ("idefics", "IdeficsModel"),

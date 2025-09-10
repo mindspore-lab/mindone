@@ -968,7 +968,8 @@ class MllamaRotaryEmbedding(nn.Cell):
         self.config = config
         self.rope_init_fn = ROPE_INIT_FUNCTIONS[self.rope_type]
         inv_freq, self.attention_scaling = self.rope_init_fn(self.config)
-        self.register_buffer("inv_freq", inv_freq, persistent=False)
+        # self.register_buffer("inv_freq", inv_freq, persistent=False)
+        self.inv_freq = inv_freq
         self.original_inv_freq = self.inv_freq
 
     def _dynamic_frequency_update(self, position_ids):

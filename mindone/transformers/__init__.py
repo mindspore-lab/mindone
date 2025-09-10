@@ -351,6 +351,13 @@ from .models.gpt2 import (
 from .models.granite import GraniteForCausalLM, GraniteModel, GranitePreTrainedModel
 from .models.granitemoe import GraniteMoeForCausalLM, GraniteMoeModel, GraniteMoePreTrainedModel
 from .models.granitemoeshared import GraniteMoeSharedForCausalLM, GraniteMoeSharedModel, GraniteMoeSharedPreTrainedModel
+from .models.grounding_dino import (
+    GroundingDinoForObjectDetection,
+    GroundingDinoImageProcessor,
+    GroundingDinoModel,
+    GroundingDinoPreTrainedModel,
+    GroundingDinoProcessor,
+)
 from .models.helium import (
     HeliumForCausalLM,
     HeliumForSequenceClassification,
