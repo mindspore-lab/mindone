@@ -15,12 +15,12 @@
 import math
 from typing import Optional, Tuple, Union
 
-from mint.nn import BCEWithLogitsLoss, CrossEntropyLoss, MSELoss
 from transformers import LiltConfig
 from transformers.utils import add_start_docstrings, logging, replace_return_docstrings
 
 import mindspore as ms
 from mindspore import mint
+from mindspore.mint.nn import BCEWithLogitsLoss, CrossEntropyLoss, MSELoss
 
 from ...activations import ACT2FN
 from ...mindspore_utils import apply_chunking_to_forward, find_pruneable_heads_and_indices, prune_linear_layer
