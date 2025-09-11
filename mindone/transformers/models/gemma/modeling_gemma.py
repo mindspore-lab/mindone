@@ -25,7 +25,6 @@
 from typing import Callable, List, Optional, Tuple, Union
 
 from transformers.models.gemma.configuration_gemma import GemmaConfig
-from transformers.utils import LossKwargs, logging
 
 import mindspore as ms
 from mindspore import mint, nn, ops
@@ -45,6 +44,7 @@ from ...modeling_outputs import (
 from ...modeling_rope_utils import ROPE_INIT_FUNCTIONS
 from ...modeling_utils import ALL_ATTENTION_FUNCTIONS, PreTrainedModel
 from ...processing_utils import Unpack
+from ...utils import TransformersKwargs, logging
 
 logger = logging.get_logger(__name__)
 
@@ -704,10 +704,6 @@ class GemmaModel(GemmaPreTrainedModel):
         return causal_mask
 
 
-class KwargsForCausalLM(FlashAttentionKwargs, LossKwargs):
-    ...
-
-
 class GemmaForCausalLM(GemmaPreTrainedModel, GenerationMixin):
     _tied_weights_keys = ["lm_head.weight"]
     _tp_plan = {"lm_head": "colwise_rep"}
@@ -754,7 +750,7 @@ class GemmaForCausalLM(GemmaPreTrainedModel, GenerationMixin):
         return_dict: Optional[bool] = None,
         cache_position: Optional[ms.Tensor] = None,
         logits_to_keep: Union[int, ms.Tensor] = 0,
-        **kwargs: Unpack[KwargsForCausalLM],
+        **kwargs: Unpack[TransformersKwargs],
     ) -> Union[Tuple, CausalLMOutputWithPast]:
         r"""
             labels (`ms.Tensor` of shape `(batch_size, sequence_length)`, *optional*):

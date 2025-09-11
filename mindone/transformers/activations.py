@@ -17,34 +17,34 @@
 
 import math
 from collections import OrderedDict
-from functools import partial
 
-import mindspore as ms
-from mindspore import Tensor, nn, ops
+from mindspore import Tensor, mint, nn
 
 
 class PytorchGELUTanh(nn.Cell):
     """
     A fast C implementation of the tanh approximation of the GeLU activation function. See
-    https://arxiv.org/abs/1606.08415.
+    https://huggingface.co/papers/1606.08415.
 
     This implementation is equivalent to NewGELU and FastGELU but much faster. However, it is not an exact numerical
     match due to rounding errors.
     """
 
     def construct(self, input: Tensor) -> Tensor:
-        return ops.gelu(input, approximate="tanh")
+        return mint.nn.functional.gelu(input, approximate="tanh")
 
 
 class NewGELUActivation(nn.Cell):
     """
     Implementation of the GELU activation function currently in Google BERT repo (identical to OpenAI GPT). Also see
-    the Gaussian Error Linear Units paper: https://arxiv.org/abs/1606.08415
+    the Gaussian Error Linear Units paper: https://huggingface.co/papers/1606.08415
     """
 
     def construct(self, input: Tensor) -> Tensor:
         return (
-            0.5 * input * (1.0 + ops.tanh(ops.sqrt(Tensor(2.0 / math.pi)) * (input + 0.044715 * ops.pow(input, 3.0))))
+            0.5
+            * input
+            * (1.0 + mint.tanh(mint.sqrt(Tensor(2.0 / math.pi)) * (input + 0.044715 * mint.pow(input, 3.0))))
         ).to(input.dtype)
 
 
@@ -52,8 +52,8 @@ class GELUActivation(nn.Cell):
     """
     Original Implementation of the GELU activation function in Google BERT repo when initially created. For
     information: OpenAI GPT's GELU is slightly different (and gives slightly different results): 0.5 * x * (1 +
-    ops.tanh(math.sqrt(2 / math.pi) * (x + 0.044715 * ops.pow(x, 3)))) This is now written in C in nn.functional
-    Also see the Gaussian Error Linear Units paper: https://arxiv.org/abs/1606.08415
+    mint.tanh(math.sqrt(2 / math.pi) * (x + 0.044715 * mint.pow(x, 3)))) This is now written in C in nn.functional
+    Also see the Gaussian Error Linear Units paper: https://huggingface.co/papers/1606.08415
     """
 
     def __init__(self, use_gelu_python: bool = False):
@@ -61,10 +61,10 @@ class GELUActivation(nn.Cell):
         if use_gelu_python:
             self.act = self._gelu_python
         else:
-            self.act = ops.gelu
+            self.act = mint.nn.functional.gelu
 
     def _gelu_python(self, input: Tensor) -> Tensor:
-        return input * 0.5 * (1.0 + ops.erf(input / math.sqrt(2.0)))
+        return input * 0.5 * (1.0 + mint.erf(input / math.sqrt(2.0)))
 
     def construct(self, input: Tensor) -> Tensor:
         return self.act(input)
@@ -76,7 +76,7 @@ class FastGELUActivation(nn.Cell):
     """
 
     def construct(self, input: Tensor) -> Tensor:
-        return 0.5 * input * (1.0 + ops.tanh(input * 0.7978845608 * (1.0 + 0.044715 * input * input)))
+        return 0.5 * input * (1.0 + mint.tanh(input * 0.7978845608 * (1.0 + 0.044715 * input * input)))
 
 
 class QuickGELUActivation(nn.Cell):
@@ -84,25 +84,21 @@ class QuickGELUActivation(nn.Cell):
     Applies GELU approximation that is fast but somewhat inaccurate. See: https://github.com/hendrycks/GELUs
     """
 
-    def __init__(self):
-        super(QuickGELUActivation, self).__init__()
-        self.sigmoid = nn.Sigmoid()
-
-    def construct(self, input):
-        return input * self.sigmoid(1.702 * input)
+    def construct(self, input: Tensor) -> Tensor:
+        return input * mint.sigmoid(1.702 * input)
 
 
 class ClippedGELUActivation(nn.Cell):
     """
     Clip the range of possible GeLU outputs between [min, max]. This is especially useful for quantization purpose, as
     it allows mapping negatives values in the GeLU spectrum. For more information on this trick, please refer to
-    https://arxiv.org/abs/2004.09602.
+    https://huggingface.co/papers/2004.09602.
 
     Gaussian Error Linear Unit. Original Implementation of the gelu activation function in Google Bert repo when
     initially created.
 
     For information: OpenAI GPT's gelu is slightly different (and gives slightly different results): 0.5 * x * (1 +
-    ops.tanh(math.sqrt(2 / math.pi) * (x + 0.044715 * ops.pow(x, 3)))). See https://arxiv.org/abs/1606.08415
+    ops.tanh(math.sqrt(2 / math.pi) * (x + 0.044715 * ops.pow(x, 3)))). See https://huggingface.co/papers/1606.08415
     """
 
     def __init__(self, min: float, max: float):
@@ -115,7 +111,7 @@ class ClippedGELUActivation(nn.Cell):
         self.gelu = get_activation("gelu")
 
     def construct(self, x: Tensor) -> Tensor:
-        return ops.clip(self.gelu(x), self.min, self.max)
+        return mint.clip(self.gelu(x), self.min, self.max)
 
 
 class AccurateGELUActivation(nn.Cell):
@@ -131,30 +127,17 @@ class AccurateGELUActivation(nn.Cell):
         self.precomputed_constant = math.sqrt(2 / math.pi)
 
     def construct(self, input: Tensor) -> Tensor:
-        return 0.5 * input * (1 + ops.tanh(self.precomputed_constant * (input + 0.044715 * ops.pow(input, 3))))
-
-
-class SiLUActivationFP32(nn.Cell):
-    def __init__(self):
-        super(SiLUActivationFP32, self).__init__()
-        self.sigmoid = nn.Sigmoid()
-
-    def construct(self, x):
-        _dtype = x.dtype
-        x = x.to(ms.float32)
-        out = x * self.sigmoid(x)
-        out = out.to(_dtype)
-        return out
+        return 0.5 * input * (1 + mint.tanh(self.precomputed_constant * (input + 0.044715 * mint.pow(input, 3))))
 
 
 class MishActivation(nn.Cell):
     """
-    See Mish: A Self-Regularized Non-Monotonic Activation Function (Misra., https://arxiv.org/abs/1908.08681). Also
+    See Mish: A Self-Regularized Non-Monotonic Activation Function (Misra., https://huggingface.co/papers/1908.08681). Also
     visit the official repository for the paper: https://github.com/digantamisra98/Mish
     """
 
     def construct(self, input: Tensor) -> Tensor:
-        return ops.mish(input)
+        return mint.nn.functional.mish(input)
 
 
 class LinearActivation(nn.Cell):
@@ -169,24 +152,24 @@ class LinearActivation(nn.Cell):
 class LaplaceActivation(nn.Cell):
     """
     Applies elementwise activation based on Laplace function, introduced in MEGA as an attention activation. See
-    https://arxiv.org/abs/2209.10655
+    https://huggingface.co/papers/2209.10655
 
     Inspired by squared relu, but with bounded range and gradient for better stability
     """
 
     def construct(self, input, mu=0.707107, sigma=0.282095):
         input = (input - mu).div(sigma * math.sqrt(2.0))
-        return 0.5 * (1.0 + ops.erf(input))
+        return 0.5 * (1.0 + mint.erf(input))
 
 
 class ReLUSquaredActivation(nn.Cell):
     """
-    Applies the relu^2 activation introduced in https://arxiv.org/abs/2109.08668v2
+    Applies the relu^2 activation introduced in https://huggingface.co/papers/2109.08668v2
     """
 
     def construct(self, input):
-        relu_applied = ops.relu(input)
-        squared = ops.square(relu_applied)
+        relu_applied = mint.nn.functional.relu(input)
+        squared = mint.square(relu_applied)
         return squared
 
 
@@ -198,7 +181,7 @@ class ClassInstantier(OrderedDict):
 
 
 ACT2CLS = {
-    "gelu": partial(nn.GELU, approximate=False),
+    "gelu": mint.nn.GELU,
     "gelu_10": (ClippedGELUActivation, {"min": -10, "max": 10}),
     "gelu_fast": FastGELUActivation,
     "gelu_new": NewGELUActivation,
@@ -206,16 +189,18 @@ ACT2CLS = {
     "gelu_pytorch_tanh": PytorchGELUTanh,
     "gelu_accurate": AccurateGELUActivation,
     "laplace": LaplaceActivation,
+    "leaky_relu": nn.LeakyReLU,
     "linear": LinearActivation,
     "mish": MishActivation,
     "quick_gelu": QuickGELUActivation,
-    "relu": nn.ReLU,
+    "relu": mint.nn.ReLU,
     "relu2": ReLUSquaredActivation,
-    "relu6": nn.ReLU6,
-    "sigmoid": nn.Sigmoid,
-    "silu": SiLUActivationFP32,
-    "swish": SiLUActivationFP32,
-    "tanh": nn.Tanh,
+    "relu6": mint.nn.ReLU6,
+    "sigmoid": mint.nn.Sigmoid,
+    "silu": mint.nn.SiLU,
+    "swish": mint.nn.SiLU,
+    "tanh": mint.nn.Tanh,
+    "prelu": mint.nn.PReLU,
 }
 ACT2FN = ClassInstantier(ACT2CLS)
 
@@ -225,3 +210,14 @@ def get_activation(activation_string):
         return ACT2FN[activation_string]
     else:
         raise KeyError(f"function {activation_string} not found in ACT2FN mapping {list(ACT2FN.keys())}")
+
+
+# For backwards compatibility with: from activations import gelu_python
+gelu_python = get_activation("gelu_python")
+gelu_new = get_activation("gelu_new")
+gelu = get_activation("gelu")
+gelu_fast = get_activation("gelu_fast")
+quick_gelu = get_activation("quick_gelu")
+silu = get_activation("silu")
+mish = get_activation("mish")
+linear_act = get_activation("linear")
