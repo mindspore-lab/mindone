@@ -12,7 +12,7 @@ from mindspore import Tensor, ops
 from mindspore.nn.utils import no_init_parameters
 
 from mindone.diffusers import AutoencoderKL
-from mindone.diffusers._peft import PeftModel
+from mindone.peft import PeftModel
 from mindone.transformers.models.phi3.modeling_phi3 import Phi3LongRoPEScaledRotaryEmbedding
 from mindone.utils.amp import auto_mixed_precision
 

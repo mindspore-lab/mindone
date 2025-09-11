@@ -37,7 +37,7 @@ from qwenvl.train.argument import DataArguments, ModelArguments, TrainingArgumen
 from qwenvl.train.trainer import replace_qwen2_vl_attention_class
 
 import mindone.transformers
-from mindone.diffusers._peft import LoraConfig
+from mindone.peft import LoraConfig
 from mindone.transformers import AutoProcessor, Qwen2_5_VLForConditionalGeneration, Trainer
 
 local_rank = None
