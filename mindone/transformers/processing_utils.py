@@ -93,7 +93,7 @@ def _resolve_class_from_mindone_or_hf(class_name: str):
     except AttributeError:
         logger.warning(
             f"Falling back to 🤗 Transformers `{class_name}`. Note that "
-            f"fast vision/image processors often assume PyTorch backends and "
+            f"fast vision/image processors and feature extractors often assume PyTorch backends and "
             f"this may lead to a mismatch. If issues arise, use or implement a MindOne-native processor instead."
         )
 
