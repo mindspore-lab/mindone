@@ -87,12 +87,12 @@ class MultiScaleDeformableAttention(mindspore.nn.Cell):
             sampling_grid_l_ = sampling_grids[:, :, :, level_id].transpose(1, 2).flatten(0, 1)
             # batch_size*num_heads, hidden_dim, num_queries, num_points
             sampling_value_l_ = mint.nn.functional.grid_sample(
-                value_l_,
-                sampling_grid_l_,
+                value_l_.to(mindspore.float32),
+                sampling_grid_l_.to(mindspore.float32),
                 mode="bilinear",
                 padding_mode="zeros",
                 align_corners=False,
-            )
+            ).to(value_l_.dtype)
             sampling_value_list.append(sampling_value_l_)
         # (batch_size, num_queries, num_heads, num_levels, num_points)
         # -> (batch_size, num_heads, num_queries, num_levels, num_points)
@@ -335,10 +335,10 @@ class RTDetrFrozenBatchNorm2d(mindspore.nn.Cell):
 
     def __init__(self, n):
         super().__init__()
-        self.register_buffer("weight", mint.ones(n))
-        self.register_buffer("bias", mint.zeros(n))
-        self.register_buffer("running_mean", mint.zeros(n))
-        self.register_buffer("running_var", mint.ones(n))
+        self.weight = mindspore.Parameter(mint.ones(n))
+        self.bias = mindspore.Parameter(mint.zeros(n))
+        self.running_mean = mindspore.Parameter(mint.zeros(n))
+        self.running_var = mindspore.Parameter(mint.zeros(n))
 
     def _load_from_state_dict(
         self, state_dict, prefix, local_metadata, strict, missing_keys, unexpected_keys, error_msgs
@@ -376,6 +376,12 @@ def replace_batch_norm(model):
     for name, child_cell in model.name_cells().items():
         if isinstance(child_cell, mint.nn.BatchNorm2d):
             new_module = RTDetrFrozenBatchNorm2d(child_cell.num_features)
+
+            new_module.weight.set_data(child_cell.weight)
+            new_module.bias.set_data(child_cell.bias)
+            new_module.running_mean.set_data(child_cell.running_mean)
+            new_module.running_var.set_data(child_cell.running_var)
+
             setattr(model, name, new_module)
         else:
             replace_batch_norm(child_cell)
@@ -1030,78 +1036,82 @@ class RTDetrPreTrainedModel(PreTrainedModel):
     main_input_name = "pixel_values"
     _no_split_modules = [r"RTDetrHybridEncoder", r"RTDetrDecoderLayer"]
 
-    def _init_weights(self, cell):
+    def _init_weights(self, module):
         """Initalize the weights"""
 
-        if isinstance(cell, (RTDetrForObjectDetection, RTDetrDecoder)):
-            if hasattr(cell, 'class_embed') and cell.class_embed is not None:
-                for layer in cell.class_embed:
+        """initialize linear layer bias value according to a given probability value."""
+        if isinstance(module, (RTDetrForObjectDetection, RTDetrDecoder)):
+            if module.class_embed is not None:
+                for layer in module.class_embed:
                     prior_prob = self.config.initializer_bias_prior_prob or 1 / (self.config.num_labels + 1)
-                    bias = -math.log((1 - prior_prob) / prior_prob)
+                    bias = float(-math.log((1 - prior_prob) / prior_prob))
                     layer.weight.set_data(initializer(XavierUniform(), layer.weight.shape, layer.weight.dtype))
                     layer.bias.set_data(initializer(Constant(bias), layer.bias.shape, layer.bias.dtype))
 
-            if hasattr(cell, 'bbox_embed') and cell.bbox_embed is not None:
-                for layer in cell.bbox_embed:
+            if module.bbox_embed is not None:
+                for layer in module.bbox_embed:
                     layer.layers[-1].weight.set_data(
                         initializer(Zero(), layer.layers[-1].weight.shape, layer.layers[-1].weight.dtype))
                     layer.layers[-1].bias.set_data(
                         initializer(Zero(), layer.layers[-1].bias.shape, layer.layers[-1].bias.dtype))
 
-        if isinstance(cell, RTDetrMultiscaleDeformableAttention):
-            cell.sampling_offsets.weight.set_data(
-                initializer(Zero(), cell.sampling_offsets.weight.shape, cell.sampling_offsets.weight.dtype))
+        if isinstance(module, RTDetrMultiscaleDeformableAttention):
+            module.sampling_offsets.weight.set_data(
+                initializer(Zero(), module.sampling_offsets.weight.shape, module.sampling_offsets.weight.dtype)
+            )
+            default_dtype = module.sampling_offsets.weight.data.dtype
+            thetas = mint.arange(module.n_heads, dtype=mindspore.int64).to(default_dtype) * (
+                2.0 * math.pi / module.n_heads
+            )
+            grid_init = mint.stack([thetas.cos(), thetas.sin()], -1)
+            grid_init = (
+                (grid_init / grid_init.abs().max(-1, keepdim=True)[0])
+                .view(module.n_heads, 1, 1, 2)
+                .repeat(1, module.n_levels, module.n_points, 1)
+            )
+            for i in range(module.n_points):
+                grid_init[:, :, i, :] *= i + 1
 
-            thetas = mint.arange(cell.n_heads, dtype=mindspore.float32) * (2.0 * math.pi / cell.n_heads)
-            grid_init = mint.stack([mint.cos(thetas), mint.sin(thetas)], -1)
+            module.sampling_offsets.bias = mindspore.Parameter(grid_init.view(-1))
+            module.attention_weights.weight.set_data(
+                initializer(Zero(), module.attention_weights.weight.shape, module.attention_weights.weight.dtype))
+            module.attention_weights.bias.set_data(
+                initializer(Zero(), module.attention_weights.bias.shape, module.attention_weights.bias.dtype))
+            module.value_proj.weight.set_data(
+                initializer(XavierUniform(), module.value_proj.weight.shape, module.value_proj.weight.dtype))
+            module.value_proj.bias.set_data(
+                initializer(Zero(), module.value_proj.bias.shape, module.value_proj.bias.dtype))
+            module.output_proj.weight.set_data(
+                initializer(XavierUniform(), module.output_proj.weight.shape, module.output_proj.weight.dtype))
+            module.output_proj.bias.set_data(
+                initializer(Zero(), module.output_proj.bias.shape, module.output_proj.bias.dtype))
 
-            max_val = grid_init.abs().max(-1, keepdim=True)[0]
-            grid_init = (grid_init / max_val)
-            grid_init = grid_init.view(cell.n_heads, 1, 1, 2)
-
-            grid_init = mint.tile(grid_init, (1, cell.n_levels, cell.n_points, 1))
-
-            for i in range(cell.n_points):
-                grid_init[:, :, i, :] *= (i + 1)
-
-            cell.sampling_offsets.bias = mindspore.Parameter(grid_init.view(-1), name=cell.sampling_offsets.bias.name)
-
-            cell.attention_weights.weight.set_data(
-                initializer(Zero(), cell.attention_weights.weight.shape, cell.attention_weights.weight.dtype))
-            cell.attention_weights.bias.set_data(
-                initializer(Zero(), cell.attention_weights.bias.shape, cell.attention_weights.bias.dtype))
-            cell.value_proj.weight.set_data(
-                initializer(XavierUniform(), cell.value_proj.weight.shape, cell.value_proj.weight.dtype))
-            cell.value_proj.bias.set_data(initializer(Zero(), cell.value_proj.bias.shape, cell.value_proj.bias.dtype))
-            cell.output_proj.weight.set_data(
-                initializer(XavierUniform(), cell.output_proj.weight.shape, cell.output_proj.weight.dtype))
-            cell.output_proj.bias.set_data(
-                initializer(Zero(), cell.output_proj.bias.shape, cell.output_proj.bias.dtype))
-
-        if isinstance(cell, RTDetrModel):
+        if isinstance(module, RTDetrModel):
             prior_prob = self.config.initializer_bias_prior_prob or 1 / (self.config.num_labels + 1)
-            bias = -math.log((1 - prior_prob) / prior_prob)
-            cell.enc_score_head.weight.set_data(
-                initializer(XavierUniform(), cell.enc_score_head.weight.shape, cell.enc_score_head.weight.dtype))
-            cell.enc_score_head.bias.set_data(
-                initializer(Constant(bias), cell.enc_score_head.bias.shape, cell.enc_score_head.bias.dtype))
+            bias = float(-math.log((1 - prior_prob) / prior_prob))
+            module.enc_score_head.weight.set_data(
+                initializer(XavierUniform(), module.enc_score_head.weight.shape, module.enc_score_head.weight.dtype))
+            module.enc_score_head.bias.set_data(
+                initializer(Constant(bias), module.enc_score_head.bias.shape, module.enc_score_head.bias.dtype))
 
-        if isinstance(cell, (mint.nn.Linear, mint.nn.Conv2d)):
+        if isinstance(module, (nn.Linear, nn.Conv2d, nn.BatchNorm2d)):
             cell.weight.set_data(
                 initializer(Normal(self.config.initializer_range), cell.weight.shape, cell.weight.dtype))
-            if cell.bias is not None:
+            if module.bias is not None:
                 cell.bias.set_data(initializer(Zero(), cell.bias.shape, cell.bias.dtype))
-        elif isinstance(cell, mint.nn.BatchNorm2d):
-            cell.weight.set_data(initializer(Normal(self.config.initializer_range), cell.weight.shape, cell.weight.dtype))
-            cell.bias.set_data(initializer(Zero(), cell.bias.shape, cell.bias.dtype))
 
-        if hasattr(cell, "weight_embedding") and self.config.learn_initial_query:
-            cell.weight_embedding.weight.set_data(
-                initializer(XavierUniform(), cell.weight_embedding.weight.shape, cell.weight_embedding.weight.dtype))
-        if hasattr(cell, "denoising_class_embed") and self.config.num_denoising > 0:
-            cell.denoising_class_embed.weight.set_data(
-                initializer(XavierUniform(), cell.denoising_class_embed.weight.shape,
-                            cell.denoising_class_embed.weight.dtype))
+        if hasattr(module, "weight_embedding") and self.config.learn_initial_query:
+            module.weight_embedding.weight.set_data(
+                initializer(XavierUniform(), module.weight_embedding.weight.shape, module.weight_embedding.weight.dtype)
+            )
+        if hasattr(module, "denoising_class_embed") and self.config.num_denoising > 0:
+            module.denoising_class_embed.weight.set_data(
+                initializer(
+                    XavierUniform(),
+                    module.denoising_class_embed.weight.shape,
+                    module.denoising_class_embed.weight.dtype
+                )
+            )
 
 
 class RTDetrEncoder(mindspore.nn.Cell):

@@ -20,8 +20,8 @@ See https://github.com/lyuwenyu/RT-DETR/blob/5b628eaa0a2fc25bdafec7e6148d5296b14
 import math
 from typing import Optional
 
-import mindspore as ms
-from mindspore import Tensor, nn, mint
+import mindspore
+from mindspore import Tensor, mint
 
 from ...activations import ACT2FN
 from ...modeling_outputs import (
@@ -45,16 +45,9 @@ from mindspore.common.initializer import (
 
 logger = logging.get_logger(__name__)
 
-# General docstring
-_CONFIG_FOR_DOC = "RTDetrResNetConfig"
-
-# Base docstring
-_CHECKPOINT_FOR_DOC = "microsoft/resnet-50"
-_EXPECTED_OUTPUT_SHAPE = [1, 2048, 7, 7]
-
 
 # Copied from transformers.models.resnet.modeling_resnet.ResNetConvLayer -> RTDetrResNetConvLayer
-class RTDetrResNetConvLayer(ms.nn.Cell):
+class RTDetrResNetConvLayer(mindspore.nn.Cell):
     def __init__(
         self, in_channels: int, out_channels: int, kernel_size: int = 3, stride: int = 1, activation: str = "relu"
     ):
@@ -67,42 +60,40 @@ class RTDetrResNetConvLayer(ms.nn.Cell):
 
     def construct(self, input: Tensor) -> Tensor:
         hidden_state = self.convolution(input)
-        hidden_state = self.normalization(hidden_state)
+        hidden_state = self.normalization(hidden_state).to(input.dtype)
         hidden_state = self.activation(hidden_state)
         return hidden_state
 
 
-class RTDetrResNetEmbeddings(ms.nn.Cell):
+class RTDetrResNetEmbeddings(mindspore.nn.Cell):
     """
     ResNet Embeddings (stem) composed of a deep aggressive convolution.
     """
 
     def __init__(self, config: RTDetrResNetConfig):
         super().__init__()
-        self.embedder = ms.nn.SequentialCell(
-            *[
-                RTDetrResNetConvLayer(
-                    config.num_channels,
-                    config.embedding_size // 2,
-                    kernel_size=3,
-                    stride=2,
-                    activation=config.hidden_act,
-                ),
-                RTDetrResNetConvLayer(
-                    config.embedding_size // 2,
-                    config.embedding_size // 2,
-                    kernel_size=3,
-                    stride=1,
-                    activation=config.hidden_act,
-                ),
-                RTDetrResNetConvLayer(
-                    config.embedding_size // 2,
-                    config.embedding_size,
-                    kernel_size=3,
-                    stride=1,
-                    activation=config.hidden_act,
-                ),
-            ]
+        self.embedder = mindspore.nn.SequentialCell(
+            RTDetrResNetConvLayer(
+                config.num_channels,
+                config.embedding_size // 2,
+                kernel_size=3,
+                stride=2,
+                activation=config.hidden_act,
+            ),
+            RTDetrResNetConvLayer(
+                config.embedding_size // 2,
+                config.embedding_size // 2,
+                kernel_size=3,
+                stride=1,
+                activation=config.hidden_act,
+            ),
+            RTDetrResNetConvLayer(
+                config.embedding_size // 2,
+                config.embedding_size,
+                kernel_size=3,
+                stride=1,
+                activation=config.hidden_act,
+            ),
         )
         self.pooler = mint.nn.MaxPool2d(kernel_size=3, stride=2, padding=1)
         self.num_channels = config.num_channels
@@ -114,12 +105,12 @@ class RTDetrResNetEmbeddings(ms.nn.Cell):
                 "Make sure that the channel dimension of the pixel values match with the one set in the configuration."
             )
         embedding = self.embedder(pixel_values)
-        embedding = self.pooler(embedding)
+        embedding = self.pooler(embedding.to(mindspore.float32)).to(pixel_values.dtype)
         return embedding
 
 
 # Copied from transformers.models.resnet.modeling_resnet.ResNetShortCut -> RTDetrResNetChortCut
-class RTDetrResNetShortCut(ms.nn.Cell):
+class RTDetrResNetShortCut(mindspore.nn.Cell):
     """
     ResNet shortcut, used to project the residual features to the correct size. If needed, it is also used to
     downsample the input using `stride=2`.
@@ -136,7 +127,7 @@ class RTDetrResNetShortCut(ms.nn.Cell):
         return hidden_state
 
 
-class RTDetrResNetBasicLayer(ms.nn.Cell):
+class RTDetrResNetBasicLayer(mindspore.nn.Cell):
     """
     A classic ResNet's residual layer composed by two `3x3` convolutions.
     See https://github.com/lyuwenyu/RT-DETR/blob/5b628eaa0a2fc25bdafec7e6148d5296b144af85/rtdetr_pytorch/src/nn/backbone/presnet.py#L34.
@@ -153,7 +144,7 @@ class RTDetrResNetBasicLayer(ms.nn.Cell):
         super().__init__()
         if in_channels != out_channels:
             self.shortcut = (
-                ms.nn.SequentialCell(
+                mindspore.nn.SequentialCell(
                     *[mint.nn.AvgPool2d(2, 2, 0, ceil_mode=True), RTDetrResNetShortCut(in_channels, out_channels, stride=1)]
                 )
                 if should_apply_shortcut
@@ -165,7 +156,7 @@ class RTDetrResNetBasicLayer(ms.nn.Cell):
                 if should_apply_shortcut
                 else mint.nn.Identity()
             )
-        self.layer = ms.nn.SequentialCell(
+        self.layer = mindspore.nn.SequentialCell(
             RTDetrResNetConvLayer(in_channels, out_channels, stride=stride),
             RTDetrResNetConvLayer(out_channels, out_channels, activation=None),
         )
@@ -180,7 +171,7 @@ class RTDetrResNetBasicLayer(ms.nn.Cell):
         return hidden_state
 
 
-class RTDetrResNetBottleNeckLayer(ms.nn.Cell):
+class RTDetrResNetBottleNeckLayer(mindspore.nn.Cell):
     """
     A classic RTDetrResNet's bottleneck layer composed by three `3x3` convolutions.
 
@@ -201,7 +192,7 @@ class RTDetrResNetBottleNeckLayer(ms.nn.Cell):
         should_apply_shortcut = in_channels != out_channels or stride != 1
         reduces_channels = out_channels // reduction
         if stride == 2:
-            self.shortcut = ms.nn.SequentialCell(
+            self.shortcut = mindspore.nn.SequentialCell(
                 *[
                     mint.nn.AvgPool2d(2, 2, 0, ceil_mode=True),
                     RTDetrResNetShortCut(in_channels, out_channels, stride=1)
@@ -215,7 +206,7 @@ class RTDetrResNetBottleNeckLayer(ms.nn.Cell):
                 if should_apply_shortcut
                 else mint.nn.Identity()
             )
-        self.layer = ms.nn.SequentialCell(
+        self.layer = mindspore.nn.SequentialCell(
             RTDetrResNetConvLayer(
                 in_channels, reduces_channels, kernel_size=1, stride=stride if config.downsample_in_bottleneck else 1
             ),
@@ -235,7 +226,7 @@ class RTDetrResNetBottleNeckLayer(ms.nn.Cell):
         return hidden_state
 
 
-class RTDetrResNetStage(ms.nn.Cell):
+class RTDetrResNetStage(mindspore.nn.Cell):
     """
     A RTDetrResNet stage composed by stacked layers.
     """
@@ -261,7 +252,7 @@ class RTDetrResNetStage(ms.nn.Cell):
             )
         else:
             first_layer = layer(config, in_channels, out_channels, stride=stride, should_apply_shortcut=True)
-        self.layers = ms.nn.SequentialCell(
+        self.layers = mindspore.nn.SequentialCell(
             first_layer, *[layer(config, out_channels, out_channels) for _ in range(depth - 1)]
         )
 
@@ -273,10 +264,10 @@ class RTDetrResNetStage(ms.nn.Cell):
 
 
 # Copied from transformers.models.resnet.modeling_resnet.ResNetEncoder with ResNet->RTDetrResNet
-class RTDetrResNetEncoder(ms.nn.Cell):
+class RTDetrResNetEncoder(mindspore.nn.Cell):
     def __init__(self, config: RTDetrResNetConfig):
         super().__init__()
-        self.stages = ms.nn.CellList([])
+        self.stages = mindspore.nn.CellList([])
         # based on `downsample_in_first_stage` the first layer of the first stage may or may not downsample the input
         self.stages.append(
             RTDetrResNetStage(
@@ -375,10 +366,9 @@ class RTDetrResNetBackbone(RTDetrResNetPreTrainedModel, BackboneMixin):
         >>> config = RTDetrResNetConfig()
         >>> model = RTDetrResNetBackbone(config)
 
-        >>> pixel_values = ms.ops.randn(1, 3, 224, 224)
+        >>> pixel_values = mindspore.ops.randn(1, 3, 224, 224)
 
-        >>> with ms._no_grad():
-        ...     outputs = model(pixel_values)
+        >>> outputs = model(pixel_values)
 
         >>> feature_maps = outputs.feature_maps
         >>> list(feature_maps[-1].shape)
