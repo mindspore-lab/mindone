@@ -88,6 +88,7 @@ CONFIG_MAPPING_NAMES = OrderedDict(
         ("llava_next", "LlavaNextConfig"),
         ("llava_next_video", "LlavaNextVideoConfig"),
         ("llava_onevision", "LlavaOnevisionConfig"),
+        ("mbart", "MBartConfig"),
         ("mistral", "MistralConfig"),
         ("mobilebert", "MobileBertConfig"),
         ("mpt", "MptConfig"),

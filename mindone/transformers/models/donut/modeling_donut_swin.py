@@ -898,7 +898,6 @@ class DonutSwinModel(DonutSwinPreTrainedModel):
             Boolean masked positions. Indicates which patches are masked (1) and which aren't (0).
 
         Examples:
-        >>> import mindspore
         >>> from datasets import load_dataset
         >>> from mindone.transformers import AutoProcessor, AutoModelForVision2Seq
 
