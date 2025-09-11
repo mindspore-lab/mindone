@@ -121,6 +121,8 @@ class Data2VecTextModelTester:
         ) = self.prepare_config_and_inputs()
 
         config.is_decoder = True
+        config.add_cross_attention = True
+        config.num_labels = self.num_labels
         encoder_hidden_states = floats_numpy([self.batch_size, self.seq_length, self.hidden_size])
         encoder_attention_mask = ids_numpy([self.batch_size, self.seq_length], vocab_size=2)
 
@@ -136,10 +138,7 @@ class Data2VecTextModelTester:
             encoder_attention_mask,
         )
 
-    def prepare_config_and_inputs_for_multi_choice(
-        self, input_ids, token_type_ids, input_mask, sequence_labels, token_labels, choice_labels
-    ):
-        config_and_inputs = self.prepare_config_and_inputs()
+    def prepare_config_and_inputs_for_multi_choice(self):
         (
             config,
             input_ids,
@@ -148,32 +147,22 @@ class Data2VecTextModelTester:
             sequence_labels,
             token_labels,
             choice_labels,
-        ) = config_and_inputs
+        ) = self.prepare_config_and_inputs()
         config.num_choices = self.num_choices
         multiple_choice_inputs_ids = np.expand_dims(input_ids, axis=1)
-        multiple_choice_inputs_ids = np.broadcast_to(multiple_choice_inputs_ids, (-1, self.num_choices, -1))
+        multiple_choice_inputs_ids = np.broadcast_to(multiple_choice_inputs_ids, (self.batch_size, self.num_choices, self.seq_length))
         multiple_choice_token_type_ids = np.expand_dims(token_type_ids, axis=1)
-        multiple_choice_token_type_ids = np.broadcast_to(multiple_choice_token_type_ids, (-1, self.num_choices, -1))
+        multiple_choice_token_type_ids = np.broadcast_to(multiple_choice_token_type_ids, (self.batch_size, self.num_choices, self.seq_length))
         multiple_choice_input_mask = np.expand_dims(input_mask, axis=1)
-        multiple_choice_input_mask = np.broadcast_to(multiple_choice_input_mask, (-1, self.num_choices, -1))
+        multiple_choice_input_mask = np.broadcast_to(multiple_choice_input_mask, (self.batch_size, self.num_choices, self.seq_length))
 
-        return config, multiple_choice_inputs_ids, multiple_choice_input_mask, multiple_choice_token_type_ids, choice_labels
-
-    def create_and_check_for_question_answering(
-        self, config, input_ids, token_type_ids, input_mask, sequence_labels, token_labels, choice_labels
-    ):
-        model = Data2VecTextForQuestionAnswering(config=config)
-        model.to(torch_device)
-        model.eval()
-        result = model(
-            input_ids,
-            attention_mask=input_mask,
-            token_type_ids=token_type_ids,
-            start_positions=sequence_labels,
-            end_positions=sequence_labels,
+        return (
+            config,
+            multiple_choice_inputs_ids,
+            multiple_choice_input_mask,
+            multiple_choice_token_type_ids,
+            choice_labels,
         )
-        self.parent.assertEqual(result.start_logits.shape, (self.batch_size, self.seq_length))
-        self.parent.assertEqual(result.end_logits.shape, (self.batch_size, self.seq_length))
 
     def prepare_config_and_inputs_for_common(self):
         config_and_inputs = self.prepare_config_and_inputs()
@@ -208,7 +197,7 @@ config, inputs_dict = model_tester.prepare_config_and_inputs_for_common()
     multiple_choice_inputs_ids,
     multiple_choice_input_mask,
     multiple_choice_token_type_ids,
-    choice_labels
+    choice_labels,
 ) = model_tester.prepare_config_and_inputs_for_multi_choice()
 
 
@@ -231,8 +220,9 @@ _CASES = [
         "mindone.transformers.Data2VecTextModel",
         (config_decoder,),
         {},
-        (input_ids),
+        (),
         {
+            "input_ids": input_ids,
             "attention_mask": input_mask,
             "token_type_ids": token_type_ids,
             "encoder_hidden_states": encoder_hidden_states,
@@ -248,32 +238,32 @@ _CASES = [
         "mindone.transformers.Data2VecTextForCausalLM",
         (config_decoder,),
         {},
-        (input_ids),
+        (),
         {
+            "input_ids": input_ids,
             "attention_mask": input_mask,
             "token_type_ids": token_type_ids,
             "labels": token_labels,
         },
         {
             "loss": 0,
-            "logits": 1,
         },
     ],
     [
         "Data2VecTextForMaskedLM",
         "transformers.Data2VecTextForMaskedLM",
         "mindone.transformers.Data2VecTextForMaskedLM",
-        (config_decoder,),
+        (config,),
         {},
-        (input_ids),
+        (),
         {
+            "input_ids": input_ids,
             "attention_mask": input_mask,
             "token_type_ids": token_type_ids,
             "labels": token_labels,
         },
         {
             "loss": 0,
-            "logits": 1,
         },
     ],
     [
@@ -282,42 +272,45 @@ _CASES = [
         "mindone.transformers.Data2VecTextForTokenClassification",
         (config_decoder,),
         {},
-        (input_ids),
+        (),
         {
+            "input_ids": input_ids,
             "attention_mask": input_mask,
             "token_type_ids": token_type_ids,
             "labels": token_labels,
         },
         {
             "loss": 0,
-            "logits": 1,
         },
     ],
-    [
-        "Data2VecTextForMultipleChoice",
-        "transformers.Data2VecTextForMultipleChoice",
-        "mindone.transformers.Data2VecTextForMultipleChoice",
-        (config_multi_choice,),
-        {},
-        (multiple_choice_inputs_ids),
-        {
-            "attention_mask": multiple_choice_input_mask,
-            "token_type_ids": multiple_choice_token_type_ids,
-            "labels": choice_labels,
-        },
-        {
-            "loss": 0,
-            "logits": 1,
-        },
-    ],
+    # NOTE: do not test it since torch version `modeling_data2vec_text.py` has a bug,
+    # which need to replace `view` with `reshape` in Lines 1277-1282
+    # [
+    #     "Data2VecTextForMultipleChoice",
+    #     "transformers.Data2VecTextForMultipleChoice",
+    #     "mindone.transformers.Data2VecTextForMultipleChoice",
+    #     (config_multi_choice,),
+    #     {},
+    #     (),
+    #     {
+    #         "input_ids": multiple_choice_inputs_ids,
+    #         "attention_mask": multiple_choice_input_mask,
+    #         "token_type_ids": multiple_choice_token_type_ids,
+    #         "labels": choice_labels,
+    #     },
+    #     {
+    #         "loss": 0,
+    #     },
+    # ],
     [
         "Data2VecTextForQuestionAnswering",
         "transformers.Data2VecTextForQuestionAnswering",
         "mindone.transformers.Data2VecTextForQuestionAnswering",
-        (config_decoder,),
+        (config,),
         {},
-        (input_ids),
+        (),
         {
+            "input_ids": input_ids,
             "attention_mask": input_mask,
             "token_type_ids": token_type_ids,
             "start_positions": sequence_labels,

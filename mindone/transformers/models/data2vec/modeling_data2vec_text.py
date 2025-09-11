@@ -20,14 +20,25 @@
 import math
 from typing import List, Optional, Tuple, Union
 
+from transformers import Data2VecTextConfig
+from transformers.utils import (
+    add_code_sample_docstrings,
+    add_start_docstrings,
+    add_start_docstrings_to_model_forward,
+    logging,
+    replace_return_docstrings,
+)
+
 import mindspore as ms
 import mindspore.mint as mint
 from mindspore import nn
 from mindspore.mint.nn import BCEWithLogitsLoss, CrossEntropyLoss, MSELoss
-from mindone.models.utils import normal_, zeros_, ones_
+
+from mindone.models.utils import normal_, ones_, zeros_
 
 from ...activations import ACT2FN
 from ...generation import GenerationMixin
+from ...mindspore_utils import apply_chunking_to_forward, find_pruneable_heads_and_indices, prune_linear_layer
 from ...modeling_outputs import (
     BaseModelOutputWithPastAndCrossAttentions,
     BaseModelOutputWithPoolingAndCrossAttentions,
@@ -39,16 +50,6 @@ from ...modeling_outputs import (
     TokenClassifierOutput,
 )
 from ...modeling_utils import PreTrainedModel
-from ...mindspore_utils import apply_chunking_to_forward, find_pruneable_heads_and_indices, prune_linear_layer
-from transformers.utils import (
-    add_code_sample_docstrings,
-    add_start_docstrings,
-    add_start_docstrings_to_model_forward,
-    logging,
-    replace_return_docstrings,
-)
-from transformers import Data2VecTextConfig
-
 
 logger = logging.get_logger(__name__)
 
@@ -82,9 +83,7 @@ class Data2VecTextForTextEmbeddings(nn.Cell):
         self.register_buffer(
             "position_ids", mint.arange(config.max_position_embeddings).broadcast_to((1, -1)), persistent=False
         )
-        self.register_buffer(
-            "token_type_ids", mint.zeros(self.position_ids.shape, dtype=ms.int32), persistent=False
-        )
+        self.register_buffer("token_type_ids", mint.zeros(self.position_ids.shape, dtype=ms.int32), persistent=False)
 
         # End copy
         self.padding_idx = config.pad_token_id
@@ -144,9 +143,7 @@ class Data2VecTextForTextEmbeddings(nn.Cell):
         input_shape = inputs_embeds.shape[:-1]
         sequence_length = input_shape[1]
 
-        position_ids = mint.arange(
-            self.padding_idx + 1, sequence_length + self.padding_idx + 1, dtype=ms.int32
-        )
+        position_ids = mint.arange(self.padding_idx + 1, sequence_length + self.padding_idx + 1, dtype=ms.int32)
         return position_ids.unsqueeze(0).broadcast_to(input_shape)
 
 
@@ -169,12 +166,12 @@ class Data2VecTextSelfAttention(nn.Cell):
         self.value = mint.nn.Linear(config.hidden_size, self.all_head_size)
 
         self.dropout = mint.nn.Dropout(config.attention_probs_dropout_prob)
-        self.position_embedding_type = position_embedding_type or getattr(
-            config, "position_embedding_type", "absolute"
-        )
+        self.position_embedding_type = position_embedding_type or getattr(config, "position_embedding_type", "absolute")
         if self.position_embedding_type == "relative_key" or self.position_embedding_type == "relative_key_query":
             self.max_position_embeddings = config.max_position_embeddings
-            self.distance_embedding = mint.nn.Embedding(2 * config.max_position_embeddings - 1, self.attention_head_size)
+            self.distance_embedding = mint.nn.Embedding(
+                2 * config.max_position_embeddings - 1, self.attention_head_size
+            )
 
         self.is_decoder = config.is_decoder
 
@@ -237,9 +234,7 @@ class Data2VecTextSelfAttention(nn.Cell):
         if self.position_embedding_type == "relative_key" or self.position_embedding_type == "relative_key_query":
             query_length, key_length = query_layer.shape[2], key_layer.shape[2]
             if use_cache:
-                position_ids_l = ms.tensor(key_length - 1, dtype=ms.int32).view(
-                    -1, 1
-                )
+                position_ids_l = ms.tensor(key_length - 1, dtype=ms.int32).view(-1, 1)
             else:
                 position_ids_l = mint.arange(query_length, dtype=ms.int32).view(-1, 1)
             position_ids_r = mint.arange(key_length, dtype=ms.int32).view(1, -1)
@@ -749,7 +744,8 @@ class Data2VecTextModel(Data2VecTextPreTrainedModel):
 
             - 1 for tokens that are **not masked**,
             - 0 for tokens that are **masked**.
-        past_key_values (`tuple(tuple(ms.Tensor))` of length `config.n_layers` with each tuple having 4 tensors of shape `(batch_size, num_heads, sequence_length - 1, embed_size_per_head)`):
+        past_key_values (`tuple(tuple(ms.Tensor))` of length `config.n_layers`
+            with each tuple having 4 tensors of shape `(batch_size, num_heads, sequence_length - 1, embed_size_per_head)`):
             Contains precomputed key and value hidden states of the attention blocks. Can be used to speed up decoding.
 
             If `past_key_values` are used, the user can optionally input only the last `decoder_input_ids` (those that
@@ -912,7 +908,8 @@ class Data2VecTextForCausalLM(Data2VecTextPreTrainedModel, GenerationMixin):
             Labels for computing the left-to-right language modeling loss (next word prediction). Indices should be in
             `[-100, 0, ..., config.vocab_size]` (see `input_ids` docstring) Tokens with indices set to `-100` are
             ignored (masked), the loss is only computed for the tokens with labels in `[0, ..., config.vocab_size]`
-        past_key_values (`tuple(tuple(ms.Tensor))` of length `config.n_layers` with each tuple having 4 tensors of shape `(batch_size, num_heads, sequence_length - 1, embed_size_per_head)`):
+        past_key_values (`tuple(tuple(ms.Tensor))` of length `config.n_layers` with each tuple
+            having 4 tensors of shape `(batch_size, num_heads, sequence_length - 1, embed_size_per_head)`):
             Contains precomputed key and value hidden states of the attention blocks. Can be used to speed up decoding.
 
             If `past_key_values` are used, the user can optionally input only the last `decoder_input_ids` (those that
@@ -990,9 +987,7 @@ class Data2VecTextForCausalLM(Data2VecTextPreTrainedModel, GenerationMixin):
     def _reorder_cache(self, past_key_values, beam_idx):
         reordered_past = ()
         for layer_past in past_key_values:
-            reordered_past += (
-                tuple(past_state.index_select(0, beam_idx) for past_state in layer_past),
-            )
+            reordered_past += (tuple(past_state.index_select(0, beam_idx) for past_state in layer_past),)
         return reordered_past
 
 
@@ -1182,7 +1177,6 @@ class Data2VecTextForSequenceClassification(Data2VecTextPreTrainedModel):
 
         loss = None
         if labels is not None:
-
             if self.config.problem_type is None:
                 if self.num_labels == 1:
                     self.config.problem_type = "regression"

@@ -23,22 +23,8 @@ import warnings
 from dataclasses import dataclass
 from typing import List, Optional, Tuple, Union
 
-import mindspore as ms
-import mindspore.mint as mint
-from mindspore import nn
-from mindspore.mint.nn import BCEWithLogitsLoss, CrossEntropyLoss, MSELoss
-from mindone.models.utils import normal_, zeros_, ones_
+from transformers import Data2VecVisionConfig
 
-from ...activations import ACT2FN
-from ...integrations.sdpa_attention import scaled_dot_product_attention
-from ...modeling_outputs import (
-    BaseModelOutput,
-    BaseModelOutputWithPooling,
-    ImageClassifierOutput,
-    SemanticSegmenterOutput,
-)
-from ...modeling_utils import PreTrainedModel
-from ...mindspore_utils import find_pruneable_heads_and_indices, prune_linear_layer
 # compile_compatible_method_lru_cache
 from transformers.utils import (
     add_code_sample_docstrings,
@@ -47,8 +33,24 @@ from transformers.utils import (
     logging,
     replace_return_docstrings,
 )
-from transformers import Data2VecVisionConfig
 
+import mindspore as ms
+import mindspore.mint as mint
+from mindspore import nn
+from mindspore.mint.nn import BCEWithLogitsLoss, CrossEntropyLoss, MSELoss
+
+from mindone.models.utils import normal_, ones_, zeros_
+
+from ...activations import ACT2FN
+from ...integrations.sdpa_attention import scaled_dot_product_attention
+from ...mindspore_utils import find_pruneable_heads_and_indices, prune_linear_layer
+from ...modeling_outputs import (
+    BaseModelOutput,
+    BaseModelOutputWithPooling,
+    ImageClassifierOutput,
+    SemanticSegmenterOutput,
+)
+from ...modeling_utils import PreTrainedModel
 
 logger = logging.get_logger(__name__)
 
@@ -841,7 +843,9 @@ class Data2VecVisionModel(Data2VecVisionPreTrainedModel):
         self.encoder = Data2VecVisionEncoder(config, window_size=self.embeddings.patch_embeddings.patch_shape)
 
         self.layernorm = (
-            mint.nn.Identity() if config.use_mean_pooling else mint.nn.LayerNorm(config.hidden_size, eps=config.layer_norm_eps)
+            mint.nn.Identity()
+            if config.use_mean_pooling
+            else mint.nn.LayerNorm(config.hidden_size, eps=config.layer_norm_eps)
         )
         self.pooler = Data2VecVisionPooler(config) if add_pooling_layer else None
 
@@ -958,7 +962,9 @@ class Data2VecVisionForImageClassification(Data2VecVisionPreTrainedModel):
         self.data2vec_vision = Data2VecVisionModel(config, add_pooling_layer=True)
 
         # Classifier head
-        self.classifier = mint.nn.Linear(config.hidden_size, config.num_labels) if config.num_labels > 0 else mint.nn.Identity()
+        self.classifier = (
+            mint.nn.Linear(config.hidden_size, config.num_labels) if config.num_labels > 0 else mint.nn.Identity()
+        )
 
         # Initialize weights and apply final processing
         self.post_init()
@@ -1081,7 +1087,7 @@ class Data2VecVisionPyramidPoolingBlock(nn.Cell):
             Data2VecVisionConvModule(in_channels, channels, kernel_size=1),
         ]
         for i, layer in enumerate(self.layers):
-            self.add_module(str(i), layer)
+            self.insert_child_to_cell(str(i), layer)
 
     def construct(self, input: ms.Tensor) -> ms.Tensor:
         hidden_state = input
@@ -1113,11 +1119,9 @@ class Data2VecVisionPyramidPoolingModule(nn.Cell):
         self.channels = channels
         self.blocks = []
         for i, pool_scale in enumerate(pool_scales):
-            block = Data2VecVisionPyramidPoolingBlock(
-                pool_scale=pool_scale, in_channels=in_channels, channels=channels
-            )
+            block = Data2VecVisionPyramidPoolingBlock(pool_scale=pool_scale, in_channels=in_channels, channels=channels)
             self.blocks.append(block)
-            self.add_module(str(i), block)
+            self.insert_child_to_cell(str(i), block)
 
     def construct(self, x: ms.Tensor) -> List[ms.Tensor]:
         ppm_outs = []
@@ -1286,7 +1290,8 @@ class Data2VecVisionFCNHead(nn.Cell):
     """,
     DATA2VEC_VISION_START_DOCSTRING,
 )
-# Copied from transformers.models.beit.modeling_beit.BeitForSemanticSegmentation with BEIT->DATA2VEC_VISION,Beit->Data2VecVision,microsoft/beit-base-finetuned-ade-640-640->facebook/data2vec-vision-base,beit->data2vec_vision
+# Copied from transformers.models.beit.modeling_beit.BeitForSemanticSegmentation with
+# BEIT->DATA2VEC_VISION,Beit->Data2VecVision,microsoft/beit-base-finetuned-ade-640-640->facebook/data2vec-vision-base,beit->data2vec_vision
 class Data2VecVisionForSemanticSegmentation(Data2VecVisionPreTrainedModel):
     def __init__(self, config: Data2VecVisionConfig) -> None:
         super().__init__(config)

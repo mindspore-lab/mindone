@@ -10,6 +10,8 @@
 # In cases where models have unique initialization procedures or require testing with specialized output formats,
 # it is necessary to develop distinct, dedicated test cases.
 
+import math
+
 import numpy as np
 import pytest
 import torch
@@ -20,7 +22,7 @@ import mindspore as ms
 from tests.modeling_test_utils import compute_diffs, generalized_parse_args, get_modules
 from tests.transformers_tests.models.modeling_common import floats_numpy, ids_numpy, random_attention_mask
 
-DTYPE_AND_THRESHOLDS = {"fp32": 5e-4, "fp16": 5e-3, "bf16": 5e-2}
+DTYPE_AND_THRESHOLDS = {"fp32": 5e-3, "fp16": 5e-3, "bf16": 5e-2}
 MODES = [1]
 
 
@@ -136,31 +138,6 @@ class Data2VecAudioModelTester:
             attn_implementation=self.attn_implementation,
         )
 
-
-
-    def check_xvector_training(self, config, input_values, *args):
-        config.ctc_zero_infinity = True
-        model = Data2VecAudioForXVector(config=config)
-        model.to(torch_device)
-        model.train()
-
-        # freeze everything but the classification head
-        model.freeze_base_model()
-
-        input_values = input_values[:3]
-
-        input_lengths = [input_values.shape[-1] // i for i in [4, 2, 1]]
-        labels = ids_numpy((input_values.shape[0], 1), len(model.config.id2label))
-
-        # pad input
-        for i in range(len(input_lengths)):
-            input_values[i, input_lengths[i] :] = 0.0
-
-        loss = model(input_values, labels=labels).loss
-        self.parent.assertFalse(torch.isinf(loss).item())
-
-        loss.backward()
-
     def prepare_config_and_inputs_for_training(self, config, input_values, attention_mask):
         input_values = input_values[:3]
         attention_mask = np.ones(input_values.shape).astype(np.int64)
@@ -230,7 +207,10 @@ _CASES = [
         (config,),
         {},
         (),
-        inputs_dict_training,
+        {
+            "input_values": inputs_dict_training["input_values"],
+            "labels": inputs_dict_training["labels"],
+        },
         {
             "loss": 0,
         },

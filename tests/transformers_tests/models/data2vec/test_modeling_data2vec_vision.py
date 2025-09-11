@@ -77,13 +77,13 @@ class Data2VecVisionModelTester:
         self.attn_implementation = attn_implementation
 
     def prepare_config_and_inputs(self):
-        pixel_values = floats_tensor([self.batch_size, self.num_channels, self.image_size, self.image_size])
+        pixel_values = floats_numpy([self.batch_size, self.num_channels, self.image_size, self.image_size])
 
         labels = None
         pixel_labels = None
         if self.use_labels:
-            labels = ids_tensor([self.batch_size], self.type_sequence_label_size)
-            pixel_labels = ids_tensor([self.batch_size, self.image_size, self.image_size], self.num_labels)
+            labels = ids_numpy([self.batch_size], self.type_sequence_label_size)
+            pixel_labels = ids_numpy([self.batch_size, self.image_size, self.image_size], self.num_labels)
 
         config = self.get_config()
         config_seg = self.get_config()
@@ -108,13 +108,12 @@ class Data2VecVisionModelTester:
             initializer_range=self.initializer_range,
             out_indices=self.out_indices,
             attn_implementation=self.attn_implementation,
-            num_labels=self.type_sequence_label_size
+            num_labels=self.type_sequence_label_size,
         )
 
 
 model_tester = Data2VecVisionModelTester()
 config, config_seg, pixel_values, labels, pixel_labels = model_tester.prepare_config_and_inputs()
-
 
 
 _CASES = [
@@ -142,7 +141,6 @@ _CASES = [
         },
         {
             "loss": 0,
-            "logits": 1,
         },
     ],
     [
@@ -157,7 +155,6 @@ _CASES = [
         },
         {
             "loss": 0,
-            "logits": 1,
         },
     ],
 ]

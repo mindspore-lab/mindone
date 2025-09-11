@@ -22,13 +22,25 @@ import warnings
 from typing import Optional, Tuple, Union
 
 import numpy as np
+from transformers import Data2VecAudioConfig
+from transformers.utils import (
+    add_code_sample_docstrings,
+    add_start_docstrings,
+    add_start_docstrings_to_model_forward,
+    logging,
+)
+
 import mindspore as ms
-from mindspore.common.initializer import initializer, Uniform, HeNormal
-from mindone.models.utils import normal_, zeros_, ones_
-from mindspore import nn, mint, ops
+from mindspore import mint, nn, ops
+from mindspore.common.initializer import HeNormal, Uniform, initializer
 from mindspore.mint.nn import CrossEntropyLoss
 
+from mindone.models.utils import normal_, ones_, zeros_
+
 from ...activations import ACT2FN
+from ...integrations.sdpa_attention import scaled_dot_product_attention
+from ...masking_utils import dtype_to_min
+from ...mindspore_adapter._conv import Conv1d
 from ...modeling_outputs import (
     BaseModelOutput,
     CausalLMOutput,
@@ -38,17 +50,7 @@ from ...modeling_outputs import (
     XVectorOutput,
 )
 from ...modeling_utils import PreTrainedModel
-from ...mindspore_adapter._conv import Conv1d
 
-from transformers.utils import (
-    add_code_sample_docstrings,
-    add_start_docstrings,
-    add_start_docstrings_to_model_forward,
-    logging,
-)
-from transformers import Data2VecAudioConfig
-from ...integrations.sdpa_attention import scaled_dot_product_attention
-from ...masking_utils import dtype_to_min
 
 # from ...modeling_flash_attention_utils import _flash_attention_forward # TODO: uncomment after merge the related PR #1240
 # TODO: delete after merge the related PR #1240
@@ -127,6 +129,7 @@ _CTC_EXPECTED_LOSS = 66.95
 
 def uniform_(tensor: ms.Parameter, scale: float = 0.07) -> None:
     tensor.set_data(initializer(Uniform(scale), tensor.shape, tensor.dtype))
+
 
 # Copied from transformers.models.wav2vec2.modeling_wav2vec2._compute_mask_indices
 def _compute_mask_indices(
@@ -226,9 +229,7 @@ def _compute_mask_indices(
     spec_aug_mask_idxs = np.array(spec_aug_mask_idxs)
 
     # expand masked indices to masked spans
-    spec_aug_mask_idxs = np.broadcast_to(
-        spec_aug_mask_idxs[:, :, None], (batch_size, max_num_masked_span, mask_length)
-    )
+    spec_aug_mask_idxs = np.broadcast_to(spec_aug_mask_idxs[:, :, None], (batch_size, max_num_masked_span, mask_length))
     spec_aug_mask_idxs = spec_aug_mask_idxs.reshape(batch_size, max_num_masked_span * mask_length)
 
     # add offset to the starting indexes so that indexes now create a span
@@ -637,7 +638,7 @@ class Data2VecAudioFlashAttention2(Data2VecAudioAttention):
             attention_mask,
             dropout=self.dropout if self.training else 0.0,
             is_causal=self.is_causal,
-        ) # BSND
+        )  # BSND
 
         attn_output = attn_output.reshape(bsz, q_len, -1)
         attn_output = self.out_proj(attn_output)
@@ -663,8 +664,10 @@ class Data2VecAudioSdpaAttention(Data2VecAudioAttention):
         if output_attentions or layer_head_mask is not None:
             # TODO: Improve this warning with e.g. `model.config._attn_implementation = "manual"` once this is implemented.
             logger.warning_once(
-                "Data2VecAudioModel is using Data2VecAudioSdpaAttention, but `scaled_dot_product_attention` does not support `output_attentions=True` or `layer_head_mask` not None. Falling back to the manual attention"
-                ' implementation, but specifying the manual implementation will be required from Transformers version v5.0.0 onwards. This warning can be removed using the argument `attn_implementation="eager"` when loading the model.'
+                "Data2VecAudioModel is using Data2VecAudioSdpaAttention, but `scaled_dot_product_attention` does not support `output_attentions=True` "
+                "or `layer_head_mask` not None. Falling back to the manual attention implementation, but specifying the manual implementation will be "
+                "required from Transformers version v5.0.0 onwards. "
+                'This warning can be removed using the argument `attn_implementation="eager"` when loading the model.'
             )
             return super().construct(
                 hidden_states,
@@ -861,7 +864,7 @@ class Data2VecAudioEncoder(nn.Cell):
         hidden_states = self.layer_norm(hidden_states)
         hidden_states = self.dropout(hidden_states)
 
-        synced_gpus = False # Set to `True` when zero3
+        synced_gpus = False  # Set to `True` when zero3
 
         for layer in self.layers:
             if output_hidden_states:
@@ -873,9 +876,7 @@ class Data2VecAudioEncoder(nn.Cell):
             skip_the_layer = True if self.training and (dropout_probability < self.config.layerdrop) else False
             if not skip_the_layer or synced_gpus:
                 # under zero3 all gpus must run in sync
-                layer_outputs = layer(
-                    hidden_states, attention_mask=attention_mask, output_attentions=output_attentions
-                )
+                layer_outputs = layer(hidden_states, attention_mask=attention_mask, output_attentions=output_attentions)
                 hidden_states = layer_outputs[0]
 
             if skip_the_layer:
@@ -1020,9 +1021,7 @@ class Data2VecAudioPreTrainedModel(PreTrainedModel):
 
         batch_size = attention_mask.shape[0]
 
-        attention_mask = mint.zeros(
-            (batch_size, feature_vector_length), dtype=attention_mask.dtype
-        )
+        attention_mask = mint.zeros((batch_size, feature_vector_length), dtype=attention_mask.dtype)
         # these two operations makes sure that all values before the output lengths idxs are attended to
         attention_mask[(mint.arange(attention_mask.shape[0]), output_lengths - 1)] = 1
         attention_mask = attention_mask.flip([-1]).cumsum(-1).flip([-1]).bool()
@@ -1098,7 +1097,7 @@ class Data2VecAudioModel(Data2VecAudioPreTrainedModel):
 
         # model only needs masking vector if mask prob is > 0.0
         if config.mask_time_prob > 0.0 or config.mask_feature_prob > 0.0:
-            self.masked_spec_embed = uniform_(ms.Parameter(ms.Tensor(config.hidden_size)))
+            self.masked_spec_embed = ms.Parameter(mint.empty(config.hidden_size).uniform_())
 
         self.encoder = Data2VecAudioEncoder(config)
 
@@ -1321,12 +1320,12 @@ class Data2VecAudioForCTC(Data2VecAudioPreTrainedModel):
             # when not being attended to
             labels_mask = labels >= 0
             target_lengths = labels_mask.sum(-1)
-            flattened_targets = labels.masked_select(labels_mask)
+            flattened_targets = labels # .masked_select(labels_mask) `ops.ctc_loss` not support 1-d target
 
             # ctc_loss doesn't support fp16
             log_probs = mint.nn.functional.log_softmax(logits, dim=-1, dtype=ms.float32).swapaxes(0, 1)
 
-            loss = ops.ctc_loss(
+            loss, _ = ops.ctc_loss(
                 log_probs,
                 flattened_targets,
                 input_lengths,
