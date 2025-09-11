@@ -137,6 +137,7 @@ from .models.auto import (
     AutoModelWithLMHead,
     AutoProcessor,
 )
+from .models.bamba import BambaForCausalLM, BambaModel, BambaPreTrainedModel
 from .models.bart import (
     BartForCausalLM,
     BartForConditionalGeneration,
@@ -460,6 +461,13 @@ from .models.mobilebert import (
     MobileBertModel,
     MobileBertPreTrainedModel,
 )
+from .models.modernbert import (
+    ModernBertForMaskedLM,
+    ModernBertForSequenceClassification,
+    ModernBertForTokenClassification,
+    ModernBertModel,
+    ModernBertPreTrainedModel,
+)
 from .models.mpt import (
     MptForCausalLM,
     MptForQuestionAnswering,
@@ -482,6 +490,16 @@ from .models.mvp import (
     MvpForSequenceClassification,
     MvpModel,
     MvpPreTrainedModel,
+)
+from .models.nystromformer import (
+    NystromformerEncoder,
+    NystromformerForMaskedLM,
+    NystromformerForMultipleChoice,
+    NystromformerForQuestionAnswering,
+    NystromformerForSequenceClassification,
+    NystromformerForTokenClassification,
+    NystromformerModel,
+    NystromformerPreTrainedModel,
 )
 from .models.opt import (
     OPTForCausalLM,
@@ -569,6 +587,7 @@ from .models.roberta import (
     RobertaModel,
     RobertaPreTrainedModel,
 )
+from .models.rwkv import RwkvForCausalLM, RwkvModel, RwkvPreTrainedModel
 from .models.segformer import (
     SegformerDecodeHead,
     SegformerForImageClassification,
@@ -685,6 +704,7 @@ from .models.xlm_roberta_xl import (
     XLMRobertaXLPreTrainedModel,
 )
 from .models.yolos import YolosForObjectDetection, YolosImageProcessor, YolosModel, YolosPreTrainedModel
+from .models.zamba import ZambaForCausalLM, ZambaForSequenceClassification, ZambaModel, ZambaPreTrainedModel
 from .pipelines import (
     ImageToImagePipeline,
     ImageToTextPipeline,
