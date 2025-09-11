@@ -29,7 +29,7 @@ def load_n_save_speakers(path, zip_spk_path):
             else:
                 assert speaker_map[key] == value
     print("Speaker numpy {} loaded".format(list(speaker_map.keys())))
-    print("All data is same with origin")
+    print("All data is same as origin")
 
 
 def save_dict_to_zip(filepath: str, pt_data: dict):

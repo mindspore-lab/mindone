@@ -28,9 +28,9 @@ from mindspore.amp import DynamicLossScaler
 from mindspore.communication import get_group_size, get_rank, init
 from mindspore.dataset import GeneratorDataset
 
-from mindone.diffusers._peft import LoraConfig, get_peft_model
 from mindone.diffusers.models import AutoencoderKL
 from mindone.diffusers.training_utils import TrainStep
+from mindone.peft import LoraConfig, get_peft_model
 from mindone.transformers import BertModel
 
 
