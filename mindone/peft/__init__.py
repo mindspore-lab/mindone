@@ -1,6 +1,4 @@
-# coding=utf-8
 # Copyright 2023-present the HuggingFace Inc. team.
-# Hacked together by / Copyright 2024 Genius Patrick @ MindSpore Team.
 #
 # This code is adapted from https://github.com/huggingface/peft
 # with modifications to run peft on mindspore.
@@ -17,16 +15,60 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-__version__ = "0.8.2"
+__version__ = "0.15.2"
 
+from .auto import MODEL_TYPE_TO_PEFT_MODEL_MAPPING, AutoPeftModel, AutoPeftModelForCausalLM
 from .config import PeftConfig, PromptLearningConfig
 from .mapping import (
-    MODEL_TYPE_TO_PEFT_MODEL_MAPPING,
     PEFT_TYPE_TO_CONFIG_MAPPING,
+    PEFT_TYPE_TO_MIXED_MODEL_MAPPING,
+    PEFT_TYPE_TO_TUNER_MAPPING,
     get_peft_config,
-    get_peft_model,
     inject_adapter_in_model,
 )
-from .peft_model import PeftModel
-from .tuners import LoftQConfig, LoraConfig, LoraModel
-from .utils import PeftType, TaskType, get_peft_model_state_dict, load_peft_weights, set_peft_model_state_dict
+from .mapping_func import get_peft_model
+from .peft_model import PeftModel, PeftModelForCausalLM, get_layer_status, get_model_status
+from .tuners import EvaConfig, LoftQConfig, LoraConfig, LoraModel, LoraRuntimeConfig
+from .utils import (
+    TRANSFORMERS_MODELS_TO_PREFIX_TUNING_POSTPROCESS_MAPPING,
+    PeftType,
+    TaskType,
+    cast_mixed_precision_params,
+    get_peft_model_state_dict,
+    load_peft_weights,
+    prepare_model_for_kbit_training,
+    set_peft_model_state_dict,
+    shift_tokens_right,
+)
+
+__all__ = [
+    "MODEL_TYPE_TO_PEFT_MODEL_MAPPING",
+    "PEFT_TYPE_TO_CONFIG_MAPPING",
+    "PEFT_TYPE_TO_MIXED_MODEL_MAPPING",
+    "PEFT_TYPE_TO_TUNER_MAPPING",
+    "TRANSFORMERS_MODELS_TO_PREFIX_TUNING_POSTPROCESS_MAPPING",
+    "AutoPeftModel",
+    "AutoPeftModelForCausalLM",
+    "EvaConfig",
+    "LoftQConfig",
+    "LoraConfig",
+    "LoraModel",
+    "LoraRuntimeConfig",
+    "PeftConfig",
+    "PeftModel",
+    "PeftModelForCausalLM",
+    "PeftType",
+    "PromptLearningConfig",
+    "TaskType",
+    "cast_mixed_precision_params",
+    "get_layer_status",
+    "get_model_status",
+    "get_peft_config",
+    "get_peft_model",
+    "get_peft_model_state_dict",
+    "inject_adapter_in_model",
+    "load_peft_weights",
+    "prepare_model_for_kbit_training",
+    "set_peft_model_state_dict",
+    "shift_tokens_right",
+]
