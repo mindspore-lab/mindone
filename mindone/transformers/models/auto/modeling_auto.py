@@ -674,6 +674,8 @@ MODEL_FOR_IMAGE_TO_IMAGE_MAPPING_NAMES = OrderedDict(
 
 
 if version.parse(transformers.__version__) >= version.parse("4.51.0"):
+    MODEL_MAPPING_NAMES.update({"deepseek_v3": "DeepseekV3Model"}),
+    MODEL_FOR_CAUSAL_LM_MAPPING_NAMES.update({"deepseek_v3": "DeepseekV3ForCausalLM"}),
     MODEL_FOR_CAUSAL_LM_MAPPING_NAMES.update({"qwen3": "Qwen3Model"})
     MODEL_FOR_CAUSAL_LM_MAPPING_NAMES.update({"qwen3": "Qwen3ForCausalLM"})
     MODEL_FOR_SEQUENCE_CLASSIFICATION_MAPPING_NAMES.update({"qwen3": "Qwen3ForSequenceClassification"})

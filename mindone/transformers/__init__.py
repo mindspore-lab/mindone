@@ -691,6 +691,7 @@ from .training_args import TrainingArguments
 from .utils import logging
 
 if version.parse(transformers.__version__) >= version.parse("4.51.0"):
+    from .models.deepseek_v3 import DeepseekV3ForCausalLM, DeepseekV3Model, DeepseekV3PreTrainedModel
     from .models.qwen3 import Qwen3ForCausalLM, Qwen3Model, Qwen3PreTrainedModel
 
 if version.parse(transformers.__version__) >= version.parse("4.51.3"):

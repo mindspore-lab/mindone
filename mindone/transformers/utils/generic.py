@@ -577,3 +577,37 @@ class LossKwargs(TypedDict, total=False):
     """
 
     num_items_in_batch: Optional[Tensor]
+
+
+class TransformersKwargs(TypedDict, total=False):
+    """
+    Keyword arguments to be passed to the loss function
+
+    Attributes:
+        num_items_in_batch (`Optional[mindspore.Tensor]`, *optional*):
+            Number of items in the batch. It is recommended to pass it when
+            you are doing gradient accumulation.
+        output_hidden_states (`Optional[bool]`, *optional*):
+            Most of the models support outputing all hidden states computed during the forward pass.
+        output_attentions (`Optional[bool]`, *optional*):
+            Turn this on to return the intermediary attention scores.
+        output_router_logits (`Optional[bool]`, *optional*):
+            For MoE models, this allows returning the router logits to compute the loss.
+        cumulative_seqlens_q (`mindspore.Tensor`, *optional*)
+            Gets cumulative sequence length for query state.
+        cumulative_seqlens_k (`mindspore.Tensor`, *optional*)
+            Gets cumulative sequence length for key state.
+        max_length_q (`int`, *optional*):
+            Maximum sequence length for query state.
+        max_length_k (`int`, *optional*):
+            Maximum sequence length for key state.
+    """
+
+    num_items_in_batch: Optional["Tensor"]
+    output_hidden_states: Optional[bool]
+    output_attentions: Optional[bool]
+    output_router_logits: Optional[bool]
+    cumulative_seqlens_q: Optional["Tensor"]
+    cumulative_seqlens_k: Optional["Tensor"]
+    max_length_q: Optional[int]
+    max_length_k: Optional[int]

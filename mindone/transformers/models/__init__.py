@@ -103,7 +103,7 @@ from . import (
 )
 
 if version.parse(transformers.__version__) >= version.parse("4.51.0"):
-    from . import qwen3
+    from . import deepseek_v3, qwen3
 
 if version.parse(transformers.__version__) >= version.parse("4.51.3"):
     from . import glm4

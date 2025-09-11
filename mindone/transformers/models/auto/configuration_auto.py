@@ -296,7 +296,9 @@ SPECIAL_MODEL_TYPE_TO_MODULE_NAME = OrderedDict(
 
 if version.parse(transformers.__version__) >= version.parse("4.51.0"):
     CONFIG_MAPPING_NAMES.update({"qwen3": "Qwen3Config"})
+    CONFIG_MAPPING_NAMES.update({"deepseek_v3": "DeepseekV3Config"})
     MODEL_NAMES_MAPPING.update({"qwen3": "Qwen3Model"})
+    MODEL_NAMES_MAPPING.update({"deepseek_v3": "DeepSeek-V3"})
 
 if version.parse(transformers.__version__) >= version.parse("4.51.3"):
     CONFIG_MAPPING_NAMES.update({"glm4": "Glm4Config"})
