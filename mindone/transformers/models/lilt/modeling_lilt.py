@@ -712,29 +712,6 @@ class LiltModel(LiltPreTrainedModel):
         output_hidden_states: Optional[bool] = None,
         return_dict: Optional[bool] = None,
     ) -> Union[Tuple[ms.Tensor], BaseModelOutputWithPooling]:
-        r"""
-
-        Returns:
-
-        Examples:
-
-        ```python
-        >>> from transformers import AutoTokenizer, AutoModel
-        >>> from datasets import load_dataset
-
-        >>> tokenizer = AutoTokenizer.from_pretrained("SCUT-DLVCLab/lilt-roberta-en-base")
-        >>> model = AutoModel.from_pretrained("SCUT-DLVCLab/lilt-roberta-en-base")
-
-        >>> dataset = load_dataset("nielsr/funsd-layoutlmv3", split="train", trust_remote_code=True)
-        >>> example = dataset[0]
-        >>> words = example["tokens"]
-        >>> boxes = example["bboxes"]
-
-        >>> encoding = tokenizer(words, boxes=boxes, return_tensors="pt")
-
-        >>> outputs = model(**encoding)
-        >>> last_hidden_states = outputs.last_hidden_state
-        ```"""
         output_attentions = output_attentions if output_attentions is not None else self.config.output_attentions
         output_hidden_states = (
             output_hidden_states if output_hidden_states is not None else self.config.output_hidden_states
@@ -852,50 +829,7 @@ class LiltForSequenceClassification(LiltPreTrainedModel):
             Labels for computing the sequence classification/regression loss. Indices should be in `[0, ...,
             config.num_labels - 1]`. If `config.num_labels == 1` a regression loss is computed (Mean-Square loss), If
             `config.num_labels > 1` a classification loss is computed (Cross-Entropy).
-
-        Returns:
-
-        Examples:
-
-        ```python
-        >>> import mindspore as ms
-        >>> from transformers import AutoTokenizer
-        >>> from mindone.transformers import AutoModelForQuestionAnswering
-
-        >>> tokenizer = AutoTokenizer.from_pretrained("SCUT-DLVCLab/lilt-roberta-en-base")
-        >>> model = AutoModelForQuestionAnswering.from_pretrained(
-        ...     "SCUT-DLVCLab/lilt-roberta-en-base",
-        ...     mindspore_dtype=ms.bfloat16,
-        ... )
-
-        >>> dataset = [
-        ...     {
-        ...         "tokens": ["Question", ":", "What", "is", "the", "Name", "?", "Name", ":", "John", "Doe"],
-        ...         "bboxes": [
-        ...             [50, 50, 140, 100], [145, 50, 155, 100], [160, 50, 220, 100],
-        ...             [225, 50, 255, 100], [260, 50, 300, 100], [305, 50, 360, 100],
-        ...             [365, 50, 380, 100], [50, 130, 110, 180], [115, 130, 125, 180],
-        ...             [130, 130, 190, 180], [195, 130, 245, 180],
-        ...         ],
-        ...     }
-        ... ]
-        >>> example = dataset[0]
-        >>> words = example["tokens"]
-        >>> boxes = example["bboxes"]
-
-        >>> encoding = tokenizer(words, boxes=boxes, return_tensors="np")
-        >>> encoding = {k: ms.tensor(v) for k, v in encoding.items()}
-
-        >>> outputs = model(**encoding)
-        >>> answer_start_index = int(outputs.start_logits.asnumpy().argmax())
-        >>> answer_end_index = int(outputs.end_logits.asnumpy().argmax())
-
-        >>> input_ids_np = encoding["input_ids"].asnumpy()
-        >>> predict_answer_tokens = input_ids_np[0, answer_start_index : answer_end_index + 1]
-        >>> predicted_answer = tokenizer.decode(predict_answer_tokens, skip_special_tokens=True)
-
-        >>> print(predicted_answer)
-        ```"""
+        """
         return_dict = return_dict if return_dict is not None else self.config.use_return_dict
 
         outputs = self.lilt(
@@ -989,27 +923,6 @@ class LiltForTokenClassification(LiltPreTrainedModel):
         r"""
         labels (`mindspore.Tensor` of shape `(batch_size, sequence_length)`, *optional*):
             Labels for computing the token classification loss. Indices should be in `[0, ..., config.num_labels - 1]`.
-
-        Returns:
-
-        Examples:
-
-        ```python
-        >>> from transformers import AutoTokenizer, AutoModelForTokenClassification
-        >>> from datasets import load_dataset
-
-        >>> tokenizer = AutoTokenizer.from_pretrained("SCUT-DLVCLab/lilt-roberta-en-base")
-        >>> model = AutoModelForTokenClassification.from_pretrained("SCUT-DLVCLab/lilt-roberta-en-base")
-
-        >>> dataset = load_dataset("nielsr/funsd-layoutlmv3", split="train", trust_remote_code=True)
-        >>> example = dataset[0]
-        >>> words = example["tokens"]
-        >>> boxes = example["bboxes"]
-
-        >>> encoding = tokenizer(words, boxes=boxes, return_tensors="pt")
-
-        >>> outputs = model(**encoding)
-        >>> predicted_class_indices = outputs.logits.argmax(-1)
         ```"""
         return_dict = return_dict if return_dict is not None else self.config.use_return_dict
 
@@ -1116,32 +1029,48 @@ class LiltForQuestionAnswering(LiltPreTrainedModel):
             Positions are clamped to the length of the sequence (`sequence_length`). Position outside of the sequence
             are not taken into account for computing the loss.
 
-        Returns:
-
         Examples:
 
         ```python
-        >>> from transformers import AutoTokenizer, AutoModelForQuestionAnswering
-        >>> from datasets import load_dataset
+        >>> import mindspore as ms
+        >>> from transformers import AutoTokenizer
+        >>> from mindone.transformers import AutoModelForQuestionAnswering
 
         >>> tokenizer = AutoTokenizer.from_pretrained("SCUT-DLVCLab/lilt-roberta-en-base")
-        >>> model = AutoModelForQuestionAnswering.from_pretrained("SCUT-DLVCLab/lilt-roberta-en-base")
+        >>> model = AutoModelForQuestionAnswering.from_pretrained(
+        ...     "SCUT-DLVCLab/lilt-roberta-en-base",
+        ...     mindspore_dtype=ms.bfloat16,
+        ... )
 
-        >>> dataset = load_dataset("nielsr/funsd-layoutlmv3", split="train", trust_remote_code=True)
+        >>> dataset = [
+        ...     {
+        ...         "tokens": ["Question", ":", "What", "is", "the", "Name", "?", "Name", ":", "John", "Doe"],
+        ...         "bboxes": [
+        ...             [50, 50, 140, 100], [145, 50, 155, 100], [160, 50, 220, 100],
+        ...             [225, 50, 255, 100], [260, 50, 300, 100], [305, 50, 360, 100],
+        ...             [365, 50, 380, 100], [50, 130, 110, 180], [115, 130, 125, 180],
+        ...             [130, 130, 190, 180], [195, 130, 245, 180],
+        ...         ],
+        ...     }
+        ... ]
         >>> example = dataset[0]
         >>> words = example["tokens"]
         >>> boxes = example["bboxes"]
 
-        >>> encoding = tokenizer(words, boxes=boxes, return_tensors="pt")
+        >>> encoding = tokenizer(words, boxes=boxes, return_tensors="np")
+        >>> encoding = {k: ms.tensor(v) for k, v in encoding.items()}
 
         >>> outputs = model(**encoding)
+        >>> answer_start_index = int(outputs.start_logits.asnumpy().argmax())
+        >>> answer_end_index = int(outputs.end_logits.asnumpy().argmax())
 
-        >>> answer_start_index = outputs.start_logits.argmax()
-        >>> answer_end_index = outputs.end_logits.argmax()
+        >>> input_ids_np = encoding["input_ids"].asnumpy()
+        >>> predict_answer_tokens = input_ids_np[0, answer_start_index : answer_end_index + 1]
+        >>> predicted_answer = tokenizer.decode(predict_answer_tokens, skip_special_tokens=True)
 
-        >>> predict_answer_tokens = encoding.input_ids[0, answer_start_index : answer_end_index + 1]
-        >>> predicted_answer = tokenizer.decode(predict_answer_tokens)
-        ```"""
+        >>> print(predicted_answer)
+        ```
+        """
         return_dict = return_dict if return_dict is not None else self.config.use_return_dict
 
         outputs = self.lilt(
