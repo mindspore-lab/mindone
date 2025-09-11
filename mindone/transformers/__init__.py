@@ -296,6 +296,18 @@ from .models.donut import (
     DonutSwinPreTrainedModel,
 )
 from .models.dpt import DPTForDepthEstimation, DPTImageProcessor, DPTModel, DPTPreTrainedModel
+from .models.flava import (
+    FlavaFeatureExtractor,
+    FlavaForPreTraining,
+    FlavaImageCodebook,
+    FlavaImageModel,
+    FlavaImageProcessor,
+    FlavaModel,
+    FlavaMultimodalModel,
+    FlavaPreTrainedModel,
+    FlavaProcessor,
+    FlavaTextModel,
+)
 from .models.fuyu import FuyuForCausalLM, FuyuPreTrainedModel
 from .models.gemma import (
     GemmaForCausalLM,

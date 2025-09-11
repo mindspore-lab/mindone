@@ -51,6 +51,7 @@ PROCESSOR_MAPPING_NAMES = OrderedDict(
     [
         ("blip", "BlipProcessor"),
         ("chameleon", "ChameleonProcessor"),
+        ("flava", "FlavaProcessor"),
         ("idefics", "IdeficsProcessor"),
         ("llava_next", "LlavaNextProcessor"),
         ("llava_next_video", "LlavaNextVideoProcessor"),

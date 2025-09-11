@@ -40,6 +40,7 @@ from . import (
     dinov2,
     donut,
     dpt,
+    flava,
     fuyu,
     gemma,
     gemma2,

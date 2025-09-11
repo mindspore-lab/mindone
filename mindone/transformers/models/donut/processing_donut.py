@@ -23,6 +23,8 @@ from typing import List, Optional, Union
 
 from transformers.tokenization_utils_base import PreTokenizedInput, TextInput
 
+import mindspore as ms
+
 from ...image_utils import ImageInput
 from ...processing_utils import ProcessingKwargs, ProcessorMixin, Unpack
 from ...utils import logging
@@ -117,7 +119,10 @@ class DonutProcessor(ProcessorMixin):
         if text is not None:
             if not legacy and images is not None:
                 output_kwargs["text_kwargs"].setdefault("add_special_tokens", False)
-            encodings = self.tokenizer(text, **output_kwargs["text_kwargs"])
+            output_kwargs["text_kwargs"].pop("return_tensors", None)
+            encodings = self.tokenizer(text, **output_kwargs["text_kwargs"], return_tensors="np")
+            for k, v in encodings.items():
+                encodings[k] = ms.tensor(v)
 
         if text is None:
             return inputs
