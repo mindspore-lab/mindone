@@ -193,6 +193,9 @@ msrun --worker_num=4 --local_worker_num=4 generate.py --task s2v-14B --size 1024
 
 > 💡The `--num_clip` parameter controls the number of video clips generated, useful for quick preview with shorter generation time.
 
+## Limitation
+
+Due to limitations in MindSpore's offload functionality, the actual behavior of `--offload True` differs from that of the official repository. This behavior will be aligned with the official implementation once MindSpore supports offloading across devices.
 
 ## Citation
 If you find this work helpful, please cite.
