@@ -91,6 +91,12 @@ def _resolve_class_from_mindone_or_hf(class_name: str):
         module_name = importlib.import_module("mindone.transformers")
         return getattr(module_name, class_name)
     except AttributeError:
+        logger.warning(
+            f"Falling back to 🤗 Transformers `{class_name}`. Note that "
+            f"fast vision/image processors often assume PyTorch backends and "
+            f"this may lead to a mismatch. If issues arise, use or implement a MindOne-native processor instead."
+        )
+
         return getattr(transformers_module, class_name)
 
 
