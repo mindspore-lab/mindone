@@ -778,7 +778,7 @@ class Data2VecAudioEncoder(nn.Cell):
 
     def construct(
         self,
-        hidden_states: ms.tensor,
+        hidden_states: ms.Tensor,
         attention_mask: Optional[ms.Tensor] = None,
         output_attentions: bool = False,
         output_hidden_states: bool = False,
