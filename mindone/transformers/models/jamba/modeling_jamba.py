@@ -1589,9 +1589,10 @@ class JambaForCausalLM(JambaPreTrainedModel, GenerationMixin):
         Example:
 
         ```python
-        >>> from transformers import AutoTokenizer, JambaForCausalLM
+        >>> from transformers import AutoTokenizer
+        >>> from mindone.transformers import JambaForCausalLM
 
-        >>> model = JambaForCausalLM.from_pretrained("ai21labs/Jamba-v0.1")
+        >>> model = JambaForCausalLM.from_pretrained("ai21labs/Jamba-v0.1", mindspore_dtype=ms.float16, attn_implementation="eager")
         >>> tokenizer = AutoTokenizer.from_pretrained("ai21labs/Jamba-v0.1")
 
         >>> prompt = "Hey, are you conscious? Can you talk to me?"
