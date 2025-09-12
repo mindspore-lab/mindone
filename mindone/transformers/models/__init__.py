@@ -101,6 +101,7 @@ from . import (
     wav2vec2,
     xlm_roberta,
     yolos,
+    yoso,
 )
 
 if version.parse(transformers.__version__) >= version.parse("4.51.0"):

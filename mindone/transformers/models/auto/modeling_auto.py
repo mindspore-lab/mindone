@@ -121,6 +121,7 @@ MODEL_MAPPING_NAMES = OrderedDict(
         ("xlm-roberta", "XLMRobertaModel"),
         ("xlm-roberta-xl", "XLMRobertaXLModel"),
         ("yolos", "YolosModel"),
+        ("yoso", "YosoModel"),
         ("cohere2", "Cohere2Model"),
     ]
 )
@@ -183,6 +184,7 @@ MODEL_WITH_LM_HEAD_MAPPING_NAMES = OrderedDict(
         ("whisper", "WhisperForConditionalGeneration"),
         ("xlm-roberta", "XLMRobertaForMaskedLM"),
         ("xlm-roberta-xl", "XLMRobertaXLForMaskedLM"),
+        ("yoso", "YosoForMaskedLM"),
     ]
 )
 
@@ -386,6 +388,7 @@ MODEL_FOR_MASKED_LM_MAPPING_NAMES = OrderedDict(
         ("wav2vec2", "Wav2Vec2ForMaskedLM"),
         ("xlm-roberta", "XLMRobertaForMaskedLM"),
         ("xlm-roberta-xl", "XLMRobertaXLForMaskedLM"),
+        ("yoso", "YosoForMaskedLM"),
     ]
 )
 
@@ -479,6 +482,7 @@ MODEL_FOR_SEQUENCE_CLASSIFICATION_MAPPING_NAMES = OrderedDict(
         ("t5", "T5ForSequenceClassification"),
         ("umt5", "UMT5ForSequenceClassification"),
         ("xlm-roberta-xl", "XLMRobertaXLForSequenceClassification"),
+        ("yoso", "YosoForSequenceClassification"),
     ]
 )
 
@@ -511,6 +515,7 @@ MODEL_FOR_QUESTION_ANSWERING_MAPPING_NAMES = OrderedDict(
         ("umt5", "UMT5ForQuestionAnswering"),
         ("xlm-roberta", "XLMRobertaForQuestionAnswering"),
         ("xlm-roberta-xl", "XLMRobertaXLForQuestionAnswering"),
+        ("yoso", "YosoForQuestionAnswering"),
     ]
 )
 
@@ -558,6 +563,7 @@ MODEL_FOR_TOKEN_CLASSIFICATION_MAPPING_NAMES = OrderedDict(
         ("umt5", "UMT5ForTokenClassification"),
         ("xlm-roberta", "XLMRobertaForTokenClassification"),
         ("xlm-roberta-xl", "XLMRobertaXLForTokenClassification"),
+        ("yoso", "YosoForTokenClassification"),
     ]
 )
 
@@ -576,6 +582,7 @@ MODEL_FOR_MULTIPLE_CHOICE_MAPPING_NAMES = OrderedDict(
         ("rembert", "RemBertForMultipleChoice"),
         ("xlm-roberta", "XLMRobertaForMultipleChoice"),
         ("xlm-roberta-xl", "XLMRobertaXLForMultipleChoice"),
+        ("yoso", "YosoForMultipleChoice"),
     ]
 )
 
