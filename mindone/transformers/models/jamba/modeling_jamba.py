@@ -1437,7 +1437,7 @@ class JambaModel(JambaPreTrainedModel):
         dtype = input_tensor.dtype
         min_dtype = float(_DTYPE_2_MIN[dtype])
         sequence_length = input_tensor.shape[1]
-        target_length = cache_position[-1] + 1
+        target_length = int(cache_position[-1]) + 1
 
         causal_mask = mindspore.ops.full(
             (sequence_length, target_length),
@@ -1471,7 +1471,7 @@ class JambaModel(JambaPreTrainedModel):
             2. Attending to all inputs
         """
         mamba_mask = attention_mask
-        if cache_position[0] > 0 or (attention_mask is not None and mindspore.mint.all(attention_mask == 1)):
+        if int(cache_position[0]) > 0 or (attention_mask is not None and mindspore.mint.all(attention_mask == 1)):
             mamba_mask = None
         return mamba_mask
 
@@ -1643,7 +1643,7 @@ class JambaForCausalLM(JambaPreTrainedModel, GenerationMixin):
         # Exception 3: with synced GPUs cache_position may go out of bounds, but we only want dummy token in that case.
         #              (we can't check exception 3 while compiling)
         if not empty_past_kv:
-            if inputs_embeds is not None or cache_position[-1] >= input_ids.shape[1]:  # Exception 1  # Exception 3
+            if inputs_embeds is not None or int(cache_position[-1]) >= input_ids.shape[1]:  # Exception 1  # Exception 3
                 input_ids = input_ids[:, -cache_position.shape[0] :]
             elif input_ids.shape[1] != cache_position.shape[0]:  # Default case (the "else", a no op, is Exception 2)
                 input_ids = input_ids[:, cache_position]
