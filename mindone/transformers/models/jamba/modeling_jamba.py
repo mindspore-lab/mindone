@@ -1462,7 +1462,7 @@ class JambaModel(JambaPreTrainedModel):
             # Details: https://github.com/pytorch/pytorch/issues/110213
             causal_mask = AttentionMaskConverter._unmask_unattended(causal_mask, min_dtype)
 
-        return causal_mask
+        return causal_mask.clone()  # copy to avoid multiple references to the same tensor
 
     def _update_mamba_mask(self, attention_mask, cache_position):
         """
