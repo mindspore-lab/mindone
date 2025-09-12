@@ -43,6 +43,7 @@ MODEL_MAPPING_NAMES = OrderedDict(
         ("bit", "BitModel"),
         ("blip", "BlipModel"),
         ("blip-2", "Blip2Model"),
+        ("bridgetower", "BridgeTowerModel"),
         ("starcoder2", "Starcoder2Model"),
         ("canine", "CanineModel"),
         ("chameleon", "ChameleonModel"),
@@ -113,6 +114,7 @@ MODEL_MAPPING_NAMES = OrderedDict(
         ("speecht5", "SpeechT5Model"),
         ("swin2sr", "Swin2SRModel"),
         ("t5", "T5Model"),
+        ("textnet", "TextNetModel"),
         ("umt5", "UMT5Model"),
         ("vilt", "ViltModel"),
         ("vit", "ViTModel"),
@@ -196,6 +198,7 @@ MODEL_FOR_CAUSAL_LM_MAPPING_NAMES = OrderedDict(
         ("opt", "OPTForCausalLM"),
         ("bert", "BertLMHeadModel"),
         ("bert-generation", "BertGenerationDecoder"),
+        ("dpr", "DPRQuestionEncoder"),
         ("gemma", "GemmaForCausalLM"),
         ("gemma2", "Gemma2ForCausalLM"),
         ("starcoder2", "Starcoder2ForCausalLM"),
@@ -281,6 +284,7 @@ MODEL_FOR_IMAGE_CLASSIFICATION_MAPPING_NAMES = OrderedDict(
         ("resnet", "ResNetForImageClassification"),
         ("segformer", "SegformerForImageClassification"),
         ("siglip", "SiglipForImageClassification"),
+        ("textnet", "TextNetForImageClassification"),
         ("vit", "ViTForImageClassification"),
     ]
 )
@@ -348,6 +352,7 @@ MODEL_FOR_RETRIEVAL_MAPPING_NAMES = OrderedDict(
 MODEL_FOR_IMAGE_TEXT_TO_TEXT_MAPPING_NAMES = OrderedDict(
     [
         ("aria", "AriaForConditionalGeneration"),
+        ("aya_vision", "AyaVisionForConditionalGeneration"),
         ("blip", "BlipForConditionalGeneration"),
         ("blip-2", "Blip2ForConditionalGeneration"),
         ("chameleon", "ChameleonForConditionalGeneration"),
@@ -638,6 +643,7 @@ MODEL_FOR_BACKBONE_MAPPING_NAMES = OrderedDict(
         ("dinov2", "Dinov2Backbone"),
         ("hiera", "HieraBackbone"),
         ("swin", "SwinBackbone"),
+        ("textnet", "TextNetBackbone"),
     ]
 )
 
