@@ -14,8 +14,8 @@
 # limitations under the License.
 """JetMoe model configuration"""
 
-from ...configuration_utils import PretrainedConfig
-from ...utils import logging
+from transformers.configuration_utils import PretrainedConfig
+from transformers.utils import logging
 
 logger = logging.get_logger(__name__)
 
@@ -93,7 +93,6 @@ class JetMoeConfig(PretrainedConfig):
 
     model_type = "jetmoe"
     keys_to_ignore_at_inference = ["past_key_values"]
-    attribute_map = {"head_dim": "kv_channels"}
 
     def __init__(
         self,
@@ -127,6 +126,7 @@ class JetMoeConfig(PretrainedConfig):
         self.num_attention_heads = num_key_value_heads * num_experts_per_tok
         self.num_key_value_heads = num_key_value_heads
         self.kv_channels = kv_channels
+        self.head_dim = kv_channels
         self.intermediate_size = intermediate_size
         self.max_position_embeddings = max_position_embeddings
         self.activation_function = activation_function
