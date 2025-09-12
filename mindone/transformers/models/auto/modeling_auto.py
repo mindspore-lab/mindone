@@ -95,6 +95,8 @@ MODEL_MAPPING_NAMES = OrderedDict(
         ("mt5", "MT5Model"),
         ("megatron-bert", "MegatronBertModel"),
         ("mixtral", "MixtralModel"),
+        ("mobilevit", "MobileViTModel"),
+        ("mobilevitv2", "MobileViTV2Model"),
         ("owlvit", "OwlViTModel"),
         ("phi", "PhiModel"),
         ("phi3", "Phi3Model"),
@@ -242,6 +244,8 @@ MODEL_FOR_IMAGE_MAPPING_NAMES = OrderedDict(
         ("ijepa", "IJepaModel"),
         ("imagegpt", "ImageGPTModel"),
         ("levit", "LevitModel"),
+        ("mobilevit", "MobileViTModel"),
+        ("mobilevitv2", "MobileViTV2Model"),
         ("segformer", "SegformerModel"),
         ("siglip_vision_model", "SiglipVisionModel"),
         ("swin2sr", "Swin2SRModel"),
@@ -281,6 +285,8 @@ MODEL_FOR_IMAGE_CLASSIFICATION_MAPPING_NAMES = OrderedDict(
         ("resnet", "ResNetForImageClassification"),
         ("segformer", "SegformerForImageClassification"),
         ("siglip", "SiglipForImageClassification"),
+        ("mobilevit", "MobileViTForImageClassification"),
+        ("mobilevitv2", "MobileViTV2ForImageClassification"),
         ("vit", "ViTForImageClassification"),
     ]
 )
@@ -296,6 +302,8 @@ MODEL_FOR_IMAGE_SEGMENTATION_MAPPING_NAMES = OrderedDict(
 MODEL_FOR_SEMANTIC_SEGMENTATION_MAPPING_NAMES = OrderedDict(
     [
         # Model for Semantic Segmentation mapping
+        ("mobilevit", "MobileViTForSemanticSegmentation"),
+        ("mobilevitv2", "MobileViTV2ForSemanticSegmentation"),
         ("beit", "BeitForSemanticSegmentation"),
         ("data2vec-vision", "Data2VecVisionForSemanticSegmentation"),
         ("dpt", "DPTForSemanticSegmentation"),
