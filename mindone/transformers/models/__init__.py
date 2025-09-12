@@ -83,6 +83,7 @@ from . import (
     qwen2_audio,
     qwen2_vl,
     roberta,
+    sam,
     segformer,
     siglip,
     smolvlm,
