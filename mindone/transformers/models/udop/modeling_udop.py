@@ -13,37 +13,23 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 """MindSpore UDOP model."""
-import mindspore as ms
-from mindspore import ops
-from mindspore import mint, nn
-
 import collections
 import logging
 import math
-import numpy as np
 import random
 from abc import ABC, abstractmethod
 from copy import deepcopy
 from dataclasses import dataclass
 from typing import Any, Dict, Optional, Sequence, Tuple, Union
 
+from transformers import UdopConfig
+
 import mindspore as ms
-from mindspore import Tensor, nn
+from mindspore import Tensor, mint, nn
 from mindspore.mint.nn import CrossEntropyLoss
+
 from mindone.transformers.mindspore_adapter.utils import _DTYPE_2_MAX, _DTYPE_2_MIN
-
-from mindone.transformers import UdopConfig
-from mindone.transformers.modeling_outputs import (
-    Seq2SeqLMOutput,
-    Seq2SeqModelOutput,
-)
-
-from ...activations import ACT2FN
-from ...cache_utils import Cache, DynamicCache, EncoderDecoderCache, StaticCache
-from ...generation import GenerationMixin
-from ...modeling_attn_mask_utils import AttentionMaskConverter
-from ...modeling_utils import PreTrainedModel
-from ...mindspore_utils import find_pruneable_heads_and_indices, prune_linear_layer
+from mindone.transformers.modeling_outputs import Seq2SeqLMOutput, Seq2SeqModelOutput
 from mindone.transformers.utils import (
     ModelOutput,
     add_start_docstrings,
@@ -51,7 +37,12 @@ from mindone.transformers.utils import (
     replace_return_docstrings,
 )
 
-
+from ...activations import ACT2FN
+from ...cache_utils import Cache, DynamicCache, EncoderDecoderCache, StaticCache
+from ...generation import GenerationMixin
+from ...mindspore_utils import find_pruneable_heads_and_indices, prune_linear_layer
+from ...modeling_attn_mask_utils import AttentionMaskConverter
+from ...modeling_utils import PreTrainedModel
 
 logger = logging.getLogger(__name__)
 
@@ -135,7 +126,8 @@ UDOP_INPUTS_DOCSTRING = r"""
             Tuple consists of (`last_hidden_state`, `optional`: *hidden_states*, `optional`: *attentions*)
             `last_hidden_state` of shape `(batch_size, sequence_length, hidden_size)` is a sequence of hidden states at
             the output of the last layer of the encoder. Used in the cross-attention of the decoder.
-        past_key_values (`tuple(tuple(mindspore.Tensor))` of length `config.n_layers` with each tuple having 4 tensors of shape `(batch_size, num_heads, sequence_length - 1, embed_size_per_head)`):
+        past_key_values (`tuple(tuple(mindspore.Tensor))` of length `config.n_layers` with each tuple having 4 tensors of shape \
+            `(batch_size, num_heads, sequence_length - 1, embed_size_per_head)`):
             Contains precomputed key and value hidden states of the attention blocks. Can be used to speed up decoding.
             If `past_key_values` are used, the user can optionally input only the last `decoder_input_ids` (those that
             don't have their past key value states given to this model) of shape `(batch_size, 1)` instead of all
@@ -475,7 +467,6 @@ class UdopPreTrainedModel(PreTrainedModel):
                 module.wo.bias.data.zero_()
         elif isinstance(module, UdopAttention):
             # Mesh TensorFlow attention initialization to avoid scaling before softmax
-            # See https://github.com/tensorflow/mesh/blob/fa19d69eafc9a482aff0b59ddd96b025c0cb207d/mesh_tensorflow/transformer/attention.py#L136
             d_model = self.config.d_model
             key_value_proj_dim = self.config.d_kv
             n_heads = self.config.num_heads
@@ -648,9 +639,7 @@ class UdopAttention(ms.nn.Cell):
     def prune_heads(self, heads):
         if len(heads) == 0:
             return
-        heads, index = find_pruneable_heads_and_indices(
-            heads, self.n_heads, self.key_value_proj_dim, self.pruned_heads
-        )
+        heads, index = find_pruneable_heads_and_indices(heads, self.n_heads, self.key_value_proj_dim, self.pruned_heads)
         # Prune linear layers
         self.q = prune_linear_layer(self.q, index)
         self.k = prune_linear_layer(self.k, index)
@@ -712,10 +701,16 @@ class UdopAttention(ms.nn.Cell):
     def compute_bias(self, query_length, key_length, cache_position=None):
         """Compute binned relative position bias"""
         if cache_position is None:
-            context_position = mint.arange(query_length, dtype=ms.int64, )[:, None]
+            context_position = mint.arange(
+                query_length,
+                dtype=ms.int64,
+            )[:, None]
         else:
             context_position = cache_position[:, None]
-        memory_position = mint.arange(key_length, dtype=ms.int64, )[None, :]
+        memory_position = mint.arange(
+            key_length,
+            dtype=ms.int64,
+        )[None, :]
         relative_position = memory_position - context_position  # shape (query_length, key_length)
         relative_position_bucket = self._relative_position_bucket(
             relative_position,  # shape (query_length, key_length)
@@ -790,13 +785,9 @@ class UdopAttention(ms.nn.Cell):
             # cache position is 0-indexed so we add 1 to get the real length of queries (aka with past)
             real_seq_length = query_length if query_length is not None else cache_position[-1] + 1
             if not self.has_relative_attention_bias:
-                position_bias = mint.zeros(
-                    (1, self.n_heads, seq_length, key_length), dtype=scores.dtype
-                )
+                position_bias = mint.zeros((1, self.n_heads, seq_length, key_length), dtype=scores.dtype)
             else:
-                position_bias = self.compute_bias(
-                    real_seq_length, key_length, cache_position=cache_position
-                )
+                position_bias = self.compute_bias(real_seq_length, key_length, cache_position=cache_position)
                 position_bias = position_bias[:, :, -seq_length:, :]
 
             if mask is not None:
@@ -916,9 +907,7 @@ class UdopBlock(ms.nn.Cell):
         self.is_decoder = config.is_decoder
         self.layer = ms.nn.CellList()
         self.layer.append(
-            UdopLayerSelfAttention(
-                config, has_relative_attention_bias=has_relative_attention_bias, layer_idx=layer_idx
-            )
+            UdopLayerSelfAttention(config, has_relative_attention_bias=has_relative_attention_bias, layer_idx=layer_idx)
         )
         if self.is_decoder:
             self.layer.append(UdopLayerCrossAttention(config, layer_idx=layer_idx))
@@ -956,7 +945,6 @@ class UdopBlock(ms.nn.Cell):
 
         # clamp inf values to enable fp16 training
         if hidden_states.dtype == ms.float16:
-
             clamp_value = mint.where(
                 mint.isinf(hidden_states).any(),
                 _DTYPE_2_MAX[hidden_states.dtype] - 1000,
@@ -1009,8 +997,9 @@ class UdopBlock(ms.nn.Cell):
             outputs = outputs + (past_key_value,) + attention_outputs
         else:
             outputs = outputs + attention_outputs
-
-        return outputs  # hidden-states, past_key_value, (self-attention position bias), (self-attention weights), (cross-attention position bias), (cross-attention weights)
+        # hidden-states, past_key_value, (self-attention position bias), (self-attention weights),
+        # (cross-attention position bias), (cross-attention weights)
+        return outputs
 
 
 class UdopCellEmbeddings(ms.nn.Cell):
@@ -1030,10 +1019,7 @@ class UdopCellEmbeddings(ms.nn.Cell):
         lower_position_embeddings = self.y_position_embeddings(bbox[:, :, 3])
 
         embeddings = (
-            left_position_embeddings
-            + upper_position_embeddings
-            + right_position_embeddings
-            + lower_position_embeddings
+            left_position_embeddings + upper_position_embeddings + right_position_embeddings + lower_position_embeddings
         )
 
         return embeddings
@@ -1090,7 +1076,9 @@ class RelativePositionBiasBase(ms.nn.Cell, ABC):
         self.expand = expand
         self.relative_attention_num_buckets = relative_attention_num_buckets
         extra_head = 2 if prefix_bucket and not self.expand else 0
-        self.relative_attention_bias = mint.nn.Embedding(self.relative_attention_num_buckets + extra_head, self.num_heads)
+        self.relative_attention_bias = mint.nn.Embedding(
+            self.relative_attention_num_buckets + extra_head, self.num_heads
+        )
 
     @abstractmethod
     def prepare_input(
@@ -1161,7 +1149,10 @@ class RelativePositionBias1D(RelativePositionBiasBase):
         if self.scaling_factor != 1:
             raise ValueError("No need to scale 1d features")
         relative_position = self.get_relative_position(
-            mint.arange(attention_mask.shape[1], dtype=ms.int64, )[None, :]
+            mint.arange(
+                attention_mask.shape[1],
+                dtype=ms.int64,
+            )[None, :]
         )
 
         return relative_position
@@ -1414,12 +1405,17 @@ class UdopStack(UdopPreTrainedModel):
         past_key_values_length = past_key_values.get_seq_length() if past_key_values is not None else 0
         if cache_position is None:
             cache_position = mint.arange(
-                past_key_values_length, past_key_values_length + seq_length, )
+                past_key_values_length,
+                past_key_values_length + seq_length,
+            )
 
         if attention_mask is None:
             # required mask seq length can be calculated via length of past cache
             mask_seq_length = past_key_values_length + seq_length
-            attention_mask = mint.ones(batch_size, mask_seq_length, )
+            attention_mask = mint.ones(
+                batch_size,
+                mask_seq_length,
+            )
 
         if self.config.is_decoder:
             causal_mask = self._update_causal_mask(
@@ -1432,7 +1428,7 @@ class UdopStack(UdopPreTrainedModel):
         else:
             causal_mask = attention_mask[:, None, None, :]
             causal_mask = causal_mask.to(dtype=inputs_embeds.dtype)
-            causal_mask = (1.0 - causal_mask) *  _DTYPE_2_MIN[inputs_embeds.dtype]
+            causal_mask = (1.0 - causal_mask) * _DTYPE_2_MIN[inputs_embeds.dtype]
 
         if self.is_decoder and encoder_attention_mask is not None:
             encoder_extended_attention_mask = self.invert_attention_mask(encoder_attention_mask)
@@ -1474,7 +1470,8 @@ class UdopStack(UdopPreTrainedModel):
                 cache_position=cache_position,
             )
             # layer_outputs is a tuple with:
-            # hidden-states, key-value-states, (self-attention weights), (self-attention position bias), (cross-attention weights), (cross-attention position bias)
+            # hidden-states, key-value-states, (self-attention weights), (self-attention position bias), \
+            # (cross-attention weights), (cross-attention position bias)
             if use_cache is False:  # MP fixes
                 layer_outputs = layer_outputs[:1] + (None,) + layer_outputs[1:]
             hidden_states, next_decoder_cache = layer_outputs[:2]
@@ -1561,7 +1558,7 @@ class UdopStack(UdopPreTrainedModel):
             ):
                 return None
 
-        dtype, device = input_tensor.dtype, input_tensor.device
+        dtype = input_tensor.dtype
         sequence_length = input_tensor.shape[1]
         if using_static_cache:
             target_length = past_key_values.get_max_cache_shape()
@@ -1582,11 +1579,7 @@ class UdopStack(UdopPreTrainedModel):
             batch_size=input_tensor.shape[0],
         )
 
-        if (
-            self.config._attn_implementation == "sdpa"
-            and attention_mask is not None
-            and not output_attentions
-        ):
+        if self.config._attn_implementation == "sdpa" and attention_mask is not None and not output_attentions:
             # Attend to all tokens in fully masked rows in the causal_mask, for example the relevant first rows when
             # using left padding. This is required by F.scaled_dot_product_attention memory-efficient attention path.
             # Details: https://github.com/pytorch/pytorch/issues/110213
@@ -1633,12 +1626,15 @@ class UdopStack(UdopPreTrainedModel):
             causal_mask = attention_mask
         else:
             min_dtype = _DTYPE_2_MIN[dtype]
-            causal_mask = ms.ops.full(
-                (sequence_length, target_length), fill_value=min_dtype, dtype=dtype)
+            causal_mask = ms.ops.full((sequence_length, target_length), fill_value=min_dtype, dtype=dtype)
             if sequence_length != 1:
                 causal_mask = mint.triu(causal_mask, diagonal=1)
-            causal_mask *= mint.arange(target_length, ) > cache_position.reshape(-1, 1)
-            causal_mask = causal_mask[None, None, :, :].broadcast_to((batch_size, 1, causal_mask.shape[-2], causal_mask.shape[-1]))
+            causal_mask *= mint.arange(
+                target_length,
+            ) > cache_position.reshape(-1, 1)
+            causal_mask = causal_mask[None, None, :, :].broadcast_to(
+                (batch_size, 1, causal_mask.shape[-2], causal_mask.shape[-1])
+            )
             if attention_mask is not None:
                 causal_mask = causal_mask.clone()  # copy to contiguous memory for in-place edit
                 mask_length = attention_mask.shape[-1]
@@ -2035,11 +2031,13 @@ class UdopForConditionalGeneration(UdopPreTrainedModel, GenerationMixin):
 
             if reordered_layer_past_states[0].shape != layer_past_states[0].shape:
                 raise ValueError(
-                    f"reordered_layer_past_states[0] shape {reordered_layer_past_states[0].shape} and layer_past_states[0] shape {layer_past_states[0].shape} mismatched"
+                    f"reordered_layer_past_states[0] shape {reordered_layer_past_states[0].shape} and layer_past_states[0] \
+                        shape {layer_past_states[0].shape} mismatched"
                 )
             if len(reordered_layer_past_states) != len(layer_past_states):
                 raise ValueError(
-                    f"length of reordered_layer_past_states {len(reordered_layer_past_states)} and length of layer_past_states {len(layer_past_states)} mismatched"
+                    f"length of reordered_layer_past_states {len(reordered_layer_past_states)} and length of layer_past_states\
+                         {len(layer_past_states)} mismatched"
                 )
 
             reordered_decoder_past = reordered_decoder_past + (reordered_layer_past_states,)
