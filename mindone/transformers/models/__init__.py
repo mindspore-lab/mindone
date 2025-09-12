@@ -71,6 +71,8 @@ from . import (
     mobilebert,
     mpt,
     mvp,
+    nllb,
+    nllb_moe,
     opt,
     owlvit,
     paligemma,
