@@ -245,6 +245,13 @@ from .models.clip import (
     CLIPVisionModel,
     CLIPVisionModelWithProjection,
 )
+from .models.clipseg import (
+    CLIPSegForImageSegmentation,
+    CLIPSegModel,
+    CLIPSegPreTrainedModel,
+    CLIPSegTextModel,
+    CLIPSegVisionModel,
+)
 from .models.clvp import (
     ClvpDecoder,
     ClvpEncoder,
@@ -340,6 +347,13 @@ from .models.gpt2 import (
 from .models.granite import GraniteForCausalLM, GraniteModel, GranitePreTrainedModel
 from .models.granitemoe import GraniteMoeForCausalLM, GraniteMoeModel, GraniteMoePreTrainedModel
 from .models.granitemoeshared import GraniteMoeSharedForCausalLM, GraniteMoeSharedModel, GraniteMoeSharedPreTrainedModel
+from .models.grounding_dino import (
+    GroundingDinoForObjectDetection,
+    GroundingDinoImageProcessor,
+    GroundingDinoModel,
+    GroundingDinoPreTrainedModel,
+    GroundingDinoProcessor,
+)
 from .models.helium import (
     HeliumForCausalLM,
     HeliumForSequenceClassification,
@@ -634,6 +648,7 @@ from .models.umt5 import (
     UMT5Model,
     UMT5PreTrainedModel,
 )
+from .models.video_llava import VideoLlavaForConditionalGeneration, VideoLlavaPreTrainedModel
 from .models.vilt import (
     ViltForImageAndTextRetrieval,
     ViltForImagesAndTextClassification,
@@ -643,6 +658,7 @@ from .models.vilt import (
     ViltModel,
     ViltPreTrainedModel,
 )
+from .models.vipllava import VipLlavaForConditionalGeneration, VipLlavaPreTrainedModel
 from .models.vision_encoder_decoder import VisionEncoderDecoderModel
 from .models.vit import ViTForImageClassification, ViTForMaskedImageModeling, ViTModel, ViTPreTrainedModel
 from .models.vits import VitsModel, VitsPreTrainedModel
