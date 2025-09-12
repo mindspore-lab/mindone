@@ -17,6 +17,10 @@
 import transformers
 from packaging import version
 
+if version.parse(transformers.__version__) >= version.parse("4.55.0"):
+    from ..utils import LossKwargs
+    transformers.utils.LossKwargs = LossKwargs
+
 from . import (
     albert,
     aria,
@@ -111,3 +115,6 @@ if version.parse(transformers.__version__) >= version.parse("4.51.3"):
 
 if version.parse(transformers.__version__) >= version.parse("4.53.0"):
     from . import glm4v, minimax, vjepa2
+
+if version.parse(transformers.__version__) >= version.parse("4.55.0"):
+    from . import gpt_oss
