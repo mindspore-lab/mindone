@@ -54,6 +54,7 @@ MODEL_MAPPING_NAMES = OrderedDict(
         ("convnext", "ConvNextModel"),
         ("convnextv2", "ConvNextV2Model"),
         ("deberta", "DebertaModel"),
+        ("dpr", "DPRQuestionEncoder"),
         ("opt", "OPTModel"),
         ("deberta-v2", "DebertaV2Model"),
         ("detr", "DetrModel"),
