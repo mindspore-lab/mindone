@@ -33,7 +33,7 @@ from transformers.utils.deprecation import deprecate_kwarg
 
 import mindspore
 import mindspore as ms
-from mindspore import Parameter, mint, nn, ops
+from mindspore import Parameter, mint, ops
 from mindspore.common.initializer import Constant, Normal, initializer
 
 from mindone.transformers.mindspore_adapter.utils import _DTYPE_2_MIN
@@ -661,7 +661,7 @@ class JambaMambaMixer(mindspore.nn.Cell):
         self.time_step_rank = config.mamba_dt_rank
         self.use_conv_bias = config.mamba_conv_bias
         self.use_bias = config.mamba_proj_bias
-        self.conv1d = nn.Conv1d(
+        self.conv1d = mint.nn.Conv1d(
             in_channels=self.intermediate_size,
             out_channels=self.intermediate_size,
             bias=self.use_conv_bias,
@@ -1192,7 +1192,7 @@ class JambaPreTrainedModel(PreTrainedModel):
 
     def _init_weights(self, module):
         std = self.config.initializer_range
-        if isinstance(module, (mindspore.mint.nn.Linear, nn.Conv1d)):
+        if isinstance(module, (mindspore.mint.nn.Linear, mint.nn.Conv1d)):
             normal_(module.weight, mean=0.0, std=std)
             if module.bias is not None:
                 constant_(module.bias, 0.0)
