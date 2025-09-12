@@ -150,11 +150,17 @@ class Data2VecTextModelTester:
         ) = self.prepare_config_and_inputs()
         config.num_choices = self.num_choices
         multiple_choice_inputs_ids = np.expand_dims(input_ids, axis=1)
-        multiple_choice_inputs_ids = np.broadcast_to(multiple_choice_inputs_ids, (self.batch_size, self.num_choices, self.seq_length))
+        multiple_choice_inputs_ids = np.broadcast_to(
+            multiple_choice_inputs_ids, (self.batch_size, self.num_choices, self.seq_length)
+        )
         multiple_choice_token_type_ids = np.expand_dims(token_type_ids, axis=1)
-        multiple_choice_token_type_ids = np.broadcast_to(multiple_choice_token_type_ids, (self.batch_size, self.num_choices, self.seq_length))
+        multiple_choice_token_type_ids = np.broadcast_to(
+            multiple_choice_token_type_ids, (self.batch_size, self.num_choices, self.seq_length)
+        )
         multiple_choice_input_mask = np.expand_dims(input_mask, axis=1)
-        multiple_choice_input_mask = np.broadcast_to(multiple_choice_input_mask, (self.batch_size, self.num_choices, self.seq_length))
+        multiple_choice_input_mask = np.broadcast_to(
+            multiple_choice_input_mask, (self.batch_size, self.num_choices, self.seq_length)
+        )
 
         return (
             config,

@@ -924,7 +924,8 @@ class Data2VecTextForCausalLM(Data2VecTextPreTrainedModel, GenerationMixin):
         Example:
 
         ```python
-        >>> from transformers import AutoTokenizer, Data2VecTextForCausalLM, Data2VecTextConfig
+        >>> from transformers import AutoTokenizer, Data2VecTextConfig
+        >>> from mindone.transformers import Data2VecTextForCausalLM
         >>> import mindspore as ms
 
         >>> tokenizer = AutoTokenizer.from_pretrained("facebook/data2vec-text-base")
@@ -938,6 +939,8 @@ class Data2VecTextForCausalLM(Data2VecTextPreTrainedModel, GenerationMixin):
         >>> outputs = model(**inputs)
 
         >>> prediction_logits = outputs.logits
+        >>> print(prediction_logits.shape)
+        (1, 8, 50265)
         ```"""
         return_dict = return_dict if return_dict is not None else self.config.use_return_dict
         if labels is not None:

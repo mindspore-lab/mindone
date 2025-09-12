@@ -644,7 +644,7 @@ class Data2VecVisionRelativePositionBias(nn.Cell):
 
         old_sub_table = old_sub_table.reshape(1, old_width, old_height, -1).permute(0, 3, 1, 2)
         new_sub_table = mint.nn.functional.interpolate(
-            old_sub_table, size=(ms.int32(new_height), ms.int32(new_width)), mode="bilinear"
+            old_sub_table, size=(int(new_height), int(new_width)), mode="bilinear"
         )
         new_sub_table = new_sub_table.permute(0, 2, 3, 1).reshape(new_num_relative_distance - 3, -1)
 
@@ -1366,7 +1366,8 @@ class Data2VecVisionForSemanticSegmentation(Data2VecVisionPreTrainedModel):
         Examples:
 
         ```python
-        >>> from transformers import AutoImageProcessor, Data2VecVisionForSemanticSegmentation
+        >>> from transformers import AutoImageProcessor
+        >>> from mindone.transformers import Data2VecVisionModel
         >>> from PIL import Image
         >>> import requests
 
@@ -1374,14 +1375,15 @@ class Data2VecVisionForSemanticSegmentation(Data2VecVisionPreTrainedModel):
         >>> image = Image.open(requests.get(url, stream=True).raw)
 
         >>> image_processor = AutoImageProcessor.from_pretrained("facebook/data2vec-vision-base")
-        >>> model = Data2VecVisionForSemanticSegmentation.from_pretrained("facebook/data2vec-vision-base")
+        >>> model = Data2VecVisionModel.from_pretrained("facebook/data2vec-vision-base")
 
-        >>> inputs = image_processor(images=image, return_tensors="np")
+        >>> inputs = image_processor(image, return_tensors="np")
         >>> for k, v in inputs.items():
         ...    inputs[k] = ms.Tensor(v)
         >>> outputs = model(**inputs)
-        >>> # logits are of shape (batch_size, num_labels, height, width)
-        >>> logits = outputs.logits
+        >>> last_hidden_states = outputs.last_hidden_state
+        >>> list(last_hidden_states.shape)
+        [1, 197, 768]
         ```"""
         return_dict = return_dict if return_dict is not None else self.config.use_return_dict
         output_hidden_states = (

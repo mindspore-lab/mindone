@@ -41,6 +41,7 @@ from ...activations import ACT2FN
 from ...integrations.sdpa_attention import scaled_dot_product_attention
 from ...masking_utils import dtype_to_min
 from ...mindspore_adapter._conv import Conv1d
+from ...modeling_flash_attention_utils import _flash_attention_forward
 from ...modeling_outputs import (
     BaseModelOutput,
     CausalLMOutput,
@@ -50,65 +51,6 @@ from ...modeling_outputs import (
     XVectorOutput,
 )
 from ...modeling_utils import PreTrainedModel
-
-
-# from ...modeling_flash_attention_utils import _flash_attention_forward # TODO: uncomment after merge the related PR #1240
-# TODO: delete after merge the related PR #1240
-def _flash_attention_forward(
-    query_states: ms.Tensor,
-    key_states: ms.Tensor,
-    value_states: ms.Tensor,
-    attention_mask: Optional[ms.Tensor],
-    query_length: int = None,
-    is_causal: bool = None,
-    dropout: float = 0.0,
-    softmax_scale: Optional[float] = None,
-    target_dtype: Optional[ms.Type] = None,
-    input_layout: str = "BSND",
-    **kwargs,
-):
-    num_head = query_states.shape[2] if input_layout == "BSND" else query_states.shape[1]
-
-    # For `attn_mask` of ops.flash_attention_score, False indicates retention and True indicates discard, Which is
-    # opposite to PyTorch
-    if attention_mask is not None:
-        attention_mask = mint.logical_not(attention_mask) if attention_mask.dtype == ms.bool_ else attention_mask.bool()
-
-    # Apply causal mask
-    seq_len_q = query_states.shape[1] if input_layout == "BSND" else query_states.shape[2]
-    seq_len_k = key_states.shape[1] if input_layout == "BSND" else key_states.shape[2]
-    if is_causal and seq_len_q > 1:
-        if attention_mask is None:  # create a new mask
-            attention_mask = mint.triu(mint.ones((seq_len_q, seq_len_k), dtype=ms.bool_), diagonal=1)
-        else:  # integrate causal mask and input attention mask
-            causal_mask = mint.triu(mint.ones_like(attention_mask, dtype=ms.bool_), diagonal=1)
-            attention_mask = attention_mask | causal_mask
-
-    # flash_attention only supports [float16, bfloat16]
-    origin_dtype = query_states.dtype
-    if target_dtype in (ms.float16, ms.bfloat16):
-        query_states = query_states.to(target_dtype)
-        key_states = key_states.to(target_dtype)
-        value_states = value_states.to(target_dtype)
-    elif origin_dtype not in (ms.float16, ms.bfloat16):
-        query_states = query_states.to(ms.float16)
-        key_states = key_states.to(ms.float16)
-        value_states = value_states.to(ms.float16)
-
-    out = ops.flash_attention_score(
-        query_states,
-        key_states,
-        value_states,
-        head_num=num_head,
-        attn_mask=attention_mask,
-        keep_prob=1.0 - dropout,
-        scalar_value=softmax_scale,
-        input_layout=input_layout,
-    )
-    out = out.to(origin_dtype)
-
-    return out
-
 
 logger = logging.get_logger(__name__)
 
@@ -637,6 +579,7 @@ class Data2VecAudioFlashAttention2(Data2VecAudioAttention):
             value_states,
             attention_mask,
             dropout=self.dropout if self.training else 0.0,
+            softmax_scale=self.scaling,
             is_causal=self.is_causal,
         )  # BSND
 
@@ -1176,6 +1119,32 @@ class Data2VecAudioModel(Data2VecAudioPreTrainedModel):
         output_hidden_states: Optional[bool] = None,
         return_dict: Optional[bool] = None,
     ) -> Union[Tuple, Wav2Vec2BaseModelOutput]:
+        """
+        Example:
+
+        ```python
+        >>> from transformers import AutoProcessor
+        >>> from mindone.transformers import Data2VecAudioModel
+        >>> import mindspore as ms
+        >>> from datasets import load_dataset
+
+        >>> dataset = load_dataset("hf-internal-testing/librispeech_asr_demo", "clean", split="validation", trust_remote_code=True)
+        >>> dataset = dataset.sort("id")
+        >>> sampling_rate = dataset.features["audio"].sampling_rate
+
+        >>> processor = AutoProcessor.from_pretrained("facebook/data2vec-audio-base-960h")
+        >>> model = Data2VecAudioModel.from_pretrained("facebook/data2vec-audio-base-960h")
+
+        # audio file is decoded on the fly
+        >>> inputs = processor(dataset[0]["audio"]["array"], sampling_rate=sampling_rate, return_tensors="np")
+        >>> for k, v in inputs.items(): # input_values
+        ...    inputs[k] = ms.Tensor(v)
+        >>> outputs = model(**inputs)
+
+        >>> last_hidden_states = outputs.last_hidden_state
+        >>> list(last_hidden_states.shape)
+        [1, 292, 768]
+        ```"""
         output_attentions = output_attentions if output_attentions is not None else self.config.output_attentions
         output_hidden_states = (
             output_hidden_states if output_hidden_states is not None else self.config.output_hidden_states
@@ -1320,7 +1289,7 @@ class Data2VecAudioForCTC(Data2VecAudioPreTrainedModel):
             # when not being attended to
             labels_mask = labels >= 0
             target_lengths = labels_mask.sum(-1)
-            flattened_targets = labels # .masked_select(labels_mask) `ops.ctc_loss` not support 1-d target
+            flattened_targets = labels  # .masked_select(labels_mask) `ops.ctc_loss` not support 1-d target
 
             # ctc_loss doesn't support fp16
             log_probs = mint.nn.functional.log_softmax(logits, dim=-1, dtype=ms.float32).swapaxes(0, 1)
