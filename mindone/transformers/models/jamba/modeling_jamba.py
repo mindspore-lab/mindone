@@ -41,7 +41,7 @@ from mindone.transformers.mindspore_adapter.utils import _DTYPE_2_MIN
 from ...activations import ACT2FN
 from ...cache_utils import Cache, DynamicCache  # we need __iter__ and __len__ of pkv
 from ...generation import GenerationMixin
-from ...modeling_attn_mask_utils import AttentionMaskConverter
+from ...modeling_attn_mask_utils import AttentionMaskConverter, dtype_to_min
 from ...modeling_outputs import MoeCausalLMOutputWithPast, MoeModelOutputWithPast, SequenceClassifierOutputWithPast
 from ...modeling_utils import PreTrainedModel
 from ...utils.import_utils import (  # is_causal_conv1d_available,; is_flash_attn_greater_or_equal_2_10,
@@ -1439,30 +1439,72 @@ class JambaModel(JambaPreTrainedModel):
         sequence_length = input_tensor.shape[1]
         target_length = int(cache_position[-1]) + 1
 
-        causal_mask = mindspore.ops.full(
-            (sequence_length, target_length),
-            fill_value=min_dtype,
+        causal_mask = self._prepare_4d_causal_attention_mask_with_cache_position(
+            attention_mask,
+            sequence_length=sequence_length,
+            target_length=target_length,
             dtype=dtype,
+            cache_position=cache_position,
+            batch_size=input_tensor.shape[0],
         )
-        if sequence_length != 1:
-            causal_mask = mindspore.mint.triu(causal_mask, diagonal=1)
-        causal_mask *= mindspore.mint.arange(
-            target_length,
-        ) > cache_position.reshape(-1, 1)
-        causal_mask = mindspore.mint.broadcast_to(causal_mask[None, None, :, :], (input_tensor.shape[0], 1, -1, -1))
-        if attention_mask is not None:
-            if attention_mask.ndim == 2:
-                mask_length = attention_mask.shape[-1]
-                padding_mask = causal_mask[..., :mask_length].eq(0.0) * attention_mask[:, None, None, :].eq(0.0)
-                causal_mask[..., :mask_length] = causal_mask[..., :mask_length].masked_fill(padding_mask, min_dtype)
-
         if self.config._attn_implementation == "sdpa" and attention_mask is not None:
             # Attend to all tokens in fully masked rows in the causal_mask, for example the relevant first rows when
             # using left padding. This is required by F.scaled_dot_product_attention memory-efficient attention path.
             # Details: https://github.com/pytorch/pytorch/issues/110213
             causal_mask = AttentionMaskConverter._unmask_unattended(causal_mask, min_dtype)
 
-        return causal_mask.clone()  # copy to avoid multiple references to the same tensor
+        return causal_mask
+
+    @staticmethod
+    def _prepare_4d_causal_attention_mask_with_cache_position(
+        attention_mask: ms.Tensor,
+        sequence_length: int,
+        target_length: int,
+        dtype: ms.dtype,
+        cache_position: ms.Tensor,
+        batch_size: int,
+        **kwargs,
+    ):
+        """
+        Creates a causal 4D mask of shape `(batch_size, 1, query_length, key_value_length)` from a 2D mask of shape
+        `(batch_size, key_value_length)`, or if the input `attention_mask` is already 4D, do nothing.
+
+        Args:
+            attention_mask (`ms.Tensor`):
+                A 2D attention mask of shape `(batch_size, key_value_length)` or a 4D attention mask of shape
+                `(batch_size, 1, query_length, key_value_length)`.
+            sequence_length (`int`):
+                The sequence length being processed.
+            target_length (`int`):
+                The target length: when generating with static cache, the mask should be as long as the static cache,
+                to account for the 0 padding, the part of the cache that is not filled yet.
+            dtype (`ms.Type`):
+                The dtype to use for the 4D attention mask.
+            cache_position (`ms.Tensor`):
+                Indices depicting the position of the input sequence tokens in the sequence.
+            batch_size (`ms.Tensor`):
+                Batch size.
+        """
+        if attention_mask is not None and attention_mask.ndim == 4:
+            # In this case we assume that the mask comes already in inverted form and requires no inversion or slicing.
+            causal_mask = attention_mask
+        else:
+            min_dtype = dtype_to_min(dtype)
+            causal_mask = ops.full((sequence_length, target_length), fill_value=min_dtype, dtype=dtype)
+            if sequence_length != 1:
+                causal_mask = mint.triu(causal_mask, diagonal=1)
+            causal_mask *= ops.arange(target_length) > cache_position.reshape(-1, 1)
+            causal_mask = causal_mask[None, None, :, :].broadcast_to((batch_size, 1, -1, -1))
+            if attention_mask is not None:
+                causal_mask = causal_mask.copy()  # copy to contiguous memory for in-place edit
+                mask_length = attention_mask.shape[-1]
+                padding_mask = causal_mask[:, :, :, :mask_length] + attention_mask[:, None, None, :]
+                padding_mask = padding_mask == 0
+                causal_mask[:, :, :, :mask_length] = causal_mask[:, :, :, :mask_length].masked_fill(
+                    padding_mask, min_dtype
+                )
+
+        return causal_mask
 
     def _update_mamba_mask(self, attention_mask, cache_position):
         """
