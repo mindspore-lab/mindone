@@ -70,6 +70,7 @@ MODEL_MAPPING_NAMES = OrderedDict(
         ("granite", "GraniteModel"),
         ("granitemoe", "GraniteMoeModel"),
         ("granitemoeshared", "GraniteMoeSharedModel"),
+        ("jamba", "JambaForCausalLM"),
         ("qwen2_audio_encoder", "Qwen2AudioEncoder"),
         ("qwen2_audio_encoder", "Qwen2AudioEncoder"),
         ("recurrent_gemma", "RecurrentGemmaModel"),
