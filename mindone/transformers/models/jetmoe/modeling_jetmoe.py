@@ -16,7 +16,6 @@
 import math
 from typing import List, Optional, Tuple, Union
 
-from transformers import JetMoeConfig
 from transformers.utils import (
     add_start_docstrings,
     add_start_docstrings_to_model_forward,
@@ -41,6 +40,7 @@ from ...modeling_attn_mask_utils import AttentionMaskConverter
 from ...modeling_outputs import MoeCausalLMOutputWithPast, MoeModelOutputWithPast, SequenceClassifierOutputWithPast
 from ...modeling_rope_utils import ROPE_INIT_FUNCTIONS
 from ...modeling_utils import PreTrainedModel
+from .configuration_jetmoe import JetMoeConfig
 
 FLASH_IS_AVAILABLE = is_flash_attn_2_available and check_valid_flash_attention()
 # if FLASH_IS_AVAILABLE:
