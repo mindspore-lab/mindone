@@ -460,6 +460,7 @@ from .models.mobilebert import (
     MobileBertModel,
     MobileBertPreTrainedModel,
 )
+from .models.moonshine import MoonshineForConditionalGeneration, MoonshineModel, MoonshinePreTrainedModel
 from .models.mpt import (
     MptForCausalLM,
     MptForQuestionAnswering,
