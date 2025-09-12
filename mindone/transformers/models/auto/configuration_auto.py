@@ -129,6 +129,7 @@ CONFIG_MAPPING_NAMES = OrderedDict(
         ("xlm-roberta", "XLMRobertaConfig"),
         ("xlm-roberta-xl", "XLMRobertaXLConfig"),
         ("yolos", "YolosConfig"),
+        ("zamba2", "Zamba2Config"),
         ("cohere2", "Cohere2Config"),
     ]
 )
@@ -240,6 +241,7 @@ MODEL_NAMES_MAPPING = OrderedDict(
         ("xlm-roberta", "XLM-RoBERTa"),
         ("xlm-roberta-xl", "XLM-RoBERTa-XL"),
         ("yolos", "YOLOS"),
+        ("zamba2", "Zamba2"),
         ("cohere2", "Cohere2"),
     ]
 )
