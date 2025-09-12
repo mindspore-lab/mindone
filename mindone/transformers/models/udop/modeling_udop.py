@@ -23,19 +23,20 @@ from dataclasses import dataclass
 from typing import Any, Dict, Optional, Sequence, Tuple, Union
 
 from transformers import UdopConfig
-
-import mindspore as ms
-from mindspore import Tensor, mint, nn
-from mindspore.mint.nn import CrossEntropyLoss
-
-from mindone.transformers.mindspore_adapter.utils import _DTYPE_2_MAX, _DTYPE_2_MIN
-from mindone.transformers.modeling_outputs import Seq2SeqLMOutput, Seq2SeqModelOutput
-from mindone.transformers.utils import (
+from transformers.utils import (
     ModelOutput,
     add_start_docstrings,
     add_start_docstrings_to_model_forward,
     replace_return_docstrings,
 )
+
+import mindspore as ms
+from mindspore import Parameter, Tensor, mint
+from mindspore.common.initializer import Constant, Normal, TruncatedNormal, initializer
+from mindspore.mint.nn import CrossEntropyLoss
+
+from mindone.transformers.mindspore_adapter.utils import _DTYPE_2_MAX, _DTYPE_2_MIN
+from mindone.transformers.modeling_outputs import Seq2SeqLMOutput, Seq2SeqModelOutput
 
 from ...activations import ACT2FN
 from ...cache_utils import Cache, DynamicCache, EncoderDecoderCache, StaticCache
@@ -48,6 +49,26 @@ logger = logging.getLogger(__name__)
 
 
 _CONFIG_FOR_DOC = "UdopConfig"
+
+
+def constant_(tensor: Parameter, val: float) -> None:
+    tensor.set_data(initializer(Constant(val), tensor.shape, tensor.dtype))
+
+
+def normal_(tensor: Parameter, mean: float = 0.0, std: float = 1.0) -> None:
+    tensor.set_data(initializer(Normal(std, mean), tensor.shape, tensor.dtype))
+
+
+def trunc_normal_(tensor: Parameter, mean: float = 0.0, std: float = 1.0) -> None:
+    tensor.set_data(initializer(TruncatedNormal(std, mean), tensor.shape, tensor.dtype))
+
+
+def zero_(tensor: Parameter) -> None:
+    tensor.set_data(initializer(Constant(0.0), tensor.shape, tensor.dtype))
+
+
+def fill_(tensor: Parameter, val: float) -> None:
+    tensor.set_data(initializer(Constant(val), tensor.shape, tensor.dtype))
 
 
 UDOP_START_DOCSTRING = r"""
@@ -421,61 +442,59 @@ class UdopPreTrainedModel(PreTrainedModel):
         """Initialize the weights"""
         factor = self.config.initializer_factor  # Used for testing weights initialization
         if isinstance(module, UdopLayerNorm):
-            module.weight.data.fill_(factor * 1.0)
+            fill_(module.weight, factor * 1.0)
         elif isinstance(module, mint.nn.Embedding):
-            module.weight.data.normal_(mean=0.0, std=factor)
+            normal_(module.weight, mean=0.0, std=factor)
             if module.padding_idx is not None:
-                module.weight.data[module.padding_idx].zero_()
+                module.weight.data[module.padding_idx] = 0.0
         elif isinstance(module, mint.nn.Conv2d):
             # Upcast the input in `fp32` and cast it back to desired `dtype` to avoid
             # `trunc_normal_cpu` not implemented in `half` issues
-            module.weight.data = nn.init.trunc_normal_(module.weight.data.to(ms.float32), mean=0.0, std=factor).to(
-                module.weight.dtype
-            )
+            trunc_normal_(module.weight, mean=0.0, std=factor)
             if module.bias is not None:
-                module.bias.data.zero_()
+                zero_(module.bias)
         elif isinstance(module, RelativePositionBiasBase):
             factor = self.config.initializer_factor
             d_model = self.config.d_model
-            module.relative_attention_bias.weight.data.normal_(mean=0.0, std=factor * ((d_model) ** -0.5))
+            normal_(module.relative_attention_bias.weight, mean=0.0, std=factor * ((d_model) ** -0.5))
         elif isinstance(module, UdopModel):
             # Mesh TensorFlow embeddings initialization
             # See https://github.com/tensorflow/mesh/blob/fa19d69eafc9a482aff0b59ddd96b025c0cb207d/mesh_tensorflow/layers.py#L1624
-            module.shared.weight.data.normal_(mean=0.0, std=factor * 1.0)
+            normal_(module.shared.weight, mean=0.0, std=factor * 1.0)
         elif isinstance(module, UdopForConditionalGeneration):
             if hasattr(module, "lm_head") and not self.config.tie_word_embeddings:
-                module.lm_head.weight.data.normal_(mean=0.0, std=factor * 1.0)
+                normal_(module.lm_head.weight, mean=0.0, std=factor * 1.0)
         elif isinstance(module, UdopDenseActDense):
             # Mesh TensorFlow FF initialization
             # See https://github.com/tensorflow/mesh/blob/master/mesh_tensorflow/transformer/transformer_layers.py#L56
             # and https://github.com/tensorflow/mesh/blob/fa19d69eafc9a482aff0b59ddd96b025c0cb207d/mesh_tensorflow/layers.py#L89
-            module.wi.weight.data.normal_(mean=0.0, std=factor * ((self.config.d_model) ** -0.5))
+            normal_(module.wi.weight, mean=0.0, std=factor * ((self.config.d_model) ** -0.5))
             if hasattr(module.wi, "bias") and module.wi.bias is not None:
-                module.wi.bias.data.zero_()
-            module.wo.weight.data.normal_(mean=0.0, std=factor * ((self.config.d_ff) ** -0.5))
+                zero_(module.wi.bias)
+            normal_(module.wo.weight, mean=0.0, std=factor * ((self.config.d_ff) ** -0.5))
             if hasattr(module.wo, "bias") and module.wo.bias is not None:
-                module.wo.bias.data.zero_()
+                zero_(module.wo.bias)
         elif isinstance(module, UdopDenseGatedActDense):
-            module.wi_0.weight.data.normal_(mean=0.0, std=factor * ((self.config.d_model) ** -0.5))
+            normal_(module.wi_0.weight, mean=0.0, std=factor * ((self.config.d_model) ** -0.5))
             if hasattr(module.wi_0, "bias") and module.wi_0.bias is not None:
-                module.wi_0.bias.data.zero_()
-            module.wi_1.weight.data.normal_(mean=0.0, std=factor * ((self.config.d_model) ** -0.5))
+                zero_(module.wi_0.bias)
+            normal_(module.wi_1.weight, mean=0.0, std=factor * ((self.config.d_model) ** -0.5))
             if hasattr(module.wi_1, "bias") and module.wi_1.bias is not None:
-                module.wi_1.bias.data.zero_()
-            module.wo.weight.data.normal_(mean=0.0, std=factor * ((self.config.d_ff) ** -0.5))
+                zero_(module.wi_1.bias)
+            normal_(module.wo.weight, mean=0.0, std=factor * ((self.config.d_ff) ** -0.5))
             if hasattr(module.wo, "bias") and module.wo.bias is not None:
-                module.wo.bias.data.zero_()
+                zero_(module.wo.bias)
         elif isinstance(module, UdopAttention):
             # Mesh TensorFlow attention initialization to avoid scaling before softmax
             d_model = self.config.d_model
             key_value_proj_dim = self.config.d_kv
             n_heads = self.config.num_heads
-            module.q.weight.data.normal_(mean=0.0, std=factor * ((d_model * key_value_proj_dim) ** -0.5))
-            module.k.weight.data.normal_(mean=0.0, std=factor * (d_model**-0.5))
-            module.v.weight.data.normal_(mean=0.0, std=factor * (d_model**-0.5))
-            module.o.weight.data.normal_(mean=0.0, std=factor * ((n_heads * key_value_proj_dim) ** -0.5))
+            normal_(module.q.weight, mean=0.0, std=factor * ((d_model * key_value_proj_dim) ** -0.5))
+            normal_(module.k.weight, mean=0.0, std=factor * (d_model**-0.5))
+            normal_(module.v.weight, mean=0.0, std=factor * (d_model**-0.5))
+            normal_(module.o.weight, mean=0.0, std=factor * ((n_heads * key_value_proj_dim) ** -0.5))
             if module.has_relative_attention_bias:
-                module.relative_attention_bias.weight.data.normal_(mean=0.0, std=factor * ((d_model) ** -0.5))
+                normal_(module.relative_attention_bias.weight, mean=0.0, std=factor * ((d_model) ** -0.5))
 
     # Copied from transformers.models.prophetnet.modeling_prophetnet.ProphetNetPreTrainedModel._shift_right with ProphetNet->Udop
     def _shift_right(self, input_ids):
