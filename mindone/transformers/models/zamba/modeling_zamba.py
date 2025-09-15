@@ -1183,13 +1183,16 @@ class ZambaForCausalLM(ZambaPreTrainedModel, GenerationMixin):
         Example:
 
         ```python
-        >>> from transformers import AutoTokenizer, ZambaForCausalLM
+        >>> from transformers import AutoTokenizer
+        >>> from mindone.transformers import ZambaForCausalLM
 
         >>> model = ZambaForCausalLM.from_pretrained("Zyphra/Zamba-7B-v1")
         >>> tokenizer = AutoTokenizer.from_pretrained("Zyphra/Zamba-7B-v1")
 
         >>> prompt = "Hey, are you conscious? Can you talk to me?"
-        >>> inputs = tokenizer(prompt, return_tensors="pt")
+        >>> inputs = tokenizer(prompt, return_tensors="np")
+        >>> for key in inputs.keys():
+        >>>     inputs[key] = ms.tensor(inputs[key])
 
         >>> # Generate
         >>> generate_ids = model.generate(inputs.input_ids, max_length=30)
