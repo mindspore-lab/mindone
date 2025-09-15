@@ -39,7 +39,7 @@ class UdopModelTester:
         batch_size=13,
         seq_length=7,
         is_training=False,
-        use_input_mask=True,
+        use_input_mask=False,
         use_token_type_ids=False,
         type_vocab_size=16,
         type_sequence_label_size=2,
@@ -201,7 +201,7 @@ UDOP_CASES = [
         (config,),
         {},
         (),
-        {   
+        {
             "input_ids": input_ids,
             "attention_mask": input_mask,
             "bbox": bbox,
