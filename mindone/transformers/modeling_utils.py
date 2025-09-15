@@ -2408,7 +2408,7 @@ class PreTrainedModel(nn.Cell, ModuleUtilsMixin, GenerationMixin, PushToHubMixin
                         )
                 # TODO: We cannot set default mindspore dtype!
             else:
-                # TODO: We cannot get default mindspore dtype! Therefore, we set default dtype to ms.float32
+                # TODO: We cannot get default mindspore dtype!
                 default_dtype = dtype_to_str(ms.float32)
                 config.mindspore_dtype = default_dtype
                 for key in config.sub_configs.keys():

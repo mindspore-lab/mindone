@@ -1547,6 +1547,7 @@ class Qwen2_5_VLForConditionalGeneration(Qwen2_5_VLPreTrainedModel, GenerationMi
                 mask_expanded = mask_unsqueezed.expand_as(inputs_embeds)
                 image_mask = mask_expanded
 
+                # masked_scatter does not support bf16, so embedding dtype needs to be converted to fp32.
                 inputs_embeds = (
                     inputs_embeds.float().masked_scatter(image_mask, image_embeds.float()).to(inputs_embeds.dtype)
                 )
@@ -1566,6 +1567,7 @@ class Qwen2_5_VLForConditionalGeneration(Qwen2_5_VLPreTrainedModel, GenerationMi
                 mask_expanded = mask_unsqueezed.expand_as(inputs_embeds)
                 video_mask = mask_expanded
 
+                # masked_scatter does not support bf16, so embedding dtype needs to be converted to fp32.
                 inputs_embeds = (
                     inputs_embeds.float().masked_scatter(video_mask, video_embeds.float()).to(inputs_embeds.dtype)
                 )
