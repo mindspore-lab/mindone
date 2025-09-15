@@ -311,7 +311,7 @@ def pad_sequence(seq, target_len, pad_value=0):
         seq = ms.Tensor(seq)
     m = target_len - n
     if m > 0:
-        ret = mint.stack([pad_value] * m).to(seq)
+        ret = mint.stack([pad_value] * m).to(seq.dtype)
         seq = mint.cat([seq, ret], dim=0)
     return seq[:target_len]
 
@@ -373,7 +373,7 @@ def combine_image_text_embeddings(
 
     visual_bbox = [visual_bbox[i][patch_inds[i]] for i in range(len(patch_inds))]
     if attention_mask is not None:
-        visual_attention_mask = [ms.Tensor([1] * len(item)).to(attention_mask) for item in visual_bbox]
+        visual_attention_mask = [ms.Tensor([1] * len(item)).to(attention_mask.dtype) for item in visual_bbox]
 
     if max_len == 0:
         max_len = image_embeddings.shape[1]
