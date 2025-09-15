@@ -1930,8 +1930,10 @@ class UdopForConditionalGeneration(UdopPreTrainedModel, GenerationMixin):
         Examples:
 
         ```python
-        >>> from transformers import AutoProcessor, UdopForConditionalGeneration
+        >>> from transformers import AutoProcessor
+        >>> from mindone.transformers import UdopForConditionalGeneration
         >>> from datasets import load_dataset
+        >>> import mindspore as ms
 
         >>> # load model and processor
         >>> # in this case, we already have performed OCR ourselves
@@ -1950,7 +1952,8 @@ class UdopForConditionalGeneration(UdopPreTrainedModel, GenerationMixin):
         >>> # one can use the various task prefixes (prompts) used during pre-training
         >>> # e.g. the task prefix for DocVQA is "Question answering. "
         >>> question = "Question answering. What is the date on the form?"
-        >>> encoding = processor(image, question, text_pair=words, boxes=boxes, return_tensors="pt")
+        >>> encoding = processor(image, question, text_pair=words, boxes=boxes, return_tensors="np")
+        >>> encoding = {k: ms.Tensor(v) for k, v in encoding.items()}
 
         >>> # autoregressive generation
         >>> predicted_ids = model.generate(**encoding)
@@ -2130,7 +2133,8 @@ class UdopEncoderModel(UdopPreTrainedModel):
         Example:
 
         ```python
-        >>> from transformers import AutoProcessor, UdopEncoderModel
+        >>> from transformers import AutoProcessor
+        >>> from mindone.transformers import UdopEncoderModel
         >>> from huggingface_hub import hf_hub_download
         >>> from datasets import load_dataset
 
@@ -2147,8 +2151,8 @@ class UdopEncoderModel(UdopPreTrainedModel):
         >>> image = example["image"]
         >>> words = example["tokens"]
         >>> boxes = example["bboxes"]
-        >>> encoding = processor(image, words, boxes=boxes, return_tensors="pt")
-
+        >>> encoding = processor(image, words, boxes=boxes, return_tensors="np")
+        >>> encoding = {k: ms.Tensor(v) for k, v in encoding.items()}
         >>> outputs = model(**encoding)
         >>> last_hidden_states = outputs.last_hidden_state
         ```"""
