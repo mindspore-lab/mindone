@@ -96,6 +96,7 @@ MODEL_MAPPING_NAMES = OrderedDict(
         ("qwen2_vl", "Qwen2VLModel"),
         ("roberta", "RobertaModel"),
         ("rembert", "RemBertModel"),
+
         ("siglip", "SiglipModel"),
         ("siglip_vision_model", "SiglipVisionModel"),
         ("smolvlm", "SmolVLMModel"),
@@ -372,6 +373,7 @@ MODEL_FOR_SEQ_TO_SEQ_CAUSAL_LM_MAPPING_NAMES = OrderedDict(
         ("mvp", "MvpForConditionalGeneration"),
         ("mt5", "MT5ForConditionalGeneration"),
         ("qwen2_audio", "Qwen2AudioForConditionalGeneration"),
+        ("seamless_m4t", "SeamlessM4TForTextToText"),
         ("t5", "T5ForConditionalGeneration"),
         ("umt5", "UMT5ForConditionalGeneration"),
     ]
@@ -379,6 +381,7 @@ MODEL_FOR_SEQ_TO_SEQ_CAUSAL_LM_MAPPING_NAMES = OrderedDict(
 
 MODEL_FOR_SPEECH_SEQ_2_SEQ_MAPPING_NAMES = OrderedDict(
     [
+        ("seamless_m4t", "SeamlessM4TForSpeechToText"),
         ("speecht5", "SpeechT5ForSpeechToText"),
         ("whisper", "WhisperForConditionalGeneration"),
     ]
@@ -554,7 +557,11 @@ MODEL_FOR_TEXT_TO_SPECTROGRAM_MAPPING_NAMES = OrderedDict(
     ]
 )
 
-MODEL_FOR_TEXT_TO_WAVEFORM_MAPPING_NAMES = OrderedDict()
+MODEL_FOR_TEXT_TO_WAVEFORM_MAPPING_NAMES = OrderedDict(
+    [
+        ("seamless_m4t", "SeamlessM4TForTextToSpeech")
+    ]
+)
 
 MODEL_FOR_ZERO_SHOT_IMAGE_CLASSIFICATION_MAPPING_NAMES = OrderedDict(
     [
