@@ -125,6 +125,7 @@ class UdopModelTester:
         )
 
         config = self.get_config()
+        decoder_input_ids = ms.Tensor([[0]])
 
         # set _attn_implementation
         config._attn_implementation = "eager"
@@ -132,6 +133,7 @@ class UdopModelTester:
         return (
             config,
             input_ids,
+            decoder_input_ids,
             token_type_ids,
             input_mask,
             bbox,
@@ -169,6 +171,7 @@ model_tester = UdopModelTester()
 (
     config,
     input_ids,
+    decoder_input_ids,
     token_type_ids,
     input_mask,
     bbox,
@@ -186,6 +189,7 @@ UDOP_CASES = [
         (),
         {
             "input_ids": input_ids,
+            "decoder_input_ids": decoder_input_ids,
             "attention_mask": input_mask,
             "bbox": bbox,
             "pixel_values": pixel_values,
@@ -203,6 +207,7 @@ UDOP_CASES = [
         (),
         {
             "input_ids": input_ids,
+            "decoder_input_ids": decoder_input_ids,
             "attention_mask": input_mask,
             "bbox": bbox,
             "pixel_values": pixel_values,
