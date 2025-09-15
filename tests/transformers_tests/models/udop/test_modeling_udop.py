@@ -39,7 +39,7 @@ class UdopModelTester:
         batch_size=13,
         seq_length=7,
         is_training=False,
-        use_input_mask=False,
+        use_input_mask=True,
         use_token_type_ids=False,
         type_vocab_size=16,
         type_sequence_label_size=2,
@@ -107,7 +107,7 @@ class UdopModelTester:
 
         input_mask = None
         if self.use_input_mask:
-            input_mask = np.tril(np.ones_like(input_ids))
+            input_mask = np.ones([self.batch_size, self.seq_length])
 
         token_type_ids = None
         if self.use_token_type_ids:
@@ -188,7 +188,6 @@ UDOP_CASES = [
         {},
         (),
         {
-            "input_ids": input_ids,
             "decoder_input_ids": decoder_input_ids,
             "attention_mask": input_mask,
             "bbox": bbox,
@@ -206,7 +205,6 @@ UDOP_CASES = [
         {},
         (),
         {
-            "input_ids": input_ids,
             "decoder_input_ids": decoder_input_ids,
             "attention_mask": input_mask,
             "bbox": bbox,
