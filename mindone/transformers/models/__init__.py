@@ -117,6 +117,8 @@ from . import (
     t5,
     tapas,
     umt5,
+    unispeech,
+    unispeech_sat,
     video_llava,
     vilt,
     vipllava,

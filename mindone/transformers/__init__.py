@@ -783,6 +783,22 @@ from .models.umt5 import (
     UMT5Model,
     UMT5PreTrainedModel,
 )
+from .models.unispeech import (
+    UniSpeechForCTC,
+    UniSpeechForPreTraining,
+    UniSpeechForSequenceClassification,
+    UniSpeechModel,
+    UniSpeechPreTrainedModel,
+)
+from .models.unispeech_sat import (
+    UniSpeechSatForAudioFrameClassification,
+    UniSpeechSatForCTC,
+    UniSpeechSatForPreTraining,
+    UniSpeechSatForSequenceClassification,
+    UniSpeechSatForXVector,
+    UniSpeechSatModel,
+    UniSpeechSatPreTrainedModel,
+)
 from .models.video_llava import VideoLlavaForConditionalGeneration, VideoLlavaPreTrainedModel
 from .models.vilt import (
     ViltForImageAndTextRetrieval,
