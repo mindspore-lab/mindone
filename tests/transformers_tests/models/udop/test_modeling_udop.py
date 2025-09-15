@@ -125,7 +125,7 @@ class UdopModelTester:
         )
 
         config = self.get_config()
-        decoder_input_ids = ms.Tensor([[0]])
+        decoder_input_ids = np.array([[0]])
 
         # set _attn_implementation
         config._attn_implementation = "eager"
