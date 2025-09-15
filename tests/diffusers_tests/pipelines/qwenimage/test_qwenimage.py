@@ -145,9 +145,7 @@ class QwenImagePipelineFastTests(PipelineTesterMixin, unittest.TestCase):
             "transformers.models.qwen2.tokenization_qwen2.Qwen2Tokenizer",
             "transformers.models.qwen2.tokenization_qwen2.Qwen2Tokenizer",
             dict(
-                # pretrained_model_name_or_path="hf-internal-testing/tiny-random-Qwen2VLForConditionalGeneration"
-                # pretrained_model_name_or_path="./hf-internal-testing/tiny-random-Qwen2VLForConditionalGeneration",
-                pretrained_model_name_or_path="tests/diffusers_tests/pipelines/qwenimage/hf-internal-testing/tiny-random-Qwen2VLForConditionalGeneration",
+                pretrained_model_name_or_path="hf-internal-testing/tiny-random-Qwen2VLForConditionalGeneration"
                 local_files_only=True,
                 trust_remote_code=True,
             ),
@@ -228,8 +226,7 @@ class QwenImagePipelineIntegrationTests(PipelineTesterMixin, unittest.TestCase):
         ms.set_context(mode=mode)
         ms_dtype = getattr(ms, dtype)
         
-        # model_id = "Qwen/Qwen-Image"
-        model_id = "/data6/Qwen-Image"
+        model_id = "Qwen/Qwen-Image"
         pipe = QwenImagePipeline.from_pretrained(model_id, mindspore_dtype=ms_dtype)
 
         pipe.vae.enable_tiling()
@@ -243,8 +240,7 @@ class QwenImagePipelineIntegrationTests(PipelineTesterMixin, unittest.TestCase):
         # The text_coder causes deviations between ms and pt versions. However, the deviation\
         # is within THRESHOLD_PIXEL when using the same intermediate results of text_encoder.
         expected_image = load_numpy_from_local_file(
-            # "mindone-testing-arrays",
-            "/data4/mindone-testing-arrays",
+            "mindone-testing-arrays",
             f"qwenimage_t2i_{dtype}.npy",
             subfolder="qwenimage",
         )

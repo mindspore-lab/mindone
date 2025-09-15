@@ -29,7 +29,7 @@ from ...image_processor import PipelineImageInput, VaeImageProcessor
 from ...loaders import QwenImageLoraLoaderMixin
 from ...models import AutoencoderKLQwenImage, QwenImageTransformer2DModel
 from ...schedulers import FlowMatchEulerDiscreteScheduler
-from ...utils import logging #, scale_lora_layers, unscale_lora_layers
+from ...utils import logging
 from ...utils.mindspore_utils import randn_tensor, pynative_context
 from ..pipeline_utils import DiffusionPipeline
 from .pipeline_output import QwenImagePipelineOutput
@@ -772,7 +772,6 @@ class QwenImageEditPipeline(DiffusionPipeline, QwenImageLoraLoaderMixin):
 
                 # broadcast to batch dimension in a way that's compatible with ONNX/Core ML
                 timestep = t.expand((latents.shape[0],)).to(latents.dtype)
-                # with self.transformer.cache_context("cond"):
                 noise_pred = self.transformer(
                     hidden_states=latent_model_input,
                     timestep=timestep / 1000,
@@ -787,7 +786,6 @@ class QwenImageEditPipeline(DiffusionPipeline, QwenImageLoraLoaderMixin):
                 noise_pred = noise_pred[:, : latents.shape[1]]
 
                 if do_true_cfg:
-                    # with self.transformer.cache_context("uncond"):
                     neg_noise_pred = self.transformer(
                         hidden_states=latent_model_input,
                         timestep=timestep / 1000,

@@ -123,7 +123,6 @@ def apply_rotary_emb_qwen(
         cos, sin = freqs_cis  # [S, D]
         cos = cos[None, None]
         sin = sin[None, None]
-        # cos, sin = cos.to(x.device), sin.to(x.device)
 
         if use_real_unbind_dim == -1:
             # Used for flux, cogvideox, hunyuan-dit
@@ -217,7 +216,7 @@ class QwenEmbedRope(nn.Cell):
         for idx, fhw in enumerate(video_fhw):
             frame, height, width = fhw
             rope_key = f"{idx}_{height}_{width}"
-            # jit-related, 25/8/18. Remain to fix.
+            # TODO: @jit, 25/8/18. Remain to fix.
             # if not torch.compiler.is_compiling():
             #     if rope_key not in self.rope_cache:
             #         self.rope_cache[rope_key] = self._compute_video_freqs(frame, height, width, idx)
@@ -266,12 +265,6 @@ class QwenDoubleStreamAttnProcessor2_0:
     """
 
     _attention_backend = None
-
-    # def __init__(self):
-        # if not hasattr(F, "scaled_dot_product_attention"):
-        #     raise ImportError(
-        #         "QwenDoubleStreamAttnProcessor2_0 requires PyTorch 2.0, to use it, please upgrade PyTorch to 2.0."
-        #     )
 
     def __call__(
         self,

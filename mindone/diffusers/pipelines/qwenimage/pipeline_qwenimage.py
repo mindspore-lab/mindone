@@ -616,7 +616,6 @@ class QwenImagePipeline(DiffusionPipeline, QwenImageLoraLoaderMixin):
                 self._current_timestep = t
                 # broadcast to batch dimension in a way that's compatible with ONNX/Core ML
                 timestep = t.expand((latents.shape[0],)).to(latents.dtype)
-                # with self.transformer.cache_context("cond"):
                 noise_pred = self.transformer(
                     hidden_states=latents,
                     timestep=timestep / 1000,
@@ -630,7 +629,6 @@ class QwenImagePipeline(DiffusionPipeline, QwenImageLoraLoaderMixin):
                 )[0]
 
                 if do_true_cfg:
-                    # with self.transformer.cache_context("uncond"):
                     neg_noise_pred = self.transformer(
                         hidden_states=latents,
                         timestep=timestep / 1000,
@@ -683,7 +681,9 @@ class QwenImagePipeline(DiffusionPipeline, QwenImageLoraLoaderMixin):
                 latents.dtype
             )
             latents = latents / latents_std + latents_mean
-            image = self.vae.decode(latents, return_dict=False)[0][:, :, 0]
+            # TODO: we use pynative mode here since cache in vae.decode which not supported in graph mode
+            with pynative_context():
+                image = self.vae.decode(latents, return_dict=False)[0][:, :, 0]
             image = self.image_processor.postprocess(image, output_type=output_type)
 
         if not return_dict:

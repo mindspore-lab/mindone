@@ -30,7 +30,7 @@ from ...image_processor import PipelineImageInput, VaeImageProcessor
 from ...loaders import QwenImageLoraLoaderMixin
 from ...models import AutoencoderKLQwenImage, QwenImageTransformer2DModel
 from ...schedulers import FlowMatchEulerDiscreteScheduler
-from ...utils import logging #, scale_lora_layers, unscale_lora_layers
+from ...utils import logging
 from ...utils.mindspore_utils import randn_tensor, pynative_context
 from ..pipeline_utils import DiffusionPipeline
 from .pipeline_output import QwenImagePipelineOutput
@@ -263,7 +263,6 @@ class QwenImageEditInpaintPipeline(DiffusionPipeline, QwenImageLoraLoaderMixin):
         attn_mask_list = [mint.ones(e.shape[0], dtype=ms.int64) for e in split_hidden_states]
         max_seq_len = max([e.shape[0] for e in split_hidden_states])
         prompt_embeds = mint.stack(
-
             [mint.cat([u, u.new_zeros((max_seq_len - u.shape[0], u.shape[1]))]) for u in split_hidden_states]
         )
         encoder_attention_mask = mint.stack(
@@ -982,7 +981,6 @@ class QwenImageEditInpaintPipeline(DiffusionPipeline, QwenImageLoraLoaderMixin):
 
                 # broadcast to batch dimension in a way that's compatible with ONNX/Core ML
                 timestep = t.expand(latents.shape[0]).to(latents.dtype)
-                # with self.transformer.cache_context("cond"):
                 noise_pred = self.transformer(
                     hidden_states=latent_model_input,
                     timestep=timestep / 1000,
@@ -997,7 +995,6 @@ class QwenImageEditInpaintPipeline(DiffusionPipeline, QwenImageLoraLoaderMixin):
                 noise_pred = noise_pred[:, : latents.shape[1]]
 
                 if do_true_cfg:
-                    # with self.transformer.cache_context("uncond"):
                     neg_noise_pred = self.transformer(
                         hidden_states=latent_model_input,
                         timestep=timestep / 1000,
