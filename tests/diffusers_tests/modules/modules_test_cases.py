@@ -1136,6 +1136,36 @@ LTX_VIDEO_TRANSFORMER3D_CASES = [
 ]
 
 
+SKYREELS_V2_TRANSFORMER3D_CASES = [
+    [
+        "SkyReelsV2Transformer3DModel",
+        "diffusers.models.transformers.transformer_skyreels_v2.SkyReelsV2Transformer3DModel",
+        "mindone.diffusers.models.transformers.transformer_skyreels_v2.SkyReelsV2Transformer3DModel",
+        (),
+        {
+            "patch_size": (1, 2, 2),
+            "num_attention_heads": 2,
+            "attention_head_dim": 12,
+            "in_channels": 4,
+            "out_channels": 4,
+            "text_dim": 16,
+            "freq_dim": 256,
+            "ffn_dim": 32,
+            "num_layers": 2,
+            "cross_attn_norm": True,
+            "qk_norm": "rms_norm_across_heads",
+            "rope_max_seq_len": 32,
+        },
+        (),
+        {
+            "hidden_states": np.random.randn(1, 4, 2, 16, 16),
+            "encoder_hidden_states": np.random.randn(1, 12, 16),
+            "timestep": np.random.randint(0, 1000, size=(1,)),
+        },
+    ],
+]
+
+
 OMNIGEN_TRANSFORMER2D_CASES = [
     [
         "OmniGenTransformer2DModel",
@@ -1440,6 +1470,37 @@ LUMINA2_TRANSFORMER2D_CASES = [
 ]
 
 
+CHROMA_TRANSFORMER2D_CASES = [
+    [
+        "ChromaTransformer2DModel",
+        "diffusers.models.transformers.transformer_chroma.ChromaTransformer2DModel",
+        "mindone.diffusers.models.transformers.transformer_chroma.ChromaTransformer2DModel",
+        (),
+        {
+            "patch_size": 1,
+            "in_channels": 4,
+            "num_layers": 1,
+            "num_single_layers": 1,
+            "attention_head_dim": 16,
+            "num_attention_heads": 2,
+            "joint_attention_dim": 32,
+            "axes_dims_rope": [4, 4, 8],
+            "approximator_num_channels": 8,
+            "approximator_hidden_dim": 16,
+            "approximator_layers": 1,
+        },
+        (),
+        {
+            "hidden_states": np.random.randn(1, 16, 4),
+            "encoder_hidden_states": np.random.randn(1, 48, 32),
+            "img_ids": np.random.randn(48, 3),
+            "txt_ids": np.random.randn(16, 3),
+            "timestep": np.ones(1),
+        },
+    ]
+]
+
+
 TRANSFORMERS_CASES = (
     ALLEGRO_TRANSFORMER3D_CASES
     + AURAFLOW_TRANSFORMER2D_CASES
@@ -1457,11 +1518,13 @@ TRANSFORMERS_CASES = (
     + SANA_TRANSFORMER2D_CASES
     + SD3_TRANSFORMER2D_CASES
     + SD35_TRANSFORMER2D_CASES
+    + SKYREELS_V2_TRANSFORMER3D_CASES
     + TRANSFORMER2D_CASES
     + FLUX_TRANSFORMER2D_CASES
     + LATTE_TRANSORMER3D_CASES
     + LUMINA_NEXTDIT2D_CASES
     + LUMINA2_TRANSFORMER2D_CASES
+    + CHROMA_TRANSFORMER2D_CASES
 )
 
 
