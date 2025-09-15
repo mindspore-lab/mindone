@@ -1,4 +1,4 @@
-"""Adapted from https://github.com/huggingface/transformers/tree/main/tests//models/mobilebert/test_modeling_mobilebert.py."""
+"""Adapted from https://github.com/huggingface/transformers/tree/main/tests//models/bert/test_modeling_bert.py."""
 
 # This module contains test cases that are defined in the `.test_cases.py` file, structured as lists or tuples like
 #     [name, pt_module, ms_module, init_args, init_kwargs, inputs_args, inputs_kwargs, outputs_map].
@@ -16,7 +16,7 @@ import inspect
 import numpy as np
 import pytest
 import torch
-from transformers import MobileBertConfig
+from transformers import NystromformerConfig
 
 import mindspore as ms
 
@@ -34,7 +34,7 @@ DTYPE_AND_THRESHOLDS = {"fp32": 5e-4, "fp16": 5e-3}
 MODES = [1]
 
 
-class MobileBertModelTester:
+class NystromformerModelTester:
     def __init__(
         self,
         batch_size=13,
@@ -44,12 +44,12 @@ class MobileBertModelTester:
         use_token_type_ids=True,
         use_labels=True,
         vocab_size=99,
-        hidden_size=768,
+        hidden_size=32,
         num_hidden_layers=2,
         num_attention_heads=4,
         intermediate_size=37,
-        hidden_act="relu",
-        hidden_dropout_prob=0.0,
+        hidden_act="gelu",
+        hidden_dropout_prob=0.1,
         attention_probs_dropout_prob=0.1,
         max_position_embeddings=512,
         type_vocab_size=16,
@@ -107,7 +107,7 @@ class MobileBertModelTester:
         """
         Returns a tiny configuration by default.
         """
-        return MobileBertConfig(
+        return NystromformerConfig(
             vocab_size=self.vocab_size,
             hidden_size=self.hidden_size,
             num_hidden_layers=self.num_hidden_layers,
@@ -123,7 +123,7 @@ class MobileBertModelTester:
         )
 
 
-model_tester = MobileBertModelTester()
+model_tester = NystromformerModelTester()
 (
     config,
     input_ids,
@@ -136,11 +136,11 @@ model_tester = MobileBertModelTester()
 config_has_num_labels = copy.deepcopy(config)
 config_has_num_labels.num_labels = model_tester.num_labels
 
-MODERNBERT_CASES = [
+NYSTROMFORMERS_CASES = [
     [
-        "MobileBertForMaskedLM",
-        "transformers.MobileBertForMaskedLM",
-        "mindone.transformers.MobileBertForMaskedLM",
+        "NystromformerForMaskedLM",
+        "transformers.NystromformerForMaskedLM",
+        "mindone.transformers.NystromformerForMaskedLM",
         (config,),
         {},
         (input_ids,),
@@ -155,9 +155,9 @@ MODERNBERT_CASES = [
         },
     ],
     [
-        "MobileBertForMultipleChoice",
-        "transformers.MobileBertForMultipleChoice",
-        "mindone.transformers.MobileBertForMultipleChoice",
+        "NystromformerForMultipleChoice",
+        "transformers.NystromformerForMultipleChoice",
+        "mindone.transformers.NystromformerForMultipleChoice",
         (config,),
         {},
         (np.repeat(np.expand_dims(input_ids, 1), model_tester.num_choices, 1),),
@@ -172,28 +172,9 @@ MODERNBERT_CASES = [
         },
     ],
     [
-        "MobileBertForPreTraining",
-        "transformers.MobileBertForPreTraining",
-        "mindone.transformers.MobileBertForPreTraining",
-        (config,),
-        {},
-        (input_ids,),
-        {
-            "attention_mask": input_mask,
-            "token_type_ids": token_type_ids,
-            "labels": token_labels,
-            "next_sentence_label": sequence_labels,
-        },
-        {
-            "loss": 0,
-            "prediction_logits": 1,
-            "seq_relationship_logits": 2,
-        },
-    ],
-    [
-        "MobileBertForQuestionAnswering",
-        "transformers.MobileBertForQuestionAnswering",
-        "mindone.transformers.MobileBertForQuestionAnswering",
+        "NystromformerForQuestionAnswering",
+        "transformers.NystromformerForQuestionAnswering",
+        "mindone.transformers.NystromformerForQuestionAnswering",
         (config,),
         {},
         (input_ids,),
@@ -210,9 +191,9 @@ MODERNBERT_CASES = [
         },
     ],
     [
-        "MobileBertForSequenceClassification",
-        "transformers.MobileBertForSequenceClassification",
-        "mindone.transformers.MobileBertForSequenceClassification",
+        "NystromformerForSequenceClassification",
+        "transformers.NystromformerForSequenceClassification",
+        "mindone.transformers.NystromformerForSequenceClassification",
         (config_has_num_labels,),
         {},
         (input_ids,),
@@ -227,9 +208,9 @@ MODERNBERT_CASES = [
         },
     ],
     [
-        "MobileBertForTokenClassification",
-        "transformers.MobileBertForTokenClassification",
-        "mindone.transformers.MobileBertForTokenClassification",
+        "NystromformerForTokenClassification",
+        "transformers.NystromformerForTokenClassification",
+        "mindone.transformers.NystromformerForTokenClassification",
         (config_has_num_labels,),
         {},
         (input_ids,),
@@ -244,9 +225,9 @@ MODERNBERT_CASES = [
         },
     ],
     [
-        "MobileBertModel",
-        "transformers.MobileBertModel",
-        "mindone.transformers.MobileBertModel",
+        "NystromformerModel",
+        "transformers.NystromformerModel",
+        "mindone.transformers.NystromformerModel",
         (config,),
         {},
         (input_ids,),
@@ -256,7 +237,6 @@ MODERNBERT_CASES = [
         },
         {
             "last_hidden_state": 0,
-            "pooler_output": 1,
         },
     ],
 ]
@@ -272,7 +252,7 @@ MODERNBERT_CASES = [
         + [
             mode,
         ]
-        for case in MODERNBERT_CASES
+        for case in NYSTROMFORMERS_CASES
         for dtype in DTYPE_AND_THRESHOLDS.keys()
         for mode in MODES
     ],
@@ -306,17 +286,15 @@ def test_named_modules(
     if "hidden_dtype" in inspect.signature(pt_model.forward).parameters:
         pt_inputs_kwargs.update({"hidden_dtype": PT_DTYPE_MAPPING[pt_dtype]})
         ms_inputs_kwargs.update({"hidden_dtype": MS_DTYPE_MAPPING[ms_dtype]})
+    ms_inputs_kwargs["return_dict"] = False
 
     with torch.no_grad():
         pt_outputs = pt_model(*pt_inputs_args, **pt_inputs_kwargs)
     ms_outputs = ms_model(*ms_inputs_args, **ms_inputs_kwargs)
-    # print("ms:", ms_outputs)
-    # print("pt:", pt_outputs)
     if outputs_map:
         pt_outputs_n = []
         ms_outputs_n = []
         for pt_key, ms_idx in outputs_map.items():
-            # print("===map", pt_key, ms_idx)
             pt_output = getattr(pt_outputs, pt_key)
             ms_output = ms_outputs[ms_idx]
             if isinstance(pt_output, (list, tuple)):
