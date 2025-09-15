@@ -168,7 +168,7 @@ model_tester = BambaModelTester()
 ) = model_tester.prepare_config_and_inputs()
 
 
-MAMBA2_CASES = [
+BAMBA_CASES = [
     [
         "BambaModel",
         "transformers.BambaModel",
@@ -198,7 +198,7 @@ MAMBA2_CASES = [
         + [
             mode,
         ]
-        for case in MAMBA2_CASES
+        for case in BAMBA_CASES
         for dtype in DTYPE_AND_THRESHOLDS.keys()
         for mode in MODES
     ],

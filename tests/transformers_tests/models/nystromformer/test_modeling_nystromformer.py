@@ -136,7 +136,7 @@ model_tester = NystromformerModelTester()
 config_has_num_labels = copy.deepcopy(config)
 config_has_num_labels.num_labels = model_tester.num_labels
 
-BERT_CASES = [
+NYSTROMFORMERS_CASES = [
     [
         "NystromformerForMaskedLM",
         "transformers.NystromformerForMaskedLM",
@@ -252,7 +252,7 @@ BERT_CASES = [
         + [
             mode,
         ]
-        for case in BERT_CASES
+        for case in NYSTROMFORMERS_CASES
         for dtype in DTYPE_AND_THRESHOLDS.keys()
         for mode in MODES
     ],
@@ -291,13 +291,10 @@ def test_named_modules(
     with torch.no_grad():
         pt_outputs = pt_model(*pt_inputs_args, **pt_inputs_kwargs)
     ms_outputs = ms_model(*ms_inputs_args, **ms_inputs_kwargs)
-    # print("ms:", ms_outputs)
-    # print("pt:", pt_outputs)
     if outputs_map:
         pt_outputs_n = []
         ms_outputs_n = []
         for pt_key, ms_idx in outputs_map.items():
-            # print("===map", pt_key, ms_idx)
             pt_output = getattr(pt_outputs, pt_key)
             ms_output = ms_outputs[ms_idx]
             if isinstance(pt_output, (list, tuple)):

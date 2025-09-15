@@ -135,7 +135,7 @@ model_tester = RWKVModelTester()
 config_has_num_labels = copy.deepcopy(config)
 config_has_num_labels.num_labels = model_tester.num_labels
 
-BERT_CASES = [
+RWKV_CASES = [
     [
         "RwkvModel",
         "transformers.RwkvModel",
@@ -163,7 +163,7 @@ BERT_CASES = [
         + [
             mode,
         ]
-        for case in BERT_CASES
+        for case in RWKV_CASES
         for dtype in DTYPE_AND_THRESHOLDS.keys()
         for mode in MODES
     ],
