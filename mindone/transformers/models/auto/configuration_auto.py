@@ -38,6 +38,7 @@ CONFIG_MAPPING_NAMES = OrderedDict(
         ("albert", "AlbertConfig"),
         ("aria", "AriaConfig"),
         ("aria_text", "AriaTextConfig"),
+        ("bamba", "BambaConfig"),
         ("bert", "BertConfig"),
         ("bart", "BartConfig"),
         ("bit", "BitConfig"),
@@ -90,6 +91,7 @@ CONFIG_MAPPING_NAMES = OrderedDict(
         ("mistral", "MistralConfig"),
         ("mobilebert", "MobileBertConfig"),
         ("mpt", "MptConfig"),
+        ("nystromformer", "NystromformerConfig"),
         ("starcoder2", "Starcoder2Config"),
         ("mt5", "MT5Config"),
         ("opt", "OPTConfig"),
@@ -108,6 +110,7 @@ CONFIG_MAPPING_NAMES = OrderedDict(
         ("roberta", "RobertaConfig"),
         ("recurrent_gemma", "RecurrentGemmaConfig"),
         ("rembert", "RemBertConfig"),
+        ("rwkv", "RwkvConfig"),
         ("segformer", "SegformerConfig"),
         ("swin", "SwinConfig"),
         ("siglip", "SiglipConfig"),
@@ -130,6 +133,7 @@ CONFIG_MAPPING_NAMES = OrderedDict(
         ("xlm-roberta-xl", "XLMRobertaXLConfig"),
         ("yolos", "YolosConfig"),
         ("cohere2", "Cohere2Config"),
+        ("zamba", "ZambaConfig"),
     ]
 )
 
@@ -141,6 +145,7 @@ MODEL_NAMES_MAPPING = OrderedDict(
         ("aria", "Aria"),
         ("aria_text", "AriaText"),
         ("m2m_100", "M2M100"),
+        ("bamba", "Bamba"),
         ("bert", "BERT"),
         ("bart", "BART"),
         ("camembert", "CamemBERT"),
@@ -206,6 +211,7 @@ MODEL_NAMES_MAPPING = OrderedDict(
         ("megatron-bert", "Megatron-BERT"),
         ("mistral", "Mistral"),
         ("mixtral", "Mixtral"),
+        ("nystromformer", "Nyströmformer"),
         ("owlvit", "OWL-ViT"),
         ("paligemma", "PaliGemma"),
         ("phi", "Phi"),
@@ -217,6 +223,7 @@ MODEL_NAMES_MAPPING = OrderedDict(
         ("qwen2_vl", "Qwen2VL"),
         ("recurrent_gemma", "RecurrentGemma"),
         ("rembert", "RemBERT"),
+        ("rwkv", "RWKV"),
         ("segformer", "SegFormer"),
         ("swin", "Swin Transformer"),
         ("siglip", "SigLIP"),
@@ -241,6 +248,7 @@ MODEL_NAMES_MAPPING = OrderedDict(
         ("xlm-roberta-xl", "XLM-RoBERTa-XL"),
         ("yolos", "YOLOS"),
         ("cohere2", "Cohere2"),
+        ("zamba", "Zamba"),
     ]
 )
 

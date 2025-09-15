@@ -1,4 +1,4 @@
-"""Adapted from https://github.com/huggingface/transformers/tree/main/tests//models/mobilebert/test_modeling_mobilebert.py."""
+"""Adapted from https://github.com/huggingface/transformers/tree/main/tests/models/bert/test_modeling_modernbert.py."""
 
 # This module contains test cases that are defined in the `.test_cases.py` file, structured as lists or tuples like
 #     [name, pt_module, ms_module, init_args, init_kwargs, inputs_args, inputs_kwargs, outputs_map].
@@ -16,7 +16,7 @@ import inspect
 import numpy as np
 import pytest
 import torch
-from transformers import MobileBertConfig
+from transformers import ModernBertConfig
 
 import mindspore as ms
 
@@ -34,23 +34,25 @@ DTYPE_AND_THRESHOLDS = {"fp32": 5e-4, "fp16": 5e-3}
 MODES = [1]
 
 
-class MobileBertModelTester:
+class ModernBertModelTester:
     def __init__(
         self,
         batch_size=13,
         seq_length=7,
         is_training=True,
         use_input_mask=True,
-        use_token_type_ids=True,
         use_labels=True,
         vocab_size=99,
-        hidden_size=768,
+        pad_token_id=0,
+        hidden_size=32,
         num_hidden_layers=2,
         num_attention_heads=4,
         intermediate_size=37,
-        hidden_act="relu",
-        hidden_dropout_prob=0.0,
-        attention_probs_dropout_prob=0.1,
+        hidden_activation="gelu",
+        mlp_dropout=0.0,
+        attention_dropout=0.0,
+        embedding_dropout=0.0,
+        classifier_dropout=0.0,
         max_position_embeddings=512,
         type_vocab_size=16,
         type_sequence_label_size=2,
@@ -58,21 +60,24 @@ class MobileBertModelTester:
         num_labels=3,
         num_choices=4,
         scope=None,
+        attn_implementation="eager",
     ):
         self.batch_size = batch_size
         self.seq_length = seq_length
         self.is_training = is_training
         self.use_input_mask = use_input_mask
-        self.use_token_type_ids = use_token_type_ids
         self.use_labels = use_labels
         self.vocab_size = vocab_size
+        self.pad_token_id = pad_token_id
         self.hidden_size = hidden_size
         self.num_hidden_layers = num_hidden_layers
         self.num_attention_heads = num_attention_heads
         self.intermediate_size = intermediate_size
-        self.hidden_act = hidden_act
-        self.hidden_dropout_prob = hidden_dropout_prob
-        self.attention_probs_dropout_prob = attention_probs_dropout_prob
+        self.hidden_activation = hidden_activation
+        self.mlp_dropout = mlp_dropout
+        self.attention_dropout = attention_dropout
+        self.embedding_dropout = embedding_dropout
+        self.classifier_dropout = classifier_dropout
         self.max_position_embeddings = max_position_embeddings
         self.type_vocab_size = type_vocab_size
         self.type_sequence_label_size = type_sequence_label_size
@@ -80,6 +85,7 @@ class MobileBertModelTester:
         self.num_labels = num_labels
         self.num_choices = num_choices
         self.scope = scope
+        self.attn_implementation = attn_implementation
 
     def prepare_config_and_inputs(self):
         input_ids = ids_numpy([self.batch_size, self.seq_length], self.vocab_size)
@@ -87,10 +93,6 @@ class MobileBertModelTester:
         input_mask = None
         if self.use_input_mask:
             input_mask = random_attention_mask([self.batch_size, self.seq_length])
-
-        token_type_ids = None
-        if self.use_token_type_ids:
-            token_type_ids = ids_numpy([self.batch_size, self.seq_length], self.type_vocab_size)
 
         sequence_labels = None
         token_labels = None
@@ -101,162 +103,94 @@ class MobileBertModelTester:
             choice_labels = ids_numpy([self.batch_size], self.num_choices)
 
         config = self.get_config()
-        return config, input_ids, token_type_ids, input_mask, sequence_labels, token_labels, choice_labels
+
+        return config, input_ids, input_mask, sequence_labels, token_labels, choice_labels
 
     def get_config(self):
         """
         Returns a tiny configuration by default.
         """
-        return MobileBertConfig(
+        config = ModernBertConfig(
             vocab_size=self.vocab_size,
+            pad_token_id=self.pad_token_id,
             hidden_size=self.hidden_size,
             num_hidden_layers=self.num_hidden_layers,
             num_attention_heads=self.num_attention_heads,
             intermediate_size=self.intermediate_size,
-            hidden_act=self.hidden_act,
-            hidden_dropout_prob=self.hidden_dropout_prob,
-            attention_probs_dropout_prob=self.attention_probs_dropout_prob,
+            hidden_activation=self.hidden_activation,
+            mlp_dropout=self.mlp_dropout,
+            attention_dropout=self.attention_dropout,
+            embedding_dropout=self.embedding_dropout,
+            classifier_dropout=self.classifier_dropout,
             max_position_embeddings=self.max_position_embeddings,
             type_vocab_size=self.type_vocab_size,
             is_decoder=False,
             initializer_range=self.initializer_range,
+            _attn_implementation=self.attn_implementation,
         )
+        return config
 
 
-model_tester = MobileBertModelTester()
-(
-    config,
-    input_ids,
-    token_type_ids,
-    input_mask,
-    sequence_labels,
-    token_labels,
-    choice_labels,
-) = model_tester.prepare_config_and_inputs()
+model_tester = ModernBertModelTester()
+(config, input_ids, input_mask, sequence_labels, token_labels, choice_labels) = model_tester.prepare_config_and_inputs()
 config_has_num_labels = copy.deepcopy(config)
 config_has_num_labels.num_labels = model_tester.num_labels
 
-MODERNBERT_CASES = [
+BERT_CASES = [
     [
-        "MobileBertForMaskedLM",
-        "transformers.MobileBertForMaskedLM",
-        "mindone.transformers.MobileBertForMaskedLM",
+        "ModernBertForMaskedLM",
+        "transformers.ModernBertForMaskedLM",
+        "mindone.transformers.ModernBertForMaskedLM",
         (config,),
         {},
         (input_ids,),
         {
             "attention_mask": input_mask,
-            "token_type_ids": token_type_ids,
-            "labels": token_labels,
         },
         {
-            "loss": 0,
-            "logits": 1,
+            "logits": 0,
         },
     ],
     [
-        "MobileBertForMultipleChoice",
-        "transformers.MobileBertForMultipleChoice",
-        "mindone.transformers.MobileBertForMultipleChoice",
-        (config,),
-        {},
-        (np.repeat(np.expand_dims(input_ids, 1), model_tester.num_choices, 1),),
-        {
-            "attention_mask": np.repeat(np.expand_dims(input_mask, 1), model_tester.num_choices, 1),
-            "token_type_ids": np.repeat(np.expand_dims(token_type_ids, 1), model_tester.num_choices, 1),
-            "labels": choice_labels,
-        },
-        {
-            "loss": 0,
-            "logits": 1,
-        },
-    ],
-    [
-        "MobileBertForPreTraining",
-        "transformers.MobileBertForPreTraining",
-        "mindone.transformers.MobileBertForPreTraining",
-        (config,),
-        {},
-        (input_ids,),
-        {
-            "attention_mask": input_mask,
-            "token_type_ids": token_type_ids,
-            "labels": token_labels,
-            "next_sentence_label": sequence_labels,
-        },
-        {
-            "loss": 0,
-            "prediction_logits": 1,
-            "seq_relationship_logits": 2,
-        },
-    ],
-    [
-        "MobileBertForQuestionAnswering",
-        "transformers.MobileBertForQuestionAnswering",
-        "mindone.transformers.MobileBertForQuestionAnswering",
-        (config,),
-        {},
-        (input_ids,),
-        {
-            "attention_mask": input_mask,
-            "token_type_ids": token_type_ids,
-            "start_positions": sequence_labels,
-            "end_positions": sequence_labels,
-        },
-        {
-            "loss": 0,
-            "start_logits": 1,
-            "end_logits": 2,
-        },
-    ],
-    [
-        "MobileBertForSequenceClassification",
-        "transformers.MobileBertForSequenceClassification",
-        "mindone.transformers.MobileBertForSequenceClassification",
+        "ModernBertForSequenceClassification",
+        "transformers.ModernBertForSequenceClassification",
+        "mindone.transformers.ModernBertForSequenceClassification",
         (config_has_num_labels,),
         {},
         (input_ids,),
         {
             "attention_mask": input_mask,
-            "token_type_ids": token_type_ids,
-            "labels": sequence_labels,
         },
         {
-            "loss": 0,
-            "logits": 1,
+            "logits": 0,
         },
     ],
     [
-        "MobileBertForTokenClassification",
-        "transformers.MobileBertForTokenClassification",
-        "mindone.transformers.MobileBertForTokenClassification",
+        "ModernBertForTokenClassification",
+        "transformers.ModernBertForTokenClassification",
+        "mindone.transformers.ModernBertForTokenClassification",
         (config_has_num_labels,),
         {},
         (input_ids,),
         {
             "attention_mask": input_mask,
-            "token_type_ids": token_type_ids,
-            "labels": token_labels,
         },
         {
-            "loss": 0,
-            "logits": 1,
+            "logits": 0,
         },
     ],
     [
-        "MobileBertModel",
-        "transformers.MobileBertModel",
-        "mindone.transformers.MobileBertModel",
+        "ModernBertModel",
+        "transformers.ModernBertModel",
+        "mindone.transformers.ModernBertModel",
         (config,),
         {},
         (input_ids,),
         {
             "attention_mask": input_mask,
-            "token_type_ids": token_type_ids,
         },
         {
             "last_hidden_state": 0,
-            "pooler_output": 1,
         },
     ],
 ]
@@ -272,7 +206,7 @@ MODERNBERT_CASES = [
         + [
             mode,
         ]
-        for case in MODERNBERT_CASES
+        for case in BERT_CASES
         for dtype in DTYPE_AND_THRESHOLDS.keys()
         for mode in MODES
     ],
@@ -306,6 +240,7 @@ def test_named_modules(
     if "hidden_dtype" in inspect.signature(pt_model.forward).parameters:
         pt_inputs_kwargs.update({"hidden_dtype": PT_DTYPE_MAPPING[pt_dtype]})
         ms_inputs_kwargs.update({"hidden_dtype": MS_DTYPE_MAPPING[ms_dtype]})
+    ms_inputs_kwargs["return_dict"] = False
 
     with torch.no_grad():
         pt_outputs = pt_model(*pt_inputs_args, **pt_inputs_kwargs)
