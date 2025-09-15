@@ -41,7 +41,6 @@ class UdopModelTester:
         is_training=False,
         use_input_mask=True,
         use_token_type_ids=False,
-        use_labels=True,
         type_vocab_size=16,
         type_sequence_label_size=2,
         num_labels=3,
@@ -54,7 +53,7 @@ class UdopModelTester:
         num_layers=2,
         num_decoder_layers=2,
         num_heads=4,
-        relative_attention_num_buckets=8,
+        relative_attention_num_buckets=32,
         relative_attention_max_distance=32,
         relative_bias_args=[{"type": "1d"}, {"type": "horizontal"}, {"type": "vertical"}],
         dropout_rate=0.1,
@@ -75,7 +74,7 @@ class UdopModelTester:
         self.is_training = is_training
         self.use_input_mask = use_input_mask
         self.use_token_type_ids = use_token_type_ids
-        self.use_labels = use_labels
+
         self.type_vocab_size = type_vocab_size
         self.type_sequence_label_size = type_sequence_label_size
         self.num_labels = num_labels
@@ -114,14 +113,6 @@ class UdopModelTester:
         if self.use_token_type_ids:
             token_type_ids = ids_numpy([self.batch_size, self.seq_length], self.type_vocab_size)
 
-        sequence_labels = None
-        token_labels = None
-        choice_labels = None
-        if self.use_labels:
-            sequence_labels = ids_numpy([self.batch_size], self.type_sequence_label_size)
-            token_labels = ids_numpy([self.batch_size, self.seq_length], self.num_labels)
-            choice_labels = ids_numpy([self.batch_size], self.num_choices)
-
         # Create bbox (bounding box) inputs for UDOP
         bbox = np.random.randint(0, self.max_2d_position_embeddings, size=[self.batch_size, self.seq_length, 4])
         # Ensure bbox coordinates are valid (x0 <= x1, y0 <= y1)
@@ -143,9 +134,6 @@ class UdopModelTester:
             input_ids,
             token_type_ids,
             input_mask,
-            sequence_labels,
-            token_labels,
-            choice_labels,
             bbox,
             pixel_values,
         )
@@ -183,9 +171,6 @@ model_tester = UdopModelTester()
     input_ids,
     token_type_ids,
     input_mask,
-    sequence_labels,
-    token_labels,
-    choice_labels,
     bbox,
     pixel_values,
 ) = model_tester.prepare_config_and_inputs()
@@ -198,8 +183,9 @@ UDOP_CASES = [
         "mindone.transformers.UdopModel",
         (config,),
         {},
-        (input_ids,),
+        (),
         {
+            "input_ids": input_ids,
             "attention_mask": input_mask,
             "bbox": bbox,
             "pixel_values": pixel_values,
@@ -214,12 +200,12 @@ UDOP_CASES = [
         "mindone.transformers.UdopForConditionalGeneration",
         (config,),
         {},
-        (input_ids,),
-        {
+        (),
+        {   
+            "input_ids": input_ids,
             "attention_mask": input_mask,
             "bbox": bbox,
             "pixel_values": pixel_values,
-            "labels": token_labels,
         },
         {
             "logits": 0,
