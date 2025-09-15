@@ -356,7 +356,7 @@ def combine_image_text_embeddings(
     patch_inds = mint.full_like(image_embeddings[:, :, 0], True).bool()
     ind = mint.cat(
         [
-            mint.arange(len(ocr_points))[:, None].repeat(1, ocr_points.shape[-1])[:, :, None].to(ocr_points),
+            mint.arange(len(ocr_points))[:, None].repeat(1, ocr_points.shape[-1])[:, :, None].to(ocr_points.dtype),
             ocr_points[:, :, None],
         ],
         dim=-1,
