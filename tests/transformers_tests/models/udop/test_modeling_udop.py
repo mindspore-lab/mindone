@@ -50,7 +50,7 @@ class UdopModelTester:
         vocab_size=99,
         d_model=32,
         d_kv=4,
-        d_ff=64,
+        d_ff=128,
         num_layers=2,
         num_decoder_layers=2,
         num_heads=4,
@@ -123,24 +123,32 @@ class UdopModelTester:
             choice_labels = ids_numpy([self.batch_size], self.num_choices)
 
         # Create bbox (bounding box) inputs for UDOP
-        bbox = np.random.randint(
-            0, self.max_2d_position_embeddings, size=[self.batch_size, self.seq_length, 4]
-        )
+        bbox = np.random.randint(0, self.max_2d_position_embeddings, size=[self.batch_size, self.seq_length, 4])
         # Ensure bbox coordinates are valid (x0 <= x1, y0 <= y1)
         bbox[:, :, 2] = np.maximum(bbox[:, :, 2], bbox[:, :, 0])
         bbox[:, :, 3] = np.maximum(bbox[:, :, 3], bbox[:, :, 1])
 
         # Create pixel_values for image input
-        pixel_values = np.random.randn(
-            self.batch_size, self.num_channels, self.image_size, self.image_size
-        ).astype(np.float32)
+        pixel_values = np.random.randn(self.batch_size, self.num_channels, self.image_size, self.image_size).astype(
+            np.float32
+        )
 
         config = self.get_config()
 
         # set _attn_implementation
         config._attn_implementation = "eager"
 
-        return config, input_ids, token_type_ids, input_mask, sequence_labels, token_labels, choice_labels, bbox, pixel_values
+        return (
+            config,
+            input_ids,
+            token_type_ids,
+            input_mask,
+            sequence_labels,
+            token_labels,
+            choice_labels,
+            bbox,
+            pixel_values,
+        )
 
     def get_config(self):
         return self.config_class(

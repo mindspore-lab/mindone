@@ -1222,6 +1222,7 @@ from .models.textnet import TextNetBackbone, TextNetForImageClassification, Text
 from .models.timesformer import TimesformerForVideoClassification, TimesformerModel, TimesformerPreTrainedModel
 from .models.trocr import TrOCRForCausalLM, TrOCRPreTrainedModel
 from .models.tvp import TvpForVideoGrounding, TvpModel, TvpPreTrainedModel
+from .models.udop import UdopEncoderModel, UdopForConditionalGeneration, UdopModel, UdopPreTrainedModel
 from .models.umt5 import (
     UMT5EncoderModel,
     UMT5ForQuestionAnswering,
@@ -1269,6 +1270,7 @@ from .models.visual_bert import (
     VisualBertForVisualReasoning,
     VisualBertModel,
     VisualBertPreTrainedModel,
+)
 from .models.udop import (
     UdopForConditionalGeneration,
     UdopModel,
