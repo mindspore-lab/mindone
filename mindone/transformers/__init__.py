@@ -297,6 +297,12 @@ from .models.deberta_v2 import (
 from .models.depth_anything import DepthAnythingForDepthEstimation, DepthAnythingPreTrainedModel
 from .models.dinov2 import Dinov2Backbone, Dinov2ForImageClassification, Dinov2Model, Dinov2PreTrainedModel
 from .models.dpt import DPTForDepthEstimation, DPTImageProcessor, DPTModel, DPTPreTrainedModel
+from .models.fastspeech2_conformer import (
+    FastSpeech2ConformerHifiGan,
+    FastSpeech2ConformerModel,
+    FastSpeech2ConformerPreTrainedModel,
+    FastSpeech2ConformerWithHifiGan,
+)
 from .models.fuyu import FuyuForCausalLM, FuyuPreTrainedModel
 from .models.gemma import (
     GemmaForCausalLM,
@@ -539,6 +545,7 @@ from .models.phi3 import (
     Phi3Model,
     Phi3PreTrainedModel,
 )
+from .models.pop2piano import Pop2PianoForConditionalGeneration, Pop2PianoPreTrainedModel
 from .models.qwen2 import Qwen2ForCausalLM, Qwen2ForSequenceClassification, Qwen2ForTokenClassification, Qwen2Model
 from .models.qwen2_5_omni import (
     Qwen2_5OmniForConditionalGeneration,
@@ -588,6 +595,14 @@ from .models.roberta import (
     RobertaPreTrainedModel,
 )
 from .models.rwkv import RwkvForCausalLM, RwkvModel, RwkvPreTrainedModel
+from .models.seamless_m4t_v2 import (
+    SeamlessM4Tv2ForSpeechToSpeech,
+    SeamlessM4Tv2ForSpeechToText,
+    SeamlessM4Tv2ForTextToSpeech,
+    SeamlessM4Tv2ForTextToText,
+    SeamlessM4Tv2Model,
+    SeamlessM4Tv2PreTrainedModel,
+)
 from .models.segformer import (
     SegformerDecodeHead,
     SegformerForImageClassification,

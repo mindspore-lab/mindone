@@ -60,6 +60,7 @@ MODEL_MAPPING_NAMES = OrderedDict(
         ("detr", "DetrModel"),
         ("dinov2", "Dinov2Model"),
         ("dpt", "DPTModel"),
+        ("fastspeech2_conformer", "FastSpeech2ConformerModel"),
         ("gemma", "GemmaModel"),
         ("m2m_100", "M2M100Model"),
         ("gemma2", "Gemma2Model"),
@@ -108,6 +109,7 @@ MODEL_MAPPING_NAMES = OrderedDict(
         ("rembert", "RemBertModel"),
         ("resnet", "ResNetModel"),
         ("rwkv", "RwkvModel"),
+        ("seamless_m4t_v2", "SeamlessM4Tv2Model"),
         ("segformer", "SegformerModel"),
         ("siglip", "SiglipModel"),
         ("siglip_vision_model", "SiglipVisionModel"),
@@ -183,6 +185,7 @@ MODEL_WITH_LM_HEAD_MAPPING_NAMES = OrderedDict(
         ("mobilebert", "MobileBertForMaskedLM"),
         ("mpt", "MptForCausalLM"),
         ("nystromformer", "NystromformerForMaskedLM"),
+        ("pop2piano", "Pop2PianoForConditionalGeneration"),
         ("rembert", "RemBertForMaskedLM"),
         ("rwkv", "RwkvForCausalLM"),
         ("t5", "T5ForConditionalGeneration"),
@@ -441,6 +444,7 @@ MODEL_FOR_SEQ_TO_SEQ_CAUSAL_LM_MAPPING_NAMES = OrderedDict(
         ("mvp", "MvpForConditionalGeneration"),
         ("mt5", "MT5ForConditionalGeneration"),
         ("qwen2_audio", "Qwen2AudioForConditionalGeneration"),
+        ("seamless_m4t_v2", "SeamlessM4Tv2ForTextToText"),
         ("t5", "T5ForConditionalGeneration"),
         ("umt5", "UMT5ForConditionalGeneration"),
     ]
@@ -448,6 +452,8 @@ MODEL_FOR_SEQ_TO_SEQ_CAUSAL_LM_MAPPING_NAMES = OrderedDict(
 
 MODEL_FOR_SPEECH_SEQ_2_SEQ_MAPPING_NAMES = OrderedDict(
     [
+        ("pop2piano", "Pop2PianoForConditionalGeneration"),
+        ("seamless_m4t_v2", "SeamlessM4Tv2ForSpeechToText"),
         ("speecht5", "SpeechT5ForSpeechToText"),
         ("whisper", "WhisperForConditionalGeneration"),
     ]
@@ -630,20 +636,27 @@ MODEL_FOR_AUDIO_XVECTOR_MAPPING_NAMES = OrderedDict(
 
 MODEL_FOR_TEXT_TO_SPECTROGRAM_MAPPING_NAMES = OrderedDict(
     [
-        ("siglip", "SiglipModel"),
+        # Model for Text-To-Spectrogram mapping
+        ("fastspeech2_conformer", "FastSpeech2ConformerModel"),
         ("speecht5", "SpeechT5ForTextToSpeech"),
     ]
 )
 
-MODEL_FOR_TEXT_TO_WAVEFORM_MAPPING_NAMES = OrderedDict()
+MODEL_FOR_TEXT_TO_WAVEFORM_MAPPING_NAMES = OrderedDict(
+    [
+        # Model for Text-To-Waveform mapping
+        ("fastspeech2_conformer", "FastSpeech2ConformerWithHifiGan"),
+        ("seamless_m4t_v2", "SeamlessM4Tv2ForTextToSpeech"),
+    ]
+)
 
 MODEL_FOR_ZERO_SHOT_IMAGE_CLASSIFICATION_MAPPING_NAMES = OrderedDict(
     [
         # Model for Zero Shot Image Classification mapping
         ("blip", "BlipModel"),
-        ("siglip", "SiglipModel"),
         ("blip-2", "Blip2ForImageTextRetrieval"),
         ("clipseg", "CLIPSegModel"),
+        ("siglip", "SiglipModel"),
     ]
 )
 
