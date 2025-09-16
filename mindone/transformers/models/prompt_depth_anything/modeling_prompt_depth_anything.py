@@ -16,23 +16,17 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+from transformers.configuration_prompt_depth_anything import PromptDepthAnythingConfig
+
 import mindspore as ms
 from mindspore import mint, nn
+from mindspore.common.initializer import Constant, Normal, initializer
 from typing import List, Optional, Tuple, Union
 
-import mindspore as ms
-import mint.nn as nn
 
-from transformers.utils.generic import torch_int
-
-from ...file_utils import add_start_docstrings, add_start_docstrings_to_model_forward, replace_return_docstrings
 from ...modeling_outputs import DepthEstimatorOutput
 from ...modeling_utils import PreTrainedModel
 from ...utils.backbone_utils import load_backbone
-from .configuration_prompt_depth_anything import PromptDepthAnythingConfig
-
-
-_CONFIG_FOR_DOC = "PromptDepthAnythingConfig"
 
 
 class PromptDepthAnythingLayer(ms.nn.Cell):
@@ -224,8 +218,8 @@ class PromptDepthAnythingDepthEstimationHead(ms.nn.Cell):
         hidden_states = hidden_states[-1]
 
         predicted_depth = self.conv1(hidden_states)
-        target_height = torch_int(patch_height * self.patch_size)
-        target_width = torch_int(patch_width * self.patch_size)
+        target_height = (patch_height * self.patch_size).to(ms.int32)
+        target_width = (patch_width * self.patch_size).to(ms.int32)
         predicted_depth = mint.nn.functional.interpolate(
             predicted_depth,
             (target_height, target_width),
@@ -259,12 +253,12 @@ class PromptDepthAnythingPreTrainedModel(PreTrainedModel):
         if isinstance(module, (mint.nn.Linear, mint.nn.Conv2d, mint.nn.ConvTranspose2d)):
             # Slightly different from the TF version which uses truncated_normal for initialization
             # cf https://github.com/pytorch/pytorch/pull/5617
-            module.weight.data.normal_(mean=0.0, std=self.config.initializer_range)
+            module.set_data(initializer(Normal(self.config.initializer_range, 0.0), module.shape, module.dtype))
             if module.bias is not None:
-                module.bias.data.zero_()
+                module.set_data(initializer(Constant(0.0), module.shape, module.dtype))
         elif isinstance(module, mint.nn.LayerNorm):
-            module.bias.data.zero_()
-            module.weight.data.fill_(1.0)
+            module.set_data(initializer(Constant(0.0), module.shape, module.dtype))
+            module.weight.set_data(initializer(Constant(1.0), module.weight.shape, module.weight.dtype))
 
 
 class PromptDepthAnythingReassembleLayer(ms.nn.Cell):
@@ -279,7 +273,7 @@ class PromptDepthAnythingReassembleLayer(ms.nn.Cell):
             self.resize = mint.nn.Identity()
         elif factor < 1:
             # so should downsample
-            stride = torch_int(1 / factor)
+            stride = (1 / factor).to(ms.int32)
             self.resize = mint.nn.Conv2d(channels, channels, kernel_size=3, stride=stride, padding=1)
 
     def construct(self, hidden_state):
@@ -315,7 +309,7 @@ class PromptDepthAnythingReassembleStage(ms.nn.Cell):
     def construct(self, hidden_states: List[ms.Tensor], patch_height=None, patch_width=None) -> List[ms.Tensor]:
         """
         Args:
-            hidden_states (`List[torch.FloatTensor]`, each of shape `(batch_size, sequence_length + 1, hidden_size)`):
+            hidden_states (`List[mindspore.Tensor]`, each of shape `(batch_size, sequence_length + 1, hidden_size)`):
                 List of hidden states from the backbone.
         """
         out = []
@@ -325,7 +319,7 @@ class PromptDepthAnythingReassembleStage(ms.nn.Cell):
             hidden_state = hidden_state[:, 1:]
             batch_size, _, num_channels = hidden_state.shape
             hidden_state = hidden_state.reshape(batch_size, patch_height, patch_width, num_channels)
-            hidden_state = hidden_state.permute(0, 3, 1, 2).contiguous()
+            hidden_state = hidden_state.permute(0, 3, 1, 2)
             hidden_state = self.layers[i](hidden_state)
             out.append(hidden_state)
 
@@ -366,7 +360,7 @@ class PromptDepthAnythingNeck(ms.nn.Cell):
     ) -> List[ms.Tensor]:
         """
         Args:
-            hidden_states (`List[torch.FloatTensor]`, each of shape `(batch_size, sequence_length, hidden_size)` or `(batch_size, hidden_size, height, width)`):
+            hidden_states (`List[mindspore.Tensor]`, each of shape `(batch_size, sequence_length, hidden_size)` or `(batch_size, hidden_size, height, width)`):
                 List of hidden states from the backbone.
         """
         if not isinstance(hidden_states, (tuple, list)):
@@ -386,45 +380,6 @@ class PromptDepthAnythingNeck(ms.nn.Cell):
         return output
 
 
-PROMPT_DEPTH_ANYTHING_START_DOCSTRING = r"""
-    This model is a PyTorch [torch.nn.Module](https://pytorch.org/docs/stable/nn.html#torch.nn.Module) subclass. Use it
-    as a regular PyTorch Module and refer to the PyTorch documentation for all matter related to general usage and
-    behavior.
-
-    Parameters:
-        config ([`PromptDepthAnythingConfig`]): Model configuration class with all the parameters of the model.
-            Initializing with a config file does not load the weights associated with the model, only the
-            configuration. Check out the [`~PreTrainedModel.from_pretrained`] method to load the model weights.
-"""
-
-PROMPT_DEPTH_ANYTHING_INPUTS_DOCSTRING = r"""
-    Args:
-        pixel_values (`torch.FloatTensor` of shape `(batch_size, num_channels, height, width)`):
-            Pixel values. Pixel values can be obtained using [`AutoImageProcessor`]. See [`DPTImageProcessor.__call__`]
-            for details.
-        output_attentions (`bool`, *optional*):
-            Whether or not to return the attentions tensors of all attention layers. See `attentions` under returned
-            tensors for more detail.
-        output_hidden_states (`bool`, *optional*):
-            Whether or not to return the hidden states of all layers. See `hidden_states` under returned tensors for
-            more detail.
-        prompt_depth (`torch.FloatTensor` of shape `(batch_size, 1, height, width)`, *optional*):
-            Prompt depth is the sparse or low-resolution depth obtained from multi-view geometry or a
-            low-resolution depth sensor. It generally has shape (height, width), where height
-            and width can be smaller than those of the images. It is optional and can be None, which means no prompt depth
-            will be used. If it is None, the output will be a monocular relative depth.
-            The values are recommended to be in meters, but this is not necessary.
-        return_dict (`bool`, *optional*):
-            Whether or not to return a [`~file_utils.ModelOutput`] instead of a plain tuple.
-"""
-
-
-@add_start_docstrings(
-    """
-    Prompt Depth Anything Model with a depth estimation head on top (consisting of 3 convolutional layers) e.g. for KITTI, NYUv2.
-    """,
-    PROMPT_DEPTH_ANYTHING_START_DOCSTRING,
-)
 class PromptDepthAnythingForDepthEstimation(PromptDepthAnythingPreTrainedModel):
     _no_split_modules = ["DPTViTEmbeddings"]
 
@@ -438,8 +393,6 @@ class PromptDepthAnythingForDepthEstimation(PromptDepthAnythingPreTrainedModel):
         # Initialize weights and apply final processing
         self.post_init()
 
-    @add_start_docstrings_to_model_forward(PROMPT_DEPTH_ANYTHING_INPUTS_DOCSTRING)
-    @replace_return_docstrings(output_type=DepthEstimatorOutput, config_class=_CONFIG_FOR_DOC)
     def construct(
         self,
         pixel_values: ms.Tensor,
@@ -450,7 +403,7 @@ class PromptDepthAnythingForDepthEstimation(PromptDepthAnythingPreTrainedModel):
         return_dict: Optional[bool] = None,
     ) -> Union[Tuple[ms.Tensor], DepthEstimatorOutput]:
         r"""
-        labels (`torch.LongTensor` of shape `(batch_size, height, width)`, *optional*):
+        labels (`mindspore.Tensor` of shape `(batch_size, height, width)`, *optional*):
             Ground truth depth estimation maps for computing the loss.
 
         Returns:
@@ -458,8 +411,8 @@ class PromptDepthAnythingForDepthEstimation(PromptDepthAnythingPreTrainedModel):
         Examples:
 
         ```python
-        >>> from transformers import AutoImageProcessor, AutoModelForDepthEstimation
-        >>> import torch
+        >>> from mindone.transformers import AutoImageProcessor, AutoModelForDepthEstimation
+        >>> import mindspore as ms
         >>> import numpy as np
         >>> from PIL import Image
         >>> import requests
@@ -474,10 +427,9 @@ class PromptDepthAnythingForDepthEstimation(PromptDepthAnythingPreTrainedModel):
         >>> prompt_depth = Image.open(requests.get(prompt_depth_url, stream=True).raw)
 
         >>> # prepare image for the model
-        >>> inputs = image_processor(images=image, return_tensors="pt", prompt_depth=prompt_depth)
+        >>> inputs = image_processor(images=image, return_tensors="np", prompt_depth=prompt_depth)
 
-        >>> with torch.no_grad():
-        ...     outputs = model(**inputs)
+        >>> outputs = model(**inputs)
 
         >>> # interpolate to original size
         >>> post_processed_output = image_processor.post_process_depth_estimation(
@@ -488,7 +440,7 @@ class PromptDepthAnythingForDepthEstimation(PromptDepthAnythingPreTrainedModel):
         >>> # visualize the prediction
         >>> predicted_depth = post_processed_output[0]["predicted_depth"]
         >>> depth = predicted_depth * 1000.
-        >>> depth = depth.detach().cpu().numpy()
+        >>> depth = depth.asnumpy()
         >>> depth = Image.fromarray(depth.astype("uint16")) # mm
         ```"""
         loss = None

@@ -892,6 +892,7 @@ from .models.prophetnet import (
     ProphetNetModel,
     ProphetNetPreTrainedModel,
 )
+from .models.prompt_depth_anything import PromptDepthAnythingForDepthEstimation, PromptDepthAnythingPreTrainedModel
 from .models.qwen2 import Qwen2ForCausalLM, Qwen2ForSequenceClassification, Qwen2ForTokenClassification, Qwen2Model
 from .models.qwen2_5_vl import (
     Qwen2_5_VLForConditionalGeneration,
