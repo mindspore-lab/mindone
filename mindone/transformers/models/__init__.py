@@ -96,6 +96,7 @@ from . import (
     switch_transformers,
     t5,
     umt5,
+    univnet,
     video_llava,
     vilt,
     vipllava,

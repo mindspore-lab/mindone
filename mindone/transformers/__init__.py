@@ -658,6 +658,7 @@ from .models.umt5 import (
     UMT5Model,
     UMT5PreTrainedModel,
 )
+from .models.univnet import UnivNetModel
 from .models.video_llava import VideoLlavaForConditionalGeneration, VideoLlavaPreTrainedModel
 from .models.vilt import (
     ViltForImageAndTextRetrieval,
