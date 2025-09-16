@@ -958,7 +958,6 @@ class FalconModel(FalconPreTrainedModel):
         head_mask: ms.Tensor,
         alibi: ms.Tensor,
     ):
-
         if self.config._attn_implementation == "flash_attention_2":
             if attention_mask is not None and 0.0 in attention_mask:
                 return attention_mask
