@@ -22,7 +22,7 @@ import unittest
 import numpy as np
 import pytest
 import torch
-from mindway.transformers import DbrxForCausalLM
+from mindone.transformers import DbrxForCausalLM
 from transformers import DbrxConfig
 
 import mindspore as ms
@@ -211,7 +211,7 @@ LLAMA_CASES = [
     [
         "DbrxForCausalLM",
         "transformers.DbrxForCausalLM",
-        "mindway.transformers.DbrxForCausalLM",
+        "mindone.transformers.DbrxForCausalLM",
         (config,),
         {},
         (input_ids,),
@@ -223,7 +223,7 @@ LLAMA_CASES = [
     [
         "DbrxModel",
         "transformers.DbrxModel",
-        "mindway.transformers.DbrxModel",
+        "mindone.transformers.DbrxModel",
         (config,),
         {},
         (input_ids,),
