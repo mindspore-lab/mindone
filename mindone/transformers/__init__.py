@@ -650,6 +650,7 @@ from .models.t5 import (
     T5Model,
     T5PreTrainedModel,
 )
+from .models.udop import UdopEncoderModel, UdopForConditionalGeneration, UdopModel, UdopPreTrainedModel
 from .models.umt5 import (
     UMT5EncoderModel,
     UMT5ForQuestionAnswering,
