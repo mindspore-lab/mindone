@@ -181,9 +181,9 @@ model_tester = UdopModelTester()
 
 UDOP_CASES = [
     [
-        "UdopModel",
-        "transformers.UdopModel",
-        "mindone.transformers.UdopModel",
+        "UdopEncoderModel",
+        "transformers.UdopEncoderModel",
+        "mindone.transformers.UdopEncoderModel",
         (config,),
         {},
         (),
