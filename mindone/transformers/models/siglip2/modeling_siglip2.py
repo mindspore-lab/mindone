@@ -32,11 +32,12 @@ from transformers.utils import (
 
 import mindspore as ms
 import mindspore.nn as nn
-from mindspore import Parameter, mint, ops
+from mindspore import Parameter, mint
 from mindspore.nn import BCEWithLogitsLoss, CrossEntropyLoss, MSELoss
 from mindspore.ops.operations.nn_ops import FlashAttentionScore
 
 from ...activations import ACT2FN
+from ...mindspore_adapter.nn.MultiheadAttention import MultiheadAttention
 from ...modeling_attn_mask_utils import _prepare_4d_attention_mask
 from ...modeling_outputs import BaseModelOutput, BaseModelOutputWithPooling, ImageClassifierOutput
 from ...modeling_utils import PreTrainedModel
@@ -150,7 +151,7 @@ class Siglip2VisionEmbeddings(nn.Cell):
         self.embed_dim = config.hidden_size
         self.patch_size = config.patch_size
 
-        self.patch_embedding = nn.Dense(
+        self.patch_embedding = mint.nn.Linear(
             config.num_channels * self.patch_size * self.patch_size,
             self.embed_dim,
         )
@@ -264,10 +265,10 @@ class Siglip2Attention(nn.Cell):
         self.scale = self.head_dim**-0.5
         self.dropout = config.attention_dropout
 
-        self.k_proj = nn.Dense(self.embed_dim, self.embed_dim)
-        self.v_proj = nn.Dense(self.embed_dim, self.embed_dim)
-        self.q_proj = nn.Dense(self.embed_dim, self.embed_dim)
-        self.out_proj = nn.Dense(self.embed_dim, self.embed_dim)
+        self.k_proj = mint.nn.Linear(self.embed_dim, self.embed_dim)
+        self.v_proj = mint.nn.Linear(self.embed_dim, self.embed_dim)
+        self.q_proj = mint.nn.Linear(self.embed_dim, self.embed_dim)
+        self.out_proj = mint.nn.Linear(self.embed_dim, self.embed_dim)
 
     def construct(
         self,
@@ -305,7 +306,7 @@ class Siglip2Attention(nn.Cell):
 
         # upcast attention to fp32
         attn_weights = mint.softmax(attn_weights, dim=-1, dtype=ms.float32).to(query_states.dtype)
-        attn_weights = ops.dropout(attn_weights, p=self.dropout, training=self.training)
+        attn_weights = mint.nn.functional.dropout(attn_weights, p=self.dropout, training=self.training)
         attn_output = mint.matmul(attn_weights, value_states)
 
         if attn_output.shape != (batch_size, self.num_heads, q_len, self.head_dim):
@@ -412,8 +413,8 @@ class Siglip2MLP(nn.Cell):
         super().__init__()
         self.config = config
         self.activation_fn = ACT2FN[config.hidden_act]
-        self.fc1 = nn.Dense(config.hidden_size, config.intermediate_size)
-        self.fc2 = nn.Dense(config.intermediate_size, config.hidden_size)
+        self.fc1 = mint.nn.Linear(config.hidden_size, config.intermediate_size)
+        self.fc2 = mint.nn.Linear(config.intermediate_size, config.hidden_size)
 
     def construct(self, hidden_states: ms.Tensor) -> ms.Tensor:
         hidden_states = self.fc1(hidden_states)
@@ -727,7 +728,7 @@ class Siglip2TextTransformer(nn.Cell):
         self.encoder = Siglip2Encoder(config)
         self.final_layer_norm = mint.nn.LayerNorm(embed_dim, eps=config.layer_norm_eps)
 
-        self.head = nn.Dense(embed_dim, config.projection_size)
+        self.head = mint.nn.Linear(embed_dim, config.projection_size)
         self._use_flash_attention_2 = config._attn_implementation == "flash_attention_2"
 
     @add_start_docstrings_to_model_forward(SIGLIP2_TEXT_INPUTS_DOCSTRING)
@@ -937,8 +938,8 @@ class Siglip2MultiheadAttentionPoolingHead(nn.Cell):
     def __init__(self, config: Siglip2VisionConfig):
         super().__init__()
 
-        self.probe = Parameter(ops.randn(1, 1, config.hidden_size))
-        self.attention = nn.MultiheadAttention(config.hidden_size, config.num_attention_heads, batch_first=True)
+        self.probe = Parameter(mint.randn(1, 1, config.hidden_size))
+        self.attention = MultiheadAttention(config.hidden_size, config.num_attention_heads, batch_first=True)
         self.layernorm = mint.nn.LayerNorm(config.hidden_size, eps=config.layer_norm_eps)
         self.mlp = Siglip2MLP(config)
         self.num_heads = config.num_attention_heads
@@ -1056,8 +1057,8 @@ class Siglip2Model(Siglip2PreTrainedModel):
         self.text_model = text_model.text_model
         self.vision_model = vision_model.vision_model
 
-        self.logit_scale = Parameter(ops.randn(1))
-        self.logit_bias = Parameter(ops.randn(1))
+        self.logit_scale = Parameter(mint.randn(1))
+        self.logit_bias = Parameter(mint.randn(1))
 
         # Initialize weights and apply final processing
         self.post_init()
@@ -1304,7 +1305,7 @@ class Siglip2ForImageClassification(Siglip2PreTrainedModel):
 
         # Classifier head
         self.classifier = (
-            nn.Dense(config.vision_config.hidden_size, config.num_labels) if config.num_labels > 0 else nn.Identity()
+            mint.nn.Linear(config.vision_config.hidden_size, config.num_labels) if config.num_labels > 0 else nn.Identity()
         )
 
         # Initialize weights and apply final processing
