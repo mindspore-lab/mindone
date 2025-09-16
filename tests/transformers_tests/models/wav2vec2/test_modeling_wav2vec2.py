@@ -11,6 +11,7 @@
 # it is necessary to develop distinct, dedicated test cases.
 
 import math
+
 import numpy as np
 import pytest
 import torch
@@ -20,7 +21,6 @@ import mindspore as ms
 
 from tests.modeling_test_utils import compute_diffs, generalized_parse_args, get_modules
 from tests.transformers_tests.models.modeling_common import floats_numpy, ids_numpy, random_attention_mask
-
 
 DTYPE_AND_THRESHOLDS = {"fp32": 5e-4, "fp16": 5e-3, "bf16": 5e-2}
 MODES = [1]
@@ -60,6 +60,7 @@ class Wav2Vec2ModelTester:
         tdnn_dilation=(1, 2),
         xvector_output_dim=32,
         scope=None,
+        attn_implementation="eager",
     ):
         self.batch_size = batch_size
         self.seq_length = seq_length
@@ -92,6 +93,7 @@ class Wav2Vec2ModelTester:
         self.tdnn_kernel = tdnn_kernel
         self.tdnn_dilation = tdnn_dilation
         self.xvector_output_dim = xvector_output_dim
+        self.attn_implementation = attn_implementation
 
         output_seq_length = self.seq_length
         for kernel, stride in zip(self.conv_kernel, self.conv_stride):
@@ -138,6 +140,7 @@ class Wav2Vec2ModelTester:
             tdnn_kernel=self.tdnn_kernel,
             tdnn_dilation=self.tdnn_dilation,
             xvector_output_dim=self.xvector_output_dim,
+            attn_implementation=self.attn_implementation,
         )
 
     def prepare_config_and_inputs_for_seq_classifier_loss(self):
@@ -168,7 +171,6 @@ class Wav2Vec2ModelTester:
         # pad input
         for i in range(len(input_lengths)):
             input_values[i, input_lengths[i] :] = 0.0
-
 
         return config, input_values, labels
 
@@ -259,6 +261,7 @@ TEST_CASES = [
         },
     ],
 ]
+
 
 @pytest.mark.parametrize(
     "name,pt_module,ms_module,init_args,init_kwargs,inputs_args,inputs_kwargs,outputs_map,dtype,mode",

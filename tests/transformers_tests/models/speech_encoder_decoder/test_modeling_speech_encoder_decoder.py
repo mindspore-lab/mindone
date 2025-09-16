@@ -19,7 +19,6 @@ import mindspore as ms
 
 from tests.modeling_test_utils import compute_diffs, generalized_parse_args, get_modules
 
-
 from ..bert.test_modeling_bert import BertModelTester
 from ..wav2vec2.test_modeling_wav2vec2 import Wav2Vec2ModelTester
 
@@ -27,12 +26,16 @@ DTYPE_AND_THRESHOLDS = {"fp32": 5e-4, "fp16": 5e-3, "bf16": 5e-2}
 MODES = [1]
 
 
-
 class Wav2Vec2BertModelTest:
+    def __init__(
+        self,
+        attn_implementation="eager",
+    ):
+        self.attn_implementation = attn_implementation
 
     def prepare_config_and_inputs(self):
-        bert_model_tester = BertModelTester(self)
-        wav2vec2_model_tester = Wav2Vec2ModelTester(self)
+        bert_model_tester = BertModelTester(attn_implementation=self.attn_implementation)
+        wav2vec2_model_tester = Wav2Vec2ModelTester(attn_implementation=self.attn_implementation)
         encoder_config_and_inputs = wav2vec2_model_tester.prepare_config_and_inputs()
         decoder_config_and_inputs = bert_model_tester.prepare_config_and_inputs()
         (
@@ -52,7 +55,9 @@ class Wav2Vec2BertModelTest:
 
         # make sure that cross attention layers are added
         decoder_config.add_cross_attention = True
-        encoder_decoder_config = SpeechEncoderDecoderConfig.from_encoder_decoder_configs(config, decoder_config)
+        encoder_decoder_config = SpeechEncoderDecoderConfig.from_encoder_decoder_configs(
+            config, decoder_config, attn_implementation=self.attn_implementation
+        )
 
         return encoder_decoder_config, input_values, input_mask, decoder_input_ids, decoder_input_mask
 
@@ -86,6 +91,7 @@ TEST_CASES = [
         },
     ],
 ]
+
 
 @pytest.mark.parametrize(
     "name,pt_module,ms_module,init_args,init_kwargs,inputs_args,inputs_kwargs,outputs_map,dtype,mode",

@@ -19,6 +19,15 @@
 
 from typing import Optional, Tuple, Union
 
+from transformers import SpeechEncoderDecoderConfig
+from transformers.configuration_utils import PretrainedConfig
+from transformers.utils import (
+    add_start_docstrings,
+    add_start_docstrings_to_model_forward,
+    logging,
+    replace_return_docstrings,
+)
+
 import mindspore as ms
 import mindspore.mint as mint
 from mindspore.mint.nn import CrossEntropyLoss
@@ -26,12 +35,8 @@ from mindspore.mint.nn import CrossEntropyLoss
 from ...generation import GenerationMixin
 from ...modeling_outputs import BaseModelOutput, Seq2SeqLMOutput
 from ...modeling_utils import PreTrainedModel
-from transformers.utils import add_start_docstrings, add_start_docstrings_to_model_forward, logging, replace_return_docstrings
 from ..auto.configuration_auto import AutoConfig
 from ..auto.modeling_auto import AutoModel, AutoModelForCausalLM
-from transformers import SpeechEncoderDecoderConfig
-from transformers.configuration_utils import PretrainedConfig
-
 
 logger = logging.get_logger(__name__)
 
@@ -106,7 +111,8 @@ SPEECH_ENCODER_DECODER_INPUTS_DOCSTRING = r"""
             `last_hidden_state` (`ms.Tensor` of shape `(batch_size, sequence_length, hidden_size)`) is a tensor
             of hidden-states at the output of the last layer of the encoder. Used in the cross-attention of the
             decoder.
-        past_key_values (`tuple(tuple(ms.Tensor))` of length `config.n_layers` with each tuple having 4 tensors of shape `(batch_size, num_heads, sequence_length - 1, embed_size_per_head)`):
+        past_key_values (`tuple(tuple(ms.Tensor))` of length `config.n_layers` with each tuple having 4 tensors of shape
+            `(batch_size, num_heads, sequence_length - 1, embed_size_per_head)`):
             Contains precomputed key and value hidden states of the attention blocks. Can be used to speed up decoding.
 
             If `past_key_values` are used, the user can optionally input only the last `decoder_input_ids` (those that
@@ -171,6 +177,7 @@ def shift_tokens_right(input_ids: ms.Tensor, pad_token_id: int, decoder_start_to
 
     return shifted_input_ids
 
+
 @add_start_docstrings(SPEECH_ENCODER_DECODER_START_DOCSTRING)
 class SpeechEncoderDecoderModel(PreTrainedModel, GenerationMixin):
     r"""
@@ -186,7 +193,7 @@ class SpeechEncoderDecoderModel(PreTrainedModel, GenerationMixin):
     supports_gradient_checkpointing = True
     _supports_param_buffer_assignment = False
     _supports_flash_attn_2 = True
-    _supports_sdpa = True
+    _supports_sdpa = False
 
     def __init__(
         self,
@@ -282,12 +289,13 @@ class SpeechEncoderDecoderModel(PreTrainedModel, GenerationMixin):
     @classmethod
     def from_pretrained(cls, *args, **kwargs):
         # At the moment fast initialization is not supported for composite models
-        if kwargs.get("_fast_init", False):
-            logger.warning(
-                "Fast initialization is currently not supported for SpeechEncoderDecoderModel. "
-                "Falling back to slow initialization..."
-            )
-        kwargs["_fast_init"] = False
+        # FIXME: currently we do not support "_fast_init"
+        # if kwargs.get("_fast_init", False):
+        #     logger.warning(
+        #         "Fast initialization is currently not supported for SpeechEncoderDecoderModel. "
+        #         "Falling back to slow initialization..."
+        #     )
+        # kwargs["_fast_init"] = False
         return super().from_pretrained(*args, **kwargs)
 
     @classmethod
@@ -347,7 +355,8 @@ class SpeechEncoderDecoderModel(PreTrainedModel, GenerationMixin):
         ```python
         >>> from mindone.transformers import SpeechEncoderDecoderModel
 
-        >>> # initialize a wav2vec2bert from a pretrained Wav2Vec2 and a pretrained BERT model. Note that the cross-attention layers will be randomly initialized
+        >>> # initialize a wav2vec2bert from a pretrained Wav2Vec2 and a pretrained BERT model.
+        >>> # Note that the cross-attention layers will be randomly initialized
         >>> model = SpeechEncoderDecoderModel.from_encoder_decoder_pretrained(
         ...     "facebook/wav2vec2-base-960h", "google-bert/bert-base-uncased"
         ... )
@@ -441,7 +450,6 @@ class SpeechEncoderDecoderModel(PreTrainedModel, GenerationMixin):
         config.tie_word_embeddings = False
         return cls(encoder=encoder, decoder=decoder, config=config)
 
-
     @add_start_docstrings_to_model_forward(SPEECH_ENCODER_DECODER_INPUTS_DOCSTRING)
     @replace_return_docstrings(output_type=Seq2SeqLMOutput, config_class=_CONFIG_FOR_DOC)
     def construct(
@@ -480,16 +488,15 @@ class SpeechEncoderDecoderModel(PreTrainedModel, GenerationMixin):
 
         >>> input_values = processor(ds[0]["audio"]["array"], return_tensors="np").input_values
         >>> # Inference: Translate English speech to German
-        >>> generated = model.generate(ms.tensor(input_values))
+        >>> generated = model.generate(ms.tensor(input_values), use_cache=False) # not support kv cache in wav2vec2
         >>> decoded = processor.batch_decode(generated, skip_special_tokens=True)[0]
         >>> decoded
         'Mr. Quilter ist der Apostel der Mittelschicht und wir freuen uns, sein Evangelium willkommen heißen zu können.'
 
         >>> # Training: Train model on English transcription
         >>> labels = processor(text=ds[0]["text"], return_tensors="np").input_ids
-
         >>> loss = model(ms.tensor(input_values), labels=ms.tensor(labels)).loss
-        >>> loss.backward()
+        11.407796
         ```"""
 
         return_dict = return_dict if return_dict is not None else self.config.use_return_dict
@@ -542,9 +549,7 @@ class SpeechEncoderDecoderModel(PreTrainedModel, GenerationMixin):
             encoder_attention_mask = None
 
         if (labels is not None) and (decoder_input_ids is None and decoder_inputs_embeds is None):
-            decoder_input_ids = shift_tokens_right(
-                labels, self.config.pad_token_id, self.config.decoder_start_token_id
-            )
+            decoder_input_ids = shift_tokens_right(labels, self.config.pad_token_id, self.config.decoder_start_token_id)
 
         # Decode
         decoder_outputs = self.decoder(

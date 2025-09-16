@@ -593,6 +593,7 @@ from .models.smolvlm import (
     SmolVLMPreTrainedModel,
     SmolVLMVisionTransformer,
 )
+from .models.speech_encoder_decoder import SpeechEncoderDecoderModel
 from .models.speecht5 import (
     SpeechT5ForSpeechToSpeech,
     SpeechT5ForSpeechToText,
