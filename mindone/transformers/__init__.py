@@ -277,6 +277,7 @@ from .models.convnextv2 import (
     ConvNextV2Model,
     ConvNextV2PreTrainedModel,
 )
+from .models.dbrx import DbrxForCausalLM, DbrxModel, DbrxPreTrainedModel
 from .models.deberta import (
     DebertaForMaskedLM,
     DebertaForQuestionAnswering,
@@ -297,6 +298,36 @@ from .models.deberta_v2 import (
 from .models.depth_anything import DepthAnythingForDepthEstimation, DepthAnythingPreTrainedModel
 from .models.dinov2 import Dinov2Backbone, Dinov2ForImageClassification, Dinov2Model, Dinov2PreTrainedModel
 from .models.dpt import DPTForDepthEstimation, DPTImageProcessor, DPTModel, DPTPreTrainedModel
+from .models.ernie import (
+    ErnieForCausalLM,
+    ErnieForMaskedLM,
+    ErnieForMultipleChoice,
+    ErnieForNextSentencePrediction,
+    ErnieForPreTraining,
+    ErnieForQuestionAnswering,
+    ErnieForSequenceClassification,
+    ErnieForTokenClassification,
+    ErnieModel,
+    ErniePreTrainedModel,
+)
+from .models.falcon import (
+    FalconForCausalLM,
+    FalconForQuestionAnswering,
+    FalconForSequenceClassification,
+    FalconForTokenClassification,
+    FalconModel,
+    FalconPreTrainedModel,
+)
+from .models.flaubert import (
+    FlaubertForMultipleChoice,
+    FlaubertForQuestionAnswering,
+    FlaubertForQuestionAnsweringSimple,
+    FlaubertForSequenceClassification,
+    FlaubertForTokenClassification,
+    FlaubertModel,
+    FlaubertPreTrainedModel,
+    FlaubertWithLMHeadModel,
+)
 from .models.fuyu import FuyuForCausalLM, FuyuPreTrainedModel
 from .models.gemma import (
     GemmaForCausalLM,
@@ -313,6 +344,7 @@ from .models.gemma2 import (
     Gemma2PreTrainedModel,
 )
 from .models.gemma3 import Gemma3ForCausalLM, Gemma3ForConditionalGeneration, Gemma3PreTrainedModel, Gemma3TextModel
+from .models.git import GitForCausalLM, GitModel, GitPreTrainedModel, GitVisionModel
 from .models.glm import (
     GlmForCausalLM,
     GlmForSequenceClassification,
@@ -335,6 +367,14 @@ from .models.gpt2 import (
     GPT2LMHeadModel,
     GPT2Model,
     GPT2PreTrainedModel,
+)
+from .models.gpt_neo import (
+    GPTNeoForCausalLM,
+    GPTNeoForQuestionAnswering,
+    GPTNeoForSequenceClassification,
+    GPTNeoForTokenClassification,
+    GPTNeoModel,
+    GPTNeoPreTrainedModel,
 )
 from .models.granite import GraniteForCausalLM, GraniteModel, GranitePreTrainedModel
 from .models.granitemoe import GraniteMoeForCausalLM, GraniteMoeModel, GraniteMoePreTrainedModel
@@ -508,6 +548,15 @@ from .models.opt import (
     OPTModel,
     OPTPreTrainedModel,
 )
+from .models.owlv2 import (
+    Owlv2ForObjectDetection,
+    Owlv2ImageProcessor,
+    Owlv2Model,
+    Owlv2PreTrainedModel,
+    Owlv2Processor,
+    Owlv2TextModel,
+    Owlv2VisionModel,
+)
 from .models.owlvit import (
     OwlViTForObjectDetection,
     OwlViTImageProcessor,
@@ -619,6 +668,13 @@ from .models.speecht5 import (
     SpeechT5HifiGan,
     SpeechT5Model,
     SpeechT5PreTrainedModel,
+)
+from .models.splinter import (
+    SplinterForPreTraining,
+    SplinterForQuestionAnswering,
+    SplinterLayer,
+    SplinterModel,
+    SplinterPreTrainedModel,
 )
 from .models.starcoder2 import (
     Starcoder2ForCausalLM,
