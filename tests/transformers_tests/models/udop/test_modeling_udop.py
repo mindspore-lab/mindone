@@ -36,7 +36,7 @@ class UdopModelTester:
 
     def __init__(
         self,
-        batch_size=13,
+        batch_size=1,
         seq_length=7,
         is_training=False,
         use_input_mask=True,

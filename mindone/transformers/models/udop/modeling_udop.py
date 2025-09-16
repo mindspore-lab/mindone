@@ -1432,8 +1432,10 @@ class UdopStack(UdopPreTrainedModel):
             # required mask seq length can be calculated via length of past cache
             mask_seq_length = past_key_values_length + seq_length
             attention_mask = mint.ones(
-                batch_size,
-                mask_seq_length,
+                (
+                    batch_size,
+                    mask_seq_length,
+                )
             )
 
         if self.config.is_decoder:
