@@ -58,6 +58,8 @@ PROCESSOR_MAPPING_NAMES = OrderedDict(
         ("qwen2_5_vl", "Qwen2_5_VLProcessor"),
         ("owlvit", "OwlViTProcessor"),
         ("siglip", "SiglipProcessor"),
+        ("git", "GitProcessor"),
+        ("owlv2", "Owlv2Processor"),
     ]
 )
 
