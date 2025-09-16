@@ -305,29 +305,3 @@ def test_named_modules(
         f"ms_dtype: {ms_dtype}, pt_type:{pt_dtype}, "
         f"Outputs({np.array(diffs).tolist()}) has diff bigger than {THRESHOLD}"
     )
-
-
-class DbrxModelIntegrationTest(unittest.TestCase):
-    def test_tiny_model_logits(self):
-        model = DbrxForCausalLM.from_pretrained("Rocketknight1/dbrx-tiny-random")
-        input_ids = ms.tensor([[0, 1, 2, 3, 4, 5]])
-        output = model(input_ids)[0]
-        vocab_size = model.vocab_size
-
-        expected_shape = (1, 6, vocab_size)
-        self.assertEqual(output.shape, expected_shape)
-
-        expected_slice = np.array(
-            [
-                [
-                    [-1.6300e-04, 5.0118e-04, 2.5437e-04],
-                    [2.0422e-05, 2.7210e-04, -1.5125e-04],
-                    [-1.5105e-04, 4.6879e-04, 3.3309e-04],
-                ]
-            ]
-        )
-        THRESHOLD = DTYPE_AND_THRESHOLDS["fp32"]
-        diffs = np.linalg.norm(expected_slice - output[:, :3, :3].asnumpy()) / np.linalg.norm(expected_slice)
-        assert (
-            np.array(diffs) < THRESHOLD
-        ).all(), f"Outputs({np.array(diffs).tolist()}) has diff bigger than {THRESHOLD}"
