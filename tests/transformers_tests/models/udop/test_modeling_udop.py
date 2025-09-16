@@ -181,6 +181,24 @@ model_tester = UdopModelTester()
 
 UDOP_CASES = [
     [
+        "UdopModel",
+        "transformers.UdopModel",
+        "mindone.transformers.UdopModel",
+        (config,),
+        {},
+        (),
+        {
+            "input_ids": input_ids,
+            "decoder_input_ids": decoder_input_ids,
+            "attention_mask": input_mask,
+            "bbox": bbox,
+            "pixel_values": pixel_values,
+        },
+        {
+            "last_hidden_state": 0,
+        },
+    ],
+    [
         "UdopEncoderModel",
         "transformers.UdopEncoderModel",
         "mindone.transformers.UdopEncoderModel",
@@ -195,24 +213,6 @@ UDOP_CASES = [
         },
         {
             "last_hidden_state": 0,
-        },
-    ],
-    [
-        "UdopForConditionalGeneration",
-        "transformers.UdopForConditionalGeneration",
-        "mindone.transformers.UdopForConditionalGeneration",
-        (config,),
-        {},
-        (),
-        {
-            "input_ids": input_ids,
-            "decoder_input_ids": decoder_input_ids,
-            "attention_mask": input_mask,
-            "bbox": bbox,
-            "pixel_values": pixel_values,
-        },
-        {
-            "logits": 0,
         },
     ],
 ]
