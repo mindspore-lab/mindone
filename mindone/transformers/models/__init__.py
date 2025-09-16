@@ -84,6 +84,7 @@ from . import (
     roberta,
     segformer,
     siglip,
+    siglip2,
     smolvlm,
     speecht5,
     starcoder2,
