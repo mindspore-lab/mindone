@@ -189,7 +189,6 @@ UDOP_CASES = [
         (),
         {
             "input_ids": input_ids,
-            "decoder_input_ids": decoder_input_ids,
             "attention_mask": input_mask,
             "bbox": bbox,
             "pixel_values": pixel_values,
