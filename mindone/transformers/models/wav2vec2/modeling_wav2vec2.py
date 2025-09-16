@@ -997,7 +997,7 @@ class Wav2Vec2Adapter(nn.Cell):
         else:
             self.proj = self.proj_layer_norm = None
 
-        self.layers = nn.CellList(Wav2Vec2AdapterLayer(config) for _ in range(config.num_adapter_layers))
+        self.layers = nn.CellList([Wav2Vec2AdapterLayer(config) for _ in range(config.num_adapter_layers)])
         self.layerdrop = config.layerdrop
 
     def construct(self, hidden_states):
