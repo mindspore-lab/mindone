@@ -19,28 +19,19 @@ import collections.abc
 from dataclasses import dataclass
 from typing import Dict, List, Optional, Tuple, Union
 
-import mindspore as ms
-from mindspore import mint, nn
-from mint.nn import functional as F
+import mindspore
+from mindspore import mint
+from mindspore.common.initializer import initializer, TruncatedNormal, Normal, Zero, One
+
 
 from ...activations import ACT2FN
 from ...modeling_utils import PreTrainedModel
-from transformers.utils import ModelOutput, logging
-from .configuration_seggpt import SegGptConfig
+from ...utils import logging
+from transformers.utils import ModelOutput
+from transformers import SegGptConfig
 
 
 logger = logging.get_logger(__name__)
-
-
-# Helper functions for parameter initialization
-def constant_(tensor: ms.Parameter, val: float) -> None:
-    from mindspore.common.initializer import Constant, initializer
-    tensor.set_data(initializer(Constant(val), tensor.shape, tensor.dtype))
-
-
-def normal_(tensor: ms.Parameter, mean: float = 0.0, std: float = 1.0) -> None:
-    from mindspore.common.initializer import Normal, initializer
-    tensor.set_data(initializer(Normal(std, mean), tensor.shape, tensor.dtype))
 
 # Base docstring
 _CHECKPOINT_FOR_DOC = "BAAI/seggpt-vit-large"
@@ -66,10 +57,10 @@ class SegGptEncoderOutput(ModelOutput):
             Additionaly, each feature passes through a LayerNorm.
     """
 
-    last_hidden_state: ms.Tensor
-    hidden_states: Optional[Tuple[ms.Tensor]] = None
-    attentions: Optional[Tuple[ms.Tensor]] = None
-    intermediate_hidden_states: Optional[Tuple[ms.Tensor]] = None
+    last_hidden_state: mindspore.Tensor
+    hidden_states: Optional[Tuple[mindspore.Tensor]] = None
+    attentions: Optional[Tuple[mindspore.Tensor]] = None
+    intermediate_hidden_states: Optional[Tuple[mindspore.Tensor]] = None
 
 
 @dataclass
@@ -90,14 +81,14 @@ class SegGptImageSegmentationOutput(ModelOutput):
             `(batch_size, num_heads, seq_len, seq_len)`.
     """
 
-    loss: Optional[ms.Tensor] = None
-    pred_masks: Optional[ms.Tensor] = None
-    hidden_states: Optional[Tuple[ms.Tensor]] = None
-    attentions: Optional[Tuple[ms.Tensor]] = None
+    loss: Optional[mindspore.Tensor] = None
+    pred_masks: Optional[mindspore.Tensor] = None
+    hidden_states: Optional[Tuple[mindspore.Tensor]] = None
+    attentions: Optional[Tuple[mindspore.Tensor]] = None
 
 
 # Copied from transformers.models.sam.modeling_sam.SamPatchEmbeddings with Sam->SegGpt
-class SegGptPatchEmbeddings(ms.nn.Cell):
+class SegGptPatchEmbeddings(mindspore.nn.Cell):
     """
     This class turns `pixel_values` of shape `(batch_size, num_channels, height, width)` into the initial
     `hidden_states` (patch embeddings) of shape `(batch_size, seq_length, hidden_size)` to be consumed by a
@@ -132,7 +123,7 @@ class SegGptPatchEmbeddings(ms.nn.Cell):
         return embeddings
 
 
-class SegGptEmbeddings(ms.nn.Cell):
+class SegGptEmbeddings(mindspore.nn.Cell):
     """
     Construct the embeddings from patch, position embeddings for input and prompt.
     """
@@ -140,20 +131,20 @@ class SegGptEmbeddings(ms.nn.Cell):
     def __init__(self, config: SegGptConfig) -> None:
         super().__init__()
 
-        self.mask_token = ms.Parameter(mint.zeros(1, 1, 1, config.hidden_size))
-        self.segment_token_input = ms.Parameter(mint.zeros(1, 1, 1, config.hidden_size))
-        self.segment_token_prompt = ms.Parameter(mint.zeros(1, 1, 1, config.hidden_size))
+        self.mask_token = mindspore.Parameter(mint.zeros(1, 1, 1, config.hidden_size))
+        self.segment_token_input = mindspore.Parameter(mint.zeros(1, 1, 1, config.hidden_size))
+        self.segment_token_prompt = mindspore.Parameter(mint.zeros(1, 1, 1, config.hidden_size))
         # token for seg types
-        self.type_token_semantic = ms.Parameter(mint.zeros(1, 1, 1, config.hidden_size))
-        self.type_token_instance = ms.Parameter(mint.zeros(1, 1, 1, config.hidden_size))
+        self.type_token_semantic = mindspore.Parameter(mint.zeros(1, 1, 1, config.hidden_size))
+        self.type_token_instance = mindspore.Parameter(mint.zeros(1, 1, 1, config.hidden_size))
 
         self.patch_embeddings = SegGptPatchEmbeddings(config)
 
         num_positions = (config.pretrain_image_size // config.patch_size) ** 2 + 1
-        self.position_embeddings = ms.Parameter(mint.randn(1, num_positions, config.hidden_size))
+        self.position_embeddings = mindspore.Parameter(mint.randn(1, num_positions, config.hidden_size))
         self.dropout = mint.nn.Dropout(config.hidden_dropout_prob)
 
-    def interpolate_pos_encoding(self, height: int, width: int) -> ms.Tensor:
+    def interpolate_pos_encoding(self, height: int, width: int) -> mindspore.Tensor:
         patch_pos_embed = self.position_embeddings[:, 1:]
         num_patches = patch_pos_embed.shape[1]
         pretrain_patch_size = int(num_patches**0.5)
@@ -161,7 +152,7 @@ class SegGptEmbeddings(ms.nn.Cell):
         # always interpolate when tracing to ensure the exported model works for dynamic input shapes
         # if torch.jit.is_tracing() or pretrain_patch_size != height or pretrain_patch_size != width:
         if pretrain_patch_size != height or pretrain_patch_size != width:
-            patch_pos_embed = mindspore.mint.nn.F.functional.interpolate(
+            patch_pos_embed = mindspore.mint.nn.functional.interpolate(
                 patch_pos_embed.reshape(1, pretrain_patch_size, pretrain_patch_size, -1).permute(0, 3, 1, 2),
                 size=(height, width),
                 mode="bicubic",
@@ -174,11 +165,11 @@ class SegGptEmbeddings(ms.nn.Cell):
 
     def construct(
         self,
-        pixel_values: ms.Tensor,
-        prompt_pixel_values: ms.Tensor,
-        bool_masked_pos: Optional[ms.Tensor] = None,
+        pixel_values: mindspore.Tensor,
+        prompt_pixel_values: mindspore.Tensor,
+        bool_masked_pos: Optional[mindspore.Tensor] = None,
         embedding_type: Optional[str] = None,
-    ) -> ms.Tensor:
+    ) -> mindspore.Tensor:
         input_embeddings = self.patch_embeddings(pixel_values)
         prompt_embeddings = self.patch_embeddings(prompt_pixel_values)
 
@@ -218,7 +209,7 @@ class SegGptEmbeddings(ms.nn.Cell):
         return embeddings
 
 
-class SegGptAttention(ms.nn.Cell):
+class SegGptAttention(mindspore.nn.Cell):
     """Multi-head Attention block with relative position embeddings."""
 
     def __init__(self, config):
@@ -242,10 +233,10 @@ class SegGptAttention(ms.nn.Cell):
                 raise ValueError("Input size must be provided if using relative positional encoding.")
 
             # initialize relative positional embeddings
-            self.rel_pos_h = ms.Parameter(mint.zeros(2 * input_size[0] - 1, head_dim))
-            self.rel_pos_w = ms.Parameter(mint.zeros(2 * input_size[1] - 1, head_dim))
+            self.rel_pos_h = mindspore.Parameter(mint.zeros(2 * input_size[0] - 1, head_dim))
+            self.rel_pos_w = mindspore.Parameter(mint.zeros(2 * input_size[1] - 1, head_dim))
 
-    def get_rel_pos(self, q_size: int, k_size: int, rel_pos: ms.Tensor) -> ms.Tensor:
+    def get_rel_pos(self, q_size: int, k_size: int, rel_pos: mindspore.Tensor) -> mindspore.Tensor:
         """
         Get relative positional embeddings according to the relative positions of
             query and key sizes.
@@ -263,7 +254,7 @@ class SegGptAttention(ms.nn.Cell):
         """
         max_rel_dist = int(2 * max(q_size, k_size) - 1)
         # Interpolate rel pos.
-        rel_pos_resized = mindspore.mint.nn.F.functional.interpolate(
+        rel_pos_resized = mindspore.mint.nn.functional.interpolate(
             rel_pos.reshape(1, rel_pos.shape[0], -1).permute(0, 2, 1),
             size=max_rel_dist,
             mode="linear",
@@ -275,17 +266,17 @@ class SegGptAttention(ms.nn.Cell):
         k_coords = mint.arange(k_size)[None, :] * max(q_size / k_size, 1.0)
         relative_coords = (q_coords - k_coords) + (k_size - 1) * max(q_size / k_size, 1.0)
 
-        return rel_pos_resized[relative_coords.to(ms.int64)]
+        return rel_pos_resized[relative_coords.to(mindspore.int64)]
 
     def add_decomposed_rel_pos(
         self,
-        attn: ms.Tensor,
-        query: ms.Tensor,
-        rel_pos_h: ms.Tensor,
-        rel_pos_w: ms.Tensor,
+        attn: mindspore.Tensor,
+        query: mindspore.Tensor,
+        rel_pos_h: mindspore.Tensor,
+        rel_pos_w: mindspore.Tensor,
         q_size: Tuple[int, int],
         k_size: Tuple[int, int],
-    ) -> ms.Tensor:
+    ) -> mindspore.Tensor:
         """
         Calculate decomposed Relative Positional Embeddings from :paper:`mvitv2`.
         https://github.com/facebookresearch/mvit/blob/19786631e330df9f3622e5402b4a419a263a2c80/mvit/models/attention.py
@@ -322,7 +313,7 @@ class SegGptAttention(ms.nn.Cell):
         attn = attn.reshape(batch_size, query_height * query_width, key_height * key_width)
         return attn
 
-    def construct(self, hidden_states: ms.Tensor, output_attentions=False) -> ms.Tensor:
+    def construct(self, hidden_states: mindspore.Tensor, output_attentions=False) -> mindspore.Tensor:
         batch_size, height, width, _ = hidden_states.shape
         # qkv with shape (3, batch_size, nHead, height * width, channel)
         qkv = (
@@ -341,7 +332,7 @@ class SegGptAttention(ms.nn.Cell):
                 attn_weights, query, self.rel_pos_h, self.rel_pos_w, (height, width), (height, width)
             )
 
-        attn_weights = mint.nn.functional.softmax(attn_weights, dtype=ms.float32, dim=-1).to(query.dtype)
+        attn_weights = mint.nn.functional.softmax(attn_weights, dtype=mindspore.float32, dim=-1).to(query.dtype)
 
         if output_attentions:
             # this operation is a bit awkward, but it's required to
@@ -362,14 +353,14 @@ class SegGptAttention(ms.nn.Cell):
 
 
 # Copied from transformers.models.sam.modeling_sam.SamMLPBlock with SamMLPBlock->SegGptMlp
-class SegGptMlp(ms.nn.Cell):
+class SegGptMlp(mindspore.nn.Cell):
     def __init__(self, config):
         super().__init__()
         self.lin1 = mint.nn.Linear(config.hidden_size, config.mlp_dim)
         self.lin2 = mint.nn.Linear(config.mlp_dim, config.hidden_size)
         self.act = ACT2FN[config.hidden_act]
 
-    def construct(self, hidden_states: ms.Tensor) -> ms.Tensor:
+    def construct(self, hidden_states: mindspore.Tensor) -> mindspore.Tensor:
         hidden_states = self.lin1(hidden_states)
         hidden_states = self.act(hidden_states)
         hidden_states = self.lin2(hidden_states)
@@ -377,7 +368,7 @@ class SegGptMlp(ms.nn.Cell):
 
 
 # Copied from transformers.models.beit.modeling_beit.drop_path
-def drop_path(input: ms.Tensor, drop_prob: float = 0.0, training: bool = False) -> ms.Tensor:
+def drop_path(input: mindspore.Tensor, drop_prob: float = 0.0, training: bool = False) -> mindspore.Tensor:
     """
     Drop paths (Stochastic Depth) per sample (when applied in main path of residual blocks).
 
@@ -398,21 +389,21 @@ def drop_path(input: ms.Tensor, drop_prob: float = 0.0, training: bool = False) 
 
 
 # Copied from transformers.models.beit.modeling_beit.BeitDropPath with Beit->SegGpt
-class SegGptDropPath(ms.nn.Cell):
+class SegGptDropPath(mindspore.nn.Cell):
     """Drop paths (Stochastic Depth) per sample (when applied in main path of residual blocks)."""
 
     def __init__(self, drop_prob: Optional[float] = None) -> None:
         super().__init__()
         self.drop_prob = drop_prob
 
-    def construct(self, hidden_states: ms.Tensor) -> ms.Tensor:
+    def construct(self, hidden_states: mindspore.Tensor) -> mindspore.Tensor:
         return drop_path(hidden_states, self.drop_prob, self.training)
 
     def extra_repr(self) -> str:
         return "p={}".format(self.drop_prob)
 
 
-class SegGptLayer(ms.nn.Cell):
+class SegGptLayer(mindspore.nn.Cell):
     def __init__(self, config: SegGptConfig, drop_path_rate: float) -> None:
         super().__init__()
         self.attention = SegGptAttention(config)
@@ -423,11 +414,11 @@ class SegGptLayer(ms.nn.Cell):
 
     def construct(
         self,
-        hidden_states: ms.Tensor,
+        hidden_states: mindspore.Tensor,
         ensemble_cond: int,
         feature_ensemble: bool = False,
         output_attentions: bool = False,
-    ) -> Union[Tuple[ms.Tensor, ms.Tensor], Tuple[ms.Tensor]]:
+    ) -> Union[Tuple[mindspore.Tensor, mindspore.Tensor], Tuple[mindspore.Tensor]]:
         self_attention_outputs = self.attention(
             self.layernorm_before(hidden_states),  # in SegGpt, layernorm is applied before self-attention
             output_attentions=output_attentions,
@@ -461,18 +452,18 @@ class SegGptLayer(ms.nn.Cell):
         return outputs
 
 
-class SegGptEncoder(ms.nn.Cell):
+class SegGptEncoder(mindspore.nn.Cell):
     def __init__(self, config: SegGptConfig) -> None:
         super().__init__()
         self.config = config
         dpr = [x.item() for x in mint.linspace(0, config.drop_path_rate, config.num_hidden_layers)]
-        self.layers = ms.nn.CellList([SegGptLayer(config, dpr[i]) for i in range(config.num_hidden_layers)])
+        self.layers = mindspore.nn.CellList([SegGptLayer(config, dpr[i]) for i in range(config.num_hidden_layers)])
         self.layernorm = mint.nn.LayerNorm(config.hidden_size, eps=config.layer_norm_eps)
         self.gradient_checkpointing = False
 
     def construct(
         self,
-        hidden_states: ms.Tensor,
+        hidden_states: mindspore.Tensor,
         feature_ensemble: bool = False,
         output_attentions: bool = False,
         output_hidden_states: bool = False,
@@ -525,7 +516,7 @@ class SegGptEncoder(ms.nn.Cell):
 
 
 # Copied from transformers.models.convnext.modeling_convnext.ConvNextLayerNorm with ConvNext->SegGpt
-class SegGptLayerNorm(ms.nn.Cell):
+class SegGptLayerNorm(mindspore.nn.Cell):
     r"""LayerNorm that supports two data formats: channels_last (default) or channels_first.
     The ordering of the dimensions in the inputs. channels_last corresponds to inputs with shape (batch_size, height,
     width, channels) while channels_first corresponds to inputs with shape (batch_size, channels, height, width).
@@ -533,17 +524,17 @@ class SegGptLayerNorm(ms.nn.Cell):
 
     def __init__(self, normalized_shape, eps=1e-6, data_format="channels_last"):
         super().__init__()
-        self.weight = ms.Parameter(mint.ones(normalized_shape))
-        self.bias = ms.Parameter(mint.zeros(normalized_shape))
+        self.weight = mindspore.Parameter(mint.ones(normalized_shape))
+        self.bias = mindspore.Parameter(mint.zeros(normalized_shape))
         self.eps = eps
         self.data_format = data_format
         if self.data_format not in ["channels_last", "channels_first"]:
             raise NotImplementedError(f"Unsupported data format: {self.data_format}")
         self.normalized_shape = (normalized_shape,)
 
-    def construct(self, x: ms.Tensor) -> ms.Tensor:
+    def construct(self, x: mindspore.Tensor) -> mindspore.Tensor:
         if self.data_format == "channels_last":
-            x = mindspore.mint.nn.F.functional.layer_norm(x, self.normalized_shape, self.weight, self.bias, self.eps)
+            x = mindspore.mint.nn.functional.layer_norm(x, self.normalized_shape, self.weight, self.bias, self.eps)
         elif self.data_format == "channels_first":
             input_dtype = x.dtype
             x = x.float()
@@ -555,7 +546,7 @@ class SegGptLayerNorm(ms.nn.Cell):
         return x
 
 
-class SegGptDecoderHead(ms.nn.Cell):
+class SegGptDecoderHead(mindspore.nn.Cell):
     def __init__(self, config):
         super().__init__()
         self.conv = mint.nn.Conv2d(
@@ -570,7 +561,7 @@ class SegGptDecoderHead(ms.nn.Cell):
         self.act_fct = ACT2FN[config.hidden_act]
         self.head = mint.nn.Conv2d(config.decoder_hidden_size, 3, kernel_size=1, bias=True)  # decoder to patch
 
-    def construct(self, hidden_states: ms.Tensor):
+    def construct(self, hidden_states: mindspore.Tensor):
         hidden_states = self.conv(hidden_states)
         hidden_states = self.layernorm(hidden_states)
         hidden_states = self.act_fct(hidden_states)
@@ -579,7 +570,7 @@ class SegGptDecoderHead(ms.nn.Cell):
         return hidden_states
 
 
-class SegGptDecoder(ms.nn.Cell):
+class SegGptDecoder(mindspore.nn.Cell):
     def __init__(self, config):
         super().__init__()
         self.decoder_embed = mint.nn.Linear(
@@ -592,7 +583,7 @@ class SegGptDecoder(ms.nn.Cell):
         self.decoder_hidden_size = config.decoder_hidden_size
         self.config = config
 
-    def _reshape_hidden_states(self, hidden_states: ms.Tensor) -> ms.Tensor:
+    def _reshape_hidden_states(self, hidden_states: mindspore.Tensor) -> mindspore.Tensor:
         batch_size, patch_height, patch_width, _ = hidden_states.shape
         hidden_states = hidden_states.reshape(
             batch_size, patch_height, patch_width, self.patch_size, self.patch_size, self.decoder_hidden_size
@@ -604,7 +595,7 @@ class SegGptDecoder(ms.nn.Cell):
 
         return hidden_states
 
-    def construct(self, hidden_states: ms.Tensor):
+    def construct(self, hidden_states: mindspore.Tensor):
         hidden_states = self.decoder_embed(hidden_states)
         hidden_states = self._reshape_hidden_states(hidden_states)
         hidden_states = self.decoder_pred(hidden_states)
@@ -624,36 +615,43 @@ class SegGptPreTrainedModel(PreTrainedModel):
     supports_gradient_checkpointing = True
     _no_split_modules = ["SegGptEmbeddings", "SegGptLayer"]
 
-    def _init_weights(self, module: Union[mint.nn.Linear, mint.nn.Conv2d, mint.nn.LayerNorm]) -> None:
+    def _init_weights(self, module: Union[mint.Linear, mint.Conv2d, mint.LayerNorm]) -> None:
         """Initialize the weights"""
         std = self.config.initializer_range
-        if isinstance(module, (mint.nn.Linear, mint.nn.Conv2d)):
+        if isinstance(module, (mint.nnnn.Linear, mint.nnnn.Conv2d)):
             # Upcast the input in `fp32` and cast it back to desired `dtype` to avoid
             # `trunc_normal_cpu` not implemented in `half` issues
-            weight_data = nn.init.trunc_normal_(module.weight.to(ms.float32), mean=0.0, std=std)
-            module.weight.set_data(weight_data.to(module.weight.dtype))
-            if module.bias is not None:
-                module.bias.set_data(mint.zeros_like(module.bias))
-        elif isinstance(module, mint.nn.LayerNorm):
-            module.bias.set_data(mint.zeros_like(module.bias))
-            module.weight.set_data(mint.ones_like(module.weight))
-        elif isinstance(module, SegGptAttention):
-            rel_pos_h_data = nn.init.trunc_normal_(module.rel_pos_h.to(ms.float32), mean=0.0, std=std)
-            module.rel_pos_h.set_data(rel_pos_h_data.to(module.rel_pos_h.dtype))
+            init_data = initializer(TruncatedNormal(sigma=std), module.weight.shape, mindspore.float32)
+            module.weight.set_data(init_data.astype(module.weight.dtype))
 
-            rel_pos_w_data = nn.init.trunc_normal_(module.rel_pos_w.to(ms.float32), mean=0.0, std=std)
-            module.rel_pos_w.set_data(rel_pos_w_data.to(module.rel_pos_w.dtype))
+        if module.bias is not None:
+            module.bias.set_data(initializer(Zero(), module.bias.shape, module.bias.dtype))
+        elif isinstance(module, mint.LayerNorm):
+            module.beta.set_data(initializer(Zero(), module.beta.shape, module.beta.dtype))
+            module.gamma.set_data(initializer(One(), module.gamma.shape, module.gamma.dtype))
+        elif isinstance(module, SegGptAttention):
+            init_data_h = initializer(TruncatedNormal(sigma=std), module.rel_pos_h.shape, mindspore.float32)
+            module.rel_pos_h.set_data(init_data_h.astype(module.rel_pos_h.dtype))
+
+            # rel_pos_w initialization
+            init_data_w = initializer(TruncatedNormal(sigma=std), module.rel_pos_w.shape, mindspore.float32)
+            module.rel_pos_w.set_data(init_data_w.astype(module.rel_pos_w.dtype))
 
         elif isinstance(module, SegGptEmbeddings):
-            pos_embed_data = nn.init.trunc_normal_(module.position_embeddings.to(ms.float32), mean=0.0, std=std)
-            module.position_embeddings.set_data(pos_embed_data.to(module.position_embeddings.dtype))
+            # position_embeddings initialization
+            init_data_pe = initializer(TruncatedNormal(sigma=std), module.position_embeddings.shape, mindspore.float32)
+            module.position_embeddings.set_data(init_data_pe.astype(module.position_embeddings.dtype))
 
-            normal_(module.mask_token, std=std)
-            normal_(module.segment_token_input, std=std)
-            normal_(module.segment_token_prompt, std=std)
-            normal_(module.type_token_semantic, std=std)
-            normal_(module.type_token_instance, std=std)
-
+            # Initialize other token parameters with a Normal distribution
+            module.mask_token.set_data(initializer(Normal(sigma=std), module.mask_token.shape, module.mask_token.dtype))
+            module.segment_token_input.set_data(
+                initializer(Normal(sigma=std), module.segment_token_input.shape, module.segment_token_input.dtype))
+            module.segment_token_prompt.set_data(
+                initializer(Normal(sigma=std), module.segment_token_prompt.shape, module.segment_token_prompt.dtype))
+            module.type_token_semantic.set_data(
+                initializer(Normal(sigma=std), module.type_token_semantic.shape, module.type_token_semantic.dtype))
+            module.type_token_instance.set_data(
+                initializer(Normal(sigma=std), module.type_token_instance.shape, module.type_token_instance.dtype))
 
 class SegGptModel(SegGptPreTrainedModel):
     def __init__(self, config: SegGptConfig):
@@ -679,13 +677,13 @@ class SegGptModel(SegGptPreTrainedModel):
 
     def construct(
         self,
-        pixel_values: ms.Tensor,
-        prompt_pixel_values: ms.Tensor,
-        prompt_masks: ms.Tensor,
-        bool_masked_pos: Optional[ms.Tensor] = None,
+        pixel_values: mindspore.Tensor,
+        prompt_pixel_values: mindspore.Tensor,
+        prompt_masks: mindspore.Tensor,
+        bool_masked_pos: Optional[mindspore.Tensor] = None,
         feature_ensemble: Optional[bool] = None,
         embedding_type: Optional[str] = None,
-        labels: Optional[ms.Tensor] = None,
+        labels: Optional[mindspore.Tensor] = None,
         output_attentions: Optional[bool] = None,
         output_hidden_states: Optional[bool] = None,
         return_dict: Optional[bool] = None,
@@ -752,9 +750,9 @@ class SegGptModel(SegGptPreTrainedModel):
         # and reconstructed together (In-Context Painting).
         if bool_masked_pos is None:
             num_patches = self.embeddings.patch_embeddings.num_patches
-            bool_masked_pos_zeros = mint.zeros(num_patches // 2, dtype=ms.bool_, )
+            bool_masked_pos_zeros = mint.zeros(num_patches // 2, dtype=mindspore.bool_, )
             bool_masked_pos_ones = mint.ones(
-                num_patches - num_patches // 2, dtype=ms.bool_, )
+                num_patches - num_patches // 2, dtype=mindspore.bool_, )
             bool_masked_pos = mint.cat([bool_masked_pos_zeros, bool_masked_pos_ones])
             bool_masked_pos = bool_masked_pos.unsqueeze(0)
 
@@ -773,7 +771,7 @@ class SegGptModel(SegGptPreTrainedModel):
         return encoder_outputs
 
 
-def patchify(tensor: ms.Tensor, patch_size: int) -> ms.Tensor:
+def patchify(tensor: mindspore.Tensor, patch_size: int) -> mindspore.Tensor:
     batch_size, num_channels, height, width = tensor.shape
     patch_height = height // patch_size
     patch_width = width // patch_size
@@ -785,7 +783,7 @@ def patchify(tensor: ms.Tensor, patch_size: int) -> ms.Tensor:
     return tensor
 
 
-def unpatchify(tensor: ms.Tensor, patch_height: int, patch_width: int) -> ms.Tensor:
+def unpatchify(tensor: mindspore.Tensor, patch_height: int, patch_width: int) -> mindspore.Tensor:
     batch_size = tensor.shape[0]
     patch_size = int((tensor.shape[-1] / 3) ** 0.5)
     if patch_height * patch_width != tensor.shape[1]:
@@ -800,7 +798,7 @@ def unpatchify(tensor: ms.Tensor, patch_height: int, patch_width: int) -> ms.Ten
     return tensor
 
 
-class SegGptLoss(ms.nn.Cell):
+class SegGptLoss(mindspore.nn.Cell):
     def __init__(self, config):
         super().__init__()
         self.beta = config.beta
@@ -808,10 +806,10 @@ class SegGptLoss(ms.nn.Cell):
 
     def construct(
         self,
-        prompt_masks: ms.Tensor,
-        pred_masks: ms.Tensor,
-        labels: ms.Tensor,
-        bool_masked_pos: ms.Tensor,
+        prompt_masks: mindspore.Tensor,
+        pred_masks: mindspore.Tensor,
+        labels: mindspore.Tensor,
+        bool_masked_pos: mindspore.Tensor,
     ):
         """Computes the L1 loss between the predicted masks and the ground truth masks.
 
@@ -836,7 +834,7 @@ class SegGptLoss(ms.nn.Cell):
         mask = bool_masked_pos[:, :, None].broadcast_to((bool_masked_pos.shape[0], bool_masked_pos.shape[1], self.patch_size**2 * 3))
         mask = unpatchify(mask, ground_truth.shape[2] // self.patch_size, ground_truth.shape[3] // self.patch_size)
 
-        loss = mindspore.mint.nn.F.functional.smooth_l1_loss(pred_masks, ground_truth, reduction="none", beta=self.beta)
+        loss = mindspore.mint.nn.functional.smooth_l1_loss(pred_masks, ground_truth, reduction="none", beta=self.beta)
         loss = (loss * mask).sum() / mask.sum()  # mean loss on removed patches
 
         return loss
@@ -855,13 +853,13 @@ class SegGptForImageSegmentation(SegGptPreTrainedModel):
 
     def construct(
         self,
-        pixel_values: ms.Tensor,
-        prompt_pixel_values: ms.Tensor,
-        prompt_masks: ms.Tensor,
-        bool_masked_pos: Optional[ms.Tensor] = None,
+        pixel_values: mindspore.Tensor,
+        prompt_pixel_values: mindspore.Tensor,
+        prompt_masks: mindspore.Tensor,
+        bool_masked_pos: Optional[mindspore.Tensor] = None,
         feature_ensemble: Optional[bool] = None,
         embedding_type: Optional[str] = None,
-        labels: Optional[ms.Tensor] = None,
+        labels: Optional[mindspore.Tensor] = None,
         output_attentions: Optional[bool] = None,
         output_hidden_states: Optional[bool] = None,
         return_dict: Optional[bool] = None,
@@ -906,9 +904,9 @@ class SegGptForImageSegmentation(SegGptPreTrainedModel):
 
         if bool_masked_pos is None:
             num_patches = self.model.embeddings.patch_embeddings.num_patches
-            bool_masked_pos_zeros = mint.zeros(num_patches // 2, dtype=ms.bool_, )
+            bool_masked_pos_zeros = mint.zeros(num_patches // 2, dtype=mindspore.bool_, )
             bool_masked_pos_ones = mint.ones(
-                num_patches - num_patches // 2, dtype=ms.bool_, )
+                num_patches - num_patches // 2, dtype=mindspore.bool_, )
             bool_masked_pos = mint.cat([bool_masked_pos_zeros, bool_masked_pos_ones])
             bool_masked_pos = bool_masked_pos.unsqueeze(0)
 
