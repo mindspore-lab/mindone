@@ -36,6 +36,7 @@ CONFIG_MAPPING_NAMES = OrderedDict(
     [
         # Add configs here
         ("albert", "AlbertConfig"),
+        ("align", "AlignConfig"),
         ("aria", "AriaConfig"),
         ("aria_text", "AriaTextConfig"),
         ("bamba", "BambaConfig"),
@@ -71,6 +72,7 @@ CONFIG_MAPPING_NAMES = OrderedDict(
         ("helium", "HeliumConfig"),
         ("hiera", "HieraConfig"),
         ("hubert", "HubertConfig"),
+        ("ibert", "IBertConfig"),
         ("idefics", "IdeficsConfig"),
         ("idefics2", "Idefics2Config"),
         ("idefics3", "Idefics3Config"),
@@ -142,6 +144,7 @@ MODEL_NAMES_MAPPING = OrderedDict(
     [
         # Add full (and cased) model names here
         ("albert", "ALBERT"),
+        ("align", "ALIGN"),
         ("aria", "Aria"),
         ("aria_text", "AriaText"),
         ("m2m_100", "M2M100"),
@@ -186,6 +189,7 @@ MODEL_NAMES_MAPPING = OrderedDict(
         ("helium", "Helium"),
         ("hiera", "Hiera"),
         ("hubert", "Hubert"),
+        ("ibert", "I-BERT"),
         ("idefics", "IDEFICS"),
         ("idefics2", "Idefics2"),
         ("idefics3", "Idefics3"),

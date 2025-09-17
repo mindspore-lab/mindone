@@ -57,6 +57,61 @@ logger = logging.get_logger(__name__)
 _CONFIG_FOR_DOC = "Qwen2_5_VLConfig"
 
 
+def _flash_attention_forward(
+    query_states: Tensor,
+    key_states: Tensor,
+    value_states: Tensor,
+    attention_mask: Tensor,
+    query_length: int,
+    is_causal: bool,
+    dropout: float = 0.0,
+    position_ids: Optional[Tensor] = None,
+    softmax_scale: Optional[float] = None,
+    sliding_window: Optional[int] = None,
+    use_top_left_mask: bool = False,
+    softcap: Optional[float] = None,
+    deterministic: bool = None,
+    cu_seq_lens_q: Optional[Tensor] = None,
+    cu_seq_lens_k: Optional[Tensor] = None,
+    max_length_q: Optional[int] = None,
+    max_length_k: Optional[int] = None,
+    target_dtype: Optional[ms.Type] = None,
+    **kwargs,
+):
+    bsz, _, num_heads, _ = query_states.shape
+    if is_causal and query_length > 1:
+        causal_mask = mint.triu(mint.ones((bsz, 1, query_length, key_states.shape[1]), dtype=ms.bool_), diagonal=1)
+    else:
+        causal_mask = None
+
+    if attention_mask is not None:
+        attention_mask = ~attention_mask[:, None, None, :].to(ms.bool_)
+        if causal_mask is not None:
+            attention_mask = attention_mask | causal_mask
+        else:
+            attention_mask = mint.tile(attention_mask, (1, 1, query_length, 1))
+    else:
+        attention_mask = causal_mask
+
+    if softmax_scale is None:
+        scalar_value = 1 / math.sqrt(query_states.shape[-1])
+    else:
+        scalar_value = softmax_scale
+
+    attn_output = ops.flash_attention_score(
+        query_states,
+        key_states,
+        value_states,
+        num_heads,
+        attn_mask=attention_mask,
+        keep_prob=1 - dropout,
+        scalar_value=scalar_value,
+        input_layout="BSND",
+    )
+
+    return attn_output
+
+
 def rotate_half_flashatt(x, interleaved=False):
     if not interleaved:
         x1, x2 = x.chunk(2, dim=-1)
@@ -659,7 +714,7 @@ class Qwen2_5_VLAttention(nn.Cell):
         output_attentions: bool = False,
         use_cache: bool = False,
         cache_position: Optional[Tensor] = None,
-        position_embeddings: Optional[Tuple[Tensor, Tensor]] = None,  # necessary, but kept here for BC
+        position_embeddings: Optional[Tensor] = None,  # necessary, but kept here for BC
     ) -> Tuple[Tensor, Optional[Tensor], Optional[Tuple[Tensor]]]:
         bsz, q_len, _ = hidden_states.shape
 
@@ -671,7 +726,7 @@ class Qwen2_5_VLAttention(nn.Cell):
         key_states = key_states.view(bsz, q_len, -1, self.head_dim).transpose(1, 2)
         value_states = value_states.view(bsz, q_len, -1, self.head_dim).transpose(1, 2)
 
-        cos, sin = position_embeddings
+        cos, sin = mint.unbind(position_embeddings)
         query_states, key_states = apply_multimodal_rotary_pos_emb(
             query_states, key_states, cos, sin, self.rope_scaling["mrope_section"]
         )
@@ -748,7 +803,7 @@ class Qwen2_5_VLFlashAttention2(Qwen2_5_VLAttention):
         value_states = value_states.view(bsz, q_len, -1, self.head_dim).transpose(1, 2)
 
         # Because the input can be padded, the absolute sequence length depends on the max position id.
-        cos, sin = position_embeddings
+        cos, sin = mint.unbind(position_embeddings)
         query_states, key_states = apply_multimodal_rotary_pos_emb(
             query_states, key_states, cos, sin, self.rope_scaling["mrope_section"]
         )
@@ -779,6 +834,11 @@ class Qwen2_5_VLFlashAttention2(Qwen2_5_VLAttention):
             key_states = key_states.to(target_dtype)
             value_states = value_states.to(target_dtype)
 
+        # Reashape to the expected shape for Flash Attention
+        query_states = query_states.transpose(1, 2)
+        key_states = key_states.transpose(1, 2)
+        value_states = value_states.transpose(1, 2)
+
         if (
             self.config.use_sliding_window
             and getattr(self.config, "sliding_window", None) is not None
@@ -790,32 +850,18 @@ class Qwen2_5_VLFlashAttention2(Qwen2_5_VLAttention):
 
         assert sliding_window is None, "sliding_window is not supported yet."
 
-        if self.is_causal and q_len > 1:
-            causal_mask = mint.triu(mint.ones((bsz, 1, q_len, key_states.shape[2]), dtype=ms.bool_), diagonal=1)
-        else:
-            causal_mask = None
-
-        if attention_mask is not None:
-            attention_mask = ~attention_mask[:, None, None, :].to(ms.bool_)
-            if causal_mask is not None:
-                attention_mask = attention_mask | causal_mask
-            else:
-                attention_mask = mint.tile(attention_mask, (1, 1, q_len, 1))
-        else:
-            attention_mask = causal_mask
-
-        attn_output = ops.flash_attention_score(
+        attn_output = _flash_attention_forward(
             query_states,
             key_states,
             value_states,
-            self.num_heads,
-            attn_mask=attention_mask,
-            keep_prob=1 - dropout_rate,
-            scalar_value=1 / math.sqrt(query_states.shape[-1]),
-            input_layout="BNSD",
+            attention_mask,
+            q_len,
+            dropout=dropout_rate,
+            sliding_window=sliding_window,
+            is_causal=self.is_causal,
         )
 
-        attn_output = attn_output.transpose(1, 2).reshape(bsz, q_len, self.hidden_size).contiguous()
+        attn_output = attn_output.reshape(bsz, q_len, self.hidden_size).contiguous()
         attn_output = self.o_proj(attn_output)
 
         if not output_attentions:
@@ -993,6 +1039,7 @@ class Qwen2_5_VLModel(Qwen2_5_VLPreTrainedModel):
 
         # create position embeddings to be shared across the decoder layers
         position_embeddings = self.rotary_emb(hidden_states, position_ids)
+        position_embeddings = mint.stack(position_embeddings)
 
         # decoder layers
         all_hidden_states = () if output_hidden_states else None
@@ -1413,6 +1460,10 @@ class Qwen2_5_VLForConditionalGeneration(Qwen2_5_VLPreTrainedModel, GenerationMi
 
             return position_ids, mrope_position_deltas
 
+    def gradient_checkpointing_enable(self, **kwargs):
+        self.model.gradient_checkpointing = True
+        self.visual.gradient_checkpointing = True
+
     def construct(
         self,
         input_ids: Tensor = None,
@@ -1447,7 +1498,7 @@ class Qwen2_5_VLForConditionalGeneration(Qwen2_5_VLPreTrainedModel, GenerationMi
         ```python
         >>> from PIL import Image
         >>> import requests
-        >>> from transformers import AutoProcessor, Qwen2_5_VLForConditionalGeneration
+        >>> from mindone.transformers import AutoProcessor, Qwen2_5_VLForConditionalGeneration
 
         >>> model = Qwen2_5_VLForConditionalGeneration.from_pretrained("Qwen/Qwen2.5-VL-7B-Instruct")
         >>> processor = AutoProcessor.from_pretrained("Qwen/Qwen2.5-VL-7B-Instruct")
@@ -1465,11 +1516,11 @@ class Qwen2_5_VLForConditionalGeneration(Qwen2_5_VLPreTrainedModel, GenerationMi
         >>> image = Image.open(requests.get(url, stream=True).raw)
 
         >>> text = processor.apply_chat_template(messages, tokenize=False, add_generation_prompt=True)
-        >>> inputs = processor(text=[text], images=[image], vision_infos=[vision_infos])
+        >>> inputs = processor(text=[text], images=[image], return_tensors="ms")
 
         >>> # Generate
-        >>> generate_ids = model.generate(inputs.input_ids, max_length=30)
-        >>> tokenizer.batch_decode(generate_ids, skip_special_tokens=True, clean_up_tokenization_spaces=False)[0]
+        >>> generate_ids = model.generate(**inputs, max_new_tokens=30)
+        >>> processor.batch_decode(generate_ids, skip_special_tokens=True, clean_up_tokenization_spaces=False)[0]
         "The image shows a street scene with a red stop sign in the foreground. In the background, there is a large red gate with Chinese characters ..."
         ```"""
 
@@ -1496,11 +1547,8 @@ class Qwen2_5_VLForConditionalGeneration(Qwen2_5_VLPreTrainedModel, GenerationMi
                 mask_expanded = mask_unsqueezed.expand_as(inputs_embeds)
                 image_mask = mask_expanded
 
-                # TODO: remove cast
-                # image_embeds = image_embeds.to(inputs_embeds.dtype)
-                inputs_embeds = (
-                    inputs_embeds.float().masked_scatter(image_mask, image_embeds.float()).to(inputs_embeds.dtype)
-                )
+                image_embeds = image_embeds.to(inputs_embeds.dtype)
+                inputs_embeds = inputs_embeds.masked_scatter(image_mask, image_embeds)
 
             if pixel_values_videos is not None:
                 pixel_values_videos = pixel_values_videos.type(self.visual.dtype)
@@ -1517,11 +1565,8 @@ class Qwen2_5_VLForConditionalGeneration(Qwen2_5_VLPreTrainedModel, GenerationMi
                 mask_expanded = mask_unsqueezed.expand_as(inputs_embeds)
                 video_mask = mask_expanded
 
-                # TODO: remove cast
-                # video_embeds = video_embeds.to(inputs_embeds.dtype)
-                inputs_embeds = (
-                    inputs_embeds.float().masked_scatter(video_mask, video_embeds.float()).to(inputs_embeds.dtype)
-                )
+                video_embeds = video_embeds.to(inputs_embeds.dtype)
+                inputs_embeds = inputs_embeds.masked_scatter(video_mask, video_embeds)
 
         # if we get 4D attention mask we cannot calculate rope deltas anymore. TODO @raushan fixme
         if position_ids is None and (attention_mask is None or attention_mask.ndim == 2):
