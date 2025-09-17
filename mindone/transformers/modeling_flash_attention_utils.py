@@ -63,14 +63,14 @@ def _flash_attention_forward(
     # flash_attention only supports [float16, bfloat16]
     origin_dtype = query_states.dtype
     if origin_dtype not in (ms.float16, ms.bfloat16):
-        query = query_states.to(ms.float16)
-        key = key_states.to(ms.float16)
-        value = value_states.to(ms.float16)
+        query_states = query_states.to(ms.float16)
+        key_states = key_states.to(ms.float16)
+        value_states = value_states.to(ms.float16)
 
     attn_output = ops.flash_attention_score(
-        query,
-        key,
-        value,
+        query_states,
+        key_states,
+        value_states,
         head_num=query_length,
         attn_mask=attention_mask,
         keep_prob=1.0 - dropout,

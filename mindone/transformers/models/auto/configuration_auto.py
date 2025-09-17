@@ -290,6 +290,24 @@ if version.parse(transformers.__version__) >= version.parse("4.53.0"):
     CONFIG_MAPPING_NAMES.update({"minimax": "MiniMaxConfig", "vjepa2": "VJEPA2Model"})
     MODEL_NAMES_MAPPING.update({"minimax": "MiniMax", "vjepa2": "VJEPA2Model"})
 
+if version.parse(transformers.__version__) >= version.parse("4.57.0"):
+    CONFIG_MAPPING_NAMES.update(
+        {
+            ("qwen3_vl", "Qwen3VLConfig"),
+            ("qwen3_vl_moe", "Qwen3VLMoeConfig"),
+            ("qwen3_vl_moe_text", "Qwen3VLMoeTextConfig"),
+            ("qwen3_vl_text", "Qwen3VLTextConfig"),
+        }
+    )
+    MODEL_NAMES_MAPPING.update(
+        {
+            ("qwen3_vl", "Qwen3VL"),
+            ("qwen3_vl_moe", "Qwen3VLMoe"),
+            ("qwen3_vl_moe_text", "Qwen3VLMoe"),
+            ("qwen3_vl_text", "Qwen3VL"),
+        }
+    )
+
 
 def model_type_to_module_name(key):
     """Converts a config key to the corresponding module."""

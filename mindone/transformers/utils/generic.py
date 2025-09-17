@@ -26,7 +26,7 @@ import warnings
 from collections import OrderedDict, UserDict, defaultdict
 from collections.abc import MutableMapping
 from contextlib import ExitStack, contextmanager
-from dataclasses import fields, is_dataclass
+from dataclasses import dataclass, fields, is_dataclass
 from enum import Enum
 from functools import wraps
 from typing import Any, Callable, ContextManager, Optional, TypedDict
@@ -592,6 +592,7 @@ class TransformersKwargs(TypedDict, total=False):
     output_router_logits: Optional[bool]
 
 
+@dataclass
 class OutputRecorder:
     """
     Configuration for recording outputs from a model via hooks.

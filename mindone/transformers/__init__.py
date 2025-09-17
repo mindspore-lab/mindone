@@ -44,7 +44,8 @@ from .image_processing_utils import BaseImageProcessor
 from .image_processing_utils_fast import BaseImageProcessorFast
 from .image_utils import ImageFeatureExtractionMixin
 from .masking_utils import AttentionMaskInterface
-from .modeling_layers import GradientCheckpointingLayer
+
+# from .modeling_layers import GradientCheckpointingLayer, GenericForQuestionAnswering, GenericForSequenceClassification, GenericForTokenClassification
 from .modeling_utils import MSPreTrainedModel
 from .models.albert import (
     AlbertForMaskedLM,
@@ -685,3 +686,19 @@ if version.parse(transformers.__version__) >= version.parse("4.53.0"):
         MiniMaxPreTrainedModel,
     )
     from .models.vjepa2 import VJEPA2ForVideoClassification, VJEPA2Model, VJEPA2PreTrainedModel
+
+if version.parse(transformers.__version__) > version.parse("4.56.1"):
+    from .models.qwen3_vl import (
+        Qwen3VLForConditionalGeneration,
+        Qwen3VLModel,
+        Qwen3VLPreTrainedModel,
+        Qwen3VLTextModel,
+        Qwen3VLVisionModel,
+    )
+    from .models.qwen3_vl_moe import (
+        Qwen3VLMoeForConditionalGeneration,
+        Qwen3VLMoeModel,
+        Qwen3VLMoePreTrainedModel,
+        Qwen3VLMoeTextModel,
+        Qwen3VLMoeVisionModel,
+    )
