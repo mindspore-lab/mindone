@@ -21,29 +21,24 @@
 import math
 from typing import List, Optional, Tuple, Union
 
+from transformers.models.phimoe.configuration_phimoe import PhimoeConfig
+
 import mindspore
 from mindspore import nn
 
 from ...activations import ACT2FN
 from ...cache_utils import Cache, DynamicCache, SlidingWindowCache, StaticCache
 from ...generation import GenerationMixin
-from ...modeling_attn_mask_utils import AttentionMaskConverter, _prepare_4d_causal_attention_mask
-from ...modeling_flash_attention_utils import is_flash_attn_available
-from ...modeling_outputs import (
-    MoeCausalLMOutputWithPast,
-    MoeModelOutputWithPast,
-    SequenceClassifierOutputWithPast,
-)
 from ...mindspore_adapter import dtype_to_min
+from ...modeling_attn_mask_utils import AttentionMaskConverter
+from ...modeling_flash_attention_utils import is_flash_attn_available
+from ...modeling_outputs import MoeCausalLMOutputWithPast, MoeModelOutputWithPast, SequenceClassifierOutputWithPast
 from ...modeling_rope_utils import ROPE_INIT_FUNCTIONS
 from ...modeling_utils import MSPreTrainedModel
 from ...utils import logging
-from transformers.models.phimoe.configuration_phimoe import PhimoeConfig
-
 
 if is_flash_attn_available():
     from ...integrations.flash_attention import flash_attention_forward
-
 
 
 logger = logging.get_logger(__name__)
@@ -123,9 +118,9 @@ def load_balancing_loss_func(
         )
 
         # Compute the average probability of routing to these experts
-        router_prob_per_expert = mindspore.mint.sum(routing_weights * router_per_expert_attention_mask, dim=0) / mindspore.mint.sum(
-            router_per_expert_attention_mask, dim=0
-        )
+        router_prob_per_expert = mindspore.mint.sum(
+            routing_weights * router_per_expert_attention_mask, dim=0
+        ) / mindspore.mint.sum(router_per_expert_attention_mask, dim=0)
 
     overall_loss = mindspore.mint.sum(tokens_per_expert * router_prob_per_expert.unsqueeze(0))
     return overall_loss * num_experts
@@ -245,14 +240,18 @@ class PhimoeAttention(mindspore.nn.Cell):
                 f"hidden_size must be divisible by num_heads (got `hidden_size`: {self.hidden_size}"
                 f" and `num_heads`: {self.num_heads})."
             )
-        self.q_proj = mindspore.mint.nn.Linear(self.hidden_size, self.num_heads * self.head_dim, bias=self.config.attention_bias)
+        self.q_proj = mindspore.mint.nn.Linear(
+            self.hidden_size, self.num_heads * self.head_dim, bias=self.config.attention_bias
+        )
         self.k_proj = mindspore.mint.nn.Linear(
             self.hidden_size, self.num_key_value_heads * self.head_dim, bias=self.config.attention_bias
         )
         self.v_proj = mindspore.mint.nn.Linear(
             self.hidden_size, self.num_key_value_heads * self.head_dim, bias=self.config.attention_bias
         )
-        self.o_proj = mindspore.mint.nn.Linear(self.num_heads * self.head_dim, self.hidden_size, bias=self.config.attention_bias)
+        self.o_proj = mindspore.mint.nn.Linear(
+            self.num_heads * self.head_dim, self.hidden_size, bias=self.config.attention_bias
+        )
 
     def _shape(self, tensor: mindspore.Tensor, seq_len: int, bsz: int):
         return tensor.view(bsz, seq_len, self.num_heads, self.head_dim).transpose(1, 2).contiguous()
@@ -296,8 +295,12 @@ class PhimoeAttention(mindspore.nn.Cell):
             attn_weights = attn_weights + causal_mask
 
         # upcast attention to fp32
-        attn_weights = mindspore.mint.nn.functional.softmax(attn_weights, dim=-1, dtype=mindspore.float32).to(query_states.dtype)
-        attn_weights = mindspore.mint.nn.functional.dropout(attn_weights, p=self.attention_dropout, training=self.training)
+        attn_weights = mindspore.mint.nn.functional.softmax(attn_weights, dim=-1, dtype=mindspore.float32).to(
+            query_states.dtype
+        )
+        attn_weights = mindspore.mint.nn.functional.dropout(
+            attn_weights, p=self.attention_dropout, training=self.training
+        )
         attn_output = mindspore.mint.matmul(attn_weights, value_states)
 
         if attn_output.shape != (bsz, self.num_heads, q_len, self.head_dim):
@@ -442,8 +445,7 @@ class MultiplierProcessor(nn.Cell):
         return multiplier * mask_for_one
 
     def bprop(self, scores, multiplier, selected_experts, masked_gates, mask_for_one, out, dout):
-
-        grad_at_output = grad_at_output * multiplier
+        grad_at_output = dout * multiplier
 
         grad_at_scores_expanded = masked_gates * grad_at_output.mul(-1)
         grad_at_scores_expanded.scatter_add_(
@@ -451,7 +453,7 @@ class MultiplierProcessor(nn.Cell):
             index=selected_experts,
             src=grad_at_output,
         )
-        
+
         return (grad_at_scores_expanded, None, None, None, None)
 
 
@@ -488,12 +490,7 @@ def sparsemixer(scores, jitter_eps, training, top_k=2):
     masked_gates = scores.masked_fill(mask_logits_threshold, float("-inf"))
     if training:
         selected_experts = (
-            (
-                masked_gates
-                - mindspore.mint.empty_like(masked_gates).exponential_().log()
-            )
-            .max(dim=-1)[1]
-            .unsqueeze(-1)
+            (masked_gates - mindspore.mint.empty_like(masked_gates).exponential_().log()).max(dim=-1)[1].unsqueeze(-1)
         )  # Gumbel sampling, more robust than the multinomial method
     else:
         selected_experts = max_ind
@@ -539,12 +536,7 @@ def sparsemixer(scores, jitter_eps, training, top_k=2):
     masked_gates_top2 = masked_scores.masked_fill(mask_logits_threshold, float("-inf"))
     if training:
         selected_experts_top2 = (
-            (
-                masked_gates_top2
-                - mindspore.mint.empty_like(masked_gates_top2)
-                .exponential_()
-                .log()
-            )
+            (masked_gates_top2 - mindspore.mint.empty_like(masked_gates_top2).exponential_().log())
             .max(dim=-1)[1]
             .unsqueeze(-1)
         )  # Gumbel sampling, more robust than the multinomial method
@@ -627,11 +619,15 @@ class PhimoeSparseMoeBlock(mindspore.nn.Cell):
         )
 
         final_hidden_states = mindspore.mint.zeros(
-            (batch_size * sequence_length, hidden_dim), dtype=hidden_states.dtype, )
+            (batch_size * sequence_length, hidden_dim),
+            dtype=hidden_states.dtype,
+        )
 
         # One hot encode the selected experts to create an expert mask
         # this will be used to easily index which expert is going to be sollicitated
-        expert_mask = mindspore.mint.nn.functional.one_hot(selected_experts, num_classes=self.num_experts).permute(2, 1, 0)
+        expert_mask = mindspore.mint.nn.functional.one_hot(selected_experts, num_classes=self.num_experts).permute(
+            2, 1, 0
+        )
 
         # Loop over all available experts in the model and perform the computation on each expert
         for expert_idx in range(self.num_experts):
@@ -662,7 +658,9 @@ class PhimoeDecoderLayer(mindspore.nn.Cell):
         self.self_attn = PHIMOE_ATTENTION_CLASSES[config._attn_implementation](config, layer_idx)
 
         self.block_sparse_moe = PhimoeSparseMoeBlock(config)
-        self.input_layernorm = mindspore.mint.nn.LayerNorm(config.hidden_size, eps=config.rms_norm_eps, elementwise_affine=True)
+        self.input_layernorm = mindspore.mint.nn.LayerNorm(
+            config.hidden_size, eps=config.rms_norm_eps, elementwise_affine=True
+        )
         self.post_attention_layernorm = mindspore.mint.nn.LayerNorm(
             config.hidden_size, eps=config.rms_norm_eps, elementwise_affine=True
         )
@@ -847,7 +845,9 @@ class PhimoeModel(PhimoePreTrainedModel):
         if cache_position is None:
             past_seen_tokens = past_key_values.get_seq_length() if past_key_values is not None else 0
             cache_position = mindspore.mint.arange(
-                past_seen_tokens, past_seen_tokens + inputs_embeds.shape[1], )
+                past_seen_tokens,
+                past_seen_tokens + inputs_embeds.shape[1],
+            )
         if position_ids is None:
             position_ids = cache_position.unsqueeze(0)
 
@@ -969,7 +969,7 @@ class PhimoeModel(PhimoePreTrainedModel):
                 return None
 
         dtype = input_tensor.dtype
-        min_dtype = dtype_to_min(dtype)
+        # min_dtype = dtype_to_min(dtype)
         sequence_length = input_tensor.shape[1]
         # SlidingWindowCache or StaticCache
         if using_sliding_window_cache or using_static_cache:
@@ -1018,7 +1018,8 @@ class PhimoeModel(PhimoePreTrainedModel):
             sequence_length (`int`):
                 The sequence length being processed.
             target_length (`int`):
-                The target length: when generating with static cache, the mask should be as long as the static cache, to account for the 0 padding, the part of the cache that is not filled yet.
+                The target length: when generating with static cache, the mask should be as long as
+                the static cache, to account for the 0 padding, the part of the cache that is not filled yet.
             dtype (`mindspore.dtype`):
                 The dtype to use for the 4D attention mask.
             cache_position (`ms.Tensor`):
@@ -1036,15 +1037,20 @@ class PhimoeModel(PhimoePreTrainedModel):
         else:
             min_dtype = dtype_to_min(dtype)
             causal_mask = mindspore.ops.full(
-                (sequence_length, target_length), fill_value=min_dtype, dtype=dtype, )
-            diagonal_attend_mask = mindspore.mint.arange(target_length, ) > cache_position.reshape(-1, 1)
+                (sequence_length, target_length),
+                fill_value=min_dtype,
+                dtype=dtype,
+            )
+            diagonal_attend_mask = mindspore.mint.arange(
+                target_length,
+            ) > cache_position.reshape(-1, 1)
             if config.sliding_window is not None:
                 # if we have sliding window, we should not attend to tokens beyond sliding window length, so we mask them out also
                 # the check is needed to verify is current checkpoint was trained with sliding window or not
                 if not isinstance(past_key_values, SlidingWindowCache) or sequence_length > target_length:
-                    sliding_attend_mask = mindspore.mint.arange(target_length, ) <= (
-                        cache_position.reshape(-1, 1) - config.sliding_window
-                    )
+                    sliding_attend_mask = mindspore.mint.arange(
+                        target_length,
+                    ) <= (cache_position.reshape(-1, 1) - config.sliding_window)
                     diagonal_attend_mask.bitwise_or_(sliding_attend_mask)
             causal_mask *= diagonal_attend_mask
             causal_mask = causal_mask[None, None, :, :].expand((batch_size, 1, -1, -1))
@@ -1148,7 +1154,8 @@ class PhimoeForCausalLM(PhimoePreTrainedModel, GenerationMixin):
             and cache_position[0] == self.config.original_max_position_embeddings
         ):
             logger.warning(
-                f"If you are not using the generate method, you may encounter nonsensical outputs after the {self.config.original_max_position_embeddings}th token, as the KV cache needs to be recomputed."
+                f"If you are not using the generate method, you may encounter nonsensical\
+                outputs after the {self.config.original_max_position_embeddings}th token, as the KV cache needs to be recomputed."
             )
         output_attentions = output_attentions if output_attentions is not None else self.config.output_attentions
         output_router_logits = (
@@ -1244,7 +1251,8 @@ class PhimoeForCausalLM(PhimoePreTrainedModel, GenerationMixin):
         return model_inputs
 
 
-# Copied from transformers.models.llama.modeling_llama.LlamaForSequenceClassification with Llama->Phimoe, LLAMA->PHIMOE, BaseModelOutputWithPast->MoeModelOutputWithPast
+# Copied from transformers.models.llama.modeling_llama.LlamaForSequenceClassification
+# with Llama->Phimoe, LLAMA->PHIMOE, BaseModelOutputWithPast->MoeModelOutputWithPast
 class PhimoeForSequenceClassification(PhimoePreTrainedModel):
     def __init__(self, config):
         super().__init__(config)
@@ -1314,7 +1322,12 @@ class PhimoeForSequenceClassification(PhimoePreTrainedModel):
                 "unexpected if using padding tokens in conjunction with `inputs_embeds.`"
             )
 
-        pooled_logits = logits[mindspore.mint.arange(batch_size, ), last_non_pad_token]
+        pooled_logits = logits[
+            mindspore.mint.arange(
+                batch_size,
+            ),
+            last_non_pad_token,
+        ]
 
         loss = None
         if labels is not None:
