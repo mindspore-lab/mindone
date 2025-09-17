@@ -104,7 +104,7 @@ def apply_rotary_emb_qwen(
     freqs_cis: Union[ms.Tensor, Tuple[ms.Tensor]],
     use_real: bool = True,
     use_real_unbind_dim: int = -1,
-) -> Tuple[ms.Tensor, ms.Tensor]:
+) -> ms.Tensor:
     """
     Apply rotary embeddings to input tensors using the given frequency tensor. This function applies rotary embeddings
     to the given query or key 'x' tensors using the provided frequency tensor 'freqs_cis'. The input tensors are

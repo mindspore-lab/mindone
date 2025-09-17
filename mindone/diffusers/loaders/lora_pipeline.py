@@ -230,7 +230,7 @@ class StableDiffusionLoraLoaderMixin(LoraBaseMixin):
             use_safetensors = True
             allow_pickle = True
 
-        user_agent = {"file_type": "attn_procs_weights", "framework": "pytorch"}
+        user_agent = {"file_type": "attn_procs_weights", "framework": "mindspore"}
 
         state_dict, metadata = _fetch_state_dict(
             pretrained_model_name_or_path_or_dict=pretrained_model_name_or_path_or_dict,
@@ -681,7 +681,7 @@ class StableDiffusionXLLoraLoaderMixin(LoraBaseMixin):
             use_safetensors = True
             allow_pickle = True
 
-        user_agent = {"file_type": "attn_procs_weights", "framework": "pytorch"}
+        user_agent = {"file_type": "attn_procs_weights", "framework": "mindspore"}
 
         state_dict, metadata = _fetch_state_dict(
             pretrained_model_name_or_path_or_dict=pretrained_model_name_or_path_or_dict,
@@ -1062,7 +1062,7 @@ class SD3LoraLoaderMixin(LoraBaseMixin):
             use_safetensors = True
             allow_pickle = True
 
-        user_agent = {"file_type": "attn_procs_weights", "framework": "pytorch"}
+        user_agent = {"file_type": "attn_procs_weights", "framework": "mindspore"}
 
         state_dict, metadata = _fetch_state_dict(
             pretrained_model_name_or_path_or_dict=pretrained_model_name_or_path_or_dict,
@@ -1492,7 +1492,7 @@ class AuraFlowLoraLoaderMixin(LoraBaseMixin):
             use_safetensors = True
             allow_pickle = True
 
-        user_agent = {"file_type": "attn_procs_weights", "framework": "pytorch"}
+        user_agent = {"file_type": "attn_procs_weights", "framework": "mindspore"}
 
         state_dict, metadata = _fetch_state_dict(
             pretrained_model_name_or_path_or_dict=pretrained_model_name_or_path_or_dict,
@@ -1814,7 +1814,7 @@ class FluxLoraLoaderMixin(LoraBaseMixin):
             use_safetensors = True
             allow_pickle = True
 
-        user_agent = {"file_type": "attn_procs_weights", "framework": "pytorch"}
+        user_agent = {"file_type": "attn_procs_weights", "framework": "mindspore"}
 
         state_dict, metadata = _fetch_state_dict(
             pretrained_model_name_or_path_or_dict=pretrained_model_name_or_path_or_dict,
@@ -2815,7 +2815,7 @@ class CogVideoXLoraLoaderMixin(LoraBaseMixin):
             use_safetensors = True
             allow_pickle = True
 
-        user_agent = {"file_type": "attn_procs_weights", "framework": "pytorch"}
+        user_agent = {"file_type": "attn_procs_weights", "framework": "mindspore"}
 
         state_dict, metadata = _fetch_state_dict(
             pretrained_model_name_or_path_or_dict=pretrained_model_name_or_path_or_dict,
@@ -3130,7 +3130,7 @@ class Mochi1LoraLoaderMixin(LoraBaseMixin):
             use_safetensors = True
             allow_pickle = True
 
-        user_agent = {"file_type": "attn_procs_weights", "framework": "pytorch"}
+        user_agent = {"file_type": "attn_procs_weights", "framework": "mindspore"}
 
         state_dict, metadata = _fetch_state_dict(
             pretrained_model_name_or_path_or_dict=pretrained_model_name_or_path_or_dict,
@@ -3447,7 +3447,7 @@ class LTXVideoLoraLoaderMixin(LoraBaseMixin):
             use_safetensors = True
             allow_pickle = True
 
-        user_agent = {"file_type": "attn_procs_weights", "framework": "pytorch"}
+        user_agent = {"file_type": "attn_procs_weights", "framework": "mindspore"}
 
         state_dict, metadata = _fetch_state_dict(
             pretrained_model_name_or_path_or_dict=pretrained_model_name_or_path_or_dict,
@@ -3769,7 +3769,7 @@ class SanaLoraLoaderMixin(LoraBaseMixin):
             use_safetensors = True
             allow_pickle = True
 
-        user_agent = {"file_type": "attn_procs_weights", "framework": "pytorch"}
+        user_agent = {"file_type": "attn_procs_weights", "framework": "mindspore"}
 
         state_dict, metadata = _fetch_state_dict(
             pretrained_model_name_or_path_or_dict=pretrained_model_name_or_path_or_dict,
@@ -4085,7 +4085,7 @@ class HunyuanVideoLoraLoaderMixin(LoraBaseMixin):
             use_safetensors = True
             allow_pickle = True
 
-        user_agent = {"file_type": "attn_procs_weights", "framework": "pytorch"}
+        user_agent = {"file_type": "attn_procs_weights", "framework": "mindspore"}
 
         state_dict, metadata = _fetch_state_dict(
             pretrained_model_name_or_path_or_dict=pretrained_model_name_or_path_or_dict,
@@ -4405,7 +4405,7 @@ class Lumina2LoraLoaderMixin(LoraBaseMixin):
             use_safetensors = True
             allow_pickle = True
 
-        user_agent = {"file_type": "attn_procs_weights", "framework": "pytorch"}
+        user_agent = {"file_type": "attn_procs_weights", "framework": "mindspore"}
 
         state_dict, metadata = _fetch_state_dict(
             pretrained_model_name_or_path_or_dict=pretrained_model_name_or_path_or_dict,
@@ -4726,7 +4726,7 @@ class WanLoraLoaderMixin(LoraBaseMixin):
             use_safetensors = True
             allow_pickle = True
 
-        user_agent = {"file_type": "attn_procs_weights", "framework": "pytorch"}
+        user_agent = {"file_type": "attn_procs_weights", "framework": "mindspore"}
 
         state_dict, metadata = _fetch_state_dict(
             pretrained_model_name_or_path_or_dict=pretrained_model_name_or_path_or_dict,
@@ -5096,7 +5096,7 @@ class CogView4LoraLoaderMixin(LoraBaseMixin):
             use_safetensors = True
             allow_pickle = True
 
-        user_agent = {"file_type": "attn_procs_weights", "framework": "pytorch"}
+        user_agent = {"file_type": "attn_procs_weights", "framework": "mindspore"}
 
         state_dict, metadata = _fetch_state_dict(
             pretrained_model_name_or_path_or_dict=pretrained_model_name_or_path_or_dict,
@@ -5412,7 +5412,7 @@ class HiDreamImageLoraLoaderMixin(LoraBaseMixin):
             use_safetensors = True
             allow_pickle = True
 
-        user_agent = {"file_type": "attn_procs_weights", "framework": "pytorch"}
+        user_agent = {"file_type": "attn_procs_weights", "framework": "mindspore"}
 
         state_dict, metadata = _fetch_state_dict(
             pretrained_model_name_or_path_or_dict=pretrained_model_name_or_path_or_dict,
@@ -5740,7 +5740,7 @@ class QwenImageLoraLoaderMixin(LoraBaseMixin):
             use_safetensors = True
             allow_pickle = True
 
-        user_agent = {"file_type": "attn_procs_weights", "framework": "pytorch"}
+        user_agent = {"file_type": "attn_procs_weights", "framework": "mindspore"}
 
         state_dict, metadata = _fetch_state_dict(
             pretrained_model_name_or_path_or_dict=pretrained_model_name_or_path_or_dict,
@@ -5759,7 +5759,7 @@ class QwenImageLoraLoaderMixin(LoraBaseMixin):
 
         is_dora_scale_present = any("dora_scale" in k for k in state_dict)
         if is_dora_scale_present:
-            warn_msg = "It seems like you are using a DoRA checkpoint that is not compatible in Diffusers at the moment. So, we are going to filter out the keys associated to 'dora_scale` from the state dict. If you think this is a mistake please open an issue https://github.com/huggingface/diffusers/issues/new."
+            warn_msg = "It seems like you are using a DoRA checkpoint that is not compatible in Diffusers at the moment. So, we are going to filter out the keys associated to 'dora_scale' from the state dict. If you think this is a mistake please open an issue https://github.com/huggingface/diffusers/issues/new."
             logger.warning(warn_msg)
             state_dict = {k: v for k, v in state_dict.items() if "dora_scale" not in k}
 
@@ -5885,7 +5885,7 @@ class QwenImageLoraLoaderMixin(LoraBaseMixin):
         Arguments:
             save_directory (`str` or `os.PathLike`):
                 Directory to save LoRA parameters to. Will be created if it doesn't exist.
-            transformer_lora_layers (`Dict[str, torch.nn.Module]` or `Dict[str, ms.Tensor]`):
+            transformer_lora_layers (`Dict[str, mindspore.nn.Cell]` or `Dict[str, ms.Tensor]`):
                 State dict of the LoRA layers corresponding to the `transformer`.
             is_main_process (`bool`, *optional*, defaults to `True`):
                 Whether the process calling this is the main process or not. Useful during distributed training and you
@@ -5955,10 +5955,10 @@ class QwenImageLoraLoaderMixin(LoraBaseMixin):
 
         ```py
         from diffusers import DiffusionPipeline
-        import torch
+        import mindspore
 
         pipeline = DiffusionPipeline.from_pretrained(
-            "stabilityai/stable-diffusion-xl-base-1.0", torch_dtype=torch.float16
+            "stabilityai/stable-diffusion-xl-base-1.0", mindspore_dtype=mindspore.float16
         ).to("cuda")
         pipeline.load_lora_weights("nerijs/pixel-art-xl", weight_name="pixel-art-xl.safetensors", adapter_name="pixel")
         pipeline.fuse_lora(lora_scale=0.7)

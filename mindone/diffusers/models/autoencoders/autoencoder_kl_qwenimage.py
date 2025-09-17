@@ -915,18 +915,26 @@ class AutoencoderKLQwenImage(ModelMixin, ConfigMixin, FromOriginalModelMixin):
 
     def blend_v(self, a: ms.Tensor, b: ms.Tensor, blend_extent: int) -> ms.Tensor:
         blend_extent = min(a.shape[-2], b.shape[-2], blend_extent)
-        for y in range(blend_extent):
-            b[:, :, :, y, :] = a[:, :, :, -blend_extent + y, :] * (1 - y / blend_extent) + b[:, :, :, y, :] * (
-                y / blend_extent
-            )
-        return b
+        if blend_extent > 0:
+            alpha = (mint.arange(blend_extent, dtype=a.dtype) / blend_extent).view(1, 1, 1, -1, 1)
 
+            a_part = a[:, :, :, -blend_extent:, :]
+            b_part = b[:, :, :, :blend_extent, :]
+
+            blended_part = a_part * (1 - alpha) + b_part * alpha
+            b[:, :, :, :blend_extent, :] = blended_part
+        return b
+    
     def blend_h(self, a: ms.Tensor, b: ms.Tensor, blend_extent: int) -> ms.Tensor:
         blend_extent = min(a.shape[-1], b.shape[-1], blend_extent)
-        for x in range(blend_extent):
-            b[:, :, :, :, x] = a[:, :, :, :, -blend_extent + x] * (1 - x / blend_extent) + b[:, :, :, :, x] * (
-                x / blend_extent
-            )
+        if blend_extent > 0:
+            alpha = (mint.arange(blend_extent, dtype=a.dtype) / blend_extent).view(1, 1, 1, 1, -1)
+
+            a_part = a[:, :, :, :, -blend_extent:]
+            b_part = b[:, :, :, :, :blend_extent]
+
+            blended_part = a_part * (1 - alpha) + b_part * alpha
+            b[:, :, :, :, :blend_extent] = blended_part
         return b
 
     def tiled_encode(self, x: ms.Tensor) -> AutoencoderKLOutput:
