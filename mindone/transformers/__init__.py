@@ -202,6 +202,13 @@ from .models.blip_2 import (
     Blip2QFormerModel,
     Blip2VisionModel,
 )
+from .models.bros import (
+    BrosForTokenClassification,
+    BrosModel,
+    BrosPreTrainedModel,
+    BrosSpadeEEForTokenClassification,
+    BrosSpadeELForTokenClassification,
+)
 from .models.camembert import (
     CamembertForCausalLM,
     CamembertForMaskedLM,
