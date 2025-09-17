@@ -756,3 +756,6 @@ if version.parse(transformers.__version__) >= version.parse("4.53.0"):
         MiniMaxPreTrainedModel,
     )
     from .models.vjepa2 import VJEPA2ForVideoClassification, VJEPA2Model, VJEPA2PreTrainedModel
+
+if version.parse(transformers.__version__) >= version.parse("4.55.0"):
+    from .models.gpt_oss import *

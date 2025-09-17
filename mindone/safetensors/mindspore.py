@@ -125,7 +125,7 @@ def load_file(filename: Union[str, os.PathLike]) -> Dict[str, ms.Tensor]:
 
 def _np2ms(np_dict: Dict[str, np.ndarray]) -> Dict[str, ms.Tensor]:
     for k, v in np_dict.items():
-        np_dict[k] = ms.Parameter(v, name=k)
+        np_dict[k] = ms.tensor(v)
     return np_dict
 
 

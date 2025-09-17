@@ -320,6 +320,10 @@ if version.parse(transformers.__version__) >= version.parse("4.53.0"):
     CONFIG_MAPPING_NAMES.update({"minimax": "MiniMaxConfig", "vjepa2": "VJEPA2Model"})
     MODEL_NAMES_MAPPING.update({"minimax": "MiniMax", "vjepa2": "VJEPA2Model"})
 
+if version.parse(transformers.__version__) >= version.parse("4.55.0"):
+    CONFIG_MAPPING_NAMES.update({"gpt_oss": "GptOssConfig"})
+    MODEL_NAMES_MAPPING.update({"gpt_oss": "GptOss"})
+
 
 def model_type_to_module_name(key):
     """Converts a config key to the corresponding module."""
