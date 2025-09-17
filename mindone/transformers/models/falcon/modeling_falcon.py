@@ -20,7 +20,7 @@
 import math
 from typing import TYPE_CHECKING, Optional, Tuple, Union
 
-from transformers.models.falcon.configuration_falcon import FalconConfig
+from .configuration_falcon import FalconConfig
 from transformers.utils import (
     add_code_sample_docstrings,
     add_start_docstrings,
