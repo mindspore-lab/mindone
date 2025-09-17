@@ -39,13 +39,13 @@ from tests.transformers_tests.models.modeling_common import (
 )
 
 # CrossEntropyLoss not support bf16
-DTYPE_AND_THRESHOLDS = {"fp32": 5e-4, "fp16": 5e-3}
+# Seamless_m4t only support float32
+DTYPE_AND_THRESHOLDS = {"fp32": 5e-4} #"fp32": 5e-4, "fp16": 5e-3
 MODES = [1]
 
 class SeamlessM4TModelTester:
     def __init__(
         self,
-        parent,
         input_modality="speech",
         batch_size=2,
         seq_length=4,
@@ -89,7 +89,6 @@ class SeamlessM4TModelTester:
         t2u_offset_tgt_lang=0,
         vocoder_offset=0,
     ):
-        self.parent = parent
         self.input_modality = input_modality
 
         self.batch_size = batch_size
@@ -142,7 +141,7 @@ class SeamlessM4TModelTester:
         if self.input_modality == "text":
             inputs = ids_numpy([self.batch_size, self.seq_length], self.vocab_size - 1)
         else:
-            inputs = ids_numpy([self.batch_size, self.seq_length, 160], self.vocab_size - 1).float()
+            inputs = ids_numpy([self.batch_size, self.seq_length, 160], self.vocab_size - 1)
 
         input_mask = None
         if self.use_input_mask:
@@ -155,6 +154,26 @@ class SeamlessM4TModelTester:
         config = self.get_config()
 
         return config, inputs, decoder_input_ids, input_mask, lm_labels
+
+    def prepare_config_and_inputs_for_common(self):
+        config_and_inputs = self.prepare_config_and_inputs()
+        (
+            config,
+            input_ids,
+            decoder_input_ids,
+            input_mask,
+            lm_labels,
+        ) = config_and_inputs
+
+        input_name = "input_ids" if self.input_modality == "text" else "input_features"
+
+        inputs_dict = {
+            input_name: input_ids,
+            "attention_mask": input_mask,
+            "decoder_input_ids": decoder_input_ids,
+            "labels": lm_labels,
+        }
+        return config, inputs_dict
 
     def get_config(self):
         return SeamlessM4TConfig(
@@ -198,51 +217,27 @@ class SeamlessM4TModelTester:
             vocoder_offset=self.vocoder_offset,
         )
 
-    def prepare_config_and_inputs_for_common(self):
-        config_and_inputs = self.prepare_config_and_inputs()
-        (
-            config,
-            input_ids,
-            decoder_input_ids,
-            input_mask,
-            lm_labels,
-        ) = config_and_inputs
 
-        input_name = "input_ids" if self.input_modality == "text" else "input_features"
-
-        inputs_dict = {
-            input_name: input_ids,
-            "attention_mask": input_mask,
-            "decoder_input_ids": decoder_input_ids,
-            "labels": lm_labels,
-        }
-        return config, inputs_dict
-
-model_tester = SeamlessM4TModelTester()
-(
-    config,
-    input_ids,
-    decoder_input_ids, 
-    input_mask, 
-    lm_labels,
-) = model_tester.prepare_config_and_inputs_for_common()
-# config_has_num_labels = copy.deepcopy(config)
-# config_has_num_labels.num_labels = model_tester.num_labels
+model_tester_text = SeamlessM4TModelTester(input_modality = "text")
+config_text, inputs_dict_text = model_tester_text.prepare_config_and_inputs_for_common()
+model_tester_speech = SeamlessM4TModelTester(input_modality = "speech")
+config_speech, inputs_dict_speech = model_tester_speech.prepare_config_and_inputs_for_common()
 
 Seamless_m4t_CASES = [
     [
         "SeamlessM4TForSpeechToSpeech",
         "transformers.SeamlessM4TForSpeechToSpeech",
         "mindone.transformers.SeamlessM4TForSpeechToSpeech",
-        (config,),
+        (config_speech,),
         {},
         (
-            input_ids,
-            decoder_input_ids,
-            input_mask,
-            lm_labels,
+            inputs_dict_speech["input_features"],
+            inputs_dict_speech["attention_mask"],
+            inputs_dict_speech["decoder_input_ids"],
+            inputs_dict_speech["labels"],
         ),
         {},
+        [1, 2],
         {
             "logits": 0,
             "encoder_last_hidden_state": 2,
@@ -252,15 +247,16 @@ Seamless_m4t_CASES = [
         "SeamlessM4TForSpeechToText",
         "transformers.SeamlessM4TForSpeechToText",
         "mindone.transformers.SeamlessM4TForSpeechToText",
-        (config,),
+        (config_speech,),
         {},
         (
-            input_ids,
-            decoder_input_ids,
-            input_mask,
-            lm_labels,
+            inputs_dict_speech["input_features"],
+            inputs_dict_speech["attention_mask"],
+            inputs_dict_speech["decoder_input_ids"],
+            inputs_dict_speech["labels"],
         ),
         {},
+        [1, 2],
         {
             "logits": 0,
             "encoder_last_hidden_state": 2,
@@ -270,15 +266,16 @@ Seamless_m4t_CASES = [
         "SeamlessM4TForTextToSpeech",
         "transformers.SeamlessM4TForTextToSpeech",
         "mindone.transformers.SeamlessM4TForTextToSpeech",
-        (config,),
+        (config_text,),
         {},
         (
-            input_ids,
-            decoder_input_ids,
-            input_mask,
-            lm_labels,
+            inputs_dict_text["input_ids"],
+            inputs_dict_text["attention_mask"],
+            inputs_dict_text["decoder_input_ids"],
+            inputs_dict_text["labels"],
         ),
         {},
+        [0, 1, 2, 3],
         {
             "logits": 0,
             "encoder_last_hidden_state": 2,
@@ -288,15 +285,16 @@ Seamless_m4t_CASES = [
         "SeamlessM4TForTextToText",
         "transformers.SeamlessM4TForTextToText",
         "mindone.transformers.SeamlessM4TForTextToText",
-        (config,),
+        (config_text,),
         {},
         (
-            input_ids,
-            decoder_input_ids,
-            input_mask,
-            lm_labels,
+            inputs_dict_text["input_ids"],
+            inputs_dict_text["attention_mask"],
+            inputs_dict_text["decoder_input_ids"],
+            inputs_dict_text["labels"],
         ),
         {},
+        [0, 1, 2, 3],
         {
             "logits": 0,
             "encoder_last_hidden_state": 2,
@@ -306,15 +304,17 @@ Seamless_m4t_CASES = [
         "SeamlessM4TModel",
         "transformers.SeamlessM4TModel",
         "mindone.transformers.SeamlessM4TModel",
-        (config,),
+        (config_text,),
         {},
         (
-            input_ids,
-            decoder_input_ids,
-            input_mask,
-            lm_labels,
+            inputs_dict_text["input_ids"],
+            inputs_dict_speech["input_features"],
+            inputs_dict_text["attention_mask"],
+            inputs_dict_text["decoder_input_ids"],
+            inputs_dict_text["labels"],
         ),
         {},
+        [2, 3],
         {
             "logits": 0,
             "encoder_last_hidden_state": 2,
@@ -324,7 +324,7 @@ Seamless_m4t_CASES = [
 
 
 @pytest.mark.parametrize(
-    "name,pt_module,ms_module,init_args,init_kwargs,inputs_args,inputs_kwargs,outputs_map,dtype,mode",
+    "name,pt_module,ms_module,init_args,init_kwargs,inputs_args,inputs_kwargs,inputs_type_idx,outputs_map,dtype,mode",
     [
         case
         + [
@@ -346,6 +346,7 @@ def test_named_modules(
     init_kwargs,
     inputs_args,
     inputs_kwargs,
+    inputs_type_idx,
     outputs_map,
     dtype,
     mode,
@@ -368,6 +369,15 @@ def test_named_modules(
         pt_inputs_kwargs.update({"hidden_dtype": PT_DTYPE_MAPPING[pt_dtype]})
         ms_inputs_kwargs.update({"hidden_dtype": MS_DTYPE_MAPPING[ms_dtype]})
     ms_inputs_kwargs["return_dict"] = False
+    
+    pt_inputs_args = tuple(
+        tensor.to(PT_DTYPE_MAPPING[pt_dtype]) if i not in inputs_type_idx else tensor.to(PT_DTYPE_MAPPING[pt_dtype]).long()
+        for i, tensor in enumerate(pt_inputs_args)
+    )
+    ms_inputs_args = tuple(
+        tensor.to(MS_DTYPE_MAPPING[ms_dtype]) if i not in inputs_type_idx else tensor.to(ms.int64)
+        for i, tensor in enumerate(ms_inputs_args)
+    )
 
     with torch.no_grad():
         pt_outputs = pt_model(*pt_inputs_args, **pt_inputs_kwargs)

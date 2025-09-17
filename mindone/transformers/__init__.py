@@ -520,6 +520,13 @@ from .models.roberta import (
     RobertaModel,
     RobertaPreTrainedModel,
 )
+from .models.seamless_m4t import (
+    SeamlessM4TForSpeechToSpeech,
+    SeamlessM4TForSpeechToText,
+    SeamlessM4TForTextToSpeech,
+    SeamlessM4TForTextToText,
+    SeamlessM4TModel,
+)
 from .models.siglip import (
     SiglipForImageClassification,
     SiglipImageProcessor,
