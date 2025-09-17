@@ -16,20 +16,19 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-from transformers.configuration_prompt_depth_anything import PromptDepthAnythingConfig
-
-import mindspore as ms
-from mindspore import mint, nn
-from mindspore.common.initializer import Constant, Normal, initializer
 from typing import List, Optional, Tuple, Union
+from transformers import PromptDepthAnythingConfig
 
+import mindspore
+from mindspore import mint
+from mindspore.common.initializer import Constant, Normal, initializer
 
 from ...modeling_outputs import DepthEstimatorOutput
 from ...modeling_utils import PreTrainedModel
 from ...utils.backbone_utils import load_backbone
 
 
-class PromptDepthAnythingLayer(ms.nn.Cell):
+class PromptDepthAnythingLayer(mindspore.nn.Cell):
     def __init__(self, config: PromptDepthAnythingConfig):
         super().__init__()
         self.convolution1 = mint.nn.Conv2d(
@@ -61,7 +60,7 @@ class PromptDepthAnythingLayer(ms.nn.Cell):
             bias=True,
         )
 
-    def construct(self, prompt_depth: ms.Tensor) -> ms.Tensor:
+    def construct(self, prompt_depth: mindspore.Tensor) -> mindspore.Tensor:
         hidden_state = self.convolution1(prompt_depth)
         hidden_state = self.activation1(hidden_state)
         hidden_state = self.convolution2(hidden_state)
@@ -70,7 +69,7 @@ class PromptDepthAnythingLayer(ms.nn.Cell):
         return hidden_state
 
 
-class PromptDepthAnythingPreActResidualLayer(ms.nn.Cell):
+class PromptDepthAnythingPreActResidualLayer(mindspore.nn.Cell):
     """
     ResidualConvUnit, pre-activate residual unit.
 
@@ -102,7 +101,7 @@ class PromptDepthAnythingPreActResidualLayer(ms.nn.Cell):
             bias=True,
         )
 
-    def construct(self, hidden_state: ms.Tensor) -> ms.Tensor:
+    def construct(self, hidden_state: mindspore.Tensor) -> mindspore.Tensor:
         residual = hidden_state
         hidden_state = self.activation1(hidden_state)
         hidden_state = self.convolution1(hidden_state)
@@ -112,7 +111,7 @@ class PromptDepthAnythingPreActResidualLayer(ms.nn.Cell):
         return hidden_state + residual
 
 
-class PromptDepthAnythingFeatureFusionLayer(ms.nn.Cell):
+class PromptDepthAnythingFeatureFusionLayer(mindspore.nn.Cell):
     """Feature fusion layer, merges feature maps from different stages.
 
     Args:
@@ -159,10 +158,10 @@ class PromptDepthAnythingFeatureFusionLayer(ms.nn.Cell):
         return hidden_state
 
 
-class PromptDepthAnythingFeatureFusionStage(ms.nn.Cell):
+class PromptDepthAnythingFeatureFusionStage(mindspore.nn.Cell):
     def __init__(self, config):
         super().__init__()
-        self.layers = ms.nn.CellList()
+        self.layers = mindspore.nn.CellList()
         for _ in range(len(config.neck_hidden_sizes)):
             self.layers.append(PromptDepthAnythingFeatureFusionLayer(config))
 
@@ -187,7 +186,7 @@ class PromptDepthAnythingFeatureFusionStage(ms.nn.Cell):
         return fused_hidden_states
 
 
-class PromptDepthAnythingDepthEstimationHead(ms.nn.Cell):
+class PromptDepthAnythingDepthEstimationHead(mindspore.nn.Cell):
     """
     Output head consisting of 3 convolutional layers. It progressively halves the feature dimension and upsamples
     the predictions to the input resolution after the first convolutional layer (details can be found in the DPT paper's
@@ -214,12 +213,12 @@ class PromptDepthAnythingDepthEstimationHead(ms.nn.Cell):
             raise ValueError(f"Unknown depth estimation type: {config.depth_estimation_type}")
         self.max_depth = config.max_depth
 
-    def construct(self, hidden_states: List[ms.Tensor], patch_height: int, patch_width: int) -> ms.Tensor:
+    def construct(self, hidden_states: List[mindspore.Tensor], patch_height: int, patch_width: int) -> mindspore.Tensor:
         hidden_states = hidden_states[-1]
 
         predicted_depth = self.conv1(hidden_states)
-        target_height = (patch_height * self.patch_size).to(ms.int32)
-        target_width = (patch_width * self.patch_size).to(ms.int32)
+        target_height = int(patch_height * self.patch_size)
+        target_width = int(patch_width * self.patch_size)
         predicted_depth = mint.nn.functional.interpolate(
             predicted_depth,
             (target_height, target_width),
@@ -253,15 +252,17 @@ class PromptDepthAnythingPreTrainedModel(PreTrainedModel):
         if isinstance(module, (mint.nn.Linear, mint.nn.Conv2d, mint.nn.ConvTranspose2d)):
             # Slightly different from the TF version which uses truncated_normal for initialization
             # cf https://github.com/pytorch/pytorch/pull/5617
-            module.set_data(initializer(Normal(self.config.initializer_range, 0.0), module.shape, module.dtype))
+            module.weight.set_data(
+                initializer(Normal(self.config.initializer_range, 0.0), module.weight.shape, module.weight.dtype)
+            )
             if module.bias is not None:
-                module.set_data(initializer(Constant(0.0), module.shape, module.dtype))
+                module.bias.set_data(initializer(Constant(0.0), module.bias.shape, module.bias.dtype))
         elif isinstance(module, mint.nn.LayerNorm):
-            module.set_data(initializer(Constant(0.0), module.shape, module.dtype))
+            module.bias.set_data(initializer(Constant(0.0), module.bias.shape, module.bias.dtype))
             module.weight.set_data(initializer(Constant(1.0), module.weight.shape, module.weight.dtype))
 
 
-class PromptDepthAnythingReassembleLayer(ms.nn.Cell):
+class PromptDepthAnythingReassembleLayer(mindspore.nn.Cell):
     def __init__(self, config: PromptDepthAnythingConfig, channels: int, factor: int):
         super().__init__()
         self.projection = mint.nn.Conv2d(in_channels=config.reassemble_hidden_size, out_channels=channels, kernel_size=1)
@@ -273,7 +274,7 @@ class PromptDepthAnythingReassembleLayer(ms.nn.Cell):
             self.resize = mint.nn.Identity()
         elif factor < 1:
             # so should downsample
-            stride = (1 / factor).to(ms.int32)
+            stride = int(1 / factor)
             self.resize = mint.nn.Conv2d(channels, channels, kernel_size=3, stride=stride, padding=1)
 
     def construct(self, hidden_state):
@@ -283,7 +284,7 @@ class PromptDepthAnythingReassembleLayer(ms.nn.Cell):
         return hidden_state
 
 
-class PromptDepthAnythingReassembleStage(ms.nn.Cell):
+class PromptDepthAnythingReassembleStage(mindspore.nn.Cell):
     """
     This class reassembles the hidden states of the backbone into image-like feature representations at various
     resolutions.
@@ -302,11 +303,11 @@ class PromptDepthAnythingReassembleStage(ms.nn.Cell):
         super().__init__()
 
         self.config = config
-        self.layers = ms.nn.CellList()
+        self.layers = mindspore.nn.CellList()
         for channels, factor in zip(config.neck_hidden_sizes, config.reassemble_factors):
             self.layers.append(PromptDepthAnythingReassembleLayer(config, channels=channels, factor=factor))
 
-    def construct(self, hidden_states: List[ms.Tensor], patch_height=None, patch_width=None) -> List[ms.Tensor]:
+    def construct(self, hidden_states: List[mindspore.Tensor], patch_height=None, patch_width=None) -> List[mindspore.Tensor]:
         """
         Args:
             hidden_states (`List[mindspore.Tensor]`, each of shape `(batch_size, sequence_length + 1, hidden_size)`):
@@ -326,7 +327,7 @@ class PromptDepthAnythingReassembleStage(ms.nn.Cell):
         return out
 
 
-class PromptDepthAnythingNeck(ms.nn.Cell):
+class PromptDepthAnythingNeck(mindspore.nn.Cell):
     """
     PromptDepthAnythingNeck. A neck is a module that is normally used between the backbone and the head. It takes a list of tensors as
     input and produces another list of tensors as output. For PromptDepthAnything, it includes 2 stages:
@@ -344,7 +345,7 @@ class PromptDepthAnythingNeck(ms.nn.Cell):
 
         self.reassemble_stage = PromptDepthAnythingReassembleStage(config)
 
-        self.convs = ms.nn.CellList()
+        self.convs = mindspore.nn.CellList()
         for channel in config.neck_hidden_sizes:
             self.convs.append(mint.nn.Conv2d(channel, config.fusion_hidden_size, kernel_size=3, padding=1, bias=False))
 
@@ -353,11 +354,11 @@ class PromptDepthAnythingNeck(ms.nn.Cell):
 
     def construct(
         self,
-        hidden_states: List[ms.Tensor],
+        hidden_states: List[mindspore.Tensor],
         patch_height: Optional[int] = None,
         patch_width: Optional[int] = None,
-        prompt_depth: Optional[ms.Tensor] = None,
-    ) -> List[ms.Tensor]:
+        prompt_depth: Optional[mindspore.Tensor] = None,
+    ) -> List[mindspore.Tensor]:
         """
         Args:
             hidden_states (`List[mindspore.Tensor]`, each of shape `(batch_size, sequence_length, hidden_size)` or `(batch_size, hidden_size, height, width)`):
@@ -395,13 +396,13 @@ class PromptDepthAnythingForDepthEstimation(PromptDepthAnythingPreTrainedModel):
 
     def construct(
         self,
-        pixel_values: ms.Tensor,
-        prompt_depth: Optional[ms.Tensor] = None,
-        labels: Optional[ms.Tensor] = None,
+        pixel_values: mindspore.Tensor,
+        prompt_depth: Optional[mindspore.Tensor] = None,
+        labels: Optional[mindspore.Tensor] = None,
         output_attentions: Optional[bool] = None,
         output_hidden_states: Optional[bool] = None,
         return_dict: Optional[bool] = None,
-    ) -> Union[Tuple[ms.Tensor], DepthEstimatorOutput]:
+    ) -> Union[Tuple[mindspore.Tensor], DepthEstimatorOutput]:
         r"""
         labels (`mindspore.Tensor` of shape `(batch_size, height, width)`, *optional*):
             Ground truth depth estimation maps for computing the loss.
@@ -466,8 +467,8 @@ class PromptDepthAnythingForDepthEstimation(PromptDepthAnythingPreTrainedModel):
         if prompt_depth is not None:
             # normalize prompt depth
             batch_size = prompt_depth.shape[0]
-            depth_min = mint.min(prompt_depth.reshape(batch_size, -1), dim=1).values
-            depth_max = mint.max(prompt_depth.reshape(batch_size, -1), dim=1).values
+            depth_min = mint.min(prompt_depth.reshape(batch_size, -1), dim=1)[0]
+            depth_max = mint.max(prompt_depth.reshape(batch_size, -1), dim=1)[0]
             depth_min, depth_max = depth_min.view(batch_size, 1, 1, 1), depth_max.view(batch_size, 1, 1, 1)
             prompt_depth = (prompt_depth - depth_min) / (depth_max - depth_min)
             # normalize done
