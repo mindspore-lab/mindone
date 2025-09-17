@@ -33,9 +33,9 @@ from huggingface_hub.utils import EntryNotFoundError
 
 import mindspore as ms
 from mindspore import nn, ops
-from mindspore.ops import Cast
 
 from ...safetensors.mindspore import load as safe_load
+from ...safetensors.mindspore import load_file as safe_load_file
 from ..utils import (
     SAFE_WEIGHTS_INDEX_NAME,
     SAFETENSORS_FILE_EXTENSION,
@@ -47,7 +47,6 @@ from ..utils import (
 )
 
 logger = logging.get_logger(__name__)
-cpu_cast = Cast().set_device("CPU")
 
 _CLASS_REMAPPING_DICT = {
     "Transformer2DModel": {
@@ -98,7 +97,7 @@ def load_state_dict(
             if disable_mmap:
                 return safe_load(open(checkpoint_file, "rb").read())
             else:
-                return ms.load_checkpoint(checkpoint_file, format="safetensors")
+                return safe_load_file(checkpoint_file)
         else:
             raise NotImplementedError(
                 f"Only supports deserialization of weights file in safetensors format, but got {checkpoint_file}"
@@ -141,11 +140,11 @@ def _load_state_dict_into_model(
                     and any(module_to_keep_in_fp32 in k.split(".") for module_to_keep_in_fp32 in keep_in_fp32_modules)
                     and dtype == ms.float16
                 ):
-                    state_dict[k] = ms.Parameter(cpu_cast(v.data, ms.float32), name=k)
+                    v.set_dtype(ms.float32)
                 else:
-                    state_dict[k] = ms.Parameter(cpu_cast(v.data, local_state[k].dtype), name=k)
+                    v.set_dtype(local_state[k].dtype)
             else:
-                state_dict[k] = ms.Parameter(cpu_cast(v.data, local_state[k].dtype), name=k)
+                v.set_dtype(local_state[k].dtype)
         else:
             pass  # unexpect key keeps origin dtype
     cm = silence_mindspore_logger() if is_sharded else nullcontext()
