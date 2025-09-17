@@ -243,13 +243,6 @@ _import_structure = {
         "WuerstchenPriorPipeline",
     ],
     "wan": ["WanPipeline", "WanImageToVideoPipeline", "WanVideoToVideoPipeline"],
-    "qwenimage": [
-        "QwenImageEditPipeline",
-        "QwenImageEditInpaintPipeline",
-        "QwenImageImg2ImgPipeline",
-        "QwenImageInpaintPipeline",
-        "QwenImagePipeline",
-    ],
     "skyreels_v2": [
         "SkyReelsV2DiffusionForcingPipeline",
         "SkyReelsV2DiffusionForcingImageToVideoPipeline",
@@ -257,6 +250,13 @@ _import_structure = {
         "SkyReelsV2ImageToVideoPipeline",
         "SkyReelsV2Pipeline",
     ],
+    "qwenimage": [
+        "QwenImageEditPipeline",
+        "QwenImageEditInpaintPipeline",
+        "QwenImageImg2ImgPipeline",
+        "QwenImageInpaintPipeline",
+        "QwenImagePipeline",
+    ],    
     "pipeline_utils": [
         "AudioPipelineOutput",
         "DiffusionPipeline",
