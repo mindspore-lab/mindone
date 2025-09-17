@@ -419,6 +419,14 @@ from .models.llava_onevision import (
     LlavaOnevisionProcessor,
     LlavaOnevisionVideoProcessor,
 )
+from .models.lxmert import (
+    LxmertEncoder,
+    LxmertForPreTraining,
+    LxmertForQuestionAnswering,
+    LxmertModel,
+    LxmertPreTrainedModel,
+    LxmertVisualFeatureEncoder,
+)
 from .models.m2m_100 import M2M100ForConditionalGeneration, M2M100Model, M2M100PreTrainedModel
 from .models.megatron_bert import (
     MegatronBertForCausalLM,
