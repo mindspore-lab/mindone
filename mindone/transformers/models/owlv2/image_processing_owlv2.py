@@ -537,7 +537,7 @@ class Owlv2ImageProcessor(BaseImageProcessor):
 
         # batch_logits of shape (batch_size, num_queries, num_classes)
         batch_class_logits = mint.max(batch_logits, dim=-1)
-        batch_scores = mint.sigmoid(batch_class_logits.values)
+        batch_scores = mint.sigmoid(batch_class_logits[0])
         batch_labels = batch_class_logits.indices
 
         # Convert to [x0, y0, x1, y1] format
@@ -588,7 +588,7 @@ class Owlv2ImageProcessor(BaseImageProcessor):
             raise ValueError("Each element of target_sizes must contain the size (h, w) of each image of the batch")
 
         probs = mint.max(logits, dim=-1)
-        scores = mint.sigmoid(probs.values)
+        scores = mint.sigmoid(probs[0])
 
         # Convert to [x0, y0, x1, y1] format
         target_boxes = center_to_corners_format(target_boxes)
