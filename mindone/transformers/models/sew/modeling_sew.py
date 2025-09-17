@@ -1368,12 +1368,12 @@ class SEWForSequenceClassification(SEWPreTrainedModel):
 
         >>> logits = model(**inputs).logits
 
-        >>> predicted_class_ids = torch.argmax(logits, dim=-1).item()
+        >>> predicted_class_ids = ms.mint.argmax(logits, dim=-1).item()
         >>> predicted_label = model.config.id2label[predicted_class_ids]
 
         >>> # compute loss - target_label is e.g. "down"
         >>> target_label = model.config.id2label[0]
-        >>> inputs["labels"] = torch.tensor([model.config.label2id[target_label]])
+        >>> inputs["labels"] = ms.tensor([model.config.label2id[target_label]])
         >>> loss = model(**inputs).loss
         >>> round(loss.item(), 2)
         """
