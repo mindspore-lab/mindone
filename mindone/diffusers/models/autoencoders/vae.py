@@ -726,14 +726,14 @@ class DiagonalGaussianDistribution(object):
 
 
 class IdentityDistribution(object):
-    def __init__(self, parameters: ms.Tensor):
-        self.parameters = parameters
+    def __init__(self):
+        pass
 
-    def sample(self, generator: Optional[np.random.Generator] = None) -> ms.Tensor:
-        return self.parameters
+    def sample(self, parameters: ms.Tensor, generator: Optional[np.random.Generator] = None) -> ms.Tensor:
+        return parameters
 
-    def mode(self) -> ms.Tensor:
-        return self.parameters
+    def mode(self, parameters: ms.Tensor) -> ms.Tensor:
+        return parameters
 
 
 class EncoderTiny(nn.Cell):
