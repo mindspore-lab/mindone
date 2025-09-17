@@ -91,6 +91,7 @@ MODEL_MAPPING_NAMES = OrderedDict(
         ("imagegpt", "ImageGPTModel"),
         ("led", "LEDModel"),
         ("levit", "LevitModel"),
+        ("lilt", "LiltModel"),
         ("llama", "LlamaModel"),
         ("mistral", "MistralModel"),
         ("mobilebert", "MobileBertModel"),
