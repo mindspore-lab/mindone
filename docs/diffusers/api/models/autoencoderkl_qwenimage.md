@@ -16,7 +16,7 @@ The model can be loaded with the following code snippet.
 ```python
 from mindone.diffusers import AutoencoderKLQwenImage
 
-vae = AutoencoderKLQwenImage.from_pretrained("Qwen/QwenImage-20B", subfolder="vae")
+vae = AutoencoderKLQwenImage.from_pretrained("Qwen/QwenImage", subfolder="vae")
 ```
 
 ::: mindspore.diffusers.AutoencoderKLQwenImage

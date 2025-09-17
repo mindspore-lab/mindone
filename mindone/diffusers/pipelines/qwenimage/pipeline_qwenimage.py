@@ -29,7 +29,7 @@ from ...loaders import QwenImageLoraLoaderMixin
 from ...models import AutoencoderKLQwenImage, QwenImageTransformer2DModel
 from ...schedulers import FlowMatchEulerDiscreteScheduler
 from ...utils import logging
-from ...utils.mindspore_utils import randn_tensor
+from ...utils.mindspore_utils import randn_tensor, pynative_context
 from ..pipeline_utils import DiffusionPipeline
 from .pipeline_output import QwenImagePipelineOutput
 

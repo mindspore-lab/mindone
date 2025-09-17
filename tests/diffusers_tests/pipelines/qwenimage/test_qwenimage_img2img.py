@@ -138,8 +138,7 @@ class QwenImageImg2ImgPipelineFastTests(unittest.TestCase, PipelineTesterMixin):
             "transformers.models.qwen2.tokenization_qwen2.Qwen2Tokenizer",
             "transformers.models.qwen2.tokenization_qwen2.Qwen2Tokenizer",
             dict(
-                pretrained_model_name_or_path="hf-internal-testing/tiny-random-Qwen2VLForConditionalGeneration"
-                local_files_only=True,
+                pretrained_model_name_or_path="hf-internal-testing/tiny-random-Qwen2VLForConditionalGeneration",
                 trust_remote_code=True,
             ),
         ],
