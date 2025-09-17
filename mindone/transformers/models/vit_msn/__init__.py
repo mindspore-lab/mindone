@@ -12,4 +12,4 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from .modeling_vit_msn import ViTMSNModel, ViTMSNForImageClassification, ViTMSNPreTrainedModel
+from .modeling_vit_msn import ViTMSNForImageClassification, ViTMSNModel, ViTMSNPreTrainedModel

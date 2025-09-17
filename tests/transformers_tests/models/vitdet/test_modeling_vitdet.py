@@ -14,15 +14,14 @@
 # limitations under the License.
 """Testing suite for the MindSpore ViTDet model."""
 
-import unittest
 import inspect
+
 import numpy as np
 import pytest
 import torch
-import mindspore as ms
-
 from transformers import VitDetConfig
 
+import mindspore as ms
 
 from tests.modeling_test_utils import (
     MS_DTYPE_MAPPING,
@@ -35,6 +34,7 @@ from tests.transformers_tests.models.modeling_common import floats_numpy, ids_nu
 
 DTYPE_AND_THRESHOLDS = {"fp32": 5e-4, "fp16": 5e-3, "bf16": 7e-3}
 MODES = [1]
+
 
 class VitDetModelTester:
     def __init__(
@@ -111,6 +111,7 @@ class VitDetModelTester:
         config, pixel_values, labels = config_and_inputs
         inputs_dict = {"pixel_values": pixel_values}
         return config, inputs_dict
+
 
 model_tester = VitDetModelTester()
 (

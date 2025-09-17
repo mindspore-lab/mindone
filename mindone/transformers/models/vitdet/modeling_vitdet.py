@@ -17,6 +17,7 @@
 import collections.abc
 import math
 from typing import Dict, List, Optional, Tuple, Union
+
 from transformers import VitDetConfig
 from transformers.utils import (
     add_start_docstrings,
@@ -24,18 +25,16 @@ from transformers.utils import (
     logging,
     replace_return_docstrings,
 )
-import mindspore as ms
-from mindspore import nn
 
-from mindspore import Parameter, Tensor, mint
-from mindone.models.utils import kaiming_normal_, constant_, trunc_normal_, zeros_, ones_
+import mindspore as ms
+from mindspore import mint, nn
+
+from mindone.models.utils import constant_, kaiming_normal_, ones_, trunc_normal_, zeros_
 
 from ...activations import ACT2FN
 from ...modeling_outputs import BackboneOutput, BaseModelOutput
 from ...modeling_utils import PreTrainedModel
-
 from ...utils.backbone_utils import BackboneMixin
-
 
 logger = logging.get_logger(__name__)
 
@@ -65,7 +64,7 @@ class VitDetEmbeddings(nn.Cell):
         if config.use_absolute_position_embeddings:
             # Initialize absolute positional embedding with pretrain image size.
             num_positions = num_patches + 1
-            self.position_embeddings = nn.Parameter(mint.zeros(1, num_positions, config.hidden_size))
+            self.position_embeddings = ms.Parameter(mint.zeros((1, num_positions, config.hidden_size)))
         else:
             self.position_embeddings = None
 
@@ -234,8 +233,8 @@ class VitDetAttention(nn.Cell):
         self.use_relative_position_embeddings = config.use_relative_position_embeddings
         if self.use_relative_position_embeddings:
             # initialize relative positional embeddings
-            self.rel_pos_h = nn.Parameter(mint.zeros(2 * input_size[0] - 1, head_dim))
-            self.rel_pos_w = nn.Parameter(mint.zeros(2 * input_size[1] - 1, head_dim))
+            self.rel_pos_h = ms.Parameter(mint.zeros((2 * input_size[0] - 1, head_dim)))
+            self.rel_pos_w = ms.Parameter(mint.zeros((2 * input_size[1] - 1, head_dim)))
 
     def construct(self, hidden_state, output_attentions=False):
         batch_size, height, width, _ = hidden_state.shape
@@ -251,7 +250,7 @@ class VitDetAttention(nn.Cell):
                 attention_scores, queries, self.rel_pos_h, self.rel_pos_w, (height, width), (height, width)
             )
 
-        attention_probs = attention_scores.softmax(dim=-1)
+        attention_probs = attention_scores.softmax(-1)
 
         hidden_state = mint.matmul(attention_probs, values)
         hidden_state = hidden_state.view(batch_size, self.num_heads, height, width, -1)
@@ -315,8 +314,8 @@ class VitDetLayerNorm(nn.Cell):
 
     def __init__(self, normalized_shape, eps=1e-6):
         super().__init__()
-        self.weight = nn.Parameter(mint.ones(normalized_shape))
-        self.bias = nn.Parameter(mint.zeros(normalized_shape))
+        self.weight = ms.Parameter(mint.ones(normalized_shape))
+        self.bias = ms.Parameter(mint.zeros(normalized_shape))
         self.eps = eps
         self.normalized_shape = (normalized_shape,)
 
@@ -471,7 +470,7 @@ class VitDetLayer(nn.Cell):
         )
 
         self.drop_path = VitDetDropPath(drop_path_rate) if drop_path_rate > 0.0 else nn.Identity()
-        self.norm2 = nn.LayerNorm(dim, eps=config.layer_norm_eps)
+        self.norm2 = mint.nn.LayerNorm(dim, eps=config.layer_norm_eps)
         self.mlp = VitDetMlp(config=config, in_features=dim, hidden_features=int(dim * config.mlp_ratio))
 
         self.window_size = window_size
@@ -614,13 +613,12 @@ class VitDetPreTrainedModel(PreTrainedModel):
     supports_gradient_checkpointing = True
     _no_split_modules = []
 
-    def _init_weights(self, module: Union[nn.Linear, nn.Conv2d, nn.LayerNorm]) -> None:
+    def _init_weights(self, module: Union[mint.nn.Linear, mint.nn.Conv2d, mint.nn.LayerNorm]) -> None:
         """Initialize the weights"""
         if isinstance(module, (mint.nn.Linear, mint.nn.Conv2d)):
             # Upcast the input in `fp32` and cast it back to desired `dtype` to avoid
             # `trunc_normal_cpu` not implemented in `half` issues
-            original_dtype = module.weight.dtype
-            module.weight.data = trunc_normal_(module.weight.data.to(ms.float32), mean=0.0, std=self.config.initializer_range).to(original_dtype)
+            trunc_normal_(module.weight.data, mean=0.0, std=self.config.initializer_range)
             if module.bias is not None:
                 zeros_(module.bias.data)
         elif isinstance(module, mint.nn.LayerNorm):
@@ -628,21 +626,20 @@ class VitDetPreTrainedModel(PreTrainedModel):
             ones_(module.weight)
 
         elif isinstance(module, VitDetEmbeddings):
-            original_dtype = module.position_embeddings.dtype
-            module.position_embeddings.data = trunc_normal_(
-                module.position_embeddings.data.to(ms.float32),
+            trunc_normal_(
+                module.position_embeddings.data,
                 mean=0.0,
                 std=self.config.initializer_range,
-            ).to(original_dtype)
+            )
 
         elif isinstance(module, VitDetAttention) and self.config.use_relative_position_embeddings:
             trunc_normal_(
-                module.rel_pos_h.data.to(ms.float32),
+                module.rel_pos_h.data,
                 mean=0.0,
                 std=self.config.initializer_range,
             )
             trunc_normal_(
-                module.rel_pos_w.data.to(ms.float32),
+                module.rel_pos_w.data,
                 mean=0.0,
                 std=self.config.initializer_range,
             )
