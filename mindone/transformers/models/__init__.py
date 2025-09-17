@@ -89,6 +89,7 @@ from . import (
     rwkv,
     segformer,
     siglip,
+    siglip2,
     smolvlm,
     speecht5,
     starcoder2,
