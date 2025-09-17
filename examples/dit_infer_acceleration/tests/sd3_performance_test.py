@@ -51,7 +51,7 @@ def arg_parse():
 
 
 def main():
-    ms.set_context(mode=0, jit_config={"jit_level": "O2"})
+    ms.set_context(mode=0, jit_config={"jit_level": "O1"})
 
     args = arg_parse()
     current_path = os.path.abspath(os.path.dirname(__file__))
