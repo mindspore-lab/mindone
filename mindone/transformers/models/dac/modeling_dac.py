@@ -122,12 +122,8 @@ class DacVectorQuantize(nn.Cell):
     def __init__(self, config: DacConfig):
         super().__init__()
 
-        self.in_proj = nn.Conv1d(
-            config.hidden_size, config.codebook_dim, kernel_size=1, has_bias=True, pad_mode="valid"
-        )
-        self.out_proj = nn.Conv1d(
-            config.codebook_dim, config.hidden_size, kernel_size=1, has_bias=True, pad_mode="valid"
-        )
+        self.in_proj = mint.nn.Conv1d(config.hidden_size, config.codebook_dim, kernel_size=1)
+        self.out_proj = mint.nn.Conv1d(config.codebook_dim, config.hidden_size, kernel_size=1)
         self.codebook = mint.nn.Embedding(config.codebook_size, config.codebook_dim)
 
     def construct(self, hidden_state):
@@ -195,11 +191,9 @@ class DacResidualUnit(nn.Cell):
         pad = ((7 - 1) * dilation) // 2
 
         self.snake1 = Snake1d(dimension)
-        self.conv1 = nn.Conv1d(
-            dimension, dimension, kernel_size=7, dilation=dilation, padding=pad, has_bias=True, pad_mode="pad"
-        )
+        self.conv1 = mint.nn.Conv1d(dimension, dimension, kernel_size=7, dilation=dilation, padding=pad, has_bias=True)
         self.snake2 = Snake1d(dimension)
-        self.conv2 = nn.Conv1d(dimension, dimension, kernel_size=1, has_bias=True, pad_mode="valid")
+        self.conv2 = mint.nn.Conv1d(dimension, dimension, kernel_size=1, has_bias=True)
 
     def construct(self, hidden_state):
         """
@@ -235,14 +229,12 @@ class DacEncoderBlock(nn.Cell):
         self.res_unit2 = DacResidualUnit(dimension // 2, dilation=3)
         self.res_unit3 = DacResidualUnit(dimension // 2, dilation=9)
         self.snake1 = Snake1d(dimension // 2)
-        self.conv1 = nn.Conv1d(
+        self.conv1 = mint.nn.Conv1d(
             dimension // 2,
             dimension,
             kernel_size=2 * stride,
             stride=stride,
             padding=math.ceil(stride / 2),
-            has_bias=True,
-            pad_mode="pad",
         )
 
     def construct(self, hidden_state):
@@ -433,7 +425,7 @@ class DacDecoder(nn.Cell):
         strides = config.upsampling_ratios
 
         # Add first conv layer
-        self.conv1 = nn.Conv1d(input_channel, channels, kernel_size=7, padding=3, has_bias=True, pad_mode="pad")
+        self.conv1 = mint.nn.Conv1d(input_channel, channels, kernel_size=7, padding=3)
 
         # Add upsampling + MRF blocks
         block = []
@@ -443,7 +435,7 @@ class DacDecoder(nn.Cell):
         self.block = nn.CellList(block)
         output_dim = config.decoder_hidden_size // 2 ** (stride_index + 1)
         self.snake1 = Snake1d(output_dim)
-        self.conv2 = nn.Conv1d(output_dim, 1, kernel_size=7, padding=3, has_bias=True, pad_mode="pad")
+        self.conv2 = mint.nn.Conv1d(output_dim, 1, kernel_size=7, padding=3)
         self.tanh = mint.nn.Tanh()
 
     def construct(self, hidden_state):
@@ -467,7 +459,7 @@ class DacEncoder(nn.Cell):
 
         strides = config.downsampling_ratios
         # Create first convolution
-        self.conv1 = nn.Conv1d(1, config.encoder_hidden_size, kernel_size=7, padding=3, has_bias=True, pad_mode="pad")
+        self.conv1 = mint.nn.Conv1d(1, config.encoder_hidden_size, kernel_size=7, padding=3)
 
         self.block = []
         # Create EncoderBlocks that double channels as they downsample by `stride`
@@ -478,7 +470,7 @@ class DacEncoder(nn.Cell):
         self.block = nn.CellList(self.block)
         d_model = config.encoder_hidden_size * 2**stride_index
         self.snake1 = Snake1d(d_model)
-        self.conv2 = nn.Conv1d(d_model, config.hidden_size, kernel_size=3, padding=1, has_bias=True, pad_mode="pad")
+        self.conv2 = mint.nn.Conv1d(d_model, config.hidden_size, kernel_size=3, padding=1)
 
     def construct(self, hidden_state):
         hidden_state = self.conv1(hidden_state)
