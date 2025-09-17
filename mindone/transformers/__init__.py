@@ -947,6 +947,13 @@ from .models.segformer import (
     SegformerModel,
     SegformerPreTrainedModel,
 )
+from .models.seggpt import (
+    SegGptConfig,
+    SegGptForImageSegmentation,
+    SegGptImageProcessor,
+    SegGptModel,
+    SegGptPreTrainedModel,
+)
 from .models.sew import SEWForCTC, SEWForSequenceClassification, SEWModel, SEWPreTrainedModel
 from .models.sew_d import SEWDForCTC, SEWDForSequenceClassification, SEWDModel, SEWDPreTrainedModel
 from .models.siglip import (
