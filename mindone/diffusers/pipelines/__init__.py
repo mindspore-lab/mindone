@@ -250,6 +250,13 @@ _import_structure = {
         "QwenImageInpaintPipeline",
         "QwenImagePipeline",
     ],
+    "skyreels_v2": [
+        "SkyReelsV2DiffusionForcingPipeline",
+        "SkyReelsV2DiffusionForcingImageToVideoPipeline",
+        "SkyReelsV2DiffusionForcingVideoToVideoPipeline",
+        "SkyReelsV2ImageToVideoPipeline",
+        "SkyReelsV2Pipeline",
+    ],
     "pipeline_utils": [
         "AudioPipelineOutput",
         "DiffusionPipeline",

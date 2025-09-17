@@ -1,5 +1,5 @@
 import mindspore as ms
-from mindspore import Parameter, nn, ops, mint
+from mindspore import Parameter, mint, nn, ops
 
 
 def norm_except_dim(v, pow, dim):

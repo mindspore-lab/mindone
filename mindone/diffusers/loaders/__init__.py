@@ -77,6 +77,7 @@ _import_structure = {
         "WanLoraLoaderMixin",
         "HiDreamImageLoraLoaderMixin",
         "QwenImageLoraLoaderMixin"
+        "SkyReelsV2LoraLoaderMixin",
     ],
     "peft": ["PeftAdapterMixin"],
     "single_file": ["FromSingleFileMixin"],
