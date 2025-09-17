@@ -172,6 +172,13 @@ _import_structure = {
         "PixArtAlphaPipeline",
         "PixArtSigmaPipeline",
     ],
+    "qwenimage": [
+        "QwenImageEditPipeline",
+        "QwenImageEditInpaintPipeline",
+        "QwenImageImg2ImgPipeline",
+        "QwenImageInpaintPipeline",
+        "QwenImagePipeline",
+    ],    
     "sana": ["SanaPipeline", "SanaSprintPipeline", "SanaControlNetPipeline", "SanaSprintImg2ImgPipeline"],
     "semantic_stable_diffusion": ["SemanticStableDiffusionPipeline"],
     "shap_e": ["ShapEImg2ImgPipeline", "ShapEPipeline"],
@@ -250,13 +257,6 @@ _import_structure = {
         "SkyReelsV2ImageToVideoPipeline",
         "SkyReelsV2Pipeline",
     ],
-    "qwenimage": [
-        "QwenImageEditPipeline",
-        "QwenImageEditInpaintPipeline",
-        "QwenImageImg2ImgPipeline",
-        "QwenImageInpaintPipeline",
-        "QwenImagePipeline",
-    ],    
     "pipeline_utils": [
         "AudioPipelineOutput",
         "DiffusionPipeline",
