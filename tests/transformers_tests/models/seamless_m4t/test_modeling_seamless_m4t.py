@@ -200,7 +200,6 @@ class SeamlessM4TModelTester:
             t2u_encoder_attention_heads=self.num_heads,
             t2u_decoder_attention_heads=self.num_heads,
             speech_encoder_attention_heads=self.num_heads,
-            unit_hifigan_vocab_vise=self.t2u_vocab_size,
             vocoder_num_spkrs=self.vocoder_num_spkrs,
             vocoder_num_langs=self.vocoder_num_langs,
             upsample_initial_channel=self.upsample_initial_channel,
@@ -217,12 +216,12 @@ class SeamlessM4TModelTester:
         )
 
 
-model_tester_text = SeamlessM4TModelTester(input_modality = "text")
+model_tester_text = SeamlessM4TModelTester(input_modality="text")
 config_text, inputs_dict_text = model_tester_text.prepare_config_and_inputs_for_common()
-model_tester_speech = SeamlessM4TModelTester(input_modality = "speech")
+model_tester_speech = SeamlessM4TModelTester(input_modality="speech")
 config_speech, inputs_dict_speech = model_tester_speech.prepare_config_and_inputs_for_common()
 
-Seamless_m4t_CASES = [
+SEAMLESS_M4T_CASES = [
     [
         "SeamlessM4TForSpeechToSpeech",
         "transformers.SeamlessM4TForSpeechToSpeech",
@@ -318,7 +317,7 @@ Seamless_m4t_CASES = [
             "logits": 0,
             "encoder_last_hidden_state": 2,
         },
-    ],        
+    ],
 ]
 
 
@@ -332,7 +331,7 @@ Seamless_m4t_CASES = [
         + [
             mode,
         ]
-        for case in Seamless_m4t_CASES
+        for case in SEAMLESS_M4T_CASES
         for dtype in DTYPE_AND_THRESHOLDS.keys()
         for mode in MODES
     ],
@@ -370,11 +369,11 @@ def test_named_modules(
     ms_inputs_kwargs["return_dict"] = False
     
     pt_inputs_args = tuple(
-        tensor.to(PT_DTYPE_MAPPING[pt_dtype]) if i not in inputs_type_idx else tensor.to(PT_DTYPE_MAPPING[pt_dtype]).long()
+        tensor.to(PT_DTYPE_MAPPING[pt_dtype]).long() if i in inputs_type_idx else tensor.to(PT_DTYPE_MAPPING[pt_dtype])
         for i, tensor in enumerate(pt_inputs_args)
     )
     ms_inputs_args = tuple(
-        tensor.to(MS_DTYPE_MAPPING[ms_dtype]) if i not in inputs_type_idx else tensor.to(ms.int64)
+        tensor.to(ms.int64) if i in inputs_type_idx else tensor.to(MS_DTYPE_MAPPING[ms_dtype]) 
         for i, tensor in enumerate(ms_inputs_args)
     )
 
