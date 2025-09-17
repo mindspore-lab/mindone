@@ -191,9 +191,9 @@ class DacResidualUnit(nn.Cell):
         pad = ((7 - 1) * dilation) // 2
 
         self.snake1 = Snake1d(dimension)
-        self.conv1 = mint.nn.Conv1d(dimension, dimension, kernel_size=7, dilation=dilation, padding=pad, has_bias=True)
+        self.conv1 = mint.nn.Conv1d(dimension, dimension, kernel_size=7, dilation=dilation, padding=pad)
         self.snake2 = Snake1d(dimension)
-        self.conv2 = mint.nn.Conv1d(dimension, dimension, kernel_size=1, has_bias=True)
+        self.conv2 = mint.nn.Conv1d(dimension, dimension, kernel_size=1)
 
     def construct(self, hidden_state):
         """
