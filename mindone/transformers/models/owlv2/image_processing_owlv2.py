@@ -96,7 +96,7 @@ def _scale_boxes(boxes, target_sizes):
     max_size = mint.max(image_height, image_width)
 
     scale_factor = mint.stack([max_size, max_size, max_size, max_size], dim=1)
-    scale_factor = scale_factor.unsqueeze(1).to(boxes.device)
+    scale_factor = scale_factor.unsqueeze(1)
     boxes = boxes * scale_factor
     return boxes
 
