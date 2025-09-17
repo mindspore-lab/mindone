@@ -17,23 +17,24 @@
 import collections.abc
 from typing import Callable, Dict, List, Optional, Set, Tuple, Union
 
-import mindspore as ms
-from mindspore import nn, mint
-from mindspore.mint.nn import BCEWithLogitsLoss, CrossEntropyLoss, MSELoss
-from mindone.models.utils import ones_, trunc_normal_, zeros_, normal_
-
-from ...activations import ACT2FN
-from ...modeling_outputs import BaseModelOutput, ImageClassifierOutput
-from ...modeling_utils import ALL_ATTENTION_FUNCTIONS, PreTrainedModel
-from ...mindspore_utils import find_pruneable_heads_and_indices, prune_linear_layer
-from ...utils import (
+from transformers import ViTMSNConfig
+from transformers.utils import (
     add_start_docstrings,
     add_start_docstrings_to_model_forward,
     logging,
     replace_return_docstrings,
 )
-from transformers import ViTMSNConfig
 
+import mindspore as ms
+from mindspore import mint, nn
+from mindspore.mint.nn import BCEWithLogitsLoss, CrossEntropyLoss, MSELoss
+
+from mindone.models.utils import normal_, ones_, zeros_
+
+from ...activations import ACT2FN
+from ...mindspore_utils import find_pruneable_heads_and_indices, prune_linear_layer
+from ...modeling_outputs import BaseModelOutput, ImageClassifierOutput
+from ...modeling_utils import ALL_ATTENTION_FUNCTIONS, PreTrainedModel
 
 logger = logging.get_logger(__name__)
 
@@ -50,11 +51,11 @@ class ViTMSNEmbeddings(nn.Cell):
     def __init__(self, config: ViTMSNConfig, use_mask_token: bool = False) -> None:
         super().__init__()
 
-        self.cls_token = ms.Parameter(mint.zeros(1, 1, config.hidden_size))
-        self.mask_token = ms.Parameter(mint.zeros(1, 1, config.hidden_size)) if use_mask_token else None
+        self.cls_token = ms.Parameter(mint.zeros((1, 1, config.hidden_size)))
+        self.mask_token = ms.Parameter(mint.zeros((1, 1, config.hidden_size))) if use_mask_token else None
         self.patch_embeddings = ViTMSNPatchEmbeddings(config)
         num_patches = self.patch_embeddings.num_patches
-        self.position_embeddings = ms.Parameter(mint.zeros(1, num_patches + 1, config.hidden_size))
+        self.position_embeddings = ms.Parameter(mint.zeros((1, num_patches + 1, config.hidden_size)))
         self.dropout = mint.nn.Dropout(config.hidden_dropout_prob)
         self.patch_size = config.patch_size
         self.config = config
@@ -325,7 +326,7 @@ class ViTMSNAttention(nn.Cell):
 
 
 # Copied from transformers.models.vit.modeling_vit.ViTIntermediate with ViT->ViTMSN
-class ViTMSNIntermediate(nn.Module):
+class ViTMSNIntermediate(nn.Cell):
     def __init__(self, config: ViTMSNConfig) -> None:
         super().__init__()
         self.dense = mint.nn.Linear(config.hidden_size, config.intermediate_size)
@@ -368,8 +369,8 @@ class ViTMSNLayer(nn.Cell):
         self.attention = ViTMSNAttention(config)
         self.intermediate = ViTMSNIntermediate(config)
         self.output = ViTMSNOutput(config)
-        self.layernorm_before = nn.LayerNorm(config.hidden_size, eps=config.layer_norm_eps)
-        self.layernorm_after = nn.LayerNorm(config.hidden_size, eps=config.layer_norm_eps)
+        self.layernorm_before = mint.nn.LayerNorm(config.hidden_size, eps=config.layer_norm_eps)
+        self.layernorm_after = mint.nn.LayerNorm(config.hidden_size, eps=config.layer_norm_eps)
 
     def construct(
         self,
@@ -472,6 +473,7 @@ class ViTMSNPreTrainedModel(PreTrainedModel):
             zeros_(module.bias)
             ones_(module.weight)
 
+
 VIT_MSN_START_DOCSTRING = r"""
     This model is a MindSpore [mindspore.nn.Cell](https://www.mindspore.cn/docs/en/master/api_python/nn/mindspore.nn.Cell.html) subclass.
     Use it as a regular MindSpore Module and refer to the MindSpore documentation for all matter related to general usage and behavior.
@@ -519,7 +521,7 @@ class ViTMSNModel(ViTMSNPreTrainedModel):
         self.embeddings = ViTMSNEmbeddings(config, use_mask_token=use_mask_token)
         self.encoder = ViTMSNEncoder(config)
 
-        self.layernorm = nn.LayerNorm(config.hidden_size, eps=config.layer_norm_eps)
+        self.layernorm = mint.nn.LayerNorm(config.hidden_size, eps=config.layer_norm_eps)
 
         # Initialize weights and apply final processing
         self.post_init()
@@ -633,7 +635,9 @@ class ViTMSNForImageClassification(ViTMSNPreTrainedModel):
         self.vit = ViTMSNModel(config)
 
         # Classifier head
-        self.classifier = mint.nn.Linear(config.hidden_size, config.num_labels) if config.num_labels > 0 else mint.nn.Identity()
+        self.classifier = (
+            mint.nn.Linear(config.hidden_size, config.num_labels) if config.num_labels > 0 else mint.nn.Identity()
+        )
 
         # Initialize weights and apply final processing
         self.post_init()

@@ -14,15 +14,15 @@
 # limitations under the License.
 """Testing suite for the MindSpore ViTMSN model."""
 
-import torch
 import inspect
 
 import numpy as np
 import pytest
 import torch
-from transformers import ViTMSNForImageClassification, ViTMSNModel
+from transformers import ViTMSNConfig
 
 import mindspore as ms
+
 from tests.modeling_test_utils import (
     MS_DTYPE_MAPPING,
     PT_DTYPE_MAPPING,
@@ -30,16 +30,15 @@ from tests.modeling_test_utils import (
     generalized_parse_args,
     get_modules,
 )
-from transformers import ViTMSNConfig
-from tests. transformers_tests.models.modeling_common import floats_numpy, ids_numpy
+from tests.transformers_tests.models.modeling_common import floats_numpy, ids_numpy
+
 DTYPE_AND_THRESHOLDS = {"fp32": 5e-4, "fp16": 5e-3, "bf16": 7e-3}
-MODES = [1] # pynative only
+MODES = [1]  # pynative only
 
 
 class ViTMSNModelTester:
     def __init__(
         self,
-        parent,
         batch_size=13,
         image_size=30,
         patch_size=2,
@@ -59,7 +58,6 @@ class ViTMSNModelTester:
         attn_implementation="eager",
         mask_ratio=0.5,
     ):
-        self.parent = parent
         self.batch_size = batch_size
         self.image_size = image_size
         self.patch_size = patch_size
@@ -110,33 +108,6 @@ class ViTMSNModelTester:
             initializer_range=self.initializer_range,
             attn_implementation=self.attn_implementation,
         )
-
-    def create_and_check_model(self, config, pixel_values, labels):
-        model = ViTMSNModel(config=config)
-        model.to(torch_device)
-        model.eval()
-        result = model(pixel_values)
-        self.parent.assertEqual(result.last_hidden_state.shape, (self.batch_size, self.seq_length, self.hidden_size))
-
-    def create_and_check_for_image_classification(self, config, pixel_values, labels):
-        config.num_labels = self.type_sequence_label_size
-        model = ViTMSNForImageClassification(config)
-        model.to(torch_device)
-        model.eval()
-        result = model(pixel_values, labels=labels)
-        print("Pixel and labels shape: {pixel_values.shape}, {labels.shape}")
-        print("Labels: {labels}")
-        self.parent.assertEqual(result.logits.shape, (self.batch_size, self.type_sequence_label_size))
-
-        # test greyscale images
-        config.num_channels = 1
-        model = ViTMSNForImageClassification(config)
-        model.to(torch_device)
-        model.eval()
-
-        pixel_values = floats_tensor([self.batch_size, 1, self.image_size, self.image_size])
-        result = model(pixel_values)
-        self.parent.assertEqual(result.logits.shape, (self.batch_size, self.type_sequence_label_size))
 
     def prepare_config_and_inputs_for_common(self):
         config_and_inputs = self.prepare_config_and_inputs()
@@ -252,4 +223,3 @@ def test_named_modules(
         f"ms_dtype: {ms_dtype}, pt_type:{pt_dtype}, "
         f"Outputs({np.array(diffs).tolist()}) has diff bigger than {THRESHOLD}"
     )
-
