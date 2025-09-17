@@ -91,6 +91,7 @@ from . import (
     siglip,
     smolvlm,
     speecht5,
+    stablelm,
     starcoder2,
     swin2sr,
     switch_transformers,
