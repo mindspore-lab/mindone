@@ -26,6 +26,7 @@ from . import (
     bert,
     big_bird,
     bigbird_pegasus,
+    biogpt,
     bit,
     blip,
     blip_2,
