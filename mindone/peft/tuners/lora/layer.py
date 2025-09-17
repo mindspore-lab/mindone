@@ -18,7 +18,7 @@ from __future__ import annotations
 
 import math
 import warnings
-from typing import Any, Optional, Union
+from typing import Any, Iterable, Optional, Tuple, Union
 
 import mindspore as ms
 import mindspore.mint.nn.functional as F
@@ -239,7 +239,8 @@ class LoraLayer(BaseTunerLayer):
         weight = transpose(weight.to(ms.float32), self.fan_in_fan_out)
         if init_lora_weights == "pissa":
             # USV^T = W <-> VSU^T = W^T, where W^T = weight.data in R^{out_channel, in_channel},
-            V, S, Uh = mint.linalg.svd(weight, full_matrices=False)
+            S, Uh, V = ops.svd(weight, full_matrices=False)
+            V = V.T
             Vr = V[:, : self.r[adapter_name]]
             Sr = S[: self.r[adapter_name]]
             Sr /= self.scaling[adapter_name]
@@ -300,6 +301,13 @@ class LoraLayer(BaseTunerLayer):
                 self.scaling[active_adapter] = self.lora_alpha[active_adapter] / self.r[active_adapter]
             else:
                 self.scaling[active_adapter] /= scale
+
+    def peft_parameters_and_names(self, name_prefix: str = "") -> Iterable[Tuple[str, ms.Parameter]]:
+        assert isinstance(self, nn.Cell), f"{self.__class__.__name__} is not a nn.Cell"
+
+        for par_name, par in self.parameters_and_names(name_prefix=name_prefix):
+            if any(name in par_name for name in self.adapter_layer_names):
+                yield par_name, par
 
     def _check_forward_args(self, x, *args, **kwargs):
         """Check if the arguments are compatible with the configs and state of the model"""

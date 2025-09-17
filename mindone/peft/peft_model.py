@@ -55,6 +55,7 @@ from .utils import (
     _set_trainable,
     get_peft_model_state_dict,
     load_peft_weights,
+    refresh_parameter_name_of_model,
     set_peft_model_state_dict,
 )
 
@@ -352,6 +353,7 @@ class PeftModel(PushToHubMixin, nn.Cell):
         is_trainable: bool = False,
         config: Optional[PeftConfig] = None,
         autocast_adapter_dtype: bool = True,
+        ephemeral_gpu_offload: bool = False,
         **kwargs: Any,
     ) -> PeftModel:
         r"""
@@ -380,6 +382,12 @@ class PeftModel(PushToHubMixin, nn.Cell):
                 loaded before calling `from_pretrained`.
             autocast_adapter_dtype (`bool`, *optional*):
                 Whether to autocast the adapter dtype. Defaults to `True`. Only relevant for specific adapter types.
+            ephemeral_gpu_offload (`bool`, *optional*):
+                Whether to use ephemeral GPU offloading for partially loaded modules. Defaults to `False`. This is
+                useful when parts of the model and/or components (such as adapters) are kept in CPU memory until they
+                are needed. Rather than perform expensive operations on small data, the data is transferred to the GPU
+                on-demand, the operation(s) performed, and the results moved back to CPU memory. This brings a slight
+                momentary VRAM overhead but gives orders of magnitude speedup in certain cases.
             kwargs: (`optional`):
                 Additional keyword arguments passed along to the specific PEFT configuration class.
         """
@@ -509,7 +517,9 @@ class PeftModel(PushToHubMixin, nn.Cell):
         r"""
         Prepares the model for gradient checkpointing if necessary
         """
-        raise NotImplementedError
+        # Since MindSpore and PyTorch have different machanisms for autograd, we don't have to do `enable_input_require_grads`
+        # or `make_inputs_require_grad` as PyTorch does. Instead, we can just return the model as is.
+        return model
 
     def get_prompt_embedding_to_save(self, adapter_name: str) -> ms.Tensor:
         """
@@ -935,6 +945,7 @@ class PeftModel(PushToHubMixin, nn.Cell):
             self._check_new_adapter_config(peft_config, is_trainable=is_trainable)
             peft_config.inference_mode = not is_trainable
             self.add_adapter(adapter_name, peft_config)
+            refresh_parameter_name_of_model(self, only_peft=True)  # Only MindSpore can do
 
         adapters_weights = load_peft_weights(model_id, **hf_hub_download_kwargs)
 
@@ -1055,6 +1066,24 @@ class PeftModel(PushToHubMixin, nn.Cell):
 
         card.text = "\n".join(lines)
         card.save(filename)
+
+    # Copied from mindone.diffusers.models.modeling_utils.ModelMixin.to
+    def to(self, dtype: Optional[ms.Type] = None):
+        for p in self.get_parameters():
+            p.set_dtype(dtype)
+        return self
+
+    # Copied from mindone.diffusers.models.modeling_utils.ModelMixin.half
+    def half(self):
+        for p in self.get_parameters():
+            p.set_dtype(ms.float16)
+        return self
+
+    # Copied from mindone.diffusers.models.modeling_utils.ModelMixin.float
+    def float(self):
+        for p in self.get_parameters():
+            p.set_dtype(ms.float32)
+        return self
 
 
 class PeftModelForCausalLM(PeftModel):
@@ -1340,7 +1369,7 @@ def get_layer_status(model: nn.Cell) -> list[TunerLayerStatus]:
         base_model = model
 
     layer_status: list[TunerLayerStatus] = []
-    for name, module in base_model.named_cells():
+    for name, module in base_model.name_cells():
         if not isinstance(module, BaseTunerLayer):
             continue
 

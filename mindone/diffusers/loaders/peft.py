@@ -156,7 +156,7 @@ class PeftAdapterMixin:
                 LoRA adapter metadata. When supplied, the metadata inferred through the state dict isn't used to
                 initialize `LoraConfig`.
         """
-        from mindone.peft import LoraConfig, inject_adapter_in_model, set_peft_model_state_dict
+        from mindone.peft import inject_adapter_in_model, set_peft_model_state_dict
         from mindone.peft.tuners.tuners_utils import BaseTunerLayer
 
         cache_dir = kwargs.pop("cache_dir", None)

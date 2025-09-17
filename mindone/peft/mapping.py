@@ -21,7 +21,7 @@ from typing import TYPE_CHECKING, Any
 
 from mindspore import nn
 
-from .utils import PeftType
+from .utils import PeftType, refresh_parameter_name_of_model
 
 if TYPE_CHECKING:
     from .config import PeftConfig
@@ -74,5 +74,10 @@ def inject_adapter_in_model(
 
     # By instantiating a peft model we are injecting randomly initialized LoRA layers into the model's modules.
     peft_model = tuner_cls(model, peft_config, adapter_name=adapter_name, **kwargs)
+
+    # Reset the name attribute of all parameters in the model, because certain prefixes were unexpectedly added during
+    # the initialization of tuner_cls. Here, we need to remove these unintended prefixes to ensure that subsequent
+    # processes relying on param.name(e.g. checkpoints loading) function correctly.
+    refresh_parameter_name_of_model(model)
 
     return peft_model.model

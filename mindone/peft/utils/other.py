@@ -43,7 +43,6 @@ from .constants import (
     TRANSFORMERS_MODELS_TO_VBLORA_TARGET_MODULES_MAPPING,
     TRANSFORMERS_MODELS_TO_VERA_TARGET_MODULES_MAPPING,
     WEIGHTS_NAME,
-    bloom_model_postprocess_past_key_value,
     starcoder_model_postprocess_past_key_value,
 )
 
@@ -65,7 +64,6 @@ __all__ = [
     "TRANSFORMERS_MODELS_TO_VBLORA_TARGET_MODULES_MAPPING",
     "TRANSFORMERS_MODELS_TO_VERA_TARGET_MODULES_MAPPING",
     "WEIGHTS_NAME",
-    "bloom_model_postprocess_past_key_value",
     "starcoder_model_postprocess_past_key_value",
 ]
 
@@ -547,7 +545,9 @@ def _set_trainable(
     trainable_modules = []
     found_modules = set()
     # disable removal of duplicates to support targeting tied weights
-    key_list = [key for key, _ in model.cells_and_names(remove_duplicate=False)]
+    # FIXME: model.cells_and_names() remove duplicates as `remove_duplicate=False` is not supported in MindSpore,
+    #        this might cause issues if there are tied weights.
+    key_list = [key for key, _ in model.cells_and_names()]
 
     for key in key_list:
         target_module_found = any(key.endswith(target_key) for target_key in module_names)
@@ -771,3 +771,27 @@ def _get_subcell(mod: nn.Cell, target: str) -> "nn.Cell":
         if not isinstance(mod, nn.Cell):
             raise AttributeError(f"`{item}` is not an nn.Cell")
     return mod
+
+
+def peft_parameters_and_names(model: nn.Cell, name_prefix: str = ""):
+    from mindone.peft.tuners.tuners_utils import BaseTunerLayer
+
+    for cell_name, cell in model.name_cells().items():
+        cell_name = f"{name_prefix}.{cell_name}" if name_prefix else cell_name
+        if isinstance(cell, BaseTunerLayer):
+            for par_name, par in cell.peft_parameters_and_names(name_prefix=cell_name):
+                yield par_name, par
+        else:
+            yield from peft_parameters_and_names(cell, name_prefix=cell_name)
+
+
+def refresh_parameter_name_of_model(model: nn.Cell, name_prefix: str = "", only_peft: bool = False) -> None:
+    """
+    Helper function to refresh all PEFT parameter name of model after add adapter.
+
+    Parameters in MindSpore has 'name' attribute which requires manual adjustment
+    after we have manipulated some attributes of the model(for example: 'inject_adapter').
+    """
+    params = peft_parameters_and_names(model, name_prefix) if only_peft else model.parameters_and_names(name_prefix)
+    for name, param in params:
+        param.name = name

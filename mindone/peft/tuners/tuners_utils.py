@@ -21,7 +21,7 @@ import re
 import textwrap
 import warnings
 from abc import ABC, abstractmethod
-from typing import Any, Optional, Union
+from typing import Any, Iterable, Optional, Tuple, Union
 
 import mindspore as ms
 from mindspore import mint, nn
@@ -39,7 +39,7 @@ from mindone.transformers import MSPreTrainedModel as PreTrainedModel
 from mindone.transformers.mindspore_utils import Conv1D
 
 from ..config import PeftConfig
-from ..utils import ModulesToSaveWrapper, _get_subcell, _get_submodules
+from ..utils import ModulesToSaveWrapper, _get_subcell, _get_submodules, refresh_parameter_name_of_model
 from ._buffer_dict import BufferDict
 
 
@@ -765,6 +765,11 @@ class BaseTunerLayer(ABC):
                     )
                     self.set_adapter(remaining_adapters[0])
 
+    @abstractmethod
+    def peft_parameters_and_names(self, name_prefix: str = "") -> Iterable[Tuple[str, ms.Parameter]]:
+        # return all parameters and names added by PEFT
+        ...
+
 
 def _find_minimal_target_modules(
     target_modules: Union[list[str], set[str]], other_module_names: Union[list[str], set[str]]
@@ -1092,14 +1097,3 @@ def replicate_layers(model: nn.Cell, layer_map: list[tuple[int, int]]):
         raise ValueError("Unexpected model type, need to handle post-processing of layers.")
     if hasattr(model.config, "num_hidden_layers"):  # Common to Llama, Bert, Falcon.
         model.config.num_hidden_layers = len(new_layers)
-
-
-def refresh_parameter_name_of_model(model: nn.Cell) -> None:
-    """
-    Helper function to refresh parameter name of model after inject adapter.
-
-    Parameters in MindSpore has 'name' attribute which requires manual adjustment
-    after we have manipulated some attributes of the model(for example: 'inject_adapter').
-    """
-    for name, param in model.parameters_and_names():
-        param.name = name
