@@ -97,6 +97,7 @@ MODEL_MAPPING_NAMES = OrderedDict(
         ("mpt", "MptModel"),
         ("mt5", "MT5Model"),
         ("megatron-bert", "MegatronBertModel"),
+        ("mgp-str", "MgpstrForSceneTextRecognition"),
         ("mixtral", "MixtralModel"),
         ("nystromformer", "NystromformerModel"),
         ("owlvit", "OwlViTModel"),
