@@ -114,6 +114,8 @@ MODEL_MAPPING_NAMES = OrderedDict(
         ("umt5", "UMT5Model"),
         ("vilt", "ViltModel"),
         ("vit", "ViTModel"),
+        ("vit_msn", "ViTMSNModel"),
+        ("vitdet", "VitDetModel"),
         ("wav2vec2", "Wav2Vec2Model"),
         ("whisper", "WhisperModel"),
         ("xlm-roberta", "XLMRobertaModel"),
@@ -242,6 +244,8 @@ MODEL_FOR_IMAGE_MAPPING_NAMES = OrderedDict(
         ("siglip_vision_model", "SiglipVisionModel"),
         ("swin2sr", "Swin2SRModel"),
         ("vit", "ViTModel"),
+        ("vit_msn", "ViTMSNModel"),
+        ("vitdet", "VitDetModel"),
         ("yolos", "YolosModel"),
     ]
 )
@@ -278,6 +282,7 @@ MODEL_FOR_IMAGE_CLASSIFICATION_MAPPING_NAMES = OrderedDict(
         ("segformer", "SegformerForImageClassification"),
         ("siglip", "SiglipForImageClassification"),
         ("vit", "ViTForImageClassification"),
+        ("vit_msn", "ViTMSNForImageClassification"),
     ]
 )
 
@@ -630,6 +635,8 @@ MODEL_FOR_BACKBONE_MAPPING_NAMES = OrderedDict(
         ("dinov2", "Dinov2Backbone"),
         ("hiera", "HieraBackbone"),
         ("swin", "SwinBackbone"),
+        ("vitdet", "VitDetBackbone"),
+        ("vitpose_backbone", "VitPoseBackbone"),
     ]
 )
 

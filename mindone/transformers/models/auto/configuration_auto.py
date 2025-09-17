@@ -120,6 +120,10 @@ CONFIG_MAPPING_NAMES = OrderedDict(
         ("vilt", "ViltConfig"),
         ("vision-encoder-decoder", "VisionEncoderDecoderConfig"),
         ("vit", "ViTConfig"),
+        ("vit_msn", "ViTMSNConfig"),
+        ("vitdet", "VitDetConfig"),
+        ("vitpose", "VitPoseConfig"),
+        ("vitpose_backbone", "VitPoseBackboneConfig"),
         ("wav2vec2", "Wav2Vec2Config"),
         ("mvp", "MvpConfig"),
         ("whisper", "WhisperConfig"),
@@ -127,6 +131,7 @@ CONFIG_MAPPING_NAMES = OrderedDict(
         ("xlm-roberta-xl", "XLMRobertaXLConfig"),
         ("yolos", "YolosConfig"),
         ("cohere2", "Cohere2Config"),
+        ("zoedepth", "ZoeDepthConfig"),
     ]
 )
 
@@ -227,6 +232,10 @@ MODEL_NAMES_MAPPING = OrderedDict(
         ("vilt", "ViLT"),
         ("vision-encoder-decoder", "Vision Encoder decoder"),
         ("vit", "ViT"),
+        ("vit_msn", "ViTMSN"),
+        ("vitdet", "VitDet"),
+        ("vitpose", "ViTPose"),
+        ("vitpose_backbone", "ViTPoseBackbone"),
         ("wav2vec2", "Wav2Vec2"),
         ("whisper", "Whisper"),
         ("convbert", "ConvBERT"),
@@ -235,6 +244,7 @@ MODEL_NAMES_MAPPING = OrderedDict(
         ("xlm-roberta-xl", "XLM-RoBERTa-XL"),
         ("yolos", "YOLOS"),
         ("cohere2", "Cohere2"),
+        ("zoedepth", "ZoeDepth"),
     ]
 )
 

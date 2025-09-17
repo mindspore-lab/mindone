@@ -94,10 +94,16 @@ from . import (
     vilt,
     vision_encoder_decoder,
     vit,
+    vit_msn,
+    vitdet,
+    # vitmatte,
+    # vitpose,
+    # vitpose_backbone,
     vits,
     wav2vec2,
     xlm_roberta,
     yolos,
+    # zoedepth,
 )
 
 if version.parse(transformers.__version__) >= version.parse("4.51.0"):

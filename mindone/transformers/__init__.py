@@ -636,6 +636,12 @@ from .models.vilt import (
 )
 from .models.vision_encoder_decoder import VisionEncoderDecoderModel
 from .models.vit import ViTForImageClassification, ViTForMaskedImageModeling, ViTModel, ViTPreTrainedModel
+from .models.vit_msn import ViTMSNForImageClassification, ViTMSNModel, ViTMSNPreTrainedModel
+from .models.vitdet import VitDetBackbone, VitDetModel, VitDetPreTrainedModel
+
+# from .models.vitmatte import VitMatteForImageMatting, VitMattePreTrainedModel
+# from .models.vitpose import VitPoseForPoseEstimation, VitPosePreTrainedModel
+# from .models.vitpose_backbone import VitPoseBackbone, VitPoseBackbonePreTrainedModel
 from .models.vits import VitsModel, VitsPreTrainedModel
 from .models.wav2vec2 import (
     Wav2Vec2FeatureExtractor,
@@ -669,6 +675,7 @@ from .models.xlm_roberta_xl import (
     XLMRobertaXLPreTrainedModel,
 )
 from .models.yolos import YolosForObjectDetection, YolosImageProcessor, YolosModel, YolosPreTrainedModel
+# from .models.zoedepth import ZoeDepthForDepthEstimation, ZoeDepthPreTrainedModel
 from .pipelines import (
     ImageToImagePipeline,
     ImageToTextPipeline,
