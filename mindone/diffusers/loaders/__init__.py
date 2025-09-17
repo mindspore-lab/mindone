@@ -103,6 +103,7 @@ if TYPE_CHECKING:
         QwenImageLoraLoaderMixin,
         SanaLoraLoaderMixin,
         SD3LoraLoaderMixin,
+        SkyReelsV2LoraLoaderMixin,
         StableDiffusionLoraLoaderMixin,
         StableDiffusionXLLoraLoaderMixin,
         WanLoraLoaderMixin,

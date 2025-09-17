@@ -41,6 +41,7 @@ from .models.albert import (
     AlbertModel,
     AlbertPreTrainedModel,
 )
+from .models.align import AlignModel, AlignPreTrainedModel, AlignTextModel, AlignVisionModel
 from .models.aria import (
     AriaForConditionalGeneration,
     AriaPreTrainedModel,
@@ -361,6 +362,15 @@ from .models.hiera import (
     HieraPreTrainedModel,
 )
 from .models.hubert import HubertForCTC, HubertForSequenceClassification, HubertModel, HubertPreTrainedModel
+from .models.ibert import (
+    IBertForMaskedLM,
+    IBertForMultipleChoice,
+    IBertForQuestionAnswering,
+    IBertForSequenceClassification,
+    IBertForTokenClassification,
+    IBertModel,
+    IBertPreTrainedModel,
+)
 from .models.idefics import (
     IdeficsForVisionText2Text,
     IdeficsImageProcessor,
