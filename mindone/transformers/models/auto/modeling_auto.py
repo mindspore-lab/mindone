@@ -214,6 +214,7 @@ MODEL_MAPPING_NAMES = OrderedDict(
         ("textnet", "TextNetModel"),
         ("timesformer", "TimesformerModel"),
         ("tvp", "TvpModel"),
+        ("udop", "UdopModel"),
         ("umt5", "UMT5Model"),
         ("unispeech", "UniSpeechModel"),
         ("unispeech-sat", "UniSpeechSatModel"),
@@ -697,6 +698,7 @@ MODEL_FOR_IMAGE_TEXT_TO_TEXT_MAPPING_NAMES = OrderedDict(
         ("smolvlm", "SmolVLMForConditionalGeneration"),
         ("vipllava", "VipLlavaForConditionalGeneration"),
         ("vision-encoder-decoder", "VisionEncoderDecoderModel"),
+        ("udop", "UdopForConditionalGeneration"),
     ]
 )
 
