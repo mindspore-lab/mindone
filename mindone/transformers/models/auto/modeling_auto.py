@@ -155,6 +155,7 @@ MODEL_FOR_PRETRAINING_MAPPING_NAMES = OrderedDict(
         ("megatron-bert", "MegatronBertForPreTraining"),
         ("mpt", "MptForCausalLM"),
         ("paligemma", "PaliGemmaForConditionalGeneration"),
+        ("seamless_m4t", "SeamlessM4TForTextToText"),
         ("t5", "T5ForConditionalGeneration"),
         ("video_llava", "VideoLlavaForConditionalGeneration"),
         ("vipllava", "VipLlavaForConditionalGeneration"),
@@ -448,6 +449,7 @@ MODEL_FOR_SEQ_TO_SEQ_CAUSAL_LM_MAPPING_NAMES = OrderedDict(
 
 MODEL_FOR_SPEECH_SEQ_2_SEQ_MAPPING_NAMES = OrderedDict(
     [
+        ("seamless_m4t", "SeamlessM4TForSpeechToText"),
         ("speecht5", "SpeechT5ForSpeechToText"),
         ("whisper", "WhisperForConditionalGeneration"),
     ]
@@ -635,7 +637,11 @@ MODEL_FOR_TEXT_TO_SPECTROGRAM_MAPPING_NAMES = OrderedDict(
     ]
 )
 
-MODEL_FOR_TEXT_TO_WAVEFORM_MAPPING_NAMES = OrderedDict()
+MODEL_FOR_TEXT_TO_WAVEFORM_MAPPING_NAMES = OrderedDict(
+    [
+        ("seamless_m4t", "SeamlessM4TForTextToSpeech")
+    ]    
+)
 
 MODEL_FOR_ZERO_SHOT_IMAGE_CLASSIFICATION_MAPPING_NAMES = OrderedDict(
     [
