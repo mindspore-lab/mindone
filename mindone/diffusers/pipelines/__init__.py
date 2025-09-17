@@ -187,7 +187,7 @@ _import_structure = {
         "QwenImageImg2ImgPipeline",
         "QwenImageInpaintPipeline",
         "QwenImagePipeline",
-    ],    
+    ],
     "sana": ["SanaPipeline", "SanaSprintPipeline", "SanaControlNetPipeline", "SanaSprintImg2ImgPipeline"],
     "semantic_stable_diffusion": ["SemanticStableDiffusionPipeline"],
     "shap_e": ["ShapEImg2ImgPipeline", "ShapEPipeline"],
