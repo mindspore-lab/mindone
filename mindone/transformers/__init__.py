@@ -551,6 +551,7 @@ from .models.opt import (
 )
 from .models.owlv2 import (
     Owlv2ForObjectDetection,
+    Owlv2ImageProcessor,
     Owlv2Model,
     Owlv2PreTrainedModel,
     Owlv2Processor,
