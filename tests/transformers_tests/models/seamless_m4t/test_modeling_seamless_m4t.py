@@ -33,14 +33,13 @@ from tests.modeling_test_utils import (
 )
 
 from tests.transformers_tests.models.modeling_common import (
-    floats_numpy,
     ids_numpy, 
     random_attention_mask,
 )
 
 # CrossEntropyLoss not support bf16
 # Seamless_m4t only support float32
-DTYPE_AND_THRESHOLDS = {"fp32": 5e-4} #"fp32": 5e-4, "fp16": 5e-3
+DTYPE_AND_THRESHOLDS = {"fp32": 5e-4}
 MODES = [1]
 
 class SeamlessM4TModelTester:
@@ -382,13 +381,11 @@ def test_named_modules(
     with torch.no_grad():
         pt_outputs = pt_model(*pt_inputs_args, **pt_inputs_kwargs)
     ms_outputs = ms_model(*ms_inputs_args, **ms_inputs_kwargs)
-    # print("ms:", ms_outputs)
-    # print("pt:", pt_outputs)
+
     if outputs_map:
         pt_outputs_n = []
         ms_outputs_n = []
         for pt_key, ms_idx in outputs_map.items():
-            # print("===map", pt_key, ms_idx)
             pt_output = getattr(pt_outputs, pt_key)
             ms_output = ms_outputs[ms_idx]
             if isinstance(pt_output, (list, tuple)):
