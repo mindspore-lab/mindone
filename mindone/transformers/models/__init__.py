@@ -96,6 +96,8 @@ from . import (
     switch_transformers,
     t5,
     umt5,
+    unispeech,
+    unispeech_sat,
     video_llava,
     vilt,
     vipllava,
