@@ -1301,17 +1301,20 @@ class DbrxForCausalLM(DbrxPreTrainedModel, GenerationMixin):
         Example:
 
         ```python
-        >> from transformers import AutoTokenizer, DbrxForCausalLM
+        >>> from transformers import AutoTokenizer
+        >>> from mindone.transformers import DbrxForCausalLM
 
-        >> model = DbrxForCausalLM.from_pretrained("databricks/dbrx-instruct")
-        >> tokenizer = AutoTokenizer.from_pretrained("databricks/dbrx-instruct")
+        >>> model = DbrxForCausalLM.from_pretrained("databricks/dbrx-instruct")
+        >>> tokenizer = AutoTokenizer.from_pretrained("databricks/dbrx-instruct")
 
-        >> prompt = "Hey, are you conscious? Can you talk to me?"
-        >> inputs = tokenizer(prompt, return_tensors="pt")
+        >>> prompt = "Hey, are you conscious? Can you talk to me?"
+        >>> inputs = tokenizer(prompt, return_tensors="np")
+        >>> for k, v in inputs.items():
+        ...     inputs[k] = ms.tensor(v)
 
-        >> # Generate
-        >> generate_ids = model.generate(inputs.input_ids, max_length=30)
-        >> tokenizer.batch_decode(generate_ids, skip_special_tokens=True, clean_up_tokenization_spaces=False)[0]
+        >>> # Generate
+        >>> generate_ids = model.generate(inputs.input_ids, max_length=30)
+        >>> tokenizer.batch_decode(generate_ids, skip_special_tokens=True, clean_up_tokenization_spaces=False)[0]
         "Hey, are you conscious? Can you talk to me?\nI'm not conscious, but I can talk to you."
         ```
         """
