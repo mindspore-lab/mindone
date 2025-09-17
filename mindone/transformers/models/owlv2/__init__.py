@@ -15,4 +15,3 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 from .modeling_owlv2 import *
-from .processing_owlv2 import *

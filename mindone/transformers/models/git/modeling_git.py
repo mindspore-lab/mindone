@@ -1098,10 +1098,11 @@ class GitVisionModel(GitPreTrainedModel):
         Examples:
 
         ```python
+        >>> import mindspore as ms
         >>> from PIL import Image
         >>> import requests
-        >>> import mindspore as ms
-        >>> from mindone.transformers import AutoProcessor, GitVisionModel
+        >>> from transformers import AutoProcessor
+        >>> from mindone.transformers import GitVisionModel
 
         >>> processor = AutoProcessor.from_pretrained("microsoft/git-base")
         >>> model = GitVisionModel.from_pretrained("microsoft/git-base")
@@ -1258,10 +1259,11 @@ class GitModel(GitPreTrainedModel):
         Examples:
 
         ```python
-        >>> from mindone.transformers import AutoProcessor, AutoModel
+        >>> import mindspore as ms
+        >>> from transformers import AutoProcessor
+        >>> from mindone.transformers import AutoModel
         >>> import requests
         >>> from PIL import Image
-        >>> import mindspore as ms
 
         >>> processor = AutoProcessor.from_pretrained("microsoft/git-base")
         >>> model = AutoModel.from_pretrained("microsoft/git-base")
@@ -1463,10 +1465,11 @@ class GitForCausalLM(GitPreTrainedModel, GenerationMixin):
         Image captioning example:
 
         ```python
-        >>> from mindone.transformers import AutoProcessor, AutoModelForCausalLM
+        >>> import mindspore as ms
+        >>> from transformers import AutoProcessor
+        >>> from mindone.transformers import AutoModelForCausalLM
         >>> import requests
         >>> from PIL import Image
-        >>> import mindspore as ms
 
         >>> processor = AutoProcessor.from_pretrained("microsoft/git-base-coco")
         >>> model = AutoModelForCausalLM.from_pretrained("microsoft/git-base-coco")
@@ -1485,10 +1488,11 @@ class GitForCausalLM(GitPreTrainedModel, GenerationMixin):
         Visual question answering (VQA) example:
 
         ```python
-        >>> from mindone.transformers import AutoProcessor, AutoModelForCausalLM
+        >>> import mindspore as ms
+        >>> from transformers import AutoProcessor
+        >>> from mindone.transformers import AutoModelForCausalLM
         >>> from huggingface_hub import hf_hub_download
         >>> from PIL import Image
-        >>> import mindspore as ms
 
         >>> processor = AutoProcessor.from_pretrained("microsoft/git-base-textvqa")
         >>> model = AutoModelForCausalLM.from_pretrained("microsoft/git-base-textvqa")
@@ -1512,12 +1516,13 @@ class GitForCausalLM(GitPreTrainedModel, GenerationMixin):
         Video captioning example:
 
         ```python
+        >>> import mindspore as ms
         >>> import av
         >>> import numpy as np
         >>> from PIL import Image
-        >>> import mindspore as ms
         >>> from huggingface_hub import hf_hub_download
-        >>> from mindone.transformers import AutoProcessor, AutoModelForCausalLM
+        >>> from transformers import AutoProcessor
+        >>> from mindone.transformers import AutoModelForCausalLM
 
         >>> processor = AutoProcessor.from_pretrained("microsoft/git-base-vatex")
         >>> model = AutoModelForCausalLM.from_pretrained("microsoft/git-base-vatex")

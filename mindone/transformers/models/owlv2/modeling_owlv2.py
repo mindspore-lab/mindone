@@ -969,8 +969,9 @@ class Owlv2TextModel(Owlv2PreTrainedModel):
 
         Examples:
         ```python
-        >>> from mindone.transformers import AutoProcessor, Owlv2TextModel
         >>> import mindspore as ms
+        >>> from mindone.transformers import Owlv2TextModel
+        >>> from transformers import AutoProcessor
 
         >>> model = Owlv2TextModel.from_pretrained("google/owlv2-base-patch16")
         >>> processor = AutoProcessor.from_pretrained("google/owlv2-base-patch16")
@@ -1084,10 +1085,11 @@ class Owlv2VisionModel(Owlv2PreTrainedModel):
 
         Examples:
         ```python
+        >>> import mindspore as ms
         >>> from PIL import Image
         >>> import requests
-        >>> from mindone.transformers import AutoProcessor, Owlv2VisionModel
-        >>> import mindspore as ms
+        >>> from transformers import AutoProcessor
+        >>> from mindone.transformers import Owlv2VisionModel
 
         >>> model = Owlv2VisionModel.from_pretrained("google/owlv2-base-patch16")
         >>> processor = AutoProcessor.from_pretrained("google/owlv2-base-patch16")
@@ -1164,8 +1166,9 @@ class Owlv2Model(Owlv2PreTrainedModel):
 
         Examples:
         ```python
-        >>> from mindone.transformers import AutoProcessor, Owlv2Model
         >>> import mindspore as ms
+        >>> from transformers import AutoProcessor
+        >>> from mindone.transformers import Owlv2Model
 
         >>> model = Owlv2Model.from_pretrained("google/owlv2-base-patch16-ensemble")
         >>> processor = AutoProcessor.from_pretrained("google/owlv2-base-patch16-ensemble")
@@ -1202,10 +1205,11 @@ class Owlv2Model(Owlv2PreTrainedModel):
 
         Examples:
         ```python
+        >>> import mindspore as ms
         >>> from PIL import Image
         >>> import requests
-        >>> from mindone.transformers import AutoProcessor, Owlv2Model
-        >>> import mindspore as ms
+        >>> from transformers import AutoProcessor
+        >>> from mindone.transformers import Owlv2Model
 
         >>> model = Owlv2Model.from_pretrained("google/owlv2-base-patch16-ensemble")
         >>> processor = AutoProcessor.from_pretrained("google/owlv2-base-patch16-ensemble")
@@ -1255,10 +1259,11 @@ class Owlv2Model(Owlv2PreTrainedModel):
 
         Examples:
         ```python
+        >>> import mindspore as ms
         >>> from PIL import Image
         >>> import requests
-        >>> from mindone.transformers import AutoProcessor, Owlv2Model
-        >>> import mindspore as ms
+        >>> from transformers import AutoProcessor
+        >>> from mindone.transformers import Owlv2Model
 
         >>> model = Owlv2Model.from_pretrained("google/owlv2-base-patch16-ensemble")
         >>> processor = AutoProcessor.from_pretrained("google/owlv2-base-patch16-ensemble")
@@ -1685,7 +1690,8 @@ class Owlv2ForObjectDetection(Owlv2PreTrainedModel):
         >>> import requests
         >>> from PIL import Image
         >>> import mindspore as ms
-        >>> from mindone.transformers import AutoProcessor, Owlv2ForObjectDetection
+        >>> from transformers import AutoProcessor
+        >>> from mindone.transformers import Owlv2ForObjectDetection
 
         >>> processor = AutoProcessor.from_pretrained("google/owlv2-base-patch16-ensemble")
         >>> model = Owlv2ForObjectDetection.from_pretrained("google/owlv2-base-patch16-ensemble")
@@ -1806,8 +1812,8 @@ class Owlv2ForObjectDetection(Owlv2PreTrainedModel):
         >>> import requests
         >>> from PIL import Image
         >>> import mindspore as ms
-
-        >>> from mindone.transformers import Owlv2Processor, Owlv2ForObjectDetection
+        >>> from transformers import Owlv2Processor
+        >>> from mindone.transformers import Owlv2ForObjectDetection
 
         >>> processor = Owlv2Processor.from_pretrained("google/owlv2-base-patch16-ensemble")
         >>> model = Owlv2ForObjectDetection.from_pretrained("google/owlv2-base-patch16-ensemble")
