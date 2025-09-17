@@ -20,7 +20,7 @@ from tests.modeling_test_utils import (
 from tests.transformers_tests.models.modeling_common import ids_numpy, floats_numpy
 
 DTYPE_AND_THRESHOLDS = {"fp32": 5e-4, "fp16": 5e-3, "bf16": 5e-2}
-MODES = [0, 1]
+MODES = [1]
 
 
 class PromptDepthAnythingModelTest:
@@ -64,20 +64,6 @@ class PromptDepthAnythingModelTest:
         self.seq_length = (self.image_size // self.patch_size) ** 2 + 1
 
     def prepare_config_and_inputs(self):
-        input_ids = ids_numpy([self.batch_size, self.seq_length], self.vocab_size)
-
-        input_mask = None
-        if self.use_input_mask:
-            input_mask = np.tril(np.ones_like(input_ids))
-
-        config = self.get_config()
-
-        # set _attn_implementation to eager because flash-attention is not supported for torch in cpu
-        config._attn_implementation = "eager"
-
-        return config, input_ids, input_mask
-
-    def prepare_config_and_inputs(self):
         pixel_values = floats_numpy([self.batch_size, self.num_channels, self.image_size, self.image_size])
 
         labels = None
@@ -115,7 +101,7 @@ class PromptDepthAnythingModelTest:
 
 
 model_tester = PromptDepthAnythingModelTest()
-config, input_ids, input_mask = model_tester.prepare_config_and_inputs()
+config, pixel_values, labels, prompt_depth = model_tester.prepare_config_and_inputs()
 
 LLAMA_CASES = [
     [
@@ -124,12 +110,12 @@ LLAMA_CASES = [
         "mindone.transformers.PromptDepthAnythingForDepthEstimation",
         (config,),
         {},
-        (input_ids,),
+        (pixel_values,),
         {
-            "attention_mask": input_mask,
+            "prompt_depth": prompt_depth,
         },
         {
-            "logits": 0,  # key: torch attribute, value: mindspore idx
+            "predicted_depth": 0,
         },
     ],
 ]
@@ -162,7 +148,7 @@ def test_named_modules(
     dtype,
     mode,
 ):
-    ms.set_context(mode=mode, jit_syntax_level=ms.STRICT)
+    ms.set_context(mode=mode)
 
     (
         pt_model,

@@ -145,7 +145,10 @@ class PromptDepthAnythingFeatureFusionLayer(mindspore.nn.Cell):
             res = self.prompt_depth_layer(prompt_depth)
             hidden_state = hidden_state + res
 
-        modifier = {"scale_factor": 2} if size is None else {"size": size}
+
+        # TODO: MindSpore does not allow using the parameter combination of scale_factor and bilinear at the same time.
+        # modifier = {"scale_factor": 2} if size is None else {"size": size}
+        modifier = {"size": [i for i in hidden_state.shape[:-2]]} if size is None else {"size": size}
 
         hidden_state = mint.nn.functional.interpolate(
             hidden_state,
@@ -231,7 +234,7 @@ class PromptDepthAnythingDepthEstimationHead(mindspore.nn.Cell):
         predicted_depth = self.activation2(predicted_depth)
         # (batch_size, 1, height, width) -> (batch_size, height, width), which
         # keeps the same behavior as Depth Anything v1 & v2
-        predicted_depth = predicted_depth.squeeze(dim=1)
+        predicted_depth = predicted_depth.squeeze(axis=1)
 
         return predicted_depth
 
