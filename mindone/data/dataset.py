@@ -1,5 +1,5 @@
 from abc import ABC, abstractmethod
-from typing import Any, Dict, List, Optional, Sequence, Tuple
+from typing import Any, Optional, Sequence
 
 
 class BaseDataset(ABC):
@@ -13,8 +13,8 @@ class BaseDataset(ABC):
             https://www.mindspore.cn/docs/en/master/api_python/dataset/dataset_method/batch/mindspore.dataset.Dataset.padded_batch.html
     """
 
-    output_columns: List[str]
-    pad_info: Optional[Dict[str, Tuple[Sequence[int], int]]]
+    output_columns: list[str]
+    pad_info: Optional[dict[str, tuple[Sequence[int], int]]]
 
     @abstractmethod
     def __getitem__(self, idx):
@@ -26,7 +26,7 @@ class BaseDataset(ABC):
 
     @staticmethod
     @abstractmethod
-    def train_transforms(**kwargs) -> List[dict]:
+    def train_transforms(**kwargs) -> list[dict]:
         """
         Defines a list transformations that should be applied to the training data in the following form:
 
@@ -46,7 +46,7 @@ class BaseDataset(ABC):
             >>> import numpy as np
             >>> from mindspore.dataset.vision import Resize, ToTensor
             >>>
-            >>> def train_transforms(tokenizer) -> List[dict]:
+            >>> def train_transforms(tokenizer) -> list[dict]:
             >>>     transforms = [
             >>>         {
             >>>             "operations": tokenizer,
@@ -67,7 +67,7 @@ class BaseDataset(ABC):
         ...
 
     @staticmethod
-    def _apply_transforms(data: Dict[str, Any], transforms: List[dict]) -> Dict[str, Any]:
+    def _apply_transforms(data: dict[str, Any], transforms: list[dict]) -> dict[str, Any]:
         """
         Explicitly apply a list of transformations to the data immediately after loading
         (i.e., instead of passing the data for later processing inside `.map()`).
