@@ -108,6 +108,7 @@ MODEL_MAPPING_NAMES = OrderedDict(
         ("smolvlm_vision", "SmolVLMVisionTransformer"),
         ("speecht5", "SpeechT5Model"),
         ("t5", "T5Model"),
+        ("udop", "UdopModel"),
         ("umt5", "UMT5Model"),
         ("vit", "ViTModel"),
         ("wav2vec2", "Wav2Vec2Model"),
@@ -349,6 +350,7 @@ MODEL_FOR_IMAGE_TEXT_TO_TEXT_MAPPING_NAMES = OrderedDict(
         ("qwen2_5_vl", "Qwen2_5_VLForConditionalGeneration"),
         ("qwen2_vl", "Qwen2VLForConditionalGeneration"),
         ("smolvlm", "SmolVLMForConditionalGeneration"),
+        ("udop", "UdopForConditionalGeneration"),
     ]
 )
 
