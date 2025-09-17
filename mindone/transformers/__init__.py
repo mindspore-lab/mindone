@@ -42,6 +42,7 @@ from .models.albert import (
     AlbertPreTrainedModel,
 )
 from .models.align import AlignModel, AlignPreTrainedModel, AlignTextModel, AlignVisionModel
+from .models.altclip import AltCLIPModel, AltCLIPPreTrainedModel, AltCLIPTextModel, AltCLIPVisionModel
 from .models.aria import (
     AriaForConditionalGeneration,
     AriaPreTrainedModel,
