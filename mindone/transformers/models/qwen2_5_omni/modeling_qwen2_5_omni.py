@@ -966,6 +966,7 @@ class Qwen2_5OmniVisionAttention(nn.Cell):
         self.scaling = self.head_dim**-0.5
         self.num_key_value_groups = 1  # needed for eager attention
         self.config = config
+        self.is_causal = False
 
     def construct(
         self,
