@@ -16,3 +16,4 @@
 # limitations under the License.
 from .modeling_owlv2 import *
 from .processing_owlv2 import *
+from .image_processing_owlv2 import *
