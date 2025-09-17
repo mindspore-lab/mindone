@@ -939,7 +939,7 @@ class LxmertForPreTraining(LxmertPreTrainedModel):
         Returns the linear layer that produces question answering logits.
 
         Returns:
-            `nn.Cell`: A torch module mapping the question answering prediction hidden states or `None` if LXMERT
+            `nn.Cell`: A mindspore module mapping the question answering prediction hidden states or `None` if LXMERT
             does not have a visual answering head.
         """
         if hasattr(self, "answer_head"):
@@ -996,7 +996,7 @@ class LxmertForPreTraining(LxmertPreTrainedModel):
             Labels for computing the masked language modeling loss. Indices should be in `[-100, 0, ...,
             config.vocab_size]` (see `input_ids` docstring) Tokens with indices set to `-100` are ignored (masked), the
             loss is only computed for the tokens with labels in `[0, ..., config.vocab_size]`
-        obj_labels (`Dict[Str: Tuple[Torch.FloatTensor, Torch.FloatTensor]]`, *optional*):
+        obj_labels (`Dict[Str: Tuple[ms.Tensor, ms.Tensor]]`, *optional*):
             each key is named after each one of the visual losses and each element of the tuple is of the shape
             `(batch_size, num_features)` and `(batch_size, num_features, visual_feature_dim)` for each the label id and
             the label score respectively
@@ -1006,7 +1006,7 @@ class LxmertForPreTraining(LxmertPreTrainedModel):
 
             - 0 indicates that the sentence does not match the image,
             - 1 indicates that the sentence does match the image.
-        ans (`Torch.Tensor` of shape `(batch_size)`, *optional*):
+        ans (`ms.Tensor` of shape `(batch_size)`, *optional*):
             a one hot representation hof the correct answer *optional*
 
         Returns:
@@ -1160,7 +1160,7 @@ class LxmertForQuestionAnswering(LxmertPreTrainedModel):
         Returns the linear layer that produces question answering logits
 
         Returns:
-            `nn.Cell`: A torch module mapping the question answering prediction hidden states. `None`: A NoneType
+            `nn.Cell`: A mindspore module mapping the question answering prediction hidden states. `None`: A NoneType
             object if Lxmert does not have the visual answering head.
         """
 
@@ -1210,7 +1210,7 @@ class LxmertForQuestionAnswering(LxmertPreTrainedModel):
         return_dict: Optional[bool] = None,
     ) -> Union[LxmertForQuestionAnsweringOutput, Tuple[ms.Tensor]]:
         r"""
-        labels (`Torch.Tensor` of shape `(batch_size)`, *optional*):
+        labels (`ms.Tensor` of shape `(batch_size)`, *optional*):
             A one-hot representation of the correct answer
 
         Example:
@@ -1237,7 +1237,7 @@ class LxmertForQuestionAnswering(LxmertPreTrainedModel):
         >>> predict_answer_tokens = inputs.input_ids[0, answer_start_index : answer_end_index + 1]
         >>> tokenizer.decode(predict_answer_tokens, skip_special_tokens=True)
 
-        # target is "nice puppet"
+        >>> # target is "nice puppet"
         >>> target_start_index = ms.tensor([14])
         >>> target_end_index = ms.tensor([15])
 
