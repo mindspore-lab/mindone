@@ -223,9 +223,7 @@ def check_peft_version(min_version: str) -> None:
         version (`str`):
             The version of PEFT to check against.
     """
-    is_peft_version_compatible = version.parse(importlib.metadata.version("mindone.diffusers._peft")) > version.parse(
-        min_version
-    )
+    is_peft_version_compatible = version.parse(importlib.metadata.version("mindone.peft")) > version.parse(min_version)
 
     if not is_peft_version_compatible:
         raise ValueError(
@@ -241,7 +239,7 @@ def _create_lora_config(
     rank_pattern_dict,
     is_unet: bool = True,
 ):
-    from mindone.diffusers._peft import LoraConfig
+    from mindone.peft import LoraConfig
 
     if metadata is not None:
         lora_config_kwargs = metadata
