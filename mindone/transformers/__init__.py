@@ -553,6 +553,7 @@ from .models.owlv2 import (
     Owlv2ForObjectDetection,
     Owlv2Model,
     Owlv2PreTrainedModel,
+    Owlv2Processor,
     Owlv2TextModel,
     Owlv2VisionModel,
 )
