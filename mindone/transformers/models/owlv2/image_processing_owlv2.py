@@ -23,11 +23,7 @@ from typing import TYPE_CHECKING, Dict, List, Optional, Tuple, Union
 import numpy as np
 
 from ...image_processing_utils import BaseImageProcessor, BatchFeature, get_size_dict
-from ...image_transforms import (
-    center_to_corners_format,
-    pad,
-    to_channel_dimension_format,
-)
+from ...image_transforms import center_to_corners_format, pad, to_channel_dimension_format
 from ...image_utils import (
     OPENAI_CLIP_MEAN,
     OPENAI_CLIP_STD,
@@ -45,13 +41,12 @@ from ...image_utils import (
 from ...utils import (
     TensorType,
     filter_out_non_signature_kwargs,
-    is_scipy_available,
     is_mindspore_available,
+    is_scipy_available,
     is_vision_available,
     logging,
     requires_backends,
 )
-
 
 if is_mindspore_available():
     import mindspore as ms
@@ -364,9 +359,7 @@ class Owlv2ImageProcessor(BaseImageProcessor):
         image = _clip_warp_output(image, out)
 
         image = to_channel_dimension_format(image, input_data_format, ChannelDimension.LAST)
-        image = (
-            to_channel_dimension_format(image, data_format, input_data_format) if data_format is not None else image
-        )
+        image = to_channel_dimension_format(image, data_format, input_data_format) if data_format is not None else image
         return image
 
     @filter_out_non_signature_kwargs()
@@ -473,8 +466,7 @@ class Owlv2ImageProcessor(BaseImageProcessor):
 
         if do_rescale:
             images = [
-                self.rescale(image=image, scale=rescale_factor, input_data_format=input_data_format)
-                for image in images
+                self.rescale(image=image, scale=rescale_factor, input_data_format=input_data_format) for image in images
             ]
 
         if do_pad:

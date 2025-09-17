@@ -17,12 +17,10 @@
 # limitations under the License.
 """Testing suite for the MindSpore DBRX model."""
 import inspect
-import unittest
 
 import numpy as np
 import pytest
 import torch
-from mindone.transformers import DbrxForCausalLM
 from transformers import DbrxConfig
 
 import mindspore as ms
