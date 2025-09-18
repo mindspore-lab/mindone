@@ -131,17 +131,17 @@ class SegGptEmbeddings(mindspore.nn.Cell):
     def __init__(self, config: SegGptConfig) -> None:
         super().__init__()
 
-        self.mask_token = mindspore.Parameter(mint.zeros(1, 1, 1, config.hidden_size))
-        self.segment_token_input = mindspore.Parameter(mint.zeros(1, 1, 1, config.hidden_size))
-        self.segment_token_prompt = mindspore.Parameter(mint.zeros(1, 1, 1, config.hidden_size))
+        self.mask_token = mindspore.Parameter(mint.zeros([1, 1, 1, config.hidden_size]))
+        self.segment_token_input = mindspore.Parameter(mint.zeros([1, 1, 1, config.hidden_size]))
+        self.segment_token_prompt = mindspore.Parameter(mint.zeros([1, 1, 1, config.hidden_size]))
         # token for seg types
-        self.type_token_semantic = mindspore.Parameter(mint.zeros(1, 1, 1, config.hidden_size))
-        self.type_token_instance = mindspore.Parameter(mint.zeros(1, 1, 1, config.hidden_size))
+        self.type_token_semantic = mindspore.Parameter(mint.zeros([1, 1, 1, config.hidden_size]))
+        self.type_token_instance = mindspore.Parameter(mint.zeros([1, 1, 1, config.hidden_size]))
 
         self.patch_embeddings = SegGptPatchEmbeddings(config)
 
         num_positions = (config.pretrain_image_size // config.patch_size) ** 2 + 1
-        self.position_embeddings = mindspore.Parameter(mint.randn(1, num_positions, config.hidden_size))
+        self.position_embeddings = mindspore.Parameter(mint.randn([1, num_positions, config.hidden_size]))
         self.dropout = mint.nn.Dropout(config.hidden_dropout_prob)
 
     def interpolate_pos_encoding(self, height: int, width: int) -> mindspore.Tensor:
@@ -233,8 +233,8 @@ class SegGptAttention(mindspore.nn.Cell):
                 raise ValueError("Input size must be provided if using relative positional encoding.")
 
             # initialize relative positional embeddings
-            self.rel_pos_h = mindspore.Parameter(mint.zeros(2 * input_size[0] - 1, head_dim))
-            self.rel_pos_w = mindspore.Parameter(mint.zeros(2 * input_size[1] - 1, head_dim))
+            self.rel_pos_h = mindspore.Parameter(mint.zeros([2 * input_size[0] - 1, head_dim]))
+            self.rel_pos_w = mindspore.Parameter(mint.zeros([2 * input_size[1] - 1, head_dim]))
 
     def get_rel_pos(self, q_size: int, k_size: int, rel_pos: mindspore.Tensor) -> mindspore.Tensor:
         """
@@ -615,20 +615,20 @@ class SegGptPreTrainedModel(PreTrainedModel):
     supports_gradient_checkpointing = True
     _no_split_modules = ["SegGptEmbeddings", "SegGptLayer"]
 
-    def _init_weights(self, module: Union[mint.Linear, mint.Conv2d, mint.LayerNorm]) -> None:
+    def _init_weights(self, module: Union[mint.nn.Linear, mint.nn.Conv2d, mint.nn.LayerNorm]) -> None:
         """Initialize the weights"""
         std = self.config.initializer_range
-        if isinstance(module, (mint.nnnn.Linear, mint.nnnn.Conv2d)):
+        if isinstance(module, (mint.nn.Linear, mint.nn.Conv2d)):
             # Upcast the input in `fp32` and cast it back to desired `dtype` to avoid
             # `trunc_normal_cpu` not implemented in `half` issues
             init_data = initializer(TruncatedNormal(sigma=std), module.weight.shape, mindspore.float32)
             module.weight.set_data(init_data.astype(module.weight.dtype))
 
-        if module.bias is not None:
+            if module.bias is not None:
+                module.bias.set_data(initializer(Zero(), module.bias.shape, module.bias.dtype))
+        elif isinstance(module, mint.nn.LayerNorm):
             module.bias.set_data(initializer(Zero(), module.bias.shape, module.bias.dtype))
-        elif isinstance(module, mint.LayerNorm):
-            module.beta.set_data(initializer(Zero(), module.beta.shape, module.beta.dtype))
-            module.gamma.set_data(initializer(One(), module.gamma.shape, module.gamma.dtype))
+            module.weight.set_data(initializer(One(), module.weight.shape, module.weight.dtype))
         elif isinstance(module, SegGptAttention):
             init_data_h = initializer(TruncatedNormal(sigma=std), module.rel_pos_h.shape, mindspore.float32)
             module.rel_pos_h.set_data(init_data_h.astype(module.rel_pos_h.dtype))
