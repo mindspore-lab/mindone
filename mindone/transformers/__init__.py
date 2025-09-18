@@ -713,6 +713,16 @@ from .models.xlm_roberta_xl import (
     XLMRobertaXLModel,
     XLMRobertaXLPreTrainedModel,
 )
+from .models.xlnet import (
+    XLNetForMultipleChoice,
+    XLNetForQuestionAnswering,
+    XLNetForQuestionAnsweringSimple,
+    XLNetForSequenceClassification,
+    XLNetForTokenClassification,
+    XLNetLMHeadModel,
+    XLNetModel,
+    XLNetPreTrainedModel,
+)
 from .models.yolos import YolosForObjectDetection, YolosImageProcessor, YolosModel, YolosPreTrainedModel
 from .models.zamba import ZambaForCausalLM, ZambaForSequenceClassification, ZambaModel, ZambaPreTrainedModel
 from .pipelines import (

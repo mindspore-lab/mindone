@@ -104,6 +104,7 @@ from . import (
     vits,
     wav2vec2,
     xlm_roberta,
+    xlnet,
     yolos,
     zamba,
 )
