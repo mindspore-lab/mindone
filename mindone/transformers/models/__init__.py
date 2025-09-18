@@ -72,6 +72,7 @@ from . import (
     mobilebert,
     modernbert,
     mpt,
+    musicgen,
     mvp,
     nystromformer,
     opt,
