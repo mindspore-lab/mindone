@@ -298,6 +298,17 @@ from .models.deberta_v2 import (
 from .models.depth_anything import DepthAnythingForDepthEstimation, DepthAnythingPreTrainedModel
 from .models.dinov2 import Dinov2Backbone, Dinov2ForImageClassification, Dinov2Model, Dinov2PreTrainedModel
 from .models.dpt import DPTForDepthEstimation, DPTImageProcessor, DPTModel, DPTPreTrainedModel
+from .models.electra import (
+    ElectraForCausalLM,
+    ElectraForMaskedLM,
+    ElectraForMultipleChoice,
+    ElectraForPreTraining,
+    ElectraForQuestionAnswering,
+    ElectraForSequenceClassification,
+    ElectraForTokenClassification,
+    ElectraModel,
+    ElectraPreTrainedModel,
+)
 from .models.fuyu import FuyuForCausalLM, FuyuPreTrainedModel
 from .models.gemma import (
     GemmaForCausalLM,
@@ -394,6 +405,20 @@ from .models.imagegpt import (
     ImageGPTModel,
     ImageGPTPreTrainedModel,
 )
+from .models.instructblip import (
+    InstructBlipForConditionalGeneration,
+    InstructBlipPreTrainedModel,
+    InstructBlipProcessor,
+    InstructBlipQFormerModel,
+    InstructBlipVisionModel,
+)
+from .models.instructblipvideo import (
+    InstructBlipVideoForConditionalGeneration,
+    InstructBlipVideoPreTrainedModel,
+    InstructBlipVideoQFormerModel,
+    InstructBlipVideoVisionModel,
+)
+from .models.kosmos2 import Kosmos2ForConditionalGeneration, Kosmos2Model, Kosmos2PreTrainedModel
 from .models.led import (
     LEDForConditionalGeneration,
     LEDForQuestionAnswering,
@@ -528,6 +553,8 @@ from .models.owlvit import (
     OwlViTVisionModel,
 )
 from .models.paligemma import PaliGemmaForConditionalGeneration, PaliGemmaPreTrainedModel
+from .models.pegasus import PegasusForCausalLM, PegasusForConditionalGeneration, PegasusModel, PegasusPreTrainedModel
+from .models.pegasus_x import PegasusXForConditionalGeneration, PegasusXModel, PegasusXPreTrainedModel
 from .models.persimmon import (
     PersimmonForCausalLM,
     PersimmonForSequenceClassification,
@@ -548,6 +575,12 @@ from .models.phi3 import (
     Phi3ForTokenClassification,
     Phi3Model,
     Phi3PreTrainedModel,
+)
+from .models.pix2struct import (
+    Pix2StructForConditionalGeneration,
+    Pix2StructPreTrainedModel,
+    Pix2StructTextModel,
+    Pix2StructVisionModel,
 )
 from .models.qwen2 import Qwen2ForCausalLM, Qwen2ForSequenceClassification, Qwen2ForTokenClassification, Qwen2Model
 from .models.qwen2_5_omni import (
@@ -629,6 +662,15 @@ from .models.speecht5 import (
     SpeechT5HifiGan,
     SpeechT5Model,
     SpeechT5PreTrainedModel,
+)
+from .models.squeezebert import (
+    SqueezeBertForMaskedLM,
+    SqueezeBertForMultipleChoice,
+    SqueezeBertForQuestionAnswering,
+    SqueezeBertForSequenceClassification,
+    SqueezeBertForTokenClassification,
+    SqueezeBertModel,
+    SqueezeBertPreTrainedModel,
 )
 from .models.starcoder2 import (
     Starcoder2ForCausalLM,
