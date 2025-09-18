@@ -7,9 +7,9 @@ import mindspore as ms
 from mindspore import mint, nn, ops
 from mindspore.common.initializer import Constant, Normal, XavierUniform, initializer
 
-from mindone.diffusers._peft.utils import ModulesToSaveWrapper, _get_submodules
 from mindone.diffusers.configuration_utils import ConfigMixin, register_to_config
 from mindone.diffusers.models import ModelMixin
+from mindone.peft.utils import ModulesToSaveWrapper, _get_submodules
 from mindone.transformers.integrations import PeftAdapterMixin
 
 from .attn_layers import Attention, CrossAttention, FlashCrossMHAModified, FlashSelfMHAModified

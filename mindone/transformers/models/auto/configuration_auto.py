@@ -36,8 +36,10 @@ CONFIG_MAPPING_NAMES = OrderedDict(
     [
         # Add configs here
         ("albert", "AlbertConfig"),
+        ("align", "AlignConfig"),
         ("aria", "AriaConfig"),
         ("aria_text", "AriaTextConfig"),
+        ("bamba", "BambaConfig"),
         ("bert", "BertConfig"),
         ("bart", "BartConfig"),
         ("bit", "BitConfig"),
@@ -50,6 +52,7 @@ CONFIG_MAPPING_NAMES = OrderedDict(
         ("convnextv2", "ConvNextV2Config"),
         ("clip", "CLIPConfig"),
         ("clip_vision_model", "CLIPVisionConfig"),
+        ("clipseg", "CLIPSegConfig"),
         ("deberta", "DebertaConfig"),
         ("deberta-v2", "DebertaV2Config"),
         ("depth_anything", "DepthAnythingConfig"),
@@ -69,6 +72,7 @@ CONFIG_MAPPING_NAMES = OrderedDict(
         ("helium", "HeliumConfig"),
         ("hiera", "HieraConfig"),
         ("hubert", "HubertConfig"),
+        ("ibert", "IBertConfig"),
         ("idefics", "IdeficsConfig"),
         ("idefics2", "Idefics2Config"),
         ("idefics3", "Idefics3Config"),
@@ -91,6 +95,7 @@ CONFIG_MAPPING_NAMES = OrderedDict(
         ("mobilevit", "MobileViTConfig"),
         ("mobilevitv2", "MobileViTV2Config"),
         ("mpt", "MptConfig"),
+        ("nystromformer", "NystromformerConfig"),
         ("starcoder2", "Starcoder2Config"),
         ("mt5", "MT5Config"),
         ("opt", "OPTConfig"),
@@ -109,6 +114,7 @@ CONFIG_MAPPING_NAMES = OrderedDict(
         ("roberta", "RobertaConfig"),
         ("recurrent_gemma", "RecurrentGemmaConfig"),
         ("rembert", "RemBertConfig"),
+        ("rwkv", "RwkvConfig"),
         ("segformer", "SegformerConfig"),
         ("swin", "SwinConfig"),
         ("siglip", "SiglipConfig"),
@@ -131,6 +137,7 @@ CONFIG_MAPPING_NAMES = OrderedDict(
         ("xlm-roberta-xl", "XLMRobertaXLConfig"),
         ("yolos", "YolosConfig"),
         ("cohere2", "Cohere2Config"),
+        ("zamba", "ZambaConfig"),
     ]
 )
 
@@ -139,9 +146,11 @@ MODEL_NAMES_MAPPING = OrderedDict(
     [
         # Add full (and cased) model names here
         ("albert", "ALBERT"),
+        ("align", "ALIGN"),
         ("aria", "Aria"),
         ("aria_text", "AriaText"),
         ("m2m_100", "M2M100"),
+        ("bamba", "Bamba"),
         ("bert", "BERT"),
         ("bart", "BART"),
         ("camembert", "CamemBERT"),
@@ -155,6 +164,7 @@ MODEL_NAMES_MAPPING = OrderedDict(
         ("clip", "CLIP"),
         ("starcoder2", "Starcoder2"),
         ("clip_vision_model", "CLIPVisionModel"),
+        ("clipseg", "CLIPSeg"),
         ("convnext", "ConvNeXT"),
         ("convnextv2", "ConvNeXTV2"),
         ("deberta", "DeBERTa"),
@@ -181,6 +191,7 @@ MODEL_NAMES_MAPPING = OrderedDict(
         ("helium", "Helium"),
         ("hiera", "Hiera"),
         ("hubert", "Hubert"),
+        ("ibert", "I-BERT"),
         ("idefics", "IDEFICS"),
         ("idefics2", "Idefics2"),
         ("idefics3", "Idefics3"),
@@ -208,6 +219,7 @@ MODEL_NAMES_MAPPING = OrderedDict(
         ("megatron-bert", "Megatron-BERT"),
         ("mistral", "Mistral"),
         ("mixtral", "Mixtral"),
+        ("nystromformer", "Nyströmformer"),
         ("owlvit", "OWL-ViT"),
         ("paligemma", "PaliGemma"),
         ("phi", "Phi"),
@@ -219,6 +231,7 @@ MODEL_NAMES_MAPPING = OrderedDict(
         ("qwen2_vl", "Qwen2VL"),
         ("recurrent_gemma", "RecurrentGemma"),
         ("rembert", "RemBERT"),
+        ("rwkv", "RWKV"),
         ("segformer", "SegFormer"),
         ("swin", "Swin Transformer"),
         ("siglip", "SigLIP"),
@@ -243,6 +256,7 @@ MODEL_NAMES_MAPPING = OrderedDict(
         ("xlm-roberta-xl", "XLM-RoBERTa-XL"),
         ("yolos", "YOLOS"),
         ("cohere2", "Cohere2"),
+        ("zamba", "Zamba"),
     ]
 )
 

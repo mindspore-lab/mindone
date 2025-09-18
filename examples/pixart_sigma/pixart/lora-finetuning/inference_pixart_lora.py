@@ -12,7 +12,7 @@ import argparse
 import mindspore as ms
 
 from mindone.diffusers import PixArtAlphaPipeline, Transformer2DModel
-from mindone.diffusers._peft import PeftModel
+from mindone.peft import PeftModel
 
 
 def parse_args():

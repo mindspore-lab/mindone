@@ -122,8 +122,8 @@ class PeftAdapterMixin:
         if adapter_kwargs is None:
             adapter_kwargs = {}
 
-        from mindone.diffusers._peft import PeftConfig, inject_adapter_in_model, load_peft_weights
-        from mindone.diffusers._peft.utils import set_peft_model_state_dict
+        from mindone.peft import PeftConfig, inject_adapter_in_model, load_peft_weights
+        from mindone.peft.utils import set_peft_model_state_dict
 
         if self._hf_peft_config_loaded and adapter_name in self.peft_config:
             raise ValueError(f"Adapter with name {adapter_name} already exists. Please use a different name.")
@@ -211,7 +211,7 @@ class PeftAdapterMixin:
             adapter_name (`str`, *optional*, defaults to `"default"`):
                 The name of the adapter to add. If no name is passed, a default name is assigned to the adapter.
         """
-        from mindone.diffusers._peft import PeftConfig, inject_adapter_in_model
+        from mindone.peft import PeftConfig, inject_adapter_in_model
 
         adapter_name = adapter_name or "default"
 
@@ -256,8 +256,8 @@ class PeftAdapterMixin:
                 f"Adapter with name {adapter_name} not found. Please pass the correct adapter name among {list(self.peft_config.keys())}"
             )
 
-        from mindone.diffusers._peft.tuners.tuners_utils import BaseTunerLayer
-        from mindone.diffusers._peft.utils import ModulesToSaveWrapper
+        from mindone.peft.tuners.tuners_utils import BaseTunerLayer
+        from mindone.peft.utils import ModulesToSaveWrapper
 
         _adapters_has_been_set = False
 
@@ -285,8 +285,8 @@ class PeftAdapterMixin:
         if not self._hf_peft_config_loaded:
             raise ValueError("No adapter loaded. Please load an adapter first.")
 
-        from mindone.diffusers._peft.tuners.tuners_utils import BaseTunerLayer
-        from mindone.diffusers._peft.utils import ModulesToSaveWrapper
+        from mindone.peft.tuners.tuners_utils import BaseTunerLayer
+        from mindone.peft.utils import ModulesToSaveWrapper
 
         for _, module in self.cells_and_names():
             if isinstance(module, (BaseTunerLayer, ModulesToSaveWrapper)):
@@ -306,7 +306,7 @@ class PeftAdapterMixin:
         if not self._hf_peft_config_loaded:
             raise ValueError("No adapter loaded. Please load an adapter first.")
 
-        from mindone.diffusers._peft.tuners.tuners_utils import BaseTunerLayer
+        from mindone.peft.tuners.tuners_utils import BaseTunerLayer
 
         for _, module in self.cells_and_names():
             if isinstance(module, BaseTunerLayer):
@@ -330,7 +330,7 @@ class PeftAdapterMixin:
         if not self._hf_peft_config_loaded:
             raise ValueError("No adapter loaded. Please load an adapter first.")
 
-        from mindone.diffusers._peft.tuners.tuners_utils import BaseTunerLayer
+        from mindone.peft.tuners.tuners_utils import BaseTunerLayer
 
         for _, module in self.cells_and_names():
             if isinstance(module, BaseTunerLayer):
@@ -365,7 +365,7 @@ class PeftAdapterMixin:
         if not self._hf_peft_config_loaded:
             raise ValueError("No adapter loaded. Please load an adapter first.")
 
-        from mindone.diffusers._peft import get_peft_model_state_dict
+        from mindone.peft import get_peft_model_state_dict
 
         if adapter_name is None:
             adapter_name = self.active_adapter()

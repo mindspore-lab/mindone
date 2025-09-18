@@ -136,7 +136,7 @@ model_tester = MobileBertModelTester()
 config_has_num_labels = copy.deepcopy(config)
 config_has_num_labels.num_labels = model_tester.num_labels
 
-MOBILEBERT_CASES = [
+MODERNBERT_CASES = [
     [
         "MobileBertForMaskedLM",
         "transformers.MobileBertForMaskedLM",
@@ -272,7 +272,7 @@ MOBILEBERT_CASES = [
         + [
             mode,
         ]
-        for case in MOBILEBERT_CASES
+        for case in MODERNBERT_CASES
         for dtype in DTYPE_AND_THRESHOLDS.keys()
         for mode in MODES
     ],
