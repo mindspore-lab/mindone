@@ -383,7 +383,7 @@ class LlamaPreTrainedModel(PreTrainedModel):
     _supports_flash_attn_2 = True
     _supports_sdpa = False  # SDPA, not support yet
     _supports_flex_attn = False  # FlexAttention, not support yet
-    _supports_cache_class = False  # set it True if use DynamicCache
+    _supports_cache_class = True  # set it True if use DynamicCache
     _supports_quantized_cache = False
     _supports_static_cache = False  # StaticCache, not used
     _supports_attention_backend = True
@@ -893,7 +893,13 @@ class LlamaForCausalLM(LlamaPreTrainedModel, GenerationMixin):
 
     @staticmethod
     def _reorder_cache(past_key_values, beam_idx):
-        raise NotImplementedError
+        reordered_past = ()
+        for layer_past in past_key_values:
+            # cached cross_attention states don't have to be reordered -> they are always the same
+            reordered_past += (
+                tuple(past_state.index_select(0, beam_idx) for past_state in layer_past[:2]) + layer_past[2:],
+            )
+        return reordered_past
 
 
 @add_start_docstrings(
