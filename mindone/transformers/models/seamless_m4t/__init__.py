@@ -15,4 +15,10 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from .modeling_seamless_m4t import *
+from .modeling_seamless_m4t import (
+    SeamlessM4TForSpeechToSpeech,
+    SeamlessM4TForSpeechToText,
+    SeamlessM4TForTextToSpeech,
+    SeamlessM4TForTextToText,
+    SeamlessM4TModel,
+)
