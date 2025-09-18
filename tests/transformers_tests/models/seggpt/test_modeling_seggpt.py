@@ -129,9 +129,10 @@ LLAMA_CASES = [
         (pixel_values,),
         {
             "prompt_pixel_values": prompt_pixel_values,
+            "prompt_masks": prompt_masks,
         },
         {
-            "predicted_depth": 0,
+            "last_hidden_state": 0,
         },
     ],
 ]
