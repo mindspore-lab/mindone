@@ -21,13 +21,7 @@ from dataclasses import dataclass
 from typing import Dict, List, Optional, Tuple, Union
 
 import numpy as np
-import mindspore as ms
-from mindspore import Tensor, nn, mint
-
-from mindone.transformers.mindspore_adapter.utils import _DTYPE_2_MAX, _DTYPE_2_MIN
-from ...activations import ACT2FN
-from ...modeling_outputs import BaseModelOutput
-from ...modeling_utils import PreTrainedModel
+from transformers import OneFormerConfig
 from transformers.utils import (
     ModelOutput,
     add_start_docstrings,
@@ -37,9 +31,16 @@ from transformers.utils import (
     replace_return_docstrings,
     requires_backends,
 )
-from ...utils.backbone_utils import load_backbone
-from transformers import OneFormerConfig
 
+import mindspore as ms
+from mindspore import Tensor, mint, nn
+
+from mindone.transformers.mindspore_adapter.utils import _DTYPE_2_MAX
+
+from ...activations import ACT2FN
+from ...modeling_outputs import BaseModelOutput
+from ...modeling_utils import PreTrainedModel
+from ...utils.backbone_utils import load_backbone
 
 logger = logging.get_logger(__name__)
 
@@ -201,9 +202,7 @@ def pair_wise_sigmoid_cross_entropy_loss(inputs: ms.Tensor, labels: ms.Tensor) -
 
 
 # Copied from transformers.models.mask2former.modeling_mask2former.sample_point
-def sample_point(
-    input_features: ms.Tensor, point_coordinates: ms.Tensor, add_dim=False, **kwargs
-) -> ms.Tensor:
+def sample_point(input_features: ms.Tensor, point_coordinates: ms.Tensor, add_dim=False, **kwargs) -> ms.Tensor:
     """
     A wrapper around `mindspore.mint.nn.functional.grid_sample` to support 3D point_coordinates tensors.
 
@@ -306,7 +305,11 @@ class OneFormerHungarianMatcher(ms.nn.Cell):
             target_mask = target_mask[:, None]
 
             # all masks share the same set of points for efficient matching!
-            point_coords = mint.rand(1, self.num_points, 2, )
+            point_coords = mint.rand(
+                1,
+                self.num_points,
+                2,
+            )
 
             # get ground truth labels
             target_mask = sample_point(
@@ -321,25 +324,22 @@ class OneFormerHungarianMatcher(ms.nn.Cell):
                 align_corners=False,
             ).squeeze(1)
 
-            with autocast(enabled=False):
-                pred_mask = pred_mask.float()
-                target_mask = target_mask.float()
+            pred_mask = pred_mask.float()
+            target_mask = target_mask.float()
 
-                # compute the sigmoid ce loss
-                cost_mask = pair_wise_sigmoid_cross_entropy_loss(pred_mask, target_mask)
-                # Compute the dice loss
-                cost_dice = pair_wise_dice_loss(pred_mask, target_mask)
-                # final cost matrix
-                cost_matrix = self.cost_mask * cost_mask + self.cost_class * cost_class + self.cost_dice * cost_dice
-                cost_matrix = cost_matrix.reshape(num_queries, -1)
-                # do the assigmented using the hungarian algorithm in scipy
-                assigned_indices: Tuple[np.array] = linear_sum_assignment(cost_matrix.asnumpy())
-                indices.append(assigned_indices)
+            # compute the sigmoid ce loss
+            cost_mask = pair_wise_sigmoid_cross_entropy_loss(pred_mask, target_mask)
+            # Compute the dice loss
+            cost_dice = pair_wise_dice_loss(pred_mask, target_mask)
+            # final cost matrix
+            cost_matrix = self.cost_mask * cost_mask + self.cost_class * cost_class + self.cost_dice * cost_dice
+            cost_matrix = cost_matrix.reshape(num_queries, -1)
+            # do the assigmented using the hungarian algorithm in scipy
+            assigned_indices: Tuple[np.array] = linear_sum_assignment(cost_matrix.asnumpy())
+            indices.append(assigned_indices)
 
         # It could be stacked in one tensor
-        matched_indices = [
-            (ms.tensor(i, dtype=ms.int64), ms.tensor(j, dtype=ms.int64)) for i, j in indices
-        ]
+        matched_indices = [(ms.tensor(i, dtype=ms.int64), ms.tensor(j, dtype=ms.int64)) for i, j in indices]
         return matched_indices
 
 
@@ -414,8 +414,14 @@ class OneFormerLoss(ms.nn.Cell):
         b, _, h, w = batch_shape
         # get metadata
         dtype = tensors[0].dtype
-        padded_tensors = mint.zeros(batch_shape, dtype=dtype, )
-        padding_masks = mint.ones((b, h, w), dtype=ms.bool_, )
+        padded_tensors = mint.zeros(
+            batch_shape,
+            dtype=dtype,
+        )
+        padding_masks = mint.ones(
+            (b, h, w),
+            dtype=ms.bool_,
+        )
         # pad the tensors to the size of the biggest one
         for tensor, padded_tensor, padding_mask in zip(tensors, padded_tensors, padding_masks):
             padded_tensor[: tensor.shape[0], : tensor.shape[1], : tensor.shape[2]].copy_(tensor)
@@ -449,10 +455,16 @@ class OneFormerLoss(ms.nn.Cell):
         logits_per_img = logits_per_text.t()
 
         loss_img = mint.nn.functional.cross_entropy(
-            logits_per_img, mint.arange(len(logits_per_img), )
+            logits_per_img,
+            mint.arange(
+                len(logits_per_img),
+            ),
         )
         loss_text = mint.nn.functional.cross_entropy(
-            logits_per_text, mint.arange(len(logits_per_text), )
+            logits_per_text,
+            mint.arange(
+                len(logits_per_text),
+            ),
         )
 
         loss_contrastive = loss_img + loss_text
@@ -486,7 +498,10 @@ class OneFormerLoss(ms.nn.Cell):
         target_classes_o = mint.cat([target[j] for target, (_, j) in zip(class_labels, indices)])
         # shape = (batch_size, num_queries)
         target_classes = ms.ops.full(
-            (batch_size, num_queries), fill_value=self.num_classes, dtype=ms.int64, )
+            (batch_size, num_queries),
+            fill_value=self.num_classes,
+            dtype=ms.int64,
+        )
         target_classes[idx] = target_classes_o
         # permute pred_logits (batch_size, num_queries, num_labels) -> (batch_size, num_labels, num_queries)
         pred_logits_transposed = pred_logits.transpose(1, 2)
@@ -604,7 +619,11 @@ class OneFormerLoss(ms.nn.Cell):
         num_points_sampled = int(num_points * oversample_ratio)
 
         # Get random point coordinates
-        point_coordinates = mint.rand(num_boxes, num_points_sampled, 2, )
+        point_coordinates = mint.rand(
+            num_boxes,
+            num_points_sampled,
+            2,
+        )
         # Get sampled prediction value for the point coordinates
         point_logits = sample_point(logits, point_coordinates, align_corners=False)
         # Calculate the uncertainties based on the sampled prediction values of the points
@@ -614,13 +633,23 @@ class OneFormerLoss(ms.nn.Cell):
         num_random_points = num_points - num_uncertain_points
 
         idx = mint.topk(point_uncertainties[:, 0, :], k=num_uncertain_points, dim=1)[1]
-        shift = num_points_sampled * mint.arange(num_boxes, dtype=ms.int64, )
+        shift = num_points_sampled * mint.arange(
+            num_boxes,
+            dtype=ms.int64,
+        )
         idx += shift[:, None]
         point_coordinates = point_coordinates.view(-1, 2)[idx.view(-1), :].view(num_boxes, num_uncertain_points, 2)
 
         if num_random_points > 0:
             point_coordinates = mint.cat(
-                [point_coordinates, mint.rand(num_boxes, num_random_points, 2, )],
+                [
+                    point_coordinates,
+                    mint.rand(
+                        num_boxes,
+                        num_random_points,
+                        2,
+                    ),
+                ],
                 dim=1,
             )
         return point_coordinates
@@ -804,15 +833,18 @@ class OneFormerModelOutput(ModelOutput):
     Class for outputs of [`OneFormerModel`]. This class returns all the needed hidden states to compute the logits.
 
     Args:
-        encoder_hidden_states (`tuple(mindspore.Tensor)`, *optional*, returned when `output_hidden_states=True` is passed or when `config.output_hidden_states=True`):
+        encoder_hidden_states (`tuple(mindspore.Tensor)`, *optional*, returned when `output_hidden_states=True` is passed or when\
+             `config.output_hidden_states=True`):
             Tuple of `mindspore.Tensor` (one for the output of the embeddings + one for the output of each stage) of
             shape `(batch_size, num_channels, height, width)`. Hidden-states (also called feature maps) of the encoder
             model at the output of each stage.
-        pixel_decoder_hidden_states (`tuple(mindspore.Tensor)`, *optional*, returned when `output_hidden_states=True` is passed or when `config.output_hidden_states=True`):
+        pixel_decoder_hidden_states (`tuple(mindspore.Tensor)`, *optional*, returned when `output_hidden_states=True` is passed or when \
+            `config.output_hidden_states=True`):
             Tuple of `mindspore.Tensor` (one for the output of the embeddings + one for the output of each stage) of
             shape `(batch_size, num_channels, height, width)`. Hidden-states (also called feature maps) of the pixel
             decoder model at the output of each stage.
-        transformer_decoder_hidden_states (`tuple(mindspore.Tensor)`, *optional*, returned when `output_hidden_states=True` is passed or when `config.output_hidden_states=True`):
+        transformer_decoder_hidden_states (`tuple(mindspore.Tensor)`, *optional*, returned when `output_hidden_states=True` is passed or when \
+            `config.output_hidden_states=True`):
             Tuple of `mindspore.Tensor` (one for the output of the embeddings + one for the output of each stage) of
             shape `(batch_size, sequence_length, hidden_size)`. Hidden-states (also called feature maps) of the
             transformer decoder at the output of each stage.
@@ -869,15 +901,18 @@ class OneFormerForUniversalSegmentationOutput(ModelOutput):
             query.
         auxiliary_predictions (List of Dict of `str, mindspore.Tensor`, *optional*):
             List of class and mask predictions from each layer of the transformer decoder.
-        encoder_hidden_states (`tuple(mindspore.Tensor)`, *optional*, returned when `output_hidden_states=True` is passed or when `config.output_hidden_states=True`):
+        encoder_hidden_states (`tuple(mindspore.Tensor)`, *optional*, returned when `output_hidden_states=True` is passed or when\
+             `config.output_hidden_states=True`):
             Tuple of `mindspore.Tensor` (one for the output of the embeddings + one for the output of each stage) of
             shape `(batch_size, num_channels, height, width)`. Hidden-states (also called feature maps) of the encoder
             model at the output of each stage.
-        pixel_decoder_hidden_states (`tuple(mindspore.Tensor)`, *optional*, returned when `output_hidden_states=True` is passed or when `config.output_hidden_states=True`):
+        pixel_decoder_hidden_states (`tuple(mindspore.Tensor)`, *optional*, returned when `output_hidden_states=True` is passed or when\
+             `config.output_hidden_states=True`):
             Tuple of `mindspore.Tensor` (one for the output of the embeddings + one for the output of each stage) of
             shape `(batch_size, num_channels, height, width)`. Hidden-states (also called feature maps) of the pixel
             decoder model at the output of each stage.
-        transformer_decoder_hidden_states (`tuple(mindspore.Tensor)`, *optional*, returned when `output_hidden_states=True` is passed or when `config.output_hidden_states=True`):
+        transformer_decoder_hidden_states (`tuple(mindspore.Tensor)`, *optional*, returned when `output_hidden_states=True` is passed or when\
+             `config.output_hidden_states=True`):
             Tuple of `mindspore.Tensor` (one for the output of the embeddings + one for the output of each stage) of
             shape `(batch_size, sequence_length, hidden_size)`. Hidden-states (also called feature maps) of the
             transformer decoder at the output of each stage.
@@ -964,9 +999,7 @@ class OneFormerPixelDecoderEncoderMultiscaleDeformableAttention(ms.nn.Cell):
     def __init__(self, embed_dim: int, num_heads: int, n_levels: int, n_points: int):
         super().__init__()
         if embed_dim % num_heads != 0:
-            raise ValueError(
-                f"embed_dim (d_model) must be divisible by num_heads, but got {embed_dim} and {num_heads}"
-            )
+            raise ValueError(f"embed_dim (d_model) must be divisible by num_heads, but got {embed_dim} and {num_heads}")
         dim_per_head = embed_dim // num_heads
         # check if dim_per_head is power of 2
         if not ((dim_per_head & (dim_per_head - 1) == 0) and dim_per_head != 0):
@@ -1129,7 +1162,6 @@ class OneFormerPixelDecoderEncoderLayer(ms.nn.Cell):
 
         if self.is_training:
             if mint.isinf(hidden_states).any() or mint.isnan(hidden_states).any():
-
                 clamp_value = _DTYPE_2_MAX[hidden_states.dtype] - 1000
                 hidden_states = mint.clamp(hidden_states, min=-clamp_value, max=clamp_value)
 
@@ -1178,8 +1210,18 @@ class OneFormerPixelDecoderEncoderOnly(ms.nn.Cell):
         reference_points_list = []
         for lvl, (height, width) in enumerate(spatial_shapes):
             ref_y, ref_x = mint.meshgrid(
-                mint.linspace(0.5, height - 0.5, height, dtype=valid_ratios.dtype, ),
-                mint.linspace(0.5, width - 0.5, width, dtype=valid_ratios.dtype, ),
+                mint.linspace(
+                    0.5,
+                    height - 0.5,
+                    height,
+                    dtype=valid_ratios.dtype,
+                ),
+                mint.linspace(
+                    0.5,
+                    width - 0.5,
+                    width,
+                    dtype=valid_ratios.dtype,
+                ),
             )
             ref_y = ref_y.reshape(-1)[None] / (valid_ratios[:, None, lvl, 1] * height)
             ref_x = ref_x.reshape(-1)[None] / (valid_ratios[:, None, lvl, 0] * width)
@@ -1234,7 +1276,10 @@ class OneFormerPixelDecoderEncoderOnly(ms.nn.Cell):
         return_dict = return_dict if return_dict is not None else self.config.use_return_dict
 
         hidden_states = inputs_embeds
-        reference_points = self.get_reference_points(spatial_shapes, valid_ratios, )
+        reference_points = self.get_reference_points(
+            spatial_shapes,
+            valid_ratios,
+        )
 
         encoder_states = () if output_hidden_states else None
         all_attentions = () if output_attentions else None
@@ -1259,9 +1304,7 @@ class OneFormerPixelDecoderEncoderOnly(ms.nn.Cell):
         if output_hidden_states:
             encoder_states = encoder_states + (hidden_states,)
 
-        return BaseModelOutput(
-            last_hidden_state=hidden_states, hidden_states=encoder_states, attentions=all_attentions
-        )
+        return BaseModelOutput(last_hidden_state=hidden_states, hidden_states=encoder_states, attentions=all_attentions)
 
 
 # Modified from from transformers.models.mask2former.modeling_mask2former.Mask2FormerPixelDecoder with Mask2->One
@@ -1341,8 +1384,8 @@ class OneFormerPixelDecoder(ms.nn.Cell):
                 mint.nn.GroupNorm(32, config.conv_dim),
                 mint.nn.ReLU(),
             )
-            self.add_module("adapter_{}".format(idx + 1), lateral_conv)
-            self.add_module("layer_{}".format(idx + 1), output_conv)
+            self.insert_child_to_cell("adapter_{}".format(idx + 1), lateral_conv)
+            self.insert_child_to_cell("layer_{}".format(idx + 1), output_conv)
 
             lateral_convs.append(lateral_conv)
             output_convs.append(output_conv)
@@ -1821,7 +1864,9 @@ class OneFormerMLPPredictionHead(ms.nn.Cell):
         layers = []
         for i, (in_dim, out_dim) in enumerate(zip(in_dims, out_dims)):
             layers.append(
-                PredictionBlock(in_dim, out_dim, activation=mint.nn.ReLU() if i < num_layers - 1 else mint.nn.Identity())
+                PredictionBlock(
+                    in_dim, out_dim, activation=mint.nn.ReLU() if i < num_layers - 1 else mint.nn.Identity()
+                )
             )
 
         self.layers = ms.nn.SequentialCell(*layers)
@@ -2398,7 +2443,10 @@ class OneFormerSinePositionEmbedding(ms.nn.Cell):
             y_embed = y_embed / (y_embed[:, -1:, :] + eps) * self.scale
             x_embed = x_embed / (x_embed[:, :, -1:] + eps) * self.scale
 
-        dim_t = mint.arange(self.num_pos_feats, dtype=ms.int64, ).type_as(x)
+        dim_t = mint.arange(
+            self.num_pos_feats,
+            dtype=ms.int64,
+        ).type_as(x)
         dim_t = self.temperature ** (2 * mint.div(dim_t, 2, rounding_mode="floor") / self.num_pos_feats)
 
         pos_x = x_embed[:, :, :, None] / dim_t
@@ -2416,7 +2464,7 @@ class PredictionBlock(ms.nn.Cell):
         self.layers = [mint.nn.Linear(in_dim, out_dim), activation]
         # Maintain submodule indexing as if part of a Sequential block
         for i, layer in enumerate(self.layers):
-            self.add_module(str(i), layer)
+            self.insert_child_to_cell(str(i), layer)
 
     def construct(self, input: Tensor) -> Tensor:
         hidden_state = input
@@ -2479,7 +2527,10 @@ class OneFormerTextTransformerDecoderLayer(ms.nn.Cell):
         self.dropout = mint.nn.Dropout(dropout)
 
         self.mlp = ms.nn.SequentialCell(
-            mint.nn.Linear(d_model, d_model * 4), mint.nn.GELU(), mint.nn.Dropout(dropout), mint.nn.Linear(d_model * 4, d_model)
+            mint.nn.Linear(d_model, d_model * 4),
+            mint.nn.GELU(),
+            mint.nn.Dropout(dropout),
+            mint.nn.Linear(d_model * 4, d_model),
         )
 
     def construct(self, hidden_state, mem):
@@ -2964,7 +3015,9 @@ class OneFormerModel(OneFormerPreTrainedModel):
         batch_size, _, height, width = pixel_values.shape
 
         if pixel_mask is None:
-            pixel_mask = mint.ones((batch_size, height, width), )
+            pixel_mask = mint.ones(
+                (batch_size, height, width),
+            )
 
         pixel_level_module_output = self.pixel_level_module(pixel_values, output_hidden_states)
 
