@@ -1,5 +1,8 @@
 # coding=utf-8
-# Copyright 2024 HuggingFace Inc.
+# Copyright 2025 HuggingFace Inc.
+#
+# This code is adapted from https://github.com/huggingface/diffusers
+# with modifications to run diffusers on mindspore.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -42,7 +45,7 @@ class FP32SiLU(nn.Cell):
         return x
 
 
-ACTIVATION_FUNCTIONS = {
+ACT2CLS = {
     "swish": mint.nn.SiLU,
     "silu": mint.nn.SiLU,
     "mish": mint.nn.Mish,
@@ -62,10 +65,10 @@ def get_activation(act_fn: str) -> nn.Cell:
     """
 
     act_fn = act_fn.lower()
-    if act_fn in ACTIVATION_FUNCTIONS:
-        return ACTIVATION_FUNCTIONS[act_fn]
+    if act_fn in ACT2CLS:
+        return ACT2CLS[act_fn]()
     else:
-        raise ValueError(f"Unsupported activation function: {act_fn}")
+        raise ValueError(f"activation function {act_fn} not found in ACT2FN mapping {list(ACT2CLS.keys())}")
 
 
 class GELU(nn.Cell):
@@ -95,7 +98,7 @@ class GELU(nn.Cell):
 
 class GEGLU(nn.Cell):
     r"""
-    A [variant](https://arxiv.org/abs/2002.05202) of the gated linear unit activation function.
+    A [variant](https://huggingface.co/papers/2002.05202) of the gated linear unit activation function.
 
     Parameters:
         dim_in (`int`): The number of channels in the input.
@@ -117,8 +120,8 @@ class GEGLU(nn.Cell):
 
 class SwiGLU(nn.Cell):
     r"""
-    A [variant](https://arxiv.org/abs/2002.05202) of the gated linear unit activation function. It's similar to `GEGLU`
-    but uses SiLU / Swish instead of GeLU.
+    A [variant](https://huggingface.co/papers/2002.05202) of the gated linear unit activation function. It's similar to
+    `GEGLU` but uses SiLU / Swish instead of GeLU.
 
     Parameters:
         dim_in (`int`): The number of channels in the input.
@@ -141,7 +144,7 @@ class SwiGLU(nn.Cell):
 class ApproximateGELU(nn.Cell):
     r"""
     The approximate form of the Gaussian Error Linear Unit (GELU). For more details, see section 2 of this
-    [paper](https://arxiv.org/abs/1606.08415).
+    [paper](https://huggingface.co/papers/1606.08415).
 
     Parameters:
         dim_in (`int`): The number of channels in the input.
@@ -163,7 +166,7 @@ class LinearActivation(nn.Cell):
         super().__init__()
 
         self.proj = mint.nn.Linear(dim_in, dim_out, bias=bias)
-        self.activation = get_activation(activation)()
+        self.activation = get_activation(activation)
 
     def construct(self, hidden_states):
         hidden_states = self.proj(hidden_states)

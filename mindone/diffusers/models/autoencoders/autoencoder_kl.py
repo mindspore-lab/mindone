@@ -1,4 +1,7 @@
-# Copyright 2024 The HuggingFace Team. All rights reserved.
+# Copyright 2025 The HuggingFace Team. All rights reserved.
+#
+# This code is adapted from https://github.com/huggingface/diffusers
+# with modifications to run diffusers on mindspore.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -53,11 +56,11 @@ class AutoencoderKL(ModelMixin, ConfigMixin, FromOriginalModelMixin, PeftAdapter
             model. The latents are scaled with the formula `z = z * scaling_factor` before being passed to the
             diffusion model. When decoding, the latents are scaled back to the original scale with the formula: `z = 1
             / scaling_factor * z`. For more details, refer to sections 4.3.2 and D.1 of the [High-Resolution Image
-            Synthesis with Latent Diffusion Models](https://arxiv.org/abs/2112.10752) paper.
+            Synthesis with Latent Diffusion Models](https://huggingface.co/papers/2112.10752) paper.
         force_upcast (`bool`, *optional*, default to `True`):
             If enabled it will force the VAE to run in float32 for high image resolution pipelines, such as SD-XL. VAE
-            can be fine-tuned / trained to a lower range without loosing too much precision in which case
-            `force_upcast` can be set to `False` - see: https://huggingface.co/madebyollin/sdxl-vae-fp16-fix
+            can be fine-tuned / trained to a lower range without losing too much precision in which case `force_upcast`
+            can be set to `False` - see: https://huggingface.co/madebyollin/sdxl-vae-fp16-fix
         mid_block_add_attention (`bool`, *optional*, default to `True`):
             If enabled, the mid_block of the Encoder and Decoder will have attention blocks. If set to false, the
             mid_block will only have resnet blocks
@@ -131,10 +134,6 @@ class AutoencoderKL(ModelMixin, ConfigMixin, FromOriginalModelMixin, PeftAdapter
         )
         self.tile_latent_min_size = int(sample_size / (2 ** (len(self.config.block_out_channels) - 1)))
         self.tile_overlap_factor = 0.25
-
-    def _set_gradient_checkpointing(self, module, value=False):
-        if isinstance(module, (Encoder, Decoder)):
-            module.gradient_checkpointing = value
 
     def enable_tiling(self, use_tiling: bool = True):
         r"""

@@ -1,6 +1,9 @@
 # coding=utf-8
 # Copyright 2021 The Fairseq Authors and the HuggingFace Inc. team. All rights reserved.
 #
+# This code is adapted from https://github.com/huggingface/transformers
+# with modifications to run transformers on mindspore.
+#
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -1112,15 +1115,6 @@ class Wav2Vec2PreTrainedModel(MSPreTrainedModel):
                     dtype=module.conv.weight_norm_cell.bias.dtype,
                 )
             )
-        #     else:
-        # module.conv.weight.set_data(initializer(
-        #         Normal(mean=0, sigma=2 * math.sqrt(1 / (module.conv.kernel_size[0] * module.conv.in_channels))),
-        #         shape=module.conv.weight.shape,
-        #         dtype=module.conv.weight.dtype))
-        # module.conv.bias.set_data(initializer(
-        #         Constant(0),
-        #         shape=module.conv.bias.shape,
-        #         dtype=module.conv.bias.dtype))
         elif isinstance(module, Wav2Vec2FeatureProjection):
             k = math.sqrt(1 / module.projection.in_features)
             module.projection.weight.set_data(

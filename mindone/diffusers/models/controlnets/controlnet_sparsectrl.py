@@ -1,4 +1,7 @@
-# Copyright 2024 The HuggingFace Team. All rights reserved.
+# Copyright 2025 The HuggingFace Team. All rights reserved.
+#
+# This code is adapted from https://github.com/huggingface/diffusers
+# with modifications to run diffusers on mindspore.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -97,7 +100,7 @@ class SparseControlNetConditioningEmbedding(nn.Cell):
 class SparseControlNetModel(ModelMixin, ConfigMixin, FromOriginalModelMixin):
     """
     A SparseControlNet model as described in [SparseCtrl: Adding Sparse Controls to Text-to-Video Diffusion
-    Models](https://arxiv.org/abs/2311.16933).
+    Models](https://huggingface.co/papers/2311.16933).
 
     Args:
         in_channels (`int`, defaults to 4):
@@ -532,10 +535,6 @@ class SparseControlNetModel(ModelMixin, ConfigMixin, FromOriginalModelMixin):
 
         self.set_attn_processor(processor)
 
-    def _set_gradient_checkpointing(self, module, value: bool = False) -> None:
-        if isinstance(module, (CrossAttnDownBlockMotion, DownBlockMotion, UNetMidBlock2DCrossAttn)):
-            module.gradient_checkpointing = value
-
     def construct(
         self,
         sample: ms.Tensor,
@@ -612,10 +611,10 @@ class SparseControlNetModel(ModelMixin, ConfigMixin, FromOriginalModelMixin):
         # todo: unavailable mint interface
         if not ops.is_tensor(timesteps):
             if isinstance(timestep, float):
-                dtype = ms.float64
+                dtype = ms.float32
             else:
-                dtype = ms.int64
-            timesteps = ms.Tensor([timesteps], dtype=dtype)
+                dtype = ms.int32
+            timesteps = ms.tensor([timesteps], dtype=dtype)
         elif len(timesteps.shape) == 0:
             timesteps = timesteps[None]
 
@@ -630,7 +629,7 @@ class SparseControlNetModel(ModelMixin, ConfigMixin, FromOriginalModelMixin):
         t_emb = t_emb.to(dtype=sample.dtype)
 
         emb = self.time_embedding(t_emb, timestep_cond)
-        emb = emb.repeat_interleave(sample_num_frames, dim=0)
+        emb = emb.repeat_interleave(sample_num_frames, dim=0, output_size=emb.shape[0] * sample_num_frames)
 
         # 2. pre-process
         batch_size, channels, num_frames, height, width = sample.shape

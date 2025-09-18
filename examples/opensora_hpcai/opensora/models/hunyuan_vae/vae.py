@@ -1,3 +1,12 @@
+# Adapted from https://github.com/hpcaitech/Open-Sora
+# and modified from HunyuanVideo
+#
+# Copyright 2024 HunyuanVideo
+#
+# This source code is licensed under the license found in the
+# LICENSE file in the root directory of this source tree.
+
+
 from dataclasses import dataclass
 from typing import Optional, Tuple
 

@@ -1,3 +1,4 @@
+# Adapted from https://github.com/Tencent-Hunyuan/HunyuanVideo-I2V to work with MindSpore.
 from hyvideo.constants import PRECISION_TO_TYPE
 
 import mindspore as ms

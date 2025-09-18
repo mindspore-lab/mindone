@@ -1,5 +1,8 @@
 # Copyright (c) 2022 Pablo Pernías MIT License
-# Copyright 2024 UC Berkeley Team and The HuggingFace Team. All rights reserved.
+# Copyright 2025 UC Berkeley Team and The HuggingFace Team. All rights reserved.
+#
+# This code is adapted from https://github.com/huggingface/diffusers
+# with modifications to run diffusers on mindspore.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -98,7 +101,7 @@ class DDPMWuerstchenScheduler(SchedulerMixin, ConfigMixin):
     [`SchedulerMixin`] provides general loading and saving functionality via the [`SchedulerMixin.save_pretrained`] and
     [`~SchedulerMixin.from_pretrained`] functions.
 
-    For more details, see the original paper: https://arxiv.org/abs/2006.11239
+    For more details, see the original paper: https://huggingface.co/papers/2006.11239
 
     Args:
         scaler (`float`): ....
@@ -156,7 +159,7 @@ class DDPMWuerstchenScheduler(SchedulerMixin, ConfigMixin):
         if timesteps is None:
             timesteps = ms.tensor(np.linspace(1.0, 0.0, num_inference_steps + 1), dtype=ms.float32)
         if not isinstance(timesteps, ms.Tensor):
-            timesteps = ms.Tensor(timesteps)
+            timesteps = ms.tensor(timesteps)
         self.timesteps = timesteps
 
     def step(

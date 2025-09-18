@@ -1,5 +1,8 @@
-# Copyright 2024 The Mochi team and The HuggingFace Team.
+# Copyright 2025 The Mochi team and The HuggingFace Team.
 # All rights reserved.
+#
+# This code is adapted from https://github.com/huggingface/diffusers
+# with modifications to run diffusers on mindspore.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -28,7 +31,6 @@ from ..activations import get_activation
 from ..attention_processor import Attention, MochiVaeAttnProcessor2_0
 from ..modeling_outputs import AutoencoderKLOutput
 from ..modeling_utils import ModelMixin
-from ..normalization import GroupNorm
 from .autoencoder_kl_cogvideox import CogVideoXCausalConv3d
 from .vae import DecoderOutput, DiagonalGaussianDistribution
 
@@ -70,7 +72,7 @@ class MochiChunkedGroupNorm3D(nn.Cell):
         chunk_size: int = 8,
     ):
         super().__init__()
-        self.norm_layer = GroupNorm(num_channels=num_channels, num_groups=num_groups, affine=affine)
+        self.norm_layer = mint.nn.GroupNorm(num_channels=num_channels, num_groups=num_groups, affine=affine)
         self.chunk_size = chunk_size
 
     def construct(self, x: ms.Tensor = None) -> ms.Tensor:
@@ -111,7 +113,7 @@ class MochiResnetBlock3D(nn.Cell):
 
         self.in_channels = in_channels
         self.out_channels = out_channels
-        self.nonlinearity = get_activation(act_fn)()
+        self.nonlinearity = get_activation(act_fn)
 
         self.norm1 = MochiChunkedGroupNorm3D(num_channels=in_channels)
         self.conv1 = CogVideoXCausalConv3d(
@@ -207,19 +209,7 @@ class MochiDownBlock3D(nn.Cell):
         self.norms = nn.CellList(norms)
         self.attentions = nn.CellList(attentions)
 
-        self._gradient_checkpointing = False
-
-    @property
-    def gradient_checkpointing(self):
-        return self._gradient_checkpointing
-
-    @gradient_checkpointing.setter
-    def gradient_checkpointing(self, value):
-        self._gradient_checkpointing = value
-
-        if self._gradient_checkpointing:
-            for resnet in self.resnets:
-                resnet.recompute()
+        self.gradient_checkpointing = False
 
     def construct(
         self,
@@ -316,19 +306,7 @@ class MochiMidBlock3D(nn.Cell):
         self.norms = nn.CellList(norms)
         self.attentions = nn.CellList(attentions)
 
-        self._gradient_checkpointing = False
-
-    @property
-    def gradient_checkpointing(self):
-        return self._gradient_checkpointing
-
-    @gradient_checkpointing.setter
-    def gradient_checkpointing(self, value):
-        self._gradient_checkpointing = value
-
-        if self._gradient_checkpointing:
-            for resnet in self.resnets:
-                resnet.recompute()
+        self.gradient_checkpointing = False
 
     def construct(
         self,
@@ -400,19 +378,7 @@ class MochiUpBlock3D(nn.Cell):
 
         self.proj = mint.nn.Linear(in_channels, out_channels * temporal_expansion * spatial_expansion**2)
 
-        self._gradient_checkpointing = False
-
-    @property
-    def gradient_checkpointing(self):
-        return self._gradient_checkpointing
-
-    @gradient_checkpointing.setter
-    def gradient_checkpointing(self, value):
-        self._gradient_checkpointing = value
-
-        if self._gradient_checkpointing:
-            for resnet in self.resnets:
-                resnet.recompute()
+        self.gradient_checkpointing = False
 
     def construct(
         self,
@@ -468,7 +434,9 @@ class FourierFeatures(nn.Cell):
         w = w.repeat(num_channels)[None, :, None, None, None]  # [1, num_channels * num_freqs, 1, 1, 1]
 
         # Interleaved repeat of input channels to match w
-        h = inputs.repeat_interleave(num_freqs, dim=1)  # [B, C * num_freqs, T, H, W]
+        h = inputs.repeat_interleave(
+            num_freqs, dim=1, output_size=inputs.shape[1] * num_freqs
+        )  # [B, C * num_freqs, T, H, W]
         # Scale channels by frequency.
         h = w * h
 
@@ -510,7 +478,7 @@ class MochiEncoder3D(nn.Cell):
     ):
         super().__init__()
 
-        self.nonlinearity = get_activation(act_fn)()
+        self.nonlinearity = get_activation(act_fn)
 
         self.fourier_features = FourierFeatures()
         self.proj_in = mint.nn.Linear(in_channels, block_out_channels[0])
@@ -537,19 +505,7 @@ class MochiEncoder3D(nn.Cell):
         self.norm_out = MochiChunkedGroupNorm3D(block_out_channels[-1])
         self.proj_out = mint.nn.Linear(block_out_channels[-1], 2 * out_channels, bias=False)
 
-        self._gradient_checkpointing = False
-
-    @property
-    def gradient_checkpointing(self):
-        return self._gradient_checkpointing
-
-    @gradient_checkpointing.setter
-    def gradient_checkpointing(self, value):
-        self._gradient_checkpointing = value
-        if self._gradient_checkpointing:
-            for down_block in self.down_blocks:
-                down_block.recompute()
-            self.block_in.recompute()
+        self.gradient_checkpointing = False
 
     def construct(self, hidden_states: ms.Tensor, conv_cache: Optional[Dict[str, ms.Tensor]] = None) -> ms.Tensor:
         r"""Forward method of the `MochiEncoder3D` class."""
@@ -619,7 +575,7 @@ class MochiDecoder3D(nn.Cell):
     ):
         super().__init__()
 
-        self.nonlinearity = get_activation(act_fn)()
+        self.nonlinearity = get_activation(act_fn)
 
         self.conv_in = mint.nn.Conv3d(in_channels, block_out_channels[-1], kernel_size=(1, 1, 1))
         self.block_in = MochiMidBlock3D(
@@ -647,19 +603,7 @@ class MochiDecoder3D(nn.Cell):
         )
         self.proj_out = mint.nn.Linear(block_out_channels[0], out_channels)
 
-        self._gradient_checkpointing = False
-
-    @property
-    def gradient_checkpointing(self):
-        return self._gradient_checkpointing
-
-    @gradient_checkpointing.setter
-    def gradient_checkpointing(self, value):
-        self._gradient_checkpointing = value
-        if self._gradient_checkpointing:
-            for up_block in self.up_blocks:
-                up_block.recompute()
-            self.block_in.recompute()
+        self.gradient_checkpointing = False
 
     def construct(self, hidden_states: ms.Tensor, conv_cache: Optional[Dict[str, ms.Tensor]] = None) -> ms.Tensor:
         r"""Forward method of the `MochiDecoder3D` class."""
@@ -711,7 +655,7 @@ class AutoencoderKLMochi(ModelMixin, ConfigMixin):
             model. The latents are scaled with the formula `z = z * scaling_factor` before being passed to the
             diffusion model. When decoding, the latents are scaled back to the original scale with the formula: `z = 1
             / scaling_factor * z`. For more details, refer to sections 4.3.2 and D.1 of the [High-Resolution Image
-            Synthesis with Latent Diffusion Models](https://arxiv.org/abs/2112.10752) paper.
+            Synthesis with Latent Diffusion Models](https://huggingface.co/papers/2112.10752) paper.
     """
 
     _supports_gradient_checkpointing = True
@@ -824,10 +768,6 @@ class AutoencoderKLMochi(ModelMixin, ConfigMixin):
         self.tile_sample_stride_height = 192
         self.tile_sample_stride_width = 192
 
-    def _set_gradient_checkpointing(self, module, value=False):
-        if isinstance(module, (MochiEncoder3D, MochiDecoder3D)):
-            module.gradient_checkpointing = value
-
     def enable_tiling(
         self,
         tile_sample_min_height: Optional[int] = None,
@@ -888,7 +828,7 @@ class AutoencoderKLMochi(ModelMixin, ConfigMixin):
         framewise encoding, encode a video, and try to decode it, there will be noticeable jittering effect.
         """
         self.use_framewise_encoding = True
-        for name, module in self.named_modules():
+        for name, module in self.cells_and_names():
             if isinstance(module, CogVideoXCausalConv3d):
                 module.pad_mode = "constant"
 
@@ -898,7 +838,7 @@ class AutoencoderKLMochi(ModelMixin, ConfigMixin):
         oneshot decoding implementation without current latent replicate padding.
         """
         self.use_framewise_decoding = True
-        for name, module in self.named_modules():
+        for name, module in self.cells_and_names():
             if isinstance(module, CogVideoXCausalConv3d):
                 module.pad_mode = "constant"
 
@@ -950,7 +890,7 @@ class AutoencoderKLMochi(ModelMixin, ConfigMixin):
     def _decode(self, z: ms.Tensor, return_dict: bool = False) -> Union[DecoderOutput, ms.Tensor]:
         batch_size, num_channels, num_frames, height, width = z.shape
         tile_latent_min_height = self.tile_sample_min_height // self.spatial_compression_ratio
-        tile_latent_min_width = self.tile_sample_stride_width // self.spatial_compression_ratio
+        tile_latent_min_width = self.tile_sample_min_width // self.spatial_compression_ratio
 
         if self.use_tiling and (width > tile_latent_min_width or height > tile_latent_min_height):
             return self.tiled_decode(z, return_dict=return_dict)

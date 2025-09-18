@@ -1,3 +1,6 @@
+# This code is adapted from https://github.com/FoundationVision/VAR
+# with modifications to run on MindSpore.
+
 import mindspore as ms
 import mindspore.nn.probability.distribution as msd
 from mindspore import mint, nn, ops

@@ -1,3 +1,5 @@
+# Adapted from https://github.com/hpcaitech/Open-Sora/blob/main/opensora/models/mmdit/math.py
+
 from mindspore import Tensor
 from mindspore import dtype as mstype
 from mindspore import mint

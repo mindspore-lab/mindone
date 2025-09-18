@@ -1,4 +1,7 @@
-# Copyright 2024 The HuggingFace Team. All rights reserved.
+# Copyright 2025 The HuggingFace Team. All rights reserved.
+#
+# This code is adapted from https://github.com/huggingface/diffusers
+# with modifications to run diffusers on mindspore.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -21,7 +24,7 @@ from transformers import CLIPTokenizer
 import mindspore as ms
 from mindspore import mint
 
-from mindone.transformers import CLIPTextModel
+from mindone.transformers import CLIPTextModelWithProjection
 
 from ...models import StableCascadeUNet
 from ...schedulers import DDPMWuerstchenScheduler
@@ -30,7 +33,10 @@ from ...utils.mindspore_utils import randn_tensor
 from ..pipeline_utils import DiffusionPipeline, ImagePipelineOutput
 from ..wuerstchen.modeling_paella_vq_model import PaellaVQModel
 
+XLA_AVAILABLE = False
+
 logger = logging.get_logger(__name__)  # pylint: disable=invalid-name
+
 
 EXAMPLE_DOC_STRING = """
     Examples:
@@ -62,7 +68,7 @@ class StableCascadeDecoderPipeline(DiffusionPipeline):
     Args:
         tokenizer (`CLIPTokenizer`):
             The CLIP tokenizer.
-        text_encoder (`CLIPTextModel`):
+        text_encoder (`CLIPTextModelWithProjection`):
             The CLIP text encoder.
         decoder ([`StableCascadeUNet`]):
             The Stable Cascade decoder unet.
@@ -90,7 +96,7 @@ class StableCascadeDecoderPipeline(DiffusionPipeline):
         self,
         decoder: StableCascadeUNet,
         tokenizer: CLIPTokenizer,
-        text_encoder: CLIPTextModel,
+        text_encoder: CLIPTextModelWithProjection,
         scheduler: DDPMWuerstchenScheduler,
         vqgan: PaellaVQModel,
         latent_dim_scale: float = 10.67,
@@ -147,7 +153,7 @@ class StableCascadeDecoderPipeline(DiffusionPipeline):
                 return_tensors="np",
             )
             text_input_ids = text_inputs.input_ids
-            attention_mask = ms.Tensor(text_inputs.attention_mask)
+            attention_mask = ms.tensor(text_inputs.attention_mask)
 
             untruncated_ids = self.tokenizer(prompt, padding="longest", return_tensors="np").input_ids
 
@@ -202,8 +208,8 @@ class StableCascadeDecoderPipeline(DiffusionPipeline):
                 return_tensors="np",
             )
             negative_prompt_embeds_text_encoder_output = self.text_encoder(
-                ms.Tensor(uncond_input.input_ids),
-                attention_mask=ms.Tensor(uncond_input.attention_mask),
+                ms.tensor(uncond_input.input_ids),
+                attention_mask=ms.tensor(uncond_input.attention_mask),
                 output_hidden_states=True,
             )
 
@@ -321,11 +327,11 @@ class StableCascadeDecoderPipeline(DiffusionPipeline):
                 The number of denoising steps. More denoising steps usually lead to a higher quality image at the
                 expense of slower inference.
             guidance_scale (`float`, *optional*, defaults to 0.0):
-                Guidance scale as defined in [Classifier-Free Diffusion Guidance](https://arxiv.org/abs/2207.12598).
-                `decoder_guidance_scale` is defined as `w` of equation 2. of [Imagen
-                Paper](https://arxiv.org/pdf/2205.11487.pdf). Guidance scale is enabled by setting
-                `decoder_guidance_scale > 1`. Higher guidance scale encourages to generate images that are closely
-                linked to the text `prompt`, usually at the expense of lower image quality.
+                Guidance scale as defined in [Classifier-Free Diffusion
+                Guidance](https://huggingface.co/papers/2207.12598). `decoder_guidance_scale` is defined as `w` of
+                equation 2. of [Imagen Paper](https://huggingface.co/papers/2205.11487). Guidance scale is enabled by
+                setting `decoder_guidance_scale > 1`. Higher guidance scale encourages to generate images that are
+                closely linked to the text `prompt`, usually at the expense of lower image quality.
             negative_prompt (`str` or `List[str]`, *optional*):
                 The prompt or prompts not to guide the image generation. Ignored when not using guidance (i.e., ignored
                 if `decoder_guidance_scale` is less than `1`).
@@ -513,9 +519,9 @@ class StableCascadeDecoderPipeline(DiffusionPipeline):
             latents = self.vqgan.config.scale_factor * latents
             images = self.vqgan.decode(latents)[0].clamp(0, 1)
             if output_type == "np":
-                images = images.permute((0, 2, 3, 1)).float().asnumpy()  # float() as bfloat16-> numpy doesnt work
+                images = images.permute((0, 2, 3, 1)).float().asnumpy()  # float() as bfloat16-> numpy doesn't work
             elif output_type == "pil":
-                images = images.permute((0, 2, 3, 1)).float().asnumpy()  # float() as bfloat16-> numpy doesnt work
+                images = images.permute((0, 2, 3, 1)).float().asnumpy()  # float() as bfloat16-> numpy doesn't work
                 images = self.numpy_to_pil(images)
         else:
             images = latents

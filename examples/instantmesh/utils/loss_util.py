@@ -71,7 +71,7 @@ class LPIPS(nn.Cell):
             diff = (normalize_tensor(outs0[kk]) - normalize_tensor(outs1[kk])) ** 2
             # res += spatial_average(lins[kk](diff), keepdim=True)
             # lin_layer = lins[kk]
-            val += mint.mean(self.lins[kk](diff), dim=[2, 3], keep_dims=True)
+            val += mint.mean(self.lins[kk](diff), dim=[2, 3], keepdim=True)
         return val
 
 

@@ -1,3 +1,5 @@
+# This code is copied from https://github.com/SparkAudio/Spark-TTS.
+
 TASK_TOKEN_MAP = {
     "vc": "<|task_vc|>",
     "tts": "<|task_tts|>",

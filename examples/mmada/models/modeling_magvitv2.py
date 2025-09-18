@@ -1,3 +1,5 @@
+# Adapted from https://github.com/Gen-Verse/MMaDA/blob/main/models/modeling_magvitv2.py
+
 import math
 from dataclasses import dataclass, field
 from typing import List
@@ -138,17 +140,16 @@ class VQGANEncoder(ModelMixin, ConfigMixin):
 
     def construct(self, x):
         temb = None
-        hs = [self.conv_in(x)]
+        h = self.conv_in(x)
         for i_level in range(self.num_resolutions):
             for i_block in range(self.num_res_blocks[i_level]):
-                h = self.down[i_level].block[i_block](hs[-1], temb)
+                h = self.down[i_level].block[i_block](h, temb)
                 if len(self.down[i_level].attn) > 0:
                     h = self.down[i_level].attn[i_block](h)
-                hs.append(h)
-            if i_level != self.num_resolutions - 1:
-                hs.append(self.down[i_level].downsample(hs[-1]))
 
-        h = hs[-1]
+            if i_level != self.num_resolutions - 1:
+                h = self.down[i_level].downsample(h)
+
         h = self.mid.block_1(h, temb)
         h = self.mid.attn_1(h)
         h = self.mid.block_2(h, temb)
@@ -180,8 +181,8 @@ class LFQuantizer(nn.Cell):
         binary = (indices[:, None] >> np.arange(codebook_dim - 1, -1, -1)) & 1
 
         embedding = ms.tensor(binary).to(ms.float32) * 2 - 1
-        self.embedding = embedding
-        self.power_vals = 2 ** mint.arange(codebook_dim - 1, -1, -1)
+        self.register_buffer("embedding", embedding)
+        self.register_buffer("power_vals", 2 ** mint.arange(codebook_dim - 1, -1, -1))
         self.commit_loss_multiplier = commit_loss_multiplier
         self.entropy_multiplier = entropy_multiplier
 
@@ -232,7 +233,10 @@ class LFQuantizer(nn.Cell):
             dim=-1,
         )
         probs = mint.softmax(logit, dim=-1)
-        probs = mint.where(probs == 1, 1 - 1e-6, probs)  # probs should be less than 1
+        # FIXME: probs should be IN (0, 1)
+        eps = 1e-6
+        probs = mint.clamp(probs, eps, 1 - eps)
+        probs = probs / mint.sum(probs, dim=-1, keepdim=True)
         cat_dist = CatDist(probs=probs)
         entropy = cat_dist.entropy().mean()
         mean_prob = cat_dist.probs.mean(0)

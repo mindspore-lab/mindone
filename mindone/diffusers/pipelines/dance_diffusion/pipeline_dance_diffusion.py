@@ -1,4 +1,7 @@
-# Copyright 2024 The HuggingFace Team. All rights reserved.
+# Copyright 2025 The HuggingFace Team. All rights reserved.
+#
+# This code is adapted from https://github.com/huggingface/diffusers
+# with modifications to run diffusers on mindspore.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -17,14 +20,18 @@ from typing import List, Optional, Tuple, Union
 
 import numpy as np
 
+from ...models import UNet1DModel
+from ...schedulers import SchedulerMixin
 from ...utils import logging
 from ...utils.mindspore_utils import randn_tensor
-from ..pipeline_utils import AudioPipelineOutput, DiffusionPipeline
+from ..pipeline_utils import AudioPipelineOutput, DeprecatedPipelineMixin, DiffusionPipeline
+
+XLA_AVAILABLE = False
 
 logger = logging.get_logger(__name__)  # pylint: disable=invalid-name
 
 
-class DanceDiffusionPipeline(DiffusionPipeline):
+class DanceDiffusionPipeline(DeprecatedPipelineMixin, DiffusionPipeline):
     r"""
     Pipeline for audio generation.
 
@@ -41,7 +48,7 @@ class DanceDiffusionPipeline(DiffusionPipeline):
 
     model_cpu_offload_seq = "unet"
 
-    def __init__(self, unet, scheduler):
+    def __init__(self, unet: UNet1DModel, scheduler: SchedulerMixin):
         super().__init__()
         self.register_modules(unet=unet, scheduler=scheduler)
 
@@ -85,7 +92,7 @@ class DanceDiffusionPipeline(DiffusionPipeline):
         for i, audio in enumerate(audios):
             write(f"maestro_test_{i}.wav", pipe.unet.config.sample_rate, audio.transpose())
 
-        # To dislay in google colab
+        # To display in google colab
         import IPython.display as ipd
 
         for audio in audios:

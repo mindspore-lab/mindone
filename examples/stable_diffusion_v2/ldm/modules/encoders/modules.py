@@ -1,3 +1,6 @@
+# This code is adapted from https://github.com/Stability-AI/stablediffusion
+# with modifications to run on MindSpore.
+
 import logging
 from typing import Optional
 

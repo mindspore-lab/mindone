@@ -1,3 +1,5 @@
+"""Adapted from https://github.com/huggingface/diffusers/tree/main/src/diffusers/pipelines/stable_diffusion_safe/__init__.py."""
+
 from dataclasses import dataclass
 from enum import Enum
 from typing import TYPE_CHECKING, List, Optional, Union

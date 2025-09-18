@@ -1,3 +1,5 @@
+# Adapted from https://github.com/ShareGPT4Omni/ShareGPT4V/blob/master/share4v/model/share4v_arch.py
+
 from abc import ABC, abstractmethod
 
 from share4v.constants import (

@@ -1,5 +1,8 @@
-# Copyright 2024 The CogVideoX team, Tsinghua University & ZhipuAI and The HuggingFace Team.
+# Copyright 2025 The CogVideoX team, Tsinghua University & ZhipuAI and The HuggingFace Team.
 # All rights reserved.
+#
+# This code is adapted from https://github.com/huggingface/diffusers
+# with modifications to run diffusers on mindspore.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -14,7 +17,7 @@
 # limitations under the License.
 
 import inspect
-from typing import Callable, Dict, List, Optional, Tuple, Union
+from typing import Any, Callable, Dict, List, Optional, Tuple, Union
 
 import numpy as np
 from transformers import AutoTokenizer
@@ -26,6 +29,7 @@ from mindone.transformers import GlmModel
 
 from ...callbacks import MultiPipelineCallbacks, PipelineCallback
 from ...image_processor import VaeImageProcessor
+from ...loaders import CogView4LoraLoaderMixin
 from ...models import AutoencoderKL, CogView4Transformer2DModel
 from ...pipelines.pipeline_utils import DiffusionPipeline
 from ...schedulers import FlowMatchEulerDiscreteScheduler
@@ -127,7 +131,7 @@ def retrieve_timesteps(
     return timesteps, num_inference_steps
 
 
-class CogView4Pipeline(DiffusionPipeline):
+class CogView4Pipeline(DiffusionPipeline, CogView4LoraLoaderMixin):
     r"""
     Pipeline for text-to-image generation using CogView4.
 
@@ -287,6 +291,9 @@ class CogView4Pipeline(DiffusionPipeline):
         return prompt_embeds, negative_prompt_embeds
 
     def prepare_latents(self, batch_size, num_channels_latents, height, width, dtype, generator, latents=None):
+        if latents is not None:
+            return latents
+
         shape = (
             batch_size,
             num_channels_latents,
@@ -363,7 +370,7 @@ class CogView4Pipeline(DiffusionPipeline):
         return self._guidance_scale
 
     # here `guidance_scale` is defined analog to the guidance weight `w` of equation (2)
-    # of the Imagen paper: https://arxiv.org/pdf/2205.11487.pdf . `guidance_scale = 1`
+    # of the Imagen paper: https://huggingface.co/papers/2205.11487 . `guidance_scale = 1`
     # corresponds to doing no classifier free guidance.
     @property
     def do_classifier_free_guidance(self):
@@ -372,6 +379,14 @@ class CogView4Pipeline(DiffusionPipeline):
     @property
     def num_timesteps(self):
         return self._num_timesteps
+
+    @property
+    def attention_kwargs(self):
+        return self._attention_kwargs
+
+    @property
+    def current_timestep(self):
+        return self._current_timestep
 
     @property
     def interrupt(self):
@@ -396,6 +411,7 @@ class CogView4Pipeline(DiffusionPipeline):
         crops_coords_top_left: Tuple[int, int] = (0, 0),
         output_type: str = "pil",
         return_dict: bool = False,
+        attention_kwargs: Optional[Dict[str, Any]] = None,
         callback_on_step_end: Optional[
             Union[Callable[[int, int, Dict], None], PipelineCallback, MultiPipelineCallbacks]
         ] = None,
@@ -428,11 +444,11 @@ class CogView4Pipeline(DiffusionPipeline):
                 their `set_timesteps` method. If not defined, the default behavior when `num_inference_steps` is passed
                 will be used.
             guidance_scale (`float`, *optional*, defaults to `5.0`):
-                Guidance scale as defined in [Classifier-Free Diffusion Guidance](https://arxiv.org/abs/2207.12598).
-                `guidance_scale` is defined as `w` of equation 2. of [Imagen
-                Paper](https://arxiv.org/pdf/2205.11487.pdf). Guidance scale is enabled by setting `guidance_scale >
-                1`. Higher guidance scale encourages to generate images that are closely linked to the text `prompt`,
-                usually at the expense of lower image quality.
+                Guidance scale as defined in [Classifier-Free Diffusion
+                Guidance](https://huggingface.co/papers/2207.12598). `guidance_scale` is defined as `w` of equation 2.
+                of [Imagen Paper](https://huggingface.co/papers/2205.11487). Guidance scale is enabled by setting
+                `guidance_scale > 1`. Higher guidance scale encourages to generate images that are closely linked to
+                the text `prompt`, usually at the expense of lower image quality.
             num_images_per_prompt (`int`, *optional*, defaults to `1`):
                 The number of images to generate per prompt.
             generator (`np.random.Generator` or `List[np.random.Generator]`, *optional*):
@@ -509,6 +525,8 @@ class CogView4Pipeline(DiffusionPipeline):
             negative_prompt_embeds,
         )
         self._guidance_scale = guidance_scale
+        self._attention_kwargs = attention_kwargs
+        self._current_timestep = None
         self._interrupt = False
 
         # Default call parameters
@@ -594,6 +612,7 @@ class CogView4Pipeline(DiffusionPipeline):
                     original_size=original_size,
                     target_size=target_size,
                     crop_coords=crops_coords_top_left,
+                    attention_kwargs=attention_kwargs,
                     return_dict=False,
                 )[0]
 
@@ -606,6 +625,7 @@ class CogView4Pipeline(DiffusionPipeline):
                         original_size=original_size,
                         target_size=target_size,
                         crop_coords=crops_coords_top_left,
+                        attention_kwargs=attention_kwargs,
                         return_dict=False,
                     )[0]
 
@@ -627,6 +647,8 @@ class CogView4Pipeline(DiffusionPipeline):
 
                 if i == len(timesteps) - 1 or ((i + 1) > num_warmup_steps and (i + 1) % self.scheduler.order == 0):
                     progress_bar.update()
+
+        self._current_timestep = None
 
         if not output_type == "latent":
             latents = latents.to(self.vae.dtype) / self.vae.config.scaling_factor

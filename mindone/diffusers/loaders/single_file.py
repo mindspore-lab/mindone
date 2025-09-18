@@ -1,4 +1,7 @@
-# Copyright 2024 The HuggingFace Team. All rights reserved.
+# Copyright 2025 The HuggingFace Team. All rights reserved.
+#
+# This code is adapted from https://github.com/huggingface/diffusers
+# with modifications to run diffusers on mindspore.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -18,7 +21,9 @@ import os
 from huggingface_hub import snapshot_download
 from huggingface_hub.utils import LocalEntryNotFoundError, validate_hf_hub_args
 from packaging import version
+from typing_extensions import Self
 
+import mindspore as ms
 from mindspore import nn
 
 from ..utils import deprecate, is_transformers_available, logging, maybe_import_module_in_mindone
@@ -62,6 +67,7 @@ def load_single_file_sub_model(
     local_files_only=False,
     mindspore_dtype=None,
     is_legacy_loading=False,
+    disable_mmap=False,
     **kwargs,
 ):
     if is_pipeline_module:
@@ -108,6 +114,7 @@ def load_single_file_sub_model(
             subfolder=name,
             mindspore_dtype=mindspore_dtype,
             local_files_only=local_files_only,
+            disable_mmap=disable_mmap,
             **kwargs,
         )
 
@@ -265,7 +272,7 @@ class FromSingleFileMixin:
 
     @classmethod
     @validate_hf_hub_args
-    def from_single_file(cls, pretrained_model_link_or_path, **kwargs):
+    def from_single_file(cls, pretrained_model_link_or_path, **kwargs) -> Self:
         r"""
         Instantiate a [`DiffusionPipeline`] from pretrained pipeline weights saved in the `.ckpt` or `.safetensors`
         format. The pipeline is set in evaluation mode (`model.eval()`) by default.
@@ -306,6 +313,9 @@ class FromSingleFileMixin:
                       hosted on the Hub.
                     - A path to a *directory* (for example `./my_pipeline_directory/`) containing the pipeline
                       component configs in Diffusers format.
+            disable_mmap ('bool', *optional*, defaults to 'False'):
+                Whether to disable mmap when loading a Safetensors model. This option can perform better when the model
+                is on a network mount or hard drive.
             kwargs (remaining dictionary of keyword arguments, *optional*):
                 Can be used to overwrite load and saveable variables (the pipeline components of the specific pipeline
                 class). The overwritten components are passed directly to the pipelines `__init__` method. See example
@@ -346,8 +356,15 @@ class FromSingleFileMixin:
         local_files_only = kwargs.pop("local_files_only", False)
         revision = kwargs.pop("revision", None)
         mindspore_dtype = kwargs.pop("mindspore_dtype", None)
+        disable_mmap = kwargs.pop("disable_mmap", False)
 
         is_legacy_loading = False
+
+        if mindspore_dtype is not None and not isinstance(mindspore_dtype, ms.Type):
+            mindspore_dtype = ms.float32
+            logger.warning(
+                f"Passed `mindspore_dtype` {mindspore_dtype} is not a `ms.Type`. Defaulting to `ms.float32`."
+            )
 
         # We shouldn't allow configuring individual models components through a Pipeline creation method
         # These model kwargs should be deprecated
@@ -374,6 +391,7 @@ class FromSingleFileMixin:
             cache_dir=cache_dir,
             local_files_only=local_files_only,
             revision=revision,
+            disable_mmap=disable_mmap,
         )
 
         if config is None:
@@ -430,7 +448,7 @@ class FromSingleFileMixin:
                     logger.warning(
                         "Detected legacy `from_single_file` loading behavior. Attempting to create the pipeline based on inferred components.\n"
                         "This may lead to errors if the model components are not correctly inferred. \n"
-                        "To avoid this warning, please explicity pass the `config` argument to `from_single_file` with a path to a local diffusers model repo \n"  # noqa E501
+                        "To avoid this warning, please explicitly pass the `config` argument to `from_single_file` with a path to a local diffusers model repo \n"  # noqa E501
                         "e.g. `from_single_file(<my model checkpoint path>, config=<path to local diffusers model repo>) \n"
                         "or run `from_single_file` with `local_files_only=False` first to update the local cache directory with "
                         "the necessary config files.\n"
@@ -495,6 +513,7 @@ class FromSingleFileMixin:
                         original_config=original_config,
                         local_files_only=local_files_only,
                         is_legacy_loading=is_legacy_loading,
+                        disable_mmap=disable_mmap,
                         **kwargs,
                     )
                 except SingleFileComponentError as e:

@@ -1,3 +1,5 @@
+"""Adapted from https://github.com/huggingface/diffusers/tree/main/tests//pipelines/pag/test_pag_sdxl_inpaint.py."""
+
 import random
 import sys
 import unittest
@@ -14,7 +16,7 @@ from mindone.diffusers import StableDiffusionXLPAGInpaintPipeline
 from mindone.diffusers.utils.testing_utils import (
     fast,
     load_downloaded_image_from_hf_hub,
-    load_downloaded_numpy_from_hf_hub,
+    load_numpy_from_local_file,
     slow,
 )
 
@@ -319,8 +321,8 @@ class StableDiffusionXLPAGInpaintPipelineIntegrationTests(unittest.TestCase):
             pag_scale=0.3,
         )[0][0]
 
-        expected_image = load_downloaded_numpy_from_hf_hub(
-            "The-truth/mindone-testing-arrays",
+        expected_image = load_numpy_from_local_file(
+            "mindone-testing-arrays",
             f"sdxl_inpaint_{dtype}.npy",
             subfolder="pag",
         )

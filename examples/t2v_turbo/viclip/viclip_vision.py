@@ -1,4 +1,8 @@
 #!/usr/bin/env python
+
+# This code is adapted from https://github.com/Ji4chenLi/t2v-turbo
+# with modifications to run on MindSpore.
+
 import logging
 import os
 from collections import OrderedDict

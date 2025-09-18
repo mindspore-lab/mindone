@@ -1,4 +1,7 @@
-# Copyright 2024 Lightricks and The HuggingFace Team. All rights reserved.
+# Copyright 2025 Lightricks and The HuggingFace Team. All rights reserved.
+#
+# This code is adapted from https://github.com/huggingface/diffusers
+# with modifications to run diffusers on mindspore.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -72,7 +75,7 @@ def calculate_shift(
     base_seq_len: int = 256,
     max_seq_len: int = 4096,
     base_shift: float = 0.5,
-    max_shift: float = 1.16,
+    max_shift: float = 1.15,
 ):
     m = (max_shift - base_shift) / (max_seq_len - base_seq_len)
     b = base_shift - m * base_seq_len
@@ -152,6 +155,33 @@ def retrieve_latents(
         return encoder_output
 
 
+# Copied from diffusers.pipelines.stable_diffusion.pipeline_stable_diffusion.rescale_noise_cfg
+def rescale_noise_cfg(noise_cfg, noise_pred_text, guidance_rescale=0.0):
+    r"""
+    Rescales `noise_cfg` tensor based on `guidance_rescale` to improve image quality and fix overexposure. Based on
+    Section 3.4 from [Common Diffusion Noise Schedules and Sample Steps are
+    Flawed](https://huggingface.co/papers/2305.08891).
+
+    Args:
+        noise_cfg (`ms.Tensor`):
+            The predicted noise tensor for the guided diffusion process.
+        noise_pred_text (`ms.Tensor`):
+            The predicted noise tensor for the text-guided diffusion process.
+        guidance_rescale (`float`, *optional*, defaults to 0.0):
+            A rescale factor applied to the noise predictions.
+
+    Returns:
+        noise_cfg (`ms.Tensor`): The rescaled noise prediction tensor.
+    """
+    std_text = noise_pred_text.std(dim=list(range(1, noise_pred_text.ndim)), keepdim=True)
+    std_cfg = noise_cfg.std(dim=list(range(1, noise_cfg.ndim)), keepdim=True)
+    # rescale the results from guidance (fixes overexposure)
+    noise_pred_rescaled = noise_cfg * (std_text / std_cfg)
+    # mix with the original results from guidance by factor guidance_rescale to avoid "plain looking" images
+    noise_cfg = guidance_rescale * noise_pred_rescaled + (1 - guidance_rescale) * noise_cfg
+    return noise_cfg
+
+
 class LTXImageToVideoPipeline(DiffusionPipeline, FromSingleFileMixin, LTXVideoLoraLoaderMixin):
     r"""
     Pipeline for image-to-video generation.
@@ -198,16 +228,22 @@ class LTXImageToVideoPipeline(DiffusionPipeline, FromSingleFileMixin, LTXVideoLo
             scheduler=scheduler,
         )
 
-        self.vae_spatial_compression_ratio = self.vae.spatial_compression_ratio if hasattr(self, "vae") else 32
-        self.vae_temporal_compression_ratio = self.vae.temporal_compression_ratio if hasattr(self, "vae") else 8
-        self.transformer_spatial_patch_size = self.transformer.config.patch_size if hasattr(self, "transformer") else 1
+        self.vae_spatial_compression_ratio = (
+            self.vae.spatial_compression_ratio if getattr(self, "vae", None) is not None else 32
+        )
+        self.vae_temporal_compression_ratio = (
+            self.vae.temporal_compression_ratio if getattr(self, "vae", None) is not None else 8
+        )
+        self.transformer_spatial_patch_size = (
+            self.transformer.config.patch_size if getattr(self, "transformer", None) is not None else 1
+        )
         self.transformer_temporal_patch_size = (
-            self.transformer.config.patch_size_t if hasattr(self, "transformer") else 1
+            self.transformer.config.patch_size_t if getattr(self, "transformer") is not None else 1
         )
 
         self.video_processor = VideoProcessor(vae_scale_factor=self.vae_spatial_compression_ratio)
         self.tokenizer_max_length = (
-            self.tokenizer.model_max_length if hasattr(self, "tokenizer") and self.tokenizer is not None else 128
+            self.tokenizer.model_max_length if getattr(self, "tokenizer", None) is not None else 128
         )
 
         self.default_height = 512
@@ -235,7 +271,7 @@ class LTXImageToVideoPipeline(DiffusionPipeline, FromSingleFileMixin, LTXVideoLo
             return_tensors="np",
         )
         text_input_ids = text_inputs.input_ids
-        prompt_attention_mask = ms.Tensor(text_inputs.attention_mask)
+        prompt_attention_mask = ms.tensor(text_inputs.attention_mask)
         prompt_attention_mask = prompt_attention_mask.bool()
 
         untruncated_ids = self.tokenizer(prompt, padding="longest", return_tensors="np").input_ids
@@ -247,7 +283,7 @@ class LTXImageToVideoPipeline(DiffusionPipeline, FromSingleFileMixin, LTXVideoLo
                 f" {max_sequence_length} tokens: {removed_text}"
             )
 
-        prompt_embeds = self.text_encoder(ms.Tensor(text_input_ids))[0]
+        prompt_embeds = self.text_encoder(ms.tensor(text_input_ids))[0]
         prompt_embeds = prompt_embeds.to(dtype=dtype)
 
         # duplicate text embeddings for each generation per prompt, using mps friendly method
@@ -288,15 +324,15 @@ class LTXImageToVideoPipeline(DiffusionPipeline, FromSingleFileMixin, LTXVideoLo
                 Whether to use classifier free guidance or not.
             num_videos_per_prompt (`int`, *optional*, defaults to 1):
                 Number of videos that should be generated per prompt. torch device to place the resulting embeddings on
-            prompt_embeds (`torch.Tensor`, *optional*):
+            prompt_embeds (`ms.Tensor`, *optional*):
                 Pre-generated text embeddings. Can be used to easily tweak text inputs, *e.g.* prompt weighting. If not
                 provided, text embeddings will be generated from `prompt` input argument.
-            negative_prompt_embeds (`torch.Tensor`, *optional*):
+            negative_prompt_embeds (`ms.Tensor`, *optional*):
                 Pre-generated negative text embeddings. Can be used to easily tweak text inputs, *e.g.* prompt
                 weighting. If not provided, negative_prompt_embeds will be generated from `negative_prompt` input
                 argument.
-            dtype: (`torch.dtype`, *optional*):
-                torch dtype
+            dtype: (`mindspore.Type`, *optional*):
+                mindspore dtype
         """
         prompt = [prompt] if isinstance(prompt, str) else prompt
         if prompt is not None:
@@ -471,17 +507,21 @@ class LTXImageToVideoPipeline(DiffusionPipeline, FromSingleFileMixin, LTXVideoLo
     ) -> ms.Tensor:
         height = height // self.vae_spatial_compression_ratio
         width = width // self.vae_spatial_compression_ratio
-        num_frames = (num_frames - 1) // self.vae_temporal_compression_ratio + 1 if latents is None else latents.size(2)
+        num_frames = (num_frames - 1) // self.vae_temporal_compression_ratio + 1
 
         shape = (batch_size, num_channels_latents, num_frames, height, width)
         mask_shape = (batch_size, 1, num_frames, height, width)
 
         if latents is not None:
-            conditioning_mask = latents.new_zeros(shape)
+            conditioning_mask = latents.new_zeros(mask_shape)
             conditioning_mask[:, :, 0] = 1.0
             conditioning_mask = self._pack_latents(
                 conditioning_mask, self.transformer_spatial_patch_size, self.transformer_temporal_patch_size
-            )
+            ).squeeze(-1)
+            if latents.ndim != 3 or latents.shape[:2] != conditioning_mask.shape:
+                raise ValueError(
+                    f"Provided `latents` tensor has shape {latents.shape}, but the expected shape is {conditioning_mask.shape + (num_channels_latents,)}."
+                )
             return latents.to(dtype=dtype), conditioning_mask
 
         if isinstance(generator, list):
@@ -522,12 +562,20 @@ class LTXImageToVideoPipeline(DiffusionPipeline, FromSingleFileMixin, LTXVideoLo
         return self._guidance_scale
 
     @property
+    def guidance_rescale(self):
+        return self._guidance_rescale
+
+    @property
     def do_classifier_free_guidance(self):
         return self._guidance_scale > 1.0
 
     @property
     def num_timesteps(self):
         return self._num_timesteps
+
+    @property
+    def current_timestep(self):
+        return self._current_timestep
 
     @property
     def attention_kwargs(self):
@@ -549,6 +597,7 @@ class LTXImageToVideoPipeline(DiffusionPipeline, FromSingleFileMixin, LTXVideoLo
         num_inference_steps: int = 50,
         timesteps: List[int] = None,
         guidance_scale: float = 3,
+        guidance_rescale: float = 0.0,
         num_videos_per_prompt: Optional[int] = 1,
         generator: Optional[Union[np.random.Generator, List[np.random.Generator]]] = None,
         latents: Optional[ms.Tensor] = None,
@@ -570,7 +619,7 @@ class LTXImageToVideoPipeline(DiffusionPipeline, FromSingleFileMixin, LTXVideoLo
 
         Args:
             image (`PipelineImageInput`):
-                The input image to condition the generation on. Must be an image, a list of images or a `torch.Tensor`.
+                The input image to condition the generation on. Must be an image, a list of images or a `ms.Tensor`.
             prompt (`str` or `List[str]`, *optional*):
                 The prompt or prompts to guide the image generation. If not defined, one has to pass `prompt_embeds`.
                 instead.
@@ -588,29 +637,34 @@ class LTXImageToVideoPipeline(DiffusionPipeline, FromSingleFileMixin, LTXVideoLo
                 in their `set_timesteps` method. If not defined, the default behavior when `num_inference_steps` is
                 passed will be used. Must be in descending order.
             guidance_scale (`float`, defaults to `3 `):
-                Guidance scale as defined in [Classifier-Free Diffusion Guidance](https://arxiv.org/abs/2207.12598).
-                `guidance_scale` is defined as `w` of equation 2. of [Imagen
-                Paper](https://arxiv.org/pdf/2205.11487.pdf). Guidance scale is enabled by setting `guidance_scale >
-                1`. Higher guidance scale encourages to generate images that are closely linked to the text `prompt`,
-                usually at the expense of lower image quality.
+                Guidance scale as defined in [Classifier-Free Diffusion
+                Guidance](https://huggingface.co/papers/2207.12598). `guidance_scale` is defined as `w` of equation 2.
+                of [Imagen Paper](https://huggingface.co/papers/2205.11487). Guidance scale is enabled by setting
+                `guidance_scale > 1`. Higher guidance scale encourages to generate images that are closely linked to
+                the text `prompt`, usually at the expense of lower image quality.
+            guidance_rescale (`float`, *optional*, defaults to 0.0):
+                Guidance rescale factor proposed by [Common Diffusion Noise Schedules and Sample Steps are
+                Flawed](https://arxiv.org/pdf/2305.08891.pdf) `guidance_scale` is defined as `φ` in equation 16. of
+                [Common Diffusion Noise Schedules and Sample Steps are Flawed](https://arxiv.org/pdf/2305.08891.pdf).
+                Guidance rescale factor should fix overexposure when using zero terminal SNR.
             num_videos_per_prompt (`int`, *optional*, defaults to 1):
                 The number of videos to generate per prompt.
-            generator (`torch.Generator` or `List[torch.Generator]`, *optional*):
-                One or a list of [torch generator(s)](https://pytorch.org/docs/stable/generated/torch.Generator.html)
+            generator (`np.random.Generator` or `List[np.random.Generator]`, *optional*):
+                One or a list of [np.random.Generator(s)](https://numpy.org/doc/stable/reference/random/generator.html)
                 to make generation deterministic.
-            latents (`torch.Tensor`, *optional*):
+            latents (`ms.Tensor`, *optional*):
                 Pre-generated noisy latents, sampled from a Gaussian distribution, to be used as inputs for image
                 generation. Can be used to tweak the same generation with different prompts. If not provided, a latents
                 tensor will ge generated by sampling using the supplied random `generator`.
-            prompt_embeds (`torch.Tensor`, *optional*):
+            prompt_embeds (`ms.Tensor`, *optional*):
                 Pre-generated text embeddings. Can be used to easily tweak text inputs, *e.g.* prompt weighting. If not
                 provided, text embeddings will be generated from `prompt` input argument.
-            prompt_attention_mask (`torch.Tensor`, *optional*):
+            prompt_attention_mask (`ms.Tensor`, *optional*):
                 Pre-generated attention mask for text embeddings.
-            negative_prompt_embeds (`torch.FloatTensor`, *optional*):
+            negative_prompt_embeds (`ms.Tensor`, *optional*):
                 Pre-generated negative text embeddings. For PixArt-Sigma this negative prompt should be "". If not
                 provided, negative_prompt_embeds will be generated from `negative_prompt` input argument.
-            negative_prompt_attention_mask (`torch.FloatTensor`, *optional*):
+            negative_prompt_attention_mask (`ms.Tensor`, *optional*):
                 Pre-generated attention mask for negative text embeddings.
             decode_timestep (`float`, defaults to `0.0`):
                 The timestep at which generated video is decoded.
@@ -661,8 +715,10 @@ class LTXImageToVideoPipeline(DiffusionPipeline, FromSingleFileMixin, LTXVideoLo
         )
 
         self._guidance_scale = guidance_scale
+        self._guidance_rescale = guidance_rescale
         self._attention_kwargs = attention_kwargs
         self._interrupt = False
+        self._current_timestep = None
 
         # 2. Define call parameters
         if prompt is not None and isinstance(prompt, str):
@@ -722,10 +778,10 @@ class LTXImageToVideoPipeline(DiffusionPipeline, FromSingleFileMixin, LTXVideoLo
         sigmas = np.linspace(1.0, 1 / num_inference_steps, num_inference_steps)
         mu = calculate_shift(
             video_sequence_length,
-            self.scheduler.config.base_image_seq_len,
-            self.scheduler.config.max_image_seq_len,
-            self.scheduler.config.base_shift,
-            self.scheduler.config.max_shift,
+            self.scheduler.config.get("base_image_seq_len", 256),
+            self.scheduler.config.get("max_image_seq_len", 4096),
+            self.scheduler.config.get("base_shift", 0.5),
+            self.scheduler.config.get("max_shift", 1.15),
         )
         timesteps, num_inference_steps = retrieve_timesteps(
             self.scheduler,
@@ -749,6 +805,8 @@ class LTXImageToVideoPipeline(DiffusionPipeline, FromSingleFileMixin, LTXVideoLo
             for i, t in enumerate(timesteps):
                 if self.interrupt:
                     continue
+
+                self._current_timestep = t
 
                 latent_model_input = mint.cat([latents] * 2) if self.do_classifier_free_guidance else latents
                 latent_model_input = latent_model_input.to(prompt_embeds.dtype)
@@ -775,6 +833,12 @@ class LTXImageToVideoPipeline(DiffusionPipeline, FromSingleFileMixin, LTXVideoLo
                     noise_pred_uncond, noise_pred_text = noise_pred.chunk(2)
                     noise_pred = noise_pred_uncond + self.guidance_scale * (noise_pred_text - noise_pred_uncond)
                     timestep, _ = timestep.chunk(2)
+
+                    if self.guidance_rescale > 0:
+                        # Based on 3.4. in https://arxiv.org/pdf/2305.08891.pdf
+                        noise_pred = rescale_noise_cfg(
+                            noise_pred, noise_pred_text, guidance_rescale=self.guidance_rescale
+                        )
 
                 # compute the previous noisy sample x_t -> x_t-1
                 noise_pred = self._unpack_latents(
@@ -843,8 +907,8 @@ class LTXImageToVideoPipeline(DiffusionPipeline, FromSingleFileMixin, LTXVideoLo
                 elif not isinstance(decode_noise_scale, list):
                     decode_noise_scale = [decode_noise_scale] * batch_size
 
-                timestep = ms.Tensor(decode_timestep, dtype=latents.dtype)
-                decode_noise_scale = ms.Tensor(decode_noise_scale, dtype=latents.dtype)[:, None, None, None, None]
+                timestep = ms.tensor(decode_timestep, dtype=latents.dtype)
+                decode_noise_scale = ms.tensor(decode_noise_scale, dtype=latents.dtype)[:, None, None, None, None]
                 latents = (1 - decode_noise_scale) * latents + decode_noise_scale * noise
 
             video = self.vae.decode(latents, timestep, return_dict=False)[0]

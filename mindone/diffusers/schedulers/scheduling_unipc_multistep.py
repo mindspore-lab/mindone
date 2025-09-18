@@ -1,4 +1,7 @@
-# Copyright 2024 TSAIL Team and The HuggingFace Team. All rights reserved.
+# Copyright 2025 TSAIL Team and The HuggingFace Team. All rights reserved.
+#
+# This code is adapted from https://github.com/huggingface/diffusers
+# with modifications to run diffusers on mindspore.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -12,7 +15,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# DISCLAIMER: check https://arxiv.org/abs/2302.04867 and https://github.com/wl-zhao/UniPC for more info
+# DISCLAIMER: check https://huggingface.co/papers/2302.04867 and https://github.com/wl-zhao/UniPC for more info
 # The codebase is modified based on https://github.com/huggingface/diffusers/blob/main/src/diffusers/schedulers/scheduling_dpmsolver_multistep.py
 
 import math
@@ -79,7 +82,7 @@ def betas_for_alpha_bar(
 # Copied from diffusers.schedulers.scheduling_ddim.rescale_zero_terminal_snr
 def rescale_zero_terminal_snr(betas):
     """
-    Rescales betas to have zero terminal SNR Based on https://arxiv.org/pdf/2305.08891.pdf (Algorithm 1)
+    Rescales betas to have zero terminal SNR Based on https://huggingface.co/papers/2305.08891 (Algorithm 1)
 
 
     Args:
@@ -169,6 +172,8 @@ class UniPCMultistepScheduler(SchedulerMixin, ConfigMixin):
         use_beta_sigmas (`bool`, *optional*, defaults to `False`):
             Whether to use beta sigmas for step sizes in the noise schedule during the sampling process. Refer to [Beta
             Sampling is All You Need](https://huggingface.co/papers/2407.12173) for more information.
+        use_flow_sigmas (`bool`, *optional*, defaults to `False`):
+            Whether to use flow sigmas for step sizes in the noise schedule during the sampling process.
         timestep_spacing (`str`, defaults to `"linspace"`):
             The way the timesteps should be scaled. Refer to Table 2 of the [Common Diffusion Noise Schedules and
             Sample Steps are Flawed](https://huggingface.co/papers/2305.08891) for more information.
@@ -264,7 +269,7 @@ class UniPCMultistepScheduler(SchedulerMixin, ConfigMixin):
         # setable values
         self.num_inference_steps = None
         timesteps = np.linspace(0, num_train_timesteps - 1, num_train_timesteps, dtype=np.float32)[::-1].copy()
-        self.timesteps = ms.Tensor(timesteps)
+        self.timesteps = ms.tensor(timesteps)
         self.model_outputs = [None] * solver_order
         self.timestep_list = [None] * solver_order
         self.lower_order_nums = 0
@@ -307,7 +312,7 @@ class UniPCMultistepScheduler(SchedulerMixin, ConfigMixin):
             num_inference_steps (`int`):
                 The number of diffusion steps used when generating samples with a pre-trained model.
         """
-        # "linspace", "leading", "trailing" corresponds to annotation of Table 2. of https://arxiv.org/abs/2305.08891
+        # "linspace", "leading", "trailing" corresponds to annotation of Table 2. of https://huggingface.co/papers/2305.08891
         if self.config.timestep_spacing == "linspace":
             timesteps = (
                 np.linspace(0, self.config.num_train_timesteps - 1, num_inference_steps + 1)
@@ -404,7 +409,7 @@ class UniPCMultistepScheduler(SchedulerMixin, ConfigMixin):
                 )
             sigmas = np.concatenate([sigmas, [sigma_last]]).astype(np.float32)
 
-        self.sigmas = ms.Tensor(sigmas)
+        self.sigmas = ms.tensor(sigmas)
         self.timesteps = ms.tensor(timesteps, dtype=ms.int64)
 
         self.num_inference_steps = len(timesteps)
@@ -430,7 +435,7 @@ class UniPCMultistepScheduler(SchedulerMixin, ConfigMixin):
         pixels from saturation at each step. We find that dynamic thresholding results in significantly better
         photorealism as well as better image-text alignment, especially when using very large guidance weights."
 
-        https://arxiv.org/abs/2205.11487
+        https://huggingface.co/papers/2205.11487
         """
         dtype = sample.dtype
         batch_size, channels, *remaining_dims = sample.shape
@@ -597,7 +602,7 @@ class UniPCMultistepScheduler(SchedulerMixin, ConfigMixin):
             if len(args) > 1:
                 sample = args[1]
             else:
-                raise ValueError("missing `sample` as a required keyward argument")
+                raise ValueError("missing `sample` as a required keyword argument")
         if timestep is not None:
             deprecate(
                 "timesteps",
@@ -674,12 +679,12 @@ class UniPCMultistepScheduler(SchedulerMixin, ConfigMixin):
             if len(args) > 1:
                 sample = args[1]
             else:
-                raise ValueError(" missing `sample` as a required keyward argument")
+                raise ValueError("missing `sample` as a required keyword argument")
         if order is None:
             if len(args) > 2:
                 order = args[2]
             else:
-                raise ValueError(" missing `order` as a required keyward argument")
+                raise ValueError("missing `order` as a required keyword argument")
         if prev_timestep is not None:
             deprecate(
                 "prev_timestep",
@@ -717,7 +722,7 @@ class UniPCMultistepScheduler(SchedulerMixin, ConfigMixin):
             D1s.append((mi - m0) / rk)
 
         rks.append(1.0)
-        rks = ms.Tensor(rks)
+        rks = ms.tensor(rks)
 
         R = []
         b = []
@@ -742,7 +747,7 @@ class UniPCMultistepScheduler(SchedulerMixin, ConfigMixin):
             h_phi_k = h_phi_k / hh - 1 / factorial_i
 
         R = mint.stack(R)
-        b = ms.Tensor(b)
+        b = ms.tensor(b)
 
         if len(D1s) > 0:
             D1s = mint.stack(D1s, dim=1)  # (B, K)
@@ -750,7 +755,7 @@ class UniPCMultistepScheduler(SchedulerMixin, ConfigMixin):
             if order == 2:
                 rhos_p = ms.tensor([0.5], dtype=x.dtype)
             else:
-                rhos_p = ms.Tensor(np.linalg.solve(R[:-1, :-1].asnumpy(), b[:-1].asnumpy()), dtype=x.dtype)
+                rhos_p = ms.tensor(np.linalg.solve(R[:-1, :-1].asnumpy(), b[:-1].asnumpy()), dtype=x.dtype)
         else:
             D1s = None
 
@@ -805,17 +810,17 @@ class UniPCMultistepScheduler(SchedulerMixin, ConfigMixin):
             if len(args) > 1:
                 last_sample = args[1]
             else:
-                raise ValueError(" missing`last_sample` as a required keyward argument")
+                raise ValueError("missing `last_sample` as a required keyword argument")
         if this_sample is None:
             if len(args) > 2:
                 this_sample = args[2]
             else:
-                raise ValueError(" missing`this_sample` as a required keyward argument")
+                raise ValueError("missing `this_sample` as a required keyword argument")
         if order is None:
             if len(args) > 3:
                 order = args[3]
             else:
-                raise ValueError(" missing`order` as a required keyward argument")
+                raise ValueError("missing `order` as a required keyword argument")
         if this_timestep is not None:
             deprecate(
                 "this_timestep",
@@ -851,7 +856,7 @@ class UniPCMultistepScheduler(SchedulerMixin, ConfigMixin):
             D1s.append((mi - m0) / rk)
 
         rks.append(1.0)
-        rks = ms.Tensor(rks)
+        rks = ms.tensor(rks)
 
         R = []
         b = []
@@ -876,7 +881,7 @@ class UniPCMultistepScheduler(SchedulerMixin, ConfigMixin):
             h_phi_k = h_phi_k / hh - 1 / factorial_i
 
         R = mint.stack(R)
-        b = ms.Tensor(b)
+        b = ms.tensor(b)
 
         if len(D1s) > 0:
             D1s = mint.stack(D1s, dim=1)
@@ -887,7 +892,7 @@ class UniPCMultistepScheduler(SchedulerMixin, ConfigMixin):
         if order == 1:
             rhos_c = ms.tensor([0.5], dtype=x.dtype)
         else:
-            rhos_c = ms.Tensor(np.linalg.solve(R.asnumpy(), b.asnumpy()), dtype=x.dtype)
+            rhos_c = ms.tensor(np.linalg.solve(R.asnumpy(), b.asnumpy()), dtype=x.dtype)
 
         if self.predict_x0:
             x_t_ = sigma_t / sigma_s0 * x - alpha_t * h_phi_1 * m0

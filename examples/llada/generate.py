@@ -1,3 +1,5 @@
+# Adapted from https://github.com/ML-GSAI/LLaDA/blob/main/generate.py
+
 from time import time
 
 import numpy as np

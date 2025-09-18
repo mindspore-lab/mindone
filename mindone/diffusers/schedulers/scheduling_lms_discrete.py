@@ -1,4 +1,7 @@
-# Copyright 2024 Katherine Crowson and The HuggingFace Team. All rights reserved.
+# Copyright 2025 Katherine Crowson and The HuggingFace Team. All rights reserved.
+#
+# This code is adapted from https://github.com/huggingface/diffusers
+# with modifications to run diffusers on mindspore.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -172,7 +175,7 @@ class LMSDiscreteScheduler(SchedulerMixin, ConfigMixin):
 
         sigmas = (((1 - self.alphas_cumprod) / self.alphas_cumprod) ** 0.5).asnumpy()
         sigmas = np.concatenate([sigmas[::-1], [0.0]]).astype(np.float32)
-        self.sigmas = ms.Tensor(sigmas)
+        self.sigmas = ms.tensor(sigmas)
 
         # setable values
         self.num_inference_steps = None
@@ -273,7 +276,7 @@ class LMSDiscreteScheduler(SchedulerMixin, ConfigMixin):
         """
         self.num_inference_steps = num_inference_steps
 
-        # "linspace", "leading", "trailing" corresponds to annotation of Table 2. of https://arxiv.org/abs/2305.08891
+        # "linspace", "leading", "trailing" corresponds to annotation of Table 2. of https://huggingface.co/papers/2305.08891
         if self.config.timestep_spacing == "linspace":
             timesteps = np.linspace(0, self.config.num_train_timesteps - 1, num_inference_steps, dtype=np.float32)[
                 ::-1
@@ -311,8 +314,8 @@ class LMSDiscreteScheduler(SchedulerMixin, ConfigMixin):
 
         sigmas = np.concatenate([sigmas, [0.0]]).astype(np.float32)
 
-        self.sigmas = ms.Tensor(sigmas)
-        self.timesteps = ms.Tensor(timesteps)
+        self.sigmas = ms.tensor(sigmas)
+        self.timesteps = ms.tensor(timesteps).to(dtype=ms.float32)
         self._step_index = None
         self._begin_index = None
 

@@ -1,3 +1,5 @@
+# Adapted from https://github.com/Gen-Verse/MMaDA/blob/main/models/common_modules.py
+
 """
 Modified from https://github.com/CompVis/taming-transformers/blob/master/taming/modules/diffusionmodules/model.py#L34
 """

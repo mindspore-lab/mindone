@@ -1,3 +1,4 @@
+# Adapted from https://github.com/Tencent-Hunyuan/HunyuanDiT to work with MindSpore.
 from typing import Any
 
 import mindspore as ms

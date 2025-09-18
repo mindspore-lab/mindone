@@ -4,9 +4,7 @@ omegaconf
 pyarrow
 pandas
 jaxtyping
-diffusers==0.32.2
 typeguard
-lightning
 datasets
 image-reward
 gradio>=4.44.1

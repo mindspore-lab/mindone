@@ -1,4 +1,7 @@
-# Copyright 2024 The HuggingFace Team. All rights reserved.
+# Copyright 2025 The HuggingFace Team. All rights reserved.
+#
+# This code is adapted from https://github.com/huggingface/diffusers
+# with modifications to run diffusers on mindspore.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -17,6 +20,7 @@ from enum import Enum
 from typing import Optional, Union
 
 from huggingface_hub.utils import validate_hf_hub_args
+from typing_extensions import Self
 
 import mindspore as ms
 
@@ -99,7 +103,7 @@ class SchedulerMixin(PushToHubMixin):
         subfolder: Optional[str] = None,
         return_unused_kwargs=False,
         **kwargs,
-    ):
+    ) -> Self:
         r"""
         Instantiate a scheduler from a pre-defined JSON configuration file in a local directory or Hub repository.
 

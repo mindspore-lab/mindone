@@ -1,3 +1,5 @@
+"""Adapted from https://github.com/huggingface/diffusers/tree/main/tests//pipelines/musicldm/test_musicldm.py."""
+
 import unittest
 
 import numpy as np
@@ -8,7 +10,7 @@ from transformers.models.speecht5.configuration_speecht5 import SpeechT5HifiGanC
 
 import mindspore as ms
 
-from mindone.diffusers.utils.testing_utils import load_downloaded_numpy_from_hf_hub, slow
+from mindone.diffusers.utils.testing_utils import load_numpy_from_local_file, slow
 
 from ..pipeline_test_utils import (
     THRESHOLD_FP16,
@@ -227,8 +229,8 @@ class MusicLDMPipelineNightlyTests(PipelineTesterMixin, unittest.TestCase):
         ).audios
         audio = audios[0]
 
-        expected_audio = load_downloaded_numpy_from_hf_hub(
-            "The-truth/mindone-testing-arrays",
+        expected_audio = load_numpy_from_local_file(
+            "mindone-testing-arrays",
             f"musicldm_{dtype}.npy",
             subfolder="musicldm",
         )

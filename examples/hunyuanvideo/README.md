@@ -101,6 +101,53 @@ If you want change to another prompt, please set `--prompt` to the new prompt.
 
 If you want to run T2V inference using sequence parallel (Ulysses SP), please use `scripts/hyvideo/run_t2v_sample_sp.sh`. You can revise the SP size using `--sp-size`, which should be aligned with `ASCEND_RT_VISIBLE_DEVICES`, `--worker_num` and `--local_worker_num`. See more usage information about `msrun` from this [website](https://www.mindspore.cn/docs/en/r2.5.0/model_train/parallel/msrun_launcher.html).
 
+### Inference Acceleration
+
+#### TeaCache
+
+Timestep Embedding Aware Cache (TeaCache) is a training-free caching approach that estimates and leverages the dynamic
+variations in model outputs across timesteps to accelerate inference.
+
+To enable TeaCache, set `--enable-teacache` to `True` and specify a desired value for `--teacache-thresh` (recommended
+range: 0.1–0.15).
+
+<details><summary>Demo</summary>
+
+| Caption                                                                                                                                                                                                                                                                                      | Original                                                                                        | TeaCache</br>𝝳=0.1                                                                             | TeaCache</br>𝝳=0.15                                                                            |
+|----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|-------------------------------------------------------------------------------------------------|-------------------------------------------------------------------------------------------------|-------------------------------------------------------------------------------------------------|
+| A cat walks on the grass, realistic style.                                                                                                                                                                                                                                                   | <video src="https://github.com/user-attachments/assets/8a538a73-6a8e-47aa-9fbc-5777fcb97688" /> | <video src="https://github.com/user-attachments/assets/afd321ee-4088-425b-a3ba-7c51f6f15deb" /> | <video src="https://github.com/user-attachments/assets/53f64409-e8f4-468c-90a8-6a894fa27997" /> |
+| <details><summary>Dynamic shot racing alongside a steam locomotive...</summary>Dynamic shot racing alongside a steam locomotive on mountain tracks, camera panning from wheels to steam billowing against snow-capped peaks. Epic scale, dramatic lighting, photorealistic detail.</details> | <video src="https://github.com/user-attachments/assets/84f69917-2882-4abb-8054-f48de56e5231" /> | <video src="https://github.com/user-attachments/assets/6888bf97-e536-43c6-b5ea-68eeb7e5684d" /> | <video src="https://github.com/user-attachments/assets/20414962-e17e-4458-b7f6-d7ab5f5b40de" /> |
+| A bird flies over a mountain range, cinematic lighting.                                                                                                                                                                                                                                      | <video src="https://github.com/user-attachments/assets/d458e18f-fc33-435e-8098-a72d8020af9a" /> | <video src="https://github.com/user-attachments/assets/2dd5fb29-2256-4971-9fe6-26f248c61752" /> | <video src="https://github.com/user-attachments/assets/7f5877be-3393-4b9b-bde9-2862f5add30a" /> |
+| <details><summary>A close-up of a wave crashing against the beach...</summary>A close-up of a wave crashing against the beach, the sea foam spells out "WAKE UP" on the sand.</details>                                                                                                      | <video src="https://github.com/user-attachments/assets/e0db970b-3cbf-423c-ab31-4b6c8cec6e20" /> | <video src="https://github.com/user-attachments/assets/7a16f416-e09c-4f06-a938-1490d089d844" /> | <video src="https://github.com/user-attachments/assets/c355961c-91f0-480f-bafe-c16ef554bd43" /> |
+
+</details>
+
+##### Performance
+
+| Resolution | Length | Inference Steps |   Mode   | SP | Vanilla (s) | TeaCache (s)</br>𝝳=0.1 | Speedup | TeaCache (s)</br>𝝳=0.15 | Speedup |
+|:----------:|:------:|:---------------:|:--------:|:--:|:-----------:|:-----------------------:|:-------:|:------------------------:|:-------:|
+|  544x960   |  129   |       50        |  Graph   | -  |    1790     |          1083           |  1.65x  |           757            |  2.36x  |
+|  544x960   |  129   |       50        | PyNative | -  |    1778     |          1067           |  1.67x  |           746            |  2.38x  |
+|  544x960   |  129   |       50        |  Graph   | 8  |     239     |           145           |  1.65x  |           102            |  2.34x  |
+|  544x960   |  129   |       50        | PyNative | 8  |     236     |           143           |  1.65x  |           101            |  2.34x  |
+
+> [!NOTE]
+> The measured time includes only the backbone denoising steps, excluding VAE decoding.
+
+##### Evaluation
+
+<div align="center">
+
+| Method                  | LPIPS ↓ | SSIM ↑ | PSNR ↑ |
+|-------------------------|---------|--------|--------|
+| TeaCache-slow (𝝳=0.1)  | 0.1263  | 0.8383 | 26.05  |
+| TeaCache-fast (𝝳=0.15) | 0.1676  | 0.8010 | 24.49  |
+
+</div>
+
+> [!NOTE]
+> The above metrics were collected from 12 randomly selected prompts.
+
 ### Run Image-to-Video Inference
 
 Please find more information about HunyuanVideo Image-to-Video Inference at this [url](https://github.com/mindspore-lab/mindone/tree/master/examples/hunyuanvideo-i2v).

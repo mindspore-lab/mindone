@@ -1,4 +1,7 @@
-# Copyright 2024 PixArt-Sigma Authors and The HuggingFace Team. All rights reserved.
+# Copyright 2025 PixArt-Sigma Authors and The HuggingFace Team. All rights reserved.
+#
+# This code is adapted from https://github.com/huggingface/diffusers
+# with modifications to run diffusers on mindspore.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -33,7 +36,10 @@ from ...utils.mindspore_utils import randn_tensor
 from ..pipeline_utils import DiffusionPipeline, ImagePipelineOutput
 from .pipeline_pixart_alpha import ASPECT_RATIO_256_BIN, ASPECT_RATIO_512_BIN, ASPECT_RATIO_1024_BIN
 
+XLA_AVAILABLE = False
+
 logger = logging.get_logger(__name__)  # pylint: disable=invalid-name
+
 
 if is_bs4_available():
     from bs4 import BeautifulSoup
@@ -198,7 +204,7 @@ class PixArtSigmaPipeline(DiffusionPipeline):
             tokenizer=tokenizer, text_encoder=text_encoder, vae=vae, transformer=transformer, scheduler=scheduler
         )
 
-        self.vae_scale_factor = 2 ** (len(self.vae.config.block_out_channels) - 1)
+        self.vae_scale_factor = 2 ** (len(self.vae.config.block_out_channels) - 1) if getattr(self, "vae", None) else 8
         self.image_processor = PixArtImageProcessor(vae_scale_factor=self.vae_scale_factor)
 
     # Copied from diffusers.pipelines.pixart_alpha.pipeline_pixart_alpha.PixArtAlphaPipeline.encode_prompt with 120->300
@@ -273,7 +279,7 @@ class PixArtSigmaPipeline(DiffusionPipeline):
 
             prompt_attention_mask = ms.Tensor.from_numpy(text_inputs.attention_mask)
 
-            prompt_embeds = self.text_encoder(ms.Tensor(text_input_ids), attention_mask=prompt_attention_mask)
+            prompt_embeds = self.text_encoder(ms.tensor(text_input_ids), attention_mask=prompt_attention_mask)
             prompt_embeds = prompt_embeds[0]
 
         if self.text_encoder is not None:
@@ -334,7 +340,7 @@ class PixArtSigmaPipeline(DiffusionPipeline):
     def prepare_extra_step_kwargs(self, generator, eta):
         # prepare extra kwargs for the scheduler step, since not all schedulers have the same signature
         # eta (η) is only used with the DDIMScheduler, it will be ignored for other schedulers.
-        # eta corresponds to η in DDIM paper: https://arxiv.org/abs/2010.02502
+        # eta corresponds to η in DDIM paper: https://huggingface.co/papers/2010.02502
         # and should be between [0, 1]
 
         accepts_eta = "eta" in set(inspect.signature(self.scheduler.step).parameters.keys())
@@ -496,7 +502,7 @@ class PixArtSigmaPipeline(DiffusionPipeline):
         # &amp
         caption = re.sub(r"&amp", "", caption)
 
-        # ip adresses:
+        # ip addresses:
         caption = re.sub(r"\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}", " ", caption)
 
         # article ids:
@@ -631,11 +637,11 @@ class PixArtSigmaPipeline(DiffusionPipeline):
                 their `set_timesteps` method. If not defined, the default behavior when `num_inference_steps` is passed
                 will be used.
             guidance_scale (`float`, *optional*, defaults to 4.5):
-                Guidance scale as defined in [Classifier-Free Diffusion Guidance](https://arxiv.org/abs/2207.12598).
-                `guidance_scale` is defined as `w` of equation 2. of [Imagen
-                Paper](https://arxiv.org/pdf/2205.11487.pdf). Guidance scale is enabled by setting `guidance_scale >
-                1`. Higher guidance scale encourages to generate images that are closely linked to the text `prompt`,
-                usually at the expense of lower image quality.
+                Guidance scale as defined in [Classifier-Free Diffusion
+                Guidance](https://huggingface.co/papers/2207.12598). `guidance_scale` is defined as `w` of equation 2.
+                of [Imagen Paper](https://huggingface.co/papers/2205.11487). Guidance scale is enabled by setting
+                `guidance_scale > 1`. Higher guidance scale encourages to generate images that are closely linked to
+                the text `prompt`, usually at the expense of lower image quality.
             num_images_per_prompt (`int`, *optional*, defaults to 1):
                 The number of images to generate per prompt.
             height (`int`, *optional*, defaults to self.unet.config.sample_size):
@@ -643,8 +649,8 @@ class PixArtSigmaPipeline(DiffusionPipeline):
             width (`int`, *optional*, defaults to self.unet.config.sample_size):
                 The width in pixels of the generated image.
             eta (`float`, *optional*, defaults to 0.0):
-                Corresponds to parameter eta (η) in the DDIM paper: https://arxiv.org/abs/2010.02502. Only applies to
-                [`schedulers.DDIMScheduler`], will be ignored for others.
+                Corresponds to parameter eta (η) in the DDIM paper: https://huggingface.co/papers/2010.02502. Only
+                applies to [`schedulers.DDIMScheduler`], will be ignored for others.
             generator (`np.random.Generator` or `List[np.random.Generator]`, *optional*):
                 One or a list of [numpy generator(s)](https://pytorch.org/docs/stable/generated/torch.Generator.html)
                 to make generation deterministic.
@@ -727,7 +733,7 @@ class PixArtSigmaPipeline(DiffusionPipeline):
             batch_size = prompt_embeds.shape[0]
 
         # here `guidance_scale` is defined analog to the guidance weight `w` of equation (2)
-        # of the Imagen paper: https://arxiv.org/pdf/2205.11487.pdf . `guidance_scale = 1`
+        # of the Imagen paper: https://huggingface.co/papers/2205.11487 . `guidance_scale = 1`
         # corresponds to doing no classifier free guidance.
         do_classifier_free_guidance = guidance_scale > 1.0
 
@@ -786,10 +792,10 @@ class PixArtSigmaPipeline(DiffusionPipeline):
                 # todo: unavailable mint interface
                 if not ops.is_tensor(current_timestep):
                     if isinstance(current_timestep, float):
-                        dtype = ms.float64
+                        dtype = ms.float32
                     else:
-                        dtype = ms.int64
-                    current_timestep = ms.Tensor([current_timestep], dtype=dtype)
+                        dtype = ms.int32
+                    current_timestep = ms.tensor([current_timestep], dtype=dtype)
                 elif len(current_timestep.shape) == 0:
                     current_timestep = current_timestep[None]
                 # broadcast to batch dimension in a way that's compatible with ONNX/Core ML
@@ -827,7 +833,7 @@ class PixArtSigmaPipeline(DiffusionPipeline):
                         callback(step_idx, t, latents)
 
         if not output_type == "latent":
-            image = self.vae.decode(latents / self.vae.config.scaling_factor, return_dict=False)[0]
+            image = self.vae.decode(latents.to(self.vae.dtype) / self.vae.config.scaling_factor, return_dict=False)[0]
             if use_resolution_binning:
                 image = self.image_processor.resize_and_crop_tensor(image, orig_width, orig_height)
         else:

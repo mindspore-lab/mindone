@@ -1,5 +1,8 @@
 # Copyright (c) 2023 Dominic Rampas MIT License
-# Copyright 2024 The HuggingFace Team. All rights reserved.
+# Copyright 2025 The HuggingFace Team. All rights reserved.
+#
+# This code is adapted from https://github.com/huggingface/diffusers
+# with modifications to run diffusers on mindspore.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -23,7 +26,6 @@ from mindspore.common.initializer import Constant, Normal, XavierUniform, initia
 from ...configuration_utils import ConfigMixin, register_to_config
 from ...models.activations import sigmoid
 from ...models.modeling_utils import ModelMixin
-from ...models.normalization import LayerNorm
 from .modeling_wuerstchen_common import AttnBlock, GlobalResponseNorm, TimestepBlock, WuerstchenLayerNorm
 
 
@@ -60,7 +62,7 @@ class WuerstchenDiffNeXt(ModelMixin, ConfigMixin):
                 for inject in inject_effnet + list(reversed(inject_effnet))
             ]
         )
-        self.seq_norm = LayerNorm(c_cond, elementwise_affine=False, eps=1e-6)
+        self.seq_norm = mint.nn.LayerNorm(c_cond, elementwise_affine=False, eps=1e-6)
 
         self.embedding = nn.SequentialCell(
             # todo: unavailable mint interface

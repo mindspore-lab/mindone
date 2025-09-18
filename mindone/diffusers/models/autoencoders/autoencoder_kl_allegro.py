@@ -1,5 +1,8 @@
-# Copyright 2024 The RhymesAI and The HuggingFace Team.
+# Copyright 2025 The RhymesAI and The HuggingFace Team.
 # All rights reserved.
+#
+# This code is adapted from https://github.com/huggingface/diffusers
+# with modifications to run diffusers on mindspore.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -27,7 +30,6 @@ from ..autoencoders.vae import DecoderOutput, DiagonalGaussianDistribution
 from ..downsampling import Downsample2D
 from ..modeling_outputs import AutoencoderKLOutput
 from ..modeling_utils import ModelMixin
-from ..normalization import GroupNorm
 from ..resnet import ResnetBlock2D
 from ..upsampling import Upsample2D
 
@@ -59,36 +61,36 @@ class AllegroTemporalConvLayer(nn.Cell):
 
         if down_sample:
             self.conv1 = nn.SequentialCell(
-                GroupNorm(norm_num_groups, in_dim),
+                mint.nn.GroupNorm(norm_num_groups, in_dim),
                 mint.nn.SiLU(),
                 mint.nn.Conv3d(in_dim, out_dim, (2, stride, stride), stride=(2, 1, 1), padding=(0, pad_h, pad_w)),
             )
         elif up_sample:
             self.conv1 = nn.SequentialCell(
-                GroupNorm(norm_num_groups, in_dim),
+                mint.nn.GroupNorm(norm_num_groups, in_dim),
                 mint.nn.SiLU(),
                 mint.nn.Conv3d(in_dim, out_dim * 2, (1, stride, stride), padding=(0, pad_h, pad_w)),
             )
         else:
             self.conv1 = nn.SequentialCell(
-                GroupNorm(norm_num_groups, in_dim),
+                mint.nn.GroupNorm(norm_num_groups, in_dim),
                 mint.nn.SiLU(),
                 mint.nn.Conv3d(in_dim, out_dim, (3, stride, stride), padding=(pad_t, pad_h, pad_w)),
             )
         self.conv2 = nn.SequentialCell(
-            GroupNorm(norm_num_groups, out_dim),
+            mint.nn.GroupNorm(norm_num_groups, out_dim),
             mint.nn.SiLU(),
             mint.nn.Dropout(p=dropout),
             mint.nn.Conv3d(out_dim, in_dim, (3, stride, stride), padding=(pad_t, pad_h, pad_w)),
         )
         self.conv3 = nn.SequentialCell(
-            GroupNorm(norm_num_groups, out_dim),
+            mint.nn.GroupNorm(norm_num_groups, out_dim),
             mint.nn.SiLU(),
             mint.nn.Dropout(p=dropout),
             mint.nn.Conv3d(out_dim, in_dim, (3, stride, stride), padding=(pad_t, pad_h, pad_h)),
         )
         self.conv4 = nn.SequentialCell(
-            GroupNorm(norm_num_groups, out_dim),
+            mint.nn.GroupNorm(norm_num_groups, out_dim),
             mint.nn.SiLU(),
             mint.nn.Conv3d(out_dim, in_dim, (3, stride, stride), padding=(pad_t, pad_h, pad_h)),
         )
@@ -107,7 +109,7 @@ class AllegroTemporalConvLayer(nn.Cell):
         if self.down_sample:
             identity = hidden_states[:, :, ::2]
         elif self.up_sample:
-            identity = hidden_states.repeat_interleave(2, dim=2)
+            identity = hidden_states.repeat_interleave(2, dim=2, output_size=hidden_states.shape[2] * 2)
         else:
             identity = hidden_states
 
@@ -501,7 +503,9 @@ class AllegroEncoder3D(nn.Cell):
         )
 
         # out
-        self.conv_norm_out = GroupNorm(num_channels=block_out_channels[-1], num_groups=norm_num_groups, eps=1e-6)
+        self.conv_norm_out = mint.nn.GroupNorm(
+            num_channels=block_out_channels[-1], num_groups=norm_num_groups, eps=1e-6
+        )
         self.conv_act = mint.nn.SiLU()
 
         conv_out_channels = 2 * out_channels if double_z else out_channels
@@ -629,7 +633,9 @@ class AllegroDecoder3D(nn.Cell):
         if norm_type == "spatial":
             self.conv_norm_out = SpatialNorm(block_out_channels[0], temb_channels)
         else:
-            self.conv_norm_out = GroupNorm(num_channels=block_out_channels[0], num_groups=norm_num_groups, eps=1e-6)
+            self.conv_norm_out = mint.nn.GroupNorm(
+                num_channels=block_out_channels[0], num_groups=norm_num_groups, eps=1e-6
+            )
 
         self.conv_act = mint.nn.SiLU()
 
@@ -718,11 +724,11 @@ class AutoencoderKLAllegro(ModelMixin, ConfigMixin):
             model. The latents are scaled with the formula `z = z * scaling_factor` before being passed to the
             diffusion model. When decoding, the latents are scaled back to the original scale with the formula: `z = 1
             / scaling_factor * z`. For more details, refer to sections 4.3.2 and D.1 of the [High-Resolution Image
-            Synthesis with Latent Diffusion Models](https://arxiv.org/abs/2112.10752) paper.
+            Synthesis with Latent Diffusion Models](https://huggingface.co/papers/2112.10752) paper.
         force_upcast (`bool`, default to `True`):
             If enabled it will force the VAE to run in float32 for high image resolution pipelines, such as SD-XL. VAE
-            can be fine-tuned / trained to a lower range without loosing too much precision in which case
-            `force_upcast` can be set to `False` - see: https://huggingface.co/madebyollin/sdxl-vae-fp16-fix
+            can be fine-tuned / trained to a lower range without losing too much precision in which case `force_upcast`
+            can be set to `False` - see: https://huggingface.co/madebyollin/sdxl-vae-fp16-fix
     """
 
     _supports_gradient_checkpointing = True
@@ -801,10 +807,6 @@ class AutoencoderKLAllegro(ModelMixin, ConfigMixin):
             sample_size - self.tile_overlap_h,
             sample_size - self.tile_overlap_w,
         )
-
-    def _set_gradient_checkpointing(self, module, value=False):
-        if isinstance(module, (AllegroEncoder3D, AllegroDecoder3D)):
-            module.gradient_checkpointing = value
 
     def enable_tiling(self) -> None:
         r"""

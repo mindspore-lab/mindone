@@ -1,4 +1,9 @@
-""" MiniCPM model configuration"""
+"""
+Adapted from https://github.com/huggingface/transformers/tree/main/src/transformers/
+models/minicpm4/configuration_minicpm.py.
+
+MiniCPM model configuration
+"""
 
 from transformers.configuration_utils import PretrainedConfig
 from transformers.utils import logging

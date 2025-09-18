@@ -1,3 +1,4 @@
+# Adapted from https://github.com/Tencent-Hunyuan/HunyuanDiT to work with MindSpore.
 from mindspore import nn
 
 from . import gaussian_diffusion as gd

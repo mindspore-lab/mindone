@@ -1,4 +1,7 @@
-# Copyright 2024 Stability AI, Katherine Crowson and The HuggingFace Team. All rights reserved.
+# Copyright 2025 Stability AI, Katherine Crowson and The HuggingFace Team. All rights reserved.
+#
+# This code is adapted from https://github.com/huggingface/diffusers
+# with modifications to run diffusers on mindspore.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -55,11 +58,34 @@ class FlowMatchEulerDiscreteScheduler(SchedulerMixin, ConfigMixin):
     Args:
         num_train_timesteps (`int`, defaults to 1000):
             The number of diffusion steps to train the model.
-        timestep_spacing (`str`, defaults to `"linspace"`):
-            The way the timesteps should be scaled. Refer to Table 2 of the [Common Diffusion Noise Schedules and
-            Sample Steps are Flawed](https://huggingface.co/papers/2305.08891) for more information.
         shift (`float`, defaults to 1.0):
             The shift value for the timestep schedule.
+        use_dynamic_shifting (`bool`, defaults to False):
+            Whether to apply timestep shifting on-the-fly based on the image resolution.
+        base_shift (`float`, defaults to 0.5):
+            Value to stabilize image generation. Increasing `base_shift` reduces variation and image is more consistent
+            with desired output.
+        max_shift (`float`, defaults to 1.15):
+            Value change allowed to latent vectors. Increasing `max_shift` encourages more variation and image may be
+            more exaggerated or stylized.
+        base_image_seq_len (`int`, defaults to 256):
+            The base image sequence length.
+        max_image_seq_len (`int`, defaults to 4096):
+            The maximum image sequence length.
+        invert_sigmas (`bool`, defaults to False):
+            Whether to invert the sigmas.
+        shift_terminal (`float`, defaults to None):
+            The end value of the shifted timestep schedule.
+        use_karras_sigmas (`bool`, defaults to False):
+            Whether to use Karras sigmas for step sizes in the noise schedule during sampling.
+        use_exponential_sigmas (`bool`, defaults to False):
+            Whether to use exponential sigmas for step sizes in the noise schedule during sampling.
+        use_beta_sigmas (`bool`, defaults to False):
+            Whether to use beta sigmas for step sizes in the noise schedule during sampling.
+        time_shift_type (`str`, defaults to "exponential"):
+            The type of dynamic resolution-dependent timestep shifting to apply. Either "exponential" or "linear".
+        stochastic_sampling (`bool`, defaults to False):
+            Whether to use stochastic sampling.
     """
 
     _compatibles = []
@@ -81,6 +107,7 @@ class FlowMatchEulerDiscreteScheduler(SchedulerMixin, ConfigMixin):
         use_exponential_sigmas: Optional[bool] = False,
         use_beta_sigmas: Optional[bool] = False,
         time_shift_type: str = "exponential",
+        stochastic_sampling: bool = False,
     ):
         if self.config.use_beta_sigmas and not is_scipy_available():
             raise ImportError("Make sure to install scipy if you want to use beta sigmas.")
@@ -372,13 +399,14 @@ class FlowMatchEulerDiscreteScheduler(SchedulerMixin, ConfigMixin):
             per_token_timesteps (`ms.Tensor`, *optional*):
                 The timesteps for each token in the sample.
             return_dict (`bool`):
-                Whether or not to return a [`~schedulers.scheduling_euler_discrete.EulerDiscreteSchedulerOutput`] or
-                tuple.
+                Whether or not to return a
+                [`~schedulers.scheduling_flow_match_euler_discrete.FlowMatchEulerDiscreteSchedulerOutput`] or tuple.
 
         Returns:
-            [`~schedulers.scheduling_euler_discrete.EulerDiscreteSchedulerOutput`] or `tuple`:
-                If return_dict is `True`, [`~schedulers.scheduling_euler_discrete.EulerDiscreteSchedulerOutput`] is
-                returned, otherwise a tuple is returned where the first element is the sample tensor.
+            [`~schedulers.scheduling_flow_match_euler_discrete.FlowMatchEulerDiscreteSchedulerOutput`] or `tuple`:
+                If return_dict is `True`,
+                [`~schedulers.scheduling_flow_match_euler_discrete.FlowMatchEulerDiscreteSchedulerOutput`] is returned,
+                otherwise a tuple is returned where the first element is the sample tensor.
         """
 
         if isinstance(timestep, int) or (
@@ -387,7 +415,7 @@ class FlowMatchEulerDiscreteScheduler(SchedulerMixin, ConfigMixin):
             raise ValueError(
                 (
                     "Passing integer indices (e.g. from `enumerate(timesteps)`) as timesteps to"
-                    " `EulerDiscreteScheduler.step()` is not supported. Make sure to pass"
+                    " `FlowMatchEulerDiscreteScheduler.step()` is not supported. Make sure to pass"
                     " one of the `scheduler.timesteps` as a timestep."
                 ),
             )
@@ -405,14 +433,25 @@ class FlowMatchEulerDiscreteScheduler(SchedulerMixin, ConfigMixin):
             lower_mask = sigmas < per_token_sigmas[None] - 1e-6
             lower_sigmas = lower_mask * sigmas
             lower_sigmas, _ = lower_sigmas.max(dim=0)
-            dt = (per_token_sigmas - lower_sigmas)[..., None]
 
+            current_sigma = per_token_sigmas[..., None]
+            next_sigma = lower_sigmas[..., None]
+            dt = current_sigma - next_sigma
         else:
-            sigma = self.sigmas[self.step_index]
-            sigma_next = self.sigmas[self.step_index + 1]
+            sigma_idx = self.step_index
+            sigma = self.sigmas[sigma_idx]
+            sigma_next = self.sigmas[sigma_idx + 1]
+
+            current_sigma = sigma
+            next_sigma = sigma_next
             dt = sigma_next - sigma
 
-        prev_sample = sample + dt * model_output
+        if self.config.stochastic_sampling:
+            x0 = sample - current_sigma * model_output
+            noise = mint.randn_like(sample)
+            prev_sample = (1.0 - next_sigma) * x0 + next_sigma * noise
+        else:
+            prev_sample = sample + dt * model_output
 
         # upon completion increase step index by one
         self._step_index += 1

@@ -1,5 +1,8 @@
-# Copyright 2024 Marigold authors, PRS ETH Zurich. All rights reserved.
-# Copyright 2024 The HuggingFace Team. All rights reserved.
+# Copyright 2025 Marigold authors, PRS ETH Zurich. All rights reserved.
+# Copyright 2025 The HuggingFace Team. All rights reserved.
+#
+# This code is adapted from https://github.com/huggingface/diffusers
+# with modifications to run diffusers on mindspore.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -27,11 +30,7 @@ from transformers import CLIPTextConfig
 
 import mindspore as ms
 
-from mindone.diffusers.utils.testing_utils import (
-    load_downloaded_image_from_hf_hub,
-    load_downloaded_numpy_from_hf_hub,
-    slow,
-)
+from mindone.diffusers.utils.testing_utils import load_downloaded_image_from_hf_hub, load_numpy_from_local_file, slow
 
 from ..pipeline_test_utils import (
     THRESHOLD_FP16,
@@ -230,8 +229,8 @@ class MarigoldIntrinsicsPipelineIntegrationTests(PipelineTesterMixin, unittest.T
 
         image = pipe.image_processor.visualize_intrinsics(intrinsics[0], pipe.target_properties)[0]["albedo"]
 
-        expected_image = load_downloaded_numpy_from_hf_hub(
-            "The-truth/mindone-testing-arrays",
+        expected_image = load_numpy_from_local_file(
+            "mindone-testing-arrays",
             f"marigold_intrinsics_albedo_{dtype}.npy",
             subfolder="marigold",
         )
