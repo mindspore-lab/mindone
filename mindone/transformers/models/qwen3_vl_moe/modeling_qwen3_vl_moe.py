@@ -18,7 +18,7 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-
+import math
 from dataclasses import dataclass
 from typing import Any, Callable, Optional, Union
 
@@ -544,53 +544,42 @@ class Qwen3VLMoeVisionAttention(nn.Cell):
         cos, sin = position_embeddings
         query_states, key_states = apply_rotary_pos_emb_vision(query_states, key_states, cos, sin)
 
-        query_states = query_states.swapaxes(0, 1).unsqueeze(0)
-        key_states = key_states.swapaxes(0, 1).unsqueeze(0)
-        value_states = value_states.swapaxes(0, 1).unsqueeze(0)
-
         attention_interface: Callable = eager_attention_forward
         if self.config._attn_implementation != "eager":
             attention_interface = ALL_ATTENTION_FUNCTIONS[self.config._attn_implementation]
 
-        # mindspore ops flash_attention_score do not support cu_seq_lens_q, cu_seq_lens_k
-        # if self.config._attn_implementation == "flash_attention_2":
-        #     # Flash Attention 2: Use cu_seqlens for variable length attention
-        #     max_seqlen = (cu_seqlens[1:] - cu_seqlens[:-1]).max()
-        #     attn_output, _ = attention_interface(
-        #         self,
-        #         query_states,
-        #         key_states,
-        #         value_states,
-        #         attention_mask=None,
-        #         scaling=self.scaling,
-        #         dropout=0.0 if not self.training else self.attention_dropout,
-        #         cu_seq_lens_q=cu_seqlens,
-        #         cu_seq_lens_k=cu_seqlens,
-        #         max_length_q=max_seqlen,
-        #         max_length_k=max_seqlen,
-        #         is_causal=False,
-        #         **kwargs,
-        #     )
-        # else:
-        # Other implementations: Process each chunk separately
-        lengths = cu_seqlens[1:] - cu_seqlens[:-1]
-        splits = [mint.split(tensor, lengths.tolist(), dim=2) for tensor in (query_states, key_states, value_states)]
+        if self.config._attn_implementation == "flash_attention_2":
+            attn_output = ops.flash_attention_score(
+                query_states,
+                key_states,
+                value_states,
+                self.num_heads,
+                actual_seq_qlen=cu_seqlens,
+                actual_seq_kvlen=cu_seqlens,
+                scalar_value=1 / math.sqrt(query_states.shape[-1]),
+                input_layout="TND",
+            )
+        else:
+            query_states = query_states.swapaxes(0, 1).unsqueeze(0)
+            key_states = key_states.swapaxes(0, 1).unsqueeze(0)
+            value_states = value_states.swapaxes(0, 1).unsqueeze(0)
 
-        attn_outputs = [
-            attention_interface(
+            attention_mask = mint.zeros([1, seq_length, seq_length], dtype=ms.bool_)
+            for i in range(1, len(cu_seqlens)):
+                attention_mask[..., cu_seqlens[i - 1]: cu_seqlens[i], cu_seqlens[i - 1]: cu_seqlens[i]] = True
+            attention_mask = attention_mask.unsqueeze(1)
+
+            attn_output = attention_interface(
                 self,
-                q,
-                k,
-                v,
-                attention_mask=None,
+                query_states,
+                key_states,
+                value_states,
+                attention_mask=attention_mask,
                 scaling=self.scaling,
                 dropout=0.0 if not self.training else self.attention_dropout,
                 is_causal=False,
                 **kwargs,
             )[0]
-            for q, k, v in zip(*splits)
-        ]
-        attn_output = mint.cat(attn_outputs, dim=1)
 
         attn_output = attn_output.reshape(seq_length, -1).contiguous()
         attn_output = self.proj(attn_output)
