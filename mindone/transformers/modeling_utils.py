@@ -354,7 +354,7 @@ def _load_state_dict_into_model(model_to_load, state_dict, start_prefix, is_shar
             pass  # unexpect key keeps origin dtype
     cm = silence_mindspore_logger() if is_sharded else nullcontext()
     with cm:
-        ms.load_param_into_net(model_to_load, state_dict, strict_load=True)
+        model_to_load.load_state_dict(state_dict, strict=False)
 
     # remove prefix from the name of parameters
     if len(start_prefix) > 0:
