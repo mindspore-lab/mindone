@@ -936,9 +936,7 @@ from .models.segformer import (
     SegformerPreTrainedModel,
 )
 from .models.seggpt import (
-    SegGptConfig,
     SegGptForImageSegmentation,
-    SegGptImageProcessor,
     SegGptModel,
     SegGptPreTrainedModel,
 )
