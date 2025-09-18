@@ -650,6 +650,8 @@ from .models.t5 import (
     T5Model,
     T5PreTrainedModel,
 )
+from .models.trocr import TrOCRForCausalLM, TrOCRPreTrainedModel
+from .models.tvp import TvpForVideoGrounding, TvpModel, TvpPreTrainedModel
 from .models.umt5 import (
     UMT5EncoderModel,
     UMT5ForQuestionAnswering,
