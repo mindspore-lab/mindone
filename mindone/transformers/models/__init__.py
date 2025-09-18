@@ -70,6 +70,8 @@ from . import (
     mistral,
     mixtral,
     mobilebert,
+    mobilevit,
+    mobilevitv2,
     modernbert,
     mpt,
     mvp,

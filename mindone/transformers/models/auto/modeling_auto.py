@@ -94,6 +94,8 @@ MODEL_MAPPING_NAMES = OrderedDict(
         ("llama", "LlamaModel"),
         ("mistral", "MistralModel"),
         ("mobilebert", "MobileBertModel"),
+        ("mobilevit", "MobileViTModel"),
+        ("mobilevitv2", "MobileViTV2Model"),
         ("mpt", "MptModel"),
         ("mt5", "MT5Model"),
         ("megatron-bert", "MegatronBertModel"),
@@ -251,6 +253,8 @@ MODEL_FOR_IMAGE_MAPPING_NAMES = OrderedDict(
         ("dinov2", "Dinov2Model"),
         ("dpt", "DPTModel"),
         ("glpn", "GLPNModel"),
+        ("mobilevit", "MobileViTModel"),
+        ("mobilevitv2", "MobileViTV2Model"),
         ("hiera", "HieraModel"),
         ("hubert", "HubertModel"),
         ("ijepa", "IJepaModel"),
@@ -295,6 +299,8 @@ MODEL_FOR_IMAGE_CLASSIFICATION_MAPPING_NAMES = OrderedDict(
         ("resnet", "ResNetForImageClassification"),
         ("segformer", "SegformerForImageClassification"),
         ("siglip", "SiglipForImageClassification"),
+        ("mobilevit", "MobileViTForImageClassification"),
+        ("mobilevitv2", "MobileViTV2ForImageClassification"),
         ("vit", "ViTForImageClassification"),
     ]
 )
