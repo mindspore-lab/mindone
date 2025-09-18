@@ -19,8 +19,8 @@ from mindone.diffusers import AutoencoderKLQwenImage
 vae = AutoencoderKLQwenImage.from_pretrained("Qwen/QwenImage", subfolder="vae")
 ```
 
-::: mindspore.diffusers.AutoencoderKLQwenImage
+::: mindone.diffusers.AutoencoderKLQwenImage
 
-::: mindspore.diffusers.models.autoencoders.autoencoder_kl.AutoencoderKLOutput
+::: mindone.diffusers.models.autoencoders.autoencoder_kl.AutoencoderKLOutput
 
-::: mindspore.diffusers.models.autoencoders.vae.DecoderOutput
+::: mindone.diffusers.models.autoencoders.vae.DecoderOutput

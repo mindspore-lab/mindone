@@ -19,6 +19,6 @@ from mindone.diffusers import QwenImageTransformer2DModel
 transformer = QwenImageTransformer2DModel.from_pretrained("Qwen/QwenImage", subfolder="transformer", mindspore_dtype=mindspore.bfloat16)
 ```
 
-::: mindspore.diffusers.QwenImageTransformer2DModel
+::: mindone.diffusers.QwenImageTransformer2DModel
 
-::: mindspore.diffusers.models.modeling_outputs.Transformer2DModelOutput
+::: mindone.diffusers.models.modeling_outputs.Transformer2DModelOutput
