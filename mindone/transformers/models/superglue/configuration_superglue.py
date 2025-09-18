@@ -13,9 +13,9 @@
 # limitations under the License.
 from typing import TYPE_CHECKING, List
 
-from ...configuration_utils import PretrainedConfig
+from transformers.configuration_utils import PretrainedConfig
+from transformers.models.auto import CONFIG_MAPPING
 from ...utils import logging
-from ..auto import CONFIG_MAPPING
 
 
 if TYPE_CHECKING:

@@ -13,7 +13,7 @@
 # limitations under the License.
 from typing import List
 
-from ...configuration_utils import PretrainedConfig
+from transformers.configuration_utils import PretrainedConfig
 from ...utils import logging
 
 

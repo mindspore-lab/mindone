@@ -11,23 +11,23 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-import mindspore as ms
-from mindspore import mint, nn
-"""PyTorch SuperGlue model."""
+"""MindSpore SuperGlue model."""
 
 import math
 from dataclasses import dataclass
 from typing import Optional, Tuple, Union
 
-import mindspore as ms
-from mindspore import nn
+import mindspore
+from mindspore import mint, nn
+from mindspore.common.initializer import Constant, Normal, initializer
 
-from transformers import PreTrainedModel, add_start_docstrings
+
+from ...modeling_utils import PreTrainedModel
 from transformers.models.superglue.configuration_superglue import SuperGlueConfig
 
-from ...pytorch_utils import find_pruneable_heads_and_indices, prune_linear_layer
-from ...utils import ModelOutput, add_start_docstrings_to_model_forward, logging
-from ..auto import AutoModelForKeypointDetection
+from ...mindspore_utils import find_pruneable_heads_and_indices, prune_linear_layer
+from transformers.utils import ModelOutput, logging
+from ...models.auto import AutoModelForKeypointDetection
 
 
 logger = logging.get_logger(__name__)
@@ -36,28 +36,28 @@ _CONFIG_FOR_DOC_ = "SuperGlueConfig"
 _CHECKPOINT_FOR_DOC_ = "magic-leap-community/superglue_indoor"
 
 
-def concat_pairs(tensor_tuple0: Tuple[ms.Tensor], tensor_tuple1: Tuple[ms.Tensor]) -> Tuple[ms.Tensor]:
+def concat_pairs(tensor_tuple0: Tuple[mindspore.Tensor], tensor_tuple1: Tuple[mindspore.Tensor]) -> Tuple[mindspore.Tensor]:
     """
     Concatenate two tuples of tensors pairwise
 
     Args:
-        tensor_tuple0 (`Tuple[torch.Tensor]`):
+        tensor_tuple0 (`Tuple[mindspore.Tensor]`):
             Tuple of tensors.
-        tensor_tuple1 (`Tuple[torch.Tensor]`):
+        tensor_tuple1 (`Tuple[mindspore.Tensor]`):
             Tuple of tensors.
 
     Returns:
-        (`Tuple[torch.Tensor]`): Tuple of concatenated tensors.
+        (`Tuple[mindspore.Tensor]`): Tuple of concatenated tensors.
     """
     return tuple([mint.cat([tensor0, tensor1]) for tensor0, tensor1 in zip(tensor_tuple0, tensor_tuple1)])
 
 
-def normalize_keypoints(keypoints: ms.Tensor, height: int, width: int) -> ms.Tensor:
+def normalize_keypoints(keypoints: mindspore.Tensor, height: int, width: int) -> mindspore.Tensor:
     """
     Normalize keypoints locations based on image image_shape
 
     Args:
-        keypoints (`torch.Tensor` of shape `(batch_size, num_keypoints, 2)`):
+        keypoints (`mindspore.Tensor` of shape `(batch_size, num_keypoints, 2)`):
             Keypoints locations in (x, y) format.
         height (`int`):
             Image height.
@@ -65,33 +65,33 @@ def normalize_keypoints(keypoints: ms.Tensor, height: int, width: int) -> ms.Ten
             Image width.
 
     Returns:
-        Normalized keypoints locations of shape (`torch.Tensor` of shape `(batch_size, num_keypoints, 2)`).
+        Normalized keypoints locations of shape (`mindspore.Tensor` of shape `(batch_size, num_keypoints, 2)`).
     """
-    size = ms.Tensor([width, height], dtype=keypoints.dtype)[None]
+    size = mindspore.Tensor([width, height], dtype=keypoints.dtype)[None]
     center = size / 2
     scaling = size.max(1, keepdim=True).values * 0.7
     return (keypoints - center[:, None, :]) / scaling[:, None, :]
 
 
 def log_sinkhorn_iterations(
-    log_cost_matrix: ms.Tensor,
-    log_source_distribution: ms.Tensor,
-    log_target_distribution: ms.Tensor,
+    log_cost_matrix: mindspore.Tensor,
+    log_source_distribution: mindspore.Tensor,
+    log_target_distribution: mindspore.Tensor,
     num_iterations: int,
-) -> ms.Tensor:
+) -> mindspore.Tensor:
     """
     Perform Sinkhorn Normalization in Log-space for stability
 
     Args:
-        log_cost_matrix (`torch.Tensor` of shape `(batch_size, num_rows, num_columns)`):
+        log_cost_matrix (`mindspore.Tensor` of shape `(batch_size, num_rows, num_columns)`):
             Logarithm of the cost matrix.
-        log_source_distribution (`torch.Tensor` of shape `(batch_size, num_rows)`):
+        log_source_distribution (`mindspore.Tensor` of shape `(batch_size, num_rows)`):
             Logarithm of the source distribution.
-        log_target_distribution (`torch.Tensor` of shape `(batch_size, num_columns)`):
+        log_target_distribution (`mindspore.Tensor` of shape `(batch_size, num_columns)`):
             Logarithm of the target distribution.
 
     Returns:
-        log_cost_matrix (`torch.Tensor` of shape `(batch_size, num_rows, num_columns)`): Logarithm of the optimal
+        log_cost_matrix (`mindspore.Tensor` of shape `(batch_size, num_rows, num_columns)`): Logarithm of the optimal
         transport matrix.
     """
     log_u_scaling = mint.zeros_like(log_source_distribution)
@@ -102,42 +102,42 @@ def log_sinkhorn_iterations(
     return log_cost_matrix + log_u_scaling.unsqueeze(2) + log_v_scaling.unsqueeze(1)
 
 
-def log_optimal_transport(scores: ms.Tensor, reg_param: ms.Tensor, iterations: int) -> ms.Tensor:
+def log_optimal_transport(scores: mindspore.Tensor, reg_param: mindspore.Tensor, iterations: int) -> mindspore.Tensor:
     """
     Perform Differentiable Optimal Transport in Log-space for stability
 
     Args:
-        scores: (`torch.Tensor` of shape `(batch_size, num_rows, num_columns)`):
+        scores: (`mindspore.Tensor` of shape `(batch_size, num_rows, num_columns)`):
             Cost matrix.
-        reg_param: (`torch.Tensor` of shape `(batch_size, 1, 1)`):
+        reg_param: (`mindspore.Tensor` of shape `(batch_size, 1, 1)`):
             Regularization parameter.
         iterations: (`int`):
             Number of Sinkhorn iterations.
 
     Returns:
-        log_optimal_transport_matrix: (`torch.Tensor` of shape `(batch_size, num_rows, num_columns)`): Logarithm of the
+        log_optimal_transport_matrix: (`mindspore.Tensor` of shape `(batch_size, num_rows, num_columns)`): Logarithm of the
         optimal transport matrix.
     """
     batch_size, num_rows, num_columns = scores.shape
-    one_tensor = ms.tensor(1, dtype = scores.dtype)
-    num_rows_tensor, num_columns_tensor = (num_rows * one_tensor).to(scores), (num_columns * one_tensor).to(scores)
+    one_tensor = mindspore.tensor(1, dtype = scores.dtype)
+    num_rows_tensor, num_columns_tensor = (num_rows * one_tensor).to(scores.dtype), (num_columns * one_tensor).to(scores.dtype)
 
-    source_reg_param = reg_param.expand(batch_size, num_rows, 1)
-    target_reg_param = reg_param.expand(batch_size, 1, num_columns)
-    reg_param = reg_param.expand(batch_size, 1, 1)
+    source_reg_param = reg_param.broadcast_to((batch_size, num_rows, 1))
+    target_reg_param = reg_param.broadcast_to((batch_size, 1, num_columns))
+    reg_param = reg_param.broadcast_to((batch_size, 1, 1))
 
     couplings = mint.cat([mint.cat([scores, source_reg_param], -1), mint.cat([target_reg_param, reg_param], -1)], 1)
 
     log_normalization = -(num_rows_tensor + num_columns_tensor).log()
     log_source_distribution = mint.cat(
-        [log_normalization.expand(num_rows), num_columns_tensor.log()[None] + log_normalization]
+        [log_normalization.broadcast_to((num_rows,)), num_columns_tensor.log()[None] + log_normalization]
     )
     log_target_distribution = mint.cat(
-        [log_normalization.expand(num_columns), num_rows_tensor.log()[None] + log_normalization]
+        [log_normalization.broadcast_to((num_columns,)), num_rows_tensor.log()[None] + log_normalization]
     )
     log_source_distribution, log_target_distribution = (
-        log_source_distribution[None].expand(batch_size, -1),
-        log_target_distribution[None].expand(batch_size, -1),
+        log_source_distribution[None].broadcast_to((batch_size, -1)),
+        log_target_distribution[None].broadcast_to((batch_size, -1)),
     )
 
     log_optimal_transport_matrix = log_sinkhorn_iterations(
@@ -147,8 +147,8 @@ def log_optimal_transport(scores: ms.Tensor, reg_param: ms.Tensor, iterations: i
     return log_optimal_transport_matrix
 
 
-def arange_like(x, dim: int) -> ms.Tensor:
-    return x.new_ones(x.shape[dim]).cumsum(0) - 1
+def arange_like(x, dim: int) -> mindspore.Tensor:
+    return mint.ones(x.shape[dim]).cumsum(0) - 1
 
 
 @dataclass
@@ -161,42 +161,42 @@ class KeypointMatchingOutput(ModelOutput):
     information.
 
     Args:
-        loss (`torch.FloatTensor` of shape `(1,)`, *optional*):
+        loss (`mindspore.Tensor` of shape `(1,)`, *optional*):
             Loss computed during training.
-        mask (`torch.IntTensor` of shape `(batch_size, num_keypoints)`):
+        mask (`mindspore.Tensor` of shape `(batch_size, num_keypoints)`):
             Mask indicating which values in matches and matching_scores are keypoint matching information.
-        matches (`torch.FloatTensor` of shape `(batch_size, 2, num_matches)`):
+        matches (`mindspore.Tensor` of shape `(batch_size, 2, num_matches)`):
             Index of keypoint matched in the other image.
-        matching_scores (`torch.FloatTensor` of shape `(batch_size, 2, num_matches)`):
+        matching_scores (`mindspore.Tensor` of shape `(batch_size, 2, num_matches)`):
             Scores of predicted matches.
-        keypoints (`torch.FloatTensor` of shape `(batch_size, num_keypoints, 2)`):
+        keypoints (`mindspore.Tensor` of shape `(batch_size, num_keypoints, 2)`):
             Absolute (x, y) coordinates of predicted keypoints in a given image.
-        hidden_states (`Tuple[torch.FloatTensor, ...]`, *optional*):
-            Tuple of `torch.FloatTensor` (one for the output of each stage) of shape `(batch_size, 2, num_channels,
+        hidden_states (`Tuple[mindspore.Tensor, ...]`, *optional*):
+            Tuple of `mindspore.Tensor` (one for the output of each stage) of shape `(batch_size, 2, num_channels,
             num_keypoints)`, returned when `output_hidden_states=True` is passed or when
             `config.output_hidden_states=True`)
-        attentions (`Tuple[torch.FloatTensor, ...]`, *optional*):
-            Tuple of `torch.FloatTensor` (one for each layer) of shape `(batch_size, 2, num_heads, num_keypoints,
+        attentions (`Tuple[mindspore.Tensor, ...]`, *optional*):
+            Tuple of `mindspore.Tensor` (one for each layer) of shape `(batch_size, 2, num_heads, num_keypoints,
             num_keypoints)`, returned when `output_attentions=True` is passed or when `config.output_attentions=True`)
     """
 
-    loss: Optional[ms.Tensor] = None
-    matches: Optional[ms.Tensor] = None
-    matching_scores: Optional[ms.Tensor] = None
-    keypoints: Optional[ms.Tensor] = None
-    mask: Optional[ms.Tensor] = None
-    hidden_states: Optional[Tuple[ms.Tensor]] = None
-    attentions: Optional[Tuple[ms.Tensor]] = None
+    loss: Optional[mindspore.Tensor] = None
+    matches: Optional[mindspore.Tensor] = None
+    matching_scores: Optional[mindspore.Tensor] = None
+    keypoints: Optional[mindspore.Tensor] = None
+    mask: Optional[mindspore.Tensor] = None
+    hidden_states: Optional[Tuple[mindspore.Tensor]] = None
+    attentions: Optional[Tuple[mindspore.Tensor]] = None
 
 
-class SuperGlueMultiLayerPerceptron(ms.nn.Cell):
+class SuperGlueMultiLayerPerceptron(mindspore.nn.Cell):
     def __init__(self, config: SuperGlueConfig, in_channels: int, out_channels: int) -> None:
         super().__init__()
         self.linear = mint.nn.Linear(in_channels, out_channels)
         self.batch_norm = mint.nn.BatchNorm1d(out_channels)
         self.activation = mint.nn.ReLU()
 
-    def construct(self, hidden_state: ms.Tensor) -> ms.Tensor:
+    def construct(self, hidden_state: mindspore.Tensor) -> mindspore.Tensor:
         hidden_state = self.linear(hidden_state)
         hidden_state = hidden_state.transpose(-1, -2)
         hidden_state = self.batch_norm(hidden_state)
@@ -205,7 +205,7 @@ class SuperGlueMultiLayerPerceptron(ms.nn.Cell):
         return hidden_state
 
 
-class SuperGlueKeypointEncoder(ms.nn.Cell):
+class SuperGlueKeypointEncoder(mindspore.nn.Cell):
     def __init__(self, config: SuperGlueConfig) -> None:
         super().__init__()
         layer_sizes = config.keypoint_encoder_sizes
@@ -218,14 +218,14 @@ class SuperGlueKeypointEncoder(ms.nn.Cell):
             for i in range(1, len(encoder_channels) - 1)
         ]
         layers.append(mint.nn.Linear(encoder_channels[-2], encoder_channels[-1]))
-        self.encoder = ms.nn.CellList(layers)
+        self.encoder = mindspore.nn.CellList(layers)
 
     def construct(
         self,
-        keypoints: ms.Tensor,
-        scores: ms.Tensor,
+        keypoints: mindspore.Tensor,
+        scores: mindspore.Tensor,
         output_hidden_states: Optional[bool] = False,
-    ) -> Tuple[ms.Tensor, Optional[Tuple[ms.Tensor]]]:
+    ) -> Tuple[mindspore.Tensor, Optional[Tuple[mindspore.Tensor]]]:
         scores = scores.unsqueeze(2)
         hidden_state = mint.cat([keypoints, scores], dim=2)
         all_hidden_states = () if output_hidden_states else None
@@ -237,7 +237,7 @@ class SuperGlueKeypointEncoder(ms.nn.Cell):
 
 
 # Copied from transformers.models.bert.modeling_bert.BertSelfAttention with Bert->SuperGlue
-class SuperGlueSelfAttention(ms.nn.Cell):
+class SuperGlueSelfAttention(mindspore.nn.Cell):
     def __init__(self, config, position_embedding_type=None):
         super().__init__()
         if config.hidden_size % config.num_attention_heads != 0 and not hasattr(config, "embedding_size"):
@@ -264,21 +264,21 @@ class SuperGlueSelfAttention(ms.nn.Cell):
 
         self.is_decoder = config.is_decoder
 
-    def transpose_for_scores(self, x: ms.Tensor) -> ms.Tensor:
+    def transpose_for_scores(self, x: mindspore.Tensor) -> mindspore.Tensor:
         new_x_shape = x.shape[:-1] + (self.num_attention_heads, self.attention_head_size)
         x = x.view(new_x_shape)
         return x.permute(0, 2, 1, 3)
 
     def construct(
         self,
-        hidden_states: ms.Tensor,
-        attention_mask: Optional[ms.Tensor] = None,
-        head_mask: Optional[ms.Tensor] = None,
-        encoder_hidden_states: Optional[ms.Tensor] = None,
-        encoder_attention_mask: Optional[ms.Tensor] = None,
-        past_key_value: Optional[Tuple[Tuple[ms.Tensor]]] = None,
+        hidden_states: mindspore.Tensor,
+        attention_mask: Optional[mindspore.Tensor] = None,
+        head_mask: Optional[mindspore.Tensor] = None,
+        encoder_hidden_states: Optional[mindspore.Tensor] = None,
+        encoder_attention_mask: Optional[mindspore.Tensor] = None,
+        past_key_value: Optional[Tuple[Tuple[mindspore.Tensor]]] = None,
         output_attentions: Optional[bool] = False,
-    ) -> Tuple[ms.Tensor]:
+    ) -> Tuple[mindspore.Tensor]:
         mixed_query_layer = self.query(hidden_states)
 
         # If this is instantiated as a cross-attention module, the keys
@@ -308,10 +308,10 @@ class SuperGlueSelfAttention(ms.nn.Cell):
 
         use_cache = past_key_value is not None
         if self.is_decoder:
-            # if cross_attention save Tuple(torch.Tensor, torch.Tensor) of all cross attention key/value_states.
+            # if cross_attention save Tuple(mindspore.Tensor, mindspore.Tensor) of all cross attention key/value_states.
             # Further calls to cross_attention layer can then reuse all cross-attention
             # key/value_states (first "if" case)
-            # if uni-directional self-attention (decoder) save Tuple(torch.Tensor, torch.Tensor) of
+            # if uni-directional self-attention (decoder) save Tuple(mindspore.Tensor, mindspore.Tensor) of
             # all previous decoder key/value_states. Further calls to uni-directional self-attention
             # can concat previous decoder key/value_states to current projected key/value_states (third "elif" case)
             # if encoder bi-directional self-attention `past_key_value` is always `None`
@@ -323,16 +323,16 @@ class SuperGlueSelfAttention(ms.nn.Cell):
         if self.position_embedding_type == "relative_key" or self.position_embedding_type == "relative_key_query":
             query_length, key_length = query_layer.shape[2], key_layer.shape[2]
             if use_cache:
-                position_ids_l = ms.Tensor(key_length - 1, dtype=ms.int64, ).view(
+                position_ids_l = mindspore.Tensor(key_length - 1, dtype=mindspore.int64, ).view(
                     -1, 1
                 )
             else:
-                position_ids_l = mint.arange(query_length, dtype=ms.int64, ).view(-1, 1)
-            position_ids_r = mint.arange(key_length, dtype=ms.int64, ).view(1, -1)
+                position_ids_l = mint.arange(query_length, dtype=mindspore.int64, ).view(-1, 1)
+            position_ids_r = mint.arange(key_length, dtype=mindspore.int64, ).view(1, -1)
             distance = position_ids_l - position_ids_r
 
             positional_embedding = self.distance_embedding(distance + self.max_position_embeddings - 1)
-            positional_embedding = positional_embedding.to(dtype=query_layer.dtype)  # fp16 compatibility
+            positional_embedding = positional_embedding.to(query_layer.dtype)  # fp16 compatibility
 
             if self.position_embedding_type == "relative_key":
                 relative_position_scores = mint.einsum("bhld,lrd->bhlr", query_layer, positional_embedding)
@@ -360,7 +360,7 @@ class SuperGlueSelfAttention(ms.nn.Cell):
 
         context_layer = mint.matmul(attention_probs, value_layer)
 
-        context_layer = context_layer.permute(0, 2, 1, 3).contiguous()
+        context_layer = context_layer.permute(0, 2, 1, 3)
         new_context_layer_shape = context_layer.shape[:-2] + (self.all_head_size,)
         context_layer = context_layer.view(new_context_layer_shape)
 
@@ -371,12 +371,12 @@ class SuperGlueSelfAttention(ms.nn.Cell):
         return outputs
 
 
-class SuperGlueSelfOutput(ms.nn.Cell):
+class SuperGlueSelfOutput(mindspore.nn.Cell):
     def __init__(self, config: SuperGlueConfig):
         super().__init__()
         self.dense = mint.nn.Linear(config.hidden_size, config.hidden_size)
 
-    def construct(self, hidden_states: ms.Tensor, *args) -> ms.Tensor:
+    def construct(self, hidden_states: mindspore.Tensor, *args) -> mindspore.Tensor:
         hidden_states = self.dense(hidden_states)
         return hidden_states
 
@@ -387,7 +387,7 @@ SUPERGLUE_SELF_ATTENTION_CLASSES = {
 
 
 # Copied from transformers.models.bert.modeling_bert.BertAttention with Bert->SuperGlue,BERT->SUPERGLUE
-class SuperGlueAttention(ms.nn.Cell):
+class SuperGlueAttention(mindspore.nn.Cell):
     def __init__(self, config, position_embedding_type=None):
         super().__init__()
         self.self = SUPERGLUE_SELF_ATTENTION_CLASSES[config._attn_implementation](
@@ -416,14 +416,14 @@ class SuperGlueAttention(ms.nn.Cell):
 
     def construct(
         self,
-        hidden_states: ms.Tensor,
-        attention_mask: Optional[ms.Tensor] = None,
-        head_mask: Optional[ms.Tensor] = None,
-        encoder_hidden_states: Optional[ms.Tensor] = None,
-        encoder_attention_mask: Optional[ms.Tensor] = None,
-        past_key_value: Optional[Tuple[Tuple[ms.Tensor]]] = None,
+        hidden_states: mindspore.Tensor,
+        attention_mask: Optional[mindspore.Tensor] = None,
+        head_mask: Optional[mindspore.Tensor] = None,
+        encoder_hidden_states: Optional[mindspore.Tensor] = None,
+        encoder_attention_mask: Optional[mindspore.Tensor] = None,
+        past_key_value: Optional[Tuple[Tuple[mindspore.Tensor]]] = None,
         output_attentions: Optional[bool] = False,
-    ) -> Tuple[ms.Tensor]:
+    ) -> Tuple[mindspore.Tensor]:
         self_outputs = self.self(
             hidden_states,
             attention_mask,
@@ -438,7 +438,7 @@ class SuperGlueAttention(ms.nn.Cell):
         return outputs
 
 
-class SuperGlueAttentionalPropagation(ms.nn.Cell):
+class SuperGlueAttentionalPropagation(mindspore.nn.Cell):
     def __init__(self, config: SuperGlueConfig) -> None:
         super().__init__()
         hidden_size = config.hidden_size
@@ -449,17 +449,17 @@ class SuperGlueAttentionalPropagation(ms.nn.Cell):
             for i in range(1, len(mlp_channels) - 1)
         ]
         layers.append(mint.nn.Linear(mlp_channels[-2], mlp_channels[-1]))
-        self.mlp = ms.nn.CellList(layers)
+        self.mlp = mindspore.nn.CellList(layers)
 
     def construct(
         self,
-        descriptors: ms.Tensor,
-        attention_mask: Optional[ms.Tensor] = None,
-        encoder_hidden_states: Optional[ms.Tensor] = None,
-        encoder_attention_mask: Optional[ms.Tensor] = None,
+        descriptors: mindspore.Tensor,
+        attention_mask: Optional[mindspore.Tensor] = None,
+        encoder_hidden_states: Optional[mindspore.Tensor] = None,
+        encoder_attention_mask: Optional[mindspore.Tensor] = None,
         output_attentions: bool = False,
         output_hidden_states: bool = False,
-    ) -> Tuple[ms.Tensor, Optional[Tuple[ms.Tensor]], Optional[Tuple[ms.Tensor]]]:
+    ) -> Tuple[mindspore.Tensor, Optional[Tuple[mindspore.Tensor]], Optional[Tuple[mindspore.Tensor]]]:
         attention_outputs = self.attention(
             descriptors,
             attention_mask=attention_mask,
@@ -481,20 +481,20 @@ class SuperGlueAttentionalPropagation(ms.nn.Cell):
         return hidden_state, all_hidden_states, attention
 
 
-class SuperGlueAttentionalGNN(ms.nn.Cell):
+class SuperGlueAttentionalGNN(mindspore.nn.Cell):
     def __init__(self, config: SuperGlueConfig) -> None:
         super().__init__()
         self.hidden_size = config.hidden_size
         self.layers_types = config.gnn_layers_types
-        self.layers = ms.nn.CellList([SuperGlueAttentionalPropagation(config) for _ in range(len(self.layers_types))])
+        self.layers = mindspore.nn.CellList([SuperGlueAttentionalPropagation(config) for _ in range(len(self.layers_types))])
 
     def construct(
         self,
-        descriptors: ms.Tensor,
-        mask: Optional[ms.Tensor] = None,
+        descriptors: mindspore.Tensor,
+        mask: Optional[mindspore.Tensor] = None,
         output_attentions: bool = False,
         output_hidden_states: Optional[bool] = False,
-    ) -> Tuple[ms.Tensor, Optional[Tuple], Optional[Tuple]]:
+    ) -> Tuple[mindspore.Tensor, Optional[Tuple], Optional[Tuple]]:
         all_hidden_states = () if output_hidden_states else None
         all_attentions = () if output_attentions else None
 
@@ -536,13 +536,13 @@ class SuperGlueAttentionalGNN(ms.nn.Cell):
         return descriptors, all_hidden_states, all_attentions
 
 
-class SuperGlueFinalProjection(ms.nn.Cell):
+class SuperGlueFinalProjection(mindspore.nn.Cell):
     def __init__(self, config: SuperGlueConfig) -> None:
         super().__init__()
         hidden_size = config.hidden_size
         self.final_proj = mint.nn.Linear(hidden_size, hidden_size, bias=True)
 
-    def construct(self, descriptors: ms.Tensor) -> ms.Tensor:
+    def construct(self, descriptors: mindspore.Tensor) -> mindspore.Tensor:
         return self.final_proj(descriptors)
 
 
@@ -556,51 +556,22 @@ class SuperGluePreTrainedModel(PreTrainedModel):
     base_model_prefix = "superglue"
     main_input_name = "pixel_values"
 
-    def _init_weights(self, module: ms.nn.Cell) -> None:
+    def _init_weights(self, module: mindspore.nn.Cell) -> None:
         """Initialize the weights"""
         if isinstance(module, (mint.nn.Linear, mint.nn.Conv2d, nn.Conv1d)):
             # Slightly different from the TF version which uses truncated_normal for initialization
-            # cf https://github.com/pytorch/pytorch/pull/5617
-            module.weight.data.normal_(mean=0.0, std=self.config.initializer_range)
+            module.weight.set_data(
+                initializer(Normal(self.config.initializer_range, 0.0), module.weight.shape, module.weight.dtype)
+            )
             if module.bias is not None:
-                module.bias.data.zero_()
+                module.bias.set_data(initializer(Constant(0.0), module.bias.shape, module.bias.dtype))
         elif isinstance(module, mint.nn.LayerNorm):
-            module.bias.data.zero_()
-            module.weight.data.fill_(1.0)
+            module.bias.set_data(initializer(Constant(0.0), module.bias.shape, module.bias.dtype))
+            module.weight.set_data(initializer(Constant(1.0), module.weight.shape, module.weight.dtype))
         elif isinstance(module, SuperGlueMultiLayerPerceptron):
-            nn.init.constant_(module.linear.bias, 0.0)
+            module.linear.bias.set_data(initializer(Constant(0.0), module.linear.bias.shape, module.linear.bias.dtype))
 
 
-SUPERGLUE_START_DOCSTRING = r"""
-    This model is a PyTorch [torch.nn.Module](https://pytorch.org/docs/stable/nn.html#torch.nn.Module) subclass. Use it
-    as a regular PyTorch Module and refer to the PyTorch documentation for all matter related to general usage and
-    behavior.
-
-    Parameters:
-        config ([`SuperGlueConfig`]): Model configuration class with all the parameters of the model.
-            Initializing with a config file does not load the weights associated with the model, only the
-            configuration. Check out the [`~PreTrainedModel.from_pretrained`] method to load the model weights.
-    """
-
-SUPERGLUE_INPUTS_DOCSTRING = r"""
-    Args:
-        pixel_values (`torch.FloatTensor` of shape `(batch_size, num_channels, height, width)`):
-            Pixel values. Pixel values can be obtained using [`SuperGlueImageProcessor`]. See
-            [`SuperGlueImageProcessor.__call__`] for details.
-        output_attentions (`bool`, *optional*):
-            Whether or not to return the attentions tensors. See `attentions` under returned tensors for more detail.
-        output_hidden_states (`bool`, *optional*):
-            Whether or not to return the hidden states of all layers. See `hidden_states` under returned tensors for
-            more detail.
-        return_dict (`bool`, *optional*):
-            Whether or not to return a [`~utils.ModelOutput`] instead of a plain tuple.
-"""
-
-
-@add_start_docstrings(
-    "SuperGlue model taking images as inputs and outputting the matching of them.",
-    SUPERGLUE_START_DOCSTRING,
-)
 class SuperGlueForKeypointMatching(SuperGluePreTrainedModel):
     """SuperGlue feature matching middle-end
 
@@ -628,35 +599,35 @@ class SuperGlueForKeypointMatching(SuperGluePreTrainedModel):
         self.gnn = SuperGlueAttentionalGNN(config)
         self.final_projection = SuperGlueFinalProjection(config)
 
-        bin_score = ms.Parameter(ms.Tensor(1.0))
+        bin_score = mindspore.Parameter(mindspore.Tensor(1.0))
         self.register_parameter("bin_score", bin_score)
 
         self.post_init()
 
     def _match_image_pair(
         self,
-        keypoints: ms.Tensor,
-        descriptors: ms.Tensor,
-        scores: ms.Tensor,
+        keypoints: mindspore.Tensor,
+        descriptors: mindspore.Tensor,
+        scores: mindspore.Tensor,
         height: int,
         width: int,
-        mask: Optional[ms.Tensor] = None,
+        mask: Optional[mindspore.Tensor] = None,
         output_attentions: Optional[bool] = None,
         output_hidden_states: Optional[bool] = None,
-    ) -> Tuple[ms.Tensor, ms.Tensor, Tuple, Tuple]:
+    ) -> Tuple[mindspore.Tensor, mindspore.Tensor, Tuple, Tuple]:
         """
         Perform keypoint matching between two images.
 
         Args:
-            keypoints (`torch.Tensor` of shape `(batch_size, 2, num_keypoints, 2)`):
+            keypoints (`mindspore.Tensor` of shape `(batch_size, 2, num_keypoints, 2)`):
                 Keypoints detected in the pair of image.
-            descriptors (`torch.Tensor` of shape `(batch_size, 2, descriptor_dim, num_keypoints)`):
+            descriptors (`mindspore.Tensor` of shape `(batch_size, 2, descriptor_dim, num_keypoints)`):
                 Descriptors of the keypoints detected in the image pair.
-            scores (`torch.Tensor` of shape `(batch_size, 2, num_keypoints)`):
+            scores (`mindspore.Tensor` of shape `(batch_size, 2, num_keypoints)`):
                 Confidence scores of the keypoints detected in the image pair.
             height (`int`): Image height.
             width (`int`): Image width.
-            mask (`torch.Tensor` of shape `(batch_size, 2, num_keypoints)`, *optional*):
+            mask (`mindspore.Tensor` of shape `(batch_size, 2, num_keypoints)`, *optional*):
                 Mask indicating which values in the keypoints, matches and matching_scores tensors are keypoint matching
                 information.
             output_attentions (`bool`, *optional*):
@@ -665,16 +636,16 @@ class SuperGlueForKeypointMatching(SuperGluePreTrainedModel):
                 Whether or not to return the hidden states of all layers. Default to `config.output_hidden_states`.
 
         Returns:
-            matches (`torch.Tensor` of shape `(batch_size, 2, num_keypoints)`):
+            matches (`mindspore.Tensor` of shape `(batch_size, 2, num_keypoints)`):
                 For each image pair, for each keypoint in image0, the index of the keypoint in image1 that was matched
                 with. And for each keypoint in image1, the index of the keypoint in image0 that was matched with.
-            matching_scores (`torch.Tensor` of shape `(batch_size, 2, num_keypoints)`):
+            matching_scores (`mindspore.Tensor` of shape `(batch_size, 2, num_keypoints)`):
                 Scores of predicted matches for each image pair
-            all_hidden_states (`tuple(torch.FloatTensor)`, *optional*):
-                Tuple of `torch.FloatTensor` (one for the output of each stage) of shape `(1, 2, num_keypoints,
+            all_hidden_states (`tuple(mindspore.FloatTensor)`, *optional*):
+                Tuple of `mindspore.FloatTensor` (one for the output of each stage) of shape `(1, 2, num_keypoints,
                 num_channels)`.
-            all_attentions (`tuple(torch.FloatTensor)`, *optional*):
-                Tuple of `torch.FloatTensor` (one for each layer) of shape `(1, 2, num_heads, num_keypoints,
+            all_attentions (`tuple(mindspore.FloatTensor)`, *optional*):
+                Tuple of `mindspore.FloatTensor` (one for each layer) of shape `(1, 2, num_heads, num_keypoints,
                 num_keypoints)`.
         """
         all_hidden_states = () if output_hidden_states else None
@@ -683,8 +654,8 @@ class SuperGlueForKeypointMatching(SuperGluePreTrainedModel):
         if keypoints.shape[2] == 0:  # no keypoints
             shape = keypoints.shape[:-1]
             return (
-                keypoints.new_full(shape, -1, dtype=ms.int32),
-                keypoints.new_zeros(shape),
+                mint.full([shape, -1], dtype=mindspore.int32),
+                mint.zeros(shape, dtype=keypoints.dtype),
                 all_hidden_states,
                 all_attentions,
             )
@@ -735,7 +706,7 @@ class SuperGlueForKeypointMatching(SuperGluePreTrainedModel):
 
         if mask is not None:
             mask = mask.reshape(batch_size, 2, num_keypoints)
-            mask0 = mask[:, 0].unsqueeze(-1).expand(-1, -1, num_keypoints)
+            mask0 = mask[:, 0].unsqueeze(-1).broadcast_to((-1, -1, num_keypoints))
             scores = scores.masked_fill(mask0 == 0, -1e9)
 
         # Run the optimal transport.
@@ -748,14 +719,14 @@ class SuperGlueForKeypointMatching(SuperGluePreTrainedModel):
         indices1 = max1.indices
         mutual0 = arange_like(indices0, 1)[None] == indices1.gather(1, indices0)
         mutual1 = arange_like(indices1, 1)[None] == indices0.gather(1, indices1)
-        zero = ms.tensor(0, dtype = scores.dtype)
+        zero = mindspore.tensor(0, dtype = scores.dtype)
         matching_scores0 = mint.where(mutual0, max0.values.exp(), zero)
         matching_scores0 = mint.where(matching_scores0 > self.config.matching_threshold, matching_scores0, zero)
         matching_scores1 = mint.where(mutual1, matching_scores0.gather(1, indices1), zero)
         valid0 = mutual0 & (matching_scores0 > zero)
         valid1 = mutual1 & valid0.gather(1, indices1)
-        matches0 = mint.where(valid0, indices0, ms.tensor(-1, dtype = indices0.dtype))
-        matches1 = mint.where(valid1, indices1, ms.tensor(-1, dtype = indices1.dtype))
+        matches0 = mint.where(valid0, indices0, mindspore.tensor(-1, dtype = indices0.dtype))
+        matches1 = mint.where(valid1, indices1, mindspore.tensor(-1, dtype = indices1.dtype))
 
         matches = mint.cat([matches0, matches1]).reshape(batch_size, 2, -1)
         matching_scores = mint.cat([matching_scores0, matching_scores1]).reshape(batch_size, 2, -1)
@@ -778,11 +749,10 @@ class SuperGlueForKeypointMatching(SuperGluePreTrainedModel):
             all_attentions,
         )
 
-    @add_start_docstrings_to_model_forward(SUPERGLUE_INPUTS_DOCSTRING)
     def construct(
         self,
-        pixel_values: ms.Tensor,
-        labels: Optional[ms.Tensor] = None,
+        pixel_values: mindspore.Tensor,
+        labels: Optional[mindspore.Tensor] = None,
         output_attentions: Optional[bool] = None,
         output_hidden_states: Optional[bool] = None,
         return_dict: Optional[bool] = None,
@@ -791,8 +761,8 @@ class SuperGlueForKeypointMatching(SuperGluePreTrainedModel):
         Examples:
 
         ```python
-        >>> from transformers import AutoImageProcessor, AutoModel
-        >>> import torch
+        >>> from mindone.transformers import AutoImageProcessor, AutoModel
+        >>> from mindspore import Tensor
         >>> from PIL import Image
         >>> import requests
 
@@ -805,9 +775,8 @@ class SuperGlueForKeypointMatching(SuperGluePreTrainedModel):
         >>> processor = AutoImageProcessor.from_pretrained("magic-leap-community/superglue_outdoor")
         >>> model = AutoModel.from_pretrained("magic-leap-community/superglue_outdoor")
 
-        >>> with torch.no_grad():
-        >>>     inputs = processor(images, return_tensors="pt")
-        >>>     outputs = model(**inputs)
+        >>> inputs = processor(images, return_tensors="np")
+        >>> outputs = model(**{k: Tensor(v) for k, v in inputs.items()})
         ```"""
         loss = None
         if labels is not None:
@@ -827,9 +796,9 @@ class SuperGlueForKeypointMatching(SuperGluePreTrainedModel):
         keypoint_detections = self.keypoint_detector(pixel_values)
 
         keypoints, scores, descriptors, mask = keypoint_detections[:4]
-        keypoints = keypoints.reshape(batch_size, 2, -1, 2).to(pixel_values)
-        scores = scores.reshape(batch_size, 2, -1).to(pixel_values)
-        descriptors = descriptors.reshape(batch_size, 2, -1, self.config.hidden_size).to(pixel_values)
+        keypoints = keypoints.reshape(batch_size, 2, -1, 2).to(pixel_values.dtype)
+        scores = scores.reshape(batch_size, 2, -1).to(pixel_values.dtype)
+        descriptors = descriptors.reshape(batch_size, 2, -1, self.config.hidden_size).to(pixel_values.dtype)
         mask = mask.reshape(batch_size, 2, -1)
 
         absolute_keypoints = keypoints.clone()
