@@ -528,6 +528,8 @@ MODEL_NAMES_MAPPING = OrderedDict(
         ("stablelm", "StableLm"),
         ("starcoder2", "Starcoder2"),
         ("squeezebert", "SqueezeBERT"),
+        ("superglue", "SuperGlue"),
+        ("superpoint", "SuperPoint"),
         ("swin2sr", "Swin2SR"),
         ("t5", "T5"),
         ("t5v1.1", "T5v1.1"),
