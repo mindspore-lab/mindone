@@ -1,4 +1,7 @@
-# Copyright 2024 The HuggingFace Team. All rights reserved.
+# Copyright 2025 The HuggingFace Team. All rights reserved.
+#
+# This code is adapted from https://github.com/huggingface/diffusers
+# with modifications to run diffusers on mindspore.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -18,7 +21,7 @@ from typing import Any, Callable, Dict, List, Optional, Union
 import numpy as np
 import PIL.Image
 from packaging import version
-from transformers import CLIPTokenizer, DPTFeatureExtractor
+from transformers import CLIPTokenizer, DPTImageProcessor
 
 import mindspore as ms
 from mindspore import mint, ops
@@ -27,12 +30,14 @@ from mindone.transformers import CLIPTextModel, DPTForDepthEstimation
 
 from ...configuration_utils import FrozenDict
 from ...image_processor import PipelineImageInput, VaeImageProcessor
-from ...loaders import LoraLoaderMixin, TextualInversionLoaderMixin
+from ...loaders import StableDiffusionLoraLoaderMixin, TextualInversionLoaderMixin
 from ...models import AutoencoderKL, UNet2DConditionModel
 from ...schedulers import KarrasDiffusionSchedulers
 from ...utils import PIL_INTERPOLATION, deprecate, logging, scale_lora_layers, unscale_lora_layers
 from ...utils.mindspore_utils import randn_tensor
 from ..pipeline_utils import DiffusionPipeline, ImagePipelineOutput
+
+XLA_AVAILABLE = False
 
 logger = logging.get_logger(__name__)  # pylint: disable=invalid-name
 
@@ -76,7 +81,7 @@ def preprocess(image):
     return image
 
 
-class StableDiffusionDepth2ImgPipeline(DiffusionPipeline, TextualInversionLoaderMixin, LoraLoaderMixin):
+class StableDiffusionDepth2ImgPipeline(DiffusionPipeline, TextualInversionLoaderMixin, StableDiffusionLoraLoaderMixin):
     r"""
     Pipeline for text-guided depth-based image-to-image generation using Stable Diffusion.
 
@@ -85,8 +90,8 @@ class StableDiffusionDepth2ImgPipeline(DiffusionPipeline, TextualInversionLoader
 
     The pipeline also inherits the following loading methods:
         - [`~loaders.TextualInversionLoaderMixin.load_textual_inversion`] for loading textual inversion embeddings
-        - [`~loaders.LoraLoaderMixin.load_lora_weights`] for loading LoRA weights
-        - [`~loaders.LoraLoaderMixin.save_lora_weights`] for saving LoRA weights
+        - [`~loaders.StableDiffusionLoraLoaderMixin.load_lora_weights`] for loading LoRA weights
+        - [`~loaders.StableDiffusionLoraLoaderMixin.save_lora_weights`] for saving LoRA weights
 
     Args:
         vae ([`AutoencoderKL`]):
@@ -113,21 +118,25 @@ class StableDiffusionDepth2ImgPipeline(DiffusionPipeline, TextualInversionLoader
         unet: UNet2DConditionModel,
         scheduler: KarrasDiffusionSchedulers,
         depth_estimator: DPTForDepthEstimation,
-        feature_extractor: DPTFeatureExtractor,
+        feature_extractor: DPTImageProcessor,
     ):
         super().__init__()
 
-        is_unet_version_less_0_9_0 = hasattr(unet.config, "_diffusers_version") and version.parse(
-            version.parse(unet.config._diffusers_version).base_version
-        ) < version.parse("0.9.0.dev0")
-        is_unet_sample_size_less_64 = hasattr(unet.config, "sample_size") and unet.config.sample_size < 64
+        is_unet_version_less_0_9_0 = (
+            unet is not None
+            and hasattr(unet.config, "_diffusers_version")
+            and version.parse(version.parse(unet.config._diffusers_version).base_version) < version.parse("0.9.0.dev0")
+        )
+        is_unet_sample_size_less_64 = (
+            unet is not None and hasattr(unet.config, "sample_size") and unet.config.sample_size < 64
+        )
         if is_unet_version_less_0_9_0 and is_unet_sample_size_less_64:
             deprecation_message = (
                 "The configuration file of the unet has set the default `sample_size` to smaller than"
                 " 64 which seems highly unlikely .If you're checkpoint is a fine-tuned version of any of the"
                 " following: \n- CompVis/stable-diffusion-v1-4 \n- CompVis/stable-diffusion-v1-3 \n-"
-                " CompVis/stable-diffusion-v1-2 \n- CompVis/stable-diffusion-v1-1 \n- runwayml/stable-diffusion-v1-5"
-                " \n- runwayml/stable-diffusion-inpainting \n you should change 'sample_size' to 64 in the"
+                " CompVis/stable-diffusion-v1-2 \n- CompVis/stable-diffusion-v1-1 \n- stable-diffusion-v1-5/stable-diffusion-v1-5"
+                " \n- stable-diffusion-v1-5/stable-diffusion-inpainting \n you should change 'sample_size' to 64 in the"
                 " configuration file. Please make sure to update the config accordingly as leaving `sample_size=32`"
                 " in the config might lead to incorrect results in future versions. If you have downloaded this"
                 " checkpoint from the Hugging Face Hub, it would be very nice if you could open a Pull request for"
@@ -147,7 +156,7 @@ class StableDiffusionDepth2ImgPipeline(DiffusionPipeline, TextualInversionLoader
             depth_estimator=depth_estimator,
             feature_extractor=feature_extractor,
         )
-        self.vae_scale_factor = 2 ** (len(self.vae.config.block_out_channels) - 1)
+        self.vae_scale_factor = 2 ** (len(self.vae.config.block_out_channels) - 1) if getattr(self, "vae", None) else 8
         self.image_processor = VaeImageProcessor(vae_scale_factor=self.vae_scale_factor)
 
     # Copied from diffusers.pipelines.stable_diffusion.pipeline_stable_diffusion.StableDiffusionPipeline._encode_prompt
@@ -222,7 +231,7 @@ class StableDiffusionDepth2ImgPipeline(DiffusionPipeline, TextualInversionLoader
         """
         # set lora scale so that monkey patched LoRA
         # function of text encoder can correctly access it
-        if lora_scale is not None and isinstance(self, LoraLoaderMixin):
+        if lora_scale is not None and isinstance(self, StableDiffusionLoraLoaderMixin):
             self._lora_scale = lora_scale
 
             # dynamically adjust the LoRA scale
@@ -260,16 +269,16 @@ class StableDiffusionDepth2ImgPipeline(DiffusionPipeline, TextualInversionLoader
                 )
 
             if hasattr(self.text_encoder.config, "use_attention_mask") and self.text_encoder.config.use_attention_mask:
-                attention_mask = ms.Tensor(text_inputs.attention_mask)
+                attention_mask = ms.tensor(text_inputs.attention_mask)
             else:
                 attention_mask = None
 
             if clip_skip is None:
-                prompt_embeds = self.text_encoder(ms.Tensor(text_input_ids), attention_mask=attention_mask)
+                prompt_embeds = self.text_encoder(ms.tensor(text_input_ids), attention_mask=attention_mask)
                 prompt_embeds = prompt_embeds[0]
             else:
                 prompt_embeds = self.text_encoder(
-                    ms.Tensor(text_input_ids), attention_mask=attention_mask, output_hidden_states=True
+                    ms.tensor(text_input_ids), attention_mask=attention_mask, output_hidden_states=True
                 )
                 # Access the `hidden_states` first, that contains a tuple of
                 # all the hidden states from the encoder layers. Then index into
@@ -330,12 +339,12 @@ class StableDiffusionDepth2ImgPipeline(DiffusionPipeline, TextualInversionLoader
             )
 
             if hasattr(self.text_encoder.config, "use_attention_mask") and self.text_encoder.config.use_attention_mask:
-                attention_mask = ms.Tensor(uncond_input.attention_mask)
+                attention_mask = ms.tensor(uncond_input.attention_mask)
             else:
                 attention_mask = None
 
             negative_prompt_embeds = self.text_encoder(
-                ms.Tensor(uncond_input.input_ids),
+                ms.tensor(uncond_input.input_ids),
                 attention_mask=attention_mask,
             )
             negative_prompt_embeds = negative_prompt_embeds[0]
@@ -350,7 +359,7 @@ class StableDiffusionDepth2ImgPipeline(DiffusionPipeline, TextualInversionLoader
             negative_prompt_embeds = negative_prompt_embeds.view(batch_size * num_images_per_prompt, seq_len, -1)
 
         if self.text_encoder is not None:
-            if isinstance(self, LoraLoaderMixin):
+            if isinstance(self, StableDiffusionLoraLoaderMixin):
                 # Retrieve the original scale by scaling back the LoRA layers
                 unscale_lora_layers(self.text_encoder, lora_scale)
 
@@ -368,7 +377,7 @@ class StableDiffusionDepth2ImgPipeline(DiffusionPipeline, TextualInversionLoader
                 feature_extractor_input = self.image_processor.numpy_to_pil(image)
             safety_checker_input = self.feature_extractor(feature_extractor_input, return_tensors="np")
             image, has_nsfw_concept = self.safety_checker(
-                images=image, clip_input=ms.Tensor(safety_checker_input.pixel_values).to(dtype)
+                images=image, clip_input=ms.tensor(safety_checker_input.pixel_values).to(dtype)
             )
         return image, has_nsfw_concept
 
@@ -388,7 +397,7 @@ class StableDiffusionDepth2ImgPipeline(DiffusionPipeline, TextualInversionLoader
     def prepare_extra_step_kwargs(self, generator, eta):
         # prepare extra kwargs for the scheduler step, since not all schedulers have the same signature
         # eta (η) is only used with the DDIMScheduler, it will be ignored for other schedulers.
-        # eta corresponds to η in DDIM paper: https://arxiv.org/abs/2010.02502
+        # eta corresponds to η in DDIM paper: https://huggingface.co/papers/2010.02502
         # and should be between [0, 1]
 
         accepts_eta = "eta" in set(inspect.signature(self.scheduler.step).parameters.keys())
@@ -488,6 +497,13 @@ class StableDiffusionDepth2ImgPipeline(DiffusionPipeline, TextualInversionLoader
                 )
 
             elif isinstance(generator, list):
+                if image.shape[0] < batch_size and batch_size % image.shape[0] == 0:
+                    image = mint.cat([image] * (batch_size // image.shape[0]), dim=0)
+                elif image.shape[0] < batch_size and batch_size % image.shape[0] != 0:
+                    raise ValueError(
+                        f"Cannot duplicate `image` of batch size {image.shape[0]} to effective batch_size {batch_size} "
+                    )
+
                 init_latents = [
                     retrieve_latents(self.vae, self.vae.encode(image[i : i + 1])[0], generator)
                     for i in range(batch_size)
@@ -539,7 +555,7 @@ class StableDiffusionDepth2ImgPipeline(DiffusionPipeline, TextualInversionLoader
             height, width = image[0].shape[-2:]
 
         if depth_map is None:
-            pixel_values = ms.Tensor(
+            pixel_values = ms.tensor(
                 self.feature_extractor(images=image, return_tensors="np").pixel_values, dtype=dtype
             )
             depth_map = self.depth_estimator(pixel_values)[0]
@@ -553,7 +569,6 @@ class StableDiffusionDepth2ImgPipeline(DiffusionPipeline, TextualInversionLoader
             align_corners=False,
         )
 
-        # todo: unavailable mint interface mint.amin
         depth_min = mint.amin(depth_map, dim=[1, 2, 3], keepdim=True)
         depth_max = mint.amax(depth_map, dim=[1, 2, 3], keepdim=True)
         depth_map = 2.0 * (depth_map - depth_min) / (depth_max - depth_min) - 1.0
@@ -576,7 +591,7 @@ class StableDiffusionDepth2ImgPipeline(DiffusionPipeline, TextualInversionLoader
         return self._clip_skip
 
     # here `guidance_scale` is defined analog to the guidance weight `w` of equation (2)
-    # of the Imagen paper: https://arxiv.org/pdf/2205.11487.pdf . `guidance_scale = 1`
+    # of the Imagen paper: https://huggingface.co/papers/2205.11487 . `guidance_scale = 1`
     # corresponds to doing no classifier free guidance.
     @property
     def do_classifier_free_guidance(self):
@@ -642,8 +657,8 @@ class StableDiffusionDepth2ImgPipeline(DiffusionPipeline, TextualInversionLoader
             num_images_per_prompt (`int`, *optional*, defaults to 1):
                 The number of images to generate per prompt.
             eta (`float`, *optional*, defaults to 0.0):
-                Corresponds to parameter eta (η) from the [DDIM](https://arxiv.org/abs/2010.02502) paper. Only applies
-                to the [`~schedulers.DDIMScheduler`], and is ignored in other schedulers.
+                Corresponds to parameter eta (η) from the [DDIM](https://huggingface.co/papers/2010.02502) paper. Only
+                applies to the [`~schedulers.DDIMScheduler`], and is ignored in other schedulers.
             generator (`np.random.Generator` or `List[np.random.Generator]`, *optional*):
                 A [`np.random.Generator`](https://numpy.org/doc/stable/reference/random/generator.html) to make
                 generation deterministic.

@@ -42,9 +42,6 @@ from mindone.diffusers import (
     DPMSolverMultistepScheduler,
     UNet2DConditionModel,
 )
-from mindone.diffusers._peft import LoraConfig
-from mindone.diffusers._peft.tuners.tuners_utils import BaseTunerLayer
-from mindone.diffusers._peft.utils import get_peft_model_state_dict, set_peft_model_state_dict
 from mindone.diffusers.loaders import LoraLoaderMixin
 from mindone.diffusers.optimization import get_scheduler
 from mindone.diffusers.training_utils import (
@@ -57,6 +54,9 @@ from mindone.diffusers.training_utils import (
     set_seed,
 )
 from mindone.diffusers.utils import convert_state_dict_to_diffusers, convert_unet_state_dict_to_peft
+from mindone.peft import LoraConfig
+from mindone.peft.tuners.tuners_utils import BaseTunerLayer
+from mindone.peft.utils import get_peft_model_state_dict, set_peft_model_state_dict
 
 logger = logging.getLogger(__name__)
 
@@ -661,7 +661,7 @@ def encode_prompt(text_encoder, input_ids, attention_mask, text_encoder_use_atte
 
 def main():
     args = parse_args()
-    ms.set_context(mode=ms.GRAPH_MODE, jit_syntax_level=ms.STRICT)
+    ms.set_context(mode=ms.GRAPH_MODE)
     init_distributed_device(args)  # read attr distributed, writer attrs rank/local_rank/world_size
 
     # tensorboard, mindinsight, wandb logging stuff into logging_dir

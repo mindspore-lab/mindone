@@ -1,3 +1,5 @@
+# This code is copied from https://github.com/Picsart-AI-Research/Text2Video-zero
+
 import cv2
 
 __all__ = ["CannyDetector"]

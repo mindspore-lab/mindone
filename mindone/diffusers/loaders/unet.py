@@ -1,4 +1,7 @@
-# Copyright 2024 The HuggingFace Team. All rights reserved.
+# Copyright 2025 The HuggingFace Team. All rights reserved.
+#
+# This code is adapted from https://github.com/huggingface/diffusers
+# with modifications to run diffusers on mindspore.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -145,10 +148,7 @@ class UNet2DConditionLoadersMixin:
             use_safetensors = True
             allow_pickle = True
 
-        user_agent = {
-            "file_type": "attn_procs_weights",
-            "framework": "pytorch",
-        }
+        user_agent = {"file_type": "attn_procs_weights", "framework": "pytorch"}
 
         model_file = None
         if not isinstance(pretrained_model_name_or_path_or_dict, dict):
@@ -224,7 +224,7 @@ class UNet2DConditionLoadersMixin:
         # 3. Creates a `LoraConfig` and then injects the converted `state_dict` into the UNet per the
         #    `LoraConfig` specs.
         # 4. It also reports if the underlying `_pipeline` has any kind of offloading inside of it.
-        from mindone.diffusers._peft import LoraConfig, inject_adapter_in_model, set_peft_model_state_dict
+        from mindone.peft import LoraConfig, inject_adapter_in_model, set_peft_model_state_dict
 
         keys = list(state_dict.keys())
 
@@ -269,6 +269,17 @@ class UNet2DConditionLoadersMixin:
                 else:
                     if is_peft_version("<", "0.9.0"):
                         lora_config_kwargs.pop("use_dora")
+
+            if "lora_bias" in lora_config_kwargs:
+                if lora_config_kwargs["lora_bias"]:
+                    if is_peft_version("<=", "0.13.2"):
+                        raise ValueError(
+                            "You need `peft` 0.14.0 at least to use `bias` in LoRAs. Please upgrade your installation of `peft`."
+                        )
+                else:
+                    if is_peft_version("<=", "0.13.2"):
+                        lora_config_kwargs.pop("lora_bias")
+
             lora_config = LoraConfig(**lora_config_kwargs)
 
             # adapter_name
@@ -363,7 +374,7 @@ class UNet2DConditionLoadersMixin:
             deprecation_message = "Using the `save_attn_procs()` method has been deprecated and will be removed in a future version. Please use `save_lora_adapter()`."  # noqa: E501
             deprecate("save_attn_procs", "0.40.0", deprecation_message)
 
-            from mindone.diffusers._peft.utils import get_peft_model_state_dict
+            from mindone.peft.utils import get_peft_model_state_dict
 
             state_dict = get_peft_model_state_dict(self)
 

@@ -1,3 +1,20 @@
+# coding=utf-8
+# Copyright 2018 The HuggingFace Inc. team.
+#
+# This code is adapted from https://github.com/huggingface/transformers
+# with modifications to run transformers on mindspore.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
 import os
 import warnings
 from pathlib import Path
@@ -6,9 +23,6 @@ from typing import TYPE_CHECKING, Any, Dict, List, Optional, Tuple, Union
 from huggingface_hub import model_info
 from transformers.configuration_utils import PretrainedConfig
 from transformers.dynamic_module_utils import get_class_from_dynamic_module
-from transformers.models.auto.feature_extraction_auto import FEATURE_EXTRACTOR_MAPPING, AutoFeatureExtractor
-from transformers.models.auto.image_processing_auto import IMAGE_PROCESSOR_MAPPING, AutoImageProcessor
-from transformers.models.auto.processing_auto import PROCESSOR_MAPPING, AutoProcessor
 from transformers.models.auto.tokenization_auto import TOKENIZER_MAPPING, AutoTokenizer
 from transformers.tokenization_utils import PreTrainedTokenizer
 from transformers.utils import (
@@ -20,6 +34,10 @@ from transformers.utils import (
     is_offline_mode,
     logging,
 )
+
+from mindone.transformers.models.auto.feature_extraction_auto import FEATURE_EXTRACTOR_MAPPING, AutoFeatureExtractor
+from mindone.transformers.models.auto.image_processing_auto import IMAGE_PROCESSOR_MAPPING, AutoImageProcessor
+from mindone.transformers.models.auto.processing_auto import PROCESSOR_MAPPING, AutoProcessor
 
 from ..feature_extraction_utils import PreTrainedFeatureExtractor
 from ..image_processing_utils import BaseImageProcessor
@@ -38,12 +56,46 @@ from .base import (
     get_default_model_and_revision,
     infer_framework_load_model,
 )
+from .depth_estimation import DepthEstimationPipeline
+from .feature_extraction import FeatureExtractionPipeline
+from .image_classification import ImageClassificationPipeline
+from .image_feature_extraction import ImageFeatureExtractionPipeline
+from .image_segmentation import ImageSegmentationPipeline
+from .image_text_to_text import ImageTextToTextPipeline
+from .image_to_image import ImageToImagePipeline
+from .image_to_text import ImageToTextPipeline
+from .object_detection import ObjectDetectionPipeline
+from .question_answering import QuestionAnsweringArgumentHandler, QuestionAnsweringPipeline
+from .text2text_generation import Text2TextGenerationPipeline
+from .text_classification import TextClassificationPipeline
 from .text_generation import TextGenerationPipeline
+from .visual_question_answering import VisualQuestionAnsweringPipeline
+from .zero_shot_classification import ZeroShotClassificationArgumentHandler, ZeroShotClassificationPipeline
+from .zero_shot_image_classification import ZeroShotImageClassificationPipeline
+from .zero_shot_object_detection import ZeroShotObjectDetectionPipeline
 
 if is_mindspore_available():
     import mindspore as ms
 
-    from ..models.auto.modeling_auto import AutoModelForCausalLM, AutoModelForTokenClassification
+    from ..models.auto.modeling_auto import (
+        AutoModel,
+        AutoModelForCausalLM,
+        AutoModelForDepthEstimation,
+        AutoModelForImageClassification,
+        AutoModelForImageSegmentation,
+        AutoModelForImageTextToText,
+        AutoModelForImageToImage,
+        AutoModelForObjectDetection,
+        AutoModelForQuestionAnswering,
+        AutoModelForSemanticSegmentation,
+        AutoModelForSeq2SeqLM,
+        AutoModelForSequenceClassification,
+        AutoModelForTokenClassification,
+        AutoModelForVision2Seq,
+        AutoModelForVisualQuestionAnswering,
+        AutoModelForZeroShotImageClassification,
+        AutoModelForZeroShotObjectDetection,
+    )
 
 
 if TYPE_CHECKING:
@@ -63,11 +115,110 @@ TASK_ALIASES = {
     "text-to-speech": "text-to-audio",
 }
 SUPPORTED_TASKS = {
+    "feature-extraction": {
+        "impl": FeatureExtractionPipeline,
+        "ms": (AutoModel,) if is_mindspore_available() else (),
+        "default": {"model": {"ms": ("distilbert/distilbert-base-cased", "6ea8117")}},
+        "type": "multimodal",
+    },
+    "visual-question-answering": {
+        "impl": VisualQuestionAnsweringPipeline,
+        "ms": (AutoModelForVisualQuestionAnswering,) if is_mindspore_available() else (),
+        "default": {"model": {"ms": ("dandelin/vilt-b32-finetuned-vqa", "d0a1f6a")}},
+        "type": "multimodal",
+    },
+    "text-classification": {
+        "impl": TextClassificationPipeline,
+        "ms": (AutoModelForSequenceClassification,) if is_mindspore_available() else (),
+        "default": {"model": {"ms": ("distilbert/distilbert-base-uncased-finetuned-sst-2-english", "714eb0f")}},
+        "type": "text",
+    },
+    "question-answering": {
+        "impl": QuestionAnsweringPipeline,
+        "ms": (AutoModelForQuestionAnswering,) if is_mindspore_available() else (),
+        "default": {"model": {"ms": ("distilbert/distilbert-base-cased-distilled-squad", "564e9b5")}},
+        "type": "text",
+    },
+    "text2text-generation": {
+        "impl": Text2TextGenerationPipeline,
+        "ms": (AutoModelForSeq2SeqLM,) if is_mindspore_available() else (),
+        "default": {"model": {"ms": ("google-t5/t5-base", "a9723ea")}},
+        "type": "text",
+    },
     "text-generation": {
         "impl": TextGenerationPipeline,
         "ms": (AutoModelForCausalLM,) if is_mindspore_available() else (),
-        "default": {"model": {"ms": ("openai-community/gpt2", "607a30d"), "tf": ("openai-community/gpt2", "607a30d")}},
+        "default": {"model": {"ms": ("openai-community/gpt2", "607a30d")}},
         "type": "text",
+    },
+    "zero-shot-classification": {
+        "impl": ZeroShotClassificationPipeline,
+        "ms": (AutoModelForSequenceClassification,) if is_mindspore_available() else (),
+        "default": {
+            "model": {"ms": ("facebook/bart-large-mnli", "d7645e1")},
+            "config": {"ms": ("facebook/bart-large-mnli", "d7645e1")},
+        },
+        "type": "text",
+    },
+    "zero-shot-image-classification": {
+        "impl": ZeroShotImageClassificationPipeline,
+        "ms": (AutoModelForZeroShotImageClassification,) if is_mindspore_available() else (),
+        "default": {"model": {"ms": ("openai/clip-vit-base-patch32", "3d74acf")}},
+        "type": "multimodal",
+    },
+    "image-classification": {
+        "impl": ImageClassificationPipeline,
+        "ms": (AutoModelForImageClassification,) if is_mindspore_available() else (),
+        "default": {"model": {"ms": ("google/vit-base-patch16-224", "3f49326")}},
+        "type": "image",
+    },
+    "image-feature-extraction": {
+        "impl": ImageFeatureExtractionPipeline,
+        "ms": (AutoModel,) if is_mindspore_available() else (),
+        "default": {"model": {"ms": ("google/vit-base-patch16-224", "3f49326")}},
+        "type": "image",
+    },
+    "image-segmentation": {
+        "impl": ImageSegmentationPipeline,
+        "ms": (AutoModelForImageSegmentation, AutoModelForSemanticSegmentation) if is_mindspore_available() else (),
+        "default": {"model": {"ms": ("facebook/detr-resnet-50-panoptic", "d53b52a")}},
+        "type": "multimodal",
+    },
+    "image-to-text": {
+        "impl": ImageToTextPipeline,
+        "ms": (AutoModelForVision2Seq,) if is_mindspore_available() else (),
+        "default": {"model": {"ms": ("ydshieh/vit-gpt2-coco-en", "5bebf1e")}},
+        "type": "multimodal",
+    },
+    "image-text-to-text": {
+        "impl": ImageTextToTextPipeline,
+        "ms": (AutoModelForImageTextToText,) if is_mindspore_available() else (),
+        "default": {"model": {"ms": ("llava-hf/llava-onevision-qwen2-0.5b-ov-hf", "2c9ba3b")}},
+        "type": "multimodal",
+    },
+    "object-detection": {
+        "impl": ObjectDetectionPipeline,
+        "ms": (AutoModelForObjectDetection,) if is_mindspore_available() else (),
+        "default": {"model": {"ms": ("facebook/detr-resnet-50", "1d5f47b")}},
+        "type": "multimodal",
+    },
+    "zero-shot-object-detection": {
+        "impl": ZeroShotObjectDetectionPipeline,
+        "ms": (AutoModelForZeroShotObjectDetection,) if is_mindspore_available() else (),
+        "default": {"model": {"ms": ("google/owlvit-base-patch32", "cbc355f")}},
+        "type": "multimodal",
+    },
+    "depth-estimation": {
+        "impl": DepthEstimationPipeline,
+        "ms": (AutoModelForDepthEstimation,) if is_mindspore_available() else (),
+        "default": {"model": {"ms": ("Intel/dpt-large", "bc15f29")}},
+        "type": "image",
+    },
+    "image-to-image": {
+        "impl": ImageToImagePipeline,
+        "ms": (AutoModelForImageToImage,) if is_mindspore_available() else (),
+        "default": {"model": {"ms": ("caidas/swin2SR-classical-sr-x2-64", "cee1c92")}},
+        "type": "image",
     },
 }
 
@@ -208,7 +359,7 @@ def pipeline(
     token: Optional[Union[str, bool]] = None,
     device: Optional[Union[int, str]] = None,
     device_map=None,
-    torch_dtype=None,
+    mindspore_dtype=None,
     trust_remote_code: Optional[bool] = None,
     model_kwargs: Dict[str, Any] = None,
     pipeline_class: Optional[Any] = None,
@@ -266,10 +417,9 @@ def pipeline(
             - `"zero-shot-audio-classification"`: will return a [`ZeroShotAudioClassificationPipeline`].
             - `"zero-shot-object-detection"`: will return a [`ZeroShotObjectDetectionPipeline`].
 
-        model (`str` or [`PreTrainedModel`] or [`TFPreTrainedModel`], *optional*):
+        model (`str` or [`PreTrainedModel`], *optional*):
             The model that will be used by the pipeline to make predictions. This can be a model identifier or an
-            actual instance of a pretrained model inheriting from [`PreTrainedModel`] (for PyTorch) or
-            [`TFPreTrainedModel`] (for TensorFlow).
+            actual instance of a pretrained model inheriting from [`PreTrainedModel`] (for MindSpore)
 
             If not provided, the default for the `task` will be loaded.
         config (`str` or [`PretrainedConfig`], *optional*):
@@ -318,11 +468,11 @@ def pipeline(
             If not provided, the default processor for the given `model` will be loaded (if it is a string). If `model`
             is not specified or not a string, then the default processor for `config` is loaded (if it is a string).
         framework (`str`, *optional*):
-            The framework to use, either `"ms"` for PyTorch or `"tf"` for TensorFlow. The specified framework must be
+            The framework to use, either `"ms"` for MindSpore or `"tf"` for TensorFlow. The specified framework must be
             installed.
 
             If no framework is specified, will default to the one currently installed. If no framework is specified and
-            both frameworks are installed, will default to the framework of the `model`, or to PyTorch if no model is
+            both frameworks are installed, will default to the framework of the `model`, or to MindSpore if no model is
             provided.
         revision (`str`, *optional*, defaults to `"main"`):
             When passing a task name or a string model identifier: The specific model version to use. It can be a
@@ -333,24 +483,10 @@ def pipeline(
         use_auth_token (`str` or *bool*, *optional*):
             The token to use as HTTP bearer authorization for remote files. If `True`, will use the token generated
             when running `huggingface-cli login` (stored in `~/.huggingface`).
-        device (`int` or `str` or `torch.device`):
-            Defines the device (*e.g.*, `"cpu"`, `"cuda:1"`, `"mps"`, or a GPU ordinal rank like `1`) on which this
-            pipeline will be allocated.
-        device_map (`str` or `Dict[str, Union[int, str, torch.device]`, *optional*):
-            Sent directly as `model_kwargs` (just a simpler shortcut). When `accelerate` library is present, set
-            `device_map="auto"` to compute the most optimized `device_map` automatically (see
-            [here](https://huggingface.co/docs/accelerate/main/en/package_reference/big_modeling#accelerate.cpu_offload)
-            for more information).
 
-            <Tip warning={true}>
-
-            Do not use `device_map` AND `device` at the same time as they will conflict
-
-            </Tip>
-
-        torch_dtype (`str` or `torch.dtype`, *optional*):
+        mindspore_dtype (`str` or `mindspore.Type`, *optional*):
             Sent directly as `model_kwargs` (just a simpler shortcut) to use the available precision for this model
-            (`torch.float16`, `torch.bfloat16`, ... or `"auto"`).
+            (`mindspore.float16`, `mindspore.bfloat16`, ... or `"auto"`).
         trust_remote_code (`bool`, *optional*, defaults to `False`):
             Whether or not to allow for custom code defined on the Hub in their own modeling, configuration,
             tokenization or even pipeline files. This option should only be set to `True` for repositories you trust
@@ -536,15 +672,15 @@ def pipeline(
                 " will most likely encounter unexpected behavior. Please remove `device` and keep `device_map`."
             )
         model_kwargs["device_map"] = device_map
-    if torch_dtype is not None:
-        if "torch_dtype" in model_kwargs:
+    if mindspore_dtype is not None:
+        if "mindspore_dtype" in model_kwargs:
             raise ValueError(
-                'You cannot use both `pipeline(... torch_dtype=..., model_kwargs={"torch_dtype":...})` as those'
+                'You cannot use both `pipeline(... mindspore_dtype=..., model_kwargs={"mindspore_dtype":...})` as those'
                 " arguments might conflict, use only one.)"
             )
-        if isinstance(torch_dtype, str) and hasattr(ms, torch_dtype):
-            torch_dtype = getattr(ms, torch_dtype)
-        model_kwargs["torch_dtype"] = torch_dtype
+        if isinstance(mindspore_dtype, str) and hasattr(ms, mindspore_dtype):
+            mindspore_dtype = getattr(ms, mindspore_dtype)
+        model_kwargs["mindspore_dtype"] = mindspore_dtype
 
     model_name = model if isinstance(model, str) else None
 
@@ -657,7 +793,7 @@ def pipeline(
             else:
                 tokenizer_identifier = tokenizer
                 tokenizer_kwargs = model_kwargs.copy()
-                tokenizer_kwargs.pop("torch_dtype", None)
+                tokenizer_kwargs.pop("mindspore_dtype", None)
 
             tokenizer = AutoTokenizer.from_pretrained(
                 tokenizer_identifier, use_fast=use_fast, _from_pipeline=task, **hub_kwargs, **tokenizer_kwargs
@@ -775,8 +911,8 @@ def pipeline(
     if feature_extractor is not None:
         kwargs["feature_extractor"] = feature_extractor
 
-    if torch_dtype is not None:
-        kwargs["torch_dtype"] = torch_dtype
+    if mindspore_dtype is not None:
+        kwargs["mindspore_dtype"] = mindspore_dtype
 
     if image_processor is not None:
         kwargs["image_processor"] = image_processor

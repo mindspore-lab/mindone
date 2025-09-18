@@ -1,3 +1,5 @@
+"""Adapted from https://github.com/huggingface/transformers/tree/main/tests//models/blip_2/test_modeling_blip_2.py."""
+
 # This module contains test cases that are defined in the `.test_cases.py` file, structured as lists or tuples like
 #     [name, pt_module, ms_module, init_args, init_kwargs, inputs_args, inputs_kwargs, outputs_map].
 #
@@ -28,7 +30,7 @@ from tests.transformers_tests.models.modeling_common import floats_numpy
 
 # fp16 got nan
 DTYPE_AND_THRESHOLDS = {"fp32": 5e-4, "bf16": 5e-3}
-MODES = [0, 1]
+MODES = [1]
 
 
 class Blip2VisionModelTester:

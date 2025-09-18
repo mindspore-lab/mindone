@@ -1,3 +1,4 @@
+# Adapted from https://github.com/black-forest-labs/flux to work with MindSpore.
 import logging
 import os
 from dataclasses import dataclass

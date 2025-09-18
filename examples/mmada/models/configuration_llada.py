@@ -1,3 +1,4 @@
+# Copied from https://github.com/Gen-Verse/MMaDA/blob/main/models/configuration_llada.py
 """
 LLaDA configuration
 """

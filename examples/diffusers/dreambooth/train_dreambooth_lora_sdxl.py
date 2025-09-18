@@ -48,9 +48,6 @@ from mindone.diffusers import (
     StableDiffusionXLPipeline,
     UNet2DConditionModel,
 )
-from mindone.diffusers._peft import LoraConfig
-from mindone.diffusers._peft.tuners.tuners_utils import BaseTunerLayer
-from mindone.diffusers._peft.utils import get_peft_model_state_dict, set_peft_model_state_dict
 from mindone.diffusers.loaders import LoraLoaderMixin
 from mindone.diffusers.optimization import get_scheduler
 from mindone.diffusers.training_utils import (
@@ -64,6 +61,9 @@ from mindone.diffusers.training_utils import (
     set_seed,
 )
 from mindone.diffusers.utils import convert_state_dict_to_diffusers, convert_unet_state_dict_to_peft
+from mindone.peft import LoraConfig
+from mindone.peft.tuners.tuners_utils import BaseTunerLayer
+from mindone.peft.utils import get_peft_model_state_dict, set_peft_model_state_dict
 
 logger = logging.getLogger(__name__)
 
@@ -860,7 +860,7 @@ def get_sigmas(noise_scheduler, timesteps, n_dim=4, dtype=ms.float32):
     sigmas = noise_scheduler.sigmas.to(dtype=dtype)
     schedule_timesteps = noise_scheduler.timesteps
 
-    step_indices = [(schedule_timesteps == t).nonzero()[0][0].item(0) for t in timesteps]
+    step_indices = [(schedule_timesteps == t).nonzero()[0][0].item() for t in timesteps]
 
     sigma = sigmas[step_indices].flatten()
     while len(sigma.shape) < n_dim:

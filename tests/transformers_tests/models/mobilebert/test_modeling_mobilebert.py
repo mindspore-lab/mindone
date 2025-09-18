@@ -1,3 +1,5 @@
+"""Adapted from https://github.com/huggingface/transformers/tree/main/tests//models/mobilebert/test_modeling_mobilebert.py."""
+
 # This module contains test cases that are defined in the `.test_cases.py` file, structured as lists or tuples like
 #     [name, pt_module, ms_module, init_args, init_kwargs, inputs_args, inputs_kwargs, outputs_map].
 #
@@ -134,7 +136,7 @@ model_tester = MobileBertModelTester()
 config_has_num_labels = copy.deepcopy(config)
 config_has_num_labels.num_labels = model_tester.num_labels
 
-MOBILEBERT_CASES = [
+MODERNBERT_CASES = [
     [
         "MobileBertForMaskedLM",
         "transformers.MobileBertForMaskedLM",
@@ -270,7 +272,7 @@ MOBILEBERT_CASES = [
         + [
             mode,
         ]
-        for case in MOBILEBERT_CASES
+        for case in MODERNBERT_CASES
         for dtype in DTYPE_AND_THRESHOLDS.keys()
         for mode in MODES
     ],

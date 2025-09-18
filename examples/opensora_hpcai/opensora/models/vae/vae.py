@@ -252,12 +252,14 @@ def build_module_from_config(config):
         - type: model class name
         - others: model init args
     """
+    supported_model = {"VideoAutoencoderKL": VideoAutoencoderKL, "VAE_Temporal_SD": VAE_Temporal_SD}
     cfg = config.copy()
     name = cfg.pop("type")
     kwargs = cfg
-
+    if name not in supported_model:
+        raise ValueError(f"Get unsupported model type {name}")
     # FIXME: use importlib with path
-    module = eval(name)(**kwargs)
+    module = supported_model[name](**kwargs)
     return module
 
 

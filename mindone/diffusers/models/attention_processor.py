@@ -1,4 +1,7 @@
-# Copyright 2024 The HuggingFace Team. All rights reserved.
+# Copyright 2025 The HuggingFace Team. All rights reserved.
+#
+# This code is adapted from https://github.com/huggingface/diffusers
+# with modifications to run diffusers on mindspore.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -15,12 +18,13 @@ import math
 from typing import Callable, List, Optional, Tuple, Union
 
 import mindspore as ms
+import mindspore.mint.nn.functional as F
 from mindspore import mint, nn, ops
 
 from ..image_processor import IPAdapterMaskProcessor
 from ..utils import deprecate, is_mindspore_version, logging
 from ..utils.mindspore_utils import dtype_to_min
-from .layers_compat import pad, unflatten
+from .layers_compat import unflatten
 
 logger = logging.get_logger(__name__)  # pylint: disable=invalid-name
 
@@ -116,7 +120,7 @@ class Attention(nn.Cell):
         super().__init__()
 
         # To prevent circular import.
-        from .normalization import FP32LayerNorm, GroupNorm, LayerNorm, LpNorm, RMSNorm
+        from .normalization import FP32LayerNorm, LpNorm, RMSNorm
 
         self.inner_dim = out_dim if out_dim is not None else dim_head * heads
         self.inner_kv_dim = self.inner_dim if kv_heads is None else dim_head * kv_heads
@@ -160,7 +164,9 @@ class Attention(nn.Cell):
             )
 
         if norm_num_groups is not None:
-            self.group_norm = GroupNorm(num_channels=query_dim, num_groups=norm_num_groups, eps=eps, affine=True)
+            self.group_norm = mint.nn.GroupNorm(
+                num_channels=query_dim, num_groups=norm_num_groups, eps=eps, affine=True
+            )
         else:
             self.group_norm = None
 
@@ -173,18 +179,18 @@ class Attention(nn.Cell):
             self.norm_q = None
             self.norm_k = None
         elif qk_norm == "layer_norm":
-            self.norm_q = LayerNorm(dim_head, eps=eps, elementwise_affine=elementwise_affine)
-            self.norm_k = LayerNorm(dim_head, eps=eps, elementwise_affine=elementwise_affine)
+            self.norm_q = mint.nn.LayerNorm(dim_head, eps=eps, elementwise_affine=elementwise_affine)
+            self.norm_k = mint.nn.LayerNorm(dim_head, eps=eps, elementwise_affine=elementwise_affine)
         elif qk_norm == "fp32_layer_norm":
             self.norm_q = FP32LayerNorm(dim_head, elementwise_affine=False, bias=False, eps=eps)
             self.norm_k = FP32LayerNorm(dim_head, elementwise_affine=False, bias=False, eps=eps)
         elif qk_norm == "layer_norm_across_heads":
             # Lumina applies qk norm across all heads
-            self.norm_q = LayerNorm(dim_head * heads, eps=eps)
-            self.norm_k = LayerNorm(dim_head * kv_heads, eps=eps)
+            self.norm_q = mint.nn.LayerNorm(dim_head * heads, eps=eps)
+            self.norm_k = mint.nn.LayerNorm(dim_head * kv_heads, eps=eps)
         elif qk_norm == "rms_norm":
-            self.norm_q = RMSNorm(dim_head, eps=eps)
-            self.norm_k = RMSNorm(dim_head, eps=eps)
+            self.norm_q = RMSNorm(dim_head, eps=eps, elementwise_affine=elementwise_affine)
+            self.norm_k = RMSNorm(dim_head, eps=eps, elementwise_affine=elementwise_affine)
         elif qk_norm == "rms_norm_across_heads":
             # LTX applies qk norm across all heads
             self.norm_q = RMSNorm(dim_head * heads, eps=eps)
@@ -193,13 +199,14 @@ class Attention(nn.Cell):
             self.norm_q = LpNorm(p=2, dim=-1, eps=eps)
             self.norm_k = LpNorm(p=2, dim=-1, eps=eps)
         else:
-            raise ValueError(f"unknown qk_norm: {qk_norm}. Should be None,'layer_norm','fp32_layer_norm','rms_norm'")
+            raise ValueError(
+                f"unknown qk_norm: {qk_norm}. Should be one of None, 'layer_norm', 'fp32_layer_norm', 'layer_norm_across_heads', 'rms_norm', 'rms_norm_across_heads', 'l2'."  # noqa
+            )
 
-        self.cross_attention_norm = cross_attention_norm
         if cross_attention_norm is None:
             self.norm_cross = None
         elif cross_attention_norm == "layer_norm":
-            self.norm_cross = LayerNorm(self.cross_attention_dim)
+            self.norm_cross = mint.nn.LayerNorm(self.cross_attention_dim)
         elif cross_attention_norm == "group_norm":
             if self.added_kv_proj_dim is not None:
                 # The given `encoder_hidden_states` are initially of shape
@@ -211,7 +218,7 @@ class Attention(nn.Cell):
             else:
                 norm_cross_num_channels = self.cross_attention_dim
 
-            self.norm_cross = GroupNorm(
+            self.norm_cross = mint.nn.GroupNorm(
                 num_channels=norm_cross_num_channels, num_groups=cross_attention_norm_num_groups, eps=1e-5, affine=True
             )
         else:
@@ -254,8 +261,8 @@ class Attention(nn.Cell):
 
         if qk_norm is not None and added_kv_proj_dim is not None:
             if qk_norm == "layer_norm":
-                self.norm_added_q = LayerNorm(dim_head, eps=eps, elementwise_affine=elementwise_affine)
-                self.norm_added_k = LayerNorm(dim_head, eps=eps, elementwise_affine=elementwise_affine)
+                self.norm_added_q = mint.nn.LayerNorm(dim_head, eps=eps, elementwise_affine=elementwise_affine)
+                self.norm_added_k = mint.nn.LayerNorm(dim_head, eps=eps, elementwise_affine=elementwise_affine)
             elif qk_norm == "fp32_layer_norm":
                 self.norm_added_q = FP32LayerNorm(dim_head, elementwise_affine=False, bias=False, eps=eps)
                 self.norm_added_k = FP32LayerNorm(dim_head, elementwise_affine=False, bias=False, eps=eps)
@@ -320,11 +327,8 @@ class Attention(nn.Cell):
                 try:
                     # Make sure we can run the memory efficient attention
                     flash_attn = ops.operations.nn_ops.FlashAttentionScore(1, input_layout="BSH")
-                    _ = flash_attn(
-                        mint.randn(1, 16, 64, dtype=ms.float16),
-                        mint.randn(1, 16, 64, dtype=ms.float16),
-                        mint.randn(1, 16, 64, dtype=ms.float16),
-                    )
+                    q = mint.randn(1, 16, 64, dtype=ms.float16)
+                    _ = flash_attn(q, q, q)
                 except Exception as e:
                     raise e
 
@@ -574,10 +578,14 @@ class Attention(nn.Cell):
 
         if out_dim == 3:
             if attention_mask.shape[0] < batch_size * head_size:
-                attention_mask = attention_mask.repeat_interleave(head_size, dim=0)
+                attention_mask = attention_mask.repeat_interleave(
+                    head_size, dim=0, output_size=attention_mask.shape[0] * head_size
+                )
         elif out_dim == 4:
             attention_mask = attention_mask.unsqueeze(1)
-            attention_mask = attention_mask.repeat_interleave(head_size, dim=1)
+            attention_mask = attention_mask.repeat_interleave(
+                head_size, dim=1, output_size=attention_mask.shape[1] * head_size
+            )
 
         if attention_mask_dtype == ms.bool_:
             attention_mask = attention_mask.bool()
@@ -597,9 +605,9 @@ class Attention(nn.Cell):
         """
         assert self.norm_cross is not None, "self.norm_cross must be defined to call self.norm_encoder_hidden_states"
 
-        if self.cross_attention_norm == "layer_norm":
+        if isinstance(self.norm_cross, mint.nn.LayerNorm):
             encoder_hidden_states = self.norm_cross(encoder_hidden_states)
-        elif self.cross_attention_norm == "group_norm":
+        elif isinstance(self.norm_cross, mint.nn.GroupNorm):
             # Group norm norms along the channels dimension and expects
             # input to be in the shape of (N, C, *). In this case, we want
             # to norm along the hidden dimension, so we need to move
@@ -721,6 +729,35 @@ class Attention(nn.Cell):
         """
         head_dim = query.shape[-1]
 
+        # Note: PyTorch's SDPA and MindSpore's FA handle `attention_mask` slightly differently.
+        # In PyTorch, if the mask is not boolean (e.g., float32 with 0/1 values), it is interpreted
+        # as an additive bias: `attn_bias = attn_mask + attn_bias`.
+        # This implicit branch may lead to issues if the pipeline mistakenly provides
+        # a 0/1 float mask instead of a boolean mask.
+        # While this behavior is consistent with HF Diffusers for now,
+        # it may still be a potential bug source worth validating.
+        if attn_mask is not None and 1.0 in attn_mask:
+            L, S = query.shape[-2], key.shape[-2]
+            scale_factor = 1 / math.sqrt(query.shape[-1]) if scale is None else scale
+            attn_bias = mint.zeros((L, S), dtype=query.dtype)
+            if is_causal:
+                assert attn_mask is None
+                temp_mask = mint.ones((L, S), dtype=ms.bool_).tril(diagonal=0)
+                attn_bias.masked_fill_(temp_mask.logical_not(), float("-inf"))
+                attn_bias.to(query.dtype)
+
+            if attn_mask is not None:
+                if attn_mask.dtype == ms.bool_:
+                    attn_bias.masked_fill_(attn_mask.logical_not(), float("-inf"))
+                else:
+                    attn_bias = attn_mask + attn_bias
+
+            attn_weight = mint.matmul(query, key.swapaxes(-2, -1)) * scale_factor
+            attn_weight += attn_bias
+            attn_weight = mint.softmax(attn_weight, dim=-1)
+            attn_weight = ops.dropout(attn_weight, dropout_p, training=True)
+            return mint.matmul(attn_weight, value)
+
         if not (self.fa_op_available and self._enable_flash_sdp):
             return self.math_attention_op(query, key, value, attn_mask)
         elif head_dim > 512:
@@ -799,6 +836,97 @@ class Attention(nn.Cell):
         return ops.operations.nn_ops.FlashAttentionScore(
             head_num=head_num, keep_prob=keep_prob, scale_value=scale or self.scale, input_layout=input_layout
         )(query, key, value, None, None, None, attn_mask)[3]
+
+
+class SanaMultiscaleAttentionProjection(nn.Cell):
+    def __init__(
+        self,
+        in_channels: int,
+        num_attention_heads: int,
+        kernel_size: int,
+    ) -> None:
+        super().__init__()
+
+        channels = 3 * in_channels
+        self.proj_in = mint.nn.Conv2d(
+            channels,
+            channels,
+            kernel_size,
+            padding=kernel_size // 2,
+            groups=channels,
+            bias=False,
+        )
+        self.proj_out = mint.nn.Conv2d(channels, channels, 1, 1, padding=0, groups=3 * num_attention_heads, bias=False)
+
+    def construct(self, hidden_states: ms.Tensor) -> ms.Tensor:
+        hidden_states = self.proj_in(hidden_states)
+        hidden_states = self.proj_out(hidden_states)
+        return hidden_states
+
+
+class SanaMultiscaleLinearAttention(nn.Cell):
+    r"""Lightweight multi-scale linear attention"""
+
+    def __init__(
+        self,
+        in_channels: int,
+        out_channels: int,
+        num_attention_heads: Optional[int] = None,
+        attention_head_dim: int = 8,
+        mult: float = 1.0,
+        norm_type: str = "batch_norm",
+        kernel_sizes: Tuple[int, ...] = (5,),
+        eps: float = 1e-15,
+        residual_connection: bool = False,
+    ):
+        super().__init__()
+
+        # To prevent circular import
+        from .normalization import get_normalization
+
+        self.eps = eps
+        self.attention_head_dim = attention_head_dim
+        self.norm_type = norm_type
+        self.residual_connection = residual_connection
+
+        num_attention_heads = (
+            int(in_channels // attention_head_dim * mult) if num_attention_heads is None else num_attention_heads
+        )
+        inner_dim = num_attention_heads * attention_head_dim
+
+        self.to_q = mint.nn.Linear(in_channels, inner_dim, bias=False)
+        self.to_k = mint.nn.Linear(in_channels, inner_dim, bias=False)
+        self.to_v = mint.nn.Linear(in_channels, inner_dim, bias=False)
+
+        to_qkv_multiscale = []
+        for kernel_size in kernel_sizes:
+            to_qkv_multiscale.append(SanaMultiscaleAttentionProjection(inner_dim, num_attention_heads, kernel_size))
+        self.to_qkv_multiscale = nn.CellList(to_qkv_multiscale)
+
+        self.nonlinearity = mint.nn.ReLU()
+        self.to_out = mint.nn.Linear(inner_dim * (1 + len(kernel_sizes)), out_channels, bias=False)
+        self.norm_out = get_normalization(norm_type, num_features=out_channels)
+
+        self.processor = SanaMultiscaleAttnProcessor2_0()
+
+    def apply_linear_attention(self, query: ms.Tensor, key: ms.Tensor, value: ms.Tensor) -> ms.Tensor:
+        value = F.pad(value, (0, 0, 0, 1), mode="constant", value=1)  # Adds padding
+        scores = mint.matmul(value, key.swapaxes(-1, -2))
+        hidden_states = mint.matmul(scores, query)
+
+        hidden_states = hidden_states.to(dtype=ms.float32)
+        hidden_states = hidden_states[:, :, :-1] / (hidden_states[:, :, -1:] + self.eps)
+        return hidden_states
+
+    def apply_quadratic_attention(self, query: ms.Tensor, key: ms.Tensor, value: ms.Tensor) -> ms.Tensor:
+        scores = mint.matmul(key.swapaxes(-1, -2), query)
+        scores = scores.to(dtype=ms.float32)
+        scores = scores / (mint.sum(scores, dim=2, keepdim=True) + self.eps)
+        hidden_states = mint.matmul(value, scores.to(value.dtype))
+        return hidden_states
+
+    def construct(self, hidden_states: ms.Tensor) -> ms.Tensor:
+        return self.processor(self, hidden_states)
 
 
 class MochiAttention(nn.Cell):
@@ -1003,7 +1131,7 @@ class MochiAttnProcessor2_0:
                 valid_query, valid_key, valid_value, dropout_p=0.0, is_causal=False
             )
             valid_sequence_length = attn_output.shape[2]
-            attn_output = pad(attn_output, (0, 0, 0, total_length - valid_sequence_length))
+            attn_output = F.pad(attn_output, (0, 0, 0, total_length - valid_sequence_length))
             attn_outputs.append(attn_output)
 
         hidden_states = mint.cat(attn_outputs, dim=0)
@@ -1026,97 +1154,6 @@ class MochiAttnProcessor2_0:
             encoder_hidden_states = attn.to_add_out(encoder_hidden_states)
 
         return hidden_states, encoder_hidden_states
-
-
-class SanaMultiscaleAttentionProjection(nn.Cell):
-    def __init__(
-        self,
-        in_channels: int,
-        num_attention_heads: int,
-        kernel_size: int,
-    ) -> None:
-        super().__init__()
-
-        channels = 3 * in_channels
-        self.proj_in = mint.nn.Conv2d(
-            channels,
-            channels,
-            kernel_size,
-            padding=kernel_size // 2,
-            groups=channels,
-            bias=False,
-        )
-        self.proj_out = mint.nn.Conv2d(channels, channels, 1, 1, padding=0, groups=3 * num_attention_heads, bias=False)
-
-    def construct(self, hidden_states: ms.Tensor) -> ms.Tensor:
-        hidden_states = self.proj_in(hidden_states)
-        hidden_states = self.proj_out(hidden_states)
-        return hidden_states
-
-
-class SanaMultiscaleLinearAttention(nn.Cell):
-    r"""Lightweight multi-scale linear attention"""
-
-    def __init__(
-        self,
-        in_channels: int,
-        out_channels: int,
-        num_attention_heads: Optional[int] = None,
-        attention_head_dim: int = 8,
-        mult: float = 1.0,
-        norm_type: str = "batch_norm",
-        kernel_sizes: Tuple[int, ...] = (5,),
-        eps: float = 1e-15,
-        residual_connection: bool = False,
-    ):
-        super().__init__()
-
-        # To prevent circular import
-        from .normalization import get_normalization
-
-        self.eps = eps
-        self.attention_head_dim = attention_head_dim
-        self.norm_type = norm_type
-        self.residual_connection = residual_connection
-
-        num_attention_heads = (
-            int(in_channels // attention_head_dim * mult) if num_attention_heads is None else num_attention_heads
-        )
-        inner_dim = num_attention_heads * attention_head_dim
-
-        self.to_q = mint.nn.Linear(in_channels, inner_dim, bias=False)
-        self.to_k = mint.nn.Linear(in_channels, inner_dim, bias=False)
-        self.to_v = mint.nn.Linear(in_channels, inner_dim, bias=False)
-
-        to_qkv_multiscale = []
-        for kernel_size in kernel_sizes:
-            to_qkv_multiscale.append(SanaMultiscaleAttentionProjection(inner_dim, num_attention_heads, kernel_size))
-        self.to_qkv_multiscale = nn.CellList(to_qkv_multiscale)
-
-        self.nonlinearity = mint.nn.ReLU()
-        self.to_out = mint.nn.Linear(inner_dim * (1 + len(kernel_sizes)), out_channels, bias=False)
-        self.norm_out = get_normalization(norm_type, num_features=out_channels)
-
-        self.processor = SanaMultiscaleAttnProcessor2_0()
-
-    def apply_linear_attention(self, query: ms.Tensor, key: ms.Tensor, value: ms.Tensor) -> ms.Tensor:
-        value = pad(value, (0, 0, 0, 1), mode="constant", value=1)  # Adds padding
-        scores = mint.matmul(value, key.swapaxes(-1, -2))
-        hidden_states = mint.matmul(scores, query)
-
-        hidden_states = hidden_states.to(dtype=ms.float32)
-        hidden_states = hidden_states[:, :, :-1] / (hidden_states[:, :, -1:] + self.eps)
-        return hidden_states
-
-    def apply_quadratic_attention(self, query: ms.Tensor, key: ms.Tensor, value: ms.Tensor) -> ms.Tensor:
-        scores = mint.matmul(key.swapaxes(-1, -2), query)
-        scores = scores.to(dtype=ms.float32)
-        scores = scores / (mint.sum(scores, dim=2, keepdim=True) + self.eps)
-        hidden_states = mint.matmul(value, scores)
-        return hidden_states
-
-    def construct(self, hidden_states: ms.Tensor) -> ms.Tensor:
-        return self.processor(self, hidden_states)
 
 
 @ms.jit_class
@@ -2171,6 +2208,7 @@ class FluxAttnProcessor2_0:
         hidden_states = attn.scaled_dot_product_attention(
             query, key, value, attn_mask=attention_mask, dropout_p=0.0, is_causal=False
         )
+
         hidden_states = hidden_states.swapaxes(1, 2).reshape(batch_size, -1, attn.heads * head_dim)
         hidden_states = hidden_states.to(query.dtype)
 
@@ -2270,7 +2308,10 @@ class FusedFluxAttnProcessor2_0:
             query = self.apply_rotary_emb(query, image_rotary_emb)
             key = self.apply_rotary_emb(key, image_rotary_emb)
 
-        hidden_states = attn.scaled_dot_product_attention(query, key, value, dropout_p=0.0, is_causal=False)
+        hidden_states = attn.scaled_dot_product_attention(
+            query, key, value, attn_mask=attention_mask, dropout_p=0.0, is_causal=False
+        )
+
         hidden_states = hidden_states.swapaxes(1, 2).reshape(batch_size, -1, attn.heads * head_dim)
         hidden_states = hidden_states.to(query.dtype)
 
@@ -2379,7 +2420,9 @@ class FluxIPAdapterJointAttnProcessor2_0(nn.Cell):
             query = self.apply_rotary_emb(query, image_rotary_emb)
             key = self.apply_rotary_emb(key, image_rotary_emb)
 
-        hidden_states = attn.scaled_dot_product_attention(query, key, value, dropout_p=0.0, is_causal=False)
+        hidden_states = attn.scaled_dot_product_attention(
+            query, key, value, attn_mask=attention_mask, dropout_p=0.0, is_causal=False
+        )
         hidden_states = hidden_states.swapaxes(1, 2).reshape(batch_size, -1, attn.heads * head_dim)
         hidden_states = hidden_states.to(query.dtype)
 
@@ -2397,9 +2440,8 @@ class FluxIPAdapterJointAttnProcessor2_0(nn.Cell):
 
             # IP-adapter
             ip_query = hidden_states_query_proj
-            ip_attn_output = None
-            # for ip-adapter
-            # TODO: support for multiple adapters
+            ip_attn_output = mint.zeros_like(hidden_states)
+
             for current_ip_hidden_states, scale, to_k_ip, to_v_ip in zip(
                 ip_hidden_states, self.scale, self.to_k_ip, self.to_v_ip
             ):
@@ -2410,12 +2452,14 @@ class FluxIPAdapterJointAttnProcessor2_0(nn.Cell):
                 ip_value = ip_value.view(batch_size, -1, attn.heads, head_dim).swapaxes(1, 2)
                 # the output of sdp = (batch, num_heads, seq_len, head_dim)
                 # TODO: add support for attn.scale when we move to Torch 2.1
-                ip_attn_output = attn.scaled_dot_product_attention(
+                current_ip_hidden_states = attn.scaled_dot_product_attention(
                     ip_query, ip_key, ip_value, attn_mask=None, dropout_p=0.0, is_causal=False
                 )
-                ip_attn_output = ip_attn_output.swapaxes(1, 2).reshape(batch_size, -1, attn.heads * head_dim)
-                ip_attn_output = scale * ip_attn_output
-                ip_attn_output = ip_attn_output.to(ip_query.dtype)
+                current_ip_hidden_states = current_ip_hidden_states.swapaxes(1, 2).reshape(
+                    batch_size, -1, attn.heads * head_dim
+                )
+                current_ip_hidden_states = current_ip_hidden_states.to(ip_query.dtype)
+                ip_attn_output += scale * current_ip_hidden_states
 
             return hidden_states, encoder_hidden_states, ip_attn_output
         else:
@@ -2467,9 +2511,7 @@ class CogVideoXAttnProcessor2_0:
 
         hidden_states = mint.cat([encoder_hidden_states, hidden_states], dim=1)
 
-        batch_size, sequence_length, _ = (
-            hidden_states.shape if encoder_hidden_states is None else encoder_hidden_states.shape
-        )
+        batch_size, sequence_length, _ = hidden_states.shape
 
         if attention_mask is not None:
             attention_mask = attn.prepare_attention_mask(attention_mask, sequence_length, batch_size)
@@ -2974,37 +3016,6 @@ class HunyuanAttnProcessor2_0:
         return hidden_states
 
 
-class SpatialNorm(nn.Cell):
-    """
-    Spatially conditioned normalization as defined in https://arxiv.org/abs/2209.09002.
-
-    Args:
-        f_channels (`int`):
-            The number of channels for input to group normalization layer, and output of the spatial norm layer.
-        zq_channels (`int`):
-            The number of channels for the quantized vector as described in the paper.
-    """
-
-    def __init__(
-        self,
-        f_channels: int,
-        zq_channels: int,
-    ):
-        super().__init__()
-        from .normalization import GroupNorm
-
-        self.norm_layer = GroupNorm(num_channels=f_channels, num_groups=32, eps=1e-6, affine=True)
-        self.conv_y = mint.nn.Conv2d(zq_channels, f_channels, kernel_size=1, stride=1, padding=0, bias=True)
-        self.conv_b = mint.nn.Conv2d(zq_channels, f_channels, kernel_size=1, stride=1, padding=0, bias=True)
-
-    def construct(self, f: ms.Tensor, zq: ms.Tensor) -> ms.Tensor:
-        f_size = f.shape[-2:]
-        zq = mint.nn.functional.interpolate(zq, size=f_size, mode="nearest")
-        norm_f = self.norm_layer(f)
-        new_f = norm_f * self.conv_y(zq) + self.conv_b(zq)
-        return new_f
-
-
 @ms.jit_class
 class StableAudioAttnProcessor2_0:
     r"""
@@ -3079,8 +3090,10 @@ class StableAudioAttnProcessor2_0:
         if kv_heads != attn.heads:
             # if GQA or MQA, repeat the key/value heads to reach the number of query heads.
             heads_per_kv_head = attn.heads // kv_heads
-            key = mint.repeat_interleave(key, heads_per_kv_head, dim=1)
-            value = mint.repeat_interleave(value, heads_per_kv_head, dim=1)
+            key = mint.repeat_interleave(key, heads_per_kv_head, dim=1, output_size=key.shape[1] * heads_per_kv_head)
+            value = mint.repeat_interleave(
+                value, heads_per_kv_head, dim=1, output_size=value.shape[1] * heads_per_kv_head
+            )
 
         if attn.norm_q is not None:
             query = attn.norm_q(query)
@@ -3134,6 +3147,35 @@ class StableAudioAttnProcessor2_0:
         hidden_states = hidden_states / attn.rescale_output_factor
 
         return hidden_states
+
+
+class SpatialNorm(nn.Cell):
+    """
+    Spatially conditioned normalization as defined in https://huggingface.co/papers/2209.09002.
+
+    Args:
+        f_channels (`int`):
+            The number of channels for input to group normalization layer, and output of the spatial norm layer.
+        zq_channels (`int`):
+            The number of channels for the quantized vector as described in the paper.
+    """
+
+    def __init__(
+        self,
+        f_channels: int,
+        zq_channels: int,
+    ):
+        super().__init__()
+        self.norm_layer = mint.nn.GroupNorm(num_channels=f_channels, num_groups=32, eps=1e-6, affine=True)
+        self.conv_y = mint.nn.Conv2d(zq_channels, f_channels, kernel_size=1, stride=1, padding=0, bias=True)
+        self.conv_b = mint.nn.Conv2d(zq_channels, f_channels, kernel_size=1, stride=1, padding=0, bias=True)
+
+    def construct(self, f: ms.Tensor, zq: ms.Tensor) -> ms.Tensor:
+        f_size = f.shape[-2:]
+        zq = mint.nn.functional.interpolate(zq, size=f_size, mode="nearest")
+        norm_f = self.norm_layer(f)
+        new_f = norm_f * self.conv_y(zq) + self.conv_b(zq)
+        return new_f
 
 
 class IPAdapterAttnProcessor(nn.Cell):
@@ -3248,6 +3290,8 @@ class IPAdapterAttnProcessor(nn.Cell):
                 )
             else:
                 for index, (mask, scale, ip_state) in enumerate(zip(ip_adapter_masks, self.scale, ip_hidden_states)):
+                    if mask is None:
+                        continue
                     if not isinstance(mask, ms.Tensor) or mask.ndim != 4:
                         raise ValueError(
                             "Each element of the ip_adapter_masks array should be a tensor with shape "
@@ -3459,6 +3503,8 @@ class IPAdapterAttnProcessor2_0(nn.Cell):
                 )
             else:
                 for index, (mask, scale, ip_state) in enumerate(zip(ip_adapter_masks, self.scale, ip_hidden_states)):
+                    if mask is None:
+                        continue
                     if not isinstance(mask, ms.Tensor) or mask.ndim != 4:
                         raise ValueError(
                             "Each element of the ip_adapter_masks array should be a tensor with shape "
@@ -3733,7 +3779,7 @@ class PAGHunyuanAttnProcessor2_0:
     r"""
     Processor for implementing scaled dot-product attention (enabled by default if you're using PyTorch 2.0). This is
     used in the HunyuanDiT model. It applies a normalization layer and rotary embedding on query and key vector. This
-    variant of the processor employs [Pertubed Attention Guidance](https://arxiv.org/abs/2403.17377).
+    variant of the processor employs [Pertubed Attention Guidance](https://huggingface.co/papers/2403.17377).
     """
 
     def __init__(self):
@@ -3857,7 +3903,7 @@ class PAGCFGHunyuanAttnProcessor2_0:
     r"""
     Processor for implementing scaled dot-product attention (enabled by default if you're using PyTorch 2.0). This is
     used in the HunyuanDiT model. It applies a normalization layer and rotary embedding on query and key vector. This
-    variant of the processor employs [Pertubed Attention Guidance](https://arxiv.org/abs/2403.17377).
+    variant of the processor employs [Pertubed Attention Guidance](https://huggingface.co/papers/2403.17377).
     """
 
     def __init__(self):
@@ -4177,7 +4223,7 @@ class FusedAttnProcessor2_0:
 class PAGIdentitySelfAttnProcessor2_0:
     r"""
     Processor for implementing PAG using scaled dot-product attention (enabled by default if you're using PyTorch 2.0).
-    PAG reference: https://arxiv.org/abs/2403.17377
+    PAG reference: https://huggingface.co/papers/2403.17377
     """
 
     def __call__(
@@ -4273,7 +4319,7 @@ class PAGIdentitySelfAttnProcessor2_0:
 class PAGCFGIdentitySelfAttnProcessor2_0:
     r"""
     Processor for implementing PAG using scaled dot-product attention (enabled by default if you're using PyTorch 2.0).
-    PAG reference: https://arxiv.org/abs/2403.17377
+    PAG reference: https://huggingface.co/papers/2403.17377
     """
 
     def __call__(
@@ -4468,6 +4514,9 @@ class SanaLinearAttnProcessor2_0:
         if attn.norm_k is not None:
             key = attn.norm_k(key)
 
+        # query = query.transpose(1, 2).unflatten(1, (attn.heads, -1))
+        # key = key.transpose(1, 2).unflatten(1, (attn.heads, -1)).transpose(2, 3)
+        # value = value.transpose(1, 2).unflatten(1, (attn.heads, -1))
         query = query.swapaxes(1, 2)
         query = query.reshape(query.shape[0], attn.heads, -1, *query.shape[2:])
         key = key.swapaxes(1, 2)
@@ -4480,7 +4529,7 @@ class SanaLinearAttnProcessor2_0:
 
         query, key, value = query.float(), key.float(), value.float()
 
-        value = pad(value, (0, 0, 0, 1), mode="constant", value=1.0)
+        value = F.pad(value, (0, 0, 0, 1), mode="constant", value=1.0)
         scores = mint.matmul(value, key)
         hidden_states = mint.matmul(scores, query)
 
@@ -4531,7 +4580,7 @@ class PAGCFGSanaLinearAttnProcessor2_0:
 
         query, key, value = query.float(), key.float(), value.float()
 
-        value = pad(value, (0, 0, 0, 1), mode="constant", value=1.0)
+        value = F.pad(value, (0, 0, 0, 1), mode="constant", value=1.0)
         scores = mint.matmul(value, key)
         hidden_states_org = mint.matmul(scores, query)
 
@@ -4589,7 +4638,7 @@ class PAGIdentitySanaLinearAttnProcessor2_0:
 
         query, key, value = query.float(), key.float(), value.float()
 
-        value = pad(value, (0, 0, 0, 1), mode="constant", value=1.0)
+        value = F.pad(value, (0, 0, 0, 1), mode="constant", value=1.0)
         scores = mint.matmul(value, key)
         hidden_states_org = mint.matmul(scores, query)
 

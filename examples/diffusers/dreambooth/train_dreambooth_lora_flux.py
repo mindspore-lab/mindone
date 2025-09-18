@@ -39,9 +39,6 @@ from mindspore.amp import StaticLossScaler
 from mindspore.dataset import GeneratorDataset, transforms, vision
 
 from mindone.diffusers import AutoencoderKL, FlowMatchEulerDiscreteScheduler, FluxPipeline, FluxTransformer2DModel
-from mindone.diffusers._peft import LoraConfig, set_peft_model_state_dict
-from mindone.diffusers._peft.tuners.tuners_utils import BaseTunerLayer
-from mindone.diffusers._peft.utils import get_peft_model_state_dict
 from mindone.diffusers.optimization import get_scheduler
 from mindone.diffusers.training_utils import compute_density_for_timestep_sampling  # noqa F401
 from mindone.diffusers.training_utils import (
@@ -55,6 +52,9 @@ from mindone.diffusers.training_utils import (
     set_seed,
 )
 from mindone.diffusers.utils import convert_unet_state_dict_to_peft
+from mindone.peft import LoraConfig, set_peft_model_state_dict
+from mindone.peft.tuners.tuners_utils import BaseTunerLayer
+from mindone.peft.utils import get_peft_model_state_dict
 
 logger = logging.getLogger(__name__)
 
@@ -1470,6 +1470,23 @@ def main(args):
                 epoch=epoch + 1,
             )
 
+    # Notes: repeated pipeline initalization might cause oom, so we still use the pipeline defined at the begining
+    # instead of loading a new one, and the components are updated during training.
+    # lora weigts saving might change dtypes of some layers, so we do final inference before saving, or it might raise dtype error.
+
+    # Final inference
+    if args.validation_prompt and args.num_validation_images > 0:
+        pipeline_args = {"prompt": args.validation_prompt, "num_inference_steps": 25}
+        log_validation(
+            pipeline,
+            args,
+            trackers,
+            logging_dir,
+            pipeline_args,
+            args.num_train_epochs,
+            is_final_validation=True,
+        )
+
     # Save the lora layers
     if is_master(args):
         if args.upcast_before_saving:
@@ -1487,19 +1504,6 @@ def main(args):
             save_directory=args.output_dir,
             transformer_lora_layers=transformer_lora_layers,
             text_encoder_lora_layers=text_encoder_lora_layers,
-        )
-
-    # Final inference
-    if args.validation_prompt and args.num_validation_images > 0:
-        pipeline_args = {"prompt": args.validation_prompt, "num_inference_steps": 25}
-        log_validation(
-            pipeline,
-            args,
-            trackers,
-            logging_dir,
-            pipeline_args,
-            args.num_train_epochs,
-            is_final_validation=True,
         )
 
     # End of training
