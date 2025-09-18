@@ -150,6 +150,7 @@ MODEL_MAPPING_NAMES = OrderedDict(
         ("mpnet", "MPNetModel"),
         ("mpt", "MptModel"),
         ("mt5", "MT5Model"),
+        ("musicgen", "MusicgenModel"),
         ("mvp", "MvpModel"),
         ("nemotron", "NemotronModel"),
         ("nystromformer", "NystromformerModel"),
@@ -283,6 +284,7 @@ MODEL_FOR_PRETRAINING_MAPPING_NAMES = OrderedDict(
         ("mobilebert", "MobileBertForPreTraining"),
         ("mpnet", "MPNetForMaskedLM"),
         ("mpt", "MptForCausalLM"),
+        ("musicgen", "MusicgenForCausalLM"),
         ("nllb-moe", "NllbMoeForConditionalGeneration"),
         ("mvp", "MvpForConditionalGeneration"),
         ("paligemma", "PaliGemmaForConditionalGeneration"),
@@ -1099,6 +1101,7 @@ MODEL_FOR_TEXT_TO_WAVEFORM_MAPPING_NAMES = OrderedDict(
     [
         # Model for Text-To-Waveform mapping
         ("fastspeech2_conformer", "FastSpeech2ConformerWithHifiGan"),
+        ("musicgen", "MusicgenForConditionalGeneration"),
         ("seamless_m4t_v2", "SeamlessM4Tv2ForTextToSpeech"),
     ]
 )
