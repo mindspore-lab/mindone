@@ -41,6 +41,7 @@ from .models.albert import (
     AlbertModel,
     AlbertPreTrainedModel,
 )
+from .models.align import AlignModel, AlignPreTrainedModel, AlignTextModel, AlignVisionModel
 from .models.aria import (
     AriaForConditionalGeneration,
     AriaPreTrainedModel,
@@ -137,6 +138,7 @@ from .models.auto import (
     AutoModelWithLMHead,
     AutoProcessor,
 )
+from .models.bamba import BambaForCausalLM, BambaModel, BambaPreTrainedModel
 from .models.bart import (
     BartForCausalLM,
     BartForConditionalGeneration,
@@ -245,6 +247,13 @@ from .models.clip import (
     CLIPVisionModel,
     CLIPVisionModelWithProjection,
 )
+from .models.clipseg import (
+    CLIPSegForImageSegmentation,
+    CLIPSegModel,
+    CLIPSegPreTrainedModel,
+    CLIPSegTextModel,
+    CLIPSegVisionModel,
+)
 from .models.cohere2 import Cohere2ForCausalLM, Cohere2Model, Cohere2PreTrainedModel
 from .models.convbert import (
     ConvBertForMaskedLM,
@@ -350,6 +359,13 @@ from .models.gpt2 import (
 from .models.granite import GraniteForCausalLM, GraniteModel, GranitePreTrainedModel
 from .models.granitemoe import GraniteMoeForCausalLM, GraniteMoeModel, GraniteMoePreTrainedModel
 from .models.granitemoeshared import GraniteMoeSharedForCausalLM, GraniteMoeSharedModel, GraniteMoeSharedPreTrainedModel
+from .models.grounding_dino import (
+    GroundingDinoForObjectDetection,
+    GroundingDinoImageProcessor,
+    GroundingDinoModel,
+    GroundingDinoPreTrainedModel,
+    GroundingDinoProcessor,
+)
 from .models.helium import (
     HeliumForCausalLM,
     HeliumForSequenceClassification,
@@ -365,6 +381,15 @@ from .models.hiera import (
     HieraPreTrainedModel,
 )
 from .models.hubert import HubertForCTC, HubertForSequenceClassification, HubertModel, HubertPreTrainedModel
+from .models.ibert import (
+    IBertForMaskedLM,
+    IBertForMultipleChoice,
+    IBertForQuestionAnswering,
+    IBertForSequenceClassification,
+    IBertForTokenClassification,
+    IBertModel,
+    IBertPreTrainedModel,
+)
 from .models.idefics import (
     IdeficsForVisionText2Text,
     IdeficsImageProcessor,
@@ -465,6 +490,13 @@ from .models.mobilebert import (
     MobileBertModel,
     MobileBertPreTrainedModel,
 )
+from .models.modernbert import (
+    ModernBertForMaskedLM,
+    ModernBertForSequenceClassification,
+    ModernBertForTokenClassification,
+    ModernBertModel,
+    ModernBertPreTrainedModel,
+)
 from .models.mpt import (
     MptForCausalLM,
     MptForQuestionAnswering,
@@ -487,6 +519,16 @@ from .models.mvp import (
     MvpForSequenceClassification,
     MvpModel,
     MvpPreTrainedModel,
+)
+from .models.nystromformer import (
+    NystromformerEncoder,
+    NystromformerForMaskedLM,
+    NystromformerForMultipleChoice,
+    NystromformerForQuestionAnswering,
+    NystromformerForSequenceClassification,
+    NystromformerForTokenClassification,
+    NystromformerModel,
+    NystromformerPreTrainedModel,
 )
 from .models.opt import (
     OPTForCausalLM,
@@ -574,6 +616,7 @@ from .models.roberta import (
     RobertaModel,
     RobertaPreTrainedModel,
 )
+from .models.rwkv import RwkvForCausalLM, RwkvModel, RwkvPreTrainedModel
 from .models.segformer import (
     SegformerDecodeHead,
     SegformerForImageClassification,
@@ -644,6 +687,7 @@ from .models.umt5 import (
     UMT5Model,
     UMT5PreTrainedModel,
 )
+from .models.video_llava import VideoLlavaForConditionalGeneration, VideoLlavaPreTrainedModel
 from .models.vilt import (
     ViltForImageAndTextRetrieval,
     ViltForImagesAndTextClassification,
@@ -653,6 +697,7 @@ from .models.vilt import (
     ViltModel,
     ViltPreTrainedModel,
 )
+from .models.vipllava import VipLlavaForConditionalGeneration, VipLlavaPreTrainedModel
 from .models.vision_encoder_decoder import VisionEncoderDecoderModel
 from .models.vit import ViTForImageClassification, ViTForMaskedImageModeling, ViTModel, ViTPreTrainedModel
 from .models.vits import VitsModel, VitsPreTrainedModel
@@ -688,6 +733,7 @@ from .models.xlm_roberta_xl import (
     XLMRobertaXLPreTrainedModel,
 )
 from .models.yolos import YolosForObjectDetection, YolosImageProcessor, YolosModel, YolosPreTrainedModel
+from .models.zamba import ZambaForCausalLM, ZambaForSequenceClassification, ZambaModel, ZambaPreTrainedModel
 from .pipelines import (
     ImageToImagePipeline,
     ImageToTextPipeline,
