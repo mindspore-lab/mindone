@@ -36,6 +36,7 @@ CONFIG_MAPPING_NAMES = OrderedDict(
     [
         # Add configs here
         ("albert", "AlbertConfig"),
+        ("align", "AlignConfig"),
         ("aria", "AriaConfig"),
         ("aria_text", "AriaTextConfig"),
         ("bamba", "BambaConfig"),
@@ -73,6 +74,7 @@ CONFIG_MAPPING_NAMES = OrderedDict(
         ("helium", "HeliumConfig"),
         ("hiera", "HieraConfig"),
         ("hubert", "HubertConfig"),
+        ("ibert", "IBertConfig"),
         ("idefics", "IdeficsConfig"),
         ("idefics2", "Idefics2Config"),
         ("idefics3", "Idefics3Config"),
@@ -134,6 +136,7 @@ CONFIG_MAPPING_NAMES = OrderedDict(
         ("xlm-roberta", "XLMRobertaConfig"),
         ("xlm-roberta-xl", "XLMRobertaXLConfig"),
         ("yolos", "YolosConfig"),
+        ("zamba2", "Zamba2Config"),
         ("cohere2", "Cohere2Config"),
         ("zamba", "ZambaConfig"),
     ]
@@ -144,6 +147,7 @@ MODEL_NAMES_MAPPING = OrderedDict(
     [
         # Add full (and cased) model names here
         ("albert", "ALBERT"),
+        ("align", "ALIGN"),
         ("aria", "Aria"),
         ("aria_text", "AriaText"),
         ("bamba", "Bamba"),
@@ -187,6 +191,7 @@ MODEL_NAMES_MAPPING = OrderedDict(
         ("helium", "Helium"),
         ("hiera", "Hiera"),
         ("hubert", "Hubert"),
+        ("ibert", "I-BERT"),
         ("idefics", "IDEFICS"),
         ("idefics2", "Idefics2"),
         ("idefics3", "Idefics3"),
@@ -251,6 +256,7 @@ MODEL_NAMES_MAPPING = OrderedDict(
         ("xlm-roberta", "XLM-RoBERTa"),
         ("xlm-roberta-xl", "XLM-RoBERTa-XL"),
         ("yolos", "YOLOS"),
+        ("zamba2", "Zamba2"),
         ("cohere2", "Cohere2"),
         ("zamba", "Zamba"),
     ]

@@ -1,8 +1,8 @@
 # coding=utf-8
-# Copyright 2023-present the HuggingFace Inc. team.
+# Copyright 2024 Zyphra Technologies and the HuggingFace Inc. team. All rights reserved.
 #
-# This code is adapted from https://github.com/huggingface/peft
-# with modifications to run peft on mindspore.
+# This code is adapted from https://github.com/huggingface/transformers
+# with modifications to run transformers on mindspore.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -16,8 +16,4 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from .config import LoftQConfig, LoraConfig
-from .layer import Conv2d, Linear, LoraLayer
-from .model import LoraModel
-
-__all__ = ["LoraConfig", "LoftQConfig", "Conv2d", "Linear", "LoraLayer", "LoraModel"]
+from .modeling_zamba2 import Zamba2ForCausalLM, Zamba2ForSequenceClassification, Zamba2Model, Zamba2PreTrainedModel

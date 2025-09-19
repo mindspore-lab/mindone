@@ -41,6 +41,7 @@ from .models.albert import (
     AlbertModel,
     AlbertPreTrainedModel,
 )
+from .models.align import AlignModel, AlignPreTrainedModel, AlignTextModel, AlignVisionModel
 from .models.aria import (
     AriaForConditionalGeneration,
     AriaPreTrainedModel,
@@ -370,6 +371,15 @@ from .models.hiera import (
     HieraPreTrainedModel,
 )
 from .models.hubert import HubertForCTC, HubertForSequenceClassification, HubertModel, HubertPreTrainedModel
+from .models.ibert import (
+    IBertForMaskedLM,
+    IBertForMultipleChoice,
+    IBertForQuestionAnswering,
+    IBertForSequenceClassification,
+    IBertForTokenClassification,
+    IBertModel,
+    IBertPreTrainedModel,
+)
 from .models.idefics import (
     IdeficsForVisionText2Text,
     IdeficsImageProcessor,
@@ -714,6 +724,7 @@ from .models.xlm_roberta_xl import (
 )
 from .models.yolos import YolosForObjectDetection, YolosImageProcessor, YolosModel, YolosPreTrainedModel
 from .models.zamba import ZambaForCausalLM, ZambaForSequenceClassification, ZambaModel, ZambaPreTrainedModel
+from .models.zamba2 import Zamba2ForCausalLM, Zamba2ForSequenceClassification, Zamba2Model, Zamba2PreTrainedModel
 from .pipelines import (
     ImageToImagePipeline,
     ImageToTextPipeline,
