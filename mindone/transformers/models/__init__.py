@@ -106,6 +106,7 @@ from . import (
     xlm_roberta,
     yolos,
     zamba,
+    zamba2,
 )
 
 if version.parse(transformers.__version__) >= version.parse("4.51.0"):
