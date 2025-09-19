@@ -15,6 +15,7 @@ import torch
 from transformers import PerceiverConfig
 
 import mindspore as ms
+import mindspore.numpy as mint
 
 from tests.modeling_test_utils import (
     MS_DTYPE_MAPPING,
@@ -39,7 +40,7 @@ class PerceiverModelTester:
         batch_size=2,
         seq_length=7,
         is_training=False,
-        use_input_mask=True,
+        use_input_mask=False,
         use_token_type_ids=False,
         use_labels=True,
         type_vocab_size=16,
@@ -114,11 +115,11 @@ class PerceiverModelTester:
         self._label_trainable_num_channels = _label_trainable_num_channels
 
     def prepare_config_and_inputs(self):
-        input_ids = ids_numpy([self.batch_size, self.seq_length], self.vocab_size)
+        input_embeds = mint.randn([self.batch_size, self.seq_length, self.d_model])
 
         input_mask = None
         if self.use_input_mask:
-            input_mask = np.tril(np.ones_like(input_ids))
+            input_mask = np.ones([self.batch_size, self.seq_length])
 
         token_type_ids = None
         if self.use_token_type_ids:
@@ -137,7 +138,7 @@ class PerceiverModelTester:
         # set _attn_implementation
         config._attn_implementation = "eager"
 
-        return config, input_ids, token_type_ids, input_mask, sequence_labels, token_labels, choice_labels
+        return config, input_embeds, token_type_ids, input_mask, sequence_labels, token_labels, choice_labels
 
     def get_config(self):
         return self.config_class(
@@ -174,7 +175,7 @@ class PerceiverModelTester:
 model_tester = PerceiverModelTester()
 (
     config,
-    input_ids,
+    input_embeds,
     token_type_ids,
     input_mask,
     sequence_labels,
@@ -190,7 +191,7 @@ PERCEIVER_CASES = [
         "mindone.transformers.PerceiverModel",
         (config,),
         {},
-        (input_ids,),
+        (input_embeds,),
         {
             "attention_mask": input_mask,
         },
