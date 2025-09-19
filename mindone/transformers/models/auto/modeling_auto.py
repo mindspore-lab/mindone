@@ -61,6 +61,7 @@ MODEL_MAPPING_NAMES = OrderedDict(
         ("detr", "DetrModel"),
         ("dinov2", "Dinov2Model"),
         ("dpt", "DPTModel"),
+        ("encodec", "EncodecModel"),
         ("gemma", "GemmaModel"),
         ("m2m_100", "M2M100Model"),
         ("gemma2", "Gemma2Model"),
