@@ -85,8 +85,9 @@ def multi_scale_deformable_attention(
         sampling_grid_l_ = sampling_grids[:, :, :, level_id].transpose(1, 2).flatten(0, 1)
         # batch_size*num_heads, hidden_dim, num_queries, num_points
         sampling_value_l_ = mint.nn.functional.grid_sample(
-            value_l_, sampling_grid_l_, mode="bilinear", padding_mode="zeros", align_corners=False
-        )
+            value_l_.to(ms.float32), sampling_grid_l_, mode="bilinear", padding_mode="zeros", align_corners=False
+        ).to(value_l_.dtype) # FIXME: mint.nn.functional.grid_sample does not support fp16
+
         sampling_value_list.append(sampling_value_l_)
     # (batch_size, num_queries, num_heads, num_levels, num_points)
     # -> (batch_size, num_heads, num_queries, num_levels, num_points)
@@ -228,7 +229,8 @@ def sample_point(input_features: ms.Tensor, point_coordinates: ms.Tensor, add_di
         point_coordinates = point_coordinates.unsqueeze(2)
 
     # use nn.function.grid_sample to get features for points in `point_coordinates` via bilinear interpolation
-    point_features = mint.nn.functional.grid_sample(input_features, 2.0 * point_coordinates - 1.0, **kwargs)
+    point_features = mint.nn.functional.grid_sample(input_features.to(ms.float32), 2.0 * point_coordinates - 1.0, **kwargs).to(input_features.dtype)
+    # FIXME: mint.nn.functional.grid_sample does not support fp16
     if add_dim:
         point_features = point_features.squeeze(3)
 
