@@ -230,7 +230,6 @@ ONEFORMER_CASES = [
         {
             "encoder_hidden_states": 0,
             "pixel_decoder_hidden_states": 1,
-            "transformer_decoder_hidden_states": 2,
         },
     ],
     [

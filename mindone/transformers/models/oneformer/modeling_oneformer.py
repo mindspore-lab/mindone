@@ -33,9 +33,10 @@ from transformers.utils import (
 )
 
 import mindspore as ms
-from mindspore import Tensor, mint, nn
+from mindspore import Tensor, mint
 
 from mindone.models.utils import constant_, normal_, trunc_normal_, xavier_uniform_
+from mindone.transformers.mindspore_adapter.nn import MultiheadAttention
 from mindone.transformers.mindspore_adapter.utils import _DTYPE_2_MAX
 
 from ...activations import ACT2FN
@@ -1736,7 +1737,7 @@ class OneFormerTransformerDecoderCrossAttentionLayer(ms.nn.Cell):
         self, embed_dim, num_heads, dropout=0.0, activation="relu", normalize_before=False, layer_norm_eps=1e-05
     ):
         super().__init__()
-        self.multihead_attn = nn.MultiheadAttention(embed_dim, num_heads, dropout=dropout)
+        self.multihead_attn = MultiheadAttention(embed_dim, num_heads, dropout=dropout)
 
         self.norm = mint.nn.LayerNorm(embed_dim, eps=layer_norm_eps)
         self.dropout = mint.nn.Dropout(dropout)
@@ -2025,8 +2026,8 @@ class OneFormerTransformerDecoderQueryTransformerDecoderLayer(ms.nn.Cell):
         layer_norm_eps=1e-05,
     ):
         super().__init__()
-        self.self_attn = nn.MultiheadAttention(d_model, nhead, dropout=dropout)
-        self.multihead_attn = nn.MultiheadAttention(d_model, nhead, dropout=dropout)
+        self.self_attn = MultiheadAttention(d_model, nhead, dropout=dropout)
+        self.multihead_attn = MultiheadAttention(d_model, nhead, dropout=dropout)
         # Implementation of Feedforward model
         self.linear1 = mint.nn.Linear(d_model, dim_feedforward)
         self.dropout = mint.nn.Dropout(dropout)
@@ -2611,7 +2612,7 @@ class OneFormerTextMLP(ms.nn.Cell):
 class OneFormerTextTransformerLayer(ms.nn.Cell):
     def __init__(self, width: int, heads: int, attn_mask: ms.Tensor, layer_norm_eps=1e-05):
         super().__init__()
-        self.self_attn = nn.MultiheadAttention(width, heads)
+        self.self_attn = MultiheadAttention(width, heads)
         self.layer_norm1 = mint.nn.LayerNorm(width, eps=layer_norm_eps)
         self.mlp = OneFormerTextMLP(width, width * 4, width)
         self.layer_norm2 = mint.nn.LayerNorm(width, eps=layer_norm_eps)
@@ -2926,7 +2927,7 @@ class OneFormerPreTrainedModel(PreTrainedModel):
                         elif isinstance(module, mint.nn.LayerNorm):
                             constant_(module.bias, 0.0)
                             constant_(module.weight, 1.0)
-        elif isinstance(module, nn.MultiheadAttention):
+        elif isinstance(module, MultiheadAttention):
             normal_(module.in_proj_weight, mean=0.0, std=std)
             constant_(module.in_proj_bias, 0.0)
         elif isinstance(module, (mint.nn.Linear, mint.nn.Conv2d, mint.nn.BatchNorm2d)):
