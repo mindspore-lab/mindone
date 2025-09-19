@@ -442,6 +442,7 @@ from .models.megatron_bert import (
     MegatronBertModel,
     MegatronBertPreTrainedModel,
 )
+from .models.mimi import MimiModel, MimiPreTrainedModel
 from .models.minicpm4 import MiniCPMForCausalLM, MiniCPMForSequenceClassification, MiniCPMModel
 from .models.mistral import (
     MistralForCausalLM,
@@ -478,6 +479,7 @@ from .models.modernbert import (
     ModernBertModel,
     ModernBertPreTrainedModel,
 )
+from .models.moshi import MoshiForCausalLM, MoshiForConditionalGeneration, MoshiModel, MoshiPreTrainedModel
 from .models.mpt import (
     MptForCausalLM,
     MptForQuestionAnswering,
