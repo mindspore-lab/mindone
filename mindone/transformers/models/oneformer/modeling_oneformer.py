@@ -1465,13 +1465,13 @@ class OneFormerPixelDecoder(ms.nn.Cell):
                 split_size_or_sections[i] = level_start_index[i + 1] - level_start_index[i]
             else:
                 split_size_or_sections[i] = y.shape[1] - level_start_index[i]
-        y = mint.split(y, split_size_or_sections, dim=1)
+        y = mint.split(y, [int(size) for size in split_size_or_sections], dim=1)
 
         out = []
         multi_scale_features = []
         num_cur_levels = 0
         for i, z in enumerate(y):
-            out.append(z.transpose(1, 2).view(bs, -1, spatial_shapes[i][0], spatial_shapes[i][1]))
+            out.append(z.transpose(1, 2).view(bs, -1, int(spatial_shapes[i][0]), int(spatial_shapes[i][1])))
 
         # append `out` with extra FPN levels
         # Reverse feature maps into top-down order (from low to high resolution)
