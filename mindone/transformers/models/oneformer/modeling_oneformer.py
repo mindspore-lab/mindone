@@ -1481,8 +1481,10 @@ class OneFormerPixelDecoder(ms.nn.Cell):
             cur_fpn = lateral_conv(feats)
             # Following FPN implementation, we use nearest upsampling here
             y = cur_fpn + mint.nn.functional.interpolate(
-                out[-1], size=cur_fpn.shape[-2:], mode="bilinear", align_corners=False
-            )
+                out[-1].to(ms.float32), size=cur_fpn.shape[-2:], mode="bilinear", align_corners=False
+            ).to(
+                out[-1].dtype
+            )  # FIXME: mint.nn.functional.interpolate does not support bf16
             y = output_conv(y)
             out.append(y)
 
@@ -2311,8 +2313,10 @@ class OneFormerTransformerDecoder(ms.nn.Cell):
         outputs_mask = mint.einsum("bqc,bchw->bqhw", mask_embed, mask_features)
 
         attention_mask = mint.nn.functional.interpolate(
-            outputs_mask, size=attention_mask_target_size, mode="bilinear", align_corners=False
-        )
+            outputs_mask.to(ms.float32), size=attention_mask_target_size, mode="bilinear", align_corners=False
+        ).to(
+            outputs_mask.dtype
+        )  # FIXME: mint.nn.functional.interpolate does not support bf16
 
         # must use bool type
         # If a BoolTensor is provided, positions with ``True`` are not allowed to attend while ``False`` values will be unchanged.
