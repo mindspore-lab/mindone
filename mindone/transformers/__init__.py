@@ -680,6 +680,15 @@ from .models.vilt import (
 )
 from .models.vipllava import VipLlavaForConditionalGeneration, VipLlavaPreTrainedModel
 from .models.vision_encoder_decoder import VisionEncoderDecoderModel
+from .models.visual_bert import (
+    VisualBertForMultipleChoice,
+    VisualBertForPreTraining,
+    VisualBertForQuestionAnswering,
+    VisualBertForRegionToPhraseAlignment,
+    VisualBertForVisualReasoning,
+    VisualBertModel,
+    VisualBertPreTrainedModel,
+)
 from .models.vit import ViTForImageClassification, ViTForMaskedImageModeling, ViTModel, ViTPreTrainedModel
 from .models.vits import VitsModel, VitsPreTrainedModel
 from .models.wav2vec2 import (
