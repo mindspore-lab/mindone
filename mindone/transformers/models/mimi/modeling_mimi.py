@@ -1226,9 +1226,12 @@ class MimiEuclideanCodebook(nn.Cell):
 
         self.codebook_size = config.codebook_size
 
-        self.register_buffer("initialized", Tensor([True], dtype=mindspore.float32))
-        self.register_buffer("cluster_usage", mint.ones(config.codebook_size))
-        self.register_buffer("embed_sum", embed)
+        # self.register_buffer("initialized", Tensor([True], dtype=mindspore.float32))
+        # self.register_buffer("cluster_usage", mint.ones(config.codebook_size))
+        # self.register_buffer("embed_sum", embed)
+        self.initialized = Parameter(Tensor([True], dtype=mindspore.float32), name="initialized")
+        self.cluster_usage = Parameter(mint.ones(config.codebook_size), name="cluster_usage")
+        self.embed_sum = Parameter(embed, name="embed_sum")
         self._embed = None
         self.epsilon = epsilon
 
