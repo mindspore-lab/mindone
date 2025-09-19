@@ -86,7 +86,7 @@ class OneFormerModelTester:
         self.is_training = is_training
         self.use_input_mask = use_input_mask
         self.use_labels = use_labels
-        
+
         # Reduced model size for testing
         self.num_queries = num_queries
         self.no_object_weight = no_object_weight
@@ -126,7 +126,7 @@ class OneFormerModelTester:
         self.enforce_input_proj = enforce_input_proj
         self.query_dec_layers = query_dec_layers
         self.common_stride = common_stride
-        
+
         # Use a minimal backbone config for testing
         if backbone_config is None:
             # Reduced Swin backbone for testing
@@ -149,10 +149,10 @@ class OneFormerModelTester:
     def prepare_config_and_inputs(self):
         # Create minimal test inputs
         pixel_values = np.random.randn(self.batch_size, 3, 224, 224).astype(np.float32)
-        
+
         # Task input - simplified for testing
         task_inputs = ids_numpy([self.batch_size, self.task_seq_len], self.text_encoder_vocab_size)
-        
+
         input_mask = None
         if self.use_input_mask:
             input_mask = np.ones((self.batch_size, 224, 224), dtype=np.int64)
@@ -225,14 +225,17 @@ ONEFORMER_CASES = [
         (pixel_values,),
         {
             "task_inputs": task_inputs,
+            "output_hidden_states": True,
         },
         {
-            "last_hidden_state": 0,
+            "encoder_hidden_states": 0,
+            "pixel_decoder_hidden_states": 1,
+            "transformer_decoder_hidden_states": 2,
         },
     ],
     [
         "OneFormerForUniversalSegmentation",
-        "transformers.OneFormerForUniversalSegmentation", 
+        "transformers.OneFormerForUniversalSegmentation",
         "mindone.transformers.OneFormerForUniversalSegmentation",
         (config,),
         {},
@@ -241,7 +244,8 @@ ONEFORMER_CASES = [
             "task_inputs": task_inputs,
         },
         {
-            "prediction_masks": 0,
+            "class_queries_logits": 0,
+            "masks_queries_logits": 1,
         },
     ],
 ]
