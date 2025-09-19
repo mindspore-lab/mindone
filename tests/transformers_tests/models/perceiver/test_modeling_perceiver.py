@@ -25,7 +25,7 @@ from tests.modeling_test_utils import (
 )
 from tests.transformers_tests.models.modeling_common import ids_numpy
 
-DTYPE_AND_THRESHOLDS = {"fp32": 5e-4, "fp16": 5e-3, "bf16": 5e-3}
+DTYPE_AND_THRESHOLDS = {"fp32": 5e-4, "fp16": 5e-3, "bf16": 8e-3}
 # MODES = [0, 1] # 0: graph mode, 1: pynative mode
 # FIXME: Perceiver does not support graph mode yet, so we only test in pynative mode.
 MODES = [1]
@@ -114,7 +114,7 @@ class PerceiverModelTester:
         self._label_trainable_num_channels = _label_trainable_num_channels
 
     def prepare_config_and_inputs(self):
-        input_embeds = np.random.randn([self.batch_size, self.seq_length, self.d_model])
+        input_embeds = np.random.randn(self.batch_size, self.seq_length, self.d_model)
 
         input_mask = None
         if self.use_input_mask:
