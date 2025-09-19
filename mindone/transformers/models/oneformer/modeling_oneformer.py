@@ -1747,9 +1747,9 @@ class OneFormerTransformerDecoderCrossAttentionLayer(ms.nn.Cell):
         query_pos: Optional[Tensor] = None,
     ):
         output2, attention_weights = self.multihead_attn(
-            query=self.with_pos_embed(output, query_pos),
-            key=self.with_pos_embed(memory, pos),
-            value=memory,
+            self.with_pos_embed(output, query_pos),
+            self.with_pos_embed(memory, pos),
+            memory,
             attn_mask=memory_mask,
             key_padding_mask=memory_key_padding_mask,
         )
@@ -2052,9 +2052,9 @@ class OneFormerTransformerDecoderQueryTransformerDecoderLayer(ms.nn.Cell):
         output = output + self.dropout1(output2)
         output = self.norm1(output)
         output2 = self.multihead_attn(
-            query=self.with_pos_embed(output, query_pos),
-            key=self.with_pos_embed(memory, pos),
-            value=memory,
+            self.with_pos_embed(output, query_pos),
+            self.with_pos_embed(memory, pos),
+            memory,
             attn_mask=memory_mask,
             key_padding_mask=memory_key_padding_mask,
         )
