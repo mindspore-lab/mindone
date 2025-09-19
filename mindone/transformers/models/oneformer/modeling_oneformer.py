@@ -2889,13 +2889,13 @@ class OneFormerPreTrainedModel(PreTrainedModel):
                 if p.dim() > 1:
                     xavier_uniform_(p, gain=xavier_std)
         elif isinstance(module, OneFormerPixelLevelModule):
-            for submodule in module.modules():
+            for submodule in module.cells():
                 if isinstance(submodule, (mint.nn.Conv2d, mint.nn.Linear)):
                     normal_(submodule.weight, mean=0.0, std=std)
                     if submodule.bias is not None:
                         constant_(submodule.bias, 0.0)
         elif isinstance(module, OneFormerTextContextDecoder):
-            for submodule in module.modules():
+            for submodule in module.cells():
                 if isinstance(submodule, mint.nn.Linear):
                     trunc_normal_(submodule.weight, std=0.02)
                     if isinstance(submodule, mint.nn.Linear) and submodule.bias is not None:
@@ -2919,9 +2919,9 @@ class OneFormerPreTrainedModel(PreTrainedModel):
             xavier_uniform_(module.reference_points.weight, gain=1.0)
             constant_(module.reference_points.bias, 0.0)
         elif isinstance(module, OneFormerTaskModel):
-            for submodule in module.modules():
+            for submodule in module.cells():
                 if isinstance(module, OneFormerMLPPredictionHead):
-                    for submodule in module.modules():
+                    for submodule in module.cells():
                         if isinstance(submodule, mint.nn.Linear):
                             xavier_uniform_(submodule.weight, gain=xavier_std)
                             constant_(submodule.bias, 0)
