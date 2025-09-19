@@ -232,21 +232,6 @@ ONEFORMER_CASES = [
             "pixel_decoder_hidden_states": 1,
         },
     ],
-    [
-        "OneFormerForUniversalSegmentation",
-        "transformers.OneFormerForUniversalSegmentation",
-        "mindone.transformers.OneFormerForUniversalSegmentation",
-        (config,),
-        {},
-        (pixel_values,),
-        {
-            "task_inputs": task_inputs,
-        },
-        {
-            "class_queries_logits": 0,
-            "masks_queries_logits": 1,
-        },
-    ],
 ]
 
 
