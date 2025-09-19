@@ -58,6 +58,7 @@ from . import (
     idefics3,
     ijepa,
     imagegpt,
+    jetmoe,
     levit,
     llama,
     llava,
