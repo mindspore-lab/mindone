@@ -140,6 +140,8 @@ from . import (
     vit,
     vits,
     wav2vec2,
+    wav2vec2_bert,
+    wav2vec2_conformer,
     x_clip,
     xlm_roberta,
     yolos,
