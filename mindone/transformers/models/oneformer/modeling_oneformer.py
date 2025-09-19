@@ -12,7 +12,7 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-"""PyTorch OneFormer model."""
+"""MindSpore OneFormer model."""
 
 import copy
 import math
@@ -367,7 +367,7 @@ class OneFormerLoss(ms.nn.Cell):
             num_labels (`int`):
                 The number of classes.
             matcher (`OneFormerHungarianMatcher`):
-                A torch module that computes the assigments between the predictions and labels.
+                A MindSpore cell that computes the assigments between the predictions and labels.
             weight_dict (`Dict[str, float]`):
                 A dictionary of weights to be applied to the different losses.
             eos_coef (`float`):
@@ -1076,7 +1076,7 @@ class OneFormerPixelDecoderEncoderMultiscaleDeformableAttention(ms.nn.Cell):
             )
         else:
             raise ValueError(f"Last dim of reference_points must be 2 or 4, but got {reference_points.shape[-1]}")
-        # PyTorch implementation
+
         output = multi_scale_deformable_attention(value, spatial_shapes, sampling_locations, attention_weights)
         output = self.output_proj(output)
 
@@ -1194,17 +1194,15 @@ class OneFormerPixelDecoderEncoderOnly(ms.nn.Cell):
         self.layers = ms.nn.CellList([OneFormerPixelDecoderEncoderLayer(config) for _ in range(config.encoder_layers)])
 
     @staticmethod
-    def get_reference_points(spatial_shapes, valid_ratios, device):
+    def get_reference_points(spatial_shapes, valid_ratios):
         """
         Get reference points for each feature map. Used in decoder.
 
         Args:
-            spatial_shapes (`torch.LongTensor` of shape `(num_feature_levels, 2)`):
+            spatial_shapes (`ms.Tensor` of shape `(num_feature_levels, 2)`):
                 Spatial shapes of each feature map.
             valid_ratios (`mindspore.Tensor` of shape `(batch_size, num_feature_levels, 2)`):
                 Valid ratios of each feature map.
-            # device (`torch.device`):
-                Device on which to create the tensors.
         Returns:
             `mindspore.Tensor` of shape `(batch_size, num_queries, num_feature_levels, 2)`
         """
@@ -1255,9 +1253,9 @@ class OneFormerPixelDecoderEncoderOnly(ms.nn.Cell):
                 [What are attention masks?](../glossary#attention-mask)
             position_embeddings (`mindspore.Tensor` of shape `(batch_size, sequence_length, hidden_size)`):
                 Position embeddings that are added to the queries and keys in each self-attention layer.
-            spatial_shapes (`torch.LongTensor` of shape `(num_feature_levels, 2)`):
+            spatial_shapes (`ms.Tensor` of shape `(num_feature_levels, 2)`):
                 Spatial shapes of each feature map.
-            level_start_index (`torch.LongTensor` of shape `(num_feature_levels)`):
+            level_start_index (`ms.Tensor` of shape `(num_feature_levels)`):
                 Starting index of each feature map.
             valid_ratios (`mindspore.Tensor` of shape `(batch_size, num_feature_levels, 2)`):
                 Ratio of valid area in each feature level.
@@ -2334,9 +2332,6 @@ class OneFormerTransformerDecoder(ms.nn.Cell):
         return outputs_class, outputs_mask, attention_mask
 
     def _get_aux_predictions(self, outputs_class, outputs_seg_masks):
-        # this is a workaround to make torchscript happy, as torchscript
-        # doesn't support dictionary with non-homogeneous values, such
-        # as a dict having both a Tensor and a list.
         aux_list = [
             {"class_queries_logits": a, "masks_queries_logits": b}
             for a, b in zip(outputs_class[:-1], outputs_seg_masks[:-1])
@@ -2697,7 +2692,6 @@ class OneFormerTextEncoder(ms.nn.Cell):
 
     def build_attention_mask(self):
         # lazily create causal attention mask, with full attention between the vision tokens
-        # pytorch uses additive attention mask; fill with -inf
         mask = mint.empty(self.context_length, self.context_length)
         mask.fill_(float("-inf"))
         mask.triu_(1)  # zero out the lower diagonal
@@ -2792,9 +2786,7 @@ class OneFormerTaskModel(ms.nn.Cell):
 
 
 ONEFORMER_START_DOCSTRING = r"""
-    This model is a MindSpore [nn.Cell](https://www.mindspore.cn/docs/en/master/api_python/nn/mindspore.nn.Cell.html#mindspore.nn.Cell) sub-class. Use it as a
-    regular PyTorch Module and refer to the PyTorch documentation for all matter related to general usage and behavior.
-
+    This model is a MindSpore [nn.Cell](https://www.mindspore.cn/docs/en/master/api_python/nn/mindspore.nn.Cell.html?#mindspore.nn.Cell) sub-class.
     Parameters:
         config ([`OneFormerConfig`]): Model configuration class with all the parameters of the model.
             Initializing with a config file does not load the weights associated with the model, only the
