@@ -88,6 +88,8 @@ from . import (
     roberta,
     rwkv,
     segformer,
+    sew,
+    sew_d,
     siglip,
     smolvlm,
     speecht5,
