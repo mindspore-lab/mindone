@@ -95,6 +95,8 @@ from . import (
     swin2sr,
     switch_transformers,
     t5,
+    trocr,
+    tvp,
     umt5,
     video_llava,
     vilt,
