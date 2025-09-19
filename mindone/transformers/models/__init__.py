@@ -103,6 +103,7 @@ from . import (
     vit,
     vits,
     wav2vec2,
+    x_clip,
     xlm_roberta,
     yolos,
     zamba,
