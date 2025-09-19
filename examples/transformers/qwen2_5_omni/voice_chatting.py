@@ -3,7 +3,6 @@ Voice Chatting with Qwen2.5-Omni
 This script demonstrates how to chat with Qwen2.5-Omni by voice input and output.
 """
 
-import numpy as np
 import soundfile as sf
 from qwen_omni_utils import process_mm_info
 
@@ -43,10 +42,7 @@ def inference(medium_path):
 
     # convert input to Tensor
     for key, value in inputs.items():  # by default input numpy array or list
-        if isinstance(value, np.ndarray):
-            inputs[key] = ms.Tensor(value)
-        elif isinstance(value, list):
-            inputs[key] = ms.Tensor(value)
+        inputs[key] = ms.Tensor(value)
         if inputs[key].dtype == ms.int64:
             inputs[key] = inputs[key].to(ms.int32)
         else:
