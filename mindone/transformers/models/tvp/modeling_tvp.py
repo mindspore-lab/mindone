@@ -21,20 +21,25 @@ import math
 from dataclasses import dataclass
 from typing import Optional, Tuple
 
+from transformers import TvpConfig
+from transformers.file_utils import (
+    add_start_docstrings,
+    add_start_docstrings_to_model_forward,
+    replace_return_docstrings,
+)
+
 import mindspore as ms
-from mindspore import nn, mint
+from mindspore import mint, nn
 from mindspore.common.initializer import HeNormal, initializer
-from mindone.models.utils import normal_, zeros_, ones_
+
+from mindone.models.utils import normal_, ones_, zeros_
 
 from ...activations import ACT2FN
-from transformers.file_utils import add_start_docstrings, add_start_docstrings_to_model_forward, replace_return_docstrings
+from ...mindspore_utils import prune_linear_layer
 from ...modeling_outputs import BaseModelOutput, BaseModelOutputWithPooling, ModelOutput
 from ...modeling_utils import PreTrainedModel
-from ...mindspore_utils import prune_linear_layer
 from ...utils import logging
 from ...utils.backbone_utils import load_backbone
-from transformers import TvpConfig
-
 
 logger = logging.get_logger(__name__)
 
@@ -171,7 +176,7 @@ class TvpVisionModel(nn.Cell):
         batch_size, num_frames, num_channels, height, width = pixel_values.shape
         # (batch_size * num_frames, num_channels, height, width)
         pixel_values = pixel_values.view(batch_size * num_frames, num_channels, height, width)
-        grid_feat_outputs = self.backbone(pixel_values)["feature_maps"][0]
+        grid_feat_outputs = self.backbone(pixel_values.float())["feature_maps"][0]  # not support bf16
         grid = self.grid_encoder_conv(grid_feat_outputs)
         grid = mint.nn.functional.max_pool2d(grid, kernel_size=2, stride=2)
         grid = mint.nn.functional.relu(grid, inplace=True)
@@ -180,7 +185,7 @@ class TvpVisionModel(nn.Cell):
         grid = grid.view(batch_size, num_frames, new_channel, new_height, new_width)
         # (batch_size, num_frames, height, width, num_channels)
         grid = grid.permute(0, 1, 3, 4, 2)
-        return grid
+        return grid.to(pixel_values.dtype)
 
 
 class TvpVisualInputEmbedding(nn.Cell):
@@ -662,9 +667,7 @@ class TvpFrameDownPadPrompter(nn.Cell):
 
     def construct(self, pixel_values):
         if self.visual_prompter_apply != "add":
-            visual_prompt_mask = mint.ones(
-                [self.max_img_size, self.max_img_size], dtype=pixel_values.dtype
-            )
+            visual_prompt_mask = mint.ones([self.max_img_size, self.max_img_size], dtype=pixel_values.dtype)
             visual_prompt_mask[self.max_img_size - self.visual_prompt_size : self.max_img_size, :] = 0.0
             pixel_values *= visual_prompt_mask
         if self.visual_prompter_apply != "remove":
@@ -756,7 +759,7 @@ class TvpFramePadPrompter(nn.Cell):
             visual_prompt_mask = mint.ones([height, width], dtype=pixel_values.dtype)
             pixel_values *= visual_prompt_mask
         if self.visual_prompter_apply in ("replace", "add"):
-            base = mint.zeros((1, self.num_frames, 3, self.base_size, self.base_size))
+            base = mint.zeros((1, self.num_frames, 3, self.base_size, self.base_size), dtype=self.pad_left.dtype)
 
             prompt = mint.cat([self.pad_left, base, self.pad_right], dim=4)
             prompt = mint.cat([self.pad_up, prompt, self.pad_down], dim=3)
@@ -827,7 +830,7 @@ class TvpModel(TvpPreTrainedModel):
         ```python
         >>> import mindspore as ms
         >>> from mindspore import mint
-        >>> from transformers import AutoConfig, AutoTokenizer
+        >>> from transformers import AutoTokenizer
         >>> from mindone.transformers import TvpModel
 
         >>> model = TvpModel.from_pretrained("Jiqing/tiny-random-tvp")
@@ -936,7 +939,7 @@ class TvpForVideoGrounding(TvpPreTrainedModel):
         ```python
         >>> import mindspore as ms
         >>> import mindspore.mint as mint
-        >>> from transformers import AutoConfig, AutoTokenizer
+        >>> from transformers import AutoTokenizer
         >>> from mindone.transformers import TvpForVideoGrounding
 
         >>> model = TvpForVideoGrounding.from_pretrained("Jiqing/tiny-random-tvp")
@@ -946,6 +949,92 @@ class TvpForVideoGrounding(TvpPreTrainedModel):
         >>> pixel_values = mint.rand(1, 1, 3, 448, 448)
         >>> text_inputs = tokenizer("This is an example input", return_tensors="np")
         >>> output = model(ms.tensor(text_inputs.input_ids), pixel_values, ms.tensor(text_inputs.attention_mask))
+        ```
+
+        ```python
+        >>> import av
+        >>> import cv2
+        >>> import numpy as np
+        >>> import mindspore as ms
+        >>> from huggingface_hub import hf_hub_download
+        >>> from mindone.transformers import AutoProcessor, TvpForVideoGrounding
+
+        >>> def pyav_decode(container, sampling_rate, num_frames, clip_idx, num_clips, target_fps):
+        ...     # Convert the video from its original fps to the target_fps and decode the video with PyAV decoder.
+        ...     video = container.streams.video[0]
+        ...     fps = float(video.average_rate)
+        ...     clip_size = sampling_rate * num_frames / target_fps * fps
+        ...     delta = max(num_frames - clip_size, 0)
+        ...     start_idx = delta * clip_idx / num_clips
+        ...     end_idx = start_idx + clip_size - 1
+        ...     timebase = video.duration / num_frames
+        ...     video_start_pts = int(start_idx * timebase)
+        ...     video_end_pts = int(end_idx * timebase)
+        ...     seek_offset = max(video_start_pts - 1024, 0)
+        ...     container.seek(seek_offset, any_frame=False, backward=True, stream=video)
+        ...     frames = {}
+        ...     for frame in container.decode(video=0):
+        ...         if frame.pts < video_start_pts:
+        ...             continue
+        ...         frames[frame.pts] = frame
+        ...         if frame.pts > video_end_pts:
+        ...             break
+        ...     frames = [frames[pts] for pts in sorted(frames)]
+        ...     return frames, fps
+
+
+        >>> def decode(container, sampling_rate, num_frames, clip_idx, num_clips, target_fps):
+        ...     # Decode the video and perform temporal sampling.
+        ...     assert clip_idx >= -2, "Not a valid clip_idx {}".format(clip_idx)
+        ...     frames, fps = pyav_decode(container, sampling_rate, num_frames, clip_idx, num_clips, target_fps)
+        ...     clip_size = sampling_rate * num_frames / target_fps * fps
+        ...     index = np.linspace(0, clip_size - 1, num_frames)
+        ...     index = np.clip(index, 0, len(frames) - 1).astype(np.int64)
+        ...     frames = np.array([frames[idx].to_rgb().to_ndarray() for idx in index])
+        ...     frames = frames.transpose(0, 3, 1, 2)
+        ...     return frames
+
+
+        >>> file = hf_hub_download(repo_id="Intel/tvp_demo", filename="AK2KG.mp4", repo_type="dataset")
+        >>> model = TvpForVideoGrounding.from_pretrained("Intel/tvp-base")
+
+        >>> decoder_kwargs = dict(
+        ...     container=av.open(file, metadata_errors="ignore"),
+        ...     sampling_rate=1,
+        ...     num_frames=model.config.num_frames,
+        ...     clip_idx=0,
+        ...     num_clips=1,
+        ...     target_fps=3,
+        ... )
+        >>> raw_sampled_frms = decode(**decoder_kwargs)
+
+        >>> text = "a person is sitting on a bed."
+        >>> processor = AutoProcessor.from_pretrained("Intel/tvp-base")
+        >>> model_inputs = processor(
+        ...     text=[text], videos=list(raw_sampled_frms), return_tensors="np", max_text_length=100,
+        ... )
+        >>> for k, v in model_inputs.items():
+        ...     model_inputs[k] = ms.tensor(v)
+        ...     if model_inputs[k].dtype == ms.int64:
+        ...         model_inputs[k] = model_inputs[k].to(ms.int32)
+        ...     else:
+        ...         model_inputs[k] = model_inputs[k].to(model.dtype)
+        >>> output = model(**model_inputs)
+
+        >>> def get_video_duration(filename):
+        ...     cap = cv2.VideoCapture(filename)
+        ...     if cap.isOpened():
+        ...         rate = cap.get(5)
+        ...         frame_num = cap.get(7)
+        ...         duration = frame_num/rate
+        ...         return duration
+        ...     return -1
+
+        >>> duration = get_video_duration(file)
+        >>> start, end = processor.post_process_video_grounding(output.logits.asnumpy(), duration)
+
+        >>> print(f"The time slot of the video corresponding to the text \"{text}\" is from {start}s to {end}s")
+        The time slot of the video corresponding to the text "a person is sitting on a bed." is from 0.0s to 6.8s
         ```"""
         return_dict = return_dict if return_dict is not None else self.config.return_dict
         outputs = self.model(

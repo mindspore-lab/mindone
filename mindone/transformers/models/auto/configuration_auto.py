@@ -120,7 +120,7 @@ CONFIG_MAPPING_NAMES = OrderedDict(
         ("speecht5", "SpeechT5Config"),
         ("swin2sr", "Swin2SRConfig"),
         ("t5", "T5Config"),
-        ("trocr", "TrOCR"),
+        ("trocr", "TrOCRConfig"),
         ("tvp", "TvpConfig"),
         ("umt5", "UMT5Config"),
         ("video_llava", "VideoLlavaConfig"),

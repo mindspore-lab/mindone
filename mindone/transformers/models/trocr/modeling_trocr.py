@@ -21,9 +21,13 @@ import copy
 import math
 from typing import Optional, Tuple, Union
 
+from transformers import TrOCRConfig
+from transformers.utils import add_start_docstrings, logging, replace_return_docstrings
+
 import mindspore as ms
-from mindspore import nn, mint
+from mindspore import mint, nn
 from mindspore.mint.nn import CrossEntropyLoss
+
 from mindone.models.utils import normal_, zeros_
 
 from ...activations import ACT2FN
@@ -31,9 +35,6 @@ from ...generation import GenerationMixin
 from ...modeling_attn_mask_utils import _prepare_4d_attention_mask, _prepare_4d_causal_attention_mask
 from ...modeling_outputs import BaseModelOutputWithPastAndCrossAttentions, CausalLMOutputWithCrossAttentions
 from ...modeling_utils import PreTrainedModel
-from transformers.utils import add_start_docstrings, logging, replace_return_docstrings
-from transformers import TrOCRConfig
-
 
 logger = logging.get_logger(__name__)
 
@@ -57,9 +58,9 @@ class TrOCRLearnedPositionalEmbedding(mint.nn.Embedding):
         """`input_ids' shape is expected to be [bsz x seqlen]."""
 
         bsz, seq_len = input_ids.shape[:2]
-        positions = mint.arange(
-            past_key_values_length, past_key_values_length + seq_len, dtype=ms.int64
-        ).broadcast_to((bsz, -1))
+        positions = mint.arange(past_key_values_length, past_key_values_length + seq_len, dtype=ms.int64).broadcast_to(
+            (bsz, -1)
+        )
 
         return super().construct(positions + self.offset)
 
@@ -664,9 +665,7 @@ class TrOCRDecoder(TrOCRPreTrainedModel):
                 encoder_hidden_states=encoder_hidden_states,
                 encoder_attention_mask=encoder_attention_mask,
                 layer_head_mask=(head_mask[idx] if head_mask is not None else None),
-                cross_attn_layer_head_mask=(
-                    cross_attn_head_mask[idx] if cross_attn_head_mask is not None else None
-                ),
+                cross_attn_layer_head_mask=(cross_attn_head_mask[idx] if cross_attn_head_mask is not None else None),
                 past_key_value=past_key_value,
                 output_attentions=output_attentions,
                 use_cache=use_cache,
@@ -856,7 +855,6 @@ class TrOCRForCausalLM(TrOCRPreTrainedModel, GenerationMixin):
         ...     ViTModel,
         ...     VisionEncoderDecoderModel,
         ... )
-        >>> import requests
         >>> from PIL import Image
         >>> import mindspore as ms
 
@@ -871,8 +869,9 @@ class TrOCRForCausalLM(TrOCRPreTrainedModel, GenerationMixin):
         >>> model = VisionEncoderDecoderModel.from_pretrained("microsoft/trocr-base-handwritten")
 
         >>> # load image from the IAM dataset
-        >>> url = "https://fki.tic.heia-fr.ch/static/img/a01-122-02.jpg"
-        >>> image = Image.open(requests.get(url, stream=True).raw).convert("RGB")
+        >>> # url = "https://fki.tic.heia-fr.ch/static/img/a01-122-02.jpg" # invalid link
+        >>> # Instead, download image "a01-122-02.png" from huggingface dataset Adarsh203/IAM_Handwriting_Line
+        >>> image = Image.open("a01-122-02.png").convert("RGB")
         >>> pixel_values = processor(image, return_tensors="np").pixel_values
         >>> text = "industry, ' Mr. Brown commented icily. ' Let us have a"
 
@@ -885,7 +884,7 @@ class TrOCRForCausalLM(TrOCRPreTrainedModel, GenerationMixin):
         >>> outputs = model(ms.tensor(pixel_values), labels=ms.tensor(labels).int())
         >>> loss = outputs.loss
         >>> round(loss.item(), 2)
-        5.30
+        15.12
 
         >>> # inference
         >>> generated_ids = model.generate(ms.tensor(pixel_values))
@@ -940,9 +939,7 @@ class TrOCRForCausalLM(TrOCRPreTrainedModel, GenerationMixin):
     def _reorder_cache(past_key_values, beam_idx):
         reordered_past = ()
         for layer_past in past_key_values:
-            reordered_past += (
-                tuple(past_state.index_select(0, beam_idx) for past_state in layer_past),
-            )
+            reordered_past += (tuple(past_state.index_select(0, beam_idx) for past_state in layer_past),)
         return reordered_past
 
 
