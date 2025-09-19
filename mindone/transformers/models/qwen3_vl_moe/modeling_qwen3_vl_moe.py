@@ -19,6 +19,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 import math
+import numpy as np
 from dataclasses import dataclass
 from typing import Any, Callable, Optional, Union
 
@@ -70,17 +71,16 @@ class Qwen3VLMoeTextRMSNorm(nn.Cell):
         return f"{tuple(self.weight.shape)}, eps={self.variance_epsilon}"
 
 
-class Qwen3VLMoeTextRouter(nn.Linear):
+class Qwen3VLMoeTextRouter(nn.Cell):
     def __init__(self, config):
-        super().__init__(config.hidden_size, config.num_experts, bias=False)
+        super().__init__()
         self.hidden_size = config.hidden_size
         self.top_k = config.num_experts_per_tok
         # since all the models use norm_topk_prob, we don't need to have a extra check for it
         # self.norm_topk_prob = config.norm_topk_prob
 
-    def construct(self, hidden_states):
+    def construct(self, hidden_states, router_logits):
         hidden_states = hidden_states.reshape(-1, self.hidden_size)
-        router_logits = super().construct(hidden_states)
         routing_weights = mint.nn.functional.softmax(router_logits, dim=-1, dtype=ms.float32)
         routing_weights, router_indices = mint.topk(routing_weights, self.top_k, dim=-1)
         routing_weights = routing_weights / routing_weights.sum(dim=-1, keepdim=True)
@@ -96,8 +96,8 @@ class Qwen3VLMoeTextExperts(nn.Cell):
         self.intermediate_size = config.moe_intermediate_size
         self.hidden_size = config.hidden_size
         self.expert_dim = self.intermediate_size
-        self.gate_up_proj = Parameter(mint.empty(self.num_experts, self.hidden_size, 2 * self.expert_dim))
-        self.down_proj = Parameter(mint.empty((self.num_experts, self.expert_dim, self.hidden_size)))
+        self.gate_up_proj = Parameter(ms.tensor(np.ones(self.num_experts, self.hidden_size, 2 * self.expert_dim)))
+        self.down_proj = Parameter(ms.tensor(np.ones(self.num_experts, self.expert_dim, self.hidden_size)))
         self.act_fn = ACT2FN[config.hidden_act]
 
     def construct(self, hidden_states: ms.Tensor, routing_weights: ms.Tensor, router_indices: ms.Tensor) -> ms.Tensor:
@@ -152,11 +152,14 @@ class Qwen3VLMoeTextSparseMoeBlock(nn.Cell):
         super().__init__()
         self.hidden_size = config.hidden_size
         self.num_experts = config.num_experts
-        self.gate = Qwen3VLMoeTextRouter(config)
+        self.gate = mint.nn.Linear(config.hidden_size, config.num_experts, bias=False)
+        self.router_gate = Qwen3VLMoeTextRouter(config)
         self.experts = Qwen3VLMoeTextExperts(config)
 
     def construct(self, hidden_states: ms.Tensor) -> ms.Tensor:
-        router_weights, router_logits, router_indices = self.gate(hidden_states)
+        hidden_states = hidden_states.reshape(-1, self.hidden_size)
+        router_logits = self.gate(hidden_states)
+        router_weights, router_logits, router_indices = self.router_gate(hidden_states, router_logits)
         routed_out = self.experts(hidden_states, router_weights, router_indices)
         return routed_out, router_logits
 
@@ -427,13 +430,7 @@ class Qwen3VLMoePreTrainedModel(PreTrainedModel):
     def _init_weights(self, module):
         """Initialize the weights."""
         super()._init_weights(module)
-        if hasattr(self.config, "initializer_range"):
-            std = self.config.initializer_range
-        else:
-            std = getattr(self.config.get_text_config(), "initializer_range", 0.02)
-        if isinstance(module, Qwen3VLMoeTextExperts):
-            module.gate_up_proj.data.normal_(mean=0.0, std=std)
-            module.down_proj.data.normal_(mean=0.0, std=std)
+        pass
 
 
 class Qwen3VLMoeVisionMLP(nn.Cell):
