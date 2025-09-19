@@ -27,6 +27,7 @@ from tests.modeling_test_utils import (
 )
 from tests.transformers_tests.models.modeling_common import floats_numpy
 
+# Since the outputs are derived from the tensor.max, the threshold is relatively large.
 DTYPE_AND_THRESHOLDS = {"fp32": 9e-2, "fp16": 2e-1, "bf16": 4e-1}
 MODES = [1]
 
