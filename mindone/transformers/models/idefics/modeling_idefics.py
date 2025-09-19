@@ -911,7 +911,7 @@ class IdeficsPreTrainedModel(PreTrainedModel):
         elif isinstance(module, mint.nn.Embedding):
             normal_(module.weight, mean=0.0, std=std)
             if module.padding_idx is not None:
-                module.weight.data[module.padding_idx] = 0
+                module.weight[module.padding_idx] = 0
 
 
 LLAMA_INPUTS_DOCSTRING = r"""
