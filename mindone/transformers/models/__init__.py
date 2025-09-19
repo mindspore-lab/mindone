@@ -35,6 +35,8 @@ from . import (
     clap,
     clip,
     clipseg,
+    clvp,
+    colpali,
     convbert,
     convnext,
     convnextv2,

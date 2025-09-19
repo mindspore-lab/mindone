@@ -553,7 +553,7 @@ class PaliGemmaForConditionalGeneration(PaliGemmaPreTrainedModel, GenerationMixi
             # Upcast to float if we need to compute the loss to avoid potential precision issues
             logits = logits.float()
             shift_logits = logits[..., :-1, :]
-            shift_labels = labels[..., 1:]
+            shift_labels = labels[..., 1:].int()
             if attention_mask is not None:
                 # we use the input attention mask to shift the logits and labels, because it is 2D.
                 # we also crop attn mask in case it is longer, which happens in PrefixTuning with peft
