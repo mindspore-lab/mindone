@@ -12,7 +12,7 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-"""Testing suite for the MindSpore ViTDet model."""
+"""Testing suite for the MindSpore VitMatte model."""
 
 import inspect
 
@@ -20,6 +20,7 @@ import numpy as np
 import pytest
 import torch
 from transformers import VitDetConfig
+
 
 import mindspore as ms
 
@@ -36,25 +37,24 @@ DTYPE_AND_THRESHOLDS = {"fp32": 5e-4, "fp16": 5e-3, "bf16": 7e-3}
 MODES = [1]
 
 
-class VitDetModelTester:
+class VitMatteModelTester:
     def __init__(
         self,
         batch_size=13,
-        image_size=30,
-        patch_size=2,
-        num_channels=3,
+        image_size=32,
+        patch_size=16,
+        num_channels=4,
         is_training=True,
-        use_labels=True,
-        hidden_size=32,
+        use_labels=False,
+        hidden_size=2,
         num_hidden_layers=2,
-        num_attention_heads=4,
-        intermediate_size=37,
+        num_attention_heads=2,
         hidden_act="gelu",
-        hidden_dropout_prob=0.1,
-        attention_probs_dropout_prob=0.1,
         type_sequence_label_size=10,
         initializer_range=0.02,
         scope=None,
+        out_features=["stage1"],
+        fusion_hidden_sizes=[128, 64, 32, 16],
     ):
         self.batch_size = batch_size
         self.image_size = image_size
@@ -65,43 +65,45 @@ class VitDetModelTester:
         self.hidden_size = hidden_size
         self.num_hidden_layers = num_hidden_layers
         self.num_attention_heads = num_attention_heads
-        self.intermediate_size = intermediate_size
         self.hidden_act = hidden_act
-        self.hidden_dropout_prob = hidden_dropout_prob
-        self.attention_probs_dropout_prob = attention_probs_dropout_prob
         self.type_sequence_label_size = type_sequence_label_size
         self.initializer_range = initializer_range
         self.scope = scope
+        self.out_features = out_features
+        self.fusion_hidden_sizes = fusion_hidden_sizes
 
-        self.num_patches_one_direction = self.image_size // self.patch_size
         self.seq_length = (self.image_size // self.patch_size) ** 2
 
     def prepare_config_and_inputs(self):
-        pixel_values = floats_numpy([self.batch_size, self.num_channels, self.image_size, self.image_size])
+        pixel_values = floats_tensor([self.batch_size, self.num_channels, self.image_size, self.image_size])
 
         labels = None
         if self.use_labels:
-            labels = ids_numpy([self.batch_size], self.type_sequence_label_size)
+            raise NotImplementedError("Training is not yet supported")
 
         config = self.get_config()
 
         return config, pixel_values, labels
 
-    def get_config(self):
+    def get_backbone_config(self):
         return VitDetConfig(
             image_size=self.image_size,
-            pretrain_image_size=self.image_size,
             patch_size=self.patch_size,
             num_channels=self.num_channels,
-            hidden_size=self.hidden_size,
             num_hidden_layers=self.num_hidden_layers,
             num_attention_heads=self.num_attention_heads,
-            intermediate_size=self.intermediate_size,
+            hidden_size=self.hidden_size,
+            is_training=self.is_training,
             hidden_act=self.hidden_act,
-            hidden_dropout_prob=self.hidden_dropout_prob,
-            attention_probs_dropout_prob=self.attention_probs_dropout_prob,
-            is_decoder=False,
-            initializer_range=self.initializer_range,
+            out_features=self.out_features,
+        )
+
+    def get_config(self):
+        return VitMatteConfig(
+            backbone_config=self.get_backbone_config(),
+            backbone=None,
+            hidden_size=self.hidden_size,
+            fusion_hidden_sizes=self.fusion_hidden_sizes,
         )
 
     def prepare_config_and_inputs_for_common(self):
@@ -111,18 +113,18 @@ class VitDetModelTester:
         return config, inputs_dict
 
 
-model_tester = VitDetModelTester()
+model_tester = VitMatteModelTester()
 (
     config,
     inputs_dict,
 ) = model_tester.prepare_config_and_inputs_for_common()
 
 
-VIT_DET_CASES = [
+VIT_MATTE_CASES = [
     [
-        "VitDetModel",
-        "transformers.VitDetModel",
-        "mindone.transformers.VitDetModel",
+        "VitMatteForImageMatting",
+        "transformers.VitMatteForImageMatting",
+        "mindone.transformers.VitMatteForImageMatting",
         (config,),
         {},
         (),
@@ -146,7 +148,7 @@ VIT_DET_CASES = [
         + [
             mode,
         ]
-        for case in VIT_DET_CASES
+        for case in VIT_MATTE_CASES
         for dtype in DTYPE_AND_THRESHOLDS.keys()
         for mode in MODES
     ],
