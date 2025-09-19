@@ -2864,28 +2864,28 @@ class OneFormerPreTrainedModel(PreTrainedModel):
             xavier_uniform_(module.output_proj.weight)
             constant_(module.output_proj.bias, 0.0)
         elif isinstance(module, OneFormerPixelDecoderEncoderOnly):
-            for p in module.parameters():
+            for p in module.get_parameters():
                 if p.dim() > 1:
                     xavier_uniform_(p)
         elif isinstance(module, OneFormerPixelDecoder):
-            for p in module.parameters():
+            for p in module.get_parameters():
                 if p.dim() > 1:
                     xavier_uniform_(p)
             normal_(module.level_embed, std=0)
         elif isinstance(module, OneFormerTransformerDecoderSelfAttentionLayer):
-            for p in module.parameters():
+            for p in module.get_parameters():
                 if p.dim() > 1:
                     xavier_uniform_(p, gain=xavier_std)
         elif isinstance(module, OneFormerTransformerDecoderCrossAttentionLayer):
-            for p in module.parameters():
+            for p in module.get_parameters():
                 if p.dim() > 1:
                     xavier_uniform_(p, gain=xavier_std)
         elif isinstance(module, OneFormerTransformerDecoderFFNLayer):
-            for p in module.parameters():
+            for p in module.get_parameters():
                 if p.dim() > 1:
                     xavier_uniform_(p, gain=xavier_std)
         elif isinstance(module, OneFormerTransformerDecoderQueryTransformer):
-            for p in module.parameters():
+            for p in module.get_parameters():
                 if p.dim() > 1:
                     xavier_uniform_(p, gain=xavier_std)
         elif isinstance(module, OneFormerPixelLevelModule):
