@@ -15,7 +15,6 @@ import torch
 from transformers import PerceiverConfig
 
 import mindspore as ms
-import mindspore.numpy as mint
 
 from tests.modeling_test_utils import (
     MS_DTYPE_MAPPING,
@@ -115,7 +114,7 @@ class PerceiverModelTester:
         self._label_trainable_num_channels = _label_trainable_num_channels
 
     def prepare_config_and_inputs(self):
-        input_embeds = mint.randn([self.batch_size, self.seq_length, self.d_model])
+        input_embeds = np.random.randn([self.batch_size, self.seq_length, self.d_model])
 
         input_mask = None
         if self.use_input_mask:
