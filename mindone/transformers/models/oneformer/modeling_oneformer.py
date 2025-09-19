@@ -1209,18 +1209,14 @@ class OneFormerPixelDecoderEncoderOnly(ms.nn.Cell):
         reference_points_list = []
         for lvl, (height, width) in enumerate(spatial_shapes):
             ref_y, ref_x = mint.meshgrid(
-                mint.linspace(
+                ms.ops.linspace(
                     0.5,
                     height - 0.5,
-                    height,
-                    dtype=valid_ratios.dtype,
-                ),
-                mint.linspace(
+                    height).to(valid_ratios.dtype),
+                ms.ops.linspace(
                     0.5,
                     width - 0.5,
-                    width,
-                    dtype=valid_ratios.dtype,
-                ),
+                    width).to(valid_ratios.dtype),
             )
             ref_y = ref_y.reshape(-1)[None] / (valid_ratios[:, None, lvl, 1] * height)
             ref_x = ref_x.reshape(-1)[None] / (valid_ratios[:, None, lvl, 0] * width)
