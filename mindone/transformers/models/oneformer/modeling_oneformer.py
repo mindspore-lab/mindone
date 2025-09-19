@@ -66,7 +66,7 @@ def multi_scale_deformable_attention(
 ) -> Tensor:
     batch_size, _, num_heads, hidden_dim = value.shape
     _, num_queries, num_heads, num_levels, num_points, _ = sampling_locations.shape
-    value_list = value.split([height * width for height, width in value_spatial_shapes], dim=1)
+    value_list = value.split([int(height) * int(width) for height, width in value_spatial_shapes], dim=1)
     sampling_grids = 2 * sampling_locations - 1
     sampling_value_list = []
     for level_id, (height, width) in enumerate(value_spatial_shapes):
@@ -74,6 +74,8 @@ def multi_scale_deformable_attention(
         # -> batch_size, height*width, num_heads*hidden_dim
         # -> batch_size, num_heads*hidden_dim, height*width
         # -> batch_size*num_heads, hidden_dim, height, width
+        height = int(height)
+        width = int(width)
         value_l_ = (
             value_list[level_id].flatten(2).transpose(1, 2).reshape(batch_size * num_heads, hidden_dim, height, width)
         )
@@ -1209,14 +1211,8 @@ class OneFormerPixelDecoderEncoderOnly(ms.nn.Cell):
         reference_points_list = []
         for lvl, (height, width) in enumerate(spatial_shapes):
             ref_y, ref_x = mint.meshgrid(
-                ms.ops.linspace(
-                    0.5,
-                    height - 0.5,
-                    height).to(valid_ratios.dtype),
-                ms.ops.linspace(
-                    0.5,
-                    width - 0.5,
-                    width).to(valid_ratios.dtype),
+                ms.ops.linspace(0.5, height - 0.5, height).to(valid_ratios.dtype),
+                ms.ops.linspace(0.5, width - 0.5, width).to(valid_ratios.dtype),
             )
             ref_y = ref_y.reshape(-1)[None] / (valid_ratios[:, None, lvl, 1] * height)
             ref_x = ref_x.reshape(-1)[None] / (valid_ratios[:, None, lvl, 0] * width)
