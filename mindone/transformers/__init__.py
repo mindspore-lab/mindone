@@ -297,7 +297,26 @@ from .models.deberta_v2 import (
 )
 from .models.depth_anything import DepthAnythingForDepthEstimation, DepthAnythingPreTrainedModel
 from .models.dinov2 import Dinov2Backbone, Dinov2ForImageClassification, Dinov2Model, Dinov2PreTrainedModel
+from .models.donut import (
+    DonutFeatureExtractor,
+    DonutImageProcessor,
+    DonutProcessor,
+    DonutSwinModel,
+    DonutSwinPreTrainedModel,
+)
 from .models.dpt import DPTForDepthEstimation, DPTImageProcessor, DPTModel, DPTPreTrainedModel
+from .models.flava import (
+    FlavaFeatureExtractor,
+    FlavaForPreTraining,
+    FlavaImageCodebook,
+    FlavaImageModel,
+    FlavaImageProcessor,
+    FlavaModel,
+    FlavaMultimodalModel,
+    FlavaPreTrainedModel,
+    FlavaProcessor,
+    FlavaTextModel,
+)
 from .models.fuyu import FuyuForCausalLM, FuyuPreTrainedModel
 from .models.gemma import (
     GemmaForCausalLM,
