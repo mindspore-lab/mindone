@@ -36,7 +36,7 @@ from transformers import AutoTokenizer, SiglipProcessor
 import mindspore as ms
 from mindspore import mint, nn
 
-from mindone.diffusers._peft import PeftModel
+from mindone.peft import PeftModel
 from mindone.transformers import AutoModelForCausalLM, SiglipModel
 
 from .._retinaface.data import cfg_re50
