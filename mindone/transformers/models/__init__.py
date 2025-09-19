@@ -90,6 +90,7 @@ from . import (
     segformer,
     siglip,
     smolvlm,
+    speech_encoder_decoder,
     speecht5,
     starcoder2,
     swin2sr,
