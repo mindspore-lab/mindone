@@ -174,7 +174,7 @@ class PerceiverEmbeddings(ms.nn.Cell):
         self.latents = ms.Parameter(mint.randn(config.num_latents, config.d_latents))
 
     def construct(self, batch_size: int):
-        return self.latents.broadcast_to((batch_size, -1, -1))  # Thanks, Phil Wang
+        return self.latents.broadcast_to((batch_size, -1, -1)) 
 
 
 class PerceiverSelfAttention(ms.nn.Cell):
