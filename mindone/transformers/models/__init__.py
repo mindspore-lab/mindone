@@ -87,6 +87,7 @@ from . import (
     qwen2_vl,
     roberta,
     rwkv,
+    sam,
     segformer,
     siglip,
     smolvlm,
