@@ -2047,7 +2047,7 @@ class OneFormerTransformerDecoderQueryTransformerDecoderLayer(ms.nn.Cell):
         query_pos: Optional[Tensor] = None,
     ):
         q = k = self.with_pos_embed(output, query_pos)
-        output2 = self.self_attn(q, k, value=output, attn_mask=output_mask, key_padding_mask=output_key_padding_mask)
+        output2 = self.self_attn(q, k, output, attn_mask=output_mask, key_padding_mask=output_key_padding_mask)
         output2 = output2[0]
         output = output + self.dropout1(output2)
         output = self.norm1(output)
