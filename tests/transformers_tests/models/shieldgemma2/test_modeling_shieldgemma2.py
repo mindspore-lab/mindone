@@ -76,6 +76,8 @@ class ShieldGemma2ModelTester:
         boi_token_index=120,
         eoi_token_index=121,
         image_token_index=122,
+        yes_token_index=123,
+        no_token_index=124,
     ):
         self.batch_size = batch_size
         self.seq_length = seq_length
@@ -86,6 +88,8 @@ class ShieldGemma2ModelTester:
         self.eoi_token_index = eoi_token_index
         self.image_token_index = image_token_index
         self.pad_token_id = text_config["pad_token_id"]
+        self.yes_token_index = yes_token_index
+        self.no_token_index = no_token_index
 
     def get_config(self):
         return ShieldGemma2Config(
@@ -95,6 +99,8 @@ class ShieldGemma2ModelTester:
             boi_token_index=self.boi_token_index,
             eoi_token_index=self.eoi_token_index,
             image_token_index=self.image_token_index,
+            yes_token_index=self.yes_token_index,
+            no_token_index=self.no_token_index,
         )
 
     def prepare_config_and_inputs(self):
