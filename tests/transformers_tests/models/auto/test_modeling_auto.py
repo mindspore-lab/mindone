@@ -85,6 +85,8 @@ class AutoModelTest(unittest.TestCase):
         ):
             _ = AutoModel.from_pretrained("hf-internal-testing/config-no-model")
 
+    # TODO due to unstable network connection with hf, this test need to be skipped right now
+    @pytest.mark.skip
     def test_cached_model_has_minimum_calls_to_head(self):
         # Make sure we have cached the model.
         _ = AutoModel.from_pretrained("hf-internal-testing/tiny-random-bert")
