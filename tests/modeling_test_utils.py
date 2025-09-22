@@ -376,7 +376,10 @@ def compute_diffs(pt_outputs: Union[torch.Tensor, np.ndarray], ms_outputs: Union
                 m = m.asnumpy()
             # relative error defined by Frobenius norm
             # dist(x, y) := ||x - y|| / ||y||, where ||·|| means Frobenius norm
-            d = np.linalg.norm(p - m) / np.linalg.norm(p)
+
+            # adaption for tensor with all zeros element
+            eps = 1e-9 if np.all(m == 0) and np.all(p == 0) else 0
+            d = np.linalg.norm(p - m) / (np.linalg.norm(p) + eps)
             diffs.append(d)
 
     return diffs
