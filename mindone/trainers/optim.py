@@ -10,9 +10,7 @@ from mindspore.common.parameter import Parameter
 from mindspore.nn.optim import Adam, AdamWeightDecay, Momentum, Optimizer
 
 from .adamw_bf16 import BF16AdamW
-from .adamw_mf import AdamW as AdamW_MF
 from .adamw_mint import AdamW as AdamW_Mint
-from .adamw_zero1 import AdamWeightDecayZeRO1
 from .came import CAME
 
 _logger = logging.getLogger(__name__)
@@ -20,8 +18,8 @@ _logger = logging.getLogger(__name__)
 
 def create_optimizer(
     params: Union[List[Parameter], List[dict]],
-    name: str,
-    lr: Union[float, List[float]],
+    name: str = "adamw_re",
+    lr: Union[float, List[float]] = 0.001,
     betas: Optional[List[float]] = None,
     weight_decay: float = 1e-6,
     eps: Union[float, List[float]] = 1e-6,
@@ -32,7 +30,7 @@ def create_optimizer(
 
     Args:
         params: Model parameters to be optimized.
-        name: Name of the optimizer. adamw_re: refined adamw
+        name: Name of the optimizer. Recommend choice: "adamw_re", which supports both graph mode and pynative mode, and the algorithm implementation is well aligned with `torch.optim.AdamW`
         lr: Learning rate or a list of learning rates for each step (if a scheduler is used).
         betas: Beta coefficients for computing running averages of gradient and its square.
                If not provided, [0.9, 0.999] is used as default.
@@ -85,10 +83,6 @@ def create_optimizer(
         optim_cls = AdamW_Refined
     elif name.lower() == "adamw_bf16":
         optim_cls = BF16AdamW
-    elif name.lower() == "adamw_mf":
-        optim_cls = AdamW_MF
-    elif name.lower() == "adamw_zero1":
-        optim_cls = AdamWeightDecayZeRO1
     elif name.lower() == "adamw_mint":
         optim_cls = AdamW_Mint
     elif name.lower() in ["sgd", "momentum"]:
