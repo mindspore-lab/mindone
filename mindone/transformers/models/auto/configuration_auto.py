@@ -56,6 +56,8 @@ CONFIG_MAPPING_NAMES = OrderedDict(
         ("clip_vision_model", "CLIPVisionConfig"),
         ("clipseg", "CLIPSegConfig"),
         ("clvp", "ClvpConfig"),
+        ("cohere", "CohereConfig"),
+        ("cohere2", "Cohere2Config"),
         ("colpali", "ColPaliConfig"),
         ("convbert", "ConvBertConfig"),
         ("convnext", "ConvNextConfig"),
@@ -181,7 +183,6 @@ CONFIG_MAPPING_NAMES = OrderedDict(
         ("xlm-roberta-xl", "XLMRobertaXLConfig"),
         ("yolos", "YolosConfig"),
         ("zamba2", "Zamba2Config"),
-        ("cohere2", "Cohere2Config"),
         ("zamba", "ZambaConfig"),
     ]
 )
@@ -213,6 +214,8 @@ MODEL_NAMES_MAPPING = OrderedDict(
         ("clip_vision_model", "CLIPVisionModel"),
         ("clipseg", "CLIPSeg"),
         ("clvp", "CLVP"),
+        ("cohere", "Cohere"),
+        ("cohere2", "Cohere2"),
         ("colpali", "ColPali"),
         ("convnext", "ConvNeXT"),
         ("convnextv2", "ConvNeXTV2"),
