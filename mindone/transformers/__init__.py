@@ -139,6 +139,7 @@ from .models.auto import (
     AutoProcessor,
 )
 from .models.bamba import BambaForCausalLM, BambaModel, BambaPreTrainedModel
+
 from .models.bart import (
     BartForCausalLM,
     BartForConditionalGeneration,
