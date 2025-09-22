@@ -5,55 +5,72 @@ This repository contains SoTA algorithms, models, and interesting projects in th
 ONE is short for "ONE for all"
 
 ## News
+- [2025.09.15] We upgrade diffusers to v0.33.1 and transformers to v4.50.1 based on MindSpore. QwenImage, FluxKontext, Wan2.2, OmniGen2 and more than 20 generative models are now supported.
 - [2025.04.10] We release [v0.3.0](https://github.com/mindspore-lab/mindone/releases/tag/v0.3.0). More than 15 SoTA generative models are added, including Flux, CogView4, OpenSora2.0, Movie Gen 30B , CogVideoX 5B~30B. Have fun!
 - [2025.02.21] We support DeepSeek [Janus-Pro](https://huggingface.co/deepseek-ai/Janus-Pro-7B), a SoTA multimodal understanding and generation model. See [here](examples/janus)
 - [2024.11.06] [v0.2.0](https://github.com/mindspore-lab/mindone/releases/tag/v0.2.0) is released
 
 ## Quick tour
 
-To install v0.3.0, please install [MindSpore 2.5.0](https://www.mindspore.cn/install) and run `pip install mindone`
+We recommend to install the latest version from the `master` branch based on MindSpore 2.6.0:
 
-Alternatively, to install the latest version from the `master` branch, please run.
 ```
 git clone https://github.com/mindspore-lab/mindone.git
 cd mindone
 pip install -e .
 ```
 
-We support state-of-the-art diffusion models for generating images, audio, and video. Let's get started using [Stable Diffusion 3](https://huggingface.co/stabilityai/stable-diffusion-3-medium) as an example.
+We support state-of-the-art diffusion models for generating images, audio, and video. Let's get started using [Flux Kontext](https://huggingface.co/black-forest-labs/FLUX.1-Kontext-dev) as an example.
 
-**Hello MindSpore** from **Stable Diffusion 3**!
+**Hello MindSpore** from **Flux**!
+<!-- TODO: add Flux Kontext or QwenImage running result -->
 
 <div>
-<img src="https://github.com/townwish4git/mindone/assets/143256262/8c25ae9a-67b1-436f-abf6-eca36738cd17" alt="sd3" width="512" height="512">
+<img src="https://github.com/townwish4git/mindone/assets/143256262/8c25ae9a-67b1-436f-abf6-eca36738cd17" alt="flux_kontext" width="512" height="512">
 </div>
 
 ```py
-import mindspore
-from mindone.diffusers import StableDiffusion3Pipeline
+import mindspore as ms
+from mindone.diffusers import FluxKontextPipeline
+from mindone.diffusers.utils import load_image
+import numpy as np
 
-pipe = StableDiffusion3Pipeline.from_pretrained(
-    "stabilityai/stable-diffusion-3-medium-diffusers",
-    mindspore_dtype=mindspore.float16,
+pipe = FluxKontextPipeline.from_pretrained(
+    "black-forest-labs/FLUX.1-Kontext-dev", mindspore_dtype=ms.bfloat16
 )
-prompt = "A cat holding a sign that says 'Hello MindSpore'"
-image = pipe(prompt)[0][0]
-image.save("sd3.png")
+
+image = load_image("https://huggingface.co/datasets/huggingface/documentation-images/resolve/main/diffusers/yarn-art-pikachu.png").convert("RGB")
+prompt = "Make Pikachu hold a sign that says 'MindSpore ONE', yarn art style, detailed, vibrant colors"
+image = pipe(
+    image=image,
+    prompt=prompt,
+    guidance_scale=2.5,
+    generator=np.random.default_rng(42),
+)[0][0]
+image.save("flux-kontext.png")
 ```
+
 ###  run hf diffusers on mindspore
- - mindone diffusers is under active development, most tasks were tested with mindspore 2.5.0 on Ascend Atlas 800T A2 machines.
- - compatibale with hf diffusers 0.32.2
+ - mindone diffusers is under active development, most tasks were tested with mindspore 2.6.0 on Ascend Atlas 800T A2 machines.
+ - compatibale with hf diffusers 0.33.1. diffusers 0.35 is under development.
 
 | component  |  features  
 | :---   |  :--  
-| [pipeline](https://github.com/mindspore-lab/mindone/tree/master/mindone/diffusers/pipelines) | support text-to-image,text-to-video,text-to-audio tasks 160+
+| [pipeline](https://github.com/mindspore-lab/mindone/tree/master/mindone/diffusers/pipelines) | support text-to-image,text-to-video,text-to-audio tasks 240+
 | [models](https://github.com/mindspore-lab/mindone/tree/master/mindone/diffusers/models) | support audoencoder & transformers base models same as hf diffusers 50+
 | [schedulers](https://github.com/mindspore-lab/mindone/tree/master/mindone/diffusers/schedulers) | support diffusion schedulers (e.g., ddpm and dpm solver) same as hf diffusers 35+
 
 ### supported models under mindone/examples
 
+<!-- TODO: update the links after PR merged-->
+
 | task | model  | inference | finetune | pretrain | institute  |
 | :---   |  :---   |  :---:    |  :---:  |  :---:     |  :--  |
+| Text/Image-to-Image | [qwen_image](https://github.com/mindspore-lab/mindone/pull/1288) 🔥🔥🔥 | ✅ | ✖️  | ✖️  | Alibaba |
+| Text/Image-to-Image | [flux_kontext](https://github.com/mindspore-lab/mindone/blob/master/docs/diffusers/api/pipelines/flux.md) 🔥🔥🔥 | ✅ | ✖️  | ✖️  | Black Forest Labs |
+| Text/Image/Speech-to-Video | [wan2_2](https://github.com/mindspore-lab/mindone/pull/1243) 🔥🔥🔥 | ✅ | ✖️  | ✖️  | Alibaba |
+| Text/Image-to-Image | [omni_gen](https://github.com/mindspore-lab/mindone/blob/master/examples/omnigen) 🔥🔥 |  ✅  |  ✅  | ✖️  | Vector Space Lab|
+| Text/Image-to-Image | [omni_gen2](https://github.com/mindspore-lab/mindone/blob/master/examples/omnigen2) 🔥🔥 |  ✅  |  ✖️  | ✖️  | Vector Space Lab |
 | Image-to-Video | [hunyuanvideo-i2v](https://github.com/mindspore-lab/mindone/blob/master/examples/hunyuanvideo-i2v) 🔥🔥 |  ✅  | ✖️  | ✖️  | Tencent |
 | Text/Image-to-Video | [wan2.1](https://github.com/mindspore-lab/mindone/blob/master/examples/wan2_1) 🔥🔥🔥 |  ✅  |  ✖️  |  ✖️   | Alibaba  |
 | Text-to-Image | [cogview4](https://github.com/mindspore-lab/mindone/blob/master/examples/cogview) 🔥🔥🔥 | ✅ | ✖️  | ✖️  | Zhipuai |
