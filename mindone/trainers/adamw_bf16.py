@@ -27,10 +27,10 @@ class BF16AdamW(AdamW):
     [Scaling Language Models](https://storage.googleapis.com/deepmind-media/research/language-research/Training%20Gopher.pdf) .
 
     There are several projects that use this optimizer, including
-        - examples/huanyuanvideo
-        - examples/moviegen
-        - examples/diffusers/cogvideox_factory
-    You can either use this optimizer directly or by passing `create_optimizer(..., name="adamw_bf16")`.
+        - ``examples/huanyuanvideo``
+        - ``examples/moviegen``
+        - ``examples/diffusers/cogvideox_factory``
+    You can either use this optimizer directly or by passing ``create_optimizer(..., name="adamw_bf16")``.
     """
 
     def __init__(
