@@ -61,6 +61,7 @@ MODEL_MAPPING_NAMES = OrderedDict(
         ("deberta-v2", "DebertaV2Model"),
         ("detr", "DetrModel"),
         ("dinov2", "Dinov2Model"),
+        ("dpr", "DPRQuestionEncoder"),
         ("dpt", "DPTModel"),
         ("gemma", "GemmaModel"),
         ("gemma2", "Gemma2Model"),
