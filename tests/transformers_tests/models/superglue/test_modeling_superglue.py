@@ -20,7 +20,8 @@ from tests.modeling_test_utils import (
 )
 from tests.transformers_tests.models.modeling_common import ids_numpy, floats_numpy
 
-DTYPE_AND_THRESHOLDS = {"fp32": 5e-4, "fp16": 5e-3, "bf16": 5e-2}
+# nn.function.grid_sample not support fp16
+DTYPE_AND_THRESHOLDS = {"fp32": 5e-4, "bf16": 5e-2}
 MODES = [1]
 
 
@@ -94,7 +95,7 @@ LLAMA_CASES = [
         (pixel_values,),
         {},
         {
-            "predicted_depth": 0,
+            "keypoints": 2,
         },
     ],
 ]

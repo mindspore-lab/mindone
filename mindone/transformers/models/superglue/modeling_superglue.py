@@ -69,7 +69,7 @@ def normalize_keypoints(keypoints: mindspore.Tensor, height: int, width: int) ->
     """
     size = mindspore.Tensor([width, height], dtype=keypoints.dtype)[None]
     center = size / 2
-    scaling = size.max(1, keepdim=True).values * 0.7
+    scaling = size.max(1, keepdim=True)[0] * 0.7
     return (keypoints - center[:, None, :]) / scaling[:, None, :]
 
 
@@ -508,11 +508,11 @@ class SuperGlueAttentionalGNN(mindspore.nn.Cell):
             if layer_type == "cross":
                 encoder_hidden_states = (
                     descriptors.reshape(-1, 2, num_keypoints, self.hidden_size)
-                    .flip(1)
+                    .flip([1])
                     .reshape(batch_size, num_keypoints, self.hidden_size)
                 )
                 encoder_attention_mask = (
-                    mask.reshape(-1, 2, 1, 1, num_keypoints).flip(1).reshape(batch_size, 1, 1, num_keypoints)
+                    mask.reshape(-1, 2, 1, 1, num_keypoints).flip([1]).reshape(batch_size, 1, 1, num_keypoints)
                     if mask is not None
                     else None
                 )
@@ -599,8 +599,7 @@ class SuperGlueForKeypointMatching(SuperGluePreTrainedModel):
         self.gnn = SuperGlueAttentionalGNN(config)
         self.final_projection = SuperGlueFinalProjection(config)
 
-        bin_score = mindspore.Parameter(mindspore.Tensor(1.0))
-        self.register_parameter("bin_score", bin_score)
+        self.bin_score = mindspore.Parameter(mindspore.Tensor(1.0))
 
         self.post_init()
 
@@ -715,12 +714,12 @@ class SuperGlueForKeypointMatching(SuperGluePreTrainedModel):
         # Get the matches with score above "match_threshold".
         max0 = scores[:, :-1, :-1].max(2)
         max1 = scores[:, :-1, :-1].max(1)
-        indices0 = max0.indices
-        indices1 = max1.indices
+        indices0 = max0[0]
+        indices1 = max1[1]
         mutual0 = arange_like(indices0, 1)[None] == indices1.gather(1, indices0)
         mutual1 = arange_like(indices1, 1)[None] == indices0.gather(1, indices1)
-        zero = mindspore.tensor(0, dtype = scores.dtype)
-        matching_scores0 = mint.where(mutual0, max0.values.exp(), zero)
+        zero = mindspore.tensor(0, dtype=scores.dtype)
+        matching_scores0 = mint.where(mutual0, max0[0].exp(), zero)
         matching_scores0 = mint.where(matching_scores0 > self.config.matching_threshold, matching_scores0, zero)
         matching_scores1 = mint.where(mutual1, matching_scores0.gather(1, indices1), zero)
         valid0 = mutual0 & (matching_scores0 > zero)

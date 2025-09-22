@@ -173,6 +173,8 @@ CONFIG_MAPPING_NAMES = OrderedDict(
         ("mra", "MraConfig"),
         ("nystromformer", "NystromformerConfig"),
         ("starcoder2", "Starcoder2Config"),
+        ("superglue", "SuperGlueConfig"),
+        ("superpoint", "SuperPointConfig"),
         ("mt5", "MT5Config"),
         ("table-transformer", "TableTransformerConfig"),
         ("musicgen_melody", "MusicgenMelodyConfig"),

@@ -61,7 +61,32 @@ def simple_nms(scores: mindspore.Tensor, nms_radius: int) -> mindspore.Tensor:
         raise ValueError("Expected positive values for nms_radius")
 
     def max_pool(x):
-        return mint.nn.functional.max_pool2d(x, kernel_size=nms_radius * 2 + 1, stride=1, padding=nms_radius)
+        kernel_size = nms_radius * 2 + 1
+        stride = 1
+        padding = nms_radius
+        dtype = x.dtype
+        x = x.to(mindspore.float32)
+
+        if x.ndim == 3:
+            x_nchw = mint.unsqueeze(x, 0)
+
+            pooled_nchw = mint.max_pool2d(
+                x_nchw,
+                kernel_size=kernel_size,
+                stride=stride,
+                padding=padding
+            )
+
+            output = mint.squeeze(pooled_nchw, 0)
+
+        else:
+            output = mint.max_pool2d(
+                x,
+                kernel_size=kernel_size,
+                stride=stride,
+                padding=padding
+            )
+        return output.to(dtype)
 
     zeros = mint.zeros_like(scores)
     max_mask = scores == max_pool(scores)
@@ -127,14 +152,15 @@ class SuperPointConvBlock(mindspore.nn.Cell):
             stride=1,
             padding=1,
         )
-        self.relu = mint.nn.ReLU(inplace=True)
+        self.relu = mint.nn.ReLU()
         self.pool = mint.nn.MaxPool2d(kernel_size=2, stride=2) if add_pooling else None
 
     def construct(self, hidden_states: mindspore.Tensor) -> mindspore.Tensor:
         hidden_states = self.relu(self.conv_a(hidden_states))
         hidden_states = self.relu(self.conv_b(hidden_states))
         if self.pool is not None:
-            hidden_states = self.pool(hidden_states)
+            dtype = hidden_states.dtype
+            hidden_states = self.pool(hidden_states.to(mindspore.float32)).to(dtype)
         return hidden_states
 
 
@@ -204,7 +230,7 @@ class SuperPointInterestPointDecoder(mindspore.nn.Cell):
         self.nms_radius = config.nms_radius
         self.border_removal_distance = config.border_removal_distance
 
-        self.relu = mint.nn.ReLU(inplace=True)
+        self.relu = mint.nn.ReLU()
         self.pool = mint.nn.MaxPool2d(kernel_size=2, stride=2)
         self.conv_score_a = mint.nn.Conv2d(
             config.encoder_hidden_sizes[-1],
@@ -255,7 +281,7 @@ class SuperPointInterestPointDecoder(mindspore.nn.Cell):
             keypoints, scores = top_k_keypoints(keypoints, scores, self.max_keypoints)
 
         # Convert (y, x) to (x, y)
-        keypoints = mint.flip(keypoints, [1]).float()
+        keypoints = mint.flip(keypoints, [1]).to(scores.dtype)
 
         return keypoints, scores
 
@@ -272,7 +298,7 @@ class SuperPointDescriptorDecoder(mindspore.nn.Cell):
     def __init__(self, config: SuperPointConfig) -> None:
         super().__init__()
 
-        self.relu = mint.nn.ReLU(inplace=True)
+        self.relu = mint.nn.ReLU()
         self.pool = mint.nn.MaxPool2d(kernel_size=2, stride=2)
         self.conv_descriptor_a = mint.nn.Conv2d(
             config.encoder_hidden_sizes[-1],
@@ -313,7 +339,9 @@ class SuperPointDescriptorDecoder(mindspore.nn.Cell):
         kwargs = {"align_corners": True}
         # [batch_size, num_channels, num_keypoints, 2] -> [batch_size, num_channels, num_keypoints, 2]
         keypoints = keypoints.view(batch_size, 1, -1, 2)
-        descriptors = mint.nn.functional.grid_sample(descriptors, keypoints, mode="bilinear", **kwargs)
+        descriptors = mint.nn.functional.grid_sample(
+            descriptors.to(mindspore.float32), keypoints, mode="bilinear", **kwargs
+        ).to(keypoints.dtype)
         # [batch_size, descriptor_decoder_dim, num_channels, num_keypoints] -> [batch_size, descriptor_decoder_dim, num_keypoints]
         descriptors = descriptors.reshape(batch_size, num_channels, -1)
         descriptors = mint.nn.functional.normalize(descriptors, p=2, dim=1)

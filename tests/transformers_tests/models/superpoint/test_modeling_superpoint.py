@@ -29,7 +29,8 @@ from tests.modeling_test_utils import (
 )
 from tests.transformers_tests.models.modeling_common import ids_numpy, floats_numpy
 
-DTYPE_AND_THRESHOLDS = {"fp32": 5e-4, "fp16": 5e-3, "bf16": 5e-2}
+# nn.functional.grid_sample not support fp16
+DTYPE_AND_THRESHOLDS = {"fp32": 5e-4, "bf16": 5e-2}
 MODES = [1]
 
 
@@ -65,7 +66,7 @@ class SuperPointModelTester:
 
     def prepare_config_and_inputs(self):
         # SuperGlue expects a grayscale image as input
-        pixel_values = floats_numpy([self.batch_size, 2, 3, self.image_height, self.image_width])
+        pixel_values = floats_numpy([self.batch_size, 3, self.image_height, self.image_width])
         config = self.get_config()
         return config, pixel_values
 
@@ -95,7 +96,7 @@ LLAMA_CASES = [
         (pixel_values,),
         {},
         {
-            "predicted_depth": 0,
+            "keypoints": 0,
         },
     ],
 ]
