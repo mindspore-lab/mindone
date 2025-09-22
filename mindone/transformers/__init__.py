@@ -863,6 +863,13 @@ from .models.mt5 import (
     MT5Model,
     MT5PreTrainedModel,
 )
+from .models.musicgen_melody import (
+    MusicgenMelodyFeatureExtractor,
+    MusicgenMelodyForCausalLM,
+    MusicgenMelodyForConditionalGeneration,
+    MusicgenMelodyModel,
+    MusicgenMelodyPreTrainedModel,
+)
 from .models.mvp import (
     MvpForCausalLM,
     MvpForConditionalGeneration,
