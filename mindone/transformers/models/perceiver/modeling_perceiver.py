@@ -14,9 +14,6 @@
 # limitations under the License.
 """MindSpore Perceiver model."""
 
-import mindspore as ms
-from mindspore import ops
-from mindspore import mint, nn
 import abc
 import math
 from dataclasses import dataclass
@@ -25,14 +22,7 @@ from operator import __add__
 from typing import Any, Callable, Dict, List, Mapping, Optional, Tuple, Union
 
 import numpy as np
-import mindspore as ms
-from mindspore import nn
-from mindspore.mint.nn import BCEWithLogitsLoss, CrossEntropyLoss, MSELoss
-
-from ...activations import ACT2FN
-from ...modeling_outputs import BaseModelOutputWithCrossAttentions
-from ...modeling_utils import PreTrainedModel
-from ...mindspore_utils import apply_chunking_to_forward, find_pruneable_heads_and_indices, meshgrid, prune_linear_layer
+from transformers import PerceiverConfig
 from transformers.utils import (
     ModelOutput,
     add_start_docstrings,
@@ -40,8 +30,15 @@ from transformers.utils import (
     logging,
     replace_return_docstrings,
 )
-from transformers import PerceiverConfig
 
+import mindspore as ms
+from mindspore import mint, nn
+from mindspore.mint.nn import BCEWithLogitsLoss, CrossEntropyLoss, MSELoss
+
+from ...activations import ACT2FN
+from ...mindspore_utils import apply_chunking_to_forward, find_pruneable_heads_and_indices, meshgrid, prune_linear_layer
+from ...modeling_outputs import BaseModelOutputWithCrossAttentions
+from ...modeling_utils import PreTrainedModel
 
 ModalitySizeType = Mapping[str, int]
 PreprocessorOutputType = Tuple[ms.Tensor, Optional[ms.Tensor], ms.Tensor]
@@ -174,7 +171,7 @@ class PerceiverEmbeddings(ms.nn.Cell):
         self.latents = ms.Parameter(mint.randn(config.num_latents, config.d_latents))
 
     def construct(self, batch_size: int):
-        return self.latents.broadcast_to((batch_size, -1, -1)) 
+        return self.latents.broadcast_to((batch_size, -1, -1))
 
 
 class PerceiverSelfAttention(ms.nn.Cell):
@@ -614,8 +611,8 @@ class PerceiverPreTrainedModel(PreTrainedModel):
 
     def _init_weights(self, module):
         """Initialize the weights"""
-        from mindspore.common.initializer import Constant, Normal, initializer
         from mindspore import Parameter
+        from mindspore.common.initializer import Constant, Normal, initializer
 
         def constant_(tensor: Parameter, val: float) -> None:
             tensor.set_data(initializer(Constant(val), tensor.shape, tensor.dtype))
@@ -785,11 +782,12 @@ class PerceiverModel(PerceiverPreTrainedModel):
         Examples:
 
         ```python
-        >>> from mindone.transformers import PerceiverConfig, PerceiverTokenizer, PerceiverImageProcessor, PerceiverModel
+        >>> from transformers import PerceiverConfig, PerceiverTokenizer, PerceiverImageProcessor
         >>> from mindone.transformers.models.perceiver.modeling_perceiver import (
         ...     PerceiverTextPreprocessor,
         ...     PerceiverImagePreprocessor,
         ...     PerceiverClassificationDecoder,
+        ...     PerceiverModel,
         ... )
         >>> import mindspore as ms
         >>> import requests
@@ -899,7 +897,9 @@ class PerceiverModel(PerceiverPreTrainedModel):
 
         # If no attention mask is provided, make them all ones
         if attention_mask is None:
-            attention_mask = mint.ones((batch_size, seq_length), )
+            attention_mask = mint.ones(
+                (batch_size, seq_length),
+            )
         # Make the attention mask broadcastable to [batch_size, num_heads, seq_length, seq_length]
         extended_attention_mask = self.invert_attention_mask(attention_mask)
 
@@ -1029,7 +1029,8 @@ class PerceiverForMaskedLM(PerceiverPreTrainedModel):
         Examples:
 
         ```python
-        >>> from mindone.transformers import AutoTokenizer, PerceiverForMaskedLM
+        >>> from transformers import AutoTokenizer
+        >>> from mindone.transformers import PerceiverForMaskedLM
         >>> import mindspore as ms
 
         >>> tokenizer = AutoTokenizer.from_pretrained("deepmind/language-perceiver")
@@ -1037,10 +1038,12 @@ class PerceiverForMaskedLM(PerceiverPreTrainedModel):
 
         >>> # training
         >>> text = "This is an incomplete sentence where some words are missing."
-        >>> inputs = tokenizer(text, padding="max_length", return_tensors="pt")
+        >>> inputs = tokenizer(text, padding="max_length", return_tensors="np")
         >>> # mask " missing."
         >>> inputs["input_ids"][0, 52:61] = tokenizer.mask_token_id
-        >>> labels = tokenizer(text, padding="max_length", return_tensors="pt").input_ids
+        >>> labels = tokenizer(text, padding="max_length", return_tensors="np").input_ids
+        >>> inputs = {k: ms.Tensor(v) for k, v in inputs.items()}
+        >>> labels = ms.Tensor(labels)
 
         >>> outputs = model(**inputs, labels=labels)
         >>> loss = outputs.loss
@@ -1053,7 +1056,8 @@ class PerceiverForMaskedLM(PerceiverPreTrainedModel):
 
         >>> # inference
         >>> text = "This is an incomplete sentence where some words are missing."
-        >>> encoding = tokenizer(text, padding="max_length", return_tensors="pt")
+        >>> encoding = tokenizer(text, padding="max_length", return_tensors="np")
+        >>> encoding = {k: ms.Tensor(v) for k, v in encoding.items()}
 
         >>> # mask bytes corresponding to " missing.". Note that the model performs much better if the masked span starts with a space.
         >>> encoding["input_ids"][0, 52:61] = tokenizer.mask_token_id
@@ -1153,13 +1157,15 @@ class PerceiverForSequenceClassification(PerceiverPreTrainedModel):
         Examples:
 
         ```python
-        >>> from mindone.transformers import AutoTokenizer, PerceiverForSequenceClassification
+        >>> from transformers import AutoTokenizer
+        >>> from mindone.transformers import PerceiverForSequenceClassification
 
         >>> tokenizer = AutoTokenizer.from_pretrained("deepmind/language-perceiver")
         >>> model = PerceiverForSequenceClassification.from_pretrained("deepmind/language-perceiver")
 
         >>> text = "hello world"
-        >>> inputs = tokenizer(text, return_tensors="pt").input_ids
+        >>> inputs = tokenizer(text, return_tensors="np").input_ids
+        >>> inputs = ms.Tensor(inputs)
         >>> outputs = model(inputs=inputs)
         >>> logits = outputs.logits
         >>> list(logits.shape)
@@ -1289,7 +1295,8 @@ class PerceiverForImageClassificationLearned(PerceiverPreTrainedModel):
         Examples:
 
         ```python
-        >>> from mindone.transformers import AutoImageProcessor, PerceiverForImageClassificationLearned
+        >>> from transformers import AutoImageProcessor
+        >>> from mindone.transformers import PerceiverForImageClassificationLearned
         >>> from PIL import Image
         >>> import requests
 
@@ -1299,7 +1306,8 @@ class PerceiverForImageClassificationLearned(PerceiverPreTrainedModel):
         >>> image_processor = AutoImageProcessor.from_pretrained("deepmind/vision-perceiver-learned")
         >>> model = PerceiverForImageClassificationLearned.from_pretrained("deepmind/vision-perceiver-learned")
 
-        >>> inputs = image_processor(images=image, return_tensors="pt").pixel_values
+        >>> inputs = image_processor(images=image, return_tensors="np").pixel_values
+        >>> inputs = ms.Tensor(inputs)
         >>> outputs = model(inputs=inputs)
         >>> logits = outputs.logits
         >>> list(logits.shape)
@@ -1434,7 +1442,8 @@ class PerceiverForImageClassificationFourier(PerceiverPreTrainedModel):
         Examples:
 
         ```python
-        >>> from mindone.transformers import AutoImageProcessor, PerceiverForImageClassificationFourier
+        >>> from transformers import AutoImageProcessor
+        >>> from mindone.transformers import PerceiverForImageClassificationFourier
         >>> from PIL import Image
         >>> import requests
 
@@ -1444,7 +1453,8 @@ class PerceiverForImageClassificationFourier(PerceiverPreTrainedModel):
         >>> image_processor = AutoImageProcessor.from_pretrained("deepmind/vision-perceiver-fourier")
         >>> model = PerceiverForImageClassificationFourier.from_pretrained("deepmind/vision-perceiver-fourier")
 
-        >>> inputs = image_processor(images=image, return_tensors="pt").pixel_values
+        >>> inputs = image_processor(images=image, return_tensors="np").pixel_values
+        >>> inputs = ms.Tensor(inputs)
         >>> outputs = model(inputs=inputs)
         >>> logits = outputs.logits
         >>> list(logits.shape)
@@ -1578,7 +1588,8 @@ class PerceiverForImageClassificationConvProcessing(PerceiverPreTrainedModel):
         Examples:
 
         ```python
-        >>> from mindone.transformers import AutoImageProcessor, PerceiverForImageClassificationConvProcessing
+        >>> from transformers import AutoImageProcessor
+        >>> from mindone.transformers import PerceiverForImageClassificationConvProcessing
         >>> from PIL import Image
         >>> import requests
 
@@ -1588,7 +1599,8 @@ class PerceiverForImageClassificationConvProcessing(PerceiverPreTrainedModel):
         >>> image_processor = AutoImageProcessor.from_pretrained("deepmind/vision-perceiver-conv")
         >>> model = PerceiverForImageClassificationConvProcessing.from_pretrained("deepmind/vision-perceiver-conv")
 
-        >>> inputs = image_processor(images=image, return_tensors="pt").pixel_values
+        >>> inputs = image_processor(images=image, return_tensors="np").pixel_values
+        >>> inputs = ms.Tensor(inputs)
         >>> outputs = model(inputs=inputs)
         >>> logits = outputs.logits
         >>> list(logits.shape)
@@ -1738,6 +1750,7 @@ class PerceiverForOpticalFlow(PerceiverPreTrainedModel):
         ```python
         >>> from mindone.transformers import PerceiverForOpticalFlow
         >>> import mindspore as ms
+        >>> import numpy as np
 
         >>> model = PerceiverForOpticalFlow.from_pretrained("deepmind/optical-flow-perceiver")
 
@@ -2088,9 +2101,7 @@ class PerceiverProjectionDecoder(PerceiverAbstractDecoder):
     def decoder_query(self, inputs, modality_sizes=None, inputs_without_pos=None, subsampled_points=None):
         return None
 
-    def construct(
-        self, query: ms.Tensor, z: ms.Tensor, query_mask: Optional[ms.Tensor] = None
-    ) -> ms.Tensor:
+    def construct(self, query: ms.Tensor, z: ms.Tensor, query_mask: Optional[ms.Tensor] = None) -> ms.Tensor:
         # (batch_size, num_latents, d_latents) -> (batch_size, d_latents)
         z = mint.mean(z, dim=1)
         # (batch_size, d_latents) -> (batch_size, config.num_labels)
@@ -2189,7 +2200,9 @@ class PerceiverBasicDecoder(PerceiverAbstractDecoder):
                 widening_factor=widening_factor,
                 use_query_residual=use_query_residual,
             )
-            self.final_layer = mint.nn.Linear(num_channels, output_num_channels) if final_project else mint.nn.Identity()
+            self.final_layer = (
+                mint.nn.Linear(num_channels, output_num_channels) if final_project else mint.nn.Identity()
+            )
 
     @property
     def num_query_channels(self) -> int:
@@ -2214,7 +2227,9 @@ class PerceiverBasicDecoder(PerceiverAbstractDecoder):
             # to get the indices for the unflattened array
             # unravel_index returns a tuple (x_idx, y_idx, ...)
             # stack to get the [n, d] tensor of coordinates
-            indices = [ms.Tensor.from_numpy(x) for x in np.unravel_index(subsampled_points.asnumpy(), self.output_index_dims)]
+            indices = [
+                ms.Tensor.from_numpy(x) for x in np.unravel_index(subsampled_points.asnumpy(), self.output_index_dims)
+            ]
             pos = mint.stack(indices, dim=1)
             batch_size = inputs.shape[0]
             # Map these coordinates to [-1, 1]
@@ -2239,9 +2254,7 @@ class PerceiverBasicDecoder(PerceiverAbstractDecoder):
             if self.position_encoding_type == "trainable":
                 pos_emb = self.output_position_encodings(batch_size)
             elif self.position_encoding_type == "fourier":
-                pos_emb = self.output_position_encodings(
-                    index_dims, batch_size, dtype=inputs.dtype
-                )
+                pos_emb = self.output_position_encodings(index_dims, batch_size, dtype=inputs.dtype)
 
             # Optionally project them to a target dimension.
             pos_emb = self.positions_projection(pos_emb)
@@ -2709,9 +2722,7 @@ def generate_fourier_features(pos, num_bands, max_resolution=(224, 224), concat_
         per_pos_features = mint.sin(np.pi * (per_pos_features))
     else:
         # Output is size [n, 2 * d * num_bands]
-        per_pos_features = mint.cat(
-            [mint.sin(np.pi * per_pos_features), mint.cos(np.pi * per_pos_features)], dim=-1
-        )
+        per_pos_features = mint.cat([mint.sin(np.pi * per_pos_features), mint.cos(np.pi * per_pos_features)], dim=-1)
     # Concatenate the raw input positions.
     if concat_pos:
         # Adds d bands to the encoding.
@@ -2800,9 +2811,7 @@ class PerceiverTrainablePositionEncoding(PerceiverAbstractPositionEncoding):
         position_embeddings = position_embeddings.reshape(1, self._num_channels, -1).permute(0, 2, 1).squeeze(0)
         return position_embeddings
 
-    def construct(
-        self, batch_size: int, interpolate_pos_encoding: bool = False, input_size = None
-    ) -> ms.Tensor:
+    def construct(self, batch_size: int, interpolate_pos_encoding: bool = False, input_size=None) -> ms.Tensor:
         position_embeddings = self.position_embeddings
 
         if interpolate_pos_encoding:
@@ -2926,7 +2935,10 @@ class PerceiverTextPreprocessor(AbstractPreprocessor):
         embeddings_without_pos = self.embeddings(inputs)
 
         seq_length = inputs.shape[1]
-        position_ids = mint.arange(0, seq_length, )
+        position_ids = mint.arange(
+            0,
+            seq_length,
+        )
         embeddings = embeddings_without_pos + self.position_embeddings(position_ids)
 
         return embeddings, None, embeddings_without_pos
@@ -3166,7 +3178,9 @@ class PerceiverImagePreprocessor(AbstractPreprocessor):
 
         # Optional convolutional layer after patches.
         self.conv_after_patches = (
-            mint.nn.Linear(conv_after_patching_in_channels, self.out_channels) if conv_after_patching else mint.nn.Identity()
+            mint.nn.Linear(conv_after_patching_in_channels, self.out_channels)
+            if conv_after_patching
+            else mint.nn.Identity()
         )
 
     @property
