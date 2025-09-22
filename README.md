@@ -23,10 +23,9 @@ pip install -e .
 We support state-of-the-art diffusion models for generating images, audio, and video. Let's get started using [Flux Kontext](https://huggingface.co/black-forest-labs/FLUX.1-Kontext-dev) as an example.
 
 **Hello MindSpore** from **Flux**!
-<!-- TODO: add Flux Kontext or QwenImage running result -->
 
 <div>
-<img src="https://github.com/townwish4git/mindone/assets/143256262/8c25ae9a-67b1-436f-abf6-eca36738cd17" alt="flux_kontext" width="512" height="512">
+<img src="https://github.com/user-attachments/assets/17722b48-b6c7-44a6-b736-44b4e6d7d9d4" alt="flux_kontext" width="512" height="512">
 </div>
 
 ```py
