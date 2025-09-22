@@ -66,6 +66,7 @@ from .image_to_image import ImageToImagePipeline
 from .image_to_text import ImageToTextPipeline
 from .object_detection import ObjectDetectionPipeline
 from .question_answering import QuestionAnsweringArgumentHandler, QuestionAnsweringPipeline
+from .table_question_answering import TableQuestionAnsweringPipeline
 from .text2text_generation import Text2TextGenerationPipeline
 from .text_classification import TextClassificationPipeline
 from .text_generation import TextGenerationPipeline
@@ -90,6 +91,7 @@ if is_mindspore_available():
         AutoModelForSemanticSegmentation,
         AutoModelForSeq2SeqLM,
         AutoModelForSequenceClassification,
+        AutoModelForTableQuestionAnswering,
         AutoModelForTokenClassification,
         AutoModelForVision2Seq,
         AutoModelForVisualQuestionAnswering,
@@ -137,6 +139,16 @@ SUPPORTED_TASKS = {
         "impl": QuestionAnsweringPipeline,
         "ms": (AutoModelForQuestionAnswering,) if is_mindspore_available() else (),
         "default": {"model": {"ms": ("distilbert/distilbert-base-cased-distilled-squad", "564e9b5")}},
+        "type": "text",
+    },
+    "table-question-answering": {
+        "impl": TableQuestionAnsweringPipeline,
+        "ms": (AutoModelForTableQuestionAnswering,) if is_mindspore_available() else (),
+        "default": {
+            "model": {
+                "ms": ("google/tapas-base-finetuned-wtq", "e3dde19"),
+            },
+        },
         "type": "text",
     },
     "text2text-generation": {

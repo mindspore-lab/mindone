@@ -669,6 +669,13 @@ from .models.t5 import (
     T5Model,
     T5PreTrainedModel,
 )
+from .models.tapas import (
+    TapasForMaskedLM,
+    TapasForQuestionAnswering,
+    TapasForSequenceClassification,
+    TapasModel,
+    TapasPreTrainedModel,
+)
 from .models.umt5 import (
     UMT5EncoderModel,
     UMT5ForQuestionAnswering,

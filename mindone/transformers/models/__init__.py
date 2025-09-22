@@ -97,6 +97,7 @@ from . import (
     swin2sr,
     switch_transformers,
     t5,
+    tapas,
     umt5,
     video_llava,
     vilt,
