@@ -147,10 +147,17 @@ def _convert_state_dict(m, state_dict_pt, prefix=""):
         for name, param in m.parameters_and_names():
             name_ms = param.name
             length = len(prefix) + 1
+            # State dict name conversion is added for dealing with the condition that model key and state_dict key mismatch
             if name_pt.startswith(prefix):
+                # if state_dict has prefix, check if model has prefix
+                # When the prefix and the end of the name (such as embedding_table and weight) are removed, the consistency is judged
+                # if yes, slice prefix from state_dict key
                 if name_ms.rsplit(".", 1)[0] == name_pt.rsplit(".", 1)[0][length:] or name_ms == name_pt[length:]:
                     name_pt = name_pt[length:]
             elif not name_pt.startswith(prefix):
+                # if state_dict does not have prefix, check if model has prefix
+                # When the prefix and the end of the name (such as embedding_table and weight) are removed, the consistency is judged
+                # if no, add prefix to state_dict key
                 if name_pt.rsplit(".", 1)[0] == name_ms.rsplit(".", 1)[0][length:] or name_pt == name_ms[length:]:
                     name_pt = ".".join([prefix, name_pt])
         name_ms, data_mapping = pt2ms_mappings.get(name_pt, (name_pt, lambda x: x))
@@ -761,6 +768,11 @@ class PreTrainedModel(nn.Cell, ModuleUtilsMixin, GenerationMixin, PushToHubMixin
                 "`PretrainedConfig`. To create a model from a pretrained model use "
                 f"`model = {self.__class__.__name__}.from_pretrained(PRETRAINED_MODEL_NAME)`"
             )
+        if not getattr(config, "_attn_implementation_autoset", False):
+            # config usually has a `mindspore_dtype` but we need the next line for the `no_super_init` tests
+            # TODO mindspore does not have get_default_dtype api
+            dtype = config.mindspore_dtype if hasattr(config, "mindspore_dtype") else ms.float32
+            config = self._autoset_attn_implementation(config, mindspore_dtype=dtype)
         # Save config and origin of the pretrained weights if given in model
         self.config = config
         self.name_or_path = config.name_or_path
@@ -819,6 +831,23 @@ class PreTrainedModel(nn.Cell, ModuleUtilsMixin, GenerationMixin, PushToHubMixin
             # If a config is passed with a preset attn_implementation, we skip the automatic dispatch and use the
             # user-provided config, with hard checks that the requested attention implementation is available.
             requested_attn_implementation = config._attn_implementation_internal
+
+        # Composite models consisting of several PretrainedModels have to specify attention impl as a dict
+        # where keys are sub-config names. But most people will specify one `str` which means that should dispatch it
+        # for all sub-models.
+        # Below we check if a config is composite and manually prepare a dict of attn impl if not already passed as a dict.
+        # Later each sub-module will dispatch with its own attn impl, by calling `XXXModel._from_config(config.text_config)`
+        # If any of sub-modules doesn't support requested attn, an error will be raised. See https://github.com/huggingface/transformers/pull/32238
+        for key in config.sub_configs.keys():
+            sub_config = getattr(config, key)
+            curr_attn_implementation = (
+                requested_attn_implementation
+                if not isinstance(requested_attn_implementation, dict)
+                else requested_attn_implementation.get(key, None)
+            )
+            # For models with backbone sub-config might be not initialized
+            if sub_config is not None:
+                sub_config._attn_implementation_internal = curr_attn_implementation
 
         if use_flash_attention_2:
             logger.warning_once(
@@ -2378,6 +2407,13 @@ class PreTrainedModel(nn.Cell, ModuleUtilsMixin, GenerationMixin, PushToHubMixin
                             f'`mindspore_dtype` can be either `ms.Type` or `"auto"`, but received {mindspore_dtype}'
                         )
                 # TODO: We cannot set default mindspore dtype!
+            else:
+                # TODO: We cannot get default mindspore dtype!
+                default_dtype = dtype_to_str(ms.float32)
+                config.mindspore_dtype = default_dtype
+                for key in config.sub_configs.keys():
+                    value = getattr(config, key)
+                    value.mindspore_dtype = default_dtype
 
             # Check if `_keep_in_fp32_modules` is not None
             use_keep_in_fp32_modules = (cls._keep_in_fp32_modules is not None) and (mindspore_dtype == ms.float16)

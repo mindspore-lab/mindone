@@ -183,6 +183,18 @@ from .models.bigbird_pegasus import (
     BigBirdPegasusPreTrainedModel,
 )
 from .models.bit import BitBackbone
+from .models.blenderbot import (
+    BlenderbotForCausalLM,
+    BlenderbotForConditionalGeneration,
+    BlenderbotModel,
+    BlenderbotPreTrainedModel,
+)
+from .models.blenderbot_small import (
+    BlenderbotSmallForCausalLM,
+    BlenderbotSmallForConditionalGeneration,
+    BlenderbotSmallModel,
+    BlenderbotSmallPreTrainedModel,
+)
 from .models.blip import (
     BlipForConditionalGeneration,
     BlipForImageTextRetrieval,
@@ -254,7 +266,16 @@ from .models.clipseg import (
     CLIPSegTextModel,
     CLIPSegVisionModel,
 )
+from .models.clvp import (
+    ClvpDecoder,
+    ClvpEncoder,
+    ClvpForCausalLM,
+    ClvpModel,
+    ClvpModelForConditionalGeneration,
+    ClvpPreTrainedModel,
+)
 from .models.cohere2 import Cohere2ForCausalLM, Cohere2Model, Cohere2PreTrainedModel
+from .models.colpali import ColPaliForRetrieval, ColPaliPreTrainedModel, ColPaliProcessor
 from .models.convbert import (
     ConvBertForMaskedLM,
     ConvBertForMultipleChoice,
@@ -303,6 +324,15 @@ from .models.donut import (
     DonutProcessor,
     DonutSwinModel,
     DonutSwinPreTrainedModel,
+)
+from .models.dpr import (
+    DPRContextEncoder,
+    DPRPretrainedContextEncoder,
+    DPRPreTrainedModel,
+    DPRPretrainedQuestionEncoder,
+    DPRPretrainedReader,
+    DPRQuestionEncoder,
+    DPRReader,
 )
 from .models.dpt import DPTForDepthEstimation, DPTImageProcessor, DPTModel, DPTPreTrainedModel
 from .models.flava import (
@@ -617,6 +647,7 @@ from .models.roberta import (
     RobertaPreTrainedModel,
 )
 from .models.rwkv import RwkvForCausalLM, RwkvModel, RwkvPreTrainedModel
+from .models.sam import SamImageProcessor, SamModel, SamPreTrainedModel, SamProcessor
 from .models.segformer import (
     SegformerDecodeHead,
     SegformerForImageClassification,
@@ -679,6 +710,13 @@ from .models.t5 import (
     T5Model,
     T5PreTrainedModel,
 )
+from .models.tapas import (
+    TapasForMaskedLM,
+    TapasForQuestionAnswering,
+    TapasForSequenceClassification,
+    TapasModel,
+    TapasPreTrainedModel,
+)
 from .models.umt5 import (
     UMT5EncoderModel,
     UMT5ForQuestionAnswering,
@@ -699,6 +737,7 @@ from .models.vilt import (
 )
 from .models.vipllava import VipLlavaForConditionalGeneration, VipLlavaPreTrainedModel
 from .models.vision_encoder_decoder import VisionEncoderDecoderModel
+from .models.vision_text_dual_encoder import VisionTextDualEncoderModel
 from .models.vit import ViTForImageClassification, ViTForMaskedImageModeling, ViTModel, ViTPreTrainedModel
 from .models.vits import VitsModel, VitsPreTrainedModel
 from .models.wav2vec2 import (
@@ -734,6 +773,7 @@ from .models.xlm_roberta_xl import (
 )
 from .models.yolos import YolosForObjectDetection, YolosImageProcessor, YolosModel, YolosPreTrainedModel
 from .models.zamba import ZambaForCausalLM, ZambaForSequenceClassification, ZambaModel, ZambaPreTrainedModel
+from .models.zamba2 import Zamba2ForCausalLM, Zamba2ForSequenceClassification, Zamba2Model, Zamba2PreTrainedModel
 from .pipelines import (
     ImageToImagePipeline,
     ImageToTextPipeline,
