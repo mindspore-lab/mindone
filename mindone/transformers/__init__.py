@@ -162,6 +162,7 @@ from .models.bert import (
     BertModel,
     BertPreTrainedModel,
 )
+from .models.bert_generation import BertGenerationDecoder, BertGenerationEncoder, BertGenerationPreTrainedModel
 from .models.big_bird import (
     BigBirdForCausalLM,
     BigBirdForMaskedLM,
@@ -308,6 +309,7 @@ from .models.convnextv2 import (
     ConvNextV2Model,
     ConvNextV2PreTrainedModel,
 )
+from .models.ctrl import CTRLForSequenceClassification, CTRLLMHeadModel, CTRLModel, CTRLPreTrainedModel
 from .models.cvt import CvtForImageClassification, CvtModel, CvtPreTrainedModel
 from .models.deberta import (
     DebertaForMaskedLM,
@@ -326,8 +328,24 @@ from .models.deberta_v2 import (
     DebertaV2Model,
     DebertaV2PreTrainedModel,
 )
+from .models.deit import (
+    DeiTForImageClassification,
+    DeiTForImageClassificationWithTeacher,
+    DeiTForMaskedImageModeling,
+    DeiTModel,
+    DeiTPreTrainedModel,
+)
 from .models.depth_anything import DepthAnythingForDepthEstimation, DepthAnythingPreTrainedModel
 from .models.dinov2 import Dinov2Backbone, Dinov2ForImageClassification, Dinov2Model, Dinov2PreTrainedModel
+from .models.distilbert import (
+    DistilBertForMaskedLM,
+    DistilBertForMultipleChoice,
+    DistilBertForQuestionAnswering,
+    DistilBertForSequenceClassification,
+    DistilBertForTokenClassification,
+    DistilBertModel,
+    DistilBertPreTrainedModel,
+)
 from .models.dpr import (
     DPRContextEncoder,
     DPRPretrainedContextEncoder,
@@ -338,6 +356,17 @@ from .models.dpr import (
     DPRReader,
 )
 from .models.dpt import DPTForDepthEstimation, DPTImageProcessor, DPTModel, DPTPreTrainedModel
+from .models.funnel import (
+    FunnelBaseModel,
+    FunnelForMaskedLM,
+    FunnelForMultipleChoice,
+    FunnelForPreTraining,
+    FunnelForQuestionAnswering,
+    FunnelForSequenceClassification,
+    FunnelForTokenClassification,
+    FunnelModel,
+    FunnelPreTrainedModel,
+)
 from .models.fuyu import FuyuForCausalLM, FuyuPreTrainedModel
 from .models.gemma import (
     GemmaForCausalLM,
@@ -470,6 +499,8 @@ from .models.llava_onevision import (
     LlavaOnevisionVideoProcessor,
 )
 from .models.m2m_100 import M2M100ForConditionalGeneration, M2M100Model, M2M100PreTrainedModel
+from .models.mamba import MambaForCausalLM, MambaModel, MambaPreTrainedModel
+from .models.mamba2 import Mamba2ForCausalLM, Mamba2Model, Mamba2PreTrainedModel
 from .models.megatron_bert import (
     MegatronBertForCausalLM,
     MegatronBertForMaskedLM,
@@ -491,6 +522,7 @@ from .models.mistral import (
     MistralModel,
     MistralPreTrainedModel,
 )
+from .models.mistral3 import Mistral3ForConditionalGeneration, Mistral3PreTrainedModel
 from .models.mixtral import (
     MixtralForCausalLM,
     MixtralForQuestionAnswering,
@@ -498,6 +530,13 @@ from .models.mixtral import (
     MixtralForTokenClassification,
     MixtralModel,
     MixtralPreTrainedModel,
+)
+from .models.mllama import (
+    MllamaForCausalLM,
+    MllamaForConditionalGeneration,
+    MllamaPreTrainedModel,
+    MllamaTextModel,
+    MllamaVisionModel,
 )
 from .models.mobilebert import (
     MobileBertForMaskedLM,
@@ -589,6 +628,8 @@ from .models.phi3 import (
     Phi3Model,
     Phi3PreTrainedModel,
 )
+from .models.pixtral import PixtralPreTrainedModel, PixtralVisionModel
+from .models.poolformer import PoolFormerForImageClassification, PoolFormerModel, PoolFormerPreTrainedModel
 from .models.qwen2 import Qwen2ForCausalLM, Qwen2ForSequenceClassification, Qwen2ForTokenClassification, Qwen2Model
 from .models.qwen2_5_omni import (
     Qwen2_5OmniForConditionalGeneration,
@@ -627,6 +668,7 @@ from .models.rembert import (
     RemBertModel,
     RemBertPreTrainedModel,
 )
+from .models.resnet import ResNetBackbone, ResNetForImageClassification, ResNetModel, ResNetPreTrainedModel
 from .models.roberta import (
     RobertaForCausalLM,
     RobertaForMaskedLM,
