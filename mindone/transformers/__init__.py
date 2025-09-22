@@ -301,6 +301,26 @@ from .models.convnextv2 import (
     ConvNextV2PreTrainedModel,
 )
 from .models.ctrl import CTRLForSequenceClassification, CTRLLMHeadModel, CTRLModel, CTRLPreTrainedModel
+from .models.data2vec import (
+    Data2VecAudioForAudioFrameClassification,
+    Data2VecAudioForCTC,
+    Data2VecAudioForSequenceClassification,
+    Data2VecAudioForXVector,
+    Data2VecAudioModel,
+    Data2VecAudioPreTrainedModel,
+    Data2VecTextForCausalLM,
+    Data2VecTextForMaskedLM,
+    Data2VecTextForMultipleChoice,
+    Data2VecTextForQuestionAnswering,
+    Data2VecTextForSequenceClassification,
+    Data2VecTextForTokenClassification,
+    Data2VecTextModel,
+    Data2VecTextPreTrainedModel,
+    Data2VecVisionForImageClassification,
+    Data2VecVisionForSemanticSegmentation,
+    Data2VecVisionModel,
+    Data2VecVisionPreTrainedModel,
+)
 from .models.deberta import (
     DebertaForMaskedLM,
     DebertaForQuestionAnswering,

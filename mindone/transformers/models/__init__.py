@@ -42,6 +42,7 @@ from . import (
     convnext,
     convnextv2,
     ctrl,
+    data2vec,
     deit,
     depth_anything,
     dinov2,
