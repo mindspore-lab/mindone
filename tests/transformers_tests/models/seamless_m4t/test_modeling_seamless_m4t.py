@@ -36,10 +36,8 @@ from tests.transformers_tests.models.modeling_common import (
     ids_numpy, 
     random_attention_mask,
 )
-
-# CrossEntropyLoss not support bf16
-# Seamless_m4t only support float32
-DTYPE_AND_THRESHOLDS = {"fp32": 5e-4}
+ms.set_context(device_target="Ascend", device_id=1)
+DTYPE_AND_THRESHOLDS = {"fp32": 5e-4, "fp16": 5e-3, "bf16": 5e-2}
 MODES = [1]
 
 class SeamlessM4TModelTester:
@@ -235,7 +233,6 @@ SEAMLESS_M4T_CASES = [
             inputs_dict_speech["labels"],
         ),
         {},
-        [1, 2],
         {
             "logits": 0,
             "encoder_last_hidden_state": 2,
@@ -254,7 +251,6 @@ SEAMLESS_M4T_CASES = [
             inputs_dict_speech["labels"],
         ),
         {},
-        [1, 2],
         {
             "logits": 0,
             "encoder_last_hidden_state": 2,
@@ -273,7 +269,6 @@ SEAMLESS_M4T_CASES = [
             inputs_dict_text["labels"],
         ),
         {},
-        [0, 1, 2, 3],
         {
             "logits": 0,
             "encoder_last_hidden_state": 2,
@@ -292,7 +287,6 @@ SEAMLESS_M4T_CASES = [
             inputs_dict_text["labels"],
         ),
         {},
-        [0, 1, 2, 3],
         {
             "logits": 0,
             "encoder_last_hidden_state": 2,
@@ -312,7 +306,6 @@ SEAMLESS_M4T_CASES = [
             inputs_dict_text["labels"],
         ),
         {},
-        [2, 3],
         {
             "logits": 0,
             "encoder_last_hidden_state": 2,
@@ -322,7 +315,7 @@ SEAMLESS_M4T_CASES = [
 
 
 @pytest.mark.parametrize(
-    "name,pt_module,ms_module,init_args,init_kwargs,inputs_args,inputs_kwargs,inputs_type_idx,outputs_map,dtype,mode",
+    "name,pt_module,ms_module,init_args,init_kwargs,inputs_args,inputs_kwargs,outputs_map,dtype,mode",
     [
         case
         + [
@@ -344,7 +337,6 @@ def test_named_modules(
     init_kwargs,
     inputs_args,
     inputs_kwargs,
-    inputs_type_idx,
     outputs_map,
     dtype,
     mode,
@@ -367,15 +359,6 @@ def test_named_modules(
         pt_inputs_kwargs.update({"hidden_dtype": PT_DTYPE_MAPPING[pt_dtype]})
         ms_inputs_kwargs.update({"hidden_dtype": MS_DTYPE_MAPPING[ms_dtype]})
     ms_inputs_kwargs["return_dict"] = False
-    
-    pt_inputs_args = tuple(
-        tensor.to(PT_DTYPE_MAPPING[pt_dtype]).long() if i in inputs_type_idx else tensor.to(PT_DTYPE_MAPPING[pt_dtype])
-        for i, tensor in enumerate(pt_inputs_args)
-    )
-    ms_inputs_args = tuple(
-        tensor.to(ms.int64) if i in inputs_type_idx else tensor.to(MS_DTYPE_MAPPING[ms_dtype]) 
-        for i, tensor in enumerate(ms_inputs_args)
-    )
 
     with torch.no_grad():
         pt_outputs = pt_model(*pt_inputs_args, **pt_inputs_kwargs)

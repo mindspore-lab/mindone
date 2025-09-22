@@ -44,6 +44,7 @@ logger = logging.get_logger(__name__)
 FEATURE_EXTRACTOR_MAPPING_NAMES = OrderedDict(
     [
         ("convnext", "ConvNextFeatureExtractor"),
+        ("seamless_m4t", "SeamlessM4TFeatureExtractor"),
     ]
 )
 

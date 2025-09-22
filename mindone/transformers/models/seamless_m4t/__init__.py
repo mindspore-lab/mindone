@@ -22,3 +22,8 @@ from .modeling_seamless_m4t import (
     SeamlessM4TForTextToText,
     SeamlessM4TModel,
 )
+from .processing_seamless_m4t import SeamlessM4TProcessor
+from .feature_extraction_seamless_m4t import SeamlessM4TFeatureExtractor
+from .tokenization_seamless_m4t_fast import SeamlessM4TTokenizerFast
+from .tokenization_seamless_m4t import SeamlessM4TTokenizer
+from .configuration_seamless_m4t import SeamlessM4TConfig

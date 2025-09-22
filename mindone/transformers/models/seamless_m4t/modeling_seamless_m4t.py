@@ -19,22 +19,20 @@
 
 import copy
 import math
-import numpy as np
 from dataclasses import dataclass
-from typing import Optional, Tuple, Union
+from typing import List, Optional, Tuple, Union
 
 from transformers import SeamlessM4TConfig
 from transformers.utils import ModelOutput, logging
 
 import mindspore as ms
-from mindspore import mint, nn, ops, Parameter, Tensor
+from mindspore import mint, nn, ops, Tensor
 from mindspore.mint.nn import CrossEntropyLoss
 from mindspore.common.initializer import initializer, Constant, HeNormal, Normal, Uniform, XavierUniform
 
 from ...activations import ACT2FN
 from ...generation import GenerationMixin
-from ...mindspore_adapter._conv import Conv1d, ConvTranspose1d
-from ...modeling_attn_mask_utils import _prepare_4d_attention_mask, _prepare_4d_causal_attention_mask
+from ...modeling_attn_mask_utils import _prepare_4d_attention_mask, _prepare_4d_causal_attention_mask, dtype_to_min
 from ...modeling_outputs import (
     BaseModelOutput,
     BaseModelOutputWithPastAndCrossAttentions,
@@ -49,6 +47,42 @@ logger = logging.get_logger(__name__)
 
 _CHECKPOINT_FOR_DOC = "facebook/hf-seamless-m4t-medium"
 _CONFIG_FOR_DOC = "SeamlessM4TConfig"
+
+# Copied from mindone.transformers.models.speecht5.modeling_speecht5.pad_sequence
+def pad_sequence(
+    sequences: List[ms.Tensor],
+    batch_first=True,
+    padding_value: int = 0,
+) -> ms.Tensor:
+    """
+    Args:
+        sequences (List[ms.Tensor]):  list of variable length sequences.
+        batch_first (bool, optional): if True, the output will be in B x T x * format, T x B x * otherwise. Defaults to True.
+        padding_value (int, optional): value for padded elements. Defaults to 0.
+    Returns:
+        ms.Tensor: Tensor of size T x B x * if batch_first is False. Tensor of size B x T x * otherwise.
+    """
+    max_size = sequences[0].shape
+    trailing_dims = max_size[1:]
+
+    max_len = max([s.shape[0] for s in sequences])
+
+    if batch_first:
+        out_dims = (len(sequences), max_len) + trailing_dims
+    else:
+        out_dims = (max_len, len(sequences)) + trailing_dims
+
+    out_sequences = ops.full_like(out_dims, fill_value=padding_value)
+
+    for i, seq in enumerate(sequences):
+        length = seq.shape[0] if seq.shape[0] <= max_len else max_len
+        # use index notation to prevent duplicate references to the tensor
+        if batch_first:
+            out_sequences[i, :length, ...] = seq[:length]
+        else:
+            out_sequences[:length, i, ...] = seq[:length]
+
+    return out_sequences
 
 
 @dataclass
@@ -131,9 +165,9 @@ def _compute_new_attention_mask(hidden_states: ms.Tensor, seq_lens: ms.Tensor):
     """
     batch_size, mask_seq_len = hidden_states.shape[:2]
 
-    indices = mint.arange(mask_seq_len).expand((batch_size, -1),)
+    indices = mint.arange(mask_seq_len).expand((batch_size, -1))
 
-    bool_mask = indices >= seq_lens.unsqueeze(1).expand((-1, mask_seq_len),)
+    bool_mask = indices >= seq_lens.unsqueeze(1).expand((-1, mask_seq_len))
 
     mask = hidden_states.new_ones((batch_size, mask_seq_len))
 
@@ -188,17 +222,19 @@ def format_speech_generation_kwargs(kwargs):
 class SeamlessM4TConformerPositionalConvEmbedding(nn.Cell):
     def __init__(self, config):
         super().__init__()
-        self.conv = Conv1d(
+        self.conv = nn.Conv1d(
             config.hidden_size,
             config.hidden_size,
             kernel_size=config.num_conv_pos_embeddings,
+            pad_mode = "pad",
             padding=config.num_conv_pos_embeddings // 2,
-            groups=config.num_conv_pos_embedding_groups,
+            group=config.num_conv_pos_embedding_groups,
+            has_bias=False,
         )
 
-        weight_norm = nn.utils.weight_norm
+        weight_norm = mint.nn.utils.weight_norm
         if hasattr(nn.utils.parametrizations, "weight_norm"):
-            weight_norm = nn.utils.parametrizations.weight_norm
+            weight_norm = mint.nn.utils.parametrizations.weight_norm
 
         self.conv = weight_norm(self.conv, name="weight", dim=2)
         self.padding = SeamlessM4TConformerSamePadLayer(config.num_conv_pos_embeddings)
@@ -259,7 +295,7 @@ class SeamlessM4TConformerRelPositionalEmbedding(nn.Cell):
         self.max_len = config.max_source_positions
         self.d_model = config.hidden_size
         self.pe = None
-        self.extend_pe(ms.Tensor(0.0).expand((1, self.max_len),))
+        self.extend_pe(ms.Tensor(0.0).expand((1, self.max_len)))
 
     def extend_pe(self, x):
         # Reset the positional encodings
@@ -273,11 +309,11 @@ class SeamlessM4TConformerRelPositionalEmbedding(nn.Cell):
         # Suppose `i` is the position of query vector and `j` is the
         # position of key vector. We use positive relative positions when keys
         # are to the left (i>j) and negative relative positions otherwise (i<j).
-        pe_positive = mint.zeros((x.shape[1], self.d_model),)
-        pe_negative = mint.zeros((x.shape[1], self.d_model),)
-        position = mint.arange(0, x.shape[1], dtype=ms.int64).float().unsqueeze(1)
+        pe_positive = mint.zeros((x.shape[1], self.d_model))
+        pe_negative = mint.zeros((x.shape[1], self.d_model))
+        position = mint.arange(0, x.shape[1], dtype=x.dtype).float().unsqueeze(1)
         div_term = mint.exp(
-            mint.arange(0, self.d_model, 2, dtype=ms.int64).float() * -(math.log(10000.0) / self.d_model)
+            mint.arange(0, self.d_model, 2, dtype=x.dtype).float() * -(math.log(10000.0) / self.d_model)
         )
         pe_positive[:, 0::2] = mint.sin(position * div_term)
         pe_positive[:, 1::2] = mint.cos(position * div_term)
@@ -286,7 +322,7 @@ class SeamlessM4TConformerRelPositionalEmbedding(nn.Cell):
 
         # Reverse the order of positive indices and concat both positive and
         # negative indices. This is used to support the shifting trick
-        # as in https://arxiv.org/abs/1901.02860
+        # as in https://arxiv.org/abs/1901.02860x
         pe_positive = mint.flip(pe_positive, [0]).unsqueeze(0)
         pe_negative = pe_negative[1:].unsqueeze(0)
         pe = mint.cat([pe_positive, pe_negative], dim=1)
@@ -317,12 +353,12 @@ class SeamlessM4TConformerFeatureProjection(nn.Cell):
     def __init__(self, config):
         super().__init__()
         self.layer_norm = mint.nn.LayerNorm(config.feature_projection_input_dim, eps=config.layer_norm_eps)
-        self.projection = nn.Linear(config.feature_projection_input_dim, config.hidden_size)
-        self.dropout = nn.Dropout(p=config.speech_encoder_dropout)
+        self.projection = mint.nn.Linear(config.feature_projection_input_dim, config.hidden_size)
+        self.dropout = mint.nn.Dropout(p=config.speech_encoder_dropout)
 
     def construct(self, hidden_states):
         # non-projected hidden states are needed for quantization
-        norm_hidden_states = self.layer_norm(hidden_states)
+        norm_hidden_states = self.layer_norm(hidden_states.to(self.layer_norm.weight.dtype))
         hidden_states = self.projection(norm_hidden_states)
         hidden_states = self.dropout(hidden_states)
         return hidden_states
@@ -334,12 +370,12 @@ class SeamlessM4TConformerFeedForward(nn.Cell):
         dropout = dropout if dropout is not None else config.speech_encoder_dropout
         act_fn = act_fn if act_fn is not None else config.speech_encoder_hidden_act
 
-        self.intermediate_dropout = nn.Dropout(p=dropout)
-        self.intermediate_dense = nn.Linear(config.hidden_size, config.speech_encoder_intermediate_size)
+        self.intermediate_dropout = mint.nn.Dropout(p=dropout)
+        self.intermediate_dense = mint.nn.Linear(config.hidden_size, config.speech_encoder_intermediate_size)
         self.intermediate_act_fn = ACT2FN[act_fn] if isinstance(act_fn, str) else act_fn
 
-        self.output_dense = nn.Linear(config.speech_encoder_intermediate_size, config.hidden_size)
-        self.output_dropout = nn.Dropout(p=dropout)
+        self.output_dense = mint.nn.Linear(config.speech_encoder_intermediate_size, config.hidden_size)
+        self.output_dropout = mint.nn.Dropout(p=dropout)
 
     def construct(self, hidden_states):
         hidden_states = self.intermediate_dense(hidden_states)
@@ -359,38 +395,40 @@ class SeamlessM4TConformerConvolutionModule(nn.Cell):
         if (config.conv_depthwise_kernel_size - 1) % 2 == 1:
             raise ValueError("`config.conv_depthwise_kernel_size` should be a odd number for 'SAME' padding")
         self.layer_norm = mint.nn.LayerNorm(config.hidden_size)
-        self.pointwise_conv1 = Conv1d(
+        self.pointwise_conv1 = nn.Conv1d(
             config.hidden_size,
             2 * config.hidden_size,
             kernel_size=1,
             stride=1,
+            pad_mode="pad",
             padding=0,
-            bias=False,
+            has_bias=False,
         )
-        self.glu = nn.GLU(axis=1)
-        self.depthwise_conv = Conv1d(
+        self.glu = mint.nn.GLU(dim=1)
+        self.depthwise_conv = nn.Conv1d(
             config.hidden_size,
             config.hidden_size,
             config.conv_depthwise_kernel_size,
             stride=1,
-            padding="same",
-            groups=config.hidden_size,
-            bias=False,
+            pad_mode="same",
+            group=config.hidden_size,
+            has_bias=False,
         )
-        self.batch_norm = nn.BatchNorm1d(config.hidden_size)
+        self.batch_norm = mint.nn.BatchNorm1d(config.hidden_size)
         self.activation = ACT2FN[config.speech_encoder_hidden_act]
-        self.pointwise_conv2 = Conv1d(
+        self.pointwise_conv2 = nn.Conv1d(
             config.hidden_size,
             config.hidden_size,
             kernel_size=1,
             stride=1,
+            pad_mode="pad",
             padding=0,
-            bias=False,
+            has_bias=False,
         )
-        self.dropout = nn.Dropout(p=config.speech_encoder_dropout)
+        self.dropout = mint.nn.Dropout(p=config.speech_encoder_dropout)
 
     def construct(self, hidden_states, attention_mask=None):
-        hidden_states = self.layer_norm(hidden_states)
+        hidden_states = self.layer_norm(hidden_states.to(self.layer_norm.weight.dtype))
 
         # Ensure that we do not leak padded positions in depthwise convolution.
         # Put 0 where necessary
@@ -405,7 +443,7 @@ class SeamlessM4TConformerConvolutionModule(nn.Cell):
         hidden_states = self.pointwise_conv1(hidden_states)
         # => (batch, channel, dim)
         hidden_states = self.glu(hidden_states)
-
+        
         # 1D Depthwise Conv
         hidden_states = self.depthwise_conv(hidden_states)
         hidden_states = self.batch_norm(hidden_states)
@@ -429,20 +467,20 @@ class SeamlessM4TConformerSelfAttention(nn.Cell):
         self.num_heads = config.speech_encoder_attention_heads
         self.position_embeddings_type = config.position_embeddings_type if use_position_embeddings else None
 
-        self.linear_q = nn.Linear(config.hidden_size, config.hidden_size)
-        self.linear_k = nn.Linear(config.hidden_size, config.hidden_size)
-        self.linear_v = nn.Linear(config.hidden_size, config.hidden_size)
-        self.linear_out = nn.Linear(config.hidden_size, config.hidden_size)
+        self.linear_q = mint.nn.Linear(config.hidden_size, config.hidden_size)
+        self.linear_k = mint.nn.Linear(config.hidden_size, config.hidden_size)
+        self.linear_v = mint.nn.Linear(config.hidden_size, config.hidden_size)
+        self.linear_out = mint.nn.Linear(config.hidden_size, config.hidden_size)
 
-        self.dropout = nn.Dropout(p=config.speech_encoder_dropout)
+        self.dropout = mint.nn.Dropout(p=config.speech_encoder_dropout)
 
         if self.position_embeddings_type == "relative":
             # linear transformation for positional encoding
-            self.linear_pos = nn.Linear(config.hidden_size, config.hidden_size, bias=False)
+            self.linear_pos = mint.nn.Linear(config.hidden_size, config.hidden_size, bias=False)
             # these two learnable bias are used in matrix c and matrix d
             # as described in https://arxiv.org/abs/1901.02860 Section 3.3
-            self.pos_bias_u = Parameter(mint.zeros((self.num_heads, self.head_size),))
-            self.pos_bias_v = Parameter(mint.zeros((self.num_heads, self.head_size),))
+            self.pos_bias_u = ms.Parameter(mint.zeros((self.num_heads, self.head_size)))
+            self.pos_bias_v = ms.Parameter(mint.zeros((self.num_heads, self.head_size)))
 
     # Copied from transformers.models.wav2vec2_conformer.modeling_wav2vec2_conformer.Wav2Vec2ConformerSelfAttention.forward
     def construct(
@@ -583,7 +621,7 @@ class SeamlessM4TConformerEncoderLayer(nn.Cell):
 
         # Self-Attention
         self.self_attn_layer_norm = mint.nn.LayerNorm(embed_dim)
-        self.self_attn_dropout = nn.Dropout(p=dropout)
+        self.self_attn_dropout = mint.nn.Dropout(p=dropout)
         self.self_attn = SeamlessM4TConformerSelfAttention(config)
 
         # Conformer Convolution
@@ -613,7 +651,7 @@ class SeamlessM4TConformerEncoderLayer(nn.Cell):
 
         # 2. Self-Attention layer
         hidden_states = self.self_attn_layer_norm(hidden_states)
-        hidden_states, attn_weigts = self.self_attn(
+        hidden_states, attn_weights = self.self_attn(
             hidden_states=hidden_states,
             attention_mask=attention_mask,
             relative_position_embeddings=relative_position_embeddings,
@@ -634,7 +672,7 @@ class SeamlessM4TConformerEncoderLayer(nn.Cell):
         hidden_states = hidden_states * 0.5 + residual
         hidden_states = self.final_layer_norm(hidden_states)
 
-        return hidden_states, attn_weigts
+        return hidden_states, attn_weights
 
 
 class SeamlessM4TConformerEncoder(nn.Cell):
@@ -649,7 +687,7 @@ class SeamlessM4TConformerEncoder(nn.Cell):
         else:
             self.embed_positions = None
 
-        self.dropout = nn.Dropout(p=config.speech_encoder_dropout)
+        self.dropout = mint.nn.Dropout(p=config.speech_encoder_dropout)
         self.layers = nn.CellList(
             [SeamlessM4TConformerEncoderLayer(config) for _ in range(config.speech_encoder_layers)]
         )
@@ -675,9 +713,9 @@ class SeamlessM4TConformerEncoder(nn.Cell):
             hidden_states = hidden_states.masked_fill(~attention_mask.bool().unsqueeze(-1), 0.0)
             # extend attention_mask
             attention_mask = 1.0 - attention_mask[:, None, None, :].to(dtype=hidden_states.dtype)
-            attention_mask = attention_mask * ms.tensor(np.finfo(np.float32).min, dtype=hidden_states.dtype)
+            attention_mask = attention_mask * dtype_to_min(hidden_states.dtype)
             attention_mask = attention_mask.expand(
-                (attention_mask.shape[0], 1, attention_mask.shape[-1], attention_mask.shape[-1]),
+                (attention_mask.shape[0], 1, attention_mask.shape[-1], attention_mask.shape[-1])
             )
 
         hidden_states = self.dropout(hidden_states)
@@ -724,7 +762,7 @@ class SeamlessM4TConformerEncoder(nn.Cell):
             if output_attentions:
                 all_self_attentions = all_self_attentions + (layer_outputs[1],)
 
-        hidden_states = self.layer_norm(hidden_states)
+        hidden_states = self.layer_norm(hidden_states.to(self.layer_norm.weight.dtype))
         if output_hidden_states:
             all_hidden_states = all_hidden_states + (hidden_states,)
 
@@ -748,26 +786,30 @@ class SeamlessM4TConformerAdapterLayer(nn.Cell):
 
         # 1. residual convolution
         self.residual_layer_norm = mint.nn.LayerNorm(embed_dim)
-        self.residual_conv = Conv1d(
+        self.residual_conv = nn.Conv1d(
             embed_dim,
             2 * embed_dim,
             self.kernel_size,
             stride=self.stride,
+            pad_mode="pad",
             padding=self.stride // 2,
+            has_bias=True,
         )
-        self.activation = nn.GLU(axis=1)
+        self.activation = mint.nn.GLU(dim=1)
 
         # Self-Attention
         self.self_attn_layer_norm = mint.nn.LayerNorm(embed_dim)
-        self.self_attn_conv = Conv1d(
+        self.self_attn_conv = nn.Conv1d(
             embed_dim,
             2 * embed_dim,
             self.kernel_size,
             stride=self.stride,
+            pad_mode="pad",
             padding=self.stride // 2,
+            has_bias=True,
         )
         self.self_attn = SeamlessM4TConformerSelfAttention(config, use_position_embeddings=False)
-        self.self_attn_dropout = nn.Dropout(p=dropout)
+        self.self_attn_dropout = mint.nn.Dropout(p=dropout)
 
         # Feed-forward
         self.ffn_layer_norm = mint.nn.LayerNorm(embed_dim)
@@ -882,7 +924,8 @@ class SeamlessM4TSinusoidalPositionalEmbedding(nn.Cell):
             # in forward put the weights on the correct dtype of the param
             emb_weights = emb_weights.to(dtype=self.weights.dtype)
 
-        self.register_buffer("weights", emb_weights, persistent=False)
+        # self.register_buffer("weights", emb_weights, persistent=False)
+        self.weights = ms.Parameter(emb_weights, name="weights")
 
     @staticmethod
     def get_embedding(num_embeddings: int, embedding_dim: int, padding_idx: Optional[int] = None):
@@ -899,7 +942,7 @@ class SeamlessM4TSinusoidalPositionalEmbedding(nn.Cell):
         emb = mint.cat([mint.sin(emb), mint.cos(emb)], dim=1).view(num_embeddings, -1)
         if embedding_dim % 2 == 1:
             # zero pad
-            emb = mint.cat([emb, mint.zeros((num_embeddings, 1),)], dim=1)
+            emb = mint.cat([emb, mint.zeros((num_embeddings, 1))], dim=1)
         if padding_idx is not None:
             emb[padding_idx, :] = 0
 
@@ -938,7 +981,7 @@ class SeamlessM4TSinusoidalPositionalEmbedding(nn.Cell):
         position_ids = mint.arange(
             self.padding_idx + 1, sequence_length + self.padding_idx + 1, dtype=ms.int64
         )
-        return position_ids.unsqueeze(0).expand((input_shape),).contiguous() + past_key_values_length
+        return position_ids.unsqueeze(0).expand((input_shape)).contiguous() + past_key_values_length
 
 
 class SeamlessM4TAttention(nn.Cell):
@@ -971,10 +1014,10 @@ class SeamlessM4TAttention(nn.Cell):
         self.is_decoder = is_decoder
         self.is_causal = is_causal
 
-        self.k_proj = nn.Linear(embed_dim, embed_dim, bias=bias)
-        self.v_proj = nn.Linear(embed_dim, embed_dim, bias=bias)
-        self.q_proj = nn.Linear(embed_dim, embed_dim, bias=bias)
-        self.out_proj = nn.Linear(embed_dim, embed_dim, bias=bias)
+        self.k_proj = mint.nn.Linear(embed_dim, embed_dim, bias=bias)
+        self.v_proj = mint.nn.Linear(embed_dim, embed_dim, bias=bias)
+        self.q_proj = mint.nn.Linear(embed_dim, embed_dim, bias=bias)
+        self.out_proj = mint.nn.Linear(embed_dim, embed_dim, bias=bias)
 
     def _shape(self, tensor: ms.Tensor, seq_len: int, bsz: int):
         return tensor.view(bsz, seq_len, self.num_heads, self.head_dim).transpose(1, 2).contiguous()
@@ -994,18 +1037,14 @@ class SeamlessM4TAttention(nn.Cell):
         is_cross_attention = encoder_hidden_states is not None
 
         bsz, tgt_len, _ = hidden_states.shape
-
         # get query proj
+        # hidden_states = hidden_states.to(self.q_proj.weight.dtype)
         query_states = self.q_proj(hidden_states) * self.scaling
         # get key, value proj
         # `past_key_value[0].shape[2] == encoder_hidden_states.shape[1]`
         # is checking that the `sequence_length` of the `past_key_value` is the same as
         # the provided `encoder_hidden_states` to support prefix tuning
-        if (
-            is_cross_attention
-            and past_key_value is not None
-            and past_key_value[0].shape[2] == encoder_hidden_states.shape[1]
-        ):
+        if (is_cross_attention and past_key_value is not None and past_key_value[0].shape[2] == encoder_hidden_states.shape[1]):
             # reuse k,v, cross_attentions
             key_states = past_key_value[0]
             value_states = past_key_value[1]
@@ -1019,11 +1058,12 @@ class SeamlessM4TAttention(nn.Cell):
             value_states = self._shape(self.v_proj(hidden_states), -1, bsz)
             key_states = mint.cat([past_key_value[0], key_states], dim=2)
             value_states = mint.cat([past_key_value[1], value_states], dim=2)
+            # attention_mask = mint.cat([attention_mask, attention_mask], dim=3)
         else:
             # self_attention
             key_states = self._shape(self.k_proj(hidden_states), -1, bsz)
             value_states = self._shape(self.v_proj(hidden_states), -1, bsz)
-
+        
         if self.is_decoder:
             # if cross_attention save Tuple(ms.Tensor, ms.Tensor) of all cross attention key/value_states.
             # Further calls to cross_attention layer can then reuse all cross-attention
@@ -1094,9 +1134,9 @@ class SeamlessM4TAttention(nn.Cell):
 class SeamlessM4TFeedForwardNetwork(nn.Cell):
     def __init__(self, config: SeamlessM4TConfig, ffn_dim: int):
         super().__init__()
-        self.fc1 = nn.Linear(config.hidden_size, ffn_dim)
-        self.fc2 = nn.Linear(ffn_dim, config.hidden_size)
-        self.dropout = nn.Dropout(p=config.activation_dropout)
+        self.fc1 = mint.nn.Linear(config.hidden_size, ffn_dim)
+        self.fc2 = mint.nn.Linear(ffn_dim, config.hidden_size)
+        self.dropout = mint.nn.Dropout(p=config.activation_dropout)
         self.act = ACT2FN[config.activation_function]
 
     def construct(self, hidden_states):
@@ -1106,7 +1146,7 @@ class SeamlessM4TFeedForwardNetwork(nn.Cell):
         if (
             isinstance(self.fc2.weight, ms.Tensor)
             and hidden_states.dtype != self.fc2.weight.dtype
-            and (self.fc2.weight.dtype != mint.int8 and self.fc2.weight.dtype != mint.uint8)
+            and (self.fc2.weight.dtype != ms.int8 and self.fc2.weight.dtype != ms.uint8)
         ):
             hidden_states = hidden_states.to(self.fc2.weight.dtype)
         hidden_states = self.fc2(hidden_states)
@@ -1127,13 +1167,13 @@ class SeamlessM4TEncoderLayer(nn.Cell):
             num_heads=encoder_attention_heads,
             dropout=config.attention_dropout,
         )
-        self.attn_dropout = nn.Dropout(p=config.dropout)
+        self.attn_dropout = mint.nn.Dropout(p=config.dropout)
         self.self_attn_layer_norm = mint.nn.LayerNorm(self.embed_dim)
 
         self.ffn = SeamlessM4TFeedForwardNetwork(config, ffn_dim=encoder_ffn_dim)
 
         self.ffn_layer_norm = mint.nn.LayerNorm(config.hidden_size)
-        self.ffn_dropout = nn.Dropout(p=config.activation_dropout)
+        self.ffn_dropout = mint.nn.Dropout(p=config.activation_dropout)
 
     def construct(
         self,
@@ -1193,7 +1233,7 @@ class SeamlessM4TDecoderLayer(nn.Cell):
         )
         self.dropout = config.dropout
         self.activation_fn = ACT2FN[config.activation_function]
-        self.attn_dropout = nn.Dropout(p=config.dropout)
+        self.attn_dropout = mint.nn.Dropout(p=config.dropout)
 
         self.self_attn_layer_norm = mint.nn.LayerNorm(self.embed_dim)
         self.cross_attention = SeamlessM4TAttention(
@@ -1204,7 +1244,7 @@ class SeamlessM4TDecoderLayer(nn.Cell):
         self.ffn = SeamlessM4TFeedForwardNetwork(config, ffn_dim=decoder_ffn_dim)
 
         self.ffn_layer_norm = mint.nn.LayerNorm(config.hidden_size)
-        self.ffn_dropout = nn.Dropout(p=config.activation_dropout)
+        self.ffn_dropout = mint.nn.Dropout(p=config.activation_dropout)
 
     def construct(
         self,
@@ -1308,7 +1348,7 @@ class SeamlessM4TPreTrainedModel(PreTrainedModel):
     def _init_weights(self, module):
         """Initialize the weights"""
         std = self.config.initializer_range
-        if isinstance(module, nn.Linear):
+        if isinstance(module, mint.nn.Linear):
             module.weight.data.normal_(mean=0.0, std=std)
             if module.bias is not None:
                 module.bias.data.zero_()
@@ -1343,15 +1383,15 @@ class SeamlessM4TPreTrainedModel(PreTrainedModel):
             module.projection.bias.set_data(
                 initializer(Uniform(scale=k), module.projection.bias.shape, module.projection.bias.dtype)
             )
-        elif isinstance(module, (mint.nn.LayerNorm, nn.GroupNorm)):
+        elif isinstance(module, (mint.nn.LayerNorm, mint.nn.GroupNorm)):
             module.bias.data.zero_()
             module.weight.data.fill_(1.0)
-        elif isinstance(module, Conv1d):
+        elif isinstance(module, nn.Conv1d):
             module.weight.set_data(
                 initializer(HeNormal(), module.weight.shape, module.weight.dtype)
             )
             if module.bias is not None:
-                k = math.sqrt(module.groups / (module.in_channels * module.kernel_size[0]))
+                k = math.sqrt(module.group / (module.in_channels * module.kernel_size[0]))
                 module.bias.set_data(
                     initializer(Uniform(scale=k), module.bias.shape, module.bias.dtype)
                 )
@@ -1410,7 +1450,7 @@ class SeamlessM4TPreTrainedModel(PreTrainedModel):
 
         # 5. expand beam_indices to last_hidden_states dim
         beam_indices = beam_indices.unsqueeze(-1)
-        beam_indices = beam_indices.expand((-1, -1, last_hidden_states.shape[-1]),)
+        beam_indices = beam_indices.expand((-1, -1, last_hidden_states.shape[-1]))
 
         # 6. select the right candidate for each beam
         # in other words, new_last_hidden_states[i,j,k] = last_hidden_states[beam_indices[i,j,k], j, k] for all i, j, k
@@ -1453,7 +1493,7 @@ class SeamlessM4TSpeechEncoder(SeamlessM4TPreTrainedModel):
                 """Both `input_features` and `inputs_embeds` are `None` in `SeamlessM4TSpeechEncoder.forward`.
                 Make sure one of them is not `None`."""
             )
-
+        
         hidden_states = self.feature_projection(input_features)
 
         encoder_outputs = self.encoder(
@@ -1593,7 +1633,7 @@ class SeamlessM4TEncoder(SeamlessM4TPreTrainedModel):
         elif input_ids is not None:
             input = input_ids
             input_shape = input.shape
-            input_ids = input_ids.view(-1, input_shape[-1])
+            input_ids = input_ids.reshape(-1, input_shape[-1])
         elif inputs_embeds is not None:
             input = inputs_embeds[:, :, -1]
         else:
@@ -1604,7 +1644,6 @@ class SeamlessM4TEncoder(SeamlessM4TPreTrainedModel):
 
         if not self.is_t2u_encoder:
             embed_pos = self.embed_positions(input)
-
             hidden_states = inputs_embeds + embed_pos
         else:
             hidden_states = inputs_embeds
@@ -1651,7 +1690,7 @@ class SeamlessM4TEncoder(SeamlessM4TPreTrainedModel):
             if output_attentions:
                 all_attentions = all_attentions + (layer_outputs[1],)
 
-        hidden_states = self.layer_norm(hidden_states)
+        hidden_states = self.layer_norm(hidden_states.to(self.layer_norm.weight.dtype))
 
         if output_hidden_states:
             encoder_states = encoder_states + (hidden_states,)
@@ -1881,7 +1920,7 @@ class SeamlessM4TDecoder(SeamlessM4TPreTrainedModel):
                 if encoder_hidden_states is not None:
                     all_cross_attentions += (layer_outputs[3],)
 
-        hidden_states = self.layer_norm(hidden_states)
+        hidden_states = self.layer_norm(hidden_states.to(self.layer_norm.weight.dtype))
 
         # add hidden states from the last decoder layer
         if output_hidden_states:
@@ -2008,7 +2047,7 @@ class SeamlessM4TTextToUnitForConditionalGeneration(SeamlessM4TPreTrainedModel, 
 
         self.model = SeamlessM4TTextToUnitModel(config, embed_tokens_decoder)
 
-        self.lm_head = nn.Linear(config.hidden_size, config.t2u_vocab_size, bias=False)
+        self.lm_head = mint.nn.Linear(config.hidden_size, config.t2u_vocab_size, bias=False)
 
         # Initialize weights and apply final processing
         self.post_init()
@@ -2143,26 +2182,30 @@ class HifiGanResidualBlock(nn.Cell):
 
         self.convs1 = nn.CellList(
             [
-                Conv1d(
+                nn.Conv1d(
                     channels,
                     channels,
                     kernel_size,
                     stride=1,
                     dilation=dilation[i],
+                    pad_mode="pad",
                     padding=self.get_padding(kernel_size, dilation[i]),
+                    has_bias=True,
                 )
                 for i in range(len(dilation))
             ]
         )
         self.convs2 = nn.CellList(
             [
-                Conv1d(
+                nn.Conv1d(
                     channels,
                     channels,
                     kernel_size,
                     stride=1,
                     dilation=1,
+                    pad_mode="pad",
                     padding=self.get_padding(kernel_size, 1),
+                    has_bias=True,
                 )
                 for _ in range(len(dilation))
             ]
@@ -2172,9 +2215,9 @@ class HifiGanResidualBlock(nn.Cell):
         return (kernel_size * dilation - dilation) // 2
 
     def apply_weight_norm(self):
-        weight_norm = nn.utils.weight_norm
+        weight_norm = mint.nn.utils.weight_norm
         if hasattr(nn.utils.parametrizations, "weight_norm"):
-            weight_norm = nn.utils.parametrizations.weight_norm
+            weight_norm = mint.nn.utils.parametrizations.weight_norm
 
         for layer in self.convs1:
             weight_norm(layer)
@@ -2183,9 +2226,9 @@ class HifiGanResidualBlock(nn.Cell):
 
     def remove_weight_norm(self):
         for layer in self.convs1:
-            nn.utils.remove_weight_norm(layer)
+            mint.nn.utils.remove_weight_norm(layer)
         for layer in self.convs2:
-            nn.utils.remove_weight_norm(layer)
+            mint.nn.utils.remove_weight_norm(layer)
 
     def construct(self, hidden_states):
         for conv1, conv2 in zip(self.convs1, self.convs2):
@@ -2206,23 +2249,27 @@ class SeamlessM4TVariancePredictor(nn.Cell):
         kernel_size = config.variance_predictor_kernel_size
         var_pred_dropout = config.var_pred_dropout
 
-        self.conv1 = Conv1d(
+        self.conv1 = nn.Conv1d(
             embed_dim,
             embed_dim,
             kernel_size=kernel_size,
+            pad_mode="pad",
             padding=(kernel_size - 1) // 2,
+            has_bias=True,
         )
-        self.activation_fuction = nn.ReLU()
+        self.activation_fuction = mint.nn.ReLU()
         self.ln1 = mint.nn.LayerNorm(embed_dim)
-        self.dropout_module = nn.Dropout(p=var_pred_dropout)
-        self.conv2 = Conv1d(
+        self.dropout_module = mint.nn.Dropout(p=var_pred_dropout)
+        self.conv2 = nn.Conv1d(
             embed_dim,
             embed_dim,
             kernel_size=kernel_size,
+            pad_mode="pad",
             padding=1,
+            has_bias=True,
         )
         self.ln2 = mint.nn.LayerNorm(embed_dim)
-        self.proj = nn.Linear(embed_dim, 1)
+        self.proj = mint.nn.Linear(embed_dim, 1)
 
     def construct(self, hidden_states: Tensor) -> Tensor:
         # Input: B x T x C; Output: B x T
@@ -2242,23 +2289,27 @@ class SeamlessM4THifiGan(nn.Cell):
         self.leaky_relu_slope = config.leaky_relu_slope
         self.num_kernels = len(config.resblock_kernel_sizes)
         self.num_upsamples = len(config.upsample_rates)
-        self.conv_pre = Conv1d(
+        self.conv_pre = nn.Conv1d(
             model_in_dim,
             config.upsample_initial_channel,
             kernel_size=7,
             stride=1,
+            pad_mode="pad",
             padding=3,
+            has_bias=True,
         )
 
         self.upsampler = nn.CellList()
         for i, (upsample_rate, kernel_size) in enumerate(zip(config.upsample_rates, config.upsample_kernel_sizes)):
             self.upsampler.append(
-                ConvTranspose1d(
+                nn.Conv1dTranspose(
                     config.upsample_initial_channel // (2**i),
                     config.upsample_initial_channel // (2 ** (i + 1)),
                     kernel_size=kernel_size,
                     stride=upsample_rate,
+                    pad_mode="pad",
                     padding=(kernel_size - upsample_rate) // 2,
+                    has_bias=True,
                 )
             )
 
@@ -2268,7 +2319,7 @@ class SeamlessM4THifiGan(nn.Cell):
             for kernel_size, dilation in zip(config.resblock_kernel_sizes, config.resblock_dilation_sizes):
                 self.resblocks.append(HifiGanResidualBlock(channels, kernel_size, dilation, config.leaky_relu_slope))
 
-        self.conv_post = Conv1d(channels, 1, kernel_size=7, stride=1, padding=3)
+        self.conv_post = nn.Conv1d(channels, 1, kernel_size=7, stride=1, pad_mode="pad", padding=3, has_bias=True)
 
     def construct(self, input_embeds: ms.Tensor) -> ms.Tensor:
         r"""
@@ -2419,7 +2470,7 @@ class SeamlessM4TCodeHifiGan(PreTrainedModel):
                 for (hidden_state, duration) in zip(hidden_states, dur_out)
             ]
 
-            hidden_states = nn.utils.rnn.pad_sequence(hidden_states, batch_first=True).transpose(1, 2)
+            hidden_states = pad_sequence(hidden_states, batch_first=True).transpose(1, 2)
 
         spkr = spkr.repeat(1, 1, hidden_states.shape[-1])
         lang = lang.repeat(1, 1, hidden_states.shape[-1])
@@ -2434,7 +2485,7 @@ class SeamlessM4TCodeHifiGan(PreTrainedModel):
 
     def _init_weights(self, module):
         """Initialize the weights."""
-        if isinstance(module, (nn.Linear, Conv1d, ConvTranspose1d)):
+        if isinstance(module, (nn.Linear, nn.Conv1d, nn.Conv1dTranspose)):
             module.weight.data.normal_(mean=0.0, std=self.config.initializer_range)
             if module.bias is not None:
                 module.bias.data.zero_()
@@ -2444,9 +2495,9 @@ class SeamlessM4TCodeHifiGan(PreTrainedModel):
                 module.weight.data[module.padding_idx].zero_()
 
     def apply_weight_norm(self):
-        weight_norm = nn.utils.weight_norm
+        weight_norm = mint.nn.utils.weight_norm
         if hasattr(nn.utils.parametrizations, "weight_norm"):
-            weight_norm = nn.utils.parametrizations.weight_norm
+            weight_norm = mint.nn.utils.parametrizations.weight_norm
 
         weight_norm(self.hifi_gan.conv_pre)
         for layer in self.hifi_gan.upsampler:
@@ -2456,12 +2507,12 @@ class SeamlessM4TCodeHifiGan(PreTrainedModel):
         weight_norm(self.hifi_gan.conv_post)
 
     def remove_weight_norm(self):
-        nn.utils.remove_weight_norm(self.hifi_gan.conv_pre)
+        mint.nn.utils.remove_weight_norm(self.hifi_gan.conv_pre)
         for layer in self.hifi_gan.upsampler:
-            nn.utils.remove_weight_norm(layer)
+            mint.nn.utils.remove_weight_norm(layer)
         for layer in self.hifi_gan.resblocks:
             layer.remove_weight_norm()
-        nn.utils.remove_weight_norm(self.hifi_gan.conv_post)
+        mint.nn.utils.remove_weight_norm(self.hifi_gan.conv_post)
 
 
 ############ WHOLE MODEL related code ################
@@ -2483,7 +2534,7 @@ class SeamlessM4TForTextToText(SeamlessM4TPreTrainedModel, GenerationMixin):
         self.shared = mint.nn.Embedding(config.vocab_size, config.hidden_size, config.pad_token_id)
         self.text_encoder = SeamlessM4TEncoder(config, self.shared)
         self.text_decoder = SeamlessM4TDecoder(config, self.shared)
-        self.lm_head = nn.Linear(config.hidden_size, config.vocab_size, bias=False)
+        self.lm_head = mint.nn.Linear(config.hidden_size, config.vocab_size, bias=False)
 
         # Initialize weights and apply final processing
         self.post_init()
@@ -2741,7 +2792,7 @@ class SeamlessM4TForSpeechToText(SeamlessM4TPreTrainedModel, GenerationMixin):
         self.shared = mint.nn.Embedding(config.vocab_size, config.hidden_size, config.pad_token_id)
         self.speech_encoder = SeamlessM4TSpeechEncoder(config)
         self.text_decoder = SeamlessM4TDecoder(config, self.shared)
-        self.lm_head = nn.Linear(config.hidden_size, config.vocab_size, bias=False)
+        self.lm_head = mint.nn.Linear(config.hidden_size, config.vocab_size, bias=False)
 
         # Initialize weights and apply final processing
         self.post_init()
@@ -3004,7 +3055,7 @@ class SeamlessM4TForTextToSpeech(SeamlessM4TPreTrainedModel, GenerationMixin):
         self.shared = mint.nn.Embedding(config.vocab_size, config.hidden_size, config.pad_token_id)
         self.text_encoder = SeamlessM4TEncoder(config, self.shared)
         self.text_decoder = SeamlessM4TDecoder(config, self.shared)
-        self.lm_head = nn.Linear(config.hidden_size, config.vocab_size, bias=False)
+        self.lm_head = mint.nn.Linear(config.hidden_size, config.vocab_size, bias=False)
 
         # Initialize weights and apply final processing
         self.post_init()
@@ -3322,7 +3373,7 @@ class SeamlessM4TForSpeechToSpeech(SeamlessM4TPreTrainedModel, GenerationMixin):
         self.shared = mint.nn.Embedding(config.vocab_size, config.hidden_size, config.pad_token_id)
         self.speech_encoder = SeamlessM4TSpeechEncoder(config)
         self.text_decoder = SeamlessM4TDecoder(config, self.shared)
-        self.lm_head = nn.Linear(config.hidden_size, config.vocab_size, bias=False)
+        self.lm_head = mint.nn.Linear(config.hidden_size, config.vocab_size, bias=False)
 
         # Initialize weights and apply final processing
         self.post_init()
@@ -3392,7 +3443,7 @@ class SeamlessM4TForSpeechToSpeech(SeamlessM4TPreTrainedModel, GenerationMixin):
                 "This is the same forward method as `SeamlessM4TForSpeechToText`. It doesn't use `self.t2u_model`."
                 "If you want to generate speech, use the `generate` method."
             )
-
+            
             encoder_outputs = self.speech_encoder(
                 input_features=input_features,
                 attention_mask=attention_mask,
@@ -3580,7 +3631,7 @@ class SeamlessM4TForSpeechToSpeech(SeamlessM4TPreTrainedModel, GenerationMixin):
         ).last_hidden_state
 
         pad_token_id = self.generation_config.pad_token_id
-
+        
         # Compute new attention mask
         seq_lens = (sequences != pad_token_id).int().sum(1)
         t2u_model_attention_mask = _compute_new_attention_mask(t2u_input_embeds, seq_lens)
@@ -3647,7 +3698,7 @@ class SeamlessM4TModel(SeamlessM4TPreTrainedModel, GenerationMixin):
         self.text_encoder = SeamlessM4TEncoder(config, self.shared)
         self.speech_encoder = SeamlessM4TSpeechEncoder(config)
         self.text_decoder = SeamlessM4TDecoder(config, self.shared)
-        self.lm_head = nn.Linear(config.hidden_size, config.vocab_size, bias=False)
+        self.lm_head = mint.nn.Linear(config.hidden_size, config.vocab_size, bias=False)
 
         # Initialize weights and apply final processing
         self.post_init()

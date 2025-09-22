@@ -587,14 +587,16 @@ from .models.roberta import (
     RobertaModel,
     RobertaPreTrainedModel,
 )
+from .models.rwkv import RwkvForCausalLM, RwkvModel, RwkvPreTrainedModel
 from .models.seamless_m4t import (
     SeamlessM4TForSpeechToSpeech,
     SeamlessM4TForSpeechToText,
     SeamlessM4TForTextToSpeech,
     SeamlessM4TForTextToText,
     SeamlessM4TModel,
+    SeamlessM4TProcessor,
+    SeamlessM4TConfig,
 )
-from .models.rwkv import RwkvForCausalLM, RwkvModel, RwkvPreTrainedModel
 from .models.segformer import (
     SegformerDecodeHead,
     SegformerForImageClassification,

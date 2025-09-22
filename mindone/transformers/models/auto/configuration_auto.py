@@ -112,6 +112,7 @@ CONFIG_MAPPING_NAMES = OrderedDict(
         ("rembert", "RemBertConfig"),
         ("seamless_m4t", "SeamlessM4TConfig"),
         ("rwkv", "RwkvConfig"),
+        ("seamless_m4t", "SeamlessM4TConfig"),
         ("segformer", "SegformerConfig"),
         ("swin", "SwinConfig"),
         ("siglip", "SiglipConfig"),
