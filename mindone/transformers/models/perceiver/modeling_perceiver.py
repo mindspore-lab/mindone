@@ -2778,7 +2778,7 @@ class PerceiverTrainablePositionEncoding(PerceiverAbstractPositionEncoding):
         self._num_channels = num_channels
         self._index_dims = index_dims
         index_dim = np.prod(index_dims)
-        self.position_embeddings = ms.Parameter(mint.randn(index_dim, num_channels))
+        self.position_embeddings = ms.Parameter(mint.randn(int(index_dim), num_channels))
 
     @property
     def num_dimensions(self) -> int:
