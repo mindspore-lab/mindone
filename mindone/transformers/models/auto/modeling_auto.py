@@ -106,6 +106,7 @@ MODEL_MAPPING_NAMES = OrderedDict(
         ("resnet", "ResNetModel"),
         ("roberta", "RobertaModel"),
         ("rwkv", "RwkvModel"),
+        ("sam", "SamModel"),
         ("segformer", "SegformerModel"),
         ("siglip", "SiglipModel"),
         ("siglip_vision_model", "SiglipVisionModel"),
@@ -667,7 +668,11 @@ MODEL_FOR_BACKBONE_MAPPING_NAMES = OrderedDict(
     ]
 )
 
-MODEL_FOR_MASK_GENERATION_MAPPING_NAMES = OrderedDict()
+MODEL_FOR_MASK_GENERATION_MAPPING_NAMES = OrderedDict(
+    [
+        ("sam", "SamModel"),
+    ]
+)
 
 
 MODEL_FOR_KEYPOINT_DETECTION_MAPPING_NAMES = OrderedDict()

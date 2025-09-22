@@ -607,6 +607,7 @@ from .models.roberta import (
     RobertaPreTrainedModel,
 )
 from .models.rwkv import RwkvForCausalLM, RwkvModel, RwkvPreTrainedModel
+from .models.sam import SamImageProcessor, SamModel, SamPreTrainedModel, SamProcessor
 from .models.segformer import (
     SegformerDecodeHead,
     SegformerForImageClassification,
