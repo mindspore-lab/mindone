@@ -13,7 +13,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 import mindspore as ms
-from mindspore import mint, nn
+from mindspore import mint
+
 """
 Image/Text processor class for OneFormer
 """
@@ -21,8 +22,6 @@ Image/Text processor class for OneFormer
 from typing import List
 
 from ...processing_utils import ProcessorMixin
-
-
 
 
 class OneFormerProcessor(ProcessorMixin):

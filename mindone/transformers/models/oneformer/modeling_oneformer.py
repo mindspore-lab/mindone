@@ -2990,8 +2990,9 @@ class OneFormerModel(OneFormerPreTrainedModel):
 
         >>> # load processor for preprocessing the inputs
         >>> processor = OneFormerProcessor.from_pretrained("shi-labs/oneformer_ade20k_swin_tiny")
-        >>> model = OneFormerModel.from_pretrained("shi-labs/oneformer_ade20k_swin_tiny")
-        >>> inputs = processor(image, ["semantic"], return_tensors="pt")
+        >>> model = OneFormerModel.from_pretrained("shi-labs/oneformer_ade20k_swin_tiny", use_safetensors=True)
+        >>> inputs = processor(image, ["semantic"], return_tensors="np")
+        >>> inputs = {k: ms.Tensor(v) for k, v in inputs.items()}
 
         >>> with ms._no_grad():
         ...     outputs = model(**inputs)
@@ -3180,7 +3181,7 @@ class OneFormerForUniversalSegmentation(OneFormerPreTrainedModel):
 
         >>> # load OneFormer fine-tuned on ADE20k for universal segmentation
         >>> processor = OneFormerProcessor.from_pretrained("shi-labs/oneformer_ade20k_swin_tiny")
-        >>> model = OneFormerForUniversalSegmentation.from_pretrained("shi-labs/oneformer_ade20k_swin_tiny")
+        >>> model = OneFormerForUniversalSegmentation.from_pretrained("shi-labs/oneformer_ade20k_swin_tiny", use_safetensors=True)
 
         >>> url = (
         ...     "https://huggingface.co/datasets/hf-internal-testing/fixtures_ade20k/resolve/main/ADE_val_00000001.jpg"
@@ -3188,7 +3189,8 @@ class OneFormerForUniversalSegmentation(OneFormerPreTrainedModel):
         >>> image = Image.open(requests.get(url, stream=True).raw)
 
         >>> # Semantic Segmentation
-        >>> inputs = processor(image, ["semantic"], return_tensors="pt")
+        >>> inputs = processor(image, ["semantic"], return_tensors="np")
+        >>> inputs = {k: ms.Tensor(v) for k, v in inputs.items()}
 
         >>> with ms._no_grad():
         ...     outputs = model(**inputs)
@@ -3205,7 +3207,8 @@ class OneFormerForUniversalSegmentation(OneFormerPreTrainedModel):
         '👉 Semantic Predictions Shape: [512, 683]'
 
         >>> # Instance Segmentation
-        >>> inputs = processor(image, ["instance"], return_tensors="pt")
+        >>> inputs = processor(image, ["instance"], return_tensors="np")
+        >>> inputs = {k: ms.Tensor(v) for k, v in inputs.items()}
 
         >>> with ms._no_grad():
         ...     outputs = model(**inputs)
@@ -3222,7 +3225,8 @@ class OneFormerForUniversalSegmentation(OneFormerPreTrainedModel):
         '👉 Instance Predictions Shape: [512, 683]'
 
         >>> # Panoptic Segmentation
-        >>> inputs = processor(image, ["panoptic"], return_tensors="pt")
+        >>> inputs = processor(image, ["panoptic"], return_tensors="np")
+        >>> inputs = {k: ms.Tensor(v) for k, v in inputs.items()}
 
         >>> with ms._no_grad():
         ...     outputs = model(**inputs)

@@ -14,8 +14,6 @@
 # limitations under the License.
 """Image processor class for OneFormer."""
 
-import mindspore as ms
-from mindspore import mint, nn
 import json
 import os
 from typing import Any, Dict, Iterable, List, Optional, Set, Tuple, Union
@@ -23,6 +21,12 @@ from typing import Any, Dict, Iterable, List, Optional, Set, Tuple, Union
 import numpy as np
 from huggingface_hub import hf_hub_download
 from huggingface_hub.utils import RepositoryNotFoundError
+from transformers.image_utils import PILImageResampling
+from transformers.utils import IMAGENET_DEFAULT_MEAN, IMAGENET_DEFAULT_STD, logging
+from transformers.utils.deprecation import deprecate_kwarg
+
+import mindspore as ms
+from mindspore import mint
 
 from ...image_processing_utils import INIT_SERVICE_KWARGS, BaseImageProcessor, BatchFeature, get_size_dict
 from ...image_transforms import (
@@ -44,22 +48,9 @@ from ...image_utils import (
     valid_images,
     validate_preprocess_arguments,
 )
-from transformers.image_utils import PILImageResampling
-from transformers.utils import (  
-    IMAGENET_DEFAULT_MEAN,
-    IMAGENET_DEFAULT_STD,
-)
-from ...utils import (
-    TensorType,
-    filter_out_non_signature_kwargs,
-    is_mindspore_tensor,
-)
-
-from transformers.utils.deprecation import deprecate_kwarg
-from transformers.utils import logging
+from ...utils import TensorType, filter_out_non_signature_kwargs, is_mindspore_tensor
 
 logger = logging.get_logger(__name__)
-
 
 
 # Copied from transformers.models.detr.image_processing_detr.max_across_indices
@@ -214,7 +205,10 @@ def compute_segments(
     height = mask_probs.shape[1] if target_size is None else target_size[0]
     width = mask_probs.shape[2] if target_size is None else target_size[1]
 
-    segmentation = mint.zeros((height, width), dtype=ms.int32, )
+    segmentation = mint.zeros(
+        (height, width),
+        dtype=ms.int32,
+    )
     segments: List[Dict] = []
 
     if target_size is not None:
@@ -1031,9 +1025,7 @@ class OneFormerImageProcessor(BaseImageProcessor):
             input_data_format = infer_channel_dimension_format(pixel_values_list[0])
 
         pad_size = get_max_height_width(pixel_values_list, input_data_format=input_data_format)
-        encoded_inputs = self.pad(
-            pixel_values_list, return_tensors=return_tensors, input_data_format=input_data_format
-        )
+        encoded_inputs = self.pad(pixel_values_list, return_tensors=return_tensors, input_data_format=input_data_format)
 
         annotations = None
         if segmentation_maps is not None:
@@ -1124,9 +1116,7 @@ class OneFormerImageProcessor(BaseImageProcessor):
         # Resize logits and compute semantic segmentation maps
         if target_sizes is not None:
             if batch_size != len(target_sizes):
-                raise ValueError(
-                    "Make sure that you pass in as many target sizes as the batch dimension of the logits"
-                )
+                raise ValueError("Make sure that you pass in as many target sizes as the batch dimension of the logits")
 
             semantic_segmentation = []
             for idx in range(batch_size):
@@ -1204,7 +1194,14 @@ class OneFormerImageProcessor(BaseImageProcessor):
         for i in range(batch_size):
             # [Q, K]
             scores = mint.nn.functional.softmax(class_queries_logits[i], dim=-1)[:, :-1]
-            labels = mint.arange(num_classes, ).unsqueeze(0).repeat(num_queries, 1).flatten(0, 1)
+            labels = (
+                mint.arange(
+                    num_classes,
+                )
+                .unsqueeze(0)
+                .repeat(num_queries, 1)
+                .flatten(0, 1)
+            )
 
             # scores_per_image, topk_indices = scores.flatten(0, 1).topk(self.num_queries, sorted=False)
             scores_per_image, topk_indices = scores.flatten(0, 1).topk(num_queries, sorted=False)
