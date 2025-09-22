@@ -27,7 +27,8 @@ from tests.modeling_test_utils import (
 from tests.transformers_tests.models.modeling_common import ids_numpy
 
 DTYPE_AND_THRESHOLDS = {"fp32": 5e-4, "fp16": 5e-3, "bf16": 5e-3}
-MODES = [0, 1]
+# FIXME: CodeGen does not support graph mode yet, so we only test in pynative mode.
+MODES = [1]
 
 
 class CodeGenModelTester:
@@ -154,7 +155,7 @@ CODEGEN_CASES = [
     [
         "CodeGenModel",
         "transformers.CodeGenModel",
-        "mindway.transformers.CodeGenModel",
+        "mindone.transformers.CodeGenModel",
         (config,),
         {},
         (input_ids,),
