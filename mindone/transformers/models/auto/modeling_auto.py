@@ -138,6 +138,9 @@ MODEL_MAPPING_NAMES = OrderedDict(
         ("mpt", "MptModel"),
         ("mt5", "MT5Model"),
         ("mvp", "MvpModel"),
+        ("musicgen_melody", "MusicgenMelodyModel"),
+        ("megatron-bert", "MegatronBertModel"),
+        ("mixtral", "MixtralModel"),
         ("nystromformer", "NystromformerModel"),
         ("opt", "OPTModel"),
         ("owlv2", "Owlv2Model"),
@@ -375,6 +378,7 @@ MODEL_FOR_CAUSAL_LM_MAPPING_NAMES = OrderedDict(
         ("persimmon", "PersimmonForCausalLM"),
         ("olmo", "OlmoForCausalLM"),
         ("olmo2", "Olmo2ForCausalLM"),
+        ("musicgen_melody", "MusicgenMelodyForCausalLM"),
         ("phi", "PhiForCausalLM"),
         ("phi3", "Phi3ForCausalLM"),
         ("prophetnet", "ProphetNetForCausalLM"),
@@ -945,6 +949,7 @@ MODEL_FOR_TEXT_TO_WAVEFORM_MAPPING_NAMES = OrderedDict(
         # Model for Text-To-Waveform mapping
         ("fastspeech2_conformer", "FastSpeech2ConformerWithHifiGan"),
         ("seamless_m4t_v2", "SeamlessM4Tv2ForTextToSpeech"),
+        ("musicgen_melody", "MusicgenMelodyForConditionalGeneration"),
     ]
 )
 
