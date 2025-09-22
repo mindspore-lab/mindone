@@ -1,5 +1,3 @@
-"""Adapted from https://github.com/huggingface/transformers/tree/main/tests//models/recurrent_gemma/test_modeling_recurrent_gemma.py."""
-
 # This module contains test cases that are defined in the `.test_cases.py` file, structured as lists or tuples like
 #     [name, pt_module, ms_module, init_args, init_kwargs, inputs_args, inputs_kwargs, outputs_map].
 #
@@ -15,7 +13,7 @@ import inspect
 import numpy as np
 import pytest
 import torch
-from transformers import RecurrentGemmaConfig
+from transformers import Zamba2Config
 
 import mindspore as ms
 
@@ -28,12 +26,12 @@ from tests.modeling_test_utils import (
 )
 from tests.transformers_tests.models.modeling_common import ids_numpy
 
-DTYPE_AND_THRESHOLDS = {"fp32": 5e-4, "fp16": 5e-3, "bf16": 5e-3}
+DTYPE_AND_THRESHOLDS = {"fp32": 5e-4, "fp16": 5e-3, "bf16": 5e-2}
 MODES = [1]
 
 
-class RecurrentGemmaModelTester:
-    config_class = RecurrentGemmaConfig
+class Zamba2ModelTester:
+    config_class = Zamba2Config
 
     def __init__(
         self,
@@ -45,7 +43,7 @@ class RecurrentGemmaModelTester:
         use_labels=True,
         vocab_size=99,
         hidden_size=32,
-        num_hidden_layers=2,
+        num_hidden_layers=54,
         num_attention_heads=4,
         num_key_value_heads=2,
         intermediate_size=37,
@@ -131,7 +129,7 @@ class RecurrentGemmaModelTester:
         )
 
 
-model_tester = RecurrentGemmaModelTester()
+model_tester = Zamba2ModelTester()
 (
     config,
     input_ids,
@@ -143,11 +141,11 @@ model_tester = RecurrentGemmaModelTester()
 ) = model_tester.prepare_config_and_inputs()
 
 
-RECURRENTGEMMA_CASES = [
+Zamba2_CASES = [
     [
-        "RecurrentGemmaModel",
-        "transformers.RecurrentGemmaModel",
-        "mindone.transformers.RecurrentGemmaModel",
+        "Zamba2Model",
+        "transformers.Zamba2Model",
+        "mindone.transformers.Zamba2Model",
         (config,),
         {},
         (input_ids,),
@@ -172,7 +170,7 @@ RECURRENTGEMMA_CASES = [
         + [
             mode,
         ]
-        for case in RECURRENTGEMMA_CASES
+        for case in Zamba2_CASES
         for dtype in DTYPE_AND_THRESHOLDS.keys()
         for mode in MODES
     ],

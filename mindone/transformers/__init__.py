@@ -41,6 +41,7 @@ from .models.albert import (
     AlbertModel,
     AlbertPreTrainedModel,
 )
+from .models.align import AlignModel, AlignPreTrainedModel, AlignTextModel, AlignVisionModel
 from .models.aria import (
     AriaForConditionalGeneration,
     AriaPreTrainedModel,
@@ -253,7 +254,16 @@ from .models.clipseg import (
     CLIPSegTextModel,
     CLIPSegVisionModel,
 )
+from .models.clvp import (
+    ClvpDecoder,
+    ClvpEncoder,
+    ClvpForCausalLM,
+    ClvpModel,
+    ClvpModelForConditionalGeneration,
+    ClvpPreTrainedModel,
+)
 from .models.cohere2 import Cohere2ForCausalLM, Cohere2Model, Cohere2PreTrainedModel
+from .models.colpali import ColPaliForRetrieval, ColPaliPreTrainedModel, ColPaliProcessor
 from .models.convbert import (
     ConvBertForMaskedLM,
     ConvBertForMultipleChoice,
@@ -361,6 +371,15 @@ from .models.hiera import (
     HieraPreTrainedModel,
 )
 from .models.hubert import HubertForCTC, HubertForSequenceClassification, HubertModel, HubertPreTrainedModel
+from .models.ibert import (
+    IBertForMaskedLM,
+    IBertForMultipleChoice,
+    IBertForQuestionAnswering,
+    IBertForSequenceClassification,
+    IBertForTokenClassification,
+    IBertModel,
+    IBertPreTrainedModel,
+)
 from .models.idefics import (
     IdeficsForVisionText2Text,
     IdeficsImageProcessor,
@@ -670,6 +689,7 @@ from .models.vilt import (
 )
 from .models.vipllava import VipLlavaForConditionalGeneration, VipLlavaPreTrainedModel
 from .models.vision_encoder_decoder import VisionEncoderDecoderModel
+from .models.vision_text_dual_encoder import VisionTextDualEncoderModel
 from .models.vit import ViTForImageClassification, ViTForMaskedImageModeling, ViTModel, ViTPreTrainedModel
 from .models.vits import VitsModel, VitsPreTrainedModel
 from .models.wav2vec2 import (
@@ -705,6 +725,7 @@ from .models.xlm_roberta_xl import (
 )
 from .models.yolos import YolosForObjectDetection, YolosImageProcessor, YolosModel, YolosPreTrainedModel
 from .models.zamba import ZambaForCausalLM, ZambaForSequenceClassification, ZambaModel, ZambaPreTrainedModel
+from .models.zamba2 import Zamba2ForCausalLM, Zamba2ForSequenceClassification, Zamba2Model, Zamba2PreTrainedModel
 from .pipelines import (
     ImageToImagePipeline,
     ImageToTextPipeline,
