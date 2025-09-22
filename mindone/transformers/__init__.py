@@ -299,6 +299,7 @@ from .models.convnextv2 import (
     ConvNextV2Model,
     ConvNextV2PreTrainedModel,
 )
+from .models.ctrl import CTRLForSequenceClassification, CTRLLMHeadModel, CTRLModel, CTRLPreTrainedModel
 from .models.deberta import (
     DebertaForMaskedLM,
     DebertaForQuestionAnswering,
@@ -318,6 +319,15 @@ from .models.deberta_v2 import (
 )
 from .models.depth_anything import DepthAnythingForDepthEstimation, DepthAnythingPreTrainedModel
 from .models.dinov2 import Dinov2Backbone, Dinov2ForImageClassification, Dinov2Model, Dinov2PreTrainedModel
+from .models.dpr import (
+    DPRContextEncoder,
+    DPRPretrainedContextEncoder,
+    DPRPreTrainedModel,
+    DPRPretrainedQuestionEncoder,
+    DPRPretrainedReader,
+    DPRQuestionEncoder,
+    DPRReader,
+)
 from .models.dpt import DPTForDepthEstimation, DPTImageProcessor, DPTModel, DPTPreTrainedModel
 from .models.fastspeech2_conformer import (
     FastSpeech2ConformerHifiGan,
@@ -478,6 +488,7 @@ from .models.mistral import (
     MistralModel,
     MistralPreTrainedModel,
 )
+from .models.mistral3 import Mistral3ForConditionalGeneration, Mistral3PreTrainedModel
 from .models.mixtral import (
     MixtralForCausalLM,
     MixtralForQuestionAnswering,
@@ -576,6 +587,7 @@ from .models.phi3 import (
     Phi3Model,
     Phi3PreTrainedModel,
 )
+from .models.pixtral import PixtralPreTrainedModel, PixtralVisionModel
 from .models.pop2piano import Pop2PianoForConditionalGeneration, Pop2PianoPreTrainedModel
 from .models.qwen2 import Qwen2ForCausalLM, Qwen2ForSequenceClassification, Qwen2ForTokenClassification, Qwen2Model
 from .models.qwen2_5_omni import (
@@ -615,6 +627,7 @@ from .models.rembert import (
     RemBertModel,
     RemBertPreTrainedModel,
 )
+from .models.resnet import ResNetBackbone, ResNetForImageClassification, ResNetModel, ResNetPreTrainedModel
 from .models.roberta import (
     RobertaForCausalLM,
     RobertaForMaskedLM,
@@ -696,6 +709,13 @@ from .models.t5 import (
     T5ForConditionalGeneration,
     T5Model,
     T5PreTrainedModel,
+)
+from .models.tapas import (
+    TapasForMaskedLM,
+    TapasForQuestionAnswering,
+    TapasForSequenceClassification,
+    TapasModel,
+    TapasPreTrainedModel,
 )
 from .models.umt5 import (
     UMT5EncoderModel,
