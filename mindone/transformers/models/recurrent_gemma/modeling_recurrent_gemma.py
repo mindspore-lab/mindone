@@ -642,7 +642,7 @@ class RecurrentGemmaModel(RecurrentGemmaPreTrainedModel):
         )
 
     def _update_causal_mask(self, attention_mask, input_tensor, cache_position):
-        dtype, _ = input_tensor.dtype, input_tensor.device
+        dtype = input_tensor.dtype
         min_dtype = dtype_to_min(dtype)
         sequence_length = input_tensor.shape[1]
         target_length = max(self.config.attention_window_size, sequence_length)
