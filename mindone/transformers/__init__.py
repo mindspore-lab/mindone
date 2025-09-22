@@ -319,6 +319,15 @@ from .models.deberta_v2 import (
 )
 from .models.depth_anything import DepthAnythingForDepthEstimation, DepthAnythingPreTrainedModel
 from .models.dinov2 import Dinov2Backbone, Dinov2ForImageClassification, Dinov2Model, Dinov2PreTrainedModel
+from .models.distilbert import (
+    DistilBertForMaskedLM,
+    DistilBertForMultipleChoice,
+    DistilBertForQuestionAnswering,
+    DistilBertForSequenceClassification,
+    DistilBertForTokenClassification,
+    DistilBertModel,
+    DistilBertPreTrainedModel,
+)
 from .models.dpr import (
     DPRContextEncoder,
     DPRPretrainedContextEncoder,
@@ -329,6 +338,17 @@ from .models.dpr import (
     DPRReader,
 )
 from .models.dpt import DPTForDepthEstimation, DPTImageProcessor, DPTModel, DPTPreTrainedModel
+from .models.funnel import (
+    FunnelBaseModel,
+    FunnelForMaskedLM,
+    FunnelForMultipleChoice,
+    FunnelForPreTraining,
+    FunnelForQuestionAnswering,
+    FunnelForSequenceClassification,
+    FunnelForTokenClassification,
+    FunnelModel,
+    FunnelPreTrainedModel,
+)
 from .models.fuyu import FuyuForCausalLM, FuyuPreTrainedModel
 from .models.gemma import (
     GemmaForCausalLM,
@@ -492,6 +512,13 @@ from .models.mixtral import (
     MixtralForTokenClassification,
     MixtralModel,
     MixtralPreTrainedModel,
+)
+from .models.mllama import (
+    MllamaForCausalLM,
+    MllamaForConditionalGeneration,
+    MllamaPreTrainedModel,
+    MllamaTextModel,
+    MllamaVisionModel,
 )
 from .models.mobilebert import (
     MobileBertForMaskedLM,
