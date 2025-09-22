@@ -1,4 +1,4 @@
-# Copyright 2024 Black Forest Labs, The HuggingFace Team and The InstantX Team. All rights reserved.
+# Copyright 2025 Black Forest Labs, The HuggingFace Team and The InstantX Team. All rights reserved.
 #
 # This code is adapted from https://github.com/huggingface/diffusers
 # with modifications to run diffusers on mindspore.
@@ -24,12 +24,12 @@ from mindspore.common.initializer import initializer
 
 from ...configuration_utils import ConfigMixin, register_to_config
 from ...loaders import PeftAdapterMixin
-from ...models.attention_processor import AttentionProcessor
-from ...models.modeling_utils import ModelMixin
 from ...utils import BaseOutput, logging
+from ..attention_processor import AttentionProcessor
 from ..controlnets.controlnet import ControlNetConditioningEmbedding, zero_module
 from ..embeddings import CombinedTimestepGuidanceTextProjEmbeddings, CombinedTimestepTextProjEmbeddings, FluxPosEmbed
 from ..modeling_outputs import Transformer2DModelOutput
+from ..modeling_utils import ModelMixin
 from ..transformers.transformer_flux import FluxSingleTransformerBlock, FluxTransformerBlock
 
 logger = logging.get_logger(__name__)  # pylint: disable=invalid-name
@@ -422,7 +422,7 @@ class FluxMultiControlNetModel(ModelMixin):
     ) -> Union[FluxControlNetOutput, Tuple]:
         # ControlNet-Union with multiple conditions
         # only load one ControlNet for saving memories
-        if len(self.nets) == 1 and self.nets[0].union:
+        if len(self.nets) == 1:
             controlnet = self.nets[0]
 
             for i, (image, mode, scale) in enumerate(zip(controlnet_cond, controlnet_mode, conditioning_scale)):
@@ -446,17 +446,18 @@ class FluxMultiControlNetModel(ModelMixin):
                     control_block_samples = block_samples
                     control_single_block_samples = single_block_samples
                 else:
-                    control_block_samples = [
-                        control_block_sample + block_sample
-                        for control_block_sample, block_sample in zip(control_block_samples, block_samples)
-                    ]
-
-                    control_single_block_samples = [
-                        control_single_block_sample + block_sample
-                        for control_single_block_sample, block_sample in zip(
-                            control_single_block_samples, single_block_samples
-                        )
-                    ]
+                    if block_samples is not None and control_block_samples is not None:
+                        control_block_samples = [
+                            control_block_sample + block_sample
+                            for control_block_sample, block_sample in zip(control_block_samples, block_samples)
+                        ]
+                    if single_block_samples is not None and control_single_block_samples is not None:
+                        control_single_block_samples = [
+                            control_single_block_sample + block_sample
+                            for control_single_block_sample, block_sample in zip(
+                                control_single_block_samples, single_block_samples
+                            )
+                        ]
 
         # Regular Multi-ControlNets
         # load all ControlNets into memories

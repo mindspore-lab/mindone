@@ -23,7 +23,7 @@ import mindspore as ms
 from mindspore import mint, nn, ops
 from mindspore.common.initializer import Normal, Zero, initializer
 
-ALL_LAYERNORM_LAYERS = [nn.LayerNorm]
+ALL_LAYERNORM_LAYERS = [nn.LayerNorm, mint.nn.LayerNorm]
 
 logger = logging.get_logger(__name__)
 

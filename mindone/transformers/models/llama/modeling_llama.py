@@ -277,8 +277,6 @@ class LlamaAttention(nn.Cell):
                 )
             else:
                 attention_interface = ALL_ATTENTION_FUNCTIONS[self.config._attn_implementation]
-                key_states = repeat_kv(key_states, self.num_key_value_groups)
-                value_states = repeat_kv(value_states, self.num_key_value_groups)
 
         attn_output, attn_weights = attention_interface(
             self,
@@ -398,14 +396,12 @@ class LlamaPreTrainedModel(PreTrainedModel):
             )
             if cell.bias is not None:
                 cell.bias.set_data(init.initializer(init.Zero(), cell.bias.shape, cell.bias.dtype))
-        elif isinstance(cell, nn.Embedding):
-            cell.embedding_table.set_data(
-                init.initializer(
-                    init.Normal(mean=0.0, sigma=std), cell.embedding_table.shape, cell.embedding_table.dtype
-                )
+        elif isinstance(cell, mint.nn.Embedding):
+            cell.weight.set_data(
+                init.initializer(init.Normal(mean=0.0, sigma=std), cell.weight.shape, cell.weight.dtype)
             )
             if cell.padding_idx is not None:
-                cell.embedding_table.data[cell.padding_idx] = 0.0
+                cell.weight[cell.padding_idx] = 0.0
 
 
 LLAMA_INPUTS_DOCSTRING = r"""
@@ -500,7 +496,7 @@ class LlamaModel(LlamaPreTrainedModel):
         self.padding_idx = config.pad_token_id
         self.vocab_size = config.vocab_size
 
-        self.embed_tokens = nn.Embedding(config.vocab_size, config.hidden_size, padding_idx=self.padding_idx)
+        self.embed_tokens = mint.nn.Embedding(config.vocab_size, config.hidden_size, padding_idx=self.padding_idx)
         self.layers = nn.CellList(
             [LlamaDecoderLayer(config, layer_idx) for layer_idx in range(config.num_hidden_layers)]
         )
@@ -526,14 +522,12 @@ class LlamaModel(LlamaPreTrainedModel):
     def get_input_embeddings(self):
         return self.embed_tokens
 
-    def set_input_embeddings(self, value: nn.Embedding):
-        if not isinstance(value, nn.Embedding):
+    def set_input_embeddings(self, value: mint.nn.Embedding):
+        if not isinstance(value, mint.nn.Embedding):
             raise NotImplementedError
-        ori_name = value.embedding_table.name
-
+        ori_name = value.weight.name
         self.embed_tokens = value
-
-        self.embed_tokens.embedding_table.name = ori_name
+        self.embed_tokens.weight.name = ori_name
 
     def gradient_checkpointing_enable(self, gradient_checkpointing_kwargs=None):
         if gradient_checkpointing_kwargs is None:
@@ -596,7 +590,7 @@ class LlamaModel(LlamaPreTrainedModel):
             inputs_embeds = self.embed_tokens(input_ids)
 
         if cache_position is None:
-            past_seen_tokens = get_seq_length(past_key_values) if past_key_values is not None else 0
+            past_seen_tokens = get_seq_length(past_key_values).item() if past_key_values is not None else 0
             cache_position = mint.arange(past_seen_tokens, past_seen_tokens + inputs_embeds.shape[1], dtype=ms.int32)
 
         if position_ids is None:
@@ -677,12 +671,14 @@ class LlamaModel(LlamaPreTrainedModel):
         output_attentions: bool = False,
     ):
         past_seen_tokens = 0
-        if isinstance(past_key_values, Cache):  # DynamicCache
-            past_seen_tokens = past_key_values.get_seq_length() if past_key_values is not None else 0
-        elif isinstance(past_key_values, tuple):  # static tuple cache
-            past_seen_tokens = get_seq_length(past_key_values) if past_key_values is not None else 0
+        if past_key_values is not None:
+            if isinstance(past_key_values, Cache):  # DynamicCache
+                past_seen_tokens = past_key_values.get_seq_length()
+            elif isinstance(past_key_values, tuple):  # static tuple cache
+                past_seen_tokens = get_seq_length(past_key_values)
         using_static_cache = isinstance(past_key_values, tuple)
 
+        dtype = input_tensor.dtype
         sequence_length = input_tensor.shape[1]
 
         if using_static_cache:
@@ -694,7 +690,6 @@ class LlamaModel(LlamaPreTrainedModel):
                 else past_seen_tokens + sequence_length + 1
             )
 
-        dtype = ms.float16
         # In case the provided `attention` mask is 2D, we generate a causal mask here (4D).
         causal_mask = self._prepare_4d_causal_attention_mask_with_cache_position(
             attention_mask,
