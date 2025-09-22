@@ -224,7 +224,7 @@ class UNet2DConditionLoadersMixin:
         # 3. Creates a `LoraConfig` and then injects the converted `state_dict` into the UNet per the
         #    `LoraConfig` specs.
         # 4. It also reports if the underlying `_pipeline` has any kind of offloading inside of it.
-        from mindone.diffusers._peft import LoraConfig, inject_adapter_in_model, set_peft_model_state_dict
+        from mindone.peft import LoraConfig, inject_adapter_in_model, set_peft_model_state_dict
 
         keys = list(state_dict.keys())
 
@@ -374,7 +374,7 @@ class UNet2DConditionLoadersMixin:
             deprecation_message = "Using the `save_attn_procs()` method has been deprecated and will be removed in a future version. Please use `save_lora_adapter()`."  # noqa: E501
             deprecate("save_attn_procs", "0.40.0", deprecation_message)
 
-            from mindone.diffusers._peft.utils import get_peft_model_state_dict
+            from mindone.peft.utils import get_peft_model_state_dict
 
             state_dict = get_peft_model_state_dict(self)
 
