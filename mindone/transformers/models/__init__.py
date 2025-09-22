@@ -40,6 +40,7 @@ from . import (
     convbert,
     convnext,
     convnextv2,
+    ctrl,
     depth_anything,
     dinov2,
     dpr,

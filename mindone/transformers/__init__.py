@@ -299,6 +299,7 @@ from .models.convnextv2 import (
     ConvNextV2Model,
     ConvNextV2PreTrainedModel,
 )
+from .models.ctrl import CTRLForSequenceClassification, CTRLLMHeadModel, CTRLModel, CTRLPreTrainedModel
 from .models.deberta import (
     DebertaForMaskedLM,
     DebertaForQuestionAnswering,
