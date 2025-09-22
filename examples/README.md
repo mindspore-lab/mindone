@@ -30,7 +30,7 @@
 | [hunyuanvideo-i2v](https://github.com/mindspore-lab/mindone/blob/master/examples/hunyuanvideo-i2v) | Tencent official  | https://github.com/Tencent/HunyuanVideo-I2V  |
 | [venhancer](https://github.com/mindspore-lab/mindone/blob/master/examples/venhancer) |  Vchitect Shanghai AI Laboratory official | https://github.com/Vchitect/VEnhancer |
 | [stable diffusion](https://github.com/mindspore-lab/mindone/blob/master/examples/stable_diffusion_v2) | Stability AI official | https://github.com/Stability-AI/stablediffusion
-| [stable diffusion xl](https://github.com/mindspore-lab/mindone/blob/master/examples/stable_diffusion_xl)  | Stability AI official| https://github.com/Stability-AI/generative-models |
+| [stable diffusion xl](https://github.com/mindspore-lab/mindone/tree/v0.2.0/examples/stable_diffusion_xl)  | Stability AI official| https://github.com/Stability-AI/generative-models |
 | [ip adaptor](https://github.com/vigo999/mindone/tree/master/examples/ip_adapter)     | Tencent-ailab official | https://github.com/tencent-ailab/IP-Adapter
 | [t2i-adapter](https://github.com/vigo999/mindone/tree/master/examples/t2i_adapter)     | ARC Lab, Tencent PCG official | https://github.com/TencentARC/T2I-Adapter
 | [dit](https://github.com/mindspore-lab/mindone/blob/master/examples/dit)     | Facebook Research official | https://github.com/facebookresearch/DiT
