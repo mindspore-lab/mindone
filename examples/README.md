@@ -21,18 +21,13 @@
 | [instantmesh](https://github.com/mindspore-lab/mindone/blob/master/examples/instantmesh) | Tencent ARC Lab official | https://github.com/TencentARC/InstantMesh |
 | [hunyuanvideo](https://github.com/mindspore-lab/mindone/blob/master/examples/hunyuanvideo) | HunyuanVideo official | https://github.com/Tencent/HunyuanVideo |
 | [story_diffusion](https://github.com/mindspore-lab/mindone/blob/master/examples/story_diffusion) | HVision-NKU official | https://github.com/HVision-NKU/StoryDiffusion |
-| [dynamicrafter](https://github.com/mindspore-lab/mindone/blob/master/examples/dynamicrafter)     | Tencent Research official | https://github.com/Doubiiu/DynamiCrafter
+| [dynamicrafter](https://github.com/mindspore-lab/mindone/blob/v0.2.0/examples/dynamicrafter)     | Tencent Research official | https://github.com/Doubiiu/DynamiCrafter
 | [hunyuan_dit](https://github.com/mindspore-lab/mindone/blob/master/examples/hunyuan_dit)     | Tencent Research official | https://github.com/Tencent/HunyuanDiT
 | [pixart_sigma](https://github.com/mindspore-lab/mindone/blob/master/examples/pixart_sigma)     | Noah Lab official | https://github.com/PixArt-alpha/PixArt-sigma
-| [svd](https://github.com/mindspore-lab/mindone/blob/master/examples/svd) | Stability AI official  | https://github.com/Stability-AI/generative-models  |
 | [mvdream](https://github.com/mindspore-lab/mindone/blob/master/examples/mvdream) | ByteDance official | https://github.com/bytedance/MVDream  |
-| [sv3d](https://github.com/mindspore-lab/mindone/blob/master/examples/sv3d) | Stability AI official   | https://github.com/Stability-AI/generative-models   |
 | [hunyuanvideo-i2v](https://github.com/mindspore-lab/mindone/blob/master/examples/hunyuanvideo-i2v) | Tencent official  | https://github.com/Tencent/HunyuanVideo-I2V  |
 | [venhancer](https://github.com/mindspore-lab/mindone/blob/master/examples/venhancer) |  Vchitect Shanghai AI Laboratory official | https://github.com/Vchitect/VEnhancer |
 | [stable diffusion](https://github.com/mindspore-lab/mindone/blob/master/examples/stable_diffusion_v2) | Stability AI official | https://github.com/Stability-AI/stablediffusion
-| [stable diffusion xl](https://github.com/mindspore-lab/mindone/tree/v0.2.0/examples/stable_diffusion_xl)  | Stability AI official| https://github.com/Stability-AI/generative-models |
-| [ip adaptor](https://github.com/vigo999/mindone/tree/master/examples/ip_adapter)     | Tencent-ailab official | https://github.com/tencent-ailab/IP-Adapter
-| [t2i-adapter](https://github.com/vigo999/mindone/tree/master/examples/t2i_adapter)     | ARC Lab, Tencent PCG official | https://github.com/TencentARC/T2I-Adapter
 | [dit](https://github.com/mindspore-lab/mindone/blob/master/examples/dit)     | Facebook Research official | https://github.com/facebookresearch/DiT
 | [fit](https://github.com/mindspore-lab/mindone/blob/master/examples/fit)     | Shanghai AI Lab official | https://github.com/whlzy/Fit
 | [latte](https://github.com/mindspore-lab/mindone/blob/master/examples/latte)     | Vchitect Shanghai AI Laboratory official | https://github.com/Vchitect/Latte |
