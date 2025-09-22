@@ -5,7 +5,7 @@ This repository contains SoTA algorithms, models, and interesting projects in th
 ONE is short for "ONE for all"
 
 ## News
-- [2025.09.15] We upgrade diffusers to v0.33.1 and transformers to v4.50.1 based on MindSpore. QwenImage, FluxKontext, Wan2.2, OmniGen2 and more than 20 generative models are now supported.
+- [2025.09.15] We upgrade diffusers to v0.34 and transformers to v4.50.1 based on MindSpore. QwenImage, FluxKontext, Wan2.2, OmniGen2 and more than 20 generative models are now supported.
 - [2025.04.10] We release [v0.3.0](https://github.com/mindspore-lab/mindone/releases/tag/v0.3.0). More than 15 SoTA generative models are added, including Flux, CogView4, OpenSora2.0, Movie Gen 30B , CogVideoX 5B~30B. Have fun!
 - [2025.02.21] We support DeepSeek [Janus-Pro](https://huggingface.co/deepseek-ai/Janus-Pro-7B), a SoTA multimodal understanding and generation model. See [here](examples/janus)
 - [2024.11.06] [v0.2.0](https://github.com/mindspore-lab/mindone/releases/tag/v0.2.0) is released
@@ -52,7 +52,7 @@ image.save("flux-kontext.png")
 
 ###  run hf diffusers on mindspore
  - mindone diffusers is under active development, most tasks were tested with mindspore 2.6.0 on Ascend Atlas 800T A2 machines.
- - compatible with hf diffusers 0.33.1. diffusers 0.35 is under development.
+ - compatible with hf diffusers 0.34. And diffusers 0.35 support will come soon
 
 | component  |  features  
 | :---   |  :--  
