@@ -408,14 +408,17 @@ class BaseImageProcessorFast(BaseImageProcessor):
         Returns:
             `ms.tensor`: The normalized image.
         """
+        assert image.ndim == 4  # [B, C, H, W]
         mean = [float(mean[0]), float(mean[1]), float(mean[2])]
         std = [float(std[0]), float(std[1]), float(std[2])]
-        image = image.squeeze(0).permute(1, 2, 0).asnumpy()
         normalize = vision.Normalize(
             mean=mean,
             std=std,
         )
-        return ms.tensor(normalize(image)).permute(2, 0, 1).unsqueeze(0)
+        images = []
+        for img in image:
+            images.append(normalize(img.permute(1, 2, 0).asnumpy()))
+        return ms.tensor(images).permute(0, 3, 1, 2)
 
     @lru_cache(maxsize=10)
     def _fuse_mean_std_and_rescale_factor(
