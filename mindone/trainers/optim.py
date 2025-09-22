@@ -30,7 +30,9 @@ def create_optimizer(
 
     Args:
         params: Model parameters to be optimized.
-        name: Name of the optimizer. Recommend choice: "adamw_re", which supports both graph mode and pynative mode, and the algorithm implementation is well aligned with `torch.optim.AdamW`
+        name: Name of the optimizer. Recommend choice: "adamw_re",
+            which supports both graph mode and pynative mode,
+            and the algorithm implementation is well aligned with `torch.optim.AdamW`
         lr: Learning rate or a list of learning rates for each step (if a scheduler is used).
         betas: Beta coefficients for computing running averages of gradient and its square.
                If not provided, [0.9, 0.999] is used as default.
