@@ -182,6 +182,13 @@ from .models.bigbird_pegasus import (
     BigBirdPegasusModel,
     BigBirdPegasusPreTrainedModel,
 )
+from .models.biogpt import (
+    BioGptForCausalLM,
+    BioGptForSequenceClassification,
+    BioGptForTokenClassification,
+    BioGptModel,
+    BioGptPreTrainedModel,
+)
 from .models.bit import BitBackbone
 from .models.blip import (
     BlipForConditionalGeneration,
