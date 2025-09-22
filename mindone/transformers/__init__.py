@@ -254,7 +254,16 @@ from .models.clipseg import (
     CLIPSegTextModel,
     CLIPSegVisionModel,
 )
+from .models.clvp import (
+    ClvpDecoder,
+    ClvpEncoder,
+    ClvpForCausalLM,
+    ClvpModel,
+    ClvpModelForConditionalGeneration,
+    ClvpPreTrainedModel,
+)
 from .models.cohere2 import Cohere2ForCausalLM, Cohere2Model, Cohere2PreTrainedModel
+from .models.colpali import ColPaliForRetrieval, ColPaliPreTrainedModel, ColPaliProcessor
 from .models.convbert import (
     ConvBertForMaskedLM,
     ConvBertForMultipleChoice,
