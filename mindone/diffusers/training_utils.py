@@ -23,8 +23,8 @@ from mindspore.communication.management import GlobalComm
 from mindspore.context import ParallelMode
 from mindspore.parallel._utils import _get_parallel_mode
 
-from mindone.diffusers._peft import set_peft_model_state_dict
 from mindone.diffusers.models.model_loading_utils import silence_mindspore_logger
+from mindone.peft import set_peft_model_state_dict
 from mindone.trainers.train_step import TrainOneStepWrapper
 from mindone.trainers.zero import ZeroHelper, prepare_network
 
