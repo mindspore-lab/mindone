@@ -29,10 +29,10 @@ from huggingface_hub.constants import HF_HUB_OFFLINE
 import mindspore as ms
 from mindspore import nn
 
+from mindone.peft.tuners.tuners_utils import BaseTunerLayer
 from mindone.safetensors.mindspore import load_file, save_file
 from mindone.transformers import MSPreTrainedModel
 
-from .._peft.tuners.tuners_utils import BaseTunerLayer
 from ..models.modeling_utils import ModelMixin, load_state_dict
 from ..utils import (
     _get_model_file,
