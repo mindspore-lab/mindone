@@ -35,11 +35,14 @@ from . import (
     clap,
     clip,
     clipseg,
+    clvp,
+    colpali,
     convbert,
     convnext,
     convnextv2,
     depth_anything,
     dinov2,
+    dpr,
     dpt,
     fuyu,
     gemma,
@@ -88,6 +91,7 @@ from . import (
     qwen2_vl,
     roberta,
     rwkv,
+    sam,
     segformer,
     siglip,
     smolvlm,
@@ -96,6 +100,7 @@ from . import (
     swin2sr,
     switch_transformers,
     t5,
+    tapas,
     umt5,
     video_llava,
     vilt,
@@ -107,6 +112,7 @@ from . import (
     xlm_roberta,
     yolos,
     zamba,
+    zamba2,
 )
 
 if version.parse(transformers.__version__) >= version.parse("4.51.0"):
