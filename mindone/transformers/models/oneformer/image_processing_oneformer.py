@@ -1106,7 +1106,7 @@ class OneFormerImageProcessor(BaseImageProcessor):
         masks_queries_logits = outputs.masks_queries_logits  # [batch_size, num_queries, height, width]
 
         # Remove the null class `[..., :-1]`
-        masks_classes = class_queries_logits.softmax(dim=-1)[..., :-1]
+        masks_classes = mint.softmax(class_queries_logits, dim=-1)[..., :-1]
         masks_probs = masks_queries_logits.sigmoid()  # [batch_size, num_queries, height, width]
 
         # Semantic segmentation logits of shape (batch_size, num_classes, height, width)
@@ -1183,7 +1183,6 @@ class OneFormerImageProcessor(BaseImageProcessor):
         class_queries_logits = outputs.class_queries_logits  # [batch_size, num_queries, num_classes+1]
         masks_queries_logits = outputs.masks_queries_logits  # [batch_size, num_queries, height, width]
 
-        device = masks_queries_logits.device
         batch_size = class_queries_logits.shape[0]
         num_queries = class_queries_logits.shape[1]
         num_classes = class_queries_logits.shape[-1] - 1
