@@ -69,6 +69,8 @@ from . import (
     llava_next_video,
     llava_onevision,
     m2m_100,
+    mamba,
+    mamba2,
     megatron_bert,
     minicpm4,
     mistral,
