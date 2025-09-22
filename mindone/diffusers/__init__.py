@@ -91,6 +91,7 @@ _import_structure = {
         "UVit2DModel",
         "VQModel",
         "WanTransformer3DModel",
+        "WanVACETransformer3DModel",
     ],
     "optimization": [
         "get_constant_schedule",
@@ -309,6 +310,7 @@ _import_structure = {
         "VisualClozePipeline",
         "WanImageToVideoPipeline",
         "WanPipeline",
+        "WanVACEPipeline",
         "WanVideoToVideoPipeline",
         "WuerstchenCombinedPipeline",
         "WuerstchenDecoderPipeline",
@@ -437,6 +439,7 @@ if TYPE_CHECKING:
         UVit2DModel,
         VQModel,
         WanTransformer3DModel,
+        WanVACETransformer3DModel,
     )
     from .optimization import (
         get_constant_schedule,
@@ -655,6 +658,7 @@ if TYPE_CHECKING:
         VisualClozePipeline,
         WanImageToVideoPipeline,
         WanPipeline,
+        WanVACEPipeline,
         WanVideoToVideoPipeline,
         WuerstchenCombinedPipeline,
         WuerstchenDecoderPipeline,
