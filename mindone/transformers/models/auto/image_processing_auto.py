@@ -63,6 +63,7 @@ else:
             ("mllama", ("MllamaImageProcessor",)),
             ("qwen2_5_vl", ("Qwen2VLImageProcessor",)),
             ("owlvit", ("OwlViTImageProcessor",)),
+            ("sam", ("SamImageProcessor",)),
             ("segformer", ("SegformerImageProcessor",)),
             ("siglip", ("SiglipImageProcessor", "SiglipImageProcessorFast")),
             ("yolos", ("YolosImageProcessor",)),

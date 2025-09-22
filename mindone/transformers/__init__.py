@@ -41,6 +41,7 @@ from .models.albert import (
     AlbertModel,
     AlbertPreTrainedModel,
 )
+from .models.align import AlignModel, AlignPreTrainedModel, AlignTextModel, AlignVisionModel
 from .models.aria import (
     AriaForConditionalGeneration,
     AriaPreTrainedModel,
@@ -137,6 +138,7 @@ from .models.auto import (
     AutoModelWithLMHead,
     AutoProcessor,
 )
+from .models.bamba import BambaForCausalLM, BambaModel, BambaPreTrainedModel
 from .models.bart import (
     BartForCausalLM,
     BartForConditionalGeneration,
@@ -181,6 +183,18 @@ from .models.bigbird_pegasus import (
     BigBirdPegasusPreTrainedModel,
 )
 from .models.bit import BitBackbone
+from .models.blenderbot import (
+    BlenderbotForCausalLM,
+    BlenderbotForConditionalGeneration,
+    BlenderbotModel,
+    BlenderbotPreTrainedModel,
+)
+from .models.blenderbot_small import (
+    BlenderbotSmallForCausalLM,
+    BlenderbotSmallForConditionalGeneration,
+    BlenderbotSmallModel,
+    BlenderbotSmallPreTrainedModel,
+)
 from .models.blip import (
     BlipForConditionalGeneration,
     BlipForImageTextRetrieval,
@@ -245,7 +259,23 @@ from .models.clip import (
     CLIPVisionModel,
     CLIPVisionModelWithProjection,
 )
+from .models.clipseg import (
+    CLIPSegForImageSegmentation,
+    CLIPSegModel,
+    CLIPSegPreTrainedModel,
+    CLIPSegTextModel,
+    CLIPSegVisionModel,
+)
+from .models.clvp import (
+    ClvpDecoder,
+    ClvpEncoder,
+    ClvpForCausalLM,
+    ClvpModel,
+    ClvpModelForConditionalGeneration,
+    ClvpPreTrainedModel,
+)
 from .models.cohere2 import Cohere2ForCausalLM, Cohere2Model, Cohere2PreTrainedModel
+from .models.colpali import ColPaliForRetrieval, ColPaliPreTrainedModel, ColPaliProcessor
 from .models.convbert import (
     ConvBertForMaskedLM,
     ConvBertForMultipleChoice,
@@ -269,6 +299,7 @@ from .models.convnextv2 import (
     ConvNextV2Model,
     ConvNextV2PreTrainedModel,
 )
+from .models.ctrl import CTRLForSequenceClassification, CTRLLMHeadModel, CTRLModel, CTRLPreTrainedModel
 from .models.deberta import (
     DebertaForMaskedLM,
     DebertaForQuestionAnswering,
@@ -296,6 +327,15 @@ from .models.distilbert import (
     DistilBertForTokenClassification,
     DistilBertModel,
     DistilBertPreTrainedModel,
+)
+from .models.dpr import (
+    DPRContextEncoder,
+    DPRPretrainedContextEncoder,
+    DPRPreTrainedModel,
+    DPRPretrainedQuestionEncoder,
+    DPRPretrainedReader,
+    DPRQuestionEncoder,
+    DPRReader,
 )
 from .models.dpt import DPTForDepthEstimation, DPTImageProcessor, DPTModel, DPTPreTrainedModel
 from .models.funnel import (
@@ -373,6 +413,15 @@ from .models.hiera import (
     HieraPreTrainedModel,
 )
 from .models.hubert import HubertForCTC, HubertForSequenceClassification, HubertModel, HubertPreTrainedModel
+from .models.ibert import (
+    IBertForMaskedLM,
+    IBertForMultipleChoice,
+    IBertForQuestionAnswering,
+    IBertForSequenceClassification,
+    IBertForTokenClassification,
+    IBertModel,
+    IBertPreTrainedModel,
+)
 from .models.idefics import (
     IdeficsForVisionText2Text,
     IdeficsImageProcessor,
@@ -453,6 +502,7 @@ from .models.mistral import (
     MistralModel,
     MistralPreTrainedModel,
 )
+from .models.mistral3 import Mistral3ForConditionalGeneration, Mistral3PreTrainedModel
 from .models.mixtral import (
     MixtralForCausalLM,
     MixtralForQuestionAnswering,
@@ -480,6 +530,13 @@ from .models.mobilebert import (
     MobileBertModel,
     MobileBertPreTrainedModel,
 )
+from .models.modernbert import (
+    ModernBertForMaskedLM,
+    ModernBertForSequenceClassification,
+    ModernBertForTokenClassification,
+    ModernBertModel,
+    ModernBertPreTrainedModel,
+)
 from .models.mpt import (
     MptForCausalLM,
     MptForQuestionAnswering,
@@ -502,6 +559,16 @@ from .models.mvp import (
     MvpForSequenceClassification,
     MvpModel,
     MvpPreTrainedModel,
+)
+from .models.nystromformer import (
+    NystromformerEncoder,
+    NystromformerForMaskedLM,
+    NystromformerForMultipleChoice,
+    NystromformerForQuestionAnswering,
+    NystromformerForSequenceClassification,
+    NystromformerForTokenClassification,
+    NystromformerModel,
+    NystromformerPreTrainedModel,
 )
 from .models.opt import (
     OPTForCausalLM,
@@ -541,6 +608,7 @@ from .models.phi3 import (
     Phi3Model,
     Phi3PreTrainedModel,
 )
+from .models.pixtral import PixtralPreTrainedModel, PixtralVisionModel
 from .models.qwen2 import Qwen2ForCausalLM, Qwen2ForSequenceClassification, Qwen2ForTokenClassification, Qwen2Model
 from .models.qwen2_5_omni import (
     Qwen2_5OmniForConditionalGeneration,
@@ -579,6 +647,7 @@ from .models.rembert import (
     RemBertModel,
     RemBertPreTrainedModel,
 )
+from .models.resnet import ResNetBackbone, ResNetForImageClassification, ResNetModel, ResNetPreTrainedModel
 from .models.roberta import (
     RobertaForCausalLM,
     RobertaForMaskedLM,
@@ -589,6 +658,8 @@ from .models.roberta import (
     RobertaModel,
     RobertaPreTrainedModel,
 )
+from .models.rwkv import RwkvForCausalLM, RwkvModel, RwkvPreTrainedModel
+from .models.sam import SamImageProcessor, SamModel, SamPreTrainedModel, SamProcessor
 from .models.segformer import (
     SegformerDecodeHead,
     SegformerForImageClassification,
@@ -651,6 +722,13 @@ from .models.t5 import (
     T5Model,
     T5PreTrainedModel,
 )
+from .models.tapas import (
+    TapasForMaskedLM,
+    TapasForQuestionAnswering,
+    TapasForSequenceClassification,
+    TapasModel,
+    TapasPreTrainedModel,
+)
 from .models.umt5 import (
     UMT5EncoderModel,
     UMT5ForQuestionAnswering,
@@ -659,6 +737,7 @@ from .models.umt5 import (
     UMT5Model,
     UMT5PreTrainedModel,
 )
+from .models.video_llava import VideoLlavaForConditionalGeneration, VideoLlavaPreTrainedModel
 from .models.vilt import (
     ViltForImageAndTextRetrieval,
     ViltForImagesAndTextClassification,
@@ -668,7 +747,9 @@ from .models.vilt import (
     ViltModel,
     ViltPreTrainedModel,
 )
+from .models.vipllava import VipLlavaForConditionalGeneration, VipLlavaPreTrainedModel
 from .models.vision_encoder_decoder import VisionEncoderDecoderModel
+from .models.vision_text_dual_encoder import VisionTextDualEncoderModel
 from .models.vit import ViTForImageClassification, ViTForMaskedImageModeling, ViTModel, ViTPreTrainedModel
 from .models.vits import VitsModel, VitsPreTrainedModel
 from .models.wav2vec2 import (
@@ -703,6 +784,8 @@ from .models.xlm_roberta_xl import (
     XLMRobertaXLPreTrainedModel,
 )
 from .models.yolos import YolosForObjectDetection, YolosImageProcessor, YolosModel, YolosPreTrainedModel
+from .models.zamba import ZambaForCausalLM, ZambaForSequenceClassification, ZambaModel, ZambaPreTrainedModel
+from .models.zamba2 import Zamba2ForCausalLM, Zamba2ForSequenceClassification, Zamba2Model, Zamba2PreTrainedModel
 from .pipelines import (
     ImageToImagePipeline,
     ImageToTextPipeline,

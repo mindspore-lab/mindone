@@ -65,6 +65,7 @@ def _is_package_available(pkg_name: str, return_version: bool = False) -> Union[
         return package_exists
 
 
+_pandas_available = _is_package_available("pandas")
 _scipy_available = _is_package_available("scipy")
 
 
@@ -80,6 +81,10 @@ def get_mindspore_version():
 
 def is_scipy_available():
     return _scipy_available
+
+
+def is_pandas_available():
+    return _pandas_available
 
 
 @lru_cache
@@ -105,6 +110,12 @@ means that the TF equivalent of the class you tried to import would be "TF{0}".
 If you want to use TensorFlow, please use TF classes instead!
 """
 
+PANDAS_IMPORT_ERROR = """
+{0} requires the pandas library but it was not found in your environment. You can install it with pip as
+explained here: https://pandas.pydata.org/pandas-docs/stable/getting_started/install.html.
+Please note that you may need to restart your runtime after installation.
+"""
+
 # docstyle-ignore
 SCIPY_IMPORT_ERROR = """
 {0} requires the scipy library but it was not found in your environment. You can install it with pip:
@@ -121,6 +132,7 @@ VISION_IMPORT_ERROR = """
 BACKENDS_MAPPING = OrderedDict(
     [
         ("mindspore", (is_mindspore_available, MINDSPORE_IMPORT_ERROR_WITH_TF)),
+        ("pandas", (is_pandas_available, PANDAS_IMPORT_ERROR)),
         ("vision", (is_vision_available, VISION_IMPORT_ERROR)),
         ("scipy", (is_scipy_available, SCIPY_IMPORT_ERROR)),
     ]
