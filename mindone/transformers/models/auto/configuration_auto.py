@@ -226,6 +226,7 @@ MODEL_NAMES_MAPPING = OrderedDict(
         ("recurrent_gemma", "RecurrentGemma"),
         ("rembert", "RemBERT"),
         ("rwkv", "RWKV"),
+        ("sam", "SAM"),
         ("seamless_m4t", "SeamlessM4T"),        
         ("segformer", "SegFormer"),
         ("swin", "Swin Transformer"),
