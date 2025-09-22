@@ -91,6 +91,7 @@ from mindone.transformers.generation.stopping_criteria import (
     MaxTimeCriteria,
     StoppingCriteria,
     StoppingCriteriaList,
+    StopStringCriteria,
 )
 from mindone.transformers.mindspore_adapter.paged_attention_block_tables import BlockTables
 from mindone.transformers.mindspore_adapter.select_operator import get_multinomial_op
@@ -1264,8 +1265,7 @@ class GenerationMixin:
                     "model's generation config, but we could not locate a tokenizer. When generating with "
                     "stop strings, you must pass the model's tokenizer to the `tokenizer` argument of `generate`."
                 )
-            # criteria.append(StopStringCriteria(stop_strings=generation_config.stop_strings, tokenizer=tokenizer))
-            raise NotImplementedError
+            criteria.append(StopStringCriteria(stop_strings=generation_config.stop_strings, tokenizer=tokenizer))
         if generation_config._eos_token_tensor is not None:
             criteria.append(EosTokenCriteria(eos_token_id=generation_config._eos_token_tensor))
         if (
@@ -3127,6 +3127,10 @@ class GenerationMixin:
         running_beam_indices = mint.full((batch_size, num_beams, max_length - cur_len), fill_value=-1, dtype=ms.int32)
         beam_indices = running_beam_indices.copy()  # .detach()
 
+        step = 0
+        s_time = time.time()
+        graph_compiled_time_buffer = []
+
         # 4. run the generation loop
         while self._has_unfinished_sequences(this_peer_finished, synced_gpus):
             # a. Forward current tokens, obtain the logits
@@ -3147,6 +3151,18 @@ class GenerationMixin:
             )
             if synced_gpus and this_peer_finished:
                 continue
+
+            step_time = time.time() - s_time
+            if step < 2:
+                print(f"==> sampling, step: {step}, time cost: {step_time:.5f}s")
+            else:
+                graph_compiled_time_buffer.append(step_time)
+                token_speed = len(graph_compiled_time_buffer) / sum(graph_compiled_time_buffer)
+                print(
+                    f"==> sampling, step: {step}, time cost: {step_time:.5f}s, running avg speed: {token_speed:.5f}token/s"
+                )
+            s_time = time.time()
+            step += 1
 
             logits = model_outputs.logits[:, -1, :].copy().float()  # copy is needed to avoid keeping a hanging ref
 
