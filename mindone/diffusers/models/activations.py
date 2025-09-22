@@ -1,5 +1,5 @@
 # coding=utf-8
-# Copyright 2024 HuggingFace Inc.
+# Copyright 2025 HuggingFace Inc.
 #
 # This code is adapted from https://github.com/huggingface/diffusers
 # with modifications to run diffusers on mindspore.
@@ -98,7 +98,7 @@ class GELU(nn.Cell):
 
 class GEGLU(nn.Cell):
     r"""
-    A [variant](https://arxiv.org/abs/2002.05202) of the gated linear unit activation function.
+    A [variant](https://huggingface.co/papers/2002.05202) of the gated linear unit activation function.
 
     Parameters:
         dim_in (`int`): The number of channels in the input.
@@ -120,8 +120,8 @@ class GEGLU(nn.Cell):
 
 class SwiGLU(nn.Cell):
     r"""
-    A [variant](https://arxiv.org/abs/2002.05202) of the gated linear unit activation function. It's similar to `GEGLU`
-    but uses SiLU / Swish instead of GeLU.
+    A [variant](https://huggingface.co/papers/2002.05202) of the gated linear unit activation function. It's similar to
+    `GEGLU` but uses SiLU / Swish instead of GeLU.
 
     Parameters:
         dim_in (`int`): The number of channels in the input.
@@ -144,7 +144,7 @@ class SwiGLU(nn.Cell):
 class ApproximateGELU(nn.Cell):
     r"""
     The approximate form of the Gaussian Error Linear Unit (GELU). For more details, see section 2 of this
-    [paper](https://arxiv.org/abs/1606.08415).
+    [paper](https://huggingface.co/papers/1606.08415).
 
     Parameters:
         dim_in (`int`): The number of channels in the input.

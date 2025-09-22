@@ -56,6 +56,29 @@ def numpy_cosine_similarity_distance(a, b):
     return distance
 
 
+def check_if_dicts_are_equal(dict1, dict2):
+    dict1, dict2 = dict1.copy(), dict2.copy()
+
+    for key, value in dict1.items():
+        if isinstance(value, set):
+            dict1[key] = sorted(value)
+    for key, value in dict2.items():
+        if isinstance(value, set):
+            dict2[key] = sorted(value)
+
+    for key in dict1:
+        if key not in dict2:
+            return False
+        if dict1[key] != dict2[key]:
+            return False
+
+    for key in dict2:
+        if key not in dict1:
+            return False
+
+    return True
+
+
 def print_tensor_test(
     tensor,
     limit_to_slices=None,
@@ -196,7 +219,7 @@ def require_peft_version_greater(peft_version):
     """
 
     def decorator(test_case):
-        from mindone.diffusers._peft import __version__ as _mindone_diffusers_peft_version
+        from mindone.peft import __version__ as _mindone_diffusers_peft_version
 
         correct_peft_version = version.parse(_mindone_diffusers_peft_version) > version.parse(peft_version)
         return pytest.mark.skipif(
@@ -743,3 +766,23 @@ def load_numpy_from_local_file(repo_id, filename, subfolder=None):
 
     ndarray = np.load(file_path)
     return ndarray
+
+
+def load_image_from_local_file(repo_id, filename, subfolder=None):
+    file_path = os.path.join(".", repo_id, subfolder, filename)
+
+    if not os.path.exists(file_path):
+        raise FileNotFoundError(f"Test result not found: {file_path}")
+
+    img = load_image(file_path)
+    return img
+
+
+def load_video_from_local_file(repo_id, filename, subfolder=None):
+    file_path = os.path.join(".", repo_id, subfolder, filename)
+
+    if not os.path.exists(file_path):
+        raise FileNotFoundError(f"Test result not found: {file_path}")
+
+    video = load_video(file_path)
+    return video
