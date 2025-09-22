@@ -52,7 +52,7 @@ image.save("flux-kontext.png")
 
 ###  run hf diffusers on mindspore
  - mindone diffusers is under active development, most tasks were tested with mindspore 2.6.0 on Ascend Atlas 800T A2 machines.
- - compatibale with hf diffusers 0.33.1. diffusers 0.35 is under development.
+ - compatible with hf diffusers 0.33.1. diffusers 0.35 is under development.
 
 | component  |  features  
 | :---   |  :--  
@@ -68,9 +68,9 @@ image.save("flux-kontext.png")
 | :---   |  :---   |  :---:    |  :---:  |  :---:     |  :--  |
 | Text/Image-to-Image | [qwen_image](https://github.com/mindspore-lab/mindone/pull/1288) 🔥🔥🔥 | ✅ | ✖️  | ✖️  | Alibaba |
 | Text/Image-to-Image | [flux_kontext](https://github.com/mindspore-lab/mindone/blob/master/docs/diffusers/api/pipelines/flux.md) 🔥🔥🔥 | ✅ | ✖️  | ✖️  | Black Forest Labs |
-| Text/Image/Speech-to-Video | [wan2_2](https://github.com/mindspore-lab/mindone/pull/1243) 🔥🔥🔥 | ✅ | ✖️  | ✖️  | Alibaba |
-| Text/Image-to-Image | [omni_gen](https://github.com/mindspore-lab/mindone/blob/master/examples/omnigen) 🔥🔥 |  ✅  |  ✅  | ✖️  | Vector Space Lab|
-| Text/Image-to-Image | [omni_gen2](https://github.com/mindspore-lab/mindone/blob/master/examples/omnigen2) 🔥🔥 |  ✅  |  ✖️  | ✖️  | Vector Space Lab |
+| Text/Image/Speech-to-Video | [wan2.2](https://github.com/mindspore-lab/mindone/pull/1243) 🔥🔥🔥 | ✅ | ✖️  | ✖️  | Alibaba |
+| Text/Image-to-Image | [omnigen](https://github.com/mindspore-lab/mindone/blob/master/examples/omnigen) 🔥🔥 |  ✅  |  ✅  | ✖️  | Vector Space Lab|
+| Text/Image-to-Image | [omnigen2](https://github.com/mindspore-lab/mindone/blob/master/examples/omnigen2) 🔥🔥 |  ✅  |  ✖️  | ✖️  | Vector Space Lab |
 | Image-to-Video | [hunyuanvideo-i2v](https://github.com/mindspore-lab/mindone/blob/master/examples/hunyuanvideo-i2v) 🔥🔥 |  ✅  | ✖️  | ✖️  | Tencent |
 | Text/Image-to-Video | [wan2.1](https://github.com/mindspore-lab/mindone/blob/master/examples/wan2_1) 🔥🔥🔥 |  ✅  |  ✖️  |  ✖️   | Alibaba  |
 | Text-to-Image | [cogview4](https://github.com/mindspore-lab/mindone/blob/master/examples/cogview) 🔥🔥🔥 | ✅ | ✖️  | ✖️  | Zhipuai |
