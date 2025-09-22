@@ -44,6 +44,8 @@ from . import (
     clipseg,
     clvp,
     codegen,
+    cohere,
+    cohere2,
     colpali,
     convbert,
     convnext,
