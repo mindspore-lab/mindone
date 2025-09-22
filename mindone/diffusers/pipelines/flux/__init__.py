@@ -17,6 +17,8 @@ _import_structure = {
     "pipeline_flux_fill": ["FluxFillPipeline"],
     "pipeline_flux_img2img": ["FluxImg2ImgPipeline"],
     "pipeline_flux_inpaint": ["FluxInpaintPipeline"],
+    "pipeline_flux_kontext": ["FluxKontextPipeline"],
+    "pipeline_flux_kontext_inpaint": ["FluxKontextInpaintPipeline"],
     "pipeline_flux_prior_redux": ["FluxPriorReduxPipeline"],
 }
 
@@ -32,6 +34,8 @@ if TYPE_CHECKING:
     from .pipeline_flux_fill import FluxFillPipeline
     from .pipeline_flux_img2img import FluxImg2ImgPipeline
     from .pipeline_flux_inpaint import FluxInpaintPipeline
+    from .pipeline_flux_kontext import FluxKontextPipeline
+    from .pipeline_flux_kontext_inpaint import FluxKontextInpaintPipeline
     from .pipeline_flux_prior_redux import FluxPriorReduxPipeline
 else:
     import sys

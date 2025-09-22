@@ -2,6 +2,7 @@ import importlib
 import itertools
 import logging
 import random
+from typing import Union
 
 import numpy as np
 import torch
@@ -9,7 +10,7 @@ from diffusers.utils import BaseOutput
 from ml_dtypes import bfloat16
 
 import mindspore as ms
-from mindspore import mint, nn, ops
+from mindspore import nn, ops
 
 logger = logging.getLogger("ModelingsUnitTest")
 
@@ -150,10 +151,6 @@ def get_pt2ms_mappings(m):
                 mappings[f"{name}.running_mean"] = f"{name}.moving_mean", lambda x: x
                 mappings[f"{name}.running_var"] = f"{name}.moving_variance", lambda x: x
                 mappings[f"{name}.num_batches_tracked"] = None, lambda x: x
-        elif isinstance(cell, (mint.nn.BatchNorm1d, mint.nn.BatchNorm2d, mint.nn.BatchNorm3d)):
-            # TODO: for mint.nn, the dtype for each param should expected to be same among torch and mindspore
-            # this is a temporary fix, delete this branch in future.
-            mappings[f"{name}.num_batches_tracked"] = f"{name}.num_batches_tracked", lambda x: x.to(ms.float32)
     return mappings
 
 
@@ -240,7 +237,8 @@ def get_modules(pt_module, ms_module, dtype, *args, **kwargs):
 
 def set_dtype(model, dtype):
     for p in model.get_parameters():
-        p = p.set_dtype(dtype)
+        if ops.is_floating_point(p):
+            p = p.set_dtype(dtype)
     return model
 
 
@@ -326,7 +324,7 @@ def generalized_parse_args(pt_dtype, ms_dtype, *args, **kwargs):
     return pt_inputs_args, pt_inputs_kwargs, ms_inputs_args, ms_inputs_kwargs
 
 
-def compute_diffs(pt_outputs: torch.Tensor, ms_outputs: ms.Tensor):
+def compute_diffs(pt_outputs: Union[torch.Tensor, np.ndarray], ms_outputs: Union[ms.Tensor, np.ndarray]):
     if isinstance(pt_outputs, BaseOutput):
         pt_outputs = tuple(pt_outputs.values())
     elif not isinstance(pt_outputs, (tuple, list)):
@@ -346,8 +344,10 @@ def compute_diffs(pt_outputs: torch.Tensor, ms_outputs: ms.Tensor):
                 d = np.linalg.norm(p - m) / np.linalg.norm(p)
                 diffs.append(d)
         else:
-            p = p.detach().cpu().numpy()
-            m = m.asnumpy()
+            if isinstance(p, torch.Tensor):
+                p = p.detach().cpu().numpy()
+            if isinstance(m, ms.Tensor):
+                m = m.asnumpy()
             # relative error defined by Frobenius norm
             # dist(x, y) := ||x - y|| / ||y||, where ||·|| means Frobenius norm
             d = np.linalg.norm(p - m) / np.linalg.norm(p)
