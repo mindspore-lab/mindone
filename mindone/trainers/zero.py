@@ -10,7 +10,7 @@ from mindspore.communication.management import GlobalComm
 from mindspore.context import ParallelMode
 from mindspore.parallel._utils import _get_parallel_mode
 
-from mindone.models.modules.parallel import PARALLEL_MODULES
+from mindone.models.modules.parallel import PARALLEL_MODULES, SPECIAL_CASE_FOR_PARALLEL_MODULES
 
 from .train_step import TrainOneStepWrapper
 
@@ -471,7 +471,7 @@ def get_cell_dtype(cell):
     return None
 
 
-def _init_parallel_settings(net, optimizer_parallel_group, parallel_modules=None):
+def _init_parallel_settings(net, optimizer_parallel_group, parallel_modules=None, special_cases_parallel_module=None):
     for module, parallel_module in parallel_modules.items():
         if isinstance(net, module):
             cell_type = get_cell_dtype(net)
@@ -479,6 +479,14 @@ def _init_parallel_settings(net, optimizer_parallel_group, parallel_modules=None
             if cell_type is not None:
                 new_net.to_float(cell_type)
             return new_net
+    for module, parallel_module in special_cases_parallel_module.items():
+        if net.trainable_params():
+            if "gate_up_proj" in net.trainable_params()[0].name:
+                cell_type = get_cell_dtype(net)
+                new_net = parallel_module(net, 3, optimizer_parallel_group)
+                if cell_type is not None:
+                    new_net.to_float(cell_type)
+                return new_net
     return None
 
 
@@ -489,14 +497,14 @@ def get_cell_params_fullname_dict(cell: nn.Cell):
     return fullname_dict
 
 
-def _prepare_network(network: nn.Cell, optimizer_parallel_group: str, parallel_modules=None):
-    new_net = _init_parallel_settings(network, optimizer_parallel_group, parallel_modules)
+def _prepare_network(network: nn.Cell, optimizer_parallel_group: str, parallel_modules=None, special_cases_parallel_module=None):
+    new_net = _init_parallel_settings(network, optimizer_parallel_group, parallel_modules, special_cases_parallel_module)
     if new_net is not None:
         return new_net
     for name, sub_net in network._cells.items():
         if not sub_net:
             continue
-        new_sub_net = _init_parallel_settings(sub_net, optimizer_parallel_group, parallel_modules)
+        new_sub_net = _init_parallel_settings(sub_net, optimizer_parallel_group, parallel_modules, special_cases_parallel_module)
         if new_sub_net is not None:
             params_fullname_dict = get_cell_params_fullname_dict(sub_net)
             if isinstance(network, (nn.CellList, nn.SequentialCell)):
@@ -515,18 +523,20 @@ def _prepare_network(network: nn.Cell, optimizer_parallel_group: str, parallel_m
                 param = getattr(sub_net, param_name)
                 _logger.warning(f"Set param {param.name} parallel_optimizer False, param shape {param.shape}")
                 param.parallel_optimizer = False
-        _prepare_network(sub_net, optimizer_parallel_group, parallel_modules)
+        _prepare_network(sub_net, optimizer_parallel_group, parallel_modules, special_cases_parallel_module)
     return network
 
 
-def prepare_network(network: nn.Cell, zero_stage: int = 0, optimizer_parallel_group: str = None, parallel_modules=None):
+def prepare_network(network: nn.Cell, zero_stage: int = 0, optimizer_parallel_group: str = None, parallel_modules=None, special_cases_parallel_module=None):
     if zero_stage != 3 or _get_parallel_mode() != ParallelMode.DATA_PARALLEL:
         _logger.info("No need rewrite network and return original network.")
         return network
     _logger.info("Rewrite the network, please wait...")
     if parallel_modules is None:
         parallel_modules = PARALLEL_MODULES
-    network = _prepare_network(network, optimizer_parallel_group, parallel_modules)
+    if special_cases_parallel_module is None:
+        special_cases_parallel_module = SPECIAL_CASE_FOR_PARALLEL_MODULES
+    network = _prepare_network(network, optimizer_parallel_group, parallel_modules, special_cases_parallel_module)
     return network
 
 

@@ -96,8 +96,8 @@ class Qwen3VLMoeTextExperts(nn.Cell):
         self.intermediate_size = config.moe_intermediate_size
         self.hidden_size = config.hidden_size
         self.expert_dim = self.intermediate_size
-        self.gate_up_proj = Parameter(ms.tensor(np.ones(self.num_experts, self.hidden_size, 2 * self.expert_dim)))
-        self.down_proj = Parameter(ms.tensor(np.ones(self.num_experts, self.expert_dim, self.hidden_size)))
+        self.gate_up_proj = Parameter(ms.tensor(np.ones((self.num_experts, self.hidden_size, 2 * self.expert_dim)), dtype=config.mindspore_dtype))
+        self.down_proj = Parameter(ms.tensor(np.ones((self.num_experts, self.expert_dim, self.hidden_size)), dtype=config.mindspore_dtype))
         self.act_fn = ACT2FN[config.hidden_act]
 
     def construct(self, hidden_states: ms.Tensor, routing_weights: ms.Tensor, router_indices: ms.Tensor) -> ms.Tensor:
@@ -157,8 +157,7 @@ class Qwen3VLMoeTextSparseMoeBlock(nn.Cell):
         self.experts = Qwen3VLMoeTextExperts(config)
 
     def construct(self, hidden_states: ms.Tensor) -> ms.Tensor:
-        hidden_states = hidden_states.reshape(-1, self.hidden_size)
-        router_logits = self.gate(hidden_states)
+        router_logits = self.gate(hidden_states.reshape(-1, self.hidden_size))
         router_weights, router_logits, router_indices = self.router_gate(hidden_states, router_logits)
         routed_out = self.experts(hidden_states, router_weights, router_indices)
         return routed_out, router_logits
@@ -940,6 +939,9 @@ class Qwen3VLMoeTextModel(Qwen3VLMoePreTrainedModel):
         else:
             text_position_ids = position_ids[0]
 
+        config = self.config
+        if self.config._attn_implementation == "flash_attention_2":
+            config._attn_implementation = "eager"
         attention_mask = create_causal_mask(
             config=self.config,
             input_embeds=inputs_embeds,
