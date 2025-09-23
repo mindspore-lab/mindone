@@ -26,7 +26,7 @@ from mindspore.mint.nn import BCEWithLogitsLoss, CrossEntropyLoss, MSELoss
 
 from ...activations import ACT2FN
 from ...modeling_outputs import BaseModelOutput, BaseModelOutputWithPooling, SequenceClassifierOutput
-from ...modeling_utils import ALL_ATTENTION_FUNCTIONS, PreTrainedModel
+from ...modeling_utils import ALL_ATTENTION_FUNCTIONS, MSPreTrainedModel
 from ...mindspore_utils import find_pruneable_heads_and_indices, prune_linear_layer
 from ...utils import logging
 from ....models.utils import trunc_normal_
@@ -392,7 +392,7 @@ class ASTEncoder(mindspore.nn.Cell):
         )
 
 
-class ASTPreTrainedModel(PreTrainedModel):
+class ASTPreTrainedModel(MSPreTrainedModel):
     """
     An abstract class to handle weights initialization and a simple interface for downloading and loading pretrained
     models.
@@ -411,9 +411,11 @@ class ASTPreTrainedModel(PreTrainedModel):
         if isinstance(module, (mindspore.mint.nn.Linear, mindspore.mint.nn.Conv2d)):
             # Upcast the input in `fp32` and cast it back to desired `dtype` to avoid
             # `trunc_normal_cpu` not implemented in `half` issues
-            module.weight.data = trunc_normal_(
+            weight_type = module.weight.dtype
+            trunc_normal_(
                 module.weight.data.to(mindspore.float32), mean=0.0, std=self.config.initializer_range
-            ).to(module.weight.dtype)
+            )
+            module.weight = module.weight.to(weight_type)
             if module.bias is not None:
                 module.bias.data.zero_()
         elif isinstance(module, mindspore.mint.nn.LayerNorm):
