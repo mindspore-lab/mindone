@@ -1,5 +1,5 @@
 # coding=utf-8
-# Copyright 2023 The HuggingFace Inc. team. All rights reserved.
+# Copyright 2024 The HuggingFace Inc. team. All rights reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -12,14 +12,15 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-"""Testing suite for the MindSpore VitMatte model."""
+"""Testing suite for the MindSpore VitPose model."""
 
 import inspect
 
 import numpy as np
 import pytest
 import torch
-from transformers import VitDetConfig, VitMatteConfig
+from transformers import VitPoseBackboneConfig, VitPoseConfig
+
 
 import mindspore as ms
 
@@ -30,31 +31,34 @@ from tests.modeling_test_utils import (
     generalized_parse_args,
     get_modules,
 )
-from tests.transformers_tests.models.modeling_common import floats_numpy
+from tests.transformers_tests.models.modeling_common import floats_numpy, ids_numpy
 
-# interpolate bilinear mode raise error, aclnnUpsampleBilinear2d operator does not support bf16
-DTYPE_AND_THRESHOLDS = {"fp32": 5e-4, "fp16": 5e-3}  # , "bf16": 7e-3}
+DTYPE_AND_THRESHOLDS = {"fp32": 5e-4, "fp16": 5e-3, "bf16": 7e-3}
 MODES = [1]
 
 
-class VitMatteModelTester:
+class VitPoseModelTester:
     def __init__(
         self,
         batch_size=13,
-        image_size=32,
-        patch_size=16,
-        num_channels=4,
+        image_size=[16 * 8, 12 * 8],
+        patch_size=[8, 8],
+        num_channels=3,
         is_training=True,
-        use_labels=False,
-        hidden_size=2,
-        num_hidden_layers=2,
-        num_attention_heads=2,
+        use_labels=True,
+        hidden_size=32,
+        num_hidden_layers=5,
+        num_attention_heads=4,
+        intermediate_size=37,
         hidden_act="gelu",
+        hidden_dropout_prob=0.1,
+        attention_probs_dropout_prob=0.1,
         type_sequence_label_size=10,
         initializer_range=0.02,
+        num_labels=2,
+        scale_factor=4,
+        out_indices=[-1],
         scope=None,
-        out_features=["stage1"],
-        fusion_hidden_sizes=[128, 64, 32, 16],
     ):
         self.batch_size = batch_size
         self.image_size = image_size
@@ -65,55 +69,62 @@ class VitMatteModelTester:
         self.hidden_size = hidden_size
         self.num_hidden_layers = num_hidden_layers
         self.num_attention_heads = num_attention_heads
+        self.intermediate_size = intermediate_size
         self.hidden_act = hidden_act
+        self.hidden_dropout_prob = hidden_dropout_prob
+        self.attention_probs_dropout_prob = attention_probs_dropout_prob
         self.type_sequence_label_size = type_sequence_label_size
         self.initializer_range = initializer_range
+        self.num_labels = num_labels
+        self.scale_factor = scale_factor
+        self.out_indices = out_indices
         self.scope = scope
-        self.out_features = out_features
-        self.fusion_hidden_sizes = fusion_hidden_sizes
 
-        self.seq_length = (self.image_size // self.patch_size) ** 2
+        # in VitPose, the seq length equals the number of patches
+        num_patches = (image_size[0] // patch_size[0]) * (image_size[1] // patch_size[1])
+        self.seq_length = num_patches
 
     def prepare_config_and_inputs(self):
-        pixel_values = floats_numpy([self.batch_size, self.num_channels, self.image_size, self.image_size])
+        pixel_values = floats_numpy([self.batch_size, self.num_channels, self.image_size[0], self.image_size[1]])
 
         labels = None
         if self.use_labels:
-            raise NotImplementedError("Training is not yet supported")
+            labels = ids_numpy([self.batch_size], self.type_sequence_label_size)
 
         config = self.get_config()
 
         return config, pixel_values, labels
 
+    def get_config(self):
+        return VitPoseConfig(
+            backbone_config=self.get_backbone_config(),
+        )
+
     def get_backbone_config(self):
-        return VitDetConfig(
+        return VitPoseBackboneConfig(
             image_size=self.image_size,
             patch_size=self.patch_size,
             num_channels=self.num_channels,
             num_hidden_layers=self.num_hidden_layers,
+            hidden_size=self.hidden_size,
+            intermediate_size=self.intermediate_size,
             num_attention_heads=self.num_attention_heads,
-            hidden_size=self.hidden_size,
-            is_training=self.is_training,
             hidden_act=self.hidden_act,
-            out_features=self.out_features,
-        )
-
-    def get_config(self):
-        return VitMatteConfig(
-            backbone_config=self.get_backbone_config(),
-            backbone=None,
-            hidden_size=self.hidden_size,
-            fusion_hidden_sizes=self.fusion_hidden_sizes,
+            out_indices=self.out_indices,
         )
 
     def prepare_config_and_inputs_for_common(self):
         config_and_inputs = self.prepare_config_and_inputs()
-        config, pixel_values, labels = config_and_inputs
+        (
+            config,
+            pixel_values,
+            labels,
+        ) = config_and_inputs
         inputs_dict = {"pixel_values": pixel_values}
         return config, inputs_dict
 
 
-model_tester = VitMatteModelTester()
+model_tester = VitPoseModelTester()
 (
     config,
     inputs_dict,
@@ -122,9 +133,9 @@ model_tester = VitMatteModelTester()
 
 VIT_MATTE_CASES = [
     [
-        "VitMatteForImageMatting",
-        "transformers.VitMatteForImageMatting",
-        "mindone.transformers.VitMatteForImageMatting",
+        "VitPoseForPoseEstimation",
+        "transformers.VitPoseForPoseEstimation",
+        "mindone.transformers.VitPoseForPoseEstimation",
         (config,),
         {},
         (),
@@ -132,11 +143,10 @@ VIT_MATTE_CASES = [
             "pixel_values": inputs_dict["pixel_values"],
         },
         {
-            "alphas": 0,
+            "heatmaps": 1,
         },
     ],
 ]
-
 
 @pytest.mark.parametrize(
     "name,pt_module,ms_module,init_args,init_kwargs,inputs_args,inputs_kwargs,outputs_map,dtype,mode",

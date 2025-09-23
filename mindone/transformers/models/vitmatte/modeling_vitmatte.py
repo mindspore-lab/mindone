@@ -17,20 +17,21 @@
 from dataclasses import dataclass
 from typing import Optional, Tuple
 
-import mindspore as ms
-from mindspore import mint, nn
-from mindone.models.utils import normal_, zeros_
-
-from ...modeling_utils import PreTrainedModel
+from transformers import VitMatteConfig
 from transformers.utils import (
     ModelOutput,
     add_start_docstrings,
     add_start_docstrings_to_model_forward,
     replace_return_docstrings,
 )
-from ...utils.backbone_utils import load_backbone
-from transformers import VitMatteConfig
 
+import mindspore as ms
+from mindspore import mint, nn
+
+from mindone.models.utils import normal_, zeros_
+
+from ...modeling_utils import PreTrainedModel
+from ...utils.backbone_utils import load_backbone
 
 # General docstring
 _CONFIG_FOR_DOC = "VitMatteConfig"
@@ -89,7 +90,7 @@ class VitMatteBasicConv3x3(nn.Cell):
 
     def __init__(self, config, in_channels, out_channels, stride=2, padding=1):
         super().__init__()
-        self.conv = nn.Conv2d(
+        self.conv = mint.nn.Conv2d(
             in_channels=in_channels,
             out_channels=out_channels,
             kernel_size=3,
@@ -131,7 +132,7 @@ class VitMatteConvStream(nn.Cell):
             in_chan_ = self.conv_chans[i]
             out_chan_ = self.conv_chans[i + 1]
             convs.append(VitMatteBasicConv3x3(config, in_chan_, out_chan_))
-        
+
         self.convs = nn.CellList(convs)
 
     def construct(self, pixel_values):
@@ -155,7 +156,13 @@ class VitMatteFusionBlock(nn.Cell):
         self.conv = VitMatteBasicConv3x3(config, in_channels, out_channels, stride=1, padding=1)
 
     def construct(self, features, detailed_feature_map):
-        upscaled_features = mint.nn.functional.interpolate(features, scale_factor=2, mode="bilinear", align_corners=False)
+        # FIXME mint.nn.functional.interpolate does not support `scale_factor` when `mode="bilinear"`, so we use `size` instead.
+        # upscaled_features = mint.nn.functional.interpolate(features, scale_factor=2, mode="bilinear", align_corners=False)
+        _, _, h, w = features.shape
+        upscaled_features = mint.nn.functional.interpolate(
+            features, size=(h * 2, w * 2), mode="bilinear", align_corners=False
+        )
+
         out = mint.cat([detailed_feature_map, upscaled_features], dim=1)
         out = self.conv(out)
 

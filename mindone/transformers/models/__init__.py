@@ -17,7 +17,7 @@
 import transformers
 from packaging import version
 
-from . import (
+from . import (  # vitpose,; vitpose_backbone,; zoedepth,
     albert,
     aria,
     auto,
@@ -96,14 +96,12 @@ from . import (
     vit,
     vit_msn,
     vitdet,
-    # vitmatte,
-    # vitpose,
-    # vitpose_backbone,
+    vitmatte,
+    vitpose,
     vits,
     wav2vec2,
     xlm_roberta,
     yolos,
-    # zoedepth,
 )
 
 if version.parse(transformers.__version__) >= version.parse("4.51.0"):
