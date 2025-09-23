@@ -60,6 +60,9 @@ MODEL_MAPPING_NAMES = OrderedDict(
         ("convnext", "ConvNextModel"),
         ("convnextv2", "ConvNextV2Model"),
         ("ctrl", "CTRLModel"),
+        ("data2vec-audio", "Data2VecAudioModel"),
+        ("data2vec-text", "Data2VecTextModel"),
+        ("data2vec-vision", "Data2VecVisionModel"),
         ("deberta", "DebertaModel"),
         ("deberta-v2", "DebertaV2Model"),
         ("deit", "DeiTModel"),
@@ -68,6 +71,7 @@ MODEL_MAPPING_NAMES = OrderedDict(
         ("distilbert", "DistilBertModel"),
         ("dpr", "DPRQuestionEncoder"),
         ("dpt", "DPTModel"),
+        ("fastspeech2_conformer", "FastSpeech2ConformerModel"),
         ("funnel", ("FunnelModel", "FunnelBaseModel")),
         ("gemma", "GemmaModel"),
         ("gemma2", "Gemma2Model"),
@@ -120,6 +124,7 @@ MODEL_MAPPING_NAMES = OrderedDict(
         ("roberta", "RobertaModel"),
         ("rwkv", "RwkvModel"),
         ("sam", "SamModel"),
+        ("seamless_m4t_v2", "SeamlessM4Tv2Model"),
         ("segformer", "SegformerModel"),
         ("siglip", "SiglipModel"),
         ("siglip_vision_model", "SiglipVisionModel"),
@@ -152,6 +157,7 @@ MODEL_FOR_PRETRAINING_MAPPING_NAMES = OrderedDict(
         ("camembert", "CamembertForMaskedLM"),
         ("colpali", "ColPaliForRetrieval"),
         ("ctrl", "CTRLLMHeadModel"),
+        ("data2vec-text", "Data2VecTextForMaskedLM"),
         ("distilbert", "DistilBertForMaskedLM"),
         ("funnel", "FunnelForPreTraining"),
         ("gpt2", "GPT2LMHeadModel"),
@@ -200,6 +206,7 @@ MODEL_WITH_LM_HEAD_MAPPING_NAMES = OrderedDict(
         ("camembert", "CamembertForMaskedLM"),
         ("convbert", "ConvBertForMaskedLM"),
         ("ctrl", "CTRLLMHeadModel"),
+        ("data2vec-text", "Data2VecTextForMaskedLM"),
         ("deberta", "DebertaForMaskedLM"),
         ("deberta-v2", "DebertaV2ForMaskedLM"),
         ("distilbert", "DistilBertForMaskedLM"),
@@ -214,6 +221,7 @@ MODEL_WITH_LM_HEAD_MAPPING_NAMES = OrderedDict(
         ("mobilebert", "MobileBertForMaskedLM"),
         ("mpt", "MptForCausalLM"),
         ("nystromformer", "NystromformerForMaskedLM"),
+        ("pop2piano", "Pop2PianoForConditionalGeneration"),
         ("rembert", "RemBertForMaskedLM"),
         ("rwkv", "RwkvForCausalLM"),
         ("t5", "T5ForConditionalGeneration"),
@@ -231,47 +239,47 @@ MODEL_FOR_CAUSAL_LM_MAPPING_NAMES = OrderedDict(
         ("aria_text", "AriaTextForCausalLM"),
         ("bamba", "BambaForCausalLM"),
         ("bart", "BartForCausalLM"),
-        ("camembert", "CamembertForCausalLM"),
-        ("mvp", "MvpForCausalLM"),
-        ("opt", "OPTForCausalLM"),
         ("bert", "BertLMHeadModel"),
+        ("bert-generation", "BertGenerationDecoder"),
         ("blenderbot", "BlenderbotForCausalLM"),
         ("blenderbot-small", "BlenderbotSmallForCausalLM"),
-        ("bert-generation", "BertGenerationDecoder"),
+        ("camembert", "CamembertForCausalLM"),
+        ("cohere2", "Cohere2ForCausalLM"),
         ("ctrl", "CTRLLMHeadModel"),
+        ("data2vec-text", "Data2VecTextForCausalLM"),
         ("emu3", "Emu3ForCausalLM"),
+        ("fuyu", "FuyuForCausalLM"),
         ("gemma", "GemmaForCausalLM"),
         ("gemma2", "Gemma2ForCausalLM"),
-        ("starcoder2", "Starcoder2ForCausalLM"),
         ("gemma3", "Gemma3ForCausalLM"),
         ("gemma3_text", "Gemma3ForCausalLM"),
-        ("granite", "GraniteForCausalLM"),
         ("glm", "GlmForCausalLM"),
         ("gpt2", "GPT2LMHeadModel"),
-        ("persimmon", "PersimmonForCausalLM"),
-        ("fuyu", "FuyuForCausalLM"),
+        ("granite", "GraniteForCausalLM"),
         ("granitemoe", "GraniteMoeForCausalLM"),
         ("granitemoeshared", "GraniteMoeSharedForCausalLM"),
         ("llama", "LlamaForCausalLM"),
         ("mamba", "MambaForCausalLM"),
         ("mamba2", "Mamba2ForCausalLM"),
-        ("opt", "OPTForCausalLM"),
         ("megatron-bert", "MegatronBertForCausalLM"),
         ("mistral", "MistralForCausalLM"),
+        ("mixtral", "MixtralForCausalLM"),
         ("mllama", "MllamaForCausalLM"),
         ("mpt", "MptForCausalLM"),
+        ("mvp", "MvpForCausalLM"),
+        ("opt", "OPTForCausalLM"),
+        ("persimmon", "PersimmonForCausalLM"),
         ("phi", "PhiForCausalLM"),
         ("phi3", "Phi3ForCausalLM"),
-        ("mixtral", "MixtralForCausalLM"),
         ("qwen2", "Qwen2ForCausalLM"),
-        ("roberta", "RobertaForCausalLM"),
         ("recurrent_gemma", "RecurrentGemmaForCausalLM"),
         ("rembert", "RemBertForCausalLM"),
+        ("roberta", "RobertaForCausalLM"),
         ("rwkv", "RwkvForCausalLM"),
+        ("starcoder2", "Starcoder2ForCausalLM"),
         ("whisper", "WhisperForCausalLM"),
         ("xlm-roberta", "XLMRobertaForCausalLM"),
         ("xlm-roberta-xl", "XLMRobertaXLForCausalLM"),
-        ("cohere2", "Cohere2ForCausalLM"),
         ("zamba", "ZambaForCausalLM"),
     ]
 )
@@ -282,6 +290,7 @@ MODEL_FOR_IMAGE_MAPPING_NAMES = OrderedDict(
         ("bit", "BitModel"),
         ("convnext", "ConvNextModel"),
         ("convnextv2", "ConvNextV2Model"),
+        ("data2vec-vision", "Data2VecVisionModel"),
         ("deit", "DeiTModel"),
         ("detr", "DetrModel"),
         ("dinov2", "Dinov2Model"),
@@ -325,6 +334,7 @@ MODEL_FOR_IMAGE_CLASSIFICATION_MAPPING_NAMES = OrderedDict(
         ("clip", "CLIPForImageClassification"),
         ("convnext", "ConvNextForImageClassification"),
         ("convnextv2", "ConvNextV2ForImageClassification"),
+        ("data2vec-vision", "Data2VecVisionForImageClassification"),
         (
             "deit",
             ("DeiTForImageClassification", "DeiTForImageClassificationWithTeacher"),
@@ -437,21 +447,22 @@ MODEL_FOR_IMAGE_TEXT_TO_TEXT_MAPPING_NAMES = OrderedDict(
 MODEL_FOR_MASKED_LM_MAPPING_NAMES = OrderedDict(
     [
         # Model for Masked LM mapping
-        ("mvp", "MvpForConditionalGeneration"),
         ("albert", "AlbertForMaskedLM"),
         ("bart", "BartForConditionalGeneration"),
-        ("convbert", "ConvBertForMaskedLM"),
         ("bert", "BertForMaskedLM"),
-        ("roberta", "RobertaForMaskedLM"),
         ("camembert", "CamembertForMaskedLM"),
+        ("convbert", "ConvBertForMaskedLM"),
+        ("data2vec-text", "Data2VecTextForMaskedLM"),
         ("deberta", "DebertaForMaskedLM"),
         ("deberta-v2", "DebertaV2ForMaskedLM"),
         ("distilbert", "DistilBertForMaskedLM"),
         ("funnel", "FunnelForMaskedLM"),
         ("ibert", "IBertForMaskedLM"),
         ("mobilebert", "MobileBertForMaskedLM"),
+        ("mvp", "MvpForConditionalGeneration"),
         ("nystromformer", "NystromformerForMaskedLM"),
         ("rembert", "RemBertForMaskedLM"),
+        ("roberta", "RobertaForMaskedLM"),
         ("tapas", "TapasForMaskedLM"),
         ("wav2vec2", "Wav2Vec2ForMaskedLM"),
         ("xlm-roberta", "XLMRobertaForMaskedLM"),
@@ -501,6 +512,7 @@ MODEL_FOR_SEQ_TO_SEQ_CAUSAL_LM_MAPPING_NAMES = OrderedDict(
         ("mvp", "MvpForConditionalGeneration"),
         ("mt5", "MT5ForConditionalGeneration"),
         ("qwen2_audio", "Qwen2AudioForConditionalGeneration"),
+        ("seamless_m4t_v2", "SeamlessM4Tv2ForTextToText"),
         ("t5", "T5ForConditionalGeneration"),
         ("umt5", "UMT5ForConditionalGeneration"),
     ]
@@ -508,6 +520,8 @@ MODEL_FOR_SEQ_TO_SEQ_CAUSAL_LM_MAPPING_NAMES = OrderedDict(
 
 MODEL_FOR_SPEECH_SEQ_2_SEQ_MAPPING_NAMES = OrderedDict(
     [
+        ("pop2piano", "Pop2PianoForConditionalGeneration"),
+        ("seamless_m4t_v2", "SeamlessM4Tv2ForSpeechToText"),
         ("speecht5", "SpeechT5ForSpeechToText"),
         ("whisper", "WhisperForConditionalGeneration"),
     ]
@@ -707,21 +721,28 @@ MODEL_FOR_AUDIO_XVECTOR_MAPPING_NAMES = OrderedDict(
 
 MODEL_FOR_TEXT_TO_SPECTROGRAM_MAPPING_NAMES = OrderedDict(
     [
-        ("siglip", "SiglipModel"),
+        # Model for Text-To-Spectrogram mapping
+        ("fastspeech2_conformer", "FastSpeech2ConformerModel"),
         ("speecht5", "SpeechT5ForTextToSpeech"),
     ]
 )
 
-MODEL_FOR_TEXT_TO_WAVEFORM_MAPPING_NAMES = OrderedDict()
+MODEL_FOR_TEXT_TO_WAVEFORM_MAPPING_NAMES = OrderedDict(
+    [
+        # Model for Text-To-Waveform mapping
+        ("fastspeech2_conformer", "FastSpeech2ConformerWithHifiGan"),
+        ("seamless_m4t_v2", "SeamlessM4Tv2ForTextToSpeech"),
+    ]
+)
 
 MODEL_FOR_ZERO_SHOT_IMAGE_CLASSIFICATION_MAPPING_NAMES = OrderedDict(
     [
         # Model for Zero Shot Image Classification mapping
         ("align", "AlignModel"),
         ("blip", "BlipModel"),
-        ("siglip", "SiglipModel"),
         ("blip-2", "Blip2ForImageTextRetrieval"),
         ("clipseg", "CLIPSegModel"),
+        ("siglip", "SiglipModel"),
     ]
 )
 
