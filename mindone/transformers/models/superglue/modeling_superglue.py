@@ -714,7 +714,7 @@ class SuperGlueForKeypointMatching(SuperGluePreTrainedModel):
         # Get the matches with score above "match_threshold".
         max0 = scores[:, :-1, :-1].max(2)
         max1 = scores[:, :-1, :-1].max(1)
-        indices0 = max0[0]
+        indices0 = max0[1]
         indices1 = max1[1]
         mutual0 = arange_like(indices0, 1)[None] == indices1.gather(1, indices0)
         mutual1 = arange_like(indices1, 1)[None] == indices0.gather(1, indices1)

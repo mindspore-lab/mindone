@@ -67,20 +67,17 @@ def simple_nms(scores: mindspore.Tensor, nms_radius: int) -> mindspore.Tensor:
         dtype = x.dtype
         x = x.to(mindspore.float32)
 
-        if x.ndim == 3:
+        if x.ndim == 3: # mint.nn.functional.max_pool2d only support CNHW
             x_nchw = mint.unsqueeze(x, 0)
-
-            pooled_nchw = mint.max_pool2d(
+            pooled_nchw = mint.functional.max_pool2d(
                 x_nchw,
                 kernel_size=kernel_size,
                 stride=stride,
                 padding=padding
             )
-
             output = mint.squeeze(pooled_nchw, 0)
-
         else:
-            output = mint.max_pool2d(
+            output = mint.functional.max_pool2d(
                 x,
                 kernel_size=kernel_size,
                 stride=stride,
@@ -340,7 +337,7 @@ class SuperPointDescriptorDecoder(mindspore.nn.Cell):
         # [batch_size, num_channels, num_keypoints, 2] -> [batch_size, num_channels, num_keypoints, 2]
         keypoints = keypoints.view(batch_size, 1, -1, 2)
         descriptors = mint.nn.functional.grid_sample(
-            descriptors.to(mindspore.float32), keypoints, mode="bilinear", **kwargs
+            descriptors.to(mindspore.float32), keypoints.to(mindspore.float32), mode="bilinear", **kwargs
         ).to(keypoints.dtype)
         # [batch_size, descriptor_decoder_dim, num_channels, num_keypoints] -> [batch_size, descriptor_decoder_dim, num_keypoints]
         descriptors = descriptors.reshape(batch_size, num_channels, -1)
