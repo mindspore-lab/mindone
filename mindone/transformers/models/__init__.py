@@ -124,6 +124,7 @@ from . import (
     vit,
     vits,
     wav2vec2,
+    xglm,
     xlm_roberta,
     yolos,
     zamba,
