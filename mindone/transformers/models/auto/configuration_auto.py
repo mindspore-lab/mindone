@@ -51,6 +51,8 @@ CONFIG_MAPPING_NAMES = OrderedDict(
         ("blip-2", "Blip2Config"),
         ("camembert", "CamembertConfig"),
         ("chameleon", "ChameleonConfig"),
+        ("chinese_clip", "ChineseCLIPConfig"),
+        ("chinese_clip_vision_model", "ChineseCLIPVisionConfig"),
         ("clip", "CLIPConfig"),
         ("clip_vision_model", "CLIPVisionConfig"),
         ("clipseg", "CLIPSegConfig"),
