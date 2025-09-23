@@ -151,6 +151,14 @@ from .models.bart import (
     BartPreTrainedModel,
     PretrainedBartModel,
 )
+from .models.beit import (
+    BeitBackbone,
+    BeitForImageClassification,
+    BeitForMaskedImageModeling,
+    BeitForSemanticSegmentation,
+    BeitModel,
+    BeitPreTrainedModel,
+)
 from .models.bert import (
     BertForMaskedLM,
     BertForMultipleChoice,
@@ -425,12 +433,6 @@ from .models.electra import (
 )
 from .models.emu3 import Emu3ForCausalLM, Emu3ForConditionalGeneration, Emu3PreTrainedModel, Emu3TextModel, Emu3VQVAE
 from .models.encodec import EncodecModel, EncodecPreTrainedModel
-from .models.esm import (
-    EsmForMaskedLM,
-    EsmForSequenceClassification,
-    EsmForTokenClassification,
-    EsmModel,
-    EsmPreTrainedModel,
 from .models.encoder_decoder import EncoderDecoderModel
 from .models.ernie import (
     ErnieForCausalLM,
@@ -444,6 +446,13 @@ from .models.ernie import (
     ErnieModel,
     ErniePreTrainedModel,
 )
+from .models.esm import (
+    EsmForMaskedLM,
+    EsmForSequenceClassification,
+    EsmForTokenClassification,
+    EsmModel,
+    EsmPreTrainedModel,
+)
 from .models.falcon import (
     FalconForCausalLM,
     FalconForQuestionAnswering,
@@ -452,11 +461,22 @@ from .models.falcon import (
     FalconModel,
     FalconPreTrainedModel,
 )
+from .models.falcon_mamba import FalconMambaForCausalLM, FalconMambaModel, FalconMambaPreTrainedModel
 from .models.fastspeech2_conformer import (
     FastSpeech2ConformerHifiGan,
     FastSpeech2ConformerModel,
     FastSpeech2ConformerPreTrainedModel,
     FastSpeech2ConformerWithHifiGan,
+)
+from .models.flaubert import (
+    FlaubertForMultipleChoice,
+    FlaubertForQuestionAnswering,
+    FlaubertForQuestionAnsweringSimple,
+    FlaubertForSequenceClassification,
+    FlaubertForTokenClassification,
+    FlaubertModel,
+    FlaubertPreTrainedModel,
+    FlaubertWithLMHeadModel,
 )
 from .models.fnet import (
     FNetForMaskedLM,
@@ -469,16 +489,6 @@ from .models.fnet import (
     FNetLayer,
     FNetModel,
     FNetPreTrainedModel,
-)
-from .models.flaubert import (
-    FlaubertForMultipleChoice,
-    FlaubertForQuestionAnswering,
-    FlaubertForQuestionAnsweringSimple,
-    FlaubertForSequenceClassification,
-    FlaubertForTokenClassification,
-    FlaubertModel,
-    FlaubertPreTrainedModel,
-    FlaubertWithLMHeadModel,
 )
 from .models.fsmt import FSMTForConditionalGeneration, FSMTModel, PretrainedFSMTModel
 from .models.funnel import (
@@ -716,13 +726,14 @@ from .models.luke import (
 from .models.m2m_100 import M2M100ForConditionalGeneration, M2M100Model, M2M100PreTrainedModel
 from .models.mamba import MambaForCausalLM, MambaModel, MambaPreTrainedModel
 from .models.mamba2 import Mamba2ForCausalLM, Mamba2Model, Mamba2PreTrainedModel
+from .models.marian import MarianForCausalLM, MarianModel, MarianMTModel, MarianPreTrainedModel
 from .models.markuplm import (
     MarkupLMForQuestionAnswering,
     MarkupLMForSequenceClassification,
     MarkupLMForTokenClassification,
     MarkupLMModel,
     MarkupLMPreTrainedModel,
-from .models.marian import MarianForCausalLM, MarianModel, MarianMTModel, MarianPreTrainedModel
+)
 from .models.mbart import (
     MBartForCausalLM,
     MBartForConditionalGeneration,
@@ -846,6 +857,7 @@ from .models.nemotron import (
     NemotronForTokenClassification,
     NemotronModel,
     NemotronPreTrainedModel,
+)
 from .models.nllb_moe import (
     NllbMoeForConditionalGeneration,
     NllbMoeModel,
@@ -933,6 +945,8 @@ from .models.prophetnet import (
     ProphetNetModel,
     ProphetNetPreTrainedModel,
 )
+from .models.pvt import PvtForImageClassification, PvtModel, PvtPreTrainedModel
+from .models.pvt_v2 import PvtV2Backbone, PvtV2ForImageClassification, PvtV2Model, PvtV2PreTrainedModel
 from .models.qwen2 import Qwen2ForCausalLM, Qwen2ForSequenceClassification, Qwen2ForTokenClassification, Qwen2Model
 from .models.qwen2_5_vl import (
     Qwen2_5_VLForConditionalGeneration,
@@ -978,16 +992,16 @@ from .models.roberta import (
     RobertaModel,
     RobertaPreTrainedModel,
 )
-from .models.roformer import (
-    RoFormerForCausalLM,
-    RoFormerForMaskedLM,
-    RoFormerForMultipleChoice,
-    RoFormerForQuestionAnswering,
-    RoFormerForSequenceClassification,
-    RoFormerForTokenClassification,
-    RoFormerLayer,
-    RoFormerModel,
-    RoFormerPreTrainedModel,
+from .models.roberta_prelayernorm import (
+    RobertaPreLayerNormForCausalLM,
+    RobertaPreLayerNormForMaskedLM,
+    RobertaPreLayerNormForMultipleChoice,
+    RobertaPreLayerNormForQuestionAnswering,
+    RobertaPreLayerNormForSequenceClassification,
+    RobertaPreLayerNormForTokenClassification,
+    RobertaPreLayerNormModel,
+    RobertaPreLayerNormPreTrainedModel,
+)
 from .models.roc_bert import (
     RoCBertForCausalLM,
     RoCBertForMaskedLM,
@@ -998,15 +1012,17 @@ from .models.roc_bert import (
     RoCBertForTokenClassification,
     RoCBertModel,
     RoCBertPreTrainedModel,
-from .models.roberta_prelayernorm import (
-    RobertaPreLayerNormForCausalLM,
-    RobertaPreLayerNormForMaskedLM,
-    RobertaPreLayerNormForMultipleChoice,
-    RobertaPreLayerNormForQuestionAnswering,
-    RobertaPreLayerNormForSequenceClassification,
-    RobertaPreLayerNormForTokenClassification,
-    RobertaPreLayerNormModel,
-    RobertaPreLayerNormPreTrainedModel,
+)
+from .models.roformer import (
+    RoFormerForCausalLM,
+    RoFormerForMaskedLM,
+    RoFormerForMultipleChoice,
+    RoFormerForQuestionAnswering,
+    RoFormerForSequenceClassification,
+    RoFormerForTokenClassification,
+    RoFormerLayer,
+    RoFormerModel,
+    RoFormerPreTrainedModel,
 )
 from .models.rwkv import RwkvForCausalLM, RwkvModel, RwkvPreTrainedModel
 from .models.sam import SamImageProcessor, SamModel, SamPreTrainedModel, SamProcessor
@@ -1243,6 +1259,16 @@ from .models.xlnet import (
     XLNetLMHeadModel,
     XLNetModel,
     XLNetPreTrainedModel,
+)
+from .models.xmod import (
+    XmodForCausalLM,
+    XmodForMaskedLM,
+    XmodForMultipleChoice,
+    XmodForQuestionAnswering,
+    XmodForSequenceClassification,
+    XmodForTokenClassification,
+    XmodModel,
+    XmodPreTrainedModel,
 )
 from .models.yolos import YolosForObjectDetection, YolosImageProcessor, YolosModel, YolosPreTrainedModel
 from .models.yoso import (
