@@ -1045,7 +1045,7 @@ class Gemma3MultiModalProjector(nn.Cell):
         super().__init__()
 
         self.mm_input_projection_weight = ms.Parameter(
-            mint.zeros(config.vision_config.hidden_size, config.text_config.hidden_size)
+            mint.zeros((config.vision_config.hidden_size, config.text_config.hidden_size))
         )
 
         self.mm_soft_emb_norm = Gemma3RMSNorm(config.vision_config.hidden_size, eps=config.vision_config.layer_norm_eps)
