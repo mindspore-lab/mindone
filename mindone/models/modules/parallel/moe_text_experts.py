@@ -47,7 +47,7 @@ class MoeTextExperts(nn.Cell):
                     )
                 )
 
-    def construct(self, hidden_states, routing_weights):
+    def construct(self, hidden_states, routing_weights, router_indices):
         batch_size = hidden_states.shape[0]
         hidden_states = hidden_states.reshape(-1, self.net.hidden_size)  # (num_tokens, hidden_size)
 
