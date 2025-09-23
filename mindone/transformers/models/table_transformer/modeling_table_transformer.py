@@ -12,35 +12,25 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-"""PyTorch Table Transformer model."""
+"""MindSpore Table Transformer model."""
 
 import math
 from dataclasses import dataclass
 from typing import Dict, List, Optional, Tuple, Union
 
-import mindspore as ms
-from mindspore import Tensor, mint
+import mindspore
+from mindspore import mint
 
 from ...activations import ACT2FN
 from ...modeling_attn_mask_utils import _prepare_4d_attention_mask
 from ...modeling_outputs import BaseModelOutput, BaseModelOutputWithCrossAttentions, Seq2SeqModelOutput
 from ...modeling_utils import PreTrainedModel
-from ...utils import (
-    ModelOutput,
-    add_start_docstrings,
-    add_start_docstrings_to_model_forward,
-    is_timm_available,
-    logging,
-    replace_return_docstrings,
-    requires_backends,
-)
+
+from transformers.utils import ModelOutput, logging
 from ...utils.backbone_utils import load_backbone
-from .configuration_table_transformer import TableTransformerConfig
-
-
-if is_timm_available():
-    from timm import create_model
-
+from transformers import TableTransformerConfig
+from ...mindspore_adapter import dtype_to_max
+from mindspore.common.initializer import Normal, Constant, Uniform, initializer
 
 logger = logging.get_logger(__name__)
 
@@ -57,26 +47,26 @@ class TableTransformerDecoderOutput(BaseModelOutputWithCrossAttentions):
     gone through a layernorm. This is useful when training the model with auxiliary decoding losses.
 
     Args:
-        last_hidden_state (`torch.FloatTensor` of shape `(batch_size, sequence_length, hidden_size)`):
+        last_hidden_state (`mindspore.Tensor` of shape `(batch_size, sequence_length, hidden_size)`):
             Sequence of hidden-states at the output of the last layer of the model.
-        hidden_states (`tuple(torch.FloatTensor)`, *optional*, returned when `output_hidden_states=True` is passed or when `config.output_hidden_states=True`):
-            Tuple of `torch.FloatTensor` (one for the output of the embeddings + one for the output of each layer) of
+        hidden_states (`tuple(mindspore.Tensor)`, *optional*, returned when `output_hidden_states=True` is passed or when `config.output_hidden_states=True`):
+            Tuple of `mindspore.Tensor` (one for the output of the embeddings + one for the output of each layer) of
             shape `(batch_size, sequence_length, hidden_size)`. Hidden-states of the model at the output of each layer
             plus the initial embedding outputs.
-        attentions (`tuple(torch.FloatTensor)`, *optional*, returned when `output_attentions=True` is passed or when `config.output_attentions=True`):
-            Tuple of `torch.FloatTensor` (one for each layer) of shape `(batch_size, num_heads, sequence_length,
+        attentions (`tuple(mindspore.Tensor)`, *optional*, returned when `output_attentions=True` is passed or when `config.output_attentions=True`):
+            Tuple of `mindspore.Tensor` (one for each layer) of shape `(batch_size, num_heads, sequence_length,
             sequence_length)`. Attentions weights after the attention softmax, used to compute the weighted average in
             the self-attention heads.
-        cross_attentions (`tuple(torch.FloatTensor)`, *optional*, returned when `output_attentions=True` and `config.add_cross_attention=True` is passed or when `config.output_attentions=True`):
-            Tuple of `torch.FloatTensor` (one for each layer) of shape `(batch_size, num_heads, sequence_length,
+        cross_attentions (`tuple(mindspore.Tensor)`, *optional*, returned when `output_attentions=True` and `config.add_cross_attention=True` is passed or when `config.output_attentions=True`):
+            Tuple of `mindspore.Tensor` (one for each layer) of shape `(batch_size, num_heads, sequence_length,
             sequence_length)`. Attentions weights of the decoder's cross-attention layer, after the attention softmax,
             used to compute the weighted average in the cross-attention heads.
-        intermediate_hidden_states (`torch.FloatTensor` of shape `(config.decoder_layers, batch_size, num_queries, hidden_size)`, *optional*, returned when `config.auxiliary_loss=True`):
+        intermediate_hidden_states (`mindspore.Tensor` of shape `(config.decoder_layers, batch_size, num_queries, hidden_size)`, *optional*, returned when `config.auxiliary_loss=True`):
             Intermediate decoder activations, i.e. the output of each decoder layer, each of them gone through a
             layernorm.
     """
 
-    intermediate_hidden_states: Optional[ms.Tensor] = None
+    intermediate_hidden_states: Optional[mindspore.Tensor] = None
 
 
 @dataclass
@@ -88,36 +78,36 @@ class TableTransformerModelOutput(Seq2SeqModelOutput):
     gone through a layernorm. This is useful when training the model with auxiliary decoding losses.
 
     Args:
-        last_hidden_state (`torch.FloatTensor` of shape `(batch_size, sequence_length, hidden_size)`):
+        last_hidden_state (`mindspore.Tensor` of shape `(batch_size, sequence_length, hidden_size)`):
             Sequence of hidden-states at the output of the last layer of the decoder of the model.
-        decoder_hidden_states (`tuple(torch.FloatTensor)`, *optional*, returned when `output_hidden_states=True` is passed or when `config.output_hidden_states=True`):
-            Tuple of `torch.FloatTensor` (one for the output of the embeddings + one for the output of each layer) of
+        decoder_hidden_states (`tuple(mindspore.Tensor)`, *optional*, returned when `output_hidden_states=True` is passed or when `config.output_hidden_states=True`):
+            Tuple of `mindspore.Tensor` (one for the output of the embeddings + one for the output of each layer) of
             shape `(batch_size, sequence_length, hidden_size)`. Hidden-states of the decoder at the output of each
             layer plus the initial embedding outputs.
-        decoder_attentions (`tuple(torch.FloatTensor)`, *optional*, returned when `output_attentions=True` is passed or when `config.output_attentions=True`):
-            Tuple of `torch.FloatTensor` (one for each layer) of shape `(batch_size, num_heads, sequence_length,
+        decoder_attentions (`tuple(mindspore.Tensor)`, *optional*, returned when `output_attentions=True` is passed or when `config.output_attentions=True`):
+            Tuple of `mindspore.Tensor` (one for each layer) of shape `(batch_size, num_heads, sequence_length,
             sequence_length)`. Attentions weights of the decoder, after the attention softmax, used to compute the
             weighted average in the self-attention heads.
-        cross_attentions (`tuple(torch.FloatTensor)`, *optional*, returned when `output_attentions=True` is passed or when `config.output_attentions=True`):
-            Tuple of `torch.FloatTensor` (one for each layer) of shape `(batch_size, num_heads, sequence_length,
+        cross_attentions (`tuple(mindspore.Tensor)`, *optional*, returned when `output_attentions=True` is passed or when `config.output_attentions=True`):
+            Tuple of `mindspore.Tensor` (one for each layer) of shape `(batch_size, num_heads, sequence_length,
             sequence_length)`. Attentions weights of the decoder's cross-attention layer, after the attention softmax,
             used to compute the weighted average in the cross-attention heads.
-        encoder_last_hidden_state (`torch.FloatTensor` of shape `(batch_size, sequence_length, hidden_size)`, *optional*):
+        encoder_last_hidden_state (`mindspore.Tensor` of shape `(batch_size, sequence_length, hidden_size)`, *optional*):
             Sequence of hidden-states at the output of the last layer of the encoder of the model.
-        encoder_hidden_states (`tuple(torch.FloatTensor)`, *optional*, returned when `output_hidden_states=True` is passed or when `config.output_hidden_states=True`):
-            Tuple of `torch.FloatTensor` (one for the output of the embeddings + one for the output of each layer) of
+        encoder_hidden_states (`tuple(mindspore.Tensor)`, *optional*, returned when `output_hidden_states=True` is passed or when `config.output_hidden_states=True`):
+            Tuple of `mindspore.Tensor` (one for the output of the embeddings + one for the output of each layer) of
             shape `(batch_size, sequence_length, hidden_size)`. Hidden-states of the encoder at the output of each
             layer plus the initial embedding outputs.
-        encoder_attentions (`tuple(torch.FloatTensor)`, *optional*, returned when `output_attentions=True` is passed or when `config.output_attentions=True`):
-            Tuple of `torch.FloatTensor` (one for each layer) of shape `(batch_size, num_heads, sequence_length,
+        encoder_attentions (`tuple(mindspore.Tensor)`, *optional*, returned when `output_attentions=True` is passed or when `config.output_attentions=True`):
+            Tuple of `mindspore.Tensor` (one for each layer) of shape `(batch_size, num_heads, sequence_length,
             sequence_length)`. Attentions weights of the encoder, after the attention softmax, used to compute the
             weighted average in the self-attention heads.
-        intermediate_hidden_states (`torch.FloatTensor` of shape `(config.decoder_layers, batch_size, sequence_length, hidden_size)`, *optional*, returned when `config.auxiliary_loss=True`):
+        intermediate_hidden_states (`mindspore.Tensor` of shape `(config.decoder_layers, batch_size, sequence_length, hidden_size)`, *optional*, returned when `config.auxiliary_loss=True`):
             Intermediate decoder activations, i.e. the output of each decoder layer, each of them gone through a
             layernorm.
     """
 
-    intermediate_hidden_states: Optional[ms.Tensor] = None
+    intermediate_hidden_states: Optional[mindspore.Tensor] = None
 
 
 @dataclass
@@ -127,15 +117,15 @@ class TableTransformerObjectDetectionOutput(ModelOutput):
     Output type of [`TableTransformerForObjectDetection`].
 
     Args:
-        loss (`torch.FloatTensor` of shape `(1,)`, *optional*, returned when `labels` are provided)):
+        loss (`mindspore.Tensor` of shape `(1,)`, *optional*, returned when `labels` are provided)):
             Total loss as a linear combination of a negative log-likehood (cross-entropy) for class prediction and a
             bounding box loss. The latter is defined as a linear combination of the L1 loss and the generalized
             scale-invariant IoU loss.
         loss_dict (`Dict`, *optional*):
             A dictionary containing the individual losses. Useful for logging.
-        logits (`torch.FloatTensor` of shape `(batch_size, num_queries, num_classes + 1)`):
+        logits (`mindspore.Tensor` of shape `(batch_size, num_queries, num_classes + 1)`):
             Classification logits (including no-object) for all queries.
-        pred_boxes (`torch.FloatTensor` of shape `(batch_size, num_queries, 4)`):
+        pred_boxes (`mindspore.Tensor` of shape `(batch_size, num_queries, 4)`):
             Normalized boxes coordinates for all queries, represented as (center_x, center_y, width, height). These
             values are normalized in [0, 1], relative to the size of each individual image in the batch (disregarding
             possible padding). You can use [`~TableTransformerImageProcessor.post_process_object_detection`] to retrieve the
@@ -144,48 +134,48 @@ class TableTransformerObjectDetectionOutput(ModelOutput):
             Optional, only returned when auxilary losses are activated (i.e. `config.auxiliary_loss` is set to `True`)
             and labels are provided. It is a list of dictionaries containing the two above keys (`logits` and
             `pred_boxes`) for each decoder layer.
-        last_hidden_state (`torch.FloatTensor` of shape `(batch_size, sequence_length, hidden_size)`, *optional*):
+        last_hidden_state (`mindspore.Tensor` of shape `(batch_size, sequence_length, hidden_size)`, *optional*):
             Sequence of hidden-states at the output of the last layer of the decoder of the model.
-        decoder_hidden_states (`tuple(torch.FloatTensor)`, *optional*, returned when `output_hidden_states=True` is passed or when `config.output_hidden_states=True`):
-            Tuple of `torch.FloatTensor` (one for the output of the embeddings + one for the output of each layer) of
+        decoder_hidden_states (`tuple(mindspore.Tensor)`, *optional*, returned when `output_hidden_states=True` is passed or when `config.output_hidden_states=True`):
+            Tuple of `mindspore.Tensor` (one for the output of the embeddings + one for the output of each layer) of
             shape `(batch_size, sequence_length, hidden_size)`. Hidden-states of the decoder at the output of each
             layer plus the initial embedding outputs.
-        decoder_attentions (`tuple(torch.FloatTensor)`, *optional*, returned when `output_attentions=True` is passed or when `config.output_attentions=True`):
-            Tuple of `torch.FloatTensor` (one for each layer) of shape `(batch_size, num_heads, sequence_length,
+        decoder_attentions (`tuple(mindspore.Tensor)`, *optional*, returned when `output_attentions=True` is passed or when `config.output_attentions=True`):
+            Tuple of `mindspore.Tensor` (one for each layer) of shape `(batch_size, num_heads, sequence_length,
             sequence_length)`. Attentions weights of the decoder, after the attention softmax, used to compute the
             weighted average in the self-attention heads.
-        cross_attentions (`tuple(torch.FloatTensor)`, *optional*, returned when `output_attentions=True` is passed or when `config.output_attentions=True`):
-            Tuple of `torch.FloatTensor` (one for each layer) of shape `(batch_size, num_heads, sequence_length,
+        cross_attentions (`tuple(mindspore.Tensor)`, *optional*, returned when `output_attentions=True` is passed or when `config.output_attentions=True`):
+            Tuple of `mindspore.Tensor` (one for each layer) of shape `(batch_size, num_heads, sequence_length,
             sequence_length)`. Attentions weights of the decoder's cross-attention layer, after the attention softmax,
             used to compute the weighted average in the cross-attention heads.
-        encoder_last_hidden_state (`torch.FloatTensor` of shape `(batch_size, sequence_length, hidden_size)`, *optional*):
+        encoder_last_hidden_state (`mindspore.Tensor` of shape `(batch_size, sequence_length, hidden_size)`, *optional*):
             Sequence of hidden-states at the output of the last layer of the encoder of the model.
-        encoder_hidden_states (`tuple(torch.FloatTensor)`, *optional*, returned when `output_hidden_states=True` is passed or when `config.output_hidden_states=True`):
-            Tuple of `torch.FloatTensor` (one for the output of the embeddings + one for the output of each layer) of
+        encoder_hidden_states (`tuple(mindspore.Tensor)`, *optional*, returned when `output_hidden_states=True` is passed or when `config.output_hidden_states=True`):
+            Tuple of `mindspore.Tensor` (one for the output of the embeddings + one for the output of each layer) of
             shape `(batch_size, sequence_length, hidden_size)`. Hidden-states of the encoder at the output of each
             layer plus the initial embedding outputs.
-        encoder_attentions (`tuple(torch.FloatTensor)`, *optional*, returned when `output_attentions=True` is passed or when `config.output_attentions=True`):
-            Tuple of `torch.FloatTensor` (one for each layer) of shape `(batch_size, num_heads, sequence_length,
+        encoder_attentions (`tuple(mindspore.Tensor)`, *optional*, returned when `output_attentions=True` is passed or when `config.output_attentions=True`):
+            Tuple of `mindspore.Tensor` (one for each layer) of shape `(batch_size, num_heads, sequence_length,
             sequence_length)`. Attentions weights of the encoder, after the attention softmax, used to compute the
             weighted average in the self-attention heads.
     """
 
-    loss: Optional[ms.Tensor] = None
+    loss: Optional[mindspore.Tensor] = None
     loss_dict: Optional[Dict] = None
-    logits: ms.Tensor = None
-    pred_boxes: ms.Tensor = None
+    logits: mindspore.Tensor = None
+    pred_boxes: mindspore.Tensor = None
     auxiliary_outputs: Optional[List[Dict]] = None
-    last_hidden_state: Optional[ms.Tensor] = None
-    decoder_hidden_states: Optional[Tuple[ms.Tensor]] = None
-    decoder_attentions: Optional[Tuple[ms.Tensor]] = None
-    cross_attentions: Optional[Tuple[ms.Tensor]] = None
-    encoder_last_hidden_state: Optional[ms.Tensor] = None
-    encoder_hidden_states: Optional[Tuple[ms.Tensor]] = None
-    encoder_attentions: Optional[Tuple[ms.Tensor]] = None
+    last_hidden_state: Optional[mindspore.Tensor] = None
+    decoder_hidden_states: Optional[Tuple[mindspore.Tensor]] = None
+    decoder_attentions: Optional[Tuple[mindspore.Tensor]] = None
+    cross_attentions: Optional[Tuple[mindspore.Tensor]] = None
+    encoder_last_hidden_state: Optional[mindspore.Tensor] = None
+    encoder_hidden_states: Optional[Tuple[mindspore.Tensor]] = None
+    encoder_attentions: Optional[Tuple[mindspore.Tensor]] = None
 
 
 # Copied from transformers.models.detr.modeling_detr.DetrFrozenBatchNorm2d with Detr->TableTransformer
-class TableTransformerFrozenBatchNorm2d(ms.nn.Cell):
+class TableTransformerFrozenBatchNorm2d(mindspore.nn.Cell):
     """
     BatchNorm2d where the batch statistics and the affine parameters are fixed.
 
@@ -227,21 +217,20 @@ class TableTransformerFrozenBatchNorm2d(ms.nn.Cell):
 # Copied from transformers.models.detr.modeling_detr.replace_batch_norm with Detr->TableTransformer
 def replace_batch_norm(model):
     r"""
-    Recursively replace all `torch.nn.BatchNorm2d` with `TableTransformerFrozenBatchNorm2d`.
+    Recursively replace all `mindspore.nn.BatchNorm2d` with `TableTransformerFrozenBatchNorm2d`.
 
     Args:
-        model (torch.nn.Module):
+        model (mindspore.nn.Cell):
             input model
     """
     for name, module in model.named_children():
         if isinstance(module, mint.nn.BatchNorm2d):
             new_module = TableTransformerFrozenBatchNorm2d(module.num_features)
 
-            if not module.weight.device == torch.device("meta"):
-                new_module.weight.data.copy_(module.weight)
-                new_module.bias.data.copy_(module.bias)
-                new_module.running_mean.data.copy_(module.running_mean)
-                new_module.running_var.data.copy_(module.running_var)
+            new_module.weight.set_data(module.weight)
+            new_module.bias.set_data(module.bias)
+            new_module.running_mean.set_data(module.running_mean)
+            new_module.running_var.set_data(module.running_var)
 
             model._modules[name] = new_module
 
@@ -250,7 +239,7 @@ def replace_batch_norm(model):
 
 
 # Copied from transformers.models.detr.modeling_detr.DetrConvEncoder with Detr->TableTransformer
-class TableTransformerConvEncoder(ms.nn.Cell):
+class TableTransformerConvEncoder(mindspore.nn.Cell):
     """
     Convolutional backbone, using either the AutoBackbone API or one from the timm library.
 
@@ -264,30 +253,32 @@ class TableTransformerConvEncoder(ms.nn.Cell):
         self.config = config
 
         # For backwards compatibility we have to use the timm library directly instead of the AutoBackbone API
-        if config.use_timm_backbone:
-            # We default to values which were previously hard-coded. This enables configurability from the config
-            # using backbone arguments, while keeping the default behavior the same.
-            requires_backends(self, ["timm"])
-            kwargs = getattr(config, "backbone_kwargs", {})
-            kwargs = {} if kwargs is None else kwargs.copy()
-            out_indices = kwargs.pop("out_indices", (1, 2, 3, 4))
-            num_channels = kwargs.pop("in_chans", config.num_channels)
-            if config.dilation:
-                kwargs["output_stride"] = kwargs.get("output_stride", 16)
-            backbone = create_model(
-                config.backbone,
-                pretrained=config.use_pretrained_backbone,
-                features_only=True,
-                out_indices=out_indices,
-                in_chans=num_channels,
-                **kwargs,
-            )
-        else:
-            backbone = load_backbone(config)
+        # if config.use_timm_backbone:
+        #     # We default to values which were previously hard-coded. This enables configurability from the config
+        #     # using backbone arguments, while keeping the default behavior the same.
+        #     requires_backends(self, ["timm"])
+        #     kwargs = getattr(config, "backbone_kwargs", {})
+        #     kwargs = {} if kwargs is None else kwargs.copy()
+        #     out_indices = kwargs.pop("out_indices", (1, 2, 3, 4))
+        #     num_channels = kwargs.pop("in_chans", config.num_channels)
+        #     if config.dilation:
+        #         kwargs["output_stride"] = kwargs.get("output_stride", 16)
+        #     backbone = create_model(
+        #         config.backbone,
+        #         pretrained=config.use_pretrained_backbone,
+        #         features_only=True,
+        #         out_indices=out_indices,
+        #         in_chans=num_channels,
+        #         **kwargs,
+        #     )
+        # else:
+        #     backbone = load_backbone(config)
+        # mindone not support timm now.
+        backbone = load_backbone(config)
 
         # replace batch norm by frozen batch norm
-        with ms._no_grad():
-            replace_batch_norm(backbone)
+
+        replace_batch_norm(backbone)
         self.model = backbone
         self.intermediate_channel_sizes = (
             self.model.feature_info.channels() if config.use_timm_backbone else self.model.channels
@@ -310,20 +301,20 @@ class TableTransformerConvEncoder(ms.nn.Cell):
                     if "stage.1" not in name and "stage.2" not in name and "stage.3" not in name:
                         parameter.requires_grad_(False)
 
-    def construct(self, pixel_values: ms.Tensor, pixel_mask: ms.Tensor):
+    def construct(self, pixel_values: mindspore.Tensor, pixel_mask: mindspore.Tensor):
         # send pixel_values through the model to get list of feature maps
         features = self.model(pixel_values) if self.config.use_timm_backbone else self.model(pixel_values).feature_maps
 
         out = []
         for feature_map in features:
             # downsample pixel_mask to match shape of corresponding feature_map
-            mask = mint.nn.functional.interpolate(pixel_mask[None].float(), size=feature_map.shape[-2:]).to(ms.bool_)[0]
+            mask = mint.nn.functional.interpolate(pixel_mask[None].float(), size=feature_map.shape[-2:]).to(mindspore.bool_)[0]
             out.append((feature_map, mask))
         return out
 
 
 # Copied from transformers.models.detr.modeling_detr.DetrConvModel with Detr->TableTransformer
-class TableTransformerConvModel(ms.nn.Cell):
+class TableTransformerConvModel(mindspore.nn.Cell):
     """
     This module adds 2D position embeddings to all intermediate feature maps of the convolutional encoder.
     """
@@ -345,7 +336,7 @@ class TableTransformerConvModel(ms.nn.Cell):
 
 
 # Copied from transformers.models.detr.modeling_detr.DetrSinePositionEmbedding with Detr->TableTransformer
-class TableTransformerSinePositionEmbedding(ms.nn.Cell):
+class TableTransformerSinePositionEmbedding(mindspore.nn.Cell):
     """
     This is a more standard version of the position embedding, very similar to the one used by the Attention is all you
     need paper, generalized to work on images.
@@ -365,13 +356,13 @@ class TableTransformerSinePositionEmbedding(ms.nn.Cell):
     def construct(self, pixel_values, pixel_mask):
         if pixel_mask is None:
             raise ValueError("No pixel mask provided")
-        y_embed = pixel_mask.cumsum(1, dtype=ms.float32)
-        x_embed = pixel_mask.cumsum(2, dtype=ms.float32)
+        y_embed = pixel_mask.cumsum(1, dtype=mindspore.float32)
+        x_embed = pixel_mask.cumsum(2, dtype=mindspore.float32)
         if self.normalize:
             y_embed = y_embed / (y_embed[:, -1:, :] + 1e-6) * self.scale
             x_embed = x_embed / (x_embed[:, :, -1:] + 1e-6) * self.scale
 
-        dim_t = mint.arange(self.embedding_dim, dtype=ms.int64, ).float()
+        dim_t = mint.arange(self.embedding_dim, dtype=mindspore.int64, ).float()
         dim_t = self.temperature ** (2 * mint.div(dim_t, 2, rounding_mode="floor") / self.embedding_dim)
 
         pos_x = x_embed[:, :, :, None] / dim_t
@@ -383,7 +374,7 @@ class TableTransformerSinePositionEmbedding(ms.nn.Cell):
 
 
 # Copied from transformers.models.detr.modeling_detr.DetrLearnedPositionEmbedding with Detr->TableTransformer
-class TableTransformerLearnedPositionEmbedding(ms.nn.Cell):
+class TableTransformerLearnedPositionEmbedding(mindspore.nn.Cell):
     """
     This module learns positional embeddings up to a fixed maximum size.
     """
@@ -421,7 +412,7 @@ def build_position_encoding(config):
 
 
 # Copied from transformers.models.detr.modeling_detr.DetrAttention with DETR->TABLE_TRANSFORMER,Detr->TableTransformer
-class TableTransformerAttention(ms.nn.Cell):
+class TableTransformerAttention(mindspore.nn.Cell):
     """
     Multi-headed attention from 'Attention Is All You Need' paper.
 
@@ -452,21 +443,21 @@ class TableTransformerAttention(ms.nn.Cell):
         self.q_proj = mint.nn.Linear(embed_dim, embed_dim, bias=bias)
         self.out_proj = mint.nn.Linear(embed_dim, embed_dim, bias=bias)
 
-    def _shape(self, tensor: ms.Tensor, seq_len: int, batch_size: int):
-        return tensor.view(batch_size, seq_len, self.num_heads, self.head_dim).transpose(1, 2).contiguous()
+    def _shape(self, tensor: mindspore.Tensor, seq_len: int, batch_size: int):
+        return tensor.view(batch_size, seq_len, self.num_heads, self.head_dim).transpose(1, 2)
 
-    def with_pos_embed(self, tensor: ms.Tensor, object_queries: Optional[Tensor]):
+    def with_pos_embed(self, tensor: mindspore.Tensor, object_queries: Optional[mindspore.Tensor]):
         return tensor if object_queries is None else tensor + object_queries
 
     def construct(
         self,
-        hidden_states: ms.Tensor,
-        attention_mask: Optional[ms.Tensor] = None,
-        object_queries: Optional[ms.Tensor] = None,
-        key_value_states: Optional[ms.Tensor] = None,
-        spatial_position_embeddings: Optional[ms.Tensor] = None,
+        hidden_states: mindspore.Tensor,
+        attention_mask: Optional[mindspore.Tensor] = None,
+        object_queries: Optional[mindspore.Tensor] = None,
+        key_value_states: Optional[mindspore.Tensor] = None,
+        spatial_position_embeddings: Optional[mindspore.Tensor] = None,
         output_attentions: bool = False,
-    ) -> Tuple[ms.Tensor, Optional[ms.Tensor], Optional[Tuple[ms.Tensor]]]:
+    ) -> Tuple[mindspore.Tensor, Optional[mindspore.Tensor], Optional[Tuple[mindspore.Tensor]]]:
         """Input shape: Batch x Time x Channel"""
         # if key_value_states are provided this layer is used as a cross-attention layer
         # for the decoder
@@ -550,7 +541,7 @@ class TableTransformerAttention(ms.nn.Cell):
         return attn_output, attn_weights_reshaped
 
 
-class TableTransformerEncoderLayer(ms.nn.Cell):
+class TableTransformerEncoderLayer(mindspore.nn.Cell):
     # Copied from transformers.models.detr.modeling_detr.DetrEncoderLayer.__init__ with Detr->TableTransformer
     def __init__(self, config: TableTransformerConfig):
         super().__init__()
@@ -570,18 +561,18 @@ class TableTransformerEncoderLayer(ms.nn.Cell):
 
     def construct(
         self,
-        hidden_states: ms.Tensor,
-        attention_mask: ms.Tensor,
-        object_queries: ms.Tensor = None,
+        hidden_states: mindspore.Tensor,
+        attention_mask: mindspore.Tensor,
+        object_queries: mindspore.Tensor = None,
         output_attentions: bool = False,
     ):
         """
         Args:
-            hidden_states (`torch.FloatTensor`): input to the layer of shape `(batch, seq_len, embed_dim)`
-            attention_mask (`torch.FloatTensor`): attention mask of size
+            hidden_states (`mindspore.Tensor`): input to the layer of shape `(batch, seq_len, embed_dim)`
+            attention_mask (`mindspore.Tensor`): attention mask of size
                 `(batch, 1, target_len, source_len)` where padding elements are indicated by very large negative
                 values.
-            object_queries (`torch.FloatTensor`, *optional*): object queries, to be added to hidden_states.
+            object_queries (`mindspore.Tensor`, *optional*): object queries, to be added to hidden_states.
             output_attentions (`bool`, *optional*):
                 Whether or not to return the attentions tensors of all attention layers. See `attentions` under
                 returned tensors for more detail.
@@ -612,7 +603,7 @@ class TableTransformerEncoderLayer(ms.nn.Cell):
 
         if self.training:
             if mint.isinf(hidden_states).any() or mint.isnan(hidden_states).any():
-                clamp_value = torch.finfo(hidden_states.dtype).max - 1000
+                clamp_value = dtype_to_max(hidden_states.dtype) - 1000
                 hidden_states = mint.clamp(hidden_states, min=-clamp_value, max=clamp_value)
 
         outputs = (hidden_states,)
@@ -623,7 +614,7 @@ class TableTransformerEncoderLayer(ms.nn.Cell):
         return outputs
 
 
-class TableTransformerDecoderLayer(ms.nn.Cell):
+class TableTransformerDecoderLayer(mindspore.nn.Cell):
     # Copied from transformers.models.detr.modeling_detr.DetrDecoderLayer.__init__ with Detr->TableTransformer
     def __init__(self, config: TableTransformerConfig):
         super().__init__()
@@ -651,29 +642,29 @@ class TableTransformerDecoderLayer(ms.nn.Cell):
 
     def construct(
         self,
-        hidden_states: ms.Tensor,
-        attention_mask: Optional[ms.Tensor] = None,
-        object_queries: Optional[ms.Tensor] = None,
-        query_position_embeddings: Optional[ms.Tensor] = None,
-        encoder_hidden_states: Optional[ms.Tensor] = None,
-        encoder_attention_mask: Optional[ms.Tensor] = None,
+        hidden_states: mindspore.Tensor,
+        attention_mask: Optional[mindspore.Tensor] = None,
+        object_queries: Optional[mindspore.Tensor] = None,
+        query_position_embeddings: Optional[mindspore.Tensor] = None,
+        encoder_hidden_states: Optional[mindspore.Tensor] = None,
+        encoder_attention_mask: Optional[mindspore.Tensor] = None,
         output_attentions: Optional[bool] = False,
     ):
         """
         Args:
-            hidden_states (`torch.FloatTensor`): input to the layer of shape `(batch, seq_len, embed_dim)`
-            attention_mask (`torch.FloatTensor`): attention mask of size
+            hidden_states (`mindspore.Tensor`): input to the layer of shape `(batch, seq_len, embed_dim)`
+            attention_mask (`mindspore.Tensor`): attention mask of size
                 `(batch, 1, target_len, source_len)` where padding elements are indicated by very large negative
                 values.
-            object_queries (`torch.FloatTensor`, *optional*):
+            object_queries (`mindspore.Tensor`, *optional*):
                 object queries that are added to the queries and keys
             in the cross-attention layer.
-            query_position_embeddings (`torch.FloatTensor`, *optional*):
+            query_position_embeddings (`mindspore.Tensor`, *optional*):
                 object queries that are added to the queries and keys
             in the self-attention layer.
-            encoder_hidden_states (`torch.FloatTensor`):
+            encoder_hidden_states (`mindspore.Tensor`):
                 cross attention input to the layer of shape `(batch, seq_len, embed_dim)`
-            encoder_attention_mask (`torch.FloatTensor`): encoder attention mask of size
+            encoder_attention_mask (`mindspore.Tensor`): encoder attention mask of size
                 `(batch, 1, target_len, source_len)` where padding elements are indicated by very large negative
                 values.
             output_attentions (`bool`, *optional*):
@@ -744,72 +735,30 @@ class TableTransformerPreTrainedModel(PreTrainedModel):
         std = self.config.init_std
 
         if isinstance(module, TableTransformerLearnedPositionEmbedding):
-            nn.init.uniform_(module.row_embeddings.weight)
-            nn.init.uniform_(module.column_embeddings.weight)
+            module.row_embeddings.weight.set_data(
+                initializer(Uniform(0.0, 1.0), module.row_embeddings.weight.shape, module.row_embeddings.weight.dtype)
+            )
+            module.column_embeddings.weight.set_data(
+                initializer(
+                    Uniform(0.0, 1.0), module.column_embeddings.weight.shape, module.column_embeddings.weight.dtype
+                )
+            )
         if isinstance(module, (mint.nn.Linear, mint.nn.Conv2d, mint.nn.BatchNorm2d)):
-            # Slightly different from the TF version which uses truncated_normal for initialization
-            # cf https://github.com/pytorch/pytorch/pull/5617
-            module.weight.data.normal_(mean=0.0, std=std)
+            module.weight.set_data(
+                initializer(Normal(std, 0.0), module.weight.shape, module.weight.dtype)
+            )
             if module.bias is not None:
-                module.bias.data.zero_()
+                module.bias.set_data(
+                    initializer(Constant(0.0), module.bias.shape, module.bias.dtype)
+                )
         elif isinstance(module, mint.nn.Embedding):
-            module.weight.data.normal_(mean=0.0, std=std)
+            module.weight.set_data(
+                initializer(Normal(std, 0.0), module.weight.shape, module.weight.dtype)
+            )
             if module.padding_idx is not None:
-                module.weight.data[module.padding_idx].zero_()
-
-
-TABLE_TRANSFORMER_START_DOCSTRING = r"""
-    This model inherits from [`PreTrainedModel`]. Check the superclass documentation for the generic methods the
-    library implements for all its model (such as downloading or saving, resizing the input embeddings, pruning heads
-    etc.)
-
-    This model is also a PyTorch [torch.nn.Module](https://pytorch.org/docs/stable/nn.html#torch.nn.Module) subclass.
-    Use it as a regular PyTorch Module and refer to the PyTorch documentation for all matter related to general usage
-    and behavior.
-
-    Parameters:
-        config ([`TableTransformerConfig`]):
-            Model configuration class with all the parameters of the model. Initializing with a config file does not
-            load the weights associated with the model, only the configuration. Check out the
-            [`~PreTrainedModel.from_pretrained`] method to load the model weights.
-"""
-
-TABLE_TRANSFORMER_INPUTS_DOCSTRING = r"""
-    Args:
-        pixel_values (`torch.FloatTensor` of shape `(batch_size, num_channels, height, width)`):
-            Pixel values. Padding will be ignored by default should you provide it.
-
-            Pixel values can be obtained using [`DetrImageProcessor`]. See [`DetrImageProcessor.__call__`] for details.
-
-        pixel_mask (`torch.FloatTensor` of shape `(batch_size, height, width)`, *optional*):
-            Mask to avoid performing attention on padding pixel values. Mask values selected in `[0, 1]`:
-
-            - 1 for pixels that are real (i.e. **not masked**),
-            - 0 for pixels that are padding (i.e. **masked**).
-
-            [What are attention masks?](../glossary#attention-mask)
-
-        decoder_attention_mask (`torch.FloatTensor` of shape `(batch_size, num_queries)`, *optional*):
-            Not used by default. Can be used to mask object queries.
-        encoder_outputs (`tuple(tuple(torch.FloatTensor)`, *optional*):
-            Tuple consists of (`last_hidden_state`, *optional*: `hidden_states`, *optional*: `attentions`)
-            `last_hidden_state` of shape `(batch_size, sequence_length, hidden_size)`, *optional*) is a sequence of
-            hidden-states at the output of the last layer of the encoder. Used in the cross-attention of the decoder.
-        inputs_embeds (`torch.FloatTensor` of shape `(batch_size, sequence_length, hidden_size)`, *optional*):
-            Optionally, instead of passing the flattened feature map (output of the backbone + projection layer), you
-            can choose to directly pass a flattened representation of an image.
-        decoder_inputs_embeds (`torch.FloatTensor` of shape `(batch_size, num_queries, hidden_size)`, *optional*):
-            Optionally, instead of initializing the queries with a tensor of zeros, you can choose to directly pass an
-            embedded representation.
-        output_attentions (`bool`, *optional*):
-            Whether or not to return the attentions tensors of all attention layers. See `attentions` under returned
-            tensors for more detail.
-        output_hidden_states (`bool`, *optional*):
-            Whether or not to return the hidden states of all layers. See `hidden_states` under returned tensors for
-            more detail.
-        return_dict (`bool`, *optional*):
-            Whether or not to return a [`~utils.ModelOutput`] instead of a plain tuple.
-"""
+                module.weight.set_data(
+                    initializer(Constant(0.0), module.weight.shape, module.weight.dtype)
+                )
 
 
 class TableTransformerEncoder(TableTransformerPreTrainedModel):
@@ -833,7 +782,7 @@ class TableTransformerEncoder(TableTransformerPreTrainedModel):
         self.dropout = config.dropout
         self.layerdrop = config.encoder_layerdrop
 
-        self.layers = ms.nn.CellList([TableTransformerEncoderLayer(config) for _ in range(config.encoder_layers)])
+        self.layers = mindspore.nn.CellList([TableTransformerEncoderLayer(config) for _ in range(config.encoder_layers)])
 
         self.layernorm = mint.nn.LayerNorm(config.d_model)
 
@@ -851,10 +800,10 @@ class TableTransformerEncoder(TableTransformerPreTrainedModel):
     ):
         r"""
         Args:
-            inputs_embeds (`torch.FloatTensor` of shape `(batch_size, sequence_length, hidden_size)`):
+            inputs_embeds (`mindspore.Tensor` of shape `(batch_size, sequence_length, hidden_size)`):
                 Flattened feature map (output of the backbone + projection layer) that is passed to the encoder.
 
-            attention_mask (`torch.Tensor` of shape `(batch_size, sequence_length)`, *optional*):
+            attention_mask (`mindspore.Tensor` of shape `(batch_size, sequence_length)`, *optional*):
                 Mask to avoid performing attention on padding pixel features. Mask values selected in `[0, 1]`:
 
                 - 1 for pixel features that are real (i.e. **not masked**),
@@ -862,7 +811,7 @@ class TableTransformerEncoder(TableTransformerPreTrainedModel):
 
                 [What are attention masks?](../glossary#attention-mask)
 
-            object_queries (`torch.FloatTensor` of shape `(batch_size, sequence_length, hidden_size)`):
+            object_queries (`mindspore.Tensor` of shape `(batch_size, sequence_length, hidden_size)`):
                 Position embeddings that are added to the queries and keys in each self-attention layer.
 
             output_attentions (`bool`, *optional*):
@@ -949,7 +898,7 @@ class TableTransformerDecoder(TableTransformerPreTrainedModel):
         self.dropout = config.dropout
         self.layerdrop = config.decoder_layerdrop
 
-        self.layers = ms.nn.CellList([TableTransformerDecoderLayer(config) for _ in range(config.decoder_layers)])
+        self.layers = mindspore.nn.CellList([TableTransformerDecoderLayer(config) for _ in range(config.decoder_layers)])
         # in TABLE_TRANSFORMER, the decoder uses layernorm after the last decoder layer output
         self.layernorm = mint.nn.LayerNorm(config.d_model)
 
@@ -971,29 +920,29 @@ class TableTransformerDecoder(TableTransformerPreTrainedModel):
     ):
         r"""
         Args:
-            inputs_embeds (`torch.FloatTensor` of shape `(batch_size, sequence_length, hidden_size)`):
+            inputs_embeds (`mindspore.Tensor` of shape `(batch_size, sequence_length, hidden_size)`):
                 The query embeddings that are passed into the decoder.
 
-            attention_mask (`torch.Tensor` of shape `(batch_size, sequence_length)`, *optional*):
+            attention_mask (`mindspore.Tensor` of shape `(batch_size, sequence_length)`, *optional*):
                 Mask to avoid performing attention on certain queries. Mask values selected in `[0, 1]`:
 
                 - 1 for queries that are **not masked**,
                 - 0 for queries that are **masked**.
 
                 [What are attention masks?](../glossary#attention-mask)
-            encoder_hidden_states (`torch.FloatTensor` of shape `(batch_size, encoder_sequence_length, hidden_size)`, *optional*):
+            encoder_hidden_states (`mindspore.Tensor` of shape `(batch_size, encoder_sequence_length, hidden_size)`, *optional*):
                 Sequence of hidden-states at the output of the last layer of the encoder. Used in the cross-attention
                 of the decoder.
-            encoder_attention_mask (`torch.LongTensor` of shape `(batch_size, encoder_sequence_length)`, *optional*):
+            encoder_attention_mask (`mindspore.Tensor` of shape `(batch_size, encoder_sequence_length)`, *optional*):
                 Mask to avoid performing cross-attention on padding pixel_values of the encoder. Mask values selected
                 in `[0, 1]`:
 
                 - 1 for pixels that are real (i.e. **not masked**),
                 - 0 for pixels that are padding (i.e. **masked**).
 
-            object_queries (`torch.FloatTensor` of shape `(batch_size, sequence_length, hidden_size)`, *optional*):
+            object_queries (`mindspore.Tensor` of shape `(batch_size, sequence_length, hidden_size)`, *optional*):
                 Object queries that are added to the queries and keys in each cross-attention layer.
-            query_position_embeddings (`torch.FloatTensor` of shape `(batch_size, num_queries, hidden_size)`):
+            query_position_embeddings (`mindspore.Tensor` of shape `(batch_size, num_queries, hidden_size)`):
                 , *optional*): Position embeddings that are added to the values and keys in each self-attention layer.
 
             output_attentions (`bool`, *optional*):
@@ -1048,14 +997,7 @@ class TableTransformerDecoder(TableTransformerPreTrainedModel):
                     continue
 
             if self.gradient_checkpointing and self.training:
-                layer_outputs = self._gradient_checkpointing_func(
-                    decoder_layer.__call__,
-                    hidden_states,
-                    combined_attention_mask,
-                    encoder_hidden_states,
-                    encoder_attention_mask,
-                    None,
-                )
+                raise NotImplementedError("Gradient checkpointing is not yet supported.")
             else:
                 layer_outputs = decoder_layer(
                     hidden_states,
@@ -1105,13 +1047,6 @@ class TableTransformerDecoder(TableTransformerPreTrainedModel):
         )
 
 
-@add_start_docstrings(
-    """
-    The bare Table Transformer Model (consisting of a backbone and encoder-decoder Transformer) outputting raw
-    hidden-states without any specific head on top.
-    """,
-    TABLE_TRANSFORMER_START_DOCSTRING,
-)
 class TableTransformerModel(TableTransformerPreTrainedModel):
     # Copied from transformers.models.detr.modeling_detr.DetrModel.__init__ with Detr->TableTransformer
     def __init__(self, config: TableTransformerConfig):
@@ -1147,20 +1082,18 @@ class TableTransformerModel(TableTransformerPreTrainedModel):
         for name, param in self.backbone.conv_encoder.model.named_parameters():
             param.requires_grad_(True)
 
-    @add_start_docstrings_to_model_forward(TABLE_TRANSFORMER_INPUTS_DOCSTRING)
-    @replace_return_docstrings(output_type=TableTransformerModelOutput, config_class=_CONFIG_FOR_DOC)
     def construct(
         self,
-        pixel_values: ms.Tensor,
-        pixel_mask: Optional[ms.Tensor] = None,
-        decoder_attention_mask: Optional[ms.Tensor] = None,
-        encoder_outputs: Optional[ms.Tensor] = None,
-        inputs_embeds: Optional[ms.Tensor] = None,
-        decoder_inputs_embeds: Optional[ms.Tensor] = None,
+        pixel_values: mindspore.Tensor,
+        pixel_mask: Optional[mindspore.Tensor] = None,
+        decoder_attention_mask: Optional[mindspore.Tensor] = None,
+        encoder_outputs: Optional[mindspore.Tensor] = None,
+        inputs_embeds: Optional[mindspore.Tensor] = None,
+        decoder_inputs_embeds: Optional[mindspore.Tensor] = None,
         output_attentions: Optional[bool] = None,
         output_hidden_states: Optional[bool] = None,
         return_dict: Optional[bool] = None,
-    ) -> Union[Tuple[ms.Tensor], TableTransformerModelOutput]:
+    ) -> Union[Tuple[mindspore.Tensor], TableTransformerModelOutput]:
         r"""
         Returns:
 
@@ -1196,7 +1129,6 @@ class TableTransformerModel(TableTransformerPreTrainedModel):
         return_dict = return_dict if return_dict is not None else self.config.use_return_dict
 
         batch_size, num_channels, height, width = pixel_values.shape
-        device = pixel_values.device
 
         if pixel_mask is None:
             pixel_mask = mint.ones(((batch_size, height, width)), )
@@ -1274,13 +1206,6 @@ class TableTransformerModel(TableTransformerPreTrainedModel):
         )
 
 
-@add_start_docstrings(
-    """
-    Table Transformer Model (consisting of a backbone and encoder-decoder Transformer) with object detection heads on
-    top, for tasks such as COCO detection.
-    """,
-    TABLE_TRANSFORMER_START_DOCSTRING,
-)
 class TableTransformerForObjectDetection(TableTransformerPreTrainedModel):
     # Copied from transformers.models.detr.modeling_detr.DetrForObjectDetection.__init__ with Detr->TableTransformer
     def __init__(self, config: TableTransformerConfig):
@@ -1300,27 +1225,25 @@ class TableTransformerForObjectDetection(TableTransformerPreTrainedModel):
         # Initialize weights and apply final processing
         self.post_init()
 
-    @add_start_docstrings_to_model_forward(TABLE_TRANSFORMER_INPUTS_DOCSTRING)
-    @replace_return_docstrings(output_type=TableTransformerObjectDetectionOutput, config_class=_CONFIG_FOR_DOC)
     def construct(
         self,
-        pixel_values: ms.Tensor,
-        pixel_mask: Optional[ms.Tensor] = None,
-        decoder_attention_mask: Optional[ms.Tensor] = None,
-        encoder_outputs: Optional[ms.Tensor] = None,
-        inputs_embeds: Optional[ms.Tensor] = None,
-        decoder_inputs_embeds: Optional[ms.Tensor] = None,
+        pixel_values: mindspore.Tensor,
+        pixel_mask: Optional[mindspore.Tensor] = None,
+        decoder_attention_mask: Optional[mindspore.Tensor] = None,
+        encoder_outputs: Optional[mindspore.Tensor] = None,
+        inputs_embeds: Optional[mindspore.Tensor] = None,
+        decoder_inputs_embeds: Optional[mindspore.Tensor] = None,
         labels: Optional[List[Dict]] = None,
         output_attentions: Optional[bool] = None,
         output_hidden_states: Optional[bool] = None,
         return_dict: Optional[bool] = None,
-    ) -> Union[Tuple[ms.Tensor], TableTransformerObjectDetectionOutput]:
+    ) -> Union[Tuple[mindspore.Tensor], TableTransformerObjectDetectionOutput]:
         r"""
         labels (`List[Dict]` of len `(batch_size,)`, *optional*):
             Labels for computing the bipartite matching loss. List of dicts, each dictionary containing at least the
             following 2 keys: 'class_labels' and 'boxes' (the class labels and bounding boxes of an image in the batch
-            respectively). The class labels themselves should be a `torch.LongTensor` of len `(number of bounding boxes
-            in the image,)` and the boxes a `torch.FloatTensor` of shape `(number of bounding boxes in the image, 4)`.
+            respectively). The class labels themselves should be a `mindspore.Tensor` of len `(number of bounding boxes
+            in the image,)` and the boxes a `mindspore.Tensor` of shape `(number of bounding boxes in the image, 4)`.
 
         Returns:
 
@@ -1329,7 +1252,7 @@ class TableTransformerForObjectDetection(TableTransformerPreTrainedModel):
         ```python
         >>> from huggingface_hub import hf_hub_download
         >>> from transformers import AutoImageProcessor, TableTransformerForObjectDetection
-        >>> import torch
+        >>> import mindspore
         >>> from PIL import Image
 
         >>> file_path = hf_hub_download(repo_id="nielsr/example-pdf", repo_type="dataset", filename="example_pdf.png")
@@ -1342,7 +1265,7 @@ class TableTransformerForObjectDetection(TableTransformerPreTrainedModel):
         >>> outputs = model(**inputs)
 
         >>> # convert outputs (bounding boxes and class logits) to Pascal VOC format (xmin, ymin, xmax, ymax)
-        >>> target_sizes = torch.tensor([image.size[::-1]])
+        >>> target_sizes = mindspore.Tensor([image.size[::-1]])
         >>> results = image_processor.post_process_object_detection(outputs, threshold=0.9, target_sizes=target_sizes)[
         ...     0
         ... ]
@@ -1411,7 +1334,7 @@ class TableTransformerForObjectDetection(TableTransformerPreTrainedModel):
 
 
 # Copied from transformers.models.detr.modeling_detr.DetrMLPPredictionHead with Detr->TableTransformer,detr->table_transformer
-class TableTransformerMLPPredictionHead(ms.nn.Cell):
+class TableTransformerMLPPredictionHead(mindspore.nn.Cell):
     """
     Very simple multi-layer perceptron (MLP, also called FFN), used to predict the normalized center coordinates,
     height and width of a bounding box w.r.t. an image.
@@ -1424,7 +1347,7 @@ class TableTransformerMLPPredictionHead(ms.nn.Cell):
         super().__init__()
         self.num_layers = num_layers
         h = [hidden_dim] * (num_layers - 1)
-        self.layers = ms.nn.CellList(mint.nn.Linear(n, k) for n, k in zip([input_dim] + h, h + [output_dim]))
+        self.layers = mindspore.nn.CellList(mint.nn.Linear(n, k) for n, k in zip([input_dim] + h, h + [output_dim]))
 
     def construct(self, x):
         for i, layer in enumerate(self.layers):
