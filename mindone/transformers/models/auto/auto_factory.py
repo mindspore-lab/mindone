@@ -697,15 +697,25 @@ def getattribute_from_module(module, attr):
         return getattr(module, attr)
     # Some of the mappings have entries model_type -> object of another model type. In that case we try to grab the
     # object at the top level.
-    transformers_module = importlib.import_module("transformers")
+    try:
+        transformers_module = importlib.import_module("mindone.transformers")
+        if module != transformers_module:
+            try:
+                return getattribute_from_module(transformers_module, attr)
+            except ValueError:
+                raise ValueError(f"Could not find {attr} neither in {module} nor in {transformers_module}!")
+        else:
+            raise ValueError(f"Could not find {attr} in {transformers_module}!")
+    except Exception:
+        transformers_module = importlib.import_module("transformers")
 
-    if module != transformers_module:
-        try:
-            return getattribute_from_module(transformers_module, attr)
-        except ValueError:
-            raise ValueError(f"Could not find {attr} neither in {module} nor in {transformers_module}!")
-    else:
-        raise ValueError(f"Could not find {attr} in {transformers_module}!")
+        if module != transformers_module:
+            try:
+                return getattribute_from_module(transformers_module, attr)
+            except ValueError:
+                raise ValueError(f"Could not find {attr} neither in {module} nor in {transformers_module}!")
+        else:
+            raise ValueError(f"Could not find {attr} in {transformers_module}!")
 
 
 def add_generation_mixin_to_remote_model(model_class):
