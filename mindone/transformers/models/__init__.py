@@ -109,6 +109,8 @@ from . import (
     sam,
     seamless_m4t_v2,
     segformer,
+    sew,
+    sew_d,
     siglip,
     smolvlm,
     speech_to_text,
