@@ -19,19 +19,17 @@
 
 from typing import Callable, Dict, List, Optional, Set, Tuple, Union
 
-import mindspore
-
-from mindspore import nn
-from mindspore.mint.nn import BCEWithLogitsLoss, CrossEntropyLoss, MSELoss
-
-from ...activations import ACT2FN
-from ...modeling_outputs import BaseModelOutput, BaseModelOutputWithPooling, SequenceClassifierOutput
-from ...modeling_utils import ALL_ATTENTION_FUNCTIONS, PreTrainedModel
-from ...mindspore_utils import find_pruneable_heads_and_indices, prune_linear_layer
-from ...utils import logging
-from ....models.utils import trunc_normal_
 from transformers.models.audio_spectrogram_transformer.configuration_audio_spectrogram_transformer import ASTConfig
 
+import mindspore
+from mindspore.mint.nn import BCEWithLogitsLoss, CrossEntropyLoss, MSELoss
+
+from ....models.utils import trunc_normal_
+from ...activations import ACT2FN
+from ...mindspore_utils import find_pruneable_heads_and_indices, prune_linear_layer
+from ...modeling_outputs import BaseModelOutput, BaseModelOutputWithPooling, SequenceClassifierOutput
+from ...modeling_utils import ALL_ATTENTION_FUNCTIONS, MSPreTrainedModel
+from ...utils import logging
 
 logger = logging.get_logger(__name__)
 
@@ -392,7 +390,7 @@ class ASTEncoder(mindspore.nn.Cell):
         )
 
 
-class ASTPreTrainedModel(PreTrainedModel):
+class ASTPreTrainedModel(MSPreTrainedModel):
     """
     An abstract class to handle weights initialization and a simple interface for downloading and loading pretrained
     models.
@@ -406,14 +404,16 @@ class ASTPreTrainedModel(PreTrainedModel):
     _supports_flash_attn_2 = True
 
     # Copied from transformers.models.deit.modeling_deit.DeiTPreTrainedModel._init_weights
-    def _init_weights(self, module: Union[mindspore.mint.nn.Linear, mindspore.mint.nn.Conv2d, mindspore.mint.nn.LayerNorm]) -> None:
+    def _init_weights(
+        self, module: Union[mindspore.mint.nn.Linear, mindspore.mint.nn.Conv2d, mindspore.mint.nn.LayerNorm]
+    ) -> None:
         """Initialize the weights"""
         if isinstance(module, (mindspore.mint.nn.Linear, mindspore.mint.nn.Conv2d)):
             # Upcast the input in `fp32` and cast it back to desired `dtype` to avoid
             # `trunc_normal_cpu` not implemented in `half` issues
-            module.weight.data = trunc_normal_(
-                module.weight.data.to(mindspore.float32), mean=0.0, std=self.config.initializer_range
-            ).to(module.weight.dtype)
+            weight_type = module.weight.dtype
+            trunc_normal_(module.weight.data.to(mindspore.float32), mean=0.0, std=self.config.initializer_range)
+            module.weight = module.weight.to(weight_type)
             if module.bias is not None:
                 module.bias.data.zero_()
         elif isinstance(module, mindspore.mint.nn.LayerNorm):
@@ -498,7 +498,11 @@ class ASTMLPHead(mindspore.nn.Cell):
     def __init__(self, config: ASTConfig):
         super().__init__()
         self.layernorm = mindspore.mint.nn.LayerNorm(config.hidden_size, eps=config.layer_norm_eps)
-        self.dense = mindspore.mint.nn.Linear(config.hidden_size, config.num_labels) if config.num_labels > 0 else mindspore.mint.nn.Identity()
+        self.dense = (
+            mindspore.mint.nn.Linear(config.hidden_size, config.num_labels)
+            if config.num_labels > 0
+            else mindspore.mint.nn.Identity()
+        )
 
     def construct(self, hidden_state):
         hidden_state = self.layernorm(hidden_state)

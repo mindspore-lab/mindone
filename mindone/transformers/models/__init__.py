@@ -199,6 +199,7 @@ from . import (
     vivit,
     wav2vec2,
     x_clip,
+    wavlm,
     xlm_roberta,
     yolos,
     zamba,
