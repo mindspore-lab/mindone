@@ -113,6 +113,7 @@ from . import (
     kosmos2,
     layoutlm,
     layoutlmv3,
+    jamba,
     levit,
     lilt,
     llama,
