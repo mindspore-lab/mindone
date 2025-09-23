@@ -330,7 +330,7 @@ class StableDiffusionXLControlNetLoopDenoiser(ModularPipelineBlocks):
 
     def __call__(self, components: StableDiffusionXLModularPipeline, block_state: BlockState, i: int, t: int):
         extra_controlnet_kwargs = self.prepare_extra_kwargs(
-            components.controlnet.forward, **block_state.controlnet_kwargs
+            components.controlnet.construct, **block_state.controlnet_kwargs
         )
 
         #  Map the keys we'll see on each `guider_state_batch` (e.g. guider_state_batch.prompt_embeds)

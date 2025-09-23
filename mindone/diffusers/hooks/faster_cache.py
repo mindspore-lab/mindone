@@ -263,7 +263,7 @@ class FasterCacheDenoiserHook(ModelHook):
         _, cond = input.chunk(2, dim=0)
         return cond
 
-    def new_forward(self, module: ms.nn.Cell, *args, **kwargs) -> Any:
+    def new_construct(self, module: ms.nn.Cell, *args, **kwargs) -> Any:
         # Split the unconditional and conditional inputs. We only want to infer the conditional branch if the
         # requirements for skipping the unconditional branch are met as described in the paper.
         # We skip the unconditional branch only if the following conditions are met:
@@ -295,7 +295,7 @@ class FasterCacheDenoiserHook(ModelHook):
                     for k, v in kwargs.items()
                 }
 
-        output = self.fn_ref.original_forward(*args, **kwargs)
+        output = self.fn_ref.original_construct(*args, **kwargs)
 
         if self.is_guidance_distilled:
             self.state.iteration += 1
@@ -407,7 +407,7 @@ class FasterCacheBlockHook(ModelHook):
             t_output = t_output[batch_size:]
         return t_output + (t_output - t_2_output) * weight
 
-    def new_forward(self, module: ms.nn.Cell, *args, **kwargs) -> Any:
+    def new_construct(self, module: ms.nn.Cell, *args, **kwargs) -> Any:
         batch_size = [
             *[arg.size(0) for arg in args if ops.is_tensor(arg)],
             *[v.size(0) for v in kwargs.values() if ops.is_tensor(v)],
@@ -454,7 +454,7 @@ class FasterCacheBlockHook(ModelHook):
                     output += (result,)
         else:
             logger.debug("FasterCache - Computing attention")
-            output = self.fn_ref.original_forward(*args, **kwargs)
+            output = self.fn_ref.original_construct(*args, **kwargs)
 
         # Note that the following condition for getting hidden_states should suffice since Diffusers blocks either return
         # a single hidden_states tensor, or a tuple of (hidden_states, encoder_hidden_states) tensors. We need to handle
@@ -502,7 +502,7 @@ def apply_faster_cache(module: ms.nn.Cell, config: FasterCacheConfig) -> None:
     >>> import mindspore as ms
     >>> from mindone.diffusers import CogVideoXPipeline, FasterCacheConfig, apply_faster_cache
 
-    >>> pipe = CogVideoXPipeline.from_pretrained("THUDM/CogVideoX-5b", mindspore_dtype=ms.bfloat16)
+    >>> pipe = CogVideoXPipeline.from_pretrained("THUDM/CogVideoX-5b", subfolder="transformer", mindspore_dtype=ms.bfloat16)
 
     >>> config = FasterCacheConfig(
     ...     spatial_attention_block_skip_range=2,
@@ -569,7 +569,7 @@ def apply_faster_cache(module: ms.nn.Cell, config: FasterCacheConfig) -> None:
 
     _apply_faster_cache_on_denoiser(module, config)
 
-    for name, submodule in module.named_modules():
+    for name, submodule in module.cells_and_names():
         if not isinstance(submodule, _ATTENTION_CLASSES):
             continue
         if any(re.search(identifier, name) is not None for identifier in _TRANSFORMER_BLOCK_IDENTIFIERS):

@@ -27,6 +27,7 @@ from ...configuration_utils import ConfigMixin, register_to_config
 from ...loaders import FluxTransformer2DLoadersMixin, FromOriginalModelMixin, PeftAdapterMixin
 from ...utils import logging
 from ..attention import AttentionMixin, FeedForward
+from ..cache_utils import CacheMixin
 from ..embeddings import FluxPosEmbed, PixArtAlphaTextProjection, Timesteps, get_timestep_embedding
 from ..modeling_outputs import Transformer2DModelOutput
 from ..modeling_utils import ModelMixin
@@ -363,6 +364,7 @@ class ChromaTransformer2DModel(
     PeftAdapterMixin,
     FromOriginalModelMixin,
     FluxTransformer2DLoadersMixin,
+    CacheMixin,
     AttentionMixin,
 ):
     """

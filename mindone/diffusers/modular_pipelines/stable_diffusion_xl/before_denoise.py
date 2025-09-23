@@ -750,10 +750,12 @@ class StableDiffusionXLInpaintPrepareLatentsStep(ModularPipelineBlocks):
             # if strength is 1. then initialise the latents to noise, else initial to image + noise
             latents = noise if is_strength_max else components.scheduler.add_noise(image_latents, noise, timestep)
             # if pure noise then scale the initial latents by the  Scheduler's init sigma
-            latents = latents * components.scheduler.init_noise_sigma if is_strength_max else latents
+            # FIXME: In MindSpore, Tensor(float16) * Tensor(float32 scalar) → float32, but in PyTorch the result stays float16.
+            latents = (latents * components.scheduler.init_noise_sigma).to(dtype) if is_strength_max else latents
         elif add_noise:
             noise = latents
-            latents = noise * components.scheduler.init_noise_sigma
+            # FIXME: In MindSpore, Tensor(float16) * Tensor(float32 scalar) → float32, but in PyTorch the result stays float16.
+            latents = (noise * components.scheduler.init_noise_sigma).to(dtype)
         else:
             noise = randn_tensor(shape, generator=generator, dtype=dtype)
             latents = image_latents
@@ -1001,6 +1003,7 @@ class StableDiffusionXLPrepareLatentsStep(ModularPipelineBlocks):
             latents = latents
 
         # scale the initial noise by the standard deviation required by the scheduler
+        # FIXME: In MindSpore, Tensor(float16) * Tensor(float32 scalar) → float32, but in PyTorch the result stays float16.
         latents = (latents * comp.scheduler.init_noise_sigma).to(dtype)
         return latents
 

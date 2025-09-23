@@ -50,7 +50,7 @@ _GO_LC_SUPPORTED_PYTORCH_LAYERS = (
 
 
 def _get_submodule_from_fqn(module: ms.nn.Cell, fqn: str) -> Optional[ms.nn.Cell]:
-    for submodule_name, submodule in module.named_modules():
+    for submodule_name, submodule in module.cells_and_names():
         if submodule_name == fqn:
             return submodule
     return None

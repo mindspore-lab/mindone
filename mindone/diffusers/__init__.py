@@ -36,6 +36,7 @@ _import_structure = {
         "apply_faster_cache",
         "apply_first_block_cache",
         "apply_layer_skip",
+        "apply_layerwise_casting",
         "apply_pyramid_attention_broadcast",
     ],
     "loaders": ["FromOriginalModelMixin"],
@@ -126,6 +127,7 @@ _import_structure = {
         "UVit2DModel",
         "VQModel",
         "WanTransformer3DModel",
+        "WanVACETransformer3DModel",
     ],
     "optimization": [
         "get_constant_schedule",
@@ -344,6 +346,7 @@ _import_structure = {
         "VisualClozePipeline",
         "WanImageToVideoPipeline",
         "WanPipeline",
+        "WanVACEPipeline",
         "WanVideoToVideoPipeline",
         "WuerstchenCombinedPipeline",
         "WuerstchenDecoderPipeline",
@@ -418,6 +421,7 @@ if TYPE_CHECKING:
         apply_faster_cache,
         apply_first_block_cache,
         apply_layer_skip,
+        apply_layerwise_casting,
         apply_pyramid_attention_broadcast,
     )
     from .models import (
@@ -495,6 +499,7 @@ if TYPE_CHECKING:
         UVit2DModel,
         VQModel,
         WanTransformer3DModel,
+        WanVACETransformer3DModel,
     )
     from .modular_pipelines import (
         ComponentsManager,
@@ -725,6 +730,7 @@ if TYPE_CHECKING:
         VisualClozePipeline,
         WanImageToVideoPipeline,
         WanPipeline,
+        WanVACEPipeline,
         WanVideoToVideoPipeline,
         WuerstchenCombinedPipeline,
         WuerstchenDecoderPipeline,

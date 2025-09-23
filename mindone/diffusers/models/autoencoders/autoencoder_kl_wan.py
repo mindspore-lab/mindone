@@ -15,6 +15,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import math
 from typing import List, Optional, Tuple, Union
 
 import numpy as np
@@ -110,22 +111,22 @@ class DupUp3D(nn.Cell):
     def construct(self, x: ms.Tensor, first_chunk=False) -> ms.Tensor:
         x = x.repeat_interleave(self.repeats, dim=1)
         x = x.view(
-            x.size(0),
+            x.shape[0],
             self.out_channels,
             self.factor_t,
             self.factor_s,
             self.factor_s,
-            x.size(2),
-            x.size(3),
-            x.size(4),
+            x.shape[2],
+            x.shape[3],
+            x.shape[4],
         )
         x = x.permute(0, 1, 5, 2, 6, 3, 7, 4).contiguous()
         x = x.view(
-            x.size(0),
+            x.shape[0],
             self.out_channels,
-            x.size(2) * self.factor_t,
-            x.size(4) * self.factor_s,
-            x.size(6) * self.factor_s,
+            x.shape[2] * self.factor_t,
+            x.shape[4] * self.factor_s,
+            x.shape[6] * self.factor_s,
         )
         if first_chunk:
             x = x[:, :, self.factor_t - 1 :, :, :]
@@ -419,9 +420,20 @@ class WanAttentionBlock(nn.Cell):
         q, k, v = qkv.chunk(3, dim=-1)
 
         # apply attention
-        x = ops.operations.nn_ops.FlashAttentionScore(1, input_layout="BNSD")(
-            q.to(ms.float16), k.to(ms.float16), v.to(ms.float16), None, None, None, None
-        )[3].to(q.dtype)
+        # FIXME: aclnnFlashAttentionScore only support head_dim <= 768
+        if q.shape[-1] <= 768:
+            x = ops.operations.nn_ops.FlashAttentionScore(1, input_layout="BNSD")(
+                q.to(ms.float16), k.to(ms.float16), v.to(ms.float16), None, None, None, None
+            )[3].to(q.dtype)
+        else:
+            scale_factor = 1 / math.sqrt(q.shape[-1])
+            attn_bias = mint.zeros((q.shape[-2], k.shape[-2]), dtype=q.dtype)
+
+            attn_weight = mint.matmul(q, k.swapaxes(-2, -1)) * scale_factor
+            attn_weight += attn_bias
+            attn_weight = mint.softmax(attn_weight, dim=-1)
+            attn_weight = ops.dropout(attn_weight, p=0.0, training=True)
+            x = mint.matmul(attn_weight, v)
 
         x = x.squeeze(1).permute(0, 2, 1).reshape(batch_size * time, channels, height, width)
 
@@ -552,7 +564,7 @@ class WanEncoder3d(nn.Cell):
         scale = 1.0
 
         # init block
-        self.conv_in = WanCausalConv3d(3, dims[0], 3, padding=1)
+        self.conv_in = WanCausalConv3d(in_channels, dims[0], 3, padding=1)
 
         # downsample blocks
         self.down_blocks = nn.CellList([])

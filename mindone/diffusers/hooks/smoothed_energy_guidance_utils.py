@@ -65,7 +65,7 @@ class SmoothedEnergyGuidanceHook(ModelHook):
         self.blur_sigma = blur_sigma
         self.blur_threshold_inf = blur_threshold_inf
 
-    def post_forward(self, module: ms.nn.Cell, output: ms.Tensor) -> ms.Tensor:
+    def post_construct(self, module: ms.nn.Cell, output: ms.Tensor) -> ms.Tensor:
         # Copied from https://github.com/SusungHong/SEG-SDXL/blob/cf8256d640d5373541cfea3b3b6caf93272cf986/pipeline_seg.py#L172C31-L172C102
         kernel_size = math.ceil(6 * self.blur_sigma) + 1 - math.ceil(6 * self.blur_sigma) % 2
         smoothed_output = _gaussian_blur_2d(output, kernel_size, self.blur_sigma, self.blur_threshold_inf)

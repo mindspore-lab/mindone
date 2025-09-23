@@ -227,7 +227,8 @@ class ComponentsManager:
             if components_with_same_load_id:
                 existing = ", ".join(components_with_same_load_id)
                 logger.warning(
-                    f"ComponentsManager: adding component '{component_id}', but it has duplicate load_id '{component._diffusers_load_id}' with existing components: {existing}. "
+                    f"ComponentsManager: adding component '{component_id}', "
+                    f"but it has duplicate load_id '{component._diffusers_load_id}' with existing components: {existing}. "
                     f"To remove a duplicate, call `components_manager.remove('<component_id>')`."
                 )
 

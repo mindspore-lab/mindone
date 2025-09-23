@@ -115,7 +115,7 @@ def attention_score_skip_function_mode():
 
     ```python
     >>> with attention_score_skip_mode():
-    >>> ... output = self.fn_ref.original_forward(*args, **kwargs)
+    >>> ... output = self.fn_ref.original_construct(*args, **kwargs)
     ```
     """
     global _original_scaled_dot_product_attention
@@ -132,19 +132,19 @@ class AttentionProcessorSkipHook(ModelHook):
         self.skip_attention_scores = skip_attention_scores
         self.dropout = dropout
 
-    def new_forward(self, module: ms.nn.Cell, *args, **kwargs):
+    def new_construct(self, module: ms.nn.Cell, *args, **kwargs):
         if self.skip_attention_scores:
             if not math.isclose(self.dropout, 1.0):
                 raise ValueError(
                     "Cannot set `skip_attention_scores` to True when `dropout` is not 1.0. Please set `dropout` to 1.0."
                 )
             with attention_score_skip_function_mode():
-                output = self.fn_ref.original_forward(*args, **kwargs)
+                output = self.fn_ref.original_construct(*args, **kwargs)
         else:
             if math.isclose(self.dropout, 1.0):
                 output = self.skip_processor_output_fn(module, *args, **kwargs)
             else:
-                output = self.fn_ref.original_forward(*args, **kwargs)
+                output = self.fn_ref.original_construct(*args, **kwargs)
                 output = mint.nn.functional.dropout(output, p=self.dropout)
         return output
 
@@ -154,7 +154,7 @@ class FeedForwardSkipHook(ModelHook):
         super().__init__()
         self.dropout = dropout
 
-    def new_forward(self, module: ms.nn.Cell, *args, **kwargs):
+    def new_construct(self, module: ms.nn.Cell, *args, **kwargs):
         if math.isclose(self.dropout, 1.0):
             output = kwargs.get("hidden_states", None)
             if output is None:
@@ -162,7 +162,7 @@ class FeedForwardSkipHook(ModelHook):
             if output is None and len(args) > 0:
                 output = args[0]
         else:
-            output = self.fn_ref.original_forward(*args, **kwargs)
+            output = self.fn_ref.original_construct(*args, **kwargs)
             output = mint.nn.functional.dropout(output, p=self.dropout)
         return output
 
@@ -176,7 +176,7 @@ class TransformerBlockSkipHook(ModelHook):
         self._metadata = TransformerBlockRegistry.get(unwrap_module(module).__class__)
         return module
 
-    def new_forward(self, module: ms.nn.Cell, *args, **kwargs):
+    def new_construct(self, module: ms.nn.Cell, *args, **kwargs):
         if math.isclose(self.dropout, 1.0):
             original_hidden_states = self._metadata._get_parameter_from_args_kwargs("hidden_states", args, kwargs)
             if self._metadata.return_encoder_hidden_states_index is None:
@@ -187,7 +187,7 @@ class TransformerBlockSkipHook(ModelHook):
                 )
                 output = (original_hidden_states, original_encoder_hidden_states)
         else:
-            output = self.fn_ref.original_forward(*args, **kwargs)
+            output = self.fn_ref.original_construct(*args, **kwargs)
             output = mint.nn.functional.dropout(output, p=self.dropout)
         return output
 
@@ -205,11 +205,12 @@ def apply_layer_skip(module: ms.nn.Cell, config: LayerSkipConfig) -> None:
     Example:
 
     ```python
-    >>> from mindone.diffusers import apply_layer_skip_hook, CogVideoXTransformer3DModel, LayerSkipConfig
+    >>> import mindspore as ms
+    >>> from mindone.diffusers import apply_layer_skip, CogVideoXTransformer3DModel, LayerSkipConfig
 
-    >>> transformer = CogVideoXTransformer3DModel.from_pretrained("THUDM/CogVideoX-5b", mindspore_dtype=ms.bfloat16)
-    >>> config = LayerSkipConfig(layer_index=[10, 20], fqn="transformer_blocks")
-    >>> apply_layer_skip_hook(transformer, config)
+    >>> transformer = CogVideoXTransformer3DModel.from_pretrained("THUDM/CogVideoX-5b", subfolder="transformer", mindspore_dtype=ms.bfloat16)
+    >>> config = LayerSkipConfig(indices=[10, 20], fqn="transformer_blocks")
+    >>> apply_layer_skip(transformer, config)
     ```
     """
     _apply_layer_skip_hook(module, config)
@@ -259,7 +260,7 @@ def _apply_layer_skip_hook(module: ms.nn.Cell, config: LayerSkipConfig, name: Op
             registry.register_hook(hook, name)
 
         elif config.skip_attention or config.skip_attention_scores:
-            for submodule_name, submodule in block.named_modules():
+            for submodule_name, submodule in block.cells_and_names():
                 if isinstance(submodule, _ATTENTION_CLASSES) and not submodule.is_cross_attention:
                     logger.debug(f"Applying AttentionProcessorSkipHook to '{config.fqn}.{i}.{submodule_name}'")
                     output_fn = AttentionProcessorRegistry.get(submodule.processor.__class__).skip_processor_output_fn
@@ -268,7 +269,7 @@ def _apply_layer_skip_hook(module: ms.nn.Cell, config: LayerSkipConfig, name: Op
                     registry.register_hook(hook, name)
 
         if config.skip_ff:
-            for submodule_name, submodule in block.named_modules():
+            for submodule_name, submodule in block.cells_and_names():
                 if isinstance(submodule, _FEEDFORWARD_CLASSES):
                     logger.debug(f"Applying FeedForwardSkipHook to '{config.fqn}.{i}.{submodule_name}'")
                     registry = HookRegistry.check_if_exists_or_initialize(submodule)

@@ -30,7 +30,7 @@ ComponentSpec(name='guider', type_hint=<class 'diffusers.guiders.classifier_free
 Switch to a different guider by passing the new guider to [`update_components`](https://mindspore-lab.github.io/mindone/latest/diffusers/api/modular_diffusers/pipeline_blocks#mindone.diffusers.modular_pipelines.ModularPipelineBlocks.update_components).
 
 !!! tip
-  Changing guiders will return text letting you know you're changing the guider type.
+    Changing guiders will return text letting you know you're changing the guider type.
 > ```bash
 > ModularPipeline.update_components: adding guider with new type: PerturbedAttentionGuidance, previous type: ClassifierFreeGuidance
 > ```
@@ -151,7 +151,7 @@ Edit the `modular_model_index.json` file and add a loading specification for the
 Change the [`default_creation_method`](https://mindspore-lab.github.io/mindone/latest/diffusers/api/modular_diffusers/component_spec#mindone.diffusers.modular_pipelines.ComponentSpec.default_creation_method) to `from_pretrained` and use [`update_components`](https://mindspore-lab.github.io/mindone/latest/diffusers/api/modular_diffusers/pipeline_blocks#mindone.diffusers.modular_pipelines.ModularPipelineBlocks.update_components) to update the guider and component specifications as well as the pipeline config.
 
 !!! tip
-  Changing the creation method will return text letting you know you're changing the creation type to `from_pretrained`.
+    Changing the creation method will return text letting you know you're changing the creation type to `from_pretrained`.
 > ```bash
 > ModularPipeline.update_components: changing the default_creation_method of guider from from_config to from_pretrained.
 > ```

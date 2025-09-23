@@ -26,6 +26,7 @@ from ...configuration_utils import ConfigMixin, register_to_config
 from ...loaders import FromOriginalModelMixin, PeftAdapterMixin
 from ...utils import deprecate, logging
 from ..attention import AttentionMixin, AttentionModuleMixin, FeedForward
+from ..cache_utils import CacheMixin
 from ..embeddings import PixArtAlphaTextProjection, TimestepEmbedding, Timesteps, get_1d_rotary_pos_embed
 from ..layers_compat import unflatten
 from ..modeling_outputs import Transformer2DModelOutput
@@ -369,7 +370,7 @@ class WanTimeTextImageEmbedding(nn.Cell):
     ):
         timestep = self.timesteps_proj(timestep)
         if timestep_seq_len is not None:
-            timestep = unflatten(timestep, (-1, timestep_seq_len))
+            timestep = unflatten(timestep, 0, (-1, timestep_seq_len))
 
         # time_embedder_dtype = next(iter(self.time_embedder.get_parameters())).dtype
         # get_parameters() is not supported in graph mode
@@ -545,7 +546,9 @@ class WanTransformerBlock(nn.Cell):
         return hidden_states
 
 
-class WanTransformer3DModel(ModelMixin, ConfigMixin, PeftAdapterMixin, FromOriginalModelMixin, AttentionMixin):
+class WanTransformer3DModel(
+    ModelMixin, ConfigMixin, PeftAdapterMixin, FromOriginalModelMixin, CacheMixin, AttentionMixin
+):
     r"""
     A Transformer model for video-like data used in the Wan model.
 

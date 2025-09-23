@@ -26,6 +26,7 @@ from ...loaders import PeftAdapterMixin
 from ...utils import logging
 from ..attention import FeedForward
 from ..attention_processor import Attention
+from ..cache_utils import CacheMixin
 from ..embeddings import CogView3CombinedTimestepSizeEmbeddings
 from ..modeling_outputs import Transformer2DModelOutput
 from ..modeling_utils import ModelMixin
@@ -657,7 +658,7 @@ class CogView4AdaLayerNormContinuous(nn.Cell):
         return x
 
 
-class CogView4Transformer2DModel(ModelMixin, ConfigMixin, PeftAdapterMixin):
+class CogView4Transformer2DModel(ModelMixin, ConfigMixin, PeftAdapterMixin, CacheMixin):
     r"""
     Args:
         patch_size (`int`, defaults to `2`):

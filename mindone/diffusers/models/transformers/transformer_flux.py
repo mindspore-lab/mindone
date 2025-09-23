@@ -25,6 +25,7 @@ from ...configuration_utils import ConfigMixin, register_to_config
 from ...loaders import FluxTransformer2DLoadersMixin, FromOriginalModelMixin, PeftAdapterMixin
 from ...utils import logging
 from ..attention import AttentionMixin, AttentionModuleMixin, FeedForward
+from ..cache_utils import CacheMixin
 from ..embeddings import (
     CombinedTimestepGuidanceTextProjEmbeddings,
     CombinedTimestepTextProjEmbeddings,
@@ -604,6 +605,7 @@ class FluxTransformer2DModel(
     PeftAdapterMixin,
     FromOriginalModelMixin,
     FluxTransformer2DLoadersMixin,
+    CacheMixin,
     AttentionMixin,
 ):
     """

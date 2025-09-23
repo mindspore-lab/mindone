@@ -27,6 +27,7 @@ from ...loaders import PeftAdapterMixin
 from ...utils import logging
 from ..attention import FeedForward
 from ..attention_processor import Attention, AttentionProcessor
+from ..cache_utils import CacheMixin
 from ..embeddings import (
     CombinedTimestepTextProjEmbeddings,
     PixArtAlphaTextProjection,
@@ -811,7 +812,7 @@ class HunyuanVideoTokenReplaceTransformerBlock(nn.Cell):
         return hidden_states, encoder_hidden_states
 
 
-class HunyuanVideoTransformer3DModel(ModelMixin, ConfigMixin, PeftAdapterMixin, FromOriginalModelMixin):
+class HunyuanVideoTransformer3DModel(ModelMixin, ConfigMixin, PeftAdapterMixin, FromOriginalModelMixin, CacheMixin):
     r"""
     A Transformer model for video-like data used in [HunyuanVideo](https://huggingface.co/tencent/HunyuanVideo).
 

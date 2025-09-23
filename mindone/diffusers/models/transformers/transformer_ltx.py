@@ -27,6 +27,7 @@ from ...configuration_utils import ConfigMixin, register_to_config
 from ...loaders import FromOriginalModelMixin, PeftAdapterMixin
 from ...utils import deprecate, logging
 from ..attention import AttentionMixin, AttentionModuleMixin, FeedForward
+from ..cache_utils import CacheMixin
 from ..embeddings import PixArtAlphaTextProjection
 from ..layers_compat import unflatten
 from ..modeling_outputs import Transformer2DModelOutput
@@ -414,7 +415,9 @@ class LTXVideoTransformerBlock(nn.Cell):
         return hidden_states
 
 
-class LTXVideoTransformer3DModel(ModelMixin, ConfigMixin, AttentionMixin, FromOriginalModelMixin, PeftAdapterMixin):
+class LTXVideoTransformer3DModel(
+    ModelMixin, ConfigMixin, AttentionMixin, FromOriginalModelMixin, PeftAdapterMixin, CacheMixin
+):
     r"""
     A Transformer model for video-like data used in [LTX](https://huggingface.co/Lightricks/LTX-Video).
 

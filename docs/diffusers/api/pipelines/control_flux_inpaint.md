@@ -81,4 +81,4 @@ make_image_grid([image, control_image, mask_image, output.resize(image.size)], r
 
 ::: mindone.diffusers.FluxControlInpaintPipeline
 
-::: mindone.diffusers.pipeline_output.FluxPipelineOutput
+::: mindone.diffusers.pipelines.flux.pipeline_output.FluxPipelineOutput

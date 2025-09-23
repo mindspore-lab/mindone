@@ -152,7 +152,7 @@ class PyramidAttentionBroadcastHook(ModelHook):
         self.state = PyramidAttentionBroadcastState()
         return module
 
-    def new_forward(self, module: ms.nn.Cell, *args, **kwargs) -> Any:
+    def new_construct(self, module: ms.nn.Cell, *args, **kwargs) -> Any:
         is_within_timestep_range = (
             self.timestep_skip_range[0] < self.current_timestep_callback() < self.timestep_skip_range[1]
         )
@@ -164,7 +164,7 @@ class PyramidAttentionBroadcastHook(ModelHook):
         )
 
         if should_compute_attention:
-            output = self.fn_ref.original_forward(*args, **kwargs)
+            output = self.fn_ref.original_construct(*args, **kwargs)
         else:
             output = self.state.cache
 

@@ -1220,7 +1220,10 @@ def apply_rotary_emb(
 
         if use_real_unbind_dim == -1:
             # Used for flux, cogvideox, hunyuan-dit
-            x_real, x_imag = x.reshape(*x.shape[:-1], -1, 2).unbind(-1)  # [B, H, S, D//2]
+            # x_real, x_imag = x.reshape(*x.shape[:-1], -1, 2).unbind(-1)  # [B, H, S, D//2]
+            # FIXME: Modified to use mint.unbind for Flux training under JIT.
+            #        Works but may trigger many backend warnings.
+            x_real, x_imag = mint.unbind(x.reshape(*x.shape[:-1], -1, 2), -1)  # [B, H, S, D//2]
             x_rotated = mint.stack([-x_imag, x_real], dim=-1).flatten(start_dim=3)
         elif use_real_unbind_dim == -2:
             # Used for Stable Audio, OmniGen, CogView4 and Cosmos

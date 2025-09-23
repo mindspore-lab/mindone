@@ -51,7 +51,8 @@ class LayerwiseCastingHook(ModelHook):
         self.non_blocking = non_blocking
 
     def initialize_hook(self, module: ms.nn.Cell):
-        module.to(dtype=self.storage_dtype)
+        for p in module.get_parameters():
+            p.set_dtype(self.storage_dtype)
         return module
 
     def deinitalize_hook(self, module: ms.nn.Cell):
@@ -62,11 +63,11 @@ class LayerwiseCastingHook(ModelHook):
             "be re-initialized and loaded in the original dtype."
         )
 
-    def pre_forward(self, module: ms.nn.Cell, *args, **kwargs):
+    def pre_construct(self, module: ms.nn.Cell, *args, **kwargs):
         module.to(dtype=self.compute_dtype)
         return args, kwargs
 
-    def post_forward(self, module: ms.nn.Cell, output):
+    def post_construct(self, module: ms.nn.Cell, output):
         module.to(dtype=self.storage_dtype)
         return output
 
@@ -92,9 +93,9 @@ class PeftInputAutocastDisableHook(ModelHook):
                LayerwiseCastingHook. This will be a lossy operation and result in poorer generation quality.
     """
 
-    def new_forward(self, module: ms.nn.Cell, *args, **kwargs):
+    def new_construct(self, module: ms.nn.Cell, *args, **kwargs):
         with disable_input_dtype_casting(module):
-            return self.fn_ref.original_forward(*args, **kwargs)
+            return self.fn_ref.original_construct(*args, **kwargs)
 
 
 def apply_layerwise_casting(
@@ -113,7 +114,7 @@ def apply_layerwise_casting(
 
     ```python
     >>> import mindspore as ms
-    >>> from mindone.diffusers import CogVideoXTransformer3DModel
+    >>> from mindone.diffusers import CogVideoXTransformer3DModel, apply_layerwise_casting
 
     >>> transformer = CogVideoXTransformer3DModel.from_pretrained(
     ...     model_id, subfolder="transformer", mindspore_dtype=ms.bfloat16
@@ -187,7 +188,7 @@ def _apply_layerwise_casting(
         apply_layerwise_casting_hook(module, storage_dtype, compute_dtype, non_blocking)
         return
 
-    for name, submodule in module.named_children():
+    for name, submodule in module.name_cells().items():
         layer_name = f"{_prefix}.{name}" if _prefix else name
         _apply_layerwise_casting(
             submodule,
@@ -222,7 +223,7 @@ def apply_layerwise_casting_hook(
 
 
 def _is_layerwise_casting_active(module: ms.nn.Cell) -> bool:
-    for submodule in module.modules():
+    for _, submodule in module.name_cells().items():
         if (
             hasattr(submodule, "_diffusers_hook")
             and submodule._diffusers_hook.get_hook(_LAYERWISE_CASTING_HOOK) is not None
@@ -234,7 +235,7 @@ def _is_layerwise_casting_active(module: ms.nn.Cell) -> bool:
 def _disable_peft_input_autocast(module: ms.nn.Cell) -> None:
     if not _SHOULD_DISABLE_PEFT_INPUT_AUTOCAST:
         return
-    for submodule in module.modules():
+    for _, submodule in module.name_cells().items():
         if isinstance(submodule, BaseTunerLayer) and _is_layerwise_casting_active(submodule):
             registry = HookRegistry.check_if_exists_or_initialize(submodule)
             hook = PeftInputAutocastDisableHook()

@@ -214,7 +214,7 @@ class StableDiffusionXLAutoDenoiseStep(AutoPipelineBlocks):
         return (
             "Denoise step that iteratively denoise the latents. "
             "This is a auto pipeline block that works for text2img, img2img and inpainting tasks. And can be used with or without controlnet."
-            " - `StableDiffusionXLAutoControlNetDenoiseStep` (controlnet_denoise) is used when controlnet_cond is provided (support controlnet withtext2img, img2img and inpainting tasks)."
+            " - `StableDiffusionXLAutoControlNetDenoiseStep` (controlnet_denoise) is used when controlnet_cond is provided (support controlnet withtext2img, img2img and inpainting tasks)."  # noqa
             " - `StableDiffusionXLInpaintDenoiseStep` (inpaint_denoise) is used when mask is provided (support inpainting tasks)."
             " - `StableDiffusionXLDenoiseStep` (denoise) is used when neither mask nor controlnet_cond are provided (support text2img and img2img tasks)."
         )

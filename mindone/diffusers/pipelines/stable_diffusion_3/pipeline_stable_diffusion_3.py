@@ -256,7 +256,7 @@ class StableDiffusion3Pipeline(DiffusionPipeline, SD3LoraLoaderMixin, FromSingle
                 f" {max_sequence_length} tokens: {removed_text}"
             )
 
-        prompt_embeds = self.text_encoder_3(ms.Tensor.from_numpy(text_input_ids))[0]
+        prompt_embeds = self.text_encoder_3(ms.Tensor.from_numpy(text_input_ids), return_dict=False)[0]
 
         dtype = self.text_encoder_3.dtype
         prompt_embeds = prompt_embeds.to(dtype=dtype)

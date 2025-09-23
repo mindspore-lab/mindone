@@ -85,7 +85,7 @@ class StableDiffusionXLDecodeStep(ModularPipelineBlocks):
 
             if block_state.needs_upcasting:
                 self.upcast_vae(components)
-                latents = latents.to(next(iter(components.vae.post_quant_conv.parameters())).dtype)
+                latents = latents.to(next(iter(components.vae.post_quant_conv.get_parameters())).dtype)
 
             # unscale/denormalize the latents
             # denormalize with the mean and std if available and not None

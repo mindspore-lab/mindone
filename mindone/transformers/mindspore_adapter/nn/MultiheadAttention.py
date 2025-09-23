@@ -221,7 +221,7 @@ def multi_head_attention_forward(
 
     if attn_mask is not None and attn_mask.dtype == mstype.bool_:
         new_attn_mask = mint.zeros_like(attn_mask, dtype=q.dtype)
-        attn_mask = new_attn_mask.masked_fill(attn_mask, mint.cast(float("-inf"), new_attn_mask.dtype))
+        attn_mask = new_attn_mask.masked_fill(attn_mask, ops.cast(float("-inf"), new_attn_mask.dtype))
 
     if attn_mask is not None:
         if attn_mask.shape[0] == 1:

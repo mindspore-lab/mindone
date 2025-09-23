@@ -267,7 +267,7 @@ t2i_pipeline.config_component_names
 Components may be updated depending on whether it is a *pretrained component* or a *config component*.
 
 !!! warning
-  A component may change from pretrained to config when updating a component. The component type is initially defined in a block's `expected_components` field.
+    A component may change from pretrained to config when updating a component. The component type is initially defined in a block's `expected_components` field.
 
 A pretrained component is updated with [`ComponentSpec`](https://mindspore-lab.github.io/mindone/latest/diffusers/api/modular_diffusers/pipeline_components#mindone.diffusers.ComponentSpec) whereas a config component is updated by eihter passing the object directly or with [`ComponentSpec`](https://mindspore-lab.github.io/mindone/latest/diffusers/api/modular_diffusers/pipeline_components#mindone.diffusers.ComponentSpec).
 

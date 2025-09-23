@@ -18,7 +18,6 @@ import numpy as np
 import PIL
 
 import mindspore as ms
-from mindspore import mint
 
 from ...image_processor import PipelineImageInput
 from ...loaders import ModularIPAdapterMixin, StableDiffusionXLLoraLoaderMixin, TextualInversionLoaderMixin

@@ -38,7 +38,7 @@ class TransformerBlockMetadata:
             return args[self._cached_parameter_indices[identifier]]
         if self._cls is None:
             raise ValueError("Model class is not set for metadata.")
-        parameters = list(inspect.signature(self._cls.forward).parameters.keys())
+        parameters = list(inspect.signature(self._cls.construct).parameters.keys())
         parameters = parameters[1:]  # skip `self`
         self._cached_parameter_indices = {param: i for i, param in enumerate(parameters)}
         if identifier not in self._cached_parameter_indices:
@@ -154,7 +154,8 @@ def _register_transformer_blocks_metadata():
     )
     from ..models.transformers.transformer_ltx import LTXVideoTransformerBlock
     from ..models.transformers.transformer_mochi import MochiTransformerBlock
-    from ..models.transformers.transformer_qwenimage import QwenImageTransformerBlock
+
+    # from ..models.transformers.transformer_qwenimage import QwenImageTransformerBlock
     from ..models.transformers.transformer_wan import WanTransformerBlock
 
     # BasicTransformerBlock
@@ -258,13 +259,13 @@ def _register_transformer_blocks_metadata():
     )
 
     # QwenImage
-    TransformerBlockRegistry.register(
-        model_class=QwenImageTransformerBlock,
-        metadata=TransformerBlockMetadata(
-            return_hidden_states_index=1,
-            return_encoder_hidden_states_index=0,
-        ),
-    )
+    # TransformerBlockRegistry.register(
+    #     model_class=QwenImageTransformerBlock,
+    #     metadata=TransformerBlockMetadata(
+    #         return_hidden_states_index=1,
+    #         return_encoder_hidden_states_index=0,
+    #     ),
+    # )
 
 
 # fmt: off

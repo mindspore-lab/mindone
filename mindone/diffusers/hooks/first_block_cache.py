@@ -75,10 +75,10 @@ class FBCHeadBlockHook(ModelHook):
         self._metadata = TransformerBlockRegistry.get(unwrapped_module.__class__)
         return module
 
-    def new_forward(self, module: ms.nn.Cell, *args, **kwargs):
+    def new_construct(self, module: ms.nn.Cell, *args, **kwargs):
         original_hidden_states = self._metadata._get_parameter_from_args_kwargs("hidden_states", args, kwargs)
 
-        output = self.fn_ref.original_forward(*args, **kwargs)
+        output = self.fn_ref.original_construct(*args, **kwargs)
         is_output_tuple = isinstance(output, tuple)
 
         if is_output_tuple:
@@ -151,7 +151,7 @@ class FBCBlockHook(ModelHook):
         self._metadata = TransformerBlockRegistry.get(unwrapped_module.__class__)
         return module
 
-    def new_forward(self, module: ms.nn.Cell, *args, **kwargs):
+    def new_construct(self, module: ms.nn.Cell, *args, **kwargs):
         original_hidden_states = self._metadata._get_parameter_from_args_kwargs("hidden_states", args, kwargs)
         original_encoder_hidden_states = None
         if self._metadata.return_encoder_hidden_states_index is not None:
@@ -162,7 +162,7 @@ class FBCBlockHook(ModelHook):
         shared_state = self.state_manager.get_state()
 
         if shared_state.should_compute:
-            output = self.fn_ref.original_forward(*args, **kwargs)
+            output = self.fn_ref.original_construct(*args, **kwargs)
             if self.is_tail:
                 hidden_states_residual = encoder_hidden_states_residual = None
                 if isinstance(output, tuple):
@@ -210,7 +210,7 @@ def apply_first_block_cache(module: ms.nn.Cell, config: FirstBlockCacheConfig) -
         >>> from mindone.diffusers import CogView4Pipeline
         >>> from mindone.diffusers.hooks import apply_first_block_cache, FirstBlockCacheConfig
 
-        >>> pipe = CogView4Pipeline.from_pretrained("THUDM/CogView4-6B", mindspore_dtype=ms.float16)
+        >>> pipe = CogView4Pipeline.from_pretrained("THUDM/CogView4-6B", mindspore_dtype=ms.bfloat16)
 
         >>> apply_first_block_cache(pipe.transformer, FirstBlockCacheConfig(threshold=0.2))
 
@@ -223,7 +223,7 @@ def apply_first_block_cache(module: ms.nn.Cell, config: FirstBlockCacheConfig) -
     state_manager = StateManager(FBCSharedBlockState, (), {})
     remaining_blocks = []
 
-    for name, submodule in module.named_cells():
+    for name, submodule in module.cells_and_names():
         if name not in _ALL_TRANSFORMER_BLOCK_IDENTIFIERS or not isinstance(submodule, ms.nn.CellList):
             continue
         for index, block in enumerate(submodule):
