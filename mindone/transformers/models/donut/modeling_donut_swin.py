@@ -902,7 +902,7 @@ class DonutSwinModel(DonutSwinPreTrainedModel):
         >>> from mindone.transformers import AutoProcessor, AutoModelForVision2Seq
 
         >>> processor = AutoProcessor.from_pretrained("naver-clova-ix/donut-base-finetuned-docvqa", revision="refs/pr/23")
-        >>> model = AutoModelForVision2Seq.from_pretrained("naver-clova-ix/donut-base-finetuned-docvqa", revision="refs/pr/23)
+        >>> model = AutoModelForVision2Seq.from_pretrained("naver-clova-ix/donut-base-finetuned-docvqa", revision="refs/pr/23")
 
         >>> dataset = load_dataset("hf-internal-testing/example-documents", split="test")
         >>> image = dataset[0]["image"]
