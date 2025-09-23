@@ -50,6 +50,12 @@ from .models.aria import (
     AriaTextModel,
     AriaTextPreTrainedModel,
 )
+from .models.audio_spectrogram_transformer import (
+    ASTFeatureExtractor,
+    ASTForAudioClassification,
+    ASTModel,
+    ASTPreTrainedModel,
+)
 from .models.auto import (
     MODEL_FOR_AUDIO_CLASSIFICATION_MAPPING,
     MODEL_FOR_AUDIO_FRAME_CLASSIFICATION_MAPPING,
