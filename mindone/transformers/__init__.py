@@ -1027,6 +1027,11 @@ from .models.swinv2 import (
     Swinv2Model,
     Swinv2PreTrainedModel,
 )
+from .models.table_transformer import (
+    TableTransformerForObjectDetection,
+    TableTransformerModel,
+    TableTransformerPreTrainedModel,
+)
 from .models.switch_transformers import (
     SwitchTransformersEncoderModel,
     SwitchTransformersForConditionalGeneration,
