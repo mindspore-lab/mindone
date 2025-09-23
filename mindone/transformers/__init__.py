@@ -366,6 +366,12 @@ from .models.dpr import (
     DPRReader,
 )
 from .models.dpt import DPTForDepthEstimation, DPTImageProcessor, DPTModel, DPTPreTrainedModel
+from .models.fastspeech2_conformer import (
+    FastSpeech2ConformerHifiGan,
+    FastSpeech2ConformerModel,
+    FastSpeech2ConformerPreTrainedModel,
+    FastSpeech2ConformerWithHifiGan,
+)
 from .models.funnel import (
     FunnelBaseModel,
     FunnelForMaskedLM,
@@ -640,6 +646,7 @@ from .models.phi3 import (
 )
 from .models.pixtral import PixtralPreTrainedModel, PixtralVisionModel
 from .models.poolformer import PoolFormerForImageClassification, PoolFormerModel, PoolFormerPreTrainedModel
+from .models.pop2piano import Pop2PianoForConditionalGeneration, Pop2PianoPreTrainedModel
 from .models.qwen2 import Qwen2ForCausalLM, Qwen2ForSequenceClassification, Qwen2ForTokenClassification, Qwen2Model
 from .models.qwen2_5_omni import (
     Qwen2_5OmniForConditionalGeneration,
@@ -691,6 +698,14 @@ from .models.roberta import (
 )
 from .models.rwkv import RwkvForCausalLM, RwkvModel, RwkvPreTrainedModel
 from .models.sam import SamImageProcessor, SamModel, SamPreTrainedModel, SamProcessor
+from .models.seamless_m4t_v2 import (
+    SeamlessM4Tv2ForSpeechToSpeech,
+    SeamlessM4Tv2ForSpeechToText,
+    SeamlessM4Tv2ForTextToSpeech,
+    SeamlessM4Tv2ForTextToText,
+    SeamlessM4Tv2Model,
+    SeamlessM4Tv2PreTrainedModel,
+)
 from .models.segformer import (
     SegformerDecodeHead,
     SegformerForImageClassification,
