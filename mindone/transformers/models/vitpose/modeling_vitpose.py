@@ -17,12 +17,7 @@
 from dataclasses import dataclass
 from typing import Optional, Tuple, Union
 
-import mindspore as ms
-from mindspore import mint, nn
-from mindone.models.utils import trunc_normal_, zeros_, ones_
-
-
-from ...modeling_utils import PreTrainedModel
+from transformers import VitPoseConfig
 from transformers.utils import (
     ModelOutput,
     add_start_docstrings,
@@ -30,9 +25,14 @@ from transformers.utils import (
     logging,
     replace_return_docstrings,
 )
-from ...utils.backbone_utils import load_backbone
-from transformers import VitPoseConfig
 
+import mindspore as ms
+from mindspore import mint, nn
+
+from mindone.models.utils import ones_, trunc_normal_, zeros_
+
+from ...modeling_utils import PreTrainedModel
+from ...utils.backbone_utils import load_backbone
 
 logger = logging.get_logger(__name__)
 
@@ -84,9 +84,7 @@ class VitPosePreTrainedModel(PreTrainedModel):
         if isinstance(module, (mint.nn.Linear, mint.nn.Conv2d)):
             # Upcast the input in `fp32` and cast it back to desired `dtype` to avoid
             # `trunc_normal_cpu` not implemented in `half` issues
-            trunc_normal_(
-                module.weight.data, mean=0.0, std=self.config.initializer_range
-            )
+            trunc_normal_(module.weight.data, mean=0.0, std=self.config.initializer_range)
             if module.bias is not None:
                 zeros_(module.bias.data)
         elif isinstance(module, mint.nn.LayerNorm):

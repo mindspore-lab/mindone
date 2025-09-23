@@ -12,14 +12,14 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-"""Testing suite for the MindSpore VitPose model."""
+"""Testing suite for the MindSpore VitPose backbone model."""
 
 import inspect
 
 import numpy as np
 import pytest
 import torch
-from transformers import VitPoseBackboneConfig, VitPoseConfig
+from transformers import VitPoseBackboneConfig
 
 import mindspore as ms
 
@@ -35,8 +35,7 @@ from tests.transformers_tests.models.modeling_common import floats_numpy, ids_nu
 DTYPE_AND_THRESHOLDS = {"fp32": 5e-4, "fp16": 5e-3, "bf16": 7e-3}
 MODES = [1]
 
-
-class VitPoseModelTester:
+class VitPoseBackboneModelTester:
     def __init__(
         self,
         batch_size=13,
@@ -55,8 +54,6 @@ class VitPoseModelTester:
         type_sequence_label_size=10,
         initializer_range=0.02,
         num_labels=2,
-        scale_factor=4,
-        out_indices=[-1],
         scope=None,
     ):
         self.batch_size = batch_size
@@ -75,11 +72,9 @@ class VitPoseModelTester:
         self.type_sequence_label_size = type_sequence_label_size
         self.initializer_range = initializer_range
         self.num_labels = num_labels
-        self.scale_factor = scale_factor
-        self.out_indices = out_indices
         self.scope = scope
 
-        # in VitPose, the seq length equals the number of patches
+        # in VitPoseBackbone, the seq length equals the number of patches
         num_patches = (image_size[0] // patch_size[0]) * (image_size[1] // patch_size[1])
         self.seq_length = num_patches
 
@@ -95,21 +90,19 @@ class VitPoseModelTester:
         return config, pixel_values, labels
 
     def get_config(self):
-        return VitPoseConfig(
-            backbone_config=self.get_backbone_config(),
-        )
-
-    def get_backbone_config(self):
         return VitPoseBackboneConfig(
             image_size=self.image_size,
             patch_size=self.patch_size,
             num_channels=self.num_channels,
-            num_hidden_layers=self.num_hidden_layers,
             hidden_size=self.hidden_size,
-            intermediate_size=self.intermediate_size,
+            num_hidden_layers=self.num_hidden_layers,
             num_attention_heads=self.num_attention_heads,
+            intermediate_size=self.intermediate_size,
             hidden_act=self.hidden_act,
-            out_indices=self.out_indices,
+            hidden_dropout_prob=self.hidden_dropout_prob,
+            attention_probs_dropout_prob=self.attention_probs_dropout_prob,
+            initializer_range=self.initializer_range,
+            num_labels=self.num_labels,
         )
 
     def prepare_config_and_inputs_for_common(self):
@@ -123,7 +116,7 @@ class VitPoseModelTester:
         return config, inputs_dict
 
 
-model_tester = VitPoseModelTester()
+model_tester = VitPoseBackboneModelTester()
 (
     config,
     inputs_dict,
@@ -132,9 +125,9 @@ model_tester = VitPoseModelTester()
 
 VIT_MATTE_CASES = [
     [
-        "VitPoseForPoseEstimation",
-        "transformers.VitPoseForPoseEstimation",
-        "mindone.transformers.VitPoseForPoseEstimation",
+        "VitPoseBackbone",
+        "transformers.VitPoseBackbone",
+        "mindone.transformers.VitPoseBackbone",
         (config,),
         {},
         (),
@@ -142,7 +135,7 @@ VIT_MATTE_CASES = [
             "pixel_values": inputs_dict["pixel_values"],
         },
         {
-            "heatmaps": 1,
+            "feature_maps": 0,
         },
     ],
 ]

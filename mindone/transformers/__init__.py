@@ -639,9 +639,8 @@ from .models.vit import ViTForImageClassification, ViTForMaskedImageModeling, Vi
 from .models.vit_msn import ViTMSNForImageClassification, ViTMSNModel, ViTMSNPreTrainedModel
 from .models.vitdet import VitDetBackbone, VitDetModel, VitDetPreTrainedModel
 from .models.vitmatte import VitMatteForImageMatting, VitMattePreTrainedModel
-
-# from .models.vitpose import VitPoseForPoseEstimation, VitPosePreTrainedModel
-# from .models.vitpose_backbone import VitPoseBackbone, VitPoseBackbonePreTrainedModel
+from .models.vitpose import VitPoseForPoseEstimation, VitPosePreTrainedModel
+from .models.vitpose_backbone import VitPoseBackbone, VitPoseBackbonePreTrainedModel
 from .models.vits import VitsModel, VitsPreTrainedModel
 from .models.wav2vec2 import (
     Wav2Vec2FeatureExtractor,

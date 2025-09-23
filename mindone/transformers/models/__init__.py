@@ -17,7 +17,7 @@
 import transformers
 from packaging import version
 
-from . import (  # vitpose,; vitpose_backbone,; zoedepth,
+from . import (  # zoedepth,
     albert,
     aria,
     auto,
@@ -98,6 +98,7 @@ from . import (  # vitpose,; vitpose_backbone,; zoedepth,
     vitdet,
     vitmatte,
     vitpose,
+    vitpose_backbone,
     vits,
     wav2vec2,
     xlm_roberta,
