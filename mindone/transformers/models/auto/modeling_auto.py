@@ -138,6 +138,7 @@ MODEL_MAPPING_NAMES = OrderedDict(
         ("t5", "T5Model"),
         ("tapas", "TapasModel"),
         ("umt5", "UMT5Model"),
+        ("univnet", "UnivNetModel"),
         ("vilt", "ViltModel"),
         ("vit", "ViTModel"),
         ("wav2vec2", "Wav2Vec2Model"),

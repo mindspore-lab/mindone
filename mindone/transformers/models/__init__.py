@@ -119,6 +119,7 @@ from . import (
     t5,
     tapas,
     umt5,
+    univnet,
     video_llava,
     vilt,
     vipllava,
