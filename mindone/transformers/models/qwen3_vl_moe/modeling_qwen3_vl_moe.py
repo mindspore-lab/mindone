@@ -943,7 +943,7 @@ class Qwen3VLMoeTextModel(Qwen3VLMoePreTrainedModel):
         if self.config._attn_implementation == "flash_attention_2":
             config._attn_implementation = "eager"
         attention_mask = create_causal_mask(
-            config=self.config,
+            config=config,
             input_embeds=inputs_embeds,
             attention_mask=attention_mask,
             cache_position=cache_position,
