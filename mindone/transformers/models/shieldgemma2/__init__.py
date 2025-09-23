@@ -1,2 +1,1 @@
 from .modeling_shieldgemma2 import ShieldGemma2ForImageClassification
-from transformers import ShieldGemma2Config
