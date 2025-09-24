@@ -17,7 +17,7 @@
 import transformers
 from packaging import version
 
-from . import (  # zoedepth,
+from . import (
     albert,
     aria,
     auto,
@@ -103,6 +103,7 @@ from . import (  # zoedepth,
     wav2vec2,
     xlm_roberta,
     yolos,
+    zoedepth,
 )
 
 if version.parse(transformers.__version__) >= version.parse("4.51.0"):

@@ -674,8 +674,7 @@ from .models.xlm_roberta_xl import (
     XLMRobertaXLPreTrainedModel,
 )
 from .models.yolos import YolosForObjectDetection, YolosImageProcessor, YolosModel, YolosPreTrainedModel
-
-# from .models.zoedepth import ZoeDepthForDepthEstimation, ZoeDepthPreTrainedModel
+from .models.zoedepth import ZoeDepthForDepthEstimation, ZoeDepthPreTrainedModel
 from .pipelines import (
     ImageToImagePipeline,
     ImageToTextPipeline,

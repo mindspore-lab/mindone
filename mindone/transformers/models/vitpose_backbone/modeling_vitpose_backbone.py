@@ -22,24 +22,24 @@ This code is the same as the original Vision Transformer (ViT) with 2 modificati
 import collections.abc
 from typing import Callable, Optional, Set, Tuple, Union
 
-import mindspore as ms
-from mindspore import mint, nn
-from mindone.models.utils import trunc_normal_, zeros_, ones_
-
-
-from ...activations import ACT2FN
-from ...modeling_outputs import BackboneOutput, BaseModelOutput
-from ...modeling_utils import ALL_ATTENTION_FUNCTIONS, PreTrainedModel
-from ...mindspore_utils import find_pruneable_heads_and_indices, prune_linear_layer
+from transformers import VitPoseBackboneConfig
 from transformers.utils import (
     add_start_docstrings,
     add_start_docstrings_to_model_forward,
     logging,
     replace_return_docstrings,
 )
-from ...utils.backbone_utils import BackboneMixin
-from transformers import VitPoseBackboneConfig
 
+import mindspore as ms
+from mindspore import mint, nn
+
+from mindone.models.utils import ones_, trunc_normal_, zeros_
+
+from ...activations import ACT2FN
+from ...mindspore_utils import find_pruneable_heads_and_indices, prune_linear_layer
+from ...modeling_outputs import BackboneOutput, BaseModelOutput
+from ...modeling_utils import ALL_ATTENTION_FUNCTIONS, PreTrainedModel
+from ...utils.backbone_utils import BackboneMixin
 
 logger = logging.get_logger(__name__)
 
@@ -428,14 +428,14 @@ class VitPoseBackbonePreTrainedModel(PreTrainedModel):
     _supports_sdpa = True
     _supports_flash_attn_2 = True
 
-    def _init_weights(self, module: Union[mint.nn.Linear, mint.nn.Conv2d, mint.nn.LayerNorm, VitPoseBackboneEmbeddings]) -> None:
+    def _init_weights(
+        self, module: Union[mint.nn.Linear, mint.nn.Conv2d, mint.nn.LayerNorm, VitPoseBackboneEmbeddings]
+    ) -> None:
         """Initialize the weights"""
         if isinstance(module, (mint.nn.Linear, mint.nn.Conv2d)):
             # Upcast the input in `fp32` and cast it back to desired `dtype` to avoid
             # `trunc_normal_cpu` not implemented in `half` issues
-            trunc_normal_(
-                module.weight.data, mean=0.0, std=self.config.initializer_range
-            )
+            trunc_normal_(module.weight.data, mean=0.0, std=self.config.initializer_range)
             if module.bias is not None:
                 zeros_(module.bias.data)
         elif isinstance(module, mint.nn.LayerNorm):
