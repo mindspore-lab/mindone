@@ -100,7 +100,7 @@ class BarkSelfAttention(nn.Cell):
         """
         Splits hidden_size dim into attn_head_size and num_heads
         """
-        new_shape = tensor.size()[:-1] + (num_heads, attn_head_size)
+        new_shape = tensor.shape[:-1] + (num_heads, attn_head_size)
         tensor = tensor.view(new_shape)
         return tensor.permute(0, 2, 1, 3)  # (batch, head, seq_length, head_features)
 
@@ -112,7 +112,7 @@ class BarkSelfAttention(nn.Cell):
         # re-assemble all head outputs side by side
         # (batch, num_heads, seq_len, attn_head_size) -> (batch, seq_len, num_heads*attn_head_size)
         tensor = tensor.transpose(1, 2).contiguous()
-        tensor = tensor.view(tensor.size()[:-2] + (num_heads * attn_head_size,))
+        tensor = tensor.view(tensor.shape[:-2] + (num_heads * attn_head_size,))
 
         return tensor
 
@@ -121,7 +121,7 @@ class BarkSelfAttention(nn.Cell):
         attn_weights = mint.matmul(query, key.transpose(-1, -2)) * (1.0 / math.sqrt(self.head_dim))
 
         if self.is_causal:
-            query_length, key_length = query.size(-2), key.size(-2)
+            query_length, key_length = query.shape[-2], key.shape[-2]
 
             # fill the upper left part of the attention weights with inf
             attn_weights = attn_weights.masked_fill(
@@ -197,16 +197,13 @@ class BarkSelfFlashAttention2(BarkSelfAttention):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
 
-        # TODO: Should be removed once Flash Attention for RoCm is bumped to 2.1.
-        # flash_attn<2.1 generates top-left aligned causal mask, while what is needed here is bottom-right alignment, that was made default for flash_attn>=2.1. This attribute is used to handle this difference. Reference: https://github.com/Dao-AILab/flash-attention/releases/tag/v2.1.0.
-        # Beware that with flash_attn<2.1, using q_seqlen != k_seqlen (except for the case q_seqlen == 1) produces a wrong mask (top-left).
-        self._flash_attn_uses_top_left_mask = not is_flash_attn_greater_or_equal_2_10()
+        scale_factor = 1 / math.sqrt(self.head_dim)
 
     def _split_heads(self, tensor, num_heads, attn_head_size):
         """
         Splits hidden_size dim into attn_head_size and num_heads
         """
-        new_shape = tensor.size()[:-1] + (num_heads, attn_head_size)
+        new_shape = tensor.shape[:-1] + (num_heads, attn_head_size)
         tensor = tensor.view(new_shape)
         # Flash attention requires the input to have the shape
         # batch_size x seq_length x head_dim x hidden_dim - (batch, seq_length, head, head_features)
@@ -218,7 +215,7 @@ class BarkSelfFlashAttention2(BarkSelfAttention):
         """
         # re-assemble all head outputs side by side
         # (batch, seq_len, num_heads, attn_head_size) -> (batch, seq_len, num_heads*attn_head_size)
-        tensor = tensor.view(tensor.size()[:-2] + (num_heads * attn_head_size,))
+        tensor = tensor.view(tensor.shape[:-2] + (num_heads * attn_head_size,))
         return tensor
 
     def construct(
@@ -230,7 +227,7 @@ class BarkSelfFlashAttention2(BarkSelfAttention):
         use_cache=False,
         output_attentions=False,
     ):
-        batch_size, query_len, _ = hidden_states.size()
+        batch_size, query_len, _ = hidden_states.shape
 
         # calculate query, key, values for all heads in batch and move head forward to be the batch dim
         query, key, value = self.att_proj(hidden_states).split(self.embed_dim, dim=2)
@@ -260,7 +257,6 @@ class BarkSelfFlashAttention2(BarkSelfAttention):
             attention_mask,
             query_len,
             dropout=self.dropout if self.training else 0.0,
-            use_top_left_mask=self._flash_attn_uses_top_left_mask,
             is_causal=self.is_causal,
         )
 
@@ -373,6 +369,7 @@ class BarkPreTrainedModel(PreTrainedModel):
     config_class = BarkConfig
     supports_gradient_checkpointing = False
     _supports_flash_attn_2 = True
+    _supports_dynamic_input = True
 
     def _init_weights(self, module):
         """Initialize the weights."""
@@ -657,17 +654,15 @@ class BarkCausalModel(BarkPreTrainedModel, GenerationMixin):
         else:
             raise ValueError("You have to specify either input_ids or input_embeds")
 
-        input_shape = input_embeds.size()[:-1]
+        input_shape = input_embeds.shape[:-1]
         batch_size = input_embeds.shape[0]
         seq_length = input_shape[-1]
-
-        device = input_ids.device if input_ids is not None else input_embeds.device
 
         if past_key_values is None:
             past_length = 0
             past_key_values = tuple([None] * len(self.layers))
         else:
-            past_length = past_key_values[0][0].size(-2)
+            past_length = past_key_values[0][0].shape[-2]
 
         if position_ids is None:
             position_ids = mint.arange(past_length, seq_length + past_length, dtype=ms.int64)
@@ -694,7 +689,7 @@ class BarkCausalModel(BarkPreTrainedModel, GenerationMixin):
         head_mask = self.get_head_mask(head_mask, self.config.num_layers)
 
         hidden_states = self.drop(input_embeds + position_embeds)
-        output_shape = input_shape + (hidden_states.size(-1),)
+        output_shape = input_shape + (hidden_states.shape[-1],)
 
         if self.gradient_checkpointing and self.training:
             if use_cache:
@@ -773,7 +768,7 @@ class BarkCausalModel(BarkPreTrainedModel, GenerationMixin):
         """
         # Necessary for beam_search
         return tuple(
-            tuple(past_state.index_select(0, beam_idx.to(past_state.device)) for past_state in layer_past)
+            tuple(past_state.index_select(0, beam_idx) for past_state in layer_past)
             for layer_past in past_key_values
         )
 
@@ -838,15 +833,15 @@ class BarkSemanticModel(BarkCausalModel):
                 mode="constant",
             )
         else:
-            semantic_history = ms.Tensor(
+            semantic_history = ms.tensor(
                 [semantic_generation_config.semantic_pad_token] * max_input_semantic_length, dtype=ms.int32
-            ).to(self.device)
+            )
 
         semantic_history = mint.repeat_interleave(semantic_history[None], batch_size, dim=0)
 
         infer_array = ms.Tensor(
             [[semantic_generation_config.semantic_infer_token]] * batch_size, dtype=ms.int32
-        ).to(self.device)
+        )
 
         input_embeds = mint.cat(
             [
@@ -868,7 +863,7 @@ class BarkSemanticModel(BarkCausalModel):
 
         min_eos_p = kwargs.get("min_eos_p", semantic_generation_config.min_eos_p)
         early_stopping_logits_processor = BarkEosPrioritizerLogitsProcessor(
-            eos_token_id=semantic_generation_config.eos_token_id, min_eos_p=min_eos_p, device=input_ids.device
+            eos_token_id=semantic_generation_config.eos_token_id, min_eos_p=min_eos_p
         )
 
         # pass input_ids in order to stay consistent with the transformers generate method even though it is not used
@@ -1062,7 +1057,7 @@ class BarkCoarseModel(BarkCausalModel):
             semantic_idx = base_semantic_idx + int(round(total_generated_len / semantic_to_coarse_ratio))
 
             # pad from right side
-            input_coarse = semantic_output[:, np.max([0, semantic_idx - max_semantic_history]) :]
+            input_coarse = semantic_output[:, int(np.max([0, semantic_idx - max_semantic_history])) :]
             input_coarse = input_coarse[:, :max_coarse_input_length]
             input_coarse = F.pad(
                 input_coarse,
@@ -1074,7 +1069,7 @@ class BarkCoarseModel(BarkCausalModel):
             input_coarse = mint.hstack(
                 [
                     input_coarse,
-                    ms.Tensor([[coarse_generation_config.coarse_infer_token]] * batch_size).to(self.device),
+                    ms.tensor([[coarse_generation_config.coarse_infer_token]] * batch_size, dtype=input_coarse.dtype),
                     x_coarse[:, -max_coarse_history:],
                 ]
             )
@@ -1313,11 +1308,9 @@ class BarkFineModel(BarkPreTrainedModel):
             input_embeds = mint.cat(input_embeds, dim=-1)
             input_embeds = input_embeds[:, :, :, : codebook_idx + 1].sum(dim=-1)
 
-        input_shape = input_embeds.size()[:-1]
+        input_shape = input_embeds.shape[:-1]
         batch_size = input_embeds.shape[0]
         seq_length = input_shape[1]
-
-        device = input_ids.device if input_ids is not None else input_embeds.device
 
         if position_ids is None:
             position_ids = mint.arange(0, seq_length, dtype=ms.int64)
@@ -1339,7 +1332,7 @@ class BarkFineModel(BarkPreTrainedModel):
         head_mask = self.get_head_mask(head_mask, self.config.num_layers)
 
         hidden_states = self.drop(input_embeds + position_embeds)
-        output_shape = input_shape + (hidden_states.size(-1),)
+        output_shape = input_shape + (hidden_states.shape[-1],)
 
         all_self_attentions = () if output_attentions else None
         all_hidden_states = () if output_hidden_states else None
@@ -1452,7 +1445,7 @@ class BarkFineModel(BarkPreTrainedModel):
 
         # prepend history if available (max max_fine_history_length)
         if x_fine_history is not None:
-            fine_input = mint.cat([x_fine_history[:, -max_fine_history_length:, :], fine_input], dim=1)
+            fine_input = mint.cat([x_fine_history[:, -max_fine_history_length:, :], fine_input.astype(x_fine_history.dtype)], dim=1)
 
             # len of the fine_history that has been added to fine_input
             n_history = x_fine_history[:, -max_fine_history_length:, :].shape[1]
@@ -1483,7 +1476,7 @@ class BarkFineModel(BarkPreTrainedModel):
             rel_start_fill_idx = start_fill_idx - start_idx
             input_buffer = fine_input[:, start_idx : start_idx + max_fine_input_length, :]
             for n_inner in range(n_coarse, fine_generation_config.n_fine_codebooks):
-                logits = self.forward(n_inner, input_buffer).logits
+                logits = self.construct(n_inner, input_buffer).logits
                 if temperature is None or temperature == 1.0:
                     relevant_logits = logits[:, rel_start_fill_idx:, :codebook_size]
                     codebook_preds = mint.argmax(relevant_logits, -1)
@@ -1713,11 +1706,7 @@ class BarkModel(BarkPreTrainedModel):
         )
 
         if getattr(self, "fine_acoustics_hook", None) is not None:
-            # Manually offload fine_acoustics to CPU
-            # and load codec_model to GPU
-            # since bark doesn't use codec_model forward pass
-            self.fine_acoustics_hook.offload()
-            self.codec_model = self.codec_model.to(self.device)
+            raise NotImplementedError
 
         # 4. Decode the output and generate audio array
         audio = self.codec_decode(output, output_lengths)
@@ -1737,10 +1726,8 @@ class BarkModel(BarkPreTrainedModel):
     def _check_and_enable_flash_attn_2(
         cls,
         config,
-        torch_dtype: Optional[ms.Type] = None,
-        device_map: Optional[Union[str, Dict[str, int]]] = None,
+        mindspore_dtype: Optional[ms.Type] = None,
         hard_check_only: bool = False,
-        check_device_map: bool = False,
     ):
         """
         `_check_and_enable_flash_attn_2` originally don't expand flash attention enabling to the model
@@ -1761,7 +1748,7 @@ class BarkModel(BarkPreTrainedModel):
         can initialize the correct attention module
         """
         config = super()._check_and_enable_flash_attn_2(
-            config, torch_dtype, device_map, hard_check_only=hard_check_only, check_device_map=check_device_map
+            config, mindspore_dtype, hard_check_only=hard_check_only
         )
 
         config.semantic_config._attn_implementation = config._attn_implementation
