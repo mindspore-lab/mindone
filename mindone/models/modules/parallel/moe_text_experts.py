@@ -54,15 +54,10 @@ class MoeTextExperts(nn.Cell):
         hidden_states = hidden_states.repeat(self.net.num_experts, 1)
         hidden_states = hidden_states.view(self.net.num_experts, -1, self.net.hidden_size)
 
-        if self.op_group_size > 1:
-            length = self.net.num_experts // self.op_group_size
-            hidden_states = hidden_states[self.op_rank_id * length: (self.op_rank_id+1) * length]
-            routing_weights = routing_weights[:, self.op_rank_id * length: (self.op_rank_id + 1) * length]
-
-        gate_up = mint.bmm(hidden_states, self.net.gate_up_proj)
+        gate_up = mint.bmm(hidden_states, self.param_wrapper_gate_up_proj(self.net.gate_up_proj))
         gate, up = gate_up.chunk(2, dim=-1)  # not supported for DTensors
-        next_states = mint.bmm((up * self.net.act_fn(gate)), self.net.down_proj)
-        next_states = next_states.reshape(self.net.num_experts // self.op_group_size, batch_size, -1, self.net.hidden_size)
-        next_states = next_states * routing_weights.swapaxes(0, 1).view(self.net.num_experts // self.op_group_size, batch_size, -1)[..., None]
+        next_states = mint.bmm((up * self.net.act_fn(gate)), self.param_wrapper_down_proj(self.net.down_proj))
+        next_states = next_states.reshape(self.net.num_experts, batch_size, -1, self.net.hidden_size)
+        next_states = next_states * routing_weights.swapaxes(0, 1).view(self.net.num_experts, batch_size, -1)[..., None]
         next_states = next_states.sum(dim=0)
         return next_states

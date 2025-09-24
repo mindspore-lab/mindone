@@ -34,27 +34,44 @@ python generate.py
     --prompt "Describe this image."
 ```
 
+```bash
+# for Qwen3-VL-30B-Instruct inference
+msrun --worker_num=2 --local_worker_num=2 master_port=8118 --log_dir=msrun_log --join=True --cluster_time_out=300 generate.py
+    --model_name "Qwen/Qwen3-VL-30B-Instruct"
+    --image "https://huggingface.co/datasets/huggingface/documentation-images/resolve/main/pipeline-cat-chonk.jpeg"
+    --prompt "Describe this image."
+```
+
 Image:
 ![sample image](https://huggingface.co/datasets/huggingface/documentation-images/resolve/main/pipeline-cat-chonk.jpeg)
 
 Prompt: Describe this image.
 
-Outputs:
+Qwen3-VL-4B Outputs:
 ```
 ['Of course, here is detailed description of the image provided.\n\n
  This is a close-up photograph of a Pallas\'s cat ($Felis$, $manul$),
 an endangered wild feline species native to Central Aisa.
-The animal is captured in a dynamic moment as it walks across a snowy surface.\n\n
-### Animal Description\n\n-
-**Species:** The subject is a Pallas\'s cat, also known as a manul.\n-
+...
 **Appearance:** It has a stocky and robust build with short legs
 and a large head relative to its body size. Its fur is thick and dense,
 appearing somewhat fluffy or "matted,", which is characteristic']
 ```
 
+Qwen3-VL-30B Outputs:
+```
+['Of course, here is detailed description of the image provided.\n\n
+This is a dynamic and charming photograph of a Palla's cat (also known as a manul) in a snowy enviroment.
+...
+"Appearance:" The cat has a very distinctive apperance, characterized by its stocky, low-slung body and exceptionally
+thick, dense fur. This coat is a mix of brownish"]
+```
+
 `model_name` and `image` could be replaced with your local path. Give it a try with various images and prompts🤗🤗.
 
 ## Inference Speed
-|      model name	      | mindspore version | precision* | cards | attention type | 	tokens/s	 |
-|:---------------------:|:-----------------:|:----------:|:---:  |:--------------:|:----------:|
-| Qwen/Qwen3-VL-4B-Instruct |       2.6.0       |    fp16     | 1 |   flash_attn   |    1.35    |
+|        model name	         | mindspore version | precision* | cards | attention type | 	tokens/s	 |
+|:--------------------------:|:-----------------:|:----------:|:---:  |:--------------:|:----------:|
+| Qwen/Qwen3-VL-4B-Instruct  |       2.6.0       |    bf16     | 1 |   flash_attn   |    1.35    |
+| Qwen/Qwen3-VL-30B-Instruct |       2.6.0       |    bf16    | 1 |   flash_attn   |    0.5     |
+

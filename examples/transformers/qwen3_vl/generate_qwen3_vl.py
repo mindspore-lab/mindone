@@ -11,7 +11,7 @@ from mindone.transformers import Qwen3VLForConditionalGeneration
 def generate(args):
     model = Qwen3VLForConditionalGeneration.from_pretrained(
         args.model_name,
-        mindspore_dtype=ms.float16,
+        mindspore_dtype=ms.bfloat16,
         attn_implementation=args.attn_implementation,
     )
 
