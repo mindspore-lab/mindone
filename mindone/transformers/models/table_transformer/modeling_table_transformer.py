@@ -185,10 +185,10 @@ class TableTransformerFrozenBatchNorm2d(mindspore.nn.Cell):
 
     def __init__(self, n):
         super().__init__()
-        self.register_buffer("weight", mint.ones(n))
-        self.register_buffer("bias", mint.zeros(n))
-        self.register_buffer("running_mean", mint.zeros(n))
-        self.register_buffer("running_var", mint.ones(n))
+        self.weight = mindspore.Parameter(mint.ones(n))
+        self.bias = mindspore.Parameter(mint.zeros(n))
+        self.running_mean = mindspore.Parameter(mint.zeros(n))
+        self.running_var = mindspore.Parameter(mint.ones(n))
 
     def _load_from_state_dict(
         self, state_dict, prefix, local_metadata, strict, missing_keys, unexpected_keys, error_msgs
@@ -223,7 +223,7 @@ def replace_batch_norm(model):
         model (mindspore.nn.Cell):
             input model
     """
-    for name, module in model.named_children():
+    for name, module in model.name_cells().items():
         if isinstance(module, mint.nn.BatchNorm2d):
             new_module = TableTransformerFrozenBatchNorm2d(module.num_features)
 
@@ -232,9 +232,9 @@ def replace_batch_norm(model):
             new_module.running_mean.set_data(module.running_mean)
             new_module.running_var.set_data(module.running_var)
 
-            model._modules[name] = new_module
+            setattr(model, name, new_module)
 
-        if len(list(module.children())) > 0:
+        if len(list(module.name_cells())) > 0:
             replace_batch_norm(module)
 
 
@@ -292,14 +292,14 @@ class TableTransformerConvEncoder(mindspore.nn.Cell):
         else:
             raise ValueError("Either `backbone` or `backbone_config` should be provided in the config")
 
-        if "resnet" in backbone_model_type:
-            for name, parameter in self.model.named_parameters():
-                if config.use_timm_backbone:
-                    if "layer2" not in name and "layer3" not in name and "layer4" not in name:
-                        parameter.requires_grad_(False)
-                else:
-                    if "stage.1" not in name and "stage.2" not in name and "stage.3" not in name:
-                        parameter.requires_grad_(False)
+        # if "resnet" in backbone_model_type:
+        #     for name, parameter in self.model.named_parameters():
+        #         if config.use_timm_backbone:
+        #             if "layer2" not in name and "layer3" not in name and "layer4" not in name:
+        #                 parameter.requires_grad_(False)
+        #         else:
+        #             if "stage.1" not in name and "stage.2" not in name and "stage.3" not in name:
+        #                 parameter.requires_grad_(False)
 
     def construct(self, pixel_values: mindspore.Tensor, pixel_mask: mindspore.Tensor):
         # send pixel_values through the model to get list of feature maps
@@ -1051,6 +1051,8 @@ class TableTransformerModel(TableTransformerPreTrainedModel):
     # Copied from transformers.models.detr.modeling_detr.DetrModel.__init__ with Detr->TableTransformer
     def __init__(self, config: TableTransformerConfig):
         super().__init__(config)
+        # mindone not support timm bacckbone
+        config.use_timm_backbone = False
 
         # Create backbone + positional encoding
         backbone = TableTransformerConvEncoder(config)
