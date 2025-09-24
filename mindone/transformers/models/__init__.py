@@ -61,6 +61,7 @@ from . import (
     gemma3,
     glm,
     glpn,
+    got_ocr2,
     gpt2,
     granite,
     granitemoe,
