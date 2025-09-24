@@ -215,6 +215,14 @@ from .models.blip_2 import (
     Blip2QFormerModel,
     Blip2VisionModel,
 )
+from .models.bloom import (
+    BloomForCausalLM,
+    BloomForQuestionAnswering,
+    BloomForSequenceClassification,
+    BloomForTokenClassification,
+    BloomModel,
+    BloomPreTrainedModel,
+)
 from .models.camembert import (
     CamembertForCausalLM,
     CamembertForMaskedLM,

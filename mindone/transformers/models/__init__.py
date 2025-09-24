@@ -30,6 +30,7 @@ from . import (
     bit,
     blip,
     blip_2,
+    bloom,
     camembert,
     canine,
     chameleon,
