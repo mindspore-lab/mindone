@@ -11,12 +11,11 @@
 # it is necessary to develop distinct, dedicated test cases.
 
 import inspect
-import math
 
 import numpy as np
 import pytest
 import torch
-from transformers import BarkConfig, BarkSemanticConfig, BarkCoarseConfig, BarkFineConfig
+from transformers import BarkFineConfig
 
 import mindspore as ms
 
@@ -119,10 +118,7 @@ class BarkFineModelTester:
 
 
 model_tester = BarkFineModelTester()
-(
-    config,
-    input_dict
-) = model_tester.prepare_config_and_inputs()
+(config, input_dict) = model_tester.prepare_config_and_inputs()
 
 BARK_CASES = [
     [

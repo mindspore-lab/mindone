@@ -18,25 +18,6 @@ import math
 from typing import Dict, Optional, Tuple, Union
 
 import numpy as np
-import mindspore as ms
-from mindspore import mint, nn, Parameter
-from mindspore.mint.nn import functional as F
-
-from ...generation import GenerationMixin
-from ...generation.logits_process import (
-    AlternatingCodebooksLogitsProcessor,
-    BarkEosPrioritizerLogitsProcessor,
-    SuppressTokensLogitsProcessor,
-)
-from ...modeling_attn_mask_utils import _prepare_4d_attention_mask
-from ...mindspore_adapter import dtype_to_min
-from ...modeling_outputs import CausalLMOutputWithPast, MaskedLMOutput
-from ...modeling_utils import PreTrainedModel
-from ...utils import (
-    is_flash_attn_2_available,
-)
-from transformers.utils import (add_start_docstrings, add_start_docstrings_to_model_forward, logging)
-from ..auto import AutoModel
 from transformers.models.bark.configuration_bark import (
     BarkCoarseConfig,
     BarkConfig,
@@ -49,7 +30,24 @@ from transformers.models.bark.generation_configuration_bark import (
     BarkFineGenerationConfig,
     BarkSemanticGenerationConfig,
 )
+from transformers.utils import add_start_docstrings, add_start_docstrings_to_model_forward, logging
 
+import mindspore as ms
+from mindspore import Parameter, mint, nn
+from mindspore.mint.nn import functional as F
+
+from ...generation import GenerationMixin
+from ...generation.logits_process import (
+    AlternatingCodebooksLogitsProcessor,
+    BarkEosPrioritizerLogitsProcessor,
+    SuppressTokensLogitsProcessor,
+)
+from ...mindspore_adapter import dtype_to_min
+from ...modeling_attn_mask_utils import _prepare_4d_attention_mask
+from ...modeling_outputs import CausalLMOutputWithPast, MaskedLMOutput
+from ...modeling_utils import PreTrainedModel
+from ...utils import is_flash_attn_2_available
+from ..auto import AutoModel
 
 if is_flash_attn_2_available():
     from ...modeling_flash_attention_utils import _flash_attention_forward
@@ -196,8 +194,6 @@ class BarkSelfFlashAttention2(BarkSelfAttention):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-
-        scale_factor = 1 / math.sqrt(self.head_dim)
 
     def _split_heads(self, tensor, num_heads, attn_head_size):
         """
@@ -348,9 +344,7 @@ class BarkBlock(nn.Cell):
         outputs = attn_outputs[1:]
 
         intermediary_hidden_states = hidden_states + attn_output
-        intermediary_hidden_states = intermediary_hidden_states + self.mlp(
-            self.layernorm_2(intermediary_hidden_states)
-        )
+        intermediary_hidden_states = intermediary_hidden_states + self.mlp(self.layernorm_2(intermediary_hidden_states))
 
         if use_cache:
             outputs = (intermediary_hidden_states,) + outputs
@@ -389,6 +383,7 @@ class BarkPreTrainedModel(PreTrainedModel):
 
     def __init__(self, *inputs, **kwargs):
         super().__init__(*inputs, **kwargs)
+
 
 BARK_MODEL_START_DOCSTRING = """
     This model inherits from [`PreTrainedModel`]. Check the superclass documentation for the generic methods the
@@ -758,9 +753,7 @@ class BarkCausalModel(BarkPreTrainedModel, GenerationMixin):
         )
 
     @staticmethod
-    def _reorder_cache(
-        past_key_values: Tuple[Tuple[ms.Tensor]], beam_idx: ms.Tensor
-    ) -> Tuple[Tuple[ms.Tensor]]:
+    def _reorder_cache(past_key_values: Tuple[Tuple[ms.Tensor]], beam_idx: ms.Tensor) -> Tuple[Tuple[ms.Tensor]]:
         """
         This function is used to re-order the `past_key_values` cache if [`~PreTrainedModel.beam_search`] or
         [`~PreTrainedModel.beam_sample`] is called. This is required to match `past_key_values` with the correct
@@ -768,8 +761,7 @@ class BarkCausalModel(BarkPreTrainedModel, GenerationMixin):
         """
         # Necessary for beam_search
         return tuple(
-            tuple(past_state.index_select(0, beam_idx) for past_state in layer_past)
-            for layer_past in past_key_values
+            tuple(past_state.index_select(0, beam_idx) for past_state in layer_past) for layer_past in past_key_values
         )
 
 
@@ -839,9 +831,7 @@ class BarkSemanticModel(BarkCausalModel):
 
         semantic_history = mint.repeat_interleave(semantic_history[None], batch_size, dim=0)
 
-        infer_array = ms.Tensor(
-            [[semantic_generation_config.semantic_infer_token]] * batch_size, dtype=ms.int32
-        )
+        infer_array = ms.Tensor([[semantic_generation_config.semantic_infer_token]] * batch_size, dtype=ms.int32)
 
         input_embeds = mint.cat(
             [
@@ -1445,7 +1435,9 @@ class BarkFineModel(BarkPreTrainedModel):
 
         # prepend history if available (max max_fine_history_length)
         if x_fine_history is not None:
-            fine_input = mint.cat([x_fine_history[:, -max_fine_history_length:, :], fine_input.astype(x_fine_history.dtype)], dim=1)
+            fine_input = mint.cat(
+                [x_fine_history[:, -max_fine_history_length:, :], fine_input.astype(x_fine_history.dtype)], dim=1
+            )
 
             # len of the fine_history that has been added to fine_input
             n_history = x_fine_history[:, -max_fine_history_length:, :].shape[1]
@@ -1744,12 +1736,10 @@ class BarkModel(BarkPreTrainedModel):
         The method checks if the current setup is compatible with Flash Attention as it requires the model to be in
         half precision and not ran on CPU.
 
-        If all checks pass and `hard_check_only` is False, the method will set the config attribute `_attn_implementation` to "flash_attention_2" so that the model
-        can initialize the correct attention module
+        If all checks pass and `hard_check_only` is False, the method will set the config attribute `_attn_implementation` to "flash_attention_2"
+        so that the model can initialize the correct attention module
         """
-        config = super()._check_and_enable_flash_attn_2(
-            config, mindspore_dtype, hard_check_only=hard_check_only
-        )
+        config = super()._check_and_enable_flash_attn_2(config, mindspore_dtype, hard_check_only=hard_check_only)
 
         config.semantic_config._attn_implementation = config._attn_implementation
         config.coarse_acoustics_config._attn_implementation = config._attn_implementation

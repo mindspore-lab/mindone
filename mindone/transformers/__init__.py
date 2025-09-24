@@ -139,7 +139,7 @@ from .models.auto import (
     AutoProcessor,
 )
 from .models.bamba import BambaForCausalLM, BambaModel, BambaPreTrainedModel
-
+from .models.bark import BarkCausalModel, BarkCoarseModel, BarkFineModel, BarkModel, BarkSemanticModel
 from .models.bart import (
     BartForCausalLM,
     BartForConditionalGeneration,
@@ -149,13 +149,6 @@ from .models.bart import (
     BartPretrainedModel,
     BartPreTrainedModel,
     PretrainedBartModel,
-)
-from .models.bark import (
-    BarkModel,
-    BarkCausalModel,
-    BarkCoarseModel,
-    BarkSemanticModel,
-    BarkFineModel,
 )
 from .models.bert import (
     BertForMaskedLM,

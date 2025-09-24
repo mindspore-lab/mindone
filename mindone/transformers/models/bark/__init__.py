@@ -1,7 +1,1 @@
-from .modeling_bark import (
-    BarkModel,
-    BarkFineModel,
-    BarkCausalModel,
-    BarkCoarseModel,
-    BarkSemanticModel,
-)
+from .modeling_bark import BarkCausalModel, BarkCoarseModel, BarkFineModel, BarkModel, BarkSemanticModel
