@@ -18,16 +18,22 @@
 """Mindspore Wav2Vec2-Conformer model."""
 
 import math
-import warnings
 from dataclasses import dataclass
 from typing import Optional, Tuple, Union
 
 import numpy as np
+from transformers.models.wav2vec2_conformer.configuration_wav2vec2_conformer import Wav2Vec2ConformerConfig
+from transformers.utils import ModelOutput
+
 import mindspore
 from mindspore import nn
+from mindspore.common.initializer import HeNormal, Uniform, initializer
 from mindspore.mint.nn import CrossEntropyLoss
 
+from ....models.utils import constant_, normal_, xavier_uniform_
+from ....utils import WeightNorm
 from ...activations import ACT2FN
+from ...mindspore_adapter import dtype_to_min
 from ...modeling_outputs import (
     BaseModelOutput,
     CausalLMOutput,
@@ -35,16 +41,9 @@ from ...modeling_outputs import (
     TokenClassifierOutput,
     Wav2Vec2BaseModelOutput,
     XVectorOutput,
-    
 )
 from ...modeling_utils import PreTrainedModel
-from transformers.utils import ModelOutput
 from ...utils import logging
-from transformers.models.wav2vec2_conformer.configuration_wav2vec2_conformer import Wav2Vec2ConformerConfig
-from ...mindspore_adapter import dtype_to_min
-from ....utils import WeightNorm
-from mindspore.common.initializer import HeNormal, Uniform, initializer
-from ....models.utils import normal_, constant_, xavier_uniform_
 
 logger = logging.get_logger(__name__)
 
@@ -204,9 +203,7 @@ def _compute_mask_indices(
     spec_aug_mask_idxs = np.array(spec_aug_mask_idxs)
 
     # expand masked indices to masked spans
-    spec_aug_mask_idxs = np.expand(
-        spec_aug_mask_idxs[:, :, None], (batch_size, max_num_masked_span, mask_length)
-    )
+    spec_aug_mask_idxs = np.expand(spec_aug_mask_idxs[:, :, None], (batch_size, max_num_masked_span, mask_length))
     spec_aug_mask_idxs = spec_aug_mask_idxs.reshape(batch_size, max_num_masked_span * mask_length)
 
     # add offset to the starting indexes so that indexes now create a span
@@ -227,9 +224,7 @@ def _compute_mask_indices(
 
 
 # Copied from transformers.models.wav2vec2.modeling_wav2vec2._sample_negative_indices
-def _sample_negative_indices(
-    features_shape: Tuple, num_negatives: int, mask_time_indices: Optional[np.ndarray] = None
-):
+def _sample_negative_indices(features_shape: Tuple, num_negatives: int, mask_time_indices: Optional[np.ndarray] = None):
     """
     Sample `num_negatives` vectors from feature vectors.
     """
@@ -276,6 +271,7 @@ class Wav2Vec2ConformerNoLayerNormConvLayer(mindspore.nn.Cell):
             kernel_size=config.conv_kernel[layer_id],
             stride=config.conv_stride[layer_id],
             has_bias=config.conv_bias,
+            pad_mode="pad",
         )
         self.activation = ACT2FN[config.feat_extract_activation]
 
@@ -298,6 +294,7 @@ class Wav2Vec2ConformerLayerNormConvLayer(mindspore.nn.Cell):
             kernel_size=config.conv_kernel[layer_id],
             stride=config.conv_stride[layer_id],
             has_bias=config.conv_bias,
+            pad_mode="pad",
         )
         self.layer_norm = mindspore.mint.nn.LayerNorm(self.out_conv_dim, elementwise_affine=True)
         self.activation = ACT2FN[config.feat_extract_activation]
@@ -326,10 +323,13 @@ class Wav2Vec2ConformerGroupNormConvLayer(mindspore.nn.Cell):
             kernel_size=config.conv_kernel[layer_id],
             stride=config.conv_stride[layer_id],
             has_bias=config.conv_bias,
+            pad_mode="pad",
         )
         self.activation = ACT2FN[config.feat_extract_activation]
 
-        self.layer_norm = mindspore.mint.nn.GroupNorm(num_groups=self.out_conv_dim, num_channels=self.out_conv_dim, affine=True)
+        self.layer_norm = mindspore.mint.nn.GroupNorm(
+            num_groups=self.out_conv_dim, num_channels=self.out_conv_dim, affine=True
+        )
 
     def construct(self, hidden_states):
         hidden_states = self.conv(hidden_states)
@@ -397,7 +397,9 @@ class Wav2Vec2ConformerRotaryPositionalEmbedding(mindspore.nn.Cell):
         cos_embeddings = embeddings.cos()[:, None, None, :]
         sin_embeddings = embeddings.sin()[:, None, None, :]
         # Computed embeddings are cast to the dtype of the hidden state inputs
-        self.cached_rotary_positional_embedding = mindspore.mint.stack([cos_embeddings, sin_embeddings]).type_as(hidden_states)
+        self.cached_rotary_positional_embedding = mindspore.mint.stack([cos_embeddings, sin_embeddings]).type_as(
+            hidden_states
+        )
         return self.cached_rotary_positional_embedding
 
 
@@ -418,7 +420,9 @@ class Wav2Vec2ConformerRelPositionalEmbedding(mindspore.nn.Cell):
             # the length of self.pe is 2 * input_len - 1
             if self.pe.shape[1] >= x.shape[1] * 2 - 1:
                 if self.pe.dtype != x.dtype or self.pe.device != x.device:
-                    self.pe = self.pe.to(dtype=x.dtype, )
+                    self.pe = self.pe.to(
+                        dtype=x.dtype,
+                    )
                 return
         # Suppose `i` is the position of query vector and `j` is the
         # position of key vector. We use positive relative positions when keys
@@ -427,7 +431,8 @@ class Wav2Vec2ConformerRelPositionalEmbedding(mindspore.nn.Cell):
         pe_negative = mindspore.mint.zeros((x.shape[1], self.d_model))
         position = mindspore.mint.arange(0, x.shape[1], dtype=mindspore.int64).float().unsqueeze(1)
         div_term = mindspore.mint.exp(
-            mindspore.mint.arange(0, self.d_model, 2, dtype=mindspore.int64).float() * -(math.log(10000.0) / self.d_model)
+            mindspore.mint.arange(0, self.d_model, 2, dtype=mindspore.int64).float()
+            * -(math.log(10000.0) / self.d_model)
         )
         pe_positive[:, 0::2] = mindspore.mint.sin(position * div_term)
         pe_positive[:, 1::2] = mindspore.mint.cos(position * div_term)
@@ -567,6 +572,7 @@ class Wav2Vec2ConformerConvolutionModule(mindspore.nn.Cell):
             stride=1,
             padding=0,
             has_bias=False,
+            pad_mode="pad",
         )
         self.glu = mindspore.mint.nn.GLU(dim=1)
         self.depthwise_conv = nn.Conv1d(
@@ -588,6 +594,7 @@ class Wav2Vec2ConformerConvolutionModule(mindspore.nn.Cell):
             stride=1,
             padding=0,
             has_bias=False,
+            pad_mode="pad",
         )
         self.dropout = mindspore.mint.nn.Dropout(config.conformer_conv_dropout)
 
@@ -713,7 +720,9 @@ class Wav2Vec2ConformerSelfAttention(mindspore.nn.Cell):
         hidden_states = hidden_states.transpose(0, 1)
         rotated_states_begin = hidden_states[..., : self.head_size // 2]
         rotated_states_end = hidden_states[..., self.head_size // 2 :]
-        rotated_states = mindspore.mint.cat((-rotated_states_end, rotated_states_begin), dim=rotated_states_begin.ndim - 1)
+        rotated_states = mindspore.mint.cat(
+            (-rotated_states_end, rotated_states_begin), dim=rotated_states_begin.ndim - 1
+        )
         hidden_states = (hidden_states * cos) + (rotated_states * sin)
         hidden_states = hidden_states.transpose(0, 1)
 
@@ -793,7 +802,6 @@ class Wav2Vec2ConformerEncoderLayer(mindspore.nn.Cell):
         relative_position_embeddings: Optional[mindspore.Tensor] = None,
         output_attentions: bool = False,
     ):
-
         # 1. Feed-Forward 1 layer
         residual = hidden_states
         hidden_states = self.ffn1_layer_norm(hidden_states)
@@ -842,7 +850,9 @@ class Wav2Vec2ConformerEncoder(mindspore.nn.Cell):
         self.pos_conv_embed = Wav2Vec2ConformerPositionalConvEmbedding(config)
         self.layer_norm = mindspore.mint.nn.LayerNorm(config.hidden_size, eps=config.layer_norm_eps)
         self.dropout = mindspore.mint.nn.Dropout(config.hidden_dropout)
-        self.layers = mindspore.nn.CellList([Wav2Vec2ConformerEncoderLayer(config) for _ in range(config.num_hidden_layers)])
+        self.layers = mindspore.nn.CellList(
+            [Wav2Vec2ConformerEncoderLayer(config) for _ in range(config.num_hidden_layers)]
+        )
         self.gradient_checkpointing = False
 
     def construct(
@@ -864,9 +874,9 @@ class Wav2Vec2ConformerEncoder(mindspore.nn.Cell):
             # extend attention_mask
             attention_mask = 1.0 - attention_mask[:, None, None, :].to(dtype=hidden_states.dtype)
             attention_mask = attention_mask * dtype_to_min(hidden_states.dtype)
-            attention_mask = attention_mask.broadcast_to((
-                attention_mask.shape[0], 1, attention_mask.shape[-1], attention_mask.shape[-1]
-            ))
+            attention_mask = attention_mask.broadcast_to(
+                (attention_mask.shape[0], 1, attention_mask.shape[-1], attention_mask.shape[-1])
+            )
 
         hidden_states = self.dropout(hidden_states)
 
@@ -875,7 +885,7 @@ class Wav2Vec2ConformerEncoder(mindspore.nn.Cell):
         else:
             relative_position_embeddings = None
 
-        synced_gpus = False#is_deepspeed_zero3_enabled() or is_fsdp_managed_module(self)
+        synced_gpus = False  # is_deepspeed_zero3_enabled() or is_fsdp_managed_module(self)
 
         for i, layer in enumerate(self.layers):
             if output_hidden_states:
@@ -959,7 +969,9 @@ class Wav2Vec2ConformerGumbelVectorQuantizer(mindspore.nn.Cell):
         else:
             marginal_probs = probs.mean(dim=0)
 
-        perplexity = mindspore.mint.exp(-mindspore.mint.sum(marginal_probs * mindspore.mint.log(marginal_probs + 1e-7), dim=-1)).sum()
+        perplexity = mindspore.mint.exp(
+            -mindspore.mint.sum(marginal_probs * mindspore.mint.log(marginal_probs + 1e-7), dim=-1)
+        ).sum()
         return perplexity
 
     def construct(self, hidden_states, mask_time_indices=None):
@@ -1012,7 +1024,9 @@ class Wav2Vec2ConformerAdapter(mindspore.nn.Cell):
         else:
             self.proj = self.proj_layer_norm = None
 
-        self.layers = mindspore.nn.CellList(Wav2Vec2ConformerAdapterLayer(config) for _ in range(config.num_adapter_layers))
+        self.layers = mindspore.nn.CellList(
+            Wav2Vec2ConformerAdapterLayer(config) for _ in range(config.num_adapter_layers)
+        )
         self.layerdrop = config.layerdrop
 
     def construct(self, hidden_states):
@@ -1075,7 +1089,9 @@ class Wav2Vec2ConformerPreTrainedModel(PreTrainedModel):
         elif isinstance(module, Wav2Vec2ConformerGumbelVectorQuantizer):
             module.weight_proj.weight.data.normal_(mean=0.0, std=1)
             module.weight_proj.bias.data.zero_()
-            module.codevectors.set_data(initializer(Uniform(scale=k), shape=module.codevectors.shape, dtype=module.codevectors.dtype))
+            module.codevectors.set_data(
+                initializer(Uniform(), shape=module.codevectors.shape, dtype=module.codevectors.dtype)
+            )
         elif isinstance(module, Wav2Vec2ConformerSelfAttention):
             if hasattr(module, "pos_bias_u"):
                 xavier_uniform_(module.pos_bias_u)
@@ -1091,8 +1107,14 @@ class Wav2Vec2ConformerPreTrainedModel(PreTrainedModel):
                 constant_(module.conv.weight_norm_cell.bias, 0)
         elif isinstance(module, Wav2Vec2ConformerFeatureProjection):
             k = math.sqrt(1 / module.projection.in_features)
-            module.projection.weight.set_data(initializer(Uniform(scale=k), shape=module.projection.weight.shape, dtype=module.projection.weight.dtype))
-            module.projection.bias.set_data(initializer(Uniform(scale=k), shape=module.projection.bias.shape, dtype=module.projection.bias.dtype))
+            module.projection.weight.set_data(
+                initializer(
+                    Uniform(scale=k), shape=module.projection.weight.shape, dtype=module.projection.weight.dtype
+                )
+            )
+            module.projection.bias.set_data(
+                initializer(Uniform(scale=k), shape=module.projection.bias.shape, dtype=module.projection.bias.dtype)
+            )
         elif isinstance(module, mindspore.mint.nn.Linear):
             module.weight.data.normal_(mean=0.0, std=self.config.initializer_range)
 
@@ -1143,9 +1165,18 @@ class Wav2Vec2ConformerPreTrainedModel(PreTrainedModel):
         batch_size = attention_mask.shape[0]
 
         attention_mask = mindspore.mint.zeros(
-            (batch_size, feature_vector_length), dtype=attention_mask.dtype, )
+            (batch_size, feature_vector_length),
+            dtype=attention_mask.dtype,
+        )
         # these two operations makes sure that all values before the output lengths idxs are attended to
-        attention_mask[(mindspore.mint.arange(attention_mask.shape[0], ), output_lengths - 1)] = 1
+        attention_mask[
+            (
+                mindspore.mint.arange(
+                    attention_mask.shape[0],
+                ),
+                output_lengths - 1,
+            )
+        ] = 1
         attention_mask = attention_mask.flip([-1]).cumsum(-1).flip([-1]).bool()
         return attention_mask
 
@@ -1329,7 +1360,8 @@ class Wav2Vec2ConformerForPreTraining(Wav2Vec2ConformerPreTrainedModel):
         logits = logits / temperature
         return logits
 
-    # Copied from transformers.models.wav2vec2.modeling_wav2vec2.Wav2Vec2ForPreTraining.forward with Wav2Vec2->Wav2Vec2Conformer,wav2vec2->wav2vec2_conformer,wav2vec2_conformer-base->wav2vec2-conformer-rel-pos-large
+    # Copied from transformers.models.wav2vec2.modeling_wav2vec2.Wav2Vec2ForPreTraining.forward with
+    # Wav2Vec2->Wav2Vec2Conformer,wav2vec2->wav2vec2_conformer,wav2vec2_conformer-base->wav2vec2-conformer-rel-pos-large
     def construct(
         self,
         input_values: Optional[mindspore.Tensor],
@@ -1353,16 +1385,16 @@ class Wav2Vec2ConformerForPreTraining(Wav2Vec2ConformerPreTrainedModel):
         Example:
 
         ```python
-        >>> import torch
-        >>> from transformers import AutoFeatureExtractor, Wav2Vec2ConformerForPreTraining
-        >>> from transformers.models.wav2vec2_conformer.modeling_wav2vec2_conformer import _compute_mask_indices, _sample_negative_indices
+        >>> import mindspore
+        >>> from mindone.transformers import AutoFeatureExtractor, Wav2Vec2ConformerForPreTraining
+        >>> from mindone.transformers.models.wav2vec2_conformer.modeling_wav2vec2_conformer import _compute_mask_indices, _sample_negative_indices
         >>> from datasets import load_dataset
 
         >>> feature_extractor = AutoFeatureExtractor.from_pretrained("facebook/wav2vec2-conformer-rel-pos-large")
         >>> model = Wav2Vec2ConformerForPreTraining.from_pretrained("facebook/wav2vec2-conformer-rel-pos-large")
 
         >>> ds = load_dataset("hf-internal-testing/librispeech_asr_dummy", "clean", split="validation")
-        >>> input_values = feature_extractor(ds[0]["audio"]["array"], return_tensors="pt").input_values  # Batch size 1
+        >>> input_values = feature_extractor(ds[0]["audio"]["array"], return_tensors="np").input_values  # Batch size 1
 
         >>> # compute masked indices
         >>> batch_size, raw_sequence_length = input_values.shape
@@ -1375,25 +1407,24 @@ class Wav2Vec2ConformerForPreTraining(Wav2Vec2ConformerPreTrainedModel):
         ...     num_negatives=model.config.num_negatives,
         ...     mask_time_indices=mask_time_indices,
         ... )
-        >>> mask_time_indices = mindspore.tensor(data=mask_time_indices, device=input_values.device, dtype=torch.long)
+        >>> mask_time_indices = mindspore.tensor(data=mask_time_indices, dtype=mindspore.int64)
         >>> sampled_negative_indices = mindspore.tensor(
-        ...     data=sampled_negative_indices, device=input_values.device, dtype=torch.long
+        ...     data=sampled_negative_indices, dtype=mindspore.int64
         ... )
 
-        >>> with torch.no_grad():
-        ...     outputs = model(input_values, mask_time_indices=mask_time_indices)
+        >>> outputs = model(mindspore.tensor(input_values), mask_time_indices=mask_time_indices)
 
         >>> # compute cosine similarity between predicted (=projected_states) and target (=projected_quantized_states)
-        >>> cosine_sim = torch.cosine_similarity(outputs.projected_states, outputs.projected_quantized_states, dim=-1)
+        >>> cosine_sim = mindspore.mint.cosine_similarity(outputs.projected_states, outputs.projected_quantized_states, dim=-1)
 
         >>> # show that cosine similarity is much higher than random
-        >>> cosine_sim[mask_time_indices.to(torch.bool)].mean() > 0.5
+        >>> cosine_sim[mask_time_indices.to(mindspore.bool_)].mean() > 0.5
         tensor(True)
 
         >>> # for contrastive loss training model should be put into train mode
         >>> model = model.train()
         >>> loss = model(
-        ...     input_values, mask_time_indices=mask_time_indices, sampled_negative_indices=sampled_negative_indices
+        ...     mindspore.tensor(input_values), mask_time_indices=mask_time_indices, sampled_negative_indices=sampled_negative_indices
         ... ).loss
         ```"""
 
@@ -1563,7 +1594,9 @@ class Wav2Vec2ConformerForCTC(Wav2Vec2ConformerPreTrainedModel):
         if labels is not None:
             # retrieve loss input_lengths from attention_mask
             attention_mask = (
-                attention_mask if attention_mask is not None else mindspore.mint.ones_like(input_values, dtype=mindspore.int64)
+                attention_mask
+                if attention_mask is not None
+                else mindspore.mint.ones_like(input_values, dtype=mindspore.int64)
             )
             input_lengths = self._get_feat_extract_output_lengths(attention_mask.sum(-1)).to(mindspore.int64)
 
@@ -1574,7 +1607,13 @@ class Wav2Vec2ConformerForCTC(Wav2Vec2ConformerPreTrainedModel):
             flattened_targets = labels.masked_select(labels_mask)
 
             # ctc_loss doesn't support fp16
-            log_probs = mindspore.mint.nn.functional.log_softmax(logits, dim=-1, dtype=mindspore.float32).transpose(0, 1)
+            log_probs = mindspore.mint.nn.functional.log_softmax(logits, dim=-1, dtype=mindspore.float32).transpose(
+                0, 1
+            )
+
+            # mindspore ctc_loss doesn't support 1-dim
+            if flattened_targets.ndim == 1:
+                flattened_targets = flattened_targets.unsqueeze(0)
 
             loss = mindspore.ops.ctc_loss(
                 log_probs,
@@ -1596,7 +1635,8 @@ class Wav2Vec2ConformerForCTC(Wav2Vec2ConformerPreTrainedModel):
 
 
 class Wav2Vec2ConformerForSequenceClassification(Wav2Vec2ConformerPreTrainedModel):
-    # Copied from transformers.models.wav2vec2.modeling_wav2vec2.Wav2Vec2ForSequenceClassification.__init__ with Wav2Vec2->Wav2Vec2Conformer,wav2vec2->wav2vec2_conformer
+    # Copied from transformers.models.wav2vec2.modeling_wav2vec2.Wav2Vec2ForSequenceClassification.__init__ with
+    # Wav2Vec2->Wav2Vec2Conformer,wav2vec2->wav2vec2_conformer
     def __init__(self, config):
         super().__init__(config)
 
@@ -1630,7 +1670,8 @@ class Wav2Vec2ConformerForSequenceClassification(Wav2Vec2ConformerPreTrainedMode
         for param in self.wav2vec2_conformer.parameters():
             param.requires_grad = False
 
-    # Copied from transformers.models.wav2vec2.modeling_wav2vec2.Wav2Vec2ForSequenceClassification.forward with Wav2Vec2->Wav2Vec2Conformer,wav2vec2->wav2vec2_conformer,WAV_2_VEC_2->WAV2VEC2_CONFORMER
+    # Copied from transformers.models.wav2vec2.modeling_wav2vec2.Wav2Vec2ForSequenceClassification.forward with
+    # Wav2Vec2->Wav2Vec2Conformer,wav2vec2->wav2vec2_conformer,WAV_2_VEC_2->WAV2VEC2_CONFORMER
     def construct(
         self,
         input_values: Optional[mindspore.Tensor],
@@ -1695,7 +1736,8 @@ class Wav2Vec2ConformerForSequenceClassification(Wav2Vec2ConformerPreTrainedMode
 
 
 class Wav2Vec2ConformerForAudioFrameClassification(Wav2Vec2ConformerPreTrainedModel):
-    # Copied from transformers.models.wav2vec2.modeling_wav2vec2.Wav2Vec2ForAudioFrameClassification.__init__ with Wav2Vec2->Wav2Vec2Conformer,wav2vec2->wav2vec2_conformer,WAV_2_VEC_2->WAV2VEC2_CONFORMER
+    # Copied from transformers.models.wav2vec2.modeling_wav2vec2.Wav2Vec2ForAudioFrameClassification.__init__ with
+    # Wav2Vec2->Wav2Vec2Conformer,wav2vec2->wav2vec2_conformer,WAV_2_VEC_2->WAV2VEC2_CONFORMER
     def __init__(self, config):
         super().__init__(config)
 
@@ -1770,7 +1812,9 @@ class Wav2Vec2ConformerForAudioFrameClassification(Wav2Vec2ConformerPreTrainedMo
         loss = None
         if labels is not None:
             loss_fct = CrossEntropyLoss()
-            loss = loss_fct(logits.view(-1, self.num_labels), mindspore.mint.argmax(labels.view(-1, self.num_labels), axis=1))
+            loss = loss_fct(
+                logits.view(-1, self.num_labels), mindspore.mint.argmax(labels.view(-1, self.num_labels), axis=1)
+            )
 
         if not return_dict:
             output = (logits,) + outputs[_HIDDEN_STATES_START_POSITION:]
@@ -1824,7 +1868,9 @@ class TDNNLayer(mindspore.nn.Cell):
         # for backward compatibility, we keep nn.Linear but call F.conv1d for speed up
         hidden_states = hidden_states.transpose(1, 2)
         weight = self.kernel.weight.view(self.out_conv_dim, self.kernel_size, self.in_conv_dim).transpose(1, 2)
-        hidden_states = mindspore.mint.nn.functional.conv1d(hidden_states, weight, self.kernel.bias, dilation=self.dilation)
+        hidden_states = mindspore.mint.nn.functional.conv1d(
+            hidden_states, weight, self.kernel.bias, dilation=self.dilation
+        )
         hidden_states = hidden_states.transpose(1, 2)
 
         hidden_states = self.activation(hidden_states)
@@ -1884,7 +1930,8 @@ class Wav2Vec2ConformerForXVector(Wav2Vec2ConformerPreTrainedModel):
 
         return input_lengths
 
-    # Copied from transformers.models.wav2vec2.modeling_wav2vec2.Wav2Vec2ForXVector.forward with Wav2Vec2->Wav2Vec2Conformer,wav2vec2->wav2vec2_conformer,WAV_2_VEC_2->WAV2VEC2_CONFORMER
+    # Copied from transformers.models.wav2vec2.modeling_wav2vec2.Wav2Vec2ForXVector.forward with Wav2Vec2->Wav2Vec2Conformer,
+    # wav2vec2->wav2vec2_conformer,WAV_2_VEC_2->WAV2VEC2_CONFORMER
     def construct(
         self,
         input_values: Optional[mindspore.Tensor],

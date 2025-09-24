@@ -26,7 +26,7 @@ DTYPE_AND_THRESHOLDS = {"fp32": 5e-4, "fp16": 5e-3, "bf16": 5e-2}
 MODES = [1]
 
 
-class Wav2Vec2ModelTester:
+class Wav2Vec2ConformerModelTester:
     def __init__(
         self,
         batch_size=13,
@@ -183,7 +183,7 @@ class Wav2Vec2ModelTester:
         return config, inputs_dict
 
 
-model_tester = Wav2Vec2ModelTester()
+model_tester = Wav2Vec2ConformerModelTester()
 (
     config,
     input_values,

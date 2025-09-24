@@ -10,8 +10,6 @@
 # In cases where models have unique initialization procedures or require testing with specialized output formats,
 # it is necessary to develop distinct, dedicated test cases.
 
-import math
-
 import numpy as np
 import pytest
 import torch
@@ -26,7 +24,7 @@ DTYPE_AND_THRESHOLDS = {"fp32": 5e-4, "fp16": 5e-3, "bf16": 5e-2}
 MODES = [1]
 
 
-class Wav2Vec2ModelTester:
+class Wav2Vec2BertModelTester:
     def __init__(
         self,
         batch_size=13,
@@ -131,7 +129,7 @@ class Wav2Vec2ModelTester:
         config, input_values, attention_mask = self.prepare_config_and_inputs()
 
         input_values = input_values[:3]
-        attention_mask = np.ones(input_values.shape).astype(np.int64)
+        attention_mask = np.ones(input_values.shape[:2]).astype(np.int64)
 
         input_lengths = [input_values.shape[-1] // i for i in [4, 2, 1]]
         labels = ids_numpy((input_values.shape[0], 1), len(config.id2label))
@@ -164,7 +162,7 @@ class Wav2Vec2ModelTester:
         return config, inputs_dict
 
 
-model_tester = Wav2Vec2ModelTester()
+model_tester = Wav2Vec2BertModelTester()
 (
     config,
     input_values,

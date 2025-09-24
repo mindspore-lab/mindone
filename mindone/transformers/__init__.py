@@ -869,7 +869,7 @@ from .models.wav2vec2_bert import (
     Wav2Vec2BertForXVector,
     Wav2Vec2BertModel,
     Wav2Vec2BertPreTrainedModel,
-    )
+)
 from .models.wav2vec2_conformer import (
     Wav2Vec2ConformerForAudioFrameClassification,
     Wav2Vec2ConformerForCTC,
@@ -878,7 +878,7 @@ from .models.wav2vec2_conformer import (
     Wav2Vec2ConformerForXVector,
     Wav2Vec2ConformerModel,
     Wav2Vec2ConformerPreTrainedModel,
-    )
+)
 from .models.whisper import (
     WhisperForAudioClassification,
     WhisperForCausalLM,

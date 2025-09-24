@@ -18,16 +18,19 @@
 """Mindspore Wav2Vec2-BERT model."""
 
 import math
-import warnings
 from typing import Optional, Tuple, Union
 
 import numpy as np
-import mindspore
+from transformers.models.wav2vec2_bert.configuration_wav2vec2_bert import Wav2Vec2BertConfig
 
+import mindspore
 from mindspore import nn
+from mindspore.common.initializer import HeNormal, Uniform, initializer
 from mindspore.mint.nn import CrossEntropyLoss
 
+from ....models.utils import xavier_uniform_
 from ...activations import ACT2FN
+from ...mindspore_adapter import dtype_to_min
 from ...modeling_attn_mask_utils import _prepare_4d_attention_mask
 from ...modeling_outputs import (
     BaseModelOutput,
@@ -39,10 +42,6 @@ from ...modeling_outputs import (
 )
 from ...modeling_utils import PreTrainedModel
 from ...utils import logging
-from transformers.models.wav2vec2_bert.configuration_wav2vec2_bert import Wav2Vec2BertConfig
-from ...mindspore_adapter import dtype_to_min
-from mindspore.common.initializer import HeNormal, Uniform, initializer
-from ....models.utils import xavier_uniform_
 
 logger = logging.get_logger(__name__)
 
@@ -77,7 +76,9 @@ def _compute_new_attention_mask(hidden_states: mindspore.Tensor, seq_lens: minds
     """
     batch_size, mask_seq_len = hidden_states.shape[:2]
 
-    indices = mindspore.mint.arange(mask_seq_len, ).broadcast_to((batch_size, -1))
+    indices = mindspore.mint.arange(
+        mask_seq_len,
+    ).broadcast_to((batch_size, -1))
 
     bool_mask = indices >= seq_lens.unsqueeze(1).broadcast_to((-1, mask_seq_len))
 
@@ -186,9 +187,7 @@ def _compute_mask_indices(
     spec_aug_mask_idxs = np.array(spec_aug_mask_idxs)
 
     # expand masked indices to masked spans
-    spec_aug_mask_idxs = np.expand(
-        spec_aug_mask_idxs[:, :, None], (batch_size, max_num_masked_span, mask_length)
-    )
+    spec_aug_mask_idxs = np.expand(spec_aug_mask_idxs[:, :, None], (batch_size, max_num_masked_span, mask_length))
     spec_aug_mask_idxs = spec_aug_mask_idxs.reshape(batch_size, max_num_masked_span * mask_length)
 
     # add offset to the starting indexes so that indexes now create a span
@@ -209,9 +208,7 @@ def _compute_mask_indices(
 
 
 # Copied from transformers.models.wav2vec2.modeling_wav2vec2._sample_negative_indices
-def _sample_negative_indices(
-    features_shape: Tuple, num_negatives: int, mask_time_indices: Optional[np.ndarray] = None
-):
+def _sample_negative_indices(features_shape: Tuple, num_negatives: int, mask_time_indices: Optional[np.ndarray] = None):
     """
     Sample `num_negatives` vectors from feature vectors.
     """
@@ -277,7 +274,9 @@ class Wav2Vec2BertRotaryPositionalEmbedding(mindspore.nn.Cell):
         cos_embeddings = embeddings.cos()[:, None, None, :]
         sin_embeddings = embeddings.sin()[:, None, None, :]
         # Computed embeddings are cast to the dtype of the hidden state inputs
-        self.cached_rotary_positional_embedding = mindspore.mint.stack([cos_embeddings, sin_embeddings]).type_as(hidden_states)
+        self.cached_rotary_positional_embedding = mindspore.mint.stack([cos_embeddings, sin_embeddings]).type_as(
+            hidden_states
+        )
         return self.cached_rotary_positional_embedding
 
 
@@ -299,7 +298,9 @@ class Wav2Vec2BertRelPositionalEmbedding(mindspore.nn.Cell):
             # the length of self.pe is 2 * input_len - 1
             if self.pe.shape[1] >= x.shape[1] * 2 - 1:
                 if self.pe.dtype != x.dtype or self.pe.device != x.device:
-                    self.pe = self.pe.to(dtype=x.dtype, )
+                    self.pe = self.pe.to(
+                        dtype=x.dtype,
+                    )
                 return
         # Suppose `i` is the position of query vector and `j` is the
         # position of key vector. We use positive relative positions when keys
@@ -308,7 +309,8 @@ class Wav2Vec2BertRelPositionalEmbedding(mindspore.nn.Cell):
         pe_negative = mindspore.mint.zeros((x.shape[1], self.d_model))
         position = mindspore.mint.arange(0, x.shape[1], dtype=mindspore.int64).float().unsqueeze(1)
         div_term = mindspore.mint.exp(
-            mindspore.mint.arange(0, self.d_model, 2, dtype=mindspore.int64).float() * -(math.log(10000.0) / self.d_model)
+            mindspore.mint.arange(0, self.d_model, 2, dtype=mindspore.int64).float()
+            * -(math.log(10000.0) / self.d_model)
         )
         pe_positive[:, 0::2] = mindspore.mint.sin(position * div_term)
         pe_positive[:, 1::2] = mindspore.mint.cos(position * div_term)
@@ -386,6 +388,7 @@ class Wav2Vec2BertConvolutionModule(mindspore.nn.Cell):
             stride=1,
             padding=0,
             has_bias=False,
+            pad_mode="pad",
         )
         self.glu = mindspore.mint.nn.GLU(dim=1)
         self.depthwise_conv = nn.Conv1d(
@@ -396,6 +399,7 @@ class Wav2Vec2BertConvolutionModule(mindspore.nn.Cell):
             padding=0,
             group=config.hidden_size,
             has_bias=False,
+            pad_mode="pad",
         )
 
         self.depthwise_layer_norm = mindspore.mint.nn.LayerNorm(config.hidden_size, eps=config.layer_norm_eps)
@@ -407,6 +411,7 @@ class Wav2Vec2BertConvolutionModule(mindspore.nn.Cell):
             stride=1,
             padding=0,
             has_bias=False,
+            pad_mode="pad",
         )
         self.dropout = mindspore.mint.nn.Dropout(config.conformer_conv_dropout)
 
@@ -428,7 +433,7 @@ class Wav2Vec2BertConvolutionModule(mindspore.nn.Cell):
         hidden_states = self.glu(hidden_states)
 
         # Pad the sequence entirely on the left because of causal convolution.
-        hidden_states = mindspore.mint.nn.functional.pad(hidden_states, (self.depthwise_conv.kernel_size[0] - 1, 0))
+        hidden_states = mindspore.mint.nn.functional.pad(hidden_states, (self.depthwise_conv.kernel_size[1] - 1, 0))
 
         # 1D Depthwise Conv
         hidden_states = self.depthwise_conv(hidden_states)
@@ -525,10 +530,18 @@ class Wav2Vec2BertSelfAttention(mindspore.nn.Cell):
         if self.position_embeddings_type == "relative_key":
             query_length, key_length = query.shape[2], key.shape[2]
 
-            position_ids_l = mindspore.mint.arange(query_length, dtype=mindspore.int64, ).view(-1, 1)
-            position_ids_r = mindspore.mint.arange(key_length, dtype=mindspore.int64, ).view(1, -1)
+            position_ids_l = mindspore.mint.arange(
+                query_length,
+                dtype=mindspore.int64,
+            ).view(-1, 1)
+            position_ids_r = mindspore.mint.arange(
+                key_length,
+                dtype=mindspore.int64,
+            ).view(1, -1)
             distance = position_ids_r - position_ids_l
-            distance = mindspore.mint.clamp(distance, -self.left_max_position_embeddings, self.right_max_position_embeddings)
+            distance = mindspore.mint.clamp(
+                distance, -self.left_max_position_embeddings, self.right_max_position_embeddings
+            )
 
             positional_embedding = self.distance_embedding(distance + self.left_max_position_embeddings)
             positional_embedding = positional_embedding.to(dtype=query.dtype)  # fp16 compatibility
@@ -565,7 +578,9 @@ class Wav2Vec2BertSelfAttention(mindspore.nn.Cell):
         hidden_states = hidden_states.transpose(0, 1)
         rotated_states_begin = hidden_states[..., : self.head_size // 2]
         rotated_states_end = hidden_states[..., self.head_size // 2 :]
-        rotated_states = mindspore.mint.cat((-rotated_states_end, rotated_states_begin), dim=rotated_states_begin.ndim - 1)
+        rotated_states = mindspore.mint.cat(
+            (-rotated_states_end, rotated_states_begin), dim=rotated_states_begin.ndim - 1
+        )
         hidden_states = (hidden_states * cos) + (rotated_states * sin)
         hidden_states = hidden_states.transpose(0, 1)
 
@@ -647,7 +662,6 @@ class Wav2Vec2BertEncoderLayer(mindspore.nn.Cell):
         output_attentions: bool = False,
         conv_attention_mask: Optional[mindspore.Tensor] = None,
     ):
-
         # 1. Feed-Forward 1 layer
         residual = hidden_states
         hidden_states = self.ffn1_layer_norm(hidden_states)
@@ -716,9 +730,9 @@ class Wav2Vec2BertEncoder(mindspore.nn.Cell):
             # extend attention_mask
             attention_mask = 1.0 - attention_mask[:, None, None, :].to(dtype=hidden_states.dtype)
             attention_mask = attention_mask * dtype_to_min(hidden_states.dtype)
-            attention_mask = attention_mask.broadcast_to((
-                attention_mask.shape[0], 1, attention_mask.shape[-1], attention_mask.shape[-1]
-            ))
+            attention_mask = attention_mask.broadcast_to(
+                (attention_mask.shape[0], 1, attention_mask.shape[-1], attention_mask.shape[-1])
+            )
 
         hidden_states = self.dropout(hidden_states)
 
@@ -727,7 +741,7 @@ class Wav2Vec2BertEncoder(mindspore.nn.Cell):
         else:
             relative_position_embeddings = None
 
-        synced_gpus = False#is_deepspeed_zero3_enabled() or is_fsdp_managed_module(self)
+        synced_gpus = False  # is_deepspeed_zero3_enabled() or is_fsdp_managed_module(self)
 
         for i, layer in enumerate(self.layers):
             if output_hidden_states:
@@ -785,7 +799,9 @@ class Wav2Vec2BertAdapter(mindspore.nn.Cell):
             self.proj_layer_norm = mindspore.mint.nn.LayerNorm(config.output_hidden_size, eps=config.layer_norm_eps)
         else:
             self.proj = self.proj_layer_norm = None
-        self.layers = mindspore.nn.CellList(Wav2Vec2BertAdapterLayer(config) for _ in range(config.num_adapter_layers))
+        self.layers = mindspore.nn.CellList(
+            [Wav2Vec2BertAdapterLayer(config) for _ in range(config.num_adapter_layers)]
+        )
         self.layerdrop = config.layerdrop
 
         self.kernel_size = config.adapter_kernel_size
@@ -806,7 +822,7 @@ class Wav2Vec2BertAdapter(mindspore.nn.Cell):
 
         sub_sampled_lengths = None
         if attention_mask is not None:
-            sub_sampled_lengths = (attention_mask.shape[1] - (1 - attention_mask.int()).sum(1))
+            sub_sampled_lengths = attention_mask.shape[1] - (1 - attention_mask.int()).sum(1)
 
         for layer in self.layers:
             layerdrop_prob = mindspore.mint.rand([])
@@ -909,7 +925,8 @@ class Wav2Vec2BertAdapterLayer(mindspore.nn.Cell):
         return hidden_states
 
 
-# Copied from transformers.models.wav2vec2_conformer.modeling_wav2vec2_conformer.Wav2Vec2ConformerPreTrainedModel with Wav2Vec2Conformer->Wav2Vec2Bert,wav2vec2_conformer->wav2vec2_bert, input_values->input_features
+# Copied from transformers.models.wav2vec2_conformer.modeling_wav2vec2_conformer.Wav2Vec2ConformerPreTrainedModel with
+# Wav2Vec2Conformer->Wav2Vec2Bert,wav2vec2_conformer->wav2vec2_bert, input_values->input_features
 class Wav2Vec2BertPreTrainedModel(PreTrainedModel):
     """
     An abstract class to handle weights initialization and a simple interface for downloading and loading pretrained
@@ -932,17 +949,13 @@ class Wav2Vec2BertPreTrainedModel(PreTrainedModel):
         elif isinstance(module, Wav2Vec2BertFeatureProjection):
             k = math.sqrt(1 / module.projection.in_features)
             module.projection.weight.set_data(
-                initializer(Uniform(scale=k), 
-                            shape=module.projection.weight.shape, 
-                            dtype=module.projection.weight.dtype
-                            )
+                initializer(
+                    Uniform(scale=k), shape=module.projection.weight.shape, dtype=module.projection.weight.dtype
                 )
+            )
             module.projection.bias.set_data(
-                initializer(Uniform(scale=k), 
-                            shape=module.projection.bias.shape, 
-                            dtype=module.projection.bias.dtype
-                            )
-                )
+                initializer(Uniform(scale=k), shape=module.projection.bias.shape, dtype=module.projection.bias.dtype)
+            )
         elif isinstance(module, mindspore.mint.nn.Linear):
             module.weight.data.normal_(mean=0.0, std=self.config.initializer_range)
 
@@ -994,9 +1007,18 @@ class Wav2Vec2BertPreTrainedModel(PreTrainedModel):
         batch_size = attention_mask.shape[0]
 
         attention_mask = mindspore.mint.zeros(
-            (batch_size, feature_vector_length), dtype=attention_mask.dtype, )
+            (batch_size, feature_vector_length),
+            dtype=attention_mask.dtype,
+        )
         # these two operations makes sure that all values before the output lengths idxs are attended to
-        attention_mask[(mindspore.mint.arange(attention_mask.shape[0], ), output_lengths - 1)] = 1
+        attention_mask[
+            (
+                mindspore.mint.arange(
+                    attention_mask.shape[0],
+                ),
+                output_lengths - 1,
+            )
+        ] = 1
         attention_mask = attention_mask.flip([-1]).cumsum(-1).flip([-1]).bool()
         return attention_mask
 
@@ -1118,7 +1140,8 @@ class Wav2Vec2BertModel(Wav2Vec2BertPreTrainedModel):
 
 
 class Wav2Vec2BertForCTC(Wav2Vec2BertPreTrainedModel):
-    # Copied from transformers.models.wav2vec2_conformer.modeling_wav2vec2_conformer.Wav2Vec2ConformerForCTC.__init__ with Wav2Vec2Conformer->Wav2Vec2Bert,WAV2VEC2_CONFORMER->WAV2VEC2_BERT,wav2vec2_conformer->wav2vec2_bert
+    # Copied from transformers.models.wav2vec2_conformer.modeling_wav2vec2_conformer.Wav2Vec2ConformerForCTC.__init__ with
+    # Wav2Vec2Conformer->Wav2Vec2Bert,WAV2VEC2_CONFORMER->WAV2VEC2_BERT,wav2vec2_conformer->wav2vec2_bert
     def __init__(self, config, target_lang: Optional[str] = None):
         super().__init__(config)
 
@@ -1193,7 +1216,13 @@ class Wav2Vec2BertForCTC(Wav2Vec2BertPreTrainedModel):
             flattened_targets = labels.masked_select(labels_mask)
 
             # ctc_loss doesn't support fp16
-            log_probs = mindspore.mint.nn.functional.log_softmax(logits, dim=-1, dtype=mindspore.float32).transpose(0, 1)
+            log_probs = mindspore.mint.nn.functional.log_softmax(logits, dim=-1, dtype=mindspore.float32).transpose(
+                0, 1
+            )
+
+            # mindspore ctc_loss doesn't support 1-dim
+            if flattened_targets.ndim == 1:
+                flattened_targets = flattened_targets.unsqueeze(0)
 
             loss = mindspore.ops.ctc_loss(
                 log_probs,
@@ -1241,7 +1270,8 @@ class Wav2Vec2BertForSequenceClassification(Wav2Vec2BertPreTrainedModel):
         for param in self.wav2vec2_bert.parameters():
             param.requires_grad = False
 
-    # Copied from transformers.models.wav2vec2.modeling_wav2vec2.Wav2Vec2ForSequenceClassification.forward with Wav2Vec2->Wav2Vec2Bert,wav2vec2->wav2vec2_bert,WAV_2_VEC_2->WAV2VEC2_BERT, input_values->input_features
+    # Copied from transformers.models.wav2vec2.modeling_wav2vec2.Wav2Vec2ForSequenceClassification.forward with
+    # Wav2Vec2->Wav2Vec2Bert,wav2vec2->wav2vec2_bert,WAV_2_VEC_2->WAV2VEC2_BERT, input_values->input_features
     def construct(
         self,
         input_features: Optional[mindspore.Tensor],
@@ -1306,7 +1336,8 @@ class Wav2Vec2BertForSequenceClassification(Wav2Vec2BertPreTrainedModel):
 
 
 class Wav2Vec2BertForAudioFrameClassification(Wav2Vec2BertPreTrainedModel):
-    # Copied from transformers.models.wav2vec2_conformer.modeling_wav2vec2_conformer.Wav2Vec2ConformerForAudioFrameClassification.__init__ with Wav2Vec2Conformer->Wav2Vec2Bert,WAV2VEC2_CONFORMER->WAV2VEC2_BERT,wav2vec2_conformer->wav2vec2_bert
+    # Copied from transformers.models.wav2vec2_conformer.modeling_wav2vec2_conformer.Wav2Vec2ConformerForAudioFrameClassification.__init__
+    # with Wav2Vec2Conformer->Wav2Vec2Bert,WAV2VEC2_CONFORMER->WAV2VEC2_BERT,wav2vec2_conformer->wav2vec2_bert
     def __init__(self, config):
         super().__init__(config)
 
@@ -1323,7 +1354,8 @@ class Wav2Vec2BertForAudioFrameClassification(Wav2Vec2BertPreTrainedModel):
 
         self.init_weights()
 
-    # Copied from transformers.models.wav2vec2_conformer.modeling_wav2vec2_conformer.Wav2Vec2ConformerForAudioFrameClassification.freeze_base_model with wav2vec2_conformer->wav2vec2_bert
+    # Copied from transformers.models.wav2vec2_conformer.modeling_wav2vec2_conformer.Wav2Vec2ConformerForAudioFrameClassification.freeze_base_model
+    # with wav2vec2_conformer->wav2vec2_bert
     def freeze_base_model(self):
         """
         Calling this function will disable the gradient computation for the base model so that its parameters will not
@@ -1332,7 +1364,8 @@ class Wav2Vec2BertForAudioFrameClassification(Wav2Vec2BertPreTrainedModel):
         for param in self.wav2vec2_bert.parameters():
             param.requires_grad = False
 
-    # Copied from transformers.models.wav2vec2_conformer.modeling_wav2vec2_conformer.Wav2Vec2ConformerForAudioFrameClassification.forward with wav2vec2_conformer->wav2vec2_bert, input_values->input_features
+    # Copied from transformers.models.wav2vec2_conformer.modeling_wav2vec2_conformer.Wav2Vec2ConformerForAudioFrameClassification.forward
+    # with wav2vec2_conformer->wav2vec2_bert, input_values->input_features
     def construct(
         self,
         input_features: Optional[mindspore.Tensor],
@@ -1373,7 +1406,9 @@ class Wav2Vec2BertForAudioFrameClassification(Wav2Vec2BertPreTrainedModel):
         loss = None
         if labels is not None:
             loss_fct = CrossEntropyLoss()
-            loss = loss_fct(logits.view(-1, self.num_labels), mindspore.mint.argmax(labels.view(-1, self.num_labels), axis=1))
+            loss = loss_fct(
+                logits.view(-1, self.num_labels), mindspore.mint.argmax(labels.view(-1, self.num_labels), axis=1)
+            )
 
         if not return_dict:
             output = (logits,) + outputs[_HIDDEN_STATES_START_POSITION:]
@@ -1424,11 +1459,12 @@ class TDNNLayer(mindspore.nn.Cell):
         self.activation = mindspore.mint.nn.ReLU()
 
     def construct(self, hidden_states: mindspore.Tensor) -> mindspore.Tensor:
-
         # for backward compatibility, we keep nn.Linear but call F.conv1d for speed up
         hidden_states = hidden_states.transpose(1, 2)
         weight = self.kernel.weight.view(self.out_conv_dim, self.kernel_size, self.in_conv_dim).transpose(1, 2)
-        hidden_states = mindspore.mint.nn.functional.conv1d(hidden_states, weight, self.kernel.bias, dilation=self.dilation)
+        hidden_states = mindspore.mint.nn.functional.conv1d(
+            hidden_states, weight, self.kernel.bias, dilation=self.dilation
+        )
         hidden_states = hidden_states.transpose(1, 2)
 
         hidden_states = self.activation(hidden_states)
@@ -1436,7 +1472,8 @@ class TDNNLayer(mindspore.nn.Cell):
 
 
 class Wav2Vec2BertForXVector(Wav2Vec2BertPreTrainedModel):
-    # Copied from transformers.models.wav2vec2_conformer.modeling_wav2vec2_conformer.Wav2Vec2ConformerForXVector.__init__ with Wav2Vec2Conformer->Wav2Vec2Bert,WAV2VEC2_CONFORMER->WAV2VEC2_BERT,wav2vec2_conformer->wav2vec2_bert
+    # Copied from transformers.models.wav2vec2_conformer.modeling_wav2vec2_conformer.Wav2Vec2ConformerForXVector.__init__
+    # with Wav2Vec2Conformer->Wav2Vec2Bert,WAV2VEC2_CONFORMER->WAV2VEC2_BERT,wav2vec2_conformer->wav2vec2_bert
     def __init__(self, config):
         super().__init__(config)
 
@@ -1456,7 +1493,8 @@ class Wav2Vec2BertForXVector(Wav2Vec2BertPreTrainedModel):
 
         self.init_weights()
 
-    # Copied from transformers.models.wav2vec2_conformer.modeling_wav2vec2_conformer.Wav2Vec2ConformerForXVector.freeze_base_model with wav2vec2_conformer->wav2vec2_bert
+    # Copied from transformers.models.wav2vec2_conformer.modeling_wav2vec2_conformer.Wav2Vec2ConformerForXVector.freeze_base_model
+    # with wav2vec2_conformer->wav2vec2_bert
     def freeze_base_model(self):
         """
         Calling this function will disable the gradient computation for the base model so that its parameters will not
@@ -1481,7 +1519,8 @@ class Wav2Vec2BertForXVector(Wav2Vec2BertPreTrainedModel):
 
         return input_lengths
 
-    # Copied from transformers.models.wav2vec2_conformer.modeling_wav2vec2_conformer.Wav2Vec2ConformerForXVector.forward with wav2vec2_conformer->wav2vec2_bert, input_values->input_features
+    # Copied from transformers.models.wav2vec2_conformer.modeling_wav2vec2_conformer.Wav2Vec2ConformerForXVector.forward with
+    # wav2vec2_conformer->wav2vec2_bert, input_values->input_features
     def construct(
         self,
         input_features: Optional[mindspore.Tensor],
