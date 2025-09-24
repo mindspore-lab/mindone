@@ -118,6 +118,7 @@ from . import (
     sew_d,
     siglip,
     smolvlm,
+    speech_encoder_decoder,
     speech_to_text,
     speecht5,
     starcoder2,

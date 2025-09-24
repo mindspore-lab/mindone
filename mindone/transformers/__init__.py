@@ -752,6 +752,7 @@ from .models.smolvlm import (
     SmolVLMPreTrainedModel,
     SmolVLMVisionTransformer,
 )
+from .models.speech_encoder_decoder import SpeechEncoderDecoderModel
 from .models.speech_to_text import Speech2TextForConditionalGeneration, Speech2TextModel, Speech2TextPreTrainedModel
 from .models.speecht5 import (
     SpeechT5ForSpeechToSpeech,
