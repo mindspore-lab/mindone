@@ -72,7 +72,7 @@ def pad_sequence(
     else:
         out_dims = (max_len, len(sequences)) + trailing_dims
 
-    out_sequences = ops.full_like(out_dims, fill_value=padding_value)
+    out_sequences = mint.full_like(out_dims, fill_value=padding_value)
 
     for i, seq in enumerate(sequences):
         length = seq.shape[0] if seq.shape[0] <= max_len else max_len
@@ -1019,8 +1019,28 @@ class SeamlessM4TAttention(nn.Cell):
         self.q_proj = mint.nn.Linear(embed_dim, embed_dim, bias=bias)
         self.out_proj = mint.nn.Linear(embed_dim, embed_dim, bias=bias)
 
-    def _shape(self, tensor: ms.Tensor, seq_len: int, bsz: int):
-        return tensor.view(bsz, seq_len, self.num_heads, self.head_dim).transpose(1, 2).contiguous()
+    def adjust_mask_dimensions(self, attention_mask, target_shape):
+        batch_size, num_heads, tgt_len, target_src_len = target_shape
+        current_src_len = attention_mask.shape[-1]
+
+        if target_src_len > current_src_len:
+            # Create new mask, copy the original to the right side, unmask the past positions in the left side
+            new_mask = mint.ones((batch_size, 1, tgt_len, target_src_len), dtype=attention_mask.dtype)
+            new_mask[:, :, :, -current_src_len:] = attention_mask
+            new_mask[:, :, :, :target_src_len-current_src_len] = 0
+            return new_mask
+
+        elif target_src_len < current_src_len:
+            # keep the left side
+            return attention_mask[:, :, :, :target_src_len]
+
+        return attention_mask
+
+    def _shape(self, projection: ms.Tensor) -> ms.Tensor:
+        new_projection_shape = projection.shape[:-1] + (self.num_heads, self.head_dim)
+        # move heads to 2nd position (B, T, H * D) -> (B, T, H, D) -> (B, H, T, D)
+        new_projection = projection.view(new_projection_shape).permute(0, 2, 1, 3)
+        return new_projection
 
     def construct(
         self,
@@ -1032,38 +1052,28 @@ class SeamlessM4TAttention(nn.Cell):
     ) -> Tuple[ms.Tensor, Optional[ms.Tensor], Optional[Tuple[ms.Tensor]]]:
         """Input shape: Batch x Time x Channel"""
 
-        # if encoder_hidden_states are provided this layer is used as a cross-attention layer
-        # for the decoder
         is_cross_attention = encoder_hidden_states is not None
+        batch_size, seq_length = hidden_states.shape[:2]
 
-        bsz, tgt_len, _ = hidden_states.shape
-        # get query proj
-        # hidden_states = hidden_states.to(self.q_proj.weight.dtype)
-        query_states = self.q_proj(hidden_states) * self.scaling
-        # get key, value proj
-        # `past_key_value[0].shape[2] == encoder_hidden_states.shape[1]`
-        # is checking that the `sequence_length` of the `past_key_value` is the same as
-        # the provided `encoder_hidden_states` to support prefix tuning
-        if (is_cross_attention and past_key_value is not None and past_key_value[0].shape[2] == encoder_hidden_states.shape[1]):
+        # use encoder_hidden_states if cross attention
+        current_states = encoder_hidden_states if encoder_hidden_states is not None else hidden_states
+        # checking that the `sequence_length` of the `past_key_value` is the same as the he provided
+        # `encoder_hidden_states` to support prefix tuning
+        if is_cross_attention and past_key_value and past_key_value[0].shape[2] == current_states.shape[1]:
             # reuse k,v, cross_attentions
             key_states = past_key_value[0]
             value_states = past_key_value[1]
-        elif is_cross_attention:
-            # cross_attentions
-            key_states = self._shape(self.k_proj(encoder_hidden_states), -1, bsz)
-            value_states = self._shape(self.v_proj(encoder_hidden_states), -1, bsz)
-        elif past_key_value is not None:
-            # reuse k, v, self_attention
-            key_states = self._shape(self.k_proj(hidden_states), -1, bsz)
-            value_states = self._shape(self.v_proj(hidden_states), -1, bsz)
-            key_states = mint.cat([past_key_value[0], key_states], dim=2)
-            value_states = mint.cat([past_key_value[1], value_states], dim=2)
-            # attention_mask = mint.cat([attention_mask, attention_mask], dim=3)
         else:
-            # self_attention
-            key_states = self._shape(self.k_proj(hidden_states), -1, bsz)
-            value_states = self._shape(self.v_proj(hidden_states), -1, bsz)
-        
+            key_states = self._shape(self.k_proj(current_states))
+            value_states = self._shape(self.v_proj(current_states))
+            if past_key_value is not None and not is_cross_attention:
+                # reuse k, v, self_attention
+                key_states = mint.cat([past_key_value[0], key_states], dim=2)
+                value_states = mint.cat([past_key_value[1], value_states], dim=2)
+
+        query_states = self._shape(self.q_proj(hidden_states) * self.scaling)
+        attention_scores = mint.matmul(query_states, key_states.transpose(-1, -2))
+
         if self.is_decoder:
             # if cross_attention save Tuple(ms.Tensor, ms.Tensor) of all cross attention key/value_states.
             # Further calls to cross_attention layer can then reuse all cross-attention
@@ -1074,61 +1084,24 @@ class SeamlessM4TAttention(nn.Cell):
             # if encoder bi-directional self-attention `past_key_value` is always `None`
             past_key_value = (key_states, value_states)
 
-        proj_shape = (bsz * self.num_heads, -1, self.head_dim)
-        query_states = self._shape(query_states, tgt_len, bsz).view(*proj_shape)
-        key_states = key_states.reshape(*proj_shape)
-        value_states = value_states.reshape(*proj_shape)
-
-        src_len = key_states.shape[1]
-        attn_weights = mint.bmm(query_states, key_states.transpose(1, 2))
-
-        if attn_weights.shape != (bsz * self.num_heads, tgt_len, src_len):
-            raise ValueError(
-                f"Attention weights should be of size {(bsz * self.num_heads, tgt_len, src_len)}, but is"
-                f" {attn_weights.shape}"
-            )
-
         if attention_mask is not None:
-            if attention_mask.shape != (bsz, 1, tgt_len, src_len):
-                raise ValueError(
-                    f"Attention mask should be of size {(bsz, 1, tgt_len, src_len)}, but is {attention_mask.shape}"
-                )
-            attn_weights = attn_weights.view(bsz, self.num_heads, tgt_len, src_len) + attention_mask
-            attn_weights = attn_weights.view(bsz * self.num_heads, tgt_len, src_len)
+            target_shape = attention_scores.shape
+            attention_mask = self.adjust_mask_dimensions(attention_mask, target_shape)
 
-        attn_weights = mint.nn.functional.softmax(attn_weights, dim=-1)
+            attention_scores = attention_scores + attention_mask
+
+        # (batch_size, n_heads, seq_length, key_length)
+        attn_weights = mint.nn.functional.softmax(attention_scores.float(), dim=-1).type_as(attention_scores)
+        attn_weights = mint.nn.functional.dropout(attn_weights, p=self.dropout, training=self.training)
+
+        context_states = mint.matmul(attn_weights, value_states)
+        context_states = context_states.permute(0, 2, 1, 3).contiguous().view(batch_size, seq_length, -1)
+        attn_output = self.out_proj(context_states)
 
         if output_attentions:
-            # this operation is a bit awkward, but it's required to
-            # make sure that attn_weights keeps its gradient.
-            # In order to do so, attn_weights have to be reshaped
-            # twice and have to be reused in the following
-            attn_weights_reshaped = attn_weights.view(bsz, self.num_heads, tgt_len, src_len)
-            attn_weights = attn_weights_reshaped.view(bsz * self.num_heads, tgt_len, src_len)
+            return attn_output, attn_weights, past_key_value
         else:
-            attn_weights_reshaped = None
-
-        attn_probs = mint.nn.functional.dropout(attn_weights, p=self.dropout, training=self.training)
-
-        attn_output = mint.bmm(attn_probs, value_states)
-
-        if attn_output.shape != (bsz * self.num_heads, tgt_len, self.head_dim):
-            raise ValueError(
-                f"`attn_output` should be of size {(bsz * self.num_heads, tgt_len, self.head_dim)}, but is"
-                f" {attn_output.shape}"
-            )
-
-        attn_output = attn_output.view(bsz, self.num_heads, tgt_len, self.head_dim)
-        attn_output = attn_output.transpose(1, 2)
-
-        # Use the `embed_dim` from the config (stored in the class) rather than `hidden_state` because `attn_output` can be
-        # partitioned across GPUs when using tensor-parallelism.
-        attn_output = attn_output.reshape(bsz, tgt_len, self.embed_dim)
-
-        attn_output = self.out_proj(attn_output)
-
-        return attn_output, attn_weights_reshaped, past_key_value
-
+            return attn_output, None, past_key_value
 
 # Copied from transformers.models.nllb_moe.modeling_nllb_moe.NllbMoeDenseActDense with NllbMoe->SeamlessM4T,DenseActDense->FeedForwardNetwork, d_model->hidden_size
 class SeamlessM4TFeedForwardNetwork(nn.Cell):
@@ -1567,9 +1540,7 @@ class SeamlessM4TEncoder(SeamlessM4TPreTrainedModel):
                     encoder_ffn_dim=config.encoder_ffn_dim,
                 )
             )
-
         self.layers = nn.CellList(layers)
-
         self.layer_norm = mint.nn.LayerNorm(config.hidden_size)
 
         self.gradient_checkpointing = False
@@ -2085,6 +2056,8 @@ class SeamlessM4TTextToUnitForConditionalGeneration(SeamlessM4TPreTrainedModel, 
         output_attentions: Optional[bool] = None,
         output_hidden_states: Optional[bool] = None,
         return_dict: Optional[bool] = None,
+        cache_position: Optional[ms.Tensor] = None,
+        **kwargs,
     ) -> Union[Seq2SeqLMOutput, Tuple[ms.Tensor]]:
         return_dict = return_dict if return_dict is not None else self.config.use_return_dict
 
@@ -2279,7 +2252,7 @@ class SeamlessM4TVariancePredictor(nn.Cell):
         hidden_states = self.conv2(hidden_states.transpose(1, 2))
         hidden_states = self.activation_fuction(hidden_states).transpose(1, 2)
         hidden_states = self.dropout_module(self.ln2(hidden_states))
-        return self.proj(hidden_states).squeeze(dim=2)
+        return self.proj(hidden_states).squeeze(2)
 
 
 class SeamlessM4THifiGan(nn.Cell):
@@ -2299,9 +2272,9 @@ class SeamlessM4THifiGan(nn.Cell):
             has_bias=True,
         )
 
-        self.upsampler = nn.CellList()
+        upsampler = []
         for i, (upsample_rate, kernel_size) in enumerate(zip(config.upsample_rates, config.upsample_kernel_sizes)):
-            self.upsampler.append(
+            upsampler.append(
                 nn.Conv1dTranspose(
                     config.upsample_initial_channel // (2**i),
                     config.upsample_initial_channel // (2 ** (i + 1)),
@@ -2312,12 +2285,14 @@ class SeamlessM4THifiGan(nn.Cell):
                     has_bias=True,
                 )
             )
+        self.upsampler = nn.CellList(upsampler)
 
-        self.resblocks = nn.CellList()
+        resblocks = []
         for i in range(len(self.upsampler)):
             channels = config.upsample_initial_channel // (2 ** (i + 1))
             for kernel_size, dilation in zip(config.resblock_kernel_sizes, config.resblock_dilation_sizes):
-                self.resblocks.append(HifiGanResidualBlock(channels, kernel_size, dilation, config.leaky_relu_slope))
+                resblocks.append(HifiGanResidualBlock(channels, kernel_size, dilation, config.leaky_relu_slope))
+        self.resblocks = nn.CellList(resblocks)
 
         self.conv_post = nn.Conv1d(channels, 1, kernel_size=7, stride=1, pad_mode="pad", padding=3, has_bias=True)
 
@@ -2985,7 +2960,7 @@ class SeamlessM4TForSpeechToText(SeamlessM4TPreTrainedModel, GenerationMixin):
         """
         text_decoder_input_ids = kwargs.pop("decoder_input_ids", None)
         # overwrite text_decoder_input_ids if tgt_lang is passed. The latter gets priority over decoder_input_ids.
-        input_features = input_features if input_features is not None else kwargs.pop("inputs")
+        input_features = input_features if input_features is not None else kwargs.pop("input_ids")
         if tgt_lang is not None:
             inputs = kwargs.get("input_embeds") if input_features is None else input_features
             inputs = (
@@ -3104,6 +3079,7 @@ class SeamlessM4TForTextToSpeech(SeamlessM4TPreTrainedModel, GenerationMixin):
         output_attentions: Optional[bool] = None,
         output_hidden_states: Optional[bool] = None,
         return_dict: Optional[bool] = None,
+        **kwargs,
     ) -> Union[Seq2SeqLMOutput, Tuple[ms.Tensor]]:
         if labels is not None:
             if use_cache:
@@ -3319,7 +3295,7 @@ class SeamlessM4TForTextToSpeech(SeamlessM4TPreTrainedModel, GenerationMixin):
         kwargs_speech["decoder_input_ids"] = t2u_decoder_input_ids
         # second generation
         unit_ids = self.t2u_model.generate(inputs_embeds=t2u_input_embeds, **kwargs_speech)
-        output_unit_ids = unit_ids.detach().clone()
+        output_unit_ids = unit_ids.clone()
 
         # get rid of t2u_decoder_input_ids
         unit_ids = unit_ids[:, kwargs_speech["decoder_input_ids"].shape[1] :]
@@ -3645,7 +3621,7 @@ class SeamlessM4TForSpeechToSpeech(SeamlessM4TPreTrainedModel, GenerationMixin):
 
         # second generation
         unit_ids = self.t2u_model.generate(inputs_embeds=t2u_input_embeds, **kwargs_speech)
-        output_unit_ids = unit_ids.detach().clone()
+        output_unit_ids = unit_ids.clone()
 
         # get rid of t2u_decoder_input_ids
         unit_ids = unit_ids[:, kwargs_speech["decoder_input_ids"].shape[1] :]
@@ -4059,7 +4035,8 @@ class SeamlessM4TModel(SeamlessM4TPreTrainedModel, GenerationMixin):
         # Compute new attention mask
         seq_lens = (sequences != pad_token_id).int().sum(1)
         t2u_model_attention_mask = _compute_new_attention_mask(t2u_input_embeds, seq_lens)
-        kwargs_speech["attention_mask"] = t2u_model_attention_mask
+        # kwargs_speech["attention_mask"] = t2u_model_attention_mask
+        kwargs_speech["attention_mask"] = t2u_model_attention_mask[:, :seq_lens]  # only foward vaild tokens to fix Broadcasting Error
 
         # Compute t2u decoder_input_ids
         t2u_decoder_input_ids = kwargs_speech.get("decoder_input_ids")
@@ -4068,8 +4045,9 @@ class SeamlessM4TModel(SeamlessM4TPreTrainedModel, GenerationMixin):
         kwargs_speech["decoder_input_ids"] = t2u_decoder_input_ids
 
         # second generation
-        unit_ids = self.t2u_model.generate(inputs_embeds=t2u_input_embeds, **kwargs_speech)
-        output_unit_ids = unit_ids.detach().clone()
+        # unit_ids = self.t2u_model.generate(inputs_embeds=t2u_input_embeds, **kwargs_speech)
+        unit_ids = self.t2u_model.generate(inputs_embeds=t2u_input_embeds[:, :seq_lens, :], **kwargs_speech)  # only foward vaild tokens to fix Broadcasting Error
+        output_unit_ids = unit_ids.clone()
 
         # get rid of t2u_decoder_input_ids
         unit_ids = unit_ids[:, kwargs_speech["decoder_input_ids"].shape[1] :]
