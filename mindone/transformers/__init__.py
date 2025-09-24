@@ -584,6 +584,7 @@ from .models.modernbert import (
     ModernBertModel,
     ModernBertPreTrainedModel,
 )
+from .models.moonshine import MoonshineForConditionalGeneration, MoonshineModel, MoonshinePreTrainedModel
 from .models.moshi import MoshiForCausalLM, MoshiForConditionalGeneration, MoshiModel, MoshiPreTrainedModel
 from .models.mpt import (
     MptForCausalLM,

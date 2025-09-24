@@ -89,6 +89,7 @@ from . import (
     mllama,
     mobilebert,
     modernbert,
+    moonshine,
     moshi,
     mpt,
     mvp,
