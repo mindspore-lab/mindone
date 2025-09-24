@@ -15,8 +15,6 @@ PARALLEL_MODULES = {
     mint.nn.Linear: Linear,
 }
 
-SPECIAL_CASE_FOR_PARALLEL_MODULES = {
-    nn.Cell: MoeTextExperts
-}
+SPECIAL_CASE_FOR_PARALLEL_MODULES = {nn.Cell: MoeTextExperts}
 
 __all__ = ["Conv1d", "Conv2d", "Conv3d", "Mint_Conv2d", "Mint_Conv3d", "Dense", "Linear"]

@@ -74,4 +74,3 @@ thick, dense fur. This coat is a mix of brownish"]
 |:--------------------------:|:-----------------:|:----------:|:---:  |:--------------:|:----------:|
 | Qwen/Qwen3-VL-4B-Instruct  |       2.6.0       |    bf16     | 1 |   flash_attn   |    1.35    |
 | Qwen/Qwen3-VL-30B-Instruct |       2.6.0       |    bf16    | 1 |   flash_attn   |    0.5     |
-

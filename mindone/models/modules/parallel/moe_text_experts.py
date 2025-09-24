@@ -1,4 +1,5 @@
 from typing import Literal, Optional
+
 from mindspore import Tensor
 from mindspore import dtype as mstype
 from mindspore import mint, nn
@@ -32,14 +33,20 @@ class MoeTextExperts(nn.Cell):
             op_rank_id = get_rank(optimizer_parallel_group) if is_parallel else 0
             self.op_group_size = op_group_size
             self.op_rank_id = op_rank_id
-            self.param_wrapper_gate_up_proj = ZeroParamWrapper(self.net.gate_up_proj, zero_stage, optimizer_parallel_group, cell_type)
+            self.param_wrapper_gate_up_proj = ZeroParamWrapper(
+                self.net.gate_up_proj, zero_stage, optimizer_parallel_group, cell_type
+            )
             if self.param_wrapper_gate_up_proj.need_rewrite:
                 self.net.gate_up_proj.assign_value(
                     Tensor.from_numpy(
-                        self.net.gate_up_proj.numpy().reshape(op_group_size, -1, *self.net.gate_up_proj.shape[1:])[op_rank_id]
+                        self.net.gate_up_proj.numpy().reshape(op_group_size, -1, *self.net.gate_up_proj.shape[1:])[
+                            op_rank_id
+                        ]
                     )
                 )
-            self.param_wrapper_down_proj = ZeroParamWrapper(self.net.down_proj, zero_stage, optimizer_parallel_group, cell_type)
+            self.param_wrapper_down_proj = ZeroParamWrapper(
+                self.net.down_proj, zero_stage, optimizer_parallel_group, cell_type
+            )
             if self.param_wrapper_down_proj.need_rewrite:
                 self.net.down_proj.assign_value(
                     Tensor.from_numpy(

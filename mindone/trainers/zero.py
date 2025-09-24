@@ -497,14 +497,20 @@ def get_cell_params_fullname_dict(cell: nn.Cell):
     return fullname_dict
 
 
-def _prepare_network(network: nn.Cell, optimizer_parallel_group: str, parallel_modules=None, special_cases_parallel_module=None):
-    new_net = _init_parallel_settings(network, optimizer_parallel_group, parallel_modules, special_cases_parallel_module)
+def _prepare_network(
+    network: nn.Cell, optimizer_parallel_group: str, parallel_modules=None, special_cases_parallel_module=None
+):
+    new_net = _init_parallel_settings(
+        network, optimizer_parallel_group, parallel_modules, special_cases_parallel_module
+    )
     if new_net is not None:
         return new_net
     for name, sub_net in network._cells.items():
         if not sub_net:
             continue
-        new_sub_net = _init_parallel_settings(sub_net, optimizer_parallel_group, parallel_modules, special_cases_parallel_module)
+        new_sub_net = _init_parallel_settings(
+            sub_net, optimizer_parallel_group, parallel_modules, special_cases_parallel_module
+        )
         if new_sub_net is not None:
             params_fullname_dict = get_cell_params_fullname_dict(sub_net)
             if isinstance(network, (nn.CellList, nn.SequentialCell)):
@@ -527,7 +533,13 @@ def _prepare_network(network: nn.Cell, optimizer_parallel_group: str, parallel_m
     return network
 
 
-def prepare_network(network: nn.Cell, zero_stage: int = 0, optimizer_parallel_group: str = None, parallel_modules=None, special_cases_parallel_module=None):
+def prepare_network(
+    network: nn.Cell,
+    zero_stage: int = 0,
+    optimizer_parallel_group: str = None,
+    parallel_modules=None,
+    special_cases_parallel_module=None,
+):
     if zero_stage != 3 or _get_parallel_mode() != ParallelMode.DATA_PARALLEL:
         _logger.info("No need rewrite network and return original network.")
         return network

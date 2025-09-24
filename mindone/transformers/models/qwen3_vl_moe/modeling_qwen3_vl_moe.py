@@ -19,10 +19,10 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 import math
-import numpy as np
 from dataclasses import dataclass
 from typing import Any, Callable, Optional, Union
 
+import numpy as np
 from transformers.models.qwen3_vl_moe.configuration_qwen3_vl_moe import (
     Qwen3VLMoeConfig,
     Qwen3VLMoeTextConfig,
@@ -96,8 +96,12 @@ class Qwen3VLMoeTextExperts(nn.Cell):
         self.intermediate_size = config.moe_intermediate_size
         self.hidden_size = config.hidden_size
         self.expert_dim = self.intermediate_size
-        self.gate_up_proj = Parameter(ms.tensor(np.ones((self.num_experts, self.hidden_size, 2 * self.expert_dim)), dtype=config.mindspore_dtype))
-        self.down_proj = Parameter(ms.tensor(np.ones((self.num_experts, self.expert_dim, self.hidden_size)), dtype=config.mindspore_dtype))
+        self.gate_up_proj = Parameter(
+            ms.tensor(np.ones((self.num_experts, self.hidden_size, 2 * self.expert_dim)), dtype=config.mindspore_dtype)
+        )
+        self.down_proj = Parameter(
+            ms.tensor(np.ones((self.num_experts, self.expert_dim, self.hidden_size)), dtype=config.mindspore_dtype)
+        )
         self.act_fn = ACT2FN[config.hidden_act]
 
     def construct(self, hidden_states: ms.Tensor, routing_weights: ms.Tensor, router_indices: ms.Tensor) -> ms.Tensor:
@@ -562,7 +566,7 @@ class Qwen3VLMoeVisionAttention(nn.Cell):
 
             attention_mask = mint.zeros([1, seq_length, seq_length], dtype=ms.bool_)
             for i in range(1, len(cu_seqlens)):
-                attention_mask[..., cu_seqlens[i - 1]: cu_seqlens[i], cu_seqlens[i - 1]: cu_seqlens[i]] = True
+                attention_mask[..., cu_seqlens[i - 1] : cu_seqlens[i], cu_seqlens[i - 1] : cu_seqlens[i]] = True
             attention_mask = attention_mask.unsqueeze(1)
 
             attn_output = attention_interface(
@@ -1055,7 +1059,8 @@ class Qwen3VLMoeModel(Qwen3VLMoePreTrainedModel):
     ) -> tuple[ms.Tensor, ms.Tensor]:
         """Different from the original implementation, Qwen3VLMoe use timestamps rather than absolute time position ids."""
 
-        # Since we use timestamps to seperate videos, like <t1> <vision_start> <frame1> <vision_end> <t2> <vision_start> <frame2> <vision_end>, the video_grid_thw should also be split
+        # Since we use timestamps to seperate videos, like <t1> <vision_start> <frame1> <vision_end> <t2> <vision_start> <frame2> <vision_end>,
+        # the video_grid_thw should also be split
         if video_grid_thw is not None:
             video_grid_thw = mint.repeat_interleave(video_grid_thw, video_grid_thw[:, 0], dim=0)
             video_grid_thw[:, 0] = 1
