@@ -150,6 +150,13 @@ from .models.bart import (
     BartPreTrainedModel,
     PretrainedBartModel,
 )
+from .models.bark import (
+    BarkModel,
+    BarkCausalModel,
+    BarkCoarseModel,
+    BarkSemanticModel,
+    BarkFineModel,
+)
 from .models.bert import (
     BertForMaskedLM,
     BertForMultipleChoice,
