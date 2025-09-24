@@ -75,6 +75,7 @@ MODEL_MAPPING_NAMES = OrderedDict(
         ("gemma3_text", "Gemma3TextModel"),
         ("qwen2_audio_encoder", "Qwen2AudioEncoder"),
         ("siglip", "SiglipModel"),
+        ("siglip2", "Siglip2Model"),
         ("helium", "HeliumModel"),
         ("hiera", "HieraModel"),
         ("hubert", "HubertModel"),
@@ -277,6 +278,7 @@ MODEL_FOR_IMAGE_CLASSIFICATION_MAPPING_NAMES = OrderedDict(
         ("resnet", "ResNetForImageClassification"),
         ("segformer", "SegformerForImageClassification"),
         ("siglip", "SiglipForImageClassification"),
+        ("siglip2", "Siglip2ForImageClassification"),
         ("vit", "ViTForImageClassification"),
     ]
 )
@@ -620,6 +622,7 @@ MODEL_FOR_ZERO_SHOT_IMAGE_CLASSIFICATION_MAPPING_NAMES = OrderedDict(
         ("blip", "BlipModel"),
         ("siglip", "SiglipModel"),
         ("blip-2", "Blip2ForImageTextRetrieval"),
+        ("siglip2", "Siglip2Model"),
     ]
 )
 
