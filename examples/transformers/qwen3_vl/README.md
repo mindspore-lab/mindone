@@ -15,7 +15,7 @@
 git clone https://github.com/mindspore-lab/mindone.git
 cd mindone
 pip install -e .
-cd examples/transformers/glm4v
+cd examples/transformers/qwen3_vl
 
 # compile newest transformers whl because qwen3-vl(transformers v4.57.dev.0) haven't released
 git clone https://github.com/huggingface/transformers.git
@@ -71,6 +71,6 @@ thick, dense fur. This coat is a mix of brownish"]
 
 ## Inference Speed
 |        model name	         | mindspore version | precision* | cards | attention type | 	tokens/s	 |
-|:--------------------------:|:-----------------:|:----------:|:---:  |:--------------:|:----------:|
-| Qwen/Qwen3-VL-4B-Instruct  |       2.6.0       |    bf16     | 1 |   flash_attn   |    1.35    |
-| Qwen/Qwen3-VL-30B-Instruct |       2.6.0       |    bf16    | 1 |   flash_attn   |    0.5     |
+|:--------------------------:|:-----------------:|:----------:|:-----:|:--------------:|:----------:|
+| Qwen/Qwen3-VL-4B-Instruct  |       2.6.0       |    bf16     |   1   |   flash_attn   |    1.35    |
+| Qwen/Qwen3-VL-30B-Instruct |       2.6.0       |    bf16    |   2   |   flash_attn   |    0.5     |
