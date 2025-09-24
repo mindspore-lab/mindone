@@ -52,6 +52,8 @@ else:
             ("blip-2", ("BlipImageProcessor",)),
             ("chameleon", ("ChameleonImageProcessor",)),
             ("clip", ("CLIPImageProcessor",)),
+            ("convnext", ("ConvNextImageProcessor",)),
+            ("convnextv2", ("ConvNextImageProcessor",)),
             ("depth_anything", ("DPTImageProcessor",)),
             ("dinov2", ("BitImageProcessor",)),
             ("dpt", ("DPTImageProcessor",)),

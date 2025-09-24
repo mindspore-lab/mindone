@@ -29,9 +29,10 @@ from transformers.tokenization_utils_base import AudioInput, PreTokenizedInput, 
 
 from mindspore import mint
 
-from mindone.transformers.image_utils import ImageInput, VideoInput, make_batched_videos  # TODO?
+from mindone.transformers.image_utils import ImageInput
 
 from ...feature_extraction_utils import BatchFeature
+from ...video_utils import VideoInput, make_batched_videos
 
 
 class Qwen2_5_OmniVideosKwargs(VideosKwargs):

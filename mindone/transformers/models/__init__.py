@@ -34,6 +34,8 @@ from . import (
     clap,
     clip,
     convbert,
+    convnext,
+    convnextv2,
     depth_anything,
     dinov2,
     dpt,
@@ -101,3 +103,6 @@ if version.parse(transformers.__version__) >= version.parse("4.51.3"):
 
 if version.parse(transformers.__version__) >= version.parse("4.53.0"):
     from . import glm4v, minimax, vjepa2
+
+if version.parse(transformers.__version__) > version.parse("4.56.1"):
+    from . import qwen3_vl, qwen3_vl_moe

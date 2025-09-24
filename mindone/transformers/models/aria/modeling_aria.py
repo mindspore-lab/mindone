@@ -26,7 +26,6 @@ from typing import Callable, List, Optional, Tuple, Union
 
 from transformers import AriaConfig, AriaTextConfig
 from transformers.utils import (
-    LossKwargs,
     add_start_docstrings,
     add_start_docstrings_to_model_forward,
     logging,
@@ -50,6 +49,7 @@ from ...modeling_outputs import BaseModelOutputWithPast, CausalLMOutputWithPast,
 from ...modeling_rope_utils import ROPE_INIT_FUNCTIONS
 from ...modeling_utils import ALL_ATTENTION_FUNCTIONS, MSPreTrainedModel
 from ...processing_utils import Unpack
+from ...utils import TransformersKwargs
 
 # from ..auto import AutoModelForCausalLM, AutoModel
 from ..idefics3 import Idefics3VisionTransformer
@@ -1078,10 +1078,6 @@ class AriaTextModel(AriaTextPreTrainedModel):
         return causal_mask
 
 
-class KwargsForCausalLM(FlashAttentionKwargs, LossKwargs):
-    ...
-
-
 class AriaTextForCausalLM(AriaTextPreTrainedModel, GenerationMixin):
     """
     Aria model for causal language modeling tasks.
@@ -1142,7 +1138,7 @@ class AriaTextForCausalLM(AriaTextPreTrainedModel, GenerationMixin):
         return_dict: Optional[bool] = None,
         cache_position: Optional[ms.Tensor] = None,
         logits_to_keep: Union[int, ms.Tensor] = 0,
-        **kwargs: Unpack[KwargsForCausalLM],
+        **kwargs: Unpack[TransformersKwargs],
     ) -> Union[Tuple, CausalLMOutputWithPast]:
         r"""
             labels (`ms.Tensor` of shape `(batch_size, sequence_length)`, *optional*):
