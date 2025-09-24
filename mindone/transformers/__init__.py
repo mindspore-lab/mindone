@@ -861,6 +861,7 @@ from .models.whisper import (
     WhisperPreTrainedModel,
     WhisperProcessor,
 )
+from .models.x_clip import XCLIPModel, XCLIPPreTrainedModel, XCLIPTextModel, XCLIPVisionModel
 from .models.xlm_roberta import XLMRobertaModel, XLMRobertaPreTrainedModel
 from .models.xlm_roberta_xl import (
     XLMRobertaXLForCausalLM,
