@@ -215,6 +215,14 @@ from .models.blip_2 import (
     Blip2QFormerModel,
     Blip2VisionModel,
 )
+from .models.bloom import (
+    BloomForCausalLM,
+    BloomForQuestionAnswering,
+    BloomForSequenceClassification,
+    BloomForTokenClassification,
+    BloomModel,
+    BloomPreTrainedModel,
+)
 from .models.camembert import (
     CamembertForCausalLM,
     CamembertForMaskedLM,
@@ -301,6 +309,7 @@ from .models.convnextv2 import (
     ConvNextV2PreTrainedModel,
 )
 from .models.ctrl import CTRLForSequenceClassification, CTRLLMHeadModel, CTRLModel, CTRLPreTrainedModel
+from .models.dac import DacModel, DacPreTrainedModel
 from .models.data2vec import (
     Data2VecAudioForAudioFrameClassification,
     Data2VecAudioForCTC,
@@ -367,6 +376,7 @@ from .models.dpr import (
 )
 from .models.dpt import DPTForDepthEstimation, DPTImageProcessor, DPTModel, DPTPreTrainedModel
 from .models.emu3 import Emu3ForCausalLM, Emu3ForConditionalGeneration, Emu3PreTrainedModel, Emu3TextModel, Emu3VQVAE
+from .models.encodec import EncodecModel, EncodecPreTrainedModel
 from .models.fastspeech2_conformer import (
     FastSpeech2ConformerHifiGan,
     FastSpeech2ConformerModel,
@@ -494,6 +504,13 @@ from .models.levit import (
     LevitModel,
     LevitPreTrainedModel,
 )
+from .models.lilt import (
+    LiltForQuestionAnswering,
+    LiltForSequenceClassification,
+    LiltForTokenClassification,
+    LiltModel,
+    LiltPreTrainedModel,
+)
 from .models.llama import LlamaForCausalLM, LlamaForSequenceClassification, LlamaModel, LlamaPreTrainedModel
 from .models.llava import LlavaConfig, LlavaForConditionalGeneration
 from .models.llava_next import (
@@ -530,6 +547,7 @@ from .models.megatron_bert import (
     MegatronBertModel,
     MegatronBertPreTrainedModel,
 )
+from .models.mimi import MimiModel, MimiPreTrainedModel
 from .models.minicpm4 import MiniCPMForCausalLM, MiniCPMForSequenceClassification, MiniCPMModel
 from .models.mistral import (
     MistralForCausalLM,
@@ -574,6 +592,8 @@ from .models.modernbert import (
     ModernBertModel,
     ModernBertPreTrainedModel,
 )
+from .models.moonshine import MoonshineForConditionalGeneration, MoonshineModel, MoonshinePreTrainedModel
+from .models.moshi import MoshiForCausalLM, MoshiForConditionalGeneration, MoshiModel, MoshiPreTrainedModel
 from .models.mpt import (
     MptForCausalLM,
     MptForQuestionAnswering,
@@ -715,6 +735,8 @@ from .models.segformer import (
     SegformerModel,
     SegformerPreTrainedModel,
 )
+from .models.sew import SEWForCTC, SEWForSequenceClassification, SEWModel, SEWPreTrainedModel
+from .models.sew_d import SEWDForCTC, SEWDForSequenceClassification, SEWDModel, SEWDPreTrainedModel
 from .models.siglip import (
     SiglipForImageClassification,
     SiglipImageProcessor,
@@ -731,6 +753,8 @@ from .models.smolvlm import (
     SmolVLMPreTrainedModel,
     SmolVLMVisionTransformer,
 )
+from .models.speech_encoder_decoder import SpeechEncoderDecoderModel
+from .models.speech_to_text import Speech2TextForConditionalGeneration, Speech2TextModel, Speech2TextPreTrainedModel
 from .models.speecht5 import (
     SpeechT5ForSpeechToSpeech,
     SpeechT5ForSpeechToText,
@@ -784,6 +808,23 @@ from .models.umt5 import (
     UMT5Model,
     UMT5PreTrainedModel,
 )
+from .models.unispeech import (
+    UniSpeechForCTC,
+    UniSpeechForPreTraining,
+    UniSpeechForSequenceClassification,
+    UniSpeechModel,
+    UniSpeechPreTrainedModel,
+)
+from .models.unispeech_sat import (
+    UniSpeechSatForAudioFrameClassification,
+    UniSpeechSatForCTC,
+    UniSpeechSatForPreTraining,
+    UniSpeechSatForSequenceClassification,
+    UniSpeechSatForXVector,
+    UniSpeechSatModel,
+    UniSpeechSatPreTrainedModel,
+)
+from .models.univnet import UnivNetModel
 from .models.video_llava import VideoLlavaForConditionalGeneration, VideoLlavaPreTrainedModel
 from .models.vilt import (
     ViltForImageAndTextRetrieval,
