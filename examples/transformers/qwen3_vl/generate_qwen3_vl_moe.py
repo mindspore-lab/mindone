@@ -9,11 +9,11 @@ import mindspore.mint.distributed as dist
 from mindspore.communication import GlobalComm
 
 from mindone.trainers.zero import prepare_network
-from mindone.transformers import Qwen3VLForConditionalGeneration
+from mindone.transformers import Qwen3VLMoeForConditionalGeneration
 
 
 def generate(args):
-    model = Qwen3VLForConditionalGeneration.from_pretrained(
+    model = Qwen3VLMoeForConditionalGeneration.from_pretrained(
         args.model_name,
         mindspore_dtype=ms.bfloat16,
         attn_implementation=args.attn_implementation,

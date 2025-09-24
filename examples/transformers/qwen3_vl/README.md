@@ -12,14 +12,16 @@
 
 ### Installation:
 ```
+# compile newest transformers whl because qwen3-vl(transformers v4.57.dev.0) haven't released
+git clone https://github.com/huggingface/transformers.git
+cd transformers
+pip install -e .
+cd ..
+
 git clone https://github.com/mindspore-lab/mindone.git
 cd mindone
 pip install -e .
 cd examples/transformers/qwen3_vl
-
-# compile newest transformers whl because qwen3-vl(transformers v4.57.dev.0) haven't released
-git clone https://github.com/huggingface/transformers.git
-pip install -e .
 ```
 
 ## Quick Start
@@ -28,7 +30,7 @@ Here is a usage example of Qwen3-VL-4B-Instruct. you can use the following comma
 
 ```bash
 # for Qwen3-VL-4B-Instruct inference
-python generate.py
+python generate_qwen3_vl.py
     --model_name "Qwen/Qwen3-VL-4B-Instruct"
     --image "https://huggingface.co/datasets/huggingface/documentation-images/resolve/main/pipeline-cat-chonk.jpeg"
     --prompt "Describe this image."
@@ -36,10 +38,12 @@ python generate.py
 
 ```bash
 # for Qwen3-VL-30B-Instruct inference
-msrun --worker_num=2 --local_worker_num=2 master_port=8118 --log_dir=msrun_log --join=True --cluster_time_out=300 generate.py
-    --model_name "Qwen/Qwen3-VL-30B-Instruct"
-    --image "https://huggingface.co/datasets/huggingface/documentation-images/resolve/main/pipeline-cat-chonk.jpeg"
-    --prompt "Describe this image."
+msrun --worker_num=2 --local_worker_num=2 --master_port=8118 \
+    --log_dir=msrun_log --join=True --cluster_time_out=300 \
+    generate_qwen3_vl_moe.py \
+    --model_name "Qwen/Qwen3-VL-30B-Instruct" \
+    --image "https://huggingface.co/datasets/huggingface/documentation-images/resolve/main/pipeline-cat-chonk.jpeg" \
+    --prompt "Describe this image." \
 ```
 
 Image:
