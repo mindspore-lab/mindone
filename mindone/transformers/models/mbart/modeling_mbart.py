@@ -90,7 +90,7 @@ class MBartLearnedPositionalEmbedding(mindspore.mint.nn.Embedding):
             past_key_values_length,
             past_key_values_length + seq_len,
             dtype=mindspore.int64,
-        ).expand(bsz, -1)
+        ).expand((bsz, -1))
 
         return super().construct(positions + self.offset)
 

@@ -544,7 +544,6 @@ from .models.mbart import (
     MBartModel,
     MBartPreTrainedModel,
 )
-
 from .models.megatron_bert import (
     MegatronBertForCausalLM,
     MegatronBertForMaskedLM,
