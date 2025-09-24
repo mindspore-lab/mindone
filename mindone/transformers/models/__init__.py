@@ -51,6 +51,7 @@ from . import (
     distilbert,
     dpr,
     dpt,
+    emu3,
     encodec,
     fastspeech2_conformer,
     funnel,
