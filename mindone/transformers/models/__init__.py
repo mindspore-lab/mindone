@@ -136,6 +136,7 @@ from . import (
     vilt,
     vipllava,
     vision_encoder_decoder,
+    visual_bert,
     vit,
     vits,
     wav2vec2,
