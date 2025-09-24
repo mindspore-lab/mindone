@@ -61,6 +61,7 @@ MODEL_MAPPING_NAMES = OrderedDict(
         ("convnext", "ConvNextModel"),
         ("convnextv2", "ConvNextV2Model"),
         ("ctrl", "CTRLModel"),
+        ("dac", "DacModel"),
         ("data2vec-audio", "Data2VecAudioModel"),
         ("data2vec-text", "Data2VecTextModel"),
         ("data2vec-vision", "Data2VecVisionModel"),
