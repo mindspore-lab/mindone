@@ -1264,7 +1264,7 @@ class BarkFineModel(BarkPreTrainedModel):
                 self._tie_or_clone_weights(output_embeddings[i], input_embeddings[i + 1])
                 self._tied_weights_keys.append(f"lm_heads.{i}.weight")
 
-        for module in self.modules():
+        for name, module in self.cells_and_names():
             if hasattr(module, "_tie_weights"):
                 module._tie_weights()
 
