@@ -105,7 +105,6 @@ from . import (
     poolformer,
     pop2piano,
     qwen2,
-    qwen2_5_omni,
     qwen2_5_vl,
     qwen2_audio,
     qwen2_vl,
@@ -150,4 +149,4 @@ if version.parse(transformers.__version__) >= version.parse("4.51.3"):
     from . import glm4
 
 if version.parse(transformers.__version__) >= version.parse("4.53.0"):
-    from . import glm4v, minimax, vjepa2
+    from . import glm4v, minimax, qwen2_5_omni, vjepa2
