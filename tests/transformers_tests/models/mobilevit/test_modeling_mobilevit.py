@@ -36,6 +36,7 @@ from tests.modeling_test_utils import (
 
 from ..modeling_common import floats_numpy, ids_numpy
 
+# HF and MindSpore overflow under FP16.
 DTYPE_AND_THRESHOLDS = {"fp32": 5e-4, "bf16": 5e-2}
 MODES = [1]
 
