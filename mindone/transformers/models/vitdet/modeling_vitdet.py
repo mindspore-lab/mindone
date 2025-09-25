@@ -395,7 +395,7 @@ def window_partition(hidden_state, window_size):
             Window size.
 
     Returns:
-        `tuple(torch.FloatTensor)` comprising various elements:
+        `tuple(ms.Tensor)` comprising various elements:
         - windows: windows after partition with [batch_size * num_windows, window_size, window_size, num_channels].
         - (padded_height, padded_width): padded height and width before partition
     """
@@ -731,13 +731,14 @@ class VitDetModel(VitDetPreTrainedModel):
         Examples:
 
         ```python
-        >>> from transformers import VitDetConfig, VitDetModel
+        >>> from transformers import VitDetConfig
+        >>> from mindone.transformers import VitDetModel
         >>> import mindspore
 
         >>> config = VitDetConfig()
         >>> model = VitDetModel(config)
 
-        >>> pixel_values = mint.randn(1, 3, 224, 224)
+        >>> pixel_values = mindspore.ops.randn(1, 3, 224, 224)
 
         >>> outputs = model(pixel_values)
 
@@ -819,13 +820,13 @@ class VitDetBackbone(VitDetPreTrainedModel, BackboneMixin):
 
         ```python
         >>> from transformers import VitDetConfig
-        >>> from mindsone.transformers import VitDetBackbone
+        >>> from mindone.transformers import VitDetBackbone
         >>> import mindspore
 
         >>> config = VitDetConfig()
         >>> model = VitDetBackbone(config)
 
-        >>> pixel_values = mint.randn(1, 3, 224, 224)
+        >>> pixel_values = mindspore.ops.randn(1, 3, 224, 224)
 
         >>> outputs = model(pixel_values)
 

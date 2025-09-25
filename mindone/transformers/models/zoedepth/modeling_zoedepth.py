@@ -18,23 +18,24 @@ import math
 from dataclasses import dataclass
 from typing import List, Optional, Tuple, Union
 
-import mindspore as ms
-from mindspore import mint, nn
-from mindone.models.utils import ones_, normal_, zeros_
-
-
-from ...activations import ACT2FN
+from transformers import ZoeDepthConfig
 from transformers.utils import (
+    ModelOutput,
     add_start_docstrings,
     add_start_docstrings_to_model_forward,
+    logging,
     replace_return_docstrings,
 )
+
+import mindspore as ms
+from mindspore import mint, nn
+
+from mindone.models.utils import normal_, ones_, zeros_
+
+from ...activations import ACT2FN
 from ...modeling_outputs import DepthEstimatorOutput
 from ...modeling_utils import PreTrainedModel
-from transformers.utils import ModelOutput, logging
 from ...utils.backbone_utils import load_backbone
-from transformers import ZoeDepthConfig
-
 
 logger = logging.get_logger(__name__)
 
@@ -106,7 +107,7 @@ class ZoeDepthReassembleStage(nn.Cell):
             hidden_size = config.backbone_hidden_size
             for _ in config.neck_hidden_sizes:
                 self.readout_projects.append(
-                    nn.Sequential(mint.nn.Linear(2 * hidden_size, hidden_size), ACT2FN[config.hidden_act])
+                    nn.SequentialCell(mint.nn.Linear(2 * hidden_size, hidden_size), ACT2FN[config.hidden_act])
                 )
 
     def construct(self, hidden_states: List[ms.Tensor], patch_height, patch_width) -> List[ms.Tensor]:
@@ -292,7 +293,10 @@ class ZoeDepthFeatureFusionLayer(nn.Cell):
 
         hidden_state = self.residual_layer2(hidden_state)
         hidden_state = mint.nn.functional.interpolate(
-            hidden_state, size=(hidden_state.shape[2]*2, hidden_state.shape[3]*2), mode="bilinear", align_corners=self.align_corners
+            hidden_state,
+            size=(hidden_state.shape[2] * 2, hidden_state.shape[3] * 2),
+            mode="bilinear",
+            align_corners=self.align_corners,
         )
         hidden_state = self.projection(hidden_state)
 
@@ -384,7 +388,9 @@ class ZoeDepthRelativeDepthEstimationHead(nn.Cell):
 
         hidden_states = self.conv1(hidden_states)
         _, _, h, w = hidden_states.shape
-        hidden_states = mint.nn.functional.interpolate(hidden_states, size=(h*2, w*2), mode="bilinear", align_corners=True)
+        hidden_states = mint.nn.functional.interpolate(
+            hidden_states, size=(h * 2, w * 2), mode="bilinear", align_corners=True
+        )
         hidden_states = self.conv2(hidden_states)
         hidden_states = mint.nn.ReLU()(hidden_states)
         # we need the features here (after second conv + ReLu)
@@ -392,7 +398,7 @@ class ZoeDepthRelativeDepthEstimationHead(nn.Cell):
         hidden_states = self.conv3(hidden_states)
         hidden_states = mint.nn.ReLU()(hidden_states)
 
-        predicted_depth = hidden_states.squeeze(dim=1)
+        predicted_depth = hidden_states.squeeze(1)
 
         return predicted_depth, features
 
@@ -417,8 +423,8 @@ class LogBinomialSoftmax(nn.Cell):
         super().__init__()
         self.k = n_classes
         self.act = act
-        k_idx = ms.Parameter(mint.arange(0, n_classes).view(1, -1, 1, 1), name="k_idx")
-        k_minus_1= ms.Parameter(ms.Tensor([self.k - 1]).view(1, -1, 1, 1), name="k_minus_1")
+        self.k_idx = ms.Parameter(mint.arange(0, n_classes).view(1, -1, 1, 1), name="k_idx")
+        self.k_minus_1 = ms.Parameter(ms.Tensor([self.k - 1]).view(1, -1, 1, 1), name="k_minus_1")
         # self.register_buffer("k_idx", mint.arange(0, n_classes).view(1, -1, 1, 1), persistent=False)
         # self.register_buffer("k_minus_1", ms.Tensor([self.k - 1]).view(1, -1, 1, 1), persistent=False)
 
@@ -453,15 +459,14 @@ class LogBinomialSoftmax(nn.Cell):
 class Softplus(nn.Cell):
     def __init__(
         self,
-        beta = 1.0,
-        threshold = 20.0,
+        beta=1.0,
+        threshold=20.0,
     ):
         self.beta = beta
         self.threshold = threshold
 
     def construct(self, input):
         return mint.nn.functional.softplus(input)
-
 
 
 class ZoeDepthConditionalLogBinomialSoftmax(nn.Cell):
@@ -494,7 +499,7 @@ class ZoeDepthConditionalLogBinomialSoftmax(nn.Cell):
             mint.nn.GELU(),
             # 2 for probabilities linear norm, 2 for temperature linear norm
             mint.nn.Conv2d(bottleneck, 2 + 2, kernel_size=1, stride=1, padding=0),
-            # should have an softplus here but mindspore do not have nn.Softplus() 
+            # should have an softplus here but mindspore do not have nn.Softplus()
             # so we use mint.nn.functional.softplus in `construct`
             # nn.Softplus(),
         )
@@ -560,9 +565,9 @@ class ZoeDepthSeedBinRegressor(nn.Cell):
         self.max_depth = max_depth
 
         self.conv1 = mint.nn.Conv2d(self.in_features, mlp_dim, 1, 1, 0)
-        self.act1 = mint.nn.ReLU(inplace=True)
+        self.act1 = mint.nn.ReLU()
         self.conv2 = mint.nn.Conv2d(mlp_dim, n_bins, 1, 1, 0)
-        self.act2 = mint.nn.ReLU(inplace=True) if self.bin_centers_type == "normed" else nn.Softplus()
+        self.act2 = mint.nn.ReLU() if self.bin_centers_type == "normed" else nn.Softplus()
 
     def construct(self, x):
         """
@@ -676,7 +681,7 @@ class ZoeDepthAttractorLayer(nn.Cell):
         batch_size, _, height, width = attractors.shape
         attractors = attractors.view(batch_size, self.n_attractors, 2, height, width)
         # batch_size, num_attractors, 2, height, width
-        # note: original repo had a bug here: https://github.com/isl-org/ZoeDepth/blame/edb6daf45458569e24f50250ef1ed08c015f17a7/zoedepth/models/layers/attractor.py#L105C9-L106C50
+        # note: original repo had a bug here: https://github.com/isl-org/ZoeDepth/blame/edb6daf45458569e24f50250ef1ed08c015f17a7/zoedepth/models/layers/attractor.py#L105C9-L106C50 # noqa E501
         # we include the bug to maintain compatibility with the weights
         attractors_normed = attractors[:, :, 0, ...]  # batch_size, batch_size*num_attractors, height, width
 
@@ -730,7 +735,7 @@ class ZoeDepthAttractorLayerUnnormed(nn.Cell):
 
         in_features = mlp_dim = config.bin_embedding_dim
         self.conv1 = mint.nn.Conv2d(in_features, mlp_dim, 1, 1, 0)
-        self.act1 = mint.nn.ReLU(inplace=True)
+        self.act1 = mint.nn.ReLU()
         self.conv2 = mint.nn.Conv2d(mlp_dim, n_attractors, 1, 1, 0)
         # self.act2 = nn.Softplus()
 
@@ -763,7 +768,7 @@ class ZoeDepthAttractorLayerUnnormed(nn.Cell):
         x = self.conv1(x)
         x = self.act1(x)
         x = self.conv2(x)
-        attractors = mint.nn.functional.softplus(x) # act2 is softplus
+        attractors = mint.nn.functional.softplus(x)  # act2 is softplus
 
         height, width = attractors.shape[-2:]
 
@@ -803,7 +808,7 @@ class ZoeDepthProjector(nn.Cell):
         super().__init__()
 
         self.conv1 = mint.nn.Conv2d(in_features, mlp_dim, 1, 1, 0)
-        self.act = mint.nn.ReLU(inplace=True)
+        self.act = mint.nn.ReLU()
         self.conv2 = mint.nn.Conv2d(mlp_dim, out_features, 1, 1, 0)
 
     def construct(self, hidden_state: ms.Tensor) -> ms.Tensor:
@@ -840,7 +845,7 @@ class ZoeDepthMultiheadAttention(nn.Cell):
         self.dropout = mint.nn.Dropout(dropout)
 
     def transpose_for_scores(self, x: ms.Tensor) -> ms.Tensor:
-        new_x_shape = x.size()[:-1] + (self.num_attention_heads, self.attention_head_size)
+        new_x_shape = x.shape[:-1] + (self.num_attention_heads, self.attention_head_size)
         x = x.view(new_x_shape)
         return x.permute(0, 2, 1, 3)
 
@@ -874,7 +879,7 @@ class ZoeDepthMultiheadAttention(nn.Cell):
         context_layer = mint.matmul(attention_probs, value_layer)
 
         context_layer = context_layer.permute(0, 2, 1, 3).contiguous()
-        new_context_layer_shape = context_layer.size()[:-2] + (self.all_head_size,)
+        new_context_layer_shape = context_layer.shape[:-2] + (self.all_head_size,)
         context_layer = context_layer.view(new_context_layer_shape)
 
         context_layer = self.out_proj(context_layer)
@@ -940,7 +945,7 @@ class ZoeDepthPatchTransformerEncoder(nn.Cell):
             in_channels, config.patch_transformer_hidden_size, kernel_size=1, stride=1, padding=0
         )
 
-    def positional_encoding_1d(self, batch_size, sequence_length, embedding_dim, device="cpu", dtype=torch.float32):
+    def positional_encoding_1d(self, batch_size, sequence_length, embedding_dim, dtype=ms.float32):
         """Generate positional encodings
 
         Args:
@@ -950,9 +955,9 @@ class ZoeDepthPatchTransformerEncoder(nn.Cell):
         Returns:
             ms.Tensor: Positional encodings.
         """
-        position = mint.arange(0, sequence_length, dtype=dtype, device=device).unsqueeze(1)
-        index = mint.arange(0, embedding_dim, 2, dtype=dtype, device=device).unsqueeze(0)
-        div_term = mint.exp(index * (-mint.log(ms.Tensor(10000.0, device=device)) / embedding_dim))
+        position = mint.arange(0, sequence_length, dtype=dtype).unsqueeze(1)
+        index = mint.arange(0, embedding_dim, 2, dtype=dtype).unsqueeze(0)
+        div_term = mint.exp(index * (-mint.log(ms.Tensor(10000.0)) / embedding_dim))
         pos_encoding = position * div_term
         pos_encoding = mint.cat([mint.sin(pos_encoding), mint.cos(pos_encoding)], dim=1)
         pos_encoding = pos_encoding.unsqueeze(dim=0).repeat(batch_size, 1, 1)
@@ -969,7 +974,7 @@ class ZoeDepthPatchTransformerEncoder(nn.Cell):
         """
         embeddings = self.embedding_convPxP(x).flatten(2)  # shape (batch_size, num_channels, sequence_length)
         # add an extra special CLS token at the start for global accumulation
-        embeddings = nn.functional.pad(embeddings, (1, 0))
+        embeddings = mint.nn.functional.pad(embeddings, (1, 0))
 
         embeddings = embeddings.permute(0, 2, 1)
         batch_size, sequence_length, embedding_dim = embeddings.shape
@@ -1057,22 +1062,22 @@ class ZoeDepthMultipleMetricDepthEstimationHeads(nn.Cell):
         )
 
         # Create a map (ModuleDict) of 'name' -> attractors (ModuleList)
-        self.attractors = nn.CellDict(
-            {
-                configuration["name"]: nn.CellList(
-                    [
-                        Attractor(
-                            config,
-                            n_bins=n_attractors[i],
-                            min_depth=configuration["min_depth"],
-                            max_depth=configuration["max_depth"],
-                        )
-                        for i in range(len(n_attractors))
-                    ]
-                )
-                for configuration in config.bin_configurations
-            }
-        )
+        # FIXME Elements of`mindspore.nn.CellDict` currently can not be `CellDict`, `CellList` or `SequentialCell`
+        # use `Dict` instead.
+        self.attractors = {
+            configuration["name"]: nn.CellList(
+                [
+                    Attractor(
+                        config,
+                        n_bins=n_attractors[i],
+                        min_depth=configuration["min_depth"],
+                        max_depth=configuration["max_depth"],
+                    )
+                    for i in range(len(n_attractors))
+                ]
+            )
+            for configuration in config.bin_configurations
+        }
 
         last_in = config.num_relative_features
         # conditional log binomial for each bin configuration
@@ -1130,13 +1135,15 @@ class ZoeDepthMultipleMetricDepthEstimationHeads(nn.Cell):
         last = outconv_activation
 
         bin_centers = mint.nn.functional.interpolate(bin_centers, last.shape[-2:], mode="bilinear", align_corners=True)
-        bin_embedding = mint.nn.functional.interpolate(bin_embedding, last.shape[-2:], mode="bilinear", align_corners=True)
+        bin_embedding = mint.nn.functional.interpolate(
+            bin_embedding, last.shape[-2:], mode="bilinear", align_corners=True
+        )
 
         conditional_log_binomial = self.conditional_log_binomial[bin_configurations_name]
         x = conditional_log_binomial(last, bin_embedding)
 
         # Now depth value is Sum px * cx , where cx are bin_centers from the last bin tensor
-        out = torch.sum(x * bin_centers, dim=1, keepdim=True)
+        out = mint.sum(x * bin_centers, dim=1, keepdim=True)
 
         return out, domain_logits
 
@@ -1173,10 +1180,7 @@ class ZoeDepthMetricDepthEstimationHead(nn.Cell):
         self.seed_projector = ZoeDepthProjector(in_features=bottleneck_features, out_features=bin_embedding_dim)
 
         self.projectors = nn.CellList(
-            [
-                ZoeDepthProjector(in_features=config.fusion_hidden_size, out_features=bin_embedding_dim)
-                for _ in range(4)
-            ]
+            [ZoeDepthProjector(in_features=config.fusion_hidden_size, out_features=bin_embedding_dim) for _ in range(4)]
         )
         self.attractors = nn.CellList(
             [
@@ -1228,7 +1232,9 @@ class ZoeDepthMetricDepthEstimationHead(nn.Cell):
         )
         last = mint.cat([last, relative_conditioning], dim=1)
 
-        bin_embedding = mint.nn.functional.interpolate(bin_embedding, last.shape[-2:], mode="bilinear", align_corners=True)
+        bin_embedding = mint.nn.functional.interpolate(
+            bin_embedding, last.shape[-2:], mode="bilinear", align_corners=True
+        )
         x = self.conditional_log_binomial(last, bin_embedding)
 
         # Now depth value is Sum px * cx , where cx are bin_centers from the last bin tensor
@@ -1308,9 +1314,7 @@ class ZoeDepthForDepthEstimation(ZoeDepthPreTrainedModel):
             config.backbone_hidden_size = self.backbone.config.hidden_size
             self.patch_size = self.backbone.config.patch_size
         else:
-            raise ValueError(
-                "ZoeDepth assumes the backbone's config to have `hidden_size` and `patch_size` attributes"
-            )
+            raise ValueError("ZoeDepth assumes the backbone's config to have `hidden_size` and `patch_size` attributes")
 
         self.neck = ZoeDepthNeck(config)
         self.relative_head = ZoeDepthRelativeDepthEstimationHead(config)
@@ -1357,10 +1361,12 @@ class ZoeDepthForDepthEstimation(ZoeDepthPreTrainedModel):
 
         >>> # prepare image for the model
         >>> inputs = image_processor(images=image, return_tensors="np")
+        >>> inputs = {k: ms.tensor(v) for k, v in inputs.items()}
 
         >>> outputs = model(**inputs)
 
         >>> # interpolate to original size
+        # FIXME here: should have support image_processor.post_process_depth_estimation in mindspore later
         >>> post_processed_output = image_processor.post_process_depth_estimation(
         ...     outputs,
         ...     source_sizes=[(image.height, image.width)],
@@ -1403,7 +1409,7 @@ class ZoeDepthForDepthEstimation(ZoeDepthPreTrainedModel):
         metric_depth, domain_logits = self.metric_head(
             outconv_activation=out[0], bottleneck=out[1], feature_blocks=out[2:], relative_depth=relative_depth
         )
-        metric_depth = metric_depth.squeeze(dim=1)
+        metric_depth = metric_depth.squeeze(1)
 
         if not return_dict:
             if domain_logits is not None:

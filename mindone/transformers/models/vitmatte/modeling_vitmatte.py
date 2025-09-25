@@ -314,6 +314,7 @@ class VitMatteForImageMatting(VitMattePreTrainedModel):
 
         >>> # prepare image + trimap for the model
         >>> inputs = processor(images=image, trimaps=trimap, return_tensors="np")
+        >>> inputs = {k: ms.tensor(v) for k, v in inputs.items()}
 
         >>> alphas = model(**inputs).alphas
         >>> print(alphas.shape)

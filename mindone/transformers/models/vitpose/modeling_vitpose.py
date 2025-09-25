@@ -112,7 +112,7 @@ VITPOSE_INPUTS_DOCSTRING = r"""
         dataset_index (`ms.Tensor` of shape `(batch_size,)`):
             Index to use in the Mixture-of-Experts (MoE) blocks of the backbone.
 
-            This corresponds to the dataset index used during training, e.g. For the single dataset index 0 refers to the corresponding dataset. For the multiple datasets index 0 refers to dataset A (e.g. MPII) and index 1 refers to dataset B (e.g. CrowdPose).
+            This corresponds to the dataset index used during training, e.g. For the single dataset index 0 refers to the corresponding dataset. For the multiple datasets index 0 refers to dataset A (e.g. MPII) and index 1 refers to dataset B (e.g. CrowdPose). # noqa E501
 
         flip_pairs (`ms.Tensor`, *optional*):
             Whether to mirror pairs of keypoints (for example, left ear -- right ear).
@@ -178,7 +178,9 @@ class VitPoseSimpleDecoder(nn.Cell):
         super().__init__()
 
         self.activation = mint.nn.ReLU()
-        self.upsampling = mint.nn.Upsample(scale_factor=config.scale_factor, mode="bilinear", align_corners=False)
+        # FIXME mindspore does not support `scale_factor` when `mode="bilinear"`, use `size` instead
+        # self.upsampling = mint.nn.Upsample(scale_factor=config.scale_factor, mode="bilinear", align_corners=False)
+        self.scale_factor = config.scale_factor
         self.conv = mint.nn.Conv2d(
             config.backbone_config.hidden_size, config.num_labels, kernel_size=3, stride=1, padding=1
         )
@@ -186,7 +188,11 @@ class VitPoseSimpleDecoder(nn.Cell):
     def construct(self, hidden_state: ms.Tensor, flip_pairs: Optional[ms.Tensor] = None) -> ms.Tensor:
         # Transform input: ReLU + upsample
         hidden_state = self.activation(hidden_state)
-        hidden_state = self.upsampling(hidden_state)
+        # hidden_state = self.upsampling(hidden_state) -> `mint.nn.functional.interpolate`
+        _, _, h, w = hidden_state.shape
+        hidden_state = mint.nn.functional.interpolate(
+            hidden_state, size=(h * self.scale_factor, w * self.scale_factor), mode="bilinear", align_corners=False
+        )
         heatmaps = self.conv(hidden_state)
 
         if flip_pairs is not None:
@@ -276,7 +282,7 @@ class VitPoseForPoseEstimation(VitPosePreTrainedModel):
         ```python
         >>> from transformers import AutoImageProcessor
         >>> from mindone.transformers import VitPoseForPoseEstimation
-        >>> import mindspore
+        >>> import mindspore as ms
         >>> from PIL import Image
         >>> import requests
 
@@ -287,6 +293,7 @@ class VitPoseForPoseEstimation(VitPosePreTrainedModel):
         >>> image = Image.open(requests.get(url, stream=True).raw)
         >>> boxes = [[[412.8, 157.61, 53.05, 138.01], [384.43, 172.21, 15.12, 35.74]]]
         >>> inputs = processor(image, boxes=boxes, return_tensors="np")
+        >>> inputs = {k: ms.tensor(v) for k, v in inputs.items()}
 
         >>> outputs = model(**inputs)
         >>> heatmaps = outputs.heatmaps

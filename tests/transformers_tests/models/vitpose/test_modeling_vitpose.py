@@ -32,7 +32,8 @@ from tests.modeling_test_utils import (
 )
 from tests.transformers_tests.models.modeling_common import floats_numpy, ids_numpy
 
-DTYPE_AND_THRESHOLDS = {"fp32": 5e-4, "fp16": 5e-3, "bf16": 7e-3}
+# interpolate bilinear mode raise error, aclnnUpsampleBilinear2d operator does not support bf16
+DTYPE_AND_THRESHOLDS = {"fp32": 5e-4, "fp16": 5e-3}  # , "bf16": 7e-3}
 MODES = [1]
 
 
@@ -130,7 +131,7 @@ model_tester = VitPoseModelTester()
 ) = model_tester.prepare_config_and_inputs_for_common()
 
 
-VIT_MATTE_CASES = [
+VIT_POSE_CASES = [
     [
         "VitPoseForPoseEstimation",
         "transformers.VitPoseForPoseEstimation",
@@ -158,7 +159,7 @@ VIT_MATTE_CASES = [
         + [
             mode,
         ]
-        for case in VIT_MATTE_CASES
+        for case in VIT_POSE_CASES
         for dtype in DTYPE_AND_THRESHOLDS.keys()
         for mode in MODES
     ],

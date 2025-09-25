@@ -64,7 +64,7 @@ class ViTMSNEmbeddings(nn.Cell):
     def interpolate_pos_encoding(self, embeddings: ms.Tensor, height: int, width: int) -> ms.Tensor:
         """
         This method allows to interpolate the pre-trained position encodings, to be able to use the model on higher resolution
-        images. This method is also adapted to support torch.jit tracing.
+        images. (originally) This method is also adapted to support torch.jit tracing.
 
         Adapted from:
         - https://github.com/facebookresearch/dino/blob/de9ee3df6cf39fac952ab558447af1fa1365362a/vision_transformer.py#L174-L194, and
@@ -562,12 +562,14 @@ class ViTMSNModel(ViTMSNPreTrainedModel):
         >>> from mindone.transformers import ViTMSNModel
         >>> from PIL import Image
         >>> import requests
+        >>> import mindspore as ms
 
         >>> url = "http://images.cocodataset.org/val2017/000000039769.jpg"
         >>> image = Image.open(requests.get(url, stream=True).raw)
 
-        >>> image_processor = AutoImageProcessor.from_pretrained("facebook/vit-msn-small")
-        >>> model = ViTMSNModel.from_pretrained("facebook/vit-msn-small")
+        >>> # we use the model of `safetensor` format.
+        >>> image_processor = AutoImageProcessor.from_pretrained("facebook/vit-msn-small", revision="refs/pr/5")
+        >>> model = ViTMSNModel.from_pretrained("facebook/vit-msn-small", revision="refs/pr/5")
         >>> inputs = image_processor(images=image, return_tensors="np")
         >>> inputs = {k: ms.tensor(v) for k, v in inputs.items()}
         >>> outputs = model(**inputs)
@@ -662,23 +664,23 @@ class ViTMSNForImageClassification(ViTMSNPreTrainedModel):
         ```python
         >>> from transformers import AutoImageProcessor
         >>> from mindone.transformers import ViTMSNForImageClassification
-        >>> import mindspore
+        >>> import mindspore as ms
         >>> from PIL import Image
         >>> import requests
 
         >>> url = "http://images.cocodataset.org/val2017/000000039769.jpg"
         >>> image = Image.open(requests.get(url, stream=True).raw)
 
-        >>> image_processor = AutoImageProcessor.from_pretrained("facebook/vit-msn-small")
-        >>> model = ViTMSNForImageClassification.from_pretrained("facebook/vit-msn-small")
+        >>> # we use the model of `safetensor` format.
+        >>> image_processor = AutoImageProcessor.from_pretrained("facebook/vit-msn-small", revision="refs/pr/5")
+        >>> model = ViTMSNForImageClassification.from_pretrained("facebook/vit-msn-small", revision="refs/pr/5")
 
-        >>> inputs = image_processor(images=image, return_tensors=np")
+        >>> inputs = image_processor(images=image, return_tensors="np")
         >>> inputs = {k: ms.tensor(v) for k, v in inputs.items()}
         >>> logits = model(**inputs).logits
         >>> # model predicts one of the 1000 ImageNet classes
         >>> predicted_label = logits.argmax(-1).item()
         >>> print(model.config.id2label[predicted_label])
-        tusker
         ```"""
         return_dict = return_dict if return_dict is not None else self.config.use_return_dict
 

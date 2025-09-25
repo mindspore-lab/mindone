@@ -60,6 +60,8 @@ class VitPoseBackbonePatchEmbeddings(nn.Cell):
 
         image_size = image_size if isinstance(image_size, collections.abc.Iterable) else (image_size, image_size)
         patch_size = patch_size if isinstance(patch_size, collections.abc.Iterable) else (patch_size, patch_size)
+        # `mint.nn.Conv2d` does not support list input for `kernel_size` or `stride`
+        patch_size = tuple(patch_size) if isinstance(patch_size, list) else patch_size
         num_patches = (image_size[1] // patch_size[1]) * (image_size[0] // patch_size[0])
         self.image_size = image_size
         self.patch_size = patch_size
@@ -90,7 +92,7 @@ class VitPoseBackboneEmbeddings(nn.Cell):
         self.patch_embeddings = VitPoseBackbonePatchEmbeddings(config)
         num_patches = self.patch_embeddings.num_patches
         self.position_embeddings = ms.Parameter(mint.zeros((1, num_patches + 1, config.hidden_size)))
-        self.dropout = nn.Dropout(config.hidden_dropout_prob)
+        self.dropout = mint.nn.Dropout(config.hidden_dropout_prob)
 
     def construct(self, pixel_values: ms.Tensor) -> ms.Tensor:
         embeddings = self.patch_embeddings(pixel_values)
@@ -207,7 +209,7 @@ class VitPoseBackboneSelfOutput(nn.Cell):
     def __init__(self, config: VitPoseBackboneConfig) -> None:
         super().__init__()
         self.dense = mint.nn.Linear(config.hidden_size, config.hidden_size)
-        self.dropout = nn.Dropout(config.hidden_dropout_prob)
+        self.dropout = mint.nn.Dropout(config.hidden_dropout_prob)
 
     def construct(self, hidden_states: ms.Tensor, input_tensor: ms.Tensor) -> ms.Tensor:
         hidden_states = self.dense(hidden_states)
@@ -270,7 +272,7 @@ class VitPoseBackboneMoeMLP(nn.Cell):
         self.fc1 = mint.nn.Linear(in_features, hidden_features)
         self.act = ACT2FN[config.hidden_act]
         self.fc2 = mint.nn.Linear(hidden_features, out_features - part_features)
-        self.drop = nn.Dropout(config.hidden_dropout_prob)
+        self.drop = mint.nn.Dropout(config.hidden_dropout_prob)
 
         self.num_experts = num_experts
         experts = [mint.nn.Linear(hidden_features, part_features) for _ in range(num_experts)]
@@ -446,7 +448,7 @@ class VitPoseBackbonePreTrainedModel(PreTrainedModel):
                 module.position_embeddings.data,
                 mean=0.0,
                 std=self.config.initializer_range,
-            ).to(module.position_embeddings.dtype)
+            )
 
 
 VITPOSE_BACKBONE_START_DOCSTRING = r"""
@@ -462,7 +464,7 @@ VITPOSE_BACKBONE_START_DOCSTRING = r"""
 
 VITPOSE_BACKBONE_INPUTS_DOCSTRING = r"""
     Args:
-        pixel_values (`torch.FloatTensor` of shape `(batch_size, num_channels, height, width)`):
+        pixel_values (`ms.Tensor` of shape `(batch_size, num_channels, height, width)`):
             Pixel values.
 
         dataset_index (`ms.Tensor` of shape `(batch_size,)`):
@@ -470,7 +472,7 @@ VITPOSE_BACKBONE_INPUTS_DOCSTRING = r"""
 
             This corresponds to the dataset index used during training, e.g. index 0 refers to COCO.
 
-        head_mask (`torch.FloatTensor` of shape `(num_heads,)` or `(num_layers, num_heads)`, *optional*):
+        head_mask (`ms.Tensor` of shape `(num_heads,)` or `(num_layers, num_heads)`, *optional*):
             Mask to nullify selected heads of the self-attention modules. Mask values selected in `[0, 1]`:
 
             - 1 indicates the head is **not masked**,

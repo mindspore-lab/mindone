@@ -38,7 +38,6 @@ DTYPE_AND_THRESHOLDS = {"fp32": 5e-4, "fp16": 5e-3}  # , "bf16": 7e-3}
 MODES = [1]
 
 
-
 class ZoeDepthModelTester:
     def __init__(
         self,
@@ -142,7 +141,7 @@ ZOE_DEPTH_CASES = [
             "pixel_values": inputs_dict["pixel_values"],
         },
         {
-            "metric_depth": 0,
+            "predicted_depth": 0,
         },
     ],
 ]
@@ -158,7 +157,7 @@ ZOE_DEPTH_CASES = [
         + [
             mode,
         ]
-        for case in VIT_MATTE_CASES
+        for case in ZOE_DEPTH_CASES
         for dtype in DTYPE_AND_THRESHOLDS.keys()
         for mode in MODES
     ],
