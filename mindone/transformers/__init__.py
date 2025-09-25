@@ -716,6 +716,7 @@ from .models.seamless_m4t import (
     SeamlessM4TForSpeechToText,
     SeamlessM4TForTextToSpeech,
     SeamlessM4TForTextToText,
+    SeamlessM4TFeatureExtractor,
     SeamlessM4TModel,
     SeamlessM4TProcessor,
     SeamlessM4TConfig,
