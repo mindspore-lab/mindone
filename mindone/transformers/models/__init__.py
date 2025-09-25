@@ -106,6 +106,7 @@ from . import (
     pixtral,
     poolformer,
     pop2piano,
+    prophetnet,
     qwen2,
     qwen2_5_vl,
     qwen2_audio,
