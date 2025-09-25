@@ -908,13 +908,16 @@ class Siglip2TextModel(Siglip2PreTrainedModel):
         Examples:
 
         ```python
-        >>> from transformers import AutoTokenizer, Siglip2TextModel
+        >>> from transformers import AutoTokenizer
+        >>> from mindone.transformers import Siglip2TextModel
 
         >>> model = Siglip2TextModel.from_pretrained("google/siglip2-base-patch16-224")
         >>> tokenizer = AutoTokenizer.from_pretrained("google/siglip2-base-patch16-224")
 
         >>> # important: make sure to set padding="max_length" as that's how the model was trained
-        >>> inputs = tokenizer(["a photo of a cat", "a photo of a dog"], padding="max_length", return_tensors="pt")
+        >>> inputs = tokenizer(["a photo of a cat", "a photo of a dog"], padding="max_length", return_tensors="np")
+        >>> for key in inputs.keys():
+        >>>     inputs[key] = ms.tensor(inputs[key])
 
         >>> outputs = model(**inputs)
         >>> last_hidden_state = outputs.last_hidden_state
@@ -1001,15 +1004,18 @@ class Siglip2VisionModel(Siglip2PreTrainedModel):
         ```python
         >>> from PIL import Image
         >>> import requests
-        >>> from transformers import AutoProcessor, Siglip2VisionModel
+        >>> from transformers import AutoProcessor
+        >>> from mindone.transformers import Siglip2VisionModel
 
         >>> model = Siglip2VisionModel.from_pretrained("google/siglip2-base-patch16-224")
-        >>> processor = AutoProcessor.from_pretrained("google/siglip2-base-patch16-224")
+        >>> processor = AutoProcessor.from_pretrained("google/siglip2-base-patch16-224", use_fast=False)
 
         >>> url = "http://images.cocodataset.org/val2017/000000039769.jpg"
         >>> image = Image.open(requests.get(url, stream=True).raw)
 
-        >>> inputs = processor(images=image, return_tensors="pt")
+        >>> inputs = processor(images=image, return_tensors="np")
+        >>> for key in inputs.keys():
+        >>>     inputs[key] = ms.tensor(inputs[key])
 
         >>> outputs = model(**inputs)
         >>> last_hidden_state = outputs.last_hidden_state
