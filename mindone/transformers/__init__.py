@@ -779,11 +779,6 @@ from .models.swin import (
     SwinPreTrainedModel,
 )
 from .models.swin2sr import Swin2SRForImageSuperResolution, Swin2SRModel, Swin2SRPreTrainedModel
-from .models.table_transformer import (
-    TableTransformerForObjectDetection,
-    TableTransformerModel,
-    TableTransformerPreTrainedModel,
-)
 from .models.switch_transformers import (
     SwitchTransformersEncoderModel,
     SwitchTransformersForConditionalGeneration,
@@ -798,6 +793,11 @@ from .models.t5 import (
     T5ForConditionalGeneration,
     T5Model,
     T5PreTrainedModel,
+)
+from .models.table_transformer import (
+    TableTransformerForObjectDetection,
+    TableTransformerModel,
+    TableTransformerPreTrainedModel,
 )
 from .models.tapas import (
     TapasForMaskedLM,

@@ -13,12 +13,12 @@
 # limitations under the License.
 import inspect
 import math
-from typing import List
 
 import numpy as np
 import pytest
 import torch
 from transformers import ResNetConfig, TableTransformerConfig
+
 import mindspore as ms
 
 from tests.modeling_test_utils import (
@@ -28,10 +28,10 @@ from tests.modeling_test_utils import (
     generalized_parse_args,
     get_modules,
 )
-from tests.transformers_tests.models.modeling_common import ids_numpy, floats_numpy
+from tests.transformers_tests.models.modeling_common import floats_numpy
 
 # nn.functional.grid_sample not support fp16
-DTYPE_AND_THRESHOLDS = {"fp32": 5e-4, "fp16": 5e-3}
+DTYPE_AND_THRESHOLDS = {"fp32": 5e-4, "fp16": 5e-3, "bf16": 5e-2}
 MODES = [1]
 
 
@@ -88,9 +88,9 @@ class TableTransformerModelTester:
             labels = []
             for i in range(self.batch_size):
                 target = {
-                    "class_labels": torch.randint(high=self.num_labels, size=(self.n_targets,)),
+                    "class_labels": np.random.randint(low=0, high=self.num_labels, size=(self.n_targets,)),
                     "boxes": np.random.rand(self.n_targets, 4),
-                    "masks": np.random.rand(self.n_targets, self.min_size, self.max_size)
+                    "masks": np.random.rand(self.n_targets, self.min_size, self.max_size),
                 }
                 labels.append(target)
 
@@ -130,8 +130,8 @@ class TableTransformerModelTester:
 model_tester = TableTransformerModelTester()
 config, pixel_values, pixel_mask, labels = model_tester.prepare_config_and_inputs()
 
-LLAMA_CASES = [
-[
+TABLE_TRANSFORMER_CASES = [
+    [
         "TableTransformerModel",
         "transformers.TableTransformerModel",
         "mindone.transformers.TableTransformerModel",
@@ -168,22 +168,22 @@ LLAMA_CASES = [
         + [
             mode,
         ]
-        for case in LLAMA_CASES
+        for case in TABLE_TRANSFORMER_CASES
         for dtype in DTYPE_AND_THRESHOLDS.keys()
         for mode in MODES
     ],
 )
 def test_named_modules(
-        name,
-        pt_module,
-        ms_module,
-        init_args,
-        init_kwargs,
-        inputs_args,
-        inputs_kwargs,
-        outputs_map,
-        dtype,
-        mode,
+    name,
+    pt_module,
+    ms_module,
+    init_args,
+    init_kwargs,
+    inputs_args,
+    inputs_kwargs,
+    outputs_map,
+    dtype,
+    mode,
 ):
     ms.set_context(mode=mode)
 
