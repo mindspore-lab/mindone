@@ -1193,13 +1193,13 @@ class Wav2Vec2PreTrainedModel(MSPreTrainedModel):
             raise ValueError(f"{self.__class__} has no adapter layers. Make sure to define `config.adapter_attn_dim`.")
 
         adapter_weights = {}
-        for name, module in self.named_modules():
+        for name, module in self.cells_and_names():
             if isinstance(module, Wav2Vec2AttnAdapterLayer):
-                for param_name, param in module.named_parameters():
+                for param_name, param in module.parameters_and_names():
                     adapter_weights[".".join([name, param_name])] = param
 
         if isinstance(self, Wav2Vec2ForCTC):
-            for name, param in self.lm_head.named_parameters():
+            for name, param in self.lm_head.parameters_and_names():
                 adapter_weights[".".join(["lm_head", name])] = param
 
         return adapter_weights
@@ -1399,7 +1399,7 @@ class Wav2Vec2PreTrainedModel(MSPreTrainedModel):
             self.config.vocab_size = target_vocab_size
 
         # make sure that adapter weights are put in exactly the same precision and overwritten adapter weights
-        state_dict = {k: v.to(adapter_weights[k]) for k, v in state_dict.items()}
+        state_dict = {k: v.to(adapter_weights[k].dtype) for k, v in state_dict.items()}
         self.load_state_dict(state_dict, strict=False)
 
         # set target language corectly
@@ -1466,7 +1466,7 @@ class Wav2Vec2Model(Wav2Vec2PreTrainedModel):
 
         if mask_time_indices is not None:
             # apply SpecAugment along time axis with given mask_time_indices
-            hidden_states[mask_time_indices] = self.masked_spec_embed.to(hidden_states.dtype)
+            hidden_states[mask_time_indices] = self.masked_spec_embed.set_dtype(hidden_states.dtype)
         elif self.config.mask_time_prob > 0 and self.training:
             mask_time_indices = _compute_mask_indices(
                 (batch_size, sequence_length),
@@ -1476,7 +1476,7 @@ class Wav2Vec2Model(Wav2Vec2PreTrainedModel):
                 min_masks=self.config.mask_time_min_masks,
             )
             mask_time_indices = ms.tensor(mask_time_indices, dtype=ms.bool_)
-            hidden_states[mask_time_indices] = self.masked_spec_embed.to(hidden_states.dtype)
+            hidden_states[mask_time_indices] = self.masked_spec_embed.set_dtype(hidden_states.dtype)
 
         if self.config.mask_feature_prob > 0 and self.training:
             # generate indices & apply SpecAugment along feature axis
