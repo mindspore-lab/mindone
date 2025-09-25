@@ -1305,7 +1305,9 @@ class Siglip2ForImageClassification(Siglip2PreTrainedModel):
 
         # Classifier head
         self.classifier = (
-            mint.nn.Linear(config.vision_config.hidden_size, config.num_labels) if config.num_labels > 0 else nn.Identity()
+            mint.nn.Linear(config.vision_config.hidden_size, config.num_labels)
+            if config.num_labels > 0
+            else nn.Identity()
         )
 
         # Initialize weights and apply final processing
