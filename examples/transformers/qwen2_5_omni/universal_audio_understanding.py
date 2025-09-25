@@ -3,7 +3,6 @@ Universal Audio Understanding for Qwen2.5-Omni
 This script demonstrates how to use Qwen2.5-Omni to finish audio tasks such as speech recongnition, speech-to-text translation and audio analysis.
 """
 
-import numpy as np
 from qwen_omni_utils import process_mm_info
 
 import mindspore as ms
@@ -45,10 +44,7 @@ def inference(medium_path, prompt, sys_prompt):
 
     # convert input to Tensor
     for key, value in inputs.items():  # by default input numpy array or list
-        if isinstance(value, np.ndarray):
-            inputs[key] = ms.Tensor(value)
-        elif isinstance(value, list):
-            inputs[key] = ms.Tensor(value)
+        inputs[key] = ms.Tensor(value)
         if inputs[key].dtype == ms.int64:
             inputs[key] = inputs[key].to(ms.int32)
         else:
