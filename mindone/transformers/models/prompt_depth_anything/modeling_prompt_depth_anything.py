@@ -17,6 +17,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 from typing import List, Optional, Tuple, Union
+
 from transformers import PromptDepthAnythingConfig
 
 import mindspore
@@ -145,7 +146,6 @@ class PromptDepthAnythingFeatureFusionLayer(mindspore.nn.Cell):
             res = self.prompt_depth_layer(prompt_depth)
             hidden_state = hidden_state + res
 
-
         # TODO: MindSpore does not allow using the parameter combination of scale_factor and bilinear at the same time.
         # modifier = {"scale_factor": 2} if size is None else {"size": size}
         modifier = {"size": [i for i in hidden_state.shape[:-2]]} if size is None else {"size": size}
@@ -268,7 +268,9 @@ class PromptDepthAnythingPreTrainedModel(PreTrainedModel):
 class PromptDepthAnythingReassembleLayer(mindspore.nn.Cell):
     def __init__(self, config: PromptDepthAnythingConfig, channels: int, factor: int):
         super().__init__()
-        self.projection = mint.nn.Conv2d(in_channels=config.reassemble_hidden_size, out_channels=channels, kernel_size=1)
+        self.projection = mint.nn.Conv2d(
+            in_channels=config.reassemble_hidden_size, out_channels=channels, kernel_size=1
+        )
 
         # up/down sampling depending on factor
         if factor > 1:
@@ -310,7 +312,9 @@ class PromptDepthAnythingReassembleStage(mindspore.nn.Cell):
         for channels, factor in zip(config.neck_hidden_sizes, config.reassemble_factors):
             self.layers.append(PromptDepthAnythingReassembleLayer(config, channels=channels, factor=factor))
 
-    def construct(self, hidden_states: List[mindspore.Tensor], patch_height=None, patch_width=None) -> List[mindspore.Tensor]:
+    def construct(
+        self, hidden_states: List[mindspore.Tensor], patch_height=None, patch_width=None
+    ) -> List[mindspore.Tensor]:
         """
         Args:
             hidden_states (`List[mindspore.Tensor]`, each of shape `(batch_size, sequence_length + 1, hidden_size)`):
@@ -415,7 +419,8 @@ class PromptDepthAnythingForDepthEstimation(PromptDepthAnythingPreTrainedModel):
         Examples:
 
         ```python
-        >>> from mindone.transformers import AutoImageProcessor, AutoModelForDepthEstimation
+        >>> from transformers import AutoImageProcessor
+        >>> from mindone.transformers import AutoModelForDepthEstimation
         >>> import mindspore as ms
         >>> import numpy as np
         >>> from PIL import Image
@@ -432,6 +437,8 @@ class PromptDepthAnythingForDepthEstimation(PromptDepthAnythingPreTrainedModel):
 
         >>> # prepare image for the model
         >>> inputs = image_processor(images=image, return_tensors="np", prompt_depth=prompt_depth)
+        >>> inputs['pixel_values'] = ms.Tensor(inputs['pixel_values'])
+        >>> inputs['prompt_depth'] = ms.Tensor(inputs['prompt_depth'])
 
         >>> outputs = model(**inputs)
 

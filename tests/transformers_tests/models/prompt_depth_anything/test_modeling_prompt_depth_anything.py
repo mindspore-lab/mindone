@@ -6,7 +6,7 @@ import inspect
 import numpy as np
 import pytest
 import torch
-from transformers import PromptDepthAnythingConfig, Dinov2Config
+from transformers import Dinov2Config, PromptDepthAnythingConfig
 
 import mindspore as ms
 
@@ -17,7 +17,7 @@ from tests.modeling_test_utils import (
     generalized_parse_args,
     get_modules,
 )
-from tests.transformers_tests.models.modeling_common import ids_numpy, floats_numpy
+from tests.transformers_tests.models.modeling_common import floats_numpy, ids_numpy
 
 DTYPE_AND_THRESHOLDS = {"fp32": 5e-4, "fp16": 5e-3, "bf16": 5e-2}
 MODES = [1]
@@ -103,7 +103,7 @@ class PromptDepthAnythingModelTest:
 model_tester = PromptDepthAnythingModelTest()
 config, pixel_values, labels, prompt_depth = model_tester.prepare_config_and_inputs()
 
-LLAMA_CASES = [
+PROMPT_DEPTH_ANYTHING_CASES = [
     [
         "PromptDepthAnythingModel",
         "transformers.PromptDepthAnythingForDepthEstimation",
@@ -131,7 +131,7 @@ LLAMA_CASES = [
         + [
             mode,
         ]
-        for case in LLAMA_CASES
+        for case in PROMPT_DEPTH_ANYTHING_CASES
         for dtype in DTYPE_AND_THRESHOLDS.keys()
         for mode in MODES
     ],

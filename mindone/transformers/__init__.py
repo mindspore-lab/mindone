@@ -370,7 +370,6 @@ from .models.deit import (
 )
 from .models.depth_anything import DepthAnythingForDepthEstimation, DepthAnythingPreTrainedModel
 from .models.depth_pro import DepthProForDepthEstimation, DepthProImageProcessor, DepthProModel, DepthProPreTrainedModel
-from .models.prompt_depth_anything import PromptDepthAnythingForDepthEstimation, PromptDepthAnythingPreTrainedModel
 from .models.dinov2 import Dinov2Backbone, Dinov2ForImageClassification, Dinov2Model, Dinov2PreTrainedModel
 from .models.distilbert import (
     DistilBertForMaskedLM,
@@ -506,6 +505,14 @@ from .models.gpt_bigcode import (
     GPTBigCodeModel,
     GPTBigCodePreTrainedModel,
 )
+from .models.gpt_neo import (
+    GPTNeoForCausalLM,
+    GPTNeoForQuestionAnswering,
+    GPTNeoForSequenceClassification,
+    GPTNeoForTokenClassification,
+    GPTNeoModel,
+    GPTNeoPreTrainedModel,
+)
 from .models.gpt_neox import (
     GPTNeoXForCausalLM,
     GPTNeoXForQuestionAnswering,
@@ -527,14 +534,6 @@ from .models.gptj import (
     GPTJForSequenceClassification,
     GPTJModel,
     GPTJPreTrainedModel,
-)
-from .models.gpt_neo import (
-    GPTNeoForCausalLM,
-    GPTNeoForQuestionAnswering,
-    GPTNeoForSequenceClassification,
-    GPTNeoForTokenClassification,
-    GPTNeoModel,
-    GPTNeoPreTrainedModel,
 )
 from .models.granite import GraniteForCausalLM, GraniteModel, GranitePreTrainedModel
 from .models.granitemoe import GraniteMoeForCausalLM, GraniteMoeModel, GraniteMoePreTrainedModel
@@ -754,6 +753,7 @@ from .models.mobilenet_v2 import (
     MobileNetV2ImageProcessorFast,
     MobileNetV2Model,
     MobileNetV2PreTrainedModel,
+)
 from .models.modernbert import (
     ModernBertForMaskedLM,
     ModernBertForSequenceClassification,
@@ -873,6 +873,7 @@ from .models.pix2struct import (
 from .models.pixtral import PixtralPreTrainedModel, PixtralVisionModel
 from .models.poolformer import PoolFormerForImageClassification, PoolFormerModel, PoolFormerPreTrainedModel
 from .models.pop2piano import Pop2PianoForConditionalGeneration, Pop2PianoPreTrainedModel
+from .models.prompt_depth_anything import PromptDepthAnythingForDepthEstimation, PromptDepthAnythingPreTrainedModel
 from .models.prophetnet import (
     ProphetNetDecoder,
     ProphetNetEncoder,
