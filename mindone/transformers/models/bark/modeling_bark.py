@@ -1608,7 +1608,8 @@ class BarkModel(BarkPreTrainedModel):
         Example:
 
         ```python
-        >>> from transformers import AutoProcessor, BarkModel
+        >>> from transformers import AutoProcessor
+        >>> from mindone.transformers import BarkModel
 
         >>> processor = AutoProcessor.from_pretrained("suno/bark-small")
         >>> model = BarkModel.from_pretrained("suno/bark-small")
@@ -1616,7 +1617,13 @@ class BarkModel(BarkPreTrainedModel):
         >>> # To add a voice preset, you can pass `voice_preset` to `BarkProcessor.__call__(...)`
         >>> voice_preset = "v2/en_speaker_6"
 
-        >>> inputs = processor("Hello, my dog is cute, I need him in my life", voice_preset=voice_preset)
+        >>> inputs = processor("Hello, my dog is cute, I need him in my life", voice_preset=voice_preset, return_tensors="np")
+        >>> for key in inputs.keys():
+        >>>     if isinstance(inputs[key], np.ndarray):
+        >>>         inputs[key] = ms.tensor(inputs[key])
+        >>>     else:
+        >>>         for item in inputs[key].keys():
+        >>>             inputs[key][item] = ms.tensor(inputs[key][item])
 
         >>> audio_array = model.generate(**inputs, semantic_max_new_tokens=100)
         >>> audio_array = audio_array.cpu().numpy().squeeze()
