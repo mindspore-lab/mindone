@@ -12,7 +12,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from .configuration_table_transformer import TableTransformerConfig
 from .modeling_table_transformer import (
     TableTransformerForObjectDetection,
     TableTransformerModel,
