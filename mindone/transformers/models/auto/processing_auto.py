@@ -58,6 +58,7 @@ PROCESSOR_MAPPING_NAMES = OrderedDict(
         ("llava_onevision", "LlavaOnevisionProcessor"),
         ("pop2piano", "Pop2PianoProcessor"),
         ("qwen2_5_vl", "Qwen2_5_VLProcessor"),
+        ("owlv2", "Owlv2Processor"),
         ("owlvit", "OwlViTProcessor"),
         ("sam", "SamProcessor"),
         ("siglip", "SiglipProcessor"),
