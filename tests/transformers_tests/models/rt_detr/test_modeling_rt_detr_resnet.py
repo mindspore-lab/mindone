@@ -23,7 +23,7 @@ from tests.modeling_test_utils import (
     generalized_parse_args,
     get_modules,
 )
-from tests.transformers_tests.models.modeling_common import ids_numpy, floats_numpy
+from tests.transformers_tests.models.modeling_common import floats_numpy, ids_numpy
 
 DTYPE_AND_THRESHOLDS = {"fp32": 5e-4, "fp16": 5e-3, "bf16": 5e-2}
 MODES = [1]  # 1: pynative mode, UperNet doesn't support graph mode
@@ -34,19 +34,19 @@ class RTDetrResNetModelTester:
 
     def __init__(
         self,
-            batch_size=3,
-            image_size=32,
-            num_channels=3,
-            embeddings_size=10,
-            hidden_sizes=[10, 20, 30, 40],
-            depths=[1, 1, 2, 1],
-            is_training=True,
-            use_labels=True,
-            hidden_act="relu",
-            num_labels=3,
-            scope=None,
-            out_features=["stage2", "stage3", "stage4"],
-            out_indices=[2, 3, 4],
+        batch_size=3,
+        image_size=32,
+        num_channels=3,
+        embeddings_size=10,
+        hidden_sizes=[10, 20, 30, 40],
+        depths=[1, 1, 2, 1],
+        is_training=True,
+        use_labels=True,
+        hidden_act="relu",
+        num_labels=3,
+        scope=None,
+        out_features=["stage2", "stage3", "stage4"],
+        out_indices=[2, 3, 4],
     ):
         self.batch_size = batch_size
         self.image_size = image_size
@@ -63,7 +63,6 @@ class RTDetrResNetModelTester:
         self.out_features = out_features
         self.out_indices = out_indices
 
-
     def prepare_config_and_inputs(self):
         pixel_values = floats_numpy([self.batch_size, self.num_channels, self.image_size, self.image_size])
 
@@ -74,7 +73,6 @@ class RTDetrResNetModelTester:
         config = self.get_config()
 
         return config, pixel_values, labels
-
 
     def get_config(self):
         return RTDetrResNetConfig(

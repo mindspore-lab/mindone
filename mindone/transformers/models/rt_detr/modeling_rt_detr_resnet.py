@@ -13,35 +13,34 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 """
-PyTorch RTDetr specific ResNet model. The main difference between hugginface ResNet model is that this RTDetrResNet model forces to use shortcut at the first layer in the resnet-18/34 models.
-See https://github.com/lyuwenyu/RT-DETR/blob/5b628eaa0a2fc25bdafec7e6148d5296b144af85/rtdetr_pytorch/src/nn/backbone/presnet.py#L126 for details.
+PyTorch RTDetr specific ResNet model. The main difference between hugginface ResNet model is that this RTDetrResNet
+model forces to use shortcut at the first layer in the resnet-18/34 models.
+See https://github.com/lyuwenyu/RT-DETR/blob/5b628eaa0a2fc25bdafec7e6148d5296b144af85/rtdetr_pytorch/src/nn/backbone/
+presnet.py#L126 for details.
 """
 
 import math
 from typing import Optional
 
+from transformers import RTDetrResNetConfig
+
 import mindspore
 from mindspore import Tensor, mint
+from mindspore.common.initializer import (
+    HeNormal,
+    HeUniform,
+    One,
+    Uniform,
+    Zero,
+    _calculate_fan_in_and_fan_out,
+    initializer,
+)
 
 from ...activations import ACT2FN
-from ...modeling_outputs import (
-    BackboneOutput,
-    BaseModelOutputWithNoAttention,
-)
+from ...modeling_outputs import BackboneOutput, BaseModelOutputWithNoAttention
 from ...modeling_utils import PreTrainedModel
 from ...utils import logging
 from ...utils.backbone_utils import BackboneMixin
-from transformers import RTDetrResNetConfig
-
-from mindspore.common.initializer import (
-    initializer,
-    HeNormal,
-    HeUniform,
-    Uniform,
-    One,
-    Zero,
-    _calculate_fan_in_and_fan_out,
-)
 
 logger = logging.get_logger(__name__)
 
@@ -130,7 +129,8 @@ class RTDetrResNetShortCut(mindspore.nn.Cell):
 class RTDetrResNetBasicLayer(mindspore.nn.Cell):
     """
     A classic ResNet's residual layer composed by two `3x3` convolutions.
-    See https://github.com/lyuwenyu/RT-DETR/blob/5b628eaa0a2fc25bdafec7e6148d5296b144af85/rtdetr_pytorch/src/nn/backbone/presnet.py#L34.
+    See https://github.com/lyuwenyu/RT-DETR/blob/5b628eaa0a2fc25bdafec7e6148d5296b144af85/rtdetr_pytorch/src/nn/
+    backbone/presnet.py#L34.
     """
 
     def __init__(
@@ -145,7 +145,10 @@ class RTDetrResNetBasicLayer(mindspore.nn.Cell):
         if in_channels != out_channels:
             self.shortcut = (
                 mindspore.nn.SequentialCell(
-                    *[mint.nn.AvgPool2d(2, 2, 0, ceil_mode=True), RTDetrResNetShortCut(in_channels, out_channels, stride=1)]
+                    *[
+                        mint.nn.AvgPool2d(2, 2, 0, ceil_mode=True),
+                        RTDetrResNetShortCut(in_channels, out_channels, stride=1),
+                    ]
                 )
                 if should_apply_shortcut
                 else mint.nn.Identity()

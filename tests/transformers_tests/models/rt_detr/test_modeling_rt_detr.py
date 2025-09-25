@@ -24,7 +24,7 @@ from tests.modeling_test_utils import (
     generalized_parse_args,
     get_modules,
 )
-from tests.transformers_tests.models.modeling_common import ids_numpy, floats_numpy
+from tests.transformers_tests.models.modeling_common import floats_numpy
 
 DTYPE_AND_THRESHOLDS = {"fp32": 5e-4, "fp16": 5e-3, "bf16": 5e-2}
 MODES = [1]  # 1: pynative mode, UperNet doesn't support graph mode
@@ -35,50 +35,50 @@ class RTDetrModelTester:
 
     def __init__(
         self,
-            batch_size=3,
-            is_training=True,
-            use_labels=True,
-            n_targets=3,
-            num_labels=10,
-            initializer_range=0.02,
-            layer_norm_eps=1e-5,
-            batch_norm_eps=1e-5,
-            # backbone
-            backbone_config=None,
-            # encoder HybridEncoder
-            encoder_hidden_dim=32,
-            encoder_in_channels=[128, 256, 512],
-            feat_strides=[8, 16, 32],
-            encoder_layers=1,
-            encoder_ffn_dim=64,
-            encoder_attention_heads=2,
-            dropout=0.0,
-            activation_dropout=0.0,
-            encode_proj_layers=[2],
-            positional_encoding_temperature=10000,
-            encoder_activation_function="gelu",
-            activation_function="silu",
-            eval_size=None,
-            normalize_before=False,
-            # decoder RTDetrTransformer
-            d_model=32,
-            num_queries=30,
-            decoder_in_channels=[32, 32, 32],
-            decoder_ffn_dim=64,
-            num_feature_levels=3,
-            decoder_n_points=4,
-            decoder_layers=2,
-            decoder_attention_heads=2,
-            decoder_activation_function="relu",
-            attention_dropout=0.0,
-            num_denoising=0,
-            label_noise_ratio=0.5,
-            box_noise_scale=1.0,
-            learn_initial_query=False,
-            anchor_image_size=None,
-            image_size=64,
-            disable_custom_kernels=True,
-            with_box_refine=True,
+        batch_size=3,
+        is_training=True,
+        use_labels=True,
+        n_targets=3,
+        num_labels=10,
+        initializer_range=0.02,
+        layer_norm_eps=1e-5,
+        batch_norm_eps=1e-5,
+        # backbone
+        backbone_config=None,
+        # encoder HybridEncoder
+        encoder_hidden_dim=32,
+        encoder_in_channels=[128, 256, 512],
+        feat_strides=[8, 16, 32],
+        encoder_layers=1,
+        encoder_ffn_dim=64,
+        encoder_attention_heads=2,
+        dropout=0.0,
+        activation_dropout=0.0,
+        encode_proj_layers=[2],
+        positional_encoding_temperature=10000,
+        encoder_activation_function="gelu",
+        activation_function="silu",
+        eval_size=None,
+        normalize_before=False,
+        # decoder RTDetrTransformer
+        d_model=32,
+        num_queries=30,
+        decoder_in_channels=[32, 32, 32],
+        decoder_ffn_dim=64,
+        num_feature_levels=3,
+        decoder_n_points=4,
+        decoder_layers=2,
+        decoder_attention_heads=2,
+        decoder_activation_function="relu",
+        attention_dropout=0.0,
+        num_denoising=0,
+        label_noise_ratio=0.5,
+        box_noise_scale=1.0,
+        learn_initial_query=False,
+        anchor_image_size=None,
+        image_size=64,
+        disable_custom_kernels=True,
+        with_box_refine=True,
     ):
         self.batch_size = batch_size
         self.num_channels = 3
@@ -125,7 +125,6 @@ class RTDetrModelTester:
 
         self.encoder_seq_length = math.ceil(self.image_size / 32) * math.ceil(self.image_size / 32)
 
-
     def prepare_config_and_inputs(self):
         pixel_values = floats_numpy([self.batch_size, self.num_channels, self.image_size, self.image_size])
 
@@ -135,7 +134,6 @@ class RTDetrModelTester:
         config.num_labels = self.num_labels
 
         return config, pixel_values, pixel_mask
-
 
     def get_config(self):
         hidden_sizes = [10, 20, 30, 40]
@@ -195,7 +193,7 @@ RTDETR_CASES = [
         (config,),
         {},
         (),
-        {'pixel_values':pixel_values, 'pixel_mask':pixel_mask},
+        {"pixel_values": pixel_values, "pixel_mask": pixel_mask},
         {
             "last_hidden_state": 0,
         },

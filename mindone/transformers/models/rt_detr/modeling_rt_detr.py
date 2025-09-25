@@ -20,30 +20,20 @@ from dataclasses import dataclass
 from functools import partial
 from typing import Dict, List, Optional, Tuple, Union
 
+from transformers import RTDetrConfig
+from transformers.utils.generic import ModelOutput
+
 import mindspore
-import mindspore.mint.nn.functional as F
 from mindspore import Tensor, mint
+from mindspore.common.initializer import Constant, Normal, XavierUniform, Zero, initializer
 
 from ...activations import ACT2CLS, ACT2FN
 from ...image_transforms import center_to_corners_format, corners_to_center_format
+from ...mindspore_adapter import dtype_to_max
 from ...modeling_outputs import BaseModelOutput
 from ...modeling_utils import PreTrainedModel
-
-from transformers.utils.generic import ModelOutput
-
 from ...utils import logging
 from ...utils.backbone_utils import load_backbone
-from transformers import RTDetrConfig
-from ...mindspore_adapter import dtype_to_max
-
-from mindspore.common.initializer import (
-    initializer,
-    XavierUniform,
-    Zero,
-    Normal,
-    Constant,
-)
-
 
 logger = logging.get_logger(__name__)
 
@@ -119,21 +109,27 @@ class RTDetrDecoderOutput(ModelOutput):
     Args:
         last_hidden_state (`mindspore.Tensor` of shape `(batch_size, sequence_length, hidden_size)`):
             Sequence of hidden-states at the output of the last layer of the model.
-        intermediate_hidden_states (`mindspore.Tensor` of shape `(batch_size, config.decoder_layers, num_queries, hidden_size)`):
+        intermediate_hidden_states (`mindspore.Tensor` of shape
+        `(batch_size, config.decoder_layers, num_queries, hidden_size)`):
             Stacked intermediate hidden states (output of each layer of the decoder).
-        intermediate_logits (`mindspore.Tensor` of shape `(batch_size, config.decoder_layers, sequence_length, config.num_labels)`):
+        intermediate_logits
+        (`mindspore.Tensor` of shape `(batch_size, config.decoder_layers, sequence_length, config.num_labels)`):
             Stacked intermediate logits (logits of each layer of the decoder).
-        intermediate_reference_points (`mindspore.Tensor` of shape `(batch_size, config.decoder_layers, sequence_length, hidden_size)`):
+        intermediate_reference_points (`mindspore.Tensor` of shape
+        `(batch_size, config.decoder_layers, sequence_length, hidden_size)`):
             Stacked intermediate reference points (reference points of each layer of the decoder).
-        hidden_states (`tuple(mindspore.Tensor)`, *optional*, returned when `output_hidden_states=True` is passed or when `config.output_hidden_states=True`):
+        hidden_states (`tuple(mindspore.Tensor)`, *optional*, returned when `output_hidden_states=True` is passed or
+        when `config.output_hidden_states=True`):
             Tuple of `mindspore.Tensor` (one for the output of the embeddings + one for the output of each layer) of
             shape `(batch_size, sequence_length, hidden_size)`. Hidden-states of the model at the output of each layer
             plus the initial embedding outputs.
-        attentions (`tuple(mindspore.Tensor)`, *optional*, returned when `output_attentions=True` is passed or when `config.output_attentions=True`):
+        attentions (`tuple(mindspore.Tensor)`, *optional*, returned when `output_attentions=True` is passed or when
+        `config.output_attentions=True`):
             Tuple of `mindspore.Tensor` (one for each layer) of shape `(batch_size, num_heads, sequence_length,
             sequence_length)`. Attentions weights after the attention softmax, used to compute the weighted average in
             the self-attention heads.
-        cross_attentions (`tuple(mindspore.Tensor)`, *optional*, returned when `output_attentions=True` and `config.add_cross_attention=True` is passed or when `config.output_attentions=True`):
+        cross_attentions (`tuple(mindspore.Tensor)`, *optional*, returned when `output_attentions=True` and
+        `config.add_cross_attention=True` is passed or when `config.output_attentions=True`):
             Tuple of `mindspore.Tensor` (one for each layer) of shape `(batch_size, num_heads, sequence_length,
             sequence_length)`. Attentions weights of the decoder's cross-attention layer, after the attention softmax,
             used to compute the weighted average in the cross-attention heads.
@@ -156,31 +152,40 @@ class RTDetrModelOutput(ModelOutput):
     Args:
         last_hidden_state (`mindspore.Tensor` of shape `(batch_size, num_queries, hidden_size)`):
             Sequence of hidden-states at the output of the last layer of the decoder of the model.
-        intermediate_hidden_states (`mindspore.Tensor` of shape `(batch_size, config.decoder_layers, num_queries, hidden_size)`):
+        intermediate_hidden_states
+        (`mindspore.Tensor` of shape `(batch_size, config.decoder_layers, num_queries, hidden_size)`):
             Stacked intermediate hidden states (output of each layer of the decoder).
-        intermediate_logits (`mindspore.Tensor` of shape `(batch_size, config.decoder_layers, sequence_length, config.num_labels)`):
+        intermediate_logits
+        (`mindspore.Tensor` of shape `(batch_size, config.decoder_layers, sequence_length, config.num_labels)`):
             Stacked intermediate logits (logits of each layer of the decoder).
-        intermediate_reference_points (`mindspore.Tensor` of shape `(batch_size, config.decoder_layers, num_queries, 4)`):
+        intermediate_reference_points
+        (`mindspore.Tensor` of shape `(batch_size, config.decoder_layers, num_queries, 4)`):
             Stacked intermediate reference points (reference points of each layer of the decoder).
-        decoder_hidden_states (`tuple(mindspore.Tensor)`, *optional*, returned when `output_hidden_states=True` is passed or when `config.output_hidden_states=True`):
+        decoder_hidden_states (`tuple(mindspore.Tensor)`, *optional*, returned when `output_hidden_states=True`
+        is passed or when `config.output_hidden_states=True`):
             Tuple of `mindspore.Tensor` (one for the output of the embeddings + one for the output of each layer) of
             shape `(batch_size, num_queries, hidden_size)`. Hidden-states of the decoder at the output of each layer
             plus the initial embedding outputs.
-        decoder_attentions (`tuple(mindspore.Tensor)`, *optional*, returned when `output_attentions=True` is passed or when `config.output_attentions=True`):
+        decoder_attentions (`tuple(mindspore.Tensor)`, *optional*, returned when `output_attentions=True`
+        is passed or when `config.output_attentions=True`):
             Tuple of `mindspore.Tensor` (one for each layer) of shape `(batch_size, num_heads, num_queries,
             num_queries)`. Attentions weights of the decoder, after the attention softmax, used to compute the weighted
             average in the self-attention heads.
-        cross_attentions (`tuple(mindspore.Tensor)`, *optional*, returned when `output_attentions=True` is passed or when `config.output_attentions=True`):
+        cross_attentions (`tuple(mindspore.Tensor)`, *optional*, returned when `output_attentions=True`
+        is passed or when `config.output_attentions=True`):
             Tuple of `mindspore.Tensor` (one for each layer) of shape `(batch_size, num_queries, num_heads, 4, 4)`.
             Attentions weights of the decoder's cross-attention layer, after the attention softmax, used to compute the
             weighted average in the cross-attention heads.
-        encoder_last_hidden_state (`mindspore.Tensor` of shape `(batch_size, sequence_length, hidden_size)`, *optional*):
+        encoder_last_hidden_state
+        (`mindspore.Tensor` of shape `(batch_size, sequence_length, hidden_size)`, *optional*):
             Sequence of hidden-states at the output of the last layer of the encoder of the model.
-        encoder_hidden_states (`tuple(mindspore.Tensor)`, *optional*, returned when `output_hidden_states=True` is passed or when `config.output_hidden_states=True`):
+        encoder_hidden_states (`tuple(mindspore.Tensor)`, *optional*, returned when `output_hidden_states=True`
+        is passed or when `config.output_hidden_states=True`):
             Tuple of `mindspore.Tensor` (one for the output of the embeddings + one for the output of each layer) of
             shape `(batch_size, sequence_length, hidden_size)`. Hidden-states of the encoder at the output of each
             layer plus the initial embedding outputs.
-        encoder_attentions (`tuple(mindspore.Tensor)`, *optional*, returned when `output_attentions=True` is passed or when `config.output_attentions=True`):
+        encoder_attentions (`tuple(mindspore.Tensor)`, *optional*, returned when `output_attentions=True`
+        is passed or when `config.output_attentions=True`):
             Tuple of `mindspore.Tensor` (one for each layer) of shape `(batch_size, num_queries, num_heads, 4, 4)`.
             Attentions weights of the encoder, after the attention softmax, used to compute the weighted average in the
             self-attention heads.
@@ -192,11 +197,13 @@ class RTDetrModelOutput(ModelOutput):
             foreground and background).
         enc_topk_bboxes (`mindspore.Tensor` of shape `(batch_size, sequence_length, 4)`):
             Logits of predicted bounding boxes coordinates in the encoder stage.
-        enc_outputs_class (`mindspore.Tensor` of shape `(batch_size, sequence_length, config.num_labels)`, *optional*, returned when `config.with_box_refine=True` and `config.two_stage=True`):
+        enc_outputs_class (`mindspore.Tensor` of shape `(batch_size, sequence_length, config.num_labels)`,
+        *optional*, returned when `config.with_box_refine=True` and `config.two_stage=True`):
             Predicted bounding boxes scores where the top `config.two_stage_num_proposals` scoring bounding boxes are
             picked as region proposals in the first stage. Output of bounding box binary classification (i.e.
             foreground and background).
-        enc_outputs_coord_logits (`mindspore.Tensor` of shape `(batch_size, sequence_length, 4)`, *optional*, returned when `config.with_box_refine=True` and `config.two_stage=True`):
+        enc_outputs_coord_logits (`mindspore.Tensor` of shape `(batch_size, sequence_length, 4)`,
+        *optional*, returned when `config.with_box_refine=True` and `config.two_stage=True`):
             Logits of predicted bounding boxes coordinates in the first stage.
         denoising_meta_values (`dict`):
             Extra dictionary for the denoising related values
@@ -245,45 +252,57 @@ class RTDetrObjectDetectionOutput(ModelOutput):
             `pred_boxes`) for each decoder layer.
         last_hidden_state (`mindspore.Tensor` of shape `(batch_size, num_queries, hidden_size)`):
             Sequence of hidden-states at the output of the last layer of the decoder of the model.
-        intermediate_hidden_states (`mindspore.Tensor` of shape `(batch_size, config.decoder_layers, num_queries, hidden_size)`):
+        intermediate_hidden_states
+        (`mindspore.Tensor` of shape `(batch_size, config.decoder_layers, num_queries, hidden_size)`):
             Stacked intermediate hidden states (output of each layer of the decoder).
-        intermediate_logits (`mindspore.Tensor` of shape `(batch_size, config.decoder_layers, num_queries, config.num_labels)`):
+        intermediate_logits
+        (`mindspore.Tensor` of shape `(batch_size, config.decoder_layers, num_queries, config.num_labels)`):
             Stacked intermediate logits (logits of each layer of the decoder).
-        intermediate_reference_points (`mindspore.Tensor` of shape `(batch_size, config.decoder_layers, num_queries, 4)`):
+        intermediate_reference_points
+        (`mindspore.Tensor` of shape `(batch_size, config.decoder_layers, num_queries, 4)`):
             Stacked intermediate reference points (reference points of each layer of the decoder).
-        decoder_hidden_states (`tuple(mindspore.Tensor)`, *optional*, returned when `output_hidden_states=True` is passed or when `config.output_hidden_states=True`):
+        decoder_hidden_states (`tuple(mindspore.Tensor)`, *optional*, returned when `output_hidden_states=True`
+        is passed or when `config.output_hidden_states=True`):
             Tuple of `mindspore.Tensor` (one for the output of the embeddings + one for the output of each layer) of
             shape `(batch_size, num_queries, hidden_size)`. Hidden-states of the decoder at the output of each layer
             plus the initial embedding outputs.
-        decoder_attentions (`tuple(mindspore.Tensor)`, *optional*, returned when `output_attentions=True` is passed or when `config.output_attentions=True`):
+        decoder_attentions (`tuple(mindspore.Tensor)`, *optional*, returned when `output_attentions=True`
+        is passed or when `config.output_attentions=True`):
             Tuple of `mindspore.Tensor` (one for each layer) of shape `(batch_size, num_heads, num_queries,
             num_queries)`. Attentions weights of the decoder, after the attention softmax, used to compute the weighted
             average in the self-attention heads.
-        cross_attentions (`tuple(mindspore.Tensor)`, *optional*, returned when `output_attentions=True` is passed or when `config.output_attentions=True`):
+        cross_attentions (`tuple(mindspore.Tensor)`, *optional*, returned when `output_attentions=True`
+        is passed or when `config.output_attentions=True`):
             Tuple of `mindspore.Tensor` (one for each layer) of shape `(batch_size, num_queries, num_heads, 4, 4)`.
             Attentions weights of the decoder's cross-attention layer, after the attention softmax, used to compute the
             weighted average in the cross-attention heads.
         encoder_last_hidden_state (`mindspore.Tensor` of shape `(batch_size, sequence_length, hidden_size)`, *optional*):
             Sequence of hidden-states at the output of the last layer of the encoder of the model.
-        encoder_hidden_states (`tuple(mindspore.Tensor)`, *optional*, returned when `output_hidden_states=True` is passed or when `config.output_hidden_states=True`):
+        encoder_hidden_states (`tuple(mindspore.Tensor)`, *optional*, returned when `output_hidden_states=True`
+        is passed or when `config.output_hidden_states=True`):
             Tuple of `mindspore.Tensor` (one for the output of the embeddings + one for the output of each layer) of
             shape `(batch_size, sequence_length, hidden_size)`. Hidden-states of the encoder at the output of each
             layer plus the initial embedding outputs.
-        encoder_attentions (`tuple(mindspore.Tensor)`, *optional*, returned when `output_attentions=True` is passed or when `config.output_attentions=True`):
+        encoder_attentions (`tuple(mindspore.Tensor)`, *optional*, returned when `output_attentions=True`
+        is passed or when `config.output_attentions=True`):
             Tuple of `mindspore.Tensor` (one for each layer) of shape `(batch_size, num_queries, num_heads, 4, 4)`.
             Attentions weights of the encoder, after the attention softmax, used to compute the weighted average in the
             self-attention heads.
         init_reference_points (`mindspore.Tensor` of shape  `(batch_size, num_queries, 4)`):
             Initial reference points sent through the Transformer decoder.
-        enc_topk_logits (`mindspore.Tensor` of shape `(batch_size, sequence_length, config.num_labels)`, *optional*, returned when `config.with_box_refine=True` and `config.two_stage=True`):
+        enc_topk_logits (`mindspore.Tensor` of shape `(batch_size, sequence_length, config.num_labels)`,
+        *optional*, returned when `config.with_box_refine=True` and `config.two_stage=True`):
             Logits of predicted bounding boxes coordinates in the encoder.
-        enc_topk_bboxes (`mindspore.Tensor` of shape `(batch_size, sequence_length, 4)`, *optional*, returned when `config.with_box_refine=True` and `config.two_stage=True`):
+        enc_topk_bboxes (`mindspore.Tensor` of shape `(batch_size, sequence_length, 4)`, *optional*,
+        returned when `config.with_box_refine=True` and `config.two_stage=True`):
             Logits of predicted bounding boxes coordinates in the encoder.
-        enc_outputs_class (`mindspore.Tensor` of shape `(batch_size, sequence_length, config.num_labels)`, *optional*, returned when `config.with_box_refine=True` and `config.two_stage=True`):
+        enc_outputs_class (`mindspore.Tensor` of shape `(batch_size, sequence_length, config.num_labels)`,
+        *optional*, returned when `config.with_box_refine=True` and `config.two_stage=True`):
             Predicted bounding boxes scores where the top `config.two_stage_num_proposals` scoring bounding boxes are
             picked as region proposals in the first stage. Output of bounding box binary classification (i.e.
             foreground and background).
-        enc_outputs_coord_logits (`mindspore.Tensor` of shape `(batch_size, sequence_length, 4)`, *optional*, returned when `config.with_box_refine=True` and `config.two_stage=True`):
+        enc_outputs_coord_logits (`mindspore.Tensor` of shape `(batch_size, sequence_length, 4)`,
+        *optional*, returned when `config.with_box_refine=True` and `config.two_stage=True`):
             Logits of predicted bounding boxes coordinates in the first stage.
         denoising_meta_values (`dict`):
             Extra dictionary for the denoising related values
@@ -440,9 +459,18 @@ def get_contrastive_denoising_training_group(
     # pad gt to max_num of a batch
     batch_size = len(num_ground_truths)
 
-    input_query_class = mindspore.mint.full([batch_size, max_gt_num], num_classes, dtype=mindspore.int32, )
-    input_query_bbox = mint.zeros([batch_size, max_gt_num, 4], )
-    pad_gt_mask = mint.zeros([batch_size, max_gt_num], dtype=mindspore.bool_, )
+    input_query_class = mindspore.mint.full(
+        [batch_size, max_gt_num],
+        num_classes,
+        dtype=mindspore.int32,
+    )
+    input_query_bbox = mint.zeros(
+        [batch_size, max_gt_num, 4],
+    )
+    pad_gt_mask = mint.zeros(
+        [batch_size, max_gt_num],
+        dtype=mindspore.bool_,
+    )
 
     for i in range(batch_size):
         num_gt = num_ground_truths[i]
@@ -455,7 +483,9 @@ def get_contrastive_denoising_training_group(
     input_query_bbox = input_query_bbox.tile([1, 2 * num_groups_denoising_queries, 1])
     pad_gt_mask = pad_gt_mask.tile([1, 2 * num_groups_denoising_queries])
     # positive and negative mask
-    negative_gt_mask = mint.zeros([batch_size, max_gt_num * 2, 1], )
+    negative_gt_mask = mint.zeros(
+        [batch_size, max_gt_num * 2, 1],
+    )
     negative_gt_mask[:, max_gt_num:] = 1
     negative_gt_mask = negative_gt_mask.tile([1, num_groups_denoising_queries, 1])
     positive_gt_mask = 1 - negative_gt_mask
@@ -489,7 +519,11 @@ def get_contrastive_denoising_training_group(
     input_query_class = class_embed(input_query_class)
 
     target_size = num_denoising_queries + num_queries
-    attn_mask = mindspore.mint.full([target_size, target_size], False, dtype=mindspore.bool_, )
+    attn_mask = mindspore.mint.full(
+        [target_size, target_size],
+        False,
+        dtype=mindspore.bool_,
+    )
     # match query cannot see the reconstruction
     attn_mask[num_denoising_queries:, :num_denoising_queries] = True
 
@@ -535,7 +569,9 @@ class RTDetrConvEncoder(mindspore.nn.Cell):
         out = []
         for feature_map in features:
             # downsample pixel_mask to match shape of corresponding feature_map
-            mask = mint.nn.functional.interpolate(pixel_mask[None].float(), size=feature_map.shape[-2:]).to(mindspore.bool_)[0]
+            mask = mint.nn.functional.interpolate(
+                pixel_mask[None].to(mindspore.float32), size=feature_map.shape[-2:]
+            ).to(mindspore.bool_)[0]
             out.append((feature_map, mask))
         return out
 
@@ -692,7 +728,8 @@ class RTDetrCSPRepLayer(mindspore.nn.Cell):
         return self.conv3(hidden_state_1 + hidden_state_2)
 
 
-# Copied from transformers.models.deformable_detr.modeling_deformable_detr.DeformableDetrMultiscaleDeformableAttention with DeformableDetr->RTDetr
+# Copied from transformers.models.deformable_detr.modeling_deformable_detr.DeformableDetrMultiscaleDeformableAttention
+# with DeformableDetr->RTDetr
 class RTDetrMultiscaleDeformableAttention(mindspore.nn.Cell):
     """
     Multiscale deformable attention as proposed in Deformable DETR.
@@ -1051,9 +1088,11 @@ class RTDetrPreTrainedModel(PreTrainedModel):
             if module.bbox_embed is not None:
                 for layer in module.bbox_embed:
                     layer.layers[-1].weight.set_data(
-                        initializer(Zero(), layer.layers[-1].weight.shape, layer.layers[-1].weight.dtype))
+                        initializer(Zero(), layer.layers[-1].weight.shape, layer.layers[-1].weight.dtype)
+                    )
                     layer.layers[-1].bias.set_data(
-                        initializer(Zero(), layer.layers[-1].bias.shape, layer.layers[-1].bias.dtype))
+                        initializer(Zero(), layer.layers[-1].bias.shape, layer.layers[-1].bias.dtype)
+                    )
 
         if isinstance(module, RTDetrMultiscaleDeformableAttention):
             module.sampling_offsets.weight.set_data(
@@ -1074,31 +1113,40 @@ class RTDetrPreTrainedModel(PreTrainedModel):
 
             module.sampling_offsets.bias = mindspore.Parameter(grid_init.view(-1))
             module.attention_weights.weight.set_data(
-                initializer(Zero(), module.attention_weights.weight.shape, module.attention_weights.weight.dtype))
+                initializer(Zero(), module.attention_weights.weight.shape, module.attention_weights.weight.dtype)
+            )
             module.attention_weights.bias.set_data(
-                initializer(Zero(), module.attention_weights.bias.shape, module.attention_weights.bias.dtype))
+                initializer(Zero(), module.attention_weights.bias.shape, module.attention_weights.bias.dtype)
+            )
             module.value_proj.weight.set_data(
-                initializer(XavierUniform(), module.value_proj.weight.shape, module.value_proj.weight.dtype))
+                initializer(XavierUniform(), module.value_proj.weight.shape, module.value_proj.weight.dtype)
+            )
             module.value_proj.bias.set_data(
-                initializer(Zero(), module.value_proj.bias.shape, module.value_proj.bias.dtype))
+                initializer(Zero(), module.value_proj.bias.shape, module.value_proj.bias.dtype)
+            )
             module.output_proj.weight.set_data(
-                initializer(XavierUniform(), module.output_proj.weight.shape, module.output_proj.weight.dtype))
+                initializer(XavierUniform(), module.output_proj.weight.shape, module.output_proj.weight.dtype)
+            )
             module.output_proj.bias.set_data(
-                initializer(Zero(), module.output_proj.bias.shape, module.output_proj.bias.dtype))
+                initializer(Zero(), module.output_proj.bias.shape, module.output_proj.bias.dtype)
+            )
 
         if isinstance(module, RTDetrModel):
             prior_prob = self.config.initializer_bias_prior_prob or 1 / (self.config.num_labels + 1)
             bias = float(-math.log((1 - prior_prob) / prior_prob))
             module.enc_score_head.weight.set_data(
-                initializer(XavierUniform(), module.enc_score_head.weight.shape, module.enc_score_head.weight.dtype))
+                initializer(XavierUniform(), module.enc_score_head.weight.shape, module.enc_score_head.weight.dtype)
+            )
             module.enc_score_head.bias.set_data(
-                initializer(Constant(bias), module.enc_score_head.bias.shape, module.enc_score_head.bias.dtype))
+                initializer(Constant(bias), module.enc_score_head.bias.shape, module.enc_score_head.bias.dtype)
+            )
 
-        if isinstance(module, (nn.Linear, nn.Conv2d, nn.BatchNorm2d)):
-            cell.weight.set_data(
-                initializer(Normal(self.config.initializer_range), cell.weight.shape, cell.weight.dtype))
+        if isinstance(module, (mint.nn.Linear, mint.nn.Conv2d, mint.nn.BatchNorm2d)):
+            module.weight.set_data(
+                initializer(Normal(self.config.initializer_range), module.weight.shape, module.weight.dtype)
+            )
             if module.bias is not None:
-                cell.bias.set_data(initializer(Zero(), cell.bias.shape, cell.bias.dtype))
+                module.bias.set_data(initializer(Zero(), module.bias.shape, module.bias.dtype))
 
         if hasattr(module, "weight_embedding") and self.config.learn_initial_query:
             module.weight_embedding.weight.set_data(
@@ -1109,7 +1157,7 @@ class RTDetrPreTrainedModel(PreTrainedModel):
                 initializer(
                     XavierUniform(),
                     module.denoising_class_embed.weight.shape,
-                    module.denoising_class_embed.weight.dtype
+                    module.denoising_class_embed.weight.dtype,
                 )
             )
 
@@ -1195,13 +1243,22 @@ class RTDetrHybridEncoder(mindspore.nn.Cell):
     def build_2d_sincos_position_embedding(
         width, height, embed_dim=256, temperature=10000.0, device="cpu", dtype=mindspore.float32
     ):
-        grid_w = mint.arange(width, ).to(dtype)
-        grid_h = mint.arange(height, ).to(dtype)
+        grid_w = mint.arange(
+            width,
+        ).to(dtype)
+        grid_h = mint.arange(
+            height,
+        ).to(dtype)
         grid_w, grid_h = mint.meshgrid(grid_w, grid_h, indexing="ij")
         if embed_dim % 4 != 0:
             raise ValueError("Embed dimension must be divisible by 4 for 2D sin-cos position embedding")
         pos_dim = embed_dim // 4
-        omega = mint.arange(pos_dim, ).to(dtype) / pos_dim
+        omega = (
+            mint.arange(
+                pos_dim,
+            ).to(dtype)
+            / pos_dim
+        )
         omega = 1.0 / (temperature**omega)
 
         out_w = grid_w.flatten()[..., None] @ omega[None]
@@ -1432,7 +1489,7 @@ class RTDetrDecoder(RTDetrPreTrainedModel):
             if self.bbox_embed is not None:
                 tmp = self.bbox_embed[idx](hidden_states)
                 new_reference_points = mint.nn.functional.sigmoid(tmp + inverse_sigmoid(reference_points))
-                reference_points = new_reference_points.clone()
+                reference_points = new_reference_points.copy()
 
             intermediate += (hidden_states,)
             intermediate_reference_points += (
@@ -1604,8 +1661,12 @@ class RTDetrModel(RTDetrPreTrainedModel):
         anchors = []
         for level, (height, width) in enumerate(spatial_shapes):
             grid_y, grid_x = mint.meshgrid(
-                mint.arange(end=height, ).to(dtype),
-                mint.arange(end=width, ).to(dtype),
+                mint.arange(
+                    end=height,
+                ).to(dtype),
+                mint.arange(
+                    end=width,
+                ).to(dtype),
                 indexing="ij",
             )
             grid_xy = mint.stack([grid_x, grid_y], -1)
@@ -1619,7 +1680,14 @@ class RTDetrModel(RTDetrPreTrainedModel):
         anchors = mint.concat(anchors, 1)
         valid_mask = ((anchors > eps) * (anchors < 1 - eps)).all(-1, keepdim=True)
         anchors = mint.log(anchors / (1 - anchors))
-        anchors = mint.where(valid_mask, anchors, mindspore.Tensor(dtype_to_max(dtype), dtype=dtype, ))
+        anchors = mint.where(
+            valid_mask,
+            anchors,
+            mindspore.Tensor(
+                dtype_to_max(dtype),
+                dtype=dtype,
+            ),
+        )
 
         return anchors, valid_mask
 
@@ -1668,7 +1736,9 @@ class RTDetrModel(RTDetrPreTrainedModel):
         batch_size, num_channels, height, width = pixel_values.shape
 
         if pixel_mask is None:
-            pixel_mask = mint.ones(((batch_size, height, width)), )
+            pixel_mask = mint.ones(
+                ((batch_size, height, width)),
+            )
 
         features = self.backbone(pixel_values, pixel_mask)
 
@@ -1955,9 +2025,7 @@ class RTDetrForObjectDetection(RTDetrPreTrainedModel):
             return_dict=return_dict,
         )
 
-        denoising_meta_values = (
-            outputs.denoising_meta_values if return_dict else outputs[-1] if self.training else None
-        )
+        denoising_meta_values = outputs.denoising_meta_values if return_dict else outputs[-1] if self.training else None
 
         outputs_class = outputs.intermediate_logits if return_dict else outputs[2]
         outputs_coord = outputs.intermediate_reference_points if return_dict else outputs[3]
