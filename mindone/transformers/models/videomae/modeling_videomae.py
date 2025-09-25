@@ -35,6 +35,8 @@ from transformers.utils import (
 import mindspore
 from mindspore.mint.nn import BCEWithLogitsLoss, CrossEntropyLoss, MSELoss
 
+from mindone.models.utils import normal_, zeros_
+
 from ...activations import ACT2FN
 from ...mindspore_utils import find_pruneable_heads_and_indices, prune_linear_layer
 from ...modeling_outputs import BaseModelOutput, ImageClassifierOutput
@@ -503,11 +505,9 @@ class VideoMAEPreTrainedModel(PreTrainedModel):
     def _init_weights(self, module):
         """Initialize the weights"""
         if isinstance(module, (mindspore.mint.nn.Linear, mindspore.mint.nn.Conv3d)):
-            # Slightly different from the TF version which uses truncated_normal for initialization
-            # cf https://github.com/pytorch/pytorch/pull/5617
-            module.weight.data.normal_(mean=0.0, std=self.config.initializer_range)
+            normal_(module.weight, mean=0.0, std=self.config.initializer_range)
             if module.bias is not None:
-                module.bias.data.zero_()
+                zeros_(module.bias)
         elif isinstance(module, mindspore.mint.nn.LayerNorm):
             module.bias.data.zero_()
             module.weight.data.fill_(1.0)

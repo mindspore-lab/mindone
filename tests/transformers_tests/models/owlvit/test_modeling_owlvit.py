@@ -269,8 +269,8 @@ _CASES = [
 ]
 
 _CASES = [
-    [module, tf_module, ms_module, (config,), {}, (), inputs_dict, outputs]
-    for module, tf_module, ms_module, (config, inputs_dict), outputs in _CASES
+    [module, pt_module, ms_module, (config,), {}, (), inputs_dict, outputs]
+    for module, pt_module, ms_module, (config, inputs_dict), outputs in _CASES
 ]
 
 
