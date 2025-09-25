@@ -540,18 +540,6 @@ from .models.phi3 import (
     Phi3PreTrainedModel,
 )
 from .models.qwen2 import Qwen2ForCausalLM, Qwen2ForSequenceClassification, Qwen2ForTokenClassification, Qwen2Model
-from .models.qwen2_5_omni import (
-    Qwen2_5OmniForConditionalGeneration,
-    Qwen2_5OmniPreTrainedModel,
-    Qwen2_5OmniPreTrainedModelForConditionalGeneration,
-    Qwen2_5OmniTalkerForConditionalGeneration,
-    Qwen2_5OmniTalkerModel,
-    Qwen2_5OmniThinkerForConditionalGeneration,
-    Qwen2_5OmniThinkerTextModel,
-    Qwen2_5OmniToken2WavBigVGANModel,
-    Qwen2_5OmniToken2WavDiTModel,
-    Qwen2_5OmniToken2WavModel,
-)
 from .models.qwen2_5_vl import (
     Qwen2_5_VLForConditionalGeneration,
     Qwen2_5_VLModel,
@@ -746,5 +734,17 @@ if version.parse(transformers.__version__) >= version.parse("4.53.0"):
         MiniMaxForTokenClassification,
         MiniMaxModel,
         MiniMaxPreTrainedModel,
+    )
+    from .models.qwen2_5_omni import (
+        Qwen2_5OmniForConditionalGeneration,
+        Qwen2_5OmniPreTrainedModel,
+        Qwen2_5OmniPreTrainedModelForConditionalGeneration,
+        Qwen2_5OmniTalkerForConditionalGeneration,
+        Qwen2_5OmniTalkerModel,
+        Qwen2_5OmniThinkerForConditionalGeneration,
+        Qwen2_5OmniThinkerTextModel,
+        Qwen2_5OmniToken2WavBigVGANModel,
+        Qwen2_5OmniToken2WavDiTModel,
+        Qwen2_5OmniToken2WavModel,
     )
     from .models.vjepa2 import VJEPA2ForVideoClassification, VJEPA2Model, VJEPA2PreTrainedModel

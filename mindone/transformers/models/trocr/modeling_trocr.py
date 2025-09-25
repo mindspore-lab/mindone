@@ -109,7 +109,6 @@ class TrOCRSinusoidalPositionalEmbedding(nn.Cell):
 
         return emb.float()
 
-    # @torch.no_grad()
     def construct(self, input_ids: ms.Tensor, past_key_values_length: int = 0):
         bsz, seq_len = input_ids.shape
         # Create the position ids from the input token ids. Any padded tokens remain padded.
