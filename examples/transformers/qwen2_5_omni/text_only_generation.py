@@ -2,7 +2,7 @@
 Text-Only Generation for Qwen2.5-Omni
 This script demonstrates how to use Qwen2.5-Omni to finish multimodal understainding tasks such as text Q&A, image, mutable video, audiable video understanding.
 """
-import numpy as np
+
 from qwen_omni_utils import process_mm_info
 
 import mindspore as ms
@@ -56,10 +56,7 @@ def inference(medium_path, prompt, medium_type="image", use_audio_in_video=False
 
     # convert input to Tensor
     for key, value in inputs.items():  # by default input numpy array or list
-        if isinstance(value, np.ndarray):
-            inputs[key] = ms.Tensor(value)
-        elif isinstance(value, list):
-            inputs[key] = ms.Tensor(value)
+        inputs[key] = ms.Tensor(value)
         if inputs[key].dtype == ms.int64:
             inputs[key] = inputs[key].to(ms.int32)
         else:
