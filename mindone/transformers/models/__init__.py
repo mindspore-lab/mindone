@@ -52,6 +52,7 @@ from . import (
     convbert,
     convnext,
     convnextv2,
+    csm,
     ctrl,
     cvt,
     dac,

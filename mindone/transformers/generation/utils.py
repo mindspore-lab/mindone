@@ -1942,7 +1942,7 @@ class GenerationMixin:
 
         return generation_config, model_kwargs
 
-    def _get_initial_cache_position(self, input_ids, model_kwargs):
+    def _get_initial_cache_position(self, seq_length, model_kwargs):
         """Calculates `cache_position` for the pre-fill stage based on `input_ids` and optionally past length"""
         if "cache_position" in model_kwargs and model_kwargs["cache_position"]:
             return model_kwargs
@@ -1954,7 +1954,7 @@ class GenerationMixin:
                 mint.ones_like(model_kwargs["decoder_inputs_embeds"][0, :, 0], dtype=ms.int32).cumsum(0) - 1
             )
         else:
-            cache_position = mint.ones_like(input_ids[0, :], dtype=ms.int32).cumsum(0) - 1
+            cache_position = mint.ones(seq_length, dtype=ms.int32).cumsum(0) - 1
 
         if model_kwargs.get("past_key_values") is not None:
             cache = model_kwargs["past_key_values"]

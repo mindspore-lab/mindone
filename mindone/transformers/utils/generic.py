@@ -807,7 +807,7 @@ def check_model_inputs(func):
         collected_outputs = defaultdict(tuple)
         monkey_patched_layers = []
 
-        def make_capture_wrapper(module, orig_forward, key, index):
+        def make_capture_wrapper(cell, orig_forward, key, index):
             @wraps(orig_forward)
             def wrapped_forward(*args, **kwargs):
                 if key == "hidden_states" and len(collected_outputs[key]) == 0:
@@ -834,20 +834,20 @@ def check_model_inputs(func):
                         specs = OutputRecorder(target_class=specs, index=index)
                     capture_tasks.append((key, specs))
 
-            for name, module in self.named_modules():
+            for name, cell in self.cells_and_names():
                 for key, specs in capture_tasks:
-                    if isinstance(module, specs.target_class):
+                    if isinstance(cell, specs.target_class):
                         if specs.layer_name is not None and specs.layer_name not in name:
                             continue
                         # Monkey patch forward
-                        original_forward = module.forward
-                        module.forward = make_capture_wrapper(module, original_forward, key, specs.index)
-                        monkey_patched_layers.append((module, original_forward))
+                        original_forward = cell.construct
+                        cell.construct = make_capture_wrapper(cell, original_forward, key, specs.index)
+                        monkey_patched_layers.append((cell, original_forward))
 
         outputs = func(self, *args, **kwargs)
         # Restore original forward methods
-        for module, original_forward in monkey_patched_layers:
-            module.forward = original_forward
+        for cell, original_forward in monkey_patched_layers:
+            cell.construct = original_forward
 
         # Inject collected outputs into model output
         for key in collected_outputs:
