@@ -29,7 +29,7 @@ from tests.modeling_test_utils import (
     generalized_parse_args,
     get_modules,
 )
-from tests.transformers_tests.models.modeling_common import ids_numpy, floats_numpy
+from tests.transformers_tests.models.modeling_common import floats_numpy
 
 DTYPE_AND_THRESHOLDS = {"fp32": 5e-4, "fp16": 5e-3, "bf16": 5e-2}
 MODES = [1]
@@ -40,24 +40,24 @@ class SegGptModelTester:
 
     def __init__(
         self,
-            batch_size=2,
-            image_size=30,
-            patch_size=2,
-            num_channels=3,
-            is_training=False,
-            use_labels=True,
-            hidden_size=32,
-            num_hidden_layers=2,
-            num_attention_heads=4,
-            hidden_act="gelu",
-            hidden_dropout_prob=0.1,
-            attention_probs_dropout_prob=0.1,
-            initializer_range=0.02,
-            mlp_ratio=2.0,
-            merge_index=0,
-            intermediate_hidden_state_indices=[1],
-            pretrain_image_size=10,
-            decoder_hidden_size=10,
+        batch_size=2,
+        image_size=30,
+        patch_size=2,
+        num_channels=3,
+        is_training=False,
+        use_labels=True,
+        hidden_size=32,
+        num_hidden_layers=2,
+        num_attention_heads=4,
+        hidden_act="gelu",
+        hidden_dropout_prob=0.1,
+        attention_probs_dropout_prob=0.1,
+        initializer_range=0.02,
+        mlp_ratio=2.0,
+        merge_index=0,
+        intermediate_hidden_state_indices=[1],
+        pretrain_image_size=10,
+        decoder_hidden_size=10,
     ):
         self.batch_size = batch_size
         self.image_size = image_size
@@ -84,9 +84,7 @@ class SegGptModelTester:
 
     def prepare_config_and_inputs(self):
         pixel_values = floats_numpy([self.batch_size, self.num_channels, self.image_size // 2, self.image_size])
-        prompt_pixel_values = floats_numpy(
-            [self.batch_size, self.num_channels, self.image_size // 2, self.image_size]
-        )
+        prompt_pixel_values = floats_numpy([self.batch_size, self.num_channels, self.image_size // 2, self.image_size])
         prompt_masks = floats_numpy([self.batch_size, self.num_channels, self.image_size // 2, self.image_size])
 
         labels = None
@@ -119,7 +117,7 @@ class SegGptModelTester:
 model_tester = SegGptModelTester()
 config, pixel_values, prompt_pixel_values, prompt_masks, labels = model_tester.prepare_config_and_inputs()
 
-LLAMA_CASES = [
+SEGGPT_CASES = [
     [
         "SegGptModel",
         "transformers.SegGptModel",
@@ -148,7 +146,7 @@ LLAMA_CASES = [
         + [
             mode,
         ]
-        for case in LLAMA_CASES
+        for case in SEGGPT_CASES
         for dtype in DTYPE_AND_THRESHOLDS.keys()
         for mode in MODES
     ],

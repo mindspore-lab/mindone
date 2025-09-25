@@ -19,17 +19,16 @@ import collections.abc
 from dataclasses import dataclass
 from typing import Dict, List, Optional, Tuple, Union
 
+from transformers import SegGptConfig
+from transformers.utils import ModelOutput
+
 import mindspore
 from mindspore import mint
-from mindspore.common.initializer import initializer, TruncatedNormal, Normal, Zero, One
-
+from mindspore.common.initializer import Normal, One, TruncatedNormal, Zero, initializer
 
 from ...activations import ACT2FN
 from ...modeling_utils import PreTrainedModel
 from ...utils import logging
-from transformers.utils import ModelOutput
-from transformers import SegGptConfig
-
 
 logger = logging.get_logger(__name__)
 
@@ -382,7 +381,10 @@ def drop_path(input: mindspore.Tensor, drop_prob: float = 0.0, training: bool = 
         return input
     keep_prob = 1 - drop_prob
     shape = (input.shape[0],) + (1,) * (input.ndim - 1)  # work with diff dim tensors, not just 2D ConvNets
-    random_tensor = keep_prob + mint.rand(shape, dtype=input.dtype, )
+    random_tensor = keep_prob + mint.rand(
+        shape,
+        dtype=input.dtype,
+    )
     random_tensor.floor_()  # binarize
     output = input.div(keep_prob) * random_tensor
     return output
@@ -645,13 +647,18 @@ class SegGptPreTrainedModel(PreTrainedModel):
             # Initialize other token parameters with a Normal distribution
             module.mask_token.set_data(initializer(Normal(sigma=std), module.mask_token.shape, module.mask_token.dtype))
             module.segment_token_input.set_data(
-                initializer(Normal(sigma=std), module.segment_token_input.shape, module.segment_token_input.dtype))
+                initializer(Normal(sigma=std), module.segment_token_input.shape, module.segment_token_input.dtype)
+            )
             module.segment_token_prompt.set_data(
-                initializer(Normal(sigma=std), module.segment_token_prompt.shape, module.segment_token_prompt.dtype))
+                initializer(Normal(sigma=std), module.segment_token_prompt.shape, module.segment_token_prompt.dtype)
+            )
             module.type_token_semantic.set_data(
-                initializer(Normal(sigma=std), module.type_token_semantic.shape, module.type_token_semantic.dtype))
+                initializer(Normal(sigma=std), module.type_token_semantic.shape, module.type_token_semantic.dtype)
+            )
             module.type_token_instance.set_data(
-                initializer(Normal(sigma=std), module.type_token_instance.shape, module.type_token_instance.dtype))
+                initializer(Normal(sigma=std), module.type_token_instance.shape, module.type_token_instance.dtype)
+            )
+
 
 class SegGptModel(SegGptPreTrainedModel):
     def __init__(self, config: SegGptConfig):
@@ -697,7 +704,8 @@ class SegGptModel(SegGptPreTrainedModel):
         Examples:
 
         ```python
-        >>> from mindone.transformers import SegGptImageProcessor, SegGptModel
+        >>> from transformers import SegGptImageProcessor
+        >>> from mindone.transformers import SegGptModel
         >>> from PIL import Image
         >>> import requests
 
@@ -734,14 +742,13 @@ class SegGptModel(SegGptPreTrainedModel):
         # Prepare inputs
         pixel_values = mint.cat((prompt_pixel_values, pixel_values), dim=2)
         prompt_pixel_values = (
-            mint.cat((prompt_masks, prompt_masks), dim=2)
-            if labels is None
-            else mint.cat((prompt_masks, labels), dim=2)
+            mint.cat((prompt_masks, prompt_masks), dim=2) if labels is None else mint.cat((prompt_masks, labels), dim=2)
         )
 
         if bool_masked_pos is None and labels is not None:
             logger.warning_once(
-                "Labels were provided, but bool_masked_pos were not. It will be set to default value. If you're training the model, make sure to provide a bool_masked_pos."
+                "Labels were provided, but bool_masked_pos were not. It will be set to default value. "
+                "If you're training the model, make sure to provide a bool_masked_pos."
             )
 
         # We concat on height axis so SegGPT can handle as a single image, hence we need to mask the portion
@@ -750,9 +757,14 @@ class SegGptModel(SegGptPreTrainedModel):
         # and reconstructed together (In-Context Painting).
         if bool_masked_pos is None:
             num_patches = self.embeddings.patch_embeddings.num_patches
-            bool_masked_pos_zeros = mint.zeros(num_patches // 2, dtype=mindspore.bool_, )
+            bool_masked_pos_zeros = mint.zeros(
+                num_patches // 2,
+                dtype=mindspore.bool_,
+            )
             bool_masked_pos_ones = mint.ones(
-                num_patches - num_patches // 2, dtype=mindspore.bool_, )
+                num_patches - num_patches // 2,
+                dtype=mindspore.bool_,
+            )
             bool_masked_pos = mint.cat([bool_masked_pos_zeros, bool_masked_pos_ones])
             bool_masked_pos = bool_masked_pos.unsqueeze(0)
 
@@ -831,7 +843,9 @@ class SegGptLoss(mindspore.nn.Cell):
         """
         ground_truth = mint.cat((prompt_masks, labels), dim=2)
 
-        mask = bool_masked_pos[:, :, None].broadcast_to((bool_masked_pos.shape[0], bool_masked_pos.shape[1], self.patch_size**2 * 3))
+        mask = bool_masked_pos[:, :, None].broadcast_to(
+            (bool_masked_pos.shape[0], bool_masked_pos.shape[1], self.patch_size**2 * 3)
+        )
         mask = unpatchify(mask, ground_truth.shape[2] // self.patch_size, ground_truth.shape[3] // self.patch_size)
 
         loss = mindspore.mint.nn.functional.smooth_l1_loss(pred_masks, ground_truth, reduction="none", beta=self.beta)
@@ -873,7 +887,8 @@ class SegGptForImageSegmentation(SegGptPreTrainedModel):
         Examples:
 
         ```python
-        >>> from mindone.transformers import SegGptImageProcessor, SegGptForImageSegmentation
+        >>> from transformers import SegGptImageProcessor
+        >>> from mindone.transformers import SegGptForImageSegmentation
         >>> from PIL import Image
         >>> import requests
 
@@ -904,9 +919,14 @@ class SegGptForImageSegmentation(SegGptPreTrainedModel):
 
         if bool_masked_pos is None:
             num_patches = self.model.embeddings.patch_embeddings.num_patches
-            bool_masked_pos_zeros = mint.zeros(num_patches // 2, dtype=mindspore.bool_, )
+            bool_masked_pos_zeros = mint.zeros(
+                num_patches // 2,
+                dtype=mindspore.bool_,
+            )
             bool_masked_pos_ones = mint.ones(
-                num_patches - num_patches // 2, dtype=mindspore.bool_, )
+                num_patches - num_patches // 2,
+                dtype=mindspore.bool_,
+            )
             bool_masked_pos = mint.cat([bool_masked_pos_zeros, bool_masked_pos_ones])
             bool_masked_pos = bool_masked_pos.unsqueeze(0)
 
