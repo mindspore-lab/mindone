@@ -94,6 +94,7 @@ from . import (
     modernbert,
     moonshine,
     moshi,
+    mpnet,
     mpt,
     mvp,
     nystromformer,
