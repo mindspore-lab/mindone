@@ -30,13 +30,13 @@ from transformers.utils import (
 )
 
 import mindspore as ms
-import mindspore.mint.nn.functional as F
 from mindspore import mint, nn, ops
 from mindspore.mint.nn import CrossEntropyLoss
 
 from ...activations import ACT2FN
 from ...cache_utils import Cache, DynamicCache
 from ...generation import GenerationMixin
+from ...mindspore_adapter.utils import unfold
 from ...modeling_attn_mask_utils import _prepare_4d_attention_mask
 from ...modeling_outputs import BaseModelOutput, CausalLMOutputWithPast, ModelOutput
 from ...modeling_utils import MSPreTrainedModel
@@ -621,7 +621,7 @@ class Idefics3PreTrainedModel(MSPreTrainedModel):
         elif isinstance(module, mint.nn.Embedding):
             normal_(module.weight, mean=0.0, std=std)
             if module.padding_idx is not None:
-                zeros_(module.weight.data[module.padding_idx])
+                module.weight[module.padding_idx] = 0
 
 
 IDEFICS3_VISION_START_DOCSTRING = r"""
@@ -959,17 +959,8 @@ class Idefics3Model(Idefics3PreTrainedModel):
             # torch.tensor.unfold x 2: (B, H, W) => (B, H', W', K, K)
             # patches_subgrid = pixel_attention_mask.unfold(dimension=1, size=patch_size, step=patch_size)
             # patches_subgrid = patches_subgrid.unfold(dimension=2, size=patch_size, step=patch_size)
-
-            # (B, C=1, H, W) => (B, Cx(KxK), L=H'xW')
-            patches_subgrid = F.unfold(
-                pixel_attention_mask[:, None, ...].float(), kernel_size=patch_size, stride=patch_size
-            )
-            h = pixel_attention_mask.shape[1] // patch_size
-            w = pixel_attention_mask.shape[2] // patch_size
-            patches_subgrid = patches_subgrid.swapaxes(1, 2).reshape(
-                pixel_attention_mask.shape[0], h, w, patch_size, patch_size
-            )
-            # ref: https://zhuanlan.zhihu.com/p/673802546
+            patches_subgrid = unfold(pixel_attention_mask, dimension=1, size=patch_size, step=patch_size)
+            patches_subgrid = unfold(patches_subgrid, dimension=2, size=patch_size, step=patch_size)
 
             patch_attention_mask = (patches_subgrid.sum(dim=(-1, -2)) > 0).bool()
 

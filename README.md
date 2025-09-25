@@ -56,6 +56,7 @@ image.save("sd3.png")
 | :---   |  :---   |  :---:    |  :---:  |  :---:     |  :--  |
 | Image-to-Video | [hunyuanvideo-i2v](https://github.com/mindspore-lab/mindone/blob/master/examples/hunyuanvideo-i2v) 🔥🔥 |  ✅  | ✖️  | ✖️  | Tencent |
 | Text/Image-to-Video | [wan2.1](https://github.com/mindspore-lab/mindone/blob/master/examples/wan2_1) 🔥🔥🔥 |  ✅  |  ✖️  |  ✖️   | Alibaba  |
+| Text/Image/Speech-to-Video | [wan2.2](https://github.com/mindspore-lab/mindone/blob/master/examples/wan2_2) 🔥🔥🔥 |  ✅  |  ✖️  |  ✖️   | Alibaba  |
 | Text-to-Image | [cogview4](https://github.com/mindspore-lab/mindone/blob/master/examples/cogview) 🔥🔥🔥 | ✅ | ✖️  | ✖️  | Zhipuai |
 | Text-to-Video | [step_video_t2v](https://github.com/mindspore-lab/mindone/blob/master/examples/step_video_t2v) 🔥🔥 | ✅   | ✖️  | ✖️   | StepFun  |
 | Image-Text-to-Text | [qwen2_vl](https://github.com/mindspore-lab/mindone/blob/master/examples/qwen2_vl) 🔥🔥🔥|  ✅ |  ✖️ |  ✖️   | Alibaba |
