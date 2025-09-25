@@ -1058,8 +1058,8 @@ from .models.unispeech_sat import (
     UniSpeechSatPreTrainedModel,
 )
 from .models.univnet import UnivNetModel
-from .models.video_llava import VideoLlavaForConditionalGeneration, VideoLlavaPreTrainedModel
 from .models.upernet import UperNetForSemanticSegmentation, UperNetPreTrainedModel
+from .models.video_llava import VideoLlavaForConditionalGeneration, VideoLlavaPreTrainedModel
 from .models.vilt import (
     ViltForImageAndTextRetrieval,
     ViltForImagesAndTextClassification,

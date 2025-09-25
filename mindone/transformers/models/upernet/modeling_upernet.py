@@ -16,21 +16,21 @@
 
 from typing import List, Optional, Tuple, Union
 
-import mindspore as ms
-from mindspore import mint, nn
+from transformers import UperNetConfig
+
+import mindspore
+from mindspore import mint
 from mindspore.mint.nn import CrossEntropyLoss
 
 from ...modeling_outputs import SemanticSegmenterOutput
 from ...modeling_utils import PreTrainedModel
 from ...utils.backbone_utils import load_backbone
-from transformers import UperNetConfig
-
 
 # General docstring
 _CONFIG_FOR_DOC = "UperNetConfig"
 
 
-class UperNetConvModule(ms.nn.Cell):
+class UperNetConvModule(mindspore.nn.Cell):
     """
     A convolutional block that bundles conv/norm/activation layers. This block simplifies the usage of convolution
     layers, which are commonly used with a norm layer (e.g., BatchNorm) and activation layer (e.g., ReLU).
@@ -57,7 +57,7 @@ class UperNetConvModule(ms.nn.Cell):
         self.batch_norm = mint.nn.BatchNorm2d(out_channels)
         self.activation = mint.nn.ReLU()
 
-    def construct(self, input: ms.Tensor) -> ms.Tensor:
+    def construct(self, input: mindspore.Tensor) -> mindspore.Tensor:
         output = self.conv(input)
         output = self.batch_norm(output)
         output = self.activation(output)
@@ -65,7 +65,7 @@ class UperNetConvModule(ms.nn.Cell):
         return output
 
 
-class UperNetPyramidPoolingBlock(ms.nn.Cell):
+class UperNetPyramidPoolingBlock(mindspore.nn.Cell):
     def __init__(self, pool_scale: int, in_channels: int, channels: int) -> None:
         super().__init__()
         batch_norm = mint.nn.AdaptiveAvgPool2d(pool_scale)
@@ -74,14 +74,14 @@ class UperNetPyramidPoolingBlock(ms.nn.Cell):
         self.insert_child_to_cell("0", batch_norm)
         self.insert_child_to_cell("1", conv)
 
-    def construct(self, input: ms.Tensor) -> ms.Tensor:
+    def construct(self, input: mindspore.Tensor) -> mindspore.Tensor:
         hidden_state = input
         for layer in self.layers:
             hidden_state = layer(hidden_state)
         return hidden_state
 
 
-class UperNetPyramidPoolingModule(ms.nn.Cell):
+class UperNetPyramidPoolingModule(mindspore.nn.Cell):
     """
     Pyramid Pooling Module (PPM) used in PSPNet.
 
@@ -108,7 +108,7 @@ class UperNetPyramidPoolingModule(ms.nn.Cell):
             self.blocks.append(block)
             self.insert_child_to_cell(str(i), block)
 
-    def construct(self, x: ms.Tensor) -> List[ms.Tensor]:
+    def construct(self, x: mindspore.Tensor) -> List[mindspore.Tensor]:
         ppm_outs = []
         for ppm in self.blocks:
             ppm_out = ppm(x)
@@ -119,7 +119,7 @@ class UperNetPyramidPoolingModule(ms.nn.Cell):
         return ppm_outs
 
 
-class UperNetHead(ms.nn.Cell):
+class UperNetHead(mindspore.nn.Cell):
     """
     Unified Perceptual Parsing for Scene Understanding. This head is the implementation of
     [UPerNet](https://arxiv.org/abs/1807.10221).
@@ -149,8 +149,8 @@ class UperNetHead(ms.nn.Cell):
             padding=1,
         )
         # FPN Module
-        self.lateral_convs = ms.nn.CellList()
-        self.fpn_convs = ms.nn.CellList()
+        self.lateral_convs = mindspore.nn.CellList()
+        self.fpn_convs = mindspore.nn.CellList()
         for in_channels in self.in_channels[:-1]:  # skip the top layer
             l_conv = UperNetConvModule(in_channels, self.channels, kernel_size=1)
             fpn_conv = UperNetConvModule(self.channels, self.channels, kernel_size=3, padding=1)
@@ -170,9 +170,16 @@ class UperNetHead(ms.nn.Cell):
     def _init_weights(self, module):
         if isinstance(module, mint.nn.Conv2d):
             from mindspore.common.initializer import Normal
-            module.weight.set_data(ms.common.initializer.initializer(Normal(self.config.initializer_range), module.weight.shape, module.weight.dtype))
+
+            module.weight.set_data(
+                mindspore.common.initializer.initializer(
+                    Normal(self.config.initializer_range), module.weight.shape, module.weight.dtype
+                )
+            )
             if module.bias is not None:
-                module.bias.set_data(ms.common.initializer.initializer('zeros', module.bias.shape, module.bias.dtype))
+                module.bias.set_data(
+                    mindspore.common.initializer.initializer("zeros", module.bias.shape, module.bias.dtype)
+                )
 
     def psp_forward(self, inputs):
         x = inputs[-1]
@@ -183,7 +190,7 @@ class UperNetHead(ms.nn.Cell):
 
         return output
 
-    def construct(self, encoder_hidden_states: ms.Tensor) -> ms.Tensor:
+    def construct(self, encoder_hidden_states: mindspore.Tensor) -> mindspore.Tensor:
         # build laterals
         laterals = [lateral_conv(encoder_hidden_states[i]) for i, lateral_conv in enumerate(self.lateral_convs)]
 
@@ -213,7 +220,7 @@ class UperNetHead(ms.nn.Cell):
         return output
 
 
-class UperNetFCNHead(ms.nn.Cell):
+class UperNetFCNHead(mindspore.nn.Cell):
     """
     Fully Convolution Networks for Semantic Segmentation. This head is the implementation of
     [FCNNet](https://arxiv.org/abs/1411.4038>).
@@ -257,7 +264,7 @@ class UperNetFCNHead(ms.nn.Cell):
         if self.num_convs == 0:
             self.convs = mint.nn.Identity()
         else:
-            self.convs = ms.nn.SequentialCell(*convs)
+            self.convs = mindspore.nn.SequentialCell(*convs)
         if self.concat_input:
             self.conv_cat = UperNetConvModule(
                 self.in_channels + self.channels, self.channels, kernel_size=kernel_size, padding=kernel_size // 2
@@ -271,11 +278,18 @@ class UperNetFCNHead(ms.nn.Cell):
     def _init_weights(self, module):
         if isinstance(module, mint.nn.Conv2d):
             from mindspore.common.initializer import Normal
-            module.weight.set_data(ms.common.initializer.initializer(Normal(self.config.initializer_range), module.weight.shape, module.weight.dtype))
-            if module.bias is not None:
-                module.bias.set_data(ms.common.initializer.initializer('zeros', module.bias.shape, module.bias.dtype))
 
-    def construct(self, encoder_hidden_states: ms.Tensor) -> ms.Tensor:
+            module.weight.set_data(
+                mindspore.common.initializer.initializer(
+                    Normal(self.config.initializer_range), module.weight.shape, module.weight.dtype
+                )
+            )
+            if module.bias is not None:
+                module.bias.set_data(
+                    mindspore.common.initializer.initializer("zeros", module.bias.shape, module.bias.dtype)
+                )
+
+    def construct(self, encoder_hidden_states: mindspore.Tensor) -> mindspore.Tensor:
         # just take the relevant feature maps
         hidden_states = encoder_hidden_states[self.in_index]
         output = self.convs(hidden_states)
@@ -318,10 +332,10 @@ class UperNetForSemanticSegmentation(UperNetPreTrainedModel):
 
     def construct(
         self,
-        pixel_values: Optional[ms.Tensor] = None,
+        pixel_values: Optional[mindspore.Tensor] = None,
         output_attentions: Optional[bool] = None,
         output_hidden_states: Optional[bool] = None,
-        labels: Optional[ms.Tensor] = None,
+        labels: Optional[mindspore.Tensor] = None,
         return_dict: Optional[bool] = None,
     ) -> Union[tuple, SemanticSegmenterOutput]:
         r"""
@@ -333,7 +347,9 @@ class UperNetForSemanticSegmentation(UperNetPreTrainedModel):
 
         Examples:
         ```python
-        >>> from mindone.transformers import AutoImageProcessor, UperNetForSemanticSegmentation
+        >>> import mindspore
+        >>> from transformers import AutoImageProcessor
+        >>> from mindone.transformers import UperNetForSemanticSegmentation
         >>> from PIL import Image
         >>> from huggingface_hub import hf_hub_download
 
@@ -346,6 +362,7 @@ class UperNetForSemanticSegmentation(UperNetPreTrainedModel):
         >>> image = Image.open(filepath).convert("RGB")
 
         >>> inputs = image_processor(images=image, return_tensors="np")
+        >>> inputs['pixel_values'] = mindspore.Tensor(inputs['pixel_values'])
 
         >>> outputs = model(**inputs)
 
@@ -368,7 +385,9 @@ class UperNetForSemanticSegmentation(UperNetPreTrainedModel):
         features = outputs.feature_maps
 
         logits = self.decode_head(features)
-        logits = mint.nn.functional.interpolate(logits, size=pixel_values.shape[2:], mode="bilinear", align_corners=False)
+        logits = mint.nn.functional.interpolate(
+            logits, size=pixel_values.shape[2:], mode="bilinear", align_corners=False
+        )
 
         auxiliary_logits = None
         if self.auxiliary_head is not None:
