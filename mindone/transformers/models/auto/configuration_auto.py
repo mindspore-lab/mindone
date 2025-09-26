@@ -109,7 +109,6 @@ CONFIG_MAPPING_NAMES = OrderedDict(
         ("instructblip", "InstructBlipConfig"),
         ("instructblipvideo", "InstructBlipVideoConfig"),
         ("kosmos-2", "Kosmos2Config"),
->>>>>>> 27e57cc8 (Add electra/pegasus/pegasusx/squeezebert/kosmos2/instructblip/instructblipvideo/pix2struct model)
         ("led", "LEDConfig"),
         ("levit", "LevitConfig"),
         ("lilt", "LiltConfig"),
