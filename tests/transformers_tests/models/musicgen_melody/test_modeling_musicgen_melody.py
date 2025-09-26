@@ -38,7 +38,7 @@ from tests.modeling_test_utils import (
 from tests.transformers_tests.models.modeling_common import floats_numpy, ids_numpy
 
 DTYPE_AND_THRESHOLDS = {"fp32": 5e-4, "fp16": 5e-3, "bf16": 6e-3}
-#TODO bf16test diff 0.0053 because of conv2d
+# TODO bf16test diff 0.0053 because of conv2d
 MODES = [1]
 
 logging.basicConfig(level=logging.INFO)
@@ -146,7 +146,7 @@ model_tester = MusicgenMelodyDecoderTester()
 ) = model_tester.prepare_config_and_inputs()
 
 
-PHI_CASES = [
+MUSICGEN_MELODY_CASES = [
     [
         "MusicgenMelodyModel",
         "transformers.MusicgenMelodyModel",
@@ -175,7 +175,7 @@ PHI_CASES = [
         + [
             mode,
         ]
-        for case in PHI_CASES
+        for case in MUSICGEN_MELODY_CASES
         for dtype in DTYPE_AND_THRESHOLDS.keys()
         for mode in MODES
     ],

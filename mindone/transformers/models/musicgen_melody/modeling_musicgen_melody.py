@@ -22,7 +22,6 @@ from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any, Dict, List, Optional, Tuple, Union
 
 from transformers.generation import (
-    ClassifierFreeGuidanceLogitsProcessor,
     GenerationConfig,
     GenerationMode,
     LogitsProcessorList,
@@ -39,7 +38,7 @@ import mindspore.mint.nn as nn
 from mindspore.mint.nn import CrossEntropyLoss
 
 from ...activations import ACT2FN
-from ...generation import GenerationMixin
+from ...generation import GenerationMixin, ClassifierFreeGuidanceLogitsProcessor
 from ...modeling_attn_mask_utils import _prepare_4d_causal_attention_mask, _prepare_4d_causal_attention_mask_for_sdpa
 from ...modeling_outputs import BaseModelOutputWithPast
 from ...modeling_utils import MSPreTrainedModel
