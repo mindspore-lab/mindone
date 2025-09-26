@@ -105,6 +105,7 @@ MODEL_MAPPING_NAMES = OrderedDict(
         ("mamba", "MambaModel"),
         ("mamba2", "Mamba2Model"),
         ("megatron-bert", "MegatronBertModel"),
+        ("mgp-str", "MgpstrForSceneTextRecognition"),
         ("mimi", "MimiModel"),
         ("mistral", "MistralModel"),
         ("mixtral", "MixtralModel"),

@@ -84,6 +84,7 @@ from . import (
     mamba,
     mamba2,
     megatron_bert,
+    mgp_str,
     mimi,
     minicpm4,
     mistral,
