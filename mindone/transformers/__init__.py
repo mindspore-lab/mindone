@@ -719,6 +719,7 @@ from .models.roberta import (
     RobertaPreTrainedModel,
 )
 from .models.rt_detr import RTDetrForObjectDetection, RTDetrModel, RTDetrPreTrainedModel
+from .models.rt_detr_v2 import RTDetrV2ForObjectDetection, RTDetrV2Model, RTDetrV2PreTrainedModel
 from .models.rwkv import RwkvForCausalLM, RwkvModel, RwkvPreTrainedModel
 from .models.sam import SamImageProcessor, SamModel, SamPreTrainedModel, SamProcessor
 from .models.seamless_m4t_v2 import (
