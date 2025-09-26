@@ -62,8 +62,6 @@ from mindspore import Tensor, nn, ops
 from mindspore.communication import GlobalComm
 from mindspore.communication.management import get_group_size
 
-from mindone.trainers.zero import ZeroHelper, prepare_network
-
 from ..safetensors.mindspore import save_file
 from .data.data_collator import DataCollator, DataCollatorWithPadding, default_data_collator
 from .mindspore_adapter import RandomSampler, Sampler, TrainOneStepWrapper, auto_mixed_precision
@@ -772,6 +770,8 @@ class Trainer:
             model_ = ReturnLoss(model)
 
         if self.use_zero3:
+            from mindone.trainers.zero import ZeroHelper, prepare_network
+
             model_ = prepare_network(model_, 3, optimizer_parallel_group=GlobalComm.WORLD_COMM_GROUP)
             zero_helper = ZeroHelper(self.optimizer, 3, optimizer_parallel_group=GlobalComm.WORLD_COMM_GROUP)
         else:

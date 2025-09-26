@@ -1,10 +1,11 @@
-from typing import Dict, Optional
+from typing import TYPE_CHECKING, Dict, Optional
 
 import mindspore as ms
 from mindspore import ParallelMode, Tensor, context, nn, ops
 from mindspore.ops import composite as C
 
-from mindone.trainers.zero import ZeroHelper
+if TYPE_CHECKING:
+    from mindone.trainers.zero import ZeroHelper
 
 try:
     from .adamw_zero import AdamWeightDecayZeRO1, AdamWeightDecayZeRO2
